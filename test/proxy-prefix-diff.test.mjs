@@ -11,6 +11,8 @@ import ext, {
   computeDiff,
   computeSessionKey,
   truncatePrefixMessages,
+  truncateTailMessages,
+  buildMarkerSnapshot,
   diffHasChanges,
 } from "../proxy/extensions/prefix-diff.mjs";
 
@@ -121,6 +123,117 @@ test("truncatePrefixMessages slices to first 5 messages", () => {
   assert.equal(out[4].content[0].text, "msg 4");
 });
 
+// --- Tail window tests ---
+
+test("truncateTailMessages slices to last 3 messages", () => {
+  const messages = Array.from({ length: 10 }, (_, i) => ({
+    role: i % 2 === 0 ? "user" : "assistant",
+    content: [{ type: "text", text: `msg ${i}` }],
+  }));
+  const out = truncateTailMessages(messages);
+  assert.equal(out.length, 3);
+  assert.equal(out[0].content[0].text, "msg 7");
+  assert.equal(out[2].content[0].text, "msg 9");
+});
+
+test("truncateTailMessages applies the same truncation rules as the head window", () => {
+  const longText = "y".repeat(600);
+  const messages = [
+    { role: "user", content: [{ type: "text", text: "short" }] },
+    {
+      role: "assistant",
+      content: [
+        { type: "text", text: longText, cache_control: { type: "ephemeral" } },
+      ],
+    },
+  ];
+  const out = truncateTailMessages(messages);
+  assert.equal(out[1].content[0].cache_control, undefined);
+  assert.ok(out[1].content[0].text.endsWith("...[600 chars]"));
+});
+
+test("truncateTailMessages handles fewer than 3 messages", () => {
+  const messages = [{ role: "user", content: [{ type: "text", text: "only" }] }];
+  const out = truncateTailMessages(messages);
+  assert.equal(out.length, 1);
+});
+
+// --- Marker window tests ---
+
+test("buildMarkerSnapshot returns empty array when no messages carry cache_control", () => {
+  const messages = [
+    { role: "user", content: [{ type: "text", text: "hello" }] },
+    { role: "assistant", content: [{ type: "text", text: "hi" }] },
+  ];
+  assert.deepEqual(buildMarkerSnapshot(messages), []);
+});
+
+test("buildMarkerSnapshot picks up messages carrying a cache_control block, in order", () => {
+  const messages = [
+    { role: "user", content: [{ type: "text", text: "no marker" }] },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "marked one", cache_control: { type: "ephemeral" } },
+      ],
+    },
+    { role: "assistant", content: [{ type: "text", text: "no marker either" }] },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "marked two", cache_control: { type: "ephemeral" } },
+      ],
+    },
+  ];
+  const markers = buildMarkerSnapshot(messages);
+  assert.equal(markers.length, 2);
+  assert.equal(markers[0].index, 1);
+  assert.equal(markers[1].index, 3);
+  assert.equal(typeof markers[0].hash, "string");
+  assert.ok(markers[0].textPreview.includes("marked one"));
+});
+
+test("buildMarkerSnapshot caps at 8 stored markers even with more in the array", () => {
+  const messages = Array.from({ length: 12 }, (_, i) => ({
+    role: "user",
+    content: [
+      { type: "text", text: `m${i}`, cache_control: { type: "ephemeral" } },
+    ],
+  }));
+  const markers = buildMarkerSnapshot(messages);
+  assert.equal(markers.length, 8);
+  assert.equal(markers[0].index, 0);
+  assert.equal(markers[7].index, 7);
+});
+
+test("buildMarkerSnapshot hash changes when marked message content changes", () => {
+  const markedMsg = (text) => ({
+    role: "user",
+    content: [{ type: "text", text, cache_control: { type: "ephemeral" } }],
+  });
+  const a = buildMarkerSnapshot([markedMsg("v1")]);
+  const b = buildMarkerSnapshot([markedMsg("v2")]);
+  assert.notEqual(a[0].hash, b[0].hash);
+});
+
+test("buildMarkerSnapshot hash strips cache_control before hashing (marker presence alone isn't a diff)", () => {
+  const a = buildMarkerSnapshot([
+    {
+      role: "user",
+      content: [{ type: "text", text: "same", cache_control: { type: "ephemeral" } }],
+    },
+  ]);
+  const b = buildMarkerSnapshot([
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "same", cache_control: { type: "ephemeral", ttl: "1h" } },
+      ],
+    },
+  ]);
+  assert.equal(a[0].hash, b[0].hash);
+});
+
 test("buildSnapshot returns null when payload has no system", () => {
   assert.equal(buildSnapshot({ messages: [] }), null);
   assert.equal(buildSnapshot({ system: null }), null);
@@ -134,6 +247,19 @@ test("buildSnapshot includes systemHash, toolsHash, messageCount, prefixMessages
   assert.equal(snap.toolsHash.length, 16);
   assert.equal(snap.systemHash.length, 16);
   assert.equal(snap.prefixMessages.length, 2);
+});
+
+test("buildSnapshot includes tailMessages and markerMessages windows", () => {
+  const messages = Array.from({ length: 10 }, (_, i) => ({
+    role: "user",
+    content: [{ type: "text", text: `msg ${i}` }],
+  }));
+  messages[6].content[0].cache_control = { type: "ephemeral" };
+  const snap = buildSnapshot(makePayload({ messages }));
+  assert.equal(snap.tailMessages.length, 3);
+  assert.equal(snap.tailMessages[2].content[0].text, "msg 9");
+  assert.equal(snap.markerMessages.length, 1);
+  assert.equal(snap.markerMessages[0].index, 6);
 });
 
 test("computeDiff: identical snapshots → no differences", () => {
@@ -169,6 +295,63 @@ test("computeDiff: differing prefixMessages produce indexed diff entries", () =>
   const diff = computeDiff(a, b);
   assert.equal(diff.prefixDiffs.length, 1);
   assert.equal(diff.prefixDiffs[0].index, 0);
+});
+
+test("computeDiff: tail window catches a change outside the head window's first 5 messages", () => {
+  // The blind-spot regression: a long session where the change lands past
+  // index 5 must NOT report 0 differences just because the head window
+  // (first 5 messages) is unaffected.
+  const longSession = (tailText) =>
+    makePayload({
+      messages: [
+        ...Array.from({ length: 7 }, (_, i) => ({
+          role: "user",
+          content: [{ type: "text", text: `head-stable ${i}` }],
+        })),
+        { role: "user", content: [{ type: "text", text: tailText }] },
+      ],
+    });
+  const a = buildSnapshot(longSession("original tail"));
+  const b = buildSnapshot(longSession("BUSTED tail"));
+  const diff = computeDiff(a, b);
+  assert.equal(diff.prefixDiffs.length, 0, "head window is unaffected by design");
+  assert.ok(diff.tailDiffs.length > 0, "tail window must catch the change");
+  assert.equal(diffHasChanges(diff), true);
+});
+
+test("computeDiff: marker window catches a change at a cache_control boundary outside head/tail", () => {
+  const messages = (markerText) => [
+    ...Array.from({ length: 5 }, (_, i) => ({
+      role: "user",
+      content: [{ type: "text", text: `head ${i}` }],
+    })),
+    {
+      role: "user",
+      content: [
+        { type: "text", text: markerText, cache_control: { type: "ephemeral" } },
+      ],
+    },
+    ...Array.from({ length: 20 }, (_, i) => ({
+      role: "user",
+      content: [{ type: "text", text: `filler ${i}` }],
+    })),
+  ];
+  const a = buildSnapshot(makePayload({ messages: messages("marker v1") }));
+  const b = buildSnapshot(makePayload({ messages: messages("marker v2") }));
+  const diff = computeDiff(a, b);
+  assert.equal(diff.prefixDiffs.length, 0, "head window doesn't reach the marker");
+  assert.equal(diff.tailDiffs.length, 0, "tail window doesn't reach the marker either");
+  assert.equal(diff.markerDiffs.length, 1);
+  assert.equal(diff.markerDiffs[0].index, 5);
+  assert.equal(diffHasChanges(diff), true);
+});
+
+test("computeDiff: identical marker/tail windows produce no marker/tail diffs", () => {
+  const snap = buildSnapshot(makePayload());
+  const diff = computeDiff(snap, snap);
+  assert.equal(diff.tailDiffs.length, 0);
+  assert.equal(diff.markerDiffs.length, 0);
+  assert.equal(diff.markerCount, 0);
 });
 
 test("computeDiff: messageCount change is reflected", () => {
