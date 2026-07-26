@@ -36,8 +36,13 @@ append-only precisely so a post-mortem needs no live intervention.
     npm test                        # full suite; prefix-diff tests must pass
     systemctl --user restart cache-fix-proxy && curl -s 127.0.0.1:9801/health
     git push fork local/marker-anchored-diff --force-with-lease
-    # then: update CACHE_FIX_BRANCH_PIN (+ CACHE_FIX_PIN if upstream
-    # version bumped) in dotfiles/bootstrap/doctor.py, commit dotfiles.
+    # then, ONLY if proxy/ actually changed:
+    #   git rev-parse --short HEAD:proxy
+    # and put that in CACHE_FIX_PROXY_TREE_PIN in
+    # dotfiles/bootstrap/doctor.py (+ CACHE_FIX_PIN if upstream version
+    # bumped), commit dotfiles. The pin is the TREE of proxy/, not the
+    # commit HEAD — doc- and test-only commits leave it unchanged and
+    # need no re-pin.
 
 Upstream-PR plan: rename branch to feat/marker-anchored-diff, update
 docs/directives/proxy-prefix-diff.md (still describes head-only and the
