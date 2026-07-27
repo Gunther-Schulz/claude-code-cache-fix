@@ -1,5 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import ext, {
   hashMessageContent,
@@ -9,6 +13,13 @@ import ext, {
   resolveLadderSessionKey,
   resetLadderState,
 } from "../proxy/extensions/mid-history-breakpoint-ladder.mjs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
+
+async function newTmp() {
+  return mkdtemp(join(tmpdir(), "ladder-test-"));
+}
 
 // --- Fixture helpers (mirrors proxy-messages-cache-breakpoint.test.mjs idiom) ---
 
@@ -81,10 +92,37 @@ async function silenced(fn) {
   }
 }
 
-async function runExt(body, { headers } = {}) {
-  const ctx = { body, meta: {}, headers: headers || {} };
-  await ext.onRequest(ctx);
-  return ctx;
+// `dir` scopes CLAUDE_CONFIG_DIR for the duration of the call so
+// onRequest's rung-persistence read/write lands in an isolated tmp
+// directory instead of the real ~/.claude — every test that calls
+// onRequest must pass one (see newTmp()).
+async function runExt(body, { headers, dir } = {}) {
+  const savedHome = process.env.CLAUDE_CONFIG_DIR;
+  if (dir) process.env.CLAUDE_CONFIG_DIR = dir;
+  try {
+    const ctx = { body, meta: {}, headers: headers || {} };
+    await ext.onRequest(ctx);
+    return ctx;
+  } finally {
+    if (dir) {
+      if (savedHome === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+      else process.env.CLAUDE_CONFIG_DIR = savedHome;
+    }
+  }
+}
+
+// Fresh dynamic import with a cache-busting query — simulates "process
+// restart" for module-scope state, same idiom as
+// proxy-restart-transparent.test.mjs / proxy-prefix-diff.test.mjs's
+// hot-reload test. Not needed for correctness here (this extension no
+// longer holds in-memory state — disk IS the state) but used by the
+// restart-transparency test below to demonstrate that explicitly, the same
+// way insertion-normalization's equivalent test does.
+let _reloadCounter = 0;
+async function freshImport() {
+  _reloadCounter += 1;
+  const url = pathToFileURL(join(EXT_DIR, "mid-history-breakpoint-ladder.mjs")).href + "?restart-probe=" + _reloadCounter;
+  return import(url);
 }
 
 // --- 1. Placement math: 50% depth, user-role only ---
@@ -121,7 +159,8 @@ test("placement at 50% on user-role only: rung lands on a user message, never as
 // --- 2. Sticky under pure append ---
 
 test("sticky under pure append: rung stays on the identical message index+hash", () => {
-  resetLadderState();
+  // Pure function test — computeLadderPlacement takes prior state as an
+  // explicit argument, no module/disk state involved, so no reset needed.
   const messages1 = buildConversation(100, { seed: "sticky" });
   const first = computeLadderPlacement(messages1, null, 1, 40);
   assert.equal(first[0].status, "placed");
@@ -168,113 +207,129 @@ test("advance: below-threshold growth stays sticky (does not advance early)", ()
 // --- 4. Budget no-op at 4 markers ---
 
 test("budget no-op at 4 markers: extension no-ops and logs, body unchanged", async () => {
-  resetLadderState();
-  const messages = [
-    userMsg("m0", { cache_control: { type: "ephemeral" } }), // marker 1
-    assistantMsg("a1"),
-    userMsg("m2", { cache_control: { type: "ephemeral" } }), // marker 2
-    assistantMsg("a3"),
-    userMsg("m4", { cache_control: { type: "ephemeral" } }), // marker 3
-    assistantMsg("a5"),
-    userMsg("m6", { cache_control: { type: "ephemeral" } }), // marker 4 — at budget
-  ];
-  const body = makeBody(messages);
-  const before = JSON.stringify(body);
-
-  const captured = [];
-  const origWrite = process.stderr.write.bind(process.stderr);
-  process.stderr.write = (chunk) => {
-    captured.push(typeof chunk === "string" ? chunk : chunk.toString());
-    return true;
-  };
-  let ctx;
+  const dir = await newTmp();
   try {
-    await withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
-      ctx = await runExt(body);
-    });
-  } finally {
-    process.stderr.write = origWrite;
-  }
+    const messages = [
+      userMsg("m0", { cache_control: { type: "ephemeral" } }), // marker 1
+      assistantMsg("a1"),
+      userMsg("m2", { cache_control: { type: "ephemeral" } }), // marker 2
+      assistantMsg("a3"),
+      userMsg("m4", { cache_control: { type: "ephemeral" } }), // marker 3
+      assistantMsg("a5"),
+      userMsg("m6", { cache_control: { type: "ephemeral" } }), // marker 4 — at budget
+    ];
+    const body = makeBody(messages);
+    const before = JSON.stringify(body);
 
-  assert.equal(JSON.stringify(body), before, "body must not mutate at marker budget");
-  assert.equal(ctx.meta.ladderStats.skipped, true);
-  assert.equal(ctx.meta.ladderStats.reason, "budget");
-  assert.ok(
-    captured.some((l) => l.includes("ladder=skipped") || l.includes("skipped reason=budget")),
-    `expected a budget-skip log line, got: ${JSON.stringify(captured)}`,
-  );
+    const captured = [];
+    const origWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = (chunk) => {
+      captured.push(typeof chunk === "string" ? chunk : chunk.toString());
+      return true;
+    };
+    let ctx;
+    try {
+      await withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
+        ctx = await runExt(body, { dir });
+      });
+    } finally {
+      process.stderr.write = origWrite;
+    }
+
+    assert.equal(JSON.stringify(body), before, "body must not mutate at marker budget");
+    assert.equal(ctx.meta.ladderStats.skipped, true);
+    assert.equal(ctx.meta.ladderStats.reason, "budget");
+    assert.ok(
+      captured.some((l) => l.includes("ladder=skipped") || l.includes("skipped reason=budget")),
+      `expected a budget-skip log line, got: ${JSON.stringify(captured)}`,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 // --- 5. Opt-in gate off ⇒ passthrough untouched ---
 
 test("opt-in gate off: CACHE_FIX_LADDER unset -> extension is a no-op (no mutation, no telemetry)", async () => {
-  resetLadderState();
-  const messages = buildConversation(100, { seed: "gate-off" });
-  // Give it 2 existing markers so budget would otherwise allow placement.
-  messages[0].content[0].cache_control = { type: "ephemeral" };
-  const lastUser = messages[messages.length - 2];
-  lastUser.content[lastUser.content.length - 1] = {
-    ...lastUser.content[lastUser.content.length - 1],
-    cache_control: { type: "ephemeral" },
-  };
-  const body = makeBody(messages);
-  const before = JSON.stringify(body);
+  const dir = await newTmp();
+  try {
+    const messages = buildConversation(100, { seed: "gate-off" });
+    // Give it 2 existing markers so budget would otherwise allow placement.
+    messages[0].content[0].cache_control = { type: "ephemeral" };
+    const lastUser = messages[messages.length - 2];
+    lastUser.content[lastUser.content.length - 1] = {
+      ...lastUser.content[lastUser.content.length - 1],
+      cache_control: { type: "ephemeral" },
+    };
+    const body = makeBody(messages);
+    const before = JSON.stringify(body);
 
-  let ctx;
-  await withEnvAsync({ CACHE_FIX_LADDER: undefined }, async () => {
-    ctx = await runExt(body);
-  });
+    let ctx;
+    await withEnvAsync({ CACHE_FIX_LADDER: undefined }, async () => {
+      ctx = await runExt(body, { dir });
+    });
 
-  assert.equal(JSON.stringify(body), before, "body must be untouched when gate is off");
-  assert.equal(ctx.meta.ladderStats, undefined, "no telemetry when gate is off");
+    assert.equal(JSON.stringify(body), before, "body must be untouched when gate is off");
+    assert.equal(ctx.meta.ladderStats, undefined, "no telemetry when gate is off");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 // --- 6. Assistant-message never touched ---
 
 test("assistant-message never touched: rung placement never adds cache_control to an assistant message", async () => {
-  resetLadderState();
-  const messages = buildConversation(100, { seed: "no-assistant" });
-  // Seed one existing marker so budget allows placement without hitting the cap.
-  messages[0].content[0].cache_control = { type: "ephemeral" };
-  const body = makeBody(messages);
+  const dir = await newTmp();
+  try {
+    const messages = buildConversation(100, { seed: "no-assistant" });
+    // Seed one existing marker so budget allows placement without hitting the cap.
+    messages[0].content[0].cache_control = { type: "ephemeral" };
+    const body = makeBody(messages);
 
-  await silenced(() =>
-    withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
-      await runExt(body);
-    }),
-  );
+    await silenced(() =>
+      withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
+        await runExt(body, { dir });
+      }),
+    );
 
-  for (const msg of body.messages) {
-    if (msg.role !== "assistant") continue;
-    for (const block of msg.content) {
-      assert.equal(
-        block.cache_control,
-        undefined,
-        `assistant message unexpectedly marked: ${JSON.stringify(block)}`,
-      );
+    for (const msg of body.messages) {
+      if (msg.role !== "assistant") continue;
+      for (const block of msg.content) {
+        assert.equal(
+          block.cache_control,
+          undefined,
+          `assistant message unexpectedly marked: ${JSON.stringify(block)}`,
+        );
+      }
     }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 });
 
 test("end-to-end onRequest: places a marker on a user message at ~50% depth when gate is on", async () => {
-  resetLadderState();
-  const messages = buildConversation(100, { seed: "e2e" });
-  messages[0].content[0].cache_control = { type: "ephemeral" }; // 1 existing marker
-  const body = makeBody(messages);
+  const dir = await newTmp();
+  try {
+    const messages = buildConversation(100, { seed: "e2e" });
+    messages[0].content[0].cache_control = { type: "ephemeral" }; // 1 existing marker
+    const body = makeBody(messages);
 
-  let ctx;
-  await silenced(() =>
-    withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
-      ctx = await runExt(body);
-    }),
-  );
+    let ctx;
+    await silenced(() =>
+      withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
+        ctx = await runExt(body, { dir });
+      }),
+    );
 
-  assert.equal(ctx.meta.ladderStats.skipped, false);
-  assert.equal(ctx.meta.ladderStats.rungs.length, 1);
-  const rungIdx = ctx.meta.ladderStats.rungs[0].idx;
-  assert.equal(body.messages[rungIdx].role, "user");
-  const content = body.messages[rungIdx].content;
-  assert.deepEqual(content[content.length - 1].cache_control, { type: "ephemeral" });
+    assert.equal(ctx.meta.ladderStats.skipped, false);
+    assert.equal(ctx.meta.ladderStats.rungs.length, 1);
+    const rungIdx = ctx.meta.ladderStats.rungs[0].idx;
+    assert.equal(body.messages[rungIdx].role, "user");
+    const content = body.messages[rungIdx].content;
+    assert.deepEqual(content[content.length - 1].cache_control, { type: "ephemeral" });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 // --- Session key resolution ---
@@ -300,4 +355,167 @@ test("hashMessageContent: different text hashes differently", () => {
   const a = userMsg("text a");
   const b = userMsg("text b");
   assert.notEqual(hashMessageContent(a), hashMessageContent(b));
+});
+
+// =============================================================================
+// Restart transparency (FIX 1) — rung state persists to disk under
+// cache-fix-snapshots/ (same idiom as insertion-normalization.mjs) and
+// reloads on the first request after a "restart" (fresh module import +
+// same on-disk snapshot dir), instead of resetting to fresh placement.
+// =============================================================================
+
+test("byte-identical restart: sticky rung survives a restart between two requests of a growing conversation", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "restart-transparent-ladder" };
+  try {
+    await withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
+      // Turn 1 (both paths share this — establishes the rung on disk).
+      const modA = await freshImport();
+      const turn1 = buildConversation(100, { seed: "restart" });
+      const bodyA1 = makeBody(turn1);
+      const ctxA1 = await silenced(async () => {
+        const ctx = { body: bodyA1, meta: {}, headers };
+        process.env.CLAUDE_CONFIG_DIR = dir;
+        await modA.default.onRequest(ctx);
+        return ctx;
+      });
+      const rungIdx = ctxA1.meta.ladderStats.rungs[0].idx;
+      assert.equal(ctxA1.meta.ladderStats.rungs[0].status, "placed");
+
+      // NO-RESTART continuation: same module instance, tail grows by 10
+      // (below the default advance threshold of 40) — pure append.
+      const turn2NoRestart = turn1.concat(buildConversation(10, { seed: "restart-tail" }));
+      const bodyNoRestart = makeBody(turn2NoRestart);
+      const ctxNoRestart = await silenced(async () => {
+        const ctx = { body: bodyNoRestart, meta: {}, headers };
+        process.env.CLAUDE_CONFIG_DIR = dir;
+        await modA.default.onRequest(ctx);
+        return ctx;
+      });
+      assert.equal(ctxNoRestart.meta.ladderStats.rungs[0].status, "sticky");
+      assert.equal(ctxNoRestart.meta.ladderStats.rungs[0].idx, rungIdx);
+
+      // RESTARTED continuation: fresh module import (empty in-memory state,
+      // if any existed) — must reload the persisted rung file from disk
+      // before classifying turn 2, and land on the SAME sticky rung as the
+      // non-restarted path.
+      const modB = await freshImport();
+      const turn2Restarted = turn1.concat(buildConversation(10, { seed: "restart-tail" }));
+      const bodyRestarted = makeBody(turn2Restarted);
+      const ctxRestarted = await silenced(async () => {
+        const ctx = { body: bodyRestarted, meta: {}, headers };
+        process.env.CLAUDE_CONFIG_DIR = dir;
+        await modB.default.onRequest(ctx);
+        return ctx;
+      });
+
+      assert.equal(
+        ctxRestarted.meta.ladderStats.rungs[0].status,
+        "sticky",
+        "restart must reload the persisted rung and classify it sticky, not fresh-place",
+      );
+      assert.equal(
+        ctxRestarted.meta.ladderStats.rungs[0].idx,
+        rungIdx,
+        "restart must land on the SAME rung index as the non-restarted continuation",
+      );
+      assert.equal(
+        JSON.stringify(bodyRestarted.messages[rungIdx]),
+        JSON.stringify(bodyNoRestart.messages[rungIdx]),
+        "the marked message must be byte-identical across the restarted and non-restarted paths",
+      );
+    });
+  } finally {
+    delete process.env.CLAUDE_CONFIG_DIR;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Regression test for the empirical probe from the prior closing report
+// (see docs/audits/restart-state-audit.md and the closing-report gap #1):
+// a session growing 20->50 messages kept its rung sticky at index 10 with
+// no restart, but landed at a FRESH index 24 if a restart happened between
+// the two requests — busting the exact prefix cache the ladder exists to
+// protect. This asserts the fixed behavior: the restarted path now matches
+// the non-restarted one.
+test("regression (prior closing-report gap #1): 20->50 message growth stays sticky across a restart, does not reset to a fresh index", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "restart-probe-regression" };
+  try {
+    await withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
+      const modA = await freshImport();
+      const turn1 = buildConversation(20, { seed: "probe" });
+      const bodyA1 = makeBody(turn1);
+      const ctxA1 = await silenced(async () => {
+        const ctx = { body: bodyA1, meta: {}, headers };
+        process.env.CLAUDE_CONFIG_DIR = dir;
+        await modA.default.onRequest(ctx);
+        return ctx;
+      });
+      const rungIdx = ctxA1.meta.ladderStats.rungs[0].idx;
+      assert.equal(rungIdx, 10, "sanity: floor(20*0.5)=10, a user index");
+
+      // Restart, then grow to 50 messages (growth of 30, below the default
+      // advance threshold of 40 — must stay sticky, not advance or reset).
+      const modB = await freshImport();
+      const turn2 = turn1.concat(buildConversation(30, { seed: "probe-tail" }));
+      const bodyB = makeBody(turn2);
+      const ctxB = await silenced(async () => {
+        const ctx = { body: bodyB, meta: {}, headers };
+        process.env.CLAUDE_CONFIG_DIR = dir;
+        await modB.default.onRequest(ctx);
+        return ctx;
+      });
+
+      assert.equal(
+        ctxB.meta.ladderStats.rungs[0].status,
+        "sticky",
+        "must stay sticky at the original rung after a restart, not fresh-place at a new index",
+      );
+      assert.equal(
+        ctxB.meta.ladderStats.rungs[0].idx,
+        10,
+        "must NOT land on the fresh floor(50*0.5)=25 -> nearest-user-before=24 index the pre-fix bug produced",
+      );
+    });
+  } finally {
+    delete process.env.CLAUDE_CONFIG_DIR;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("resetLadderState(sessionKey): deletes only that session's persisted rung file", async () => {
+  const dir = await newTmp();
+  try {
+    await withEnvAsync({ CACHE_FIX_LADDER: "1" }, async () => {
+      const headersA = { "x-claude-code-session-id": "reset-a" };
+      const headersB = { "x-claude-code-session-id": "reset-b" };
+      const bodyA = makeBody(buildConversation(20, { seed: "reset-a" }));
+      const bodyB = makeBody(buildConversation(20, { seed: "reset-b" }));
+
+      await silenced(() => runExt(bodyA, { headers: headersA, dir }));
+      await silenced(() => runExt(bodyB, { headers: headersB, dir }));
+
+      const keyA = resolveLadderSessionKey(headersA, bodyA.messages);
+      // resetLadderState's dir arg is the SNAPSHOT dir (what getSnapshotDir()
+      // returns: claudeHome()/cache-fix-snapshots), not the bare
+      // CLAUDE_CONFIG_DIR root runExt sets — mirror that here.
+      await resetLadderState(keyA, join(dir, "cache-fix-snapshots"));
+
+      // Session A: reset -> fresh placement again (prior state gone).
+      const ctxA2 = await silenced(() => runExt(makeBody(buildConversation(20, { seed: "reset-a" })), { headers: headersA, dir }));
+      assert.equal(ctxA2.meta.ladderStats.rungs[0].status, "placed");
+
+      // Session B: untouched by A's reset -> still sticky.
+      const ctxB2 = await silenced(() =>
+        runExt(makeBody(buildConversation(20, { seed: "reset-b" }).concat(buildConversation(5, { seed: "reset-b-tail" }))), {
+          headers: headersB,
+          dir,
+        }),
+      );
+      assert.equal(ctxB2.meta.ladderStats.rungs[0].status, "sticky");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

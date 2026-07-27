@@ -13,15 +13,26 @@
 // before ttl-management (500), which upgrades any bare `{type:"ephemeral"}`
 // marker to the configured TTL, so this extension does not set ttl itself.
 //
+// Sticky-rung state is persisted to disk under cache-fix-snapshots/
+// (same idiom as insertion-normalization.mjs: atomic tmp+rename write,
+// fail-open reload) so a proxy restart between requests reloads the prior
+// placement instead of resetting to fresh — closing the gap the
+// restart-transparent audit surfaced (docs/audits/restart-state-audit.md):
+// this extension IS stateful, and prior to this fix the state never
+// survived a restart, busting the exact prefix cache the ladder exists to
+// protect.
+//
 // See docs/directives/proxy-mid-history-breakpoint-ladder.md for the full
 // design (failure modes, budget rationale, rollout notes).
 
-import { appendFile, mkdir } from "node:fs/promises";
+import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { countAllCacheControlMarkers } from "./messages-cache-breakpoint.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
+
+const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
 
 const MAX_MARKERS = 4;
 const DEFAULT_RUNGS = 1;
@@ -112,14 +123,15 @@ function placeMarker(messages, idx) {
 
 // --- Per-session sticky state ---
 //
-// Module-scope Map, same idiom as read-dedupe / session-health: keyed by a
-// storage key derived from the session-id header (fallback: a hash of the
-// first message's content, for requests without the header — direct API
-// calls, tests). State never touches disk; a proxy restart resets the
-// ladder to fresh placement, which is acceptable (worst case: one rung
-// re-placement, not a correctness issue).
-const sessionRungs = new Map(); // key -> [{ idx, hash }, ...]
-
+// Persisted to disk under cache-fix-snapshots/<sessionKey>-ladder-rungs.json
+// — same idiom as insertion-normalization's canonical-identity file: atomic
+// tmp+rename write, fail-open reload (an unreadable/corrupt/missing state
+// file is treated as "no prior rungs", i.e. fresh placement — never a
+// crash). Reloaded on the first request for a session after a proxy
+// restart, closing the gap the restart-transparent audit surfaced
+// (docs/audits/restart-state-audit.md): this extension IS stateful, and
+// before this change the state never survived a restart, busting the exact
+// prefix cache the ladder exists to protect.
 export function resolveLadderSessionKey(headers, messages) {
   const sid = headers ? resolveSessionId(headers) : null;
   if (sid) return `s-${sid}`;
@@ -128,11 +140,63 @@ export function resolveLadderSessionKey(headers, messages) {
   return `c-${createHash("sha256").update(text).digest("hex").slice(0, 16)}`;
 }
 
-// Exported for tests that need to assert cross-request behavior without
-// relying on module-scope leakage between test files.
-export function resetLadderState(key) {
-  if (key === undefined) sessionRungs.clear();
-  else sessionRungs.delete(key);
+function rungsPath(dir, sessionKey) {
+  return join(dir, `${sessionKey}-ladder-rungs.json`);
+}
+
+async function loadRungs(dir, sessionKey, fs) {
+  try {
+    const txt = await fs.readFile(rungsPath(dir, sessionKey), "utf-8");
+    const parsed = JSON.parse(txt);
+    if (Array.isArray(parsed?.rungs)) return parsed.rungs;
+    return null;
+  } catch (err) {
+    if (err && err.code !== "ENOENT") debug(`rung state read failed: ${err?.message ?? err}`);
+    return null;
+  }
+}
+
+async function saveRungs(dir, sessionKey, rungs, fs) {
+  await fs.mkdir(dir, { recursive: true });
+  const finalPath = rungsPath(dir, sessionKey);
+  const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+  await fs.writeFile(tmpPath, JSON.stringify({ rungs }, null, 2));
+  await fs.rename(tmpPath, finalPath);
+}
+
+// Test-only: drop persisted rung state so a test can assert fresh-placement
+// behavior without cross-test file collisions. No in-memory state exists to
+// clear — disk IS the state, so "reset" only ever means "delete the
+// file(s)". Called with a sessionKey, deletes just that session's file
+// (fail-open on ENOENT). Called with no args, deletes every
+// `*-ladder-rungs.json` file under the (optionally overridden) snapshot dir
+// — mirrors the old bare `resetLadderState()` "clear everything" call
+// shape tests already use.
+export async function resetLadderState(sessionKey, dir) {
+  const { readdir, unlink } = await import("node:fs/promises");
+  const targetDir = dir || getSnapshotDir();
+  if (sessionKey !== undefined) {
+    try {
+      await unlink(rungsPath(targetDir, sessionKey));
+    } catch (err) {
+      if (err && err.code !== "ENOENT") throw err;
+    }
+    return;
+  }
+  let files;
+  try {
+    files = await readdir(targetDir);
+  } catch (err) {
+    if (err && err.code === "ENOENT") return;
+    throw err;
+  }
+  await Promise.all(
+    files
+      .filter((f) => f.endsWith("-ladder-rungs.json"))
+      .map((f) => unlink(join(targetDir, f)).catch((err) => {
+        if (err && err.code !== "ENOENT") throw err;
+      })),
+  );
 }
 
 // --- Core placement decision (pure given messages + prior state) ---
@@ -278,7 +342,8 @@ export default {
       const configuredRungs = getRungCount();
       const rungCount = Math.min(configuredRungs, budgetSlots);
       const advanceThreshold = getAdvanceThreshold();
-      const prior = sessionRungs.get(sessionKey);
+      const dir = getSnapshotDir();
+      const prior = await loadRungs(dir, sessionKey, DEFAULT_FS);
 
       const placement = computeLadderPlacement(messages, prior, rungCount, advanceThreshold);
 
@@ -290,9 +355,11 @@ export default {
       }
 
       if (applied.length > 0) {
-        sessionRungs.set(
+        await saveRungs(
+          dir,
           sessionKey,
           applied.map((r) => ({ idx: r.idx, hash: r.hash, placedAtLength: r.placedAtLength })),
+          DEFAULT_FS,
         );
       }
 
