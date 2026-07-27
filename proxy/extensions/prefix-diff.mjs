@@ -454,16 +454,42 @@ function hasCacheControl(msg) {
   return msg.content.some((b) => b && typeof b === "object" && b.cache_control);
 }
 
-// Concatenate the text blocks of a message and take the first N chars.
-// Used only for the marker window's bounded preview (not the full
-// truncated-content detail the head/tail windows carry).
+// Bounded preview of a message's content, first N chars. Used for the
+// marker window and the per-index preview (not the full truncated-content
+// detail the head/tail windows carry).
+//
+// Covers every content shape, not just text blocks. The original
+// text-blocks-only version returned null for string-content messages and
+// ""/null for tool_use- or tool_result-only messages — which are exactly
+// the shapes mid-history mutations kept landing on (2026-07-27: several
+// `messages@N(system)`/`(user)` mutation events carried null previews on
+// both sides, and a 37k bust on 2026-07-28 was unattributable because
+// every divergent message was tool-shaped). A preview that can be empty
+// only when the content is empty keeps the ledger self-sufficient.
 function messageTextPreview(msg, maxChars = MARKER_PREVIEW_CHARS) {
-  if (!msg || !Array.isArray(msg.content)) return null;
-  const text = msg.content
-    .filter((b) => b && b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text)
-    .join(" ");
-  return text.slice(0, maxChars);
+  if (!msg) return null;
+  if (typeof msg.content === "string") return msg.content.slice(0, maxChars);
+  if (!Array.isArray(msg.content)) return null;
+  const parts = [];
+  for (const b of msg.content) {
+    if (!b || typeof b !== "object") continue;
+    if (b.type === "text" && typeof b.text === "string") {
+      parts.push(b.text);
+    } else if (b.type === "tool_use") {
+      parts.push(`[tool_use:${b.name ?? "?"} ${JSON.stringify(b.input ?? null)}]`);
+    } else if (b.type === "tool_result") {
+      const inner =
+        typeof b.content === "string" ? b.content : JSON.stringify(b.content ?? null);
+      parts.push(`[tool_result${b.is_error ? ":error" : ""} ${inner}]`);
+    } else if (b.type === "thinking") {
+      // Redacted on purpose: thinking bytes are the longest and least
+      // diagnostic; the block's presence is what matters for a diff.
+      parts.push("[thinking]");
+    } else {
+      parts.push(`[${b.type ?? "unknown"}]`);
+    }
+  }
+  return parts.join(" ").slice(0, maxChars);
 }
 
 // Hash a message's cache_control-stripped content. Used for the marker
@@ -1064,6 +1090,7 @@ export {
   buildSystemSnapshot,
   buildToolsSnapshot,
   buildMessageHashes,
+  messageTextPreview,
   diffSystemBlocks,
   diffTools,
   diffParams,

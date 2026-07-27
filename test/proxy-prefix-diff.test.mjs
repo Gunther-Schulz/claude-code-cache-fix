@@ -18,6 +18,7 @@ import ext, {
   buildSystemSnapshot,
   buildToolsSnapshot,
   buildMessageHashes,
+  messageTextPreview,
   diffSystemBlocks,
   diffTools,
   diffParams,
@@ -937,6 +938,79 @@ test("messageChain: a normal append is flagged appendOnly with no divergence", (
   const chain = computeDiff(a, b).messageChain;
   assert.equal(chain.firstDivergentIndex, -1);
   assert.equal(chain.appendOnly, true);
+});
+
+// Every content shape a request can carry must yield a non-null preview —
+// null previews are exactly what made the 2026-07-28 37k bust
+// unattributable (all divergent messages were tool-shaped).
+test("messageTextPreview: string content is previewed, not nulled", () => {
+  const p = messageTextPreview({ role: "user", content: "plain string body" });
+  assert.equal(p, "plain string body");
+});
+
+test("messageTextPreview: tool_use-only content names the tool and input", () => {
+  const p = messageTextPreview({
+    role: "assistant",
+    content: [{ type: "tool_use", id: "t1", name: "Bash", input: { command: "ls" } }],
+  });
+  assert.match(p, /tool_use:Bash/);
+  assert.match(p, /"command":"ls"/);
+});
+
+test("messageTextPreview: tool_result-only content carries the result body", () => {
+  const p = messageTextPreview({
+    role: "user",
+    content: [{ type: "tool_result", tool_use_id: "t1", content: "exit 0" }],
+  });
+  assert.match(p, /tool_result/);
+  assert.match(p, /exit 0/);
+});
+
+test("messageTextPreview: tool_result error flag and block-array content survive", () => {
+  const p = messageTextPreview({
+    role: "user",
+    content: [
+      {
+        type: "tool_result",
+        tool_use_id: "t1",
+        is_error: true,
+        content: [{ type: "text", text: "boom" }],
+      },
+    ],
+  });
+  assert.match(p, /tool_result:error/);
+  assert.match(p, /boom/);
+});
+
+test("messageTextPreview: thinking blocks are marked present but redacted", () => {
+  const p = messageTextPreview({
+    role: "assistant",
+    content: [
+      { type: "thinking", thinking: "secret reasoning bytes" },
+      { type: "text", text: "visible" },
+    ],
+  });
+  assert.match(p, /\[thinking\]/);
+  assert.match(p, /visible/);
+  assert.doesNotMatch(p, /secret reasoning/);
+});
+
+test("messageTextPreview: unknown block types name their type", () => {
+  const p = messageTextPreview({
+    role: "user",
+    content: [{ type: "image", source: { type: "base64", data: "AAAA" } }],
+  });
+  assert.match(p, /\[image\]/);
+});
+
+test("messageTextPreview: still bounded and null only for shapeless input", () => {
+  const p = messageTextPreview(
+    { role: "user", content: "y".repeat(5000) },
+    120,
+  );
+  assert.equal(p.length, 120);
+  assert.equal(messageTextPreview(null), null);
+  assert.equal(messageTextPreview({ role: "user" }), null);
 });
 
 test("buildMessageHashes: sees a change past 500 chars (no truncation blindness)", () => {
