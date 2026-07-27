@@ -77,7 +77,9 @@ async function replayCorpus(name, envFlags) {
           body: structuredClone(rec.body),
           headers: {
             "anthropic-beta": rec.headers?.["anthropic-beta"],
-            "session-id": rec.headers?.["session-id"],
+            // Under a key resolveSessionId actually reads (it ignores
+            // bare "session-id") — same reconstruction as tools/replay.mjs.
+            "x-session-id": rec.headers?.["session-id"] ?? rec.sid,
           },
           meta: { route: "messages" },
         };

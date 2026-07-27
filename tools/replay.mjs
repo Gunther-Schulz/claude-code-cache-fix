@@ -93,9 +93,14 @@ async function main() {
       continue;
     }
     const body = structuredClone(rec.body);
+    // The capture record stores the session id under "session-id", but
+    // resolveSessionId (cache-telemetry) reads x-session-id /
+    // x-claude-code-session-id — reconstruct under a key it actually
+    // reads, or every extension keys by content-hash fallback and the
+    // replay silently loses session identity.
     const headers = {
       "anthropic-beta": rec.headers?.["anthropic-beta"] ?? undefined,
-      "session-id": rec.headers?.["session-id"] ?? undefined,
+      "x-session-id": rec.headers?.["session-id"] ?? rec.sid ?? undefined,
     };
     const ctx = { body, headers, meta: { route: "messages" } };
 

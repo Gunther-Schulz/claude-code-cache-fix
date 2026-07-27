@@ -3,9 +3,17 @@
     "enabled": true,
     "order": 45
   },
+  "output-guard-stash": {
+    "enabled": true,
+    "order": 55
+  },
   "request-capture": {
     "enabled": true,
     "order": 60
+  },
+  "output-guard": {
+    "enabled": true,
+    "order": 690
   },
   "ttl-tier-detect": {
     "enabled": true,
