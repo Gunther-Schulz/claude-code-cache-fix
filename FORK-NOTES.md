@@ -37,16 +37,33 @@ Treat the mechanism as unverified.
 | 19:15 | — | no bust |
 | 19:32 | `tools[Bash:schema, SendUserFile:removed, Skill/TaskList/TaskOutput/ToolSearch/Write:reordered]` | **188k bust**, 38s later, `tools_changed` |
 
-So neither "a restart IS a bust" nor "restarts are safe now" holds. The
-discriminator is visible in the data: the bust happens exactly when the
-fresh process fails to reconstruct the tool array byte-identically.
-`deferred-tools-restore` exists to make that deterministic (it persists
-first-seen order to a disk snapshot) and evidently did not hold at
-19:32 — an open defect, not luck.
+So neither "a restart IS a bust" nor "restarts are safe now" holds.
+
+**The proxy is not the variable — CC is.** Tool-array changes are NOT
+restart-correlated: they occur throughout a session (17:11, 17:12,
+17:16, 17:22, 17:33 UTC on 2026-07-27) while restarts were at 17:01,
+17:15, 17:32 and 18:20. And no enabled extension can vary the array
+across a restart: `sort-stabilization` sorts `body.tools` alphabetically
+(`sort-stabilization.mjs:60-62`) — deterministic and stateless, so a
+fresh process produces byte-identical output;
+`deferred-tool-rewrite` (the only extension holding tool-order state) is
+disabled in the unit; and `deferred-tools-restore` never touches
+`body.tools` at all — it rewrites a system-reminder TEXT block
+(`findDeferredToolsBlockInBody`, messages only, zero `body.tools`
+references).
+
+What actually varies the array is CC's own tool set: `ToolSearch`
+loading deferred tools, MCP servers connecting and disconnecting,
+`SendMessage` appearing when a teammate agent exists. The 19:32 bust
+landed 38s after a restart because a session was resuming right then —
+MCP reconnect — not because the restart reconstructed anything
+differently. Correlation misread as mechanism; the proxy-side
+"open defect" recorded here earlier does not exist.
 
 Restarts stay session-boundary-only. Before attributing any bust to
 one, check the prefix-diff for `tools=match`: if the tools matched, the
-restart was not the cause.
+restart was not the cause — and if they did not, check whether CC's tool
+set changed for its own reasons before blaming the restart.
 
 (The restart-transparency work merged 2026-07-27 — persisted
 serialization state in insertion-normalization and, since `7ed1886`,

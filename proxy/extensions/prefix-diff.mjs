@@ -124,6 +124,12 @@ const SYSTEM_TEXT_CAP = 20000;
 const DIVERGENCE_WINDOW = 120;
 const MARKER_CAP = 8;
 const MARKER_PREVIEW_CHARS = 200;
+// Per-message preview carried on every messageHashes entry. Deliberately
+// shorter than the marker preview: this one is paid on EVERY message of
+// every snapshot, so it trades detail for a bounded per-request cost.
+// Enough to recognise which message an index refers to and see whether its
+// opening bytes moved; not a substitute for the full body.
+const MESSAGE_PREVIEW_CHARS = 120;
 // Rotate the append-only ledger past this size so it cannot grow forever.
 const EVENTS_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -414,6 +420,15 @@ function buildMessageHashes(messages) {
     i,
     role: msg?.role ?? "unknown",
     h: sha(JSON.stringify(stripCacheControl(msg)), 12),
+    // Bounded preview on EVERY index, not just the head/tail windows.
+    // Rationale: the hash tells you an index changed, never how. A
+    // mid-history bust (2026-07-27, `messages@83(user)`, ~93k) was
+    // unattributable afterwards because index 83 falls outside head-5 and
+    // tail-3, and nothing else stored its content. A preview costs
+    // MESSAGE_PREVIEW_CHARS per message and makes the ledger
+    // self-sufficient for exactly the class that previously needed the
+    // live request — which by then no longer exists.
+    p: messageTextPreview(msg, MESSAGE_PREVIEW_CHARS),
   }));
 }
 
@@ -639,6 +654,20 @@ function diffMessageHashes(prevHashes = [], nowHashes = []) {
   };
 }
 
+// Previews of the first divergent message, prev side and now side. Returns
+// nulls when there is no divergence, when the index is out of range, or when
+// either snapshot predates the `p` field (older files simply have no preview
+// to give — degrade, never throw).
+function divergentPreviews(prevHashes, nowHashes) {
+  const chain = diffMessageHashes(prevHashes, nowHashes);
+  const i = chain?.firstDivergentIndex ?? -1;
+  if (i < 0) return { divergentPrev: null, divergentNow: null };
+  return {
+    divergentPrev: (Array.isArray(prevHashes) ? prevHashes[i]?.p : null) ?? null,
+    divergentNow: (Array.isArray(nowHashes) ? nowHashes[i]?.p : null) ?? null,
+  };
+}
+
 function computeDiff(prev, current) {
   const prevMsgs = Array.isArray(prev.prefixMessages) ? prev.prefixMessages : [];
   const nowMsgs = Array.isArray(current.prefixMessages) ? current.prefixMessages : [];
@@ -665,6 +694,10 @@ function computeDiff(prev, current) {
     toolDiffs: diffTools(prev.toolsDetail, current.toolsDetail),
     paramDiffs: diffParams(prev.params, current.params),
     messageChain: diffMessageHashes(prev.messageHashes, current.messageHashes),
+    // Previews of the first divergent message on both sides, so the ledger
+    // records HOW it changed, not only that it did. Snapshots predating the
+    // `p` field yield null here rather than throwing.
+    ...divergentPreviews(prev.messageHashes, current.messageHashes),
     // prev.betaHeader is undefined on a pre-2026-07-27 snapshot; diffBetaHeader's
     // `?? {tokens: []}` default degrades that to "no header" rather than throwing.
     betaHeaderDiff: diffBetaHeader(prev.betaHeader, current.betaHeader),
@@ -737,6 +770,15 @@ function buildEventRecord(diff, sessionKey, sessionId) {
           first: diff.messageChain.firstDivergentIndex,
           role: diff.messageChain.divergentRole,
           appendOnly: diff.messageChain.appendOnly,
+          // The divergent message's own content, bounded. Without this the
+          // ledger says WHICH index changed but never HOW: on 2026-07-27 a
+          // ~93k bust reported `messages@83(user)` and the mutation could not
+          // be identified afterwards from any stored artifact — head-5/tail-3
+          // are the only windows carrying content, and 83 is in neither.
+          // Investigating it required the live request, which no longer
+          // existed. Captured at diff time, when the index is already known.
+          prevContent: diff.divergentPrev ?? null,
+          nowContent: diff.divergentNow ?? null,
         }
       : null,
     params: (diff.paramDiffs ?? []).map((d) => ({

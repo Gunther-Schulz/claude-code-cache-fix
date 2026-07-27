@@ -1204,3 +1204,40 @@ test("default.onRequest: passes ctx.headers through to the key derivation", asyn
     "onRequest must pass ctx.headers to snapshotPrefix",
   );
 });
+
+// Blind spot 7 (2026-07-27): a mid-history mutation was reported by index and
+// nothing more. `messages@83(user)` on a ~93k bust could not be attributed
+// afterwards — index 83 falls outside the head-5 and tail-3 content windows,
+// so no stored artifact held what changed, and the live request was long gone.
+test("a mid-history mutation records HOW it changed, not just where", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "midhistory" };
+  const mk = (midText) => {
+    const msgs = [];
+    for (let i = 0; i < 12; i++) {
+      msgs.push({
+        role: i % 2 === 0 ? "user" : "assistant",
+        content: [{ type: "text", text: i === 7 ? midText : `turn ${i}` }],
+      });
+    }
+    return makePayload({ messages: msgs });
+  };
+  try {
+    await snapshotPrefix(mk("ORIGINAL mid-history content"), { dir, headers });
+    let r;
+    await captureStderr(async () => {
+      r = await snapshotPrefix(mk("MUTATED mid-history content"), { dir, headers });
+    });
+    assert.ok(r.wroteDiff);
+
+    const events = (await readFile(join(dir, `${r.key}-events.jsonl`), "utf-8"))
+      .trim().split("\n").map((l) => JSON.parse(l));
+    const rec = events.at(-1);
+    assert.equal(rec.chain.first, 7, "index 7 diverged");
+    // The point of the fix: both sides are recoverable from the ledger alone.
+    assert.match(rec.chain.prevContent, /ORIGINAL/);
+    assert.match(rec.chain.nowContent, /MUTATED/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
