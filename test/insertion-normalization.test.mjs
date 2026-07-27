@@ -462,3 +462,61 @@ test("fixture insertion-1405: normalization yields the arrival-order serializati
     "<system-reminder>\nThe task tools haven't been used recently.\n</system-reminder>",
   );
 });
+
+// =====================================================================
+// String-content identity (regression, 2026-07-27)
+// =====================================================================
+//
+// hashMessageContent returns null unless `content` is a block ARRAY, and CC
+// sends many messages whose content is a plain string. The fallback identity
+// used to be `noContent:${i}` — the array INDEX — so such a message's identity
+// WAS its position. The first insertion ahead of one shifted it, the canonical
+// lookup missed, and the classifier reset with "not-subsequence": the
+// extension broke on exactly the event it exists to absorb. Live measurement
+// that day: 83 index-keyed entries in one sub-key, 125 resets over 350
+// requests.
+
+test("string-content message keeps its identity when an insertion shifts its index", () => {
+  const sys = (t) => ({ role: "system", content: t });   // string, not blocks
+  const prior = [
+    userMsg("q1"),
+    { role: "assistant", content: [{ type: "text", text: "a1" }] },
+    sys("sys-note"),
+    userMsg("q2"),
+  ];
+  const priorCanon = computeIdentities(prior).map((e) => ({ h: e.h, r: e.r, o: e.o }));
+
+  // Insert a mid-conversation system message BEFORE the string-content one,
+  // shifting its index from 2 to 3.
+  const incoming = [
+    prior[0],
+    sys("MID-TURN NOTE"),
+    prior[1],
+    prior[2],
+    prior[3],
+    { role: "assistant", content: [{ type: "text", text: "a2" }] },
+  ];
+
+  const result = classifyInsertion(incoming, priorCanon);
+  assert.notEqual(result.action, "reset", `must not reset: ${result.resetReason ?? ""}`);
+  assert.equal(result.action, "normalized");
+});
+
+test("string-content identity is content-derived, not positional", () => {
+  const sys = (t) => ({ role: "system", content: t });
+  const atTwo = computeIdentities([userMsg("a"), userMsg("b"), sys("same text")]);
+  const atThree = computeIdentities([userMsg("a"), userMsg("b"), userMsg("c"), sys("same text")]);
+  assert.equal(
+    atTwo[2].h,
+    atThree[3].h,
+    "identical string content must hash identically regardless of position",
+  );
+  // Different content must still differ.
+  const other = computeIdentities([sys("different text")]);
+  assert.notEqual(atTwo[2].h, other[0].h);
+});
+
+test("a genuinely contentless message still falls back to the index", () => {
+  const ids = computeIdentities([userMsg("a"), { role: "system" }]);
+  assert.match(ids[1].h, /^noContent:1$/);
+});

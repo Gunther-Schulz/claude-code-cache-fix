@@ -206,7 +206,7 @@ export function computeIdentities(messages) {
   const out = [];
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
-    const h = hashMessageContent(msg) ?? `noContent:${i}`;
+    const h = hashMessageContent(msg) ?? hashNonBlockContent(msg, i);
     const r = msg?.role ?? "unknown";
     const key = `${h}|${r}`;
     const o = seen.get(key) ?? 0;
@@ -214,6 +214,31 @@ export function computeIdentities(messages) {
     out.push({ index: i, h, r, o });
   }
   return out;
+}
+
+// Identity for a message `hashMessageContent` cannot hash — it returns null
+// unless `content` is a block ARRAY, and CC sends plenty of messages whose
+// content is a plain string (system notes, mid-conversation system blocks).
+//
+// This fallback used to be `noContent:${i}` — the array INDEX, which made a
+// message's identity its position. That is self-defeating for an extension
+// whose entire job is absorbing mid-history insertions: the first insertion
+// ahead of such a message shifted its index, the canonical lookup missed, and
+// classifyInsertion reset with "not-subsequence". Measured 2026-07-27 in one
+// live session: 83 index-keyed entries in a single sub-key and 125 resets
+// across 350 requests — roughly one request in three, i.e. the extension was
+// rebuilding from scratch instead of normalizing.
+//
+// Hash the content instead, so identity travels with the message. Only a
+// genuinely contentless message (null/undefined) still falls back to the
+// index, where no better identity exists; `noContent:` is kept as that
+// marker's prefix so old canonical files degrade to one reset rather than
+// mismatching silently.
+function hashNonBlockContent(msg, i) {
+  const c = msg?.content;
+  if (c === null || c === undefined) return `noContent:${i}`;
+  const text = typeof c === "string" ? c : JSON.stringify(c);
+  return "s:" + createHash("sha256").update(text).digest("hex").slice(0, 16);
 }
 
 function identityKey(entry) {
