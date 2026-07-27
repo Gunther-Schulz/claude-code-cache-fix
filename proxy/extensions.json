@@ -3,6 +3,10 @@
     "enabled": true,
     "order": 45
   },
+  "request-capture": {
+    "enabled": true,
+    "order": 60
+  },
   "ttl-tier-detect": {
     "enabled": true,
     "order": 75
