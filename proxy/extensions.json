@@ -20,6 +20,7 @@
   "messages-cache-breakpoint": { "enabled": true, "order": 410 },
   "mid-history-breakpoint-ladder": { "enabled": true, "order": 420 },
   "ttl-management": { "enabled": true, "order": 500 },
+  "ttl-keepalive": { "enabled": true, "order": 505 },
   "cache-telemetry": { "enabled": true, "order": 600 },
   "overage-warning": { "enabled": true, "order": 610 },
   "upstream-error-log": { "enabled": true, "order": 670 },
