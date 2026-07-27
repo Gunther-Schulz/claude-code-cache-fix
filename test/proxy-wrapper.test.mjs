@@ -62,9 +62,19 @@ describe("proxy server lifecycle", () => {
 });
 
 function cleanEnv(overrides) {
-  const env = { ...process.env, ...overrides };
+  const env = { ...process.env };
   delete env.CACHE_FIX_PROXY_PORT;
   delete env.CACHE_FIX_PROXY_UPSTREAM;
+  // The NO_PROXY cases below each set exactly ONE case variant and assert on
+  // the merge result. This repo's own wrapper exports BOTH NO_PROXY and
+  // no_proxy when claude runs through the proxy, so running the suite from
+  // inside a wrapped session leaked an ambient value that won the
+  // `NO_PROXY || no_proxy` lookup and destroyed the premise ("lowercase-only").
+  // Drop the inherited pair BEFORE applying overrides, so the override is the
+  // only value present.
+  delete env.NO_PROXY;
+  delete env.no_proxy;
+  Object.assign(env, overrides);
   env.CACHE_FIX_PROXY_BIND = "127.0.0.1";
   return env;
 }
