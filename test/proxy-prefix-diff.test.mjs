@@ -10,7 +10,19 @@ import ext, {
   buildSnapshot,
   computeDiff,
   computeSessionKey,
+  resolveSessionKey,
   truncatePrefixMessages,
+  truncateTailMessages,
+  buildMarkerSnapshot,
+  buildSystemSnapshot,
+  buildToolsSnapshot,
+  buildMessageHashes,
+  diffSystemBlocks,
+  diffTools,
+  diffParams,
+  diffMessageHashes,
+  summariseCauses,
+  buildEventRecord,
   diffHasChanges,
 } from "../proxy/extensions/prefix-diff.mjs";
 
@@ -121,6 +133,117 @@ test("truncatePrefixMessages slices to first 5 messages", () => {
   assert.equal(out[4].content[0].text, "msg 4");
 });
 
+// --- Tail window tests ---
+
+test("truncateTailMessages slices to last 3 messages", () => {
+  const messages = Array.from({ length: 10 }, (_, i) => ({
+    role: i % 2 === 0 ? "user" : "assistant",
+    content: [{ type: "text", text: `msg ${i}` }],
+  }));
+  const out = truncateTailMessages(messages);
+  assert.equal(out.length, 3);
+  assert.equal(out[0].content[0].text, "msg 7");
+  assert.equal(out[2].content[0].text, "msg 9");
+});
+
+test("truncateTailMessages applies the same truncation rules as the head window", () => {
+  const longText = "y".repeat(600);
+  const messages = [
+    { role: "user", content: [{ type: "text", text: "short" }] },
+    {
+      role: "assistant",
+      content: [
+        { type: "text", text: longText, cache_control: { type: "ephemeral" } },
+      ],
+    },
+  ];
+  const out = truncateTailMessages(messages);
+  assert.equal(out[1].content[0].cache_control, undefined);
+  assert.ok(out[1].content[0].text.endsWith("...[600 chars]"));
+});
+
+test("truncateTailMessages handles fewer than 3 messages", () => {
+  const messages = [{ role: "user", content: [{ type: "text", text: "only" }] }];
+  const out = truncateTailMessages(messages);
+  assert.equal(out.length, 1);
+});
+
+// --- Marker window tests ---
+
+test("buildMarkerSnapshot returns empty array when no messages carry cache_control", () => {
+  const messages = [
+    { role: "user", content: [{ type: "text", text: "hello" }] },
+    { role: "assistant", content: [{ type: "text", text: "hi" }] },
+  ];
+  assert.deepEqual(buildMarkerSnapshot(messages), []);
+});
+
+test("buildMarkerSnapshot picks up messages carrying a cache_control block, in order", () => {
+  const messages = [
+    { role: "user", content: [{ type: "text", text: "no marker" }] },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "marked one", cache_control: { type: "ephemeral" } },
+      ],
+    },
+    { role: "assistant", content: [{ type: "text", text: "no marker either" }] },
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "marked two", cache_control: { type: "ephemeral" } },
+      ],
+    },
+  ];
+  const markers = buildMarkerSnapshot(messages);
+  assert.equal(markers.length, 2);
+  assert.equal(markers[0].index, 1);
+  assert.equal(markers[1].index, 3);
+  assert.equal(typeof markers[0].hash, "string");
+  assert.ok(markers[0].textPreview.includes("marked one"));
+});
+
+test("buildMarkerSnapshot caps at 8 stored markers even with more in the array", () => {
+  const messages = Array.from({ length: 12 }, (_, i) => ({
+    role: "user",
+    content: [
+      { type: "text", text: `m${i}`, cache_control: { type: "ephemeral" } },
+    ],
+  }));
+  const markers = buildMarkerSnapshot(messages);
+  assert.equal(markers.length, 8);
+  assert.equal(markers[0].index, 0);
+  assert.equal(markers[7].index, 7);
+});
+
+test("buildMarkerSnapshot hash changes when marked message content changes", () => {
+  const markedMsg = (text) => ({
+    role: "user",
+    content: [{ type: "text", text, cache_control: { type: "ephemeral" } }],
+  });
+  const a = buildMarkerSnapshot([markedMsg("v1")]);
+  const b = buildMarkerSnapshot([markedMsg("v2")]);
+  assert.notEqual(a[0].hash, b[0].hash);
+});
+
+test("buildMarkerSnapshot hash strips cache_control before hashing (marker presence alone isn't a diff)", () => {
+  const a = buildMarkerSnapshot([
+    {
+      role: "user",
+      content: [{ type: "text", text: "same", cache_control: { type: "ephemeral" } }],
+    },
+  ]);
+  const b = buildMarkerSnapshot([
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "same", cache_control: { type: "ephemeral", ttl: "1h" } },
+      ],
+    },
+  ]);
+  assert.equal(a[0].hash, b[0].hash);
+});
+
 test("buildSnapshot returns null when payload has no system", () => {
   assert.equal(buildSnapshot({ messages: [] }), null);
   assert.equal(buildSnapshot({ system: null }), null);
@@ -134,6 +257,19 @@ test("buildSnapshot includes systemHash, toolsHash, messageCount, prefixMessages
   assert.equal(snap.toolsHash.length, 16);
   assert.equal(snap.systemHash.length, 16);
   assert.equal(snap.prefixMessages.length, 2);
+});
+
+test("buildSnapshot includes tailMessages and markerMessages windows", () => {
+  const messages = Array.from({ length: 10 }, (_, i) => ({
+    role: "user",
+    content: [{ type: "text", text: `msg ${i}` }],
+  }));
+  messages[6].content[0].cache_control = { type: "ephemeral" };
+  const snap = buildSnapshot(makePayload({ messages }));
+  assert.equal(snap.tailMessages.length, 3);
+  assert.equal(snap.tailMessages[2].content[0].text, "msg 9");
+  assert.equal(snap.markerMessages.length, 1);
+  assert.equal(snap.markerMessages[0].index, 6);
 });
 
 test("computeDiff: identical snapshots → no differences", () => {
@@ -169,6 +305,63 @@ test("computeDiff: differing prefixMessages produce indexed diff entries", () =>
   const diff = computeDiff(a, b);
   assert.equal(diff.prefixDiffs.length, 1);
   assert.equal(diff.prefixDiffs[0].index, 0);
+});
+
+test("computeDiff: tail window catches a change outside the head window's first 5 messages", () => {
+  // The blind-spot regression: a long session where the change lands past
+  // index 5 must NOT report 0 differences just because the head window
+  // (first 5 messages) is unaffected.
+  const longSession = (tailText) =>
+    makePayload({
+      messages: [
+        ...Array.from({ length: 7 }, (_, i) => ({
+          role: "user",
+          content: [{ type: "text", text: `head-stable ${i}` }],
+        })),
+        { role: "user", content: [{ type: "text", text: tailText }] },
+      ],
+    });
+  const a = buildSnapshot(longSession("original tail"));
+  const b = buildSnapshot(longSession("BUSTED tail"));
+  const diff = computeDiff(a, b);
+  assert.equal(diff.prefixDiffs.length, 0, "head window is unaffected by design");
+  assert.ok(diff.tailDiffs.length > 0, "tail window must catch the change");
+  assert.equal(diffHasChanges(diff), true);
+});
+
+test("computeDiff: marker window catches a change at a cache_control boundary outside head/tail", () => {
+  const messages = (markerText) => [
+    ...Array.from({ length: 5 }, (_, i) => ({
+      role: "user",
+      content: [{ type: "text", text: `head ${i}` }],
+    })),
+    {
+      role: "user",
+      content: [
+        { type: "text", text: markerText, cache_control: { type: "ephemeral" } },
+      ],
+    },
+    ...Array.from({ length: 20 }, (_, i) => ({
+      role: "user",
+      content: [{ type: "text", text: `filler ${i}` }],
+    })),
+  ];
+  const a = buildSnapshot(makePayload({ messages: messages("marker v1") }));
+  const b = buildSnapshot(makePayload({ messages: messages("marker v2") }));
+  const diff = computeDiff(a, b);
+  assert.equal(diff.prefixDiffs.length, 0, "head window doesn't reach the marker");
+  assert.equal(diff.tailDiffs.length, 0, "tail window doesn't reach the marker either");
+  assert.equal(diff.markerDiffs.length, 1);
+  assert.equal(diff.markerDiffs[0].index, 5);
+  assert.equal(diffHasChanges(diff), true);
+});
+
+test("computeDiff: identical marker/tail windows produce no marker/tail diffs", () => {
+  const snap = buildSnapshot(makePayload());
+  const diff = computeDiff(snap, snap);
+  assert.equal(diff.tailDiffs.length, 0);
+  assert.equal(diff.markerDiffs.length, 0);
+  assert.equal(diff.markerCount, 0);
 });
 
 test("computeDiff: messageCount change is reflected", () => {
@@ -249,7 +442,13 @@ test("snapshotPrefix: differing second call writes <key>-diff.json with prefixDi
     assert.ok(r2.wroteSnapshot);
     assert.ok(r2.wroteDiff);
     const files = await listFiles(dir);
-    assert.deepEqual(files, [`${r1.key}-diff.json`, `${r1.key}-last.json`]);
+    // The events ledger is written alongside the detail file (see design
+    // note 2 — the detail file alone was self-erasing).
+    assert.deepEqual(files, [
+      `${r1.key}-diff.json`,
+      `${r1.key}-events.jsonl`,
+      `${r1.key}-last.json`,
+    ]);
     const diff = JSON.parse(await readFile(join(dir, `${r1.key}-diff.json`), "utf-8"));
     assert.ok(diff.prefixDiffs.length > 0);
     assert.equal(diff.prefixDiffs[0].index, 0);
@@ -470,4 +669,312 @@ test("default has correct extension contract metadata", () => {
   assert.equal(ext.order, 680);
   assert.equal(typeof ext.onRequest, "function");
   assert.equal(typeof ext.description, "string");
+});
+
+// --- Blind-spot regressions (2026-07-27) ---
+//
+// Each test below pins one way the diagnostic used to report nothing, or
+// something misleading, on a real cache bust. They are regressions in the
+// strict sense: the old implementation fails every one of them.
+
+// Blind spot 1: the storage key was derived from `system`, so a change
+// inside the first 2000 chars moved the key, missed the prior snapshot,
+// and produced NO diff and NO log line at all.
+test("resolveSessionKey: stays stable when the system prompt changes", () => {
+  const headers = { "x-claude-code-session-id": "abc-123" };
+  const k1 = resolveSessionKey(headers, [{ type: "text", text: "system v1" }]);
+  const k2 = resolveSessionKey(headers, [{ type: "text", text: "system v2 TOTALLY DIFFERENT" }]);
+  assert.equal(k1, k2, "session-keyed storage must not move when content changes");
+});
+
+test("resolveSessionKey: differs per session id", () => {
+  const sys = [{ type: "text", text: "same" }];
+  const a = resolveSessionKey({ "x-claude-code-session-id": "aaa" }, sys);
+  const b = resolveSessionKey({ "x-claude-code-session-id": "bbb" }, sys);
+  assert.notEqual(a, b);
+});
+
+test("resolveSessionKey: falls back to the content hash without headers", () => {
+  const sys = [{ type: "text", text: "no headers here" }];
+  assert.equal(resolveSessionKey(null, sys), computeSessionKey(sys));
+});
+
+test("snapshotPrefix: a system-prompt change still finds its prior snapshot (key stability)", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "resume-test" };
+  try {
+    await snapshotPrefix(makePayload({ system: [{ type: "text", text: "v1 prompt" }] }), {
+      dir,
+      headers,
+    });
+    let result;
+    await captureStderr(async () => {
+      result = await snapshotPrefix(
+        makePayload({ system: [{ type: "text", text: "v2 prompt" }] }),
+        { dir, headers },
+      );
+    });
+    // The whole point: the diff MUST fire. Under the old key derivation
+    // this wrote a fresh baseline under a new name and reported nothing.
+    assert.ok(result.wroteDiff, "system change must still produce a diff");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Blind spot 2: `<key>-diff.json` was overwritten on every diff, so a
+// bust's detail survived only until the next one.
+test("snapshotPrefix: appends every diff to an events ledger that is never overwritten", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "ledger-test" };
+  try {
+    await snapshotPrefix(makePayload(), { dir, headers });
+    await captureStderr(async () => {
+      for (const text of ["change one", "change two", "change three"]) {
+        await snapshotPrefix(
+          makePayload({ messages: [{ role: "user", content: [{ type: "text", text }] }] }),
+          { dir, headers },
+        );
+      }
+    });
+    const key = resolveSessionKey(headers, makePayload().system);
+    const lines = (await readFile(join(dir, `${key}-events.jsonl`), "utf-8"))
+      .trim()
+      .split("\n");
+    assert.equal(lines.length, 3, "each diff appends one record");
+    for (const line of lines) {
+      const rec = JSON.parse(line);
+      assert.ok(rec.ts && Array.isArray(rec.causes));
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Blind spot 3: toolsHash covered only names, so schema/description
+// changes reported `tools=match` for a genuinely different payload.
+test("buildToolsSnapshot: hashes full schemas, not just names", () => {
+  const a = buildToolsSnapshot([{ name: "Read", input_schema: { a: 1 } }]);
+  const b = buildToolsSnapshot([{ name: "Read", input_schema: { a: 2 } }]);
+  assert.notEqual(a.hash, b.hash, "same name, different schema must not hash equal");
+});
+
+test("diffTools: names the tool and classifies the change", () => {
+  const prev = buildToolsSnapshot([{ name: "Read", description: "old" }, { name: "Bash" }]);
+  const now = buildToolsSnapshot([{ name: "Read", description: "new" }, { name: "Edit" }]);
+  const diffs = diffTools(prev, now);
+  const byName = Object.fromEntries(diffs.map((d) => [d.name, d.change]));
+  assert.equal(byName.Read, "schema");
+  assert.equal(byName.Bash, "removed");
+  assert.equal(byName.Edit, "added");
+});
+
+test("diffTools: pure reordering is reported as reordered, not as churn", () => {
+  const prev = buildToolsSnapshot([{ name: "A" }, { name: "B" }]);
+  const now = buildToolsSnapshot([{ name: "B" }, { name: "A" }]);
+  const diffs = diffTools(prev, now);
+  assert.equal(diffs.length, 2);
+  assert.ok(diffs.every((d) => d.change === "reordered"));
+});
+
+// Blind spot 4: one opaque systemHash answered "did it change" and
+// nothing else — the exact wall a real investigation hit.
+test("diffSystemBlocks: locates the changed block, its label, and the differing offset", () => {
+  const mk = (envText) => [
+    { type: "text", text: "You are Claude Code, an agent." },
+    { type: "text", text: envText },
+  ];
+  const prev = buildSystemSnapshot(mk("<env>Working directory: /tmp\nToday: 2026-07-26</env>"));
+  const now = buildSystemSnapshot(mk("<env>Working directory: /tmp\nToday: 2026-07-27</env>"));
+  const diffs = diffSystemBlocks(prev, now);
+  assert.equal(diffs.length, 1, "only the env block changed");
+  assert.equal(diffs[0].index, 1);
+  assert.equal(diffs[0].label, "env");
+  assert.ok(diffs[0].charAt > 0, "reports where the divergence starts");
+  assert.ok(
+    diffs[0].prevWindow.includes("2026-07-26") && diffs[0].nowWindow.includes("2026-07-27"),
+    "shows the bytes from both sides",
+  );
+});
+
+test("buildSystemSnapshot: labels known Claude Code block shapes", () => {
+  const blocks = buildSystemSnapshot([
+    { type: "text", text: "You are Claude Code, an agent" },
+    { type: "text", text: "<env>Platform: linux</env>" },
+  ]);
+  assert.equal(blocks[0].label, "cc-identity");
+  assert.equal(blocks[1].label, "env");
+});
+
+test("buildSystemSnapshot: accepts a plain string system prompt", () => {
+  const blocks = buildSystemSnapshot("plain string prompt");
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].type, "string");
+});
+
+// Coverage gap: top-level params were not snapshotted at all, so a model
+// switch — a guaranteed cache-key change — read as "0 differences".
+test("diffParams: a model switch is detected", () => {
+  const a = buildSnapshot({ ...makePayload(), model: "claude-opus-5" });
+  const b = buildSnapshot({ ...makePayload(), model: "claude-sonnet-5" });
+  const diff = computeDiff(a, b);
+  assert.equal(diff.paramDiffs.length, 1);
+  assert.equal(diff.paramDiffs[0].key, "model");
+  assert.equal(diffHasChanges(diff), true, "param-only change must count as a change");
+});
+
+test("diffParams: temperature and thinking config are tracked", () => {
+  const a = buildSnapshot({ ...makePayload(), temperature: 1, thinking: { type: "enabled" } });
+  const b = buildSnapshot({ ...makePayload(), temperature: 0, thinking: { type: "disabled" } });
+  const keys = computeDiff(a, b).paramDiffs.map((d) => d.key).sort();
+  assert.deepEqual(keys, ["temperature", "thinking"]);
+});
+
+// Coverage gap: head(5) + markers(8) + tail(3) left a long session's
+// middle unobserved — a mutation there reported zero differences.
+test("messageChain: catches a mutation in the middle, outside every window", () => {
+  const build = (midText) =>
+    makePayload({
+      messages: Array.from({ length: 60 }, (_, i) => ({
+        role: "user",
+        content: [{ type: "text", text: i === 30 ? midText : `msg ${i}` }],
+      })),
+    });
+  const a = buildSnapshot(build("original middle"));
+  const b = buildSnapshot(build("MUTATED middle"));
+  const diff = computeDiff(a, b);
+  assert.equal(diff.prefixDiffs.length, 0, "head window cannot see index 30");
+  assert.equal(diff.tailDiffs.length, 0, "tail window cannot see index 30");
+  assert.equal(diff.markerDiffs.length, 0, "no cache_control markers present");
+  assert.equal(diff.messageChain.firstDivergentIndex, 30);
+  assert.equal(diffHasChanges(diff), true);
+});
+
+test("messageChain: a normal append is flagged appendOnly with no divergence", () => {
+  const base = makePayload();
+  const a = buildSnapshot(base);
+  const b = buildSnapshot(
+    makePayload({
+      messages: [...base.messages, { role: "user", content: [{ type: "text", text: "next" }] }],
+    }),
+  );
+  const chain = computeDiff(a, b).messageChain;
+  assert.equal(chain.firstDivergentIndex, -1);
+  assert.equal(chain.appendOnly, true);
+});
+
+test("buildMessageHashes: sees a change past 500 chars (no truncation blindness)", () => {
+  const mk = (tail) => [
+    { role: "user", content: [{ type: "text", text: "x".repeat(600) + tail }] },
+  ];
+  const a = buildMessageHashes(mk("A"));
+  const b = buildMessageHashes(mk("B"));
+  assert.notEqual(a[0].h, b[0].h, "hash chain must not truncate before hashing");
+});
+
+test("diffMessageHashes: truncation is distinguished from in-place mutation", () => {
+  const long = buildMessageHashes(
+    Array.from({ length: 5 }, (_, i) => ({ role: "user", content: [{ type: "text", text: `m${i}` }] })),
+  );
+  const short = long.slice(0, 3);
+  const chain = diffMessageHashes(long, short);
+  assert.equal(chain.firstDivergentIndex, -1, "shared prefix is intact");
+  assert.equal(chain.appendOnly, false, "shrinking is not an append");
+  assert.equal(chain.prevLength, 5);
+  assert.equal(chain.nowLength, 3);
+});
+
+// The summary line is the artifact most reads stop at, so the cause must
+// be legible there without opening any file.
+test("summariseCauses: names the specific block, tool, param, and index", () => {
+  const a = buildSnapshot({
+    ...makePayload({ system: [{ type: "text", text: "<env>Today: A</env>" }] }),
+    model: "claude-opus-5",
+  });
+  const b = buildSnapshot({
+    ...makePayload({
+      system: [{ type: "text", text: "<env>Today: B</env>" }],
+      tools: [{ name: "Read", input_schema: { changed: true } }, { name: "Bash" }],
+      messages: [{ role: "user", content: [{ type: "text", text: "different" }] }],
+    }),
+    model: "claude-sonnet-5",
+  });
+  const causes = summariseCauses(computeDiff(a, b)).join(" | ");
+  assert.ok(causes.includes("params:model"), `expected model in: ${causes}`);
+  assert.ok(causes.includes("system["), `expected system block in: ${causes}`);
+  assert.ok(causes.includes("tools["), `expected tools in: ${causes}`);
+  assert.ok(causes.includes("messages@0"), `expected message index in: ${causes}`);
+});
+
+test("buildEventRecord: bounded — carries evidence without full message bodies", () => {
+  const a = buildSnapshot(makePayload({ system: [{ type: "text", text: "<env>A</env>" }] }));
+  const b = buildSnapshot(
+    makePayload({
+      system: [{ type: "text", text: "<env>B</env>" }],
+      messages: [{ role: "user", content: [{ type: "text", text: "y".repeat(5000) }] }],
+    }),
+  );
+  const rec = buildEventRecord(computeDiff(a, b), "key123", "sid-1");
+  const serialized = JSON.stringify(rec);
+  assert.ok(serialized.length < 8000, `record should stay small, got ${serialized.length}`);
+  assert.ok(!serialized.includes("y".repeat(200)), "must not embed full message bodies");
+  assert.equal(rec.sid, "sid-1");
+  assert.ok(rec.system.length > 0, "but must carry the system-block evidence");
+});
+
+// Version-boundary safety: a snapshot written by the previous release has
+// none of the new fields. Diffing across that boundary must degrade, not
+// throw.
+test("computeDiff: tolerates an old-format snapshot with no new fields", () => {
+  const old = {
+    timestamp: "2026-07-26T00:00:00.000Z",
+    messageCount: 2,
+    toolsHash: "abc",
+    systemHash: "def",
+    prefixMessages: [],
+    tailMessages: [],
+    markerMessages: [],
+  };
+  const current = buildSnapshot(makePayload());
+  const diff = computeDiff(old, current);
+  assert.ok(Array.isArray(diff.systemBlockDiffs));
+  assert.ok(Array.isArray(diff.toolDiffs));
+  assert.ok(Array.isArray(diff.paramDiffs));
+  assert.equal(typeof diff.messageChain.firstDivergentIndex, "number");
+});
+
+test("snapshotPrefix: ledger append failure does not prevent the diff file", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "append-fail" };
+  try {
+    await snapshotPrefix(makePayload(), { dir, headers });
+    const failingFs = {
+      appendFile: async () => {
+        throw new Error("simulated append failure");
+      },
+    };
+    let result;
+    await captureStderr(async () => {
+      result = await snapshotPrefix(
+        makePayload({ messages: [{ role: "user", content: [{ type: "text", text: "X" }] }] }),
+        { dir, headers, fs: failingFs },
+      );
+    });
+    assert.ok(result.wroteDiff, "detail file must still be written");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("default.onRequest: passes ctx.headers through to the key derivation", async () => {
+  // Contract check: onRequest must forward headers, else every request
+  // silently falls back to the content-derived key this work removed.
+  const src = await readFile(
+    join(__dirname, "..", "proxy", "extensions", "prefix-diff.mjs"),
+    "utf-8",
+  );
+  assert.ok(
+    /snapshotPrefix\(ctx\.body,\s*\{\s*headers:\s*ctx\.headers\s*\}\)/.test(src),
+    "onRequest must pass ctx.headers to snapshotPrefix",
+  );
 });
