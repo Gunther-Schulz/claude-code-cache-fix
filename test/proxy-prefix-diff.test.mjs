@@ -11,6 +11,7 @@ import ext, {
   computeDiff,
   computeSessionKey,
   resolveSessionKey,
+  tenantId,
   truncatePrefixMessages,
   truncateTailMessages,
   buildMarkerSnapshot,
@@ -402,8 +403,9 @@ test("snapshotPrefix: writes <key>-last.json on first invocation", async () => {
     const expected = `${result.key}-last.json`;
     const files = await listFiles(dir);
     assert.deepEqual(files, [expected]);
+    // The file holds one baseline per tenant (co-tenants share a session id).
     const json = JSON.parse(await readFile(join(dir, expected), "utf-8"));
-    assert.equal(json.messageCount, 2);
+    assert.equal(json.tenants[json.lastTenant].messageCount, 2);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -514,7 +516,7 @@ test("snapshotPrefix: corrupt prior snapshot is treated as no-prior", async () =
     assert.equal(result.wroteDiff, false);
     // Last.json should now be valid JSON
     const json = JSON.parse(await readFile(lastPath, "utf-8"));
-    assert.equal(json.messageCount, 2);
+    assert.equal(json.tenants[json.lastTenant].messageCount, 2);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -555,7 +557,7 @@ test("snapshotPrefix: concurrent invocations both succeed; final snapshot matche
       toolsHash,
       systemHash,
     });
-    const actual = JSON.stringify(deterministic(json));
+    const actual = JSON.stringify(deterministic(json.tenants[json.lastTenant]));
     assert.ok(
       actual === JSON.stringify(deterministic(snapshotA)) ||
         actual === JSON.stringify(deterministic(snapshotB)),
@@ -699,6 +701,78 @@ test("resolveSessionKey: differs per session id", () => {
 test("resolveSessionKey: falls back to the content hash without headers", () => {
   const sys = [{ type: "text", text: "no headers here" }];
   assert.equal(resolveSessionKey(null, sys), computeSessionKey(sys));
+});
+
+// Blind spot 6 (2026-07-27): co-tenants on ONE session id. A main session,
+// its subagents, and Claude Code's background calls share the session-id
+// header. With a single baseline per session they diffed against each
+// other, so conversations advancing normally rendered as prefix churn —
+// misread that day as the cause of a 93k bust it had no part in.
+test("snapshotPrefix: co-tenants on one session id do not diff against each other", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "shared-session" };
+  const main = (text) =>
+    makePayload({
+      system: [{ type: "text", text: "You are an interactive agent" }],
+      messages: [{ role: "user", content: [{ type: "text", text }] }],
+    });
+  const sub = (text) =>
+    makePayload({
+      system: [{ type: "text", text: "You are a subagent with a task brief" }],
+      messages: [{ role: "user", content: [{ type: "text", text }] }],
+    });
+  try {
+    await snapshotPrefix(main("turn 1"), { dir, headers });
+    // The subagent's FIRST request has no baseline of its own. The diff
+    // against the main session's snapshot is kept (a system-prompt change
+    // in ONE conversation looks identical, and dropping it would hide a
+    // real bust) but must be MARKED, so it is never read as a cause.
+    let rSub, subErr;
+    subErr = await captureStderr(async () => {
+      rSub = await snapshotPrefix(sub("sub turn 1"), { dir, headers });
+    });
+    assert.ok(rSub.wroteDiff, "evidence is kept, not dropped");
+    assert.match(String(subErr), /CROSS-TENANT/, "and it is labelled on stderr");
+    const events = (await readFile(join(dir, `${rSub.key}-events.jsonl`), "utf-8"))
+      .trim()
+      .split("\n")
+      .map((l) => JSON.parse(l));
+    assert.equal(events.at(-1).crossTenant, true, "and in the ledger");
+
+    // Main advancing must still diff against MAIN's baseline, not the
+    // subagent's — and must still be reported.
+    let rMain;
+    await captureStderr(async () => {
+      rMain = await snapshotPrefix(main("turn 2"), { dir, headers });
+    });
+    assert.ok(rMain.wroteDiff, "the main session's own advance still diffs");
+
+    // One file per session id: separation is inside the file, so the
+    // path never moves (design note 1's blind spot stays closed).
+    assert.equal(rSub.key, rMain.key);
+    const json = JSON.parse(await readFile(join(dir, `${rMain.key}-last.json`), "utf-8"));
+    assert.equal(Object.keys(json.tenants).length, 2, "both tenants keep a baseline");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("tenantId: prefers the agent-id header over the system prompt", () => {
+  const sysA = [{ type: "text", text: "prompt A" }];
+  const sysB = [{ type: "text", text: "prompt B TOTALLY DIFFERENT" }];
+  const hdr = { "x-claude-code-agent-id": "agent-7" };
+  // Authoritative when present: an edited system prompt must not split a
+  // conversation's baseline in two.
+  assert.equal(tenantId(hdr, sysA), tenantId(hdr, sysB));
+  // Distinct agents stay distinct even on an identical prompt.
+  assert.notEqual(
+    tenantId({ "x-claude-code-agent-id": "agent-8" }, sysA),
+    tenantId(hdr, sysA),
+  );
+  // Absent (the common case — CC omits it for Workflow legs): fall back
+  // to the system prompt.
+  assert.notEqual(tenantId({}, sysA), tenantId({}, sysB));
+  assert.equal(tenantId({}, sysA), tenantId(null, sysA));
 });
 
 test("snapshotPrefix: a system-prompt change still finds its prior snapshot (key stability)", async () => {

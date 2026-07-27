@@ -178,11 +178,66 @@ function computeSessionKey(system) {
  * life of a conversation and independent of the payload, so a snapshot
  * stays findable no matter what changed inside it. Content hash is the
  * fallback when no header is present (direct API calls, tests).
+ *
+ * The FILE key stays the session id alone — deliberately. Co-tenant
+ * separation happens inside the file (see `tenantId`), never by moving the
+ * path: a path that moves with content is design note 1's blind spot, where
+ * a changed system prompt misses its baseline and the bust is never logged.
  */
 function resolveSessionKey(headers, system) {
   const sid = headers ? resolveSessionId(headers) : null;
   if (sid) return `s-${sha(sid, 12)}`;
   return computeSessionKey(system);
+}
+
+/**
+ * Which conversation a request belongs to, WITHIN one session id.
+ *
+ * The session-id header is not unique per conversation: a main session,
+ * every subagent it dispatches, and Claude Code's own background calls
+ * (title generation and friends) all carry the same id. With a single
+ * baseline per session, the diff compared each request against whichever
+ * co-tenant happened to go last, so conversations advancing normally
+ * rendered as violent prefix churn:
+ *
+ *     msgs: 80->82   (main advancing)
+ *     msgs: 82->40   model: opus-5 -> sonnet-5   <- subagent's turn
+ *     msgs: 40->43   (subagent advancing)
+ *     msgs: 43->2    (a small background call)
+ *
+ * Nothing is wrong in that trace, but it reads as thrashing — and it was
+ * read that way on 2026-07-27, as the cause of a 93k bust it had nothing
+ * to do with (cache_read climbed straight through; nothing was evicted).
+ * A diagnostic that manufactures false causes is worse than none, so each
+ * tenant gets its own baseline — stored side by side under the SAME file
+ * key, so nothing has to move. Same remedy insertion-normalization applies
+ * to its persisted canonical (commit e0bb7f2).
+ *
+ * Identity comes from `x-claude-code-agent-id` when CC sets it — that is
+ * authoritative and immune to prompt edits. It is often absent
+ * (workflow-agent-id-synthesis.mjs exists precisely because CC omits it
+ * for Workflow legs, CC#66761), so the fallback is the leading system
+ * block, which identifies the agent ("You are an interactive agent…" vs a
+ * subagent's brief) and is stable for a conversation's life.
+ *
+ * The fallback cannot be made exact: `workflow-agent-derivation.mjs:40-55`
+ * establishes that CC keeps agentId/agentType/run-id in IN-PROCESS state,
+ * never on the wire, and the Messages API has no slots for them. So a new
+ * tenant and a mid-conversation system-prompt change are genuinely
+ * indistinguishable from here; the read path below labels that case rather
+ * than guessing, and keeps the evidence either way.
+ */
+function tenantId(headers, system) {
+  const agentId = headers?.["x-claude-code-agent-id"];
+  if (agentId) return sha(String(agentId), 8);
+  let text = "none";
+  if (typeof system === "string") text = system;
+  else if (Array.isArray(system)) {
+    const first = system[0];
+    const t = typeof first === "string" ? first : first?.text;
+    if (typeof t === "string") text = t;
+  }
+  return sha(text.slice(0, 400), 8);
 }
 
 // Full-JSON tool hashing (design note 3) plus per-tool hashes so a diff
@@ -786,14 +841,39 @@ async function snapshotPrefix(payload, options = {}) {
 
   // Read prior snapshot if it exists. Missing file is normal; corrupt
   // file is treated as no prior (skip diff, proceed to overwrite).
+  //
+  // The file holds one baseline PER TENANT (see tenantId): co-tenants on a
+  // shared session id must not diff against each other. Legacy files hold a
+  // bare snapshot instead of a `tenants` map; those load as the baseline for
+  // whichever tenant reads first, so the upgrade costs no lost diff.
+  const tid = tenantId(headers, payload.system);
   let prev = null;
+  let stored = null;
   try {
     const txt = await fs.readFile(lastPath, "utf-8");
-    prev = JSON.parse(txt);
+    stored = JSON.parse(txt);
   } catch (err) {
     if (err && err.code !== "ENOENT") {
       debug(`prior snapshot unreadable at ${lastPath}: ${err?.message ?? err}`);
     }
+  }
+  // A request whose tenant we have never seen is ambiguous: either a
+  // co-tenant's first turn (diffing it against another conversation is
+  // exactly the false-cause bug) or the same conversation whose system
+  // prompt just changed (refusing to diff it would silently drop a real
+  // bust — design note 1's blind spot). Both readings stay available:
+  // diff against the last writer so nothing is lost, and mark the record
+  // `crossTenant` so a reader can tell a genuine cause from this artifact.
+  // Evidence is kept; only its interpretation is labelled.
+  let crossTenant = false;
+  if (stored && stored.tenants) {
+    prev = stored.tenants[tid] || null;
+    if (!prev && stored.lastTenant && stored.tenants[stored.lastTenant]) {
+      prev = stored.tenants[stored.lastTenant];
+      crossTenant = true;
+    }
+  } else if (stored) {
+    prev = stored;
   }
 
   // Compute and write diff if anything changed.
@@ -804,7 +884,9 @@ async function snapshotPrefix(payload, options = {}) {
       // Ledger first: the append is what must survive, and it must not be
       // lost to a failure in the (overwritable) detail file.
       try {
-        await appendEvent(eventsPath, buildEventRecord(diff, sessionKey, sessionId), fs);
+        const record = buildEventRecord(diff, sessionKey, sessionId);
+        if (crossTenant) record.crossTenant = true;
+        await appendEvent(eventsPath, record, fs);
       } catch (err) {
         debug(`event append failed at ${eventsPath}: ${err?.message ?? err}`);
       }
@@ -829,6 +911,12 @@ async function snapshotPrefix(payload, options = {}) {
             `messages=${diff.messageCountPrev}→${diff.messageCountNow}, ` +
             `marker_count=${diff.markerCount}` +
             (causes.length ? `, cause=${causes.join(" | ")}` : "") +
+            // Loud, because the unlabelled version of this line is what
+            // caused a 93k bust to be misattributed on 2026-07-27.
+            (crossTenant
+              ? `, CROSS-TENANT=baseline belongs to another conversation on this ` +
+                `session id (subagent/background call) — NOT evidence of a bust`
+              : "") +
             `\n`,
         );
       } catch (err) {
@@ -839,9 +927,24 @@ async function snapshotPrefix(payload, options = {}) {
 
   // Always write the new snapshot atomically so the next call has a
   // fresh baseline. On failure, prior snapshot is intact.
+  //
+  // Write back every tenant, replacing only this one: a co-tenant's
+  // baseline must survive our turn, or the next request from it diffs
+  // against nothing and the churn returns. `lastTenant` drives the
+  // fallback on the read side above. Cap the map so a long-lived session
+  // that spawns many subagents cannot grow the file without bound —
+  // evicting the oldest costs at most one stale baseline.
   let wroteSnapshot = false;
+  const tenants = { ...(stored?.tenants || {}), [tid]: current };
+  const MAX_TENANTS = 16;
+  const ids = Object.keys(tenants);
+  if (ids.length > MAX_TENANTS) {
+    for (const old of ids.slice(0, ids.length - MAX_TENANTS)) {
+      if (old !== tid) delete tenants[old];
+    }
+  }
   try {
-    await atomicWriteJson(lastPath, current, fs);
+    await atomicWriteJson(lastPath, { tenants, lastTenant: tid }, fs);
     wroteSnapshot = true;
   } catch (err) {
     debug(`snapshot write failed at ${lastPath}: ${err?.message ?? err}`);
@@ -861,6 +964,7 @@ export {
   computeDiff,
   computeSessionKey,
   resolveSessionKey,
+  tenantId,
   truncatePrefixMessages,
   truncateTailMessages,
   buildMarkerSnapshot,
