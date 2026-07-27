@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import ext, {
   computeIdentities,
   classifyInsertion,
+  classifyPinned,
+  isVolatileBlock,
   validateToolAdjacency,
   resolveInsertionSessionKey,
 } from "../proxy/extensions/insertion-normalization.mjs";
@@ -519,4 +521,251 @@ test("string-content identity is content-derived, not positional", () => {
 test("a genuinely contentless message still falls back to the index", () => {
   const ids = computeIdentities([userMsg("a"), { role: "system" }]);
   assert.match(ids[1].h, /^noContent:1$/);
+});
+
+// =====================================================================
+// Phase 3: volatile-block pinning + removal tolerance (classifyPinned)
+// Directive: docs/directives/proxy-volatile-block-pinning.md
+// =====================================================================
+
+const REMINDER =
+  "<system-reminder>\nPreToolUse:Agent hook additional context: Dispatch starting\n</system-reminder>";
+
+function userWithReminder(text, reminder = REMINDER) {
+  return {
+    role: "user",
+    content: [
+      { type: "text", text },
+      { type: "text", text: reminder },
+    ],
+  };
+}
+
+function pinCanon(messages) {
+  return classifyPinned(messages, null).canonicalEntries;
+}
+
+test("pin: the attributed flip — reminder vanishing deep in history is absorbed, first-seen bytes forwarded", () => {
+  // Request N: message 2 carries the hook reminder. Request N+1: same
+  // message WITHOUT it (the measured 135k/182k shape).
+  const withBlock = [userMsg("u0"), assistantMsg("a1"), userWithReminder("do it"), assistantMsg("a3")];
+  const canon = pinCanon(withBlock);
+  const flipped = [
+    userMsg("u0"),
+    assistantMsg("a1"),
+    { role: "user", content: [{ type: "text", text: "do it" }, { type: "text", text: "" }] },
+    assistantMsg("a3"),
+    userMsg("next"),
+  ];
+  const result = classifyPinned(flipped, canon);
+  assert.equal(result.action, "normalized", "flip absorbed, not reset");
+  assert.equal(result.pinned, 1);
+  assert.deepEqual(
+    result.messages[2].content,
+    [{ type: "text", text: "do it" }, { type: "text", text: REMINDER }],
+    "first-seen bytes forwarded — byte-stable history",
+  );
+});
+
+test("pin: flip back (reminder REAPPEARING) also forwards first-seen — both directions stable", () => {
+  const without = [userMsg("u0"), assistantMsg("a1"),
+    { role: "user", content: [{ type: "text", text: "do it" }] }, assistantMsg("a3")];
+  const canon = pinCanon(without);
+  const reappeared = [userMsg("u0"), assistantMsg("a1"), userWithReminder("do it"), assistantMsg("a3")];
+  const result = classifyPinned(reappeared, canon);
+  assert.equal(result.action, "normalized");
+  assert.equal(result.pinned, 1);
+  assert.deepEqual(
+    result.messages[2].content,
+    [{ type: "text", text: "do it" }],
+    "no stored first-seen form (first-seen had no volatile block) -> volatile blocks stripped",
+  );
+});
+
+test("pin: phase-2 baseline still resets on the same flip (the behavior being fixed)", () => {
+  const withBlock = [userMsg("u0"), assistantMsg("a1"), userWithReminder("do it"), assistantMsg("a3")];
+  const canon = computeIdentities(withBlock).map((e) => ({ h: e.h, r: e.r, o: e.o }));
+  const flipped = [userMsg("u0"), assistantMsg("a1"),
+    { role: "user", content: [{ type: "text", text: "do it" }] }, assistantMsg("a3")];
+  const result = classifyInsertion(flipped, canon);
+  assert.equal(result.action, "reset");
+  assert.equal(result.resetReason, "not-subsequence");
+});
+
+test("pin: a NON-volatile content change is NOT absorbed — reset, correctness over savings", () => {
+  const orig = [userMsg("u0"), assistantMsg("a1"), userMsg("original"), assistantMsg("a3")];
+  const canon = pinCanon(orig);
+  const edited = [userMsg("u0"), assistantMsg("a1"), userMsg("EDITED"), assistantMsg("a3")];
+  const result = classifyPinned(edited, canon);
+  assert.equal(result.action, "reset");
+  assert.equal(result.resetReason, "edit-shaped");
+});
+
+test("pin: prune (context-management removal) — match survives, entries flagged dropped, no reset", () => {
+  const full = conv(10, "prune");
+  const canon = pinCanon(full);
+  // Remove messages 2 and 3 (an old exchange), keep the rest, grow the tail.
+  const pruned = [...full.slice(0, 2), ...full.slice(4), userMsg("new tail")];
+  const result = classifyPinned(pruned, canon);
+  assert.notEqual(result.action, "reset", "prune must not reset canonical");
+  assert.equal(result.dropped, 2);
+  const droppedEntries = result.canonicalEntries.filter((e) => e.d);
+  assert.equal(droppedEntries.length, 2, "dropped entries kept in the file, flagged");
+});
+
+test("pin: phase-2 baseline resets on the same prune (the behavior being fixed)", () => {
+  const full = conv(10, "prune2");
+  const canon = computeIdentities(full).map((e) => ({ h: e.h, r: e.r, o: e.o }));
+  const pruned = [...full.slice(0, 2), ...full.slice(4)];
+  const result = classifyInsertion(pruned, canon);
+  assert.equal(result.action, "reset");
+});
+
+test("pin: dropping the majority resets — a compaction is not a prune", () => {
+  const full = conv(10, "compact");
+  const canon = pinCanon(full);
+  const compacted = [full[0], userMsg("summary of the rest")];
+  const result = classifyPinned(compacted, canon);
+  assert.equal(result.action, "reset");
+  assert.equal(result.resetReason, "dropped-majority");
+});
+
+test("pin: flip + prune combined in one request — both handled", () => {
+  const msgs = [userMsg("u0"), assistantMsg("a1"), userWithReminder("deep"),
+    assistantMsg("a3"), userMsg("u4"), assistantMsg("a5")];
+  const canon = pinCanon(msgs);
+  // Prune u4/a5, flip the reminder off, grow tail.
+  const next = [userMsg("u0"), assistantMsg("a1"),
+    { role: "user", content: [{ type: "text", text: "deep" }] },
+    assistantMsg("a3"), userMsg("tail")];
+  const result = classifyPinned(next, canon);
+  assert.equal(result.action, "normalized");
+  assert.equal(result.pinned, 1);
+  assert.equal(result.dropped, 2);
+  assert.deepEqual(result.messages[2].content[1], { type: "text", text: REMINDER });
+});
+
+test("pin: a message carrying cache_control is never rewritten", () => {
+  const marked = {
+    role: "user",
+    content: [
+      { type: "text", text: "tail msg", cache_control: { type: "ephemeral" } },
+      { type: "text", text: REMINDER },
+    ],
+  };
+  const msgs = [userMsg("u0"), assistantMsg("a1"), marked];
+  const canon = pinCanon(msgs);
+  const flipped = [userMsg("u0"), assistantMsg("a1"),
+    { role: "user", content: [{ type: "text", text: "tail msg", cache_control: { type: "ephemeral" } }] },
+    userMsg("new")];
+  const result = classifyPinned(flipped, canon);
+  assert.notEqual(result.action, "reset");
+  assert.deepEqual(
+    result.messages[2].content,
+    [{ type: "text", text: "tail msg", cache_control: { type: "ephemeral" } }],
+    "marker-carrying message forwarded as-is",
+  );
+});
+
+test("pin: assistant messages keep phase-2 identity — an assistant content change still resets", () => {
+  const msgs = [userMsg("u0"), assistantMsg("original"), userMsg("u2")];
+  const canon = pinCanon(msgs);
+  const changed = [userMsg("u0"), assistantMsg("CHANGED"), userMsg("u2")];
+  const result = classifyPinned(changed, canon);
+  assert.equal(result.action, "reset");
+});
+
+test("pin: tool_result blocks are never volatile even when reminder-shaped", () => {
+  const tr = {
+    role: "user",
+    content: [{ type: "tool_result", tool_use_id: "t1", content: REMINDER }],
+  };
+  assert.equal(isVolatileBlock(tr.content[0]), false);
+});
+
+test("pin: adjacency invariant enforced across pinned forwarding", () => {
+  const msgs = [toolUseMsg("t1"), toolResultMsg("t1"), userMsg("u2")];
+  const canon = pinCanon(msgs);
+  const next = [toolUseMsg("t1"), toolResultMsg("t1"), userMsg("u2"), toolUseMsg("t2"), toolResultMsg("t2")];
+  const result = classifyPinned(next, canon);
+  assert.notEqual(result.action, "reset");
+  assert.equal(validateToolAdjacency(result.messages), true);
+});
+
+test("pin: identical request is append-only with zero pins (idempotent)", () => {
+  const msgs = [userMsg("u0"), assistantMsg("a1"), userWithReminder("stable")];
+  const canon = pinCanon(msgs);
+  const result = classifyPinned(msgs, canon);
+  assert.equal(result.action, "append-only");
+  assert.equal(result.pinned, 0);
+  assert.equal(result.dropped, 0);
+});
+
+test("pin: mode marker isolates canon files — a plain-mode file is ignored under pin mode (one honest reset)", async () => {
+  const dir = await newTmp();
+  try {
+    const body1 = { model: "m", system: [{ type: "text", text: "s" }], messages: conv(4, "mode") };
+    // Write canon under phase-2.
+    await withEnvAsync(
+      { CACHE_FIX_INSERTION_NORMALIZE: "1", CACHE_FIX_VOLATILE_PIN: undefined },
+      () => runExt(body1, { dir, headers: { "x-session-id": "mode-test" } }),
+    );
+    // Same session under pin mode: prior canon must NOT half-match.
+    const body2 = { model: "m", system: [{ type: "text", text: "s" }], messages: conv(5, "mode") };
+    const ctx = await withEnvAsync(
+      { CACHE_FIX_INSERTION_NORMALIZE: "1", CACHE_FIX_VOLATILE_PIN: "1" },
+      () => runExt(body2, { dir, headers: { "x-session-id": "mode-test" } }),
+    );
+    assert.equal(ctx.meta.insertionNormalizeStats.action, "reset");
+    assert.equal(ctx.meta.insertionNormalizeStats.resetReason, "no-prior-canonical");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("pin: end-to-end onRequest — flip absorbed and body mutated under the flag", async () => {
+  const dir = await newTmp();
+  const mk = (msgs) => ({ model: "m", system: [{ type: "text", text: "s" }], messages: msgs });
+  try {
+    await withEnvAsync(
+      { CACHE_FIX_INSERTION_NORMALIZE: "1", CACHE_FIX_VOLATILE_PIN: "1" },
+      () => runExt(mk([userMsg("u0"), assistantMsg("a1"), userWithReminder("deep"), assistantMsg("a3")]),
+        { dir, headers: { "x-session-id": "e2e-pin" } }),
+    );
+    const flippedBody = mk([userMsg("u0"), assistantMsg("a1"),
+      { role: "user", content: [{ type: "text", text: "deep" }] },
+      assistantMsg("a3"), userMsg("go on")]);
+    const ctx = await withEnvAsync(
+      { CACHE_FIX_INSERTION_NORMALIZE: "1", CACHE_FIX_VOLATILE_PIN: "1" },
+      () => runExt(flippedBody, { dir, headers: { "x-session-id": "e2e-pin" } }),
+    );
+    assert.equal(ctx.meta.insertionNormalizeStats.action, "normalized");
+    assert.equal(ctx.meta.insertionNormalizeStats.pinned, 1);
+    assert.deepEqual(ctx.body.messages[2].content[1], { type: "text", text: REMINDER });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("pin: flag off -> classifyPinned never runs, phase-2 byte-identical behavior", async () => {
+  const dir = await newTmp();
+  const mk = (msgs) => ({ model: "m", system: [{ type: "text", text: "s" }], messages: msgs });
+  try {
+    await withEnvAsync(
+      { CACHE_FIX_INSERTION_NORMALIZE: "1", CACHE_FIX_VOLATILE_PIN: undefined },
+      () => runExt(mk([userMsg("u0"), assistantMsg("a1"), userWithReminder("deep")]),
+        { dir, headers: { "x-session-id": "off-test" } }),
+    );
+    const flippedBody = mk([userMsg("u0"), assistantMsg("a1"),
+      { role: "user", content: [{ type: "text", text: "deep" }] }]);
+    const before = JSON.stringify(flippedBody.messages);
+    const ctx = await withEnvAsync(
+      { CACHE_FIX_INSERTION_NORMALIZE: "1", CACHE_FIX_VOLATILE_PIN: undefined },
+      () => runExt(flippedBody, { dir, headers: { "x-session-id": "off-test" } }),
+    );
+    assert.equal(ctx.meta.insertionNormalizeStats.action, "reset");
+    assert.equal(JSON.stringify(ctx.body.messages), before, "no mutation without the flag");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });

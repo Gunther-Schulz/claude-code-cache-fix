@@ -84,6 +84,41 @@
 // in arrival order" reproduces incoming byte-for-byte. The two cases are
 // told apart only for telemetry (action: "append-only" when nothing
 // moved, "normalized" when a splice was detected and corrected).
+//
+// --- Phase 3: volatile-block pinning + removal tolerance (opt-in) ---
+//
+// Directive: docs/directives/proxy-volatile-block-pinning.md. Gated
+// separately by CACHE_FIX_VOLATILE_PIN=1 so the phase-2 behavior above is
+// byte-identical when the flag is off — the two modes even keep separate
+// canonical identity math, and a canon file written under one mode is
+// ignored by the other (one honest reset at the flag flip, never a
+// mismatch).
+//
+// Pin mode changes two things, both measured on live traffic 2026-07-28:
+//
+// 1. FLIP ABSORPTION. CC serializes hook-injected additionalContext
+//    <system-reminder> blocks nondeterministically for deep-history
+//    messages — present in one request, absent from the next (two
+//    attributed whole-context busts: 135k + 182k, both named by the
+//    prevContent/nowContent capture). In pin mode a user message's
+//    identity hash EXCLUDES volatile blocks (a text block that is
+//    entirely a <system-reminder> wrap, or empty text — the observed
+//    flip counterpart), so both serializations match the same canonical
+//    entry, and the proxy forwards the FIRST-SEEN bytes: byte-stable
+//    history, the flip never reaches the cache. Hard limits: user-role
+//    only; text blocks only (tool_results are never volatile); a message
+//    carrying a cache_control marker is never rewritten; a non-volatile
+//    difference changes the identity hash and takes the reset path.
+//
+// 2. REMOVAL TOLERANCE. Same-tenant message-count shrinks are routine
+//    (91 measured; context-management-2025-06-27 confirmed in the wire
+//    beta set), and each one killed the phase-2 subsequence match —
+//    reset-per-prune, degrading the extension to a no-op for the rest of
+//    the session. In pin mode a canonical entry missing from incoming is
+//    marked dropped (kept in the file, flagged, never forwarded) and the
+//    match continues past the gap; order violations among SURVIVORS
+//    remain a hard reset, and dropping more than half the live entries
+//    resets too (that is a compaction, not a prune).
 
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -98,6 +133,13 @@ const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
 
 function isEnabled(env = process.env) {
   return env.CACHE_FIX_INSERTION_NORMALIZE === "1";
+}
+
+// Phase-3 gate (volatile-block pinning + removal tolerance). Requires the
+// phase-2 gate too: pin mode is a refinement of the canonical model, not
+// an independent extension.
+function isPinEnabled(env = process.env) {
+  return env.CACHE_FIX_VOLATILE_PIN === "1";
 }
 
 function isDebug(env = process.env) {
@@ -166,23 +208,30 @@ function eventsPath(dir, sessionKey) {
   return join(dir, `${sessionKey}-insertion-events.jsonl`);
 }
 
-async function loadCanonical(dir, sessionKey, fs) {
+// `mode` discriminates phase-2 ("plain") from phase-3 ("pin") canon
+// files: their identity hashes are incompatible ("v:"-prefixed user
+// hashes in pin mode), and without the marker a flag flip could
+// PARTIALLY match the other mode's file (assistant hashes are shared),
+// producing wrong dropped flags instead of the intended single honest
+// reset. Old files without the field read as "plain".
+async function loadCanonical(dir, sessionKey, fs, mode = "plain") {
   try {
     const txt = await fs.readFile(canonPath(dir, sessionKey), "utf-8");
     const parsed = JSON.parse(txt);
-    if (Array.isArray(parsed?.entries)) return parsed.entries;
-    return null;
+    if (!Array.isArray(parsed?.entries)) return null;
+    if ((parsed.mode ?? "plain") !== mode) return null;
+    return parsed.entries;
   } catch (err) {
     if (err && err.code !== "ENOENT") debug(`canonical read failed: ${err?.message ?? err}`);
     return null;
   }
 }
 
-async function saveCanonical(dir, sessionKey, entries, fs) {
+async function saveCanonical(dir, sessionKey, entries, fs, mode = "plain") {
   await fs.mkdir(dir, { recursive: true });
   const finalPath = canonPath(dir, sessionKey);
   const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify({ entries }, null, 2));
+  await fs.writeFile(tmpPath, JSON.stringify({ mode, entries }, null, 2));
   await fs.rename(tmpPath, finalPath);
 }
 
@@ -243,6 +292,67 @@ function hashNonBlockContent(msg, i) {
 
 function identityKey(entry) {
   return `${entry.h}|${entry.r}|${entry.o}`;
+}
+
+// --- Phase 3: volatile blocks and pin-mode identity ---
+
+// The wrap regex identity-normalization already uses — the harness marks
+// its own injections with it. No allowlist of reminder texts: the flip
+// evidence already covers four reminder kinds, and a pattern list would
+// be the next mole (directive, part A).
+const VOLATILE_WRAP_REGEX = /^<system-reminder>\n[\s\S]*\n<\/system-reminder>\s*$/;
+
+// A text block is volatile iff it is entirely a system-reminder wrap OR
+// empty — the observed flip alternates a reminder block with an
+// empty-text block (capture 2026-07-27T22:13Z: prev = the reminder,
+// now = ""), so both sides must classify volatile for the identities to
+// meet. tool_result / tool_use / thinking blocks are NEVER volatile.
+export function isVolatileBlock(block) {
+  if (!block || typeof block !== "object" || block.type !== "text") return false;
+  if (typeof block.text !== "string") return false;
+  if (block.text === "") return true;
+  return VOLATILE_WRAP_REGEX.test(block.text);
+}
+
+// Identity hash for pin mode: user-role messages hash over their
+// non-volatile blocks only (cache_control stripped, same as
+// hashMessageContent). Assistant messages and string-content messages
+// keep the phase-2 identity — the flip class is user-role block arrays
+// by construction (hook additionalContext lands in user messages).
+function hashPinnedIdentity(msg) {
+  if (!msg || msg.role !== "user" || !Array.isArray(msg.content)) return null;
+  const kept = [];
+  for (const block of msg.content) {
+    if (isVolatileBlock(block)) continue;
+    if (block && typeof block === "object") {
+      const { cache_control, ...rest } = block;
+      kept.push(rest);
+    } else {
+      kept.push(block);
+    }
+  }
+  return "v:" + createHash("sha256").update(JSON.stringify(kept)).digest("hex").slice(0, 16);
+}
+
+// Pin-mode identities: same record shape as computeIdentities, with the
+// volatile-excluded hash for user block-array messages. The "v:" prefix
+// keeps pin-mode canon files disjoint from phase-2 ones — a canon written
+// under the other mode fails the identity match wholesale and takes one
+// honest reset, never a silent partial mismatch.
+export function computePinnedIdentities(messages) {
+  const seen = new Map();
+  const out = [];
+  for (let i = 0; i < messages.length; i++) {
+    const msg = messages[i];
+    const h =
+      hashPinnedIdentity(msg) ?? hashMessageContent(msg) ?? hashNonBlockContent(msg, i);
+    const r = msg?.role ?? "unknown";
+    const key = `${h}|${r}`;
+    const o = seen.get(key) ?? 0;
+    seen.set(key, o + 1);
+    out.push({ index: i, h, r, o });
+  }
+  return out;
 }
 
 // --- Tool_result / tool_use adjacency invariant ---
@@ -351,6 +461,155 @@ export function classifyInsertion(messages, priorCanonical) {
   return { action: "normalized", messages: finalMessages, canonicalEntries, inserted: newEntries.length };
 }
 
+// --- Phase 3 classifier (pure) ---
+
+function hasCacheControl(msg) {
+  if (!msg || !Array.isArray(msg.content)) return false;
+  return msg.content.some((b) => b && typeof b === "object" && b.cache_control);
+}
+
+function stripAllCacheControl(msg) {
+  if (!msg || !Array.isArray(msg.content)) return msg;
+  return {
+    ...msg,
+    content: msg.content.map((b) => {
+      if (b && typeof b === "object" && b.cache_control) {
+        const { cache_control, ...rest } = b;
+        return rest;
+      }
+      return b;
+    }),
+  };
+}
+
+// Remove volatile blocks from a user message. When a canonical entry has
+// no stored first-seen form (`m`), this IS the first-seen form: `m` is
+// stored precisely when first-seen contained a volatile block, so its
+// absence means first-seen had none — and stripping the incoming
+// message's later-gained volatile blocks reproduces those bytes.
+export function stripVolatileBlocks(msg) {
+  if (!msg || msg.role !== "user" || !Array.isArray(msg.content)) return msg;
+  const kept = msg.content.filter((b) => !isVolatileBlock(b));
+  if (kept.length === msg.content.length) return msg;
+  return { ...msg, content: kept };
+}
+
+function buildPinEntry(identity, msg) {
+  const entry = { h: identity.h, r: identity.r, o: identity.o };
+  if (
+    msg?.role === "user" &&
+    Array.isArray(msg.content) &&
+    msg.content.some(isVolatileBlock)
+  ) {
+    // First-seen form, cache_control stripped: a marker the tail rotation
+    // happened to leave on this message at creation must not be replayed
+    // forever from the pin.
+    entry.m = stripAllCacheControl(msg);
+  }
+  return entry;
+}
+
+// The bytes forwarded for a matched canonical entry. The pin applies only
+// from the second appearance on: a NEW message (not yet canonical) always
+// forwards as-is, so a fresh hook reminder reaches the model at the live
+// edge; by the time the pin kicks in, the model has already consumed it.
+// A message currently carrying a cache_control marker is never rewritten
+// — markers sit at the tail, flips live deep, and losing a marker would
+// cost more than one flip absorbs.
+function pinnedForwardForm(stored, incomingMsg) {
+  if (stored.r !== "user") return incomingMsg;
+  if (hasCacheControl(incomingMsg)) return incomingMsg;
+  return stored.m ?? stripVolatileBlocks(incomingMsg);
+}
+
+// Pin-mode classification. Differences from classifyInsertion:
+//   - identities exclude volatile blocks (flip absorption);
+//   - canonical entries missing from incoming are marked dropped
+//     (`d: true`, kept in the file, skipped in later matches) instead of
+//     resetting — unless the dropped total passes half the canon, which
+//     reads as a compaction, not a prune;
+//   - matched user messages forward their first-seen form.
+export function classifyPinned(messages, priorCanonical) {
+  const incoming = computePinnedIdentities(messages);
+  const freshEntries = () => incoming.map((e) => buildPinEntry(e, messages[e.index]));
+
+  if (!Array.isArray(priorCanonical) || priorCanonical.length === 0) {
+    return { action: "reset", resetReason: "no-prior-canonical", canonicalEntries: freshEntries() };
+  }
+
+  const incomingByKey = new Map(incoming.map((e) => [identityKey(e), e.index]));
+
+  const matched = []; // { ci: index into priorCanonical, idx: incoming index }
+  const droppedNow = new Set();
+  let droppedBefore = 0;
+  for (let ci = 0; ci < priorCanonical.length; ci++) {
+    const stored = priorCanonical[ci];
+    if (stored.d) {
+      droppedBefore++;
+      continue;
+    }
+    const idx = incomingByKey.get(identityKey(stored));
+    if (idx === undefined) droppedNow.add(ci);
+    else matched.push({ ci, idx });
+  }
+  for (let i = 1; i < matched.length; i++) {
+    if (matched[i].idx <= matched[i - 1].idx) {
+      return { action: "reset", resetReason: "not-subsequence", canonicalEntries: freshEntries() };
+    }
+  }
+  if (droppedBefore + droppedNow.size > priorCanonical.length / 2) {
+    return { action: "reset", resetReason: "dropped-majority", canonicalEntries: freshEntries() };
+  }
+
+  const matchedIdxSet = new Set(matched.map((m) => m.idx));
+  const lastMatched = matched.length > 0 ? matched[matched.length - 1].idx : -1;
+  const newEntries = incoming.filter((e) => !matchedIdxSet.has(e.index));
+  const splicedEntries = newEntries.filter((e) => e.index <= lastMatched);
+
+  // A true EDIT decomposes under drop-tolerance into drop + splice — and
+  // "normalizing" it would move the edited message to the tail, reordering
+  // real content. Drops and splices in one request are edit-shaped: reset
+  // (conservative bias, directive part B). A prune is drop-only; a flip
+  // matches identity (no drop); an insertion is splice-only.
+  if (droppedNow.size > 0 && splicedEntries.length > 0) {
+    return { action: "reset", resetReason: "edit-shaped", canonicalEntries: freshEntries() };
+  }
+
+  if (splicedEntries.some((e) => e.r === "assistant")) {
+    return { action: "reset", resetReason: "assistant-interleaved", canonicalEntries: freshEntries() };
+  }
+
+  let pinApplied = 0;
+  const finalMessages = matched
+    .map(({ ci, idx }) => {
+      const fwd = pinnedForwardForm(priorCanonical[ci], messages[idx]);
+      if (fwd !== messages[idx] && JSON.stringify(fwd) !== JSON.stringify(messages[idx])) {
+        pinApplied++;
+        return fwd;
+      }
+      return messages[idx];
+    })
+    .concat(newEntries.map((e) => messages[e.index]));
+
+  if (!validateToolAdjacency(finalMessages)) {
+    return { action: "reset", resetReason: "adjacency-violation", canonicalEntries: freshEntries() };
+  }
+
+  const canonicalEntries = priorCanonical
+    .map((e, ci) => (droppedNow.has(ci) ? { ...e, d: true } : e))
+    .concat(newEntries.map((e) => buildPinEntry(e, messages[e.index])));
+
+  const changed = splicedEntries.length > 0 || pinApplied > 0;
+  return {
+    action: changed ? "normalized" : "append-only",
+    messages: finalMessages,
+    canonicalEntries,
+    inserted: newEntries.length,
+    pinned: pinApplied,
+    dropped: droppedNow.size,
+  };
+}
+
 // --- Extension contract ---
 
 export default {
@@ -377,21 +636,24 @@ export default {
     const sessionKey = resolveInsertionSessionKey(headers, messages, body.system);
 
     try {
-      const prior = await loadCanonical(dir, sessionKey, fs);
-      const result = classifyInsertion(messages, prior);
+      const pin = isPinEnabled();
+      const mode = pin ? "pin" : "plain";
+      const prior = await loadCanonical(dir, sessionKey, fs, mode);
+      const result = pin ? classifyPinned(messages, prior) : classifyInsertion(messages, prior);
 
       if (result.action === "normalized") {
         body.messages = result.messages;
       }
       // append-only and reset both forward the incoming array unchanged.
 
-      await saveCanonical(dir, sessionKey, result.canonicalEntries, fs);
+      await saveCanonical(dir, sessionKey, result.canonicalEntries, fs, mode);
 
       ctx.meta = ctx.meta || {};
       ctx.meta.insertionNormalizeStats = {
         action: result.action,
         inserted: result.inserted ?? 0,
         resetReason: result.resetReason,
+        ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0 } : {}),
       };
 
       await appendTelemetry(
@@ -404,6 +666,7 @@ export default {
           action: result.action,
           inserted: result.inserted ?? 0,
           ...(result.resetReason ? { resetReason: result.resetReason } : {}),
+          ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0 } : {}),
         },
         fs,
       );
@@ -412,6 +675,7 @@ export default {
         process.stderr.write(
           `[insertion-normalize] action=${result.action} inserted=${result.inserted ?? 0}` +
             (result.resetReason ? ` reason=${result.resetReason}` : "") +
+            (pin ? ` pinned=${result.pinned ?? 0} dropped=${result.dropped ?? 0}` : "") +
             "\n",
         );
       }
