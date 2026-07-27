@@ -70,8 +70,29 @@ New rows found by the matrix pass:
 | 13 | tools:REMOVE + placeholder reorder — harness GC of a loaded deferred tool on skills/tool-list updates | MEASURED 766k (2026-07-27 15:36, CronCreate removed + DeferredToolPlaceholder reordered, no ToolSearch nearby; skills-update system events in-window) | BUILD: extend deferred-tool-rewrite — hold removed tools in the serialized array until session end (inert entries cost ~0), pin tool order to first-seen |
 | 14 | Sidecar requests sharing the session-id header (title-generation etc.) pollute per-session state keyed on that header | OBSERVED in today's ledger: alternating identity blocks/params under one key — prefix-diff attribution noise; for insertion-normalization this thrashes canonical (reset on every sidecar; degrades to no-op, never corrupts) | BUILD (pre-activation): sub-key persisted state by (session-id, system-prompt-hash) in insertion-normalization + prefix-diff |
 | 15 | Subagent cache runs 5-MINUTE TTL even on subscription; a subagent whose single tool step exceeds 5min (test suite, long build) pays a full own-context rewrite per gap | Structural (Claude Code docs: subagent TTL fixed at 5m); unmeasured — telemetry can count subagent gap>5m rewrites | CANDIDATE: proxy rewrites subagent cache_control ttl 5m→1h (request field, rewritable). Billing note: 1h writes cost 2x vs 1.25x — on subscription included; re-check if billing model changes. Build after measurement shows the class fires |
-| 16 | Safety-classifier fallback reroute (fable→fallback model) mid-conversation = model change = full bust, harness-initiated | Documented harness behavior (automatic model fallback); not yet observed here | ACCEPT + ATTRIBUTE (cache is model-keyed, genuinely must re-read; worktime --cold shows cause=model). No proxy mitigation possible |
+| 16 | Safety-classifier fallback reroute (fable→fallback model) mid-conversation = model change = full bust, harness-initiated | Documented harness behavior; not yet observed here | COVERED operator-side (correction 2026-07-27: an operator hook already catches the fallback reroute and stops the session) + ATTRIBUTE fallback (worktime cause=model). No proxy mitigation possible or needed |
 | 17 | params region: opusplan plan-mode model toggle | N/A for this operator (fable sessions) | N/A note only |
 
 Residual after rows 13-17 land: mutable-tail (row 4, instrumented),
 upstream-bug filing, and the honest operator-initiated set.
+
+## Third enumeration pass (2026-07-27, docs-list × coverage cross-check)
+
+Method: took Claude Code's OWN documented cache-invalidation list +
+the grounded request shape (proxy snapshots) and crossed every entry
+against current coverage. New findings:
+
+| # | Class | Status |
+|---|---|---|
+| 18 | **Diagnostic blind spots in prefix-diff itself**: TRACKED_PARAMS misses output_config (effort — own cache per level), speed (fast mode — cache-key header), betas, and the anthropic-beta HEADER set entirely. An effort/fast-mode/beta bust today shows as unattributable | BUILDING (third unit in flight): track all four + header-set diff, migration-safe |
+| 19 | Deny-rule tool removal mid-session (bare-name deny removes the tool definition → tools[] change, docs-documented bust) | COVERED as serialization by row 13's hold (definition stays in array; permission enforcement is harness-side at call time — holding is semantically safe). Note: operator-initiated, but easy to do unknowingly |
+| 20 | Cross-machine /resume: system prompt embeds cwd/platform/git snapshot → resuming a session on ANOTHER machine is a guaranteed full re-read (docs: cache scoped to machine+directory) | ACCEPT + DOCUMENT (token-cost-model.md): start fresh sessions on the new PC, never resume old ones expecting warm cache. Timely: operator migrating machines |
+| 21 | Server-side cache eviction before TTL (capacity eviction, upstream infra) | ACCEPT + ATTRIBUTE: unattributable-by-construction locally; shows as full write with empty local causes — worktime cause="other"/"unavailable" IS the attribution. No local mitigation exists |
+
+Convergence note (operator-prompted, honest): enumeration is
+asymptotic — three passes, three methods, each found cells the prior
+missed. What makes it CONVERGE is not better imagination but
+attribution telemetry: every bust now either matches a named row or
+surfaces as unattributed — and an unattributed bust is itself the
+alarm that mints the next row. The guarantee is "no SILENT gaps",
+not "no gaps".
