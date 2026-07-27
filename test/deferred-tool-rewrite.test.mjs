@@ -15,6 +15,7 @@ import ext, {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_PATH = join(__dirname, "fixtures", "toolload-1247.json");
+const GC_FIXTURE_PATH = join(__dirname, "fixtures", "toolgc-1536.json");
 
 async function newTmp() {
   return mkdtemp(join(tmpdir(), "deferred-tool-rewrite-test-"));
@@ -123,12 +124,31 @@ test("classifyToolChange: pure addition (SendMessage added) → action rewrite, 
   assert.equal(result.systemAdditions.length, 1);
 });
 
-test("classifyToolChange: existing tool removed → action reset, reason tool-removed", () => {
+test("classifyToolChange: existing tool removed → action rewrite, held in place at its first-seen position, byte-identical", () => {
   const prior = [tool("Read"), tool("Bash")];
-  const incoming = [tool("Read")];
+  const incoming = [tool("Read")]; // Bash missing — harness GC'd it
   const result = classifyToolChange(incoming, prior);
-  assert.equal(result.action, "reset");
-  assert.equal(result.reason, "tool-removed");
+  assert.equal(result.action, "rewrite");
+  assert.deepEqual(result.heldNames, ["Bash"]);
+  assert.equal(result.newNames.length, 0);
+  assert.equal(result.tools.length, 2, "held tool is re-inserted");
+  assert.deepEqual(result.tools[0], tool("Read"));
+  assert.deepEqual(result.tools[1], tool("Bash"), "held tool is byte-identical to its known form");
+  assert.equal(result.systemAdditions.length, 0, "a hold announces nothing — only additions do");
+});
+
+test("classifyToolChange: pure reorder (no add/remove) → action rewrite, output pinned to first-seen order", () => {
+  const prior = [tool("Read"), tool("Bash"), tool("SendMessage")];
+  const incoming = [tool("SendMessage"), tool("Read"), tool("Bash")]; // reordered, nothing added/removed
+  const result = classifyToolChange(incoming, prior);
+  assert.equal(result.action, "rewrite");
+  assert.deepEqual(result.heldNames, []);
+  assert.deepEqual(result.newNames, []);
+  assert.deepEqual(
+    result.tools.map((t) => t.name),
+    ["Read", "Bash", "SendMessage"],
+    "output order is first-seen order, not the incoming array's order",
+  );
 });
 
 test("classifyToolChange: existing tool's schema changed → action reset, reason tool-schema-changed", () => {
@@ -139,12 +159,19 @@ test("classifyToolChange: existing tool's schema changed → action reset, reaso
   assert.equal(result.reason, "tool-schema-changed");
 });
 
-test("classifyToolChange: addition AND removal in the same request → reset (non-additive wins over rewrite)", () => {
+test("classifyToolChange: addition AND removal in the same request → composes (held removal + additive new tool), still rewrite", () => {
   const prior = [tool("Read"), tool("Bash")];
   const incoming = [tool("Read"), tool("SendMessage")]; // Bash removed, SendMessage added
   const result = classifyToolChange(incoming, prior);
-  assert.equal(result.action, "reset");
-  assert.equal(result.reason, "tool-removed");
+  assert.equal(result.action, "rewrite");
+  assert.deepEqual(result.heldNames, ["Bash"]);
+  assert.deepEqual(result.newNames, ["SendMessage"]);
+  assert.deepEqual(
+    result.tools.map((t) => t.name),
+    ["Read", "Bash", "SendMessage"],
+    "held tool re-inserted at its first-seen position, new tool appended",
+  );
+  assert.equal(result.tools[2].defer_loading, true);
 });
 
 test("classifyToolChange: a tool carrying OUR OWN defer_loading marker from a prior rewrite is not misread as schema-changed", () => {
@@ -287,9 +314,9 @@ test("onRequest: third request with no further tool changes → unchanged, no ad
   }
 });
 
-test("onRequest: a real tool removal after an addition → reset (passthrough, honest), no beta header added", async () => {
+test("onRequest: a tool removed after an addition → HELD (rewrite, passthrough of held tool), no beta header (nothing new to defer)", async () => {
   const dir = await newTmp();
-  const headers = { "x-claude-code-session-id": "sess-reset" };
+  const headers = { "x-claude-code-session-id": "sess-hold" };
   try {
     await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
       const body1 = { tools: [tool("Read"), tool("Bash")], system: [{ type: "text", text: "sys" }], messages: [] };
@@ -298,9 +325,34 @@ test("onRequest: a real tool removal after an addition → reset (passthrough, h
       const body2 = { tools: [tool("Read")], system: [{ type: "text", text: "sys" }], messages: [] };
       const ctx2 = await runExt(body2, { headers, dir });
 
+      assert.equal(ctx2.meta.deferredToolRewriteStats.action, "rewrite");
+      assert.deepEqual(ctx2.meta.deferredToolRewriteStats.heldNames, ["Bash"]);
+      assert.deepEqual(ctx2.body.tools, [tool("Read"), tool("Bash")], "Bash held in place, byte-identical");
+      assert.equal(ctx2.body.system.length, 1, "a hold announces nothing — no tool_addition block appended");
+      assert.equal(headers["anthropic-beta"], undefined, "no defer_loading tool this turn -> no beta token needed");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("onRequest: a known tool's SCHEMA changing (not removal) → still resets (honest content change, never served stale)", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-schema-reset" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const body1 = { tools: [tool("Read"), tool("Bash")], system: [{ type: "text", text: "sys" }], messages: [] };
+      await runExt(body1, { headers, dir });
+
+      const body2 = {
+        tools: [tool("Read", { input_schema: { type: "object", properties: { path: { type: "string" } } } }), tool("Bash")],
+        system: [{ type: "text", text: "sys" }],
+        messages: [],
+      };
+      const ctx2 = await runExt(body2, { headers, dir });
+
       assert.equal(ctx2.meta.deferredToolRewriteStats.action, "reset");
-      assert.equal(ctx2.meta.deferredToolRewriteStats.reason, "tool-removed");
-      assert.deepEqual(ctx2.body.tools, [tool("Read")]);
+      assert.equal(ctx2.meta.deferredToolRewriteStats.reason, "tool-schema-changed");
       assert.equal(headers["anthropic-beta"], undefined);
     });
   } finally {
@@ -372,6 +424,47 @@ test("fixture toolload-1247.json: prior → incoming reproduces the ledger's too
       assert.equal(sendMsgTool.defer_loading, true);
       // tools[] count did not shrink or reorder the known prefix.
       assert.equal(ctx2.body.tools.length, 3);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// =============================================================================
+// SYNTHETIC FIXTURE (ledger SHAPE, 2026-07-27 15:36 — tools:REMOVE + reorder,
+// threat-matrix row 13)
+// =============================================================================
+
+test("fixture toolgc-1536.json: CronCreate removed + DeferredToolPlaceholder reordered -> held in place, first-seen order pinned", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-gc-fixture" };
+  try {
+    const raw = await readFile(GC_FIXTURE_PATH, "utf-8");
+    const fixture = JSON.parse(raw);
+
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const ctx1 = await runExt(structuredClone(fixture.prior), { headers, dir });
+      assert.equal(ctx1.meta.deferredToolRewriteStats.action, "no-baseline");
+
+      const ctx2 = await runExt(structuredClone(fixture.incoming), { headers, dir });
+      assert.equal(ctx2.meta.deferredToolRewriteStats.action, "rewrite");
+      assert.deepEqual(ctx2.meta.deferredToolRewriteStats.heldNames, ["CronCreate"]);
+      assert.deepEqual(ctx2.meta.deferredToolRewriteStats.newNames, []);
+
+      // Output order is first-seen order from the baseline request, not the
+      // incoming (reordered, CronCreate-missing) array's order.
+      assert.deepEqual(
+        ctx2.body.tools.map((t) => t.name),
+        ["Read", "Bash", "CronCreate", "DeferredToolPlaceholder"],
+      );
+      // Held tool is byte-identical to its baseline form.
+      assert.deepEqual(
+        ctx2.body.tools.find((t) => t.name === "CronCreate"),
+        fixture.prior.tools.find((t) => t.name === "CronCreate"),
+      );
+      // No addition -> no tool_addition block, no beta header.
+      assert.equal(ctx2.body.system.length, 1);
+      assert.equal(headers["anthropic-beta"], undefined);
     });
   } finally {
     await rm(dir, { recursive: true, force: true });

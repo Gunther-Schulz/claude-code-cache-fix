@@ -11,13 +11,29 @@
 // tool changes, beta mid-conversation-tool-changes-2026-07-01; requires the
 // tool declared with defer_loading up front).
 //
-// Detect: incoming tools[] is a pure superset of the persisted known set
-// (every previously-known tool present, byte-unchanged) with >=1 new name
-// → rewrite: forward the known tools unchanged + new tools each additively
-// marked defer_loading:true, and append one tool_addition system block per
-// new tool at the tail of body.system. Any non-additive change (a known
-// tool removed, or changed) → passthrough + reset (the honest path — per
-// the directive, we never try to paper over a real edit).
+// Detect: compare incoming tools[] against the persisted known set (keyed
+// by name). Three things can happen to a known name, and only one is an
+// honest content change:
+//   - present, byte-unchanged (fingerprint match) → carried forward using
+//     the FROZEN persisted object (not the incoming one), so its wire
+//     bytes stay stable turn over turn even if the incoming array's key
+//     order or position drifted;
+//   - ABSENT from incoming (harness GC'd a loaded deferred tool, e.g. a
+//     skills/tool-list update) → HELD: re-inserted at its first-seen
+//     position using the frozen object, exactly as if it were still
+//     present. Inert once held; costs ~0 (threat-matrix row 13). This
+//     also fixes pure reorder diffs (e.g. DeferredToolPlaceholder moving
+//     relative to its neighbors with no add/remove) as a side effect,
+//     since output order is ALWAYS the first-seen order, never the
+//     incoming array's order;
+//   - present but fingerprint-changed → the one honest case: passthrough
+//     + full reset (the directive's "never paper over a real edit" — and
+//     specifically never serve a stale schema for a name that changed).
+// A new name (not in the known set) is additively marked
+// defer_loading:true and announced via one appended tool_addition system
+// block, exactly as before. Any combination of held + new in the same
+// request composes (both are additive from the wire's perspective; only
+// a fingerprint change is destructive).
 //
 // Phase A explicitly stops at: build the rewrite + persist the mapping +
 // unit-test it against a synthetic fixture. Phase B (does the live API
@@ -155,10 +171,10 @@ export function toolFingerprint(tool) {
 // --- Core classifier (pure) ---
 //
 // Returns:
-//   { action: "no-baseline", knownTools }                         — first-seen session; persist baseline, forward unchanged
-//   { action: "unchanged", knownTools }                           — incoming === known set; forward unchanged
-//   { action: "reset", knownTools, reason }                       — non-additive change; forward unchanged, re-baseline
-//   { action: "rewrite", tools, systemAdditions, newNames, knownTools } — pure addition; forward the rewritten tools[]/system additions
+//   { action: "no-baseline", knownTools }                                             — first-seen session; persist baseline, forward unchanged
+//   { action: "unchanged", knownTools }                                               — incoming === known set, same order; forward unchanged
+//   { action: "reset", knownTools, reason }                                           — a known tool's schema changed; forward unchanged, re-baseline
+//   { action: "rewrite", tools, systemAdditions, newNames, heldNames, knownTools }     — held removal and/or reorder and/or pure addition; forward the rewritten tools[]/system additions
 export function classifyToolChange(incomingTools, priorKnownTools) {
   if (!Array.isArray(priorKnownTools)) {
     return { action: "no-baseline", knownTools: incomingTools };
@@ -167,31 +183,45 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
   const priorByName = new Map(priorKnownTools.map((t) => [t.name, t]));
   const incomingByName = new Map(incomingTools.map((t) => [t.name, t]));
 
+  // Schema-change scan runs over every name present in BOTH sets — absence
+  // is handled separately below (held, not reset) — so a removal elsewhere
+  // in the array never short-circuits this check.
   for (const [name, priorTool] of priorByName) {
     const incomingTool = incomingByName.get(name);
-    if (!incomingTool) {
-      return { action: "reset", knownTools: incomingTools, reason: "tool-removed" };
-    }
-    if (toolFingerprint(incomingTool) !== toolFingerprint(priorTool)) {
+    if (incomingTool && toolFingerprint(incomingTool) !== toolFingerprint(priorTool)) {
       return { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
     }
   }
 
+  const priorOrderNames = [...priorByName.keys()];
+  const heldNames = priorOrderNames.filter((name) => !incomingByName.has(name));
   const newNames = [...incomingByName.keys()].filter((name) => !priorByName.has(name));
-  if (newNames.length === 0) {
+
+  const incomingOrderNames = incomingTools.map((t) => t.name);
+  const orderMatches =
+    heldNames.length === 0 &&
+    newNames.length === 0 &&
+    incomingOrderNames.length === priorOrderNames.length &&
+    incomingOrderNames.every((name, i) => name === priorOrderNames[i]);
+
+  if (orderMatches) {
     return { action: "unchanged", knownTools: priorKnownTools };
   }
 
-  const knownOrderedTools = priorKnownTools.map((t) => incomingByName.get(t.name));
   const newTools = newNames.map((name) => incomingByName.get(name));
   const deferredNewTools = newTools.map((t) => ({ ...t, defer_loading: true }));
+  // First-seen order, for every name ever known — held (removed) names
+  // included, using their frozen object so wire bytes never drift for a
+  // tool whose content didn't actually change.
+  const heldOrPresentTools = priorOrderNames.map((name) => priorByName.get(name));
 
   return {
     action: "rewrite",
-    tools: knownOrderedTools.concat(deferredNewTools),
+    tools: heldOrPresentTools.concat(deferredNewTools),
     systemAdditions: newTools.map(buildToolAdditionBlock),
     newNames,
-    knownTools: incomingTools,
+    heldNames,
+    knownTools: priorOrderNames.concat(newNames).map((name) => priorByName.get(name) ?? incomingByName.get(name)),
   };
 }
 
@@ -250,7 +280,8 @@ export default {
   name: "deferred-tool-rewrite",
   description:
     "Phase A: hold tools[] byte-stable across a pure tool addition, announcing the new tool via an appended " +
-    "tool_addition system block instead (works around CC's mid-conversation deferred-tool-load cache bust)",
+    "tool_addition system block instead; also holds a harness-GC'd tool in place and pins output order to " +
+    "first-seen (works around CC's mid-conversation deferred-tool-load and tool-GC cache busts)",
   enabled: false, // overridden by extensions.json
   order: 425,
 
@@ -273,8 +304,12 @@ export default {
 
       if (result.action === "rewrite") {
         body.tools = result.tools;
-        body.system = Array.isArray(body.system) ? body.system.concat(result.systemAdditions) : result.systemAdditions;
-        if (headers) addBetaToken(headers);
+        if (result.systemAdditions.length > 0) {
+          body.system = Array.isArray(body.system) ? body.system.concat(result.systemAdditions) : result.systemAdditions;
+        }
+        // Beta token only needed when a tool is actually marked
+        // defer_loading:true — a pure hold/reorder never adds one.
+        if (headers && result.newNames.length > 0) addBetaToken(headers);
       }
       // no-baseline, unchanged, and reset all forward body.tools untouched.
 
@@ -284,6 +319,7 @@ export default {
       ctx.meta.deferredToolRewriteStats = {
         action: result.action,
         newNames: result.newNames ?? [],
+        heldNames: result.heldNames ?? [],
         reason: result.reason ?? null,
       };
 
@@ -296,6 +332,7 @@ export default {
           sid: sessionId,
           action: result.action,
           newNames: result.newNames ?? [],
+          heldNames: result.heldNames ?? [],
           ...(result.reason ? { reason: result.reason } : {}),
         },
         fs,
@@ -305,6 +342,7 @@ export default {
         process.stderr.write(
           `[deferred-tool-rewrite] action=${result.action}` +
             (result.newNames ? ` new=${result.newNames.join(",")}` : "") +
+            (result.heldNames && result.heldNames.length ? ` held=${result.heldNames.join(",")}` : "") +
             (result.reason ? ` reason=${result.reason}` : "") +
             "\n",
         );
