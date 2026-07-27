@@ -29,17 +29,24 @@ demonstrated against the wire bytes — the session-mirror and
 prefix-diff gates that could have shown it postdate the observation.
 Treat the mechanism as unverified.
 
-**Counter-observation, 2026-07-27 19:01, measured:** a restart
-mid-session produced no bust. `cache_read` climbed straight through it
-(35990 → 42475 — an evicted prefix would collapse it) and the first
-post-restart prefix-diff logged `tools=match, system=match`. Two more
-restarts the same evening (19:15, 19:32) also passed without one.
+**A restart busts SOMETIMES — three measured outcomes, 2026-07-27:**
 
-So "a restart IS a bust" no longer holds as stated. Restarts stay
-session-boundary-only as the cautious default — one 225k incident is
-reason enough for care — but a restart is now a candidate to CHECK,
-never a cause to assume. Anyone attributing a bust to one must show
-`cache_read` collapsing across it.
+| Restart | Tool array after | Result |
+|---|---|---|
+| 19:01 | `tools=match, system=match` | no bust (`cache_read` climbed 35990 → 42475 straight through) |
+| 19:15 | — | no bust |
+| 19:32 | `tools[Bash:schema, SendUserFile:removed, Skill/TaskList/TaskOutput/ToolSearch/Write:reordered]` | **188k bust**, 38s later, `tools_changed` |
+
+So neither "a restart IS a bust" nor "restarts are safe now" holds. The
+discriminator is visible in the data: the bust happens exactly when the
+fresh process fails to reconstruct the tool array byte-identically.
+`deferred-tools-restore` exists to make that deterministic (it persists
+first-seen order to a disk snapshot) and evidently did not hold at
+19:32 — an open defect, not luck.
+
+Restarts stay session-boundary-only. Before attributing any bust to
+one, check the prefix-diff for `tools=match`: if the tools matched, the
+restart was not the cause.
 
 (The restart-transparency work merged 2026-07-27 — persisted
 serialization state in insertion-normalization and, since `7ed1886`,
