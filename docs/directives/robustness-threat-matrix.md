@@ -51,3 +51,27 @@ KEEP the ladder alongside normalization. Reasons:
 Revisit only if a 4th breakpoint consumer ever appears and needs the
 slot back — that is the single scenario where ladder retirement is
 on the table.
+
+## Second enumeration pass (2026-07-27, method-corrected)
+
+Method correction (operator-prompted): enumerate the SERIALIZATION
+SURFACE, not event sources — for each request region (params / tools /
+system / messages) × each operation (add, remove, reorder, mutate) ×
+each initiator (operator / assistant / harness / upstream): can it
+occur without deliberate operator intent, what does it cost, is it
+covered? First pass enumerated "things that happen" and missed
+inverse operations; the 766k event (tools:REMOVE) was a predictable
+cell left blank.
+
+New rows found by the matrix pass:
+
+| # | Class | Evidence/cost | Disposition |
+|---|---|---|---|
+| 13 | tools:REMOVE + placeholder reorder — harness GC of a loaded deferred tool on skills/tool-list updates | MEASURED 766k (2026-07-27 15:36, CronCreate removed + DeferredToolPlaceholder reordered, no ToolSearch nearby; skills-update system events in-window) | BUILD: extend deferred-tool-rewrite — hold removed tools in the serialized array until session end (inert entries cost ~0), pin tool order to first-seen |
+| 14 | Sidecar requests sharing the session-id header (title-generation etc.) pollute per-session state keyed on that header | OBSERVED in today's ledger: alternating identity blocks/params under one key — prefix-diff attribution noise; for insertion-normalization this thrashes canonical (reset on every sidecar; degrades to no-op, never corrupts) | BUILD (pre-activation): sub-key persisted state by (session-id, system-prompt-hash) in insertion-normalization + prefix-diff |
+| 15 | Subagent cache runs 5-MINUTE TTL even on subscription; a subagent whose single tool step exceeds 5min (test suite, long build) pays a full own-context rewrite per gap | Structural (Claude Code docs: subagent TTL fixed at 5m); unmeasured — telemetry can count subagent gap>5m rewrites | CANDIDATE: proxy rewrites subagent cache_control ttl 5m→1h (request field, rewritable). Billing note: 1h writes cost 2x vs 1.25x — on subscription included; re-check if billing model changes. Build after measurement shows the class fires |
+| 16 | Safety-classifier fallback reroute (fable→fallback model) mid-conversation = model change = full bust, harness-initiated | Documented harness behavior (automatic model fallback); not yet observed here | ACCEPT + ATTRIBUTE (cache is model-keyed, genuinely must re-read; worktime --cold shows cause=model). No proxy mitigation possible |
+| 17 | params region: opusplan plan-mode model toggle | N/A for this operator (fable sessions) | N/A note only |
+
+Residual after rows 13-17 land: mutable-tail (row 4, instrumented),
+upstream-bug filing, and the honest operator-initiated set.
