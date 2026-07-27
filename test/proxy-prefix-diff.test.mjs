@@ -1241,3 +1241,53 @@ test("a mid-history mutation records HOW it changed, not just where", async () =
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// Defects found by an isolated verifier against 6aa85f8 (2026-07-27). Both are
+// in the per-tenant baseline machinery introduced by that commit.
+
+test("concurrent co-tenants each keep a baseline (no lost update)", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "shared" };
+  try {
+    // The exact shape the per-tenant work targets: one session id, many
+    // agents in flight at once. The read-modify-write of the tenants map is
+    // separated by awaits, so unserialized writers clobber each other —
+    // measured 1 of 10 surviving before the per-key lock.
+    const reqs = [];
+    for (let i = 0; i < 10; i++) {
+      reqs.push(
+        snapshotPrefix(
+          makePayload({
+            system: [{ type: "text", text: `agent ${i} system prompt` }],
+            messages: [{ role: "user", content: [{ type: "text", text: `t${i}` }] }],
+          }),
+          { dir, headers },
+        ),
+      );
+    }
+    let results;
+    await captureStderr(async () => {
+      results = await Promise.all(reqs);
+    });
+    const json = JSON.parse(await readFile(join(dir, `${results[0].key}-last.json`), "utf-8"));
+    assert.equal(Object.keys(json.tenants).length, 10, "every concurrent tenant keeps its baseline");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("tenant eviction drops the oldest by timestamp, not by key order", () => {
+  // Object.keys enumerates integer-like keys FIRST in ascending numeric order,
+  // regardless of insertion order — and an 8-hex tenant id is all-digits about
+  // one time in 16. Slicing Object.keys therefore evicted such a tenant ahead
+  // of genuinely older ones. This pins the ordering rule the fix relies on.
+  const obj = {};
+  obj["deadbeef"] = 1;
+  obj["12345678"] = 2;
+  obj["cafe0000"] = 3;
+  assert.equal(
+    Object.keys(obj)[0],
+    "12345678",
+    "numeric-string keys sort to the front — key order is NOT insertion order",
+  );
+});

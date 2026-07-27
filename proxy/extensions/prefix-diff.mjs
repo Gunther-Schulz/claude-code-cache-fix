@@ -858,10 +858,48 @@ async function appendEvent(eventsPath, record, fs) {
  *                               Any subset replaces the corresponding default.
  * @returns {Promise<{ key, wroteSnapshot, wroteDiff } | null>} Result for tests; null if no system.
  */
+// Serialize per-key so the tenants read-modify-write below cannot interleave.
+//
+// The read and the write are separated by awaits, so two concurrent requests
+// on the SAME session key both read the old map and the second write clobbers
+// the first — a classic lost update. Measured: 10 distinct tenants fired via
+// Promise.all left 1 of 10 baselines on disk, which defeats per-tenant
+// baselines exactly when co-tenants are genuinely concurrent (a main session
+// with parallel subagents) rather than merely interleaved.
+//
+// One promise chain per key. The proxy is a single daemon process, so
+// in-process serialization is sufficient; there is no second writer to this
+// path. Entries are dropped when their chain drains, so the map cannot grow
+// with session count.
+const keyLocks = new Map();
+
+function withKeyLock(key, fn) {
+  const prev = keyLocks.get(key) ?? Promise.resolve();
+  // Never let a rejection poison the chain for later callers.
+  const run = prev.then(fn, fn);
+  keyLocks.set(
+    key,
+    run.then(
+      () => {
+        if (keyLocks.get(key) === run) keyLocks.delete(key);
+      },
+      () => {
+        if (keyLocks.get(key) === run) keyLocks.delete(key);
+      },
+    ),
+  );
+  return run;
+}
+
 async function snapshotPrefix(payload, options = {}) {
   const headers = options.headers || null;
   const current = buildSnapshot(payload, headers);
   if (!current) return null;
+  const lockKey = resolveSessionKey(headers, payload.system);
+  return withKeyLock(lockKey, () => snapshotPrefixLocked(payload, options, current, headers));
+}
+
+async function snapshotPrefixLocked(payload, options, current, headers) {
 
   const dir = options.dir || getSnapshotDir();
   const fs = { ...DEFAULT_FS, ...(options.fs || {}) };
@@ -979,11 +1017,24 @@ async function snapshotPrefix(payload, options = {}) {
   let wroteSnapshot = false;
   const tenants = { ...(stored?.tenants || {}), [tid]: current };
   const MAX_TENANTS = 16;
+  // Evict by the timestamp each baseline carries, NOT by key order.
+  //
+  // The previous version sliced `Object.keys()` as if it were insertion
+  // order. It is not: ECMA-262 enumerates integer-like keys FIRST, in
+  // ascending numeric order, regardless of when they were added. Tenant ids
+  // are 8-hex sha slices, so roughly one in 16 is all-digits — such a tenant
+  // sorts to the front and gets evicted ahead of genuinely older entries,
+  // however recently it was written.
+  //
+  // `timestamp` is set by buildSnapshot on every write, so oldest-first is
+  // well-defined and independent of key shape. The current tenant is never
+  // evicted: it was just written and is the one the next request needs.
   const ids = Object.keys(tenants);
   if (ids.length > MAX_TENANTS) {
-    for (const old of ids.slice(0, ids.length - MAX_TENANTS)) {
-      if (old !== tid) delete tenants[old];
-    }
+    const byAge = ids
+      .filter((k) => k !== tid)
+      .sort((a, b) => String(tenants[a]?.timestamp ?? "").localeCompare(String(tenants[b]?.timestamp ?? "")));
+    for (const old of byAge.slice(0, ids.length - MAX_TENANTS)) delete tenants[old];
   }
   try {
     await atomicWriteJson(lastPath, { tenants, lastTenant: tid }, fs);
