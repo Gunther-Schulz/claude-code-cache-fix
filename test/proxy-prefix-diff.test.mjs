@@ -24,6 +24,8 @@ import ext, {
   summariseCauses,
   buildEventRecord,
   diffHasChanges,
+  buildBetaHeaderSnapshot,
+  diffBetaHeader,
 } from "../proxy/extensions/prefix-diff.mjs";
 
 // `import.meta.dirname` requires Node 20.11+; CI matrix includes Node 18,
@@ -961,6 +963,156 @@ test("snapshotPrefix: ledger append failure does not prevent the diff file", asy
       );
     });
     assert.ok(result.wroteDiff, "detail file must still be written");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// --- Prefix-diff's own blind spots (2026-07-27): output_config/speed/betas,
+// and the anthropic-beta HEADER, are part of the cache key but were
+// untracked — a bust from an effort change, fast-mode toggle, or beta-header
+// drift was previously unattributable (bare messages@N or empty causes).
+
+test("diffParams: an effort change inside output_config is detected", () => {
+  const a = buildSnapshot({ ...makePayload(), output_config: { effort: "low" } });
+  const b = buildSnapshot({ ...makePayload(), output_config: { effort: "high" } });
+  const diff = computeDiff(a, b);
+  assert.equal(diff.paramDiffs.length, 1);
+  assert.equal(diff.paramDiffs[0].key, "output_config");
+  assert.equal(diffHasChanges(diff), true);
+  const causes = summariseCauses(diff).join(" | ");
+  assert.ok(causes.includes("params:output_config"), `expected output_config in: ${causes}`);
+});
+
+test("diffParams: a speed (fast mode) change is detected", () => {
+  const a = buildSnapshot({ ...makePayload(), speed: "standard" });
+  const b = buildSnapshot({ ...makePayload(), speed: "fast" });
+  const diff = computeDiff(a, b);
+  assert.equal(diff.paramDiffs.length, 1);
+  assert.equal(diff.paramDiffs[0].key, "speed");
+  assert.equal(diffHasChanges(diff), true);
+});
+
+test("diffParams: a betas (body param) change is detected", () => {
+  const a = buildSnapshot({ ...makePayload(), betas: ["fast-mode-2026-02-01"] });
+  const b = buildSnapshot({ ...makePayload(), betas: ["fast-mode-2026-02-01", "context-1m-2025-08-07"] });
+  const diff = computeDiff(a, b);
+  assert.equal(diff.paramDiffs.length, 1);
+  assert.equal(diff.paramDiffs[0].key, "betas");
+});
+
+test("buildBetaHeaderSnapshot: absent header normalizes to present:false, tokens:[]", () => {
+  assert.deepEqual(buildBetaHeaderSnapshot(null), { present: false, tokens: [] });
+  assert.deepEqual(buildBetaHeaderSnapshot({}), { present: false, tokens: [] });
+});
+
+test("buildBetaHeaderSnapshot: parses and sorts comma-separated tokens, case-insensitive header name", () => {
+  const snap = buildBetaHeaderSnapshot({ "Anthropic-Beta": "b-token, a-token" });
+  assert.equal(snap.present, true);
+  assert.deepEqual(snap.tokens, ["a-token", "b-token"]);
+});
+
+test("diffBetaHeader: no change when the token set is identical (order-insensitive)", () => {
+  const a = buildBetaHeaderSnapshot({ "anthropic-beta": "x, y" });
+  const b = buildBetaHeaderSnapshot({ "anthropic-beta": "y, x" });
+  const diff = diffBetaHeader(a, b);
+  assert.deepEqual(diff, { added: [], removed: [] });
+});
+
+test("diffBetaHeader: detects an added and a removed token in the same change", () => {
+  const a = buildBetaHeaderSnapshot({ "anthropic-beta": "context-1m-2025-08-07, fast-mode-2026-02-01" });
+  const b = buildBetaHeaderSnapshot({ "anthropic-beta": "fast-mode-2026-02-01, task-budgets-2026-03-13" });
+  const diff = diffBetaHeader(a, b);
+  assert.deepEqual(diff.added, ["task-budgets-2026-03-13"]);
+  assert.deepEqual(diff.removed, ["context-1m-2025-08-07"]);
+});
+
+test("computeDiff + summariseCauses: a beta-header-only change produces a header cause", () => {
+  const a = buildSnapshot(makePayload(), { "anthropic-beta": "fast-mode-2026-02-01" });
+  const b = buildSnapshot(makePayload(), { "anthropic-beta": "context-1m-2025-08-07" });
+  const diff = computeDiff(a, b);
+  assert.equal(diffHasChanges(diff), true, "a header-only change must count as a change");
+  const causes = summariseCauses(diff).join(" | ");
+  assert.ok(causes.includes("header:anthropic-beta"), `expected header cause in: ${causes}`);
+  assert.ok(causes.includes("+context-1m-2025-08-07"), `expected added token in: ${causes}`);
+  assert.ok(causes.includes("-fast-mode-2026-02-01"), `expected removed token in: ${causes}`);
+});
+
+test("computeDiff: identical beta headers produce no header cause and no spurious change", () => {
+  const a = buildSnapshot(makePayload(), { "anthropic-beta": "context-1m-2025-08-07" });
+  const b = buildSnapshot(makePayload(), { "anthropic-beta": "context-1m-2025-08-07" });
+  const diff = computeDiff(a, b);
+  assert.equal(diffHasChanges(diff), false);
+  assert.deepEqual(diff.betaHeaderDiff, { added: [], removed: [] });
+});
+
+// Version-boundary safety, mirroring the existing "tolerates an old-format
+// snapshot" test above: a snapshot written before this change has no
+// `betaHeader` field at all. Diffing across that boundary must not throw,
+// and — critically — must not report a spurious header cause just because
+// the old side has no data to compare against.
+test("computeDiff: old-format snapshot (no betaHeader field) migrates silently when neither side actually carries a header", () => {
+  const old = {
+    timestamp: "2026-07-26T00:00:00.000Z",
+    messageCount: 2,
+    toolsHash: "abc",
+    systemHash: "def",
+    prefixMessages: [],
+    tailMessages: [],
+    markerMessages: [],
+    // no params, systemBlocks, toolsDetail, messageHashes, betaHeader — simulates
+    // a snapshot from before ANY of the coverage additions, old and new alike.
+  };
+  // No anthropic-beta header on this request either — the pre-upgrade snapshot
+  // and the first post-upgrade request agree there is nothing to report.
+  const current = buildSnapshot(makePayload(), {});
+  const diff = computeDiff(old, current);
+  assert.deepEqual(diff.betaHeaderDiff, { added: [], removed: [] });
+  assert.ok(!summariseCauses(diff).some((c) => c.startsWith("header:")));
+});
+
+// Distinguishes "no data on the old side" from "no header on either side":
+// when the old snapshot predates beta-header tracking but the CURRENT
+// request genuinely carries one, that's real new information the old
+// snapshot has no way to rule out — it must surface, exactly as the
+// pre-existing paramDiffs/toolDiffs/systemBlockDiffs helpers already do
+// when their "old" side lacks the corresponding field (see the sibling
+// "tolerates an old-format snapshot" test above, which asserts the arrays
+// exist and doesn't claim they stay empty on a real underlying change).
+test("computeDiff: old-format snapshot + a real header on the current request still surfaces as added", () => {
+  const old = {
+    timestamp: "2026-07-26T00:00:00.000Z",
+    messageCount: 2,
+    toolsHash: "abc",
+    systemHash: "def",
+    prefixMessages: [],
+    tailMessages: [],
+    markerMessages: [],
+  };
+  const current = buildSnapshot(makePayload(), { "anthropic-beta": "context-1m-2025-08-07" });
+  const diff = computeDiff(old, current);
+  assert.deepEqual(diff.betaHeaderDiff, { added: ["context-1m-2025-08-07"], removed: [] });
+});
+
+test("snapshotPrefix: a beta-header-only change on real requests fires a diff with a header cause", async () => {
+  const dir = await newTmp();
+  try {
+    await snapshotPrefix(makePayload(), {
+      dir,
+      headers: { "x-claude-code-session-id": "beta-test", "anthropic-beta": "fast-mode-2026-02-01" },
+    });
+    let result;
+    await captureStderr(async () => {
+      result = await snapshotPrefix(makePayload(), {
+        dir,
+        headers: { "x-claude-code-session-id": "beta-test", "anthropic-beta": "context-1m-2025-08-07" },
+      });
+    });
+    assert.ok(result.wroteDiff, "beta-header-only change must produce a diff");
+    const key = resolveSessionKey({ "x-claude-code-session-id": "beta-test" }, makePayload().system);
+    const diffJson = JSON.parse(await readFile(join(dir, `${key}-diff.json`), "utf-8"));
+    assert.deepEqual(diffJson.betaHeaderDiff.added, ["context-1m-2025-08-07"]);
+    assert.deepEqual(diffJson.betaHeaderDiff.removed, ["fast-mode-2026-02-01"]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -67,6 +67,27 @@
 // The organising rule, learned the hard way: the snapshot must cover
 // everything the cache keys on, and the key under which it is stored
 // must not be one of those things.
+//
+// Closing the diagnostic's own blind spots (2026-07-27, same day): the
+// tool that hunts cache busts had three of its own. `output_config`
+// (effort — "each effort level has its own cache"), `speed` (fast mode
+// — adds a request header that is part of the cache key) and `betas`
+// were body params TRACKED_PARAMS never listed, so an effort or
+// fast-mode change read as "0 differences" the same way an untracked
+// model switch used to. They're plain entries in TRACKED_PARAMS now;
+// diffParams already deep-compares by JSON.stringify, so an object
+// param like `output_config` (effort lives inside it) diffs correctly
+// with no extra code. The fourth blind spot lived outside `ctx.body`
+// entirely: the anthropic-beta REQUEST HEADER (e.g.
+// context-1m-2025-08-07 — see auto-1m-guard.mjs, which exists because
+// of exactly this header) is part of the cache key but was never
+// snapshotted at all, so a beta-header-only bust — an effort/speed
+// change never touches it either — was unattributable. `ctx.headers`
+// reaches onRequest hooks (see pipeline.mjs's runOnRequest and every
+// extension that reads `ctx.headers`), so the header is now snapshotted
+// via auto-1m-guard's own `findBetaHeader`/`parseBetaTokens` and diffed
+// as a normalized, sorted token set — order doesn't change the cache
+// key, only membership does.
 // ---------------------------------------------------------------------
 
 import {
@@ -81,6 +102,7 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
+import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
 
 const ENABLED = process.env.CACHE_FIX_PREFIXDIFF === "1";
 const DEBUG = process.env.CACHE_FIX_DEBUG === "1";
@@ -118,6 +140,18 @@ const TRACKED_PARAMS = [
   "tool_choice",
   "service_tier",
   "anthropic_version",
+  // Added 2026-07-27 (blind-spot closure): each of these participates in
+  // the cache key exactly like the params above, per Claude Code's own
+  // caching docs — output_config (effort: "each effort level has its own
+  // cache"), speed (fast mode: "adds a request header that is part of
+  // the cache key"), betas (the anthropic-beta BODY param some call
+  // sites use instead of the header — see the header-based tracking
+  // below for the header form). diffParams already deep-compares via
+  // JSON.stringify, so output_config's nested effort field diffs
+  // correctly with no dedicated code.
+  "output_config",
+  "speed",
+  "betas",
 ];
 
 function getSnapshotDir() {
@@ -242,6 +276,40 @@ function buildParamsSnapshot(payload) {
   return params;
 }
 
+// Snapshot of the anthropic-beta REQUEST HEADER (blind spot: this is a
+// header, not a body param, so it lives outside `payload` entirely and
+// TRACKED_PARAMS can never cover it). Reuses auto-1m-guard's own
+// findBetaHeader/parseBetaTokens — the same idiom that extension uses to
+// read this exact header — rather than re-deriving header-lookup logic.
+// Tokens are stored SORTED: reordering the header (e.g. CC re-serializing
+// the same beta set in a different order) does not change the cache key,
+// only membership does, so a sorted set is the right comparison basis.
+// `present: false` (no header on the request) is a real, distinct state
+// from "header present but empty" — both are normalized to an empty
+// tokens array, but callers reading `present` can still tell them apart
+// if that ever matters.
+function buildBetaHeaderSnapshot(headers) {
+  const found = findBetaHeader(headers || null);
+  if (!found) return { present: false, tokens: [] };
+  const tokens = parseBetaTokens(found.raw).slice().sort();
+  return { present: true, tokens };
+}
+
+// Diff two beta-header snapshots by set membership (order-insensitive by
+// construction, since tokens are stored pre-sorted). Old-format snapshots
+// (pre-2026-07-27) have no `betaHeader` field at all — the `?? {tokens:
+// []}` default treats "field absent" identically to "header absent",
+// which is the correct degrade: nothing to compare against means no
+// spurious cause on the first request after upgrade (design note: version-
+// boundary safety, same rule as systemBlockDiffs/toolDiffs/paramDiffs).
+function diffBetaHeader(prevSnap, nowSnap) {
+  const prevTokens = new Set((prevSnap ?? { tokens: [] }).tokens ?? []);
+  const nowTokens = new Set((nowSnap ?? { tokens: [] }).tokens ?? []);
+  const added = [...nowTokens].filter((t) => !prevTokens.has(t));
+  const removed = [...prevTokens].filter((t) => !nowTokens.has(t));
+  return { added, removed };
+}
+
 // Project a single message: strip cache_control, truncate text >500 chars
 // with `...[N chars]` marker. Pure: returns a new object, never mutates
 // input. Shared by the head and tail windows so both apply identical
@@ -354,7 +422,7 @@ function buildMarkerSnapshot(messages) {
   return markers;
 }
 
-function buildSnapshot(payload) {
+function buildSnapshot(payload, headers) {
   if (!payload || !payload.system) return null;
   return {
     timestamp: new Date().toISOString(),
@@ -369,6 +437,13 @@ function buildSnapshot(payload) {
     prefixMessages: truncatePrefixMessages(payload.messages),
     tailMessages: truncateTailMessages(payload.messages),
     markerMessages: buildMarkerSnapshot(payload.messages),
+    // Blind spot 5 (2026-07-27): the anthropic-beta header lives outside
+    // `payload`, so it's threaded in separately rather than read off the
+    // body like everything else above. `headers` is optional — direct
+    // callers (tests, the fallback content-hash path) that don't have a
+    // headers object get {present:false, tokens:[]}, the same shape an
+    // old-format snapshot degrades to on diff.
+    betaHeader: buildBetaHeaderSnapshot(headers),
   };
 }
 
@@ -535,6 +610,9 @@ function computeDiff(prev, current) {
     toolDiffs: diffTools(prev.toolsDetail, current.toolsDetail),
     paramDiffs: diffParams(prev.params, current.params),
     messageChain: diffMessageHashes(prev.messageHashes, current.messageHashes),
+    // prev.betaHeader is undefined on a pre-2026-07-27 snapshot; diffBetaHeader's
+    // `?? {tokens: []}` default degrades that to "no header" rather than throwing.
+    betaHeaderDiff: diffBetaHeader(prev.betaHeader, current.betaHeader),
   };
 }
 
@@ -547,7 +625,9 @@ function diffHasChanges(diff) {
     !diff.systemMatch ||
     diff.messageCountPrev !== diff.messageCountNow ||
     (diff.paramDiffs?.length ?? 0) > 0 ||
-    (diff.messageChain && diff.messageChain.firstDivergentIndex >= 0)
+    (diff.messageChain && diff.messageChain.firstDivergentIndex >= 0) ||
+    (diff.betaHeaderDiff &&
+      (diff.betaHeaderDiff.added.length > 0 || diff.betaHeaderDiff.removed.length > 0))
   );
 }
 
@@ -574,6 +654,13 @@ function summariseCauses(diff) {
     causes.push(`messages@${chain.firstDivergentIndex}(${chain.divergentRole ?? "?"})`);
   else if (chain && !chain.appendOnly && chain.nowLength < chain.prevLength)
     causes.push(`messages:truncated(${chain.prevLength}→${chain.nowLength})`);
+  const betaDiff = diff.betaHeaderDiff;
+  if (betaDiff && (betaDiff.added.length > 0 || betaDiff.removed.length > 0)) {
+    const parts = [];
+    if (betaDiff.added.length) parts.push(`+${betaDiff.added.join(",")}`);
+    if (betaDiff.removed.length) parts.push(`-${betaDiff.removed.join(",")}`);
+    causes.push(`header:anthropic-beta[${parts.join(" ")}]`);
+  }
   return causes;
 }
 
@@ -612,6 +699,11 @@ function buildEventRecord(diff, sessionKey, sessionId) {
       nowWin: d.nowWindow,
     })),
     tools: (diff.toolDiffs ?? []).map((d) => ({ n: d.name, c: d.change })),
+    betaHeader:
+      diff.betaHeaderDiff &&
+      (diff.betaHeaderDiff.added.length > 0 || diff.betaHeaderDiff.removed.length > 0)
+        ? { added: diff.betaHeaderDiff.added, removed: diff.betaHeaderDiff.removed }
+        : null,
     windows: {
       head: diff.prefixDiffs.length,
       markers: diff.markerDiffs.length,
@@ -670,13 +762,13 @@ async function appendEvent(eventsPath, record, fs) {
  * @returns {Promise<{ key, wroteSnapshot, wroteDiff } | null>} Result for tests; null if no system.
  */
 async function snapshotPrefix(payload, options = {}) {
-  const current = buildSnapshot(payload);
+  const headers = options.headers || null;
+  const current = buildSnapshot(payload, headers);
   if (!current) return null;
 
   const dir = options.dir || getSnapshotDir();
   const fs = { ...DEFAULT_FS, ...(options.fs || {}) };
 
-  const headers = options.headers || null;
   const sessionId = headers ? resolveSessionId(headers) : null;
   const sessionKey = resolveSessionKey(headers, payload.system);
   const lastPath = join(dir, `${sessionKey}-last.json`);
@@ -782,15 +874,18 @@ export {
   summariseCauses,
   buildEventRecord,
   diffHasChanges,
+  buildBetaHeaderSnapshot,
+  diffBetaHeader,
 };
 
 export default {
   name: "prefix-diff",
   description:
     "Snapshot everything the prompt cache keys on (system blocks, full tool " +
-    "schemas, top-level params, per-message hash chain, head/marker/tail " +
+    "schemas, top-level params including output_config/speed/betas, the " +
+    "anthropic-beta request header, per-message hash chain, head/marker/tail " +
     "windows) and diff against the previous request, naming the exact block, " +
-    "tool, param, or message index that changed",
+    "tool, param, header, or message index that changed",
   // Always loaded; gated at runtime by CACHE_FIX_PREFIXDIFF=1 inside onRequest.
   // This matches the acceptance criteria (env var alone activates) — the
   // extension is cheap to load (one no-op check per request when disabled).
