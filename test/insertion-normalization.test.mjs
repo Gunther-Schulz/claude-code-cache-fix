@@ -304,8 +304,10 @@ test("canonical persistence round-trip: write, reload, continue (append-only acr
     assert.deepEqual(body3.messages.slice(0, messages2.length), messages2);
     assert.deepEqual(body3.messages[messages2.length], userMsg("late-splice"));
 
-    // Telemetry file exists with 3 lines, one per action.
-    const key = "s-sess-roundtrip";
+    // Telemetry file exists with 3 lines, one per action. No system prompt
+    // was set on any of the three bodies, so all three land in the same
+    // "nosys" sub-key bucket.
+    const key = "s-sess-roundtrip-nosys";
     const telemetryFile = join(dir, "cache-fix-snapshots", `${key}-insertion-events.jsonl`);
     const lines = (await readFile(telemetryFile, "utf-8")).trim().split("\n");
     assert.equal(lines.length, 3);
@@ -323,6 +325,118 @@ test("session key resolution: session-id header takes precedence over content-ha
   assert.notEqual(withHeader, withoutHeader);
   assert.ok(withHeader.startsWith("s-"));
   assert.ok(withoutHeader.startsWith("c-"));
+});
+
+// =====================================================================
+// Sidecar sub-keying (threat-matrix row 14)
+// =====================================================================
+
+test("session key resolution: same session-id, different system prompt -> different sub-key", () => {
+  const messages = conv(4, "sidecar-key");
+  const headers = { "x-claude-code-session-id": "shared-sid" };
+  const mainKey = resolveInsertionSessionKey(headers, messages, [{ type: "text", text: "You are Claude Code" }]);
+  const sidecarKey = resolveInsertionSessionKey(headers, messages, [{ type: "text", text: "Generate a short title" }]);
+  assert.notEqual(mainKey, sidecarKey);
+  assert.ok(mainKey.startsWith("s-shared-sid-"));
+  assert.ok(sidecarKey.startsWith("s-shared-sid-"));
+});
+
+test("session key resolution: same session-id + same system prompt -> same sub-key (stable across calls)", () => {
+  const messages = conv(4, "stable-key");
+  const headers = { "x-claude-code-session-id": "shared-sid-2" };
+  const system = [{ type: "text", text: "You are Claude Code" }];
+  const k1 = resolveInsertionSessionKey(headers, messages, system);
+  const k2 = resolveInsertionSessionKey(headers, messages, system);
+  assert.equal(k1, k2);
+});
+
+test("session key resolution: absent system prompt -> stable 'nosys' bucket, distinct from a present one", () => {
+  const messages = conv(4, "nosys-key");
+  const headers = { "x-claude-code-session-id": "shared-sid-3" };
+  const withSystem = resolveInsertionSessionKey(headers, messages, [{ type: "text", text: "sys" }]);
+  const withoutSystem = resolveInsertionSessionKey(headers, messages, undefined);
+  assert.notEqual(withSystem, withoutSystem);
+  assert.ok(withoutSystem.endsWith("-nosys"));
+});
+
+test("two interleaved streams under one session-id (main thread + sidecar) keep independent canonicals, neither thrashes the other", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-interleave" };
+  const mainSystem = [{ type: "text", text: "You are Claude Code, Anthropic's official CLI for Claude." }];
+  const sidecarSystem = [{ type: "text", text: "Generate a concise 5-word title for this conversation." }];
+  try {
+    await silenced(() =>
+      withEnvAsync({ CACHE_FIX_INSERTION_NORMALIZE: "1" }, async () => {
+        // Main thread request 1: establishes canonical.
+        const mainMessages1 = conv(6, "main");
+        const mainBody1 = { model: "claude-opus-4-7", system: mainSystem, messages: mainMessages1 };
+        const mainCtx1 = await runExt(mainBody1, { headers, dir });
+        assert.equal(mainCtx1.meta.insertionNormalizeStats.action, "reset");
+        assert.equal(mainCtx1.meta.insertionNormalizeStats.resetReason, "no-prior-canonical");
+
+        // Sidecar request (title-gen), same session-id header, different
+        // system prompt, entirely unrelated single-turn messages. Before
+        // the fix this would have been compared against the main thread's
+        // canonical and thrashed it to reset.
+        const sidecarMessages = [userMsg("please title this conversation")];
+        const sidecarBody = { model: "claude-haiku-4-5", system: sidecarSystem, messages: sidecarMessages };
+        const sidecarCtx = await runExt(sidecarBody, { headers, dir });
+        assert.equal(sidecarCtx.meta.insertionNormalizeStats.action, "reset");
+        assert.equal(sidecarCtx.meta.insertionNormalizeStats.resetReason, "no-prior-canonical", "sidecar's own first-seen, not a thrash of the main thread's canonical");
+
+        // Main thread request 2: pure append of 2 more messages. Must
+        // reload MAIN'S OWN canonical (6 entries) from request 1 — not
+        // reset, and not polluted by the sidecar call in between.
+        const mainMessages2 = mainMessages1.concat(conv(2, "main-tail"));
+        const mainBody2 = { model: "claude-opus-4-7", system: mainSystem, messages: mainMessages2 };
+        const mainCtx2 = await runExt(mainBody2, { headers, dir });
+        assert.equal(mainCtx2.meta.insertionNormalizeStats.action, "append-only", "main thread's canonical survived the interleaved sidecar call");
+        assert.equal(mainCtx2.meta.insertionNormalizeStats.inserted, 2);
+
+        // A second sidecar call (another title-gen turn, same system
+        // prompt) similarly should not disturb, and should build its OWN
+        // append-only history rather than resetting every time.
+        const sidecarMessages2 = sidecarMessages.concat([assistantMsg("Title: proxy fixes")]);
+        const sidecarBody2 = { model: "claude-haiku-4-5", system: sidecarSystem, messages: sidecarMessages2 };
+        const sidecarCtx2 = await runExt(sidecarBody2, { headers, dir });
+        assert.equal(sidecarCtx2.meta.insertionNormalizeStats.action, "append-only", "sidecar's own canonical persisted across its own turns");
+      }),
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("old-format (pre-sub-key) state file is ignored gracefully -> treated as no-prior-canonical, not a crash", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-oldformat" };
+  const system = [{ type: "text", text: "You are Claude Code" }];
+  try {
+    // Simulate a leftover pre-sub-key state file at the OLD path (no
+    // system sub-key suffix) — the new code never reads this path, so it
+    // must be silently abandoned rather than erroring.
+    const { mkdir: mkdirP, writeFile: writeFileP } = await import("node:fs/promises");
+    const snapshotDir = join(dir, "cache-fix-snapshots");
+    await mkdirP(snapshotDir, { recursive: true });
+    await writeFileP(
+      join(snapshotDir, "s-sess-oldformat-insertion-canon.json"),
+      JSON.stringify({ entries: [{ h: "stale-hash", r: "user", o: 0 }] }),
+    );
+
+    await silenced(() =>
+      withEnvAsync({ CACHE_FIX_INSERTION_NORMALIZE: "1" }, async () => {
+        const messages = conv(4, "oldformat");
+        const body = { model: "claude-opus-4-7", system, messages };
+        const ctx = await runExt(body, { headers, dir });
+        // New sub-keyed path has no file yet -> ordinary first-seen reset,
+        // not a crash and not accidentally matching the stale entries.
+        assert.equal(ctx.meta.insertionNormalizeStats.action, "reset");
+        assert.equal(ctx.meta.insertionNormalizeStats.resetReason, "no-prior-canonical");
+      }),
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 // =====================================================================

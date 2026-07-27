@@ -27,8 +27,13 @@
 // --- Canonical history model ---
 //
 // Per session (keyed off the session-id header, same derivation as
-// prefix-diff/the ladder post-fc432bf), the proxy holds an append-only
-// list of entry identity records: { h: contentHash, r: role, o: occurrence }.
+// prefix-diff/the ladder post-fc432bf — SUB-KEYED additionally by a hash
+// of the request's system prompt, see systemPromptSubKey/threat-matrix
+// row 14: sidecar requests such as title-generation share the session-id
+// header with the main thread but carry a different system prompt, so
+// without the sub-key every sidecar turn thrashed the main thread's
+// canonical back to reset), the proxy holds an append-only list of entry
+// identity records: { h: contentHash, r: role, o: occurrence }.
 // The hash is computed AFTER stripping cache_control (mid-history-
 // breakpoint-ladder's hashMessageContent, imported rather than
 // reimplemented) so a marker placed by a downstream extension never
@@ -81,6 +86,7 @@
 // moved, "normalized" when a splice was detected and corrected).
 
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
@@ -108,12 +114,45 @@ function getSnapshotDir() {
   return join(claudeHome(), "cache-fix-snapshots");
 }
 
+// Sub-key on the system prompt (threat-matrix row 14): sidecar requests
+// (title-generation etc.) share the session-id header with the main thread
+// but carry a DIFFERENT system prompt. Keying persisted canonical state on
+// the session-id header alone made every sidecar turn look like a splice
+// against the main thread's canonical (or vice versa), thrashing it back
+// to a reset — never corrupting, but degrading the extension to a no-op
+// for that session. A short hash of system[0]'s text (mirrors prefix-
+// diff's computeSessionKey idiom — same "cheap discriminator over the
+// diffed content" shape, but used here as a SUB-key alongside the stable
+// session-id, never as the sole key, so prefix-diff's own "self-defeating
+// key" lesson doesn't apply: a change inside the hashed text can only ever
+// route to a *different* bucket, never lose the lookup entirely) buckets
+// the main thread and each distinct sidecar system prompt independently
+// under the same session-id.
+function systemPromptSubKey(system) {
+  let text;
+  if (typeof system === "string") {
+    text = system;
+  } else if (Array.isArray(system) && system.length > 0) {
+    const first = system[0];
+    text = typeof first?.text === "string" ? first.text : JSON.stringify(first ?? null);
+  } else {
+    return "nosys";
+  }
+  if (!text) return "nosys";
+  return createHash("sha256").update(text).digest("hex").slice(0, 8);
+}
+
 // Session-id header derivation, same idiom as prefix-diff/the ladder
 // (post-fc432bf: session-id header preferred, content-hash fallback for
-// requests without it — direct API calls, tests).
-export function resolveInsertionSessionKey(headers, messages) {
+// requests without it — direct API calls, tests). Sub-keyed on the system
+// prompt (see systemPromptSubKey) so sidecar requests sharing the header
+// bucket separately from the main thread. Old single-key state files
+// (pre-sub-key) are simply abandoned under the new path — loadCanonical's
+// existing ENOENT handling already treats an absent file as "no prior
+// canonical" (ordinary session start), so no explicit migration is needed.
+export function resolveInsertionSessionKey(headers, messages, system) {
   const sid = headers ? resolveSessionId(headers) : null;
-  if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}`;
+  if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(system)}`;
   const first = Array.isArray(messages) ? messages[0] : null;
   const h = first ? hashMessageContent(first) : null;
   return `c-${h || "empty"}`;
@@ -310,7 +349,7 @@ export default {
     const fs = DEFAULT_FS;
     const headers = ctx.headers || null;
     const sessionId = headers ? resolveSessionId(headers) : null;
-    const sessionKey = resolveInsertionSessionKey(headers, messages);
+    const sessionKey = resolveInsertionSessionKey(headers, messages, body.system);
 
     try {
       const prior = await loadCanonical(dir, sessionKey, fs);
