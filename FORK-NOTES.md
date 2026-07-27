@@ -16,18 +16,55 @@ After any proxy/ change on main: re-pin CACHE_FIX_PROXY_TREE_PIN via
 `git rev-parse --short HEAD:proxy` (doc/test-only commits leave the
 tree unchanged and need no re-pin).
 
-## ⚠ Never restart the proxy during a live Claude Code session
+## ⚠ Avoid restarting the proxy during a live Claude Code session
 
-A restart **is** a cache bust for every session then in flight —
-measured at **225k tokens** rewritten (2026-07-27 00:15), logged by
-`claude-worktime --cold` as `tools_changed` six seconds after the
-restart. The tools array the fresh process sends differs from what the
-old one sent, so the invalidation is real, not just downtime.
+**Observed, 2026-07-27 00:15:** a restart coincided with a ~225k-token
+rewrite, reported by `claude-worktime --cold` as `tools_changed` about
+six seconds later.
+
+**What that does and does not establish.** The co-occurrence is the
+measurement; the mechanism is not. "The fresh process sends a different
+tools array" was the working explanation at the time, but it was never
+demonstrated against the wire bytes — the session-mirror and
+prefix-diff gates that could have shown it postdate the observation.
+Treat the mechanism as unverified.
+
+**Counter-observation, 2026-07-27 19:01, measured:** a restart
+mid-session produced no bust. `cache_read` climbed straight through it
+(35990 → 42475 — an evicted prefix would collapse it) and the first
+post-restart prefix-diff logged `tools=match, system=match`. Two more
+restarts the same evening (19:15, 19:32) also passed without one.
+
+So "a restart IS a bust" no longer holds as stated. Restarts stay
+session-boundary-only as the cautious default — one 225k incident is
+reason enough for care — but a restart is now a candidate to CHECK,
+never a cause to assume. Anyone attributing a bust to one must show
+`cache_read` collapsing across it.
+
 (The restart-transparency work merged 2026-07-27 — persisted
-serialization state in ladder + insertion-normalization, audit in
-docs/audits/restart-state-audit.md — shrinks this class; treat
-restarts as session-boundary-only until a measured restart shows
-clean, then relax this rule on evidence.)
+serialization state in insertion-normalization and, since `7ed1886`,
+the ladder; audit in docs/audits/restart-state-audit.md. The clean
+restarts above are consistent with it working, but do not isolate it:
+the ladder was largely budget-skipped in the observed session, so the
+credit cannot be assigned to any one extension.)
+
+**Reading `--cold` output:** `other` is the DEGRADED cause, not a
+residual category — `claude-worktime.sh:1662` sets it as a default and
+overwrites it only if `cache_miss_reason` is successfully read. It
+means "no cause available", never "known causes tested and rejected".
+Do not treat an `other` bust as evidence for any mechanism.
+
+**`other` in the statusline does not mean the cause is unavailable.**
+On 2026-07-27 a bust displayed `other` while the transcript held
+`tools_changed` (49153 tok) all along. Always grep the transcript at
+the busting timestamp before concluding the cause is unknown.
+
+**One session id carries several conversations.** Subagents and CC's
+background calls share the main session's id. Since `6aa85f8` the
+prefix-diff keeps a separate baseline per tenant and marks
+`crossTenant` when it must fall back across one; before that fix,
+co-tenant traffic rendered as prefix churn and was misread as a bust
+cause. A `crossTenant` record is not evidence of a bust.
 
 Hot-reload is off (`CACHE_FIX_HOT_RELOAD`), so extension edits need a
 supervisor-level restart. Batch them at session boundaries. Reading
@@ -41,11 +78,13 @@ never restart to investigate.
     git merge origin/main            # on main (merge, not rebase —
                                      # fork main is deployed state,
                                      # published; never rewrite it)
-    npm test                         # prefix-diff tests must pass;
-                                     # 2 known upstream-side failures
-                                     # as of 2026-07-27: EADDRINUSE
-                                     # 9876 (environmental), lowercase
-                                     # no_proxy launcher test
+    npm test                         # all green (1496 as of 2026-07-27).
+                                     # The two long-standing "known
+                                     # failures" (EADDRINUSE 9876,
+                                     # lowercase no_proxy) were tests
+                                     # reading ambient env they had not
+                                     # set, fixed 2026-07-27 (2a1585a) —
+                                     # a failure here is now real.
     systemctl --user restart cache-fix-proxy && curl -s 127.0.0.1:9801/health
     git push fork main
     # then, ONLY if proxy/ changed:

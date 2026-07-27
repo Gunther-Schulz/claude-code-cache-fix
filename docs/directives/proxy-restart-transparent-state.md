@@ -5,10 +5,20 @@ request serialization, so restarts stop being busts entirely and
 the FORK-NOTES "never restart mid-session" rule can retire.
 
 Audit + fix, per extension that makes order-affecting or
-content-affecting decisions:
+content-affecting decisions. **The ✓ marks below were the directive's
+TARGET state, not a finding** — read as already-true they misled a
+later reader; the audit this directive commissioned
+(`docs/audits/restart-state-audit.md`) is the authority on what was
+actually persisted, and it contradicted one of them.
 - insertion-normalization: canonical persisted ✓ (verify reload
   path against a real restart in tests).
-- mid-history-breakpoint-ladder: rungs persisted ✓ (same).
+- mid-history-breakpoint-ladder: rungs persisted — ✓ only since
+  commit `7ed1886` (2026-07-27). When this directive was written the
+  claim was FALSE: `sessionRungs` was a module-scope in-memory Map
+  that never touched disk, as the extension's own comment block
+  stated. The audit found it (restart-state-audit.md:76-91), which is
+  precisely what the "verify against a real restart" instruction was
+  for.
 - sort-stabilization / fresh-session-sort / tool-input-normalize /
   identity-normalization / content-strip: decide per extension —
   DETERMINISTIC functions of the request alone need no state;
