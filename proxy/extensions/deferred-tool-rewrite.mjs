@@ -1,4 +1,5 @@
-// deferred-tool-rewrite — Phase A only (robustness-threat-matrix class 6).
+// deferred-tool-rewrite
+// NOTE 2026-07-27: server.mjs header propagation FIXED (10d33e4) — Phase B unblocked, not yet exercised. — Phase A only (robustness-threat-matrix class 6).
 //
 // Design: docs/directives/proxy-deferred-tool-rewrite.md. Spec contradiction
 // on record: CC docs say deferred-tool loads append without disturbing

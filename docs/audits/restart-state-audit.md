@@ -172,3 +172,8 @@ No extension in the directive's named-5 required a code change. The
 byte-identical restart test (`test/proxy-restart-transparent.test.mjs`)
 covers all five deterministic extensions plus insertion-normalization's
 disk-reload path, per the directive's acceptance criterion.
+
+UPDATE: the ladder gap flagged above is FIXED in 7ed1886 —
+sticky-rung state persists per session key (atomic write, fail-open
+reload); byte-identical restart test + the empirical probe regression
+are in test/mid-history-breakpoint-ladder.test.mjs.
