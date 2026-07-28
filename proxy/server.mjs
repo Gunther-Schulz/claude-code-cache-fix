@@ -581,16 +581,13 @@ export async function startProxy(options = {}) {
   );
   try {
     _sourceTree = await sourceFingerprint(PROXY_ROOT);
-    // Hand it to the capture so every boot record names the exact source tree
-    // that served the traffic — the same fingerprint /health reports. Without
-    // it the field is a permanent null, which is worse than absent: it looks
-    // tracked.
-    try {
-      const rc = await import("./extensions/request-capture.mjs");
-      rc.setProxyTree?.(_sourceTree);
-    } catch {
-      /* capture extension absent or disabled — not fatal */
-    }
+    // Publish via the environment, NOT via a module export. loadExtensions
+    // cache-busts its imports (pipeline.mjs `_loadCounter`), so the module
+    // instance the pipeline runs is not the one a dynamic import here would
+    // return — module-scope state does not cross that boundary, and a setter
+    // called on the wrong instance leaves the field silently null. Extensions
+    // already read their gates from process.env for the same reason.
+    if (_sourceTree) process.env.CACHE_FIX_PROXY_TREE = _sourceTree;
   } catch (err) {
     process.stderr.write(`[cache-fix] source fingerprint unavailable: ${err?.message ?? err}\n`);
     _sourceTree = null;

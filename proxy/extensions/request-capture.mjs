@@ -35,11 +35,12 @@ const DEFAULT_FS = { appendFile, mkdir, readdir, stat, unlink };
 const SWEEP_EVERY = 50;
 
 let _appendsSinceSweep = 0;
-// Set once by the server so a boot record can name the exact source tree the
-// traffic was served by — the same fingerprint /health reports.
-export let _proxyTree = null;
-export function setProxyTree(t) {
-  _proxyTree = t;
+// The source tree the traffic was served by, read from the environment the
+// server publishes it into. NOT module state: loadExtensions cache-busts its
+// imports, so a setter would land on a different module instance than the one
+// the pipeline runs and the field would stay null forever.
+function proxyTree() {
+  return process.env.CACHE_FIX_PROXY_TREE || null;
 }
 
 function isEnabled(env = process.env) {
@@ -223,7 +224,7 @@ export async function sweepCaptureDir(dir, maxBytes, fs = DEFAULT_FS) {
 export function buildBootRecord(now = new Date(), env = process.env, tree = null) {
   const gates = {};
   for (const [k, v] of Object.entries(env)) {
-    if (k.startsWith("CACHE_FIX_")) gates[k] = v;
+    if (k.startsWith("CACHE_FIX_") && k !== "CACHE_FIX_PROXY_TREE") gates[k] = v;
   }
   return {
     ts: now.toISOString(),
@@ -266,7 +267,7 @@ export default {
         await DEFAULT_FS.mkdir(dir, { recursive: true });
         await DEFAULT_FS.appendFile(
           join(dir, `${record.key}-requests.jsonl`),
-          JSON.stringify(buildBootRecord(new Date(), process.env, _proxyTree)) + "\n",
+          JSON.stringify(buildBootRecord(new Date(), process.env, proxyTree())) + "\n",
         );
       }
       await DEFAULT_FS.mkdir(dir, { recursive: true });
