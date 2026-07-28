@@ -160,6 +160,43 @@ The tools now answer it directly — `--census` prints `edit@N of M` per
 replace/edit and `[CC bytes at outDiv IDENTICAL -> ours]` per violation — so
 reaching for a probe at all is the signal that something is missing from them.
 
+## A checker has THREE answers, not two
+
+    verified clean    -> pass
+    verified broken   -> fail
+    COULD NOT VERIFY  -> its own answer, folded into neither
+
+The third is where checkers lie, and it happened three times on 2026-07-28
+alone:
+
+- `claude-worktime --cold` printed **"No cold rewrites recorded"** while 26 real
+  records sat in the file — its parser had died on one malformed line and the
+  error went to `/dev/null`;
+- the gate sweep would have reported a run over **zero captures** as success —
+  it checked nothing and nothing said so;
+- the replay-fidelity check printed **"0/0"**, which reads exactly like
+  "checked and clean" when it means "there was nothing to check".
+
+Every one of those is an absence of evidence wearing a verdict's clothes, and
+each was written by someone who had just fixed the previous one.
+
+Which of the two an absence maps to is a JUDGEMENT, and it has to be made
+deliberately rather than by default:
+
+- absence that is ITSELF the defect → **fail**. A gate running with no entry in
+  the acceptance roster means somebody flipped a flag without recording what
+  proved it safe.
+- absence that is nobody's fault → **warn, and say what is missing**. No
+  comparable requests, no outcome records yet, no captures on this machine.
+
+What is never allowed is silence, or a number shaped like a pass. If a run
+proves nothing, the output says it proves nothing.
+
+Mechanised on the dotfiles side: `bootstrap/doctor.py` enumerates its own
+`*_verdict` functions by introspection and fails its self-check if any lacks a
+test, so a new verdict cannot be added without its could-not-verify case being
+exercised.
+
 ## Adding a check
 
 Two rules, both learned the expensive way:
