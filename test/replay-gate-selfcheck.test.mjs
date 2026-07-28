@@ -38,6 +38,7 @@ import {
   censusPair,
   semanticCore,
   readCapture,
+  findMitigationGaps,
 } from "../tools/replay.mjs";
 
 const user = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
@@ -386,4 +387,69 @@ test("firstDivergence: prefix growth reports null, in-place change reports the i
   assert.equal(firstDivergence([1, 2], [1, 2, 3]), null);
   assert.equal(firstDivergence([1, 2, 3], [1, 9, 3]), 1);
   assert.equal(firstDivergence([], []), null);
+});
+
+// --- Mitigation gaps ---
+//
+// The four gates ask "did we make it worse". None asks "did we fail to help",
+// and a reset forwards CC's bytes faithfully — invisible to all of them while
+// costing the whole rewrite. On 2026-07-28 a 484k bust had every gate green
+// and it took hand-reading extension telemetry to establish we had not
+// mitigated it.
+
+test("mitigation: a normalized splice counts as absorbed and costs nothing", () => {
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const b = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+  const rows = findMitigationGaps([
+    entry(0, a, a, { action: "append-only" }),
+    entry(1, b, b, { action: "normalized" }),
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, "splice/insert-mid");
+  assert.equal(rows[0].mitigated, true);
+  assert.equal(rows[0].rebilledBytes, 0);
+});
+
+test("mitigation: BITE — a RESET on a mitigable event is a miss, and is priced", () => {
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const b = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+  const rows = findMitigationGaps([
+    entry(0, a, a, { action: "append-only" }),
+    entry(1, b, b, { action: "reset", resetReason: "not-subsequence" }),
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].mitigated, false, "a reset forwards CC's array — it absorbs nothing");
+  assert.equal(rows[0].resetReason, "not-subsequence");
+  assert.ok(rows[0].rebilledBytes > 0, "everything from the divergence index on is re-billed");
+});
+
+test("mitigation: BITE — append-only on a mitigable event is ALSO a miss", () => {
+  // The subtle one. The extension reporting "append-only" while the census
+  // sees a mid-history splice means it did not DETECT the splice — the bytes
+  // go out unchanged either way. Measured twice in one session.
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const b = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+  const rows = findMitigationGaps([
+    entry(0, a, a, { action: "append-only" }),
+    entry(1, b, b, { action: "append-only" }),
+  ]);
+  assert.equal(rows[0].mitigated, false);
+  assert.ok(rows[0].rebilledBytes > 0);
+});
+
+test("mitigation: honest history rewrites are NOT counted as missed mitigations", () => {
+  // replace/edit is CC rewriting its own history (rows 4/22) and drop-only is
+  // a prune. Neither is something this proxy claims to absorb, and counting
+  // them would inflate the miss rate with events no mitigation should touch.
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const edited = [user("u0"), asst("a1"), user("EDITED")];
+  const dropped = [user("u0"), asst("a1")];
+  assert.equal(
+    findMitigationGaps([entry(0, a, a, { action: "append-only" }), entry(1, edited, edited, { action: "reset" })]).length,
+    0,
+  );
+  assert.equal(
+    findMitigationGaps([entry(0, a, a, { action: "append-only" }), entry(1, dropped, dropped, { action: "reset" })]).length,
+    0,
+  );
 });

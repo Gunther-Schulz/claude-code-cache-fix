@@ -399,6 +399,10 @@ export function compactEntry(e) {
     ts: e.ts,
     key: e.key,
     inHash: inMsgs.map((m) => sha(JSON.stringify(m))),
+    // Byte length per message. Numbers, not content — this is what lets a
+    // missed mitigation be priced (everything from the divergence index on is
+    // re-billed) without retaining a single message body.
+    inBytes: inMsgs.map((m) => JSON.stringify(m).length),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
     inSem: inMsgs.map(semanticId),
     msgs: inMsgs.length,
@@ -551,6 +555,70 @@ export function buildTrace(entries) {
     out.push({ group: g, rows });
   }
   return out;
+}
+
+// --- Mitigation gaps: did we actually HELP, not just "not make it worse"? ---
+//
+// All four gates ask one question — did OUR output diverge earlier than CC's
+// input. They are silent on the opposite failure: CC did something this proxy
+// exists to absorb, and the extension declined to act. A reset forwards CC's
+// bytes faithfully, so it is invisible to every gate while costing the full
+// rewrite.
+//
+// That blind spot cost a real answer on 2026-07-28. A 484k `messages_changed`
+// bust (event 14) had all four gates green, and establishing that we had NOT
+// mitigated it took hand-reading extension telemetry. Fifteen seconds before
+// the bust, insertion-normalization had reset with `not-subsequence`.
+//
+// Both halves of the answer already existed and nothing joined them: the
+// census classifies what CC did, and the extension records per request whether
+// it normalized or reset. This is the join.
+//
+// MITIGABLE is deliberately narrow — only classes this proxy claims to absorb.
+// A `replace/edit` is an honest history rewrite (threat-matrix row 4/22) and
+// `drop-only` is a prune; counting either as a miss would inflate the number
+// with events no mitigation should touch.
+const MITIGABLE = new Set(["splice/insert-mid", "append-after-change", "reorder-only"]);
+
+export function findMitigationGaps(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const cur = group[i];
+      const kind = censusIds(prev.inSem, cur.inSem);
+      if (!MITIGABLE.has(kind)) continue;
+      // "normalized" is the only action that re-serialises the splice into an
+      // append. append-only and reset both forward CC's array as it came.
+      const mitigated = cur.action === "normalized";
+      // What a passthrough costs: the cache keys on the longest identical
+      // prefix, so every message from CC's own divergence index onward is
+      // re-billed.
+      const inDiv = firstDivergence(prev.inHash, cur.inHash);
+      const from = inDiv === null ? cur.inBytes.length : inDiv;
+      const rebilled = cur.inBytes.slice(from).reduce((a, b) => a + b, 0);
+      rows.push({
+        n: cur.n,
+        prevN: prev.n,
+        ts: cur.ts,
+        kind,
+        mitigated,
+        action: cur.action,
+        resetReason: cur.resetReason,
+        rebilledBytes: mitigated ? 0 : rebilled,
+      });
+    }
+  }
+  return rows.sort((a, b) => b.rebilledBytes - a.rebilledBytes);
 }
 
 export function runCensus(entries) {
@@ -768,6 +836,7 @@ async function main() {
   const sequence = findSequenceViolations(stability);
   const census = args.census ? runCensus(stability) : null;
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
+  const mitigation = args.census ? findMitigationGaps(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
   // Attribute each violation by replaying the corpus once per extension
@@ -862,7 +931,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -944,6 +1013,35 @@ async function main() {
         const pct = ((100 * c) / total).toFixed(1).padStart(5);
         const where = kind === "append-only" || kind === "identical" ? "" : `   e.g. n=${ex.prevN}->${ex.n}`;
         process.stdout.write(`  ${String(c).padStart(5)}  ${pct}%  ${kind}${where}\n`);
+      }
+    }
+    if (mitigation) {
+      // The question the four gates cannot ask: of the events this proxy
+      // exists to absorb, how many did it actually absorb?
+      const total = mitigation.length;
+      const hit = mitigation.filter((m) => m.mitigated).length;
+      const pct = total ? ((100 * hit) / total).toFixed(0) : "--";
+      process.stdout.write(`\nmitigation: ${hit}/${total} mitigable events absorbed (${pct}%)\n`);
+      if (total > hit) {
+        const missedBytes = mitigation.reduce((a, m) => a + m.rebilledBytes, 0);
+        process.stdout.write(`  passed through: ~${(missedBytes / 1e6).toFixed(1)} MB re-billed\n`);
+        const byReason = new Map();
+        for (const m of mitigation) {
+          if (m.mitigated) continue;
+          const k = m.resetReason ? `reset(${m.resetReason})` : m.action;
+          const cur = byReason.get(k) ?? { n: 0, bytes: 0 };
+          cur.n++;
+          cur.bytes += m.rebilledBytes;
+          byReason.set(k, cur);
+        }
+        for (const [k, v] of [...byReason.entries()].sort((a, b) => b[1].bytes - a[1].bytes)) {
+          process.stdout.write(`  ${String(v.n).padStart(5)}  ${k} — ~${(v.bytes / 1e6).toFixed(1)} MB\n`);
+        }
+        for (const m of mitigation.filter((x) => !x.mitigated).slice(0, 5)) {
+          process.stdout.write(
+            `    n=${m.prevN}->${m.n} ${m.kind} ${m.resetReason ? `reset(${m.resetReason})` : m.action} ~${(m.rebilledBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
+          );
+        }
       }
     }
     if (toolsDeltas) {
