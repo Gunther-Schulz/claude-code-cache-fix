@@ -128,5 +128,44 @@ structure preserved exactly) and therefore committable. Ledgers are
 per-machine (`LEDGER-<host>.json`); novelty is judged against every sibling
 ledger, so N machines share one deduplicated corpus with no coordination.
 
-Known gap worth filling: no corpus yet contains a **compaction** event, so
-`insertion-normalization`'s compaction path has never met real traffic.
+The gate reads captures **line by line**, so pointing it at a live
+multi-hundred-megabyte capture is the intended use, not an abuse. It slurped
+them until 2026-07-28, when a 955 MB capture produced `RangeError: Invalid
+string length` — the gate was unrunnable on the largest corpus while staying
+green on every small one. Run it on the live capture, not only on fixtures:
+that is what surfaced this.
+
+## Compaction is a new conversation, not a drop
+
+Settled 2026-07-28 by replaying a capture containing a real compaction
+(session `58c979ce`), keys computed with the shipped
+`resolveInsertionSessionKey`:
+
+    n=778  1548 msgs   conversation 0dc13516c44f88c7
+    n=780  1548 msgs   conversation 0dc13516c44f88c7   <- summarization call
+    n=786     4 msgs   conversation 554180f85a9a1528   <- continuation
+    n=787     6 msgs   conversation 554180f85a9a1528
+
+Same session-id, same system-prompt sub-key, **different conversation
+sub-key**: conversation identity is derived from the history itself, and
+compaction replaces `messages[0]` with the summary. So to every stateful
+extension the continuation is a NEW conversation — fresh canonical, no reset.
+
+That is correct, and there is nothing to mitigate. The prefix changed at
+index 0, so no cached bytes survive by construction; a compaction bust is
+honest. All four gates stayed at 0 across the boundary.
+
+Two readings this makes easy to get wrong:
+
+- `insertion-normalization`'s `dropped-majority` branch is **not** the
+  compaction path and will never see one — it serves in-conversation
+  shrinkage, where `messages[0]` survives. An earlier version of this file
+  called that branch an untested gap awaiting a compaction in the corpus; the
+  corpus now has one and it does not go there.
+- `--census` cannot classify a compaction as `drop-only`, because the pair
+  straddles two conversation groups and is never compared. Absence of
+  `drop-only` after a compaction is the expected reading, not a miss.
+
+Both were predicted the other way before the capture was replayed. The
+prediction cost nothing because it was checked; stating it as a result would
+have put two wrong facts in this file.

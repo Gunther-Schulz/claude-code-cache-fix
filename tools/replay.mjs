@@ -58,7 +58,9 @@
 // first message); co-tenant sidecar traffic sharing a session-id header
 // is skipped rather than reported as churn (runbook's known artifact).
 
-import { readFile, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -447,6 +449,26 @@ function parseArgs(argv) {
   return args;
 }
 
+// Captures are read line-by-line, never slurped. One session's capture
+// reaches ~1 GB — each request re-sends the whole history, so the file grows
+// quadratically — and `readFile(f, "utf-8")` throws `RangeError: Invalid
+// string length` once the file passes V8's max string size. That made the
+// GATE unrunnable on exactly the largest and most interesting corpus, while
+// staying green on every small one. Found 2026-07-28 by pointing it at a
+// live 955 MB session capture.
+//
+// Blank lines are skipped WITHOUT consuming an index, matching the previous
+// `.filter()` — `n` must keep the meaning that `--restart-at`,
+// `--wipe-state-at` and every violation report already use.
+export async function* readCapture(path) {
+  const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
+  let n = 0;
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    yield [n++, line];
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv);
 
@@ -464,14 +486,13 @@ async function main() {
 
   let extensions = await loadExtensions(EXT_DIR, EXT_CONFIG);
 
-  const lines = (await readFile(args.file, "utf-8")).split("\n").filter((l) => l.trim());
   const report = [];
   const stability = [];
 
-  for (let n = 0; n < lines.length; n++) {
+  for await (const [n, line] of readCapture(args.file)) {
     let rec;
     try {
-      rec = JSON.parse(lines[n]);
+      rec = JSON.parse(line);
     } catch {
       report.push({ n, error: "unparseable capture line" });
       continue;
@@ -603,10 +624,10 @@ async function main() {
       process.env.CLAUDE_CONFIG_DIR = scratch2;
       const outs = new Map();
       const needed = new Set(violations.flatMap((v) => [v.prevN, v.n]));
-      for (let n = 0; n < lines.length; n++) {
+      for await (const [n, line] of readCapture(args.file)) {
         let rec;
         try {
-          rec = JSON.parse(lines[n]);
+          rec = JSON.parse(line);
         } catch {
           continue;
         }

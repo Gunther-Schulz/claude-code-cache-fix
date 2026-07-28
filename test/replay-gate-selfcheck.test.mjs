@@ -26,6 +26,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
+import { writeFile, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import {
   findStabilityViolations,
   findSafetyViolations,
@@ -33,6 +37,7 @@ import {
   firstDivergence,
   censusPair,
   semanticCore,
+  readCapture,
 } from "../tools/replay.mjs";
 
 const user = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
@@ -260,6 +265,58 @@ test("census: semanticCore keeps genuinely different content distinct", () => {
     ],
   };
   assert.equal(semanticCore(multi).length, 2);
+});
+
+// --- Corpus reader ---
+//
+// The gate slurped its capture with readFile(..., "utf-8") until 2026-07-28,
+// when pointing it at a live 955 MB session capture threw
+// `RangeError: Invalid string length` — V8's max string size. So the gate
+// could not run at all on the largest, most interesting corpus, while every
+// small corpus stayed green. It is now a line-by-line stream.
+//
+// The crash was loud and self-announcing. What is NOT loud is the INDEXING:
+// the old form filtered blank lines away before indexing, so `n` counted
+// only non-blank lines. `--restart-at N` / `--wipe-state-at N` and every
+// violation report are stated in that same `n`. If a future rewrite counts
+// blank lines, those indices all shift by a silent off-by-k and point at the
+// wrong request — a wrong answer rather than a crash. Pin the semantics.
+
+test("readCapture: blank lines are skipped WITHOUT consuming an index", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "cache-fix-readcapture-"));
+  try {
+    const file = join(dir, "c.jsonl");
+    // Blank and whitespace-only lines interleaved, plus a trailing newline.
+    await writeFile(file, ['{"i":0}', "", '{"i":1}', "   ", '{"i":2}', ""].join("\n") + "\n");
+
+    const seen = [];
+    for await (const [n, line] of readCapture(file)) seen.push([n, JSON.parse(line).i]);
+
+    assert.deepEqual(
+      seen,
+      [
+        [0, 0],
+        [1, 1],
+        [2, 2],
+      ],
+      "index n must equal the position among NON-BLANK lines",
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("readCapture: an empty corpus yields nothing rather than one blank entry", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "cache-fix-readcapture-"));
+  try {
+    const file = join(dir, "empty.jsonl");
+    await writeFile(file, "\n\n");
+    const seen = [];
+    for await (const e of readCapture(file)) seen.push(e);
+    assert.equal(seen.length, 0);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 // --- Primitive ---
