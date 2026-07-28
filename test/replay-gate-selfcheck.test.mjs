@@ -242,6 +242,36 @@ test("sequence: BITE — normalize then reset is caught", () => {
   assert.equal(v[0].normalizedAt, 0);
 });
 
+// A reset is OUR failure only when CC left the history alone. If CC rewrote
+// it, resetting is correct and flagging it is a check firing on a non-defect —
+// the fault that trains a reader to ignore red. Measured 2026-07-28 on capture
+// s-538c0aef request 109: CC replaced message 196 in place, so
+// reset(edit-shaped) was right; the real cost of that event was our bytes
+// moving at 177, which is the STABILITY gate's job and it caught it.
+test("sequence: a reset AFTER CC rewrote history is honest, not a violation", () => {
+  const a = [user("u0"), asst("a1"), user("u2")];
+  // CC edits message 1 in place — the history genuinely changed.
+  const b = [user("u0"), asst("CC-REWROTE-THIS"), user("u2")];
+  const v = findSequenceViolations([
+    entry(0, a, a, { action: "normalized" }),
+    entry(1, b, b, { action: "reset", resetReason: "edit-shaped" }),
+  ]);
+  assert.equal(v.length, 0, "resetting on a genuine history rewrite is correct behaviour");
+});
+
+test("sequence: BITE — the exemption must not swallow an append-only reset", () => {
+  // Same shape, but CC only APPENDED. Nothing it sent changed, so a reset
+  // means our reconstruction broke on its own — still a violation.
+  const a = [user("u0"), asst("a1")];
+  const b = [user("u0"), asst("a1"), user("u2")];
+  const v = findSequenceViolations([
+    entry(0, a, a, { action: "normalized" }),
+    entry(1, b, b, { action: "reset", resetReason: "edit-shaped" }),
+  ]);
+  assert.equal(v.length, 1, "an append-only pair gives the reset no excuse");
+  assert.equal(v[0].normalizedAt, 0);
+});
+
 test("sequence: a first-request reset is bookkeeping, not a violation", () => {
   // no-prior-canonical means "nothing cached yet" — every conversation's
   // first request does this and it costs nothing.

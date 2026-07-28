@@ -274,11 +274,29 @@ export function findSequenceViolations(entries) {
   const out = [];
   for (const group of groups.values()) {
     let normalizedAt = null;
-    for (const e of group) {
+    for (let i = 0; i < group.length; i++) {
+      const e = group[i];
       const act = e.action;
       if (act === "normalized") normalizedAt = e.n;
       else if (act === "reset" && normalizedAt !== null && e.resetReason !== "no-prior-canonical") {
-        out.push({ n: e.n, ts: e.ts, normalizedAt, reason: e.resetReason });
+        // A reset is only OUR failure if CC's own history was append-only
+        // across the pair. When CC genuinely rewrote history, resetting is
+        // the correct response and flagging it is a check firing on a
+        // non-defect — which trains its reader to ignore the ones that
+        // matter.
+        //
+        // Same bar the stability gate already uses: `inDiv === null` means CC
+        // changed nothing that was already sent. Measured 2026-07-28 on
+        // capture s-538c0aef, request 109: CC replaced message 196 in place
+        // ("yes lest do it all!" -> "lets do it all 13.x shuodl be ..."), so
+        // reset(edit-shaped) was right and the sequence flag was noise. The
+        // real cost of that event — our bytes moving at 177 while CC's were
+        // identical — is the STABILITY gate's job, and it caught it.
+        const prev = group[i - 1];
+        const ccRewrote = prev ? firstDivergence(prev.inHash, e.inHash) !== null : false;
+        if (!ccRewrote) {
+          out.push({ n: e.n, ts: e.ts, normalizedAt, reason: e.resetReason });
+        }
         normalizedAt = null; // report once per normalize/reset cycle
       }
     }
