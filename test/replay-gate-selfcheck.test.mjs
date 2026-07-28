@@ -453,3 +453,28 @@ test("mitigation: honest history rewrites are NOT counted as missed mitigations"
     0,
   );
 });
+
+// Occurrence ordinals in the census identity. Repeats are common — one
+// measured history carried the same hook reminder 44 times, byte-identical —
+// and without an ordinal a Set treats all 44 as one entry, so a plain tail
+// append can read as a mid-history splice. insertion-normalization's own
+// identityKey has been `hash|role|occurrence` all along; this is the census
+// catching up to it.
+test("census: repeated identical messages do not collapse into one identity", () => {
+  const dup = { role: "system", content: [{ type: "text", text: "recurring reminder" }] };
+  const base = [user("u0"), dup, asst("a1"), dup, user("u2")];
+  // A pure tail append over a history containing duplicates.
+  const grown = [...base, asst("a3")];
+  assert.equal(
+    censusPair(base, grown),
+    "append-only",
+    "duplicates must not make a tail append look like a splice",
+  );
+});
+
+test("census: BITE — a genuine splice is still caught when duplicates are present", () => {
+  const dup = { role: "system", content: [{ type: "text", text: "recurring reminder" }] };
+  const base = [user("u0"), dup, asst("a1"), dup, user("u2")];
+  const spliced = [user("u0"), dup, asst("a1"), dup, user("INSERTED"), user("u2")];
+  assert.equal(censusPair(base, spliced), "splice/insert-mid");
+});

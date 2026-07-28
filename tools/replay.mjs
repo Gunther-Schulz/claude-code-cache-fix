@@ -349,7 +349,28 @@ export function semanticCore(msg) {
   return kept;
 }
 
-const semanticId = (m) => `${m?.role ?? "?"}:${sha(JSON.stringify(semanticCore(m)))}`;
+// Semantic identity WITH an occurrence ordinal, computed per array.
+//
+// Without the ordinal this collapsed repeats of the same message into one
+// identity, and repeats are not rare: one measured history carried the
+// recurring "The task tools haven't been used recently" reminder 44 times,
+// byte-identical. Set- and index-based reasoning then treats 44 distinct
+// entries as one, so a plain tail append can read as a mid-history splice.
+//
+// That is not a hypothetical either — it made findMitigationGaps report two
+// `splice/insert-mid` misses on 2026-07-28 where the extension had correctly
+// reported `append-only`. The extension was right and the census was wrong,
+// because insertion-normalization's own `identityKey` is `hash|role|occurrence`
+// and has carried the ordinal all along. This makes the two agree.
+export function semanticIds(msgs) {
+  const seen = new Map();
+  return msgs.map((m) => {
+    const base = `${m?.role ?? "?"}:${sha(JSON.stringify(semanticCore(m)))}`;
+    const o = seen.get(base) ?? 0;
+    seen.set(base, o + 1);
+    return `${base}#${o}`;
+  });
+}
 
 // --- Compact retention ---
 //
@@ -404,7 +425,7 @@ export function compactEntry(e) {
     // re-billed) without retaining a single message body.
     inBytes: inMsgs.map((m) => JSON.stringify(m).length),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
-    inSem: inMsgs.map(semanticId),
+    inSem: semanticIds(inMsgs),
     msgs: inMsgs.length,
     inTools: toolsFingerprints(e.inTools),
     outTools: toolsFingerprints(e.outTools),
@@ -479,7 +500,7 @@ const asCompact = (e) => (e.inHash ? e : compactEntry(e));
 const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
 
 export function censusPair(a, b) {
-  return censusIds(a.map(semanticId), b.map(semanticId));
+  return censusIds(semanticIds(a), semanticIds(b));
 }
 
 // The classification itself, on semantic ids — what the compact entries carry.
