@@ -302,13 +302,17 @@ test("onRequest: second request adds SendMessage → tools[] byte-stable for kno
   const headers = { "x-claude-code-session-id": "sess-add" };
   try {
     await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
-      const body1 = { tools: [tool("Read"), tool("Bash")], system: [{ type: "text", text: "sys" }], messages: [] };
+      // Same conversation across both requests: msgs[0] is what identifies
+      // one, so an empty first request would now be a DIFFERENT conversation
+      // (and no real first request is empty).
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      const body1 = { tools: [tool("Read"), tool("Bash")], system: [{ type: "text", text: "sys" }], messages: [u1] };
       await runExt(body1, { headers, dir });
 
       const body2 = {
         tools: [tool("Read"), tool("Bash"), tool("SendMessage")],
         system: [{ type: "text", text: "sys" }],
-        messages: [{ role: "user", content: [{ type: "text", text: "turn 1" }] }],
+        messages: [u1],
       };
       const ctx2 = await runExt(body2, { headers, dir });
 
@@ -396,33 +400,43 @@ test("onRequest: pruned anchor → re-anchor once, stable thereafter", async () 
   const headers = { "x-claude-code-session-id": "sess-prune" };
   try {
     await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      // msgs[0] identifies the conversation, so it must SURVIVE the prune for
+      // this to exercise re-anchoring rather than a new conversation. The
+      // addition anchors to the LAST message, so anchor and msgs[0] are
+      // deliberately different messages here.
+      const u0 = { role: "user", content: [{ type: "text", text: "turn 0" }] };
       const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
-      await runExt({ tools: [tool("Read")], system: [], messages: [u1] }, { headers, dir });
+      await runExt({ tools: [tool("Read")], system: [], messages: [u0] }, { headers, dir });
       await runExt(
-        { tools: [tool("Read"), tool("SendMessage")], system: [], messages: [u1] },
+        { tools: [tool("Read"), tool("SendMessage")], system: [], messages: [u0, u1] },
         { headers, dir },
       );
 
-      // Context management pruned u1; a new user turn exists.
+      // Context management pruned the ANCHOR message while msgs[0] survives —
+      // the same conversation, minus the turn the addition was anchored to.
+      // (Replacing msgs[0] instead would be a different conversation by
+      // design: the prefix died at index 0, so no cache survives it and a
+      // fresh state costs nothing. The re-anchor path is for this case.)
       const uNew = { role: "user", content: [{ type: "text", text: "post-prune turn" }] };
       const ctx3 = await runExt(
-        { tools: [tool("Read"), tool("SendMessage")], system: [], messages: [uNew] },
+        { tools: [tool("Read"), tool("SendMessage")], system: [], messages: [u0, uNew] },
         { headers, dir },
       );
       assert.equal(ctx3.meta.deferredToolRewriteStats.reanchored, 1);
-      assert.equal(ctx3.body.messages[1].role, "system", "re-anchored after the last user message");
+      assert.equal(ctx3.body.messages[2].role, "system", "re-anchored after the last user message");
 
       // Next request: the new anchor holds — no further re-anchor.
       const ctx4 = await runExt(
         {
           tools: [tool("Read"), tool("SendMessage")],
           system: [],
-          messages: [uNew, { role: "assistant", content: [{ type: "text", text: "a" }] }],
+          messages: [u0, uNew, { role: "assistant", content: [{ type: "text", text: "a" }] }],
         },
         { headers, dir },
       );
       assert.equal(ctx4.meta.deferredToolRewriteStats.reanchored, 0);
-      assert.equal(ctx4.body.messages[1].role, "system");
+      // Anchored after uNew, which is now index 1 — so the injection is at 2.
+      assert.equal(ctx4.body.messages[2].role, "system");
     });
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -628,9 +642,9 @@ test("resolveToolRewriteSessionKey: prefers session-id header, falls back to mod
   // Header path is sub-keyed by system-prompt hash (threat-matrix row 14) —
   // "nosys" when the body carries no system prompt.
   const withHeader = resolveToolRewriteSessionKey({ "x-claude-code-session-id": "abc-123" }, { model: "x" });
-  assert.equal(withHeader, "s-abc-123-nosys");
+  assert.equal(withHeader, "s-abc-123-nosys-empty");
   const withoutHeader = resolveToolRewriteSessionKey(null, { model: "claude-sonnet-4-6" });
-  assert.equal(withoutHeader, "c-claude-sonnet-4-6");
+  assert.equal(withoutHeader, "c-claude-sonnet-4-6-empty");
 });
 
 // Regression guard for the row-14 collision this extension shipped with:

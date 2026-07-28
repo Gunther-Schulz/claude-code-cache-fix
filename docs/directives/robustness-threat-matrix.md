@@ -120,8 +120,8 @@ not "no gaps".
 
 ---
 
-## Row 21 — OPEN, MEASURED: `deferred-tool-rewrite`'s `tool_addition`
-## injection is not stable across requests
+## Row 21 — FIXED: `deferred-tool-rewrite`'s `tool_addition` injection
+## moved between requests (a keying collision, not an injection bug)
 
 Found 2026-07-28 by `tools/gate-live.mjs` on its first run under the
 PRODUCTION gate set. It had never been visible because every prior
@@ -163,3 +163,35 @@ Not fixed on discovery deliberately: this extension is ON in production, its
 whole purpose is byte stability, and a rushed change to it is exactly how a
 mitigation becomes the bust. `doctor` reports FAIL until it is resolved, so
 it cannot be forgotten.
+
+
+**RESOLVED 2026-07-28.** The announcement never disappeared — telemetry shows
+`injected=1` on every request. It was RE-ANCHORED: `reanchored=1` at n=46 and
+n=47, so the message moved to a different index each time.
+
+Root cause was the SESSION KEY, not the injection. `resolveToolRewriteSessionKey`
+was `(session-id, system-prompt)` with no conversation sub-key, so every
+subagent shared one state. Message counts under a single key in the failing
+window: 49, 22, 24, 51, 11, 26 — six unrelated histories. The stored
+`anchorHash` therefore belonged to somebody else's conversation, failed to
+match, and `injectAdditions` fell back to "after the last user message", which
+is a different index on every request.
+
+This is the SAME collision fixed in insertion-normalization hours earlier
+(row 14). The fix did not travel to the sibling because nothing connected
+them. So `conversationSubKey` now lives in `message-hash.mjs` — one
+implementation, both consumers — and `test/session-key-invariants.test.mjs`
+DISCOVERS every exported `*SessionKey` and holds it to the invariant, so the
+next stateful extension is covered without anyone remembering.
+
+That guard found a third instance on its first run: `prefix-diff` separates
+co-tenants by system prompt only, which is the same insufficiency
+insertion-normalization outgrew (one prompt bucket held 39 conversations). It
+shapes no request, so the cost is attribution precision rather than cache, and
+its coarse FILE key is a deliberate design (its note 1: a path that moves with
+content misses its own baseline). Exempted — with a test asserting the
+exemption is still earned, so a change to that design fails loudly.
+
+Verification: the 2 violations on corpus `s-0edbd11c` go to 0, and a full
+production-gate sweep is clean — 9 captures, 1742 MB, 0 failing. Bite: forcing
+the sub-key back to a constant turns the invariant test red.

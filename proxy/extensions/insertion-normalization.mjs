@@ -140,7 +140,7 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
-import { hashMessageContent } from "./message-hash.mjs";
+import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
 
 const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
 
@@ -241,17 +241,8 @@ export function systemPromptSubKey(system) {
 // residual dropped-majority resets lived after the first sub-key attempt.
 // Falling back to a hash of the raw content covers both shapes; a message
 // carrying no content at all is the only remaining "empty".
-function conversationSubKey(messages) {
-  const first = Array.isArray(messages) ? messages[0] : null;
-  if (!first) return "empty";
-  const h = hashMessageContent(first);
-  if (h) return h;
-  if (first.content === undefined || first.content === null) return "empty";
-  return createHash("sha256")
-    .update(JSON.stringify({ role: first.role ?? null, content: first.content }))
-    .digest("hex")
-    .slice(0, 16);
-}
+// conversationSubKey now lives in message-hash.mjs — deferred-tool-rewrite
+// needs the identical function, and a second copy is a second truth.
 
 export function resolveInsertionSessionKey(headers, messages, system) {
   const sid = headers ? resolveSessionId(headers) : null;

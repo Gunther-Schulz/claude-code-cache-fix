@@ -72,7 +72,7 @@ import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises
 import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
-import { hashMessageContent } from "./message-hash.mjs";
+import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
 import { systemPromptSubKey } from "./insertion-normalization.mjs";
 import { createHash } from "node:crypto";
 
@@ -159,11 +159,29 @@ async function appendTelemetry(dir, sessionKey, record, fs) {
 // — the extension built to hold tools[] byte-stable was destabilising it.
 // The directive never considered sidecars; only replay over real multi-tenant
 // traffic surfaced it.
+// The key carries a CONVERSATION sub-key as well as the system prompt.
+//
+// Without it (until 2026-07-28) every subagent of a session shared one tools
+// baseline AND one set of persisted additions, because they all run the same
+// agent system prompt. That is not merely noisy: the tool_addition
+// announcement is anchored to a MESSAGE IDENTITY, so under a shared key the
+// stored anchor belongs to a different conversation's history, fails to
+// match, and injectAdditions falls back to "after the last user message" — a
+// different index on every request. Measured on corpus s-0edbd11c: our output
+// diverged at index 4 while CC's own history was byte-identical through index
+// 23, twice, re-billing 19 messages that never changed.
+//
+// insertion-normalization hit the identical collision and was fixed hours
+// earlier; this extension had the same key and did not get the fix. Hence
+// conversationSubKey living in message-hash.mjs rather than in either
+// extension — a second copy is a second truth, and the second consumer
+// learning the lesson late is exactly what happened here.
 export function resolveToolRewriteSessionKey(headers, body) {
   const sid = headers ? resolveSessionId(headers) : null;
-  if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(body?.system)}`;
+  const conv = conversationSubKey(body?.messages);
+  if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(body?.system)}-${conv}`;
   const model = typeof body?.model === "string" ? body.model : "unknown";
-  return `c-${model}`;
+  return `c-${model}-${conv}`;
 }
 
 // --- Canonical tool comparison ---
