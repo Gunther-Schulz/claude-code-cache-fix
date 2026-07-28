@@ -195,3 +195,36 @@ exemption is still earned, so a change to that design fails loudly.
 Verification: the 2 violations on corpus `s-0edbd11c` go to 0, and a full
 production-gate sweep is clean — 9 captures, 1742 MB, 0 failing. Bite: forcing
 the sub-key back to a constant turns the invariant test red.
+
+---
+
+## Row 22 — OPEN, MEASURED: `insertion-normalization` resets `edit-shaped`
+## on a tail mutation, costing a mid-history divergence
+
+Found 2026-07-28 19:45 by `cache-fix-gate.timer` on live traffic, minutes
+after row 21 was fixed — i.e. by the mechanism, unprompted, which is what it
+was built for.
+
+    corpus s-538c0aef, 110 requests
+    stability: n=108->109  inDiv=196  outDiv=177  <- insertion-normalization
+    sequence:  n=109 reset(edit-shaped) after normalize at n=108
+
+Our output diverges 19 messages earlier than CC's own history requires, and
+the normalize→reset pair means the canonical and CC's serialization disagree
+from there on.
+
+UNVERIFIED HYPOTHESIS, recorded as such: row 4 established that CC mutates the
+LAST message in place on a user interruption (appending
+`[Request interrupted by user]` plus the follow-up text as new content blocks
+rather than a new message). This capture is from a session with several such
+interruptions. If `classifyInsertion` reads that tail mutation as an
+`edit-shaped` change it would reset — which matches the observed pair. That
+must be CHECKED before any fix: row 4's own lesson was that the assumed
+mechanism (mid-index drift) was not the measured one (tail-only).
+
+Before treating this as a production defect, run `docs/dev-loop.md`'s
+artifact-vs-defect list — in particular confirm the pair is 108->109 as
+reported and that no declared-injection exemption is missing.
+
+Not fixed on discovery: same reasoning as row 21. `doctor` reports FAIL until
+resolved, so it cannot be forgotten.
