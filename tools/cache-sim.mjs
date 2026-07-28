@@ -17,10 +17,54 @@
 // comparison — same corpus, pipeline-variant A vs B — and flagging the
 // same events the worktime cold ledger flags (its calibration check),
 // not exact token accounting.
+//
+// --- Price what we SEND, not what CC wrote (--pipeline) ---
+//
+// Run against raw captures this tool answers a question nobody asked: what
+// CC's own bytes would have cost with no proxy in front of them. The API sees
+// the POST-pipeline body, so that is what has to be priced — and the gap is
+// not cosmetic. Measured 2026-07-28 on raw captures: `bestMarker=-1` on every
+// pair, because marker placement is a pipeline concern, so every pair scored
+// as a full-context bust and the totals were meaningless. Two of today's
+// findings (the ladder manufacturing busts, the pin removing them) are
+// invisible without pricing the forwarded bytes.
+//
+// STATUS 2026-07-28 — the absolute totals are NOT yet trustworthy. Streaming,
+// --pipeline and conversation grouping are fixed and verified; the remaining
+// defect is that short sidecar calls (1-2 messages) still collide under the
+// coarse conversation key here, so their pairs report `div=messages@1` and
+// price as full busts. Symptom: ~190 "predicted busts" on a corpus with about
+// four real ones. Use this tool for A/B DELTAS on the same corpus, which is
+// what it was built for; do not quote its bust count or its totals as fact.
+// The correctness verdict lives in replay.mjs's gates — cache-sim only ever
+// prices what those gates let through.
+//
+// --pipeline loads the real extension pipeline exactly as replay.mjs does,
+// against a scratch state dir, and prices the forwarded bodies. Combined with
+// --env it answers "what did this flag change, in tokens" — the number the
+// stability gate deliberately does NOT provide, because a green gate is a
+// correctness verdict and tokens are the cost of whatever it lets through.
+//
+// Streamed, never readFile: a capture re-sends the whole conversation per
+// request, so it grows quadratically and a single live session reached 555 MB
+// here — past Node's ~512 MB max string length, which threw outright on the
+// very traffic this tool exists to price.
 
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createInterface } from "node:readline";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const CHARS_PER_TOKEN = 4;
+
+// A conversation is identified by its first message: co-tenant traffic shares
+// the session-id header (and therefore the capture key) but never msgs[0].
+function conversationId(msgs) {
+  if (!Array.isArray(msgs) || !msgs.length) return "empty";
+  return JSON.stringify(msgs[0]).slice(0, 200);
+}
 
 function tokens(s) {
   return Math.round(s.length / CHARS_PER_TOKEN);
@@ -124,29 +168,86 @@ export function simulatePair(prevBody, nowBody) {
 }
 
 async function main() {
-  const file = process.argv[2];
-  const json = process.argv.includes("--json");
+  const argv = process.argv.slice(2);
+  const json = argv.includes("--json");
+  const usePipeline = argv.includes("--pipeline");
+  const env = {};
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--env") {
+      const kv = argv[++i] ?? "";
+      const eq = kv.indexOf("=");
+      if (eq > 0) env[kv.slice(0, eq)] = kv.slice(eq + 1);
+    }
+  }
+  const file = argv.find((a) => !a.startsWith("--") && !argv[argv.indexOf(a) - 1]?.startsWith("--env"));
   if (!file) {
-    process.stderr.write("usage: node tools/cache-sim.mjs <captures.jsonl> [--json]\n");
+    process.stderr.write(
+      "usage: node tools/cache-sim.mjs <captures.jsonl> [--pipeline] [--env FLAG=1 ...] [--json]\n",
+    );
     process.exit(2);
   }
-  const lines = (await readFile(file, "utf-8")).split("\n").filter((l) => l.trim());
+
+  // Pipeline mode: same loader and scratch-state discipline as replay.mjs, so
+  // the bodies priced below are the bytes that would actually go on the wire.
+  let runOnRequest = null;
+  let extensions = null;
+  let scratch = null;
+  if (usePipeline) {
+    scratch = await mkdtemp(join(tmpdir(), "cache-sim-"));
+    process.env.CLAUDE_CONFIG_DIR = scratch;
+    for (const [k, v] of Object.entries(env)) process.env[k] = v;
+    const here = dirname(fileURLToPath(import.meta.url));
+    const pipeline = await import(new URL("../proxy/pipeline.mjs", import.meta.url).href);
+    runOnRequest = pipeline.runOnRequest;
+    extensions = await pipeline.loadExtensions(
+      join(here, "..", "proxy", "extensions"),
+      join(here, "..", "proxy", "extensions.json"),
+    );
+  }
+
   const byKey = new Map();
   const rows = [];
-  for (const line of lines) {
+  const rl = createInterface({ input: createReadStream(file), crlfDelay: Infinity });
+  for await (const line of rl) {
+    if (!line.trim()) continue;
     let rec;
     try {
       rec = JSON.parse(line);
     } catch {
       continue;
     }
-    const prev = byKey.get(rec.key);
+    let body = rec.body;
+    if (usePipeline) {
+      const ctx = {
+        body: structuredClone(rec.body),
+        headers: {
+          "anthropic-beta": rec.headers?.["anthropic-beta"] ?? undefined,
+          "x-session-id": rec.headers?.["session-id"] ?? rec.sid ?? undefined,
+        },
+        meta: { route: "messages" },
+      };
+      await runOnRequest(ctx, extensions);
+      body = ctx.body;
+    }
+    // Group by (capture key, CONVERSATION), never by key alone. One session-id
+    // header carries the main thread, every subagent, and CC's sidecar calls;
+    // pricing a subagent's request against the main thread's predecessor
+    // reports the tenant switch as a full-context bust. Measured on a
+    // 602-request capture: key-only grouping called 227 of 601 pairs busts,
+    // when the same corpus has a handful of real ones. Identical artifact to
+    // the one that made replay's first stability gate report false green.
+    const cid = conversationId(body?.messages);
+    const group = `${rec.key}|${cid}`;
+    const prev = byKey.get(group);
     if (prev) {
-      const sim = simulatePair(prev.body, rec.body);
+      const sim = simulatePair(prev, body);
       rows.push({ ts: rec.ts, key: rec.key, ...sim });
     }
-    byKey.set(rec.key, rec);
+    // Retain only the previous body per group — a capture does not fit in
+    // memory, and only the immediate predecessor is ever needed.
+    byKey.set(group, body);
   }
+  if (scratch) await rm(scratch, { recursive: true, force: true });
 
   if (json) {
     process.stdout.write(JSON.stringify(rows, null, 2) + "\n");
