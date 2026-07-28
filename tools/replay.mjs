@@ -151,11 +151,28 @@ function scanGroup(entries) {
 // across 771 requests, and nothing in the tool itself would have caught a
 // silent corruption. output-guard enforces comparable invariants on the LIVE
 // path; replay — where the experimenting actually happens — enforced none.
+// A message the proxy DECLARES it injected. deferred-tool-rewrite announces a
+// newly-loaded tool with a {"role":"system"} message carrying a tool_addition
+// block — the documented mid-conversation-tool-changes contract, and the whole
+// point of holding tools[] stable. Counting that as corruption made the gate
+// report 243 violations on a corpus where nothing was corrupted; a check that
+// forbids a designed behaviour trains its reader to ignore it.
+//
+// Narrow on purpose: ONLY a system message whose content is entirely
+// tool_addition blocks. Anything else appearing in messages[] is still a
+// violation.
+function isDeclaredInjection(msg) {
+  if (!msg || msg.role !== "system" || !Array.isArray(msg.content) || !msg.content.length) return false;
+  return msg.content.every((b) => b && b.type === "tool_addition");
+}
+
 export function findSafetyViolations(entries) {
   const out = [];
   for (const e of entries) {
     const inM = e.inMsgs;
-    const outM = e.outMsgs;
+    // Declared injections are removed before comparing, so the check still
+    // sees a strict count/role/order correspondence with what CC sent.
+    const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
     if (outM.length !== inM.length) {
       out.push({ n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` });
       continue;

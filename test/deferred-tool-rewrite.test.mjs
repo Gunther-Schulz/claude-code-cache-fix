@@ -590,6 +590,40 @@ test("fixture toolgc-1536.json: CronCreate removed + DeferredToolPlaceholder reo
 // SESSION KEY RESOLUTION
 // =============================================================================
 
+// Volatile session URL inside a tool DESCRIPTION. CC embeds the per-session
+// console URL in Bash's description (it is the commit trailer the model is
+// told to write) and does not embed it consistently: measured over 652
+// same-key request pairs, it flipped twice. tools[] renders BEFORE system and
+// messages, so no breakpoint survives a tools[] byte change — one such flip
+// cost 705k creation tokens. Nothing about what Bash DOES changes across it.
+test("toolFingerprint: the per-session console URL does not count as a schema change", () => {
+  const withUrl = {
+    name: "Bash",
+    description:
+      "Run a command.\n\nCo-Authored-By: X\nClaude-Session: https://claude.ai/code/session_01ABC\n" +
+      "- End PR bodies with:\n\nhttps://claude.ai/code/session_01ABC",
+    input_schema: { type: "object" },
+  };
+  const without = {
+    name: "Bash",
+    description: "Run a command.\n\nCo-Authored-By: X\n- End PR bodies with:",
+    input_schema: { type: "object" },
+  };
+  assert.equal(toolFingerprint(withUrl), toolFingerprint(without));
+});
+
+// The narrowness is the safety property: serving a stale schema for a tool
+// whose contract actually changed is the one failure this extension must
+// never produce.
+test("toolFingerprint: a genuine description change IS still a schema change", () => {
+  const a = { name: "Bash", description: "Run a command.", input_schema: { type: "object" } };
+  const b = { name: "Bash", description: "Run a DIFFERENT command.", input_schema: { type: "object" } };
+  assert.notEqual(toolFingerprint(a), toolFingerprint(b));
+  // input_schema changes too, obviously.
+  const c = { name: "Bash", description: "Run a command.", input_schema: { type: "object", required: ["x"] } };
+  assert.notEqual(toolFingerprint(a), toolFingerprint(c));
+});
+
 test("resolveToolRewriteSessionKey: prefers session-id header, falls back to model string", () => {
   // Header path is sub-keyed by system-prompt hash (threat-matrix row 14) —
   // "nosys" when the body carries no system prompt.

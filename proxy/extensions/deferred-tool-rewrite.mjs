@@ -183,10 +183,47 @@ function canonicalize(value) {
   return value;
 }
 
+// VOLATILE SUBSTRINGS inside a tool DESCRIPTION (2026-07-28). CC embeds the
+// per-session console URL in the Bash tool's description — it is the commit
+// trailer the model is instructed to write — and it does not embed it
+// consistently: measured over 640 live requests, 628 carried it and 12 did
+// not, with two transitions. Each transition is a tools[] byte change, and
+// tools[] renders BEFORE system and messages, so no cache_control breakpoint
+// can survive it; one of them cost 705k creation tokens on this session.
+//
+// Nothing about what Bash DOES changes across that flip — the session URL is
+// not part of the tool's contract. So it is excluded from the identity and
+// the first-seen description is forwarded: exactly the treatment
+// insertion-normalization already applies to <system-reminder> blocks in
+// messages, one region over.
+//
+// Deliberately NARROW: only the session-URL shape. Any other description
+// difference is still a real edit and still resets, because serving a stale
+// schema for a tool whose contract changed is the one failure this extension
+// must never produce.
+const VOLATILE_DESC_PATTERNS = [
+  // https://claude.ai/code/session_<id> — appears bare and as a
+  // "Claude-Session:" trailer line; the whole line goes either way.
+  /^.*https:\/\/claude\.ai\/code\/session_[A-Za-z0-9]+.*$/gm,
+];
+
+export function stripVolatileDescription(desc) {
+  if (typeof desc !== "string") return desc;
+  let out = desc;
+  for (const re of VOLATILE_DESC_PATTERNS) out = out.replace(re, "");
+  // Collapse the blank lines the removal leaves behind, so a description that
+  // differs ONLY by the volatile line canonicalizes identically either way.
+  return out.replace(/\n{2,}/g, "\n").trim();
+}
+
 export function toolFingerprint(tool) {
   if (!tool || typeof tool !== "object" || typeof tool.name !== "string") return null;
   return JSON.stringify(
-    canonicalize({ name: tool.name, description: tool.description ?? null, input_schema: tool.input_schema ?? null }),
+    canonicalize({
+      name: tool.name,
+      description: stripVolatileDescription(tool.description ?? null),
+      input_schema: tool.input_schema ?? null,
+    }),
   );
 }
 
@@ -418,7 +455,17 @@ export default {
       // every added tool. no-baseline and reset pass through untouched.
       if (result.action === "rewrite") {
         body.tools = forwardedTools(result.knownTools, additions);
-      } else if (result.action === "unchanged" && additions.length > 0) {
+      } else if (result.action === "unchanged") {
+        // ALWAYS re-forward the frozen array here, not only when additions
+        // exist. Two reasons, and the second was measured the hard way:
+        //   - CC's incoming array never carries our defer_loading markers, so
+        //     forwarding it raw would silently un-defer every added tool;
+        //   - "unchanged" now means "identical after volatile stripping",
+        //     which includes descriptions that differ ONLY by the per-session
+        //     console URL. Forwarding CC's raw array in that case would put
+        //     the flip straight back on the wire and invalidate tools[] —
+        //     making the identity fix pointless. The frozen array is the
+        //     first-seen form, so the wire stays byte-stable.
         body.tools = forwardedTools(prior.tools, additions);
       }
 

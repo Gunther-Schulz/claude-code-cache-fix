@@ -106,6 +106,47 @@ test("safety: faithful passthrough is GREEN", () => {
   assert.equal(findSafetyViolations([entry(0, m, m)]).length, 0);
 });
 
+// deferred-tool-rewrite announces a newly-loaded tool with a system message
+// carrying a tool_addition block — the documented contract, and the reason
+// tools[] can stay byte-stable. The gate flagged 243 "corruptions" on a corpus
+// where nothing was corrupted until this exemption existed. A check that
+// forbids a designed behaviour trains its reader to ignore it.
+test("safety: a declared tool_addition injection is NOT a violation", () => {
+  const inM = [user("u0"), asst("a1")];
+  const outM = [
+    user("u0"),
+    asst("a1"),
+    { role: "system", content: [{ type: "tool_addition", tool: { type: "tool_reference", name: "SendMessage" } }] },
+  ];
+  assert.equal(findSafetyViolations([entry(0, inM, outM)]).length, 0);
+});
+
+// The exemption must stay narrow: only a system message that is ENTIRELY
+// tool_addition blocks. Anything else appearing in messages[] is still a
+// violation, or the exemption becomes a hole.
+test("safety: BITE — an undeclared injected message is still caught", () => {
+  const inM = [user("u0"), asst("a1")];
+  const smuggled = [
+    user("u0"),
+    asst("a1"),
+    { role: "system", content: [{ type: "text", text: "not a declared injection" }] },
+  ];
+  assert.equal(findSafetyViolations([entry(0, inM, smuggled)]).length, 1);
+  // ...and a system message mixing tool_addition with anything else.
+  const mixed = [
+    user("u0"),
+    asst("a1"),
+    {
+      role: "system",
+      content: [
+        { type: "tool_addition", tool: { type: "tool_reference", name: "X" } },
+        { type: "text", text: "smuggled" },
+      ],
+    },
+  ];
+  assert.equal(findSafetyViolations([entry(0, inM, mixed)]).length, 1);
+});
+
 test("safety: BITE — a dropped message is caught", () => {
   const inM = [user("u0"), asst("a1"), user("u2")];
   const outM = [user("u0"), asst("a1")];
