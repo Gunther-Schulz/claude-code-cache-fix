@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "keys": {
+    "c-empty": {
+      "requests": 27,
+      "bytes": 4077,
+      "lastHarvest": "2026-07-28T14:59:04.146Z",
+      "classes": []
+    },
+    "s-0edbd11c-6337-4257-86d2-ea6025999715": {
+      "requests": 345,
+      "bytes": 188738140,
+      "lastHarvest": "2026-07-28T14:58:19.267Z",
+      "classes": [
+        "splice/insert-mid",
+        "replace/edit"
+      ]
+    },
+    "s-35d72503-4f99-4ded-b0b0-d96796b9d75e": {
+      "requests": 603,
+      "bytes": 406942258,
+      "lastHarvest": "2026-07-28T14:58:22.474Z",
+      "classes": [
+        "append-after-change"
+      ]
+    },
+    "s-58c979ce-10e5-4d4f-b179-ef5efa94efe4": {
+      "requests": 628,
+      "bytes": 661562315,
+      "lastHarvest": "2026-07-28T14:59:07.873Z",
+      "classes": []
+    },
+    "s-61976797-899d-4741-aac0-27d39a311e49": {
+      "requests": 43,
+      "bytes": 6090235,
+      "lastHarvest": "2026-07-28T14:58:27.288Z",
+      "classes": []
+    },
+    "s-85111e21-d1e1-4aec-ae61-469a86d8de78": {
+      "requests": 1,
+      "bytes": 676,
+      "lastHarvest": "2026-07-28T14:58:27.288Z",
+      "classes": []
+    },
+    "s-9bc0e0a1-d61e-4797-9799-bcb8bf6f3001": {
+      "requests": 1,
+      "bytes": 676,
+      "lastHarvest": "2026-07-28T14:58:27.288Z",
+      "classes": []
+    },
+    "s-f899bb86-2950-4e45-a8dc-698d202e74c4": {
+      "requests": 5,
+      "bytes": 234818,
+      "lastHarvest": "2026-07-28T14:58:27.289Z",
+      "classes": []
+    }
+  }
+}

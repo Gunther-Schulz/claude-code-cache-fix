@@ -174,6 +174,9 @@ const conversationId = (msgs) => (msgs?.length ? sha(JSON.stringify(msgs[0])).sl
 // "append-only" and "identical" are never novel — they are the 94.5% baseline.
 const BORING = new Set(["append-only", "identical"]);
 
+// Records may be a plain array (tests, small corpora) or a lazy accessor —
+// see scanCapture, which keeps only ONE request per conversation resident so
+// a multi-hundred-MB capture does not become multi-GB of live objects.
 export function selectNovelPairs(records, seenClasses) {
   const groups = new Map();
   records.forEach((rec, i) => {
@@ -195,6 +198,44 @@ export function selectNovelPairs(records, seenClasses) {
     }
   }
   return picks;
+}
+
+// Single streaming pass that decides novelty WITHOUT holding the file.
+//
+// Streaming the read was not enough: retaining every parsed record turned a
+// 555 MB capture into a 2.1 GB memory peak (measured from the systemd unit's
+// own accounting on the first scheduled run — a background job has no business
+// taking 2 GB). Pairs are only ever formed between CONSECUTIVE requests of the
+// same conversation, so exactly one predecessor per conversation needs to be
+// resident; everything else is garbage the moment its successor is classified.
+//
+// Returns the picks with both records already materialised, so the caller
+// never needs a second pass over the file.
+export async function scanCapture(path, seenClasses, minIndex = 0) {
+  const prevByConv = new Map(); // conversation id -> { rec, index }
+  const picks = [];
+  let count = 0;
+  const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
+  for await (const line of rl) {
+    if (!line.trim()) continue;
+    const index = count++;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const cid = conversationId(rec.body?.messages);
+    if (cid === null) continue;
+    const prev = prevByConv.get(cid);
+    prevByConv.set(cid, { rec, index });
+    if (!prev || index < minIndex) continue;
+    const kind = censusPair(prev.rec.body?.messages ?? [], rec.body?.messages ?? []);
+    if (BORING.has(kind) || seenClasses.has(kind)) continue;
+    seenClasses.add(kind);
+    picks.push({ kind, prevRec: prev.rec, rec, cur: index });
+  }
+  return { picks, count };
 }
 
 function parseArgs(argv) {
@@ -267,41 +308,24 @@ async function main() {
     const st = await stat(path);
     const prior = ledger.keys[key] ?? { requests: 0, classes: [] };
 
-    // STREAM, never readFile. A capture is the whole conversation re-sent per
-    // request, so it grows quadratically: a single live session reached 555 MB
-    // here, past Node's ~512 MB maximum string length, and readFile threw
-    // `RangeError: Invalid string length` on the very traffic this tool exists
-    // to mine. Raising CACHE_FIX_CAPTURE_MAX_MB makes that the normal case,
-    // not the exception.
-    const records = [];
-    {
-      const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
-      for await (const l of rl) {
-        if (!l.trim()) continue;
-        try {
-          records.push(JSON.parse(l));
-        } catch {
-          records.push({ body: { messages: [] } });
-        }
-      }
-    }
-    report.scanned += records.length;
-    if (records.length <= prior.requests) {
-      report.skipped.push({ key, requests: records.length });
+    // STREAM, never readFile, and never retain the file. A capture is the
+    // whole conversation re-sent per request, so it grows quadratically: a
+    // single live session reached 555 MB here — past Node's ~512 MB maximum
+    // string length, so readFile threw outright — and merely streaming while
+    // KEEPING every parsed record still peaked at 2.1 GB. scanCapture holds
+    // one predecessor per conversation and nothing else. Every request is
+    // still examined, because a novel pair may straddle the watermark; only
+    // pairs at or beyond it are eligible to be harvested.
+    const { picks, count } = await scanCapture(path, seenClasses, prior.requests);
+    report.scanned += count;
+    if (count <= prior.requests) {
+      report.skipped.push({ key, requests: count });
       continue;
     }
 
-    // Every request is parsed, not just the ones past the watermark: a novel
-    // pair may straddle it, and the conversation grouping needs the full file
-    // to find same-conversation neighbours. Only pairs BEYOND the watermark
-    // are eligible to be harvested.
-    const picks = selectNovelPairs(records, seenClasses).filter((p) => p.cur >= prior.requests);
-
     for (const pick of picks) {
       const name = `harvested-${pick.kind.replace(/[^a-z]+/gi, "-")}-${key.slice(0, 10)}-${pick.cur}.jsonl`;
-      const body = [records[pick.prev], records[pick.cur]]
-        .map((r) => JSON.stringify(scrubRecord(r)))
-        .join("\n") + "\n";
+      const body = [pick.prevRec, pick.rec].map((r) => JSON.stringify(scrubRecord(r))).join("\n") + "\n";
       if (!args.dryRun) {
         await mkdir(args.out, { recursive: true });
         await writeFile(join(args.out, name), body);
@@ -310,7 +334,7 @@ async function main() {
     }
 
     ledger.keys[key] = {
-      requests: records.length,
+      requests: count,
       bytes: st.size,
       lastHarvest: new Date().toISOString(),
       classes: [...new Set([...(prior.classes ?? []), ...picks.map((p) => p.kind)])],
