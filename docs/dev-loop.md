@@ -118,8 +118,18 @@ Order that works, cheapest first:
    `deferred-tool-rewrite`'s `tool_addition` announcement is the standing
    example — is not a defect, and a check that forbids it trains its reader
    to ignore red.
-3. **Then, and only then, look at the bytes.** Print the diverging index from
-   both sides and read what is actually there.
+3. **Read the attribution the gate already prints.** Every stability
+   violation now carries `[CC bytes at outDiv IDENTICAL -> ours]` or
+   `[CC also changed outDiv]`. The first means the divergence is ours by
+   construction — nothing upstream changed at that index — and needs no
+   probe. This line exists because the same comparison was hand-derived by
+   throwaway script three times in one day; the throwaway probe is the tell
+   that a check is missing.
+4. **Only then look at the bytes.** Print the diverging index from both
+   sides and read what is actually there.
+
+Whenever a step of this list gets answered by hand twice, that is the signal
+to move it into the tool. Steps 1 and 3 both started as manual probes.
 
 A finding survives this and it is real: at index 4, request 44 carried an
 injected `tool_addition` block that request 47 did not. That is a genuine

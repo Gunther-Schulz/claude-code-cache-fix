@@ -104,6 +104,37 @@ test("stability: input churn we merely pass through is NOT ours", () => {
   assert.equal(v.length, 0);
 });
 
+// The attribution the violation line now carries, so nobody hand-derives it
+// again. Three separate throwaway probes were written on 2026-07-28 to answer
+// exactly this question — the probe is the tell that the check was missing.
+test("stability: reports whether CC's own bytes at outDiv were identical", () => {
+  // CC's message 1 unchanged; ours mangled -> the divergence is OURS.
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const b = [user("u0"), asst("a1"), user("EDITED-BY-CC")];
+  const bOut = [user("u0"), asst("MANGLED-BY-US"), user("EDITED-BY-CC")];
+  const v = findStabilityViolations([entry(0, a, a), entry(1, b, bOut)]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].outDiv, 1);
+  assert.equal(v[0].ccIdenticalAtOutDiv, true, "CC sent identical bytes at index 1 — ours by construction");
+});
+
+test("stability: BITE — when CC ALSO changed the diverging index, say so", () => {
+  // Both sides changed index 1: ours is amplification at worst, and claiming
+  // "ours by construction" there would be a false attribution.
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const b = [user("u0"), asst("CC-CHANGED"), user("u2")];
+  const bOut = [user("u0"), asst("WE-CHANGED-DIFFERENTLY"), user("u2")];
+  const v = findStabilityViolations([entry(0, a, a), entry(1, b, bOut)]);
+  // input diverges at 1 too, so the bar is 1 and outDiv 1 is not < 1 —
+  // no violation. Construct the amplifying case instead: CC changes at 2.
+  assert.equal(v.length, 0);
+  const c = [user("u0"), asst("a1"), user("CC-CHANGED-HERE")];
+  const cOut = [user("u0"), asst("WE-CHANGED"), user("CC-CHANGED-HERE")];
+  const v2 = findStabilityViolations([entry(0, a, a), entry(1, c, cOut)]);
+  assert.equal(v2.length, 1);
+  assert.equal(v2[0].ccIdenticalAtOutDiv, true, "CC's bytes at index 1 were identical");
+});
+
 // --- Safety gate ---
 
 test("safety: faithful passthrough is GREEN", () => {

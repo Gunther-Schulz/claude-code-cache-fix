@@ -136,7 +136,27 @@ function scanGroup(entries) {
     // append-only too": ANY output divergence is then self-inflicted.
     const bar = inDiv === null ? Infinity : inDiv;
     if (outDiv !== null && outDiv < bar) {
-      violations.push({ n: cur.n, prevN: prev.n, ts: cur.ts, key: cur.key, inDiv, outDiv });
+      // Was CC's OWN byte at the index we diverged on identical across the
+      // pair? If yes the divergence is ours by construction — nothing
+      // upstream changed there — and no probe is needed to establish it.
+      //
+      // Hand-derived three times on 2026-07-28 (rows 21 and 22, plus the
+      // deferred-tool-rewrite pair), each time by writing a throwaway script
+      // to print in[i] and out[i] for both requests. The throwaway probe is
+      // the tell that a check is missing; both arrays are already in hand
+      // here, so the answer costs one comparison.
+      const ccSame = prev.inHash[outDiv] === cur.inHash[outDiv];
+      violations.push({
+        n: cur.n,
+        prevN: prev.n,
+        ts: cur.ts,
+        key: cur.key,
+        inDiv,
+        outDiv,
+        // true  => CC sent the same bytes there; the change is OURS.
+        // false => CC also changed that message; ours may be amplification.
+        ccIdenticalAtOutDiv: ccSame,
+      });
     }
   }
   return violations;
@@ -854,7 +874,9 @@ async function main() {
         // compared 46->47, and the two requests it diffed were different
         // subagent conversations that looked like wholesale corruption. The
         // JSON carried prevN the whole time; the human line did not.
-        `  n=${v.prevN}->${v.n} ts=${v.ts} inDiv=${v.inDiv ?? "append-only"} outDiv=${v.outDiv} <- ${who}\n`,
+        `  n=${v.prevN}->${v.n} ts=${v.ts} inDiv=${v.inDiv ?? "append-only"} outDiv=${v.outDiv}` +
+          `${v.ccIdenticalAtOutDiv ? " [CC bytes at outDiv IDENTICAL -> ours]" : " [CC also changed outDiv]"}` +
+          ` <- ${who}\n`,
       );
     }
 
