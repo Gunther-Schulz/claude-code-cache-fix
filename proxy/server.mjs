@@ -581,6 +581,16 @@ export async function startProxy(options = {}) {
   );
   try {
     _sourceTree = await sourceFingerprint(PROXY_ROOT);
+    // Hand it to the capture so every boot record names the exact source tree
+    // that served the traffic — the same fingerprint /health reports. Without
+    // it the field is a permanent null, which is worse than absent: it looks
+    // tracked.
+    try {
+      const rc = await import("./extensions/request-capture.mjs");
+      rc.setProxyTree?.(_sourceTree);
+    } catch {
+      /* capture extension absent or disabled — not fatal */
+    }
   } catch (err) {
     process.stderr.write(`[cache-fix] source fingerprint unavailable: ${err?.message ?? err}\n`);
     _sourceTree = null;
