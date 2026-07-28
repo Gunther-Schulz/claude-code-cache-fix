@@ -76,6 +76,36 @@ import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
 import { systemPromptSubKey } from "./insertion-normalization.mjs";
 import { createHash } from "node:crypto";
 
+// Models known to ACCEPT the mid-conversation-tool-changes contract.
+//
+// Opt-IN, not opt-out, and that direction is the whole point. On 2026-07-28
+// a sonnet-5 subagent dispatch died with:
+//
+//     API Error: 400 tool_addition/tool_removal is not supported on this model
+//
+// The tool_addition block is a documented beta, but support is per-MODEL and
+// this extension applied it to whatever came through. A cache mitigation that
+// can HARD-FAIL a request is strictly worse than no mitigation, so an unknown
+// model gets no announcement: it degrades to forwarding the new tool
+// normally (a tools[] change, i.e. the bust we would have prevented) instead
+// of a 400 that loses the request outright.
+//
+// This file's own header prescribed exactly this check — "the final live
+// acceptance probe (gate 3: one real request through the proxy at a session
+// boundary, watch for 400 vs the model using the added tool) happens before
+// the service-unit flag flips". The flag was flipped without running it.
+//
+// Evidence, not guesswork. Accepted: claude-opus-5 (sessions 58c979ce and
+// 538c0aef, injections on the wire, no 400). Rejected: claude-sonnet-5
+// (the error above). Everything else is UNKNOWN and therefore off — add a
+// prefix here only with a real request behind it.
+const TOOL_ADDITION_MODELS = ["claude-opus-5"];
+
+export function supportsToolAddition(model) {
+  if (typeof model !== "string") return false;
+  return TOOL_ADDITION_MODELS.some((prefix) => model.startsWith(prefix));
+}
+
 const BETA_TOKEN = "mid-conversation-tool-changes-2026-07-01";
 const BETA_HEADER_NAME = "anthropic-beta";
 
@@ -446,7 +476,21 @@ export default {
       // and pending injections are abandoned with it).
       let additions = result.action === "reset" ? [] : (prior?.additions ?? []);
 
+      // Model gate, applied at the single point everything downstream reads.
+      // Emptying `additions` here disables the announcement, the
+      // defer_loading markers forwardedTools() derives from it, AND the beta
+      // header — one place rather than three, and it also neutralises state
+      // persisted before this gate existed (a session that accumulated
+      // additions under the old build must not keep replaying them into a
+      // model that 400s on them).
+      const announceOk = supportsToolAddition(body?.model);
+      if (!announceOk) additions = [];
+
+      // The announcement path is gated on model support; the HOLD and
+      // ORDER-PIN paths are not, because neither needs the beta contract —
+      // they only ever re-send tools the model already understands.
       if (
+        announceOk &&
         result.action === "rewrite" &&
         result.newNames.length > 0 &&
         Array.isArray(body.messages) &&

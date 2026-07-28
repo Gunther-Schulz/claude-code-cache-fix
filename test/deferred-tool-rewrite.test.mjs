@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import ext, {
   resolveToolRewriteSessionKey,
+  supportsToolAddition,
   toolFingerprint,
   classifyToolChange,
   buildToolAdditionMessage,
@@ -58,11 +59,16 @@ async function withEnvAsync(overrides, fn) {
   }
 }
 
+// The announcement path is gated on MODEL support (see supportsToolAddition):
+// a body without a model is "unknown", which is deliberately OFF. Most tests
+// here predate that gate and exercise the announcement, so they default to a
+// supported model; the tests that care about the gate set `model` explicitly.
 async function runExt(body, { headers, dir } = {}) {
   const savedHome = process.env.CLAUDE_CONFIG_DIR;
   if (dir) process.env.CLAUDE_CONFIG_DIR = dir;
   try {
-    const ctx = { body, meta: {}, headers: headers || {} };
+    const withModel = body && body.model === undefined ? { ...body, model: "claude-opus-5" } : body;
+    const ctx = { body: withModel, meta: {}, headers: headers || {} };
     await ext.onRequest(ctx);
     return ctx;
   } finally {
@@ -547,10 +553,26 @@ test("fixture toolload-1247.json: prior → incoming reproduces the ledger's too
       // Known tools (Read, Bash) byte-identical to the fixture's prior entries.
       assert.deepEqual(ctx2.body.tools[0], fixture.prior.tools[0]);
       assert.deepEqual(ctx2.body.tools[1], fixture.prior.tools[1]);
-      // New tool present, additively marked.
+      // New tool present — but NOT marked, and this is the uncomfortable part.
+      //
+      // This fixture is the real 12:47:56 event that motivated the whole
+      // extension (threat-matrix rows 6 and 13, the 175k and 766k busts), and
+      // its model is `claude-sonnet-4-6`. The mid-conversation-tool-changes
+      // contract is not supported there — a sonnet-5 request carrying it
+      // returned `400 tool_addition/tool_removal is not supported on this
+      // model` on 2026-07-28 — so the announcement path is gated off for this
+      // model family and the new tool is forwarded plainly.
+      //
+      // Which means the mitigation does NOT apply to the traffic it was
+      // designed for. Recorded in the matrix rather than papered over here:
+      // holding tools[] stable and pinning ORDER still work on every model
+      // (they need no beta), but ADDITIONS on sonnet remain an honest bust.
       const sendMsgTool = ctx2.body.tools.find((t) => t.name === "SendMessage");
-      assert.ok(sendMsgTool);
-      assert.equal(sendMsgTool.defer_loading, true);
+      assert.ok(sendMsgTool, "the new tool is still forwarded — degrade, never drop");
+      assert.ok(
+        !("defer_loading" in sendMsgTool),
+        "defer_loading belongs to a contract this model rejects with a 400",
+      );
       // tools[] count did not shrink or reorder the known prefix.
       assert.equal(ctx2.body.tools.length, 3);
     });
@@ -667,4 +689,81 @@ test("resolveToolRewriteSessionKey: sidecars sharing a session-id get distinct k
     system: [{ type: "text", text: "You are Claude Code, Anthropic's official CLI." }],
   });
   assert.equal(main, mainAgain);
+});
+
+// --- Model gate (the 400 that killed a live dispatch) ---
+//
+// 2026-07-28: a sonnet-5 subagent dispatch died with
+// `API Error: 400 tool_addition/tool_removal is not supported on this model`.
+// The contract is a documented beta but support is per-MODEL, and this
+// extension applied it to whatever came through. A cache mitigation that can
+// HARD-FAIL a request is worse than no mitigation, so the gate is opt-IN:
+// unknown models degrade to forwarding the new tool normally.
+
+test("supportsToolAddition: opt-IN, so an unknown model is OFF", () => {
+  assert.equal(supportsToolAddition("claude-opus-5"), true);
+  assert.equal(supportsToolAddition("claude-opus-5-20260101"), true, "date-suffixed ids must match by prefix");
+  // The measured failure.
+  assert.equal(supportsToolAddition("claude-sonnet-5"), false);
+  // Everything unknown is off — a new model must not be able to break a
+  // request just by existing.
+  assert.equal(supportsToolAddition("claude-haiku-4-5"), false);
+  assert.equal(supportsToolAddition("some-future-model"), false);
+  assert.equal(supportsToolAddition(undefined), false);
+  assert.equal(supportsToolAddition(null), false);
+});
+
+test("BITE — an unsupported model gets NO tool_addition, no beta header, tools passed through", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-sonnet" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      const base = { system: [], messages: [u1], model: "claude-sonnet-5" };
+      await runExt({ ...base, tools: [tool("Read")] }, { headers, dir });
+      const ctx = await runExt(
+        { ...base, tools: [tool("Read"), tool("SendMessage")] },
+        { headers, dir },
+      );
+      // No injected system message anywhere in messages[].
+      const injected = (ctx.body.messages || []).filter(
+        (m) => m.role === "system" && Array.isArray(m.content) && m.content.some((b) => b.type === "tool_addition"),
+      );
+      assert.equal(injected.length, 0, "no tool_addition may reach a model that 400s on it");
+      // No beta token.
+      const beta = Object.entries(ctx.headers || {}).find(([k]) => k.toLowerCase() === "anthropic-beta");
+      assert.ok(
+        !beta || !String(beta[1]).includes("mid-conversation-tool-changes"),
+        "beta token must not be sent to an unsupported model",
+      );
+      // And no defer_loading marker smuggled onto the new tool.
+      const sm = (ctx.body.tools || []).find((t) => t.name === "SendMessage");
+      assert.ok(sm, "the new tool is still forwarded — degrade, do not drop");
+      assert.ok(!("defer_loading" in sm), "defer_loading belongs to the contract the model rejects");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("a SUPPORTED model still gets the announcement (the gate is not a kill switch)", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-opus" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      const base = { system: [], messages: [u1], model: "claude-opus-5" };
+      await runExt({ ...base, tools: [tool("Read")] }, { headers, dir });
+      const ctx = await runExt(
+        { ...base, tools: [tool("Read"), tool("SendMessage")] },
+        { headers, dir },
+      );
+      const injected = (ctx.body.messages || []).filter(
+        (m) => m.role === "system" && Array.isArray(m.content) && m.content.some((b) => b.type === "tool_addition"),
+      );
+      assert.equal(injected.length, 1, "opus must keep the mitigation");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
