@@ -11,10 +11,6 @@
     "enabled": true,
     "order": 60
   },
-  "output-guard": {
-    "enabled": true,
-    "order": 690
-  },
   "ttl-tier-detect": {
     "enabled": true,
     "order": 75
@@ -102,6 +98,14 @@
   "upstream-error-log": {
     "enabled": true,
     "order": 670
+  },
+  "output-guard": {
+    "enabled": true,
+    "order": 690
+  },
+  "session-budget-breaker": {
+    "enabled": true,
+    "order": 690
   },
   "request-log": {
     "enabled": false,

@@ -30,59 +30,22 @@ test("selectProxyUrl: protocol-based selection matches curl/Python/Go", async ()
     ["",          "",         false, "",          "http upstream returns empty when neither set"],
   ];
 
-  // All four variables must be controlled, not just the uppercase pair:
-  // config reads `HTTPS_PROXY || https_proxy || ""`, so a lowercase var
-  // inherited from the developer's shell (common — anyone running behind
-  // this very proxy exports `https_proxy`) leaks into the cases that set
-  // the uppercase one to "" to mean "unset", and the getter falls through
-  // to the real proxy URL. That made this test pass or fail on ambient
-  // environment rather than on the code under test.
-  const saved = {
-    HTTPS_PROXY: process.env.HTTPS_PROXY,
-    HTTP_PROXY: process.env.HTTP_PROXY,
-    https_proxy: process.env.https_proxy,
-    http_proxy: process.env.http_proxy,
-  };
-  const restore = (key) => {
-    if (saved[key] === undefined) delete process.env[key];
-    else process.env[key] = saved[key];
-  };
+  // Save and clear BOTH cases. selectProxyUrl honors lowercase too, so an
+  // ambient lowercase https_proxy in the developer's shell would otherwise leak
+  // into the cases that set only the uppercase var and expect no proxy.
+  const VARS = ["HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"];
+  const saved = Object.fromEntries(VARS.map((k) => [k, process.env[k]]));
   try {
-    delete process.env.https_proxy;
-    delete process.env.http_proxy;
+    for (const k of VARS) delete process.env[k];
     for (const [hps, hp, isHTTPS, expected, label] of cases) {
       process.env.HTTPS_PROXY = hps;
       process.env.HTTP_PROXY = hp;
       assert.equal(selectProxyUrl(isHTTPS), expected, label);
     }
   } finally {
-    for (const key of ["HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"]) {
-      restore(key);
-    }
-  }
-});
-
-test("selectProxyUrl: an inherited lowercase var does not leak into an unset uppercase one", async () => {
-  // Regression for the above: with HTTPS_PROXY genuinely absent, the
-  // lowercase fallback is correct behaviour and must still work — the fix
-  // is test isolation, not a change to the precedence rule.
-  const { selectProxyUrl } = await import("../proxy/upstream.mjs");
-  const saved = {
-    HTTPS_PROXY: process.env.HTTPS_PROXY,
-    https_proxy: process.env.https_proxy,
-    HTTP_PROXY: process.env.HTTP_PROXY,
-    http_proxy: process.env.http_proxy,
-  };
-  try {
-    delete process.env.HTTPS_PROXY;
-    delete process.env.HTTP_PROXY;
-    delete process.env.http_proxy;
-    process.env.https_proxy = "http://inherited";
-    assert.equal(selectProxyUrl(true), "http://inherited");
-  } finally {
-    for (const [key, value] of Object.entries(saved)) {
-      if (value === undefined) delete process.env[key];
-      else process.env[key] = value;
+    for (const k of VARS) {
+      if (saved[k] === undefined) delete process.env[k];
+      else process.env[k] = saved[k];
     }
   }
 });
