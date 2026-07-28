@@ -57,17 +57,38 @@
 // and parameter docs, and no message-shape class depends on them.
 
 import { readdir, readFile, writeFile, stat, mkdir } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { createInterface } from "node:readline";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
-import { homedir } from "node:os";
+import { homedir, hostname } from "node:os";
 
 import { censusPair } from "./replay.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
 const DEFAULT_OUT = join(__dirname, "..", "test", "fixtures", "harvested");
-const DEFAULT_LEDGER = join(__dirname, "..", "test", "fixtures", "harvested", "LEDGER.json");
+// PER-MACHINE ledger. Fixtures are committed and therefore shared across
+// machines — which is the point, since a bust class found on one machine
+// should regress-test on both. Fixture FILENAMES already cannot collide (they
+// embed the capture key and request index), but a single shared ledger would
+// conflict on every merge: both machines write the same file, and the
+// watermarks inside are machine-local facts about machine-local captures.
+// Splitting by hostname makes the conflict structurally impossible and makes
+// "which machine still has unharvested captures" readable at a glance.
+const LEDGER_HOST = (process.env.CACHE_FIX_HARVEST_HOST || hostname() || "unknown").replace(
+  /[^A-Za-z0-9._-]/g,
+  "_",
+);
+const DEFAULT_LEDGER = join(
+  __dirname,
+  "..",
+  "test",
+  "fixtures",
+  "harvested",
+  `LEDGER-${LEDGER_HOST}.json`,
+);
 
 const sha = (s) => createHash("sha256").update(s).digest("hex");
 
@@ -222,7 +243,23 @@ async function main() {
     }
   }
 
+  // Novelty is judged against EVERY machine's ledger, not just this one's.
+  // The ledger is per-machine (watermarks are local facts), but the fixture
+  // set is shared — so a class machine A already banked must not be harvested
+  // again by machine B. Reading the sibling ledgers keeps the shared corpus
+  // deduplicated without needing a shared writer.
   const seenClasses = new Set(Object.values(ledger.keys).flatMap((e) => e.classes ?? []));
+  try {
+    const ledgerDir = dirname(args.ledger);
+    for (const f of await readdir(ledgerDir)) {
+      if (!f.startsWith("LEDGER-") || !f.endsWith(".json")) continue;
+      if (join(ledgerDir, f) === args.ledger) continue;
+      try {
+        const other = JSON.parse(await readFile(join(ledgerDir, f), "utf-8"));
+        for (const e of Object.values(other.keys ?? {})) for (const c of e.classes ?? []) seenClasses.add(c);
+      } catch {}
+    }
+  } catch {}
 
   for (const file of files) {
     const key = file.replace(/-requests\.jsonl$/, "");
@@ -230,24 +267,34 @@ async function main() {
     const st = await stat(path);
     const prior = ledger.keys[key] ?? { requests: 0, classes: [] };
 
-    const lines = (await readFile(path, "utf-8")).split("\n").filter((l) => l.trim());
-    report.scanned += lines.length;
-    if (lines.length <= prior.requests) {
-      report.skipped.push({ key, requests: lines.length });
+    // STREAM, never readFile. A capture is the whole conversation re-sent per
+    // request, so it grows quadratically: a single live session reached 555 MB
+    // here, past Node's ~512 MB maximum string length, and readFile threw
+    // `RangeError: Invalid string length` on the very traffic this tool exists
+    // to mine. Raising CACHE_FIX_CAPTURE_MAX_MB makes that the normal case,
+    // not the exception.
+    const records = [];
+    {
+      const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
+      for await (const l of rl) {
+        if (!l.trim()) continue;
+        try {
+          records.push(JSON.parse(l));
+        } catch {
+          records.push({ body: { messages: [] } });
+        }
+      }
+    }
+    report.scanned += records.length;
+    if (records.length <= prior.requests) {
+      report.skipped.push({ key, requests: records.length });
       continue;
     }
 
-    // Parse the whole file: a novel pair may straddle the watermark, and the
-    // conversation grouping needs every request to find same-conversation
-    // neighbours. Only the pairs BEYOND the watermark are eligible.
-    const records = [];
-    for (const l of lines) {
-      try {
-        records.push(JSON.parse(l));
-      } catch {
-        records.push({ body: { messages: [] } });
-      }
-    }
+    // Every request is parsed, not just the ones past the watermark: a novel
+    // pair may straddle it, and the conversation grouping needs the full file
+    // to find same-conversation neighbours. Only pairs BEYOND the watermark
+    // are eligible to be harvested.
     const picks = selectNovelPairs(records, seenClasses).filter((p) => p.cur >= prior.requests);
 
     for (const pick of picks) {
@@ -263,7 +310,7 @@ async function main() {
     }
 
     ledger.keys[key] = {
-      requests: lines.length,
+      requests: records.length,
       bytes: st.size,
       lastHarvest: new Date().toISOString(),
       classes: [...new Set([...(prior.classes ?? []), ...picks.map((p) => p.kind)])],
