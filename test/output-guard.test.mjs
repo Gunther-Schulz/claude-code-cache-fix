@@ -85,8 +85,16 @@ test("findViolation: fifth marker named", () => {
 
 test("findViolation: invalid role and empty content named", () => {
   const b1 = goodBody();
-  b1.messages.push({ role: "system", content: [{ type: "text", text: "x" }] });
+  b1.messages.push({ role: "tool", content: [{ type: "text", text: "x" }] });
   assert.match(findViolation(b1), /roles: messages\[3\]/);
+  // system is legal mid-conversation (tool_addition injections,
+  // mid-conversation system messages) but never as messages[0]
+  const b2sys = goodBody();
+  b2sys.messages.push({ role: "system", content: [{ type: "text", text: "ok" }] });
+  assert.equal(findViolation(b2sys), null);
+  const b3sys = goodBody();
+  b3sys.messages.unshift({ role: "system", content: [{ type: "text", text: "bad" }] });
+  assert.match(findViolation(b3sys), /messages\[0\] must not be system/);
   const b2 = goodBody();
   b2.messages.push({ role: "user", content: [] });
   assert.match(findViolation(b2), /content: messages\[3\]/);

@@ -61,11 +61,17 @@ function checkMarkerBudget(body) {
   return n <= MAX_MARKERS ? null : `marker-budget: ${n} cache_control markers exceed the API cap of ${MAX_MARKERS}`;
 }
 
+// "system" is legal mid-conversation (mid-conversation system messages,
+// and deferred-tool-rewrite's injected tool_addition messages) — but never
+// as messages[0], per the documented placement constraint.
 function checkRoles(body) {
   for (let i = 0; i < body.messages.length; i++) {
     const r = body.messages[i]?.role;
-    if (r !== "user" && r !== "assistant") {
+    if (r !== "user" && r !== "assistant" && r !== "system") {
       return `roles: messages[${i}] has invalid role ${JSON.stringify(r)}`;
+    }
+    if (r === "system" && i === 0) {
+      return `roles: messages[0] must not be system (placement constraint)`;
     }
   }
   return null;

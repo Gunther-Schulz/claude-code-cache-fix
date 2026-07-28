@@ -9,7 +9,10 @@ import ext, {
   resolveToolRewriteSessionKey,
   toolFingerprint,
   classifyToolChange,
-  buildToolAdditionBlock,
+  buildToolAdditionMessage,
+  injectAdditions,
+  forwardedTools,
+  anchorHash,
   addBetaToken,
 } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 
@@ -121,7 +124,6 @@ test("classifyToolChange: pure addition (SendMessage added) → action rewrite, 
   assert.equal(result.tools[0].defer_loading, undefined, "existing tools are not marked defer_loading");
   assert.equal(result.tools[2].name, "SendMessage");
   assert.equal(result.tools[2].defer_loading, true);
-  assert.equal(result.systemAdditions.length, 1);
 });
 
 test("classifyToolChange: existing tool removed → action rewrite, held in place at its first-seen position, byte-identical", () => {
@@ -134,7 +136,6 @@ test("classifyToolChange: existing tool removed → action rewrite, held in plac
   assert.equal(result.tools.length, 2, "held tool is re-inserted");
   assert.deepEqual(result.tools[0], tool("Read"));
   assert.deepEqual(result.tools[1], tool("Bash"), "held tool is byte-identical to its known form");
-  assert.equal(result.systemAdditions.length, 0, "a hold announces nothing — only additions do");
 });
 
 test("classifyToolChange: pure reorder (no add/remove) → action rewrite, output pinned to first-seen order", () => {
@@ -199,11 +200,60 @@ test("toolFingerprint: missing tool or missing name → null", () => {
 // WIRE SHAPES
 // =============================================================================
 
-test("buildToolAdditionBlock: text block carrying the tool's name/description/schema", () => {
-  const block = buildToolAdditionBlock(tool("SendMessage", { description: "send a message" }));
-  assert.equal(block.type, "text");
-  assert.match(block.text, /SendMessage/);
-  assert.match(block.text, /send a message/);
+test("buildToolAdditionMessage: documented contract — system-role message with tool_addition/tool_reference blocks", () => {
+  const msg = buildToolAdditionMessage(["SendMessage", "TaskCreate"]);
+  assert.equal(msg.role, "system");
+  assert.equal(msg.content.length, 2);
+  assert.deepEqual(msg.content[0], {
+    type: "tool_addition",
+    tool: { type: "tool_reference", name: "SendMessage" },
+  });
+  assert.deepEqual(msg.content[1], {
+    type: "tool_addition",
+    tool: { type: "tool_reference", name: "TaskCreate" },
+  });
+});
+
+test("injectAdditions: splices the persisted message after its anchor, byte-identical", () => {
+  const u0 = { role: "user", content: [{ type: "text", text: "u0" }] };
+  const a1 = { role: "assistant", content: [{ type: "text", text: "a1" }] };
+  const u2 = { role: "user", content: [{ type: "text", text: "u2" }] };
+  const addMsg = buildToolAdditionMessage(["SendMessage"]);
+  const additions = [{ names: ["SendMessage"], anchorHash: anchorHash(u0), message: addMsg }];
+  const { messages, reanchored } = injectAdditions([u0, a1, u2], additions);
+  assert.equal(reanchored.length, 0);
+  assert.equal(messages.length, 4);
+  assert.equal(messages[1], addMsg, "injected immediately after the anchor");
+  assert.equal(messages[0], u0);
+  assert.equal(messages[2], a1);
+});
+
+test("injectAdditions: pruned anchor → re-anchor after last user message, reported", () => {
+  const uNew = { role: "user", content: [{ type: "text", text: "new turn" }] };
+  const addMsg = buildToolAdditionMessage(["SendMessage"]);
+  const additions = [{ names: ["SendMessage"], anchorHash: "gone-hash", message: addMsg }];
+  const { messages, reanchored } = injectAdditions([uNew], additions);
+  assert.equal(messages.length, 2);
+  assert.equal(messages[1], addMsg, "re-anchored after the last user message");
+  assert.equal(reanchored.length, 1);
+  assert.equal(reanchored[0].anchorHash, anchorHash(uNew));
+});
+
+test("injectAdditions: no user message at all → injection skipped, reported with null anchor", () => {
+  const a = { role: "assistant", content: [{ type: "text", text: "only assistant" }] };
+  const addMsg = buildToolAdditionMessage(["SendMessage"]);
+  const additions = [{ names: ["SendMessage"], anchorHash: "gone", message: addMsg }];
+  const { messages, reanchored } = injectAdditions([a], additions);
+  assert.equal(messages.length, 1, "nothing injected");
+  assert.equal(reanchored[0].anchorHash, null);
+});
+
+test("forwardedTools: names covered by additions get defer_loading, others stay untouched", () => {
+  const known = [tool("Read"), tool("SendMessage")];
+  const additions = [{ names: ["SendMessage"], anchorHash: "h", message: {} }];
+  const fwd = forwardedTools(known, additions);
+  assert.deepEqual(fwd[0], tool("Read"));
+  assert.equal(fwd[1].defer_loading, true);
 });
 
 test("addBetaToken: adds the token when header absent", () => {
@@ -258,7 +308,7 @@ test("onRequest: second request adds SendMessage → tools[] byte-stable for kno
       const body2 = {
         tools: [tool("Read"), tool("Bash"), tool("SendMessage")],
         system: [{ type: "text", text: "sys" }],
-        messages: [],
+        messages: [{ role: "user", content: [{ type: "text", text: "turn 1" }] }],
       };
       const ctx2 = await runExt(body2, { headers, dir });
 
@@ -272,9 +322,17 @@ test("onRequest: second request adds SendMessage → tools[] byte-stable for kno
       assert.equal(ctx2.body.tools[2].name, "SendMessage");
       assert.equal(ctx2.body.tools[2].defer_loading, true);
 
-      // System gained exactly one tool_addition block at the tail.
-      assert.equal(ctx2.body.system.length, 2);
-      assert.match(ctx2.body.system[1].text, /SendMessage/);
+      // Top-level system UNTOUCHED (Phase A appended here — wrong location).
+      assert.equal(ctx2.body.system.length, 1);
+      // The announcement is a system-ROLE message injected into messages[],
+      // after the anchor (the last message at addition time).
+      assert.equal(ctx2.body.messages.length, 2);
+      const injected = ctx2.body.messages[1];
+      assert.equal(injected.role, "system");
+      assert.deepEqual(injected.content[0], {
+        type: "tool_addition",
+        tool: { type: "tool_reference", name: "SendMessage" },
+      });
 
       // Beta header added.
       assert.equal(headers["anthropic-beta"], "mid-conversation-tool-changes-2026-07-01");
@@ -284,30 +342,87 @@ test("onRequest: second request adds SendMessage → tools[] byte-stable for kno
   }
 });
 
-test("onRequest: third request with no further tool changes → unchanged, no additional system block", async () => {
+test("onRequest: subsequent requests re-inject byte-identically at the same anchor (statelessness handled)", async () => {
   const dir = await newTmp();
   const headers = { "x-claude-code-session-id": "sess-stable" };
   try {
     await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
-      const body1 = { tools: [tool("Read"), tool("Bash")], system: [{ type: "text", text: "sys" }], messages: [] };
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      const body1 = { tools: [tool("Read"), tool("Bash")], system: [{ type: "text", text: "sys" }], messages: [u1] };
       await runExt(body1, { headers, dir });
 
       const body2 = {
         tools: [tool("Read"), tool("Bash"), tool("SendMessage")],
         system: [{ type: "text", text: "sys" }],
-        messages: [],
+        messages: [u1],
       };
-      await runExt(body2, { headers, dir });
+      const ctx2 = await runExt(body2, { headers, dir });
+      const injectedAt2 = JSON.stringify(ctx2.body.messages[1]);
 
-      const body3 = {
-        tools: [tool("Read"), tool("Bash"), tool("SendMessage")],
-        system: [{ type: "text", text: "sys" }],
-        messages: [],
-      };
-      const ctx3 = await runExt(body3, { headers, dir });
+      // Requests 3 and 4: CC sends its own view (no injected message, no
+      // defer_loading markers) with the conversation advancing. The proxy
+      // must re-inject at the SAME anchor, byte-identically, and re-apply
+      // the frozen tools[] with the marker — every request.
+      for (const extra of [
+        [{ role: "assistant", content: [{ type: "text", text: "a2" }] }],
+        [
+          { role: "assistant", content: [{ type: "text", text: "a2" }] },
+          { role: "user", content: [{ type: "text", text: "turn 3" }] },
+        ],
+      ]) {
+        const body = {
+          tools: [tool("Read"), tool("Bash"), tool("SendMessage")],
+          system: [{ type: "text", text: "sys" }],
+          messages: [u1, ...extra],
+        };
+        const ctx = await runExt(body, { headers, dir });
+        assert.equal(ctx.meta.deferredToolRewriteStats.action, "unchanged");
+        assert.equal(ctx.meta.deferredToolRewriteStats.injected, 1);
+        // Injection sits right after the anchor (u1), byte-identical.
+        assert.equal(JSON.stringify(ctx.body.messages[1]), injectedAt2);
+        // Frozen tools[] with defer_loading re-applied.
+        assert.equal(ctx.body.tools[2].defer_loading, true);
+        // Top-level system never touched.
+        assert.equal(ctx.body.system.length, 1);
+      }
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
 
-      assert.equal(ctx3.meta.deferredToolRewriteStats.action, "unchanged");
-      assert.equal(ctx3.body.system.length, 1, "no additional tool_addition block on an unchanged request");
+test("onRequest: pruned anchor → re-anchor once, stable thereafter", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-prune" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      await runExt({ tools: [tool("Read")], system: [], messages: [u1] }, { headers, dir });
+      await runExt(
+        { tools: [tool("Read"), tool("SendMessage")], system: [], messages: [u1] },
+        { headers, dir },
+      );
+
+      // Context management pruned u1; a new user turn exists.
+      const uNew = { role: "user", content: [{ type: "text", text: "post-prune turn" }] };
+      const ctx3 = await runExt(
+        { tools: [tool("Read"), tool("SendMessage")], system: [], messages: [uNew] },
+        { headers, dir },
+      );
+      assert.equal(ctx3.meta.deferredToolRewriteStats.reanchored, 1);
+      assert.equal(ctx3.body.messages[1].role, "system", "re-anchored after the last user message");
+
+      // Next request: the new anchor holds — no further re-anchor.
+      const ctx4 = await runExt(
+        {
+          tools: [tool("Read"), tool("SendMessage")],
+          system: [],
+          messages: [uNew, { role: "assistant", content: [{ type: "text", text: "a" }] }],
+        },
+        { headers, dir },
+      );
+      assert.equal(ctx4.meta.deferredToolRewriteStats.reanchored, 0);
+      assert.equal(ctx4.body.messages[1].role, "system");
     });
   } finally {
     await rm(dir, { recursive: true, force: true });

@@ -1,15 +1,33 @@
-// deferred-tool-rewrite
-// NOTE 2026-07-27: server.mjs header propagation FIXED (10d33e4) — Phase B unblocked, not yet exercised. — Phase A only (robustness-threat-matrix class 6).
+// deferred-tool-rewrite — Phase B (robustness-threat-matrix class 6).
 //
-// Design: docs/directives/proxy-deferred-tool-rewrite.md. Spec contradiction
-// on record: CC docs say deferred-tool loads append without disturbing
-// cache; measured 2026-07-27 12:47:56 (175k, ledger row
-// tools[SendMessage:added], toolsMatch:false) says otherwise on this
-// surface. Until upstream fixes it, the proxy holds tools[] byte-stable
-// across a pure tool addition and delivers the newly-available schema as an
-// appended tool_addition system-message block instead (mid-conversation
-// tool changes, beta mid-conversation-tool-changes-2026-07-01; requires the
-// tool declared with defer_loading up front).
+// Design: docs/directives/proxy-deferred-tool-rewrite.md, including the
+// 2026-07-28 Phase B addendum (documented wire shapes + persistent
+// re-injection). Spec contradiction on record: CC docs say deferred-tool
+// loads append without disturbing cache; measured 2026-07-27 12:47:56
+// (175k, ledger row tools[SendMessage:added], toolsMatch:false) says
+// otherwise on this surface. Until upstream fixes it, the proxy holds
+// tools[] byte-stable across a pure tool addition and delivers the newly
+// available schema per the DOCUMENTED mid-conversation-tool-changes
+// contract (beta mid-conversation-tool-changes-2026-07-01):
+//
+//   - the new tool goes into tools[] with defer_loading: true;
+//   - the announcement is a {"type": "tool_addition", "tool":
+//     {"type": "tool_reference", "name": ...}} content block on a
+//     {"role": "system"} message appended to messages[] — NOT a text
+//     block on top-level system (Phase A's placeholder; wrong shape AND
+//     wrong location — top-level system heads the cache prefix, so every
+//     injection there would bust the whole cache).
+//
+// STATELESSNESS: the API loads a deferred tool only when its
+// tool_addition block is present in THAT request, and CC never echoes
+// our injected message back. So both halves re-apply every request:
+// tools[] stays held with added tools permanently defer_loading:true,
+// and each injected system message is re-spliced byte-identically at a
+// content-anchored position (identity hash of the message it was
+// injected after). Anchor pruned by context management → re-anchor after
+// the latest user message, telemetry `reanchored`, one honest partial
+// re-cache. Pipeline order isolates this from insertion-normalization
+// (395 < 425): the canonical never sees the injected message.
 //
 // Detect: compare incoming tools[] against the persisted known set (keyed
 // by name). Three things can happen to a known name, and only one is an
@@ -35,29 +53,12 @@
 // request composes (both are additive from the wire's perspective; only
 // a fingerprint change is destructive).
 //
-// Phase A explicitly stops at: build the rewrite + persist the mapping +
-// unit-test it against a synthetic fixture. Phase B (does the live API
-// actually accept the beta + honor defer_loading the way this rewrite
-// assumes) is NOT built here — see the directive's Risk note. The exact
-// wire SHAPE of the tool_addition block and of the defer_loading-marked
-// tool entry are NOT specified by the directive (no JSON example given);
-// this file's shapes (see buildToolAdditionBlock / buildDeferredToolEntry)
-// are a considered, clearly-labeled Phase-A placeholder pending Phase B's
-// live validation against the actual API contract — surfaced as a gap in
-// the closing report, not silently assumed settled.
-//
-// KNOWN PLUMBING GAP (found during this build, affects auto-1m-guard too,
-// NOT fixed here — proxy/server.mjs is outside this unit's write boundary):
-// `preForward` (proxy/server.mjs) builds `reqCtx.headers = { ...clientReq
-// .headers }` for extensions to read/mutate, but only `reqCtx.body` is
-// serialized back into `forwardBody` — `reqCtx.headers` mutations are never
-// propagated to the real outbound request (`forwardRequest(clientReq, ...)`
-// in handleMessages still reads the ORIGINAL `clientReq.headers`). This
-// extension sets the beta header via `ctx.headers` anyway (mirrors auto-1m
-// -guard.mjs's existing, equally-affected idiom) so the extension-level
-// contract is correct and ready once that plumbing gap is fixed — but until
-// then, the header never reaches the wire. Phase B's "does the API accept
-// the beta" validation is blocked on this being fixed first.
+// Phase B stops at: documented shapes + persistent re-injection,
+// validated by unit tests and replay A/B (directive addendum's gates 1-2).
+// The final live acceptance probe (gate 3: one real request through the
+// proxy at a session boundary, watch for 400 vs the model using the
+// added tool) happens before the service-unit flag flips — the header
+// plumbing this depended on was fixed in server.mjs 10d33e4.
 //
 // Activation: `enabled: true` in extensions.json (always loaded), runtime
 // gate CACHE_FIX_TOOL_REWRITE=1, default OFF per directive ("Phase A (build
@@ -72,6 +73,8 @@ import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises
 import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
+import { hashMessageContent } from "./mid-history-breakpoint-ladder.mjs";
+import { createHash } from "node:crypto";
 
 const BETA_TOKEN = "mid-conversation-tool-changes-2026-07-01";
 const BETA_HEADER_NAME = "anthropic-beta";
@@ -106,23 +109,28 @@ function eventsPath(dir, sessionKey) {
   return join(dir, `${sessionKey}-deferred-tool-events.jsonl`);
 }
 
-async function loadKnownTools(dir, sessionKey, fs) {
+// State: { tools: [...], additions: [{ name, anchorHash, message }] }.
+// `additions` (Phase B) carries each injected system message byte-frozen,
+// plus the identity hash of the message it was anchored after. Old files
+// without the field read as additions=[] — no migration, sessions started
+// under Phase A simply have no pending injections.
+async function loadState(dir, sessionKey, fs) {
   try {
     const txt = await fs.readFile(statePath(dir, sessionKey), "utf-8");
     const parsed = JSON.parse(txt);
-    if (Array.isArray(parsed?.tools)) return parsed.tools;
-    return null;
+    if (!Array.isArray(parsed?.tools)) return null;
+    return { tools: parsed.tools, additions: Array.isArray(parsed.additions) ? parsed.additions : [] };
   } catch (err) {
     if (err && err.code !== "ENOENT") debug(`state read failed: ${err?.message ?? err}`);
     return null;
   }
 }
 
-async function saveKnownTools(dir, sessionKey, tools, fs) {
+async function saveState(dir, sessionKey, state, fs) {
   await fs.mkdir(dir, { recursive: true });
   const finalPath = statePath(dir, sessionKey);
   const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify({ tools }, null, 2));
+  await fs.writeFile(tmpPath, JSON.stringify(state, null, 2));
   await fs.rename(tmpPath, finalPath);
 }
 
@@ -174,7 +182,7 @@ export function toolFingerprint(tool) {
 //   { action: "no-baseline", knownTools }                                             — first-seen session; persist baseline, forward unchanged
 //   { action: "unchanged", knownTools }                                               — incoming === known set, same order; forward unchanged
 //   { action: "reset", knownTools, reason }                                           — a known tool's schema changed; forward unchanged, re-baseline
-//   { action: "rewrite", tools, systemAdditions, newNames, heldNames, knownTools }     — held removal and/or reorder and/or pure addition; forward the rewritten tools[]/system additions
+//   { action: "rewrite", tools, newNames, heldNames, knownTools }                      — held removal and/or reorder and/or pure addition; onRequest forwards forwardedTools(knownTools, additions) and injects the addition message
 export function classifyToolChange(incomingTools, priorKnownTools) {
   if (!Array.isArray(priorKnownTools)) {
     return { action: "no-baseline", knownTools: incomingTools };
@@ -218,33 +226,95 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
   return {
     action: "rewrite",
     tools: heldOrPresentTools.concat(deferredNewTools),
-    systemAdditions: newTools.map(buildToolAdditionBlock),
     newNames,
     heldNames,
     knownTools: priorOrderNames.concat(newNames).map((name) => priorByName.get(name) ?? incomingByName.get(name)),
   };
 }
 
-// --- Wire shapes (Phase-A placeholder — see file-header gap note) ---
+// --- Wire shapes (documented mid-conversation-tool-changes contract) ---
 
-// One system-role announcement block per newly-added tool. Text-block shape
-// chosen for the same reason insertion-normalization/the ladder never
-// invent a new content-block type: `type: "text"` is guaranteed valid on
-// every current API surface, so a beta that reinterprets it (or is
-// rejected outright) degrades to "the model sees an inert system note"
-// rather than a malformed-request 400. Phase B validates the ACTUAL
-// mid-conversation-tool-changes contract; this is deliberately the
-// lowest-risk placeholder that satisfies "append a tool_addition block per
-// new tool as a system-role message at the tail."
-export function buildToolAdditionBlock(tool) {
+// The tool_addition announcement: one system-ROLE message in messages[]
+// carrying a tool_addition block per newly-added tool. The tool must
+// already be in tools[] with defer_loading: true; the block references it
+// by name. See the directive addendum for the placement constraints this
+// satisfies.
+export function buildToolAdditionMessage(toolNames) {
   return {
-    type: "text",
-    text:
-      `<tool_addition name=${JSON.stringify(tool.name)}>\n` +
-      JSON.stringify({ name: tool.name, description: tool.description ?? null, input_schema: tool.input_schema ?? null }) +
-      `\n</tool_addition>`,
+    role: "system",
+    content: toolNames.map((name) => ({
+      type: "tool_addition",
+      tool: { type: "tool_reference", name },
+    })),
   };
 }
+
+// Identity hash for an anchor message. hashMessageContent covers
+// block-array content; string-content messages hash their raw string
+// (same fallback family as insertion-normalization's content-derived
+// identity — never positional).
+export function anchorHash(msg) {
+  const h = hashMessageContent(msg);
+  if (h) return h;
+  const c = msg?.content;
+  if (typeof c === "string") return "s:" + createHash("sha256").update(c).digest("hex").slice(0, 16);
+  return null;
+}
+
+// Splice persisted addition messages back into messages[] at their
+// anchors. Pure: returns { messages, reanchored } without mutating input.
+// Each addition lands immediately after the message whose identity hash
+// matches its anchorHash; a vanished anchor (context-management prune)
+// re-anchors after the LAST user message — the closest stable position
+// that satisfies the "must follow a user message" placement constraint —
+// and reports it so state can be updated and telemetry emitted.
+export function injectAdditions(messages, additions) {
+  if (!Array.isArray(additions) || additions.length === 0) {
+    return { messages, reanchored: [] };
+  }
+  const out = [...messages];
+  const reanchored = [];
+  for (const add of additions) {
+    const idx = out.findIndex((m) => m.role !== "system" && anchorHash(m) === add.anchorHash);
+    if (idx >= 0) {
+      out.splice(idx + 1, 0, add.message);
+    } else {
+      let lastUser = -1;
+      for (let i = out.length - 1; i >= 0; i--) {
+        if (out[i].role === "user") {
+          lastUser = i;
+          break;
+        }
+      }
+      if (lastUser >= 0) {
+        out.splice(lastUser + 1, 0, add.message);
+        const newAnchor = anchorHash(out[lastUser]);
+        reanchored.push({ names: add.names, anchorHash: newAnchor });
+      } else {
+        // No user message at all — cannot satisfy the placement
+        // constraint; skip this injection (the tool stays deferred and
+        // unloaded this request; honest degradation, not a malformed
+        // request).
+        reanchored.push({ names: add.names, anchorHash: null });
+      }
+    }
+  }
+  return { messages: out, reanchored };
+}
+
+// The frozen tools[] to forward when additions exist: knownTools order,
+// with every name covered by an addition marked defer_loading — the
+// classifier's knownTools stores UNMARKED objects (fingerprints must
+// match CC's raw array), so the marker is applied at forward time.
+export function forwardedTools(knownTools, additions) {
+  const deferredNames = new Set(additions.flatMap((a) => a.names));
+  return knownTools.map((t) => (deferredNames.has(t.name) ? { ...t, defer_loading: true } : t));
+}
+
+// (Phase A's placeholder — a pseudo-XML text block appended to top-level
+// body.system — was removed in Phase B: wrong shape, and decisively wrong
+// location, since top-level system heads the cache prefix and every
+// injection there would have busted the whole cache.)
 
 // --- Beta header (additive token; reuses no state from auto-1m-guard, but
 // mirrors its header-token parse/join idiom rather than reimplementing ad
@@ -299,21 +369,62 @@ export default {
     const sessionKey = resolveToolRewriteSessionKey(headers, body);
 
     try {
-      const prior = await loadKnownTools(dir, sessionKey, fs);
-      const result = classifyToolChange(body.tools, prior);
+      const prior = await loadState(dir, sessionKey, fs);
+      const result = classifyToolChange(body.tools, prior?.tools ?? null);
 
-      if (result.action === "rewrite") {
-        body.tools = result.tools;
-        if (result.systemAdditions.length > 0) {
-          body.system = Array.isArray(body.system) ? body.system.concat(result.systemAdditions) : result.systemAdditions;
-        }
-        // Beta token only needed when a tool is actually marked
-        // defer_loading:true — a pure hold/reorder never adds one.
-        if (headers && result.newNames.length > 0) addBetaToken(headers);
+      // Carry prior additions forward except on reset (a schema change
+      // re-baselines everything — the harness's own tools[] becomes truth
+      // and pending injections are abandoned with it).
+      let additions = result.action === "reset" ? [] : (prior?.additions ?? []);
+
+      if (
+        result.action === "rewrite" &&
+        result.newNames.length > 0 &&
+        Array.isArray(body.messages) &&
+        body.messages.length > 0
+      ) {
+        // New tool(s): ONE addition message covering them all, anchored
+        // after the current last message. Injected below with any prior
+        // additions, and persisted for re-injection on every subsequent
+        // request (the API is stateless — see file header).
+        const anchorMsg = body.messages[body.messages.length - 1];
+        additions = additions.concat([
+          {
+            names: result.newNames,
+            anchorHash: anchorHash(anchorMsg),
+            message: buildToolAdditionMessage(result.newNames),
+          },
+        ]);
       }
-      // no-baseline, unchanged, and reset all forward body.tools untouched.
 
-      await saveKnownTools(dir, sessionKey, result.knownTools, fs);
+      // Forward the frozen array whenever we hold state: rewrite uses the
+      // classifier's held order; "unchanged" ALSO re-forwards it when
+      // additions exist, because CC's incoming array never carries our
+      // defer_loading markers — forwarding it raw would silently un-defer
+      // every added tool. no-baseline and reset pass through untouched.
+      if (result.action === "rewrite") {
+        body.tools = forwardedTools(result.knownTools, additions);
+      } else if (result.action === "unchanged" && additions.length > 0) {
+        body.tools = forwardedTools(prior.tools, additions);
+      }
+
+      let reanchored = [];
+      if (additions.length > 0 && Array.isArray(body.messages)) {
+        const injected = injectAdditions(body.messages, additions);
+        body.messages = injected.messages;
+        reanchored = injected.reanchored;
+        if (reanchored.length > 0) {
+          additions = additions.map((a) => {
+            const r = reanchored.find((x) => x.names.join() === a.names.join());
+            return r && r.anchorHash ? { ...a, anchorHash: r.anchorHash } : a;
+          });
+        }
+        // Beta token whenever a deferred tool / injected message is on
+        // the wire — every request after the first addition.
+        if (headers) addBetaToken(headers);
+      }
+
+      await saveState(dir, sessionKey, { tools: result.knownTools, additions }, fs);
 
       ctx.meta = ctx.meta || {};
       ctx.meta.deferredToolRewriteStats = {
@@ -321,6 +432,8 @@ export default {
         newNames: result.newNames ?? [],
         heldNames: result.heldNames ?? [],
         reason: result.reason ?? null,
+        injected: additions.length,
+        reanchored: reanchored.filter((r) => r.anchorHash).length,
       };
 
       await appendTelemetry(
@@ -333,6 +446,8 @@ export default {
           action: result.action,
           newNames: result.newNames ?? [],
           heldNames: result.heldNames ?? [],
+          injected: additions.length,
+          ...(reanchored.length > 0 ? { reanchored } : {}),
           ...(result.reason ? { reason: result.reason } : {}),
         },
         fs,
