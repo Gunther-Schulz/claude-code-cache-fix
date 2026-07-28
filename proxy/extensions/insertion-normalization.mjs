@@ -615,6 +615,56 @@ export function classifyPinned(messages, priorCanonical) {
   const incoming = computePinnedIdentities(messages);
   const freshEntries = () => incoming.map((e) => buildPinEntry(e, messages[e.index]));
 
+  // A reset abandons the ORDER model. It must NOT abandon the PINS, and
+  // conflating the two cost real cache — threat-matrix row 22, measured
+  // 2026-07-28 on capture s-538c0aef:
+  //
+  //   CC honestly replaced message 196, so reset(edit-shaped) was the right
+  //   verdict and the cost belonged to 196+. But every reset returns without
+  //   a `messages` field, so the caller forwards the incoming array raw — and
+  //   that silently un-pinned message 177, whose first-seen <system-reminder>
+  //   this extension had been restoring. Our bytes changed at 177 while CC's
+  //   were byte-identical there, so the bust began 19 messages early.
+  //
+  // Identity deliberately EXCLUDES volatile blocks, so an identity still
+  // present in priorCanonical names the same message and its stored
+  // first-seen bytes are still the right bytes to send. Pinning substitutes
+  // the CONTENT of a single user message and never adds, drops or reorders
+  // one, so applying it on a reset cannot affect count, roles or adjacency.
+  //
+  // Deliberately NOT used by the adjacency-violation reset: that path exists
+  // precisely because the pinned form broke tool adjacency, so it must send
+  // the raw array.
+  const priorByKey = new Map(
+    (Array.isArray(priorCanonical) ? priorCanonical : []).map((e) => [identityKey(e), e]),
+  );
+  const resetKeepingPins = (resetReason) => {
+    const out = messages.slice();
+    let applied = 0;
+    for (const e of incoming) {
+      const stored = priorByKey.get(identityKey(e));
+      if (!stored) continue;
+      const fwd = pinnedForwardForm(stored, messages[e.index]);
+      if (fwd !== messages[e.index] && JSON.stringify(fwd) !== JSON.stringify(messages[e.index])) {
+        out[e.index] = fwd;
+        applied++;
+      }
+    }
+    // The canonical must describe the wire we JUST FORWARDED — the same
+    // invariant the success path states. Building it from `messages` while
+    // sending `out` makes the two disagree, and the next request then
+    // diverges against a baseline that was never on the wire. Measured: that
+    // mistake turned 0 violations into 3 on capture s-0edbd11c before the
+    // canonical was switched to the pinned array.
+    return {
+      action: "reset",
+      resetReason,
+      canonicalEntries: incoming.map((e) => buildPinEntry(e, out[e.index])),
+      ...(applied > 0 ? { messages: out } : {}),
+      pinned: applied,
+    };
+  };
+
   if (!Array.isArray(priorCanonical) || priorCanonical.length === 0) {
     return { action: "reset", resetReason: "no-prior-canonical", canonicalEntries: freshEntries() };
   }
@@ -636,11 +686,11 @@ export function classifyPinned(messages, priorCanonical) {
   }
   for (let i = 1; i < matched.length; i++) {
     if (matched[i].idx <= matched[i - 1].idx) {
-      return { action: "reset", resetReason: "not-subsequence", canonicalEntries: freshEntries() };
+      return resetKeepingPins("not-subsequence");
     }
   }
   if (droppedBefore + droppedNow.size > priorCanonical.length / 2) {
-    return { action: "reset", resetReason: "dropped-majority", canonicalEntries: freshEntries() };
+    return resetKeepingPins("dropped-majority");
   }
 
   const matchedIdxSet = new Set(matched.map((m) => m.idx));
@@ -686,11 +736,11 @@ export function classifyPinned(messages, priorCanonical) {
     return false;
   })();
   if (isEdit) {
-    return { action: "reset", resetReason: "edit-shaped", canonicalEntries: freshEntries() };
+    return resetKeepingPins("edit-shaped");
   }
 
   if (splicedEntries.some((e) => e.r === "assistant")) {
-    return { action: "reset", resetReason: "assistant-interleaved", canonicalEntries: freshEntries() };
+    return resetKeepingPins("assistant-interleaved");
   }
 
   // Forwarded order is the INCOMING order, not "survivors then new". The two
@@ -827,10 +877,13 @@ export default {
       const prior = await loadCanonical(dir, sessionKey, fs, mode);
       const result = pin ? classifyPinned(messages, prior) : classifyInsertion(messages, prior);
 
-      if (result.action === "normalized") {
+      // Apply whatever the classifier produced, rather than keying on the
+      // action name. A reset now returns a pinned array too (row 22): the
+      // order model is abandoned, the pins are not. `append-only` returns the
+      // incoming array unchanged, so this stays a no-op there.
+      if (result.messages) {
         body.messages = result.messages;
       }
-      // append-only and reset both forward the incoming array unchanged.
 
       await saveCanonical(dir, sessionKey, result.canonicalEntries, fs, mode);
 

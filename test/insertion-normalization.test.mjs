@@ -932,3 +932,64 @@ test("pin: flag off -> classifyPinned never runs, phase-2 byte-identical behavio
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// --- Pins survive a reset (threat-matrix row 22) ---
+//
+// Measured 2026-07-28, capture s-538c0aef: CC honestly replaced message 196,
+// so reset(edit-shaped) was right and the cost belonged to 196+. But every
+// reset returned without a `messages` field, so the caller forwarded the raw
+// array and message 177 lost the first-seen <system-reminder> this extension
+// had been restoring — our bytes changed at 177 where CC's were identical,
+// starting the bust 19 messages early.
+//
+// The order model is what a reset abandons. The pins are not.
+test("classifyPinned: a reset still forwards PINNED bytes for surviving identities", () => {
+  const volatileBlock = { type: "text", text: "<system-reminder>\nhook note\n</system-reminder>" };
+  const u0 = { role: "user", content: [{ type: "text", text: "turn 0" }, volatileBlock] };
+  const a0 = assistantMsg("reply 0");
+  const u1 = userMsg("turn 1");
+  const a1 = assistantMsg("reply 1");
+
+  // First request pins u0's first-seen form.
+  const first = classifyPinned([u0, a0, u1, a1], null);
+  assert.equal(first.resetReason, "no-prior-canonical");
+  const canon = first.canonicalEntries;
+
+  // CC drops the volatile block from u0 AND splices an assistant message
+  // mid-history — the latter forces a reset that has nothing to do with u0.
+  const u0NoBlock = userMsg("turn 0");
+  const res = classifyPinned([u0NoBlock, a0, assistantMsg("SPLICED"), u1, a1], canon);
+
+  assert.equal(res.action, "reset");
+  assert.equal(res.resetReason, "assistant-interleaved");
+  assert.ok(res.messages, "a reset must still carry the pinned array");
+  assert.deepEqual(
+    res.messages[0],
+    u0,
+    "u0 keeps its first-seen form — the reset is about ORDER, not decoration",
+  );
+  // Safety: substitution only — never a count, role or order change.
+  assert.equal(res.messages.length, 5);
+  assert.deepEqual(
+    res.messages.map((m) => m.role),
+    ["user", "assistant", "assistant", "user", "assistant"],
+  );
+});
+
+test("BITE — without the carry-over the reset would un-pin the surviving message", () => {
+  // Same setup, but assert the property that actually costs cache: the bytes
+  // we forward for an UNCHANGED message must not move because some OTHER
+  // message was edited.
+  const volatileBlock = { type: "text", text: "<system-reminder>\nnote\n</system-reminder>" };
+  const u0 = { role: "user", content: [{ type: "text", text: "u0" }, volatileBlock] };
+  const a0 = { role: "assistant", content: [{ type: "text", text: "a0" }] };
+  const canon = classifyPinned([u0, a0], null).canonicalEntries;
+
+  const stripped = { role: "user", content: [{ type: "text", text: "u0" }] };
+  const res = classifyPinned([stripped, { role: "assistant", content: [{ type: "text", text: "EDITED" }] }], canon);
+  assert.notDeepEqual(
+    res.messages[0],
+    stripped,
+    "forwarding CC's stripped form here is exactly the row-22 defect",
+  );
+});
