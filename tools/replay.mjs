@@ -98,18 +98,17 @@ export function firstDivergence(a, b) {
 // building this: adjacent-only found 0 violations on a full 602-request
 // capture while a 40-request main-thread-only slice of the same session
 // found 2 — the difference was entirely the interleaving, not the bytes.
-function conversationId(msgs) {
-  if (!msgs.length) return null;
-  return sha(JSON.stringify(msgs[0]));
-}
+// The identity itself is `conversationOf` below — the first message's byte
+// hash, read off the compact entry rather than recomputed from the message.
 
 // The check itself. Entries are grouped by (capture key, conversation) and
 // compared pairwise in arrival order WITHIN each group. A violation is an
 // output divergence strictly earlier than the input's.
 export function findStabilityViolations(entries) {
   const groups = new Map();
-  for (const e of entries) {
-    const cid = conversationId(e.inMsgs);
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
     if (cid === null) continue;
     const g = `${e.key}|${cid}`;
     if (!groups.has(g)) groups.set(g, []);
@@ -128,8 +127,11 @@ function scanGroup(entries) {
     const prev = entries[i - 1];
     const cur = entries[i];
 
-    const inDiv = firstDivergence(prev.inMsgs, cur.inMsgs);
-    const outDiv = firstDivergence(prev.outMsgs, cur.outMsgs);
+    // Per-message byte hashes, not the messages: firstDivergence compares
+    // JSON.stringify of each element, and stringifying a hash of the bytes
+    // yields the same first-difference index as stringifying the bytes.
+    const inDiv = firstDivergence(prev.inHash, cur.inHash);
+    const outDiv = firstDivergence(prev.outHash, cur.outHash);
     // Input append-only (inDiv === null) sets the bar at "output must be
     // append-only too": ANY output divergence is then self-inflicted.
     const bar = inDiv === null ? Infinity : inDiv;
@@ -168,37 +170,38 @@ function isDeclaredInjection(msg) {
   return msg.content.every((b) => b && b.type === "tool_addition");
 }
 
-export function findSafetyViolations(entries) {
-  const out = [];
-  for (const e of entries) {
-    const inM = e.inMsgs;
-    // Declared injections are removed before comparing, so the check still
-    // sees a strict count/role/order correspondence with what CC sent.
-    const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
-    if (outM.length !== inM.length) {
-      out.push({ n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` });
-      continue;
-    }
-    let roleBad = -1;
-    for (let i = 0; i < inM.length; i++) {
-      if (inM[i]?.role !== outM[i]?.role) {
-        roleBad = i;
-        break;
-      }
-    }
-    if (roleBad >= 0) {
-      out.push({
+// Per-entry, so it is evaluated as each request is replayed and nothing is
+// retained. Exported on its own because the streaming caller wants one
+// verdict at a time and findSafetyViolations wants the whole list — one
+// implementation, two shapes, rather than a tested one and a shipped one.
+export function safetyViolation(e) {
+  const inM = e.inMsgs;
+  // Declared injections are removed before comparing, so the check still
+  // sees a strict count/role/order correspondence with what CC sent.
+  const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
+  if (outM.length !== inM.length) {
+    return { n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` };
+  }
+  for (let i = 0; i < inM.length; i++) {
+    if (inM[i]?.role !== outM[i]?.role) {
+      return {
         n: e.n,
         ts: e.ts,
         kind: "role",
-        detail: `idx ${roleBad}: ${inM[roleBad]?.role} -> ${outM[roleBad]?.role}`,
-      });
-      continue;
+        detail: `idx ${i}: ${inM[i]?.role} -> ${outM[i]?.role}`,
+      };
     }
-    const adj = firstAdjacencyBreak(outM);
-    if (adj >= 0) {
-      out.push({ n: e.n, ts: e.ts, kind: "tool-adjacency", detail: `idx ${adj}` });
-    }
+  }
+  const adj = firstAdjacencyBreak(outM);
+  if (adj >= 0) return { n: e.n, ts: e.ts, kind: "tool-adjacency", detail: `idx ${adj}` };
+  return null;
+}
+
+export function findSafetyViolations(entries) {
+  const out = [];
+  for (const e of entries) {
+    const v = safetyViolation(e);
+    if (v) out.push(v);
   }
   return out;
 }
@@ -240,8 +243,9 @@ function firstAdjacencyBreak(messages) {
 // that disagreement recurs for the life of the session.
 export function findSequenceViolations(entries) {
   const groups = new Map();
-  for (const e of entries) {
-    const cid = conversationId(e.inMsgs);
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
     if (cid === null) continue;
     const g = `${e.key}|${cid}`;
     if (!groups.has(g)) groups.set(g, []);
@@ -309,9 +313,58 @@ export function semanticCore(msg) {
 
 const semanticId = (m) => `${m?.role ?? "?"}:${sha(JSON.stringify(semanticCore(m)))}`;
 
+// --- Compact retention ---
+//
+// Streaming the READ was only half the problem. Every entry used to retain
+// its full inMsgs and outMsgs, and since each request re-sends the whole
+// history, that is the entire capture resident as objects: measured 3.2 GB
+// peak on a 955 MB capture, which is within sight of V8's default old-space
+// ceiling. The read no longer throws, but the wall had only moved.
+//
+// harvest.mjs already learned this and says so in its own comment ("retaining
+// every parsed record turned a 555 MB capture into a 2.1 GB memory peak").
+// The lesson did not travel to its sibling — the tools were fixed one at a
+// time, by whichever one happened to fall over.
+//
+// Nothing downstream actually wants the messages. Stability compares BYTES
+// (a per-message hash decides every divergence index identically), census
+// compares SEMANTIC IDS, trace reads only telemetry, and safety is per-entry
+// so it never needed retention at all. So each entry keeps three string
+// arrays instead of two message arrays.
+//
+// The checkers still accept full-message entries: the gate self-check builds
+// them that way, and those tests are the safety net this refactor rests on.
+// `asCompact` converts on the fly when it sees one, so both callers share one
+// code path rather than one being tested and the other shipped.
+export function compactEntry(e) {
+  const inMsgs = e.inMsgs ?? [];
+  const outMsgs = e.outMsgs ?? [];
+  return {
+    n: e.n,
+    ts: e.ts,
+    key: e.key,
+    inHash: inMsgs.map((m) => sha(JSON.stringify(m))),
+    outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
+    inSem: inMsgs.map(semanticId),
+    msgs: inMsgs.length,
+    action: e.action ?? null,
+    resetReason: e.resetReason ?? null,
+    stats: e.stats ?? null,
+  };
+}
+
+const asCompact = (e) => (e.inHash ? e : compactEntry(e));
+
+// Conversation identity from the compact form: the first message's byte hash
+// is exactly what conversationId hashed before.
+const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
+
 export function censusPair(a, b) {
-  const ia = a.map(semanticId);
-  const ib = b.map(semanticId);
+  return censusIds(a.map(semanticId), b.map(semanticId));
+}
+
+// The classification itself, on semantic ids — what the compact entries carry.
+export function censusIds(ia, ib) {
   let p = 0;
   while (p < Math.min(ia.length, ib.length) && ia[p] === ib[p]) p++;
   if (p === ia.length) return p === ib.length ? "identical" : "append-only";
@@ -348,8 +401,9 @@ export function censusPair(a, b) {
 // bug that motivated this was invisible in every pairwise view we had.
 export function buildTrace(entries) {
   const groups = new Map();
-  for (const e of entries) {
-    const cid = conversationId(e.inMsgs);
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
     if (cid === null) continue;
     const g = `${e.key}|${cid}`;
     if (!groups.has(g)) groups.set(g, []);
@@ -368,7 +422,7 @@ export function buildTrace(entries) {
       return {
         n: e.n,
         ts: e.ts,
-        msgs: st.msgs ?? e.inMsgs.length,
+        msgs: st.msgs ?? e.msgs,
         action: st.action ?? null,
         resetReason: st.resetReason ?? null,
         canonSize: st.canonSize ?? null,
@@ -386,8 +440,9 @@ export function buildTrace(entries) {
 
 export function runCensus(entries) {
   const groups = new Map();
-  for (const e of entries) {
-    const cid = conversationId(e.inMsgs);
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
     if (cid === null) continue;
     const g = `${e.key}|${cid}`;
     if (!groups.has(g)) groups.set(g, []);
@@ -398,7 +453,7 @@ export function runCensus(entries) {
   let pairs = 0;
   for (const group of groups.values()) {
     for (let i = 1; i < group.length; i++) {
-      const kind = censusPair(group[i - 1].inMsgs, group[i].inMsgs);
+      const kind = censusIds(group[i - 1].inSem, group[i].inSem);
       pairs++;
       tally.set(kind, (tally.get(kind) ?? 0) + 1);
       if (!examples.has(kind)) examples.set(kind, { n: group[i].n, prevN: group[i - 1].n, ts: group[i].ts });
@@ -488,6 +543,7 @@ async function main() {
 
   const report = [];
   const stability = [];
+  const safety = [];
 
   for await (const [n, line] of readCapture(args.file)) {
     let rec;
@@ -562,7 +618,7 @@ async function main() {
     // Both sides of the stability check: what CC sent, and what we
     // forwarded. `rec.body` was cloned before the pipeline ran, so it
     // still holds the captured bytes.
-    stability.push({
+    const full = {
       n,
       ts: rec.ts,
       key: rec.key,
@@ -571,7 +627,13 @@ async function main() {
       action: ctx.meta.insertionNormalizeStats?.action ?? null,
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
       stats: ctx.meta.insertionNormalizeStats ?? null,
-    });
+    };
+    // Safety is a per-request question, so answer it now and keep only the
+    // verdict; the messages become garbage as soon as this iteration ends.
+    const sv = safetyViolation(full);
+    if (sv) safety.push(sv);
+    // Everything else keeps hashes, not bodies — see compactEntry.
+    stability.push(compactEntry(full));
   }
 
   // Canonical order invariant, reported by the extension itself: reading live
@@ -584,7 +646,6 @@ async function main() {
     .filter((e) => e.stats?.canonOrderViolation)
     .map((e) => ({ n: e.n, ts: e.ts, ...e.stats.canonOrderViolation }));
 
-  const safety = findSafetyViolations(stability);
   const sequence = findSequenceViolations(stability);
   const census = args.census ? runCensus(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
