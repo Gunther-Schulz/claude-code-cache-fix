@@ -35,7 +35,28 @@ fine" closes nothing.
 4. Class 2 (TTL keepalive) — real token math needed; only if idle
    patterns justify.
 
-## Bookmark-ladder disposition (operator question 2026-07-27)
+## Bookmark-ladder disposition — REVERSED 2026-07-28 (measured)
+
+The KEEP ruling below is **refuted and the ladder is removed**. Its premise
+(b) "zero marginal cost: one otherwise-unused breakpoint slot" was false:
+with the slot actually free the ladder produced **57 stability violations on
+session 35d72503 and 8 on 58c979ce**, because re-placing a rung moves a
+cache_control marker onto a different mid-history message — a mid-history
+byte change, which is the very thing it was meant to bound. Premise (a),
+defense-in-depth, fails with it: a defense that creates the failure is not
+depth. Premise (c), independent failure domains, is true and irrelevant.
+
+Also wrong: "Revisit only if a 4th breakpoint consumer ever appears and needs
+the slot back." The trigger was not competition for the slot — it was
+measuring what the ladder does when it finally gets to run. An unused
+mitigation had never been observed in action, and its disposition was decided
+on reasoning alone.
+
+Measured resolution: the 4th slot stays EMPTY (0 violations, both corpora).
+Retirement details and the re-adoption bar:
+docs/directives/proxy-mid-history-breakpoint-ladder.md.
+
+### Original ruling (superseded, kept for the record)
 
 KEEP the ladder alongside normalization. Reasons:
 (a) Defense-in-depth for classifier misses: every rule-3 reset —

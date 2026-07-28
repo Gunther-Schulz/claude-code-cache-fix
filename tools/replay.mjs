@@ -15,8 +15,7 @@
 // Per request it reports which extensions changed the body (measured by
 // hashing the body between every pipeline stage — not by trusting
 // telemetry) and the summary telemetry the pipeline itself emitted
-// (insertion-normalization action, breakpoint injections, ladder
-// placements).
+// (insertion-normalization action and reset reason).
 //
 // Acceptance gate for a pipeline change (directive): replay the same
 // corpus with the flag OFF and ON; the reports must differ only in the
@@ -427,8 +426,8 @@ async function main() {
     // watching the bill.
     //
     // What a restart actually loses matters, and it is NOT the persisted
-    // state: insertion-normalization (saveCanonical), the ladder, and
-    // deferred-tool-rewrite all write their state to
+    // state: insertion-normalization (saveCanonical) and
+    // deferred-tool-rewrite write their state to
     // ~/.claude/cache-fix-snapshots and re-read it per request, so a fresh
     // process finds it intact. Only MODULE-SCOPE memory dies — and re-loading
     // the extension modules is exactly what this simulates: fresh module
@@ -469,8 +468,6 @@ async function main() {
       msgs: Array.isArray(rec.body?.messages) ? rec.body.messages.length : 0,
       mutatedBy,
       insertion: ctx.meta.insertionNormalizeStats ?? null,
-      breakpoint: ctx.meta.messagesBreakpointStats ?? null,
-      ladder: ctx.meta.ladderStats ?? null,
       outHash: prevHash,
     });
     // Both sides of the stability check: what CC sent, and what we
@@ -496,7 +493,7 @@ async function main() {
   //
   // Naive attribution (re-run just the offending pair) does not work for
   // stateful extensions: insertion-normalization, deferred-tool-rewrite and
-  // the ladder all carry per-session canonical state built by every request
+  // both carry per-session canonical state built by every request
   // before this one, so a two-request replay puts them in a different state
   // than the run that produced the violation, and they legitimately behave
   // differently. That yields UNATTRIBUTED on exactly the stateful

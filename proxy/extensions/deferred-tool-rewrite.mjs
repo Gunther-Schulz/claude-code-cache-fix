@@ -64,16 +64,15 @@
 // gate CACHE_FIX_TOOL_REWRITE=1, default OFF per directive ("Phase A (build
 // now, env-gated CACHE_FIX_TOOL_REWRITE=1, default off)"). Order 425 — after
 // sort-stabilization (200, so tools[] arrives name-sorted — comparisons and
-// output order are keyed on name, not incoming array order) and after
-// mid-history-breakpoint-ladder (420, a messages[]-only mutator with no
-// interaction here); before ttl-management (500), consistent with the rest
+// output order are keyed on name, not incoming array order);
+// before ttl-management (500), consistent with the rest
 // of the body-shaping extensions running ahead of the TTL pass.
 
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
-import { hashMessageContent } from "./mid-history-breakpoint-ladder.mjs";
+import { hashMessageContent } from "./message-hash.mjs";
 import { systemPromptSubKey } from "./insertion-normalization.mjs";
 import { createHash } from "node:crypto";
 
@@ -82,7 +81,7 @@ const BETA_HEADER_NAME = "anthropic-beta";
 
 const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
 
-// --- Env gates (read per-call, mirrors insertion-normalization/ladder idiom) ---
+// --- Env gates (read per-call, mirrors the insertion-normalization idiom) ---
 
 function isEnabled(env = process.env) {
   return env.CACHE_FIX_TOOL_REWRITE === "1";
@@ -144,7 +143,7 @@ async function appendTelemetry(dir, sessionKey, record, fs) {
   }
 }
 
-// --- Session key (same idiom as insertion-normalization/the ladder) ---
+// --- Session key (same idiom as insertion-normalization) ---
 
 // Sub-keyed by system-prompt hash for the same reason insertion-normalization
 // is (threat-matrix row 14): the session-id header is shared by the main

@@ -2,18 +2,19 @@
 // arrival order so the prefix cache sees an append instead of a rewrite.
 //
 // Design: docs/directives/proxy-insertion-normalization.md (phase 2 of the
-// mid-history-breakpoint-ladder work). Implements the directive's Design
+// the removed mid-history-breakpoint-ladder work). Implements the Design
 // sketch rules 1-4 only; the "Alternative considered" (full marker
 // ownership) section is explicitly NOT built here.
 //
 // Activation: `enabled: true` in extensions.json (always loaded), runtime
 // gate CACHE_FIX_INSERTION_NORMALIZE=1 (opt-in, read per-call so tests can
 // flip it without re-importing). CACHE_FIX_DEBUG honored for swallowed
-// I/O errors, same idiom as prefix-diff / the ladder.
+// I/O errors, same idiom as prefix-diff.
 //
 // Order 395 — after read-dedupe (380), before cache-control-normalize
-// (400) and messages-cache-breakpoint (410)/mid-history-breakpoint-ladder
-// (420), so those marker-placing extensions see the normalized order.
+// (400), so the marker-placing pass sees the normalized order. (Two other
+// marker placers once sat at 410 and 420; both were removed 2026-07-28 —
+// see message-hash.mjs.)
 // Verified-safe adjacent slot: read-dedupe only rewrites LATER duplicate
 // occurrences of a Read tool_result (the first/keeper occurrence is never
 // rewritten, and "keeper" is monotonic — a message that was already the
@@ -27,16 +28,15 @@
 // --- Canonical history model ---
 //
 // Per session (keyed off the session-id header, same derivation as
-// prefix-diff/the ladder post-fc432bf — SUB-KEYED additionally by a hash
+// prefix-diff post-fc432bf — SUB-KEYED additionally by a hash
 // of the request's system prompt, see systemPromptSubKey/threat-matrix
 // row 14: sidecar requests such as title-generation share the session-id
 // header with the main thread but carry a different system prompt, so
 // without the sub-key every sidecar turn thrashed the main thread's
 // canonical back to reset), the proxy holds an append-only list of entry
 // identity records: { h: contentHash, r: role, o: occurrence }.
-// The hash is computed AFTER stripping cache_control (mid-history-
-// breakpoint-ladder's hashMessageContent, imported rather than
-// reimplemented) so a marker placed by a downstream extension never
+// The hash is computed AFTER stripping cache_control (message-hash.mjs's
+// hashMessageContent, imported rather than reimplemented) so a marker placed by a downstream extension never
 // changes an entry's identity. `o` is a 0-based occurrence counter over
 // (hash, role) pairs in array order, which disambiguates duplicate
 // identical messages (directive's "Known risks to resolve").
@@ -125,11 +125,11 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
-import { hashMessageContent } from "./mid-history-breakpoint-ladder.mjs";
+import { hashMessageContent } from "./message-hash.mjs";
 
 const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
 
-// --- Env gates (read per-call, mirrors ladder/prefix-diff idiom) ---
+// --- Env gates (read per-call, mirrors the prefix-diff idiom) ---
 
 function isEnabled(env = process.env) {
   return env.CACHE_FIX_INSERTION_NORMALIZE === "1";
@@ -188,7 +188,7 @@ export function systemPromptSubKey(system) {
   return createHash("sha256").update(text).digest("hex").slice(0, 8);
 }
 
-// Session-id header derivation, same idiom as prefix-diff/the ladder
+// Session-id header derivation, same idiom as prefix-diff
 // (post-fc432bf: session-id header preferred, content-hash fallback for
 // requests without it — direct API calls, tests). Sub-keyed on the system
 // prompt (see systemPromptSubKey) so sidecar requests sharing the header

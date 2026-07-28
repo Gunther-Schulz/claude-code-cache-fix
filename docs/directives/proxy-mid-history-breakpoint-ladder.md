@@ -1,5 +1,36 @@
 # Directive: mid-history breakpoint ladder (insertion-bust mitigation)
 
+> **RETIRED 2026-07-28 — implementation removed, do not rebuild as specified.**
+>
+> The ladder was measured against real captures and it MANUFACTURED the
+> divergences it was designed to bound. Freeing its breakpoint slot (by
+> removing messages-cache-breakpoint) activated it, and the cross-request
+> stability gate then reported **57 self-inflicted busts on session
+> 35d72503 and 8 on 58c979ce**, every one attributed to the ladder.
+>
+> Mechanism: a rung is re-placed as the conversation grows, and each
+> re-placement moves a `cache_control` marker onto a DIFFERENT mid-history
+> message. That marker move is itself a mid-history byte change — some at
+> `outDiv=0`, i.e. invalidating the entire prefix. Bounding a bust by
+> creating one is a losing trade.
+>
+> A second, independent objection: a rung parked mid-history makes its
+> message pin-immune (`insertion-normalization.mjs`, `pinnedForwardForm`
+> refuses to rewrite a marker-carrying message), and mid-history is exactly
+> where the hook-reminder flips the pin exists to absorb live. The two
+> mitigations actively cancel.
+>
+> Measured resolution: leave the 4th breakpoint slot EMPTY. Slot-empty
+> scores 0 stability / 0 safety / 0 sequence violations on both corpora.
+>
+> RE-ADOPTION BAR: any future rung scheme must demonstrate **zero**
+> stability violations with the rung active, replayed over the harvested
+> corpora. The design below cannot meet that bar, because moving a marker
+> mid-history IS the design. The premise it was written on — "zero marginal
+> cost: one otherwise-unused breakpoint slot" (threat-matrix, Bookmark-ladder
+> disposition) — is refuted.
+
+
 ## Failure modes this mitigates (measured 2026-07-27, session f4d154fc)
 
 Four `messages_changed` full-rewrite busts in one fable-5 session,

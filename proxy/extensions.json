@@ -83,14 +83,6 @@
     "enabled": true,
     "order": 400
   },
-  "messages-cache-breakpoint": {
-    "enabled": true,
-    "order": 410
-  },
-  "mid-history-breakpoint-ladder": {
-    "enabled": true,
-    "order": 420
-  },
   "deferred-tool-rewrite": {
     "enabled": true,
     "order": 425

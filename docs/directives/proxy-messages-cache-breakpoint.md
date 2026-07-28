@@ -1,5 +1,24 @@
 # Directive: messages[0] cache breakpoint #3 injection
 
+> **RETIRED 2026-07-28 — implementation removed.**
+>
+> Superseded on two counts. CC's own tail marker plus its two system-block
+> markers already occupy 3 of the API's 4 breakpoints, and this extension
+> took the 4th: measured across 771 captured requests, CC sends exactly one
+> messages[] marker per request and the ladder was starved at
+> `reason=budget` on **477 of 529** invocations, placing a rung twice all
+> day, both at session start.
+>
+> Its `#47098` head-mutation rationale is now covered by
+> insertion-normalization's canonical identity, which recognises the same
+> message across re-serializations rather than pinning a marker at index 0.
+>
+> ORDERING NOTE for anyone reading history: this extension was accidentally
+> load-bearing. By occupying slot 4 it kept the (harmful) ladder starved and
+> therefore inert. Removing it FIRST, in isolation, armed the ladder and
+> produced 57 stability violations. Both were removed together, ladder first.
+
+
 **Issue:** #12
 **Branch:** `directive/messages-cache-breakpoint`
 **Stage:** directive
