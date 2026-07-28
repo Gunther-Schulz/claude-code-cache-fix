@@ -7,6 +7,7 @@ import { loadExtensions, snapshotRegistry, runOnRequest, runOnResponseStart, run
 import { startWatcher } from "./watcher.mjs";
 import { startOAuthRefresher, stopOAuthRefresher } from "./oauth/refresher.mjs";
 import { attachForwardProxy } from "./forward-proxy.mjs";
+import { sourceFingerprint, PROXY_ROOT } from "./source-fingerprint.mjs";
 
 // Debug logging — writes to ~/.claude/cache-fix-debug.log (override path with
 // CACHE_FIX_DEBUG_LOG). Self-gated on CACHE_FIX_DEBUG=1; a no-op otherwise.
@@ -327,6 +328,10 @@ async function handleBootstrap(clientReq, clientRes) {
 // reverse-mode semantics, and a closed forward instance retires its vote
 // instead of haunting later reverse-only instances in the same process.
 let _forwardActive = 0;
+// sha256 over the proxy source tree as loaded at startup; null when it could
+// not be computed. Set once by startProxy, never after — the point is that it
+// describes the code THIS process is running, not the code on disk now.
+let _sourceTree = null;
 
 function handleHealth(_req, res) {
   // Surface extension-load failures so callers (operators, monitoring) see
@@ -357,6 +362,12 @@ function handleHealth(_req, res) {
     version: config.version,
     forward_proxy: _forwardActive > 0,
     https_proxy: (_forwardActive > 0 && config.httpsProxy) || null,
+    // Content fingerprint of the source this process LOADED. Hot-reload is
+    // off, so after an edit without a restart this stays at the old value
+    // while the working tree moves on — which is precisely the drift an
+    // external checker needs to see, and cannot infer from mtimes without
+    // false-firing on every touch that changes no bytes.
+    proxy_tree: _sourceTree,
   }));
 }
 
@@ -523,6 +534,20 @@ export async function startProxy(options = {}) {
   // wedge mitigation), so we require the exact disable token there.
   const hotReloadOptIn = process.env.CACHE_FIX_HOT_RELOAD === "on";
   const watch = options.watch !== false && hotReloadOptIn;
+
+  // Fingerprint the source we are ABOUT TO RUN, before serving anything, so
+  // /health can answer "which bytes is this process actually running" instead
+  // of leaving an external checker to guess from mtimes. Computed here rather
+  // than at module load: this is the moment the answer becomes true, and a
+  // failure to read our own source must not take the proxy down — an unknown
+  // fingerprint reports as null, which a checker can distinguish from a
+  // mismatch.
+  try {
+    _sourceTree = await sourceFingerprint(PROXY_ROOT);
+  } catch (err) {
+    process.stderr.write(`[cache-fix] source fingerprint unavailable: ${err?.message ?? err}\n`);
+    _sourceTree = null;
+  }
 
   // Boot banner on stderr so the EFFECTIVE hot-reload mode is visible in the
   // supervisor's log (journalctl --user / ~/Library/Logs/) without being
