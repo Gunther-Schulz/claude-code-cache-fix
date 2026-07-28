@@ -94,6 +94,21 @@
 // ignored by the other (one honest reset at the flag flip, never a
 // mismatch).
 //
+// WHAT THE FLIP COSTS, measured when it was actually thrown (2026-07-28
+// 17:08, live): the reset is per-conversation and lands on the FIRST request
+// after the flip, so a session already deep in context re-caches all of it —
+// here cache_read 605,220 -> 15,132 with 678,522 creation tokens, the first
+// post-flip request reporting `cause=messages@4(assistant)`. The canon ledger
+// shows it plainly: `reset/no-prior-canonical` under a NEW canon key,
+// `append-only` immediately after. That is the documented behaviour working,
+// not a defect — but it is a real one-time bill, so throw this flag at a
+// session boundary or on a young session, never mid-way through a long one.
+// It cannot recur for a session once flipped.
+//
+// (A canon migration — read the phase-2 file, re-derive pin identities — would
+// remove the cost. Deliberately NOT built: it is one-time per session, and a
+// migration path is a second identity code path to keep correct forever.)
+//
 // Pin mode changes two things, both measured on live traffic 2026-07-28:
 //
 // 1. FLIP ABSORPTION. CC serializes hook-injected additionalContext
