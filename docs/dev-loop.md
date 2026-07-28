@@ -135,6 +135,31 @@ A finding survives this and it is real: at index 4, request 44 carried an
 injected `tool_addition` block that request 47 did not. That is a genuine
 self-inflicted bust, and it was worth being sure before saying so.
 
+## Never hand-roll identity in a probe
+
+Twice on 2026-07-28 a throwaway probe reached a wrong conclusion because it
+computed its own notion of "the same message" instead of importing the one the
+code uses:
+
+- a probe hand-built a session key, found a collision that did not exist, and
+  reported a bug against production code;
+- a probe compared message SETS to decide whether a pair was a tail append. It
+  was a mid-history edit at index 768. The probe had printed the positional
+  divergence in the same output and it was read past — set membership says
+  "these entries all still exist", which is not the question a cache asks.
+
+Both are the same mistake as the collisions in the extensions themselves: an
+identity computed more cheaply than the thing it identifies. Import
+`semanticIds`, `identityKey`, `firstDivergence`, `censusPair` — never re-derive
+them inline. And when a question is about CACHE, the answer is always
+POSITIONAL: the API keys on the longest identical PREFIX, so "what changed and
+at which index" is the only form that means anything. "Which entries exist"
+never is.
+
+The tools now answer it directly — `--census` prints `edit@N of M` per
+replace/edit and `[CC bytes at outDiv IDENTICAL -> ours]` per violation — so
+reaching for a probe at all is the signal that something is missing from them.
+
 ## Adding a check
 
 Two rules, both learned the expensive way:

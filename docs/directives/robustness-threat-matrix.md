@@ -265,3 +265,46 @@ Deployment note, learned at cost the same evening (see row 3's amendment): a
 change to state lifecycle invalidates baselines and buys a one-time bust per
 live conversation. This one belongs at a session boundary and the cost gets
 stated BEFORE the restart, not diagnosed after.
+
+
+---
+
+## Row 4 — RE-OPENED 2026-07-28 (same day it was closed)
+
+Row 4 closed as ACCEPTED-cheap on the finding that every measured
+`replace/edit` mutated the LAST message, so a rewrite re-bills that message
+alone. The row states its own re-open condition: "Re-open only if a NON-tail
+instance is ever measured."
+
+That verdict rested on census numbers taken BEFORE `semanticIds` carried an
+occurrence ordinal. Repeats of an identical message — one history carried the
+same hook reminder 44 times — collapsed into a single identity, which
+suppressed edits from the classification entirely. With the ordinal, on
+session 58c979ce alone:
+
+    replace/edit positions: 20 total, 5 TAIL, 15 MID-HISTORY
+
+Fifteen non-tail instances. The premise is refuted, not weakened. Examples,
+worst first by re-billed bytes:
+
+    n=1120->1124  edit@623 of 650  ~70 kB   19:57:20Z
+    n=1201->1203  edit@34  of 36   ~63 kB   20:29:51Z
+    n=1196->1198  edit@25  of 27   ~32 kB   20:29:15Z
+    n=1197->1204  edit@768 of 783  ~27 kB   20:30:26Z
+
+The last one sits 15 seconds before event 14 (484k `messages_changed`,
+20:30:41Z) and is the same pair that insertion-normalization answered with
+`reset(not-subsequence)`. A mid-history edit at index 768 of 783 invalidates
+everything from 768 on — which is the shape of the event, and the first
+mechanism for it that survives corrected data.
+
+NOT yet established, and stated as open rather than assumed: whether that edit
+CAUSED event 14, and what CC is actually changing at those indices. The
+pattern to check first is a system-reminder block being swapped in place
+mid-history — at n=1197->1204 index 768 holds a task-tools reminder in one
+request and a PreToolUse hook block in the next.
+
+Mechanised so it cannot silently rot again: `findEditPositions` in
+tools/replay.mjs reports the tail/mid split and prices the mid-history
+population on every `--census` run, and `tools/gate-live.mjs` runs daily.
+Row 4's disposition is now a measurement, not a memory.

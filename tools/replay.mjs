@@ -642,6 +642,57 @@ export function findMitigationGaps(entries) {
   return rows.sort((a, b) => b.rebilledBytes - a.rebilledBytes);
 }
 
+// Where does a `replace/edit` actually land — the TAIL, or mid-history?
+//
+// Threat-matrix row 4 was closed on 2026-07-28 as ACCEPTED-cheap because every
+// measured instance mutated the LAST message: CC appends content blocks into
+// the final user message on an interruption, and a cache keys on the longest
+// identical prefix, so rewriting the final message re-bills that message
+// alone. A MID-history edit is a different animal — everything after it is
+// re-billed — and the row says in as many words to re-open if a non-tail
+// instance is ever measured.
+//
+// That verdict rested on census numbers taken BEFORE semanticIds carried an
+// occurrence ordinal, and the ordinal changed the replace/edit population
+// (16 -> 20 on one session). So the question needs asking mechanically rather
+// than re-derived by hand each time the corpus moves.
+export function findEditPositions(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const cur = group[i];
+      if (censusIds(prev.inSem, cur.inSem) !== "replace/edit") continue;
+      // First position where the two histories stop agreeing semantically.
+      let at = 0;
+      const lim = Math.min(prev.inSem.length, cur.inSem.length);
+      while (at < lim && prev.inSem[at] === cur.inSem[at]) at++;
+      const lastIdx = cur.inSem.length - 1;
+      // Everything from the edit onward is re-billed.
+      const rebilled = cur.inBytes.slice(at).reduce((a, b) => a + b, 0);
+      rows.push({
+        n: cur.n,
+        prevN: prev.n,
+        ts: cur.ts,
+        at,
+        lastIdx,
+        tail: at >= lastIdx,
+        rebilledBytes: rebilled,
+      });
+    }
+  }
+  return rows.sort((a, b) => b.rebilledBytes - a.rebilledBytes);
+}
+
 export function runCensus(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -858,6 +909,7 @@ async function main() {
   const census = args.census ? runCensus(stability) : null;
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
+  const edits = args.census ? findEditPositions(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
   // Attribute each violation by replaying the corpus once per extension
@@ -952,7 +1004,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -1034,6 +1086,22 @@ async function main() {
         const pct = ((100 * c) / total).toFixed(1).padStart(5);
         const where = kind === "append-only" || kind === "identical" ? "" : `   e.g. n=${ex.prevN}->${ex.n}`;
         process.stdout.write(`  ${String(c).padStart(5)}  ${pct}%  ${kind}${where}\n`);
+      }
+    }
+    if (edits && edits.length) {
+      // Threat-matrix row 4: tail edits are cheap, mid-history edits are not.
+      const mid = edits.filter((e) => !e.tail);
+      process.stdout.write(
+        `\nreplace/edit positions: ${edits.length} total, ${edits.length - mid.length} TAIL, ${mid.length} MID-HISTORY\n`,
+      );
+      const midBytes = mid.reduce((a, e) => a + e.rebilledBytes, 0);
+      if (mid.length) {
+        process.stdout.write(`  mid-history re-bills ~${(midBytes / 1e6).toFixed(1)} MB — row 4 says RE-OPEN on any of these\n`);
+        for (const e of mid.slice(0, 6)) {
+          process.stdout.write(
+            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
+          );
+        }
       }
     }
     if (mitigation) {
