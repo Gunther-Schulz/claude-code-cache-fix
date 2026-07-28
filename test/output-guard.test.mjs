@@ -102,11 +102,17 @@ test("findViolation: invalid role and empty content named", () => {
 
 // --- Gate 1: zero fires on all healthy class corpora ---
 
-test("gate 1: guard fires zero times across all eight class-matrix corpora", async () => {
+// The corpus COUNT is deliberately not pinned. It was (`=== 8`), and adding a
+// ninth corpus in 3aeafef turned this into a hard failure — so a BLOCKING gate
+// stopped validating anything the moment the regression set grew, which is the
+// opposite of what a gate is for. Extending coverage must never break the
+// check that consumes it. What matters is that the corpora are present and
+// that every one of them replays without firing the guard; both are asserted.
+test("gate 1: guard fires zero times across every class-matrix corpus", async () => {
   await withGuardEnv(async () => {
     const extensions = await loadExtensions(EXT_DIR, EXT_CONFIG);
     const files = (await readdir(FIXTURES)).filter((f) => f.endsWith(".jsonl"));
-    assert.equal(files.length, 8, "all eight corpora present");
+    assert.ok(files.length >= 8, `class-matrix corpora missing: found ${files.length}`);
     let requests = 0;
     for (const f of files) {
       const lines = (await readFile(join(FIXTURES, f), "utf-8")).split("\n").filter((l) => l.trim());
