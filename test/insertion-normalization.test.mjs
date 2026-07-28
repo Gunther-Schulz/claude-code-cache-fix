@@ -400,6 +400,48 @@ test("session key resolution: string-content msgs[0] gets a real conversation ke
   assert.ok(none.endsWith("-empty"));
 });
 
+// Compaction. Verified against real traffic 2026-07-28 (session 58c979ce):
+// across the boundary the session-id and the system-prompt sub-key are
+// unchanged while the conversation sub-key flips 0dc13516 -> 554180f8 —
+//
+//     n=780  1548 msgs  conv 0dc13516c44f88c7   (summarization call)
+//     n=786     4 msgs  conv 554180f85a9a1528   (continuation)
+//
+// so a compacted thread is a NEW conversation to every stateful extension:
+// fresh canonical, no reset, and `dropped-majority` is NEVER the compaction
+// path. That is correct — compaction replaces messages[0], so the prefix
+// changed at index 0 and no cached bytes survive by construction.
+//
+// Pinned here because the alternative was believed before it was checked,
+// and because the property is load-bearing in the other direction too: if a
+// future keying change made the continuation share the pre-compaction key,
+// the 1548-message canonical would be applied to a 4-message history.
+test("session key resolution: a compacted continuation is a NEW conversation, not a continuation", () => {
+  const headers = { "x-claude-code-session-id": "shared-sid-compact" };
+  const system = [{ type: "text", text: "You are Claude Code" }];
+
+  const before = resolveInsertionSessionKey(headers, conv(40, "long-thread"), system);
+  // What CC actually sends after compacting: a fresh short history whose
+  // first message is the summary, NOT the original opening message.
+  const compacted = [
+    { role: "user", content: [{ type: "text", text: "This session is being continued... Summary: ..." }] },
+    { role: "assistant", content: [{ type: "text", text: "ok" }] },
+  ];
+  const after = resolveInsertionSessionKey(headers, compacted, system);
+
+  assert.notEqual(before, after, "the compacted thread must not inherit the pre-compaction canonical");
+  // Only the conversation sub-key moves: same session, same system prompt.
+  assert.ok(before.startsWith("s-shared-sid-compact-"));
+  assert.ok(after.startsWith("s-shared-sid-compact-"));
+  assert.equal(
+    before.split("-").slice(0, -1).join("-"),
+    after.split("-").slice(0, -1).join("-"),
+    "session-id and system-prompt sub-key are unchanged across a compaction",
+  );
+  // And the post-compaction thread is itself stable as it grows.
+  assert.equal(after, resolveInsertionSessionKey(headers, [...compacted, { role: "user", content: "next" }], system));
+});
+
 test("two interleaved streams under one session-id (main thread + sidecar) keep independent canonicals, neither thrashes the other", async () => {
   const dir = await newTmp();
   const headers = { "x-claude-code-session-id": "sess-interleave" };
