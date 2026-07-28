@@ -591,8 +591,32 @@ test("fixture toolgc-1536.json: CronCreate removed + DeferredToolPlaceholder reo
 // =============================================================================
 
 test("resolveToolRewriteSessionKey: prefers session-id header, falls back to model string", () => {
+  // Header path is sub-keyed by system-prompt hash (threat-matrix row 14) —
+  // "nosys" when the body carries no system prompt.
   const withHeader = resolveToolRewriteSessionKey({ "x-claude-code-session-id": "abc-123" }, { model: "x" });
-  assert.equal(withHeader, "s-abc-123");
+  assert.equal(withHeader, "s-abc-123-nosys");
   const withoutHeader = resolveToolRewriteSessionKey(null, { model: "claude-sonnet-4-6" });
   assert.equal(withoutHeader, "c-claude-sonnet-4-6");
+});
+
+// Regression guard for the row-14 collision this extension shipped with:
+// one session-id header, several tenants (main thread, subagents, CC's own
+// sidecar calls), each with a DIFFERENT system prompt and a different tools
+// array. Keyed on the bare session id they shared one baseline, so every
+// alternation classified as "schema changed" and re-baselined — measured on
+// real traffic as tools[] churn RISING when the extension was enabled.
+test("resolveToolRewriteSessionKey: sidecars sharing a session-id get distinct keys", () => {
+  const headers = { "x-claude-code-session-id": "abc-123" };
+  const main = resolveToolRewriteSessionKey(headers, {
+    system: [{ type: "text", text: "You are Claude Code, Anthropic's official CLI." }],
+  });
+  const sidecar = resolveToolRewriteSessionKey(headers, {
+    system: [{ type: "text", text: "You are a Claude agent, built on Anthropic's API." }],
+  });
+  assert.notEqual(main, sidecar);
+  // Same system prompt → same bucket, so the main thread stays on one baseline.
+  const mainAgain = resolveToolRewriteSessionKey(headers, {
+    system: [{ type: "text", text: "You are Claude Code, Anthropic's official CLI." }],
+  });
+  assert.equal(main, mainAgain);
 });

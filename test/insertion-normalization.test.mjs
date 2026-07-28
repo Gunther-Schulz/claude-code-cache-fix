@@ -307,9 +307,11 @@ test("canonical persistence round-trip: write, reload, continue (append-only acr
     assert.deepEqual(body3.messages[messages2.length], userMsg("late-splice"));
 
     // Telemetry file exists with 3 lines, one per action. No system prompt
-    // was set on any of the three bodies, so all three land in the same
-    // "nosys" sub-key bucket.
-    const key = "s-sess-roundtrip-nosys";
+    // was set on any of the three bodies and all three share one msgs[0], so
+    // all three land in the same bucket. The key is DERIVED rather than
+    // spelled out: it carries a conversation sub-key now, and hardcoding the
+    // format made this test fail on a keying change that broke nothing.
+    const key = resolveInsertionSessionKey(headers, body3.messages, body3.system);
     const telemetryFile = join(dir, "cache-fix-snapshots", `${key}-insertion-events.jsonl`);
     const lines = (await readFile(telemetryFile, "utf-8")).trim().split("\n");
     assert.equal(lines.length, 3);
@@ -352,13 +354,50 @@ test("session key resolution: same session-id + same system prompt -> same sub-k
   assert.equal(k1, k2);
 });
 
-test("session key resolution: absent system prompt -> stable 'nosys' bucket, distinct from a present one", () => {
+test("session key resolution: absent system prompt -> stable bucket, distinct from a present one", () => {
   const messages = conv(4, "nosys-key");
   const headers = { "x-claude-code-session-id": "shared-sid-3" };
   const withSystem = resolveInsertionSessionKey(headers, messages, [{ type: "text", text: "sys" }]);
   const withoutSystem = resolveInsertionSessionKey(headers, messages, undefined);
   assert.notEqual(withSystem, withoutSystem);
-  assert.ok(withoutSystem.endsWith("-nosys"));
+  assert.ok(withoutSystem.includes("-nosys-"));
+  // Stable across calls — the absent-system bucket is a bucket, not a nonce.
+  assert.equal(withoutSystem, resolveInsertionSessionKey(headers, messages, undefined));
+});
+
+// Regression guard: the system-prompt sub-key separates sidecar CLASSES, not
+// the individual conversations within one class. Every subagent of a session
+// runs the same agent system prompt, so keyed on (sid, system) alone they all
+// shared one canonical and overwrote each other. Measured on real traffic
+// before the conversation sub-key: one system-prompt bucket held 39 distinct
+// conversations, and 100% of conversation switches within a bucket reset
+// (60/60) versus 1% of same-conversation continuations.
+test("session key resolution: same session-id AND same system prompt, different conversations -> different keys", () => {
+  const headers = { "x-claude-code-session-id": "shared-sid-4" };
+  const system = [{ type: "text", text: "You are a Claude agent." }];
+  const a = resolveInsertionSessionKey(headers, conv(4, "agent-one"), system);
+  const b = resolveInsertionSessionKey(headers, conv(4, "agent-two"), system);
+  assert.notEqual(a, b);
+  // Same conversation continuing (more messages appended) keeps its key —
+  // otherwise every turn would look like a new conversation.
+  const grown = resolveInsertionSessionKey(headers, conv(9, "agent-one"), system);
+  assert.equal(a, grown);
+});
+
+// msgs[0] with STRING content must still yield a conversation identity:
+// hashMessageContent covers block arrays only and returns null for strings,
+// which collapsed every string-content conversation into one shared bucket
+// (56 of 602 requests in the measured capture).
+test("session key resolution: string-content msgs[0] gets a real conversation key, not a shared 'empty' bucket", () => {
+  const headers = { "x-claude-code-session-id": "shared-sid-5" };
+  const system = [{ type: "text", text: "sys" }];
+  const strA = resolveInsertionSessionKey(headers, [{ role: "user", content: "alpha" }], system);
+  const strB = resolveInsertionSessionKey(headers, [{ role: "user", content: "beta" }], system);
+  assert.notEqual(strA, strB);
+  assert.ok(!strA.endsWith("-empty"));
+  // A genuinely contentless first message is the only "empty".
+  const none = resolveInsertionSessionKey(headers, [{ role: "user" }], system);
+  assert.ok(none.endsWith("-empty"));
 });
 
 test("two interleaved streams under one session-id (main thread + sidecar) keep independent canonicals, neither thrashes the other", async () => {
@@ -601,6 +640,56 @@ test("pin: a NON-volatile content change is NOT absorbed — reset, correctness 
   assert.equal(result.resetReason, "edit-shaped");
 });
 
+// The edit test above and this one are a pair: both requests contain one drop
+// and one splice, and only CO-LOCATION tells them apart. "Any drop + any
+// splice = edit" was the shipped rule and it misfired on real traffic — an
+// operator interrupt pruned the tail while a hook reminder migrated 24 indices
+// away, which is a prune plus an insertion, not an edit. That false positive
+// was the last remaining real reset in the measured corpora.
+test("pin: an UNRELATED drop and splice in one request is not an edit — no reset", () => {
+  const orig = [
+    userMsg("u0"),
+    assistantMsg("a1"),
+    userMsg("u2"),
+    assistantMsg("a3"),
+    userMsg("u4"),
+    assistantMsg("a5"),
+    userMsg("tail-to-be-pruned"),
+  ];
+  const canon = pinCanon(orig);
+  // Splice near the FRONT, prune at the TAIL — far apart, so neither can be a
+  // replacement for the other.
+  const next = [
+    userMsg("u0"),
+    assistantMsg("a1"),
+    userMsg("SPLICED"),
+    userMsg("u2"),
+    assistantMsg("a3"),
+    userMsg("u4"),
+    assistantMsg("a5"),
+  ];
+  const result = classifyPinned(next, canon);
+  assert.notEqual(result.action, "reset");
+  assert.equal(result.dropped, 1);
+  assert.equal(result.inserted, 1);
+  // CC's order is preserved — the splice is not moved to the tail.
+  assert.deepEqual(
+    result.messages.map((m) => m.content[0].text),
+    ["u0", "a1", "SPLICED", "u2", "a3", "u4", "a5"],
+  );
+});
+
+// The other side of the discriminator: a splice landing in the gap left by a
+// dropped entry IS an edit and must still reset, even with drop-tolerance on.
+test("pin: a splice inside the dropped entry's gap IS an edit — reset", () => {
+  const orig = [userMsg("u0"), assistantMsg("a1"), userMsg("original"), assistantMsg("a3")];
+  const canon = pinCanon(orig);
+  const edited = [userMsg("u0"), assistantMsg("a1"), userMsg("REPLACEMENT"), assistantMsg("a3")];
+  const result = classifyPinned(edited, canon);
+  assert.equal(result.action, "reset");
+  assert.equal(result.resetReason, "edit-shaped");
+});
+
 test("pin: prune (context-management removal) — match survives, entries flagged dropped, no reset", () => {
   const full = conv(10, "prune");
   const canon = pinCanon(full);
@@ -628,6 +717,38 @@ test("pin: dropping the majority resets — a compaction is not a prune", () => 
   const result = classifyPinned(compacted, canon);
   assert.equal(result.action, "reset");
   assert.equal(result.resetReason, "dropped-majority");
+});
+
+// THE positional-canonical regression guard. A mid-history splice must leave
+// the canonical in WIRE order, so the next request is a plain append. Filing
+// the new entry at the tail of the canonical instead (arrival order) made
+// canonical and wire order disagree permanently: request 3 then failed the
+// strictly-increasing check with not-subsequence. That was the mechanism
+// behind every remaining real reset measured on live captures 2026-07-28.
+test("pin: a mid-history splice stays in place — the NEXT request is append-only, not a reset", () => {
+  const r1 = [userMsg("u0"), assistantMsg("a1"), userMsg("u2"), assistantMsg("a3")];
+  let canon = pinCanon(r1);
+
+  // CC splices INJECTED between a1 and u2.
+  const r2 = [userMsg("u0"), assistantMsg("a1"), userMsg("INJECTED"), userMsg("u2"), assistantMsg("a3")];
+  const res2 = classifyPinned(r2, canon);
+  assert.equal(res2.action, "normalized");
+  assert.equal(res2.inserted, 1);
+  // Forwarded order is CC's order — the spliced entry is NOT moved to the tail.
+  assert.deepEqual(
+    res2.messages.map((m) => m.content[0].text),
+    ["u0", "a1", "INJECTED", "u2", "a3"],
+  );
+  canon = res2.canonicalEntries;
+
+  // CC keeps appending; the spliced entry stays where it was.
+  const r3 = [...r2, assistantMsg("a4"), userMsg("u5")];
+  const res3 = classifyPinned(r3, canon);
+  assert.equal(res3.action, "append-only", "a settled splice must not re-classify");
+  assert.deepEqual(
+    res3.messages.map((m) => m.content[0].text),
+    ["u0", "a1", "INJECTED", "u2", "a3", "a4", "u5"],
+  );
 });
 
 test("pin: flip + prune combined in one request — both handled", () => {

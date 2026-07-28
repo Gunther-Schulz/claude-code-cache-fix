@@ -170,7 +170,11 @@ function getSnapshotDir() {
 // route to a *different* bucket, never lose the lookup entirely) buckets
 // the main thread and each distinct sidecar system prompt independently
 // under the same session-id.
-function systemPromptSubKey(system) {
+//
+// Exported so sibling extensions that persist per-session state key it the
+// same way — the collision is a property of the session-id header, not of
+// this extension, so every consumer of that header needs the same sub-key.
+export function systemPromptSubKey(system) {
   let text;
   if (typeof system === "string") {
     text = system;
@@ -192,12 +196,55 @@ function systemPromptSubKey(system) {
 // (pre-sub-key) are simply abandoned under the new path — loadCanonical's
 // existing ENOENT handling already treats an absent file as "no prior
 // canonical" (ordinary session start), so no explicit migration is needed.
+// CONVERSATION sub-key (2026-07-28) — row 14, one level deeper. The
+// system-prompt hash separates a sidecar CLASS from the main thread, but not
+// the individual conversations WITHIN a class: every subagent this session
+// dispatches runs the same agent system prompt, so they all landed in one
+// bucket and overwrote each other's canonical. Measured on real traffic
+// (capture s-35d72503, 602 requests): one system-prompt bucket held 39
+// distinct conversations, another 12 — and the correlation with resets was
+// total.
+//
+//     conversation SWITCH within a bucket: 60 requests, 60 resets (100%)
+//     same conversation continuing       : 538 requests,  4 resets (1%)
+//
+// 72 of 83 resets across both corpora were this artifact, not real history
+// churn: each switch made the incoming history look like a wholesale rewrite
+// of whatever tenant spoke last, which classifies as dropped-majority. The
+// extension was spending almost all of its reset budget on a keying bug.
+//
+// msgs[0] identifies a conversation because it is the one entry nothing
+// appends past. When compaction or context-management replaces it the key
+// moves and the canonical is abandoned — one honest reset, exactly what the
+// old key produced anyway on the same event, since a replaced msgs[0] fails
+// the subsequence match regardless.
+// Conversation identity from msgs[0]. hashMessageContent covers block-array
+// content only (it strips cache_control per block) and returns null for
+// STRING content — correct for its own callers, but as a bucket key that
+// null collapsed every string-content conversation into one shared "empty"
+// bucket: 56 of 602 requests in the measured capture, which is where the
+// residual dropped-majority resets lived after the first sub-key attempt.
+// Falling back to a hash of the raw content covers both shapes; a message
+// carrying no content at all is the only remaining "empty".
+function conversationSubKey(messages) {
+  const first = Array.isArray(messages) ? messages[0] : null;
+  if (!first) return "empty";
+  const h = hashMessageContent(first);
+  if (h) return h;
+  if (first.content === undefined || first.content === null) return "empty";
+  return createHash("sha256")
+    .update(JSON.stringify({ role: first.role ?? null, content: first.content }))
+    .digest("hex")
+    .slice(0, 16);
+}
+
 export function resolveInsertionSessionKey(headers, messages, system) {
   const sid = headers ? resolveSessionId(headers) : null;
-  if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(system)}`;
-  const first = Array.isArray(messages) ? messages[0] : null;
-  const h = first ? hashMessageContent(first) : null;
-  return `c-${h || "empty"}`;
+  const conv = conversationSubKey(messages);
+  if (sid) {
+    return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(system)}-${conv}`;
+  }
+  return `c-${conv}`;
 }
 
 function canonPath(dir, sessionKey) {
@@ -254,7 +301,7 @@ export function computeIdentities(messages) {
   const seen = new Map(); // "hash|role" -> next occurrence index
   const out = [];
   for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
+    const msg = canonicalMessageShape(messages[i]);
     const h = hashMessageContent(msg) ?? hashNonBlockContent(msg, i);
     const r = msg?.role ?? "unknown";
     const key = `${h}|${r}`;
@@ -290,6 +337,35 @@ function hashNonBlockContent(msg, i) {
   return "s:" + createHash("sha256").update(text).digest("hex").slice(0, 16);
 }
 
+// SHAPE FLIP (measured 2026-07-28, census over 771 captured requests). CC
+// re-serializes the SAME message between two equivalent shapes:
+//
+//     [{ "type": "text", "text": "X" }]     <->     "X"
+//
+// The model sees identical content either way, but the two shapes hash
+// through different functions (hashMessageContent for block arrays,
+// hashNonBlockContent for strings), so their identities could never match:
+// the message read as "one entry dropped, a different one added" and took a
+// reset. Applied here — at the one point every identity path passes through
+// — rather than in the pin, because the flip is NOT user-role-specific: the
+// census found it predominantly on SYSTEM messages (harness reminders), and
+// a user-only fold left every one of those still resetting.
+//
+// Deliberately narrow: only the exact single-text-block <-> string pair, and
+// only when the block carries nothing beyond type/text/cache_control. A
+// multi-block array is a genuinely different message and keeps its own
+// identity.
+function canonicalMessageShape(msg) {
+  const c = msg?.content;
+  if (typeof c === "string") return { ...msg, content: [{ type: "text", text: c }] };
+  if (!Array.isArray(c) || c.length !== 1) return msg;
+  const b = c[0];
+  if (!b || typeof b !== "object" || b.type !== "text" || typeof b.text !== "string") return msg;
+  const extra = Object.keys(b).filter((k) => k !== "type" && k !== "text" && k !== "cache_control");
+  if (extra.length) return msg;
+  return { ...msg, content: [{ type: "text", text: b.text }] };
+}
+
 function identityKey(entry) {
   return `${entry.h}|${entry.r}|${entry.o}`;
 }
@@ -316,9 +392,9 @@ export function isVolatileBlock(block) {
 
 // Identity hash for pin mode: user-role messages hash over their
 // non-volatile blocks only (cache_control stripped, same as
-// hashMessageContent). Assistant messages and string-content messages
-// keep the phase-2 identity — the flip class is user-role block arrays
-// by construction (hook additionalContext lands in user messages).
+// hashMessageContent). Assistant and string-content messages fall through to
+// the phase-2 identity, which applies canonicalMessageShape itself — so the
+// shape flip documented there is absorbed on every role, not just this path.
 function hashPinnedIdentity(msg) {
   if (!msg || msg.role !== "user" || !Array.isArray(msg.content)) return null;
   const kept = [];
@@ -343,7 +419,7 @@ export function computePinnedIdentities(messages) {
   const seen = new Map();
   const out = [];
   for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
+    const msg = canonicalMessageShape(messages[i]);
     const h =
       hashPinnedIdentity(msg) ?? hashMessageContent(msg) ?? hashNonBlockContent(msg, i);
     const r = msg?.role ?? "unknown";
@@ -566,12 +642,44 @@ export function classifyPinned(messages, priorCanonical) {
   const newEntries = incoming.filter((e) => !matchedIdxSet.has(e.index));
   const splicedEntries = newEntries.filter((e) => e.index <= lastMatched);
 
-  // A true EDIT decomposes under drop-tolerance into drop + splice — and
-  // "normalizing" it would move the edited message to the tail, reordering
-  // real content. Drops and splices in one request are edit-shaped: reset
-  // (conservative bias, directive part B). A prune is drop-only; a flip
-  // matches identity (no drop); an insertion is splice-only.
-  if (droppedNow.size > 0 && splicedEntries.length > 0) {
+  // A true EDIT decomposes under drop-tolerance into drop + splice: the old
+  // content's identity disappears and a new one appears IN ITS PLACE. That
+  // must still reset — never paper over a real content change.
+  //
+  // But "a drop and a splice occurred in the same request" is too coarse a
+  // test for it, because the two can be unrelated: measured 2026-07-28
+  // (capture s-35d72503, request 09:47:31) a tail message was pruned by an
+  // operator interrupt while a hook reminder migrated mid-history 24 indices
+  // away — one prune plus one insertion, neither an edit, reset anyway. That
+  // single false positive was the last real reset in the corpus.
+  //
+  // Co-location is the discriminator: a dropped canonical entry sits in a
+  // definite gap — between its nearest surviving predecessor and successor —
+  // and only a spliced entry landing INSIDE that gap is a plausible
+  // replacement for it. A splice elsewhere is an independent insertion.
+  const matchedCi = new Set(matched.map((m) => m.ci));
+  const isEdit = (() => {
+    if (droppedNow.size === 0 || splicedEntries.length === 0) return false;
+    const splicedIdx = splicedEntries.map((e) => e.index);
+    for (const ci of droppedNow) {
+      // Nearest surviving neighbours of the dropped entry, in incoming space.
+      let lo = -1;
+      for (let j = ci - 1; j >= 0; j--) {
+        if (!matchedCi.has(j)) continue;
+        lo = matched.find((m) => m.ci === j).idx;
+        break;
+      }
+      let hi = Infinity;
+      for (let j = ci + 1; j < priorCanonical.length; j++) {
+        if (!matchedCi.has(j)) continue;
+        hi = matched.find((m) => m.ci === j).idx;
+        break;
+      }
+      if (splicedIdx.some((idx) => idx > lo && idx < hi)) return true;
+    }
+    return false;
+  })();
+  if (isEdit) {
     return { action: "reset", resetReason: "edit-shaped", canonicalEntries: freshEntries() };
   }
 
@@ -579,25 +687,67 @@ export function classifyPinned(messages, priorCanonical) {
     return { action: "reset", resetReason: "assistant-interleaved", canonicalEntries: freshEntries() };
   }
 
+  // Forwarded order is the INCOMING order, not "survivors then new". The two
+  // agree for a plain append; they diverge when CC splices an entry
+  // mid-history, and concatenating new entries at the end would then reorder
+  // real content — the very thing this extension exists to prevent.
   let pinApplied = 0;
-  const finalMessages = matched
-    .map(({ ci, idx }) => {
-      const fwd = pinnedForwardForm(priorCanonical[ci], messages[idx]);
-      if (fwd !== messages[idx] && JSON.stringify(fwd) !== JSON.stringify(messages[idx])) {
-        pinApplied++;
-        return fwd;
-      }
-      return messages[idx];
-    })
-    .concat(newEntries.map((e) => messages[e.index]));
+  const matchedByIdx = new Map(matched.map(({ ci, idx }) => [idx, ci]));
+  const finalMessages = incoming.map((e) => {
+    const ci = matchedByIdx.get(e.index);
+    if (ci === undefined) return messages[e.index];
+    const fwd = pinnedForwardForm(priorCanonical[ci], messages[e.index]);
+    if (fwd !== messages[e.index] && JSON.stringify(fwd) !== JSON.stringify(messages[e.index])) {
+      pinApplied++;
+      return fwd;
+    }
+    return messages[e.index];
+  });
 
   if (!validateToolAdjacency(finalMessages)) {
     return { action: "reset", resetReason: "adjacency-violation", canonicalEntries: freshEntries() };
   }
 
-  const canonicalEntries = priorCanonical
-    .map((e, ci) => (droppedNow.has(ci) ? { ...e, d: true } : e))
-    .concat(newEntries.map((e) => buildPinEntry(e, messages[e.index])));
+  // POSITIONAL canonical rebuild (2026-07-28). Appending new entries to the
+  // tail records ARRIVAL order, not the order they occupy on the wire. When
+  // CC splits a message — hook reminders migrating out of a user message into
+  // their own system message is the measured case — the new entry is created
+  // mid-history but was filed at the end. Canonical order and wire order then
+  // disagreed permanently, and the next request touching that region failed
+  // the strictly-increasing check with `not-subsequence`.
+  //
+  // Measured before this fix (capture s-35d72503): an inversion at canonical
+  // position 81 for an entry that sits at wire index 79, and every remaining
+  // real reset in both corpora traced to exactly this.
+  //
+  // Rebuilding in incoming order fixes it. Dropped entries have no position
+  // in the new array, so they are re-inserted after the last surviving entry
+  // that preceded them — keeping them adjacent to their original neighbours
+  // so a later un-prune still matches in order.
+  const canonByIdx = new Map();
+  for (const { ci, idx } of matched) canonByIdx.set(idx, priorCanonical[ci]);
+  const newByIdx = new Map(newEntries.map((e) => [e.index, buildPinEntry(e, messages[e.index])]));
+  const droppedAfter = new Map(); // incoming index -> canonical entries to trail it
+  {
+    let lastSeenIdx = -1;
+    for (let ci = 0; ci < priorCanonical.length; ci++) {
+      const entry = priorCanonical[ci];
+      const hit = matched.find((m) => m.ci === ci);
+      if (hit) {
+        lastSeenIdx = hit.idx;
+        continue;
+      }
+      const marked = entry.d ? entry : { ...entry, d: true };
+      if (!droppedAfter.has(lastSeenIdx)) droppedAfter.set(lastSeenIdx, []);
+      droppedAfter.get(lastSeenIdx).push(marked);
+    }
+  }
+  const canonicalEntries = [];
+  for (const trailing of droppedAfter.get(-1) ?? []) canonicalEntries.push(trailing);
+  for (const e of incoming) {
+    canonicalEntries.push(canonByIdx.get(e.index) ?? newByIdx.get(e.index));
+    for (const trailing of droppedAfter.get(e.index) ?? []) canonicalEntries.push(trailing);
+  }
 
   const changed = splicedEntries.length > 0 || pinApplied > 0;
   return {

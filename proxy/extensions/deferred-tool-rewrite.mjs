@@ -74,6 +74,7 @@ import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { hashMessageContent } from "./mid-history-breakpoint-ladder.mjs";
+import { systemPromptSubKey } from "./insertion-normalization.mjs";
 import { createHash } from "node:crypto";
 
 const BETA_TOKEN = "mid-conversation-tool-changes-2026-07-01";
@@ -145,9 +146,23 @@ async function appendTelemetry(dir, sessionKey, record, fs) {
 
 // --- Session key (same idiom as insertion-normalization/the ladder) ---
 
+// Sub-keyed by system-prompt hash for the same reason insertion-normalization
+// is (threat-matrix row 14): the session-id header is shared by the main
+// thread, every subagent it dispatches, and CC's own sidecar calls
+// (title-generation etc.) — but those carry DIFFERENT tools arrays. Keyed on
+// the bare session id they all collide on one baseline, so each alternation
+// reads as "a known tool's schema changed" and takes the honest-reset path,
+// re-baselining against whichever tenant spoke last.
+//
+// Measured before this fix (2026-07-28, capture s-35d72503, 602 requests):
+// SIX distinct (tools, system-prompt) combinations shared a single baseline,
+// and enabling the rewrite RAISED main-conversation tools[] churn from 1 to 2
+// — the extension built to hold tools[] byte-stable was destabilising it.
+// The directive never considered sidecars; only replay over real multi-tenant
+// traffic surfaced it.
 export function resolveToolRewriteSessionKey(headers, body) {
   const sid = headers ? resolveSessionId(headers) : null;
-  if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}`;
+  if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(body?.system)}`;
   const model = typeof body?.model === "string" ? body.model : "unknown";
   return `c-${model}`;
 }

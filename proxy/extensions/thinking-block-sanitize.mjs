@@ -92,13 +92,17 @@ function answersToolUse(msg, toolUseId) {
   );
 }
 
-// The latest assistant message is an active tool-continuation when its terminal
+// An assistant message is an active tool-continuation when its terminal
 // block is a `tool_use` that is *paired with* — i.e. answered by — a following
 // `tool_result` carrying the same `tool_use_id`. Only then does the API require
 // that turn's thinking intact, so only then must we leave it untouched. Matching
 // the id (not merely the presence of any later tool_result) keeps the guard as
 // narrow as the approved rule: an unanswered terminal tool_use, or a later
 // tool_result that answers a *different* call, is not the protected case.
+//
+// The predicate is a function of the message and what follows it, NOT of its
+// distance from the tail — see planSanitize's stability note for why that
+// distinction is load-bearing.
 export function isActiveToolContinuation(messages, idx) {
   const msg = messages[idx];
   if (!msg || !Array.isArray(msg.content) || msg.content.length === 0) return false;
@@ -108,13 +112,6 @@ export function isActiveToolContinuation(messages, idx) {
     if (answersToolUse(messages[j], last.id)) return true;
   }
   return false;
-}
-
-function latestAssistantIndex(messages) {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i] && messages[i].role === "assistant") return i;
-  }
-  return -1;
 }
 
 // --- v2 predicate ---
@@ -142,10 +139,26 @@ export function isSignedThinkingForV2(block) {
 // `v2StripSigned` is the externally-determined boolean: should v2's
 // signed-thinking drop fire this request? (Caller has already computed
 // hash mismatch + session-state checks.)
+// CROSS-REQUEST BYTE STABILITY (2026-07-28). Protection is decided by the
+// message's own shape — "is this turn's terminal tool_use answered by a
+// following tool_result" — and never by whether it is the LAST assistant
+// turn. The two agree while the turn is at the tail; they diverge the moment
+// another turn lands after it, and the earlier `i === latestAsst` gate then
+// flipped a byte-identical message from protected to stripped. That is a
+// mid-history mutation the proxy itself causes, on every request where a
+// tool-continuation turn ages out of the tail — and a mid-history mutation is
+// exactly what re-writes the cache we exist to preserve. Measured before the
+// fix: 133 violations over 563 requests (session 35d72503) and 76 over 169
+// (session 58c979ce), every one attributed to this extension by
+// tools/replay.mjs's cross-request check.
+//
+// A continuation stays protected once it is deep history: its thinking is
+// forwarded exactly as first sent, which is both byte-stable AND the shape
+// the API accepted the first time. Dropping it later buys nothing (the 400
+// this extension prevents is about the LATEST turn, #63147) and costs a
+// full re-write.
 export function planSanitize(messages, { v2StripSigned = false } = {}) {
   if (!Array.isArray(messages)) return { messages, dropped: 0, droppedV2: 0 };
-  const latestAsst = latestAssistantIndex(messages);
-  const protectLatest = latestAsst >= 0 && isActiveToolContinuation(messages, latestAsst);
 
   let dropped = 0;
   let droppedV2 = 0;
@@ -157,9 +170,10 @@ export function planSanitize(messages, { v2StripSigned = false } = {}) {
       out.push(msg);
       continue;
     }
-    if (i === latestAsst && protectLatest) {
+    if (isActiveToolContinuation(messages, i)) {
       // Active continuation — leave thinking intact (both v1 and v2 respect
       // this; the API needs the signed thinking for the pending tool call).
+      // Position-independent by design: see the stability note above.
       out.push(msg);
       continue;
     }
