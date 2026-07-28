@@ -117,3 +117,49 @@ attribution telemetry: every bust now either matches a named row or
 surfaces as unattributed — and an unattributed bust is itself the
 alarm that mints the next row. The guarantee is "no SILENT gaps",
 not "no gaps".
+
+---
+
+## Row 21 — OPEN, MEASURED: `deferred-tool-rewrite`'s `tool_addition`
+## injection is not stable across requests
+
+Found 2026-07-28 by `tools/gate-live.mjs` on its first run under the
+PRODUCTION gate set. It had never been visible because every prior
+verification run used the extension defaults, where `CACHE_FIX_TOOL_REWRITE`
+is OFF — see `docs/dev-loop.md`, "replay the configuration that is SERVING".
+
+Evidence, corpus `s-0edbd11c`, two independent instances:
+
+    n=44->47   inDiv=23  outDiv=4   <- deferred-tool-rewrite
+    n=219->223 inDiv=10  outDiv=4   <- deferred-tool-rewrite
+
+At request 44, output index 4 is the injected announcement:
+
+    {"role":"system","content":[{"type":"tool_addition",
+      "tool":{"type":"tool_reference","name":"WebFetch"}}]}
+
+At request 47 that message is absent, and index 4 holds the next real
+message. So the injection appears in one request and not the next, and our
+forwarded byte stream diverges at index 4 while CC's own history is identical
+through index 23 — we move the divergence **19 messages earlier than
+required**, and everything from there is re-billed.
+
+This is self-inflicted by construction, and NOT the false-positive class the
+safety gate hit: a declared injection is legitimate as CONTENT (which is why
+`findSafetyViolations` exempts it), but an injection that is present in one
+request and gone in the next is a byte-stability defect regardless of how
+legitimate its content is. Verified against the artifact-vs-defect checklist
+in dev-loop.md before being written down.
+
+What is NOT yet known, and must be established before a fix:
+
+- Why the announcement disappears — is it emitted only on the request where
+  the tool first appears (by design), or dropped by a later state reset?
+- Whether the correct fix is to keep announcing it for the life of the
+  session (stable but grows), to anchor it at a fixed index, or to stop
+  injecting into `messages[]` at all.
+
+Not fixed on discovery deliberately: this extension is ON in production, its
+whole purpose is byte stability, and a rushed change to it is exactly how a
+mitigation becomes the bust. `doctor` reports FAIL until it is resolved, so
+it cannot be forgotten.
