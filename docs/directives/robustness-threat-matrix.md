@@ -198,8 +198,8 @@ the sub-key back to a constant turns the invariant test red.
 
 ---
 
-## Row 22 — OPEN, MEASURED: `insertion-normalization` resets `edit-shaped`
-## on a tail mutation, costing a mid-history divergence
+## Row 22 — OPEN, DIAGNOSED: a reset drops VOLATILE PINNING too, so an
+## honest edit at the tail costs from 19 messages earlier
 
 Found 2026-07-28 19:45 by `cache-fix-gate.timer` on live traffic, minutes
 after row 21 was fixed — i.e. by the mechanism, unprompted, which is what it
@@ -228,3 +228,40 @@ reported and that no declared-injection exemption is missing.
 
 Not fixed on discovery: same reasoning as row 21. `doctor` reports FAIL until
 resolved, so it cannot be forgotten.
+
+
+**DIAGNOSED 2026-07-28. The hypothesis above was WRONG and is kept as a
+record of that.** It guessed a tail mutation from a user interruption. The
+measurement says otherwise, and the real mechanism is worse.
+
+What CC did is honest: it replaced message 196 in place —
+
+    108 in[196]: {"role":"user","content":"yes lest do it all!"}
+    109 in[196]: {"role":"user","content":"lets do it all 13.x shuodl be ..."}
+
+a genuine history edit, and `reset(edit-shaped)` is a defensible response to
+it. Cost should be messages 196+.
+
+What WE did is not. At index 177, isolated:
+
+    CC's in[177] identical across the pair : true
+    our out[177] identical                : false
+    request 108: out != in   (we RESTORED a <system-reminder> block)
+    request 109: out == in   (pinning stopped; the block vanished)
+
+Telemetry agrees: `pinned: 1` at 108, `pinned: 0` at 109. Volatile-block
+pinning had been re-inserting a hook `<system-reminder>` that CC dropped from
+message 177 — that is the mitigation working. The reset switched it off, the
+restored block disappeared, and our forwarded bytes changed at 177 while CC's
+were untouched. A bust that should have cost from 196 costs from 177.
+
+Root cause: the canonical reset and the volatile-pin lifecycle are coupled,
+and they are orthogonal concerns. Whether the HISTORY was edited says nothing
+about whether previously pinned DECORATION is still valid. Fix direction:
+pinned volatile state must survive a canonical reset, so a reset confines its
+cost to the edited index instead of un-pinning everything before it.
+
+Deployment note, learned at cost the same evening (see row 3's amendment): a
+change to state lifecycle invalidates baselines and buys a one-time bust per
+live conversation. This one belongs at a session boundary and the cost gets
+stated BEFORE the restart, not diagnosed after.
