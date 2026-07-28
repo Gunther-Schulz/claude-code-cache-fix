@@ -131,4 +131,18 @@ test("prefix-diff's exemption is earned: it still separates co-tenants itself", 
   const main = mod.tenantId(HEADERS, SYSTEM);
   const sidecar = mod.tenantId(HEADERS, [{ type: "text", text: "Generate a concise 5-word title." }]);
   assert.notEqual(main, sidecar, "tenantId no longer separates sidecar classes");
+
+  // BITE — the shape the original exemption test missed. Short prompts differ
+  // in their first bytes, so they separate under ANY prefix length; the
+  // collision needed a long SHARED preamble, which is what real agent system
+  // prompts look like. tenantId truncated to 400 chars until 2026-07-28 and
+  // merged these two into one tenant, silently combining their baselines.
+  const preamble = "You are a Claude agent. ".repeat(40); // ~960 chars, shared
+  const longA = mod.tenantId(HEADERS, [{ type: "text", text: preamble + "TASK A" }]);
+  const longB = mod.tenantId(HEADERS, [{ type: "text", text: preamble + "TASK B" }]);
+  assert.notEqual(
+    longA,
+    longB,
+    "two prompts sharing a long preamble must not collide — tenantId must hash the FULL text",
+  );
 });

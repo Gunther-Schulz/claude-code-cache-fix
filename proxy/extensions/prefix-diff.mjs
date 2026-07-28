@@ -243,7 +243,19 @@ function tenantId(headers, system) {
     const t = typeof first === "string" ? first : first?.text;
     if (typeof t === "string") text = t;
   }
-  return sha(text.slice(0, 400), 8);
+  // FULL text, not a prefix. Truncating to 400 chars made two conversations
+  // with the same long preamble collide into one tenant, silently merging
+  // their baselines — and a merged baseline is exactly the "sidecar churn"
+  // artifact this function exists to remove. Found 2026-07-28 by an audit
+  // sweep; same class as the session-key collisions fixed in
+  // insertion-normalization and deferred-tool-rewrite the same day: an
+  // identity computed more cheaply than the thing it identifies will collide,
+  // and the collision presents as churn rather than as a bug.
+  //
+  // Hashing the whole block costs one pass over a string already in memory.
+  // Agent-id short-circuits above when present, so this path is for traffic
+  // that carries no agent header.
+  return sha(text, 8);
 }
 
 // Full-JSON tool hashing (design note 3) plus per-tool hashes so a diff
