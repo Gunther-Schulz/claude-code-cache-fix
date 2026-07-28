@@ -35,6 +35,12 @@ const DEFAULT_FS = { appendFile, mkdir, readdir, stat, unlink };
 const SWEEP_EVERY = 50;
 
 let _appendsSinceSweep = 0;
+// Set once by the server so a boot record can name the exact source tree the
+// traffic was served by — the same fingerprint /health reports.
+export let _proxyTree = null;
+export function setProxyTree(t) {
+  _proxyTree = t;
+}
 
 function isEnabled(env = process.env) {
   return env.CACHE_FIX_REQUEST_CAPTURE === "1";
@@ -156,6 +162,11 @@ export function buildOutcomeRecord(ctx, id, key, now = new Date()) {
       ephemeral1h: cs.ephemeral1h ?? 0,
       ephemeral5m: cs.ephemeral5m ?? 0,
     },
+    // What we actually put on the wire, so a replay can PROVE it reproduced
+    // the real request instead of assuming it. Set in server.mjs at the one
+    // point the outbound bytes exist.
+    outSha: ctx?.meta?._forwardedSha ?? null,
+    outBytes: ctx?.meta?._forwardedBytes ?? null,
     // Wall time from request to first usage — separates "the cache was cold"
     // from "the request was slow for another reason".
     ms: ctx?.meta?._captureStart ? Date.now() - ctx.meta._captureStart : null,
@@ -194,6 +205,37 @@ export async function sweepCaptureDir(dir, maxBytes, fs = DEFAULT_FS) {
   return deleted;
 }
 
+// One per proxy boot, written into every capture file the boot touches.
+//
+// Two things were unrecoverable from a corpus without it, and both cost time
+// on 2026-07-28:
+//
+//   RESTARTS — a restart resets module-scope state, so replaying across one
+//   without knowing where it happened silently models a different run.
+//   `--restart-at N` exists precisely for this and had to be guessed by
+//   reading journalctl and matching wall clocks.
+//
+//   THE GATE SET — a capture never recorded which mitigations were ON while it
+//   was written, so replaying yesterday's traffic under today's gates compares
+//   two different worlds and calls the difference a finding. That is the same
+//   class as the gate runner replaying extension DEFAULTS while production ran
+//   eleven gates: a verdict over the wrong configuration.
+export function buildBootRecord(now = new Date(), env = process.env, tree = null) {
+  const gates = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (k.startsWith("CACHE_FIX_")) gates[k] = v;
+  }
+  return {
+    ts: now.toISOString(),
+    type: "boot",
+    pid: process.pid,
+    proxyTree: tree,
+    gates,
+  };
+}
+
+let _bootWrittenFor = new Set();
+
 export default {
   name: "request-capture",
   description:
@@ -217,6 +259,16 @@ export default {
       ctx.meta._captureStart = Date.now();
       const record = buildCaptureRecord(ctx, new Date(), id);
       ctx.meta._captureKey = record.key;
+      // First write into this file from this boot: stamp the boundary and the
+      // configuration, so the corpus carries its own provenance.
+      if (!_bootWrittenFor.has(record.key)) {
+        _bootWrittenFor.add(record.key);
+        await DEFAULT_FS.mkdir(dir, { recursive: true });
+        await DEFAULT_FS.appendFile(
+          join(dir, `${record.key}-requests.jsonl`),
+          JSON.stringify(buildBootRecord(new Date(), process.env, _proxyTree)) + "\n",
+        );
+      }
       await DEFAULT_FS.mkdir(dir, { recursive: true });
       await DEFAULT_FS.appendFile(
         join(dir, `${record.key}-requests.jsonl`),

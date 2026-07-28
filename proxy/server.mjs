@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createHash } from "node:crypto";
 import { pathToFileURL, URL } from "node:url";
 import config from "./config.mjs";
 import { forwardRequest } from "./upstream.mjs";
@@ -115,6 +116,20 @@ async function preForward(clientReq, clientRes, _abortController, extSnapshot, r
 
     if (parsed) {
       forwardBody = Buffer.from(JSON.stringify(reqCtx.body));
+      // Fingerprint of what we ACTUALLY send. Captures are recorded
+      // pre-pipeline — that is what makes attribution possible — so nothing
+      // anywhere records our own output. tools/replay.mjs RECONSTRUCTS it by
+      // re-running the pipeline and then assumes the reconstruction is
+      // faithful; nothing has ever checked that assumption, and every verdict
+      // the gate produces rests on it.
+      //
+      // Recorded here rather than in an extension because this is the single
+      // point where the outbound bytes exist, after every extension has run.
+      // A hash, not the body: the corpus already grows quadratically, and the
+      // question is only ever "did the replay reproduce this", which equality
+      // answers.
+      meta._forwardedSha = createHash("sha256").update(forwardBody).digest("hex").slice(0, 16);
+      meta._forwardedBytes = forwardBody.length;
     }
     headers = reqCtx.headers;
   }

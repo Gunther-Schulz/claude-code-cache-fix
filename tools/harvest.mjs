@@ -227,7 +227,7 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
     }
     // Outcome records carry no body and must not consume a request index —
     // watermarks are stated in request numbers.
-    if (rec.type === "outcome") continue;
+    if (rec.type === "outcome" || rec.type === "boot") continue;
     const index = count++;
     const cid = conversationId(rec.body?.messages);
     if (cid === null) continue;

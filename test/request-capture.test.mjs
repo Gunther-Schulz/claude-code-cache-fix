@@ -60,14 +60,23 @@ test("request-capture: enabled — appends one full-body NDJSON record per reque
     const files = await readdir(captureDir);
     assert.equal(files.length, 1);
     assert.match(files[0], /^s-abc-123-requests\.jsonl$/);
-    const lines = (await readFile(join(captureDir, files[0]), "utf-8"))
+    const all = (await readFile(join(captureDir, files[0]), "utf-8"))
       .split("\n")
-      .filter(Boolean);
+      .filter(Boolean)
+      .map((l) => JSON.parse(l));
+    // The first write of a boot stamps a provenance record — the restart
+    // boundary and the gate set the traffic was captured under. It carries no
+    // body and is not a request.
+    const boots = all.filter((r) => r.type === "boot");
+    assert.equal(boots.length, 1, "one boot record per file per proxy boot");
+    assert.ok(boots[0].gates, "the boot record names the gates in force");
+    const lines = all.filter((r) => !r.type);
     assert.equal(lines.length, 2);
-    const rec = JSON.parse(lines[0]);
+    const rec = lines[0];
     assert.equal(rec.body.model, "claude-opus-5");
     assert.deepEqual(rec.body.messages, ctx.body.messages, "body captured verbatim");
     assert.equal(rec.headers["anthropic-beta"], "context-1m-2025-08-07");
+    assert.ok(rec.id, "every request record carries a join id");
   } finally {
     if (prevConfig === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = prevConfig;

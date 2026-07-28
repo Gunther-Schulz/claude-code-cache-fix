@@ -800,6 +800,7 @@ async function main() {
   const stability = [];
   const safety = [];
   const outcomes = new Map();
+  const boots = [];
 
   // `n` counts REQUEST records only. Outcome records (what the API charged)
   // share the file but carry no body, and letting them consume an index would
@@ -816,6 +817,12 @@ async function main() {
     }
     if (rec.type === "outcome") {
       outcomes.set(rec.id, rec);
+      continue;
+    }
+    // Boot records mark a restart boundary and the gate set in force. They
+    // carry no body and must not consume a request index.
+    if (rec.type === "boot") {
+      boots.push({ afterRequest: reqN, ...rec });
       continue;
     }
     const n = ++reqN;
@@ -876,6 +883,10 @@ async function main() {
       n,
       ts: rec.ts,
       key: rec.key,
+      captureId: rec.id ?? null,
+      // Hash of the body THIS replay produced, in the same form the proxy
+      // hashes what it forwards (JSON.stringify of the mutated body).
+      outBodySha: createHash("sha256").update(JSON.stringify(ctx.body)).digest("hex").slice(0, 16),
       msgs: Array.isArray(rec.body?.messages) ? rec.body.messages.length : 0,
       mutatedBy,
       insertion: ctx.meta.insertionNormalizeStats ?? null,
@@ -904,6 +915,28 @@ async function main() {
     if (sv) safety.push(sv);
     // Everything else keeps hashes, not bodies — see compactEntry.
     stability.push(compactEntry(full));
+  }
+
+  // FIDELITY: did the replay actually reproduce what went on the wire?
+  //
+  // This gate rests on an assumption nothing has ever checked — that
+  // re-running the pipeline offline reproduces the bytes the proxy really
+  // forwarded. Captures are pre-pipeline by design, so the output was never
+  // recorded and the assumption was unfalsifiable. Outcome records now carry
+  // `outSha`, the hash of the actual outbound body, so the reconstruction can
+  // be compared against it.
+  //
+  // A mismatch does not mean the proxy misbehaved; it means the REPLAY is not
+  // modelling the proxy, and therefore that every verdict in this run is about
+  // a system that never ran. That is worth knowing loudly and is reported
+  // separately from the four invariant gates for exactly that reason.
+  const fidelity = { checked: 0, matched: 0, mismatches: [] };
+  for (const e of report) {
+    const oc = outcomes.get(e.captureId);
+    if (!oc || !oc.outSha || !e.outBodySha) continue;
+    fidelity.checked++;
+    if (oc.outSha === e.outBodySha) fidelity.matched++;
+    else fidelity.mismatches.push({ n: e.n, recorded: oc.outSha, replayed: e.outBodySha });
   }
 
   // Canonical order invariant, reported by the extension itself: reading live
@@ -968,7 +1001,7 @@ async function main() {
         }
         // Same numbering rule as the main loop — attribution replays must
         // land on the same request indices the violations were reported in.
-        if (rec.type === "outcome") continue;
+        if (rec.type === "outcome" || rec.type === "boot") continue;
         const n = ++bReqN;
         const ctx = {
           body: structuredClone(rec.body),
@@ -1020,13 +1053,26 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
       for (const name of r.mutatedBy ?? []) counts.set(name, (counts.get(name) ?? 0) + 1);
     }
-    process.stdout.write(`replayed ${report.length} requests from ${args.file}\n`);
+      process.stdout.write(`replayed ${report.length} requests from ${args.file}\n`);
+    if (boots.length) {
+      // Provenance the corpus now carries about itself: where the proxy
+      // restarted, and under which gates the traffic was recorded. Replaying
+      // under a DIFFERENT gate set is comparing two worlds — the mistake the
+      // gate runner made against production for a whole day.
+      process.stdout.write(`capture provenance: ${boots.length} proxy boot(s) in this corpus\n`);
+      for (const b of boots.slice(0, 4)) {
+        const on = Object.keys(b.gates ?? {}).filter((k) => k !== "CACHE_FIX_CAPTURE_MAX_MB").length;
+        process.stdout.write(
+          `  after request ${b.afterRequest} — pid ${b.pid}, tree ${b.proxyTree ?? "?"}, ${on} gate(s) — replay with --restart-at ${b.afterRequest + 1}\n`,
+        );
+      }
+    }
     process.stdout.write(`mutating extensions (requests touched):\n`);
     for (const [name, c] of [...counts.entries()].sort((a, b) => b[1] - a[1])) {
       process.stdout.write(`  ${name}: ${c}\n`);
@@ -1102,6 +1148,20 @@ async function main() {
         const pct = ((100 * c) / total).toFixed(1).padStart(5);
         const where = kind === "append-only" || kind === "identical" ? "" : `   e.g. n=${ex.prevN}->${ex.n}`;
         process.stdout.write(`  ${String(c).padStart(5)}  ${pct}%  ${kind}${where}\n`);
+      }
+    }
+    if (fidelity.checked) {
+      const bad = fidelity.mismatches.length;
+      process.stdout.write(
+        `\nreplay fidelity: ${fidelity.matched}/${fidelity.checked} requests reproduce the bytes actually forwarded\n`,
+      );
+      if (bad) {
+        process.stdout.write(
+          `  ${bad} MISMATCH — this replay is not modelling the proxy, so its verdicts describe a system that never ran\n`,
+        );
+        for (const m of fidelity.mismatches.slice(0, 5)) {
+          process.stdout.write(`    n=${m.n} recorded=${m.recorded} replayed=${m.replayed}\n`);
+        }
       }
     }
     if (edits && edits.length) {
