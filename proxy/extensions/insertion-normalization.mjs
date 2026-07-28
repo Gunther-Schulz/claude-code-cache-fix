@@ -754,6 +754,36 @@ export function classifyPinned(messages, priorCanonical) {
     action: changed ? "normalized" : "append-only",
     messages: finalMessages,
     canonicalEntries,
+    // ORDER INVARIANT (2026-07-28). The canonical we just wrote must describe
+    // the wire we just forwarded: reading live entries in canonical order, the
+    // wire index each occupies must be STRICTLY INCREASING.
+    //
+    // This is the mechanism behind every reset class this extension has had.
+    // The arrival-order defect violated exactly this — canonical position 81
+    // holding an entry that sits at wire index 79 — and was visible only
+    // downstream, as a not-subsequence reset on a LATER request whose cause
+    // had to be traced backwards. A size statistic cannot see it: a split adds
+    // one canonical entry AND one wire message, so the counts stay equal while
+    // the order diverges. Bite-tested both ways — a size-drift signal flagged
+    // nothing; this check names the exact inversion.
+    //
+    // Reported, not asserted: a violation is a defect in OUR state model, so
+    // it belongs in front of a developer with a location rather than being
+    // swallowed by a silent reset.
+    canonOrderViolation: (() => {
+      const wireOf = new Map(incoming.map((e) => [identityKey(e), e.index]));
+      let prev = -1;
+      let seen = 0;
+      for (const entry of canonicalEntries) {
+        if (entry.d) continue;
+        const idx = wireOf.get(identityKey(entry));
+        if (idx === undefined) continue;
+        seen++;
+        if (idx <= prev) return { at: seen - 1, wireIdx: idx, prevWireIdx: prev };
+        prev = idx;
+      }
+      return null;
+    })(),
     inserted: newEntries.length,
     pinned: pinApplied,
     dropped: droppedNow.size,
@@ -799,10 +829,22 @@ export default {
       await saveCanonical(dir, sessionKey, result.canonicalEntries, fs, mode);
 
       ctx.meta = ctx.meta || {};
+      // canonSize / canonLive / msgs expose the STATE, not just the verdict.
+      // The append-vs-position defect (canonical entries filed in arrival
+      // order while sitting mid-history on the wire) was invisible in
+      // action + resetReason alone — it surfaced only as a canonical grown to
+      // 92 entries for an 84-message history. A state model drifting from the
+      // wire is the failure mode behind every reset class this extension has
+      // had, so the sizes belong in the telemetry tools/replay.mjs --trace
+      // reads.
       ctx.meta.insertionNormalizeStats = {
         action: result.action,
         inserted: result.inserted ?? 0,
         resetReason: result.resetReason,
+        canonSize: result.canonicalEntries?.length ?? 0,
+        canonLive: result.canonicalEntries?.filter((e) => !e.d).length ?? 0,
+        msgs: messages.length,
+        canonOrderViolation: result.canonOrderViolation ?? null,
         ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0 } : {}),
       };
 

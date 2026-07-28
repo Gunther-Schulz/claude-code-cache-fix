@@ -316,6 +316,55 @@ export function censusPair(a, b) {
   return "replace/edit";
 }
 
+// --- State trace ---
+//
+// The verdict-level report (action, resetReason) says WHAT happened; this says
+// what the extension BELIEVED at the time. That distinction found the
+// append-vs-position defect: every downstream signal looked explicable, and
+// the giveaway was a canonical grown to 92 entries for an 84-message history —
+// state drifting from the wire, one entry per mid-history splice.
+//
+// Rendered per conversation in arrival order, because a state model is only
+// legible as a sequence. Pairwise views cannot show accumulation, and the
+// bug that motivated this was invisible in every pairwise view we had.
+export function buildTrace(entries) {
+  const groups = new Map();
+  for (const e of entries) {
+    const cid = conversationId(e.inMsgs);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const out = [];
+  for (const [g, group] of groups) {
+    // One-request conversations have no state history worth showing.
+    if (group.length < 2) continue;
+    const rows = group.map((e) => {
+      const st = e.stats ?? {};
+      // Canonical live-entry count should track the message count. A widening
+      // gap is the drift signal — flagged rather than left for the reader to
+      // notice.
+      const drift = st.canonLive != null && st.msgs != null ? st.canonLive - st.msgs : null;
+      return {
+        n: e.n,
+        ts: e.ts,
+        msgs: st.msgs ?? e.inMsgs.length,
+        action: st.action ?? null,
+        resetReason: st.resetReason ?? null,
+        canonSize: st.canonSize ?? null,
+        canonLive: st.canonLive ?? null,
+        drift,
+        inserted: st.inserted ?? 0,
+        pinned: st.pinned ?? 0,
+        dropped: st.dropped ?? 0,
+      };
+    });
+    out.push({ group: g, rows });
+  }
+  return out;
+}
+
 export function runCensus(entries) {
   const groups = new Map();
   for (const e of entries) {
@@ -340,7 +389,7 @@ export function runCensus(entries) {
 }
 
 function parseArgs(argv) {
-  const args = { file: null, env: {}, json: false, census: false, restartAt: null, wipeStateAt: null };
+  const args = { file: null, env: {}, json: false, census: false, restartAt: null, wipeStateAt: null, trace: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--env") {
@@ -355,6 +404,8 @@ function parseArgs(argv) {
       args.json = true;
     } else if (a === "--census") {
       args.census = true;
+    } else if (a === "--trace") {
+      args.trace = true;
     } else if (a === "--restart-at" || a === "--wipe-state-at") {
       const v = parseInt(argv[++i] ?? "", 10);
       if (!Number.isFinite(v) || v < 1) {
@@ -372,7 +423,7 @@ function parseArgs(argv) {
   }
   if (!args.file) {
     process.stderr.write(
-      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--census] [--restart-at N] [--wipe-state-at N] [--json]\n",
+      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--json]\n",
     );
     process.exit(2);
   }
@@ -481,12 +532,24 @@ async function main() {
       outMsgs: Array.isArray(ctx.body?.messages) ? ctx.body.messages : [],
       action: ctx.meta.insertionNormalizeStats?.action ?? null,
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
+      stats: ctx.meta.insertionNormalizeStats ?? null,
     });
   }
+
+  // Canonical order invariant, reported by the extension itself: reading live
+  // canonical entries in canonical order, their wire indices must be strictly
+  // increasing. This is the MECHANISM behind the reset classes, checked at the
+  // state model rather than inferred from a downstream reset three requests
+  // later. A size/drift statistic cannot substitute — a split adds one entry
+  // and one message, so counts stay equal while order diverges (bite-tested).
+  const orderViolations = stability
+    .filter((e) => e.stats?.canonOrderViolation)
+    .map((e) => ({ n: e.n, ts: e.ts, ...e.stats.canonOrderViolation }));
 
   const safety = findSafetyViolations(stability);
   const sequence = findSequenceViolations(stability);
   const census = args.census ? runCensus(stability) : null;
+  const trace = args.trace ? buildTrace(stability) : null;
 
   // Attribute each violation by replaying the corpus once per extension
   // and asking which stage FIRST pulls the divergence below the bar.
@@ -580,7 +643,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -606,6 +669,13 @@ async function main() {
       );
     }
 
+    process.stdout.write(`\ncanonical order violations (state model vs wire): ${orderViolations.length}\n`);
+    for (const o of orderViolations.slice(0, 20)) {
+      process.stdout.write(
+        `  n=${o.n} ts=${o.ts} canon#${o.at} sits at wire ${o.wireIdx} after wire ${o.prevWireIdx}\n`,
+      );
+    }
+
     process.stdout.write(`\nsafety violations (conversation corrupted): ${safety.length}\n`);
     for (const s of safety.slice(0, 20)) {
       process.stdout.write(`  n=${s.n} ts=${s.ts} ${s.kind}: ${s.detail}\n`);
@@ -614,6 +684,25 @@ async function main() {
     process.stdout.write(`\nsequence violations (normalize then reset): ${sequence.length}\n`);
     for (const s of sequence.slice(0, 20)) {
       process.stdout.write(`  n=${s.n} ts=${s.ts} reset(${s.reason}) after normalize at n=${s.normalizedAt}\n`);
+    }
+
+    if (trace) {
+      for (const { group, rows } of trace) {
+        process.stdout.write(`\nstate trace — ${group}  (${rows.length} requests)\n`);
+        process.stdout.write(`  ${"n".padStart(5)} ${"msgs".padStart(5)} ${"canon".padStart(6)} ${"live".padStart(5)} ${"drift".padStart(6)}  action\n`);
+        for (const r of rows) {
+          const flag = r.drift !== null && r.drift !== 0 ? " <<<" : "";
+          const act = r.action === "reset" ? `reset/${r.resetReason}` : (r.action ?? "-");
+          const extra = r.pinned || r.dropped || r.inserted
+            ? `  (ins=${r.inserted} pin=${r.pinned} drop=${r.dropped})`
+            : "";
+          process.stdout.write(
+            `  ${String(r.n).padStart(5)} ${String(r.msgs).padStart(5)} ` +
+              `${String(r.canonSize ?? "-").padStart(6)} ${String(r.canonLive ?? "-").padStart(5)} ` +
+              `${String(r.drift ?? "-").padStart(6)}  ${act}${extra}${flag}\n`,
+          );
+        }
+      }
     }
 
     if (census) {
@@ -638,7 +727,7 @@ async function main() {
   if (safety.length) {
     process.stderr.write(`\nFAIL: ${safety.length} safety violation(s) — the pipeline altered the conversation\n`);
   }
-  if (violations.length || safety.length || sequence.length) process.exitCode = 1;
+  if (violations.length || safety.length || sequence.length || orderViolations.length) process.exitCode = 1;
 }
 
 // Run only when invoked as a script. The checkers above are exported and
