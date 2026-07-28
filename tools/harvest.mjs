@@ -218,13 +218,17 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
   const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
   for await (const line of rl) {
     if (!line.trim()) continue;
-    const index = count++;
     let rec;
     try {
       rec = JSON.parse(line);
     } catch {
+      count++;
       continue;
     }
+    // Outcome records carry no body and must not consume a request index —
+    // watermarks are stated in request numbers.
+    if (rec.type === "outcome") continue;
+    const index = count++;
     const cid = conversationId(rec.body?.messages);
     if (cid === null) continue;
     const prev = prevByConv.get(cid);

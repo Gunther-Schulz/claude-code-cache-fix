@@ -8,6 +8,7 @@ import ext, {
   resolveCaptureKey,
   buildCaptureRecord,
   sweepCaptureDir,
+  buildOutcomeRecord,
 } from "../proxy/extensions/request-capture.mjs";
 
 function makeCtx(overrides = {}) {
@@ -121,4 +122,50 @@ test("sweepCaptureDir: no-op under the cap and on missing dir", async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+// --- Outcome records: what the API actually charged ---
+//
+// A capture recorded what was SENT and never what it cost, so every cache
+// question was answered by inference. prefix-diff's `cause` is a hypothesis
+// about what the API keyed on, not a measurement, and correlating a bust to a
+// request meant comparing wall clocks against a separate ledger — which
+// mis-attributed a 484k event to the wrong session twice in one evening.
+
+test("outcome record carries the full usage the API reported", () => {
+  const ctx = {
+    meta: {
+      cacheStats: { cacheRead: 1000, cacheCreation: 484000, inputTokens: 5, outputTokens: 20, ephemeral1h: 484000, ephemeral5m: 0 },
+      _servedModel: "claude-opus-5",
+      _captureRequestId: "req_abc",
+      _captureStart: Date.now() - 100,
+    },
+  };
+  const r = buildOutcomeRecord(ctx, "cap123", "s-key");
+  assert.equal(r.type, "outcome");
+  assert.equal(r.id, "cap123", "the join key back to the request record");
+  assert.equal(r.requestId, "req_abc", "joins to CC's own transcript");
+  // A zero read beside a large creation IS a cold rewrite — the event the
+  // corpus exists to explain, now observable rather than inferred.
+  assert.equal(r.usage.cacheCreation, 484000);
+  assert.equal(r.usage.cacheRead, 1000);
+  assert.equal(r.usage.outputTokens, 20);
+  assert.equal(r.usage.ephemeral1h, 484000, "tier split says which TTL the cache actually used");
+  assert.ok(r.ms >= 100);
+});
+
+test("BITE — no usage means NO record, never a zeroed guess", () => {
+  // cache-telemetry populates meta.cacheStats. If it is off, or the stream was
+  // cancelled before message_start, there is nothing to report — and emitting
+  // zeros would put a fabricated "cold rewrite" into the corpus.
+  assert.equal(buildOutcomeRecord({ meta: {} }, "cap123", "s-key"), null);
+  assert.equal(buildOutcomeRecord({ meta: { cacheStats: { cacheRead: 1 } } }, null, "s-key"), null,
+    "no capture id means the record could never be joined — do not write it");
+});
+
+test("request records carry a join id", () => {
+  const ctx = { headers: { "session-id": "s1" }, body: { messages: [{ role: "user", content: "hi" }] } };
+  const r = buildCaptureRecord(ctx, new Date(), "cap999");
+  assert.equal(r.id, "cap999");
+  assert.ok(r.body, "the request record still carries the body it always did");
 });

@@ -26,6 +26,7 @@
 
 import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { createHash } from "node:crypto";
@@ -74,10 +75,15 @@ export function resolveCaptureKey(headers, body) {
 // matter for replay fidelity (beta set: cache semantics; session-id:
 // key derivation) — full header capture would add auth material to a
 // file that must never contain it.
-export function buildCaptureRecord(ctx, now = new Date()) {
+export function buildCaptureRecord(ctx, now = new Date(), id = null) {
   const headers = ctx.headers || {};
   return {
     ts: now.toISOString(),
+    // Join key. Until 2026-07-28 a capture line carried no identifier, so the
+    // only way to tie a recorded request to what it COST was to compare wall
+    // clocks against a separate ledger — which mis-attributed a 484k event to
+    // the wrong session twice in one evening before the error was caught.
+    id,
     sid: resolveSessionId(headers) ?? null,
     key: resolveCaptureKey(headers, ctx.body),
     headers: {
@@ -85,6 +91,54 @@ export function buildCaptureRecord(ctx, now = new Date()) {
       "session-id": headers["session-id"] ?? headers["x-session-id"] ?? null,
     },
     body: ctx.body,
+  };
+}
+
+// The OUTCOME of a captured request: what the API actually charged.
+//
+// A capture recorded what was SENT and never what it cost, so every
+// cache question had to be answered by inference — prefix-diff's `cause` is a
+// hypothesis about what the API keyed on, never a measurement. With
+// `cache_read_input_tokens` on the record, the matched prefix LENGTH becomes
+// observable: the cache keys on the longest identical prefix, so a read of N
+// tokens says where the match ended, and that can be compared against message
+// boundaries instead of guessed at.
+//
+// Written as a SEPARATE line rather than by amending the request line: the
+// request must reach disk immediately (a response that never arrives must not
+// lose the request from the corpus), and an append-only file cannot be
+// rewritten in place. Consumers join on `id`.
+export function buildOutcomeRecord(ctx, id, key, now = new Date()) {
+  const cs = ctx?.meta?.cacheStats;
+  if (!cs || !id) return null;
+  return {
+    ts: now.toISOString(),
+    type: "outcome",
+    id,
+    key,
+    // The upstream request-id also appears in CC's own session transcript
+    // (jsonl-session-mirror records it), so this is the field that finally
+    // joins three records that described the same event and shared no key:
+    // the cold-rewrite ledger, the capture, and CC's transcript.
+    requestId: ctx?.meta?._captureRequestId ?? null,
+    model: ctx?.meta?._servedModel ?? null,
+    // Everything the API told us it charged. Recorded in full rather than
+    // reduced to one number: the tier split says which TTL the cache actually
+    // used (not a heuristic), input/output separate the prompt from the
+    // completion, and a zero cacheRead beside a large cacheCreation IS the
+    // definition of a cold rewrite — the event the whole corpus exists to
+    // explain.
+    usage: {
+      cacheRead: cs.cacheRead ?? 0,
+      cacheCreation: cs.cacheCreation ?? 0,
+      inputTokens: cs.inputTokens ?? 0,
+      outputTokens: cs.outputTokens ?? 0,
+      ephemeral1h: cs.ephemeral1h ?? 0,
+      ephemeral5m: cs.ephemeral5m ?? 0,
+    },
+    // Wall time from request to first usage — separates "the cache was cold"
+    // from "the request was slow for another reason".
+    ms: ctx?.meta?._captureStart ? Date.now() - ctx.meta._captureStart : null,
   };
 }
 
@@ -135,7 +189,14 @@ export default {
 
     try {
       const dir = getCaptureDir();
-      const record = buildCaptureRecord(ctx);
+      // Random, not sequential: capture files rotate and several proxies may
+      // write concurrently, so a counter would collide across boots.
+      const id = randomUUID().slice(0, 12);
+      ctx.meta = ctx.meta || {};
+      ctx.meta._captureId = id;
+      ctx.meta._captureStart = Date.now();
+      const record = buildCaptureRecord(ctx, new Date(), id);
+      ctx.meta._captureKey = record.key;
       await DEFAULT_FS.mkdir(dir, { recursive: true });
       await DEFAULT_FS.appendFile(
         join(dir, `${record.key}-requests.jsonl`),
@@ -147,6 +208,42 @@ export default {
       }
     } catch (err) {
       debug(`capture failed: ${err?.message ?? err}`);
+    }
+  },
+
+  // Response headers carry the upstream request-id; stash it for the outcome
+  // record written once usage arrives.
+  async onResponseStart(ctx) {
+    if (!isEnabled() || !ctx?.meta) return;
+    ctx.meta._captureRequestId = ctx.headers?.["request-id"] ?? null;
+  },
+
+  // Usage arrives on the streaming `message_start` frame — the same mechanism
+  // cache-telemetry uses, and the only one that fires on the SSE path that
+  // /v1/messages actually takes. Written once per request: `message_delta`
+  // updates output tokens afterwards, but waiting for it would risk losing the
+  // record entirely on a cancelled stream, and the cache numbers (which are
+  // the point) are final at message_start.
+  async onStreamEvent(ctx) {
+    if (!isEnabled() || !ctx?.meta) return;
+    if (ctx.event?.type !== "message_start") return;
+    if (ctx.meta._captureOutcomeWritten) return;
+    try {
+      const id = ctx.meta._captureId;
+      const key = ctx.meta._captureKey;
+      if (!id || !key) return;
+      // cache-telemetry (order 100) populates meta.cacheStats on this same
+      // frame; if it is disabled there is nothing to record and this is a
+      // no-op rather than a guess.
+      const record = buildOutcomeRecord(ctx, id, key);
+      if (!record) return;
+      ctx.meta._captureOutcomeWritten = true;
+      await DEFAULT_FS.appendFile(
+        join(getCaptureDir(), `${key}-requests.jsonl`),
+        JSON.stringify(record) + "\n",
+      );
+    } catch (err) {
+      debug(`outcome capture failed: ${err?.message ?? err}`);
     }
   },
 };

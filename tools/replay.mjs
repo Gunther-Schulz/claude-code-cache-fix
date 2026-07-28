@@ -799,15 +799,26 @@ async function main() {
   const report = [];
   const stability = [];
   const safety = [];
+  const outcomes = new Map();
 
-  for await (const [n, line] of readCapture(args.file)) {
+  // `n` counts REQUEST records only. Outcome records (what the API charged)
+  // share the file but carry no body, and letting them consume an index would
+  // shift every request number — so --restart-at N and every violation report
+  // would silently point at the wrong request.
+  let reqN = -1;
+  for await (const [, line] of readCapture(args.file)) {
     let rec;
     try {
       rec = JSON.parse(line);
     } catch {
-      report.push({ n, error: "unparseable capture line" });
+      report.push({ n: reqN + 1, error: "unparseable capture line" });
       continue;
     }
+    if (rec.type === "outcome") {
+      outcomes.set(rec.id, rec);
+      continue;
+    }
+    const n = ++reqN;
     const body = structuredClone(rec.body);
     // The capture record stores the session id under "session-id", but
     // resolveSessionId (cache-telemetry) reads x-session-id /
@@ -947,13 +958,18 @@ async function main() {
       process.env.CLAUDE_CONFIG_DIR = scratch2;
       const outs = new Map();
       const needed = new Set(violations.flatMap((v) => [v.prevN, v.n]));
-      for await (const [n, line] of readCapture(args.file)) {
+      let bReqN = -1;
+      for await (const [, line] of readCapture(args.file)) {
         let rec;
         try {
           rec = JSON.parse(line);
         } catch {
           continue;
         }
+        // Same numbering rule as the main loop — attribution replays must
+        // land on the same request indices the violations were reported in.
+        if (rec.type === "outcome") continue;
+        const n = ++bReqN;
         const ctx = {
           body: structuredClone(rec.body),
           headers: {
