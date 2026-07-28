@@ -29,14 +29,26 @@
 // findings (the ladder manufacturing busts, the pin removing them) are
 // invisible without pricing the forwarded bytes.
 //
-// STATUS 2026-07-28 — the absolute totals are NOT yet trustworthy. Streaming,
-// --pipeline and conversation grouping are fixed and verified; the remaining
-// defect is that short sidecar calls (1-2 messages) still collide under the
-// coarse conversation key here, so their pairs report `div=messages@1` and
-// price as full busts. Symptom: ~190 "predicted busts" on a corpus with about
-// four real ones. Use this tool for A/B DELTAS on the same corpus, which is
-// what it was built for; do not quote its bust count or its totals as fact.
-// The correctness verdict lives in replay.mjs's gates — cache-sim only ever
+// KNOWN MODEL LIMITATION — the bust COUNT is inflated; A/B deltas are sound.
+//
+// The model gives each request exactly one predecessor's markers to resume
+// from. The real API keeps every cache entry written in the last TTL window,
+// so a divergence at message 83 can still hit an entry written five requests
+// ago at message 80. Modelling one-request memory, this tool calls that a full
+// bust; the API charges almost nothing.
+//
+// The scale, measured 2026-07-28 on a 602-request capture: 382 of 545 pairs
+// resolve to a marker hit, and of the 158 flagged busts 153 are mid-history
+// divergences with bestMarker=-1 — i.e. a marker existed, just not in the
+// single request this model consults. The same session's real transcript shows
+// cache_read climbing steadily through most of them.
+//
+// So: use A/B DELTAS on one corpus (same bias both sides, it cancels), which
+// is what the tool exists for. Do NOT quote the bust count or the absolute
+// totals as fact. Fixing it means modelling multi-entry cache retention with a
+// TTL — real work, not a patch, and deliberately not done here.
+//
+// The correctness verdict lives in replay.mjs's gates; cache-sim only ever
 // prices what those gates let through.
 //
 // --pipeline loads the real extension pipeline exactly as replay.mjs does,
@@ -56,14 +68,27 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const CHARS_PER_TOKEN = 4;
 
 // A conversation is identified by its first message: co-tenant traffic shares
 // the session-id header (and therefore the capture key) but never msgs[0].
+//
+// FULL content hash, never a truncated prefix. The first version sliced
+// msgs[0] to 200 chars, and short sidecar calls share their opening far past
+// that — measured on a 602-request capture: 3 buckets held more than one
+// conversation, the worst holding 7, so those pairs priced as full busts and
+// the totals were unusable. The live path (insertion-normalization's
+// conversationSubKey) hashes the whole first message and collides 0 times on
+// the same corpus; this now matches it.
+//
+// Fourth instance of one root shape in a single day: an identity computed more
+// cheaply than the thing it identifies WILL collide, and the collision
+// presents as churn rather than as a bug.
 function conversationId(msgs) {
   if (!Array.isArray(msgs) || !msgs.length) return "empty";
-  return JSON.stringify(msgs[0]).slice(0, 200);
+  return createHash("sha256").update(JSON.stringify(msgs[0])).digest("hex").slice(0, 16);
 }
 
 function tokens(s) {
