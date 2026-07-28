@@ -9,9 +9,14 @@ every one of them was live and invisible.
 ```sh
 node tools/replay.mjs <capture.jsonl> --census   # what shapes are in this traffic
 node tools/replay.mjs <capture.jsonl> [--env …]  # the GATE — must exit 0
+node tools/gate-live.mjs                         # the gate over EVERY live capture
 node tools/harvest.mjs                           # promote novel pairs to fixtures
 npm test                                         # committed fixtures, deterministic
 ```
+
+`npm test` is necessary and not sufficient — see "the corpus is blind along
+its own curation axis" below. `gate-live` is the one that runs against
+production-shaped input.
 
 Captures live in `~/.claude/cache-fix-captures/` (written by the
 `request-capture` extension, `CACHE_FIX_REQUEST_CAPTURE=1`).
@@ -73,6 +78,23 @@ Two rules, both learned the expensive way:
    was built from a remembered number ("canon 92, live 84") that came from a
    *different* bug, already fixed. Re-derive which change produced an
    observation before building on it.
+
+3. **The corpus is blind along its own curation axis.** `harvest.mjs` selects
+   pairs by *structural novelty* and sanitises them, so the committed fixtures
+   are small by construction — and therefore a fixture corpus curated for
+   structure can never contain a scale-shaped input. Both gate defects found
+   on 2026-07-28 lived exactly there: a `RangeError` on a 955 MB capture, and
+   a 3.2 GB retention peak. `npm test` could not have caught either, and no
+   amount of care would have changed that. Generalise it before assuming this
+   is about file size: **whatever property a corpus is curated for, every
+   other property is where it is blind.**
+
+   That is what `tools/gate-live.mjs` is for — it runs the real gate over the
+   live captures (daily, via `cache-fix-gate.timer`), because they are the
+   only production-shaped input that exists. `doctor` reads its verdict from
+   `~/.claude/cache-fix-gate-status.json`. Run it by hand after any change
+   that touches how the tools READ or RETAIN a capture; the fixtures will not
+   tell you.
 
 Every new gate gets a mutation test in `test/replay-gate-selfcheck.test.mjs`.
 A gate that is confidently wrong is worse than no gate: it converts
