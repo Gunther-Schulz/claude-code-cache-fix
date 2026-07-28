@@ -75,3 +75,30 @@ test("spawn failure (no node, bad path) is an error row", () => {
   assert.equal(rowIsClean(row), false);
   assert.match(row.error, /ENOENT/);
 });
+
+// --- Replay fidelity in the sweep ---
+
+test("BITE — a fidelity mismatch fails the row, whatever the four gates say", () => {
+  // The four invariants can all be clean and still describe a system that
+  // never ran, if the replay did not reproduce the real request.
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }],
+    violations: [], safety: [], sequence: [], orderViolations: [],
+    fidelity: { comparable: 3, matched: 2, mismatches: [{ n: 1 }] },
+  }));
+  assert.equal(row.fidelityMismatch, 1);
+  assert.equal(rowIsClean(row), false, "a mismatch invalidates the other numbers");
+});
+
+test("nothing comparable is NOT a failure — it is an honest absence of evidence", () => {
+  // 0 comparable must not fail the sweep; it also must not be mistaken for a
+  // pass, which is why the counts are recorded rather than a bare ratio.
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }],
+    violations: [], safety: [], sequence: [], orderViolations: [],
+    fidelity: { comparable: 0, matched: 0, mismatches: [] },
+  }));
+  assert.equal(row.fidelityComparable, 0);
+  assert.equal(row.fidelityMismatch, 0);
+  assert.equal(rowIsClean(row), true);
+});

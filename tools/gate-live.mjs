@@ -129,11 +129,29 @@ function summarise(file, bytes, res) {
   row.sequence = parsed.sequence?.length ?? 0;
   row.order = parsed.orderViolations?.length ?? 0;
   row.unparseable = (parsed.report ?? []).filter((r) => r.error).length;
+  // Replay fidelity: whether this run reproduced the bytes the proxy really
+  // forwarded. A mismatch means the four invariants above were measured on a
+  // system that never ran, so it is recorded per capture rather than left in
+  // stdout nobody reads. `comparable: 0` is an honest "proves nothing", NOT a
+  // pass — the distinction the row must preserve.
+  const f = parsed.fidelity;
+  if (f) {
+    row.fidelityComparable = f.comparable ?? 0;
+    row.fidelityMatched = f.matched ?? 0;
+    row.fidelityMismatch = (f.mismatches ?? []).length;
+  }
   return row;
 }
 
 const rowIsClean = (r) =>
-  !r.error && r.exit === 0 && !r.stability && !r.safety && !r.sequence && !r.order;
+  !r.error &&
+  r.exit === 0 &&
+  !r.stability &&
+  !r.safety &&
+  !r.sequence &&
+  !r.order &&
+  // A fidelity mismatch invalidates every other number in the row.
+  !r.fidelityMismatch;
 
 function parseArgs(argv) {
   const args = { captures: DEFAULT_CAPTURES, status: DEFAULT_STATUS, quiet: false };
@@ -190,7 +208,8 @@ async function main() {
         ? `ERROR ${row.error.split("\n")[0]}`
         : rowIsClean(row)
           ? "clean"
-          : `stability=${row.stability} safety=${row.safety} sequence=${row.sequence} order=${row.order}`;
+          : `stability=${row.stability} safety=${row.safety} sequence=${row.sequence} order=${row.order}` +
+            (row.fidelityMismatch ? ` FIDELITY-MISMATCH=${row.fidelityMismatch}` : "");
       process.stdout.write(`${f} (${(bytes / 1e6).toFixed(1)} MB, ${row.requests ?? "?"} req): ${verdict}\n`);
     }
   }

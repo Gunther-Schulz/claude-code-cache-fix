@@ -943,15 +943,29 @@ async function main() {
   // JSON.stringify(body) with nothing changed, and so did the replay. A
   // mismatch there means the replay is not reproducing the real request, and
   // every verdict in the run is about a different system.
-  const fidelity = { checked: 0, matched: 0, skippedMutated: 0, mismatches: [] };
+  // Three populations, reported separately and never collapsed into one
+  // ratio. "0/0" is indistinguishable from "checked and clean", which is the
+  // same absence-of-evidence-as-evidence-of-absence that let a broken --cold
+  // reader print "No cold rewrites recorded" over 26 real records.
+  const fidelity = {
+    comparable: 0, // unmutated AND carrying a recorded outSha
+    matched: 0,
+    notComparableMutated: 0, // replay starts from empty state — legitimately differs
+    noOutcome: 0, // no outcome record: predates the feature, or no usage arrived
+    mismatches: [],
+  };
   for (const e of report) {
+    if (e.error) continue;
     const oc = outcomes.get(e.captureId);
-    if (!oc || !oc.outSha || !e.outBodySha) continue;
-    if ((e.mutatedBy ?? []).length > 0) {
-      fidelity.skippedMutated++;
+    if (!oc || !oc.outSha || !e.outBodySha) {
+      fidelity.noOutcome++;
       continue;
     }
-    fidelity.checked++;
+    if ((e.mutatedBy ?? []).length > 0) {
+      fidelity.notComparableMutated++;
+      continue;
+    }
+    fidelity.comparable++;
     if (oc.outSha === e.outBodySha) fidelity.matched++;
     else fidelity.mismatches.push({ n: e.n, recorded: oc.outSha, replayed: e.outBodySha });
   }
@@ -1167,15 +1181,23 @@ async function main() {
         process.stdout.write(`  ${String(c).padStart(5)}  ${pct}%  ${kind}${where}\n`);
       }
     }
-    if (fidelity.checked || fidelity.skippedMutated) {
+    {
       const bad = fidelity.mismatches.length;
       process.stdout.write(
-        `\nreplay fidelity: ${fidelity.matched}/${fidelity.checked} UNMUTATED requests reproduce the forwarded bytes` +
-          ` (${fidelity.skippedMutated} mutated request(s) not comparable — replay starts from empty state)\n`,
+        `\nreplay fidelity: ${fidelity.matched}/${fidelity.comparable} comparable` +
+          `  |  ${fidelity.notComparableMutated} mutated (replay starts from empty state)` +
+          `  |  ${fidelity.noOutcome} without an outcome record\n`,
       );
+      if (fidelity.comparable === 0) {
+        process.stdout.write(
+          `  NOTHING COMPARABLE — this run proves nothing about replay fidelity.` +
+            `${fidelity.noOutcome ? " Outcome records are missing; they are written from proxy tree 8a0d995 onward." : ""}\n`,
+        );
+      }
       if (bad) {
         process.stdout.write(
-          `  ${bad} MISMATCH on requests no extension touched — the replay is not reproducing the real request\n`,
+          `  ${bad} MISMATCH on requests no extension touched — the replay is not reproducing the real request,\n` +
+            `  so every other verdict in this run describes a different system\n`,
         );
         for (const m of fidelity.mismatches.slice(0, 5)) {
           process.stdout.write(`    n=${m.n} recorded=${m.recorded} replayed=${m.replayed}\n`);
@@ -1261,7 +1283,19 @@ async function main() {
   if (safety.length) {
     process.stderr.write(`\nFAIL: ${safety.length} safety violation(s) — the pipeline altered the conversation\n`);
   }
-  if (violations.length || safety.length || sequence.length || orderViolations.length) process.exitCode = 1;
+  // A fidelity mismatch is not a fifth invariant — it is a statement that the
+  // other four were measured on a system that never ran. It fails the gate for
+  // that reason. "Nothing comparable" does NOT fail: it is an honest absence
+  // of evidence, reported as such rather than dressed up as a pass.
+  if (
+    violations.length ||
+    safety.length ||
+    sequence.length ||
+    orderViolations.length ||
+    fidelity.mismatches.length
+  ) {
+    process.exitCode = 1;
+  }
 }
 
 // Run only when invoked as a script. The checkers above are exported and
