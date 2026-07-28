@@ -930,10 +930,27 @@ async function main() {
   // modelling the proxy, and therefore that every verdict in this run is about
   // a system that never ran. That is worth knowing loudly and is reported
   // separately from the four invariant gates for exactly that reason.
-  const fidelity = { checked: 0, matched: 0, mismatches: [] };
+  //
+  // Scoped to requests NO EXTENSION MUTATED, and that scoping is the whole
+  // difference between a check and a permanently-red light. A replay starts
+  // from an empty state directory while the live proxy carried accumulated
+  // canonicals and tools baselines, so a MUTATED request legitimately differs
+  // from what went on the wire — measured 0/8 on a mid-session corpus even
+  // under the exact production gate set. Reporting that as failure would be a
+  // check firing on a non-defect, which trains its reader to ignore it.
+  //
+  // An UNMUTATED request has no such excuse: the proxy forwarded
+  // JSON.stringify(body) with nothing changed, and so did the replay. A
+  // mismatch there means the replay is not reproducing the real request, and
+  // every verdict in the run is about a different system.
+  const fidelity = { checked: 0, matched: 0, skippedMutated: 0, mismatches: [] };
   for (const e of report) {
     const oc = outcomes.get(e.captureId);
     if (!oc || !oc.outSha || !e.outBodySha) continue;
+    if ((e.mutatedBy ?? []).length > 0) {
+      fidelity.skippedMutated++;
+      continue;
+    }
     fidelity.checked++;
     if (oc.outSha === e.outBodySha) fidelity.matched++;
     else fidelity.mismatches.push({ n: e.n, recorded: oc.outSha, replayed: e.outBodySha });
@@ -1150,14 +1167,15 @@ async function main() {
         process.stdout.write(`  ${String(c).padStart(5)}  ${pct}%  ${kind}${where}\n`);
       }
     }
-    if (fidelity.checked) {
+    if (fidelity.checked || fidelity.skippedMutated) {
       const bad = fidelity.mismatches.length;
       process.stdout.write(
-        `\nreplay fidelity: ${fidelity.matched}/${fidelity.checked} requests reproduce the bytes actually forwarded\n`,
+        `\nreplay fidelity: ${fidelity.matched}/${fidelity.checked} UNMUTATED requests reproduce the forwarded bytes` +
+          ` (${fidelity.skippedMutated} mutated request(s) not comparable — replay starts from empty state)\n`,
       );
       if (bad) {
         process.stdout.write(
-          `  ${bad} MISMATCH — this replay is not modelling the proxy, so its verdicts describe a system that never ran\n`,
+          `  ${bad} MISMATCH on requests no extension touched — the replay is not reproducing the real request\n`,
         );
         for (const m of fidelity.mismatches.slice(0, 5)) {
           process.stdout.write(`    n=${m.n} recorded=${m.recorded} replayed=${m.replayed}\n`);
