@@ -109,7 +109,27 @@ export function buildCaptureRecord(ctx, now = new Date(), id = null) {
 // lose the request from the corpus), and an append-only file cannot be
 // rewritten in place. Consumers join on `id`.
 export function buildOutcomeRecord(ctx, id, key, now = new Date()) {
-  const cs = ctx?.meta?.cacheStats;
+  // Usage is read from the EVENT, not from another extension's meta.
+  //
+  // The first version read `meta.cacheStats`, which cache-telemetry populates
+  // on this same frame — but cache-telemetry is order 100 and this extension
+  // is order 60, so it ran first and always saw undefined. It wrote nothing,
+  // logged nothing, and looked exactly like a feature that worked. Reading the
+  // frame directly removes the ordering dependency instead of reversing it,
+  // and a hidden coupling to another extension's side effect is worth removing
+  // on its own.
+  const u = ctx?.event?.message?.usage;
+  const cs = u
+    ? {
+        cacheRead: u.cache_read_input_tokens || 0,
+        cacheCreation: u.cache_creation_input_tokens || 0,
+        inputTokens: u.input_tokens || 0,
+        outputTokens: u.output_tokens || 0,
+        // cache_creation may carry the per-tier split alongside the scalar.
+        ephemeral1h: (u.cache_creation && u.cache_creation.ephemeral_1h_input_tokens) || 0,
+        ephemeral5m: (u.cache_creation && u.cache_creation.ephemeral_5m_input_tokens) || 0,
+      }
+    : ctx?.meta?.cacheStats;
   if (!cs || !id) return null;
   return {
     ts: now.toISOString(),
@@ -121,7 +141,7 @@ export function buildOutcomeRecord(ctx, id, key, now = new Date()) {
     // joins three records that described the same event and shared no key:
     // the cold-rewrite ledger, the capture, and CC's transcript.
     requestId: ctx?.meta?._captureRequestId ?? null,
-    model: ctx?.meta?._servedModel ?? null,
+    model: ctx?.event?.message?.model ?? ctx?.meta?._servedModel ?? null,
     // Everything the API told us it charged. Recorded in full rather than
     // reduced to one number: the tier split says which TTL the cache actually
     // used (not a heuristic), input/output separate the prompt from the
@@ -232,10 +252,7 @@ export default {
       const id = ctx.meta._captureId;
       const key = ctx.meta._captureKey;
       if (!id || !key) return;
-      // cache-telemetry (order 100) populates meta.cacheStats on this same
-      // frame; if it is disabled there is nothing to record and this is a
-      // no-op rather than a guess.
-      const record = buildOutcomeRecord(ctx, id, key);
+        const record = buildOutcomeRecord(ctx, id, key);
       if (!record) return;
       ctx.meta._captureOutcomeWritten = true;
       await DEFAULT_FS.appendFile(
