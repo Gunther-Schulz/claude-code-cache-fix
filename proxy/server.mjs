@@ -332,6 +332,9 @@ let _forwardActive = 0;
 // not be computed. Set once by startProxy, never after — the point is that it
 // describes the code THIS process is running, not the code on disk now.
 let _sourceTree = null;
+// Every CACHE_FIX_* variable this process was started with, snapshotted once
+// for the same reason: it describes what is SERVING, not what is declared.
+let _gates = {};
 
 function handleHealth(_req, res) {
   // Surface extension-load failures so callers (operators, monitoring) see
@@ -368,6 +371,20 @@ function handleHealth(_req, res) {
     // external checker needs to see, and cannot infer from mtimes without
     // false-firing on every touch that changes no bytes.
     proxy_tree: _sourceTree,
+    // The gate set this process is ACTUALLY running, snapshotted at startup.
+    //
+    // Same argument as proxy_tree, one layer over: checking the unit file
+    // answers "what is declared", not "what is serving". Edit the unit and
+    // skip the restart and the two diverge silently — every extension reads
+    // its gate from process.env, which is fixed for the life of the process.
+    //
+    // It also gives the offline gate (tools/gate-live.mjs) something better
+    // than the unit to replay against: on 2026-07-28 the gate ran with
+    // extension DEFAULTS while production ran 11 gates, so CACHE_FIX_TOOL_REWRITE
+    // was off in every verification run and on in every served request. The
+    // sweep reported 0 violations; the same corpus under the real gate set
+    // reported 2.
+    gates: _gates,
   }));
 }
 
@@ -542,6 +559,11 @@ export async function startProxy(options = {}) {
   // failure to read our own source must not take the proxy down — an unknown
   // fingerprint reports as null, which a checker can distinguish from a
   // mismatch.
+  _gates = Object.fromEntries(
+    Object.entries(process.env)
+      .filter(([k]) => k.startsWith("CACHE_FIX_"))
+      .sort(([a], [b]) => a.localeCompare(b)),
+  );
   try {
     _sourceTree = await sourceFingerprint(PROXY_ROOT);
   } catch (err) {

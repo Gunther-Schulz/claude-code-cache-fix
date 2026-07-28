@@ -32,7 +32,7 @@
 // recorded rather than ending the sweep. Whatever kills one capture is
 // precisely what this is here to report.
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { readdir, stat, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
@@ -43,12 +43,59 @@ const REPLAY = join(__dirname, "replay.mjs");
 const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
 const DEFAULT_STATUS = join(homedir(), ".claude", "cache-fix-gate-status.json");
 
+// --- Production gate set ---
+//
+// The gate must replay the configuration that is actually SERVING, not the
+// extensions' defaults. Learned the expensive way on 2026-07-28: replay
+// inherits nothing from the systemd unit, and `CACHE_FIX_TOOL_REWRITE`
+// defaults OFF while the unit sets it ON. So every gate run that day — this
+// sweep included — exercised a pipeline nobody runs, and reported 0
+// violations. Re-run with the unit's own gates, the same corpus produced 2
+// stability violations attributed to deferred-tool-rewrite. A green verdict
+// over the wrong configuration is worth nothing.
+//
+// The unit is the declaration of what production is, so it is the source
+// here — read live rather than copied, because a copy is a second source that
+// drifts. Two are overridden OFF deliberately: REQUEST_CAPTURE would have the
+// replay write captures of the captures, and SESSION_MIRROR would write
+// mirrors; neither transforms the request, so excluding them costs no
+// coverage, and both are named in the output so nobody reads them as tested.
+const ARTIFACT_ONLY = new Set(["CACHE_FIX_REQUEST_CAPTURE", "CACHE_FIX_SESSION_MIRROR"]);
+
+export function parseUnitEnvironment(showOutput) {
+  // `systemctl show -p Environment` yields one line: Environment=A=1 B=2
+  const line = (showOutput || "").trim();
+  const body = line.startsWith("Environment=") ? line.slice("Environment=".length) : line;
+  const out = [];
+  for (const tok of body.split(/\s+/)) {
+    if (!tok.includes("=")) continue;
+    const k = tok.slice(0, tok.indexOf("="));
+    if (!k.startsWith("CACHE_FIX_")) continue;
+    if (ARTIFACT_ONLY.has(k)) continue;
+    out.push(tok);
+  }
+  return out;
+}
+
+function productionEnv() {
+  const res = spawnSync(
+    "systemctl",
+    ["--user", "show", "cache-fix-proxy", "-p", "Environment", "--value"],
+    { encoding: "utf-8" },
+  );
+  if (res.status !== 0 || !res.stdout) return { env: [], source: "unavailable" };
+  const env = parseUnitEnvironment(res.stdout);
+  return { env, source: env.length ? "cache-fix-proxy.service" : "empty" };
+}
+
 // A capture being written to right now is not a defect and not a skip: the
 // gate reads a prefix of it, which is a valid corpus. Recorded so a reader can
 // tell a short run from a truncated one.
-function runReplay(file) {
+function runReplay(file, env) {
   return new Promise((resolve) => {
-    const child = spawn("node", [REPLAY, file, "--json"], {
+    const args = [REPLAY, file, "--json"];
+    for (const kv of env) args.push("--env", kv);
+    const child = spawn("node", args, {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
@@ -107,6 +154,14 @@ async function main() {
   const args = parseArgs(process.argv);
   const started = new Date().toISOString();
 
+  // Resolve the SERVING configuration before anything else, and say so: a
+  // sweep whose gate set is unknown is not a verdict about production.
+  const { env: prodEnv, source: envSource } = productionEnv();
+  if (!args.quiet) {
+    process.stdout.write(`gates from ${envSource}: ${prodEnv.length ? prodEnv.join(" ") : "(none — replaying DEFAULTS, not production)"}\n`);
+    process.stdout.write(`  excluded as artifact-only: ${[...ARTIFACT_ONLY].join(", ")}\n\n`);
+  }
+
   let files = [];
   try {
     files = (await readdir(args.captures)).filter((f) => f.endsWith("-requests.jsonl"));
@@ -127,7 +182,7 @@ async function main() {
     // An empty capture has no pairs to compare; running the gate on it proves
     // nothing and its "0 violations" would pad the verdict.
     if (bytes === 0) continue;
-    const res = await runReplay(full);
+    const res = await runReplay(full, prodEnv);
     const row = summarise(f, bytes, res);
     rows.push(row);
     if (!args.quiet) {
@@ -146,6 +201,8 @@ async function main() {
     started,
     finished: new Date().toISOString(),
     host: process.env.HOSTNAME || "unknown",
+    gates: prodEnv,
+    gateSource: envSource,
     captures: rows.length,
     bytes: rows.reduce((a, r) => a + r.bytes, 0),
     failing: failed.length,

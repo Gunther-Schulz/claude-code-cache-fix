@@ -65,6 +65,66 @@ deltas on one corpus, never as a verdict.
 commit in the same repo makes it block on `index.lock` — once observed as a
 600-second hang that looked like a hung test.
 
+## Replay the configuration that is SERVING, not the defaults
+
+`replay.mjs` inherits nothing from the systemd unit. Extension gates are read
+from `process.env`, and several default OFF while production sets them ON —
+`CACHE_FIX_TOOL_REWRITE` is the one that bit. On 2026-07-28 every gate run
+that day exercised a pipeline nobody runs:
+
+    default gates:     0 stability violations
+    production gates:  2 stability violations, both deferred-tool-rewrite
+
+Same corpus, same code, same day. A green verdict over the wrong
+configuration is worth nothing, and it is worse than no verdict because it
+reads like one.
+
+`tools/gate-live.mjs` now resolves the gate set from the running unit and
+prints it, so every sweep is self-describing. Three answers to "which gates"
+must agree, and `doctor` compares all three:
+
+    DECLARED   Environment= in cache-fix-proxy.service
+    RUNNING    /health `gates` — what the process actually started with
+    VERIFIED   `gates` in cache-fix-gate-status.json — what the sweep replayed
+
+DECLARED ≠ RUNNING means the unit was edited without a restart. VERIFIED ≠
+RUNNING means the sweep's verdict does not apply to production. Either way
+the other two answers become meaningless, so both are FAIL.
+
+Running a one-off replay by hand? Pass the gates, or you are testing fiction:
+
+```sh
+node tools/gate-live.mjs        # resolves them for you — prefer this
+```
+
+## Rule out the instrument before reporting a defect
+
+When a check goes red, there are always two hypotheses: the SYSTEM is broken,
+or the CHECK is. Report the first without excluding the second and you file a
+phantom — and on 2026-07-28 five of six things that looked like Claude Code's
+bug were ours, while the safety gate's first 243 "corruptions" were its own
+missing exemption. The instrument is not a neutral observer; it is the newest
+and least-tested thing in the room.
+
+Order that works, cheapest first:
+
+1. **Is the pair what you think it is?** Violations are reported per
+   CONVERSATION, so the predecessor is usually not the previous capture line.
+   Diff `prevN` against `n` — never `n-1` against `n`. (This cost a wrong
+   diagnosis: the pair was 44→47, the probe compared 46→47, and the two
+   unrelated subagent requests it diffed looked like total corruption. The
+   violation line now prints `prevN->n` for that reason.)
+2. **Is the checker's own exemption list current?** A DECLARED behaviour —
+   `deferred-tool-rewrite`'s `tool_addition` announcement is the standing
+   example — is not a defect, and a check that forbids it trains its reader
+   to ignore red.
+3. **Then, and only then, look at the bytes.** Print the diverging index from
+   both sides and read what is actually there.
+
+A finding survives this and it is real: at index 4, request 44 carried an
+injected `tool_addition` block that request 47 did not. That is a genuine
+self-inflicted bust, and it was worth being sure before saying so.
+
 ## Adding a check
 
 Two rules, both learned the expensive way:

@@ -336,6 +336,23 @@ const semanticId = (m) => `${m?.role ?? "?"}:${sha(JSON.stringify(semanticCore(m
 // them that way, and those tests are the safety net this refactor rests on.
 // `asCompact` converts on the fly when it sees one, so both callers share one
 // code path rather than one being tested and the other shipped.
+// tools[] renders BEFORE system and messages, so a change to it invalidates
+// the whole prefix and no breakpoint can survive one. Three fingerprints,
+// because the distinction between them IS threat-matrix row 6's question: a
+// pure ADDITION (membership grows, existing order preserved) is what
+// Anthropic's docs say should not disturb the cache, while a REORDER of
+// entries already present is a different event the docs do not cover.
+export function toolsFingerprints(tools) {
+  if (!Array.isArray(tools)) return { sig: null, order: null, set: null, count: null };
+  const names = tools.map((t) => t?.name ?? "?");
+  return {
+    sig: sha(JSON.stringify(tools)), // full schemas — catches a description edit
+    order: sha(JSON.stringify(names)), // names in wire order
+    set: sha(JSON.stringify([...names].sort())), // membership, order-blind
+    count: tools.length,
+  };
+}
+
 export function compactEntry(e) {
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
@@ -347,10 +364,70 @@ export function compactEntry(e) {
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
     inSem: inMsgs.map(semanticId),
     msgs: inMsgs.length,
+    inTools: toolsFingerprints(e.inTools),
+    outTools: toolsFingerprints(e.outTools),
     action: e.action ?? null,
     resetReason: e.resetReason ?? null,
     stats: e.stats ?? null,
   };
+}
+
+// Threat-matrix row 6, asked of the corpus directly.
+//
+// The 175k event that opened the row carried TWO independent causes in one
+// request — a tools reorder AND messages@165(user) — so it never established
+// which invalidated the prefix. The row states what would settle it: a
+// tools-only delta, i.e. tools changed while the message history did not.
+//
+// For every consecutive same-conversation pair this classifies the tools delta
+// (none / addition-only / reorder / schema-edit / removal) against the message
+// delta, and reports the pairs where tools moved and messages did not. It also
+// records what WE forwarded, which is the other half — deferred-tool-rewrite
+// exists to hold tools[] byte-stable across exactly these events, so an
+// incoming change with an unchanged outgoing signature is the mitigation
+// working, not a miss.
+export function findToolsDeltas(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const p = group[i - 1];
+      const c = group[i];
+      if (p.inTools.sig === null || c.inTools.sig === null) continue;
+      if (p.inTools.sig === c.inTools.sig) continue;
+      // What KIND of tools change: membership vs order vs schema text.
+      let kind;
+      if (p.inTools.set !== c.inTools.set) {
+        kind = c.inTools.count > p.inTools.count ? "membership+" : "membership-";
+      } else if (p.inTools.order !== c.inTools.order) {
+        kind = "reorder";
+      } else {
+        kind = "schema-edit";
+      }
+      const msgKind = censusIds(p.inSem, c.inSem);
+      rows.push({
+        n: c.n,
+        prevN: p.n,
+        ts: c.ts,
+        kind,
+        msgKind,
+        // The isolating case row 6 asks for: tools moved, history did not.
+        toolsOnly: msgKind === "identical" || msgKind === "append-only",
+        forwardedStable: p.outTools.sig !== null && p.outTools.sig === c.outTools.sig,
+        count: `${p.inTools.count}->${c.inTools.count}`,
+        outCount: `${p.outTools.count}->${c.outTools.count}`,
+      });
+    }
+  }
+  return rows.sort((a, b) => a.n - b.n);
 }
 
 const asCompact = (e) => (e.inHash ? e : compactEntry(e));
@@ -624,6 +701,10 @@ async function main() {
       key: rec.key,
       inMsgs: Array.isArray(rec.body?.messages) ? rec.body.messages : [],
       outMsgs: Array.isArray(ctx.body?.messages) ? ctx.body.messages : [],
+      // What CC sent vs what we forwarded — deferred-tool-rewrite's whole job
+      // is to make the second stable while the first moves (row 6).
+      inTools: rec.body?.tools,
+      outTools: ctx.body?.tools,
       action: ctx.meta.insertionNormalizeStats?.action ?? null,
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
       stats: ctx.meta.insertionNormalizeStats ?? null,
@@ -648,6 +729,7 @@ async function main() {
 
   const sequence = findSequenceViolations(stability);
   const census = args.census ? runCensus(stability) : null;
+  const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
   // Attribute each violation by replaying the corpus once per extension
@@ -742,7 +824,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -764,7 +846,15 @@ async function main() {
     for (const v of violations.slice(0, 20)) {
       const who = v.attribution ? `${v.attribution.ext} (outDiv=${v.attribution.outDiv})` : "UNATTRIBUTED";
       process.stdout.write(
-        `  n=${v.n} ts=${v.ts} inDiv=${v.inDiv ?? "append-only"} outDiv=${v.outDiv} <- ${who}\n`,
+        // prevN is NOT optional detail. Pairs are compared within a
+        // CONVERSATION, so the predecessor is usually not the previous capture
+        // line — printing only `n` invites the reader to diff n-1 against n,
+        // a different pair and often unrelated traffic. Cost exactly that
+        // mistake once (2026-07-28): the violating pair was 44->47, the probe
+        // compared 46->47, and the two requests it diffed were different
+        // subagent conversations that looked like wholesale corruption. The
+        // JSON carried prevN the whole time; the human line did not.
+        `  n=${v.prevN}->${v.n} ts=${v.ts} inDiv=${v.inDiv ?? "append-only"} outDiv=${v.outDiv} <- ${who}\n`,
       );
     }
 
@@ -814,6 +904,30 @@ async function main() {
         const pct = ((100 * c) / total).toFixed(1).padStart(5);
         const where = kind === "append-only" || kind === "identical" ? "" : `   e.g. n=${ex.prevN}->${ex.n}`;
         process.stdout.write(`  ${String(c).padStart(5)}  ${pct}%  ${kind}${where}\n`);
+      }
+    }
+    if (toolsDeltas) {
+      // Threat-matrix row 6. `tools-only` is the isolating case the row asks
+      // for: tools[] moved while the message history did not, so nothing else
+      // could have invalidated the prefix.
+      const only = toolsDeltas.filter((d) => d.toolsOnly);
+      process.stdout.write(`\ntools[] deltas: ${toolsDeltas.length} (${only.length} tools-ONLY)\n`);
+      const byKind = new Map();
+      for (const d of toolsDeltas) {
+        const k = `${d.kind}${d.toolsOnly ? " [tools-only]" : ` +${d.msgKind}`}`;
+        byKind.set(k, (byKind.get(k) ?? 0) + 1);
+      }
+      for (const [k, c] of [...byKind.entries()].sort((a, b) => b[1] - a[1])) {
+        process.stdout.write(`  ${String(c).padStart(5)}  ${k}\n`);
+      }
+      const leaked = toolsDeltas.filter((d) => !d.forwardedStable);
+      process.stdout.write(
+        `  forwarded tools[] held stable across: ${toolsDeltas.length - leaked.length}/${toolsDeltas.length}\n`,
+      );
+      for (const d of only.slice(0, 8)) {
+        process.stdout.write(
+          `    n=${d.prevN}->${d.n} ${d.kind} in=${d.count} out=${d.outCount} msgs=${d.msgKind} forwardedStable=${d.forwardedStable}\n`,
+        );
       }
     }
   }
