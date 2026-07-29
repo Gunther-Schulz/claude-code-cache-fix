@@ -87,3 +87,15 @@ bullet, evidence pointer included.
   first-appearance conditions — the one-shot-sidecar phantom was caught
   by the class's own bite). Validated pair-for-pair against the hand
   probe on s-0edbd11c (9de68b3).
+
+- **Census system-delta class — candidate, not built** (2026-07-29).
+  Within-session inflation instruments: tools[] churn is classified
+  (findToolsDeltas, counts + forwardedStable); SYSTEM deltas are only
+  observed live (prefix-diff cause lines) and preserved in captures —
+  censusPair classifies messages only, so an offline "how often / how
+  expensive are mid-session system changes" question has no census
+  answer today. Deliberately not built: no such question is currently
+  unanswered (prefix-diff logs + matrix row 5 cover the known classes).
+  Build trigger: the first system-delta question that needs an offline
+  answer over a corpus — then a census kind beside toolsDeltas, same
+  shape.
