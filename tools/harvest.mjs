@@ -80,7 +80,7 @@ const LEDGER_HOST = (process.env.CACHE_FIX_HARVEST_HOST || hostname() || "unknow
   /[^A-Za-z0-9._-]/g,
   "_",
 );
-const DEFAULT_LEDGER = join(
+export const DEFAULT_LEDGER = join(
   __dirname,
   "..",
   "test",
@@ -254,10 +254,10 @@ export function completedThinkingTextCount(msgs) {
 // scrubbed with the same deterministic tokens as fixtures, so the artifact
 // is committable and diffable long after the bytes that caused it are gone.
 //
-// Thresholds mirror doctor's baseline_step_verdict (dotfiles) — two repos,
-// same numbers by convention; doctor's copy is the alarm, this one decides
-// when evidence is worth freezing. Growth only, same rationale: shrinkage is
-// visible intent.
+// SINGLE SOURCE for the growth thresholds: tools/shape-verdicts.mjs (the
+// alarm) imports them from here (the evidence freezer), and the deployment
+// repo's doctor only invokes that CLI — no mirrored numbers anywhere.
+// Growth only: shrinkage is visible intent.
 export const GROWTH_STEP_THRESHOLD = 0.15;
 export const GROWTH_STEP_FLOOR = 5000;
 
