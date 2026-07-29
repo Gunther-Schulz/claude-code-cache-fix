@@ -304,6 +304,17 @@ pattern to check first is a system-reminder block being swapped in place
 mid-history — at n=1197->1204 index 768 holds a task-tools reminder in one
 request and a PreToolUse hook block in the next.
 
+EXTERNALLY CORROBORATED 2026-07-29: anthropics/claude-code#76606 (open,
+filed 2026-07-11 by an independent reporter diffing raw /v1/messages bodies)
+describes exactly this mechanism — "Claude Code rewrites an old hook
+reminder's shape later in the session ... either moving it into its own
+message, or merging it into a neighboring one", hit repeatedly in one day
+under PreToolUse hooks that add context to tool calls. That is the
+reminder-swap pattern above, observed with independent instrumentation on an
+unrelated setup. Upgrades the leading candidate from "pattern to check
+first" to "mechanism reported in the wild"; still not a measured root cause
+for event 14 specifically.
+
 Mechanised so it cannot silently rot again: `findEditPositions` in
 tools/replay.mjs reports the tail/mid split and prices the mid-history
 population on every `--census` run, and `tools/gate-live.mjs` runs daily.
