@@ -424,6 +424,14 @@ export function compactEntry(e) {
     // missed mitigation be priced (everything from the divergence index on is
     // re-billed) without retaining a single message body.
     inBytes: inMsgs.map((m) => JSON.stringify(m).length),
+    // Index of the last HUMAN-TYPED message, computed here because compact
+    // entries carry no content. This is what turned row 4 from "mystery
+    // swaps" into "reminder re-stamping at the anchor" (2026-07-29: 20 of 22
+    // human-anchored mid-history edits within +/-2 of this index) — the
+    // census could name WHAT and WHERE, but WHY needed the edit position
+    // related to conversation STRUCTURE, and that relation was derived by a
+    // throwaway script before it lived here.
+    inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
     inSem: semanticIds(inMsgs),
     msgs: inMsgs.length,
@@ -656,6 +664,22 @@ export function findMitigationGaps(entries) {
 // occurrence ordinal, and the ordinal changed the replace/edit population
 // (16 -> 20 on one session). So the question needs asking mechanically rather
 // than re-derived by hand each time the corpus moves.
+// A message the human actually typed: user role carrying at least one text
+// block that is neither a tool_result nor a tagged injection (reminders,
+// notifications, caveats all start with "<"). Computed at compaction time
+// because the census itself sees only hashes.
+export function isHumanTurn(m) {
+  if (m?.role !== "user") return false;
+  const c = m.content;
+  if (typeof c === "string") return !c.trimStart().startsWith("<");
+  if (!Array.isArray(c)) return false;
+  return c.some((b) => {
+    if (b?.type !== "text" || typeof b.text !== "string") return false;
+    const t = b.text.trimStart();
+    return t.length > 0 && !t.startsWith("<");
+  });
+}
+
 export function findEditPositions(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -687,6 +711,13 @@ export function findEditPositions(entries) {
         lastIdx,
         tail: at >= lastIdx,
         rebilledBytes: rebilled,
+        // Structural context (see compactEntry's inLastHuman note): where the
+        // edit sits relative to the last human-typed message. anchorDelta 0
+        // means the anchor message itself was re-stamped; small negative
+        // values are the injected-block zone just before it; null means no
+        // human turn exists (subagent/sidecar conversation).
+        lastHumanAt: cur.inLastHuman >= 0 ? cur.inLastHuman : null,
+        anchorDelta: cur.inLastHuman >= 0 ? at - cur.inLastHuman : null,
       });
     }
   }
@@ -1273,8 +1304,18 @@ async function main() {
       if (mid.length) {
         process.stdout.write(`  mid-history re-bills ~${(midBytes / 1e6).toFixed(1)} MB — row 4 says RE-OPEN on any of these\n`);
         for (const e of mid.slice(0, 6)) {
+          const anchor =
+            e.anchorDelta === null ? "no-human-anchor" : `anchor${e.anchorDelta >= 0 ? "+" : ""}${e.anchorDelta}`;
           process.stdout.write(
-            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
+            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}] ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
+          );
+        }
+        // The measured norm (2026-07-29): edits cluster at the anchor. An
+        // edit FAR from any anchor would be a NEW mechanism, worth a look.
+        const far = mid.filter((e) => e.anchorDelta !== null && Math.abs(e.anchorDelta) > 30);
+        if (far.length) {
+          process.stdout.write(
+            `  ${far.length} edit(s) >30 from the human anchor — not the known reminder-anchoring class\n`,
           );
         }
       }

@@ -166,6 +166,31 @@ Three things worth keeping from the episode:
   input dies against the cap and fails the sweep the same day, whatever the
   fourth wall turns out to be made of.
 
+## The census names the class; only content names the cause
+
+Row 4 sat "re-opened" for a day with the mechanism unexplained — while an
+outside reporter with far lighter tooling (#78660) had already named it. The
+gap was not effort; it was a structural blindness we designed in: the census
+reduces messages to hashes and ordinals, which is what makes it scalable and
+publishable, and exactly what makes it causally mute. Hashes can say
+same/different/moved; they cannot say "this is the task-tools nudge, and it
+anchors to the last human message." Two rules from the miss:
+
+- **When a class is localized, return to the bytes and to the STRUCTURE.**
+  Read the actual content at the offending position (once, locally — the
+  privacy discipline applies to what gets committed, not to what gets read),
+  and relate the position to conversation structure: roles, anchors,
+  injection zones. The verdict that closed row 4 was one 30-line matcher
+  relating edit positions to the last human-typed message (20 of 22 within
+  ±2). That relation now lives in the census itself (`anchorDelta` on every
+  edit row, with a "far from any anchor = new mechanism" callout) — the
+  matcher was the prototype, per the standing rule about throwaway probes.
+- **Sweep the public tracker when an investigation OPENS, not after it
+  ships.** The row-4 mechanism sat in a public issue for over two weeks
+  while we derived the same facts independently. One `gh search issues` per
+  new unexplained class converts an investigation into a verification —
+  strictly cheaper, and the verification is worth posting back.
+
 ## Never hand-roll identity in a probe
 
 Twice on 2026-07-28 a throwaway probe reached a wrong conclusion because it

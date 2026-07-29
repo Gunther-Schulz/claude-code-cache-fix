@@ -199,6 +199,63 @@ export function selectNovelPairs(records, seenClasses) {
   return picks;
 }
 
+// --- Shape watch: the two dormant thinking classes, plus baseline growth ---
+//
+// Both classes were measured INACTIVE on 2026-07-29 and would otherwise be
+// watched by nothing. This is the mechanism that replaces the one-off probes:
+// harvest already parses every record twice a day, so the counters ride the
+// existing scan and land in the per-machine ledger, where a checker can WARN
+// the day either class activates.
+//
+//   thinkingTextCompleted — thinking blocks with NON-EMPTY text in completed
+//     assistant turns of each conversation's newest request. Measured today:
+//     0 everywhere (all 277 deep-history blocks are signature-only stubs).
+//     Non-zero means CC started re-sending completed-turn thinking content
+//     (CC#69568's population reappearing) — quiet context growth with no
+//     bust to make it loud, which is exactly why nothing else would notice.
+//   thinkingDropPairs — consecutive same-conversation pairs where a thinking
+//     block left the SHARED history region (CC#76253's class; measured 2 of
+//     323 pairs today, context-pruning-shaped). A rate jump means per-turn
+//     mid-history rewrites.
+//   systemBytes / toolsBytes — serialized size of the newest request's
+//     system[] and tools[], max across conversations. The quiet-growth
+//     baseline: version-inflated prompts (CC#47528 measured +94% across six
+//     releases) show up here as a step, without any bust.
+
+export function completedThinkingTextCount(msgs) {
+  if (!Array.isArray(msgs)) return 0;
+  let n = 0;
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    if (m?.role !== "assistant" || !Array.isArray(m.content) || m.content.length === 0) continue;
+    // Active tool-continuation (terminal tool_use answered by the following
+    // tool_result) keeps its thinking BY CONTRACT — not part of this count.
+    const last = m.content[m.content.length - 1];
+    if (last?.type === "tool_use") {
+      const next = msgs[i + 1];
+      const answered =
+        Array.isArray(next?.content) &&
+        next.content.some((b) => b?.type === "tool_result" && b.tool_use_id === last.id);
+      if (answered) continue;
+    }
+    for (const b of m.content) {
+      if (b?.type === "thinking" && typeof b.thinking === "string" && b.thinking.trim()) n++;
+    }
+  }
+  return n;
+}
+
+export function thinkingCountInPrefix(msgs, upto) {
+  let n = 0;
+  for (const m of (msgs ?? []).slice(0, upto)) {
+    if (m?.role !== "assistant" || !Array.isArray(m.content)) continue;
+    for (const b of m.content) {
+      if (b?.type === "thinking" || b?.type === "redacted_thinking") n++;
+    }
+  }
+  return n;
+}
+
 // Single streaming pass that decides novelty WITHOUT holding the file.
 //
 // Streaming the read was not enough: retaining every parsed record turned a
@@ -214,6 +271,7 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
   const prevByConv = new Map(); // conversation id -> { rec, index }
   const picks = [];
   let count = 0;
+  const shape = { pairs: 0, thinkingDropPairs: 0, thinkingTextCompleted: 0, systemBytes: 0, toolsBytes: 0 };
   // readLines, not readline: this loop body is currently await-free, so
   // readline happened not to run ahead here — but one await added to the body
   // would silently buffer the whole remaining file (see tools/read-lines.mjs
@@ -236,13 +294,35 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
     if (cid === null) continue;
     const prev = prevByConv.get(cid);
     prevByConv.set(cid, { rec, index });
-    if (!prev || index < minIndex) continue;
+    if (!prev || index < minIndex) {
+      if (prev) shapePairs(shape, prev.rec, rec);
+      continue;
+    }
+    shapePairs(shape, prev.rec, rec);
     const kind = censusPair(prev.rec.body?.messages ?? [], rec.body?.messages ?? []);
     if (BORING.has(kind) || seenClasses.has(kind)) continue;
     seenClasses.add(kind);
     picks.push({ kind, prevRec: prev.rec, rec, cur: index });
   }
-  return { picks, count };
+  // Newest request per conversation: the completed-thinking population and
+  // the baseline prefix sizes (max across conversations — the main session
+  // dominates, sidecars are noise).
+  for (const { rec } of prevByConv.values()) {
+    const body = rec.body ?? {};
+    shape.thinkingTextCompleted += completedThinkingTextCount(body.messages);
+    shape.systemBytes = Math.max(shape.systemBytes, JSON.stringify(body.system ?? "").length);
+    shape.toolsBytes = Math.max(shape.toolsBytes, JSON.stringify(body.tools ?? []).length);
+  }
+  return { picks, count, shape };
+}
+
+function shapePairs(shape, prevRec, rec) {
+  shape.pairs++;
+  const a = prevRec.body?.messages ?? [];
+  const b = rec.body?.messages ?? [];
+  if (b.length >= a.length && thinkingCountInPrefix(b, a.length) < thinkingCountInPrefix(a, a.length)) {
+    shape.thinkingDropPairs++;
+  }
 }
 
 function parseArgs(argv) {
@@ -323,7 +403,7 @@ async function main() {
     // one predecessor per conversation and nothing else. Every request is
     // still examined, because a novel pair may straddle the watermark; only
     // pairs at or beyond it are eligible to be harvested.
-    const { picks, count } = await scanCapture(path, seenClasses, prior.requests);
+    const { picks, count, shape } = await scanCapture(path, seenClasses, prior.requests);
     report.scanned += count;
     if (count <= prior.requests) {
       report.skipped.push({ key, requests: count });
@@ -345,6 +425,9 @@ async function main() {
       bytes: st.size,
       lastHarvest: new Date().toISOString(),
       classes: [...new Set([...(prior.classes ?? []), ...picks.map((p) => p.kind)])],
+      // Shape watch (see the helpers' header): a checker reads these and
+      // warns the day a dormant class activates or the baseline steps.
+      shape,
     };
   }
 
