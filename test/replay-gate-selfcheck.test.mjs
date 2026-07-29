@@ -478,3 +478,30 @@ test("census: BITE — a genuine splice is still caught when duplicates are pres
   const spliced = [user("u0"), dup, asst("a1"), dup, user("INSERTED"), user("u2")];
   assert.equal(censusPair(base, spliced), "splice/insert-mid");
 });
+
+// --- Safety exemption symmetry (2026-07-29) ---
+import { safetyViolation } from "../tools/replay.mjs";
+
+test("BITE — an injection-shaped message in the INPUT must not read as a drop", () => {
+  // The live case: a chained proxy fed this pipeline its own output (the
+  // fable acceptance probe), so the INPUT carried a tool_addition system
+  // message. The output kept it and added the pipeline's own — nothing was
+  // dropped. The one-sided filter stripped both from out, none from in, and
+  // the first census-enabled sweep failed the capture over it (5 -> 4).
+  const injection = (name) => ({
+    role: "system",
+    content: [{ type: "tool_addition", tool: { type: "tool_reference", name } }],
+  });
+  const user = { role: "user", content: [{ type: "text", text: "q" }] };
+  const asst = { role: "assistant", content: [{ type: "text", text: "a" }] };
+  const e = {
+    n: 1, ts: "t",
+    inMsgs: [user, asst, user, injection("Monitor"), user],
+    outMsgs: [user, asst, user, injection("Monitor"), user, injection("Monitor")],
+  };
+  assert.equal(safetyViolation(e), null, "echoed + re-injected announcements are exempt on both sides");
+  // A GENUINE drop must still fire: remove a real user message from out.
+  const dropped = { ...e, outMsgs: [user, asst, injection("Monitor"), user] };
+  const v = safetyViolation(dropped);
+  assert.ok(v && v.kind === "length", "a real message drop must still be caught");
+});

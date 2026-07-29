@@ -104,6 +104,29 @@ test("replay children run under the heap cap, before the script path", () => {
     "cap must precede the script path or node passes it to the script instead",
   );
   assert.ok(args.includes("CACHE_FIX_PREFIXDIFF=1"), "gate env must survive");
+  // Census rides every sweep: dropping it silently reverts the row-4
+  // annotations to on-demand and the daily verdict stops carrying them.
+  assert.ok(args.includes("--census"), "sweep must run the census annotations");
+});
+
+test("BITE — a row that compared zero pairs is marked proves-nothing, never padded into clean", () => {
+  // c-empty (71 requests, all empty bodies) and single-request captures ran
+  // ZERO cross-request checks; before this flag they counted toward
+  // "9 captures clean". Absence of comparison must be visible.
+  const row = summarise("c-empty.jsonl", 10, json({
+    report: Array.from({ length: 71 }, (_, n) => ({ n })),
+    violations: [], safety: [], sequence: [], orderViolations: [],
+    census: { pairs: 0 },
+  }));
+  assert.equal(row.provesNothing, true);
+  assert.equal(rowIsClean(row), true, "proves-nothing is not FAILING — it is not PROVING");
+  const real = summarise("s.jsonl", 10, json({
+    report: [{ n: 0 }, { n: 1 }],
+    violations: [], safety: [], sequence: [], orderViolations: [],
+    census: { pairs: 1 },
+  }));
+  assert.equal(real.provesNothing, false);
+  assert.equal(real.pairs, 1);
 });
 
 test("nothing comparable is NOT a failure — it is an honest absence of evidence", () => {

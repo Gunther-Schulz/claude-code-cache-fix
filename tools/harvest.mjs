@@ -19,12 +19,13 @@
 // So: keep the ~5% that is structurally novel, discard the rest, and make
 // what is kept safe to commit.
 //
-// Deliberately NOT automatic. This is a dev tool, run when working on the
-// proxy — not a timer, not a hook. Standing background machinery has to be
-// maintained and monitored forever, and a harvester that fails silently is
-// worse than one you run on purpose. The ledger is what makes ad-hoc runs
-// safe: it tracks what has already been harvested, so running it twice
-// harvests nothing twice and running it after a month of silence catches up.
+// Runs BOTH scheduled and ad-hoc: cache-fix-harvest.timer fires it twice
+// daily (fixtures, shape watch and growth snapshots must not depend on
+// someone remembering), and the ledger is what makes every run idempotent —
+// watermarks track what has been harvested, so a manual run between timer
+// firings harvests nothing twice and a month of silence catches up in one
+// pass. Silent failure of the schedule is watched: shape-verdicts warns when
+// the newest ledger entry goes stale (HARVEST_MAX_AGE_H).
 //
 // --- Why a ledger with WATERMARKS, not a "harvested" flag ---
 //
@@ -80,7 +81,7 @@ const LEDGER_HOST = (process.env.CACHE_FIX_HARVEST_HOST || hostname() || "unknow
   /[^A-Za-z0-9._-]/g,
   "_",
 );
-const DEFAULT_LEDGER = join(
+export const DEFAULT_LEDGER = join(
   __dirname,
   "..",
   "test",
@@ -199,6 +200,108 @@ export function selectNovelPairs(records, seenClasses) {
   return picks;
 }
 
+// --- Shape watch: the two dormant thinking classes, plus baseline growth ---
+//
+// Both classes were measured INACTIVE on 2026-07-29 and would otherwise be
+// watched by nothing. This is the mechanism that replaces the one-off probes:
+// harvest already parses every record twice a day, so the counters ride the
+// existing scan and land in the per-machine ledger, where a checker can WARN
+// the day either class activates.
+//
+//   thinkingTextCompleted — thinking blocks with NON-EMPTY text in completed
+//     assistant turns of each conversation's newest request. Measured today:
+//     0 everywhere (all 277 deep-history blocks are signature-only stubs).
+//     Non-zero means CC started re-sending completed-turn thinking content
+//     (CC#69568's population reappearing) — quiet context growth with no
+//     bust to make it loud, which is exactly why nothing else would notice.
+//   thinkingDropPairs — consecutive same-conversation pairs where a thinking
+//     block left the SHARED history region (CC#76253's class; measured 2 of
+//     323 pairs today, context-pruning-shaped). A rate jump means per-turn
+//     mid-history rewrites.
+//   systemBytes / toolsBytes — serialized size of the newest request's
+//     system[] and tools[], max across conversations. The quiet-growth
+//     baseline: version-inflated prompts (CC#47528 measured +94% across six
+//     releases) show up here as a step, without any bust.
+
+export function completedThinkingTextCount(msgs) {
+  if (!Array.isArray(msgs)) return 0;
+  let n = 0;
+  for (let i = 0; i < msgs.length; i++) {
+    const m = msgs[i];
+    if (m?.role !== "assistant" || !Array.isArray(m.content) || m.content.length === 0) continue;
+    // Active tool-continuation (terminal tool_use answered by the following
+    // tool_result) keeps its thinking BY CONTRACT — not part of this count.
+    const last = m.content[m.content.length - 1];
+    if (last?.type === "tool_use") {
+      const next = msgs[i + 1];
+      const answered =
+        Array.isArray(next?.content) &&
+        next.content.some((b) => b?.type === "tool_result" && b.tool_use_id === last.id);
+      if (answered) continue;
+    }
+    for (const b of m.content) {
+      if (b?.type === "thinking" && typeof b.thinking === "string" && b.thinking.trim()) n++;
+    }
+  }
+  return n;
+}
+
+// --- Growth-step snapshots: the evidence must outlive capture rotation ---
+//
+// The shape block records SIZES; when the baseline steps (a CC update
+// inflating the system prompt, a tool description ballooning), the diff that
+// EXPLAINS the step lives in the capture — which rotates. These snapshot the
+// changed component at detection time: identity and per-item sizes, content
+// scrubbed with the same deterministic tokens as fixtures, so the artifact
+// is committable and diffable long after the bytes that caused it are gone.
+//
+// SINGLE SOURCE for the growth thresholds: tools/shape-verdicts.mjs (the
+// alarm) imports them from here (the evidence freezer), and the deployment
+// repo's doctor only invokes that CLI — no mirrored numbers anywhere.
+// Growth only: shrinkage is visible intent.
+export const GROWTH_STEP_THRESHOLD = 0.15;
+export const GROWTH_STEP_FLOOR = 5000;
+
+export function detectGrowthSteps(priorShape, shape) {
+  if (!priorShape || !shape) return [];
+  const steps = [];
+  for (const field of ["systemBytes", "toolsBytes"]) {
+    const old = priorShape[field] ?? 0;
+    const now = shape[field] ?? 0;
+    if (old >= GROWTH_STEP_FLOOR && now > old * (1 + GROWTH_STEP_THRESHOLD)) {
+      steps.push({ field, oldBytes: old, newBytes: now });
+    }
+  }
+  return steps;
+}
+
+// Identity + per-item size, content scrubbed. Enough to say WHICH block or
+// tool grew and by how much, without carrying a byte of real content.
+export function growthComponentSnapshot(body) {
+  const sys = body?.system;
+  return {
+    system: Array.isArray(sys)
+      ? sys.map((b) => ({ ...scrubBlock(b), bytes: JSON.stringify(b).length }))
+      : typeof sys === "string"
+        ? { text: scrubText(sys), bytes: sys.length }
+        : null,
+    tools: Array.isArray(body?.tools)
+      ? body.tools.map((t) => ({ name: t?.name ?? null, bytes: JSON.stringify(t).length }))
+      : [],
+  };
+}
+
+export function thinkingCountInPrefix(msgs, upto) {
+  let n = 0;
+  for (const m of (msgs ?? []).slice(0, upto)) {
+    if (m?.role !== "assistant" || !Array.isArray(m.content)) continue;
+    for (const b of m.content) {
+      if (b?.type === "thinking" || b?.type === "redacted_thinking") n++;
+    }
+  }
+  return n;
+}
+
 // Single streaming pass that decides novelty WITHOUT holding the file.
 //
 // Streaming the read was not enough: retaining every parsed record turned a
@@ -214,6 +317,14 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
   const prevByConv = new Map(); // conversation id -> { rec, index }
   const picks = [];
   let count = 0;
+  const shape = { pairs: 0, thinkingDropPairs: 0, thinkingTextCompleted: 0, systemBytes: 0, toolsBytes: 0 };
+  // For growth snapshots: the last request BEFORE the watermark carries the
+  // "old" component (it was the newest at the previous harvest), the
+  // max-baseline conversation-newest carries the "new". Rough on purpose —
+  // cross-conversation pairs are possible and documented in the artifact;
+  // the per-item sizes carry the attribution either way.
+  let watermarkBody = null;
+  let newestBody = null;
   // readLines, not readline: this loop body is currently await-free, so
   // readline happened not to run ahead here — but one await added to the body
   // would silently buffer the whole remaining file (see tools/read-lines.mjs
@@ -234,15 +345,43 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
     const index = count++;
     const cid = conversationId(rec.body?.messages);
     if (cid === null) continue;
+    if (index === minIndex - 1) watermarkBody = rec.body ?? null;
     const prev = prevByConv.get(cid);
     prevByConv.set(cid, { rec, index });
-    if (!prev || index < minIndex) continue;
+    if (!prev || index < minIndex) {
+      if (prev) shapePairs(shape, prev.rec, rec);
+      continue;
+    }
+    shapePairs(shape, prev.rec, rec);
     const kind = censusPair(prev.rec.body?.messages ?? [], rec.body?.messages ?? []);
     if (BORING.has(kind) || seenClasses.has(kind)) continue;
     seenClasses.add(kind);
     picks.push({ kind, prevRec: prev.rec, rec, cur: index });
   }
-  return { picks, count };
+  // Newest request per conversation: the completed-thinking population and
+  // the baseline prefix sizes (max across conversations — the main session
+  // dominates, sidecars are noise).
+  for (const { rec } of prevByConv.values()) {
+    const body = rec.body ?? {};
+    shape.thinkingTextCompleted += completedThinkingTextCount(body.messages);
+    const sysBytes = JSON.stringify(body.system ?? "").length;
+    const toolBytes = JSON.stringify(body.tools ?? []).length;
+    if (Math.max(sysBytes, toolBytes) >= Math.max(shape.systemBytes, shape.toolsBytes)) {
+      newestBody = body;
+    }
+    shape.systemBytes = Math.max(shape.systemBytes, sysBytes);
+    shape.toolsBytes = Math.max(shape.toolsBytes, toolBytes);
+  }
+  return { picks, count, shape, watermarkBody, newestBody };
+}
+
+function shapePairs(shape, prevRec, rec) {
+  shape.pairs++;
+  const a = prevRec.body?.messages ?? [];
+  const b = rec.body?.messages ?? [];
+  if (b.length >= a.length && thinkingCountInPrefix(b, a.length) < thinkingCountInPrefix(a, a.length)) {
+    shape.thinkingDropPairs++;
+  }
 }
 
 function parseArgs(argv) {
@@ -323,11 +462,34 @@ async function main() {
     // one predecessor per conversation and nothing else. Every request is
     // still examined, because a novel pair may straddle the watermark; only
     // pairs at or beyond it are eligible to be harvested.
-    const { picks, count } = await scanCapture(path, seenClasses, prior.requests);
+    const { picks, count, shape, watermarkBody, newestBody } =
+      await scanCapture(path, seenClasses, prior.requests);
     report.scanned += count;
     if (count <= prior.requests) {
       report.skipped.push({ key, requests: count });
       continue;
+    }
+
+    // Growth steps vs this ledger's own prior entry: freeze the evidence
+    // while the capture still holds it (see the snapshot helpers' header).
+    for (const step of detectGrowthSteps(prior.shape, shape)) {
+      const date = new Date().toISOString().slice(0, 10);
+      const name = `growth-${key.slice(0, 10)}-${step.field}-${date}.json`;
+      const artifact = {
+        key,
+        ...step,
+        // "old" = newest at the previous harvest (last pre-watermark
+        // request); "new" = current max-baseline conversation-newest. May
+        // span conversations; per-item sizes carry attribution either way.
+        watermark: watermarkBody ? growthComponentSnapshot(watermarkBody) : null,
+        newest: newestBody ? growthComponentSnapshot(newestBody) : null,
+      };
+      if (!args.dryRun) {
+        await mkdir(args.out, { recursive: true });
+        await writeFile(join(args.out, name), JSON.stringify(artifact, null, 2) + "\n");
+      }
+      report.growth = report.growth ?? [];
+      report.growth.push({ key, field: step.field, file: name, oldBytes: step.oldBytes, newBytes: step.newBytes });
     }
 
     for (const pick of picks) {
@@ -345,6 +507,9 @@ async function main() {
       bytes: st.size,
       lastHarvest: new Date().toISOString(),
       classes: [...new Set([...(prior.classes ?? []), ...picks.map((p) => p.kind)])],
+      // Shape watch (see the helpers' header): a checker reads these and
+      // warns the day a dormant class activates or the baseline steps.
+      shape,
     };
   }
 
@@ -362,6 +527,11 @@ async function main() {
     process.stdout.write(`harvested ${report.harvested.length} novel pair(s)\n`);
     for (const h of report.harvested) process.stdout.write(`  ${h.kind.padEnd(20)} ${h.file}\n`);
     if (report.skipped.length) process.stdout.write(`up to date: ${report.skipped.length} capture(s)\n`);
+    for (const g of report.growth ?? []) {
+      process.stdout.write(
+        `GROWTH STEP: ${g.key.slice(0, 20)} ${g.field} ${g.oldBytes}->${g.newBytes} — evidence frozen in ${g.file}\n`,
+      );
+    }
     if (report.expired.length) {
       process.stdout.write(
         `\nWARNING: ${report.expired.length} capture(s) expired before harvest — raise CACHE_FIX_CAPTURE_MAX_MB\n`,

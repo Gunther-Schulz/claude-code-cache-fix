@@ -38,6 +38,8 @@ import { join, dirname } from "node:path";
 import { homedir, hostname } from "node:os";
 import { fileURLToPath } from "node:url";
 
+import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
 const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
@@ -100,7 +102,11 @@ function productionEnv() {
 export const CHILD_HEAP_CAP_MB = 2048;
 
 export function replayArgs(file, env) {
-  const args = [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, REPLAY, file, "--json"];
+  // --census rides on every sweep: the row-4 annotations (edit positions,
+  // anchorDelta, tools deltas, mitigation pricing) were built as census-only
+  // and a sweep without them re-derives nothing daily — the classifications
+  // exist precisely so the next instance is recognized, not re-derived.
+  const args = [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, REPLAY, file, "--json", "--census"];
   for (const kv of env) args.push("--env", kv);
   return args;
 }
@@ -149,6 +155,12 @@ function summarise(file, bytes, res) {
   // system that never ran, so it is recorded per capture rather than left in
   // stdout nobody reads. `comparable: 0` is an honest "proves nothing", NOT a
   // pass — the distinction the row must preserve.
+  // A row that compared NOTHING proves nothing: zero same-conversation
+  // pairs (empty bodies, single-request captures) ran zero cross-request
+  // checks. Named rather than silently counted into the clean total —
+  // "9 captures sauber" with three unproving rows was a padded verdict.
+  row.pairs = parsed.census?.pairs ?? null;
+  row.provesNothing = row.pairs === 0;
   const f = parsed.fidelity;
   if (f) {
     row.fidelityComparable = f.comparable ?? 0;
@@ -236,10 +248,25 @@ async function main() {
   }
 
   const failed = rows.filter((r) => !rowIsClean(r));
+  const proving = rows.filter((r) => !r.error && !r.provesNothing);
+  // Fingerprints of the code this sweep actually exercised. The verdict
+  // used to record which CONFIG it replayed but never which CODE — so a
+  // morning verdict stayed "fresh" (age bound) across an afternoon of
+  // replay/extension changes, and the compensating step was human memory.
+  let code = null;
+  try {
+    code = {
+      proxyTree: await sourceFingerprint(PROXY_ROOT),
+      toolsTree: await sourceFingerprint(dirname(fileURLToPath(import.meta.url))),
+    };
+  } catch {
+    code = null; // never block the verdict on the stamp; absent reads as unstamped
+  }
   const status = {
     version: 1,
     started,
     finished: new Date().toISOString(),
+    code,
     // os.hostname(), not $HOSTNAME: systemd user units export no HOSTNAME,
     // so the env var wrote "unknown" into every scheduled run's status file.
     host: hostname(),
@@ -248,7 +275,11 @@ async function main() {
     captures: rows.length,
     bytes: rows.reduce((a, r) => a + r.bytes, 0),
     failing: failed.length,
-    ok: failed.length === 0 && rows.length > 0,
+    proving: proving.length,
+    unproving: rows.length - failed.length >= 0 ? rows.filter((r) => r.provesNothing).length : 0,
+    // ok requires at least one PROVING row: a sweep of empty and
+    // single-request captures ran zero cross-request checks.
+    ok: failed.length === 0 && proving.length > 0,
     rows,
   };
   await mkdir(dirname(args.status), { recursive: true });

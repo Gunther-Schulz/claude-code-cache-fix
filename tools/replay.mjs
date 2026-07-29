@@ -195,9 +195,16 @@ function isDeclaredInjection(msg) {
 // verdict at a time and findSafetyViolations wants the whole list — one
 // implementation, two shapes, rather than a tested one and a shipped one.
 export function safetyViolation(e) {
-  const inM = e.inMsgs;
-  // Declared injections are removed before comparing, so the check still
-  // sees a strict count/role/order correspondence with what CC sent.
+  // Declared injections are removed from BOTH sides before comparing. The
+  // filter was output-side only until 2026-07-29, which was correct while
+  // injections could only ever originate in our pipeline — but an input can
+  // carry an injection-shaped message too (a chained proxy feeding this
+  // pipeline its own output; the fable acceptance-probe capture is the live
+  // case). One-sided, the filter stripped the echoed injection from out and
+  // not from in, and the first census-enabled sweep failed a capture over a
+  // message nobody dropped — a check firing on a non-defect, found by
+  // rule-out-the-instrument within the hour.
+  const inM = e.inMsgs.filter((m) => !isDeclaredInjection(m));
   const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
   if (outM.length !== inM.length) {
     return { n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` };
@@ -424,6 +431,14 @@ export function compactEntry(e) {
     // missed mitigation be priced (everything from the divergence index on is
     // re-billed) without retaining a single message body.
     inBytes: inMsgs.map((m) => JSON.stringify(m).length),
+    // Index of the last HUMAN-TYPED message, computed here because compact
+    // entries carry no content. This is what turned row 4 from "mystery
+    // swaps" into "reminder re-stamping at the anchor" (2026-07-29: 20 of 22
+    // human-anchored mid-history edits within +/-2 of this index) — the
+    // census could name WHAT and WHERE, but WHY needed the edit position
+    // related to conversation STRUCTURE, and that relation was derived by a
+    // throwaway script before it lived here.
+    inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
     inSem: semanticIds(inMsgs),
     msgs: inMsgs.length,
@@ -656,6 +671,45 @@ export function findMitigationGaps(entries) {
 // occurrence ordinal, and the ordinal changed the replace/edit population
 // (16 -> 20 on one session). So the question needs asking mechanically rather
 // than re-derived by hand each time the corpus moves.
+// Local-only content excerpt for a flagged edit position. The census is
+// content-blind by design (hashes scale and are publishable) — which is why
+// row 4 sat unexplained while the bytes that named the mechanism were one
+// read away. When the far-from-anchor tripwire fires, the human output now
+// DELIVERS the evidence instead of leaving its extraction to a throwaway
+// script. Stdout of a local run only: this never enters the JSON output,
+// the gate status file, or anything committed.
+export function excerptMessage(msg, cap = 180) {
+  if (!msg) return "(missing)";
+  const c = msg.content;
+  let text = "";
+  if (typeof c === "string") text = c;
+  else if (Array.isArray(c)) {
+    text = c
+      .map((b) =>
+        b?.type === "text" ? b.text : b?.type ? `[${b.type}]` : "[?]",
+      )
+      .join(" ");
+  }
+  const flat = text.replace(/\s+/g, " ").trim();
+  return `${msg.role ?? "?"}: ${flat.length > cap ? flat.slice(0, cap) + "…" : flat || "(no text)"}`;
+}
+
+// A message the human actually typed: user role carrying at least one text
+// block that is neither a tool_result nor a tagged injection (reminders,
+// notifications, caveats all start with "<"). Computed at compaction time
+// because the census itself sees only hashes.
+export function isHumanTurn(m) {
+  if (m?.role !== "user") return false;
+  const c = m.content;
+  if (typeof c === "string") return !c.trimStart().startsWith("<");
+  if (!Array.isArray(c)) return false;
+  return c.some((b) => {
+    if (b?.type !== "text" || typeof b.text !== "string") return false;
+    const t = b.text.trimStart();
+    return t.length > 0 && !t.startsWith("<");
+  });
+}
+
 export function findEditPositions(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -687,6 +741,13 @@ export function findEditPositions(entries) {
         lastIdx,
         tail: at >= lastIdx,
         rebilledBytes: rebilled,
+        // Structural context (see compactEntry's inLastHuman note): where the
+        // edit sits relative to the last human-typed message. anchorDelta 0
+        // means the anchor message itself was re-stamped; small negative
+        // values are the injected-block zone just before it; null means no
+        // human turn exists (subagent/sidecar conversation).
+        lastHumanAt: cur.inLastHuman >= 0 ? cur.inLastHuman : null,
+        anchorDelta: cur.inLastHuman >= 0 ? at - cur.inLastHuman : null,
       });
     }
   }
@@ -767,6 +828,70 @@ function parseArgs(argv) {
 // staying green on every small one. Found 2026-07-28 by pointing it at a
 // live 955 MB session capture.
 //
+// Conversation SUCCESSION — the census's cross-conversation blind spot,
+// closed. Every within-conversation classifier above compares pairs INSIDE
+// one conversation identity, so a boundary (compaction, resume, fork)
+// structurally never forms a pair: the compaction note documented the blind
+// spot, and the resume-exposure question was first answered by a throwaway
+// probe — the tell, again, that a classification was missing.
+//
+// A SUCCESSION is an identity change where the earlier conversation never
+// returns later in the capture; conversations that reappear are ordinary
+// sidecar INTERLEAVING (hundreds per busy capture, the co-tenant normal) and
+// are deliberately not reported — a boundary class that fired on every
+// sidecar switch would train its reader to ignore it. Kinds:
+//   compaction/new-thread — opener <= 6 messages (summary or fresh start);
+//   resume-shaped         — deep opener sharing >50% of message bodies with
+//                           the predecessor (the CC#51764 family);
+//   fork/other            — deep opener, low overlap: worth eyes.
+// Each carries the opener's full byte size — a succession re-bills its
+// whole prefix by construction.
+export function findSuccessions(entries) {
+  const compact = entries.map(asCompact);
+  const lastSeen = new Map(); // conversation id -> last entry index
+  const firstSeen = new Map(); // conversation id -> first entry index
+  for (let i = 0; i < compact.length; i++) {
+    const cid = conversationOf(compact[i]);
+    if (cid === null) continue;
+    lastSeen.set(cid, i);
+    if (!firstSeen.has(cid)) firstSeen.set(cid, i);
+  }
+  const out = [];
+  for (let i = 1; i < compact.length; i++) {
+    const prev = compact[i - 1];
+    const cur = compact[i];
+    const prevCid = conversationOf(prev);
+    const curCid = conversationOf(cur);
+    if (prevCid === null || curCid === null || prevCid === curCid) continue;
+    if (lastSeen.get(prevCid) > i - 1) continue; // interleave: it returns
+    // The successor must be OPENING here: a one-shot sidecar handing back
+    // to a continuing main thread ends a conversation but starts nothing —
+    // without this condition every such handback minted a phantom
+    // "fork/other" (caught while writing the interleave bite).
+    if (firstSeen.get(curCid) !== i) continue;
+    const openerBytes = cur.inBytes.reduce((a, b) => a + b, 0);
+    let kind;
+    let shared = 0;
+    if (cur.msgs <= 6) {
+      kind = "compaction/new-thread";
+    } else {
+      const prevHashes = new Set(prev.inHash);
+      shared = cur.inHash.filter((h) => prevHashes.has(h)).length;
+      kind = shared / cur.msgs > 0.5 ? "resume-shaped" : "fork/other";
+    }
+    out.push({
+      n: cur.n,
+      prevN: prev.n,
+      ts: cur.ts,
+      kind,
+      openerMsgs: cur.msgs,
+      shared,
+      rebilledBytes: openerBytes,
+    });
+  }
+  return out;
+}
+
 // Fidelity classification, pure so the population boundaries are testable.
 // FIVE populations, never collapsed into one ratio:
 //   comparable/matched      — unmutated with a recorded outSha; a mismatch
@@ -1032,6 +1157,7 @@ async function main() {
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
+  const successions = args.census ? findSuccessions(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
   // Attribute each violation by replaying the corpus once per extension
@@ -1131,7 +1257,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, successions, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -1273,9 +1399,44 @@ async function main() {
       if (mid.length) {
         process.stdout.write(`  mid-history re-bills ~${(midBytes / 1e6).toFixed(1)} MB — row 4 says RE-OPEN on any of these\n`);
         for (const e of mid.slice(0, 6)) {
+          const anchor =
+            e.anchorDelta === null ? "no-human-anchor" : `anchor${e.anchorDelta >= 0 ? "+" : ""}${e.anchorDelta}`;
           process.stdout.write(
-            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
+            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}] ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
           );
+        }
+        // The measured norm (2026-07-29): edits cluster at the anchor. An
+        // edit FAR from any anchor would be a NEW mechanism, worth a look —
+        // so deliver the bytes with the flag (LOCAL stdout only; the class
+        // was only ever named by reading content, and extraction friction is
+        // what let row 4 sit unexplained for a day).
+        const far = mid.filter((e) => e.anchorDelta !== null && Math.abs(e.anchorDelta) > 30);
+        if (far.length) {
+          process.stdout.write(
+            `  ${far.length} edit(s) >30 from the human anchor — NOT the known reminder-anchoring class:\n`,
+          );
+          const want = new Map(); // request index -> [{at, side, rowKey}]
+          for (const e of far.slice(0, 3)) {
+            if (!want.has(e.prevN)) want.set(e.prevN, []);
+            if (!want.has(e.n)) want.set(e.n, []);
+            want.get(e.prevN).push({ at: e.at, label: `n=${e.prevN} (before)` });
+            want.get(e.n).push({ at: e.at, label: `n=${e.n} (after)` });
+          }
+          for await (const [idx, line] of readCapture(args.file)) {
+            const asks = want.get(idx);
+            if (!asks) continue;
+            let body;
+            try {
+              body = JSON.parse(line).body;
+            } catch {
+              continue;
+            }
+            for (const a of asks) {
+              process.stdout.write(`    @${a.at} ${a.label}  ${excerptMessage(body?.messages?.[a.at])}\n`);
+            }
+            want.delete(idx);
+            if (want.size === 0) break;
+          }
         }
       }
     }
