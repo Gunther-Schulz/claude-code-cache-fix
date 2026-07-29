@@ -38,8 +38,12 @@ const pExecFile = promisify(execFile);
 // (measured normal: 2 of ~1,900 pairs, context-pruning-shaped).
 export const DROP_RATE_THRESHOLD = 0.05;
 export const DROP_RATE_MIN_PAIRS = 50;
+// The harvest timer fires twice daily; numbers older than this are frozen,
+// and a verdict computed from frozen numbers must say so instead of
+// printing "dormant" forever off a stalled timer.
+export const HARVEST_MAX_AGE_H = 26;
 
-export function shapeWatchVerdict(ledger) {
+export function shapeWatchVerdict(ledger, nowMs = Date.now()) {
   if (!ledger || typeof ledger !== "object" || typeof ledger.keys !== "object" || ledger.keys === null) {
     return {
       name: "shape-watch",
@@ -55,6 +59,20 @@ export function shapeWatchVerdict(ledger) {
       name: "shape-watch",
       level: "warn",
       message: "shape-watch: ledger carries no shape fields yet — run harvest once",
+    };
+  }
+  const newest = Object.values(ledger.keys)
+    .map((e) => Date.parse(e?.lastHarvest ?? ""))
+    .filter((t) => !Number.isNaN(t))
+    .reduce((a, b) => Math.max(a, b), 0);
+  if (newest && nowMs - newest > HARVEST_MAX_AGE_H * 3600_000) {
+    const ageH = Math.round((nowMs - newest) / 3600_000);
+    return {
+      name: "shape-watch",
+      level: "warn",
+      message:
+        `shape-watch: newest harvest is ${ageH}h old (expected twice daily) — ` +
+        `numbers are frozen, the timer is not watching`,
     };
   }
   const fat = shapes
@@ -125,6 +143,39 @@ export function baselineStepVerdict(committed, current) {
   return { name: "baseline", level: "ok", message: "baseline: no unreviewed step against HEAD" };
 }
 
+// Retention: a ledger key marked gone was DELETED by the capture cap before
+// harvest finished with it — the designated cap-adequacy signal, which lived
+// only on harvest's stdout until the closing-gate sweep flagged it as
+// consumer-less. Acknowledge-by-commit, like baseline: a NEW gone entry
+// warns until the ledger commit that any deliberate cap decision gets.
+export function retentionVerdict(committed, current) {
+  if (!current || typeof current !== "object" || typeof current.keys !== "object" || current.keys === null) {
+    return {
+      name: "retention",
+      level: "warn",
+      message: "retention: working ledger missing or unreadable — expiry is NOT currently watched",
+    };
+  }
+  const goneNow = Object.keys(current.keys).filter((k) => current.keys[k]?.gone);
+  const goneBefore = new Set(
+    committed && typeof committed.keys === "object" && committed.keys !== null
+      ? Object.keys(committed.keys).filter((k) => committed.keys[k]?.gone)
+      : [],
+  );
+  const fresh = goneNow.filter((k) => !goneBefore.has(k));
+  if (fresh.length) {
+    return {
+      name: "retention",
+      level: "warn",
+      message:
+        `retention: ${fresh.length} capture(s) expired before harvest finished ` +
+        `(${fresh.map((k) => k.slice(0, 16)).join(", ")}) — raise CACHE_FIX_CAPTURE_MAX_MB? ` +
+        `committing the ledger acknowledges`,
+    };
+  }
+  return { name: "retention", level: "ok", message: "retention: no capture lost to the cap unacknowledged" };
+}
+
 export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
   let current = null;
   try {
@@ -142,7 +193,11 @@ export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
   } catch {
     committed = null;
   }
-  return [shapeWatchVerdict(current), baselineStepVerdict(committed, current)];
+  return [
+    shapeWatchVerdict(current),
+    baselineStepVerdict(committed, current),
+    retentionVerdict(committed, current),
+  ];
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

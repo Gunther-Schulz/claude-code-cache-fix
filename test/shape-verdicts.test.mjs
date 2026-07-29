@@ -67,10 +67,34 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
   const dir = await mkdtemp(join(tmpdir(), "shape-verdicts-"));
   try {
     const verdicts = await computeVerdicts(join(dir, "no-such-ledger.json"));
-    assert.equal(verdicts.length, 2);
+    assert.equal(verdicts.length, 3);
     assert.ok(verdicts.every((v) => v.level === "warn" || v.name === "baseline"));
     assert.equal(verdicts[0].level, "warn", "shape-watch cannot read as green without a ledger");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("BITE — a stalled harvest timer cannot print dormant forever: frozen numbers warn", async () => {
+  const { HARVEST_MAX_AGE_H } = await import("../tools/shape-verdicts.mjs");
+  const old = { keys: { "s-a": { lastHarvest: "2026-07-01T00:00:00Z", shape: shape() } } };
+  const now = Date.parse("2026-07-29T00:00:00Z");
+  const v = shapeWatchVerdict(old, now);
+  assert.equal(v.level, "warn");
+  assert.match(v.message, /frozen/);
+  const fresh = { keys: { "s-a": { lastHarvest: new Date(now - 3600_000).toISOString(), shape: shape() } } };
+  assert.equal(shapeWatchVerdict(fresh, now).level, "ok", `within ${HARVEST_MAX_AGE_H}h stays ok`);
+});
+
+test("retention: a NEW expired capture warns until the ledger commit acknowledges it", async () => {
+  const { retentionVerdict } = await import("../tools/shape-verdicts.mjs");
+  assert.equal(retentionVerdict(null, null).level, "warn");
+  const committed = { keys: { "s-old": { gone: true }, "s-b": {} } };
+  const sameGone = { keys: { "s-old": { gone: true }, "s-b": {} } };
+  assert.equal(retentionVerdict(committed, sameGone).level, "ok", "already-acknowledged gone stays quiet");
+  const newGone = { keys: { "s-old": { gone: true }, "s-b": { gone: true } } };
+  const v = retentionVerdict(committed, newGone);
+  assert.equal(v.level, "warn");
+  assert.match(v.message, /s-b/);
+  assert.match(v.message, /CAPTURE_MAX_MB/);
 });

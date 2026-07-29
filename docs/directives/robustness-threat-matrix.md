@@ -161,8 +161,9 @@ What is NOT yet known, and must be established before a fix:
 
 Not fixed on discovery deliberately: this extension is ON in production, its
 whole purpose is byte stability, and a rushed change to it is exactly how a
-mitigation becomes the bust. `doctor` reports FAIL until it is resolved, so
-it cannot be forgotten.
+mitigation becomes the bust. What kept it unforgettable was the MECHANISM,
+not this row: the failing gate sweep held doctor red until the fix landed —
+the matrix records, the gate enforces.
 
 
 **RESOLVED 2026-07-28.** The announcement never disappeared — telemetry shows
@@ -198,8 +199,10 @@ the sub-key back to a constant turns the invariant test red.
 
 ---
 
-## Row 22 — OPEN, DIAGNOSED: a reset drops VOLATILE PINNING too, so an
+## Row 22 — FIXED: a reset drops VOLATILE PINNING too, so an
 ## honest edit at the tail costs from 19 messages earlier
+## (fix: resetKeepingPins — a reset abandons the ORDER model, not the pins;
+## verified on corpus s-538c0aef 2 -> 0, dfed402)
 
 Found 2026-07-28 19:45 by `cache-fix-gate.timer` on live traffic, minutes
 after row 21 was fixed — i.e. by the mechanism, unprompted, which is what it
@@ -226,8 +229,8 @@ Before treating this as a production defect, run `docs/dev-loop.md`'s
 artifact-vs-defect list — in particular confirm the pair is 108->109 as
 reported and that no declared-injection exemption is missing.
 
-Not fixed on discovery: same reasoning as row 21. `doctor` reports FAIL until
-resolved, so it cannot be forgotten.
+Not fixed on discovery: same reasoning as row 21 — and the same mechanism,
+not this row, kept it red until resolved (the gate sweep, via doctor).
 
 
 **DIAGNOSED 2026-07-28. The hypothesis above was WRONG and is kept as a

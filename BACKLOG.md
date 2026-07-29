@@ -36,3 +36,46 @@ bullet, evidence pointer included.
 - **Row 2 (threat matrix): TTL keepalive** — OPEN since 2026-07-27,
   phase-3 candidate, cost-positive only if the operator returns after
   idle; needs idle-detection + opt-in. Unchanged.
+
+## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
+
+- **Orphan telemetry consumers (Q4).** Alarm files written by ON gates
+  that nothing reads: `guard-events.jsonl` (output-guard restores),
+  `upstream-changes.jsonl` (row 5's alarm), insertion/deferred event
+  logs, session mirrors; plus status-file fields (`gateSource`,
+  `fidelityMutated*`) and boot-record `proxyTree`. Design ONE consumer
+  pattern (likely: more shape-verdicts entries reading each file's
+  recency + alarm count) rather than N bespoke checks. Deferral basis:
+  consumer DESIGN per file is judgment work (which absence fails, which
+  warns), not a mechanical port. Effort M.
+- **Harvest pins instances, not only classes (Q2).** Fixtures bank one
+  exemplar per CLASS; the evidence behind specific verdicts (row 4's
+  distribution on s-58c979ce, acceptance strings citing s-538c0aef)
+  still rots with rotation. Spec sketch: `harvest --pin <key> <n..m>`
+  freezes a sanitized range as a named fixture; matrix rows and
+  acceptance strings then cite fixtures, not capture keys. Effort M.
+- **Row 6's isolating query is built and unread (Q3).** findToolsDeltas
+  emits exactly the tools-only classification row 6 says "cannot be run
+  as-is". With --census now on every sweep, read the answer off the
+  next gate status and update row 6. Effort S, blocked on one timer run.
+- **Duplicate-request probe → census check (Q1).** The #78420 falsifier
+  (adjacent byte-identical bodies) was a throwaway python scan; as a
+  census counter it re-answers daily. Effort S.
+- **upstream-error-log gate ON? (operator decision.)** CC#79989's named
+  first-hypothesis alarm exists in-tree and is OFF. Needs the standard
+  acceptance probe before flipping — a gate flip without one is the
+  class the roster check exists for.
+- **resolveCaptureKey pools literal "empty" (79 requests).** A capture
+  keying change = state-KEY change (threat matrix row 3): belongs at a
+  session boundary, stated before the restart. Not urgent — the pooled
+  requests are keyless utility calls.
+
+## Parked decisions
+
+- **Repo location `~/dev/vendor/` — LEAVE for now** (operator + session
+  2026-07-29). The fork is operator-owned (taxonomy says
+  `~/dev/Gunther-Schulz/`), but a move touches the serving unit's
+  ExecStart, HTTPS_PROXY env, manifest paths, repos.tsv, and ten live
+  PR worktrees' gitdir pointers — coordinated migration for purely
+  taxonomic gain. Revisit trigger: PR series merged and worktrees
+  removed (the natural cheap moment).

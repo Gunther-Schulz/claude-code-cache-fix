@@ -19,12 +19,13 @@
 // So: keep the ~5% that is structurally novel, discard the rest, and make
 // what is kept safe to commit.
 //
-// Deliberately NOT automatic. This is a dev tool, run when working on the
-// proxy — not a timer, not a hook. Standing background machinery has to be
-// maintained and monitored forever, and a harvester that fails silently is
-// worse than one you run on purpose. The ledger is what makes ad-hoc runs
-// safe: it tracks what has already been harvested, so running it twice
-// harvests nothing twice and running it after a month of silence catches up.
+// Runs BOTH scheduled and ad-hoc: cache-fix-harvest.timer fires it twice
+// daily (fixtures, shape watch and growth snapshots must not depend on
+// someone remembering), and the ledger is what makes every run idempotent —
+// watermarks track what has been harvested, so a manual run between timer
+// firings harvests nothing twice and a month of silence catches up in one
+// pass. Silent failure of the schedule is watched: shape-verdicts warns when
+// the newest ledger entry goes stale (HARVEST_MAX_AGE_H).
 //
 // --- Why a ledger with WATERMARKS, not a "harvested" flag ---
 //
