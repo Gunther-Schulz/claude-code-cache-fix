@@ -154,6 +154,12 @@ function summarise(file, bytes, res) {
     row.fidelityComparable = f.comparable ?? 0;
     row.fidelityMatched = f.matched ?? 0;
     row.fidelityMismatch = (f.mismatches ?? []).length;
+    // Informational pair: on busy sessions every request is mutated, so the
+    // comparable population stays 0 forever and this is the only fidelity
+    // signal recorded. Never part of rowIsClean — a mutated mismatch is
+    // legitimate state divergence.
+    row.fidelityMutatedComparable = f.mutatedComparable ?? 0;
+    row.fidelityMutatedMatched = f.mutatedMatched ?? 0;
   }
   return row;
 }

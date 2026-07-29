@@ -767,6 +767,59 @@ function parseArgs(argv) {
 // staying green on every small one. Found 2026-07-28 by pointing it at a
 // live 955 MB session capture.
 //
+// Fidelity classification, pure so the population boundaries are testable.
+// FIVE populations, never collapsed into one ratio:
+//   comparable/matched      — unmutated with a recorded outSha; a mismatch
+//                             here fails the gate (the replay is not
+//                             reproducing the real request).
+//   mutatedComparable/-Matched — mutated with a recorded outSha;
+//                             INFORMATIONAL ONLY, because state divergence
+//                             makes a mismatch legitimate. On busy sessions
+//                             every request is mutated, so this is the only
+//                             fidelity signal there is.
+//   noOutcome               — no outcome record at all (predates the feature,
+//                             or no usage ever arrived).
+//   outcomeWithoutSha       — outcome present but written by the pre-outSha
+//                             recorder (14 such in one capture, all between
+//                             the two 2026-07-28 restarts). Distinct from
+//                             noOutcome because this population never shrinks
+//                             by itself and must not read as "records
+//                             missing, will fill in".
+export function classifyFidelity(report, outcomes) {
+  const fidelity = {
+    comparable: 0,
+    matched: 0,
+    mutatedComparable: 0,
+    mutatedMatched: 0,
+    notComparableMutated: 0, // kept: gate-live and its consumers read this name
+    noOutcome: 0,
+    outcomeWithoutSha: 0,
+    mismatches: [],
+  };
+  for (const e of report) {
+    if (e.error) continue;
+    const oc = outcomes.get(e.captureId);
+    if (!oc || !e.outBodySha) {
+      fidelity.noOutcome++;
+      continue;
+    }
+    if (!oc.outSha) {
+      fidelity.outcomeWithoutSha++;
+      continue;
+    }
+    if ((e.mutatedBy ?? []).length > 0) {
+      fidelity.notComparableMutated++;
+      fidelity.mutatedComparable++;
+      if (oc.outSha === e.outBodySha) fidelity.mutatedMatched++;
+      continue;
+    }
+    fidelity.comparable++;
+    if (oc.outSha === e.outBodySha) fidelity.matched++;
+    else fidelity.mismatches.push({ n: e.n, recorded: oc.outSha, replayed: e.outBodySha });
+  }
+  return fidelity;
+}
+
 // Blank lines are skipped WITHOUT consuming an index, matching the previous
 // `.filter()` — `n` must keep the meaning that `--restart-at`,
 // `--wipe-state-at` and every violation report already use.
@@ -952,28 +1005,17 @@ async function main() {
   // ratio. "0/0" is indistinguishable from "checked and clean", which is the
   // same absence-of-evidence-as-evidence-of-absence that let a broken --cold
   // reader print "No cold rewrites recorded" over 26 real records.
-  const fidelity = {
-    comparable: 0, // unmutated AND carrying a recorded outSha
-    matched: 0,
-    notComparableMutated: 0, // replay starts from empty state — legitimately differs
-    noOutcome: 0, // no outcome record: predates the feature, or no usage arrived
-    mismatches: [],
-  };
-  for (const e of report) {
-    if (e.error) continue;
-    const oc = outcomes.get(e.captureId);
-    if (!oc || !oc.outSha || !e.outBodySha) {
-      fidelity.noOutcome++;
-      continue;
-    }
-    if ((e.mutatedBy ?? []).length > 0) {
-      fidelity.notComparableMutated++;
-      continue;
-    }
-    fidelity.comparable++;
-    if (oc.outSha === e.outBodySha) fidelity.matched++;
-    else fidelity.mismatches.push({ n: e.n, recorded: oc.outSha, replayed: e.outBodySha });
-  }
+  // The mutated pair is INFORMATIONAL, never a gate: state divergence makes a
+  // mismatch there legitimate, so it cannot fail anything. It exists because
+  // on a busy session every request is mutated (insertion-normalization and
+  // tool-rewrite touch essentially all of them), so `comparable` can stay 0
+  // forever on exactly the traffic that matters — measured across all nine
+  // captures of 2026-07-29's scheduled sweep. A high mutatedMatched says the
+  // replay's reconstruction converges on the real wire bytes anyway; a
+  // permanent 0/large would be the only available hint that it models a
+  // different system, downgraded to a hint precisely because it cannot be
+  // distinguished from honest state divergence.
+  const fidelity = classifyFidelity(report, outcomes);
 
   // Canonical order invariant, reported by the extension itself: reading live
   // canonical entries in canonical order, their wire indices must be strictly
@@ -1191,8 +1233,20 @@ async function main() {
       process.stdout.write(
         `\nreplay fidelity: ${fidelity.matched}/${fidelity.comparable} comparable` +
           `  |  ${fidelity.notComparableMutated} mutated (replay starts from empty state)` +
-          `  |  ${fidelity.noOutcome} without an outcome record\n`,
+          `  |  ${fidelity.noOutcome} without an outcome record` +
+          (fidelity.outcomeWithoutSha
+            ? `  |  ${fidelity.outcomeWithoutSha} outcome predates outSha`
+            : "") +
+          "\n",
       );
+      if (fidelity.mutatedComparable > 0) {
+        // Informational: a mutated mismatch is legitimate (state divergence),
+        // so this can never fail anything — but on busy sessions it is the
+        // only fidelity signal there is, since every request is mutated.
+        process.stdout.write(
+          `  mutated, informational: ${fidelity.mutatedMatched}/${fidelity.mutatedComparable} reconstruction matched the wire\n`,
+        );
+      }
       if (fidelity.comparable === 0) {
         process.stdout.write(
           `  NOTHING COMPARABLE — this run proves nothing about replay fidelity.` +

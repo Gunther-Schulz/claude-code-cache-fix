@@ -118,3 +118,18 @@ test("nothing comparable is NOT a failure — it is an honest absence of evidenc
   assert.equal(row.fidelityMismatch, 0);
   assert.equal(rowIsClean(row), true);
 });
+
+test("mutated fidelity is recorded but INFORMATIONAL — it can never fail a row", () => {
+  // A mutated mismatch is legitimate (replay starts from empty state), so a
+  // low mutatedMatched must not fail the sweep — but on busy sessions it is
+  // the only fidelity signal there is, so losing the numbers would blind the
+  // one instrument that could notice the replay modelling a different system.
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }],
+    violations: [], safety: [], sequence: [], orderViolations: [],
+    fidelity: { comparable: 0, matched: 0, mutatedComparable: 40, mutatedMatched: 3, mismatches: [] },
+  }));
+  assert.equal(row.fidelityMutatedComparable, 40);
+  assert.equal(row.fidelityMutatedMatched, 3);
+  assert.equal(rowIsClean(row), true, "a poor mutated ratio is a hint, not a verdict");
+});
