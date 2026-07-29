@@ -853,3 +853,48 @@ test("v2 session-file merge: cache-telemetry spread writes v2 fields to sessions
     assert.equal(sessionFileContents.tools_hash_baseline, ctx.meta._thinkingSanitizeV2.tools_hash_baseline);
   });
 });
+
+
+// --- planSanitize: position independence (cross-request byte stability) ---
+//
+// Protection must be a function of the message's own shape — "is this turn's
+// terminal tool_use answered by a following tool_result" — never of its
+// distance from the tail. The two agree while the continuation IS the latest
+// assistant turn; they diverge the moment another turn lands after it, and
+// the earlier `i === latestAsst` gate then flipped a byte-identical message
+// from protected to stripped. That is a mid-history mutation the proxy
+// itself causes on every request where a continuation ages out of the tail —
+// measured before the fix: 133 cross-request violations over 563 requests on
+// one session, 76 over 169 on another, all attributed to this extension.
+//
+// v2StripSigned: true is the arm that bites — v1 only drops OMITTED thinking,
+// so a signed-thinking continuation is exactly the case the old tail gate
+// stripped once it aged out. (This test fails against the pre-fix planSanitize.)
+test("planSanitize: an answered tool-continuation stays protected after it ages out of the tail", () => {
+  const continuation = { role: "assistant", content: [realThinking(), toolUse("t9")] };
+  const asTail = [
+    { role: "user", content: [text("q")] },
+    continuation,
+    { role: "user", content: [toolResult("t9")] },
+  ];
+  // Same messages, one later exchange appended — the continuation is now
+  // mid-history and a NEWER assistant turn exists behind it.
+  const asMidHistory = [
+    ...asTail,
+    { role: "assistant", content: [text("done")] },
+    { role: "user", content: [text("next")] },
+  ];
+  const tailOut = planSanitize(asTail, { v2StripSigned: true }).messages[1];
+  const midOut = planSanitize(asMidHistory, { v2StripSigned: true }).messages[1];
+  assert.deepEqual(tailOut, continuation, "protected while latest (both gates agree here)");
+  assert.deepEqual(
+    midOut,
+    continuation,
+    "the SAME bytes must stay protected once a later turn exists — stripping here is a mid-history mutation that re-bills the whole prefix",
+  );
+  assert.equal(
+    JSON.stringify(tailOut),
+    JSON.stringify(midOut),
+    "cross-request byte stability: request N and N+1 must serialize this message identically",
+  );
+});
