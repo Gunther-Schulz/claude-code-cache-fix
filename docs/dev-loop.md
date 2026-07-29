@@ -285,7 +285,15 @@ it, acknowledge-by-commit, within the hour).
    by hand while investigating is a classification the census should emit
    — otherwise the next instance gets re-derived instead of recognized
    (precedent: `anchorDelta`, occurrence ordinals, the tools-delta kinds
-   all started as hand-derivations).
+   all started as hand-derivations). A NAMED deferral can still answer
+   the wrong question here: whether the class deserves an ALARM is
+   question 4's concern — question 3 asks only whether a classification
+   now exists by hand, and a probe that assigns kinds or counts to
+   traffic answers it YES by existing. The one valid deferral argues the
+   derivation is genuinely one-off. (Observed: the resume-boundary
+   classifier was parked with an alarm-shaped basis minutes after its
+   probe had hand-classified every capture; one operator question undid
+   the parking.)
 4. **Did the instruments ride along?** A mitigation change without its
    replay/gate change ships blind: the gate replays the SERVING config, so
    an instrument that lags the extension verifies a pipeline nobody runs
@@ -318,6 +326,16 @@ Two rules, both learned the expensive way:
    was built from a remembered number ("canon 92, live 84") that came from a
    *different* bug, already fixed. Re-derive which change produced an
    observation before building on it.
+
+   **A bite's expected value comes from the invariant's DEFINITION, never
+   from the implementation or the reasoning that produced it** — an
+   expectation with the same parentage as the code pins the bug it should
+   catch. Write the definitional comment first; the assertion follows from
+   it. (Observed: the succession bite's first draft asserted a
+   one-shot-sidecar handback as a correct succession — same mental model
+   as the code's missing first-appearance condition; writing the
+   definition sentence is what contradicted the assertion, and the
+   phantom-minting bug fell out of the correction.)
 
 3. **The corpus is blind along its own curation axis.** `harvest.mjs` selects
    pairs by *structural novelty* and sanitises them, so the committed fixtures
