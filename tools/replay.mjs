@@ -441,6 +441,9 @@ export function compactEntry(e) {
     // throwaway script before it lived here.
     inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
+    // Byte length per FORWARDED message, the output-side twin of inBytes —
+    // what lets rebilledOutBytes be priced without retaining a message body.
+    outBytes: outMsgs.map((m) => JSON.stringify(m).length),
     inSem: semanticIds(inMsgs),
     inBlocks: inMsgs.map(blockUnits),
     msgs: inMsgs.length,
@@ -618,6 +621,48 @@ export function buildTrace(entries) {
 // with events no mitigation should touch.
 const MITIGABLE = new Set(["splice/insert-mid", "append-after-change", "reorder-only"]);
 
+// `mitigated` above is an INPUT-side fact and nothing more: it trusts
+// insertion-normalization's own self-report that it re-serialised CC's
+// splice into an append, and prices the miss from CC's OWN divergence
+// index (`prev.inHash` vs `cur.inHash`). It never looks at what we actually
+// forwarded. That is a real, narrower claim than "the cache was preserved" —
+// an extension can correctly stabilise the shared input prefix (earning
+// `mitigated: true`, `rebilledBytes: 0`) and still choose to forward the
+// new content by SPLICING it mid-array instead of appending it at the tail.
+// The API keys its cache on the longest byte-identical PREFIX of the
+// message array, so a mid-array splice moves that boundary earlier and
+// re-bills everything after it — the exact cost `mitigated` claims was
+// avoided. Measured: capture s-633915a8, pair n=26->28 — input-side
+// `mitigated: true`, `rebilledBytes: 0`, while the forwarded array kept a
+// byte-stable prefix through index 30 and then spliced a standalone system
+// message in at index 31, re-billing everything from there (outcome record:
+// cacheRead 15424 / cacheCreation 124025 — a splice/insert-mid signature on
+// the WIRE, invisible to the input-only check).
+//
+// `outputForm` names that OUTPUT-side relation directly, reusing the same
+// census primitive already used for input (`censusIds`/`firstDivergence`)
+// against `outHash`/`outBytes` instead of `inHash`/`inBytes` — never a new
+// notion of identity, per "never hand-roll identity in a probe":
+//   "append"     — cur's forwarded array is a strict positional prefix
+//                  extension of prev's (censusIds "identical" /
+//                  "append-only"): nothing already sent moved position, so
+//                  the cache's longest-identical-prefix boundary is
+//                  unaffected. `outputPreserved` is exactly this case.
+//   "splice@N"   — censusIds "splice/insert-mid" on the output arrays: every
+//                  message we already forwarded still exists, but new
+//                  content lands BEFORE the last surviving one, at index N —
+//                  content shifted, cache broken from N on even though
+//                  nothing was dropped. This is the class `mitigated: true`
+//                  can hide, because insertion-normalization's own
+//                  self-report is about the INPUT reconstruction, not about
+//                  where the result got serialised in the output.
+//   "edit@N"     — any other non-append output relation (reorder, drop,
+//                  replace) with the output arrays first diverging at N,
+//                  before the tail.
+// `mitigated` keeps its existing input-side meaning unchanged; a pair can
+// be `mitigated: true` and `outputPreserved: false` at once, and that
+// combination — not `mitigated` alone — is what determines whether the
+// cache was actually preserved.
 export function findMitigationGaps(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -644,6 +689,24 @@ export function findMitigationGaps(entries) {
       const inDiv = firstDivergence(prev.inHash, cur.inHash);
       const from = inDiv === null ? cur.inBytes.length : inDiv;
       const rebilled = cur.inBytes.slice(from).reduce((a, b) => a + b, 0);
+
+      // Output-side classification — see the block comment above.
+      const outKind = censusIds(prev.outHash, cur.outHash);
+      const outDiv = firstDivergence(prev.outHash, cur.outHash);
+      let outputForm;
+      if (outKind === "identical" || outKind === "append-only") {
+        outputForm = "append";
+      } else if (outKind === "splice/insert-mid") {
+        outputForm = `splice@${outDiv}`;
+      } else {
+        outputForm = `edit@${outDiv}`;
+      }
+      const outputPreserved = outputForm === "append";
+      const outFrom = outDiv === null ? cur.outBytes.length : outDiv;
+      const rebilledOutBytes = outputPreserved
+        ? 0
+        : cur.outBytes.slice(outFrom).reduce((a, b) => a + b, 0);
+
       rows.push({
         n: cur.n,
         prevN: prev.n,
@@ -653,6 +716,9 @@ export function findMitigationGaps(entries) {
         action: cur.action,
         resetReason: cur.resetReason,
         rebilledBytes: mitigated ? 0 : rebilled,
+        outputForm,
+        outputPreserved,
+        rebilledOutBytes,
       });
     }
   }
@@ -1582,6 +1648,24 @@ async function main() {
       const hit = mitigation.filter((m) => m.mitigated).length;
       const pct = total ? ((100 * hit) / total).toFixed(0) : "--";
       process.stdout.write(`\nmitigation: ${hit}/${total} mitigable events absorbed (${pct}%)\n`);
+      // `mitigated` is input-side only (see the definitional comment on
+      // findMitigationGaps) — a pair can pass it and still splice on the
+      // OUTPUT, moving the cache's prefix boundary earlier than the input
+      // check ever sees. Flagged separately from the "missed" list below
+      // because these pairs are NOT misses by the input-side count.
+      const inputMitigatedOutputSpliced = mitigation.filter(
+        (m) => m.mitigated && !m.outputPreserved,
+      );
+      if (inputMitigatedOutputSpliced.length) {
+        process.stdout.write(
+          `  ${inputMitigatedOutputSpliced.length} pair(s) input-mitigated but NOT output-preserved:\n`,
+        );
+        for (const m of inputMitigatedOutputSpliced) {
+          process.stdout.write(
+            `    n=${m.prevN}->${m.n} ${m.kind} ${m.outputForm} [INPUT-MITIGATED, OUTPUT-SPLICED] ~${(m.rebilledOutBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
+          );
+        }
+      }
       if (total > hit) {
         const missedBytes = mitigation.reduce((a, m) => a + m.rebilledBytes, 0);
         process.stdout.write(`  passed through: ~${(missedBytes / 1e6).toFixed(1)} MB re-billed\n`);
