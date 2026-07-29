@@ -258,7 +258,14 @@ exercised.
 MANDATE (operator, 2026-07-29). Every piece of work here — a fix, an
 investigation, a probe, a doc — answers these four before it closes. Each
 question has a same-day precedent where skipping it cost real time; "no"
-is an acceptable answer, silence is not.
+is an acceptable answer, silence is not — and a "no" or "not yet" must
+NAME the missing evidence or design element, which converts it into a
+spec. An unnamed deferral is drift, and a deferral justified by a cited
+rule that collapses under one question was a rationalization, not a
+reason (same day: a trend alarm was declined citing red-before-build,
+which synthetic bites already satisfied; naming the real concern —
+false-fires on deliberate changes — produced the design that dissolved
+it, acknowledge-by-commit, within the hour).
 
 1. **Can this be mechanized?** Interpretation stays human; everything
    around it is machinery — the check, the annotation, the alarm, the
