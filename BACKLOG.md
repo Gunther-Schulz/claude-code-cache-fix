@@ -72,6 +72,21 @@ bullet, evidence pointer included.
   re-anchors. Deployment coupling: proxy/** -> dotfiles pin bump +
   restart at a stated session boundary + gate run (dev-loop).
 
+- **READY — replay warns on gateless runs of gated captures**
+  (2026-07-29; serialized behind the suppress build on
+  tools/replay.mjs). Design: replay.mjs already parses the boot
+  record's `gates`; when the capture declares gates and none of them
+  is set in the effective env, print one unmissable warning line
+  ("replaying DEFAULT gates; this traffic was served with N gates —
+  pass --env or use gate-live") on stderr and stamp the census
+  header with the gate source. NOT a hard fail (deliberate gateless
+  replays are legitimate A/B runs). Verifier: bite — gated capture +
+  empty env → warning present; same capture with gates passed → no
+  warning. Grounding: the same operator-side instrument error three
+  times in ONE day (default-gates census booked a wrong matrix
+  verdict; two verification reruns repeated it) with the dev-loop
+  warning loaded each time — prose exhausted, mechanize the tell.
+
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
 - **Orphan telemetry consumers (Q4).** Alarm files written by ON gates
