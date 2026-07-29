@@ -44,8 +44,15 @@ bullet, evidence pointer included.
   real behavior is restore-the-pin AND forward the duplicate — a
   splice at 31 that re-billed 124k while carrying the reminder
   twice. (a) DONE: census blockMigration annotation (5cdf51b).
-  (b) IN FLIGHT: output-side metric (outputForm/outputPreserved/
-  rebilledOutBytes; sonnet dispatch on tools/replay.mjs). (c) READY,
+  (b) DONE: output-side metric (3db056b, pushed; dispatcher-verified
+  under boot-record gates — flags exactly n=26->28, nowhere else in
+  1190 requests). Residuals from its report, accepted with names:
+  the real-pair test SKIPs (not fails) once the capture rotates —
+  third motivating instance for "Harvest pins instances" above; and
+  the metric newly exposes FIVE more output-spliced pairs (~0.6 MB,
+  ordinals in the mitigation report) — classify against
+  blockMigration after (c) lands, they may be a different mechanism.
+  (c) READY,
   serialized behind (b) on tools/replay.mjs ownership — the BUILD:
   in insertion-normalization's positional rebuild, suppress the
   migrated standalone message when its content equals the pinned
