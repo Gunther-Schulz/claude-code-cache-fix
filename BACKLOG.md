@@ -37,24 +37,33 @@ bullet, evidence pointer included.
   phase-3 candidate, cost-positive only if the operator returns after
   idle; needs idle-detection + opt-in. Unchanged.
 
-- **Reminder-swap (#76606): mitigation EXISTS and is deployed —
-  remaining question is live-fidelity** (rewritten 2026-07-29 after
-  the absorb probe; history in the matrix row). (a) DONE: census
-  blockMigration annotation shipped and pushed (5cdf51b; red-tested;
-  finds four instances in the day's capture). (b) REFRAMED, READY —
-  the mitigation (cdf3179 positional rebuild) absorbs the shape in
-  replay under serving gates but did NOT absorb the 16:52Z live
-  event (124k re-billed on the wire), while three same-shape
-  events the same day produced no cold event. Named check,
-  dispatchable: compare replay's n=28 output bytes against the
-  session-mirror's wire request at indices 30/31 (mirror:
-  ~/.claude/session-mirrors/633915a8-*/); if replay normalized
-  where the wire diverged, enumerate state differences — concurrent
-  second session (cross-key interference), pin establishment at
-  n<=26, reset history. No new mitigation is designed until this
-  fidelity gap is explained (the machinery may be fine and the
-  trigger conditional). Instance-pinning still rides "Harvest pins
-  instances" above.
+- **Reminder-swap (#76606): DECIDED — pin-and-suppress (operator
+  "B", 2026-07-29 evening).** Resolution history: fidelity probe
+  proved replay byte-faithful to the wire; the "mitigated:true" had
+  been the METRIC's blindness (input-side only), and the pipeline's
+  real behavior is restore-the-pin AND forward the duplicate — a
+  splice at 31 that re-billed 124k while carrying the reminder
+  twice. (a) DONE: census blockMigration annotation (5cdf51b).
+  (b) IN FLIGHT: output-side metric (outputForm/outputPreserved/
+  rebilledOutBytes; sonnet dispatch on tools/replay.mjs). (c) READY,
+  serialized behind (b) on tools/replay.mjs ownership — the BUILD:
+  in insertion-normalization's positional rebuild, suppress the
+  migrated standalone message when its content equals the pinned
+  block after wrapper-normalization (the census's unwrap + string->
+  block fold; the raw bytes differ by the <system-reminder> wrapper
+  by observation); genuine change (normalized bytes differ) -> no
+  suppression, forward + reset per the existing rule; suppression
+  state rides the conversation sub-key; declared exemption in the
+  live output-guard AND replay's safety gate (message-count change
+  is deliberate — the tool_addition-announcement pattern); one
+  event line per suppression to the insertion event log; red-green
+  on the REAL pair: replaying the day's capture under new code must
+  turn n=26->28 into outputPreserved:true / rebilledOut 0 with the
+  safety gate green. Known residuals, accepted: a proxy restart
+  drops suppression pins -> one bust per active migration at the
+  boundary (row 3, stated at restart); post-restart first-seen form
+  re-anchors. Deployment coupling: proxy/** -> dotfiles pin bump +
+  restart at a stated session boundary + gate run (dev-loop).
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
