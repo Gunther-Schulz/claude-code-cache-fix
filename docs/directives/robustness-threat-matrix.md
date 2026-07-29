@@ -315,7 +315,60 @@ unrelated setup. Upgrades the leading candidate from "pattern to check
 first" to "mechanism reported in the wild"; still not a measured root cause
 for event 14 specifically.
 
+SECOND corroboration, sharper (issue sweep 2026-07-29):
+anthropics/claude-code#78660 names the mechanism outright — the "task tools
+haven't been used recently" nudge, fired mid-tool-loop, ANCHORS TO THE LAST
+HUMAN MESSAGE instead of appending after the pending tool_result, editing
+deep into the cached prefix. That nudge is the exact reminder text observed
+at index 768, and anchoring-to-last-human explains both the position and the
+swap-in-place shape. Row 4's open question ("what is CC swapping at those
+indices") now has a reported answer; remaining verification is matching our
+replace/edit census positions against last-human-message indices in the
+same requests.
+
 Mechanised so it cannot silently rot again: `findEditPositions` in
 tools/replay.mjs reports the tail/mid split and prices the mid-history
 population on every `--census` run, and `tools/gate-live.mjs` runs daily.
 Row 4's disposition is now a measurement, not a memory.
+
+
+## External issue sweep vs. this stack — coverage matrix (2026-07-29)
+
+A sweep of anthropics/claude-code issues (33 included, 25 read in full;
+report: sonnet dispatch, cc-cache-invalidation-report) deduplicated to ten
+cause classes. Coverage verdicts, each measured where possible:
+
+- COVERED — tools[] mutation (#81967, #75142, #63930-A, #63792):
+  deferred-tool-rewrite; announcement on opus/fable, safe degrade elsewhere.
+- COVERED — historical byte drift (#48734 stochastic trailing newline,
+  #76606, #40524, #81077 relocation): canonical identity + volatile pin;
+  measured 0 re-billed bytes on splice/insert-mid.
+- COVERED (mechanism now attributed) — mid-history nudge anchoring
+  (#78660, #68140, #80604): row 4 above.
+- NEUTRALIZED BY CONFIG — subagent 5-minute TTL pinning (#74318): outcome
+  records across all captures show 100% of cache writes on the 1h tier,
+  0 tokens on 5m — ttl-management's env forcing already covers it.
+- ABSENT ON THIS SETUP — hidden duplicate request (#78420, v2.1.209+):
+  probed 2026-07-29 across 3,446 requests in seven captures; adjacent
+  byte-identical bodies: one instance total (retry-shaped), no 2x pattern.
+- PARTIALLY COVERED — thinking-block classes (#76253 fable prior-turn
+  drops, #69568 resume signature replay): position-independence fixed
+  (#279-equivalent); #76253 not observed on a full fable day (zero
+  preventable busts) — either absorbed by pinning or version-inactive;
+  #69568's droppable-signatures-on-resume maps to v2StripSigned, built but
+  off. Census question stands for both.
+- NOT COVERED, CC-must-fix — resume/fork boundary classes (#51764 measured
+  41-99pp hit-rate delta; #77306 session-id inside system-prompt scratchpad
+  path; #78720 git status in system prompt; #65805 dropped [1m] modifier;
+  #44724 subagent identity string; #44045 skill_listing scatter; #47756
+  /clear artifacts): each embeds genuinely-new content in the prefix or
+  changes identity keys; a proxy rewrite would lie to the model about real
+  state. Mitigation belongs upstream; our exposure is bounded (resume
+  boundaries are honest resets here).
+- NOT MITIGABLE — version-correlated prompt growth (#46917, #47528):
+  real content changes.
+- EXPOSURE NOTED — >200K cold-context ECONNRESET (#79989): this fleet runs
+  the 1m beta at 700k+ contexts; if a session ever hard-fails on every
+  request after going cold, this is the first hypothesis (a forward-path
+  retry/backoff would be the mitigation candidate).
+- N/A — usage hygiene (#69468): tracked by worktime/statusline already.
