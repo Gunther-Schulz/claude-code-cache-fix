@@ -35,7 +35,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { readdir, stat, writeFile, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import { homedir } from "node:os";
+import { homedir, hostname } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -88,14 +88,29 @@ function productionEnv() {
   return { env, source: env.length ? "cache-fix-proxy.service" : "empty" };
 }
 
+// The heap cap on replay children is a CHECK, not a tuning knob. A replay
+// that truly streams needs memory only for its compact per-request retention
+// (~15% of capture bytes; 0.61 GB measured on the 1.5 GB capture) — nowhere
+// near this cap even at the 8 GB rotation ceiling (~1.2 GB projected). A
+// replay that silently regressed into retaining its input needs a multiple
+// of the file size and dies against the cap, turning the regression into an
+// error row that fails the sweep the same day instead of an OOM years later.
+// Proven red on the real defect: the pre-8b7ed9e replay OOMs under this cap
+// in 5 s on the 1.5 GB capture; the fixed one finishes with 3× headroom.
+export const CHILD_HEAP_CAP_MB = 2048;
+
+export function replayArgs(file, env) {
+  const args = [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, REPLAY, file, "--json"];
+  for (const kv of env) args.push("--env", kv);
+  return args;
+}
+
 // A capture being written to right now is not a defect and not a skip: the
 // gate reads a prefix of it, which is a valid corpus. Recorded so a reader can
 // tell a short run from a truncated one.
 function runReplay(file, env) {
   return new Promise((resolve) => {
-    const args = [REPLAY, file, "--json"];
-    for (const kv of env) args.push("--env", kv);
-    const child = spawn("node", args, {
+    const child = spawn("node", replayArgs(file, env), {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
@@ -219,7 +234,9 @@ async function main() {
     version: 1,
     started,
     finished: new Date().toISOString(),
-    host: process.env.HOSTNAME || "unknown",
+    // os.hostname(), not $HOSTNAME: systemd user units export no HOSTNAME,
+    // so the env var wrote "unknown" into every scheduled run's status file.
+    host: hostname(),
     gates: prodEnv,
     gateSource: envSource,
     captures: rows.length,

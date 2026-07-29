@@ -14,7 +14,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { summarise, rowIsClean } from "../tools/gate-live.mjs";
+import { summarise, rowIsClean, replayArgs, CHILD_HEAP_CAP_MB } from "../tools/gate-live.mjs";
 
 const json = (o) => ({ code: 0, out: JSON.stringify(o), err: "" });
 
@@ -88,6 +88,22 @@ test("BITE — a fidelity mismatch fails the row, whatever the four gates say", 
   }));
   assert.equal(row.fidelityMismatch, 1);
   assert.equal(rowIsClean(row), false, "a mismatch invalidates the other numbers");
+});
+
+// The cap is the memory-regression check: a replay that retains its input
+// dies against it (proven — the pre-8b7ed9e replay OOMs under it in 5 s on a
+// 1.5 GB capture) and becomes an error row. Dropping the flag would disarm
+// that check silently; the sweep would go back to passing on a replay whose
+// memory grows with the corpus, until the machine's own ceiling ends it.
+test("replay children run under the heap cap, before the script path", () => {
+  const args = replayArgs("c.jsonl", ["CACHE_FIX_PREFIXDIFF=1"]);
+  const capIdx = args.indexOf(`--max-old-space-size=${CHILD_HEAP_CAP_MB}`);
+  assert.ok(capIdx >= 0, "heap cap flag missing from child argv");
+  assert.ok(
+    capIdx < args.findIndex((a) => a.endsWith("replay.mjs")),
+    "cap must precede the script path or node passes it to the script instead",
+  );
+  assert.ok(args.includes("CACHE_FIX_PREFIXDIFF=1"), "gate env must survive");
 });
 
 test("nothing comparable is NOT a failure — it is an honest absence of evidence", () => {
