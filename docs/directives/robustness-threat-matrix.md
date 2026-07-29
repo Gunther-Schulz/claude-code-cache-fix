@@ -361,17 +361,30 @@ cause classes. Coverage verdicts, each measured where possible:
 - RE-OPENED 2026-07-29 — hook-reminder re-render (#76606), first
   in-house instance: s-633915a8 n=26->28 (16:52:11Z), PreToolUse
   additionalContext removed from the tool_result at index 30 and
-  re-inserted as a standalone system message at index 31; census
-  splice/insert-mid, mitigation kind null, passed through — ~65 kB
-  delta, 124k tokens re-billed (worktime ledger 16:52:58Z, cause
-  'other'). The earlier "measured 0 re-billed bytes on
-  splice/insert-mid" verdict predated this event and did not cover its
-  compound shape (removal + insertion in one pair). Why
-  insertion-normalization did not absorb it is UNVERIFIED — candidate:
-  the restored-block safety constraint above; the check is replaying
-  the pair under --trace with the serving gates before any cause is
-  stated. Follow-ups in BACKLOG.md (census block-migration annotation;
-  mitigation design).
+  re-inserted as a standalone system message at index 31; ~65 kB
+  delta, 124k tokens re-billed live (worktime ledger 16:52:58Z,
+  cause 'other'; prefix-diff cause=messages@31(system) on the wire).
+  CORRECTED same day (sonnet probe + fingerprint check): the earlier
+  "mitigation kind null, passed through" reading came from a replay
+  under DEFAULT gates — the dev-loop's replay-the-serving-config
+  violation, instrument error; under the capture's own boot-record
+  gates the pair replays MITIGATED (normalized, 0 re-billed), the
+  one mitigated row of 7. The serving process ran current code
+  (source-fingerprint 8349b0e665c8 = /health = disk; note the
+  fingerprint is sha256-content, NOT a git tree — comparing it to
+  git hashes is the hand-rolled-identity error, made twice before
+  being checked). cdf3179's positional canonical rebuild names this
+  exact mechanism and absorbs it offline. OPEN, named precisely:
+  live-unabsorbed vs replay-absorbed — a replay-fidelity gap; prime
+  suspects: per-conversation state divergence (live proxy served a
+  concurrent second session; cross-key interference is a known
+  collision class) and pin state at n=26. Evidence for the state
+  hypothesis: census (5cdf51b) finds FOUR block migrations in this
+  session's capture, only ONE of which produced a worktime cold
+  event — same shape, different live outcomes. Check: compare
+  replay's n=28 output against the session-mirror's wire bytes at
+  indices 30/31. Census annotation shipped: blockMigration on splice
+  and edit rows (5cdf51b, red-tested, fires on all four).
 - COVERED (mechanism now attributed) — mid-history nudge anchoring
   (#78660, #68140, #80604): row 4 above.
 - NEUTRALIZED BY CONFIG — subagent 5-minute TTL pinning (#74318): outcome

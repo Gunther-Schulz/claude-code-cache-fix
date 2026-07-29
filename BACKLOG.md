@@ -37,23 +37,24 @@ bullet, evidence pointer included.
   phase-3 candidate, cost-positive only if the operator returns after
   idle; needs idle-detection + opt-in. Unchanged.
 
-- **Reminder-swap (#76606) measured in-house, unmitigated — two named
-  pieces** (evidence: s-633915a8 n=26->28 @2026-07-29T16:52:11Z, 124k
-  re-billed; matrix coverage line RE-OPENED same day). (a) READY —
-  census block-migration annotation: classify "same bytes left an
-  inline block and appeared as a standalone message (or reverse)" on
-  splice/edit pairs, beside anchorDelta; the two session-scratchpad
-  extractors (splice-extract/splice-context, 2026-07-29) are the
-  prototype; done-criterion: annotation emitted on the harvested shape
-  and red-tested by mutating it; also fixes harvest novelty blindness
-  to the compound shape (this event harvested 0-novel). (b) PARKED —
-  mitigation design (may the proxy re-render CC's new shape back to
-  the cached shape?): blocked on the UNVERIFIED absorb question
-  (replay the pair under --trace, serving gates — which branch
-  declined) and entangled with the restored-block safety incident
-  (out != in); design after that answer exists. Instance-pinning of
-  this event's bytes rides the existing "Harvest pins instances" item
-  above (second motivating instance).
+- **Reminder-swap (#76606): mitigation EXISTS and is deployed —
+  remaining question is live-fidelity** (rewritten 2026-07-29 after
+  the absorb probe; history in the matrix row). (a) DONE: census
+  blockMigration annotation shipped and pushed (5cdf51b; red-tested;
+  finds four instances in the day's capture). (b) REFRAMED, READY —
+  the mitigation (cdf3179 positional rebuild) absorbs the shape in
+  replay under serving gates but did NOT absorb the 16:52Z live
+  event (124k re-billed on the wire), while three same-shape
+  events the same day produced no cold event. Named check,
+  dispatchable: compare replay's n=28 output bytes against the
+  session-mirror's wire request at indices 30/31 (mirror:
+  ~/.claude/session-mirrors/633915a8-*/); if replay normalized
+  where the wire diverged, enumerate state differences — concurrent
+  second session (cross-key interference), pin establishment at
+  n<=26, reset history. No new mitigation is designed until this
+  fidelity gap is explained (the machinery may be fine and the
+  trigger conditional). Instance-pinning still rides "Harvest pins
+  instances" above.
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
