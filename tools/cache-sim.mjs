@@ -62,13 +62,13 @@
 // here — past Node's ~512 MB max string length, which threw outright on the
 // very traffic this tool exists to price.
 
-import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+
+import { readLines } from "./read-lines.mjs";
 
 const CHARS_PER_TOKEN = 4;
 
@@ -232,8 +232,11 @@ async function main() {
 
   const byKey = new Map();
   const rows = [];
-  const rl = createInterface({ input: createReadStream(file), crlfDelay: Infinity });
-  for await (const line of rl) {
+  // readLines, not readline: with --pipeline this loop awaits runOnRequest
+  // per line, and readline's push-based iterator buffers the whole remaining
+  // file during those awaits — the same defect measured at 3.27 GB in
+  // replay.mjs (see tools/read-lines.mjs).
+  for await (const line of readLines(file)) {
     if (!line.trim()) continue;
     let rec;
     try {

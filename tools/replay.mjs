@@ -59,12 +59,12 @@
 // is skipped rather than reported as churn (runbook's known artifact).
 
 import { mkdtemp, rm } from "node:fs/promises";
-import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
+
+import { readLines } from "./read-lines.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -770,10 +770,15 @@ function parseArgs(argv) {
 // Blank lines are skipped WITHOUT consuming an index, matching the previous
 // `.filter()` — `n` must keep the meaning that `--restart-at`,
 // `--wipe-state-at` and every violation report already use.
+//
+// readLines, not readline.createInterface: the consumer awaits per request,
+// and readline's push-based iterator buffers the entire remaining file during
+// those awaits — measured 3.27 GB peak on a 1.5 GB capture while this
+// function was called "streaming". tools/read-lines.mjs carries the measured
+// failure and the bite test pinning the pull-based mechanism.
 export async function* readCapture(path) {
-  const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
   let n = 0;
-  for await (const line of rl) {
+  for await (const line of readLines(path)) {
     if (!line.trim()) continue;
     yield [n++, line];
   }

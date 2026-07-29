@@ -57,14 +57,13 @@
 // and parameter docs, and no message-shape class depends on them.
 
 import { readdir, readFile, writeFile, stat, mkdir } from "node:fs/promises";
-import { createReadStream } from "node:fs";
-import { createInterface } from "node:readline";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 import { homedir, hostname } from "node:os";
 
 import { censusPair } from "./replay.mjs";
+import { readLines } from "./read-lines.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
@@ -215,8 +214,12 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
   const prevByConv = new Map(); // conversation id -> { rec, index }
   const picks = [];
   let count = 0;
-  const rl = createInterface({ input: createReadStream(path), crlfDelay: Infinity });
-  for await (const line of rl) {
+  // readLines, not readline: this loop body is currently await-free, so
+  // readline happened not to run ahead here — but one await added to the body
+  // would silently buffer the whole remaining file (see tools/read-lines.mjs
+  // for the measured failure in replay.mjs). Same reader everywhere, so the
+  // property is structural rather than an accident of the loop body.
+  for await (const line of readLines(path)) {
     if (!line.trim()) continue;
     let rec;
     try {
