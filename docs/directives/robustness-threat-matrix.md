@@ -357,8 +357,21 @@ cause classes. Coverage verdicts, each measured where possible:
 - COVERED — tools[] mutation (#81967, #75142, #63930-A, #63792):
   deferred-tool-rewrite; announcement on opus/fable, safe degrade elsewhere.
 - COVERED — historical byte drift (#48734 stochastic trailing newline,
-  #76606, #40524, #81077 relocation): canonical identity + volatile pin;
-  measured 0 re-billed bytes on splice/insert-mid.
+  #40524, #81077 relocation): canonical identity + volatile pin.
+- RE-OPENED 2026-07-29 — hook-reminder re-render (#76606), first
+  in-house instance: s-633915a8 n=26->28 (16:52:11Z), PreToolUse
+  additionalContext removed from the tool_result at index 30 and
+  re-inserted as a standalone system message at index 31; census
+  splice/insert-mid, mitigation kind null, passed through — ~65 kB
+  delta, 124k tokens re-billed (worktime ledger 16:52:58Z, cause
+  'other'). The earlier "measured 0 re-billed bytes on
+  splice/insert-mid" verdict predated this event and did not cover its
+  compound shape (removal + insertion in one pair). Why
+  insertion-normalization did not absorb it is UNVERIFIED — candidate:
+  the restored-block safety constraint above; the check is replaying
+  the pair under --trace with the serving gates before any cause is
+  stated. Follow-ups in BACKLOG.md (census block-migration annotation;
+  mitigation design).
 - COVERED (mechanism now attributed) — mid-history nudge anchoring
   (#78660, #68140, #80604): row 4 above.
 - NEUTRALIZED BY CONFIG — subagent 5-minute TTL pinning (#74318): outcome

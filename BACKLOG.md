@@ -37,6 +37,24 @@ bullet, evidence pointer included.
   phase-3 candidate, cost-positive only if the operator returns after
   idle; needs idle-detection + opt-in. Unchanged.
 
+- **Reminder-swap (#76606) measured in-house, unmitigated — two named
+  pieces** (evidence: s-633915a8 n=26->28 @2026-07-29T16:52:11Z, 124k
+  re-billed; matrix coverage line RE-OPENED same day). (a) READY —
+  census block-migration annotation: classify "same bytes left an
+  inline block and appeared as a standalone message (or reverse)" on
+  splice/edit pairs, beside anchorDelta; the two session-scratchpad
+  extractors (splice-extract/splice-context, 2026-07-29) are the
+  prototype; done-criterion: annotation emitted on the harvested shape
+  and red-tested by mutating it; also fixes harvest novelty blindness
+  to the compound shape (this event harvested 0-novel). (b) PARKED —
+  mitigation design (may the proxy re-render CC's new shape back to
+  the cached shape?): blocked on the UNVERIFIED absorb question
+  (replay the pair under --trace, serving gates — which branch
+  declined) and entangled with the restored-block safety incident
+  (out != in); design after that answer exists. Instance-pinning of
+  this event's bytes rides the existing "Harvest pins instances" item
+  above (second motivating instance).
+
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
 - **Orphan telemetry consumers (Q4).** Alarm files written by ON gates
