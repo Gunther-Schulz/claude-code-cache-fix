@@ -253,6 +253,40 @@ Mechanised on the dotfiles side: `bootstrap/doctor.py` enumerates its own
 test, so a new verdict cannot be added without its could-not-verify case being
 exercised.
 
+## The closing gate: four questions before any proxy work is done
+
+MANDATE (operator, 2026-07-29). Every piece of work here — a fix, an
+investigation, a probe, a doc — answers these four before it closes. Each
+question has a same-day precedent where skipping it cost real time; "no"
+is an acceptable answer, silence is not.
+
+1. **Can this be mechanized?** Interpretation stays human; everything
+   around it is machinery — the check, the annotation, the alarm, the
+   EVIDENCE DELIVERY. The tell remains the throwaway probe: row 4's verdict
+   came from a 30-line matcher that became `anchorDelta` the same day, and
+   the byte-extraction friction that stalled the row for a day became the
+   far-from-anchor excerpt pass. If the answer is "it needs judgment", ask
+   again about the part BELOW the judgment: delivering the inputs to the
+   judgment is always mechanizable.
+2. **Is the evidence harvestable?** Captures rotate on a quadratic clock;
+   a finding that rests on volatile bytes is a finding with an expiry date.
+   If the claim would be unverifiable after rotation, snapshot what proves
+   it — sanitized, via the harvest path — before closing (precedent: the
+   growth-step spec exists because a baseline step's explaining diff dies
+   with the capture).
+3. **Does the census need a new class or annotation?** A class you named
+   by hand while investigating is a classification the census should emit
+   — otherwise the next instance gets re-derived instead of recognized
+   (precedent: `anchorDelta`, occurrence ordinals, the tools-delta kinds
+   all started as hand-derivations).
+4. **Did the instruments ride along?** A mitigation change without its
+   replay/gate change ships blind: the gate replays the SERVING config, so
+   an instrument that lags the extension verifies a pipeline nobody runs
+   (precedent: the day every gate run exercised defaults while production
+   ran eleven gates). New state, new record fields, new gates — each lands
+   with its replay handling, its ledger declaration, and its three-answer
+   doctor verdict in the same change.
+
 ## Adding a check
 
 Two rules, both learned the expensive way:
