@@ -135,6 +135,37 @@ A finding survives this and it is real: at index 4, request 44 carried an
 injected `tool_addition` block that request 47 did not. That is a genuine
 self-inflicted bust, and it was worth being sure before saying so.
 
+## "Streams" is a claim about a mechanism, not an API choice
+
+The capture read was fixed for scale twice and was still O(file) the third
+time. `readFile` → RangeError (found 2026-07-28); per-entry retention →
+compactEntry (same day, "the wall had only moved"); and then readline's async
+iterator, which reads push-based and buffers every line the consumer has not
+taken yet. The replay awaits per request, so during each await the queue grew
+— measured 2026-07-29: 1.2 GB held after 25 consumed lines, the entire
+remaining file (~2.3 GB as strings) by line 75, a 3.27 GB peak wearing a
+comment that said "streamed, never slurped".
+
+Three things worth keeping from the episode:
+
+- **Verify the mechanism, not the API shape.** "We use a stream now" was true
+  and irrelevant — reading happened at disk speed regardless of consumption.
+  The content question is `bytesRead` against bytes consumed, and it is
+  cheap: the read-lines bite test asks exactly that and went red on line 3
+  against the readline shape.
+- **A probe must reproduce the consumer's YIELD behaviour, not just its
+  cost.** The first probe simulated per-line work with a synchronous
+  busy-wait: the event loop never turned, the stream could not run ahead, and
+  the probe reported the defect absent. Swapping the busy-wait for
+  `await sleep(40)` — same delay, one yield — showed 2.3 GB. A slow consumer
+  and an *awaiting* consumer are different programs to a push-based source.
+- **A recurring failure class earns a resource cap as its standing check.**
+  After the third wall, the fix stopped being only code: gate-live now runs
+  every replay child under `--max-old-space-size=2048`. A replay that truly
+  streams needs ~15% of capture bytes; one that regressed into retaining its
+  input dies against the cap and fails the sweep the same day, whatever the
+  fourth wall turns out to be made of.
+
 ## Never hand-roll identity in a probe
 
 Twice on 2026-07-28 a throwaway probe reached a wrong conclusion because it
