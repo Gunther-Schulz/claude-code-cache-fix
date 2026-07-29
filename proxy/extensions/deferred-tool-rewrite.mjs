@@ -107,17 +107,36 @@ import { createHash } from "node:crypto";
 //                              system content; this model does not" — the
 //                              probe surfaced the CAPABILITY the beta gates
 //                              on, which the sonnet error never named.
-//   claude-fable-5   UNKNOWN   probe 429s while a fable session is streaming
-//                              (concurrent big-model cap); run
-//                              `node tools/probe-tool-addition.mjs claude-fable-5`
-//                              from an idle moment. Until then it degrades
-//                              safely: new tools go out in tools[] (one
-//                              cache bust), never a 400.
-const TOOL_ADDITION_MODELS = ["claude-opus-5"];
+//   claude-fable-5   ACCEPTED  live probe 2026-07-29, session c05a754c: a
+//                              disposable `claude -p` run through a throwaway
+//                              proxy (CACHE_FIX_TOOL_ADDITION_EXTRA) injected
+//                              the announcement for a mid-run ToolSearch load;
+//                              production's capture holds the block at
+//                              messages[4], the forwarded body hash matches
+//                              the recorded outSha byte-for-byte, and the
+//                              outcome record shows the API streamed a 200.
+//                              (Direct-API probes 429 on this subscription for
+//                              ALL big models — hand-built OAuth requests are
+//                              refused regardless of quota, so the through-CC
+//                              path is the only working probe for them;
+//                              haiku's direct probe worked because CC itself
+//                              sends it free-form utility traffic.)
+const TOOL_ADDITION_MODELS = ["claude-opus-5", "claude-fable-5"];
 
+// CACHE_FIX_TOOL_ADDITION_EXTRA: comma-separated additional prefixes,
+// read per call like every gate. It exists for ONE purpose — the directive's
+// live acceptance probe: a throwaway proxy instance sets it so a disposable
+// real session can carry the announcement to a candidate model without
+// touching the production allowlist. It is never set in the service unit;
+// an ACCEPTED result graduates to TOOL_ADDITION_MODELS with its evidence,
+// the override does not substitute for the entry.
 export function supportsToolAddition(model) {
   if (typeof model !== "string") return false;
-  return TOOL_ADDITION_MODELS.some((prefix) => model.startsWith(prefix));
+  const extra = (process.env.CACHE_FIX_TOOL_ADDITION_EXTRA ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return TOOL_ADDITION_MODELS.concat(extra).some((prefix) => model.startsWith(prefix));
 }
 
 const BETA_TOKEN = "mid-conversation-tool-changes-2026-07-01";

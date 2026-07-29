@@ -703,6 +703,9 @@ test("resolveToolRewriteSessionKey: sidecars sharing a session-id get distinct k
 test("supportsToolAddition: opt-IN, so an unknown model is OFF", () => {
   assert.equal(supportsToolAddition("claude-opus-5"), true);
   assert.equal(supportsToolAddition("claude-opus-5-20260101"), true, "date-suffixed ids must match by prefix");
+  // Wire evidence 2026-07-29 (probe session c05a754c: block forwarded
+  // byte-identically, API streamed 200).
+  assert.equal(supportsToolAddition("claude-fable-5"), true);
   // The measured failure.
   assert.equal(supportsToolAddition("claude-sonnet-5"), false);
   // Everything unknown is off — a new model must not be able to break a
@@ -711,6 +714,25 @@ test("supportsToolAddition: opt-IN, so an unknown model is OFF", () => {
   assert.equal(supportsToolAddition("some-future-model"), false);
   assert.equal(supportsToolAddition(undefined), false);
   assert.equal(supportsToolAddition(null), false);
+});
+
+test("supportsToolAddition: EXTRA override admits a candidate for the live probe, per call", () => {
+  // The override serves the throwaway acceptance-probe proxy only (it is how
+  // fable-5 earned its baseline entry on 2026-07-29); it must be read per
+  // call (a long-lived process picks up the change without a module reload)
+  // and must not disturb the baseline list.
+  const prev = process.env.CACHE_FIX_TOOL_ADDITION_EXTRA;
+  try {
+    process.env.CACHE_FIX_TOOL_ADDITION_EXTRA = "claude-candidate-x, claude-candidate-y";
+    assert.equal(supportsToolAddition("claude-candidate-x"), true);
+    assert.equal(supportsToolAddition("claude-candidate-y-20260101"), true);
+    assert.equal(supportsToolAddition("claude-sonnet-5"), false, "override must not widen beyond its prefixes");
+    delete process.env.CACHE_FIX_TOOL_ADDITION_EXTRA;
+    assert.equal(supportsToolAddition("claude-candidate-x"), false, "cleared override must clear per call");
+  } finally {
+    if (prev === undefined) delete process.env.CACHE_FIX_TOOL_ADDITION_EXTRA;
+    else process.env.CACHE_FIX_TOOL_ADDITION_EXTRA = prev;
+  }
 });
 
 test("BITE — an unsupported model gets NO tool_addition, no beta header, tools passed through", async () => {

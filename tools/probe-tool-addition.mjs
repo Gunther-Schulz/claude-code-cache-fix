@@ -31,6 +31,18 @@
 //               process exits non-zero so a broken probe cannot read as a
 //               clean sweep.
 //
+// KNOWN LIMIT (measured 2026-07-29): on a subscription OAuth token, this
+// direct-API probe gets HTTP 429 for EVERY big model (opus, sonnet, fable)
+// regardless of quota state — hand-built requests are refused for those
+// models; only haiku answers, because CC itself sends it free-form utility
+// traffic. For big models the working probe is a real session: start a
+// throwaway proxy with CACHE_FIX_TOOL_ADDITION_EXTRA=<model> on a spare
+// port, run `claude --model <model> -p` through it with a prompt that loads
+// a tool via ToolSearch, then verify on production's capture that the
+// injected block was forwarded byte-identically (replay the pipeline,
+// compare against the outcome record's outSha) and that an outcome record
+// exists (only written on a streamed 200). That is how fable-5 was measured.
+//
 // An ACCEPTED verdict is the evidence an allowlist entry cites (prefix +
 // probe date); nothing is edited automatically.
 
