@@ -144,6 +144,11 @@ const BETA_HEADER_NAME = "anthropic-beta";
 
 const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
 
+// Models already warned about in this process — the suppressed-announcement
+// warning fires once per model, not per request. Module state is acceptable
+// here precisely because losing it (restart, reload) only repeats a warning.
+const warnedSuppressedModels = new Set();
+
 // --- Env gates (read per-call, mirrors the insertion-normalization idiom) ---
 
 function isEnabled(env = process.env) {
@@ -519,6 +524,25 @@ export default {
       const announceOk = supportsToolAddition(body?.model);
       if (!announceOk) additions = [];
 
+      // A suppressed announcement is a real cost and must not be silent: the
+      // session pays a full-prefix bust per tool load exactly as if this
+      // extension were absent. The documented availability rule is "Opus
+      // onward", so a NEW model family landing here is most likely
+      // support-capable and unprobed — the warning names the probe so the
+      // gap closes in minutes instead of surviving until someone reads
+      // telemetry. Once per model per process; the telemetry entry carries
+      // `suppressed` on every occurrence.
+      const suppressed =
+        !announceOk && result.action === "rewrite" && (result.newNames?.length ?? 0) > 0;
+      if (suppressed && !warnedSuppressedModels.has(body?.model)) {
+        warnedSuppressedModels.add(body?.model);
+        process.stderr.write(
+          `[deferred-tool-rewrite] model ${body?.model} is not allowlisted for tool_addition — ` +
+            `tools[] busts are being paid (${result.newNames.join(",")}). ` +
+            `Probe it: see tools/probe-tool-addition.mjs (big models need the through-proxy method).\n`,
+        );
+      }
+
       // The announcement path is gated on model support; the HOLD and
       // ORDER-PIN paths are not, because neither needs the beta contract —
       // they only ever re-send tools the model already understands.
@@ -603,6 +627,7 @@ export default {
           newNames: result.newNames ?? [],
           heldNames: result.heldNames ?? [],
           injected: additions.length,
+          ...(suppressed ? { suppressed: true, model: body?.model } : {}),
           ...(reanchored.length > 0 ? { reanchored } : {}),
           ...(result.reason ? { reason: result.reason } : {}),
         },

@@ -768,6 +768,54 @@ test("BITE — an unsupported model gets NO tool_addition, no beta header, tools
   }
 });
 
+test("a suppressed announcement is LOUD: stderr once per model, telemetry every time", async () => {
+  // The silent version of this path is the failure mode: a new model family
+  // (documented rule is "Opus onward", so it likely supports the beta) pays
+  // a full-prefix bust per tool load with nothing anywhere saying so, until
+  // someone probes it by accident. The warning names the probe; telemetry
+  // records every occurrence for counting.
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-new-family" };
+  const warnings = [];
+  const origWrite = process.stderr.write;
+  process.stderr.write = (s, ...rest) => {
+    if (String(s).includes("not allowlisted for tool_addition")) {
+      warnings.push(String(s));
+      return true;
+    }
+    return origWrite.call(process.stderr, s, ...rest);
+  };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      const base = { system: [], messages: [u1], model: "claude-new-family-7" };
+      await runExt({ ...base, tools: [tool("Read")] }, { headers, dir });
+      await runExt({ ...base, tools: [tool("Read"), tool("SendMessage")] }, { headers, dir });
+      assert.equal(warnings.length, 1, "the first suppression must warn");
+      assert.match(warnings[0], /claude-new-family-7/);
+      assert.match(warnings[0], /probe/i, "the warning must name the way out");
+      // A second suppressed load on the same model: telemetry yes, stderr no.
+      await runExt(
+        { ...base, tools: [tool("Read"), tool("SendMessage"), tool("Monitor")] },
+        { headers, dir },
+      );
+      assert.equal(warnings.length, 1, "once per model per process");
+      const { readdir: rd, readFile: rf } = await import("node:fs/promises");
+      const snapDir = join(dir, "cache-fix-snapshots");
+      const evFile = (await rd(snapDir)).find((f) => f.endsWith("-deferred-tool-events.jsonl"));
+      assert.ok(evFile, "telemetry file must exist");
+      const events = (await rf(join(snapDir, evFile), "utf-8")).trim().split("\n").map(JSON.parse);
+      const sup = events.filter((e) => e.suppressed);
+      assert.equal(sup.length, 2, "every suppressed occurrence is recorded");
+      assert.equal(sup[0].model, "claude-new-family-7");
+      assert.equal(sup[0].injected, 0);
+    });
+  } finally {
+    process.stderr.write = origWrite;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test("a SUPPORTED model still gets the announcement (the gate is not a kill switch)", async () => {
   const dir = await newTmp();
   const headers = { "x-claude-code-session-id": "sess-opus" };
