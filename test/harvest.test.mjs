@@ -1,0 +1,132 @@
+// harvest — sanitization and selection tests.
+//
+// The harvester exists because live captures are transient (677 MB/day
+// against a 2 GB oldest-first cap, ~3 days retention) while ~95% of what
+// they contain is structurally uninteresting. It keeps the novel ~5% as
+// committable fixtures.
+//
+// Two properties have to hold or the tool is worse than useless:
+//   - sanitization must remove real conversation content, because the output
+//     is committed to a repo;
+//   - it must remove it DETERMINISTICALLY, because identity matching across
+//     requests is precisely what the fixtures test — a random placeholder
+//     would destroy the structure being preserved.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+import { scrubMessage, scrubRecord, selectNovelPairs } from "../tools/harvest.mjs";
+
+test("scrub: real text is replaced, and the same text always yields the same token", () => {
+  const secret = "the operator's actual prompt about their private project";
+  const a = scrubMessage({ role: "user", content: [{ type: "text", text: secret }] });
+  const b = scrubMessage({ role: "user", content: [{ type: "text", text: secret }] });
+  assert.equal(a.content[0].text, b.content[0].text, "deterministic — identity must survive scrubbing");
+  assert.ok(!a.content[0].text.includes("operator"), "no source text leaks");
+  assert.ok(a.content[0].text.startsWith("t_"));
+});
+
+test("scrub: different text yields different tokens", () => {
+  const a = scrubMessage({ role: "user", content: "alpha" });
+  const b = scrubMessage({ role: "user", content: "beta" });
+  assert.notEqual(a.content, b.content);
+});
+
+test("scrub: system-reminder wrappers survive — the wrapper IS the class", () => {
+  // The volatile-block detector matches on this wrapper. Scrubbing it away
+  // would erase the property the flip/pin fixtures exist to exercise.
+  const m = scrubMessage({
+    role: "user",
+    content: [{ type: "text", text: "<system-reminder>\nsecret detail\n</system-reminder>" }],
+  });
+  assert.match(m.content[0].text, /^<system-reminder>\n/);
+  assert.ok(!m.content[0].text.includes("secret detail"));
+});
+
+test("scrub: message SHAPE is preserved exactly", () => {
+  // Structure is the payload. Block count, types and order must be untouched
+  // or every census class the fixture encodes is destroyed.
+  const m = scrubMessage({
+    role: "user",
+    content: [
+      { type: "tool_result", tool_use_id: "t1", content: "output" },
+      { type: "text", text: "note" },
+    ],
+  });
+  assert.equal(m.role, "user");
+  assert.equal(m.content.length, 2);
+  assert.equal(m.content[0].type, "tool_result");
+  assert.equal(m.content[0].tool_use_id, "t1", "structural ids must not be rewritten");
+  assert.equal(m.content[1].type, "text");
+});
+
+test("scrub: string-content messages stay string-content", () => {
+  // The shape flip (single text block <-> bare string) is itself a class;
+  // normalizing shapes during scrubbing would hide it.
+  const m = scrubMessage({ role: "system", content: "a harness note" });
+  assert.equal(typeof m.content, "string");
+});
+
+test("scrub: thinking signatures and tool inputs are redacted", () => {
+  const m = scrubMessage({
+    role: "assistant",
+    content: [
+      { type: "thinking", thinking: "private reasoning", signature: "AAAA-real-signature" },
+      { type: "tool_use", id: "t1", name: "Bash", input: { command: "cat ~/.ssh/id_rsa" } },
+    ],
+  });
+  assert.ok(!JSON.stringify(m).includes("private reasoning"));
+  assert.ok(!JSON.stringify(m).includes("id_rsa"));
+  assert.equal(m.content[1].id, "t1", "tool ids stay — adjacency depends on them");
+  assert.deepEqual(Object.keys(m.content[1].input), ["command"], "input SHAPE is kept");
+});
+
+test("scrub: record drops tool schemas but keeps tool names", () => {
+  // tools[] add/remove/reorder is a real bust class, so names matter;
+  // descriptions and parameter docs are content and do not.
+  const rec = scrubRecord({
+    ts: "2026-07-28T00:00:00Z",
+    sid: "real-session-id",
+    key: "s-real-session-id",
+    headers: { "anthropic-beta": "context-management-2025-06-27", "session-id": "real-session-id" },
+    body: {
+      model: "claude-opus-5",
+      tools: [{ name: "Bash", description: "runs shell commands", input_schema: { type: "object" } }],
+      messages: [{ role: "user", content: "hello" }],
+    },
+  });
+  assert.deepEqual(rec.body.tools, [{ name: "Bash" }]);
+  assert.ok(!JSON.stringify(rec).includes("real-session-id"), "session ids are hashed");
+  assert.equal(rec.headers["anthropic-beta"], "context-management-2025-06-27", "betas are structural");
+});
+
+test("select: boring pairs are never harvested", () => {
+  const msg = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
+  const rec = (msgs) => ({ body: { messages: msgs } });
+  const base = [msg("u0"), msg("u1")];
+  const records = [rec(base), rec([...base, msg("u2")])]; // pure append
+  assert.equal(selectNovelPairs(records, new Set()).length, 0);
+});
+
+test("select: a class already banked is not harvested twice", () => {
+  const msg = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
+  const rec = (msgs) => ({ body: { messages: msgs } });
+  const a = [msg("u0"), msg("u1"), msg("u2")];
+  const b = [msg("u0"), msg("u1"), msg("EDITED")];
+  const records = [rec(a), rec(b)];
+  assert.equal(selectNovelPairs(records, new Set()).length, 1, "novel the first time");
+  assert.equal(selectNovelPairs(records, new Set(["replace/edit"])).length, 0, "not the second");
+});
+
+test("select: pairs are formed within a conversation, never across tenants", () => {
+  // Co-tenant traffic shares a capture file. Comparing a subagent's request
+  // against the main thread's is the sidecar-churn artifact, not a finding.
+  const msg = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
+  const rec = (msgs) => ({ body: { messages: msgs } });
+  const records = [
+    rec([msg("convA"), msg("a1")]),
+    rec([msg("convB-entirely-different"), msg("b1")]),
+    rec([msg("convA"), msg("a1"), msg("a2")]), // append within A
+  ];
+  assert.equal(selectNovelPairs(records, new Set()).length, 0, "A->B and B->A are not pairs");
+});
