@@ -294,6 +294,17 @@ it, acknowledge-by-commit, within the hour).
    with its replay handling, its ledger declaration, and its three-answer
    doctor verdict in the same change.
 
+### Cadence: the gate guards the flow, the sweep re-checks the stock
+
+The closing gate runs at work-time, per change. A dispatched stock-sweep
+(read-only, the four questions over the WHOLE system) is for after building
+bursts — the 2026-07-29 sweep found twelve gaps because twelve pieces of
+machinery had just landed, and its top finding was live within the hour.
+Not a standing schedule: standing machinery must be maintained forever, and
+a sweep of an unchanged system yields nothing. Retirement signal, borrowed
+from skill-craft's consolidation rule: two consecutive sweeps returning
+only minor findings — then the ritual stops until the next burst.
+
 ## Adding a check
 
 Two rules, both learned the expensive way:

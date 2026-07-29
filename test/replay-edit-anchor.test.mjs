@@ -87,3 +87,43 @@ test("excerptMessage: local evidence line — text flattened, blocks named, capp
   assert.ok(long.length < 200 && long.endsWith("…"));
   assert.equal(excerptMessage(null), "(missing)");
 });
+
+// --- Succession classification: the cross-conversation blind spot, closed ---
+import { findSuccessions } from "../tools/replay.mjs";
+
+test("successions: compaction, resume and fork shapes classified; pricing carried", () => {
+  const m = (t) => ({ role: "user", content: [text(t)] });
+  const conv = (msgs, n) => ({ n, ts: "t", key: "k", inMsgs: msgs, outMsgs: msgs, inTools: [], outTools: [] });
+  const a = [m("A0"), asst("a"), m("A2"), asst("b"), m("A4"), asst("c"), m("A6"), asst("d")];
+  // resume-shaped: new head, deep opener, most bodies shared with predecessor
+  const resumed = [m("A0-changed-head"), ...a.slice(1)];
+  const rows = findSuccessions([conv(a, 0), conv(resumed, 1)]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].kind, "resume-shaped");
+  assert.ok(rows[0].shared >= 6);
+  assert.ok(rows[0].rebilledBytes > 0, "a succession re-bills its whole opener");
+  // compaction: tiny opener
+  const compacted = [m("summary"), asst("ack")];
+  assert.equal(findSuccessions([conv(a, 0), conv(compacted, 1)])[0].kind, "compaction/new-thread");
+  // fork/other: deep opener, low overlap
+  const fork = [m("F0"), m("F1"), asst("x"), m("F3"), asst("y"), m("F5"), asst("z")];
+  assert.equal(findSuccessions([conv(a, 0), conv(fork, 1)])[0].kind, "fork/other");
+});
+
+test("BITE — sidecar interleaving is NOT a succession: a returning conversation reports nothing", () => {
+  // Hundreds of sidecar switches per busy capture are the co-tenant normal;
+  // classifying them as boundaries would fire on every switch and train the
+  // reader to ignore the class — the check-fires-on-non-defect failure.
+  const m = (t) => ({ role: "user", content: [text(t)] });
+  const conv = (msgs, n) => ({ n, ts: "t", key: "k", inMsgs: msgs, outMsgs: msgs, inTools: [], outTools: [] });
+  const mainA = [m("MAIN"), asst("a")];
+  const side = [m("SIDECAR"), asst("s")];
+  const mainB = [m("MAIN"), asst("a"), m("more"), asst("b")];
+  const rows = findSuccessions([conv(mainA, 0), conv(side, 1), conv(mainB, 2)]);
+  // main -> side is not a succession (main returns at n=2), and side -> main
+  // is not one either: the sidecar ends but main CONTINUES — it opened at
+  // n=0, so nothing new starts at n=2. First drafts of this test asserted
+  // that handback as a succession; requiring the successor's FIRST
+  // appearance is what keeps one-shot sidecars from minting phantoms.
+  assert.equal(rows.length, 0);
+});

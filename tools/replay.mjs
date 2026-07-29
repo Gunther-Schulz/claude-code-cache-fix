@@ -828,6 +828,70 @@ function parseArgs(argv) {
 // staying green on every small one. Found 2026-07-28 by pointing it at a
 // live 955 MB session capture.
 //
+// Conversation SUCCESSION — the census's cross-conversation blind spot,
+// closed. Every within-conversation classifier above compares pairs INSIDE
+// one conversation identity, so a boundary (compaction, resume, fork)
+// structurally never forms a pair: the compaction note documented the blind
+// spot, and the resume-exposure question was first answered by a throwaway
+// probe — the tell, again, that a classification was missing.
+//
+// A SUCCESSION is an identity change where the earlier conversation never
+// returns later in the capture; conversations that reappear are ordinary
+// sidecar INTERLEAVING (hundreds per busy capture, the co-tenant normal) and
+// are deliberately not reported — a boundary class that fired on every
+// sidecar switch would train its reader to ignore it. Kinds:
+//   compaction/new-thread — opener <= 6 messages (summary or fresh start);
+//   resume-shaped         — deep opener sharing >50% of message bodies with
+//                           the predecessor (the CC#51764 family);
+//   fork/other            — deep opener, low overlap: worth eyes.
+// Each carries the opener's full byte size — a succession re-bills its
+// whole prefix by construction.
+export function findSuccessions(entries) {
+  const compact = entries.map(asCompact);
+  const lastSeen = new Map(); // conversation id -> last entry index
+  const firstSeen = new Map(); // conversation id -> first entry index
+  for (let i = 0; i < compact.length; i++) {
+    const cid = conversationOf(compact[i]);
+    if (cid === null) continue;
+    lastSeen.set(cid, i);
+    if (!firstSeen.has(cid)) firstSeen.set(cid, i);
+  }
+  const out = [];
+  for (let i = 1; i < compact.length; i++) {
+    const prev = compact[i - 1];
+    const cur = compact[i];
+    const prevCid = conversationOf(prev);
+    const curCid = conversationOf(cur);
+    if (prevCid === null || curCid === null || prevCid === curCid) continue;
+    if (lastSeen.get(prevCid) > i - 1) continue; // interleave: it returns
+    // The successor must be OPENING here: a one-shot sidecar handing back
+    // to a continuing main thread ends a conversation but starts nothing —
+    // without this condition every such handback minted a phantom
+    // "fork/other" (caught while writing the interleave bite).
+    if (firstSeen.get(curCid) !== i) continue;
+    const openerBytes = cur.inBytes.reduce((a, b) => a + b, 0);
+    let kind;
+    let shared = 0;
+    if (cur.msgs <= 6) {
+      kind = "compaction/new-thread";
+    } else {
+      const prevHashes = new Set(prev.inHash);
+      shared = cur.inHash.filter((h) => prevHashes.has(h)).length;
+      kind = shared / cur.msgs > 0.5 ? "resume-shaped" : "fork/other";
+    }
+    out.push({
+      n: cur.n,
+      prevN: prev.n,
+      ts: cur.ts,
+      kind,
+      openerMsgs: cur.msgs,
+      shared,
+      rebilledBytes: openerBytes,
+    });
+  }
+  return out;
+}
+
 // Fidelity classification, pure so the population boundaries are testable.
 // FIVE populations, never collapsed into one ratio:
 //   comparable/matched      — unmutated with a recorded outSha; a mismatch
@@ -1093,6 +1157,7 @@ async function main() {
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
+  const successions = args.census ? findSuccessions(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
   // Attribute each violation by replaying the corpus once per extension
@@ -1192,7 +1257,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, successions, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
