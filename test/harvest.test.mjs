@@ -178,3 +178,37 @@ test("BITE — a capture where completed-turn thinking text reappears sets the s
     await rmr(dir, { recursive: true, force: true });
   }
 });
+
+// --- Growth-step snapshots: the evidence must outlive capture rotation ---
+
+import { detectGrowthSteps, growthComponentSnapshot, GROWTH_STEP_FLOOR } from "../tools/harvest.mjs";
+
+test("BITE — a +15% baseline step is detected; floor and shrinkage are not", () => {
+  const prior = { systemBytes: 20000, toolsBytes: 40000 };
+  const grown = { systemBytes: 38800, toolsBytes: 40000 };
+  assert.deepEqual(detectGrowthSteps(prior, grown), [
+    { field: "systemBytes", oldBytes: 20000, newBytes: 38800 },
+  ]);
+  assert.deepEqual(detectGrowthSteps(prior, { systemBytes: 21000, toolsBytes: 40000 }), [],
+    "below threshold is not a step");
+  assert.deepEqual(detectGrowthSteps(prior, { systemBytes: 9000, toolsBytes: 40000 }), [],
+    "shrinkage is visible intent, never a step");
+  assert.deepEqual(detectGrowthSteps({ systemBytes: 100 }, { systemBytes: 400 }), [],
+    `percentages on values under the ${GROWTH_STEP_FLOOR}-byte floor are noise`);
+  assert.deepEqual(detectGrowthSteps(undefined, grown), [], "no prior shape, no comparison");
+});
+
+test("growthComponentSnapshot: identity and sizes survive, content does not", () => {
+  const secret = "the operator's private system prompt about their client project";
+  const body = {
+    system: [{ type: "text", text: secret }],
+    tools: [{ name: "Bash", description: "secret tool description with paths", input_schema: { x: 1 } }],
+  };
+  const snap = growthComponentSnapshot(body);
+  const raw = JSON.stringify(snap);
+  assert.ok(!raw.includes("private") && !raw.includes("client") && !raw.includes("paths"),
+    "no source content may reach a committable artifact");
+  assert.equal(snap.tools[0].name, "Bash", "identity survives");
+  assert.ok(snap.tools[0].bytes > 50, "per-item size survives — the attribution signal");
+  assert.ok(snap.system[0].bytes > secret.length, "block size reflects the real serialization");
+});
