@@ -130,3 +130,85 @@ test("select: pairs are formed within a conversation, never across tenants", () 
   ];
   assert.equal(selectNovelPairs(records, new Set()).length, 0, "A->B and B->A are not pairs");
 });
+
+// --- Shape watch: the dormant thinking classes must not reactivate unseen ---
+
+import { scanCapture, completedThinkingTextCount, thinkingCountInPrefix } from "../tools/harvest.mjs";
+import { writeFile as wf, mkdtemp as mkd, rm as rmr } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join as pjoin } from "node:path";
+
+const think = (text) => ({ type: "thinking", thinking: text, signature: "SIG==" });
+const req = (msgs, extra = {}) => JSON.stringify({ ts: "t", body: { model: "m", messages: msgs, system: [{ type: "text", text: "sys" }], tools: [], ...extra } });
+
+test("completedThinkingTextCount: stubs are not population; active continuations are exempt", () => {
+  const stubOnly = [{ role: "assistant", content: [think(""), { type: "text", text: "done" }] }];
+  assert.equal(completedThinkingTextCount(stubOnly), 0, "signature-only stubs are the measured-normal state");
+  const fat = [{ role: "assistant", content: [think("real reasoning"), { type: "text", text: "done" }] }];
+  assert.equal(completedThinkingTextCount(fat), 1);
+  const continuation = [
+    { role: "assistant", content: [think("real"), { type: "tool_use", id: "t1", name: "x", input: {} }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "r" }] },
+  ];
+  assert.equal(completedThinkingTextCount(continuation), 0, "protected-by-contract thinking is not droppable population");
+});
+
+test("BITE — a capture where completed-turn thinking text reappears sets the shape counters", async () => {
+  const dir = await mkd(pjoin(tmpdir(), "harvest-shape-"));
+  const cap = pjoin(dir, "s-x-requests.jsonl");
+  const u = { role: "user", content: [{ type: "text", text: "q" }] };
+  const fatTurn = { role: "assistant", content: [think("REAL TEXT — the dormant population"), { type: "text", text: "a" }] };
+  try {
+    // Pair 2 also DROPS a thinking block from shared history (76253 shape):
+    const msgs1 = [u, fatTurn];
+    const msgs2 = [u, { role: "assistant", content: [{ type: "text", text: "a" }] }, { role: "user", content: [{ type: "text", text: "next" }] }];
+    await wf(cap, req(msgs1) + "\n" + req(msgs2) + "\n");
+    const { shape } = await scanCapture(cap, new Set());
+    assert.equal(shape.pairs, 1);
+    assert.equal(shape.thinkingDropPairs, 1, "the 76253 shape must be counted");
+    assert.ok(shape.systemBytes > 0, "baseline prefix size recorded");
+    // Population lives in the NEWEST request per conversation; msgs2 has no
+    // fat thinking left, so the counter reads 0 here...
+    assert.equal(shape.thinkingTextCompleted, 0);
+    // ...and reads 1 when the newest request still carries it.
+    await wf(cap, req(msgs1) + "\n");
+    const again = await scanCapture(cap, new Set());
+    assert.equal(again.shape.thinkingTextCompleted, 1, "the 69568 population must be counted when present");
+  } finally {
+    await rmr(dir, { recursive: true, force: true });
+  }
+});
+
+// --- Growth-step snapshots: the evidence must outlive capture rotation ---
+
+import { detectGrowthSteps, growthComponentSnapshot, GROWTH_STEP_FLOOR } from "../tools/harvest.mjs";
+
+test("BITE — a +15% baseline step is detected; floor and shrinkage are not", () => {
+  const prior = { systemBytes: 20000, toolsBytes: 40000 };
+  const grown = { systemBytes: 38800, toolsBytes: 40000 };
+  assert.deepEqual(detectGrowthSteps(prior, grown), [
+    { field: "systemBytes", oldBytes: 20000, newBytes: 38800 },
+  ]);
+  assert.deepEqual(detectGrowthSteps(prior, { systemBytes: 21000, toolsBytes: 40000 }), [],
+    "below threshold is not a step");
+  assert.deepEqual(detectGrowthSteps(prior, { systemBytes: 9000, toolsBytes: 40000 }), [],
+    "shrinkage is visible intent, never a step");
+  assert.deepEqual(detectGrowthSteps({ systemBytes: 100 }, { systemBytes: 400 }), [],
+    `percentages on values under the ${GROWTH_STEP_FLOOR}-byte floor are noise`);
+  assert.deepEqual(detectGrowthSteps(undefined, grown), [], "no prior shape, no comparison");
+});
+
+test("growthComponentSnapshot: identity and sizes survive, content does not", () => {
+  const secret = "the operator's private system prompt about their client project";
+  const body = {
+    system: [{ type: "text", text: secret }],
+    tools: [{ name: "Bash", description: "secret tool description with paths", input_schema: { x: 1 } }],
+  };
+  const snap = growthComponentSnapshot(body);
+  const raw = JSON.stringify(snap);
+  assert.ok(!raw.includes("private") && !raw.includes("client") && !raw.includes("paths"),
+    "no source content may reach a committable artifact");
+  assert.equal(snap.tools[0].name, "Bash", "identity survives");
+  assert.ok(snap.tools[0].bytes > 50, "per-item size survives — the attribution signal");
+  assert.ok(snap.system[0].bytes > secret.length, "block size reflects the real serialization");
+});

@@ -166,6 +166,31 @@ Three things worth keeping from the episode:
   input dies against the cap and fails the sweep the same day, whatever the
   fourth wall turns out to be made of.
 
+## The census names the class; only content names the cause
+
+Row 4 sat "re-opened" for a day with the mechanism unexplained — while an
+outside reporter with far lighter tooling (#78660) had already named it. The
+gap was not effort; it was a structural blindness we designed in: the census
+reduces messages to hashes and ordinals, which is what makes it scalable and
+publishable, and exactly what makes it causally mute. Hashes can say
+same/different/moved; they cannot say "this is the task-tools nudge, and it
+anchors to the last human message." Two rules from the miss:
+
+- **When a class is localized, return to the bytes and to the STRUCTURE.**
+  Read the actual content at the offending position (once, locally — the
+  privacy discipline applies to what gets committed, not to what gets read),
+  and relate the position to conversation structure: roles, anchors,
+  injection zones. The verdict that closed row 4 was one 30-line matcher
+  relating edit positions to the last human-typed message (20 of 22 within
+  ±2). That relation now lives in the census itself (`anchorDelta` on every
+  edit row, with a "far from any anchor = new mechanism" callout) — the
+  matcher was the prototype, per the standing rule about throwaway probes.
+- **Sweep the public tracker when an investigation OPENS, not after it
+  ships.** The row-4 mechanism sat in a public issue for over two weeks
+  while we derived the same facts independently. One `gh search issues` per
+  new unexplained class converts an investigation into a verification —
+  strictly cheaper, and the verification is worth posting back.
+
 ## Never hand-roll identity in a probe
 
 Twice on 2026-07-28 a throwaway probe reached a wrong conclusion because it
@@ -228,6 +253,66 @@ Mechanised on the dotfiles side: `bootstrap/doctor.py` enumerates its own
 test, so a new verdict cannot be added without its could-not-verify case being
 exercised.
 
+## The closing gate: four questions before any proxy work is done
+
+MANDATE (operator, 2026-07-29). Every piece of work here — a fix, an
+investigation, a probe, a doc — answers these four before it closes. Each
+question has a same-day precedent where skipping it cost real time; "no"
+is an acceptable answer, silence is not — and a "no" or "not yet" must
+NAME the missing evidence or design element, which converts it into a
+spec. An unnamed deferral is drift, and a deferral justified by a cited
+rule that collapses under one question was a rationalization, not a
+reason (same day: a trend alarm was declined citing red-before-build,
+which synthetic bites already satisfied; naming the real concern —
+false-fires on deliberate changes — produced the design that dissolved
+it, acknowledge-by-commit, within the hour).
+
+1. **Can this be mechanized?** Interpretation stays human; everything
+   around it is machinery — the check, the annotation, the alarm, the
+   EVIDENCE DELIVERY. The tell remains the throwaway probe: row 4's verdict
+   came from a 30-line matcher that became `anchorDelta` the same day, and
+   the byte-extraction friction that stalled the row for a day became the
+   far-from-anchor excerpt pass. If the answer is "it needs judgment", ask
+   again about the part BELOW the judgment: delivering the inputs to the
+   judgment is always mechanizable.
+2. **Is the evidence harvestable?** Captures rotate on a quadratic clock;
+   a finding that rests on volatile bytes is a finding with an expiry date.
+   If the claim would be unverifiable after rotation, snapshot what proves
+   it — sanitized, via the harvest path — before closing (precedent: the
+   growth-step spec exists because a baseline step's explaining diff dies
+   with the capture).
+3. **Does the census need a new class or annotation?** A class you named
+   by hand while investigating is a classification the census should emit
+   — otherwise the next instance gets re-derived instead of recognized
+   (precedent: `anchorDelta`, occurrence ordinals, the tools-delta kinds
+   all started as hand-derivations). A NAMED deferral can still answer
+   the wrong question here: whether the class deserves an ALARM is
+   question 4's concern — question 3 asks only whether a classification
+   now exists by hand, and a probe that assigns kinds or counts to
+   traffic answers it YES by existing. The one valid deferral argues the
+   derivation is genuinely one-off. (Observed: the resume-boundary
+   classifier was parked with an alarm-shaped basis minutes after its
+   probe had hand-classified every capture; one operator question undid
+   the parking.)
+4. **Did the instruments ride along?** A mitigation change without its
+   replay/gate change ships blind: the gate replays the SERVING config, so
+   an instrument that lags the extension verifies a pipeline nobody runs
+   (precedent: the day every gate run exercised defaults while production
+   ran eleven gates). New state, new record fields, new gates — each lands
+   with its replay handling, its ledger declaration, and its three-answer
+   doctor verdict in the same change.
+
+### Cadence: the gate guards the flow, the sweep re-checks the stock
+
+The closing gate runs at work-time, per change. A dispatched stock-sweep
+(read-only, the four questions over the WHOLE system) is for after building
+bursts — the 2026-07-29 sweep found twelve gaps because twelve pieces of
+machinery had just landed, and its top finding was live within the hour.
+Not a standing schedule: standing machinery must be maintained forever, and
+a sweep of an unchanged system yields nothing. Retirement signal, borrowed
+from skill-craft's consolidation rule: two consecutive sweeps returning
+only minor findings — then the ritual stops until the next burst.
+
 ## Adding a check
 
 Two rules, both learned the expensive way:
@@ -241,6 +326,16 @@ Two rules, both learned the expensive way:
    was built from a remembered number ("canon 92, live 84") that came from a
    *different* bug, already fixed. Re-derive which change produced an
    observation before building on it.
+
+   **A bite's expected value comes from the invariant's DEFINITION, never
+   from the implementation or the reasoning that produced it** — an
+   expectation with the same parentage as the code pins the bug it should
+   catch. Write the definitional comment first; the assertion follows from
+   it. (Observed: the succession bite's first draft asserted a
+   one-shot-sidecar handback as a correct succession — same mental model
+   as the code's missing first-appearance condition; writing the
+   definition sentence is what contradicted the assertion, and the
+   phantom-minting bug fell out of the correction.)
 
 3. **The corpus is blind along its own curation axis.** `harvest.mjs` selects
    pairs by *structural novelty* and sanitises them, so the committed fixtures
