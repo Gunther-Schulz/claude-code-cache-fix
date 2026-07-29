@@ -17,7 +17,6 @@
   "read-dedupe": { "enabled": true, "order": 380 },
   "insertion-normalization": { "enabled": true, "order": 395 },
   "cache-control-normalize": { "enabled": true, "order": 400 },
-  "messages-cache-breakpoint": { "enabled": true, "order": 410 },
   "ttl-management": { "enabled": true, "order": 500 },
   "cache-telemetry": { "enabled": true, "order": 600 },
   "overage-warning": { "enabled": true, "order": 610 },
