@@ -65,6 +65,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 
 import { readLines } from "./read-lines.mjs";
+import { hashMessageContent } from "../proxy/extensions/message-hash.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -441,6 +442,7 @@ export function compactEntry(e) {
     inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
     inSem: semanticIds(inMsgs),
+    inBlocks: inMsgs.map(blockUnits),
     msgs: inMsgs.length,
     inTools: toolsFingerprints(e.inTools),
     outTools: toolsFingerprints(e.outTools),
@@ -752,6 +754,123 @@ export function findEditPositions(entries) {
     }
   }
   return rows.sort((a, b) => b.rebilledBytes - a.rebilledBytes);
+}
+
+// --- Block migration ---
+//
+// semanticIds/semanticCore reduce a message to a hash and, for a
+// system-reminder-wrapped text block, drop it outright as decoration
+// (isVolatileTextBlock) — correct for the ordinary case where a hook
+// reminder is pure noise, and exactly what leaves census blind to the case
+// where the same bytes are NOT noise: they leave one message's content array
+// and reappear as a message of their own. That is the reminder-swap shape —
+// measured directly in capture s-633915a8-dcfd-479a-8ca8-0c4452d5a9b6,
+// n=26->28: message[30]'s 5th block, `<system-reminder>\nPreToolUse:Edit
+// hook additional context...\n</system-reminder>`, is gone from message[30]
+// on the n=28 side, and its inner text — wrapper stripped — is the entire
+// content of the new message[31] (role system).
+//
+// DEFINITION: a block migration exists, for a same-conversation pair
+// classified replace/edit or splice/insert-mid, when a content block present
+// inside one message's content array on one side of the pair (PREV) is
+// ABSENT from that message at the same position on the other side (CUR),
+// while a message on CUR, within +/-3 indices of the block's index in PREV,
+// carries that same block's bytes — either as the entirety of its content
+// ("standalone") or as one block among several in its content array
+// ("inline"). Identity of block bytes is the shared message-hash primitive's
+// hashing (hashMessageContent, imported — never re-derived); a
+// system-reminder wrapper is stripped before hashing on BOTH sides, because
+// that is the one normalization already established in this file
+// (semanticCore's VOLATILE_WRAP) for recognising the wrapper — undoing only
+// the wrapper, not inventing a new comparison, is what keeps identity
+// assumption-free. Direction is temporal, PREV(source) -> CUR(target):
+// "inline->standalone" when the block sat among other blocks in PREV and
+// stands alone in CUR; "standalone->inline" for the reverse. A block that is
+// still present at the SAME position on the other side is not a migration —
+// only its disappearance from that position is what makes the ±3 search
+// meaningful.
+const REMINDER_WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
+
+function unwrapReminder(block) {
+  if (block && typeof block === "object" && block.type === "text" && typeof block.text === "string") {
+    const m = REMINDER_WRAP.exec(block.text);
+    if (m) return { type: "text", text: m[1] };
+  }
+  return block;
+}
+
+// One identity unit per content block in a message. String content promotes
+// to a single text block first (the same shape fold semanticCore does for
+// bare-string messages), then each block is hashed via hashMessageContent —
+// the shared primitive, applied to a one-block wrapper so it still strips
+// only cache_control, nothing more. `standalone` records whether this unit IS
+// the message's entire content (length 1), which is the "consisting of" half
+// of the definition above.
+function blockUnits(msg) {
+  const c = msg?.content;
+  let blocks;
+  if (typeof c === "string") blocks = [{ type: "text", text: c }];
+  else if (Array.isArray(c)) blocks = c;
+  else return [];
+  return blocks
+    .map((b) => hashMessageContent({ content: [unwrapReminder(b)] }))
+    .map((hash) => ({ hash, standalone: blocks.length === 1 }))
+    .filter((u) => u.hash !== null);
+}
+
+const BLOCK_MIGRATION_KINDS = new Set(["replace/edit", "splice/insert-mid"]);
+const BLOCK_MIGRATION_WINDOW = 3;
+
+function scanBlockMigrations(prev, cur) {
+  const found = [];
+  for (let i = 0; i < prev.inBlocks.length; i++) {
+    const units = prev.inBlocks[i];
+    if (units.length < 1) continue;
+    const inline = units.length >= 2;
+    const standalone = units.length === 1;
+    const samePos = new Set((i < cur.inBlocks.length ? cur.inBlocks[i] : []).map((d) => d.hash));
+    for (const u of units) {
+      if (samePos.has(u.hash)) continue; // still there at the same position: not a migration
+      const lo = Math.max(0, i - BLOCK_MIGRATION_WINDOW);
+      const hi = Math.min(cur.inBlocks.length - 1, i + BLOCK_MIGRATION_WINDOW);
+      for (let j = lo; j <= hi; j++) {
+        const dstUnits = cur.inBlocks[j];
+        if (!dstUnits || !dstUnits.length) continue;
+        if (inline && dstUnits.some((d) => d.hash === u.hash && d.standalone)) {
+          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j });
+          break;
+        }
+        if (standalone && dstUnits.length >= 2 && dstUnits.some((d) => d.hash === u.hash)) {
+          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j });
+          break;
+        }
+      }
+    }
+  }
+  return found;
+}
+
+export function findBlockMigrations(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const cur = group[i];
+      const kind = censusIds(prev.inSem, cur.inSem);
+      if (!BLOCK_MIGRATION_KINDS.has(kind)) continue;
+      rows.push(...scanBlockMigrations(prev, cur));
+    }
+  }
+  return rows.sort((a, b) => a.n - b.n);
 }
 
 export function runCensus(entries) {
@@ -1157,6 +1276,7 @@ async function main() {
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
+  const blockMigrations = args.census ? findBlockMigrations(stability) : null;
   const successions = args.census ? findSuccessions(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
@@ -1257,7 +1377,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, successions, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -1401,8 +1521,15 @@ async function main() {
         for (const e of mid.slice(0, 6)) {
           const anchor =
             e.anchorDelta === null ? "no-human-anchor" : `anchor${e.anchorDelta >= 0 ? "+" : ""}${e.anchorDelta}`;
+          // blockMigration rides beside anchorDelta: same n/prevN pair, source
+          // index within the edit's neighbourhood — the reminder-swap shape
+          // the anchor alone cannot name.
+          const bm = (blockMigrations ?? []).filter((b) => b.n === e.n && b.prevN === e.prevN);
+          const bmTag = bm.length
+            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]`).join(" ")
+            : "";
           process.stdout.write(
-            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}] ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
+            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}]${bmTag} ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
           );
         }
         // The measured norm (2026-07-29): edits cluster at the anchor. An
@@ -1440,6 +1567,14 @@ async function main() {
         }
       }
     }
+    if (blockMigrations && blockMigrations.length) {
+      process.stdout.write(`\nblock migrations (reminder-swap shape): ${blockMigrations.length}\n`);
+      for (const b of blockMigrations.slice(0, 10)) {
+        process.stdout.write(
+          `    n=${b.prevN}->${b.n} ${b.direction} ${b.sourceIdx}->${b.targetIdx} ${b.ts}\n`,
+        );
+      }
+    }
     if (mitigation) {
       // The question the four gates cannot ask: of the events this proxy
       // exists to absorb, how many did it actually absorb?
@@ -1463,8 +1598,16 @@ async function main() {
           process.stdout.write(`  ${String(v.n).padStart(5)}  ${k} — ~${(v.bytes / 1e6).toFixed(1)} MB\n`);
         }
         for (const m of mitigation.filter((x) => !x.mitigated).slice(0, 5)) {
+          // blockMigration beside the mitigation row for the same reason it
+          // rides beside anchorDelta on edit rows: splice/insert-mid is where
+          // the reminder-swap shape actually lands (n=26->28 is a splice, not
+          // a replace/edit, so it never reaches the edits-array printout).
+          const bm = (blockMigrations ?? []).filter((b) => b.n === m.n && b.prevN === m.prevN);
+          const bmTag = bm.length
+            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]`).join(" ")
+            : "";
           process.stdout.write(
-            `    n=${m.prevN}->${m.n} ${m.kind} ${m.resetReason ? `reset(${m.resetReason})` : m.action} ~${(m.rebilledBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
+            `    n=${m.prevN}->${m.n} ${m.kind} ${m.resetReason ? `reset(${m.resetReason})` : m.action}${bmTag} ~${(m.rebilledBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
           );
         }
       }
