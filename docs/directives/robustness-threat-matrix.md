@@ -322,9 +322,22 @@ HUMAN MESSAGE instead of appending after the pending tool_result, editing
 deep into the cached prefix. That nudge is the exact reminder text observed
 at index 768, and anchoring-to-last-human explains both the position and the
 swap-in-place shape. Row 4's open question ("what is CC swapping at those
-indices") now has a reported answer; remaining verification is matching our
-replace/edit census positions against last-human-message indices in the
-same requests.
+indices") now has a reported answer.
+
+VERIFIED 2026-07-29 on this corpus (census over 1,731 requests, 33
+mid-history replace/edit pairs matched against message roles): of the 22
+pairs with a human-typed anchor, 20 sit within +/-2 of the LAST HUMAN
+MESSAGE (11 exactly on it, 8 at -2); the remaining 11 are subagent/sidecar
+conversations with no human anchor under the filter. The two deep outliers
+(-15/-27 from the current anchor — including the event-14 pair at index
+768) sit 3 and 11 messages past the THEN-current last human message,
+inside the post-human zone where CC parks injected reminder/hook blocks.
+No mid-history edit occurred at arbitrary depth. The mechanism family —
+reminder-block re-stamping at or just after the human-message anchor
+(CC#78660 / CC#76606) — is CONFIRMED as the cause of this population;
+the exact anchor arithmetic of the two aged cases (which specific
+injected message they re-anchored to) remains unpinned. Distribution
+posted to CC#78660.
 
 Mechanised so it cannot silently rot again: `findEditPositions` in
 tools/replay.mjs reports the tail/mid split and prices the mid-history
@@ -351,12 +364,18 @@ cause classes. Coverage verdicts, each measured where possible:
 - ABSENT ON THIS SETUP — hidden duplicate request (#78420, v2.1.209+):
   probed 2026-07-29 across 3,446 requests in seven captures; adjacent
   byte-identical bodies: one instance total (retry-shaped), no 2x pattern.
-- PARTIALLY COVERED — thinking-block classes (#76253 fable prior-turn
-  drops, #69568 resume signature replay): position-independence fixed
-  (#279-equivalent); #76253 not observed on a full fable day (zero
-  preventable busts) — either absorbed by pinning or version-inactive;
-  #69568's droppable-signatures-on-resume maps to v2StripSigned, built but
-  off. Census question stands for both.
+- MEASURED INACTIVE — thinking-block classes (#76253 fable prior-turn
+  drops, #69568 resume signature replay). Probed 2026-07-29: 2 of 323
+  consecutive fable pairs showed a thinking block leave shared history
+  (context-pruning-shaped) — nothing like "every exchange". And every one
+  of 277 thinking blocks in this fleet's deep history is a signature-only
+  stub with EMPTY text — CC already omits completed-turn thinking content
+  here, so v2StripSigned's target population is zero bytes; it stays OFF
+  on the same logic that parked READ_DEDUPE. Neither class has automatic
+  surveillance: if #76253 activates it surfaces same-day as per-turn
+  cold rewrites in the worktime counter (loud), but #69568's
+  population turning non-empty is watched by nothing — spec for a
+  harvest-side shape watch is in the dotfiles BACKLOG.
 - NOT COVERED, CC-must-fix — resume/fork boundary classes (#51764 measured
   41-99pp hit-rate delta; #77306 session-id inside system-prompt scratchpad
   path; #78720 git status in system prompt; #65805 dropped [1m] modifier;
