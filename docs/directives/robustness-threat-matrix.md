@@ -385,8 +385,17 @@ cause classes. Coverage verdicts, each measured where possible:
   #44724 subagent identity string; #44045 skill_listing scatter; #47756
   /clear artifacts): each embeds genuinely-new content in the prefix or
   changes identity keys; a proxy rewrite would lie to the model about real
-  state. Mitigation belongs upstream; our exposure is bounded (resume
-  boundaries are honest resets here).
+  state. Mitigation belongs upstream; our exposure is MEASURED, not
+  assumed (2026-07-29 probe over all captures): zero deep resume-shaped
+  boundaries, two shallow ones (26->28 msgs, subagent-continuation
+  shape). Why plain --resume is near-clean HERE: it keeps the
+  session-id, so the scratchpad path in the system prompt holds
+  (CC#77306 needs a FORK); the git-status variant needs -p --resume
+  (CC#78720); overnight resumes land after TTL death and book as idle.
+  Attribution machinery for the class is parked in BACKLOG.md — busts
+  would already be LOUD in the worktime counter, only unlabeled, which
+  distinguishes this from the silent thinking classes that earned
+  watchers.
 - NOT MITIGABLE — version-correlated prompt growth (#46917, #47528):
   real content changes.
 - EXPOSURE NOTED — >200K cold-context ECONNRESET (#79989): this fleet runs

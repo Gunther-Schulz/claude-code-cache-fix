@@ -79,3 +79,17 @@ bullet, evidence pointer included.
   PR worktrees' gitdir pointers — coordinated migration for purely
   taxonomic gain. Revisit trigger: PR series merged and worktrees
   removed (the natural cheap moment).
+
+- **Resume-boundary attribution (census succession class)** — parked
+  with basis: detection is already loud (any resume bust lands in the
+  worktime ❄ counter as cost), only ATTRIBUTION lags, and the class
+  measured zero deep instances over all captures (2026-07-29 probe:
+  detector = adjacent requests where messages[0] identity changes, new
+  opener >6 msgs, >50% shared message bodies; two shallow
+  subagent-continuation hits only). Census pairs cannot see it
+  structurally (a boundary straddles two conversation identities —
+  same blind spot the compaction note documents). Build trigger:
+  unexplained ❄ busts correlating with resume times, or the detector
+  count moving. Spec when built: harvest shape counters
+  (resumeShapedBoundaries per capture) + a census succession class
+  reusing the probe's detector; synthetic bite (crafted boundary pair).
