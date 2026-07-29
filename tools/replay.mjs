@@ -195,9 +195,16 @@ function isDeclaredInjection(msg) {
 // verdict at a time and findSafetyViolations wants the whole list — one
 // implementation, two shapes, rather than a tested one and a shipped one.
 export function safetyViolation(e) {
-  const inM = e.inMsgs;
-  // Declared injections are removed before comparing, so the check still
-  // sees a strict count/role/order correspondence with what CC sent.
+  // Declared injections are removed from BOTH sides before comparing. The
+  // filter was output-side only until 2026-07-29, which was correct while
+  // injections could only ever originate in our pipeline — but an input can
+  // carry an injection-shaped message too (a chained proxy feeding this
+  // pipeline its own output; the fable acceptance-probe capture is the live
+  // case). One-sided, the filter stripped the echoed injection from out and
+  // not from in, and the first census-enabled sweep failed a capture over a
+  // message nobody dropped — a check firing on a non-defect, found by
+  // rule-out-the-instrument within the hour.
+  const inM = e.inMsgs.filter((m) => !isDeclaredInjection(m));
   const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
   if (outM.length !== inM.length) {
     return { n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` };
