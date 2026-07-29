@@ -95,10 +95,24 @@ import { createHash } from "node:crypto";
 // boundary, watch for 400 vs the model using the added tool) happens before
 // the service-unit flag flips". The flag was flipped without running it.
 //
-// Evidence, not guesswork. Accepted: claude-opus-5 (sessions 58c979ce and
-// 538c0aef, injections on the wire, no 400). Rejected: claude-sonnet-5
-// (the error above). Everything else is UNKNOWN and therefore off — add a
-// prefix here only with a real request behind it.
+// Evidence, not guesswork — tools/probe-tool-addition.mjs measures a model
+// in one real request (same OAuth path as production, wire shapes imported
+// from this file). Add a prefix here only with a real request behind it.
+//
+//   claude-opus-5    ACCEPTED  sessions 58c979ce and 538c0aef, injections on
+//                              the wire, no 400.
+//   claude-sonnet-5  REJECTED  the 2026-07-28 live 400 above.
+//   claude-haiku-4-5 REJECTED  probe 2026-07-29: "tool_addition/tool_removal
+//                              requires a model that supports mid-conversation
+//                              system content; this model does not" — the
+//                              probe surfaced the CAPABILITY the beta gates
+//                              on, which the sonnet error never named.
+//   claude-fable-5   UNKNOWN   probe 429s while a fable session is streaming
+//                              (concurrent big-model cap); run
+//                              `node tools/probe-tool-addition.mjs claude-fable-5`
+//                              from an idle moment. Until then it degrades
+//                              safely: new tools go out in tools[] (one
+//                              cache bust), never a 400.
 const TOOL_ADDITION_MODELS = ["claude-opus-5"];
 
 export function supportsToolAddition(model) {
