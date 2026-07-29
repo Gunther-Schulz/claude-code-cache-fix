@@ -72,3 +72,18 @@ test("a conversation with no human turn reports anchorDelta null, never a guess"
   assert.equal(rows[0].lastHumanAt, null);
   assert.equal(rows[0].anchorDelta, null);
 });
+
+test("excerptMessage: local evidence line — text flattened, blocks named, capped", async () => {
+  const { excerptMessage } = await import("../tools/replay.mjs");
+  assert.equal(
+    excerptMessage({ role: "user", content: [text("<system-reminder>\nnote\n</system-reminder>")] }),
+    "user: <system-reminder> note </system-reminder>",
+  );
+  assert.equal(
+    excerptMessage({ role: "user", content: [{ type: "tool_result", tool_use_id: "t", content: "r" }] }),
+    "user: [tool_result]",
+  );
+  const long = excerptMessage({ role: "user", content: "x".repeat(500) });
+  assert.ok(long.length < 200 && long.endsWith("…"));
+  assert.equal(excerptMessage(null), "(missing)");
+});

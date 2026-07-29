@@ -664,6 +664,29 @@ export function findMitigationGaps(entries) {
 // occurrence ordinal, and the ordinal changed the replace/edit population
 // (16 -> 20 on one session). So the question needs asking mechanically rather
 // than re-derived by hand each time the corpus moves.
+// Local-only content excerpt for a flagged edit position. The census is
+// content-blind by design (hashes scale and are publishable) — which is why
+// row 4 sat unexplained while the bytes that named the mechanism were one
+// read away. When the far-from-anchor tripwire fires, the human output now
+// DELIVERS the evidence instead of leaving its extraction to a throwaway
+// script. Stdout of a local run only: this never enters the JSON output,
+// the gate status file, or anything committed.
+export function excerptMessage(msg, cap = 180) {
+  if (!msg) return "(missing)";
+  const c = msg.content;
+  let text = "";
+  if (typeof c === "string") text = c;
+  else if (Array.isArray(c)) {
+    text = c
+      .map((b) =>
+        b?.type === "text" ? b.text : b?.type ? `[${b.type}]` : "[?]",
+      )
+      .join(" ");
+  }
+  const flat = text.replace(/\s+/g, " ").trim();
+  return `${msg.role ?? "?"}: ${flat.length > cap ? flat.slice(0, cap) + "…" : flat || "(no text)"}`;
+}
+
 // A message the human actually typed: user role carrying at least one text
 // block that is neither a tool_result nor a tagged injection (reminders,
 // notifications, caveats all start with "<"). Computed at compaction time
@@ -1311,12 +1334,37 @@ async function main() {
           );
         }
         // The measured norm (2026-07-29): edits cluster at the anchor. An
-        // edit FAR from any anchor would be a NEW mechanism, worth a look.
+        // edit FAR from any anchor would be a NEW mechanism, worth a look —
+        // so deliver the bytes with the flag (LOCAL stdout only; the class
+        // was only ever named by reading content, and extraction friction is
+        // what let row 4 sit unexplained for a day).
         const far = mid.filter((e) => e.anchorDelta !== null && Math.abs(e.anchorDelta) > 30);
         if (far.length) {
           process.stdout.write(
-            `  ${far.length} edit(s) >30 from the human anchor — not the known reminder-anchoring class\n`,
+            `  ${far.length} edit(s) >30 from the human anchor — NOT the known reminder-anchoring class:\n`,
           );
+          const want = new Map(); // request index -> [{at, side, rowKey}]
+          for (const e of far.slice(0, 3)) {
+            if (!want.has(e.prevN)) want.set(e.prevN, []);
+            if (!want.has(e.n)) want.set(e.n, []);
+            want.get(e.prevN).push({ at: e.at, label: `n=${e.prevN} (before)` });
+            want.get(e.n).push({ at: e.at, label: `n=${e.n} (after)` });
+          }
+          for await (const [idx, line] of readCapture(args.file)) {
+            const asks = want.get(idx);
+            if (!asks) continue;
+            let body;
+            try {
+              body = JSON.parse(line).body;
+            } catch {
+              continue;
+            }
+            for (const a of asks) {
+              process.stdout.write(`    @${a.at} ${a.label}  ${excerptMessage(body?.messages?.[a.at])}\n`);
+            }
+            want.delete(idx);
+            if (want.size === 0) break;
+          }
         }
       }
     }
