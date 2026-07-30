@@ -8,6 +8,27 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **OPEN/HOT — task-reminder mid-history churn: NEW bust class, 587k
+  paid live 2026-07-30 ~07:29** (this session, ❄ #2). Evidence:
+  prefix-diff journal (key s-da07bb2d3cbe) shows three mutations at
+  FIXED index 867 in 90s (07:27:35 system, 07:27:42 assistant,
+  07:28:51 system) with clean sys/tools — CC rewrites the task-tool
+  system reminder at its HISTORICAL position when task state
+  changes; onset correlates exactly with first TaskCreate/TaskUpdate
+  use (07:12-07:19). Byte-confirmed: message 867 is the bare
+  "task tools haven't been used recently" system reminder — NO
+  <system-reminder> wrapper, so the class ESCAPES the volatile
+  pin's wrapper-keyed detector by construction. Boundary restart
+  exonerated (mutations are content changes, not serialization).
+  Probe needed before mitigation: extract the exact pre/post
+  variants for the three events from the capture (which reminder
+  variants swap; does the CURRENT tail always carry fresh task
+  state, making historical copies freeze-safe); then the mitigation
+  fork: extend the pin's volatile detector to cover bare task-tool
+  reminder shapes (freeze first-seen, suppress churn) vs upstream
+  issue only. Frequency risk: fires per task-state change in any
+  task-using session — the deeper the session, the dearer.
+
 - **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
   Updated 2026-07-30 after the suppression work: #272 gained the
   duplicate-suppression commit (c713d0e), #276 the output-side
