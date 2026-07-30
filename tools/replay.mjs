@@ -1051,7 +1051,16 @@ export function runCensus(entries) {
 }
 
 function parseArgs(argv) {
-  const args = { file: null, env: {}, json: false, census: false, restartAt: null, wipeStateAt: null, trace: false };
+  const args = {
+    file: null,
+    env: {},
+    json: false,
+    census: false,
+    restartAt: null,
+    wipeStateAt: null,
+    trace: false,
+    gatesFromCapture: false,
+  };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--env") {
@@ -1068,6 +1077,8 @@ function parseArgs(argv) {
       args.census = true;
     } else if (a === "--trace") {
       args.trace = true;
+    } else if (a === "--gates-from-capture") {
+      args.gatesFromCapture = true;
     } else if (a === "--restart-at" || a === "--wipe-state-at") {
       const v = parseInt(argv[++i] ?? "", 10);
       if (!Number.isFinite(v) || v < 1) {
@@ -1085,7 +1096,7 @@ function parseArgs(argv) {
   }
   if (!args.file) {
     process.stderr.write(
-      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--json]\n",
+      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--json]\n",
     );
     process.exit(2);
   }
@@ -1234,6 +1245,29 @@ export async function* readCapture(path) {
   }
 }
 
+// --gates-from-capture needs every boot record BEFORE loadExtensions runs
+// (several extensions read their gate env at load or first-call time), but
+// main()'s own `boots` array is only complete once the whole capture has
+// been read — a chicken-and-egg the flag resolves with a lightweight
+// PRE-pass: same pull-based reader as `readCapture` (never slurped, so this
+// costs one extra streamed parse of the file, not a second copy of it in
+// memory), keeping only the rare `type:"boot"` lines rather than every
+// request body.
+export async function readBootRecords(path) {
+  const boots = [];
+  for await (const line of readLines(path)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot") boots.push(rec);
+  }
+  return boots;
+}
+
 // --- Gate provenance (BACKLOG.md: "replay warns on gateless runs of gated
 // captures") ---
 //
@@ -1248,20 +1282,41 @@ export async function* readCapture(path) {
 // (2026-07-29 default-gates census), each time with the dev-loop warning
 // already loaded.
 //
-// declaredGateNames: union across every boot record in the capture, not
-// just the first — a capture can span a restart under a different unit
-// file, and any boot's declared gates are relevant to what the traffic
-// after it saw. `CACHE_FIX_CAPTURE_MAX_MB` is capture retention, not a
-// mitigation gate (excluded the same way the existing provenance printout
-// already excludes it).
-export function declaredGateNames(boots) {
-  const names = new Set();
+// declaredGateEnv: union across every boot record in the capture, not just
+// the first — a capture can span a restart under a different unit file, and
+// any boot's declared gates are relevant to what the traffic after it saw.
+// `CACHE_FIX_CAPTURE_MAX_MB` is capture retention, not a mitigation gate
+// (excluded the same way the existing provenance printout already
+// excludes it). Later boots win on VALUE (object insertion order tracks
+// file order, since boots is built by streaming the capture forward) — the
+// same rule `--gates-from-capture` (below) needs and `declaredGateNames`
+// (names only, no values) did not.
+export function declaredGateEnv(boots) {
+  const env = {};
   for (const b of boots ?? []) {
-    for (const k of Object.keys(b?.gates ?? {})) {
-      if (k !== "CACHE_FIX_CAPTURE_MAX_MB") names.add(k);
+    for (const [k, v] of Object.entries(b?.gates ?? {})) {
+      if (k !== "CACHE_FIX_CAPTURE_MAX_MB") env[k] = v;
     }
   }
-  return names;
+  return env;
+}
+
+export function declaredGateNames(boots) {
+  return new Set(Object.keys(declaredGateEnv(boots)));
+}
+
+// --gates-from-capture (BACKLOG.md: "and READY, the mechanized form: a
+// --gates-from-capture replay flag applying the union"). The union's
+// VALUES, not just its names, with explicit --env overrides winning
+// per-key — the same combination `main()` used to hand-extract from a
+// boot record and pass back in as `--env` flags, now mechanized so no
+// operator does that by hand (the standing cause of the 2026-07-29
+// default-gates incidents, dev-loop.md "Replay the configuration that is
+// SERVING"). Exported so a test asserts the SAME merge the CLI performs,
+// never a re-derived one (dev-loop.md, "never hand-roll identity in a
+// probe").
+export function resolveGatesFromCapture(boots, envOverrides) {
+  return { ...declaredGateEnv(boots), ...(envOverrides ?? {}) };
 }
 
 // Which of the declared gates are set in the effective replay env. "Set"
@@ -1298,7 +1353,15 @@ async function main() {
   // load-order surprise can leak a write to the live ~/.claude.
   const scratch = await mkdtemp(join(tmpdir(), "cache-fix-replay-"));
   process.env.CLAUDE_CONFIG_DIR = scratch;
-  for (const [k, v] of Object.entries(args.env)) process.env[k] = v;
+  // --gates-from-capture: resolve the capture's own ALL-BOOTS gate union
+  // (values, later boots winning) via a pre-pass BEFORE extensions load —
+  // the same merge point --env alone used, now with the capture as the
+  // base and --env as the override. Without the flag, behaviour is
+  // unchanged (args.env applied directly). See resolveGatesFromCapture.
+  const gateEnv = args.gatesFromCapture
+    ? resolveGatesFromCapture(await readBootRecords(args.file), args.env)
+    : args.env;
+  for (const [k, v] of Object.entries(gateEnv)) process.env[k] = v;
 
   const { loadExtensions, runOnRequest } = await import(
     new URL("../proxy/pipeline.mjs", import.meta.url).href
@@ -1427,15 +1490,16 @@ async function main() {
     stability.push(compactEntry(full));
   }
 
-  // Gate provenance check — see the block comment above `declaredGateNames`.
-  // `process.env` here already carries the `--env` overrides merged in
-  // above (before extensions loaded), so it IS the effective replay env.
+  // Gate provenance check — see the block comment above `declaredGateEnv`.
+  // `process.env` here already carries the `--env`/`--gates-from-capture`
+  // merge applied above (before extensions loaded), so it IS the effective
+  // replay env.
   // Computed once, after the read loop (boots is only complete once the
   // whole capture has been read), and printed once — not per request.
   const gateSource = gateSourceSummary(boots, process.env);
   if (gateSource.warn) {
     process.stderr.write(
-      `WARNING: replaying under DEFAULT gates — this traffic was served with ${gateSource.declaredCount} gate(s). Pass --env or use gate-live.\n`,
+      `WARNING: replaying under DEFAULT gates — this traffic was served with ${gateSource.declaredCount} gate(s). Pass --gates-from-capture, --env, or use gate-live.\n`,
     );
   }
 

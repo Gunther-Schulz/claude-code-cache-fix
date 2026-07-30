@@ -22,6 +22,8 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { readBootRecords, resolveGatesFromCapture } from "../tools/replay.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "..", "tools", "replay.mjs");
 
@@ -67,11 +69,29 @@ async function writeFixture(dir, gates) {
 // runner's own environment can never leak a CACHE_FIX_* var into the child —
 // which would silently make the "empty effective env" case not actually
 // empty and the bite meaningless.
-function runReplay(file, envOverrides) {
-  return spawnSync(process.execPath, [REPLAY, file, "--census", "--json"], {
+function runReplay(file, envOverrides, extraArgs = []) {
+  return spawnSync(process.execPath, [REPLAY, file, "--census", "--json", ...extraArgs], {
     encoding: "utf-8",
     env: { PATH: process.env.PATH, ...envOverrides },
   });
+}
+
+// A restart mid-capture: first boot GATELESS (nothing declared), second
+// boot declares GATE_KEYS — the shape --gates-from-capture exists for
+// (BACKLOG.md: "extract gates via the ALL-boots union, never head -1").
+// One request sits under each boot so the boot record's own `afterRequest`
+// bookkeeping (main()'s read loop) has something to attach to.
+async function writeMultiBootFixture(dir, gates) {
+  const path = join(dir, "capture.jsonl");
+  const lines = [
+    bootLine({}),
+    reqLine("2026-07-29T00:00:00.500Z", [u("pre-restart")]),
+    bootLine(gates),
+    reqLine("2026-07-29T00:00:01Z", [u("hello")]),
+    reqLine("2026-07-29T00:00:02Z", [u("hello"), a("hi"), u("more")]),
+  ];
+  await writeFile(path, lines.join("\n") + "\n");
+  return path;
 }
 
 test("gated capture replayed under empty env: warns on stderr, census stamped 'none'", async () => {
@@ -83,7 +103,7 @@ test("gated capture replayed under empty env: warns on stderr, census stamped 'n
     assert.equal(res.status, 0, `replay exited nonzero: ${res.stderr}`);
     assert.ok(
       res.stderr.includes(
-        "WARNING: replaying under DEFAULT gates — this traffic was served with 3 gate(s). Pass --env or use gate-live.",
+        "WARNING: replaying under DEFAULT gates — this traffic was served with 3 gate(s). Pass --gates-from-capture, --env, or use gate-live.",
       ),
       `expected warning on stderr, got: ${res.stderr}`,
     );
@@ -124,6 +144,56 @@ test("capture with no declared gates: no warning, header names it explicitly", a
     );
     const out = JSON.parse(res.stdout);
     assert.equal(out.census.gateSource, "no gates declared in capture");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// --gates-from-capture — BACKLOG.md's mechanized remedy: the multi-boot
+// case (first boot gateless, second declares gates) is exactly the shape
+// the ALL-boots union exists for, and is the one an operator's --env
+// hand-extraction would get wrong by reading only the FIRST boot record.
+test("--gates-from-capture on a multi-boot fixture: no warning, header 'N of N declared set'", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "replay-gate-warn-"));
+  try {
+    const gates = Object.fromEntries(GATE_KEYS.map((k) => [k, "1"]));
+    const file = await writeMultiBootFixture(dir, gates);
+    // No --env at all: the flag alone must resolve the union and set it,
+    // with nothing left for the operator to hand-extract.
+    const res = runReplay(file, {}, ["--gates-from-capture"]);
+    assert.equal(res.status, 0, `replay exited nonzero: ${res.stderr}`);
+    assert.ok(
+      !res.stderr.includes("WARNING: replaying under DEFAULT gates"),
+      `expected no warning on stderr, got: ${res.stderr}`,
+    );
+    const out = JSON.parse(res.stdout);
+    assert.equal(out.census.gateSource, "3 of 3 declared set");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// The flag's own merge, asserted directly per BACKLOG's design ("--env
+// still wins over the flag where both name a gate") — the CLI-spawning
+// bites above cannot observe a per-key VALUE override (gateSourceSummary
+// only checks presence, not value), so this calls the SAME merge function
+// main() calls (resolveGatesFromCapture), never a re-derived one
+// (dev-loop.md, "never hand-roll identity in a probe").
+test("--gates-from-capture: resolveGatesFromCapture lets an explicit --env value win per-key", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "replay-gate-warn-"));
+  try {
+    const gates = Object.fromEntries(GATE_KEYS.map((k) => [k, "1"]));
+    const file = await writeMultiBootFixture(dir, gates);
+    const boots = await readBootRecords(file);
+    assert.equal(boots.length, 2, "fixture must carry both boot records for the union to be meaningful");
+
+    const merged = resolveGatesFromCapture(boots, { [GATE_KEYS[0]]: "override-value" });
+    // The overridden key: --env wins.
+    assert.equal(merged[GATE_KEYS[0]], "override-value");
+    // The other two declared gates: capture's own value survives untouched.
+    assert.equal(merged[GATE_KEYS[1]], "1");
+    assert.equal(merged[GATE_KEYS[2]], "1");
+    assert.equal(Object.keys(merged).length, 3, "no extra keys beyond the union + override");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
