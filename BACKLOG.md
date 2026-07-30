@@ -560,23 +560,22 @@ bullet, evidence pointer included.
   answer over a corpus — then a census kind beside toolsDeltas, same
   shape.
 
-- **READY — insertion-normalization per-block standalone match (the
-  2026-07-30 flap variant; matrix Row 4 datapoint 8cd4e1c).** Sibling
-  of 78940a0's join-hash: per pinned entry, ALSO register each volatile
-  block's individually-unwrapped text hash; a standalone system-role
-  string message matching one pinned block's unwrapped text suppresses
-  through the existing path. Covers blocks migrating as SEPARATE
-  standalones (the flap: n=102->104/104->105/105->108, edit@86, two
-  standalone legs 93+94), which the join-hash match (blocks joined
-  "\n\n") does not — census running 78940a0's code still lists the flap
-  pairs unabsorbed. Verifier: red-first bite from the real n=102->104
-  pair bytes (sanitized via the harvest sanitizer, same path as
-  requests_864); gates 0/0/0/0 on both corpora. Done-criterion: census
-  over capture s-0d6f38ba-…-requests.jsonl shows the three flap pairs
-  input-mitigated AND suppressed-counts on unaffected corpora unchanged
-  (no new false suppressions). Deployment: proxy/** → dotfiles pin bump
-  + restart; row-3 statement: state-content addition, no key/freeze
-  change — cache-transparent expected.
+- **PARKED (design) — flap escape: cross-message join +
+  reset-before-suppression precedence.** The earlier READY per-block
+  item's premise was REFUTED by the build probe (fixture 090a110, full
+  measurements in its commit message): per-block hashes exist since
+  #76606, both matchable standalone legs already hash-match; the escape
+  is classifyPinned's reset("edit-shaped") firing BEFORE suppression,
+  triggered by the novel CROSS-MESSAGE join (msg89's reminder + "\n\n"
+  + standalone msg90, landing in dropped msg90's gap). Named open
+  decisions before any build: (1) may a cross-message join suppress at
+  all — suppressing drops msg90's bytes from the wire (the extension
+  never re-adds a message; same family as the suppression-stripped
+  final-message 400s), the alternative direction is first-seen-form
+  canonical re-serve rather than suppression; (2) may suppression
+  precede the edit-shaped reset — a load-bearing safety discriminator
+  with measured false-positive history. Trigger to unpark: a settled
+  answer to both, or a second measured flap instance raising the cost.
 
 - **READY — census flap annotation (blockMigration reversal).**
   `replay.mjs --census` emits a `flap` marker when the same
@@ -585,3 +584,8 @@ bullet, evidence pointer included.
   adjacent census lines (matrix 8cd4e1c). Verifier: emits on the
   2026-07-30 triple (n=102-108), silent on a corpus without reversals;
   mutation test in replay-gate-selfcheck per dev-loop "Adding a check".
+  ADDENDUM (same day): detector counts REAL migrations only — the
+  blockUnits standalone predicate over-reports 2x (phantom on any
+  message shrunk to one block); its fix granted to the running
+  annotation builder, red-first, before the detector lands. On the
+  2026-07-30 triple the real flap is the single 92->94 pair reversing.

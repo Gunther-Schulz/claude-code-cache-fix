@@ -385,6 +385,27 @@ fixtures, rotation loses the instance only. New sub-shape worth a
 census annotation: a flap detector (same blockMigration pair reversing
 within N requests) — currently only visible by reading adjacent lines.
 
+CORRECTION (same day, builder-measured against raw bytes; fixture
+090a110 reproduces both relations offline): the census over-reported
+this flap's migrations 2x — blockUnits treats any message that SHRANK
+to one block as a standalone, so stripping a reminder out of the
+tool_result manufactured the phantom "92->93" lines; only 92->94 is
+real. The flap stands: one reminder block flipping across three
+requests. And suppression coverage was NOT the gap: pinnedBlockHashes
+has matched per-block unwrapped text since the original #76606
+suppression, the join-hash (78940a0) matches the joined leg —
+findSuppressibleDuplicate returns a hash for both matchable
+standalones. The real escape: classifyPinned returns
+reset("edit-shaped") BEFORE the suppression pass, triggered by the one
+genuinely novel leg — a CROSS-MESSAGE join (msg89's unwrapped reminder
++ "\n\n" + the whole standalone msg90) landing in dropped msg90's gap.
+Mitigation is a design decision, not a build brief — two named open
+questions in BACKLOG (cross-message-join suppression would drop
+msg90's bytes from the wire; suppression-before-reset touches a
+load-bearing safety discriminator with measured false-positive
+history). The pin-extension candidate this entry previously named is
+withdrawn — refuted, already-built.
+
 
 
 ## External issue sweep vs. this stack — coverage matrix (2026-07-29)
