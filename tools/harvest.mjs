@@ -391,6 +391,8 @@ function parseArgs(argv) {
     ledger: DEFAULT_LEDGER,
     dryRun: false,
     json: false,
+    pinKey: null,
+    pinRange: null,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -399,7 +401,10 @@ function parseArgs(argv) {
     else if (a === "--ledger") args.ledger = argv[++i];
     else if (a === "--dry-run") args.dryRun = true;
     else if (a === "--json") args.json = true;
-    else {
+    else if (a === "--pin") {
+      args.pinKey = argv[++i];
+      args.pinRange = argv[++i];
+    } else {
       process.stderr.write(`unexpected argument: ${a}\n`);
       process.exit(2);
     }
@@ -407,8 +412,174 @@ function parseArgs(argv) {
   return args;
 }
 
+// --- --pin: freeze a sanitized range as a named, committable fixture ---
+//
+// BACKLOG.md "READY — harvest --pin freezes evidence ranges as fixtures":
+// real-pair tests (test/insertion-suppression.test.mjs,
+// test/mitigation-output-form.test.mjs) SKIP once their capture rotates out
+// of the retention window. --pin freezes the evidence those tests need
+// while the capture still holds it, using the SAME scrubRecord sanitizer as
+// the scheduled harvest — never a second scrubber.
+//
+// Range vs. replay-from-start: both real-pair tests replay the capture from
+// request 0 (not from n), because insertion-normalization keeps
+// per-conversation canonical state that only matches CC's own behaviour if
+// every prior request was replayed in order. A fixture containing only
+// records n..m would desync that state and reconstruct n..m incorrectly.
+// So the fixture holds every record (boot, outcome, request) from the
+// START OF THE FILE through request m inclusive — n..m is the PAIR under
+// test and names the fixture, not a truncation point. This is stated
+// explicitly in the fixture's header so a reader does not assume n..m bounds
+// the content.
+export function parsePinRange(rangeStr) {
+  const m = /^(\d+)\.\.(\d+)$/.exec(rangeStr ?? "");
+  if (!m) throw new Error(`--pin range must look like <n>..<m>, got: ${rangeStr}`);
+  const n = Number(m[1]);
+  const end = Number(m[2]);
+  if (end < n) throw new Error(`--pin range end must be >= start: ${rangeStr}`);
+  return { n, m: end };
+}
+
+// Boot/outcome records carry no conversation content, so they need no text
+// scrubbing — only the identifiers get hashed, matching scrubRecord's own
+// sid/key convention (same sha() helper, same prefix style), so this is
+// still ONE hashing scheme, not a second scrubber.
+function scrubBootRecord(rec) {
+  return { ts: rec.ts, type: "boot", proxyTree: rec.proxyTree ?? null, gates: rec.gates ?? null };
+}
+function scrubOutcomeRecord(rec) {
+  return {
+    ts: rec.ts,
+    type: "outcome",
+    id: rec.id ? `id_${sha(rec.id).slice(0, 8)}` : null,
+    key: rec.key ? `k_${sha(rec.key).slice(0, 8)}` : null,
+    requestId: rec.requestId ? `rq_${sha(rec.requestId).slice(0, 8)}` : null,
+    model: rec.model ?? null,
+    usage: rec.usage ?? null,
+    outSha: rec.outSha ?? null,
+    outBytes: rec.outBytes ?? null,
+    ms: rec.ms ?? null,
+  };
+}
+
+// Streams capturePath from its start and returns every record (boot,
+// outcome, request — sanitized) through the request whose file-wide ordinal
+// (counting only non-boot/non-outcome records, same counting rule
+// scanCapture and both real-pair tests use) equals `m`. Throws if the
+// capture has fewer than m+1 request records — a pin that cannot be
+// fulfilled must fail loudly, not write a truncated fixture silently.
+export async function pinRange(capturePath, m) {
+  const records = [];
+  let count = 0;
+  let reached = false;
+  for await (const line of readLines(capturePath)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot") {
+      records.push(scrubBootRecord(rec));
+      continue;
+    }
+    if (rec.type === "outcome") {
+      records.push(scrubOutcomeRecord(rec));
+      continue;
+    }
+    const idx = count++;
+    records.push(scrubRecord(rec));
+    if (idx === m) {
+      reached = true;
+      break;
+    }
+  }
+  if (!reached) {
+    throw new Error(`capture ${capturePath} has only ${count} request record(s), cannot pin through m=${m}`);
+  }
+  return records;
+}
+
+async function runPin(args) {
+  let n, m;
+  try {
+    ({ n, m } = parsePinRange(args.pinRange));
+  } catch (err) {
+    process.stderr.write(`${err.message}\n`);
+    process.exit(2);
+  }
+  const key = args.pinKey;
+  if (!key) {
+    process.stderr.write("--pin requires a <key> argument\n");
+    process.exit(2);
+  }
+  const capturePath = join(args.captures, `${key}-requests.jsonl`);
+  try {
+    await stat(capturePath);
+  } catch {
+    process.stderr.write(`no capture found for key ${key} at ${capturePath}\n`);
+    process.exit(2);
+  }
+
+  let records;
+  try {
+    records = await pinRange(capturePath, m);
+  } catch (err) {
+    process.stderr.write(`${err.message}\n`);
+    process.exit(1);
+  }
+
+  const fixture = {
+    header: {
+      key,
+      range: { n, m },
+      replayFrom: 0,
+      note:
+        "records holds the FULL prefix 0..m, not just n..m: the real-pair " +
+        "tests replay every request from index 0 in order because " +
+        "insertion-normalization's per-conversation canonical state is " +
+        "stateful (see tools/harvest.mjs runPin's header comment). n..m " +
+        "names the pair under test, not a truncation point.",
+      harvestedAt: new Date().toISOString(),
+      sanitizer:
+        "tools/harvest.mjs scrubRecord (tool schemas dropped; text tokenized " +
+        "deterministically, including inside <system-reminder> wrappers)",
+    },
+    records,
+  };
+
+  // File name matches the scheduled harvest's own convention (key.slice(0,
+  // 10) — see the harvested-*.jsonl naming above): a full session key is
+  // long and the 10-char prefix already disambiguates in practice.
+  const outName = `pinned-${key.slice(0, 10)}-${n}-${m}.json`;
+  const outPath = join(args.out, outName);
+  if (!args.dryRun) {
+    await mkdir(args.out, { recursive: true });
+    await writeFile(outPath, JSON.stringify(fixture, null, 2) + "\n");
+  }
+  process.stdout.write(
+    `pinned ${records.length} record(s), range ${n}..${m} (full prefix from 0), to ${outPath}` +
+      `${args.dryRun ? " (dry run)" : ""}\n`,
+  );
+}
+
+// Fixture-fallback reader: yields the same [n, line] tuple shape as
+// readCapture, over a pinned fixture's `records` array, so a consumer of
+// readCapture can swap sources without changing its own parsing loop.
+export async function* readPinnedFixture(fixturePath) {
+  const { records } = JSON.parse(await readFile(fixturePath, "utf-8"));
+  for (let i = 0; i < records.length; i++) {
+    yield [i, JSON.stringify(records[i])];
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv);
+  if (args.pinKey !== null) {
+    await runPin(args);
+    return;
+  }
   const ledger = await loadLedger(args.ledger);
   const report = { harvested: [], skipped: [], expired: [], scanned: 0 };
 
