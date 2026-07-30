@@ -30,6 +30,31 @@ bullet, evidence pointer included.
   (raw-side divergence, clean sys/tools). Cost model: one bust per
   flip at full depth — the class is as dear as the session is deep.
 
+- **OPEN — mitigation fire-rate ledger: which extensions still earn
+  their keep** (operator question 2026-07-30: upstream may fix CC
+  bugs; mitigations should retire on quiet evidence, like corpus
+  rules at fire-rate reviews). Today: per-class fire EVIDENCE exists
+  (insertion/deferred event logs, guard-events, census per-sweep
+  counts) but no TIME SERIES and no retirement consumer — gate
+  status keeps only the latest run. Design sketch: gate-live appends
+  one compact per-run line (date + per-class counts: suppressions,
+  relocations, tool-addition announcements, oscillation-absorptions,
+  guard restores, blockMigrations, duplicates) to a cumulative
+  fire-ledger jsonl; consumer: a shape-verdicts entry answering
+  "class X last fired N days ago" + threat-matrix rows gain retire
+  triggers ("quiet M weeks + upstream fix confirmed -> gate OFF,
+  acceptance-style"). Pairs naturally with the soak summary and the
+  watch threads (upstream fix lands -> the ledger shows the class
+  going quiet -> retirement with a basis).
+
+- **Residual — harvest --pin needs a ts-range mode** (2026-07-30):
+  ordinal selection against a LIVE capture failed twice in one hour
+  (growth moved the window; harvest's numbering differs from a hand
+  count — two schemes, the identity error at ordinal level). Pin by
+  timestamp range + echo endpoint timestamps in the report line for
+  eyeball verification; deep-range pins also need a no-full-prefix
+  mode (297 MB fixture from an 8-request window).
+
 - **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
   Updated 2026-07-30 after the suppression work: #272 gained the
   duplicate-suppression commit (c713d0e), #276 the output-side
