@@ -26,8 +26,15 @@ bullet, evidence pointer included.
   suppresses through the existing path; subset-merges not built
   (unobserved — the census keeps watching). Fixture extended with
   the real 864 standalone (requests_864). Build granted to the
-  probing agent. Residual: whether this is the sole 587k
-  contributor or one of several (agent flag, unverified).
+  probing agent. BUILT + VERIFIED + PUSHED same day (78940a0: 7/7
+  merge bites red-first from the real fixture bytes; sibling suites
+  65/65; gate 0/0/0/0; the census's "input-mitigated but NOT
+  output-preserved" list EMPTIED — including n=1515->1528, a second
+  independent real occurrence from a different subagent's spawn,
+  confirming the fix generalizes past the fixture). Rides the
+  restart boundary with b167fa5 (view-markers). Residual: whether
+  this is the sole 587k contributor or one of several (agent flag,
+  unverified; the post-restart live non-event is the closer).
 
 - **OPEN — mitigation fire-rate ledger: which extensions still earn
   their keep** (operator question 2026-07-30: upstream may fix CC
