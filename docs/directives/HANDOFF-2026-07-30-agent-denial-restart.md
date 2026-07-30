@@ -95,6 +95,18 @@ session; check `claude --version` drift and retry after
 
 ## The one open work item: PR port wave 2 (harness task #7)
 
+DONE 2026-07-30 (opus-5 dispatch + dispatcher completion). All five
+slices pushed and commented (#272 five commits, #276 twelve — incl.
+four prerequisites wave 1 turned out to have skipped, re-derived from
+fork history after the executor's conflict report — #278 three, #280
+one, #281 rebased). Fork-main portability fix da9bf8c (dynamic fixture
+reader) unblocked the cross-slice test-load failures; oscillation
+fixture rides in #272. Tests at push: 67/1s, 146/0, 74/1s, 85/0, 67/1s;
+acceptance diffs EMPTY against fork tip da9bf8c on every slice's named
+surface. No approval labels existed to stale. Executor's report:
+scratchpad wave2-report.md (session 78b3e7fe); preflight-check lesson
+booked in BACKLOG.
+
 Operator released the hold ("we could do all this now", 2026-07-30).
 The brief is DONE and decision-complete:
 `docs/directives/pr-wave2-port-brief.md` (committed d180b58). It maps

@@ -8,6 +8,29 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **READY — slice-port preflight: resolve a test file's module-scope
+  reads against the slice tree before mapping it.** Grounding: both
+  wave-2 load failures (2026-07-30) were the same shape — a test
+  file mapped into a slice by `--stat` carried a module-scope
+  dependency living in another slice (static
+  `import ../tools/harvest.mjs`; top-level `readFileSync` of the
+  oscillation fixture) and died at load in pr1/pr7/pr10; only
+  `node --test` on the slice sees it, after the port. Design
+  (settled): a `tools/` check that, given a slice tree and a list
+  of test files, extracts static import specifiers and top-level
+  `readFileSync`/`readFile` literals and resolves each against the
+  tree — missing resolution = red, named. Verifier: run against the
+  wave-2 mapping as recorded — must flag exactly
+  `insertion-suppression.test.mjs` (harvest.mjs) and
+  `insertion-merge-suppression.test.mjs` (oscillation fixture) at
+  the pre-fix states, green after da9bf8c + the fixture port.
+  Done-criterion: check in `tools/`, red on the recorded defect,
+  wired into the next port brief's preflight. Related brief-form
+  note for the next port: distinguish modify/delete conflicts on
+  brief-prescribed discard paths (no-op resolution, proceed) from
+  content (`UU`) conflicts (abort) — wave-2's executor had to
+  deviate to deliver anything (report §d D1).
+
 - **OPEN/HOT — MERGED-reminder standalone: the 587k's real mechanism
   (premise corrected by the builder's probe, dispatcher
   byte-verified 2026-07-30).** The oscillation-pin premise was
