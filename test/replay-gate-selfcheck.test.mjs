@@ -908,3 +908,271 @@ test("BITE — the real 2026-07-30 flap: one reminder block, three legs, two of 
   assert.deepEqual(rows[1].flap, { reversesPrevN: 102, reversesN: 104, span: 1 });
   assert.deepEqual(rows[2].flap, { reversesPrevN: 104, reversesN: 105, span: 1 });
 });
+
+// =====================================================================
+// Content conservation — the fifth gate
+// =====================================================================
+//
+// The DEFINITION lives beside the implementation (tools/replay.mjs, "Content
+// conservation: the fifth gate"). These assertions are derived from THAT
+// definition and not from what the implementation currently prints — the
+// same-parentage trap the dev-loop names: an expectation taken from the code
+// pins the bug it should catch.
+//
+// The four older gates are all positional: they compare our array against
+// CC's, or ours against our own predecessor. None of them can see a message
+// CC sent that we never forwarded and whose content exists nowhere else,
+// because a deletion that leaves the survivors positionally consistent is
+// invisible to every one of them. That is exactly what pin-and-suppress does
+// on purpose, so "the copy really is on the wire" needs its own check.
+
+import { findConservationViolations, conservationViolations } from "../tools/replay.mjs";
+
+const sysStr = (t) => ({ role: "system", content: t });
+
+// A pinned host: an ordinary block plus one reminder-wrapped block, the shape
+// every suppression in this pipeline reconstructs from.
+const host = (body, ...reminders) => ({
+  role: "user",
+  content: [txt(body), ...reminders.map((r) => txt(`<system-reminder>\n${r}\n</system-reminder>`))],
+});
+
+test("conservation: clean pass-through traffic is GREEN", () => {
+  const msgs = [user("u0"), asst("a1"), host("tool output", "hook says hi")];
+  assert.deepEqual(findConservationViolations([entry(0, msgs, msgs)]), []);
+});
+
+test("conservation: BITE — a message CC sent that we silently dropped is caught", () => {
+  // No declaration of any kind: the forwarded array is simply one message
+  // shorter. The safety gate catches this one too (length), but only because
+  // the count changed — the point of the next bite is that conservation
+  // catches it when the count does NOT.
+  const inM = [user("u0"), asst("a1"), user("the message we lost")];
+  const outM = [user("u0"), asst("a1")];
+  const v = findConservationViolations([entry(0, inM, outM)]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "lost");
+});
+
+test("conservation: BITE — content lost while the message COUNT stays equal", () => {
+  // The class no positional gate can see: same length, same roles, same
+  // order, tool adjacency intact — and one block of real content gone.
+  const inM = [user("u0"), asst("a1"), host("tool output", "hook context worth keeping")];
+  const outM = [user("u0"), asst("a1"), { role: "user", content: [txt("tool output")] }];
+  const v = findConservationViolations([entry(0, inM, outM)]);
+  assert.equal(v.length, 1, "the reminder block vanished with nothing accounting for it");
+  assert.equal(v[0].kind, "lost");
+  assert.match(v[0].detail, /in\[2\]/);
+});
+
+test("conservation: BITE — a DECLARED suppression with no copy on the wire is caught", () => {
+  // This is the shape the unit-2 mitigation could get wrong: declaring a
+  // suppression makes the safety gate exempt the message (it reads
+  // stats.suppressions), so a suppression whose content is NOT reconstructible
+  // would otherwise pass every existing check.
+  const inM = [user("u0"), asst("a1"), sysStr("bytes that exist nowhere else")];
+  const outM = [user("u0"), asst("a1")];
+  const v = findConservationViolations([
+    entry(0, inM, outM, { stats: { suppressions: [{ index: 2, hash: "h" }] } }),
+  ]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "suppressed-without-copy");
+});
+
+test("conservation: a declared suppression whose per-block copy IS forwarded is GREEN", () => {
+  // The original #76606 shape: the standalone carries the reminder's UNWRAPPED
+  // text, and the pinned host still forwards it wrapped. Same unit either way.
+  const inM = [user("u0"), asst("a1"), host("tool output", "hook context"), sysStr("hook context")];
+  const outM = [user("u0"), asst("a1"), host("tool output", "hook context")];
+  const v = findConservationViolations([
+    entry(0, inM, outM, { stats: { suppressions: [{ index: 3, hash: "h" }] } }),
+  ]);
+  assert.deepEqual(v, []);
+});
+
+test("conservation: a declared suppression matching a forwarded JOIN is GREEN", () => {
+  // The merged-standalone shape (78940a0): CC migrates ALL of a message's
+  // reminders out together as one standalone, joined with "\n\n". The copy on
+  // the wire is the host's blocks, and only their JOIN equals the suppressed
+  // bytes — a per-block check alone would call this a lost message.
+  const merged = "first hook\n\nsecond hook";
+  const inM = [user("u0"), asst("a1"), host("tool output", "first hook", "second hook"), sysStr(merged)];
+  const outM = [user("u0"), asst("a1"), host("tool output", "first hook", "second hook")];
+  const v = findConservationViolations([
+    entry(0, inM, outM, { stats: { suppressions: [{ index: 3, hash: "h" }] } }),
+  ]);
+  assert.deepEqual(v, [], "the join of the host's two reminder blocks IS the suppressed message");
+});
+
+test("conservation: BITE — a join that is missing a constituent is NOT reconstructible", () => {
+  // Fires-on-a-non-defect's mirror: the check must not accept any string that
+  // merely CONTAINS a forwarded block. Here the suppressed standalone joins a
+  // forwarded reminder with text that was never on the wire, which is exactly
+  // the cross-message shape the mitigation must not paper over.
+  const merged = "first hook\n\ncontent that exists nowhere in the forwarded array";
+  const inM = [user("u0"), asst("a1"), host("tool output", "first hook"), sysStr(merged)];
+  const outM = [user("u0"), asst("a1"), host("tool output", "first hook")];
+  const v = findConservationViolations([
+    entry(0, inM, outM, { stats: { suppressions: [{ index: 3, hash: "h" }] } }),
+  ]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "suppressed-without-copy");
+});
+
+test("conservation: BITE — a block we INVENTED is caught", () => {
+  const inM = [user("u0"), asst("a1")];
+  const outM = [user("u0"), asst("a1"), sysStr("text CC never sent anywhere")];
+  const v = findConservationViolations([entry(0, inM, outM)]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "invented");
+});
+
+test("conservation: re-serving bytes CC sent EARLIER in this conversation is GREEN", () => {
+  // What the volatile pin does on every request: the host arrives with its
+  // reminder stripped and we forward the first-seen form. The bytes are not in
+  // THIS request, so the F-side clause only holds because they were in an
+  // earlier one of the same conversation.
+  const r0 = [user("u0"), asst("a1"), host("tool output", "hook context")];
+  const r1 = [user("u0"), asst("a1"), { role: "user", content: [txt("tool output")] }, asst("a2")];
+  const f1 = [user("u0"), asst("a1"), host("tool output", "hook context"), asst("a2")];
+  const v = findConservationViolations([entry(0, r0, r0), entry(1, r1, f1)]);
+  assert.deepEqual(v, []);
+});
+
+test("conservation: BITE — first-seen bytes from a DIFFERENT conversation do not count", () => {
+  // The registry is per conversation because a cache prefix is: serving one
+  // tenant's bytes into another tenant's history is invention, not a re-serve.
+  // Identical to the test above except that the earlier request opens with a
+  // different first message, which is the conversation identity every other
+  // checker in this file uses.
+  const other = [user("DIFFERENT conversation opener"), asst("a1"), host("tool output", "hook context")];
+  const r1 = [user("u0"), asst("a1"), { role: "user", content: [txt("tool output")] }, asst("a2")];
+  const f1 = [user("u0"), asst("a1"), host("tool output", "hook context"), asst("a2")];
+  const v = findConservationViolations([entry(0, other, other), entry(1, r1, f1)]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "invented");
+});
+
+test("conservation: deferred-tool-rewrite's declared tool_addition is GREEN", () => {
+  // The same declared injection the safety gate already exempts. Counting it
+  // here would re-create the 243-false-positive incident one gate over.
+  const inM = [user("u0"), asst("a1")];
+  const outM = [
+    user("u0"),
+    { role: "system", content: [{ type: "tool_addition", tool: { type: "tool_reference", name: "WebFetch" } }] },
+    asst("a1"),
+  ];
+  assert.deepEqual(findConservationViolations([entry(0, inM, outM)]), []);
+});
+
+test("conservation: assistant-side rewrites are OUT of the population, and counted as residue", () => {
+  // tool-input-normalize rewrites assistant tool_use inputs in place and
+  // thinking sanitization drops thinking blocks — measured as the only
+  // non-conserved blocks across 936 live requests. They are a separately-gated
+  // class, so this gate must stay silent on them AND say how much it skipped.
+  const inM = [
+    user("u0"),
+    { role: "assistant", content: [{ type: "thinking", thinking: "dropped later" }, { type: "tool_use", id: "t1", name: "Edit", input: { b: 2, a: 1 } }] },
+  ];
+  const outM = [
+    user("u0"),
+    { role: "assistant", content: [{ type: "tool_use", id: "t1", name: "Edit", input: { a: 1, b: 2 } }] },
+  ];
+  const res = conservationViolations(entry(0, inM, outM), new Set());
+  assert.deepEqual(res.violations, [], "assistant content is not this gate's population");
+  assert.equal(res.assistantResidue, 2, "and the two blocks it did not examine are reported, not hidden");
+});
+
+// The cross-message join needs a PRIOR request in every case below, and that
+// is not test scaffolding — it is the definition. A re-served constituent is
+// legitimate only because CC itself sent those bytes earlier in this
+// conversation; without that request the F-side clause correctly calls the
+// re-serve an invention, which is what the first draft of these three tests
+// discovered by going red.
+const NUDGE = "The task tools haven't been used recently.";
+const MERGED = `hook context\n\n${NUDGE}`;
+// The inline leg CC sent first: the host carries its reminder, the nudge
+// stands alone after it.
+const crossPrev = () => [user("u0"), asst("a1"), host("tool output", "hook context"), sysStr(NUDGE), asst("a2")];
+// The standalone leg: the host has shed its reminder and the two are merged
+// into one message, which the extension declares suppressed.
+const crossCur = () => [user("u0"), asst("a1"), { role: "user", content: [txt("tool output")] }, sysStr(MERGED), asst("a2")];
+const crossSuppressed = { stats: { suppressions: [{ index: 3, hash: "h" }] } };
+
+test("conservation: a suppression matching a CROSS-MESSAGE join of two forwarded messages is GREEN", () => {
+  // The 2026-07-30 flap's novel leg (fixture flap-s-0dc8ac87c43d-86.json, msg91):
+  // CC merged one message's reminder with the WHOLE standalone that followed
+  // it. The copy on the wire is split across two ADJACENT forwarded messages —
+  // the pinned host, and the re-served standalone right after it.
+  const f = crossPrev();
+  const v = findConservationViolations([
+    entry(0, crossPrev(), crossPrev()),
+    entry(1, crossCur(), f, crossSuppressed),
+  ]);
+  assert.deepEqual(v, [], "reminder host + the standalone after it reconstruct the merged message");
+});
+
+test("conservation: BITE — a cross-join whose SECOND constituent is not on the wire is caught", () => {
+  // Naive suppression, which is the failure this gate exists to name: suppress
+  // the merged message, re-serve nothing, and the standalone's bytes leave the
+  // conversation entirely. Identical to the GREEN case except that the
+  // re-served standalone is absent from the forwarded array.
+  const f = crossPrev().filter((m) => m.content !== NUDGE);
+  const v = findConservationViolations([
+    entry(0, crossPrev(), crossPrev()),
+    entry(1, crossCur(), f, crossSuppressed),
+  ]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "suppressed-without-copy");
+});
+
+test("conservation: BITE — cross-join constituents must be ADJACENT and in wire order", () => {
+  // Without the adjacency and ordering restriction, any two forwarded messages
+  // anywhere in a thousand-message history could be paired up to "explain" a
+  // suppression, which explains nothing. Same two constituents as the GREEN
+  // case, one unrelated turn between them.
+  const f = [user("u0"), asst("a1"), host("tool output", "hook context"), asst("a-between"), sysStr(NUDGE), asst("a2")];
+  const v = findConservationViolations([
+    entry(0, crossPrev(), crossPrev()),
+    entry(1, crossCur(), f, crossSuppressed),
+  ]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "suppressed-without-copy");
+});
+
+test("conservation: fresh-session-sort's declared /clear-artifact strip is exempt", () => {
+  // Clause (c) of the definition, and the case that found it: the first sweep
+  // reported 645 `lost` rows on capture s-633915a8, all at message 0, and
+  // stage-by-stage replay named fresh-session-sort, which deletes the echo a
+  // slash command leaves behind. Declared behaviour, not lost conversation.
+  const inM = [
+    {
+      role: "user",
+      content: [
+        txt("the actual question"),
+        txt("<local-command-caveat>Caveat: the messages below were generated…</local-command-caveat>"),
+        txt("<command-name>/compact</command-name>"),
+        txt("<local-command-stdout>Compacted…</local-command-stdout>"),
+      ],
+    },
+  ];
+  const outM = [{ role: "user", content: [txt("the actual question")] }];
+  assert.deepEqual(findConservationViolations([entry(0, inM, outM)]), []);
+});
+
+test("conservation: BITE — the strip exemption does NOT cover ordinary content", () => {
+  // The exemption must be the three declared tags and nothing adjacent to
+  // them; a check that swallows a real deletion because it sits next to a
+  // declared one is worse than no check.
+  const inM = [
+    {
+      role: "user",
+      content: [txt("the actual question"), txt("<command-name>/compact</command-name>"), txt("real content CC sent")],
+    },
+  ];
+  const outM = [{ role: "user", content: [txt("the actual question")] }];
+  const v = findConservationViolations([entry(0, inM, outM)]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].kind, "lost");
+  assert.match(v[0].detail, /1 of 3/, "the declared artifact is exempt; the real block is not");
+});
