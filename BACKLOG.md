@@ -154,11 +154,26 @@ bullet, evidence pointer included.
   [CC bytes IDENTICAL -> ours] <- fresh-session-sort` — CC's input
   changed at index 1, our output byte-flapped at index 0; not
   suppression-shaped (byte change, not message removal), one
-  instance in ~2000 requests, still unattributed at mechanism
-  level. The gate stays red until the LIFO fix lands and
-  fresh-session-sort's one-off is understood or exempted with a
-  basis — do NOT treat red as noise (the check fired on real
-  defects; that is it working).
+  instance in ~2000 requests. RESOLVED at mechanism level
+  (probe 2026-07-30, dispatcher-verified at the code):
+  fresh-session-sort's relocate branch fires on the FIRST
+  APPEARANCE of a relocatable block type anywhere in the array
+  (hasScatteredBlocks, :117-127) and prepends it to messages[0] —
+  a DELIBERATE one-time relocation bust that buys elimination of
+  repeated future ones (extension-impact-guide: the #34629 class,
+  the project's founding bug). Deterministic-from-input;
+  1/~2000 matches session-init frequency. READY — the build:
+  fresh-session-sort emits ctx.meta telemetry (relocated block
+  types + first-appearance flag; today it emits NOTHING, grep-
+  confirmed), and replay's stability check gains a telemetry-keyed
+  exemption mirroring suppressedIndices ("never a re-derived
+  guess") for first-appearance relocations at the reported index.
+  Verifier: red-green on the real pair (s-58c979ce n=2024->2025
+  flips to exempt-with-basis, gate fully green) + unit bite both
+  ways (relocation without telemetry stays RED — the exemption
+  must not fire on shape alone). SERIALIZED behind the row6-dup
+  dispatch on tools/replay.mjs; extension half is proxy/** — rides
+  the shared next restart boundary (fourth rider).
 
 - **DONE 2026-07-30 — capture appends serialize per path**
   (ec71be1, sonnet, pushed after dispatcher verification: 14/14
