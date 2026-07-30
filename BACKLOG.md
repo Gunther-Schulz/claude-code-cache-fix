@@ -121,7 +121,21 @@ bullet, evidence pointer included.
   stands: a mutation that can REMOVE messages needs a
   tail-validity invariant from day one; the message-COUNT lesson
   covered the checkers, not the API-contract shape. SERVING after
-  the ASAP restart (task #5).
+  the ASAP restart (task #5). CLASS CLOSED (probe, same day): a
+  fourth 400 at 08:40:48 was the DEPLOYMENT WINDOW — the request
+  hit 54s after the fix's push and 43s before its restart, served
+  by the stale process (probe reproduced production's event log
+  byte-for-byte with the pre-fix files, and HEAD replays the same
+  request clean; the three originals replay clean under current
+  code — no second mechanism). Two residues, named: (1) accepted —
+  commit-to-restart windows serve stale code by construction; rare,
+  self-healing, no standing check built (point-in-time gates can't
+  see a 54s window; a fix-class actively firing during its own
+  deploy window is unlucky timing, not drift). (2) instrument
+  lesson — the dispatcher misread a TRUNCATED log print ("index:
+  2..." was index 287, cut mid-number) and briefed "mid-history"
+  wrong; the probe's full-record read corrected it. Print full
+  records when the value is load-bearing.
 
 - **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
   Updated 2026-07-30 after the suppression work: #272 gained the
