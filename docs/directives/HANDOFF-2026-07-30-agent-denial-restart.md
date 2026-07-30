@@ -134,6 +134,14 @@ After execution, the DISPATCHER'S half (never delegated):
 
 ## Follow-up: update our threads on anthropics/claude-code (operator request 2026-07-30)
 
+NEW ISSUE FILED 2026-07-30 (operator GO): anthropics/claude-code #82642
+— "PreToolUse hook denials discard `decisionReason` at transcript-write
+time". Narrow ask: persist hookName (always) and hookSource (where
+populated). Filed under Gunther-Schulz, matching the #73434 comments.
+Scoped down from the original draft after the shipped client was read:
+`toolDenialKind` is NOT part of the complaint (see the refuted lesson
+below). No maintainer response yet; thread on watch.
+
 DONE 2026-07-30 (operator "GO all"): #76606 comment 5131210097 (merge
 variant + join-hash mitigation), #78660 comment 5131210308 (edit-class
 addition), #81967 comment 5131210550 (deferred-tools toolsBytes step,
