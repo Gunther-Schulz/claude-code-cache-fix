@@ -99,7 +99,17 @@ bullet, evidence pointer included.
   set) shares the code path but has no bite; no real multi-boot
   fixture in-repo (union exercised against the live capture only).
   Convention from the incident: extract gates via the ALL-boots
-  union, never head -1.
+  union, never head -1 — and READY, the mechanized form: a
+  `--gates-from-capture` replay flag applying the union (names AND
+  values, later boots winning) so no operator hand-extracts gates
+  at all; the warning text then names the flag as the remedy.
+  Design: reuse declaredGateNames' iteration, apply before
+  extension load (same merge point as --env); --env still wins
+  over the flag where both name a gate. Verifier: bite — flag on
+  the multi-boot capture reproduces the union run (no warning,
+  header "N of N"); flag + --env override → override wins. The
+  hand-extraction one-liner dies with the flag (the probe-
+  graduation rule's case).
 
 - **OPEN — deferred-tool-rewrite self-inflicted busts, pre-existing,
   surfaced by the 2026-07-30 gate run** (first red gate after the
