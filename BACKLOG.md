@@ -311,13 +311,14 @@ bullet, evidence pointer included.
   100% of "unstable" pairs coincide with a genuine new-tool
   announcement; held/shared tools byte-identical on every checked
   repeat pair; first-event hypothesis measured out (3/25, 3/37).
-  READY, small, serialized behind the fss-exempt dispatch on
-  tools/replay.mjs: findToolsDeltas gains `heldStable` (signature
-  over the SHARED-name subset across the pair) beside
-  forwardedStable; gate-live's summary carries it; bite: a pair
-  with one added tool and identical shared subset -> heldStable
-  true, forwardedStable false; a pair with a mutated shared tool ->
-  both false (red first). Matrix row 6 updated same day.
+  DONE 2026-07-30 (813edc8, sonnet, pushed after dispatcher
+  verification: selfcheck exit 0; real capture s-dc3f8071 measures
+  heldStable 37/37 against forwardedStable 1/37 — 100%, no
+  counterexamples, stronger than the probe's hedge; deviation
+  accepted: missing outTools data -> heldStable false, mirroring
+  the existing convention). deferred-tool-rewrite's guarantee is
+  now measured AS MADE by the daily sweep. Matrix row 6 updated
+  same day with the measured number.
 
 - **OPEN — duplicate-request contradiction: ~100 adjacent identical
   pairs vs the booked "one instance in 3,446"** (new per-conversation
