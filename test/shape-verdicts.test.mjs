@@ -98,18 +98,16 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
   const dir = await mkdtemp(join(tmpdir(), "shape-verdicts-"));
   try {
     const verdicts = await computeVerdicts(join(dir, "no-such-ledger.json"));
-    // 3 ledger-shape verdicts + 5 telemetry-consumer verdicts (Q4 table).
-    assert.equal(verdicts.length, 8);
+    // 3 ledger-shape verdicts + the telemetry-consumer table (Q4). The
+    // table length is asserted against the TABLE, not a literal — a row
+    // legitimately added must not redden this test (the hardcoded-count
+    // anti-pattern bit exactly once, 2026-07-30).
+    const { TELEMETRY_CONSUMERS } = await import("../tools/shape-verdicts.mjs");
+    assert.equal(verdicts.length, 3 + TELEMETRY_CONSUMERS.length);
     assert.ok(verdicts.every((v) => v.level === "warn" || v.name === "baseline"));
     assert.equal(verdicts[0].level, "warn", "shape-watch cannot read as green without a ledger");
     const telemetryNames = verdicts.slice(3).map((v) => v.name);
-    assert.deepEqual(telemetryNames, [
-      "telemetry-guard-events",
-      "telemetry-upstream-changes",
-      "telemetry-insertion-events",
-      "telemetry-deferred-tool-events",
-      "telemetry-session-mirror",
-    ]);
+    assert.deepEqual(telemetryNames, TELEMETRY_CONSUMERS.map((e) => e.name));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -248,6 +246,7 @@ test("computeTelemetryVerdicts: names and order match the declared table, real w
       "telemetry-insertion-events",
       "telemetry-deferred-tool-events",
       "telemetry-session-mirror",
+      "telemetry-upstream-errors",
     ],
   );
   // Nothing gated on, nothing written: every entry is could-not-verify (warn).

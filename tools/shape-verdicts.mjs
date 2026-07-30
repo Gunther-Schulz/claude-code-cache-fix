@@ -238,7 +238,7 @@ function gateResolves(name, onValue) {
   return servingGate(name) === onValue;
 }
 
-const TELEMETRY_CONSUMERS = [
+export const TELEMETRY_CONSUMERS = [
   {
     name: "telemetry-guard-events",
     kind: "alarm",
