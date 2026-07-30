@@ -347,6 +347,45 @@ tools/replay.mjs reports the tail/mid split and prices the mid-history
 population on every `--census` run, and `tools/gate-live.mjs` runs daily.
 Row 4's disposition is now a measurement, not a memory.
 
+### Row 4 datapoint — 2026-07-30: first measured OSCILLATION (221k bust)
+
+Session 0d6f38ba, 16:57:14Z, `messages_changed`, cc 221,065. The Agent
+hook-reminder pair FLAPPED inline->standalone->inline->standalone across
+four consecutive main-thread requests in 11 seconds — census over the
+pre-pipeline capture:
+
+    n=102->104  edit@86 of 98   [anchor-12] [blockMigration inline->standalone 92->93, 92->94]  ~31 kB  16:57:05.767Z
+    n=104->105  edit@86 of 98   [anchor-10] [blockMigration standalone->inline 93->92, 94->92]  ~32 kB  16:57:08.353Z
+    n=105->108  edit@86 of 100  [anchor-14] [blockMigration inline->standalone 92->93, 92->94]  ~37 kB  16:57:16.375Z
+
+Trigger window: a teammate report (ubytes=4248) landing at a clean turn
+boundary (flight=false) amid mid-turn operator messages. Attribution
+CC's: the same census reports 0 pipeline byte-stability violations;
+insertion-normalization answered with three edit-shaped resets, sequence
+gate 0 (correct response, no bleed). The census emits `blockMigration`
+lines directly — the class is recognized, not re-derived (the 07-28
+mechanization holding).
+
+Post-pin escape CONFIRMED live: the standalone leg is the system-role
+string-content shape `isVolatileBlock` does not classify (runbook
+2026-07-28 note), so the pin absorbs the inline leg only — under a flap
+that busts on every second flip at best. Magnitude: mtok 201,434 of ctx
+236,536 (85%) missed from an edit at ~86/100 — surviving prefix ~35k
+tokens, consistent with the 07-28 breakpoint-sparsity question (single
+tail cache_control marker), still unproven against wire bytes.
+
+Mitigation status unchanged by this event, both halves already named:
+occurrence-side, extend the volatile pin to the standalone system-role
+string shape (candidate since 07-28); magnitude-side, the mid-history
+breakpoint ladder (directive on feature/mid-history-breakpoint-ladder,
+unmerged). Evidence: capture s-0d6f38ba…-requests.jsonl (79.8 MB,
+rotates; reproduce with `node tools/replay.mjs <capture> --census`);
+same-hour harvest reported 0 novel pairs — the shape is already in
+fixtures, rotation loses the instance only. New sub-shape worth a
+census annotation: a flap detector (same blockMigration pair reversing
+within N requests) — currently only visible by reading adjacent lines.
+
+
 
 ## External issue sweep vs. this stack — coverage matrix (2026-07-29)
 
