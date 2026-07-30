@@ -193,5 +193,91 @@
     ]
    }
   }
+ ],
+ "_merge_standalone": "msg864 across the same window: CC's MERGED standalone — both hook reminders wrapper-stripped, joined with \\n\\n (627 chars), role system; the suppression gap's real shape",
+ "requests_864": [
+  {
+   "ts": "2026-07-30T07:27:35.596Z",
+   "msg864": {
+    "role": "assistant",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "CAIS5gYKiAEIEBgCKkARHv132ESvvhOT+L+iCmjIL2zH7VglfkbZ3JRpClEBVz9rewOp9rWUuBOLSt9HrB+1lK+FJLhnLsCmJGuLg1n8Mg5jbGF1ZGUtZmFibGUtNTgBQgh0aGlua2luZ1okYmU3YzdjNDgtNGMxOC00ZmNiLTk3MDgtYjU2Mjk5Zjg3N2I4Egx2KU/9F6F2fTiE/5MaDJqkuqeTwUECnCtTLiIw5K5vnRhiuZFdVup5v84mrYY2DuuwkgG+LVg7pi9wLfp2r5MmcDJ/GJQpSTRSltOhKooFsD3yXuzwyic/qqyiq9DqKnYi23rQjKuecDqI4zBk+bIP40928z6Z+dKCVfO/qUGOJkpGrAWzT2NM/ri7cMPdy3YjiFgPvGlR0mGVtOCwu4mQxx3akorSNarNZa8XXxMZSOJdQF6v486i6WBKgD1knv1+/YrkYBU/93t2eOuZLwu6mrmduoN4X54Sd+PCcm9ZIJayeT0m/DnvJ3GsZDmUkxS41FcOOweRoGkjo5KwnQdumCMVXgBXK8s+dt4G9zI/dlzJiSky79aEZue+6x92hr8QfOapG9vmNKlfKbrHziH9NqiheAR64hYbw1k/O5663y9tbFMeqnQs3hy0KZTToSNbrTgYpgLEjOVWICs3UVDInYSzqmBR/LwsZLO1LSK4UImq3j9eb0XTmXhA7j9/rkXM+OJlCxTNKNL509UxCpRlZC6EBKr0rK1weLGCNXCNMyRRbKikHo6ENh2QW5+dFPLR/xjsIgKH0Fub+2hFmlJDycv5eIcR3X+BJS1L5v7iu0DstG9PUgi+mUwxUwFQqgrqMw5WzwN7M/rh/12u1jPviAKjud8Fpvsz6d+0I4xfKczNOQGixA/FUdAJhJ5VMYvBTmYIPx5b1pJNOoqd8x1MDE3PWw2XFuZvU3QrD7h+0gxFIwlac2R893mG+9KZFpXTNLlIIysy/XOXRK+OLAWimJGK8WODyhyas+Kd2IKXbpbfxQdYs9W8i/qxe8zno0Os8znZP9wIAdkJ5lwqoJQGfkz8wHTri/THogvhh4ciwo+uXZlBKbrWqXJhwiM7i2koEhjnoZa57IDV4Sc4E6z0jZmb8RkA7t0pDJfIEjJ1C6wxvx/O+bi9Zxh5KwM5jVp08woP3x8o3qYYAQ=="
+     },
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "CAIShwMKiQEIEBgCKkAtY1HGaNEuX2ko8+rdpd1knJ4vwpP37CtJTdcZ7neyPvFhpskZE6BlFT9eDQgxQneLxxq58UNbl7ynVk5WMpzBMg5jbGF1ZGUtZmFibGUtNTgBQgluYXJyYXRpb25aJGJlN2M3YzQ4LTRjMTgtNGZjYi05NzA4LWI1NjI5OWY4NzdiOBIMnTOk2u0GnNNS2a0kGgwzN80byKtQnlLEGFIiMHuwIbE1y0AETmOrJcombEpV7adncR7HtnXsihB9ZzIk69qEAkg/XCU/VYqaBWi7OCqqATpCRnNOWYoc2fruDXrqPVVz0cmnamv23yQPhtrQUB8mX7DjvdvKr6PWwnhkERJnPGN66JN2sKHZ3SiH3hg1ZGOC7p4RI4XpiPljH2zEDPUOlvCS7CGQHxATmxe6FkMPnQygdpJPHJeStBZzkrIlCU7jUIIQ/y9mDraznFoh2f+50c0Bmc4LoVxfXsOYHCcm37K/7ae94g3CMPSm2bTXNNzD6zPF6nSrHV1FGAE="
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_01CWrpni9WFUr3drUrKWs4eF",
+      "name": "Read",
+      "input": {
+       "file_path": "/home/g/dev/vendor/claude-code-cache-fix/proxy/extensions/upstream-change-detection.mjs",
+       "offset": 440,
+       "limit": 35
+      },
+      "caller": {
+       "type": "direct"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:27:35.793Z",
+   "msg864": {
+    "role": "system",
+    "content": "PreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish."
+   }
+  },
+  {
+   "ts": "2026-07-30T07:27:42.951Z",
+   "msg864": {
+    "role": "assistant",
+    "content": [
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "CAIS5gYKiAEIEBgCKkARHv132ESvvhOT+L+iCmjIL2zH7VglfkbZ3JRpClEBVz9rewOp9rWUuBOLSt9HrB+1lK+FJLhnLsCmJGuLg1n8Mg5jbGF1ZGUtZmFibGUtNTgBQgh0aGlua2luZ1okYmU3YzdjNDgtNGMxOC00ZmNiLTk3MDgtYjU2Mjk5Zjg3N2I4Egx2KU/9F6F2fTiE/5MaDJqkuqeTwUECnCtTLiIw5K5vnRhiuZFdVup5v84mrYY2DuuwkgG+LVg7pi9wLfp2r5MmcDJ/GJQpSTRSltOhKooFsD3yXuzwyic/qqyiq9DqKnYi23rQjKuecDqI4zBk+bIP40928z6Z+dKCVfO/qUGOJkpGrAWzT2NM/ri7cMPdy3YjiFgPvGlR0mGVtOCwu4mQxx3akorSNarNZa8XXxMZSOJdQF6v486i6WBKgD1knv1+/YrkYBU/93t2eOuZLwu6mrmduoN4X54Sd+PCcm9ZIJayeT0m/DnvJ3GsZDmUkxS41FcOOweRoGkjo5KwnQdumCMVXgBXK8s+dt4G9zI/dlzJiSky79aEZue+6x92hr8QfOapG9vmNKlfKbrHziH9NqiheAR64hYbw1k/O5663y9tbFMeqnQs3hy0KZTToSNbrTgYpgLEjOVWICs3UVDInYSzqmBR/LwsZLO1LSK4UImq3j9eb0XTmXhA7j9/rkXM+OJlCxTNKNL509UxCpRlZC6EBKr0rK1weLGCNXCNMyRRbKikHo6ENh2QW5+dFPLR/xjsIgKH0Fub+2hFmlJDycv5eIcR3X+BJS1L5v7iu0DstG9PUgi+mUwxUwFQqgrqMw5WzwN7M/rh/12u1jPviAKjud8Fpvsz6d+0I4xfKczNOQGixA/FUdAJhJ5VMYvBTmYIPx5b1pJNOoqd8x1MDE3PWw2XFuZvU3QrD7h+0gxFIwlac2R893mG+9KZFpXTNLlIIysy/XOXRK+OLAWimJGK8WODyhyas+Kd2IKXbpbfxQdYs9W8i/qxe8zno0Os8znZP9wIAdkJ5lwqoJQGfkz8wHTri/THogvhh4ciwo+uXZlBKbrWqXJhwiM7i2koEhjnoZa57IDV4Sc4E6z0jZmb8RkA7t0pDJfIEjJ1C6wxvx/O+bi9Zxh5KwM5jVp08woP3x8o3qYYAQ=="
+     },
+     {
+      "type": "thinking",
+      "thinking": "",
+      "signature": "CAIShwMKiQEIEBgCKkAtY1HGaNEuX2ko8+rdpd1knJ4vwpP37CtJTdcZ7neyPvFhpskZE6BlFT9eDQgxQneLxxq58UNbl7ynVk5WMpzBMg5jbGF1ZGUtZmFibGUtNTgBQgluYXJyYXRpb25aJGJlN2M3YzQ4LTRjMTgtNGZjYi05NzA4LWI1NjI5OWY4NzdiOBIMnTOk2u0GnNNS2a0kGgwzN80byKtQnlLEGFIiMHuwIbE1y0AETmOrJcombEpV7adncR7HtnXsihB9ZzIk69qEAkg/XCU/VYqaBWi7OCqqATpCRnNOWYoc2fruDXrqPVVz0cmnamv23yQPhtrQUB8mX7DjvdvKr6PWwnhkERJnPGN66JN2sKHZ3SiH3hg1ZGOC7p4RI4XpiPljH2zEDPUOlvCS7CGQHxATmxe6FkMPnQygdpJPHJeStBZzkrIlCU7jUIIQ/y9mDraznFoh2f+50c0Bmc4LoVxfXsOYHCcm37K/7ae94g3CMPSm2bTXNNzD6zPF6nSrHV1FGAE="
+     },
+     {
+      "type": "tool_use",
+      "id": "toolu_01CWrpni9WFUr3drUrKWs4eF",
+      "name": "Read",
+      "input": {
+       "file_path": "/home/g/dev/vendor/claude-code-cache-fix/proxy/extensions/upstream-change-detection.mjs",
+       "offset": 440,
+       "limit": 35
+      },
+      "caller": {
+       "type": "direct"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:28:51.526Z",
+   "msg864": {
+    "role": "system",
+    "content": "PreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish."
+   }
+  },
+  {
+   "ts": "2026-07-30T07:29:12.931Z",
+   "msg864": {
+    "role": "system",
+    "content": "PreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish."
+   }
+  }
  ]
 }

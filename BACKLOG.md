@@ -8,27 +8,26 @@ bullet, evidence pointer included.
 
 ## Open
 
-- **OPEN/HOT — reminder OSCILLATION in a historical tool_result:
-  #76606-family variant, 587k paid live 2026-07-30 ~07:29** (this
-  session, ❄ #2). ATTRIBUTION SETTLED at the bytes, both sides:
-  CC-side origin CONFIRMED — the PRE-pipeline capture's raw bodies
-  diverge at index 863 (the sonnet-queue-recon Agent-spawn
-  tool_result) oscillating 1243B (PreToolUse/PostToolUse
-  <system-reminder> blocks inline) <-> 443B (blocks stripped), four
-  flips in 90s (07:27:35-07:28:51); a first booking blamed
-  task-reminder churn off the post-pipeline journal index (867) —
-  WRONG, corrected by the raw diff (tap-point lesson, dev-loop rule
-  minted same day). OUR half, open: the volatile pin did NOT absorb
-  it — post-pipeline journal shows forwarded divergence too; prime
-  suspect is the genuine-change escape treating each flip as a real
-  edit (correct for real edits, wrong for A<->B oscillation between
-  two already-seen forms). Probe/fix design sketch: teach the pin
-  an oscillation case — a "changed" volatile block whose bytes
-  equal a PREVIOUSLY-SEEN form of the same entry is served from the
-  pin, not reset; bite on the real four-flip sequence from this
-  capture (harvest --pin it BEFORE rotation). Restart exonerated
-  (raw-side divergence, clean sys/tools). Cost model: one bust per
-  flip at full depth — the class is as dear as the session is deep.
+- **OPEN/HOT — MERGED-reminder standalone: the 587k's real mechanism
+  (premise corrected by the builder's probe, dispatcher
+  byte-verified 2026-07-30).** The oscillation-pin premise was
+  DISPROVEN against real code + production telemetry: the pin
+  already absorbs msg863's flips (volatile-classed, identity
+  unchanged, zero resets across the window). The REAL forwarded
+  divergence: CC migrates BOTH of msg863's hook reminders into ONE
+  standalone system message — wrapper-stripped, joined with exactly
+  "\n\n" (627 chars, byte-confirmed at raw 864) — and suppression
+  cannot match it: pinnedBlockHashes hashes blocks INDIVIDUALLY,
+  never a concatenation (suppressed:0 across 560 session events;
+  census independently flags the edit as not-the-known-class).
+  DESIGN SETTLED: per pinned entry with >=2 volatile blocks, also
+  register the join-hash of their unwrapped texts in wire order
+  ("\n\n" joiner as observed); a standalone matching the join
+  suppresses through the existing path; subset-merges not built
+  (unobserved — the census keeps watching). Fixture extended with
+  the real 864 standalone (requests_864). Build granted to the
+  probing agent. Residual: whether this is the sole 587k
+  contributor or one of several (agent flag, unverified).
 
 - **OPEN — mitigation fire-rate ledger: which extensions still earn
   their keep** (operator question 2026-07-30: upstream may fix CC
