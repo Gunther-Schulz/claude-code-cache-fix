@@ -52,9 +52,9 @@ test("BITE — a nonzero exit is not clean even if JSON parsed", () => {
 });
 
 test("BITE — each violation class alone is enough to fail the row", () => {
-  for (const key of ["violations", "safety", "sequence", "orderViolations"]) {
+  for (const key of ["violations", "safety", "conservation", "sequence", "orderViolations"]) {
     const payload = {
-      report: [{ n: 0 }], violations: [], safety: [], sequence: [], orderViolations: [],
+      report: [{ n: 0 }], violations: [], safety: [], conservation: [], sequence: [], orderViolations: [],
     };
     payload[key] = [{ n: 0 }];
     const row = summarise("c.jsonl", 10, json(payload));

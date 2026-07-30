@@ -66,6 +66,7 @@ import { createHash } from "node:crypto";
 
 import { readLines } from "./read-lines.mjs";
 import { hashMessageContent } from "../proxy/extensions/message-hash.mjs";
+import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -813,11 +814,11 @@ export function buildTrace(entries) {
 
 // --- Mitigation gaps: did we actually HELP, not just "not make it worse"? ---
 //
-// All four gates ask one question — did OUR output diverge earlier than CC's
-// input. They are silent on the opposite failure: CC did something this proxy
-// exists to absorb, and the extension declined to act. A reset forwards CC's
-// bytes faithfully, so it is invisible to every gate while costing the full
-// rewrite.
+// The gates ask whether we made things WORSE — output diverging earlier than
+// CC's input, a corrupted sequence, content lost off the wire. They are all
+// silent on the opposite failure: CC did something this proxy exists to
+// absorb, and the extension declined to act. A reset forwards CC's bytes
+// faithfully, so it is invisible to every gate while costing the full rewrite.
 //
 // That blind spot cost a real answer on 2026-07-28. A 484k `messages_changed`
 // bust (event 14) had all four gates green, and establishing that we had NOT
@@ -1113,19 +1114,39 @@ function unwrapReminder(block) {
 // one block, which is exactly why `wrapped` is needed beside it: `wrapped`
 // records whether this block carried the <system-reminder> wrapper before
 // hashing, and it is the candidacy condition (see CANDIDACY above).
-function blockUnits(msg) {
+// `text` rides on the full form only, never on what compactEntry RETAINS:
+// `inBlocks` keeps one of these per block of every request, and each request
+// re-sends the whole history, so carrying the bytes there is the O(file)
+// retention class this file has already paid for three times. The
+// conservation gate below wants the text (a join is a concatenation, and
+// hashes do not concatenate), and it runs per-request on live messages that
+// become garbage at the end of the iteration — so it takes the full form and
+// keeps nothing. One derivation, two projections, rather than a second notion
+// of "the same block".
+function blockUnitsFull(msg) {
   const c = msg?.content;
   let blocks;
   if (typeof c === "string") blocks = [{ type: "text", text: c }];
   else if (Array.isArray(c)) blocks = c;
   else return [];
   return blocks
-    .map((b) => ({
-      hash: hashMessageContent({ content: [unwrapReminder(b)] }),
-      wrapped: unwrapReminder(b) !== b,
-      standalone: blocks.length === 1,
-    }))
+    .map((b) => {
+      const unwrapped = unwrapReminder(b);
+      return {
+        hash: hashMessageContent({ content: [unwrapped] }),
+        wrapped: unwrapped !== b,
+        standalone: blocks.length === 1,
+        // The UNWRAPPED text, which is the unit a migration moves and a join
+        // concatenates. null for any non-text block (tool_result, tool_use,
+        // thinking, image) — those never participate in either shape.
+        text: unwrapped && unwrapped.type === "text" && typeof unwrapped.text === "string" ? unwrapped.text : null,
+      };
+    })
     .filter((u) => u.hash !== null);
+}
+
+function blockUnits(msg) {
+  return blockUnitsFull(msg).map(({ hash, wrapped, standalone }) => ({ hash, wrapped, standalone }));
 }
 
 const BLOCK_MIGRATION_KINDS = new Set(["replace/edit", "splice/insert-mid"]);
@@ -1390,6 +1411,235 @@ export function findSuccessions(entries) {
   return out;
 }
 
+// --- Content conservation: the fifth gate ---
+//
+// NAME COLLISION, stated once so neither reader is misled: `classifyFidelity`
+// below is REPLAY fidelity — "did this offline run reproduce the bytes the
+// proxy really forwarded". This is CONTENT-conservation fidelity — "did the
+// proxy forward every byte CC sent, or account for the ones it did not". The
+// first is about the instrument, the second about the pipeline. The JSON key
+// here is `conservation` for that reason; the four existing gates are
+// untouched.
+//
+// WHY IT IS NEEDED. The four gates all ask a positional question: did our
+// bytes move earlier than CC's, did we change the message sequence, did a
+// normalize get followed by a reset, does canonical order track the wire.
+// None of them can see a message CC sent that we simply never forwarded and
+// whose content exists nowhere else — because a DELETION that leaves the
+// surviving array positionally consistent is invisible to all four. The
+// pin-and-suppress mechanism (#76606 decision B) deletes messages on purpose,
+// and the mitigation this gate is a precondition for (a recognized reminder
+// MOVE, served from its first-seen form) deletes one more. Safety outranks
+// cache: a suppression whose copy is not actually on the wire is a silently
+// truncated conversation, which is strictly worse than a cache miss.
+//
+// DEFINITION, written before any assertion (dev-loop "Adding a check"), for
+// ONE request — CC's raw array R and the forwarded array F:
+//
+//   R-side. Every content unit of a non-assistant message of R is either
+//     (a) present in F byte-identically (as the same unit, anywhere in F —
+//         the question is whether the content is still on the wire, not
+//         where), or
+//     (b) part of a DECLARED suppression (stats.suppressions, the
+//         extension's own report — never a re-derived "looks dropped"
+//         guess) whose content is RECONSTRUCTIBLE from F: its unwrapped
+//         bytes equal either a unit present in F, or the "\n\n" join of all
+//         volatile blocks of one message present in F (the merged-standalone
+//         shape, 78940a0).
+//   F-side. Every content unit of a non-assistant message of F is either
+//     (a) present in R, or
+//     (b) present in an EARLIER request of the same conversation — this is
+//         what "the pin forwards the FIRST-SEEN bytes" means, stated as a
+//         checkable property rather than trusted: a re-served byte must be a
+//         byte CC itself once sent here, and one we invented is red, or
+//     (c) a declared injection (isDeclaredInjection — deferred-tool-rewrite's
+//         tool_addition announcement, already exempt in the safety gate).
+//
+// POPULATION — non-assistant messages, and the reason is definitional rather
+// than convenient. Every mechanism that can delete or re-serve content in
+// this pipeline is confined to that population by construction:
+// classifyPinned skips `e.r === "assistant"` before suppressing, and
+// pinnedForwardForm returns the incoming message unchanged unless
+// `stored.r === "user"`. Assistant content is transformed by a different and
+// separately-gated class of extension. That class is not hypothetical —
+// measured over 936 requests of four live captures (s-f3db21fa, s-2cd640f8,
+// s-51c8511a, s-0d6f38ba) the ONLY blocks the pipeline does not conserve
+// byte-identically are `assistant/tool_use` (rewritten in place by
+// tool-input-normalize: 3,145 lost and 3,145 gained on s-0d6f38ba alone) and
+// `assistant/thinking` (dropped by thinking sanitization); non-assistant
+// blocks were conserved in every one of those requests. So the exclusion
+// costs no coverage of THIS class and would otherwise fire on two declared
+// behaviours with no telemetry to key an exemption on — a check firing on a
+// non-defect, which trains its reader to ignore red.
+//
+// The residue is COUNTED and reported rather than silently dropped
+// (`assistantResidue`): a reader can see how much this gate did not look at,
+// which is the three-answer rule applied to a population boundary instead of
+// to an empty corpus.
+const CONSERVATION_JOIN = "\n\n";
+
+function conservationUnits(msg) {
+  return blockUnitsFull(msg);
+}
+
+// The "\n\n" join of ALL volatile (reminder-wrapped) blocks of one message,
+// hashed the same way a single unit is. Mirrors the extension's own
+// pinnedJoinHashes — same separator, same "all blocks of the entry, wire
+// order, no subset merges" rule — but computed over the FORWARDED array,
+// which is where a suppressed message's copy has to be for the suppression to
+// have been honest.
+function joinUnitHash(units) {
+  const texts = units.filter((u) => u.wrapped && u.text !== null).map((u) => u.text);
+  if (texts.length < 2) return null;
+  return hashMessageContent({ content: [{ type: "text", text: texts.join(CONSERVATION_JOIN) }] });
+}
+
+// The CROSS-MESSAGE join — the definition's "including as a join constituent"
+// clause, and the shape the single-message join above cannot express. Measured
+// (fixture flap-s-0dc8ac87c43d-86.json, request n=104, message 91): CC merged one
+// message's reminder with the WHOLE of the standalone message that followed
+// it, "\n\n"-joined, and sent the two as a single message. A copy of that
+// message on the wire is therefore split across two forwarded messages, and is
+// reconstructible only by reading them together.
+//
+// Restricted to ADJACENT forwarded messages, in wire order, reminder side
+// first. That is the measured shape, and it is also what keeps this O(n) per
+// request rather than O(n^2): pairing every forwarded message with every other
+// would cost a million hashes on a thousand-message history to answer a
+// question about one.
+function crossJoinUnitHash(leftUnits, rightUnits) {
+  const left = leftUnits.filter((u) => u.wrapped && u.text !== null).map((u) => u.text);
+  if (!left.length) return null;
+  if (rightUnits.length !== 1 || rightUnits[0].text === null) return null;
+  const text = left.join(CONSERVATION_JOIN) + CONSERVATION_JOIN + rightUnits[0].text;
+  return hashMessageContent({ content: [{ type: "text", text }] });
+}
+
+const isAssistant = (m) => m?.role === "assistant";
+
+// DECLARED TRANSFORM — the definition's clause (c), and the registry it names.
+// fresh-session-sort deletes the echo a slash command leaves in the first user
+// message (`<local-command-caveat>`, `<command-name>`, `<local-command-stdout>`
+// — fresh-session-sort.mjs, "Strip /clear artifacts from first user message").
+// Those bytes really do leave the wire, and they are meant to: they are the
+// harness quoting its own command back, never conversation content.
+//
+// Found by this gate rather than by reading: the first sweep reported 645
+// violations on capture s-633915a8, ALL of kind `lost`, ALL at message 0, and
+// stage-by-stage replay of request 822 named the extension — RAW 6 units,
+// after fresh-session-sort 3, the three removed being exactly a /compact
+// caveat, its `<command-name>`, and its `<local-command-stdout>`. Left
+// unexempted this would fail the daily sweep forever on a declared behaviour,
+// which is the check-fires-on-a-non-defect failure that trains a reader to
+// ignore red.
+//
+// The predicate is IMPORTED from the extension that performs the strip, never
+// restated here: a second copy of "what counts as a clear artifact" is a
+// second truth, and this file's own rule is to import an identity rather than
+// re-derive it. Accepted residue, named because the exemption is slightly
+// wider than the transform: the extension strips these blocks only from the
+// first user message, while this exempts them wherever they appear. A
+// harness-echo block elsewhere is not content either, so the widening cannot
+// mask a conversation byte — but it is a widening, not an equality.
+const isDeclaredStrip = (u) => u.text !== null && isClearArtifact(u.text);
+
+// Per-request verdict, `seen` being the per-conversation set of unit hashes CC
+// has sent in ANY earlier request of this conversation. Per-entry for the same
+// reason safetyViolation is: it runs in the replay loop where the messages are
+// live and retains nothing but the verdict. `seen` is bounded by the
+// conversation's own history (each request re-sends all of it, so the union
+// converges on the largest request's block set) rather than by request count —
+// the distinction that keeps this off the O(file) retention path.
+export function conservationViolations(e, seen) {
+  const out = [];
+  const inMsgs = e.inMsgs ?? [];
+  const outMsgs = e.outMsgs ?? [];
+  const suppressed = suppressedIndices(e.stats);
+
+  const fUnitsByMsg = outMsgs.map(conservationUnits);
+  const fHashes = new Set();
+  for (const units of fUnitsByMsg) for (const u of units) fHashes.add(u.hash);
+  const fJoinHashes = new Set();
+  for (let i = 0; i < fUnitsByMsg.length; i++) {
+    const j = joinUnitHash(fUnitsByMsg[i]);
+    if (j !== null) fJoinHashes.add(j);
+    if (i + 1 < fUnitsByMsg.length) {
+      const x = crossJoinUnitHash(fUnitsByMsg[i], fUnitsByMsg[i + 1]);
+      if (x !== null) fJoinHashes.add(x);
+    }
+  }
+
+  const rHashes = new Set();
+  let assistantResidue = 0;
+  for (let i = 0; i < inMsgs.length; i++) {
+    const msg = inMsgs[i];
+    const units = conservationUnits(msg);
+    if (isAssistant(msg)) {
+      for (const u of units) if (!fHashes.has(u.hash)) assistantResidue++;
+      continue;
+    }
+    for (const u of units) rHashes.add(u.hash);
+    if (suppressed.has(i)) {
+      // A declared suppression must leave its content behind. Both matchable
+      // shapes are the extension's own: a per-block copy, or the merged join.
+      const unaccounted = units.filter((u) => !fHashes.has(u.hash) && !fJoinHashes.has(u.hash));
+      if (unaccounted.length) {
+        out.push({
+          n: e.n,
+          ts: e.ts,
+          kind: "suppressed-without-copy",
+          detail: `in[${i}] (${msg?.role}): ${unaccounted.length} of ${units.length} unit(s) reconstructible from neither a forwarded block nor a forwarded join`,
+        });
+      }
+      continue;
+    }
+    const lost = units.filter((u) => !fHashes.has(u.hash) && !isDeclaredStrip(u));
+    if (lost.length) {
+      out.push({
+        n: e.n,
+        ts: e.ts,
+        kind: "lost",
+        detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) present in CC's request and in no forwarded message`,
+      });
+    }
+  }
+
+  for (let i = 0; i < outMsgs.length; i++) {
+    const msg = outMsgs[i];
+    if (isAssistant(msg) || isDeclaredInjection(msg)) continue;
+    const invented = fUnitsByMsg[i].filter((u) => !rHashes.has(u.hash) && !(seen && seen.has(u.hash)));
+    if (invented.length) {
+      out.push({
+        n: e.n,
+        ts: e.ts,
+        kind: "invented",
+        detail: `out[${i}] (${msg?.role}): ${invented.length} of ${fUnitsByMsg[i].length} unit(s) CC never sent in this conversation`,
+      });
+    }
+  }
+
+  if (seen) for (const h of rHashes) seen.add(h);
+  return { violations: out, assistantResidue };
+}
+
+// Whole-corpus shape, grouped by conversation so `seen` means what the
+// definition says — bytes CC sent EARLIER IN THIS CONVERSATION, never a
+// co-tenant's. One implementation, two shapes (the streaming caller wants one
+// verdict at a time), rather than a tested one and a shipped one.
+export function findConservationViolations(entries) {
+  const seenByGroup = new Map();
+  const out = [];
+  for (const raw of entries) {
+    const inMsgs = raw.inMsgs ?? [];
+    const cid = inMsgs.length ? sha(JSON.stringify(inMsgs[0])) : null;
+    if (cid === null) continue;
+    const g = `${raw.key}|${cid}`;
+    if (!seenByGroup.has(g)) seenByGroup.set(g, new Set());
+    out.push(...conservationViolations(raw, seenByGroup.get(g)).violations);
+  }
+  return out.sort((a, b) => a.n - b.n);
+}
+
 // Fidelity classification, pure so the population boundaries are testable.
 // FIVE populations, never collapsed into one ratio:
 //   comparable/matched      — unmutated with a recorded outSha; a mismatch
@@ -1587,6 +1837,12 @@ async function main() {
   const report = [];
   const stability = [];
   const safety = [];
+  const conservation = [];
+  // Per-conversation first-seen registry for the conservation gate (see its
+  // DEFINITION). Hashes only, keyed by (capture key, conversation), so it is
+  // bounded by history size rather than by request count.
+  const conservationSeen = new Map();
+  let conservationResidue = 0;
   const outcomes = new Map();
   const boots = [];
 
@@ -1702,6 +1958,20 @@ async function main() {
     // verdict; the messages become garbage as soon as this iteration ends.
     const sv = safetyViolation(full);
     if (sv) safety.push(sv);
+    // Content conservation is per-request too, but carries one piece of
+    // cross-request state: what CC has already sent in THIS conversation (the
+    // first-seen registry the pin re-serves from). Grouped on the same
+    // conversation identity every other checker uses — msgs[0]'s byte hash.
+    {
+      const cid = full.inMsgs.length ? sha(JSON.stringify(full.inMsgs[0])) : null;
+      if (cid !== null) {
+        const g = `${full.key}|${cid}`;
+        if (!conservationSeen.has(g)) conservationSeen.set(g, new Set());
+        const cv = conservationViolations(full, conservationSeen.get(g));
+        conservation.push(...cv.violations);
+        conservationResidue += cv.assistantResidue;
+      }
+    }
     // Everything else keeps hashes, not bodies — see compactEntry.
     stability.push(compactEntry(full));
   }
@@ -1886,7 +2156,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationResidue, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -1957,6 +2227,19 @@ async function main() {
     for (const s of safety.slice(0, 20)) {
       process.stdout.write(`  n=${s.n} ts=${s.ts} ${s.kind}: ${s.detail}\n`);
     }
+
+    process.stdout.write(
+      `\ncontent-conservation violations (CC bytes neither forwarded nor accounted for): ${conservation.length}\n`,
+    );
+    for (const c of conservation.slice(0, 20)) {
+      process.stdout.write(`  n=${c.n} ts=${c.ts} ${c.kind}: ${c.detail}\n`);
+    }
+    // The population boundary, said out loud rather than left implicit: this
+    // gate looks at non-assistant messages only (see its DEFINITION), and
+    // this is how much it therefore did not look at.
+    process.stdout.write(
+      `  not examined: ${conservationResidue} assistant-role block(s) the pipeline rewrote or dropped (tool_use normalization, thinking sanitization — a separately-gated class)\n`,
+    );
 
     process.stdout.write(`\nsequence violations (normalize then reset): ${sequence.length}\n`);
     for (const s of sequence.slice(0, 20)) {
@@ -2216,13 +2499,21 @@ async function main() {
   if (safety.length) {
     process.stderr.write(`\nFAIL: ${safety.length} safety violation(s) — the pipeline altered the conversation\n`);
   }
-  // A fidelity mismatch is not a fifth invariant — it is a statement that the
-  // other four were measured on a system that never ran. It fails the gate for
-  // that reason. "Nothing comparable" does NOT fail: it is an honest absence
-  // of evidence, reported as such rather than dressed up as a pass.
+  // Same rank as safety, and for the same reason: losing content CC sent is a
+  // corrupted conversation, not an expensive one.
+  if (conservation.length) {
+    process.stderr.write(
+      `\nFAIL: ${conservation.length} content-conservation violation(s) — bytes CC sent are neither on the wire nor accounted for\n`,
+    );
+  }
+  // A replay-fidelity mismatch is not a further invariant — it is a statement
+  // that the five above were measured on a system that never ran. It fails the
+  // gate for that reason. "Nothing comparable" does NOT fail: it is an honest
+  // absence of evidence, reported as such rather than dressed up as a pass.
   if (
     violations.length ||
     safety.length ||
+    conservation.length ||
     sequence.length ||
     orderViolations.length ||
     fidelity.mismatches.length
