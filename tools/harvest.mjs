@@ -49,8 +49,14 @@
 // only the arrangement matters.
 //
 // Two things survive verbatim, because for them the content IS the class:
-//   - <system-reminder> wrappers (the volatile-block detector matches on
-//     the wrapper, so replacing it would erase the very property under test)
+//   - <system-reminder> WRAPPER TAGS (the volatile-block detector matches on
+//     the wrapper, so replacing it would erase the very property under
+//     test); the text they wrap is still tokenized like any other text
+//     (scrubText), not replaced by a fixed placeholder — a fixed
+//     placeholder made every reminder hash identically regardless of real
+//     content, which breaks the separate class where a reminder migrates
+//     OUT of its wrapper into a standalone duplicate message and must still
+//     hash-match its wrapped original post-scrub (see scrubText's comment)
 //   - structural ids: tool_use_id / id pairs, which must stay consistent or
 //     the tool-adjacency invariant breaks
 //
@@ -94,14 +100,33 @@ const sha = (s) => createHash("sha256").update(s).digest("hex");
 
 // --- Sanitization ---
 
-const VOLATILE_WRAP = /^<system-reminder>\n[\s\S]*\n<\/system-reminder>\s*$/;
+const VOLATILE_WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 
 // Deterministic placeholder: same input text always yields the same token, so
 // a message that repeats across requests still compares equal — which is the
 // whole point, since identity matching is what we are testing.
+//
+// A wrapped reminder re-wraps its OWN deterministic token instead of a fixed
+// constant. A fixed constant ("REDACTED" for every reminder regardless of
+// content) was tried first and is wrong: CC sometimes migrates a reminder
+// OUT of its wrapper into a standalone duplicate message
+// (insertion-normalization.mjs's findSuppressibleDuplicate/
+// unwrapVolatileText compares the wrapped original's stripped bytes against
+// the standalone copy's bytes to suppress the duplicate). A fixed constant
+// made the wrapped original hash to "REDACTED" while the unwrapped
+// duplicate — never matching VOLATILE_WRAP — hashed its real text
+// independently, so the two never matched post-scrub and the suppression
+// class became unobservable in any fixture built from it (measured
+// empirically while building the harvest --pin fixture for capture
+// s-633915a8 n=26->28: suppressed count 1->0, outputForm "append"->
+// "splice@31" under the fixed-constant scrub). Recursing scrubText on the
+// captured inner text keeps both sides deterministic and equal when their
+// real bytes were equal, wrapped or not — the wrapper tags still survive
+// verbatim, so a check that only tests for wrapper PRESENCE is unaffected.
 function scrubText(text) {
   if (typeof text !== "string") return text;
-  if (VOLATILE_WRAP.test(text)) return "<system-reminder>\nREDACTED\n</system-reminder>";
+  const wrapped = VOLATILE_WRAP.exec(text);
+  if (wrapped) return `<system-reminder>\n${scrubText(wrapped[1])}\n</system-reminder>`;
   if (text === "") return "";
   return `t_${sha(text).slice(0, 12)}_${text.length}`;
 }
