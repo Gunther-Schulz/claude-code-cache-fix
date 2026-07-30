@@ -603,6 +603,48 @@ const asCompact = (e) => (e.inHash ? e : compactEntry(e));
 // is exactly what conversationId hashed before.
 const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
 
+// The threat-matrix coverage note ("hidden duplicate request", CC#78420,
+// v2.1.209+) was answered 2026-07-29 by a throwaway python scan over raw
+// capture bytes ("adjacent byte-identical bodies: one instance total ...
+// across 3,446 requests in seven captures") — exactly the shape dev-loop.md
+// calls the tell that a classification is missing from the tools.
+// Mechanized here per BACKLOG's "Duplicate-request probe -> census check
+// (Q1)" so the same falsifier re-answers on every sweep instead of being
+// re-derived by hand.
+//
+// DEFINITION: a duplicate is an ADJACENT same-conversation pair whose
+// incoming message arrays are byte-identical — same length, same
+// per-message hash at every index (inHash, the raw wire-byte hash
+// compactEntry already computes — unstripped, unlike the semantic ids
+// censusIds uses elsewhere, because "byte-identical" is the wire claim
+// #78420 makes). A genuine conversation turn always changes SOMETHING in
+// the sent history (a new message, an edited tail); an unchanged array
+// crossing the wire twice is a resend, not a turn. An empty array pair
+// (no content sent) is excluded — it is not evidence of anything resent.
+export function findDuplicateRequests(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const cur = group[i];
+      if (prev.inHash.length === 0 || prev.inHash.length !== cur.inHash.length) continue;
+      const identical = prev.inHash.every((h, idx) => h === cur.inHash[idx]);
+      if (!identical) continue;
+      rows.push({ n: cur.n, prevN: prev.n, ts: cur.ts, msgs: cur.inHash.length });
+    }
+  }
+  return rows.sort((a, b) => a.n - b.n);
+}
+
 export function censusPair(a, b) {
   return censusIds(semanticIds(a), semanticIds(b));
 }
@@ -1565,6 +1607,7 @@ async function main() {
   const edits = args.census ? findEditPositions(stability) : null;
   const blockMigrations = args.census ? findBlockMigrations(stability) : null;
   const successions = args.census ? findSuccessions(stability) : null;
+  const duplicateRequests = args.census ? findDuplicateRequests(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
   // Attribute each violation by replaying the corpus once per extension
@@ -1664,7 +1707,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -1940,6 +1983,15 @@ async function main() {
         process.stdout.write(
           `    n=${d.prevN}->${d.n} ${d.kind} in=${d.count} out=${d.outCount} msgs=${d.msgKind} forwardedStable=${d.forwardedStable}\n`,
         );
+      }
+    }
+    if (duplicateRequests) {
+      // BACKLOG "Duplicate-request probe -> census check (Q1)" — the
+      // CC#78420 falsifier (adjacent byte-identical bodies), re-answered
+      // per sweep instead of a throwaway scan.
+      process.stdout.write(`\nduplicate-request pairs (adjacent, byte-identical): ${duplicateRequests.length}\n`);
+      for (const d of duplicateRequests.slice(0, 8)) {
+        process.stdout.write(`    n=${d.prevN}->${d.n} msgs=${d.msgs} ${d.ts}\n`);
       }
     }
   }
