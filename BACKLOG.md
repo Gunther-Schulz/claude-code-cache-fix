@@ -67,6 +67,12 @@ bullet, evidence pointer included.
   doctor enforces it). Pairs naturally with the soak summary and
   the watch threads.
 
+- **Candidate — docs-name-real-gates test** (2026-07-30, consumer-doc
+  tiering): a small test asserting every CACHE_FIX_* named in
+  docs/*.md exists as an env the code actually reads — a doc
+  recommending a renamed/removed gate misleads consumers silently
+  (the consumer principle for docs). Build at next docs touch.
+
 - **Candidate — tools/whodunit: timestamp-correlation sweep as a
   tool** (2026-07-30, first use was a hand grep): given a
   timestamp, sweep all event logs (insertion, guard, deferred,

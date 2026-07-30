@@ -52,12 +52,33 @@ cache-fix-proxy install-service
 
 Everything upstream ships enabled by default stays enabled — those handle
 further stabilization (fingerprint stripping, sort stabilization, etc.).
+Every switch recommended on this page runs with a recorded acceptance on
+the reference deployment (a live probe before each was turned on, and a
+daily replay gate over real traffic since) — this is the battle-tested
+combination, not a guess.
 
-**Deliberately NOT enabled** (development/telemetry, not protection):
-`REQUEST_CAPTURE`, `SESSION_MIRROR`, `PREFIXDIFF`, `UPSTREAM_DETECTION` —
-these record traffic for the verification machinery. A consumer needs none
-of them; leaving them off means nothing about your conversations is written
-to disk beyond what Claude Code itself stores.
+## Optional: the diagnosis pack
+
+The protection set above writes **nothing about your conversations to
+disk**. If you ever want to answer "why did my session suddenly re-bill?"
+yourself — or file a bug report with evidence instead of vibes — these
+switches record what the attribution needs. Each carries a different
+privacy cost; add them top-down:
+
+| switch | what it records | privacy cost |
+|---|---|---|
+| `UPSTREAM_ERROR_LOG=on` | one line per non-200 upstream response: status, retry/ratelimit headers, request-id | **none** — no conversation content, errors only |
+| `UPSTREAM_DETECTION=1` | structural fingerprints (hashes, counts) when CC's request SHAPE changes | none — hashes and counts, no text |
+| `PREFIXDIFF=1` | which message/block/tool changed between requests — the bust-attribution journal | **text fragments** of changed blocks land on local disk |
+| `REQUEST_CAPTURE=1` + `CAPTURE_MAX_MB=<cap>` | full request bodies (pre-mitigation), size-capped, local only | **full conversation content** on local disk — the complete evidence base |
+
+With all four on, a cache bust is attributable to the exact byte that
+moved; with none, the protection still works — you just can't see why
+something happened.
+
+**Deliberately NOT enabled**: `SESSION_MIRROR` and the rest of the
+development machinery — verification tooling for working on the proxy
+itself; a consumer needs none of it.
 
 ## How you'd notice it working
 
