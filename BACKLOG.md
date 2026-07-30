@@ -119,9 +119,10 @@ bullet, evidence pointer included.
   question from the build, unresolved: pre/post replay diagnostic
   logs diverged in volume past line 1912 (a 643-message conversation
   cycling; live capture grew between runs ~6 min apart — plausible,
-  unconfirmed). NOT YET SERVING — proxy/** deployment coupling
-  pending (pin bump + restart at a stated boundary); port to
-  upstream PR #273 pending. Original entry follows for the record.**
+  unconfirmed). SERVING since 2026-07-30 morning (pin c3f975b,
+  restart at a stated boundary, /health = disk fingerprint
+  910554e0b153); ported to upstream PR #273 (6636aa9, commented).
+  Live non-event on the next MCP-heavy session boot closes it. Original entry follows for the record.**
   Mechanism found by probe 2026-07-30, dispatcher-verified at the
   code. The gate-red investigation
   (s-dc3f8071, 25 violations, burst n=372-397) resolved: a session-
@@ -174,8 +175,8 @@ bullet, evidence pointer included.
   replay suites green; downstream suppression-test assertion updated
   by the dispatcher (c128dbf — second consecutive dispatch tripped
   that file; lesson booked: grep test/ for assertions on a field
-  before changing what it returns). Port to upstream PR #276
-  pending. Original entry:** The five "unclassified output-spliced
+  before changing what it returns). Ported to upstream PR #276
+  (16a3ca3, commented; extensions synced to the #272/#273 tips). Original entry:** The five "unclassified output-spliced
   pairs" in s-633915a8 are RESOLVED as instrument artifact: CC
   itself sends the same 32,140-char text as a cache_control-bearing
   block while it is the tail, then as a bare string later — its own
