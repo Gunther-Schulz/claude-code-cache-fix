@@ -147,11 +147,20 @@ function summarise(file, bytes, res) {
   row.requests = parsed.report?.length ?? 0;
   row.stability = parsed.violations?.length ?? 0;
   row.safety = parsed.safety?.length ?? 0;
+  // Content conservation (the fifth gate): bytes CC sent that the pipeline
+  // neither forwarded nor accounted for. Ranked with safety rather than with
+  // stability — a suppression whose copy is not on the wire is a truncated
+  // conversation, not an expensive one. `conservationResidue` rides along as
+  // the population the gate deliberately does NOT examine (assistant-role
+  // blocks), so a reader of the status file sees the boundary instead of
+  // inferring that a clean row covered everything.
+  row.conservation = parsed.conservation?.length ?? 0;
+  row.conservationResidue = parsed.conservationResidue ?? 0;
   row.sequence = parsed.sequence?.length ?? 0;
   row.order = parsed.orderViolations?.length ?? 0;
   row.unparseable = (parsed.report ?? []).filter((r) => r.error).length;
   // Replay fidelity: whether this run reproduced the bytes the proxy really
-  // forwarded. A mismatch means the four invariants above were measured on a
+  // forwarded. A mismatch means the invariants above were measured on a
   // system that never ran, so it is recorded per capture rather than left in
   // stdout nobody reads. `comparable: 0` is an honest "proves nothing", NOT a
   // pass — the distinction the row must preserve.
@@ -207,6 +216,7 @@ const rowIsClean = (r) =>
   r.exit === 0 &&
   !r.stability &&
   !r.safety &&
+  !r.conservation &&
   !r.sequence &&
   !r.order &&
   // A fidelity mismatch invalidates every other number in the row.
@@ -267,7 +277,7 @@ async function main() {
         ? `ERROR ${row.error.split("\n")[0]}`
         : rowIsClean(row)
           ? "clean"
-          : `stability=${row.stability} safety=${row.safety} sequence=${row.sequence} order=${row.order}` +
+          : `stability=${row.stability} safety=${row.safety} conservation=${row.conservation} sequence=${row.sequence} order=${row.order}` +
             (row.fidelityMismatch ? ` FIDELITY-MISMATCH=${row.fidelityMismatch}` : "");
       process.stdout.write(`${f} (${(bytes / 1e6).toFixed(1)} MB, ${row.requests ?? "?"} req): ${verdict}\n`);
     }
