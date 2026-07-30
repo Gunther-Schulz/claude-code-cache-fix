@@ -30,9 +30,11 @@ kept working. Root cause, as far as locally provable:
   "grant state appears to reset mid-session", suspected feature-flagged
   permission path (tengu_harbor_permissions). Our variant: the reset
   landed exactly at the compaction boundary; CC 2.1.220, entrypoint cli.
-- Candidate action (operator GO required — public comms): comment our
-  evidence on #73434 (compaction-boundary trigger, 4/4, transcript
-  fields) — it sharpens their repro.
+- DONE (operator GO 2026-07-30): evidence posted on #73434 —
+  https://github.com/anthropics/claude-code/issues/73434#issuecomment-5129864395
+  (compaction-boundary trigger, 4/4, hook-replay elimination). Watch the
+  thread for maintainer follow-up; sanitized transcript excerpts were
+  offered.
 
 If the fresh session's first Agent dispatch is ALSO denied, the state
 survived the restart — then suspect the flag/machine level, not the
