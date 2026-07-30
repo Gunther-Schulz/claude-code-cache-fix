@@ -100,6 +100,60 @@ test("findViolation: invalid role and empty content named", () => {
   assert.match(findViolation(b2), /content: messages\[3\]/);
 });
 
+// --- Invariant 5: assistant-terminal (BACKLOG.md, "suppression can strip
+// a request's FINAL message", 2026-07-30) ---
+
+test("findViolation: healthy body, incoming also ends non-assistant -> null (no incomingBody = cannot verify, also null)", () => {
+  const b = goodBody(); // ends on a tool_result (role user)
+  assert.equal(findViolation(b, b), null);
+  assert.equal(findViolation(b), null, "no incomingBody -> this check cannot fire");
+});
+
+test("findViolation: incoming ended non-assistant but forwarded ends assistant -> assistant-terminal named", () => {
+  const incoming = goodBody(); // last message role "user"
+  const forwarded = goodBody();
+  forwarded.messages.pop(); // simulate a mutation stripping the trailing tool_result
+  assert.equal(forwarded.messages[forwarded.messages.length - 1].role, "assistant");
+  assert.match(findViolation(forwarded, incoming), /assistant-terminal/);
+});
+
+test("findViolation: incoming ITSELF ended assistant (prefill-shaped) -> not this guard's business, no violation", () => {
+  const incoming = goodBody();
+  incoming.messages.push({ role: "assistant", content: [{ type: "text", text: "partial" }] });
+  const forwarded = structuredClone(incoming); // forwarded also ends assistant, matching CC's own intent
+  assert.equal(findViolation(forwarded, incoming), null);
+});
+
+test("findViolation: incoming and forwarded both end non-assistant -> null (healthy case)", () => {
+  const incoming = goodBody();
+  const forwarded = structuredClone(incoming);
+  assert.equal(findViolation(forwarded, incoming), null);
+});
+
+test("gate 2 (assistant-terminal): a mutator that strips the trailing message is caught, forwards the original, telemetry names it", async () => {
+  await withGuardEnv(async (dir) => {
+    const body = goodBody();
+    const originalHash = sha(body);
+    const ctx = { body, headers: { "x-session-id": "tail-strip-test" }, meta: { route: "messages" } };
+    const stripTailMutator = {
+      name: "test-strip-tail-mutator",
+      order: 300,
+      async onRequest(c) {
+        c.body.messages.pop();
+      },
+    };
+    await runOnRequest(ctx, [stash, stripTailMutator, guard]);
+
+    assert.equal(ctx.meta.outputGuardStats.fired, true);
+    assert.equal(ctx.meta.outputGuardStats.restored, true);
+    assert.match(ctx.meta.outputGuardStats.violation, /assistant-terminal/);
+    assert.equal(sha(ctx.body), originalHash, "forwarded body is byte-identical to the pre-pipeline original");
+
+    const events = await readFile(join(dir, "cache-fix-snapshots", "s-tail-strip-test-guard-events.jsonl"), "utf-8");
+    assert.match(events, /assistant-terminal/, "telemetry record names the violated invariant");
+  });
+});
+
 // --- Gate 1: zero fires on all healthy class corpora ---
 
 // The corpus COUNT is deliberately not pinned. It was (`=== 8`), and adding a
