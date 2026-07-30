@@ -46,6 +46,13 @@ it advances (see / attribute / mitigate / verify / retire). Work that
 advances none is either not this project's work, or evidence of a
 missing stage — surface which.
 
+Per EVENT, not only per work item: every threshold bust walks the
+loop to a terminal disposition — mitigated, parked with its named
+missing piece, controlled-cause, or upstream-filed — recorded in the
+threat matrix. An investigation that ends at "interesting" has not
+ended; a bust means something every time, and the walk from seeing
+it to its disposition is the unit of done.
+
 Consumers: session intake (pointed from CLAUDE.local.md "The
 method"), directive triage (threat-matrix header), the fire-rate
 review.

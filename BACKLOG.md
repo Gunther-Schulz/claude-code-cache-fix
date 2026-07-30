@@ -65,7 +65,11 @@ bullet, evidence pointer included.
   rules at fire-rate reviews). Today: per-class fire EVIDENCE exists
   (insertion/deferred event logs, guard-events, census per-sweep
   counts) but no TIME SERIES and no retirement consumer — gate
-  status keeps only the latest run. Design sketch: gate-live appends
+  status keeps only the latest run. WIDENED 2026-07-30 (loop stage
+  RETIRE): the per-run line also accumulates SAVED-vs-LEAKED —
+  absorbed bytes (input-mitigated sizes) vs passed-through re-billed
+  bytes — the retirement evidence and the proxy's justification
+  number in one series. Design sketch: gate-live appends
   one compact per-run line (date + per-class counts: suppressions,
   relocations, tool-addition announcements, oscillation-absorptions,
   guard restores, blockMigrations, duplicates) to a cumulative
@@ -614,4 +618,46 @@ bullet, evidence pointer included.
   verdicts unchanged. Done-criterion: census on that fixture shows
   the join-standalone row; selfcheck mutation test added per
   dev-loop "Adding a check".
+
+- **READY — proxy-side cold detection: subagent-complete bust
+  visibility (loop: SEE).** worktime's cold ledger is main-session
+  only by design; subagent spend is invisible (a verify dispatch cost
+  3.1M processed tokens, excavated by hand from transcript files).
+  The proxy sees every request and response. Step 1, named
+  feasibility: confirm usage fields are extractable from the proxied
+  response path (SSE message_delta usage) against a captured
+  response; step 2: per conversation-key cc/cr running totals +
+  magnitude-threshold events (runbook rule: cc>=60% of prior ctx,
+  cr<=20%) appended to a cold-events ledger with key + model.
+  Verifier: reproduces worktime's main-thread events AND surfaces a
+  subagent event worktime cannot see (the 2026-07-30 fable verify
+  dispatch is the known test case). Done-criterion: that dispatch
+  would have produced an event row.
+
+- **READY — bust dossier tool (loop: ATTRIBUTE).** `tools/dossier.mjs
+  <utc-timestamp|--last>`: emits ONE file joining the worktime row,
+  the prefix-diff snapshot-ledger slice for the window, census lines
+  for the affected pairs, transcript context pointers, and the
+  dev-loop-mandated `gh search issues` sweep. The runbook stays the
+  interpretation guide; collection stops being manual. Verifier: run
+  against the 2026-07-30 16:57 event — the dossier must contain the
+  facts the hand investigation established (matrix Row 4 datapoint is
+  the expected-content spec). Done-criterion: one command, one file,
+  all four runbook steps' evidence present or explicitly marked
+  absent (three-answer rule).
+
+- **READY — key→conversation map (rides the dossier; loop:
+  ATTRIBUTE).** prefix-diff appends one line per NEW key — (key,
+  session-id, model, first-seen ts) — to a keymap ledger; deletes the
+  runbook's "the mapping is recorded nowhere; select by TIME"
+  friction. Verifier: the 2026-07-30 main-vs-verifier key confusion
+  becomes a single lookup.
+
+- **PARKED — CC-version tripwire (loop: premise staleness).** On
+  first traffic from a new CC client version, one alarm suggesting a
+  census sweep of day-one captures against known classes. MISSING
+  EVIDENCE before any design (doc-vs-artifact rule): what
+  CACHE_FIX_UPSTREAM_DETECTION already covers — read the extension
+  first; if it already does this, the item dissolves into a doc
+  pointer.
 
