@@ -464,6 +464,42 @@ export function toolsFingerprints(tools) {
   };
 }
 
+// Output-side identity for findMitigationGaps' outputForm/outputPreserved/
+// rebilledOutBytes ONLY. `outHash` below (used by the STABILITY check,
+// `scanGroup`) stays byte-raw and untouched — byte-stability is the wire
+// truth, and weakening it would let a real re-billed byte hide behind this
+// strip.
+//
+// DEFINITION: cache_control designates a cache breakpoint, not conversation
+// content. A pair of forwarded messages that differ ONLY in whether/where a
+// cache_control block is attached carries identical model-visible bytes;
+// counting that as a splice prices a cost nothing actually incurred.
+// Measured (flap-probe, capture s-633915a8-...): CC itself sends an
+// identical 32,140-char text as a cache_control-bearing block while it is
+// the tail, then as a bare string once it is not, in its own pre-pipeline
+// bytes (n=678->681 and four siblings: 564->565, 354->356, 267->268,
+// 566->568 — deferredToolRewriteStats inert on all five,
+// findStabilityViolations 0 on the whole capture — CC's own shape choice,
+// not ours). `compactEntry`'s `outHash` (below) hashes raw
+// `JSON.stringify(message)` with no strip, unlike the input-side identity
+// path (`semanticCore`, above) — the same input-side blind-spot class,
+// unfixed on the output side until now.
+//
+// Strips cache_control via the shared primitive (`hashMessageContent`,
+// imported) — never a second hand-rolled variant, per dev-loop.md's "never
+// hand-roll identity in a probe" — promoting bare-string content to the
+// same single-block array form `semanticCore` already uses for the
+// identical reason (a bare string and a one-block text array are the same
+// message under any of this file's identity notions). Deliberately NOT
+// `semanticCore`: that also drops volatile system-reminder blocks, a
+// broader normalization this question does not ask for — only the
+// cache_control removal mirrors "the input side" here.
+function outputContentHash(m) {
+  const c = m?.content;
+  const content = typeof c === "string" ? [{ type: "text", text: c }] : Array.isArray(c) ? c : [];
+  return sha(JSON.stringify([m?.role ?? null, hashMessageContent({ content })]));
+}
+
 export function compactEntry(e) {
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
@@ -485,6 +521,10 @@ export function compactEntry(e) {
     // throwaway script before it lived here.
     inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
+    // cache_control-stripped twin of outHash, for findMitigationGaps'
+    // outputForm ONLY (see outputContentHash above) — never read by the
+    // stability check.
+    outHashSem: outMsgs.map(outputContentHash),
     // Byte length per FORWARDED message, the output-side twin of inBytes —
     // what lets rebilledOutBytes be priced without retaining a message body.
     outBytes: outMsgs.map((m) => JSON.stringify(m).length),
@@ -734,9 +774,12 @@ export function findMitigationGaps(entries) {
       const from = inDiv === null ? cur.inBytes.length : inDiv;
       const rebilled = cur.inBytes.slice(from).reduce((a, b) => a + b, 0);
 
-      // Output-side classification — see the block comment above.
-      const outKind = censusIds(prev.outHash, cur.outHash);
-      const outDiv = firstDivergence(prev.outHash, cur.outHash);
+      // Output-side classification — see the block comment above. Uses
+      // outHashSem (cache_control stripped, see outputContentHash), not the
+      // stability check's raw outHash — a cache_control-only relocation is
+      // not a content splice (outputContentHash's definitional comment).
+      const outKind = censusIds(prev.outHashSem, cur.outHashSem);
+      const outDiv = firstDivergence(prev.outHashSem, cur.outHashSem);
       let outputForm;
       if (outKind === "identical" || outKind === "append-only") {
         outputForm = "append";
