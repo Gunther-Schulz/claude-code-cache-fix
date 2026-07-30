@@ -406,6 +406,24 @@ load-bearing safety discriminator with measured false-positive
 history). The pin-extension candidate this entry previously named is
 withdrawn — refuted, already-built.
 
+SECOND CORRECTION + detector landed (same day, commits fc44da3 +
+47defba): the phantom needed TWO conditions — the shrink AND an
+index shift putting an unrelated message at samePos — and a
+shrink-based rule cannot see the reverse leg (pair-locally
+unknowable; demonstrated by a red reverse-bite). The shipped fix is
+candidacy instead: a block is a migration candidate only where it
+appears <system-reminder>-wrapped on its inline side (over-narrowing
+probed: the documented s-633915a8 real case survives). The census
+now flags flap reversals directly — the triple reads 3 migrations,
+2 FLAP, driven red-first from the committed fixture, so the proof
+survives capture rotation. SECOND FLAP instance (s-633915a8,
+2026-07-29 17:19-17:20Z, same triple shape at msg 155/156): measured
+NON-event — the nearest bust on that session sits 26 minutes earlier
+— so the parked design item's cost trigger did not fire. Known
+detector residual, booked: per-block hashing counts LEGS, not
+relocations — two of the fixture's three standalone legs are JOINS
+it cannot see (joined-standalone migration target, BACKLOG).
+
 
 
 ## External issue sweep vs. this stack — coverage matrix (2026-07-29)

@@ -589,3 +589,20 @@ bullet, evidence pointer included.
   message shrunk to one block); its fix granted to the running
   annotation builder, red-first, before the detector lands. On the
   2026-07-30 triple the real flap is the single 92->94 pair reversing.
+
+- **READY — census: joined-standalone migration target.** blockUnits
+  hashes blocks individually, so a standalone that is a JOIN produces
+  no migration row — two of the three standalone legs in fixture
+  flap-s-0d6f38ba-86.json are joins the detector cannot see, and the
+  s-633915a8 oscillation (fixture oscillation-s-633915a8-863.json)
+  shows a whole flap class invisible for the same reason. Design:
+  register joined-block hashes as migration-candidate targets —
+  in-entry joins per 78940a0's "\n\n" rule; cross-message joins
+  tagged as their own kind (they are the parked design item's
+  subject, and the tag is what will count them). Verifier: red-first
+  on oscillation-s-633915a8-863.json — a migration row appears for
+  the merged standalone where none does today; existing corpora
+  verdicts unchanged. Done-criterion: census on that fixture shows
+  the join-standalone row; selfcheck mutation test added per
+  dev-loop "Adding a check".
+
