@@ -634,3 +634,142 @@ test("toolsDeltas: forwarded tools[] fully steady across an incoming reorder rea
   assert.equal(d.forwardedStable, true, "what we forwarded never moved");
   assert.equal(d.heldStable, true, "the shared-name subset IS the whole forwarded array here, and it is untouched");
 });
+
+// --- Block-migration FLAP ---
+//
+// A one-way block migration is absorbable by the volatile pin. An
+// OSCILLATION is not, when the pin classifies only one of the two shapes:
+// the block keeps leaving and returning, so it busts on every second flip at
+// best. The 2026-07-30 221k event (threat matrix row 4, session 0d6f38ba,
+// n=102->104->105->108 in 11 seconds) was exactly that, and the only way to
+// see it was to read three adjacent census lines and notice the direction
+// column alternate. These tests are the definition of that reading, made
+// mechanical — see the DEFINITION comment above markFlaps in replay.mjs.
+import { findBlockMigrations } from "../tools/replay.mjs";
+
+const txt = (t) => ({ type: "text", text: t });
+const REMINDER_WRAPPED = "<system-reminder>\nPreToolUse:Edit hook additional context: do the thing\n</system-reminder>";
+const REMINDER_INNER = "PreToolUse:Edit hook additional context: do the thing";
+
+// The two shapes the measured flap alternated between. Message COUNT is equal
+// in both, which is what makes each pair a replace/edit — the kind the
+// measured triple carried (edit@86 of 98).
+const inlineState = (tail = []) => [
+  user("q1"),
+  asst("a1"),
+  { role: "user", content: [txt("tool output"), txt(REMINDER_WRAPPED)] },
+  { role: "system", content: "unrelated standing system note" },
+  asst("a2"),
+  ...tail,
+];
+const standaloneState = (tail = []) => [
+  user("q1"),
+  asst("a1"),
+  { role: "user", content: [txt("tool output"), txt("sibling block that never moves")] },
+  { role: "system", content: REMINDER_INNER },
+  asst("a2"),
+  ...tail,
+];
+const asEntries = (states) => states.map((msgs, i) => entry(i, msgs, msgs));
+
+test("BITE — the same block reversing direction in the next request is annotated as a FLAP", () => {
+  // The measured triple's shape: inline -> standalone -> inline -> standalone.
+  const rows = findBlockMigrations(asEntries([inlineState(), standaloneState(), inlineState(), standaloneState()]));
+  assert.equal(rows.length, 3, "one migration row per flip");
+  assert.deepEqual(
+    rows.map((r) => r.direction),
+    ["inline->standalone", "standalone->inline", "inline->standalone"],
+  );
+  assert.equal(rows[0].flap, undefined, "the FIRST leg reverses nothing — it is a plain migration");
+  assert.deepEqual(
+    rows[1].flap,
+    { reversesPrevN: 0, reversesN: 1, span: 1 },
+    "leg 2 reverses leg 1 one request later, and names the row it reverses",
+  );
+  assert.deepEqual(rows[2].flap, { reversesPrevN: 1, reversesN: 2, span: 1 }, "leg 3 reverses leg 2");
+});
+
+test("flap: BITE — the window counts requests of the CONVERSATION, not of the wire", () => {
+  // Cache prefixes are per-conversation, so a co-tenant's traffic between the
+  // two legs is not part of this clock. Here the legs are 7 and 7 WIRE
+  // requests apart and 1 conversation request apart: a detector counting wire
+  // distance reports nothing on a flap that busts on every flip.
+  const other = (i) => [user("a different conversation entirely"), ...Array.from({ length: i }, (_, k) => asst(`o${k}`))];
+  const wire = [];
+  let n = 0;
+  for (const state of [inlineState(), standaloneState(), inlineState()]) {
+    wire.push(entry(n++, state, state));
+    for (let i = 0; i < 6; i++) wire.push(entry(n++, other(i), other(i)));
+  }
+  const rows = findBlockMigrations(wire);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].flap, undefined);
+  assert.deepEqual(rows[1].flap, { reversesPrevN: 0, reversesN: 7, span: 1 }, "7 wire requests apart, 1 conversation request apart");
+});
+
+// gap = conversation requests between the two migration rows. The requests in
+// between are plain appends, which are not a migration kind and so produce no
+// rows of their own — only distance.
+const flapAtGap = (gap) => {
+  const filler = (k) => Array.from({ length: k }, (_, i) => asst(`filler-${i + 1}`));
+  const states = [inlineState(), standaloneState()];
+  for (let k = 1; k < gap; k++) states.push(standaloneState(filler(k)));
+  states.push(inlineState(filler(gap - 1)));
+  const rows = findBlockMigrations(asEntries(states));
+  assert.equal(rows.length, 2, `gap=${gap}: exactly the two legs, appends contribute nothing`);
+  return rows[1];
+};
+
+test("flap: a reversal exactly 5 conversation requests later is still a FLAP", () => {
+  assert.deepEqual(flapAtGap(5).flap, { reversesPrevN: 0, reversesN: 1, span: 5 }, "5 is within 5");
+});
+
+test("flap: fires-on-non-defect guard — a reversal 6 conversation requests later is NOT a flap", () => {
+  // The window is what separates an oscillation from a block that migrated
+  // once and, much later, migrated back. A detector without an upper bound
+  // would mark the second as the first and train its reader to ignore the tag.
+  assert.equal(flapAtGap(6).flap, undefined);
+});
+
+test("flap: fires-on-non-defect guard — opposite directions by DIFFERENT blocks are not a flap", () => {
+  // Two distinct hook blocks, one leaving its host message and one returning
+  // to another, in consecutive requests. Every condition of the definition
+  // holds except identity of the block — which is the whole claim.
+  const X_WRAPPED = "<system-reminder>\nhook X context\n</system-reminder>";
+  const X_INNER = "hook X context";
+  const Y_INNER = "hook Y context";
+  const s0 = [
+    user("q1"),
+    asst("a1"),
+    { role: "user", content: [txt("tool output"), txt(X_WRAPPED)] },
+    { role: "system", content: "unrelated standing system note" },
+    { role: "system", content: Y_INNER },
+    asst("a2"),
+  ];
+  const s1 = [
+    user("q1"),
+    asst("a1"),
+    { role: "user", content: [txt("tool output"), txt("sibling block")] },
+    { role: "system", content: X_INNER },
+    { role: "system", content: Y_INNER },
+    asst("a2"),
+  ];
+  const s2 = [
+    user("q1"),
+    asst("a1"),
+    { role: "user", content: [txt("tool output"), txt("sibling block")] },
+    { role: "user", content: [txt("other output"), txt(Y_INNER)] },
+    { role: "system", content: "a tail note" },
+    asst("a2"),
+  ];
+  const rows = findBlockMigrations(asEntries([s0, s1, s2]));
+  assert.equal(rows.length, 2);
+  assert.deepEqual(
+    rows.map((r) => r.direction),
+    ["inline->standalone", "standalone->inline"],
+    "opposite directions, one conversation request apart",
+  );
+  assert.notEqual(rows[0].hash, rows[1].hash, "different blocks — the premise of this guard");
+  assert.equal(rows[0].flap, undefined);
+  assert.equal(rows[1].flap, undefined, "a reversal is of the SAME block; two blocks passing each other is not one");
+});
