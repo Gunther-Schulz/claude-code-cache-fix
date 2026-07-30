@@ -177,28 +177,28 @@ test(
       // input-side self-report claims full mitigation.
       assert.equal(row.mitigated, true, "input-side self-report: normalized, 0 rebilled");
       assert.equal(row.rebilledBytes, 0);
-      // Output-side reality: the forwarded prefix is stable through index 30
-      // (fidelity report Fact 2/5 — n=26's own index 30 hash equals n=28's
-      // reconstructed index 30) and diverges at 31, where the standalone
-      // system message is spliced in ahead of n=26's carried-forward tail
-      // (fidelity report "What's actually happening"). The census classifies
-      // this specific pair as "replace/edit" rather than pure
-      // "splice/insert-mid" — one of n=26's forwarded messages is entirely
-      // ABSENT from n=28's output (missing=1, added=1: confirmed by a direct
-      // set-membership diff of the two outHash arrays, independent of this
-      // implementation's classification branch), so `outputForm` lands on
-      // the `edit@N` branch rather than `splice@N` — both are the
-      // non-append buckets the brief names as acceptable, and the load-
-      // bearing fact is the INDEX (31) and non-append, not which of the two
-      // labels.
+      // Output-side reality with suppression active (c5d870d): the migrated
+      // reminder duplicate that used to splice at 31 is suppressed, so the
+      // forwarded arrays are byte-identical through index 47 and diverge at
+      // 48 — n=26's message[48] carries ttl-management's cache_control
+      // marker (it was the tail then), n=28's does not (the conversation
+      // grew past it). The two messages differ ONLY in that key (direct
+      // diff, suppression build report (c)4) — an expected relocation by a
+      // different extension, not part of decision B, so the pair stays
+      // non-append with a marker-sized residual instead of the 61 kB
+      // reminder splice.
       assert.notEqual(row.outputForm, "append", "the output is NOT a clean tail append");
       assert.equal(
         row.outputForm,
-        "edit@31",
-        "byte evidence (fidelity report Fact 2/5 + missing-message diff): divergence at 31, not a pure splice",
+        "edit@48",
+        "post-suppression divergence is ttl-management's marker relocation at 48",
       );
       assert.equal(row.outputPreserved, false);
-      assert.ok(row.rebilledOutBytes > 0, "the splice re-bills everything from index 31 on");
+      assert.ok(row.rebilledOutBytes > 0, "the marker delta re-bills the tail from 48 on");
+      assert.ok(
+        row.rebilledOutBytes < 10 * 1024,
+        "residual is marker-sized (~5 kB), not the 61 kB reminder splice — suppression regressed if this grows",
+      );
     } finally {
       process.stderr.write = origStderr;
       for (const k of Object.keys(saved)) {

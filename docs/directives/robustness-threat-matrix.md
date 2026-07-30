@@ -367,24 +367,30 @@ cause classes. Coverage verdicts, each measured where possible:
   CORRECTED same day (sonnet probe + fingerprint check): the earlier
   "mitigation kind null, passed through" reading came from a replay
   under DEFAULT gates — the dev-loop's replay-the-serving-config
-  violation, instrument error; under the capture's own boot-record
-  gates the pair replays MITIGATED (normalized, 0 re-billed), the
-  one mitigated row of 7. The serving process ran current code
+  violation, instrument error; the serving process ran current code
   (source-fingerprint 8349b0e665c8 = /health = disk; note the
   fingerprint is sha256-content, NOT a git tree — comparing it to
   git hashes is the hand-rolled-identity error, made twice before
-  being checked). cdf3179's positional canonical rebuild names this
-  exact mechanism and absorbs it offline. OPEN, named precisely:
-  live-unabsorbed vs replay-absorbed — a replay-fidelity gap; prime
-  suspects: per-conversation state divergence (live proxy served a
-  concurrent second session; cross-key interference is a known
-  collision class) and pin state at n=26. Evidence for the state
-  hypothesis: census (5cdf51b) finds FOUR block migrations in this
-  session's capture, only ONE of which produced a worktime cold
-  event — same shape, different live outcomes. Check: compare
-  replay's n=28 output against the session-mirror's wire bytes at
-  indices 30/31. Census annotation shipped: blockMigration on splice
-  and edit rows (5cdf51b, red-tested, fires on all four).
+  being checked). RESOLVED same evening (fidelity probe): replay is
+  byte-faithful to the wire (outSha match), and "mitigated:true" was
+  the METRIC's input-side blindness — the pipeline's real behavior
+  was restore-the-pin AND forward the duplicate, a splice at 31 that
+  re-billed 124k. MITIGATION BUILT 2026-07-30 (c5d870d, decision B
+  pin-and-suppress): the positional rebuild suppresses a standalone
+  message whose wrapper-normalized bytes equal a live pinned block;
+  red-green on the real pair edit@31 ~61 kB -> edit@48 ~5 kB (the
+  residual is ttl-management's cache_control relocation at the old
+  tail — a different extension, expected); full-corpus gate under
+  boot-record gates 0/0/0/0; declared exemptions in replay's safety
+  AND stability gates (the stability one was unbriefed — found by
+  full-corpus replay, 67 false fires before the fix); output-guard
+  needs none (no message-count invariant by design, its directive
+  line 58, 0 fires over 1190 requests). Census annotation shipped:
+  blockMigration on splice and edit rows (5cdf51b, red-tested,
+  fires on all four in this capture — only ONE produced a live cold
+  event). BUILT, NOT YET SERVING: pending proxy restart (dotfiles
+  pin bump, stated session boundary). Row closes on the live
+  non-event, not on the build.
 - COVERED (mechanism now attributed) — mid-history nudge anchoring
   (#78660, #68140, #80604): row 4 above.
 - NEUTRALIZED BY CONFIG — subagent 5-minute TTL pinning (#74318): outcome

@@ -52,29 +52,38 @@ bullet, evidence pointer included.
   the metric newly exposes FIVE more output-spliced pairs (~0.6 MB,
   ordinals in the mitigation report) — classify against
   blockMigration after (c) lands, they may be a different mechanism.
-  (c) READY,
-  serialized behind (b) on tools/replay.mjs ownership — the BUILD:
-  in insertion-normalization's positional rebuild, suppress the
-  migrated standalone message when its content equals the pinned
-  block after wrapper-normalization (the census's unwrap + string->
-  block fold; the raw bytes differ by the <system-reminder> wrapper
-  by observation); genuine change (normalized bytes differ) -> no
-  suppression, forward + reset per the existing rule; suppression
-  state rides the conversation sub-key; declared exemption in the
-  live output-guard AND replay's safety gate (message-count change
-  is deliberate — the tool_addition-announcement pattern); one
-  event line per suppression to the insertion event log; red-green
-  on the REAL pair: replaying the day's capture under new code must
-  turn n=26->28 into outputPreserved:true / rebilledOut 0 with the
-  safety gate green. Known residuals, accepted: a proxy restart
-  drops suppression pins -> one bust per active migration at the
-  boundary (row 3, stated at restart); post-restart first-seen form
-  re-anchors. Deployment coupling: proxy/** -> dotfiles pin bump +
-  restart at a stated session boundary + gate run (dev-loop).
+  (c) DONE 2026-07-30 (c5d870d, sonnet build;
+  dispatcher-verified: suites green, full-corpus gate 0/0/0/0 under
+  boot-record gates, real pair edit@31 ~61 kB -> edit@48 ~5 kB).
+  Two spec corrections booked from the build, both verified: the
+  "declared exemption in the live output-guard" clause was written
+  against a check that does not exist (output-guard has no
+  message-count invariant BY DESIGN — its directive line 58; 0
+  fires over 1190 requests) — no exemption owed; and the literal
+  acceptance criterion "outputPreserved:true / rebilledOut 0" was
+  unreachable by this fix alone — the residual divergence at 48 is
+  ttl-management relocating its cache_control marker off the old
+  tail (messages differ in ONLY that key, direct diff), expected
+  behavior of a different extension. The stability gate needed the
+  same declared exemption as the safety gate and the brief did not
+  name it (67 false fires before the fix, caught by full-corpus
+  replay) — lesson: a message-COUNT change gets checked against all
+  four replay invariants, not the two a brief happens to name.
+  Suppression is re-detected per request from the on-disk pin set
+  (no new state file). Remaining, named: (1) DEPLOY — proxy/** ->
+  dotfiles pin bump + restart at a stated session boundary + gate
+  run (dev-loop); row 8 closes on the live non-event, not the
+  build. (2) The five other output-spliced pairs are confirmed NOT
+  block migrations (census post-fix: exactly 4, none of the five)
+  — a different, still-unclassified mechanism, still open. (3) The
+  three sibling migrations (n=105->107, 107->108, 108->109) were
+  covered only by the aggregate gate, not individually verified.
+  (4) grep for consumers of the new suppressed/suppressions stats
+  fields not run (prior equivalent check on outputForm found none).
 
 - **READY — replay warns on gateless runs of gated captures**
-  (2026-07-29; serialized behind the suppress build on
-  tools/replay.mjs). Design: replay.mjs already parses the boot
+  (2026-07-29; was serialized behind the suppress build, now
+  unblocked — tools/replay.mjs free). Design: replay.mjs already parses the boot
   record's `gates`; when the capture declares gates and none of them
   is set in the effective env, print one unmissable warning line
   ("replaying DEFAULT gates; this traffic was served with N gates —
