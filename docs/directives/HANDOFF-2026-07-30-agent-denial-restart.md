@@ -134,6 +134,13 @@ After execution, the DISPATCHER'S half (never delegated):
 
 ## Follow-up: update our threads on anthropics/claude-code (operator request 2026-07-30)
 
+DONE 2026-07-30 (operator "GO all"): #76606 comment 5131210097 (merge
+variant + join-hash mitigation), #78660 comment 5131210308 (edit-class
+addition), #81967 comment 5131210550 (deferred-tools toolsBytes step,
+snapshot b3ba6fd). #82229 checked: no state change from today's
+findings, no update posted. #73434: correction 5130710677 posted
+earlier today; thread on watch.
+
 After the wave-2 work, draft evidence updates for the CC-repo threads we
 already own — post only after operator GO per thread (today's precedent:
 #73434 drafted, GO'd, posted): 
