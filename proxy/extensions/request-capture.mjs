@@ -30,6 +30,7 @@ import { randomUUID } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { createHash } from "node:crypto";
+import { queuedAppend } from "./append-queue.mjs";
 
 const DEFAULT_FS = { appendFile, mkdir, readdir, stat, unlink };
 const SWEEP_EVERY = 50;
@@ -265,15 +266,17 @@ export default {
       if (!_bootWrittenFor.has(record.key)) {
         _bootWrittenFor.add(record.key);
         await DEFAULT_FS.mkdir(dir, { recursive: true });
-        await DEFAULT_FS.appendFile(
+        await queuedAppend(
           join(dir, `${record.key}-requests.jsonl`),
           JSON.stringify(buildBootRecord(new Date(), process.env, proxyTree())) + "\n",
+          DEFAULT_FS,
         );
       }
       await DEFAULT_FS.mkdir(dir, { recursive: true });
-      await DEFAULT_FS.appendFile(
+      await queuedAppend(
         join(dir, `${record.key}-requests.jsonl`),
         JSON.stringify(record) + "\n",
+        DEFAULT_FS,
       );
       if (++_appendsSinceSweep >= SWEEP_EVERY) {
         _appendsSinceSweep = 0;
@@ -308,9 +311,10 @@ export default {
         const record = buildOutcomeRecord(ctx, id, key);
       if (!record) return;
       ctx.meta._captureOutcomeWritten = true;
-      await DEFAULT_FS.appendFile(
+      await queuedAppend(
         join(getCaptureDir(), `${key}-requests.jsonl`),
         JSON.stringify(record) + "\n",
+        DEFAULT_FS,
       );
     } catch (err) {
       debug(`outcome capture failed: ${err?.message ?? err}`);
