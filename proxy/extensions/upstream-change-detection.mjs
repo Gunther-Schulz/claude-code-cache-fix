@@ -460,6 +460,17 @@ async function _processRequest(body, headers, { dir, map, fs }) {
   };
   map.set(nsKey, updated);
 
+  // messages.count grows on every ordinary turn — a conversation living is
+  // not an upstream structural change, and logging it drowned the alarm
+  // file (97% of all recorded events were count-only diffs, measured
+  // 2026-07-30 over 4661 events). A count-only diff updates the stored
+  // fingerprint silently; any OTHER changed path still alarms, with the
+  // count change riding along in its diff if both moved.
+  const alarmDiff = diff.filter((d) => d.path !== "messages.count");
+  if (alarmDiff.length === 0) {
+    return { event: "noop", nsKey };
+  }
+
   await appendEvent(
     {
       ts,
