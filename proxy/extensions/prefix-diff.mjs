@@ -107,6 +107,17 @@ import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
 const ENABLED = process.env.CACHE_FIX_PREFIXDIFF === "1";
 const DEBUG = process.env.CACHE_FIX_DEBUG === "1";
 
+// This extension's pipeline order (dev-loop.md, "Tap points"). A bare index
+// was equated across tap points during the 587k attribution — a raw-capture
+// index (order 60) read as if it were this module's forwarded-body index
+// (order 680), naming the wrong message. Every record this module emits now
+// carries WHICH tap point its indices belong to, so a reader (or a future
+// attribution) never has to guess or re-derive it. Single source: the
+// default export's `order` field reads this same constant rather than
+// duplicating the literal.
+const TAP_ORDER = 680;
+const TAP_VIEW = `forwarded@${TAP_ORDER}`;
+
 const DEFAULT_FS = {
   mkdir: _mkdir,
   readFile: _readFile,
@@ -799,6 +810,12 @@ function buildEventRecord(diff, sessionKey, sessionId) {
     prevTs: diff.prevTimestamp,
     key: sessionKey,
     sid: sessionId ?? null,
+    // Tap point (dev-loop.md): every index in this record — chain.first
+    // above all — is a position in the FORWARDED body at this module's own
+    // pipeline order, never a raw-capture or other-extension index. Naming
+    // it here means a reader never has to know or re-derive the order to
+    // avoid the equating-across-tap-points mistake.
+    view: TAP_VIEW,
     causes: summariseCauses(diff),
     systemMatch: diff.systemMatch,
     toolsMatch: diff.toolsMatch,
@@ -1021,7 +1038,7 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
           diff.prefixDiffs.length + diff.markerDiffs.length + diff.tailDiffs.length;
         const causes = summariseCauses(diff);
         process.stderr.write(
-          `[prefix-diff] ${sessionKey}: ${totalDiffs} differences ` +
+          `[prefix-diff] ${sessionKey} (${TAP_VIEW}): ${totalDiffs} differences ` +
             `(head=${diff.prefixDiffs.length}, markers=${diff.markerDiffs.length}, ` +
             `tail=${diff.tailDiffs.length}), ` +
             `tools=${diff.toolsMatch ? "match" : "DIFFER"}, ` +
@@ -1112,6 +1129,8 @@ export {
   diffHasChanges,
   buildBetaHeaderSnapshot,
   diffBetaHeader,
+  TAP_ORDER,
+  TAP_VIEW,
 };
 
 export default {
@@ -1126,7 +1145,7 @@ export default {
   // This matches the acceptance criteria (env var alone activates) — the
   // extension is cheap to load (one no-op check per request when disabled).
   enabled: true,
-  order: 680,
+  order: TAP_ORDER,
 
   async onRequest(ctx) {
     if (!ENABLED) return;

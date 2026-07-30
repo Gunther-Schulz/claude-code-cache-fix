@@ -28,6 +28,8 @@ import ext, {
   diffHasChanges,
   buildBetaHeaderSnapshot,
   diffBetaHeader,
+  TAP_ORDER,
+  TAP_VIEW,
 } from "../proxy/extensions/prefix-diff.mjs";
 
 // `import.meta.dirname` requires Node 20.11+; CI matrix includes Node 18,
@@ -1054,6 +1056,20 @@ test("summariseCauses: names the specific block, tool, param, and index", () => 
   assert.ok(causes.includes("system["), `expected system block in: ${causes}`);
   assert.ok(causes.includes("tools["), `expected tools in: ${causes}`);
   assert.ok(causes.includes("messages@0"), `expected message index in: ${causes}`);
+});
+
+// Tap points (dev-loop.md): a bare index was equated across tap points
+// during the 587k attribution. Every record this module emits must name
+// its own tap point, derived from the SAME order the extension itself
+// registers under — never a second literal that could drift from it.
+test("buildEventRecord: carries its tap-point view marker, single-sourced from the module's own order", () => {
+  assert.equal(ext.order, TAP_ORDER, "the default export's order must be the single source TAP_VIEW derives from");
+  assert.equal(TAP_VIEW, `forwarded@${TAP_ORDER}`);
+
+  const a = buildSnapshot(makePayload({ system: [{ type: "text", text: "<env>A</env>" }] }));
+  const b = buildSnapshot(makePayload({ system: [{ type: "text", text: "<env>B</env>" }] }));
+  const rec = buildEventRecord(computeDiff(a, b), "key123", "sid-1");
+  assert.equal(rec.view, TAP_VIEW, `expected tap-point view marker on the record, got ${JSON.stringify(rec.view)}`);
 });
 
 test("buildEventRecord: bounded — carries evidence without full message bodies", () => {
