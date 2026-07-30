@@ -667,3 +667,20 @@ bullet, evidence pointer included.
   first; if it already does this, the item dissolves into a doc
   pointer.
 
+- **READY-for-design — the identity decision: how a re-served entry
+  is identified once CC stops sending it (the flap class's true
+  blocker).** Mechanism frozen in fixture
+  reset-move-s-dc3f8071-196-197.json and
+  docs/audits/unit-2b-closing-report-2026-07-30.md (three candidate
+  directions enumerated there, none chosen — deliberately returned
+  to the design tier). Constraint: identity/state-key changes are the
+  one restart-UNSAFE class (threat-matrix row 3) — the design pass
+  states its restart-boundary plan before any build. Sub-gaps folded
+  in: findJoinMoves role constraint on the merged message; harvest
+  "select ordinals + keep join relation" mode; a census absorption
+  class for replace/edit pairs (until then the done-criterion is the
+  corrected one in the directive Status). Carrier branch:
+  wt/fidelity/opus (aef760b unit 2 + dc8c475 unit 2b, both unpushed,
+  both gated clean on fidelity/safety). Consumer: a fresh design
+  session with docs/dev-loop.md loaded.
+

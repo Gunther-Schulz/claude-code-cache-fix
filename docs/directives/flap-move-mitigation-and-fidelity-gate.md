@@ -174,3 +174,38 @@ stability violations; full five-gate sweep 0/0/0/0/0 on all corpora
 input-mitigated (the directive's original done-criterion now
 reachable); oscillation fixture verdicts unchanged.
 
+## Status 2026-07-30 (unit 2b post-build)
+
+BUILT as designed (dc8c475 on wt/fidelity/opus, atop aef760b) — and
+the design's premise for the regression pair is REFUTED BY EXECUTION:
+at the reset the absorbed entry is never in droppedNow (`dropped: 0`
+on n=197 and n=400), so no reset-path move recognition can fire. The
+real mechanism is an IDENTITY MIS-BINDING: identity is (hash, role,
+occurrence-ordinal); a re-served entry stays alive in our canonical
+while CC stops sending it, so when CC sends ANOTHER copy of the same
+recurring nudge text, the entry binds to that unrelated copy at an
+inverted position — the not-subsequence reset is the SYMPTOM. Frozen
+in fixture reset-move-s-dc3f8071-196-197.json (_mechanism note);
+full evidence: docs/audits/unit-2b-closing-report-2026-07-30.md.
+
+Measured effect of 2b as built: real but partial — A/B 7->6 stability
+violations (one pair cured, one newly surfaced, one family
+unchanged); safety/conservation/sequence/order 0 across 32 captures
+/ 7 GB under serving gates. Not integrated; the branch is the
+carrier pending THE IDENTITY DECISION (BACKLOG) — how a re-served
+entry is identified across requests once CC stops sending it. That
+decision touches identity/state keys: the one restart-UNSAFE change
+class (row 3) — it takes its own design pass, not a ride-along.
+
+Directive corrections from the build: the done-criterion "census
+shows the flap pairs input-mitigated" is NOT EXPRESSIBLE as stated —
+`mitigated` covers only MITIGABLE={splice/insert-mid,
+append-after-change, reorder-only} (replay.mjs:854) and a flap pair
+is replace/edit; the criterion becomes "the three flap pairs show 0
+stability violations and the merged bytes accounted by the
+conservation gate" until a census absorption class exists for
+replace/edit. findJoinMoves does not yet constrain the merged
+message's ROLE (gap, folded into the identity item). The reset path
+must also declare suppressions/reserves to the conservation gate
+(builder deviation, REQUIRED and kept).
+
