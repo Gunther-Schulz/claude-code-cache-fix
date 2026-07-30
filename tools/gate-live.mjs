@@ -173,6 +173,24 @@ function summarise(file, bytes, res) {
     row.fidelityMutatedComparable = f.mutatedComparable ?? 0;
     row.fidelityMutatedMatched = f.mutatedMatched ?? 0;
   }
+  // Threat-matrix row 6's consumer path (BACKLOG "Row 6's isolating query
+  // is built and unread (Q3)"): findToolsDeltas already classifies every
+  // tools[]-changing pair, --census rides every sweep (replayArgs above),
+  // but nothing before this read it — a daily answer sat unread in stdout.
+  // Compact counts only (no bodies): row 6 asks specifically for the
+  // TOOLS-ONLY case (tools moved, message history did not — the isolating
+  // pair) and whether what we FORWARDED held stable across it.
+  // Consumers: threat-matrix row 6 and the operator reading gate status.
+  if (Array.isArray(parsed.toolsDeltas)) {
+    const deltas = parsed.toolsDeltas;
+    const forwardedStable = deltas.filter((d) => d.forwardedStable).length;
+    row.toolsDeltas = {
+      count: deltas.length,
+      toolsOnly: deltas.filter((d) => d.toolsOnly).length,
+      forwardedStable,
+      leaked: deltas.length - forwardedStable,
+    };
+  }
   return row;
 }
 
