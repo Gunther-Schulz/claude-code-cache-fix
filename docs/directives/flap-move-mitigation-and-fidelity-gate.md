@@ -139,3 +139,38 @@ and the conservation gate enforces the remainder by construction.
 Also unmeasured and named: dropped-majority's precedence relative to
 move recognition.
 
+## Unit 2b — moves survive resets (design settled 2026-07-30, session-inline)
+
+The row-22 argument extends to moves; checked condition-by-condition
+against source (resetKeepingPins :742, findJoinMoves on branch
+wt/fidelity/opus):
+
+1. Recognition needs no identity lookup: findJoinMoves is a pure
+   function of inputs both reset call-sites already possess (matched,
+   droppedNow, priorCanonical, wire; newEntries = one filter). D's
+   first-seen bytes persist in the canonical — condition (a).
+2. FAIL-CLOSED under disorder: gap test (d) uses matched neighbors'
+   wire indices; in a scrambled request the bounds collapse and
+   recognition does not match — raw forward, today's behavior. The
+   substitution can only fire where the local neighborhood is
+   actually ordered.
+3. Slot-preserving: 1->1, system->system, in place — never adds,
+   drops or reorders; count/roles/adjacency unaffected (the pin
+   argument verbatim; the builder already rejected the add+drop
+   shape for the tap-point reason).
+4. Riders unchanged: adjacency-violation reset stays raw;
+   canonicalEntries built from the OUT array with substitutions
+   applied (the reset path already does this for pins).
+
+BUILD: inside resetKeepingPins, after pin substitution, run
+findJoinMoves on the same inputs and apply move substitutions into
+`out`; return `moved: N` beside `pinned`. No other path changes.
+
+VERIFY: red-first bite from the measured regression pair
+(s-dc3f8071 n=196->197, inDiv 233 / outDiv 225 — fixture via the
+harvest sanitizer); the three regression captures return to 0
+stability violations; full five-gate sweep 0/0/0/0/0 on all corpora
++ live captures under serving gates; census flap pairs
+input-mitigated (the directive's original done-criterion now
+reachable); oscillation fixture verdicts unchanged.
+
