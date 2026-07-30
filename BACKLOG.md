@@ -298,14 +298,18 @@ bullet, evidence pointer included.
   from day one. Done: gate serving + acceptance entry + doctor
   green.
 
-- **OPEN — forwardedStable near-zero: deferred-tool-rewrite's core
-  guarantee unmeasured-or-broken** (row6 measurement 2026-07-30:
-  0/23 and 1/37 forwarded tools[] signatures held across tools-only
-  deltas, under serving gates incl. TOOL_REWRITE=1 — against the
-  matrix's "holds tools[] byte-stable"). Three hypotheses, none
-  settled: real regression / first-event-no-baseline artifact /
-  census framing gap in what forwardedStable compares.
-  Probe dispatched: instrument first, then bytes.
+- **RESOLVED 2026-07-30 (probe, dispatcher-booked): forwardedStable
+  was a census framing gap — deferred-tool-rewrite is NOT broken.**
+  100% of "unstable" pairs coincide with a genuine new-tool
+  announcement; held/shared tools byte-identical on every checked
+  repeat pair; first-event hypothesis measured out (3/25, 3/37).
+  READY, small, serialized behind the fss-exempt dispatch on
+  tools/replay.mjs: findToolsDeltas gains `heldStable` (signature
+  over the SHARED-name subset across the pair) beside
+  forwardedStable; gate-live's summary carries it; bite: a pair
+  with one added tool and identical shared subset -> heldStable
+  true, forwardedStable false; a pair with a mutated shared tool ->
+  both false (red first). Matrix row 6 updated same day.
 
 - **OPEN — duplicate-request contradiction: ~100 adjacent identical
   pairs vs the booked "one instance in 3,446"** (new per-conversation
@@ -315,8 +319,17 @@ bullet, evidence pointer included.
   interleaved sessions broke adjacency — definition mismatch
   hypothesis, unverified). One streak matches the known MCP cascade;
   21 streaks in s-633915a8 (13+ repeats, 3-min spans) unexplained.
-  Probe dispatched: reconcile definitions, then re-disposition the
-  #78420 coverage row with a basis.
+  RESOLVED 2026-07-30 (probe): definition-mismatch FALSIFIED by
+  measurement (global vs per-conversation differs marginally); the
+  growth is corpus content, and the streaks are retry-shaped —
+  distinct ids, backoff intervals, ZERO outcome records (none
+  billed): client retries against upstream/proxy errors, not the
+  #78420 billing shape. Coverage row re-dispositioned same day.
+  Residue, named: the error evidence itself arrives with the
+  upstream-error-log flip (booked); streak timestamps vs error
+  timestamps is the confirming check, rides the first week of that
+  gate. Honest gap: the 07-29 probe's exact runtime/file list not
+  recoverable.
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
