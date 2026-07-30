@@ -121,11 +121,16 @@ After execution, the DISPATCHER'S half (never delegated):
 2. Push: normal push for pr/insertion-normalization,
    pr/verification-tools, pr/output-guard, pr/prefix-diff-attribution;
    `--force-with-lease` for pr/retire-messages-cache-breakpoint.
-3. Comment on PRs #272/#276/#278/#280/#281 (bot identity per tracked
-   CLAUDE.md: `TOKEN=$(~/.claude/github-apps/generate-token.sh
-   proxy-builder) && GH_TOKEN=$TOKEN gh ...`; sign-off suffix per repo
+3. Comment on PRs #272/#276/#278/#280/#281 with plain `gh` under the
+   operator's own identity — that is what every upstream comment to date
+   has used. (The original text here said to run
+   `~/.claude/github-apps/generate-token.sh proxy-builder` for a bot
+   token: that script does not exist on this machine, and neither does
+   the `gh-bot-guard.sh` hook the tracked CLAUDE.md describes. Both are
+   upstream's, transcribed here by mistake; a session following that line
+   gets a missing-script failure.) Sign-off suffix per repo
    convention — read an existing morning-wave comment first and match
-   it). Note in #276's comment: the fresh-session-sort extension change
+   it. Note in #276's comment: the fresh-session-sort extension change
    rides with its replay-exemption checker (e41e068, deliberate); in
    #278's: the suppression test skips without the pinned fixture by
    design.

@@ -117,7 +117,11 @@ one bounded by the rung spacing.
 
 ## Rollout
 
-Implement on this branch, PR per repo workflow (bot identity, Codex
-review). Enable via env in the systemd unit only at a SESSION
+Implement and land on fork-main per the fork convention. (The original
+text here said "PR per repo workflow (bot identity, Codex review)" —
+that is UPSTREAM's process for upstream's team, transcribed by mistake
+into a fork-internal directive whose rollout target is the local systemd
+unit. It binds nothing here.) Enable via env in the systemd unit only at
+a SESSION
 BOUNDARY — the FORK-NOTES restart rule stands: a proxy restart is
 itself a 225k-class bust for live sessions. Do NOT restart today.
