@@ -405,37 +405,62 @@ export function anchorHash(msg) {
 // re-anchors after the LAST user message — the closest stable position
 // that satisfies the "must follow a user message" placement constraint —
 // and reports it so state can be updated and telemetry emitted.
+//
+// Resolution happens in a first pass against the ORIGINAL `messages` array
+// (never mutated while resolving), so a SHARED anchor's landing position is
+// computed once regardless of how many additions target it. This is what
+// keeps the run FIFO — discovery order, oldest first — instead of the
+// previous idx+1-per-addition splice, which re-found the same anchor fresh
+// on every iteration (the search excludes role==="system", so
+// already-injected additions were invisible to it) and always landed the
+// newest addition closest to the anchor: a LIFO stack that reordered the
+// already-forwarded prefix on every new addition (probe s-dc3f8071,
+// n=372-397, 25 stability violations during an MCP discovery cascade).
 export function injectAdditions(messages, additions) {
   if (!Array.isArray(additions) || additions.length === 0) {
     return { messages, reanchored: [] };
   }
-  const out = [...messages];
+
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+
   const reanchored = [];
+  // Original-array index -> messages to inject right after it, in discovery
+  // (oldest-first) order — the run for a shared anchor.
+  const byAnchorIdx = new Map();
+
   for (const add of additions) {
-    const idx = out.findIndex((m) => m.role !== "system" && anchorHash(m) === add.anchorHash);
-    if (idx >= 0) {
-      out.splice(idx + 1, 0, add.message);
-    } else {
-      let lastUser = -1;
-      for (let i = out.length - 1; i >= 0; i--) {
-        if (out[i].role === "user") {
-          lastUser = i;
-          break;
-        }
-      }
-      if (lastUser >= 0) {
-        out.splice(lastUser + 1, 0, add.message);
-        const newAnchor = anchorHash(out[lastUser]);
-        reanchored.push({ names: add.names, anchorHash: newAnchor });
+    const idx = messages.findIndex((m) => m.role !== "system" && anchorHash(m) === add.anchorHash);
+    let landingIdx = idx;
+    if (idx < 0) {
+      if (lastUserIdx >= 0) {
+        landingIdx = lastUserIdx;
+        reanchored.push({ names: add.names, anchorHash: anchorHash(messages[lastUserIdx]) });
       } else {
         // No user message at all — cannot satisfy the placement
         // constraint; skip this injection (the tool stays deferred and
         // unloaded this request; honest degradation, not a malformed
         // request).
         reanchored.push({ names: add.names, anchorHash: null });
+        continue;
       }
     }
+    if (!byAnchorIdx.has(landingIdx)) byAnchorIdx.set(landingIdx, []);
+    byAnchorIdx.get(landingIdx).push(add.message);
   }
+
+  const out = [];
+  messages.forEach((m, i) => {
+    out.push(m);
+    const injected = byAnchorIdx.get(i);
+    if (injected) out.push(...injected);
+  });
+
   return { messages: out, reanchored };
 }
 

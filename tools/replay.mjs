@@ -464,6 +464,42 @@ export function toolsFingerprints(tools) {
   };
 }
 
+// Output-side identity for findMitigationGaps' outputForm/outputPreserved/
+// rebilledOutBytes ONLY. `outHash` below (used by the STABILITY check,
+// `scanGroup`) stays byte-raw and untouched — byte-stability is the wire
+// truth, and weakening it would let a real re-billed byte hide behind this
+// strip.
+//
+// DEFINITION: cache_control designates a cache breakpoint, not conversation
+// content. A pair of forwarded messages that differ ONLY in whether/where a
+// cache_control block is attached carries identical model-visible bytes;
+// counting that as a splice prices a cost nothing actually incurred.
+// Measured (flap-probe, capture s-633915a8-...): CC itself sends an
+// identical 32,140-char text as a cache_control-bearing block while it is
+// the tail, then as a bare string once it is not, in its own pre-pipeline
+// bytes (n=678->681 and four siblings: 564->565, 354->356, 267->268,
+// 566->568 — deferredToolRewriteStats inert on all five,
+// findStabilityViolations 0 on the whole capture — CC's own shape choice,
+// not ours). `compactEntry`'s `outHash` (below) hashes raw
+// `JSON.stringify(message)` with no strip, unlike the input-side identity
+// path (`semanticCore`, above) — the same input-side blind-spot class,
+// unfixed on the output side until now.
+//
+// Strips cache_control via the shared primitive (`hashMessageContent`,
+// imported) — never a second hand-rolled variant, per dev-loop.md's "never
+// hand-roll identity in a probe" — promoting bare-string content to the
+// same single-block array form `semanticCore` already uses for the
+// identical reason (a bare string and a one-block text array are the same
+// message under any of this file's identity notions). Deliberately NOT
+// `semanticCore`: that also drops volatile system-reminder blocks, a
+// broader normalization this question does not ask for — only the
+// cache_control removal mirrors "the input side" here.
+function outputContentHash(m) {
+  const c = m?.content;
+  const content = typeof c === "string" ? [{ type: "text", text: c }] : Array.isArray(c) ? c : [];
+  return sha(JSON.stringify([m?.role ?? null, hashMessageContent({ content })]));
+}
+
 export function compactEntry(e) {
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
@@ -485,6 +521,10 @@ export function compactEntry(e) {
     // throwaway script before it lived here.
     inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
+    // cache_control-stripped twin of outHash, for findMitigationGaps'
+    // outputForm ONLY (see outputContentHash above) — never read by the
+    // stability check.
+    outHashSem: outMsgs.map(outputContentHash),
     // Byte length per FORWARDED message, the output-side twin of inBytes —
     // what lets rebilledOutBytes be priced without retaining a message body.
     outBytes: outMsgs.map((m) => JSON.stringify(m).length),
@@ -734,9 +774,12 @@ export function findMitigationGaps(entries) {
       const from = inDiv === null ? cur.inBytes.length : inDiv;
       const rebilled = cur.inBytes.slice(from).reduce((a, b) => a + b, 0);
 
-      // Output-side classification — see the block comment above.
-      const outKind = censusIds(prev.outHash, cur.outHash);
-      const outDiv = firstDivergence(prev.outHash, cur.outHash);
+      // Output-side classification — see the block comment above. Uses
+      // outHashSem (cache_control stripped, see outputContentHash), not the
+      // stability check's raw outHash — a cache_control-only relocation is
+      // not a content splice (outputContentHash's definitional comment).
+      const outKind = censusIds(prev.outHashSem, cur.outHashSem);
+      const outDiv = firstDivergence(prev.outHashSem, cur.outHashSem);
       let outputForm;
       if (outKind === "identical" || outKind === "append-only") {
         outputForm = "append";
@@ -1008,7 +1051,16 @@ export function runCensus(entries) {
 }
 
 function parseArgs(argv) {
-  const args = { file: null, env: {}, json: false, census: false, restartAt: null, wipeStateAt: null, trace: false };
+  const args = {
+    file: null,
+    env: {},
+    json: false,
+    census: false,
+    restartAt: null,
+    wipeStateAt: null,
+    trace: false,
+    gatesFromCapture: false,
+  };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--env") {
@@ -1025,6 +1077,8 @@ function parseArgs(argv) {
       args.census = true;
     } else if (a === "--trace") {
       args.trace = true;
+    } else if (a === "--gates-from-capture") {
+      args.gatesFromCapture = true;
     } else if (a === "--restart-at" || a === "--wipe-state-at") {
       const v = parseInt(argv[++i] ?? "", 10);
       if (!Number.isFinite(v) || v < 1) {
@@ -1042,7 +1096,7 @@ function parseArgs(argv) {
   }
   if (!args.file) {
     process.stderr.write(
-      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--json]\n",
+      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--json]\n",
     );
     process.exit(2);
   }
@@ -1191,6 +1245,105 @@ export async function* readCapture(path) {
   }
 }
 
+// --gates-from-capture needs every boot record BEFORE loadExtensions runs
+// (several extensions read their gate env at load or first-call time), but
+// main()'s own `boots` array is only complete once the whole capture has
+// been read — a chicken-and-egg the flag resolves with a lightweight
+// PRE-pass: same pull-based reader as `readCapture` (never slurped, so this
+// costs one extra streamed parse of the file, not a second copy of it in
+// memory), keeping only the rare `type:"boot"` lines rather than every
+// request body.
+export async function readBootRecords(path) {
+  const boots = [];
+  for await (const line of readLines(path)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot") boots.push(rec);
+  }
+  return boots;
+}
+
+// --- Gate provenance (BACKLOG.md: "replay warns on gateless runs of gated
+// captures") ---
+//
+// A capture's boot record(s) name the CACHE_FIX_* gates the traffic was
+// served under (buildBootRecord, proxy/extensions/request-capture.mjs).
+// Replaying that capture under a DIFFERENT gate set compares two worlds and
+// reports the difference as a finding — the same class of error
+// gate-live.mjs's own comment documents for the daily sweep (extension
+// defaults replayed against production's 11 gates, 0 violations vs 2 on the
+// same corpus). Grounding for mechanizing rather than trusting prose here:
+// the SAME operator-side instrument error happened three times in one day
+// (2026-07-29 default-gates census), each time with the dev-loop warning
+// already loaded.
+//
+// declaredGateEnv: union across every boot record in the capture, not just
+// the first — a capture can span a restart under a different unit file, and
+// any boot's declared gates are relevant to what the traffic after it saw.
+// `CACHE_FIX_CAPTURE_MAX_MB` is capture retention, not a mitigation gate
+// (excluded the same way the existing provenance printout already
+// excludes it). Later boots win on VALUE (object insertion order tracks
+// file order, since boots is built by streaming the capture forward) — the
+// same rule `--gates-from-capture` (below) needs and `declaredGateNames`
+// (names only, no values) did not.
+export function declaredGateEnv(boots) {
+  const env = {};
+  for (const b of boots ?? []) {
+    for (const [k, v] of Object.entries(b?.gates ?? {})) {
+      if (k !== "CACHE_FIX_CAPTURE_MAX_MB") env[k] = v;
+    }
+  }
+  return env;
+}
+
+export function declaredGateNames(boots) {
+  return new Set(Object.keys(declaredGateEnv(boots)));
+}
+
+// --gates-from-capture (BACKLOG.md: "and READY, the mechanized form: a
+// --gates-from-capture replay flag applying the union"). The union's
+// VALUES, not just its names, with explicit --env overrides winning
+// per-key — the same combination `main()` used to hand-extract from a
+// boot record and pass back in as `--env` flags, now mechanized so no
+// operator does that by hand (the standing cause of the 2026-07-29
+// default-gates incidents, dev-loop.md "Replay the configuration that is
+// SERVING"). Exported so a test asserts the SAME merge the CLI performs,
+// never a re-derived one (dev-loop.md, "never hand-roll identity in a
+// probe").
+export function resolveGatesFromCapture(boots, envOverrides) {
+  return { ...declaredGateEnv(boots), ...(envOverrides ?? {}) };
+}
+
+// Which of the declared gates are set in the effective replay env. "Set"
+// mirrors buildBootRecord's own inclusion rule exactly — presence as an own
+// key of the env object, any value — never a re-derived truthiness guess,
+// so a --env override and an inherited process.env variable count
+// identically, the same way they did when the boot record was written.
+export function gateSourceSummary(boots, env) {
+  const declared = declaredGateNames(boots);
+  const set = [...declared].filter((k) => Object.prototype.hasOwnProperty.call(env ?? {}, k));
+  return {
+    declaredCount: declared.size,
+    setCount: set.length,
+    // Only the NONE-set case warns; partial visibility (some but not all
+    // declared gates set) is a legitimate configuration (a --env override
+    // naming a subset) and is surfaced by the header stamp, not the
+    // warning.
+    warn: declared.size > 0 && set.length === 0,
+  };
+}
+
+export function formatGateSource({ declaredCount, setCount }) {
+  if (declaredCount === 0) return "no gates declared in capture";
+  if (setCount === 0) return `none (capture declares ${declaredCount})`;
+  return `${setCount} of ${declaredCount} declared set`;
+}
+
 async function main() {
   const args = parseArgs(process.argv);
 
@@ -1200,7 +1353,15 @@ async function main() {
   // load-order surprise can leak a write to the live ~/.claude.
   const scratch = await mkdtemp(join(tmpdir(), "cache-fix-replay-"));
   process.env.CLAUDE_CONFIG_DIR = scratch;
-  for (const [k, v] of Object.entries(args.env)) process.env[k] = v;
+  // --gates-from-capture: resolve the capture's own ALL-BOOTS gate union
+  // (values, later boots winning) via a pre-pass BEFORE extensions load —
+  // the same merge point --env alone used, now with the capture as the
+  // base and --env as the override. Without the flag, behaviour is
+  // unchanged (args.env applied directly). See resolveGatesFromCapture.
+  const gateEnv = args.gatesFromCapture
+    ? resolveGatesFromCapture(await readBootRecords(args.file), args.env)
+    : args.env;
+  for (const [k, v] of Object.entries(gateEnv)) process.env[k] = v;
 
   const { loadExtensions, runOnRequest } = await import(
     new URL("../proxy/pipeline.mjs", import.meta.url).href
@@ -1329,6 +1490,19 @@ async function main() {
     stability.push(compactEntry(full));
   }
 
+  // Gate provenance check — see the block comment above `declaredGateEnv`.
+  // `process.env` here already carries the `--env`/`--gates-from-capture`
+  // merge applied above (before extensions loaded), so it IS the effective
+  // replay env.
+  // Computed once, after the read loop (boots is only complete once the
+  // whole capture has been read), and printed once — not per request.
+  const gateSource = gateSourceSummary(boots, process.env);
+  if (gateSource.warn) {
+    process.stderr.write(
+      `WARNING: replaying under DEFAULT gates — this traffic was served with ${gateSource.declaredCount} gate(s). Pass --gates-from-capture, --env, or use gate-live.\n`,
+    );
+  }
+
   // FIDELITY: did the replay actually reproduce what went on the wire?
   //
   // This gate rests on an assumption nothing has ever checked — that
@@ -1383,6 +1557,9 @@ async function main() {
 
   const sequence = findSequenceViolations(stability);
   const census = args.census ? runCensus(stability) : null;
+  // Self-describing: a census output should name what produced it without
+  // requiring the reader to cross-reference the boot record by hand.
+  if (census) census.gateSource = formatGateSource(gateSource);
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
@@ -1576,6 +1753,7 @@ async function main() {
       process.stdout.write(
         `\ncensus: ${census.pairs} same-conversation pairs across ${census.conversations} conversations\n`,
       );
+      process.stdout.write(`  gates: ${census.gateSource}\n`);
       const total = census.pairs || 1;
       for (const [kind, c] of [...census.tally.entries()].sort((a, b) => b[1] - a[1])) {
         const ex = census.examples.get(kind);
