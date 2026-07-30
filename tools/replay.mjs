@@ -104,8 +104,11 @@ export function firstDivergence(a, b) {
 
 // The check itself. Entries are grouped by (capture key, conversation) and
 // compared pairwise in arrival order WITHIN each group. A violation is an
-// output divergence strictly earlier than the input's.
-export function findStabilityViolations(entries) {
+// output divergence strictly earlier than the input's — except a divergence
+// with a matching telemetry-keyed exemption (see freshSessionSortExemption
+// below), which is reported separately by findStabilityExemptions rather
+// than silently dropped.
+function scanAllGroups(entries) {
   const groups = new Map();
   for (const raw of entries) {
     const e = asCompact(raw);
@@ -116,10 +119,26 @@ export function findStabilityViolations(entries) {
     groups.get(g).push(e);
   }
   const violations = [];
+  const exemptions = [];
   for (const group of groups.values()) {
-    violations.push(...scanGroup(group));
+    const scanned = scanGroup(group);
+    violations.push(...scanned.violations);
+    exemptions.push(...scanned.exemptions);
   }
-  return violations.sort((a, b) => a.n - b.n);
+  return {
+    violations: violations.sort((a, b) => a.n - b.n),
+    exemptions: exemptions.sort((a, b) => a.n - b.n),
+  };
+}
+
+export function findStabilityViolations(entries) {
+  return scanAllGroups(entries).violations;
+}
+
+// Exempted divergences, annotated with their basis — not silently dropped.
+// See freshSessionSortExemption for the only exemption currently declared.
+export function findStabilityExemptions(entries) {
+  return scanAllGroups(entries).exemptions;
 }
 
 // Declared suppressions (insertion-normalization's pin-and-suppress,
@@ -147,8 +166,33 @@ function adjustedInHash(e) {
   return e.inHash.filter((_, i) => !suppressed.has(i));
 }
 
+// fresh-session-sort's relocate branch reports what it did
+// (ctx.meta.freshSessionSortStats, compactEntry's freshSessionSortStats):
+// a first-appearance relocation deliberately prepends content to the
+// message at `targetIndex` that CC never had there before — exactly the
+// shape this check flags, by design (module doc at the top of this file,
+// the s-58c979ce n=2024->2025 case). Exempt ONLY when:
+//   1. the CURRENT entry (the one whose output changed) carries the
+//      telemetry at all, and
+//   2. its targetIndex equals the violation's outDiv (the change landed
+//      exactly where the extension says it relocated to), and
+//   3. at least one relocated block is reported as a first appearance.
+// Never re-derived from outDiv/shape alone — mirrors suppressedIndices'
+// "never a re-derived guess" discipline. A relocation reported WITHOUT
+// telemetry (a stale build) or reported as a RECURRING (non-first-
+// appearance) relocation both stay violations — the second guards against
+// exempting a genuine repeat/thrash at the same index.
+function freshSessionSortExemption(cur, outDiv) {
+  const stats = cur.freshSessionSortStats;
+  if (!stats || stats.targetIndex !== outDiv) return null;
+  const hit = (stats.relocated ?? []).find((r) => r.firstAppearance);
+  if (!hit) return null;
+  return { type: hit.type, targetIndex: stats.targetIndex };
+}
+
 function scanGroup(entries) {
   const violations = [];
+  const exemptions = [];
   for (let i = 1; i < entries.length; i++) {
     const prev = entries[i - 1];
     const cur = entries[i];
@@ -174,7 +218,7 @@ function scanGroup(entries) {
       // the tell that a check is missing; both arrays are already in hand
       // here, so the answer costs one comparison.
       const ccSame = prevInHash[outDiv] === curInHash[outDiv];
-      violations.push({
+      const record = {
         n: cur.n,
         prevN: prev.n,
         ts: cur.ts,
@@ -184,10 +228,20 @@ function scanGroup(entries) {
         // true  => CC sent the same bytes there; the change is OURS.
         // false => CC also changed that message; ours may be amplification.
         ccIdenticalAtOutDiv: ccSame,
-      });
+      };
+      const exemption = freshSessionSortExemption(cur, outDiv);
+      if (exemption) {
+        exemptions.push({
+          ...record,
+          exemptReason: "fresh-session-sort:first-appearance-relocation",
+          exemptBasis: exemption,
+        });
+      } else {
+        violations.push(record);
+      }
     }
   }
-  return violations;
+  return { violations, exemptions };
 }
 
 // --- Safety invariants (always on) ---
@@ -536,6 +590,10 @@ export function compactEntry(e) {
     action: e.action ?? null,
     resetReason: e.resetReason ?? null,
     stats: e.stats ?? null,
+    // fresh-session-sort's own report of a relocation (telemetry-keyed
+    // exemption for the stability check below) — never re-derived from
+    // outHash shape, same discipline as `stats.suppressions`.
+    freshSessionSortStats: e.freshSessionSortStats ?? null,
   };
 }
 
@@ -1523,6 +1581,7 @@ async function main() {
       action: ctx.meta.insertionNormalizeStats?.action ?? null,
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
       stats: ctx.meta.insertionNormalizeStats ?? null,
+      freshSessionSortStats: ctx.meta.freshSessionSortStats ?? null,
     };
     // Safety is a per-request question, so answer it now and keep only the
     // verdict; the messages become garbage as soon as this iteration ends.
@@ -1633,6 +1692,11 @@ async function main() {
   // Only the replay COUNT is optimised; each replay is still a full-corpus,
   // stateful run, which is what makes the attribution trustworthy.
   const violations = findStabilityViolations(stability);
+  // Telemetry-keyed exemptions (fresh-session-sort's first-appearance
+  // relocations, currently the only declared one) — kept out of `violations`
+  // but reported alongside it, annotated with their basis, so an exempted
+  // divergence stays visible rather than silently dropped.
+  const exemptions = findStabilityExemptions(stability);
   if (violations.length) {
     const mutators = extensions.filter((e) => e.onRequest);
 
@@ -1707,7 +1771,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -1753,6 +1817,17 @@ async function main() {
         `  n=${v.prevN}->${v.n} ts=${v.ts} inDiv=${v.inDiv ?? "append-only"} outDiv=${v.outDiv}` +
           `${v.ccIdenticalAtOutDiv ? " [CC bytes at outDiv IDENTICAL -> ours]" : " [CC also changed outDiv]"}` +
           ` <- ${who}\n`,
+      );
+    }
+
+    // Exempted, not silently dropped: same divergence shape as a violation
+    // above, but the extension's own telemetry accounts for it (currently
+    // only fresh-session-sort's first-appearance relocations).
+    process.stdout.write(`\nstability exemptions (telemetry-backed, not counted as violations): ${exemptions.length}\n`);
+    for (const x of exemptions.slice(0, 20)) {
+      process.stdout.write(
+        `  n=${x.prevN}->${x.n} ts=${x.ts} inDiv=${x.inDiv ?? "append-only"} outDiv=${x.outDiv}` +
+          ` <- ${x.exemptReason} (${x.exemptBasis.type})\n`,
       );
     }
 
