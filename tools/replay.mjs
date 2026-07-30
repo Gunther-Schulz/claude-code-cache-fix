@@ -1071,6 +1071,28 @@ export function findEditPositions(entries) {
 // still present at the SAME position on the other side is not a migration —
 // only its disappearance from that position is what makes the ±3 search
 // meaningful.
+//
+// CANDIDACY (2026-07-30, measured on the real flap bytes — capture
+// s-0d6f38ba pair n=102->104, fixture flap-s-0d6f38ba-86.json): the block
+// must appear <system-reminder>-WRAPPED on whichever side it is INLINE.
+// Without that condition the definition above over-reports, because both of
+// its guards can be true of a block that never moved:
+//
+//   PREV[92] user [tool_result, text(<system-reminder> 720 chars)]
+//   CUR [93] user [tool_result]        <- PREV[92] having SHED its reminder
+//   CUR [94] system "…" (683 chars)    <- PREV[92]'s reminder, unwrapped
+//
+// Two messages were inserted above, so the host's own index moved and the
+// same-position guard compares against an unrelated message; and `standalone`
+// is `blocks.length === 1`, which a message that SHRANK to one block
+// satisfies. So the tool_result was reported as migrating 92->93 when it had
+// not left its message at all — the host had merely lost a neighbour and
+// shifted. The census reported 6 migrations on this capture where 3 exist,
+// and each phantom carried a `flap` tag, which is worse: a reader is being
+// told two blocks oscillate when one does. The wrapper is what makes a block
+// the decoration CC relocates, and it is the class this section names
+// ("reminder-swap shape") — so requiring it narrows the check back to its
+// own declared subject rather than adding a new rule.
 const REMINDER_WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 
 function unwrapReminder(block) {
@@ -1087,7 +1109,10 @@ function unwrapReminder(block) {
 // the shared primitive, applied to a one-block wrapper so it still strips
 // only cache_control, nothing more. `standalone` records whether this unit IS
 // the message's entire content (length 1), which is the "consisting of" half
-// of the definition above.
+// of the definition above — note it says nothing about WHY the message has
+// one block, which is exactly why `wrapped` is needed beside it: `wrapped`
+// records whether this block carried the <system-reminder> wrapper before
+// hashing, and it is the candidacy condition (see CANDIDACY above).
 function blockUnits(msg) {
   const c = msg?.content;
   let blocks;
@@ -1095,8 +1120,11 @@ function blockUnits(msg) {
   else if (Array.isArray(c)) blocks = c;
   else return [];
   return blocks
-    .map((b) => hashMessageContent({ content: [unwrapReminder(b)] }))
-    .map((hash) => ({ hash, standalone: blocks.length === 1 }))
+    .map((b) => ({
+      hash: hashMessageContent({ content: [unwrapReminder(b)] }),
+      wrapped: unwrapReminder(b) !== b,
+      standalone: blocks.length === 1,
+    }))
     .filter((u) => u.hash !== null);
 }
 
@@ -1122,11 +1150,16 @@ function scanBlockMigrations(prev, cur) {
         // WHICH block moved — the flap scan below needs that identity and
         // must not recompute one of its own (dev-loop: never hand-roll
         // identity in a probe; the unit hash here IS hashMessageContent's).
-        if (inline && dstUnits.some((d) => d.hash === u.hash && d.standalone)) {
+        // Candidacy, both directions: the block must be reminder-WRAPPED on
+        // its INLINE side — as the source unit when it is leaving a
+        // multi-block message, as the destination unit when it is joining
+        // one. Anything else alone in a message is a message that shed
+        // siblings, not a block that emerged.
+        if (inline && u.wrapped && dstUnits.some((d) => d.hash === u.hash && d.standalone)) {
           found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j, hash: u.hash });
           break;
         }
-        if (standalone && dstUnits.length >= 2 && dstUnits.some((d) => d.hash === u.hash)) {
+        if (standalone && dstUnits.length >= 2 && dstUnits.some((d) => d.hash === u.hash && d.wrapped)) {
           found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j, hash: u.hash });
           break;
         }
