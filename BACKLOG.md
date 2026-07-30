@@ -627,7 +627,8 @@ bullet, evidence pointer included.
 - **READY — proxy-side cold detection: subagent-complete bust
   visibility (loop: SEE).** worktime's cold ledger is main-session
   only by design; subagent spend is invisible (a verify dispatch cost
-  3.1M processed tokens, excavated by hand from transcript files).
+  ≈1.1M processed tokens dedup-corrected, excavated by hand from
+  transcript files).
   The proxy sees every request and response. Step 1, named
   feasibility: confirm usage fields are extractable from the proxied
   response path (SSE message_delta usage) against a captured
