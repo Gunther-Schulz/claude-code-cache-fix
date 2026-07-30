@@ -67,6 +67,14 @@ bullet, evidence pointer included.
   doctor enforces it). Pairs naturally with the soak summary and
   the watch threads.
 
+- **Candidate — tools/whodunit: timestamp-correlation sweep as a
+  tool** (2026-07-30, first use was a hand grep): given a
+  timestamp, sweep all event logs (insertion, guard, deferred,
+  upstream-changes, upstream-errors) +-5s and print correlated
+  events — the mechanized form of dev-loop's "rule out ourselves"
+  step. Second use graduates it into tools/ per the probe rule;
+  built then, not now.
+
 - **Residual — harvest --pin needs a ts-range mode** (2026-07-30):
   ordinal selection against a LIVE capture failed twice in one hour
   (growth moved the window; harvest's numbering differs from a hand

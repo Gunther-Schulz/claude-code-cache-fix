@@ -469,3 +469,23 @@ paid for on 2026-07-30 (587k event: journal said index 867, raw said
   points differ by the pipeline's insertions and must not be equated;
   matching them without the offset check is the hand-rolled-identity
   error at the index level.
+
+## Rule out ourselves — attribution starts at our own event logs
+
+The pipeline is not only an instrument; it is a live ACTOR that mutates
+requests, and every mutating extension logs its acts (insertion events,
+guard events, deferred-tool events, suppression lines). Therefore: any
+wire-visible anomaly — an API error, a bust, odd behavior in ANY
+session on this machine — gets a timestamp-correlation sweep of OUR
+event logs BEFORE any external attribution. "The platform did it" is
+claimable only once our logs are clean at the timestamp.
+
+Paid for 2026-07-30: three "400 must end with a user message"
+idle-failures were verbally booked as harness noise TWICE; the
+operator's push forced the log check, and the insertion event log's
+suppressed-duplicate entries preceded all three failures by ~1 second
+each — our suppression had stripped the requests' final message. The
+pattern-matched external story was comfortable, specific, and wrong;
+the grep took seconds. Corollary of the consumer principle: the logs
+exist precisely so this check is cheap — an attribution that skips
+them wastes the machinery it already paid for.
