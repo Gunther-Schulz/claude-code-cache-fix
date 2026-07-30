@@ -5,9 +5,9 @@
 // repos changed nothing about what fires and what stays quiet. The deployment
 // side now only invokes the CLI and books the verdicts.
 
-import { test } from "node:test";
+import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
+import { writeFile, mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -15,6 +15,37 @@ import { shapeWatchVerdict, baselineStepVerdict, computeVerdicts } from "../tool
 
 const shape = (over = {}) => ({ pairs: 300, thinkingDropPairs: 2, thinkingTextCompleted: 0, ...over });
 const ledger = (s) => ({ keys: { "s-a": { shape: s } } });
+
+// Every test below runs against a scratch CLAUDE_CONFIG_DIR: the telemetry
+// verdicts read real paths under claudeHome() (cache-fix-snapshots/,
+// upstream-changes.jsonl, session-mirrors/), and without this the earlier,
+// ledger-only tests would silently read whatever happens to be in the real
+// ~/.claude on the machine running the suite.
+let configDir;
+let savedConfigDir;
+const TELEMETRY_GATE_VARS = [
+  "CACHE_FIX_OUTPUT_GUARD",
+  "CACHE_FIX_UPSTREAM_DETECTION",
+  "CACHE_FIX_UPSTREAM_DIR",
+  "CACHE_FIX_INSERTION_NORMALIZE",
+  "CACHE_FIX_TOOL_REWRITE",
+  "CACHE_FIX_SESSION_MIRROR",
+  "CACHE_FIX_SESSION_MIRROR_EVENT_LOG",
+];
+
+beforeEach(async () => {
+  configDir = await mkdtemp(join(tmpdir(), "shape-verdicts-config-"));
+  savedConfigDir = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = configDir;
+  for (const v of TELEMETRY_GATE_VARS) delete process.env[v];
+});
+
+afterEach(async () => {
+  if (savedConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+  else process.env.CLAUDE_CONFIG_DIR = savedConfigDir;
+  for (const v of TELEMETRY_GATE_VARS) delete process.env[v];
+  await rm(configDir, { recursive: true, force: true });
+});
 
 test("shape-watch: could-not-verify is warn with the inability named, never green", () => {
   assert.equal(shapeWatchVerdict(null).level, "warn");
@@ -67,9 +98,18 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
   const dir = await mkdtemp(join(tmpdir(), "shape-verdicts-"));
   try {
     const verdicts = await computeVerdicts(join(dir, "no-such-ledger.json"));
-    assert.equal(verdicts.length, 3);
+    // 3 ledger-shape verdicts + 5 telemetry-consumer verdicts (Q4 table).
+    assert.equal(verdicts.length, 8);
     assert.ok(verdicts.every((v) => v.level === "warn" || v.name === "baseline"));
     assert.equal(verdicts[0].level, "warn", "shape-watch cannot read as green without a ledger");
+    const telemetryNames = verdicts.slice(3).map((v) => v.name);
+    assert.deepEqual(telemetryNames, [
+      "telemetry-guard-events",
+      "telemetry-upstream-changes",
+      "telemetry-insertion-events",
+      "telemetry-deferred-tool-events",
+      "telemetry-session-mirror",
+    ]);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -97,4 +137,119 @@ test("retention: a NEW expired capture warns until the ledger commit acknowledge
   assert.equal(v.level, "warn");
   assert.match(v.message, /s-b/);
   assert.match(v.message, /CAPTURE_MAX_MB/);
+});
+
+// --- Telemetry-consumer table (Q4: alarm-without-reader gap) ---
+//
+// Every case below writes fixtures at the EXACT relative paths the real
+// writers use (output-guard.mjs, upstream-change-detection.mjs,
+// insertion-normalization.mjs, deferred-tool-rewrite.mjs,
+// session-mirror-writer.mjs), under the scratch CLAUDE_CONFIG_DIR set in
+// beforeEach — so a path drift in either the writer or this table's
+// resolution would be caught, not just a drift in shape-verdicts alone.
+
+const oldMs = () => Date.now() - 48 * 3600_000; // outside HARVEST_MAX_AGE_H (26h)
+const recentMs = () => Date.now() - 3600_000; // 1h ago, inside the window
+
+async function writeFixture(path, mtimeMs) {
+  await mkdir(path.slice(0, path.lastIndexOf("/")), { recursive: true });
+  await writeFile(path, JSON.stringify({ ts: new Date(mtimeMs).toISOString() }) + "\n");
+  const t = mtimeMs / 1000;
+  await utimes(path, t, t);
+}
+
+test("BITE — telemetry alarm kind: a recent guard-events entry fires; an old one stays quiet", async () => {
+  const { telemetryConsumerVerdict } = await import("../tools/shape-verdicts.mjs");
+  process.env.CACHE_FIX_OUTPUT_GUARD = "1";
+  const entry = {
+    name: "telemetry-guard-events",
+    kind: "alarm",
+    maxAgeH: 26,
+    gate: () => process.env.CACHE_FIX_OUTPUT_GUARD === "1",
+    dir: () => join(configDir, "cache-fix-snapshots"),
+    suffix: "-guard-events.jsonl",
+  };
+  const path = join(configDir, "cache-fix-snapshots", "s-abc123-guard-events.jsonl");
+  await writeFixture(path, recentMs());
+  const recent = await telemetryConsumerVerdict(entry);
+  assert.equal(recent.level, "warn", "a recent alarm entry IS the finding");
+  assert.match(recent.message, /needs a look/);
+
+  await writeFixture(path, oldMs());
+  const old = await telemetryConsumerVerdict(entry);
+  assert.equal(old.level, "ok", "an alarm entry outside the window is dormant, not live");
+});
+
+test("BITE — telemetry log kind: an old-mtime insertion-events file warns; a fresh one stays quiet", async () => {
+  const { telemetryConsumerVerdict } = await import("../tools/shape-verdicts.mjs");
+  process.env.CACHE_FIX_INSERTION_NORMALIZE = "1";
+  const entry = {
+    name: "telemetry-insertion-events",
+    kind: "log",
+    maxAgeH: 26,
+    gate: () => process.env.CACHE_FIX_INSERTION_NORMALIZE === "1",
+    dir: () => join(configDir, "cache-fix-snapshots"),
+    suffix: "-insertion-events.jsonl",
+  };
+  const path = join(configDir, "cache-fix-snapshots", "s-xyz789-insertion-events.jsonl");
+  await writeFixture(path, oldMs());
+  const stale = await telemetryConsumerVerdict(entry);
+  assert.equal(stale.level, "warn", "gate on, no writes within maxAgeH — silence is the defect");
+  assert.match(stale.message, /last write/);
+
+  await writeFixture(path, recentMs());
+  const fresh = await telemetryConsumerVerdict(entry);
+  assert.equal(fresh.level, "ok");
+});
+
+test("BITE — telemetry could-not-verify: absent file never reads as a bare warn without the gate named", async () => {
+  const { telemetryConsumerVerdict } = await import("../tools/shape-verdicts.mjs");
+  // Gate off, file absent (both entries): could-not-verify, message names the inability.
+  const alarmOff = {
+    name: "telemetry-upstream-changes",
+    kind: "alarm",
+    maxAgeH: 26,
+    gate: () => false,
+    file: () => join(configDir, "upstream-changes.jsonl"),
+  };
+  const vAlarmOff = await telemetryConsumerVerdict(alarmOff);
+  assert.equal(vAlarmOff.level, "warn");
+  assert.match(vAlarmOff.message, /gate is off/);
+
+  const logOff = {
+    name: "telemetry-session-mirror",
+    kind: "log",
+    maxAgeH: 26,
+    gate: () => false,
+    file: () => join(configDir, "session-mirrors", "session-mirror-events.jsonl"),
+  };
+  const vLogOff = await telemetryConsumerVerdict(logOff);
+  assert.equal(vLogOff.level, "warn");
+  assert.match(vLogOff.message, /gate is off/);
+
+  // Gate ON, file absent: alarm reads ok (no alarm ever fired); log warns
+  // (writes were expected and never happened) — never silently "ok" either.
+  const alarmOn = { ...alarmOff, gate: () => true };
+  assert.equal((await telemetryConsumerVerdict(alarmOn)).level, "ok");
+  const logOn = { ...logOff, gate: () => true };
+  const vLogOn = await telemetryConsumerVerdict(logOn);
+  assert.equal(vLogOn.level, "warn");
+  assert.match(vLogOn.message, /never been written/);
+});
+
+test("computeTelemetryVerdicts: names and order match the declared table, real writer paths", async () => {
+  const { computeTelemetryVerdicts } = await import("../tools/shape-verdicts.mjs");
+  const verdicts = await computeTelemetryVerdicts();
+  assert.deepEqual(
+    verdicts.map((v) => v.name),
+    [
+      "telemetry-guard-events",
+      "telemetry-upstream-changes",
+      "telemetry-insertion-events",
+      "telemetry-deferred-tool-events",
+      "telemetry-session-mirror",
+    ],
+  );
+  // Nothing gated on, nothing written: every entry is could-not-verify (warn).
+  assert.ok(verdicts.every((v) => v.level === "warn"));
 });

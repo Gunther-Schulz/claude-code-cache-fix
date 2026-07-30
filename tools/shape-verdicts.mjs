@@ -22,13 +22,14 @@
 // { name, level: "ok"|"warn", message } on stdout, exit 0 (verdicts are the
 // payload; a non-zero exit means the CLI itself failed).
 
-import { readFile } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { detectGrowthSteps, DEFAULT_LEDGER } from "./harvest.mjs";
+import { claudeHome } from "../proxy/claude-home.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -176,6 +177,159 @@ export function retentionVerdict(committed, current) {
   return { name: "retention", level: "ok", message: "retention: no capture lost to the cap unacknowledged" };
 }
 
+// --- Telemetry-consumer table (Q4: alarm-without-reader gap) ---
+//
+// Every telemetry file a gated extension writes gets exactly one reader
+// here, closing the gap the closing-gate sweep found: alarm files nothing
+// reads (guard-events, upstream-changes) and log files nothing watches
+// for silence (insertion/deferred event logs, session mirrors).
+// Status-file fields and boot proxyTree are already the dotfiles doctor's
+// own consumption and stay out of this table.
+//
+// "alarm" files exist to be noticed when non-empty — a recent entry IS
+// the finding (output-guard restored a body, upstream shipped a
+// structural change). "log" files are expected to accumulate under
+// normal use; their only failure mode is silence while the writer's gate
+// is on. Gate state comes from the SAME env var each extension itself
+// reads (isGuardEnabled, isEnabled, etc.) — always determinate: present
+// and matching -> on, anything else -> off. "State unknowable" is
+// reserved for the filesystem read itself failing for a reason other
+// than absence (permissions, not-a-directory) — the one case gate state
+// can't resolve, and the only source of "unknowable" in this table.
+//
+// maxAgeH reuses HARVEST_MAX_AGE_H rather than inventing a second,
+// evidence-free cadence per file — it is the one existing precedent in
+// this module for "how long before telemetry is stale enough to say so".
+
+function snapshotsDir() {
+  return join(claudeHome(), "cache-fix-snapshots");
+}
+
+const TELEMETRY_CONSUMERS = [
+  {
+    name: "telemetry-guard-events",
+    kind: "alarm",
+    maxAgeH: HARVEST_MAX_AGE_H,
+    gate: () => process.env.CACHE_FIX_OUTPUT_GUARD === "1",
+    dir: snapshotsDir,
+    suffix: "-guard-events.jsonl",
+  },
+  {
+    name: "telemetry-upstream-changes",
+    kind: "alarm",
+    maxAgeH: HARVEST_MAX_AGE_H,
+    gate: () => process.env.CACHE_FIX_UPSTREAM_DETECTION === "1",
+    file: () => join(process.env.CACHE_FIX_UPSTREAM_DIR || claudeHome(), "upstream-changes.jsonl"),
+  },
+  {
+    name: "telemetry-insertion-events",
+    kind: "log",
+    maxAgeH: HARVEST_MAX_AGE_H,
+    gate: () => process.env.CACHE_FIX_INSERTION_NORMALIZE === "1",
+    dir: snapshotsDir,
+    suffix: "-insertion-events.jsonl",
+  },
+  {
+    name: "telemetry-deferred-tool-events",
+    kind: "log",
+    maxAgeH: HARVEST_MAX_AGE_H,
+    gate: () => process.env.CACHE_FIX_TOOL_REWRITE === "1",
+    dir: snapshotsDir,
+    suffix: "-deferred-tool-events.jsonl",
+  },
+  {
+    name: "telemetry-session-mirror",
+    kind: "log",
+    maxAgeH: HARVEST_MAX_AGE_H,
+    gate: () => process.env.CACHE_FIX_SESSION_MIRROR === "on",
+    file: () =>
+      process.env.CACHE_FIX_SESSION_MIRROR_EVENT_LOG ||
+      join(claudeHome(), "session-mirrors", "session-mirror-events.jsonl"),
+  },
+];
+
+// Resolve an entry to its newest matching file's mtime. `file` entries are
+// a fixed path; `dir`+`suffix` entries glob one directory by suffix (the
+// per-session `<key>-<suffix>` files output-guard, insertion-normalization,
+// and deferred-tool-rewrite each write). ENOENT is a clean "nothing here
+// yet"; any other fs error means the filesystem can't answer — unknowable.
+async function newestMatch(entry) {
+  if (entry.file) {
+    try {
+      const st = await stat(entry.file());
+      return { exists: true, mtimeMs: st.mtimeMs, unknowable: false };
+    } catch (err) {
+      return { exists: false, mtimeMs: 0, unknowable: err?.code !== "ENOENT" };
+    }
+  }
+  let names;
+  try {
+    names = await readdir(entry.dir());
+  } catch (err) {
+    return { exists: false, mtimeMs: 0, unknowable: err?.code !== "ENOENT" };
+  }
+  const matches = names.filter((n) => n.endsWith(entry.suffix));
+  if (!matches.length) return { exists: false, mtimeMs: 0, unknowable: false };
+  let newest = 0;
+  let unknowable = false;
+  for (const n of matches) {
+    try {
+      const st = await stat(join(entry.dir(), n));
+      if (st.mtimeMs > newest) newest = st.mtimeMs;
+    } catch {
+      unknowable = true;
+    }
+  }
+  return { exists: true, mtimeMs: newest, unknowable };
+}
+
+export async function telemetryConsumerVerdict(entry, nowMs = Date.now()) {
+  const { name, kind, maxAgeH } = entry;
+  const { exists, mtimeMs, unknowable } = await newestMatch(entry);
+
+  if (unknowable) {
+    return { name, level: "warn", message: `${name}: cannot read its telemetry path — state unknowable` };
+  }
+
+  const gateOn = entry.gate();
+
+  if (kind === "alarm") {
+    if (!exists) {
+      return gateOn
+        ? { name, level: "ok", message: `${name}: gate on, no alarm ever recorded` }
+        : { name, level: "warn", message: `${name}: no file yet and its gate is off — nothing to verify` };
+    }
+    const ageH = (nowMs - mtimeMs) / 3600_000;
+    return ageH <= maxAgeH
+      ? {
+          name,
+          level: "warn",
+          message: `${name}: entry ${Math.round(ageH)}h ago (within ${maxAgeH}h) — needs a look`,
+        }
+      : { name, level: "ok", message: `${name}: no entry within ${maxAgeH}h` };
+  }
+
+  // kind === "log": staleness only means something while the gate is on.
+  if (!gateOn) {
+    return { name, level: "warn", message: `${name}: gate is off — staleness not assessed` };
+  }
+  if (!exists) {
+    return { name, level: "warn", message: `${name}: gate on but the file has never been written` };
+  }
+  const ageH = (nowMs - mtimeMs) / 3600_000;
+  return ageH > maxAgeH
+    ? {
+        name,
+        level: "warn",
+        message: `${name}: last write ${Math.round(ageH)}h ago (expected within ${maxAgeH}h while its gate is on)`,
+      }
+    : { name, level: "ok", message: `${name}: last write ${Math.round(ageH)}h ago` };
+}
+
+export async function computeTelemetryVerdicts(nowMs = Date.now()) {
+  return Promise.all(TELEMETRY_CONSUMERS.map((e) => telemetryConsumerVerdict(e, nowMs)));
+}
+
 export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
   let current = null;
   try {
@@ -197,6 +351,7 @@ export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
     shapeWatchVerdict(current),
     baselineStepVerdict(committed, current),
     retentionVerdict(committed, current),
+    ...(await computeTelemetryVerdicts()),
   ];
 }
 
