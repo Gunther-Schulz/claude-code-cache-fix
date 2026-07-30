@@ -382,7 +382,12 @@ function identityKey(entry) {
 // its own injections with it. No allowlist of reminder texts: the flip
 // evidence already covers four reminder kinds, and a pattern list would
 // be the next mole (directive, part A).
-const VOLATILE_WRAP_REGEX = /^<system-reminder>\n[\s\S]*\n<\/system-reminder>\s*$/;
+//
+// Captures the inner text (group 1) so the SAME regex serves both
+// isVolatileBlock's boolean test (unaffected by adding a group) and
+// suppression's unwrapVolatileText below — one pattern, not a second
+// derivation of it (dev-loop.md, "never hand-roll identity in a probe").
+const VOLATILE_WRAP_REGEX = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 
 // A text block is volatile iff it is entirely a system-reminder wrap OR
 // empty — the observed flip alternates a reminder block with an
@@ -604,6 +609,70 @@ function pinnedForwardForm(stored, incomingMsg) {
   return stored.m ?? stripVolatileBlocks(incomingMsg);
 }
 
+// --- Reminder-swap suppression (#76606, decision B) ---
+//
+// CC sometimes migrates a hook reminder OUT of the user message that
+// carries it and INTO a standalone message of its own — measured directly
+// (capture s-633915a8, n=26->28): message[30]'s <system-reminder>-wrapped
+// block is gone from message[30] and its inner text, wrapper stripped,
+// is the entire content of a new message[31] (role system). Pinning above
+// restores message[30]'s first-seen bytes, reminder included; treating the
+// new standalone as ordinary tail growth then forwards the SAME text a
+// second time, and because it lands mid-array the cache's
+// longest-identical-prefix boundary moves to right before it — everything
+// after is re-billed (measured: cacheRead 15424 / cacheCreation 124025).
+//
+// Strip the wrapper for comparison ONLY — never for what gets forwarded;
+// the pin already owns that. Reuses VOLATILE_WRAP_REGEX's capture group
+// rather than a second regex, per the same rule cited above it.
+function unwrapVolatileText(block) {
+  if (!block || typeof block !== "object" || block.type !== "text" || typeof block.text !== "string") {
+    return block;
+  }
+  const m = VOLATILE_WRAP_REGEX.exec(block.text);
+  return m ? { type: "text", text: m[1] } : block;
+}
+
+// The set of block identities this extension is CURRENTLY restoring —
+// i.e. present in a LIVE (not dropped) canonical entry's stored first-seen
+// form. Dropped entries are excluded on purpose: their content is not being
+// served anywhere, so a new standalone message matching a dropped block
+// must flow through normally rather than being silently discarded with no
+// copy left at all. Scoped to VOLATILE blocks only (isVolatileBlock), since
+// those are what buildPinEntry ever stores `m` for and what the measured
+// migration shape moves — a plain text block coincidentally matching a
+// pinned message's ordinary content is not this class.
+function pinnedBlockHashes(priorCanonical) {
+  const hashes = new Set();
+  if (!Array.isArray(priorCanonical)) return hashes;
+  for (const entry of priorCanonical) {
+    if (entry.d || !entry.m || !Array.isArray(entry.m.content)) continue;
+    for (const block of entry.m.content) {
+      if (!isVolatileBlock(block)) continue;
+      const h = hashMessageContent({ content: [unwrapVolatileText(block)] });
+      if (h !== null) hashes.add(h);
+    }
+  }
+  return hashes;
+}
+
+// Is `msg` a suppressible duplicate of a currently-pinned block? Narrow by
+// definition (BACKLOG #76606 part (c)): STANDALONE only (single block after
+// the same string->one-block fold canonicalMessageShape already applies
+// elsewhere in this file), and its wrapper-stripped bytes must exactly
+// equal a hash in `pinnedHashes` — never a positional or role heuristic.
+// Returns the matched hash (for telemetry) or null (genuine content: no
+// suppression, existing rules apply unchanged).
+export function findSuppressibleDuplicate(msg, pinnedHashes) {
+  const shaped = canonicalMessageShape(msg);
+  if (!Array.isArray(shaped.content) || shaped.content.length !== 1) return null;
+  const h = hashMessageContent({ content: [unwrapVolatileText(shaped.content[0])] });
+  if (h === null || !pinnedHashes.has(h)) return null;
+  return h;
+}
+
+export { pinnedBlockHashes };
+
 // Pin-mode classification. Differences from classifyInsertion:
 //   - identities exclude volatile blocks (flip absorption);
 //   - canonical entries missing from incoming are marked dropped
@@ -743,22 +812,47 @@ export function classifyPinned(messages, priorCanonical) {
     return resetKeepingPins("assistant-interleaved");
   }
 
+  // Suppress a NEW entry that duplicates a block this extension is already
+  // restoring elsewhere (see the block comment above findSuppressibleDuplicate).
+  // Assistant entries are excluded on principle even though the measured
+  // shape never produces one — silently dropping the model's own prior
+  // output is a correctness question this extension has no business
+  // deciding, unlike a hook reminder it already owns via the pin.
+  // Genuine change (normalized bytes differ from every pinned block):
+  // findSuppressibleDuplicate returns null, the entry is untouched here,
+  // and whatever the existing rules above already decided (append/splice/
+  // edit-shaped reset) stands — no new reset path is introduced.
+  const pinnedHashes = pinnedBlockHashes(priorCanonical);
+  const suppressions = [];
+  for (const e of newEntries) {
+    if (e.r === "assistant") continue;
+    const h = findSuppressibleDuplicate(messages[e.index], pinnedHashes);
+    if (h !== null) suppressions.push({ index: e.index, hash: h });
+  }
+  const suppressedIdx = new Set(suppressions.map((s) => s.index));
+
   // Forwarded order is the INCOMING order, not "survivors then new". The two
   // agree for a plain append; they diverge when CC splices an entry
   // mid-history, and concatenating new entries at the end would then reorder
   // real content — the very thing this extension exists to prevent.
   let pinApplied = 0;
   const matchedByIdx = new Map(matched.map(({ ci, idx }) => [idx, ci]));
-  const finalMessages = incoming.map((e) => {
+  const finalMessages = [];
+  for (const e of incoming) {
+    if (suppressedIdx.has(e.index)) continue; // the pinned inline form already carries these bytes
     const ci = matchedByIdx.get(e.index);
-    if (ci === undefined) return messages[e.index];
+    if (ci === undefined) {
+      finalMessages.push(messages[e.index]);
+      continue;
+    }
     const fwd = pinnedForwardForm(priorCanonical[ci], messages[e.index]);
     if (fwd !== messages[e.index] && JSON.stringify(fwd) !== JSON.stringify(messages[e.index])) {
       pinApplied++;
-      return fwd;
+      finalMessages.push(fwd);
+    } else {
+      finalMessages.push(messages[e.index]);
     }
-    return messages[e.index];
-  });
+  }
 
   if (!validateToolAdjacency(finalMessages)) {
     return { action: "reset", resetReason: "adjacency-violation", canonicalEntries: freshEntries() };
@@ -801,11 +895,21 @@ export function classifyPinned(messages, priorCanonical) {
   const canonicalEntries = [];
   for (const trailing of droppedAfter.get(-1) ?? []) canonicalEntries.push(trailing);
   for (const e of incoming) {
+    // A suppressed entry was never forwarded, so it gets no canonical
+    // identity — the invariant just below states the canonical must
+    // describe the wire we just forwarded, and this entry isn't on it.
+    // Recomputed fresh on every request (findSuppressibleDuplicate against
+    // the currently-live pins), so leaving no trace here is not a gap: CC
+    // keeps re-sending the duplicate as long as it believes it's part of
+    // history, and it is re-detected and re-suppressed every time — no
+    // persisted "suppressed" marker is needed for the suppression to stay
+    // stable across subsequent requests.
+    if (suppressedIdx.has(e.index)) continue;
     canonicalEntries.push(canonByIdx.get(e.index) ?? newByIdx.get(e.index));
     for (const trailing of droppedAfter.get(e.index) ?? []) canonicalEntries.push(trailing);
   }
 
-  const changed = splicedEntries.length > 0 || pinApplied > 0;
+  const changed = splicedEntries.length > 0 || pinApplied > 0 || suppressions.length > 0;
   return {
     action: changed ? "normalized" : "append-only",
     messages: finalMessages,
@@ -840,9 +944,14 @@ export function classifyPinned(messages, priorCanonical) {
       }
       return null;
     })(),
-    inserted: newEntries.length,
+    // `inserted` counts what actually landed on the wire — a suppressed
+    // entry was a new entry CC sent but never one we forwarded, so it must
+    // not inflate this the way it would inflate a real insertion count.
+    inserted: newEntries.length - suppressions.length,
     pinned: pinApplied,
     dropped: droppedNow.size,
+    suppressed: suppressions.length,
+    suppressions,
   };
 }
 
@@ -904,7 +1013,18 @@ export default {
         canonLive: result.canonicalEntries?.filter((e) => !e.d).length ?? 0,
         msgs: messages.length,
         canonOrderViolation: result.canonOrderViolation ?? null,
-        ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0 } : {}),
+        // `suppressions` (not just the count) rides on the stats object —
+        // tools/replay.mjs's safety-gate exemption reads the incoming
+        // indices from here to declare them, the same way it already reads
+        // deferred-tool-rewrite's tool_addition shape.
+        ...(pin
+          ? {
+              pinned: result.pinned ?? 0,
+              dropped: result.dropped ?? 0,
+              suppressed: result.suppressed ?? 0,
+              suppressions: result.suppressions ?? [],
+            }
+          : {}),
       };
 
       await appendTelemetry(
@@ -917,16 +1037,38 @@ export default {
           action: result.action,
           inserted: result.inserted ?? 0,
           ...(result.resetReason ? { resetReason: result.resetReason } : {}),
-          ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0 } : {}),
+          ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0, suppressed: result.suppressed ?? 0 } : {}),
         },
         fs,
       );
+
+      // One event line PER SUPPRESSION (not aggregated into the summary
+      // line above), to the same file/format — the pattern every other
+      // record in this log already uses, just one call per occurrence
+      // instead of once per request.
+      if (pin && Array.isArray(result.suppressions) && result.suppressions.length) {
+        for (const s of result.suppressions) {
+          await appendTelemetry(
+            dir,
+            sessionKey,
+            {
+              ts: new Date().toISOString(),
+              key: sessionKey,
+              sid: sessionId,
+              event: "suppressed-duplicate",
+              index: s.index,
+              hash: s.hash,
+            },
+            fs,
+          );
+        }
+      }
 
       if (isDebug()) {
         process.stderr.write(
           `[insertion-normalize] action=${result.action} inserted=${result.inserted ?? 0}` +
             (result.resetReason ? ` reason=${result.resetReason}` : "") +
-            (pin ? ` pinned=${result.pinned ?? 0} dropped=${result.dropped ?? 0}` : "") +
+            (pin ? ` pinned=${result.pinned ?? 0} dropped=${result.dropped ?? 0} suppressed=${result.suppressed ?? 0}` : "") +
             "\n",
         );
       }
