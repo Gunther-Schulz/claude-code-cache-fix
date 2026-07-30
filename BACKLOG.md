@@ -160,13 +160,18 @@ bullet, evidence pointer included.
   basis — do NOT treat red as noise (the check fired on real
   defects; that is it working).
 
-- **OPEN — request-capture tears ~1MB lines under concurrent
-  writes** (flap probe 2026-07-30): the 10 unparseable lines in
-  s-dc3f8071 are 5 pairs of torn capture lines (appendFile
-  interleave at report n=335/345/420/459/547) — capture integrity,
-  disjoint from the violation region. Candidate fix territory:
-  serialized write queue or size-capped atomic appends; design
-  undecided. Evidence pointer: flap-probe detail.txt fact 4.
+- **READY — serialize capture appends per path** (settled
+  2026-07-30; evidence: flap probe fact 4 — 5 pairs of torn ~1MB
+  lines in s-dc3f8071, appendFile interleave; mechanism: node
+  splits large buffers across write() syscalls, concurrent async
+  appends to one path interleave mid-line). Design: a per-path
+  promise-chain append queue (a small shared util; request-capture's
+  three appendFile sites route through it; check jsonl-session-mirror
+  for the same pattern and route it too if found). No format change.
+  Verifier: bite — two concurrent large appends through the writer
+  parse back as exactly two lines (red against bare appendFile);
+  census unparseable count on future captures is the standing
+  consumer. Done: bite green + suites green.
 
 - **DONE 2026-07-30 — census outputForm strips cache_control
   (903a2be) + --gates-from-capture flag (dac26a0), one sonnet
@@ -193,6 +198,56 @@ bullet, evidence pointer included.
   pre-fix signature (in the harvested fixture, if pinned) still
   classifies as spliced. Closes the reminder-swap entry's residual
   (2).
+
+- **READY — harvest --pin freezes evidence ranges as fixtures**
+  (settled 2026-07-30; three motivating instances: real-pair tests
+  SKIP after rotation — suppression, output-form, and the metric
+  booking each carried the residual). Design per the parked sketch:
+  `harvest --pin <key> <n..m>` writes the sanitized range (harvest's
+  existing scrubber; tool schemas dropped as today) to
+  test/fixtures/harvested/pinned-<key>-<n>-<m>.json; real-pair tests
+  gain a fixture-fallback (capture absent -> pinned fixture ->
+  skip); matrix rows / acceptance strings cite fixtures, not capture
+  keys, from then on. Verifier: pin the n=26->28 pair as the first
+  real use; the suppression real-pair test passes from the fixture
+  with the capture path renamed away (red: fallback absent ->
+  skip). Done: flag + fallback + first pin landed.
+
+- **READY — one telemetry-consumer pattern in shape-verdicts (Q4
+  resolved by design)** (settled 2026-07-30, grounded in the
+  consumer principle minted same day + the fresh no-consumer grep
+  for suppressed/suppressions). Design: a declared table in
+  shape-verdicts.mjs — {file, kind: alarm|log, maxAgeH, predicate}
+  — emitting one three-answer verdict per entry (alarm files warn
+  on nonzero recent entries: guard-events, upstream-changes; log
+  files warn on staleness only: insertion/deferred event logs,
+  session mirrors). Status-file fields + boot proxyTree: doctor is
+  already their consumer — declared, nothing built. Verifier: bite
+  per kind (alarm fires on a nonzero fixture, log fires on an old
+  mtime); the doctor books the new verdicts unchanged. Done: table
+  + verdicts + bites green.
+
+- **Row 2 TTL keepalive — PARK sharpened to a measurable trigger**
+  (settled 2026-07-30): cost math — a keepalive is a full-prefix
+  cache-READ (~0.1x) per <1h window; one avoided cold re-bill
+  (~1.25x write) pays for ~12 refreshes, so it is cost-positive
+  only for returns within a bounded idle window. Build trigger,
+  measurable from the worktime --cold ledger's preventable/TTL-idle
+  split: a week showing repeated TTL-idle colds with return inside
+  ~2h. Until the ledger shows that pattern, not built; design then:
+  opt-in timer, last-activity from capture mtime, capped extension
+  window.
+
+- **READY — upstream-error-log gate ON at the next restart boundary**
+  (operator settle 2026-07-30). Unit bites exist
+  (test/proxy-upstream-error-log.test.mjs, #235); flip =
+  CACHE_FIX_UPSTREAM_ERROR_LOG=1 in the serving unit riding the
+  NEXT proxy restart (no dedicated restart), acceptance recorded
+  per the doctor's gates-acceptance format in dotfiles; the new
+  shape-verdicts alarm entry (Q4 pattern above) is its standing
+  consumer — closes the alarm-without-reader gap for this file
+  from day one. Done: gate serving + acceptance entry + doctor
+  green.
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
