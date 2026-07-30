@@ -32,6 +32,7 @@ import { join } from "node:path";
 
 import {
   findStabilityViolations,
+  findStabilityExemptions,
   findSafetyViolations,
   findSequenceViolations,
   firstDivergence,
@@ -134,6 +135,73 @@ test("stability: BITE — when CC ALSO changed the diverging index, say so", () 
   const v2 = findStabilityViolations([entry(0, a, a), entry(1, c, cOut)]);
   assert.equal(v2.length, 1);
   assert.equal(v2[0].ccIdenticalAtOutDiv, true, "CC's bytes at index 1 were identical");
+});
+
+// --- fresh-session-sort's telemetry-keyed exemption (2026-07-30) ---
+//
+// The real case (s-58c979ce n=2024->2025): CC's own array first diverges at
+// index 1 (a new scattered block appears), our output diverges EARLIER, at
+// index 0 (the relocate branch prepends it to messages[0]) — exactly the
+// stability check's violation shape, but a DELIBERATE one-time relocation
+// bust, not a self-inflicted regression. The exemption must come from the
+// extension's own report (ctx.meta.freshSessionSortStats), never a
+// re-derived guess from the divergence shape alone — mirroring
+// suppressedIndices' discipline.
+
+test("stability: a first-appearance relocation WITH telemetry is exempt, not a violation", () => {
+  const a = [user("u0"), asst("a1")];
+  const bIn = [user("u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const bOut = [user("RELOCATED-SKILLS-PREPENDED-u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const v = findStabilityViolations([
+    entry(0, a, a),
+    entry(1, bIn, bOut, {
+      freshSessionSortStats: { relocated: [{ type: "skills", firstAppearance: true }], targetIndex: 0 },
+    }),
+  ]);
+  assert.equal(v.length, 0, "a telemetry-backed first-appearance relocation must not count as a violation");
+
+  const x = findStabilityExemptions([
+    entry(0, a, a),
+    entry(1, bIn, bOut, {
+      freshSessionSortStats: { relocated: [{ type: "skills", firstAppearance: true }], targetIndex: 0 },
+    }),
+  ]);
+  assert.equal(x.length, 1, "the exemption must be annotated in the output, not silently dropped");
+  assert.equal(x[0].outDiv, 0);
+  assert.equal(x[0].exemptBasis.type, "skills");
+});
+
+// The guard against shape-keyed drift: the SAME byte pattern (output
+// diverges earlier than input, at the exact index fresh-session-sort would
+// target) must stay a violation when the extension does not report it —
+// simulating a pre-telemetry build, or any other extension producing the
+// identical shape by coincidence. No telemetry, no exemption.
+test("stability: BITE — the identical divergence WITHOUT telemetry stays a violation", () => {
+  const a = [user("u0"), asst("a1")];
+  const bIn = [user("u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const bOut = [user("RELOCATED-SKILLS-PREPENDED-u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const v = findStabilityViolations([entry(0, a, a), entry(1, bIn, bOut)]);
+  assert.equal(v.length, 1, "the exemption must not fire on shape alone");
+  assert.equal(v[0].outDiv, 0);
+
+  const x = findStabilityExemptions([entry(0, a, a), entry(1, bIn, bOut)]);
+  assert.equal(x.length, 0);
+});
+
+// A second shape guard: telemetry present but reporting a RECURRING type
+// (firstAppearance: false) — the extension itself distinguishes this from
+// the deliberate one-time bust, and the checker must respect that.
+test("stability: BITE — telemetry reporting a recurring (non-first-appearance) relocation stays a violation", () => {
+  const a = [user("u0"), asst("a1")];
+  const bIn = [user("u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const bOut = [user("RELOCATED-SKILLS-PREPENDED-u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const v = findStabilityViolations([
+    entry(0, a, a),
+    entry(1, bIn, bOut, {
+      freshSessionSortStats: { relocated: [{ type: "skills", firstAppearance: false }], targetIndex: 0 },
+    }),
+  ]);
+  assert.equal(v.length, 1, "a recurring relocation is not the deliberate one-time bust and must not be exempted");
 });
 
 // --- Safety gate ---
