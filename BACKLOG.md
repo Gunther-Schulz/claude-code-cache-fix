@@ -43,9 +43,23 @@ bullet, evidence pointer included.
   fire-ledger jsonl; consumer: a shape-verdicts entry answering
   "class X last fired N days ago" + threat-matrix rows gain retire
   triggers ("quiet M weeks + upstream fix confirmed -> gate OFF,
-  acceptance-style"). Pairs naturally with the soak summary and the
-  watch threads (upstream fix lands -> the ledger shows the class
-  going quiet -> retirement with a basis).
+  acceptance-style"). Operator refinements 2026-07-30, both in the
+  design: (1) UPSTREAM EVIDENCE IS PART OF THE BASIS — a retirement
+  names its CC-side ref (issue closed / changelog entry / version),
+  and the ledger lines carry the CC VERSION seen (cc-version
+  namespace already in captures), so the claim becomes "0 raw
+  occurrences across N sweeps spanning versions >= X, where X ships
+  the fix" — not just "quiet lately". (2) RETIREMENT IS REVERSIBLE
+  BY CONSTRUCTION — gate OFF, never code deletion (the
+  built-and-dormant pattern); the ledger tracks TWO columns per
+  class: RAW occurrences (CC's behavior, census-measured offline —
+  keeps counting even with the gate off) and ABSORBED fires
+  (mitigation activity). Re-add trigger = raw count returns after
+  retirement; re-enable takes a fresh acceptance entry (the
+  existing pattern — the acceptance dict already carries REMOVED
+  entries whose re-enable "verlangt eine neue Abnahme", and the
+  doctor enforces it). Pairs naturally with the soak summary and
+  the watch threads.
 
 - **Residual — harvest --pin needs a ts-range mode** (2026-07-30):
   ordinal selection against a LIVE capture failed twice in one hour
