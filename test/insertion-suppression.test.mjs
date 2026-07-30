@@ -35,7 +35,6 @@ import {
   pinnedBlockHashes,
   findSuppressibleDuplicate,
 } from "../proxy/extensions/insertion-normalization.mjs";
-import { readPinnedFixture } from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -274,11 +273,19 @@ test(
     // Fixture-fallback: capture present -> unchanged live-capture path;
     // capture absent -> pinned fixture if present; else skip. Both readers
     // yield the same [n, line] tuple shape, so the replay loop below is
-    // identical either way.
+    // identical either way. The fixture reader ships in the tools slice
+    // (like replayTools below), so it loads dynamically — a tree without
+    // tools/ skips instead of failing at module load.
+    let readPinnedFixture;
+    try {
+      ({ readPinnedFixture } = await import("../tools/harvest.mjs"));
+    } catch {
+      readPinnedFixture = null;
+    }
     let source;
     if (existsSync(REAL_CAPTURE)) {
       source = null; // resolved below, once readCapture is loaded from tools/replay.mjs
-    } else if (existsSync(PINNED_FIXTURE)) {
+    } else if (existsSync(PINNED_FIXTURE) && readPinnedFixture) {
       source = readPinnedFixture(PINNED_FIXTURE);
     } else {
       t.skip(
