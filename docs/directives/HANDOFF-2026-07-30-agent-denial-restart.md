@@ -171,7 +171,21 @@ already own — post only after operator GO per thread (today's precedent:
 
 ## Lesson candidates from the incident (mint only if they recur)
 
-- CC's tool-denial error text can mislabel the denial source; the
-  transcript's `toolDenialKind` field is the truth-bearer.
+- ~~CC's tool-denial error text can mislabel the denial source; the
+  transcript's `toolDenialKind` field is the truth-bearer.~~
+  REFUTED 2026-07-30 (later session, evidence: shipped client
+  /opt/claude-code/bin/claude, 2.1.220). Backwards on both halves. The
+  error text is the RELIABLE half — "Hook PreToolUse:<tool> denied this
+  tool" correctly names a hook deny as a hook deny. `toolDenialKind` is
+  the coarse half, and correctly so: the client documents
+  `permission-rule` as "(deny rule / permission mode / hook)", and
+  `MRd()` returns it for hooks by design. It is not a truth-bearer for
+  denial SOURCE and never was. The real gap is narrower: CC builds
+  `decisionReason:{type:"hook",hookName,hookSource,reason}` at deny time
+  and discards it at transcript-write time, so WHICH hook fired is
+  unrecoverable. Lesson that survives: a "this is a bug" claim is a claim
+  about a specification — observed behavior cannot establish it, and
+  where the artifact is installed locally its own definition is a
+  ten-second grep away.
 - A compaction boundary is a state-loss suspect for CLI-side session
   grants, not just for conversation context.
