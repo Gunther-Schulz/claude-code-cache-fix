@@ -15,6 +15,17 @@
 //
 // Full evidence trail: the fidelity probe report at
 // /tmp/claude-1000/-home-g-dev-vendor-claude-code-cache-fix/633915a8/scratchpad/fidelity-probe-report.md
+//
+// Since this file was written, two further fixes landed on the SAME pair:
+// insertion-normalization's pin-and-suppress (c5d870d) removed the 61 kB
+// reminder splice at index 31, leaving a marker-sized residual at index 48
+// (ttl-management relocating its cache_control breakpoint to the new
+// tail); then outHashSem (tools/replay.mjs, BACKLOG's "census outputForm
+// hashes must strip cache_control") stopped counting a cache_control-only
+// relocation as a splice at all. n=26->28 now reads outputForm:"append" —
+// the real-pair test below asserts the CURRENT state, not the original
+// 2026-07-29 measurement quoted above, which is kept for the mechanism it
+// documents.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -112,7 +123,7 @@ const GATES = {
 const TARGET_N = 28;
 
 test(
-  "mitigation output-form: real capture n=26->28 reports a non-append output form at index 31",
+  "mitigation output-form: real capture n=26->28 reports append/preserved once suppression and the cache_control strip both apply",
   async (t) => {
     if (!existsSync(REAL_CAPTURE)) {
       t.skip(`capture rotated away (not found at ${REAL_CAPTURE}) — COULD NOT VERIFY`);
@@ -177,28 +188,21 @@ test(
       // input-side self-report claims full mitigation.
       assert.equal(row.mitigated, true, "input-side self-report: normalized, 0 rebilled");
       assert.equal(row.rebilledBytes, 0);
-      // Output-side reality with suppression active (c5d870d): the migrated
-      // reminder duplicate that used to splice at 31 is suppressed, so the
-      // forwarded arrays are byte-identical through index 47 and diverge at
-      // 48 — n=26's message[48] carries ttl-management's cache_control
-      // marker (it was the tail then), n=28's does not (the conversation
-      // grew past it). The two messages differ ONLY in that key (direct
-      // diff, suppression build report (c)4) — an expected relocation by a
-      // different extension, not part of decision B, so the pair stays
-      // non-append with a marker-sized residual instead of the 61 kB
-      // reminder splice.
-      assert.notEqual(row.outputForm, "append", "the output is NOT a clean tail append");
-      assert.equal(
-        row.outputForm,
-        "edit@48",
-        "post-suppression divergence is ttl-management's marker relocation at 48",
-      );
-      assert.equal(row.outputPreserved, false);
-      assert.ok(row.rebilledOutBytes > 0, "the marker delta re-bills the tail from 48 on");
-      assert.ok(
-        row.rebilledOutBytes < 10 * 1024,
-        "residual is marker-sized (~5 kB), not the 61 kB reminder splice — suppression regressed if this grows",
-      );
+      // Output-side reality with BOTH fixes active (c5d870d's suppression,
+      // then the cache_control strip this test now asserts): suppression
+      // removed the 61 kB reminder splice, leaving the forwarded arrays
+      // byte-identical through index 47 and diverging at 48 — n=26's
+      // message[48] carries ttl-management's cache_control marker (it was
+      // the tail then), n=28's does not (the conversation grew past it).
+      // The two messages differ ONLY in that key (direct diff, suppression
+      // build report (c)4). A relocated cache_control marker is not
+      // conversation content (outputContentHash's definitional comment,
+      // tools/replay.mjs) — it is invisible to this content metric BY
+      // DESIGN, so the pair now reads as a clean tail append with nothing
+      // re-billed.
+      assert.equal(row.outputForm, "append", "a relocated cache_control marker is not a splice");
+      assert.equal(row.outputPreserved, true);
+      assert.equal(row.rebilledOutBytes, 0);
     } finally {
       process.stderr.write = origStderr;
       for (const k of Object.keys(saved)) {
