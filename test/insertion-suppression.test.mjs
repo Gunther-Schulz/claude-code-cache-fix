@@ -35,7 +35,6 @@ import {
   pinnedBlockHashes,
   findSuppressibleDuplicate,
 } from "../proxy/extensions/insertion-normalization.mjs";
-import { findMitigationGaps, findSafetyViolations, safetyViolation, readCapture } from "../tools/replay.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -263,6 +262,17 @@ test(
       t.skip(`capture rotated away (not found at ${REAL_CAPTURE}) — COULD NOT VERIFY`);
       return;
     }
+
+    // The census/gate helpers ship in the tools slice; in a tree carrying
+    // only the extension (upstream PR #272) this check rides #276 instead.
+    let replayTools;
+    try {
+      replayTools = await import("../tools/replay.mjs");
+    } catch {
+      t.skip("tools/replay.mjs not in this tree — the real-pair check runs where the tools land");
+      return;
+    }
+    const { findMitigationGaps, findSafetyViolations, safetyViolation, readCapture } = replayTools;
 
     const scratch = await mkdtemp(join(tmpdir(), "insertion-suppression-"));
     const saved = {};
