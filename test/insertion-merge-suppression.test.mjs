@@ -100,11 +100,21 @@ test("GREEN: the real merged standalone matches the join-hash of its pinned entr
   assert.notEqual(h, null, "the real merged standalone must be recognized as a suppressible duplicate");
 });
 
-test("classifyPinned end-to-end: the real merged standalone is suppressed as a new entry, not forwarded twice", () => {
+test("classifyPinned end-to-end: the real merged standalone is suppressed as a new entry, not forwarded twice (MID-HISTORY — matches the real capture, which had dozens of messages after msg864)", () => {
   const toolUseId = REAL_MSG863.content[0].tool_use_id;
   const canon = pinCanon([assistantToolUse(toolUseId), REAL_MSG863]);
 
-  const messages = [assistantToolUse(toolUseId), REAL_MSG863, { ...REAL_MERGED_STANDALONE }];
+  // A trailing turn after the standalone, so it sits at a genuine
+  // mid-history position (index 2 of 4) rather than the array's final
+  // index — the real capture had ~57 more messages after msg864. The
+  // tail-guard test below covers the DIFFERENT real incident where the
+  // duplicate IS the final message.
+  const messages = [
+    assistantToolUse(toolUseId),
+    REAL_MSG863,
+    { ...REAL_MERGED_STANDALONE },
+    { role: "assistant", content: [{ type: "text", text: "a-after" }] },
+  ];
   const result = classifyPinned(messages, canon);
 
   assert.equal(result.suppressed, 1, "the merged standalone must be counted as a suppression");
@@ -112,7 +122,32 @@ test("classifyPinned end-to-end: the real merged standalone is suppressed as a n
   assert.equal(result.suppressions[0].index, 2);
   // The pinned inline form (index 1) already carries both reminders; the
   // standalone must not also appear in the forwarded array.
-  assert.equal(result.messages.length, 2, "the standalone must not be forwarded alongside the pinned inline form");
+  assert.equal(result.messages.length, 3, "the standalone must not be forwarded alongside the pinned inline form");
+});
+
+// =====================================================================
+// TAIL GUARD (BACKLOG.md, "suppression can strip a request's FINAL
+// message", 2026-07-30) — the join-hash-specific case. Three real 400s
+// traced to suppression removing a resume request's ONLY/new final
+// message, leaving the forwarded array ending on the prior assistant
+// turn -> upstream "must end with a user message". A tail-position
+// duplicate is the request's live payload, not a stray migration copy.
+// =====================================================================
+
+test("TAIL GUARD: the real merged standalone as the FINAL message is never suppressed", () => {
+  const toolUseId = REAL_MSG863.content[0].tool_use_id;
+  const canon = pinCanon([assistantToolUse(toolUseId), REAL_MSG863]);
+
+  const messages = [assistantToolUse(toolUseId), REAL_MSG863, { ...REAL_MERGED_STANDALONE }];
+  const result = classifyPinned(messages, canon);
+
+  assert.equal(result.suppressed, 0, "a final-position merged duplicate must be forwarded, not suppressed");
+  assert.equal(result.messages.length, 3, "the standalone must remain on the wire as the live final message");
+  assert.equal(
+    result.messages[result.messages.length - 1].content,
+    REAL_MERGED_STANDALONE.content,
+    "the final message content is unchanged",
+  );
 });
 
 // =====================================================================
