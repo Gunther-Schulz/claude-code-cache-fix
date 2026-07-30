@@ -737,6 +737,7 @@ test("flap: fires-on-non-defect guard — opposite directions by DIFFERENT block
   // holds except identity of the block — which is the whole claim.
   const X_WRAPPED = "<system-reminder>\nhook X context\n</system-reminder>";
   const X_INNER = "hook X context";
+  const Y_WRAPPED = "<system-reminder>\nhook Y context\n</system-reminder>";
   const Y_INNER = "hook Y context";
   const s0 = [
     user("q1"),
@@ -758,7 +759,9 @@ test("flap: fires-on-non-defect guard — opposite directions by DIFFERENT block
     user("q1"),
     asst("a1"),
     { role: "user", content: [txt("tool output"), txt("sibling block")] },
-    { role: "user", content: [txt("other output"), txt(Y_INNER)] },
+    // Y goes back INLINE, and a block only counts as inline when it wears the
+    // reminder wrapper there — same candidacy condition as X's leg.
+    { role: "user", content: [txt("other output"), txt(Y_WRAPPED)] },
     { role: "system", content: "a tail note" },
     asst("a2"),
   ];
@@ -772,4 +775,136 @@ test("flap: fires-on-non-defect guard — opposite directions by DIFFERENT block
   assert.notEqual(rows[0].hash, rows[1].hash, "different blocks — the premise of this guard");
   assert.equal(rows[0].flap, undefined);
   assert.equal(rows[1].flap, undefined, "a reversal is of the SAME block; two blocks passing each other is not one");
+});
+
+// --- blockMigration candidacy: a message that SHED siblings is not a
+//     standalone emergence ---
+//
+// Measured on the real 2026-07-30 flap bytes (capture s-0d6f38ba, pair
+// n=102->104; fixture flap-s-0dc8ac87c43d-86.json, harvested by the sibling
+// build). The alignment there is:
+//
+//   PREV[92] user [tool_result, text(<system-reminder> 720 chars)]
+//   CUR [92] assistant (unrelated — two messages were inserted above)
+//   CUR [93] user [tool_result]          <- PREV[92] having SHED its reminder
+//   CUR [94] system "…" (683 chars)      <- PREV[92]'s reminder, unwrapped
+//
+// The census reported TWO migrations out of PREV[92]: the reminder to 94
+// (real) and the tool_result to 93 (phantom). The phantom exists because
+// `standalone` is `blocks.length === 1`, which is true of any message that
+// shrank to one block, and because the host's own index moved, so the
+// same-position guard never sees that the tool_result never left its message.
+//
+// DEFINITION the fix restores: the class the census names is the
+// REMINDER swap. A block is a migration candidate only where it appears
+// <system-reminder>-WRAPPED on its inline side — that wrapper is what makes
+// the block decoration that CC relocates. A tool_result (or any ordinary
+// block) left alone because its message shed siblings has not emerged as
+// anything; it is where it always was, in a message that lost a neighbour.
+
+const toolResult = (id) => ({ type: "tool_result", tool_use_id: id, content: "out" });
+
+test("BITE — a host that SHED a reminder does not also report its surviving block as migrated", () => {
+  const prev = [
+    user("q1"),
+    asst("a1"),
+    { role: "user", content: [toolResult("tu1"), txt(REMINDER_WRAPPED)] },
+    asst("a2"),
+  ];
+  const cur = [
+    user("q1"),
+    asst("a1"),
+    asst("inserted above the host — this is what shifts the host's index"),
+    { role: "user", content: [toolResult("tu1")] },
+    { role: "system", content: REMINDER_INNER },
+    asst("a2"),
+  ];
+  const rows = findBlockMigrations([entry(0, prev, prev), entry(1, cur, cur)]);
+  assert.equal(rows.length, 1, "exactly ONE block left that message: the reminder");
+  assert.equal(rows[0].direction, "inline->standalone");
+  assert.equal(rows[0].sourceIdx, 2);
+  assert.equal(rows[0].targetIdx, 4, "the unwrapped reminder's new standalone message, not the shrunken host at 3");
+});
+
+test("BITE — the same phantom in reverse: a host REGAINING a reminder is not its block migrating inline", () => {
+  // Mirror of the measured pair n=104->105: the shrunken host takes its
+  // reminder back and the standalone system message disappears. Only the
+  // reminder moved; the tool_result sat still while its message grew.
+  //
+  // The trailing turn on the CUR side is load-bearing, not decoration: with
+  // the two messages only DISAPPEARING, censusIds classifies the pair
+  // `drop-only`, which is not a migration kind, and the scan never runs at
+  // all — the measured pair carried 99 messages on both sides for the same
+  // reason. Without it this test passes while checking nothing.
+  const prev = [
+    user("q1"),
+    asst("a1"),
+    asst("inserted above the host — this is what shifts the host's index"),
+    { role: "user", content: [toolResult("tu1")] },
+    { role: "system", content: REMINDER_INNER },
+    asst("a2"),
+  ];
+  const cur = [
+    user("q1"),
+    asst("a1"),
+    { role: "user", content: [toolResult("tu1"), txt(REMINDER_WRAPPED)] },
+    asst("a2"),
+    asst("a new turn, so the pair is a replace/edit rather than a drop-only"),
+  ];
+  const rows = findBlockMigrations([entry(0, prev, prev), entry(1, cur, cur)]);
+  assert.equal(rows.length, 1, "only the reminder changed host");
+  assert.equal(rows[0].direction, "standalone->inline");
+  assert.equal(rows[0].sourceIdx, 4, "the standalone system message that disappeared");
+  assert.equal(rows[0].targetIdx, 2, "the message that took the reminder back inline");
+});
+
+// --- The real 2026-07-30 flap, from the harvested bytes ---
+//
+// The two bites above reproduce the measured SHAPE synthetically. This one
+// runs the actual capture bytes, so the check is anchored to a fixed
+// reference that outlives the capture (which rotates): fixture
+// flap-s-0dc8ac87c43d-86.json holds the full message arrays for all four
+// requests of the three flap pairs.
+//
+// Expected values come from the DEFINITION, not from what the census
+// currently prints: ONE reminder block leaves msg92 and comes back, three
+// times. So there are three migration rows, all carrying the SAME block
+// hash, and the two that reverse a predecessor are flaps. Before the
+// candidacy fix this fixture produced six rows and four flaps — the
+// tool_result of msg92 was reported as migrating to msg93, which is msg92
+// itself, having shed the reminder and shifted index.
+import { readFileSync } from "node:fs";
+import { dirname } from "node:path"; // `join` is already imported at the top of this file
+import { fileURLToPath } from "node:url";
+
+const FLAP_FIXTURE = JSON.parse(
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "harvested", "flap-s-0dc8ac87c43d-86.json"), "utf-8"),
+);
+
+test("BITE — the real 2026-07-30 flap: one reminder block, three legs, two of them flaps", () => {
+  const rows = findBlockMigrations(
+    FLAP_FIXTURE.requests.map((r) => ({
+      n: r.n, ts: r.ts, key: "s-0d6f38ba", inMsgs: r.messages, outMsgs: r.messages, inTools: [], outTools: [],
+    })),
+  );
+
+  assert.equal(rows.length, 3, "three pairs, one block changing host in each");
+  assert.equal(new Set(rows.map((r) => r.hash)).size, 1, "the SAME block throughout — that is what makes it one flap");
+  assert.deepEqual(
+    rows.map((r) => `n=${r.prevN}->${r.n} ${r.direction} ${r.sourceIdx}->${r.targetIdx}`),
+    [
+      "n=102->104 inline->standalone 92->94",
+      "n=104->105 standalone->inline 94->92",
+      "n=105->108 inline->standalone 92->94",
+    ],
+  );
+  assert.equal(
+    rows.filter((r) => r.targetIdx === 93 || r.sourceIdx === 93).length,
+    0,
+    "msg93 is msg92 after shedding its reminder — nothing migrated to or from it",
+  );
+
+  assert.equal(rows[0].flap, undefined, "the opening leg reverses nothing");
+  assert.deepEqual(rows[1].flap, { reversesPrevN: 102, reversesN: 104, span: 1 });
+  assert.deepEqual(rows[2].flap, { reversesPrevN: 104, reversesN: 105, span: 1 });
 });
