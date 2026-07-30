@@ -111,33 +111,70 @@ bullet, evidence pointer included.
   hand-extraction one-liner dies with the flag (the probe-
   graduation rule's case).
 
-- **OPEN — deferred-tool-rewrite self-inflicted busts, pre-existing,
-  surfaced by the 2026-07-30 gate run** (first red gate after the
-  suppression deploy; the deploy is EXONERATED by A/B — the full
-  pre-suppression tree replays s-dc3f8071 with the same 25 stability
-  violations). Evidence: s-dc3f8071 (yesterday's live traffic,
-  472 MB, last write 19:47 — first time gated), 25 violations all
-  `inDiv=append-only outDiv=1 [CC bytes IDENTICAL -> ours]
-  <- deferred-tool-rewrite`, burst-shaped (n=372->375 within one
-  second): CC appended cleanly while OUR announcement message at
-  index 1 flapped across consecutive requests = real live busts that
-  session paid. The tool_addition announcement is supposed to change
-  once per addition, not oscillate. Also 10 unparseable capture
-  lines, same capture, unexplained. s-58c979ce carries 1 more
-  violation (attribution run pending at booking time). Investigate:
-  why the announcement flaps under burst traffic (suspects:
-  per-request tools[] churn from parallel subagents, MCP server
-  set differing per request); candidate connection, unverified: the
-  five unclassified output-spliced pairs in s-633915a8. The second
+- **READY — fix injectAdditions' LIFO stacking (deferred-tool-rewrite
+  self-inflicted busts; mechanism FOUND by probe 2026-07-30,
+  dispatcher-verified at the code).** The gate-red investigation
+  (s-dc3f8071, 25 violations, burst n=372-397) resolved: a session-
+  boot MCP discovery cascade grows tools[] 0->11->428->singles while
+  the conversation stays 1 message; `injectAdditions`
+  (deferred-tool-rewrite.mjs:408-440) splices EVERY addition at its
+  anchor's idx+1, so on a shared anchor the newest addition lands
+  first and pushes all earlier ones back — a LIFO stack that
+  reorders the already-forwarded prefix on every new tool.
+  Deterministic (byte-for-byte in sequential replay), pre-existing
+  (A/B exonerated the suppression deploy). Fix design: injection
+  order must preserve FORWARDED order — on a shared anchor, splice
+  each new addition AFTER the additions already injected there
+  (append to the run, FIFO), so the forwarded prefix is stable and
+  only the tail grows; same rule in the reanchor path. Verifier:
+  red-green on the real capture — the 25 stability violations drop
+  to 0 with fidelity/safety unchanged; unit bite for the shared-
+  anchor multi-addition order. Live-cost note from the probe: the
+  26 burst requests have NO outcome records (cancelled in-flight),
+  so the paid cost is unattributable without A/B — the violations
+  themselves are the evidence. Upstream coupling: PR #273 carries
+  this extension — port the fix there after fork verification.
+  Full evidence: scratchpad flap-probe/detail.txt (session-local);
+  probe report booked here is the durable record. Related, same
+  probe, SEPARATE items: (i) torn capture lines, (ii) census
+  output-hash blind spot — both below. The second
   red capture is a DIFFERENT class: s-58c979ce n=2024->2025
   (12:31:18Z, pre-deploy traffic), 1 violation, `inDiv=1 outDiv=0
   [CC bytes IDENTICAL -> ours] <- fresh-session-sort` — CC's input
   changed at index 1, our output byte-flapped at index 0; not
   suppression-shaped (byte change, not message removal), one
-  instance in ~2000 requests. The gate stays red until these are
-  understood or the classes exempted with a basis — do NOT treat
-  red as noise (the check fired on real defects; that is it
-  working).
+  instance in ~2000 requests, still unattributed at mechanism
+  level. The gate stays red until the LIFO fix lands and
+  fresh-session-sort's one-off is understood or exempted with a
+  basis — do NOT treat red as noise (the check fired on real
+  defects; that is it working).
+
+- **OPEN — request-capture tears ~1MB lines under concurrent
+  writes** (flap probe 2026-07-30): the 10 unparseable lines in
+  s-dc3f8071 are 5 pairs of torn capture lines (appendFile
+  interleave at report n=335/345/420/459/547) — capture integrity,
+  disjoint from the violation region. Candidate fix territory:
+  serialized write queue or size-capped atomic appends; design
+  undecided. Evidence pointer: flap-probe detail.txt fact 4.
+
+- **READY — census outputForm hashes must strip cache_control
+  (mirror the input side).** The five "unclassified output-spliced
+  pairs" in s-633915a8 are RESOLVED as instrument artifact: CC
+  itself sends the same 32,140-char text as a cache_control-bearing
+  block while it is the tail, then as a bare string later — its own
+  shape choice, pre-pipeline (probe-verified on n=678->681 raw
+  bytes; deferredToolRewriteStats inert on all five;
+  findStabilityViolations 0 on the whole capture). compactEntry
+  (replay.mjs:474) hashes raw JSON.stringify(message) with no
+  cache_control strip, unlike the pin-identity path (:396) — the
+  exact input-side blind-spot class already documented, unfixed on
+  the output side. Fix: strip cache_control (and mirror the
+  volatile-wrapper fold where applicable) in the out-side hashing
+  used by findMitigationGaps' outputForm; verifier: the five pairs
+  flip to outputPreserved:true / rebilledOut ~0 while n=26->28's
+  pre-fix signature (in the harvested fixture, if pinned) still
+  classifies as spliced. Closes the reminder-swap entry's residual
+  (2).
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
