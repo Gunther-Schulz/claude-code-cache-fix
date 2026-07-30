@@ -7,6 +7,15 @@ triage — each OPEN row is a candidate directive, ranked by
 CLOSED by a shipped extension or a measured non-event; "should be
 fine" closes nothing.
 
+Mitigation policy (operator ruling; first recorded at row 6's
+ladder, elevated here 2026-07-30): ANY non-operator-initiated bust
+is a prevention target regardless of size — 10k and 500k are the
+same class, and cost never gates whether mitigation work happens.
+The only per-class deliberation is MITIGABILITY: can the class be
+absorbed without risking conversation fidelity (safety outranks
+cache). Detectors and fire counts supply specimens and retirement
+evidence — never a worthiness threshold.
+
 | # | Class | Mechanism | Status |
 |---|---|---|---|
 | 1 | Mid-history insertion (queue splice, notification, tool-result race, task_reminder) | entry inserted at index < tail | MITIGATED-half (ladder, this branch) → NEAR-ZERO (insertion-normalization, this branch) |

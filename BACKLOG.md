@@ -574,8 +574,13 @@ bullet, evidence pointer included.
   final-message 400s), the alternative direction is first-seen-form
   canonical re-serve rather than suppression; (2) may suppression
   precede the edit-shaped reset — a load-bearing safety discriminator
-  with measured false-positive history. Trigger to unpark: a settled
-  answer to both, or a second measured flap instance raising the cost.
+  with measured false-positive history. Unpark condition (corrected
+  same day per the matrix mitigation policy — cost never gates
+  mitigation): a settled answer to the two design questions, nothing
+  else; the cost-trigger this entry briefly carried contradicted the
+  recorded operator ruling (matrix header / row 6 ladder) and is
+  withdrawn. The detector supplies design specimens, not a
+  worthiness threshold.
 
 - **READY — census flap annotation (blockMigration reversal).**
   `replay.mjs --census` emits a `flap` marker when the same
