@@ -6,9 +6,18 @@
 // (s-633915a8, pair n=26->28) and SKIP once that capture rotates out of the
 // per-machine retention window (~3 days, docs/dev-loop.md "Corpus
 // hygiene"). `harvest --pin <key> <n..m>` freezes the sanitized range as a
-// committed, rotation-immune fixture that both real-pair tests can fall
-// back to (fallback wiring lands in a follow-up commit; this one covers the
-// pin mechanism itself — unit-level, on a tiny synthetic capture).
+// committed, rotation-immune fixture; both real-pair tests fall back to it
+// when the live capture is gone.
+//
+// Two things have to hold or the mechanism is worse than useless:
+//   - the pin mechanism itself: it writes a sanitized, well-formed fixture
+//     (unit-level, tiny synthetic capture);
+//   - the FALLBACK actually works on the real files: capture-absent +
+//     fixture-absent skips (never a false pass), capture-absent +
+//     fixture-present runs and PASSES using the real committed fixture
+//     (never a false fail) — checked by literally invoking the two
+//     real-pair test files as subprocesses with env overrides, never by
+//     re-deriving their assertions here.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -189,3 +198,66 @@ test("readPinnedFixture: yields [n, line] tuples whose parsed records match what
     "indices are 0-based and contiguous, same shape readCapture's own [n, line] yields",
   );
 });
+
+// =====================================================================
+// Fallback red-green — the actual real-pair tests, run as subprocesses
+// =====================================================================
+//
+// Not a re-derivation of what insertion-suppression.test.mjs and
+// mitigation-output-form.test.mjs assert: this literally invokes them with
+// env overrides (CACHE_FIX_TEST_CAPTURE_OVERRIDE /
+// CACHE_FIX_TEST_FIXTURE_OVERRIDE, both files) pointed at nonexistent paths
+// or at the real committed fixture, and reads their own TAP output — the
+// only way to know the fallback genuinely works end to end rather than
+// merely compiling. Never touches the real capture file
+// (~/.claude/cache-fix-captures/s-633915a8-...), which is read-only
+// evidence.
+
+const REAL_PAIR_TESTS = [
+  { file: "mitigation-output-form.test.mjs", namePattern: "mitigation output-form: real capture n=26" },
+  { file: "insertion-suppression.test.mjs", namePattern: "real capture n=26->28: pin-and-suppress" },
+];
+const COMMITTED_FIXTURE = join(__dirname, "fixtures", "harvested", "pinned-s-633915a8-26-28.json");
+
+// --test-reporter=tap: a stable, greppable "# pass N" / "# skipped N" / "#
+// fail N" summary — the default reporter's exact wording ("ℹ pass N", no
+// leading "#") is not a documented contract to grep against.
+//
+// NODE_TEST_CONTEXT / NODE_TEST_WORKER_ID must NOT reach the child: this
+// file itself runs under `node --test`, which sets both; inherited by a
+// NESTED `node --test` invocation, the child silently emits nothing to
+// stdout (observed directly — reporter output present unset, empty string
+// captured when inherited) rather than erroring, which would have looked
+// like a false "fallback broken" red instead of a harness artifact.
+function runRealPairTest({ file, namePattern }, env) {
+  const childEnv = { ...process.env, ...env };
+  delete childEnv.NODE_TEST_CONTEXT;
+  delete childEnv.NODE_TEST_WORKER_ID;
+  const result = execFileSync(
+    process.execPath,
+    ["--test", "--test-reporter=tap", `--test-name-pattern=${namePattern}`, join(__dirname, file)],
+    { encoding: "utf-8", cwd: REPO, env: childEnv, stdio: ["ignore", "pipe", "pipe"] },
+  );
+  return result;
+}
+
+for (const spec of REAL_PAIR_TESTS) {
+  test(`fallback RED: ${spec.file} skips (not fails) when capture and fixture are both absent`, () => {
+    const out = runRealPairTest(spec, {
+      CACHE_FIX_TEST_CAPTURE_OVERRIDE: "/nonexistent/no-such-capture.jsonl",
+      CACHE_FIX_TEST_FIXTURE_OVERRIDE: "/nonexistent/no-such-fixture.json",
+    });
+    assert.match(out, /# pass 0/);
+    assert.match(out, /# skipped 1/);
+    assert.match(out, /COULD NOT VERIFY/);
+  });
+
+  test(`fallback GREEN: ${spec.file} runs and passes from the committed pinned fixture when the capture is absent`, () => {
+    assert.ok(existsSync(COMMITTED_FIXTURE), "the committed n=26->28 fixture must exist for this check to mean anything");
+    const out = runRealPairTest(spec, {
+      CACHE_FIX_TEST_CAPTURE_OVERRIDE: "/nonexistent/no-such-capture.jsonl",
+    });
+    assert.match(out, /# pass 1/);
+    assert.match(out, /# fail 0/);
+  });
+}
