@@ -227,7 +227,18 @@ bullet, evidence pointer included.
   classifies as spliced. Closes the reminder-swap entry's residual
   (2).
 
-- **READY — harvest --pin freezes evidence ranges as fixtures**
+- **DONE 2026-07-30 — harvest --pin + fixture fallback (da4e7e1 +
+  fda83cc + 2dfe0f0, sonnet in isolated worktree, cherry-picked +
+  pushed after dispatcher verification: 40/40 combined incl. both
+  real-pair suites from live capture AND from the committed pinned
+  fixture; first pin landed: pinned-s-633915a8-26-28.json, 431 kB).
+  Load-bearing deviation REVIEWED AND APPROVED (fda83cc, own
+  commit): the shared scrubber's fixed "REDACTED" for wrapped
+  reminders broke wrap/unwrap identity — a fixture replayed to the
+  PRE-fix defect shape; now the inner text re-wraps its own
+  deterministic token, preserving equality-under-scrub with no raw
+  leak; empirical basis in the code comment. The rotation-eats-
+  evidence residual (three instances) is retired. Original entry:**
   (settled 2026-07-30; three motivating instances: real-pair tests
   SKIP after rotation — suppression, output-form, and the metric
   booking each carried the residual). Design per the parked sketch:
