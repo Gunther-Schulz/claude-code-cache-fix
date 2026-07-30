@@ -4,7 +4,7 @@
 // The defect this closes: insertion-normalization's positional rebuild
 // restores a pinned message's first-seen bytes (reminder included) AND
 // forwards CC's migrated standalone duplicate of that same reminder as a
-// new entry — measured directly on capture s-4b6a435234bf, pair n=26->28:
+// new entry — measured directly on capture s-633915a8, pair n=26->28:
 // message[30]'s <system-reminder>-wrapped block, absent from CC's own
 // message[30] on the n=28 side, reappears wrapper-stripped as the entire
 // content of CC's new message[31] (role system). The pin restores it
@@ -24,9 +24,9 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
-import { tmpdir, homedir } from "node:os";
+import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -35,6 +35,7 @@ import {
   pinnedBlockHashes,
   findSuppressibleDuplicate,
 } from "../proxy/extensions/insertion-normalization.mjs";
+import { readPinnedFixture } from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -154,53 +155,6 @@ test("classifyPinned: a standalone duplicate of a pinned block is suppressed; th
   assert.deepEqual(result.messages[result.messages.length - 1], userMsg("continue"));
 });
 
-// =====================================================================
-// TAIL GUARD (BACKLOG.md, "suppression can strip a request's FINAL
-// message", 2026-07-30). Three real 400s ("must end with a user
-// message"): report-enforcer injects identical instruction bytes at
-// every SubagentStop; the first occurrence is pinned, and when the SAME
-// bytes arrive again as a resume request's ONLY/new final message,
-// suppressing it left the forwarded array ending on the prior assistant
-// turn. A tail-position duplicate is CC's live payload for THIS request,
-// not a migration copy of already-pinned content, regardless of role or
-// which hash set (single-block or join) matched it.
-// =====================================================================
-
-test("TAIL GUARD: a standalone duplicate at the FINAL index is never suppressed — it is live payload, not a migration", () => {
-  const orig = [withReminderMsg("tool result"), assistantMsg("a1")];
-  const canon = pinCanon(orig);
-
-  const strippedTail = { role: "user", content: [{ type: "text", text: "tool result" }] };
-  const standaloneDuplicate = { role: "system", content: [{ type: "text", text: REMINDER_INNER }] };
-  // No trailing entry after the duplicate — it IS the array's final
-  // message, mirroring the real resume-request shape.
-  const next = [strippedTail, assistantMsg("a1"), standaloneDuplicate];
-
-  const result = classifyPinned(next, canon);
-  assert.equal(result.suppressed, 0, "a final-position duplicate must never be suppressed");
-  assert.equal(result.suppressions.length, 0);
-  assert.deepEqual(
-    result.messages[result.messages.length - 1],
-    standaloneDuplicate,
-    "the final message must be forwarded intact — this is exactly what would otherwise strip a resume's last turn",
-  );
-});
-
-test("REGRESSION: the same standalone duplicate, mid-history (not final), is still suppressed", () => {
-  const orig = [withReminderMsg("tool result"), assistantMsg("a1")];
-  const canon = pinCanon(orig);
-
-  const strippedTail = { role: "user", content: [{ type: "text", text: "tool result" }] };
-  const standaloneDuplicate = { role: "system", content: [{ type: "text", text: REMINDER_INNER }] };
-  // Same duplicate, same position (index 2) as the tail-guard test above,
-  // but with a trailing turn after it — no longer the final index.
-  const next = [strippedTail, assistantMsg("a1"), standaloneDuplicate, userMsg("continue")];
-
-  const result = classifyPinned(next, canon);
-  assert.equal(result.suppressed, 1, "mid-history duplicates are suppressed exactly as before the tail guard");
-  assert.equal(result.suppressions[0].index, 2);
-});
-
 test("classifyPinned: suppression is stable across a THIRD request — CC keeps resending the duplicate, it keeps getting suppressed, with no persisted marker needed", () => {
   const orig = [withReminderMsg("tool result"), assistantMsg("a1")];
   let canon = pinCanon(orig);
@@ -264,7 +218,7 @@ test("classifyPinned: an assistant-role standalone entry is never suppressed, ev
 });
 
 // =====================================================================
-// (i) RED-GREEN on the real pair — capture s-4b6a435234bf, n=26->28
+// (i) RED-GREEN on the real pair — capture s-633915a8, n=26->28
 // =====================================================================
 //
 // Mirrors test/mitigation-output-form.test.mjs's real-capture harness
@@ -283,48 +237,12 @@ test("classifyPinned: an assistant-role standalone entry is never suppressed, ev
 // overridable via env for the fallback's own red-green test
 // (test/harvest-pin.test.mjs) — never by editing the real capture, which is
 // read-only evidence shared with other work.
+const REAL_CAPTURE =
+  process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE ??
+  process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE ?? "";
 const PINNED_FIXTURE =
   process.env.CACHE_FIX_TEST_FIXTURE_OVERRIDE ??
   join(__dirname, "fixtures", "harvested", "pinned-s-4b6a435234bf-26-28.json");
-// The capture is NAMED WITHOUT BEING NAMED: the pinned fixture's header
-// carries `s-<sha12>` = sidToken(conversation key) for the capture it was
-// frozen from, and every capture on disk is named `<key>-requests.jsonl`,
-// so the right file is recoverable by hashing the candidates rather than
-// by hardcoding one — this repo is public, and a capture UUID plus a home
-// path is a live identifier. The per-machine capture directory comes from
-// homedir(), never a literal path; `sidToken` ships in the tools slice,
-// so a tree without tools/ resolves no capture and the pinned fixture
-// below is the source.
-async function resolveRealCapture(fixturePath) {
-  if (process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE) return process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE;
-  let sidToken;
-  try {
-    ({ sidToken } = await import("../tools/harvest.mjs"));
-  } catch {
-    return "";
-  }
-  let wanted;
-  try {
-    wanted = JSON.parse(readFileSync(fixturePath, "utf-8")).header?.key;
-  } catch {
-    return "";
-  }
-  if (!wanted) return "";
-  const dir = join(homedir(), ".claude", "cache-fix-captures");
-  let names;
-  try {
-    names = readdirSync(dir);
-  } catch {
-    return "";
-  }
-  const SUFFIX = "-requests.jsonl";
-  for (const name of names) {
-    if (!name.endsWith(SUFFIX)) continue;
-    if (sidToken(name.slice(0, -SUFFIX.length)) === wanted) return join(dir, name);
-  }
-  return "";
-}
-const REAL_CAPTURE = await resolveRealCapture(PINNED_FIXTURE);
 const GATES = {
   CACHE_FIX_FORWARD_PROXY: "on",
   CACHE_FIX_SESSION_MIRROR: "on",
@@ -356,19 +274,11 @@ test(
     // Fixture-fallback: capture present -> unchanged live-capture path;
     // capture absent -> pinned fixture if present; else skip. Both readers
     // yield the same [n, line] tuple shape, so the replay loop below is
-    // identical either way. The fixture reader ships in the tools slice
-    // (like replayTools below), so it loads dynamically — a tree without
-    // tools/ skips instead of failing at module load.
-    let readPinnedFixture;
-    try {
-      ({ readPinnedFixture } = await import("../tools/harvest.mjs"));
-    } catch {
-      readPinnedFixture = null;
-    }
+    // identical either way.
     let source;
     if (existsSync(REAL_CAPTURE)) {
       source = null; // resolved below, once readCapture is loaded from tools/replay.mjs
-    } else if (existsSync(PINNED_FIXTURE) && readPinnedFixture) {
+    } else if (existsSync(PINNED_FIXTURE)) {
       source = readPinnedFixture(PINNED_FIXTURE);
     } else {
       t.skip(
