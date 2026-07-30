@@ -35,7 +35,7 @@ Verify each worktree is on its listed branch and clean
 (`git status --porcelain` empty) before starting; a dirty worktree or
 wrong branch is a gap — report, skip that worktree.
 
-## Source commits (fork main; read each with `git show` before porting)
+## Grounding basis — source commits (fork main; read each with `git show` before porting)
 
 Oldest→newest, apply in this order where a worktree takes several:
 da4e7e1, fda83cc, 2dfe0f0, e41e068, 813edc8, 9876fff, 7790dff,

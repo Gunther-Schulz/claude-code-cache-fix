@@ -4,6 +4,48 @@ Written by the ending session (633915a8, Fable, compacted 10:19Z) for its
 successor. The ending session's Agent tool broke post-compaction; all
 other state is clean and verified. Read this top to bottom before acting.
 
+## CORRECTION (2026-07-30, successor session 78b3e7fe) — root cause refuted
+
+The "Why the restart" section below is WRONG; kept as historical record.
+There was no Claude Code bug. All 8 denied Agent dispatches in session
+633915a8 (and 3 more in the successor + fresh-session tests) replay
+offline as denies by our own dispatch-guards `brief-reminder` hook, each
+with a specific lane: the post-compaction wave-2 prompts pointed at the
+tail-bearing brief FILE while guard ≤0.1.8 read only the prompt (fixed:
+0.1.9 verifies referenced brief files — the operator-settled rule is
+tail inline OR via file brief, channel line always prompt-side), one
+probe was denied by a matcher defect (single-line anchor vs. the doc's
+own line wrap), and the rest were genuinely non-conforming briefs.
+Compaction correlated because it degraded the BRIEFS (free-composed,
+invariants dropped), not any permission state.
+
+Why it was misattributed, and what changed:
+- The model never saw the guard's reason: brief-reminder emitted only
+  `systemMessage` (user UI), so the model got the harness's bare
+  "Hook PreToolUse:Agent denied this tool". Fixed in dispatch-guards
+  0.1.8 (9f33229): every deny is dual-field (`permissionDecisionReason`
+  reaches the model) and source-tagged `[dispatch-guards/<hook>]`.
+- `toolDenialKind` is NOT a truth-bearer: it records "permission-rule"
+  even for real hook denies (counterexample: fresh session 3741ed60,
+  guard message visibly displayed, field still "permission-rule"). The
+  lesson candidate below asserting the opposite is retracted.
+- The offline hook replay that "eliminated" the hooks never went red:
+  it reported "no deny JSON" on payloads that demonstrably produce deny
+  JSON (instrument fault, likely fail-open on malformed input).
+- The tengu_harbor_permissions flag cache was flipped and restored
+  during diagnosis; a conforming dispatch succeeds with the flag true.
+  No evidence implicates it.
+- The #73434 comment posted from this handoff's evidence stands on the
+  refuted replay; a correction is drafted (operator GO per thread).
+- DD §2 now states the placement rule (settled after one same-day
+  over-narrow render was caught by the operator): the tail reaches the
+  agent inline OR inside a brief file the prompt names; the channel
+  line alone is always prompt-side (dotfiles 1c034e5 + dcf7997,
+  guards 9f33229 + a737cc7).
+- The wave-2 brief gained its labeled grounding section; its dispatch
+  payload now replays as ALLOW on guard 0.1.9 — wave 2 is dispatchable
+  as written once the operator releases it.
+
 ## Why the restart
 
 From the compaction boundary (10:19:14Z) onward, EVERY `Agent` dispatch
