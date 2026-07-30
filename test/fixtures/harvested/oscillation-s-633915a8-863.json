@@ -1,0 +1,158 @@
+{
+ "_source": "pinned-s-633915a8-2190-2197 (297MB full-prefix pin, deleted — this is the compact form)",
+ "_what": "the CC#76606-family OSCILLATION evidence: message[863] of 8 consecutive raw requests, 2026-07-30 07:26:44-07:29:12, flipping 1243B (hook reminders inline) <-> 443B (stripped); plus array lengths",
+ "requests": [
+  {
+   "ts": "2026-07-30T07:34:33.337Z",
+   "msgCount": 954,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:34:40.929Z",
+   "msgCount": 957,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:34:45.678Z",
+   "msgCount": 959,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:34:50.327Z",
+   "msgCount": 961,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:34:56.887Z",
+   "msgCount": 963,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:35:23.418Z",
+   "msgCount": 966,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:35:46.535Z",
+   "msgCount": 968,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:36:05.168Z",
+   "msgCount": 970,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "t_c7b26e448190_289"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}
