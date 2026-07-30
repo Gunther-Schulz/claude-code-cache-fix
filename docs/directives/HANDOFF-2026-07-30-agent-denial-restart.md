@@ -78,6 +78,22 @@ After execution, the DISPATCHER'S half (never delegated):
 4. Approval labels: any prior approvals are stale after these pushes
    (repo policy — label freshness is timestamp-checked).
 
+## Follow-up: update our threads on anthropics/claude-code (operator request 2026-07-30)
+
+After the wave-2 work, draft evidence updates for the CC-repo threads we
+already own — post only after operator GO per thread (today's precedent:
+#73434 drafted, GO'd, posted): 
+- #76606 / #78660 (reminder re-shaping family): today's NEW shape — the
+  MERGE variant (two reminders wrapper-stripped, "\n\n"-joined into one
+  standalone; the 587k event), oscillation between already-seen forms,
+  and that content-identity suppression + join-hash absorbs all of it.
+  Evidence: fixture test/fixtures/harvested/oscillation-s-633915a8-863.json,
+  commits 78940a0/e0f8fcb, census clean after.
+- #81967 (tools-list): tonight's toolsBytes growth step from deferred
+  tool loads (harvest snapshot b3ba6fd) if it adds measurement value.
+- #82229 (our issue): check whether today's findings change its state.
+- #73434: already updated today — watch for maintainer follow-up only.
+
 ## Also pending (no action until trigger)
 
 - 88f140e (upstream-change-detection: messages.count-only diffs stop
