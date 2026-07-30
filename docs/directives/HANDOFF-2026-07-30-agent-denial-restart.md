@@ -140,7 +140,11 @@ already own — post only after operator GO per thread (today's precedent:
 
 - 88f140e (upstream-change-detection: messages.count-only diffs stop
   alarming) is NOT in any slice — candidate for its own small upstream
-  PR; needs operator GO before creating.
+  PR; needs operator GO before creating. DONE (operator GO
+  2026-07-30): upstream PR #282, branch
+  fix/upstream-change-detection-count-noise (worktree cache-fix-pr11),
+  clean cherry-pick de9ab87 on upstream main, 28/28 tests at that
+  commit.
 - Week-of-soak summary committed on #272/#273 threads, due ~2026-08-05
   (material: gate-status history + worktime --cold ledger).
 - BACKLOG.md carries everything parked, each with its named trigger.
