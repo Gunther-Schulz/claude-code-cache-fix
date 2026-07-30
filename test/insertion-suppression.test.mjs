@@ -35,6 +35,7 @@ import {
   pinnedBlockHashes,
   findSuppressibleDuplicate,
 } from "../proxy/extensions/insertion-normalization.mjs";
+import { readPinnedFixture } from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -228,8 +229,20 @@ test("classifyPinned: an assistant-role standalone entry is never suppressed, ev
 // asserts the PRE-fix values (outputForm==="edit@31") and is NOT in this
 // change's write boundary; running it after this fix is expected to fail,
 // and that is surfaced in the closing report rather than fixed here.
+//
+// Fixture-fallback (BACKLOG.md "READY — harvest --pin freezes evidence
+// ranges as fixtures"): capture rotated away -> fall back to the pinned
+// fixture at test/fixtures/harvested/pinned-s-4b6a435234bf-26-28.json (`node
+// tools/harvest.mjs --pin <key> n..m`); both absent -> skip. Both paths are
+// overridable via env for the fallback's own red-green test
+// (test/harvest-pin.test.mjs) — never by editing the real capture, which is
+// read-only evidence shared with other work.
 const REAL_CAPTURE =
+  process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE ??
   process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE ?? "";
+const PINNED_FIXTURE =
+  process.env.CACHE_FIX_TEST_FIXTURE_OVERRIDE ??
+  join(__dirname, "fixtures", "harvested", "pinned-s-4b6a435234bf-26-28.json");
 const GATES = {
   CACHE_FIX_FORWARD_PROXY: "on",
   CACHE_FIX_SESSION_MIRROR: "on",
@@ -258,8 +271,19 @@ const entry = (n, inMsgs, outMsgs, extra = {}) => ({
 test(
   "real capture n=26->28: pin-and-suppress turns the input-mitigated/output-spliced pair into a clean append, safety gate 0 violations",
   async (t) => {
-    if (!existsSync(REAL_CAPTURE)) {
-      t.skip(`capture rotated away (not found at ${REAL_CAPTURE}) — COULD NOT VERIFY`);
+    // Fixture-fallback: capture present -> unchanged live-capture path;
+    // capture absent -> pinned fixture if present; else skip. Both readers
+    // yield the same [n, line] tuple shape, so the replay loop below is
+    // identical either way.
+    let source;
+    if (existsSync(REAL_CAPTURE)) {
+      source = null; // resolved below, once readCapture is loaded from tools/replay.mjs
+    } else if (existsSync(PINNED_FIXTURE)) {
+      source = readPinnedFixture(PINNED_FIXTURE);
+    } else {
+      t.skip(
+        `capture rotated away (not found at ${REAL_CAPTURE}) and no pinned fixture at ${PINNED_FIXTURE} — COULD NOT VERIFY`,
+      );
       return;
     }
 
@@ -273,6 +297,7 @@ test(
       return;
     }
     const { findMitigationGaps, findSafetyViolations, safetyViolation, readCapture } = replayTools;
+    if (source === null) source = readCapture(REAL_CAPTURE);
 
     const scratch = await mkdtemp(join(tmpdir(), "insertion-suppression-"));
     const saved = {};
@@ -292,7 +317,7 @@ test(
 
       const entries = [];
       let reqN = -1;
-      for await (const [, line] of readCapture(REAL_CAPTURE)) {
+      for await (const [, line] of source) {
         let rec;
         try {
           rec = JSON.parse(line);
