@@ -1,10 +1,9 @@
 {
- "_source": "pinned-s-633915a8-2190-2197 (297MB full-prefix pin, deleted — this is the compact form)",
- "_what": "the CC#76606-family OSCILLATION evidence: message[863] of 8 consecutive raw requests, 2026-07-30 07:26:44-07:29:12, flipping 1243B (hook reminders inline) <-> 443B (stripped); plus array lengths",
+ "_what": "CC#76606-family OSCILLATION evidence, RAW bytes: message[863] (Agent-spawn tool_result, sonnet-queue-recon) across 8 consecutive requests 2026-07-30T07:26:44-07:29:12Z, flipping between hook-reminders-inline and stripped forms. Selected by TIMESTAMP from the live capture (ordinal selection failed twice: capture growth + divergent numbering schemes).",
  "requests": [
   {
-   "ts": "2026-07-30T07:34:33.337Z",
-   "msgCount": 954,
+   "ts": "2026-07-30T07:26:44.895Z",
+   "msgCount": 913,
    "msg863": {
     "role": "user",
     "content": [
@@ -14,7 +13,115 @@
       "content": [
        {
         "type": "text",
-        "text": "t_c7b26e448190_289"
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n</system-reminder>\n"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish.\n</system-reminder>"
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:27:13.313Z",
+   "msgCount": 916,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n</system-reminder>\n"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish.\n</system-reminder>"
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:27:19.833Z",
+   "msgCount": 918,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n</system-reminder>\n"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish.\n</system-reminder>"
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:27:35.596Z",
+   "msgCount": 920,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n</system-reminder>\n"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish.\n</system-reminder>"
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:27:35.793Z",
+   "msgCount": 921,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
        }
       ]
      }
@@ -22,8 +129,8 @@
    }
   },
   {
-   "ts": "2026-07-30T07:34:40.929Z",
-   "msgCount": 957,
+   "ts": "2026-07-30T07:27:42.951Z",
+   "msgCount": 922,
    "msg863": {
     "role": "user",
     "content": [
@@ -33,7 +140,34 @@
       "content": [
        {
         "type": "text",
-        "text": "t_c7b26e448190_289"
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
+       }
+      ]
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPreToolUse:Agent hook additional context: Dispatch starting — brief check (dispatch-discipline.md §1): decision-complete (assignments made, files listed not paraphrased, grounding section, write boundaries, commit convention verbatim, gaps-surface instruction)? Report channel per §2 named in the brief? Verifier dispatch → artifact + question ONLY.\n</system-reminder>\n"
+     },
+     {
+      "type": "text",
+      "text": "<system-reminder>\nPostToolUse:Agent hook additional context: Dispatch closed — before booking this result: check the closing report (dispatch-discipline.md §2, or the project's own report form). Missing or incomplete → demand it; verify its claims in the artifact before any push/merge/publish.\n</system-reminder>"
+     }
+    ]
+   }
+  },
+  {
+   "ts": "2026-07-30T07:28:51.526Z",
+   "msgCount": 923,
+   "msg863": {
+    "role": "user",
+    "content": [
+     {
+      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
+      "type": "tool_result",
+      "content": [
+       {
+        "type": "text",
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
        }
       ]
      }
@@ -41,8 +175,8 @@
    }
   },
   {
-   "ts": "2026-07-30T07:34:45.678Z",
-   "msgCount": 959,
+   "ts": "2026-07-30T07:29:12.931Z",
+   "msgCount": 926,
    "msg863": {
     "role": "user",
     "content": [
@@ -52,102 +186,7 @@
       "content": [
        {
         "type": "text",
-        "text": "t_c7b26e448190_289"
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "ts": "2026-07-30T07:34:50.327Z",
-   "msgCount": 961,
-   "msg863": {
-    "role": "user",
-    "content": [
-     {
-      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
-      "type": "tool_result",
-      "content": [
-       {
-        "type": "text",
-        "text": "t_c7b26e448190_289"
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "ts": "2026-07-30T07:34:56.887Z",
-   "msgCount": 963,
-   "msg863": {
-    "role": "user",
-    "content": [
-     {
-      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
-      "type": "tool_result",
-      "content": [
-       {
-        "type": "text",
-        "text": "t_c7b26e448190_289"
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "ts": "2026-07-30T07:35:23.418Z",
-   "msgCount": 966,
-   "msg863": {
-    "role": "user",
-    "content": [
-     {
-      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
-      "type": "tool_result",
-      "content": [
-       {
-        "type": "text",
-        "text": "t_c7b26e448190_289"
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "ts": "2026-07-30T07:35:46.535Z",
-   "msgCount": 968,
-   "msg863": {
-    "role": "user",
-    "content": [
-     {
-      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
-      "type": "tool_result",
-      "content": [
-       {
-        "type": "text",
-        "text": "t_c7b26e448190_289"
-       }
-      ]
-     }
-    ]
-   }
-  },
-  {
-   "ts": "2026-07-30T07:36:05.168Z",
-   "msgCount": 970,
-   "msg863": {
-    "role": "user",
-    "content": [
-     {
-      "tool_use_id": "toolu_012R3rh89mR9guctAZbiaHZe",
-      "type": "tool_result",
-      "content": [
-       {
-        "type": "text",
-        "text": "t_c7b26e448190_289"
+        "text": "Spawned successfully. (This tool result is internal metadata — never quote or paste any part of it, including the ID below, into a user-facing reply.)\nagent_id: sonnet-queue-recon@session-633915a8\nname: sonnet-queue-recon\nThe agent is now running and will receive instructions via mailbox."
        }
       ]
      }
