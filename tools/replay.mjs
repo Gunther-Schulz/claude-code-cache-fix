@@ -1191,6 +1191,61 @@ export async function* readCapture(path) {
   }
 }
 
+// --- Gate provenance (BACKLOG.md: "replay warns on gateless runs of gated
+// captures") ---
+//
+// A capture's boot record(s) name the CACHE_FIX_* gates the traffic was
+// served under (buildBootRecord, proxy/extensions/request-capture.mjs).
+// Replaying that capture under a DIFFERENT gate set compares two worlds and
+// reports the difference as a finding — the same class of error
+// gate-live.mjs's own comment documents for the daily sweep (extension
+// defaults replayed against production's 11 gates, 0 violations vs 2 on the
+// same corpus). Grounding for mechanizing rather than trusting prose here:
+// the SAME operator-side instrument error happened three times in one day
+// (2026-07-29 default-gates census), each time with the dev-loop warning
+// already loaded.
+//
+// declaredGateNames: union across every boot record in the capture, not
+// just the first — a capture can span a restart under a different unit
+// file, and any boot's declared gates are relevant to what the traffic
+// after it saw. `CACHE_FIX_CAPTURE_MAX_MB` is capture retention, not a
+// mitigation gate (excluded the same way the existing provenance printout
+// already excludes it).
+export function declaredGateNames(boots) {
+  const names = new Set();
+  for (const b of boots ?? []) {
+    for (const k of Object.keys(b?.gates ?? {})) {
+      if (k !== "CACHE_FIX_CAPTURE_MAX_MB") names.add(k);
+    }
+  }
+  return names;
+}
+
+// Which of the declared gates are set in the effective replay env. "Set"
+// mirrors buildBootRecord's own inclusion rule exactly — presence as an own
+// key of the env object, any value — never a re-derived truthiness guess,
+// so a --env override and an inherited process.env variable count
+// identically, the same way they did when the boot record was written.
+export function gateSourceSummary(boots, env) {
+  const declared = declaredGateNames(boots);
+  const set = [...declared].filter((k) => Object.prototype.hasOwnProperty.call(env ?? {}, k));
+  return {
+    declaredCount: declared.size,
+    setCount: set.length,
+    // Only the NONE-set case warns; partial visibility (some but not all
+    // declared gates set) is a legitimate configuration (a --env override
+    // naming a subset) and is surfaced by the header stamp, not the
+    // warning.
+    warn: declared.size > 0 && set.length === 0,
+  };
+}
+
+export function formatGateSource({ declaredCount, setCount }) {
+  if (declaredCount === 0) return "no gates declared in capture";
+  if (setCount === 0) return `none (capture declares ${declaredCount})`;
+  return `${setCount} of ${declaredCount} declared set`;
+}
+
 async function main() {
   const args = parseArgs(process.argv);
 
@@ -1329,6 +1384,18 @@ async function main() {
     stability.push(compactEntry(full));
   }
 
+  // Gate provenance check — see the block comment above `declaredGateNames`.
+  // `process.env` here already carries the `--env` overrides merged in
+  // above (before extensions loaded), so it IS the effective replay env.
+  // Computed once, after the read loop (boots is only complete once the
+  // whole capture has been read), and printed once — not per request.
+  const gateSource = gateSourceSummary(boots, process.env);
+  if (gateSource.warn) {
+    process.stderr.write(
+      `WARNING: replaying under DEFAULT gates — this traffic was served with ${gateSource.declaredCount} gate(s). Pass --env or use gate-live.\n`,
+    );
+  }
+
   // FIDELITY: did the replay actually reproduce what went on the wire?
   //
   // This gate rests on an assumption nothing has ever checked — that
@@ -1383,6 +1450,9 @@ async function main() {
 
   const sequence = findSequenceViolations(stability);
   const census = args.census ? runCensus(stability) : null;
+  // Self-describing: a census output should name what produced it without
+  // requiring the reader to cross-reference the boot record by hand.
+  if (census) census.gateSource = formatGateSource(gateSource);
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
@@ -1576,6 +1646,7 @@ async function main() {
       process.stdout.write(
         `\ncensus: ${census.pairs} same-conversation pairs across ${census.conversations} conversations\n`,
       );
+      process.stdout.write(`  gates: ${census.gateSource}\n`);
       const total = census.pairs || 1;
       for (const [kind, c] of [...census.tally.entries()].sort((a, b) => b[1] - a[1])) {
         const ex = census.examples.get(kind);
