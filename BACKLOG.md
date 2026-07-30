@@ -111,9 +111,17 @@ bullet, evidence pointer included.
   on violation — the live catch this class lacked); (3) replay the
   three real failing sub-conversations pre/post. proxy/** — the
   restart urgency is raised: the class actively breaks resumes.
-  Candidate lesson: a mutation that can REMOVE messages needs a
+  FIXED same day (e0f8fcb, sonnet, pushed after dispatcher
+  verification: 83/83 + output-guard suite green; all THREE real
+  failures replayed pre/post — PRE shows the exact 400 condition
+  (incoming last=user, forwarded last=assistant, guard silent);
+  POST all three intact, suppressed=0 at tail, build 1 prevents
+  and build 2 stands as belt. Builder also caught + fixed its own
+  prior test's accidental tail-index harness). Candidate lesson
+  stands: a mutation that can REMOVE messages needs a
   tail-validity invariant from day one; the message-COUNT lesson
-  covered the checkers, not the API-contract shape.
+  covered the checkers, not the API-contract shape. SERVING after
+  the ASAP restart (task #5).
 
 - **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
   Updated 2026-07-30 after the suppression work: #272 gained the
