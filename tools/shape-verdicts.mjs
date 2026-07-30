@@ -23,6 +23,7 @@
 // payload; a non-zero exit means the CLI itself failed).
 
 import { readFile, readdir, stat } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { dirname, join, relative } from "node:path";
@@ -190,12 +191,16 @@ export function retentionVerdict(committed, current) {
 // the finding (output-guard restored a body, upstream shipped a
 // structural change). "log" files are expected to accumulate under
 // normal use; their only failure mode is silence while the writer's gate
-// is on. Gate state comes from the SAME env var each extension itself
-// reads (isGuardEnabled, isEnabled, etc.) — always determinate: present
-// and matching -> on, anything else -> off. "State unknowable" is
-// reserved for the filesystem read itself failing for a reason other
-// than absence (permissions, not-a-directory) — the one case gate state
-// can't resolve, and the only source of "unknowable" in this table.
+// is on. Gate state: the env var each extension itself reads wins when
+// SET — but shape-verdicts runs out-of-band (operator shell, doctor),
+// where the serving gates are NOT in the env, so an unset var falls
+// back to the last gate sweep's recorded serving set
+// (cache-fix-gate-status.json `gates`, gateSource the proxy unit) —
+// the same serving-truth source replay's --gates-from-capture trusts.
+// No status file and no env -> off (absence of any gate evidence).
+// "State unknowable" is reserved for the filesystem read itself
+// failing for a reason other than absence (permissions,
+// not-a-directory) — the one case gate state can't resolve.
 //
 // maxAgeH reuses HARVEST_MAX_AGE_H rather than inventing a second,
 // evidence-free cadence per file — it is the one existing precedent in
@@ -205,12 +210,40 @@ function snapshotsDir() {
   return join(claudeHome(), "cache-fix-snapshots");
 }
 
+// Serving-gate fallback: the last sweep's recorded gate set. Cached per
+// process (the CLI is one-shot); a missing/unreadable status file yields
+// an empty map, so env-unset gates resolve off, never unknowable.
+let _servingGates;
+export function servingGate(name) {
+  if (_servingGates === undefined) {
+    _servingGates = {};
+    try {
+      const status = JSON.parse(
+        readFileSync(join(claudeHome(), "cache-fix-gate-status.json"), "utf-8"),
+      );
+      for (const g of status.gates ?? []) {
+        const eq = g.indexOf("=");
+        if (eq > 0) _servingGates[g.slice(0, eq)] = g.slice(eq + 1);
+      }
+    } catch {
+      /* no sweep recorded yet — env remains the only source */
+    }
+  }
+  return _servingGates[name];
+}
+
+function gateResolves(name, onValue) {
+  const env = process.env[name];
+  if (env !== undefined) return env === onValue;
+  return servingGate(name) === onValue;
+}
+
 const TELEMETRY_CONSUMERS = [
   {
     name: "telemetry-guard-events",
     kind: "alarm",
     maxAgeH: HARVEST_MAX_AGE_H,
-    gate: () => process.env.CACHE_FIX_OUTPUT_GUARD === "1",
+    gate: () => gateResolves("CACHE_FIX_OUTPUT_GUARD", "1"),
     dir: snapshotsDir,
     suffix: "-guard-events.jsonl",
   },
@@ -218,14 +251,14 @@ const TELEMETRY_CONSUMERS = [
     name: "telemetry-upstream-changes",
     kind: "alarm",
     maxAgeH: HARVEST_MAX_AGE_H,
-    gate: () => process.env.CACHE_FIX_UPSTREAM_DETECTION === "1",
+    gate: () => gateResolves("CACHE_FIX_UPSTREAM_DETECTION", "1"),
     file: () => join(process.env.CACHE_FIX_UPSTREAM_DIR || claudeHome(), "upstream-changes.jsonl"),
   },
   {
     name: "telemetry-insertion-events",
     kind: "log",
     maxAgeH: HARVEST_MAX_AGE_H,
-    gate: () => process.env.CACHE_FIX_INSERTION_NORMALIZE === "1",
+    gate: () => gateResolves("CACHE_FIX_INSERTION_NORMALIZE", "1"),
     dir: snapshotsDir,
     suffix: "-insertion-events.jsonl",
   },
@@ -233,7 +266,7 @@ const TELEMETRY_CONSUMERS = [
     name: "telemetry-deferred-tool-events",
     kind: "log",
     maxAgeH: HARVEST_MAX_AGE_H,
-    gate: () => process.env.CACHE_FIX_TOOL_REWRITE === "1",
+    gate: () => gateResolves("CACHE_FIX_TOOL_REWRITE", "1"),
     dir: snapshotsDir,
     suffix: "-deferred-tool-events.jsonl",
   },
@@ -241,7 +274,7 @@ const TELEMETRY_CONSUMERS = [
     name: "telemetry-session-mirror",
     kind: "log",
     maxAgeH: HARVEST_MAX_AGE_H,
-    gate: () => process.env.CACHE_FIX_SESSION_MIRROR === "on",
+    gate: () => gateResolves("CACHE_FIX_SESSION_MIRROR", "on"),
     file: () =>
       process.env.CACHE_FIX_SESSION_MIRROR_EVENT_LOG ||
       join(claudeHome(), "session-mirrors", "session-mirror-events.jsonl"),
