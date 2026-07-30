@@ -580,7 +580,11 @@ bullet, evidence pointer included.
   else; the cost-trigger this entry briefly carried contradicted the
   recorded operator ruling (matrix header / row 6 ladder) and is
   withdrawn. The detector supplies design specimens, not a
-  worthiness threshold.
+  worthiness threshold. UNPARKED 2026-07-30 (operator GO): both
+  questions answered by mechanism in
+  docs/directives/flap-move-mitigation-and-fidelity-gate.md —
+  fidelity gate first (its red case IS question 1's dangerous
+  design), then candidacy-gated first-seen re-serve. In build.
 
 - **READY — census flap annotation (blockMigration reversal).**
   `replay.mjs --census` emits a `flap` marker when the same
