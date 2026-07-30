@@ -122,6 +122,31 @@ export function findStabilityViolations(entries) {
   return violations.sort((a, b) => a.n - b.n);
 }
 
+// Declared suppressions (insertion-normalization's pin-and-suppress,
+// #76606 decision B) shrink the OUTPUT array by one entry, permanently,
+// relative to CC's own raw array — every request from the first
+// suppression on. `inHash`/`outHash` then no longer share a common index
+// space: OUR array is one slot ahead of CC's from the suppressed index on,
+// forever, so a plain positional compare reports a divergence exactly one
+// index earlier than CC's own — every single turn — even though nothing
+// extra was actually re-billed (the missing message is missing
+// IDENTICALLY on both sides of the pair, so the shared prefix is exactly
+// as long as it would be without the shift). Measured while adding this:
+// UNADJUSTED, this pair's fix produced 67 new "violations" across a single
+// conversation's remaining 60-odd turns, each showing the exact signature
+// `outDiv === inDiv - 1` with CC identical at outDiv — a check firing on
+// its own unadjusted index space, not a defect.
+//
+// Realign the reference: filter each entry's OWN suppressed indices out of
+// its `inHash` before comparing, using the extension's own report
+// (`stats.suppressions`) — never a re-derived guess — the same source
+// safetyViolation's declared exemption already reads.
+function adjustedInHash(e) {
+  const suppressed = suppressedIndices(e.stats);
+  if (suppressed.size === 0) return e.inHash;
+  return e.inHash.filter((_, i) => !suppressed.has(i));
+}
+
 function scanGroup(entries) {
   const violations = [];
   for (let i = 1; i < entries.length; i++) {
@@ -131,7 +156,9 @@ function scanGroup(entries) {
     // Per-message byte hashes, not the messages: firstDivergence compares
     // JSON.stringify of each element, and stringifying a hash of the bytes
     // yields the same first-difference index as stringifying the bytes.
-    const inDiv = firstDivergence(prev.inHash, cur.inHash);
+    const prevInHash = adjustedInHash(prev);
+    const curInHash = adjustedInHash(cur);
+    const inDiv = firstDivergence(prevInHash, curInHash);
     const outDiv = firstDivergence(prev.outHash, cur.outHash);
     // Input append-only (inDiv === null) sets the bar at "output must be
     // append-only too": ANY output divergence is then self-inflicted.
@@ -146,7 +173,7 @@ function scanGroup(entries) {
       // to print in[i] and out[i] for both requests. The throwaway probe is
       // the tell that a check is missing; both arrays are already in hand
       // here, so the answer costs one comparison.
-      const ccSame = prev.inHash[outDiv] === cur.inHash[outDiv];
+      const ccSame = prevInHash[outDiv] === curInHash[outDiv];
       violations.push({
         n: cur.n,
         prevN: prev.n,
@@ -195,6 +222,22 @@ function isDeclaredInjection(msg) {
 // retained. Exported on its own because the streaming caller wants one
 // verdict at a time and findSafetyViolations wants the whole list — one
 // implementation, two shapes, rather than a tested one and a shipped one.
+// Declared SUPPRESSIONS (insertion-normalization's pin-and-suppress,
+// #76606 decision B) are the mirror case of a declared injection: a
+// message CC sent that the extension deliberately never forwards, because
+// the pinned inline form at another position already carries its bytes.
+// Filtered from the INPUT side only — there is nothing on the output side
+// to filter, by definition, since the whole point is that it never
+// appears there. The incoming index comes from the extension's OWN report
+// (`stats.suppressions`, set by insertion-normalization's onRequest),
+// never a re-derived "looks like a duplicate" guess — mirroring
+// isDeclaredInjection's shape-based declaration with a telemetry-based one
+// because a removed message, unlike an added one, carries no shape of its
+// own to detect after the fact.
+function suppressedIndices(stats) {
+  return new Set((stats?.suppressions ?? []).map((s) => s.index));
+}
+
 export function safetyViolation(e) {
   // Declared injections are removed from BOTH sides before comparing. The
   // filter was output-side only until 2026-07-29, which was correct while
@@ -205,7 +248,8 @@ export function safetyViolation(e) {
   // not from in, and the first census-enabled sweep failed a capture over a
   // message nobody dropped — a check firing on a non-defect, found by
   // rule-out-the-instrument within the hour.
-  const inM = e.inMsgs.filter((m) => !isDeclaredInjection(m));
+  const suppressed = suppressedIndices(e.stats);
+  const inM = e.inMsgs.filter((m, i) => !isDeclaredInjection(m) && !suppressed.has(i));
   const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
   if (outM.length !== inM.length) {
     return { n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` };
