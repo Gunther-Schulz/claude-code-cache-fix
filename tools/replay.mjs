@@ -508,13 +508,20 @@ export function semanticIds(msgs) {
 // Anthropic's docs say should not disturb the cache, while a REORDER of
 // entries already present is a different event the docs do not cover.
 export function toolsFingerprints(tools) {
-  if (!Array.isArray(tools)) return { sig: null, order: null, set: null, count: null };
+  if (!Array.isArray(tools)) return { sig: null, order: null, set: null, count: null, byName: null };
   const names = tools.map((t) => t?.name ?? "?");
+  // Per-name hash, not the schema itself — same byte-conservation discipline
+  // as compactEntry's inHash/outHash. This is what lets heldStable (below)
+  // compare the SHARED-name subset of a pair without retaining either side's
+  // full tool bodies.
+  const byName = {};
+  for (const t of tools) byName[t?.name ?? "?"] = sha(JSON.stringify(t));
   return {
     sig: sha(JSON.stringify(tools)), // full schemas — catches a description edit
     order: sha(JSON.stringify(names)), // names in wire order
     set: sha(JSON.stringify([...names].sort())), // membership, order-blind
     count: tools.length,
+    byName,
   };
 }
 
@@ -638,6 +645,22 @@ export function findToolsDeltas(entries) {
         kind = "schema-edit";
       }
       const msgKind = censusIds(p.inSem, c.inSem);
+      // forwardedStable is a whole-array claim: a genuine new tool announced
+      // between p and c always moves the signature, so it reads "unstable"
+      // even when everything CC already knew about round-tripped untouched.
+      // heldStable narrows to what deferred-tool-rewrite actually guarantees
+      // — the SHARED-name subset (present on both sides) stays byte-stable —
+      // so a real addition is excluded from the comparison, not counted
+      // against it (BACKLOG "forwardedStable was a census framing gap").
+      let heldStable;
+      if (p.outTools.byName === null || c.outTools.byName === null) {
+        heldStable = false; // no forwarded-tools data — same "not proven stable" stance as forwardedStable's null guard
+      } else {
+        const sharedNames = Object.keys(p.outTools.byName)
+          .filter((n) => Object.prototype.hasOwnProperty.call(c.outTools.byName, n))
+          .sort();
+        heldStable = sharedSig(p.outTools.byName, sharedNames) === sharedSig(c.outTools.byName, sharedNames);
+      }
       rows.push({
         n: c.n,
         prevN: p.n,
@@ -647,6 +670,7 @@ export function findToolsDeltas(entries) {
         // The isolating case row 6 asks for: tools moved, history did not.
         toolsOnly: msgKind === "identical" || msgKind === "append-only",
         forwardedStable: p.outTools.sig !== null && p.outTools.sig === c.outTools.sig,
+        heldStable,
         count: `${p.inTools.count}->${c.inTools.count}`,
         outCount: `${p.outTools.count}->${c.outTools.count}`,
       });
@@ -654,6 +678,11 @@ export function findToolsDeltas(entries) {
   }
   return rows.sort((a, b) => a.n - b.n);
 }
+
+// heldStable's comparison, factored out: the byte signature of one side's
+// tool bodies restricted to `names` (already the shared-name subset,
+// pre-sorted by the caller so both sides hash in the same order).
+const sharedSig = (byName, names) => sha(JSON.stringify(names.map((n) => byName[n])));
 
 const asCompact = (e) => (e.inHash ? e : compactEntry(e));
 
@@ -2051,12 +2080,16 @@ async function main() {
         process.stdout.write(`  ${String(c).padStart(5)}  ${k}\n`);
       }
       const leaked = toolsDeltas.filter((d) => !d.forwardedStable);
+      const heldUnstable = toolsDeltas.filter((d) => !d.heldStable);
       process.stdout.write(
-        `  forwarded tools[] held stable across: ${toolsDeltas.length - leaked.length}/${toolsDeltas.length}\n`,
+        `  forwarded tools[] held stable across: ${toolsDeltas.length - leaked.length}/${toolsDeltas.length} (whole array)\n`,
+      );
+      process.stdout.write(
+        `  shared-name subset held stable across: ${toolsDeltas.length - heldUnstable.length}/${toolsDeltas.length} (the guarantee actually made)\n`,
       );
       for (const d of only.slice(0, 8)) {
         process.stdout.write(
-          `    n=${d.prevN}->${d.n} ${d.kind} in=${d.count} out=${d.outCount} msgs=${d.msgKind} forwardedStable=${d.forwardedStable}\n`,
+          `    n=${d.prevN}->${d.n} ${d.kind} in=${d.count} out=${d.outCount} msgs=${d.msgKind} forwardedStable=${d.forwardedStable} heldStable=${d.heldStable}\n`,
         );
       }
     }
