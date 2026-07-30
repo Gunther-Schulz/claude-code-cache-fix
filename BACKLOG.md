@@ -150,6 +150,11 @@ bullet, evidence pointer included.
   proxy-restart-transparent.test.mjs. PR2's copy of
   session-key-invariants.test.mjs excises the prefix-diff tenantId case;
   it lives in #280's proxy-prefix-diff.test.mjs.
+  Wave 2 (post-morning commits da4e7e1..e0f8fcb → #272/#276/#278/#280,
+  #281 rebase): hold released 2026-07-30, brief decision-complete at
+  docs/directives/pr-wave2-port-brief.md; execution blocked by the CC
+  Agent-denial incident — full state in
+  docs/directives/HANDOFF-2026-07-30-agent-denial-restart.md.
 
 - **COMMITTED on PR #272 and #273 threads: week-of-soak summary, due
   ~2026-08-05.** Material: cache-fix-gate-status.json history + the
