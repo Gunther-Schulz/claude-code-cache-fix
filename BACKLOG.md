@@ -160,7 +160,20 @@ bullet, evidence pointer included.
   basis — do NOT treat red as noise (the check fired on real
   defects; that is it working).
 
-- **READY — serialize capture appends per path** (settled
+- **DONE 2026-07-30 — capture appends serialize per path**
+  (ec71be1, sonnet, pushed after dispatcher verification: 14/14
+  across queue + capture suites, routing confirmed at all three
+  sites). Escalation settled at dispatch: the mocked chunked-yield
+  RED is SUFFICIENT — the checker's expectation derives from the
+  defect's definition (writes split across syscalls interleave),
+  and the live tie to reality is the 5 torn pairs already observed;
+  an at-scale flaky repro would add platform noise, not evidence.
+  Builder finding, dispatcher-verified: jsonl-session-mirror rides
+  proxy/session-mirror-writer.mjs's appendFileSync — synchronous,
+  cannot self-interleave, correctly untouched. NOT YET SERVING:
+  proxy/** — rides the next restart boundary together with the
+  error-log gate flip (one boundary, one statement).
+  Original entry: (settled
   2026-07-30; evidence: flap probe fact 4 — 5 pairs of torn ~1MB
   lines in s-dc3f8071, appendFile interleave; mechanism: node
   splits large buffers across write() syscalls, concurrent async
