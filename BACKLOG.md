@@ -111,9 +111,19 @@ bullet, evidence pointer included.
   hand-extraction one-liner dies with the flag (the probe-
   graduation rule's case).
 
-- **READY — fix injectAdditions' LIFO stacking (deferred-tool-rewrite
-  self-inflicted busts; mechanism FOUND by probe 2026-07-30,
-  dispatcher-verified at the code).** The gate-red investigation
+- **DONE 2026-07-30 — injectAdditions LIFO fix (00d1e58, sonnet in
+  isolated worktree, cherry-picked + pushed after dispatcher
+  verification: 25 stability violations -> 0 on the real capture,
+  own replay run, all other invariants 0; red-before-green in units
+  AND on the capture; no pre-existing test asserted LIFO). Open
+  question from the build, unresolved: pre/post replay diagnostic
+  logs diverged in volume past line 1912 (a 643-message conversation
+  cycling; live capture grew between runs ~6 min apart — plausible,
+  unconfirmed). NOT YET SERVING — proxy/** deployment coupling
+  pending (pin bump + restart at a stated boundary); port to
+  upstream PR #273 pending. Original entry follows for the record.**
+  Mechanism found by probe 2026-07-30, dispatcher-verified at the
+  code. The gate-red investigation
   (s-dc3f8071, 25 violations, burst n=372-397) resolved: a session-
   boot MCP discovery cascade grows tools[] 0->11->428->singles while
   the conversation stays 1 message; `injectAdditions`
@@ -157,8 +167,15 @@ bullet, evidence pointer included.
   serialized write queue or size-capped atomic appends; design
   undecided. Evidence pointer: flap-probe detail.txt fact 4.
 
-- **READY — census outputForm hashes must strip cache_control
-  (mirror the input side).** The five "unclassified output-spliced
+- **DONE 2026-07-30 — census outputForm strips cache_control
+  (903a2be) + --gates-from-capture flag (dac26a0), one sonnet
+  dispatch, dispatcher-verified: all five pairs AND n=26->28 now
+  outputPreserved:true on the real capture via the new flag; 61/61
+  replay suites green; downstream suppression-test assertion updated
+  by the dispatcher (c128dbf — second consecutive dispatch tripped
+  that file; lesson booked: grep test/ for assertions on a field
+  before changing what it returns). Port to upstream PR #276
+  pending. Original entry:** The five "unclassified output-spliced
   pairs" in s-633915a8 are RESOLVED as instrument artifact: CC
   itself sends the same 32,140-char text as a cache_control-bearing
   block while it is the tail, then as a bare string later — its own
