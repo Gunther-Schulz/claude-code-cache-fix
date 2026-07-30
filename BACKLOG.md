@@ -8,26 +8,27 @@ bullet, evidence pointer included.
 
 ## Open
 
-- **OPEN/HOT — task-reminder mid-history churn: NEW bust class, 587k
-  paid live 2026-07-30 ~07:29** (this session, ❄ #2). Evidence:
-  prefix-diff journal (key s-da07bb2d3cbe) shows three mutations at
-  FIXED index 867 in 90s (07:27:35 system, 07:27:42 assistant,
-  07:28:51 system) with clean sys/tools — CC rewrites the task-tool
-  system reminder at its HISTORICAL position when task state
-  changes; onset correlates exactly with first TaskCreate/TaskUpdate
-  use (07:12-07:19). Byte-confirmed: message 867 is the bare
-  "task tools haven't been used recently" system reminder — NO
-  <system-reminder> wrapper, so the class ESCAPES the volatile
-  pin's wrapper-keyed detector by construction. Boundary restart
-  exonerated (mutations are content changes, not serialization).
-  Probe needed before mitigation: extract the exact pre/post
-  variants for the three events from the capture (which reminder
-  variants swap; does the CURRENT tail always carry fresh task
-  state, making historical copies freeze-safe); then the mitigation
-  fork: extend the pin's volatile detector to cover bare task-tool
-  reminder shapes (freeze first-seen, suppress churn) vs upstream
-  issue only. Frequency risk: fires per task-state change in any
-  task-using session — the deeper the session, the dearer.
+- **OPEN/HOT — reminder OSCILLATION in a historical tool_result:
+  #76606-family variant, 587k paid live 2026-07-30 ~07:29** (this
+  session, ❄ #2). ATTRIBUTION SETTLED at the bytes, both sides:
+  CC-side origin CONFIRMED — the PRE-pipeline capture's raw bodies
+  diverge at index 863 (the sonnet-queue-recon Agent-spawn
+  tool_result) oscillating 1243B (PreToolUse/PostToolUse
+  <system-reminder> blocks inline) <-> 443B (blocks stripped), four
+  flips in 90s (07:27:35-07:28:51); a first booking blamed
+  task-reminder churn off the post-pipeline journal index (867) —
+  WRONG, corrected by the raw diff (tap-point lesson, dev-loop rule
+  minted same day). OUR half, open: the volatile pin did NOT absorb
+  it — post-pipeline journal shows forwarded divergence too; prime
+  suspect is the genuine-change escape treating each flip as a real
+  edit (correct for real edits, wrong for A<->B oscillation between
+  two already-seen forms). Probe/fix design sketch: teach the pin
+  an oscillation case — a "changed" volatile block whose bytes
+  equal a PREVIOUSLY-SEEN form of the same entry is served from the
+  pin, not reset; bite on the real four-flip sequence from this
+  capture (harvest --pin it BEFORE rotation). Restart exonerated
+  (raw-side divergence, clean sys/tools). Cost model: one bust per
+  flip at full depth — the class is as dear as the session is deep.
 
 - **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
   Updated 2026-07-30 after the suppression work: #272 gained the

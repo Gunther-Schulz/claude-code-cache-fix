@@ -449,3 +449,23 @@ Two readings this makes easy to get wrong:
 Both were predicted the other way before the capture was replayed. The
 prediction cost nothing because it was checked; stating it as a result would
 have put two wrong facts in this file.
+
+## Tap points — every number names where it was measured
+
+Every telemetry index is relative to its writer's position in the
+extension order: request-capture (order 60) records CC's RAW body;
+prefix-diff (order 680) diffs the near-final FORWARDED body; everything
+between sees a partially-transformed request. Two consequences, both
+paid for on 2026-07-30 (587k event: journal said index 867, raw said
+863, and the first attribution blamed the wrong content class):
+
+- **Origin attribution (CC-side vs ours) comes ONLY from the
+  pre-pipeline capture diff.** A post-pipeline journal divergence
+  proves the forwarded bytes drifted — it can never say WHO moved
+  them; with today's order, every mutating extension is upstream of
+  the journal.
+- **First step of any bust attribution: name the tap point of every
+  number in hand** before comparing them. Indexes from different tap
+  points differ by the pipeline's insertions and must not be equated;
+  matching them without the offset check is the hand-rolled-identity
+  error at the index level.
