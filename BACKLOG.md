@@ -75,6 +75,32 @@ bullet, evidence pointer included.
   eyeball verification; deep-range pins also need a no-full-prefix
   mode (297 MB fixture from an 8-request window).
 
+- **OPEN/HOT — suppression can strip a request's FINAL message ->
+  assistant-terminal 400: OUR bug, three live failures 2026-07-30**
+  (operator push overturned the dispatcher's "harness noise" claim
+  — twice booked wrong in chat before the log check). Evidence:
+  insertion event log's three suppressed-duplicate events precede
+  the three "400 must end with a user message" idle-failures by ~1s
+  each (05:55:26/27 lifo, 07:12:37/38 fss, 08:09:10/11
+  oscillation). Mechanism: report-enforcer injects IDENTICAL
+  instruction bytes at every SubagentStop; first occurrence pinned,
+  next occurrence suppressed as duplicate; when it was the resume
+  request's ONLY/new final message the forwarded conversation ends
+  assistant-role -> upstream 400. Damage so far: failed pokes of
+  COMPLETED agents (cosmetic); the same mechanism would kill a
+  live resume of unfinished work. FIX (granted to the suppression
+  agent): (1) tail guard — never suppress the array's final
+  message (a tail-position duplicate is the request's live payload,
+  not a migration; bite red-first on the resume shape); (2)
+  output-guard gains the assistant-terminal invariant (incoming
+  ends non-assistant -> forwarded must too; restore + guard-event
+  on violation — the live catch this class lacked); (3) replay the
+  three real failing sub-conversations pre/post. proxy/** — the
+  restart urgency is raised: the class actively breaks resumes.
+  Candidate lesson: a mutation that can REMOVE messages needs a
+  tail-validity invariant from day one; the message-COUNT lesson
+  covered the checkers, not the API-contract shape.
+
 - **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
   Updated 2026-07-30 after the suppression work: #272 gained the
   duplicate-suppression commit (c713d0e), #276 the output-side
