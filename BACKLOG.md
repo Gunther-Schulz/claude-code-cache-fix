@@ -588,7 +588,12 @@ bullet, evidence pointer included.
   questions answered by mechanism in
   docs/directives/flap-move-mitigation-and-fidelity-gate.md —
   fidelity gate first (its red case IS question 1's dangerous
-  design), then candidacy-gated first-seen re-serve. In build.
+  design), then candidacy-gated first-seen re-serve. STATUS: unit 1
+  (conservation gate) SHIPPED 95ca0cb — question 1 answered
+  mechanically, red on record; unit 2 BLOCKED on the
+  reset-abandons-move regression (branch wt/fidelity/opus, directive
+  Status section has the shape + candidate fix); next step is the
+  reset-path design decision + five-gate re-sweep.
 
 - **READY — census flap annotation (blockMigration reversal).**
   `replay.mjs --census` emits a `flap` marker when the same

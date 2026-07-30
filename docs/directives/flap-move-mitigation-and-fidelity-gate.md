@@ -104,3 +104,38 @@ joined-standalone census item (separate READY entry).
 
 proxy/** change → dotfiles pin bump + single proxy restart + gate run;
 restart transparency statement above.
+
+## Status 2026-07-30 (post-build)
+
+UNIT 1 SHIPPED — main 95ca0cb (gate name in code: `conservation`;
+"replay fidelity" already meant reconstruction fidelity). Definition
+written first; 7 mutations each biting; THE REAL RED demonstrated and
+recorded: naive suppression over the flap fixture loses msg90's bytes
+("1 of 1 unit(s) reconstructible from neither a forwarded block nor a
+forwarded join") — parked design question 1 now has a mechanical
+answer. Live-sweep baseline 30/30 clean after one instrument
+exemption (fresh-session-sort's deliberate /clear-artifact deletions,
+exempted via the extension's own exported isClearArtifact; ruled out
+as instrument per dev-loop).
+
+UNIT 2 BLOCKED — NOT integrated; commit rides branch
+`wt/fidelity/opus` (0ebbd8a). Measured regression: the conservation
+gate's sibling stability gate goes red on three otherwise-clean
+captures — A RESET ABANDONS THE MOVE: on insertion-normalization's
+reset path (not-subsequence) the re-serve is not reapplied, so the
+forwarded body flips between re-served form and raw merge across
+requests. Candidate fix, deliberately not rushed: recognize moves on
+the reset path as resetKeepingPins does for pins — that function is
+load-bearing with measured false-positive history; row 22's pin
+argument plausibly extends to moves but is unverified for them.
+Next step is a design decision + full five-gate re-sweep.
+
+Directive correction (builder-surfaced, confirmed): clause (i)'s
+vanishing companion need not itself be candidacy-class — measured
+msg90 is a bare-string system nudge, never wrapped. Recognition
+requires at least one candidacy-class CONSTITUENT (the wrapped
+reminder); the companion's bytes are covered by the join relation,
+and the conservation gate enforces the remainder by construction.
+Also unmeasured and named: dropped-majority's precedence relative to
+move recognition.
+

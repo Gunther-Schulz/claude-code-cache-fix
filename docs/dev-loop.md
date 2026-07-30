@@ -327,6 +327,12 @@ Two rules, both learned the expensive way:
    *different* bug, already fixed. Re-derive which change produced an
    observation before building on it.
 
+   **A mutation must remove the exact condition the bite names** — two
+   bites in one build passed for the WRONG reason and survived their
+   mutations, because the mutation deleted adjacent machinery rather
+   than the named condition; a mutation that leaves the bite green is
+   evidence about the mutation before it is evidence about the bite.
+
    **A bite's expected value comes from the invariant's DEFINITION, never
    from the implementation or the reasoning that produced it** — an
    expectation with the same parentage as the code pins the bug it should
