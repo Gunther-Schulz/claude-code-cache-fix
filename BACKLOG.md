@@ -162,10 +162,18 @@ bullet, evidence pointer included.
   a DELIBERATE one-time relocation bust that buys elimination of
   repeated future ones (extension-impact-guide: the #34629 class,
   the project's founding bug). Deterministic-from-input;
-  1/~2000 matches session-init frequency. READY — the build:
-  fresh-session-sort emits ctx.meta telemetry (relocated block
-  types + first-appearance flag; today it emits NOTHING, grep-
-  confirmed), and replay's stability check gains a telemetry-keyed
+  1/~2000 matches session-init frequency. DONE 2026-07-30
+  (e41e068, sonnet, pushed after dispatcher verification: 52/52 +
+  selfcheck green; real pair PRE 1 violation measured independently
+  twice, POST 0 violations + 1 annotated telemetry-backed exemption
+  on the dispatcher's own run — THE GATE'S LAST RED IS RESOLVED,
+  next sweep should be fully green). Builder's attribution
+  correction on the record: its "second POST run" was the
+  dispatcher's process seen via ps — POST stands on one run, PRE
+  on two. Extension half proxy/** — rides the shared restart
+  boundary. The build was: fresh-session-sort emits ctx.meta
+  telemetry (relocated block types + first-appearance flag), and
+  replay's stability check gains a telemetry-keyed
   exemption mirroring suppressedIndices ("never a re-derived
   guess") for first-appearance relocations at the reported index.
   Verifier: red-green on the real pair (s-58c979ce n=2024->2025
