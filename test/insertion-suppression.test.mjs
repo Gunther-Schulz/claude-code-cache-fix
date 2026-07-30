@@ -155,6 +155,53 @@ test("classifyPinned: a standalone duplicate of a pinned block is suppressed; th
   assert.deepEqual(result.messages[result.messages.length - 1], userMsg("continue"));
 });
 
+// =====================================================================
+// TAIL GUARD (BACKLOG.md, "suppression can strip a request's FINAL
+// message", 2026-07-30). Three real 400s ("must end with a user
+// message"): report-enforcer injects identical instruction bytes at
+// every SubagentStop; the first occurrence is pinned, and when the SAME
+// bytes arrive again as a resume request's ONLY/new final message,
+// suppressing it left the forwarded array ending on the prior assistant
+// turn. A tail-position duplicate is CC's live payload for THIS request,
+// not a migration copy of already-pinned content, regardless of role or
+// which hash set (single-block or join) matched it.
+// =====================================================================
+
+test("TAIL GUARD: a standalone duplicate at the FINAL index is never suppressed — it is live payload, not a migration", () => {
+  const orig = [withReminderMsg("tool result"), assistantMsg("a1")];
+  const canon = pinCanon(orig);
+
+  const strippedTail = { role: "user", content: [{ type: "text", text: "tool result" }] };
+  const standaloneDuplicate = { role: "system", content: [{ type: "text", text: REMINDER_INNER }] };
+  // No trailing entry after the duplicate — it IS the array's final
+  // message, mirroring the real resume-request shape.
+  const next = [strippedTail, assistantMsg("a1"), standaloneDuplicate];
+
+  const result = classifyPinned(next, canon);
+  assert.equal(result.suppressed, 0, "a final-position duplicate must never be suppressed");
+  assert.equal(result.suppressions.length, 0);
+  assert.deepEqual(
+    result.messages[result.messages.length - 1],
+    standaloneDuplicate,
+    "the final message must be forwarded intact — this is exactly what would otherwise strip a resume's last turn",
+  );
+});
+
+test("REGRESSION: the same standalone duplicate, mid-history (not final), is still suppressed", () => {
+  const orig = [withReminderMsg("tool result"), assistantMsg("a1")];
+  const canon = pinCanon(orig);
+
+  const strippedTail = { role: "user", content: [{ type: "text", text: "tool result" }] };
+  const standaloneDuplicate = { role: "system", content: [{ type: "text", text: REMINDER_INNER }] };
+  // Same duplicate, same position (index 2) as the tail-guard test above,
+  // but with a trailing turn after it — no longer the final index.
+  const next = [strippedTail, assistantMsg("a1"), standaloneDuplicate, userMsg("continue")];
+
+  const result = classifyPinned(next, canon);
+  assert.equal(result.suppressed, 1, "mid-history duplicates are suppressed exactly as before the tail guard");
+  assert.equal(result.suppressions[0].index, 2);
+});
+
 test("classifyPinned: suppression is stable across a THIRD request — CC keeps resending the duplicate, it keeps getting suppressed, with no persisted marker needed", () => {
   const orig = [withReminderMsg("tool result"), assistantMsg("a1")];
   let canon = pinCanon(orig);

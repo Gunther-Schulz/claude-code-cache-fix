@@ -656,22 +656,54 @@ function pinnedBlockHashes(priorCanonical) {
   return hashes;
 }
 
-// Is `msg` a suppressible duplicate of a currently-pinned block? Narrow by
-// definition (BACKLOG #76606 part (c)): STANDALONE only (single block after
-// the same string->one-block fold canonicalMessageShape already applies
-// elsewhere in this file), and its wrapper-stripped bytes must exactly
-// equal a hash in `pinnedHashes` — never a positional or role heuristic.
-// Returns the matched hash (for telemetry) or null (genuine content: no
-// suppression, existing rules apply unchanged).
-export function findSuppressibleDuplicate(msg, pinnedHashes) {
+// The merged-standalone shape (measured 2026-07-30, capture s-633915a8,
+// msg864, the 587k window): CC sometimes migrates ALL of a message's
+// volatile blocks out TOGETHER, joined into one standalone message,
+// rather than one standalone per block. pinnedBlockHashes above can never
+// match that — it hashes one block at a time, and a merged message is one
+// block whose text spans two reminders. A second set covers exactly the
+// observed join: for each pinned entry with >=2 volatile blocks, hash the
+// concatenation of ALL its volatile blocks' wrapper-stripped texts, in
+// WIRE order, joined with "\n\n" — the exact separator measured on the
+// real merged standalone (both hook reminders, 627 chars). No
+// subset-merges: partial joins were never observed and would only invite
+// false suppression on coincidental partial matches. "\n\n" is hardcoded
+// to the one observed instance, not a general N-ary merge grammar — other
+// separators are unobserved, and the census keeps watching for them.
+function pinnedJoinHashes(priorCanonical) {
+  const hashes = new Set();
+  if (!Array.isArray(priorCanonical)) return hashes;
+  for (const entry of priorCanonical) {
+    if (entry.d || !entry.m || !Array.isArray(entry.m.content)) continue;
+    const volatileTexts = entry.m.content.filter(isVolatileBlock).map((b) => unwrapVolatileText(b).text);
+    if (volatileTexts.length < 2) continue;
+    const h = hashMessageContent({ content: [{ type: "text", text: volatileTexts.join("\n\n") }] });
+    if (h !== null) hashes.add(h);
+  }
+  return hashes;
+}
+
+// Is `msg` a suppressible duplicate of a currently-pinned block (or, since
+// 2026-07-30, a currently-pinned entry's FULL joined volatile-block set)?
+// Narrow by definition (BACKLOG #76606 part (c)): STANDALONE only (single
+// block after the same string->one-block fold canonicalMessageShape
+// already applies elsewhere in this file), and its wrapper-stripped bytes
+// must exactly equal a hash in `pinnedHashes` or `joinHashes` — never a
+// positional or role heuristic. `joinHashes` is optional (existing callers
+// checking single-block duplicates only are unaffected). Returns the
+// matched hash (for telemetry) or null (genuine content: no suppression,
+// existing rules apply unchanged).
+export function findSuppressibleDuplicate(msg, pinnedHashes, joinHashes) {
   const shaped = canonicalMessageShape(msg);
   if (!Array.isArray(shaped.content) || shaped.content.length !== 1) return null;
   const h = hashMessageContent({ content: [unwrapVolatileText(shaped.content[0])] });
-  if (h === null || !pinnedHashes.has(h)) return null;
-  return h;
+  if (h === null) return null;
+  if (pinnedHashes.has(h)) return h;
+  if (joinHashes && joinHashes.has(h)) return h;
+  return null;
 }
 
-export { pinnedBlockHashes };
+export { pinnedBlockHashes, pinnedJoinHashes };
 
 // Pin-mode classification. Differences from classifyInsertion:
 //   - identities exclude volatile blocks (flip absorption);
@@ -822,11 +854,25 @@ export function classifyPinned(messages, priorCanonical) {
   // findSuppressibleDuplicate returns null, the entry is untouched here,
   // and whatever the existing rules above already decided (append/splice/
   // edit-shaped reset) stands — no new reset path is introduced.
+  // TAIL GUARD (BACKLOG.md, "suppression can strip a request's FINAL
+  // message", 2026-07-30). Three real 400s ("must end with a user
+  // message"): report-enforcer injects identical instruction bytes at
+  // every SubagentStop; the first occurrence gets pinned, and when the
+  // SAME bytes arrive again as the resume request's ONLY/new final
+  // message, suppressing it left the forwarded array ending on the prior
+  // assistant turn. A tail-position duplicate is never a stray migration
+  // copy of already-pinned content — CC just sent it as the live,
+  // load-bearing final entry of THIS request, and the model needs to see
+  // it. Applies uniformly to both single-block and join-hash matches: the
+  // guard is positional, not about which hash set matched.
+  const lastIdx = messages.length - 1;
   const pinnedHashes = pinnedBlockHashes(priorCanonical);
+  const pinnedJoin = pinnedJoinHashes(priorCanonical);
   const suppressions = [];
   for (const e of newEntries) {
     if (e.r === "assistant") continue;
-    const h = findSuppressibleDuplicate(messages[e.index], pinnedHashes);
+    if (e.index === lastIdx) continue;
+    const h = findSuppressibleDuplicate(messages[e.index], pinnedHashes, pinnedJoin);
     if (h !== null) suppressions.push({ index: e.index, hash: h });
   }
   const suppressedIdx = new Set(suppressions.map((s) => s.index));
