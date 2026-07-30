@@ -184,11 +184,19 @@ function summarise(file, bytes, res) {
   if (Array.isArray(parsed.toolsDeltas)) {
     const deltas = parsed.toolsDeltas;
     const forwardedStable = deltas.filter((d) => d.forwardedStable).length;
+    // heldStable narrows forwardedStable's whole-array claim to the
+    // SHARED-name subset of the pair — the guarantee deferred-tool-rewrite
+    // actually makes (BACKLOG "forwardedStable was a census framing gap": a
+    // genuine new-tool announcement always moves the whole-array signature,
+    // so forwardedStable=false on those pairs is expected, not a leak).
+    const heldStable = deltas.filter((d) => d.heldStable).length;
     row.toolsDeltas = {
       count: deltas.length,
       toolsOnly: deltas.filter((d) => d.toolsOnly).length,
       forwardedStable,
       leaked: deltas.length - forwardedStable,
+      heldStable,
+      heldUnstable: deltas.length - heldStable,
     };
   }
   return row;

@@ -573,3 +573,64 @@ test("BITE — an injection-shaped message in the INPUT must not read as a drop"
   const v = safetyViolation(dropped);
   assert.ok(v && v.kind === "length", "a real message drop must still be caught");
 });
+
+// --- Row 6: heldStable (shared-name subset) vs forwardedStable (whole array) ---
+//
+// forwardedStable compares the WHOLE forwarded tools[] signature across a
+// pair, so a genuine new-tool announcement always reads as "unstable" even
+// when every tool CC already knew about round-tripped byte-identical
+// (BACKLOG "forwardedStable was a census framing gap" — bytes probe
+// 2026-07-30: 100% of "unstable" pairs carried a genuine new-tool
+// announcement, held/shared tools byte-identical on every checked repeat
+// pair). heldStable narrows the claim to what deferred-tool-rewrite actually
+// guarantees: the SHARED-name subset (tools present on BOTH sides of the
+// pair) stays byte-stable. A tool that is new on one side is excluded from
+// the comparison, not counted against it.
+import { findToolsDeltas } from "../tools/replay.mjs";
+
+const conv = [user("shared-first-message")];
+const tool = (name, extra = {}) => ({ name, description: `${name} tool`, input_schema: { type: "object" }, ...extra });
+
+test("toolsDeltas: heldStable true / forwardedStable false when a tool is ADDED and the shared subset is untouched", () => {
+  const toolA = tool("A");
+  const toolB = tool("B");
+  const toolC = tool("C");
+  const prevTools = [toolA, toolB];
+  const curTools = [toolA, toolB, toolC];
+  const p = entry(1, conv, conv, { inTools: prevTools, outTools: prevTools });
+  const c = entry(2, conv, conv, { inTools: curTools, outTools: curTools });
+  const [d] = findToolsDeltas([p, c]);
+  assert.ok(d, "an added tool must register as a tools[] delta");
+  assert.equal(d.forwardedStable, false, "the whole-array signature moved when C was added");
+  assert.equal(d.heldStable, true, "A and B — the shared-name subset — round-tripped byte-identical");
+});
+
+test("toolsDeltas: BITE — a mutated SHARED tool sinks both forwardedStable and heldStable", () => {
+  const toolA = tool("A");
+  const toolB = tool("B");
+  const toolBMutated = tool("B", { description: "changed" });
+  const prevTools = [toolA, toolB];
+  const curTools = [toolA, toolBMutated];
+  const p = entry(1, conv, conv, { inTools: prevTools, outTools: prevTools });
+  const c = entry(2, conv, conv, { inTools: curTools, outTools: curTools });
+  const [d] = findToolsDeltas([p, c]);
+  assert.ok(d, "a schema edit to a held tool must still register as a delta");
+  assert.equal(d.forwardedStable, false);
+  assert.equal(
+    d.heldStable,
+    false,
+    "B changed inside the shared-name subset — heldStable must catch it, not just the whole array",
+  );
+});
+
+test("toolsDeltas: forwarded tools[] fully steady across an incoming reorder reads true on both", () => {
+  const toolA = tool("A");
+  const toolB = tool("B");
+  const p = entry(1, conv, conv, { inTools: [toolA, toolB], outTools: [toolA, toolB] });
+  const c = entry(2, conv, conv, { inTools: [toolB, toolA], outTools: [toolA, toolB] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.ok(d, "CC reordering its incoming tools[] must still register as a delta");
+  assert.equal(d.kind, "reorder");
+  assert.equal(d.forwardedStable, true, "what we forwarded never moved");
+  assert.equal(d.heldStable, true, "the shared-name subset IS the whole forwarded array here, and it is untouched");
+});
