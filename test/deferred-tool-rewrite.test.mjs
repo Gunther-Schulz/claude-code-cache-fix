@@ -254,6 +254,70 @@ test("injectAdditions: no user message at all → injection skipped, reported wi
   assert.equal(reanchored[0].anchorHash, null);
 });
 
+// BITE — the LIFO bug (BACKLOG "READY — fix injectAdditions' LIFO stacking").
+// Real capture s-dc3f8071, n=372-397: an MCP-tool-discovery cascade produces
+// one new `additions` entry per request, all anchored to the SAME message
+// (the real conversation stays at 1 message the whole burst). The buggy
+// implementation re-finds the anchor fresh on every iteration (the search
+// excludes role==="system", so already-injected additions are invisible to
+// it) and always splices at anchorIdx+1 — so the newest addition always
+// lands closest to the anchor, pushing every earlier addition one slot
+// further back: a LIFO stack that reorders the already-forwarded prefix on
+// every new addition. Fix: a shared anchor's run stays in discovery order
+// (FIFO) — a new addition appends AFTER the additions already injected
+// there, so the forwarded prefix is a byte-stable prefix of every
+// subsequent output and only the tail of the run grows.
+test("injectAdditions: three additions sharing one anchor → output is discovery order (FIFO), not LIFO", () => {
+  const u0 = { role: "user", content: [{ type: "text", text: "u0" }] };
+  const sharedAnchor = anchorHash(u0);
+  const addA = buildToolAdditionMessage(["ToolA"]);
+  const addB = buildToolAdditionMessage(["ToolB"]);
+  const addC = buildToolAdditionMessage(["ToolC"]);
+
+  // additions array is in DISCOVERY order (oldest first), matching how
+  // onRequest concatenates them across successive requests.
+  const additions = [
+    { names: ["ToolA"], anchorHash: sharedAnchor, message: addA },
+    { names: ["ToolB"], anchorHash: sharedAnchor, message: addB },
+    { names: ["ToolC"], anchorHash: sharedAnchor, message: addC },
+  ];
+
+  const { messages } = injectAdditions([u0], additions);
+  assert.deepEqual(
+    messages.map((m) => m.content?.[0]?.tool?.name ?? "u0"),
+    ["u0", "ToolA", "ToolB", "ToolC"],
+    "run stays in discovery order — ToolA first (oldest), ToolC last (newest), never reordered",
+  );
+});
+
+test("injectAdditions: shared-anchor prefix stability — output N is a byte-prefix of output N+1", () => {
+  const u0 = { role: "user", content: [{ type: "text", text: "u0" }] };
+  const sharedAnchor = anchorHash(u0);
+  const addA = buildToolAdditionMessage(["ToolA"]);
+  const addB = buildToolAdditionMessage(["ToolB"]);
+
+  // Simulates two successive requests: first only ToolA has been discovered,
+  // then ToolB arrives too (additions accumulate, oldest first — as onRequest
+  // does via `additions.concat([...])`).
+  const afterFirst = injectAdditions([u0], [{ names: ["ToolA"], anchorHash: sharedAnchor, message: addA }]);
+  const afterSecond = injectAdditions(
+    [u0],
+    [
+      { names: ["ToolA"], anchorHash: sharedAnchor, message: addA },
+      { names: ["ToolB"], anchorHash: sharedAnchor, message: addB },
+    ],
+  );
+
+  const prefixBytes = JSON.stringify(afterFirst.messages);
+  const nextBytes = JSON.stringify(afterSecond.messages.slice(0, afterFirst.messages.length));
+  assert.equal(
+    nextBytes,
+    prefixBytes,
+    "the already-forwarded prefix must be byte-identical once a new addition arrives — only the tail grows",
+  );
+  assert.equal(afterSecond.messages.length, 3, "the new addition appends at the tail of the run");
+});
+
 test("forwardedTools: names covered by additions get defer_loading, others stay untouched", () => {
   const known = [tool("Read"), tool("SendMessage")];
   const additions = [{ names: ["SendMessage"], anchorHash: "h", message: {} }];
@@ -443,6 +507,53 @@ test("onRequest: pruned anchor → re-anchor once, stable thereafter", async () 
       assert.equal(ctx4.meta.deferredToolRewriteStats.reanchored, 0);
       // Anchored after uNew, which is now index 1 — so the injection is at 2.
       assert.equal(ctx4.body.messages[2].role, "system");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("onRequest BITE: MCP-discovery cascade — same 1-message conversation, tools[] grows 3x → additions stack in discovery order, prefix stable", async () => {
+  // Mirrors the real capture (s-dc3f8071, n=372-397): CC's own progressive
+  // MCP-tool-discovery cascade at session boot sends one new tool batch per
+  // request while the real conversation never grows past 1 message, so every
+  // addition shares the identical anchor (messages[0]).
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-cascade" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const u0 = { role: "user", content: [{ type: "text", text: "u0" }] };
+      const base = { system: [], messages: [u0], model: "claude-opus-5" };
+
+      await runExt({ ...base, tools: [tool("Read"), tool("Bash")] }, { headers, dir }); // no-baseline
+      const ctx1 = await runExt(
+        { ...base, tools: [tool("Read"), tool("Bash"), tool("ToolA")] },
+        { headers, dir },
+      );
+      const ctx2 = await runExt(
+        { ...base, tools: [tool("Read"), tool("Bash"), tool("ToolA"), tool("ToolB")] },
+        { headers, dir },
+      );
+      const ctx3 = await runExt(
+        { ...base, tools: [tool("Read"), tool("Bash"), tool("ToolA"), tool("ToolB"), tool("ToolC")] },
+        { headers, dir },
+      );
+
+      const names = (ctx) =>
+        ctx.body.messages
+          .filter((m) => m.role === "system" && Array.isArray(m.content) && m.content[0]?.type === "tool_addition")
+          .flatMap((m) => m.content.map((b) => b.tool.name));
+
+      assert.deepEqual(names(ctx1), ["ToolA"]);
+      assert.deepEqual(names(ctx2), ["ToolA", "ToolB"], "ToolA stays first — discovery order, not LIFO");
+      assert.deepEqual(names(ctx3), ["ToolA", "ToolB", "ToolC"], "run grows only at the tail");
+
+      // The forwarded prefix already produced must be a byte-prefix of the
+      // next request's output — this is the "reorders the already-forwarded
+      // prefix" bust the probe measured.
+      const prefixOf = (ctx, n) => JSON.stringify(ctx.body.messages.slice(0, n));
+      assert.equal(prefixOf(ctx2, ctx1.body.messages.length), JSON.stringify(ctx1.body.messages));
+      assert.equal(prefixOf(ctx3, ctx2.body.messages.length), JSON.stringify(ctx2.body.messages));
     });
   } finally {
     await rm(dir, { recursive: true, force: true });
