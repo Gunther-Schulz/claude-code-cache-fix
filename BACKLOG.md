@@ -118,10 +118,16 @@ bullet, evidence pointer included.
   why the announcement flaps under burst traffic (suspects:
   per-request tools[] churn from parallel subagents, MCP server
   set differing per request); candidate connection, unverified: the
-  five unclassified output-spliced pairs in s-633915a8. The gate
-  stays red until this is understood or the class is exempted with
-  a basis — do NOT treat red as noise (the check fired on a real
-  defect; that is it working).
+  five unclassified output-spliced pairs in s-633915a8. The second
+  red capture is a DIFFERENT class: s-58c979ce n=2024->2025
+  (12:31:18Z, pre-deploy traffic), 1 violation, `inDiv=1 outDiv=0
+  [CC bytes IDENTICAL -> ours] <- fresh-session-sort` — CC's input
+  changed at index 1, our output byte-flapped at index 0; not
+  suppression-shaped (byte change, not message removal), one
+  instance in ~2000 requests. The gate stays red until these are
+  understood or the classes exempted with a basis — do NOT treat
+  red as noise (the check fired on real defects; that is it
+  working).
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
