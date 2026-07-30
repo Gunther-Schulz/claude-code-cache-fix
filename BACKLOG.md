@@ -9,6 +9,11 @@ bullet, evidence pointer included.
 ## Open
 
 - **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
+  Updated 2026-07-30 after the suppression work: #272 gained the
+  duplicate-suppression commit (c713d0e), #276 the output-side
+  metric/census/exemptions refresh (93203c9, extension synced to the
+  #272 tip), #281 rebased onto c713d0e (draft, force-with-lease); all
+  three commented, slices test-verified in their own worktrees.
   Rebase worktrees: `~/dev/vendor/cache-fix-pr{1..10}`. #281 flips to
   ready when #272 merges (either side can; `gh pr ready 281`). Residue
   riding with rebases or a final chore PR: +35 lines of test hardening
@@ -95,6 +100,28 @@ bullet, evidence pointer included.
   times in ONE day (default-gates census booked a wrong matrix
   verdict; two verification reruns repeated it) with the dev-loop
   warning loaded each time — prose exhausted, mechanize the tell.
+
+- **OPEN — deferred-tool-rewrite self-inflicted busts, pre-existing,
+  surfaced by the 2026-07-30 gate run** (first red gate after the
+  suppression deploy; the deploy is EXONERATED by A/B — the full
+  pre-suppression tree replays s-dc3f8071 with the same 25 stability
+  violations). Evidence: s-dc3f8071 (yesterday's live traffic,
+  472 MB, last write 19:47 — first time gated), 25 violations all
+  `inDiv=append-only outDiv=1 [CC bytes IDENTICAL -> ours]
+  <- deferred-tool-rewrite`, burst-shaped (n=372->375 within one
+  second): CC appended cleanly while OUR announcement message at
+  index 1 flapped across consecutive requests = real live busts that
+  session paid. The tool_addition announcement is supposed to change
+  once per addition, not oscillate. Also 10 unparseable capture
+  lines, same capture, unexplained. s-58c979ce carries 1 more
+  violation (attribution run pending at booking time). Investigate:
+  why the announcement flaps under burst traffic (suspects:
+  per-request tools[] churn from parallel subagents, MCP server
+  set differing per request); candidate connection, unverified: the
+  five unclassified output-spliced pairs in s-633915a8. The gate
+  stays red until this is understood or the class is exempted with
+  a basis — do NOT treat red as noise (the check fired on a real
+  defect; that is it working).
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
