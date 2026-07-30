@@ -86,20 +86,20 @@ bullet, evidence pointer included.
   (4) grep for consumers of the new suppressed/suppressions stats
   fields not run (prior equivalent check on outputForm found none).
 
-- **READY — replay warns on gateless runs of gated captures**
-  (2026-07-29; was serialized behind the suppress build, now
-  unblocked — tools/replay.mjs free). Design: replay.mjs already parses the boot
-  record's `gates`; when the capture declares gates and none of them
-  is set in the effective env, print one unmissable warning line
-  ("replaying DEFAULT gates; this traffic was served with N gates —
-  pass --env or use gate-live") on stderr and stamp the census
-  header with the gate source. NOT a hard fail (deliberate gateless
-  replays are legitimate A/B runs). Verifier: bite — gated capture +
-  empty env → warning present; same capture with gates passed → no
-  warning. Grounding: the same operator-side instrument error three
-  times in ONE day (default-gates census booked a wrong matrix
-  verdict; two verification reruns repeated it) with the dev-loop
-  warning loaded each time — prose exhausted, mechanize the tell.
+- **DONE 2026-07-30 — replay warns on gateless runs of gated
+  captures** (669c8c7, sonnet build, pushed after dispatcher
+  verification; grounding was three same-day instrument errors with
+  the dev-loop prose loaded each time). Validation better than the
+  planned bite: during dispatcher verification the warning fired on
+  a REAL instance of its class — a head-1 gates extraction on a
+  multi-boot capture whose first boot declares no gates produced an
+  empty env the dispatcher believed was gated; the builder's
+  union-across-boots judgment call is what made the fire correct.
+  Named residuals, accepted: the strict-partial case (0<M<N gates
+  set) shares the code path but has no bite; no real multi-boot
+  fixture in-repo (union exercised against the live capture only).
+  Convention from the incident: extract gates via the ALL-boots
+  union, never head -1.
 
 - **OPEN — deferred-tool-rewrite self-inflicted busts, pre-existing,
   surfaced by the 2026-07-30 gate run** (first red gate after the
