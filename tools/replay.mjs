@@ -65,6 +65,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 
 import { readLines } from "./read-lines.mjs";
+import { hashMessageContent } from "../proxy/extensions/message-hash.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -121,6 +122,31 @@ export function findStabilityViolations(entries) {
   return violations.sort((a, b) => a.n - b.n);
 }
 
+// Declared suppressions (insertion-normalization's pin-and-suppress,
+// #76606 decision B) shrink the OUTPUT array by one entry, permanently,
+// relative to CC's own raw array — every request from the first
+// suppression on. `inHash`/`outHash` then no longer share a common index
+// space: OUR array is one slot ahead of CC's from the suppressed index on,
+// forever, so a plain positional compare reports a divergence exactly one
+// index earlier than CC's own — every single turn — even though nothing
+// extra was actually re-billed (the missing message is missing
+// IDENTICALLY on both sides of the pair, so the shared prefix is exactly
+// as long as it would be without the shift). Measured while adding this:
+// UNADJUSTED, this pair's fix produced 67 new "violations" across a single
+// conversation's remaining 60-odd turns, each showing the exact signature
+// `outDiv === inDiv - 1` with CC identical at outDiv — a check firing on
+// its own unadjusted index space, not a defect.
+//
+// Realign the reference: filter each entry's OWN suppressed indices out of
+// its `inHash` before comparing, using the extension's own report
+// (`stats.suppressions`) — never a re-derived guess — the same source
+// safetyViolation's declared exemption already reads.
+function adjustedInHash(e) {
+  const suppressed = suppressedIndices(e.stats);
+  if (suppressed.size === 0) return e.inHash;
+  return e.inHash.filter((_, i) => !suppressed.has(i));
+}
+
 function scanGroup(entries) {
   const violations = [];
   for (let i = 1; i < entries.length; i++) {
@@ -130,7 +156,9 @@ function scanGroup(entries) {
     // Per-message byte hashes, not the messages: firstDivergence compares
     // JSON.stringify of each element, and stringifying a hash of the bytes
     // yields the same first-difference index as stringifying the bytes.
-    const inDiv = firstDivergence(prev.inHash, cur.inHash);
+    const prevInHash = adjustedInHash(prev);
+    const curInHash = adjustedInHash(cur);
+    const inDiv = firstDivergence(prevInHash, curInHash);
     const outDiv = firstDivergence(prev.outHash, cur.outHash);
     // Input append-only (inDiv === null) sets the bar at "output must be
     // append-only too": ANY output divergence is then self-inflicted.
@@ -145,7 +173,7 @@ function scanGroup(entries) {
       // to print in[i] and out[i] for both requests. The throwaway probe is
       // the tell that a check is missing; both arrays are already in hand
       // here, so the answer costs one comparison.
-      const ccSame = prev.inHash[outDiv] === cur.inHash[outDiv];
+      const ccSame = prevInHash[outDiv] === curInHash[outDiv];
       violations.push({
         n: cur.n,
         prevN: prev.n,
@@ -194,6 +222,22 @@ function isDeclaredInjection(msg) {
 // retained. Exported on its own because the streaming caller wants one
 // verdict at a time and findSafetyViolations wants the whole list — one
 // implementation, two shapes, rather than a tested one and a shipped one.
+// Declared SUPPRESSIONS (insertion-normalization's pin-and-suppress,
+// #76606 decision B) are the mirror case of a declared injection: a
+// message CC sent that the extension deliberately never forwards, because
+// the pinned inline form at another position already carries its bytes.
+// Filtered from the INPUT side only — there is nothing on the output side
+// to filter, by definition, since the whole point is that it never
+// appears there. The incoming index comes from the extension's OWN report
+// (`stats.suppressions`, set by insertion-normalization's onRequest),
+// never a re-derived "looks like a duplicate" guess — mirroring
+// isDeclaredInjection's shape-based declaration with a telemetry-based one
+// because a removed message, unlike an added one, carries no shape of its
+// own to detect after the fact.
+function suppressedIndices(stats) {
+  return new Set((stats?.suppressions ?? []).map((s) => s.index));
+}
+
 export function safetyViolation(e) {
   // Declared injections are removed from BOTH sides before comparing. The
   // filter was output-side only until 2026-07-29, which was correct while
@@ -204,7 +248,8 @@ export function safetyViolation(e) {
   // not from in, and the first census-enabled sweep failed a capture over a
   // message nobody dropped — a check firing on a non-defect, found by
   // rule-out-the-instrument within the hour.
-  const inM = e.inMsgs.filter((m) => !isDeclaredInjection(m));
+  const suppressed = suppressedIndices(e.stats);
+  const inM = e.inMsgs.filter((m, i) => !isDeclaredInjection(m) && !suppressed.has(i));
   const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
   if (outM.length !== inM.length) {
     return { n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` };
@@ -440,7 +485,11 @@ export function compactEntry(e) {
     // throwaway script before it lived here.
     inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
+    // Byte length per FORWARDED message, the output-side twin of inBytes —
+    // what lets rebilledOutBytes be priced without retaining a message body.
+    outBytes: outMsgs.map((m) => JSON.stringify(m).length),
     inSem: semanticIds(inMsgs),
+    inBlocks: inMsgs.map(blockUnits),
     msgs: inMsgs.length,
     inTools: toolsFingerprints(e.inTools),
     outTools: toolsFingerprints(e.outTools),
@@ -616,6 +665,48 @@ export function buildTrace(entries) {
 // with events no mitigation should touch.
 const MITIGABLE = new Set(["splice/insert-mid", "append-after-change", "reorder-only"]);
 
+// `mitigated` above is an INPUT-side fact and nothing more: it trusts
+// insertion-normalization's own self-report that it re-serialised CC's
+// splice into an append, and prices the miss from CC's OWN divergence
+// index (`prev.inHash` vs `cur.inHash`). It never looks at what we actually
+// forwarded. That is a real, narrower claim than "the cache was preserved" —
+// an extension can correctly stabilise the shared input prefix (earning
+// `mitigated: true`, `rebilledBytes: 0`) and still choose to forward the
+// new content by SPLICING it mid-array instead of appending it at the tail.
+// The API keys its cache on the longest byte-identical PREFIX of the
+// message array, so a mid-array splice moves that boundary earlier and
+// re-bills everything after it — the exact cost `mitigated` claims was
+// avoided. Measured: capture s-633915a8, pair n=26->28 — input-side
+// `mitigated: true`, `rebilledBytes: 0`, while the forwarded array kept a
+// byte-stable prefix through index 30 and then spliced a standalone system
+// message in at index 31, re-billing everything from there (outcome record:
+// cacheRead 15424 / cacheCreation 124025 — a splice/insert-mid signature on
+// the WIRE, invisible to the input-only check).
+//
+// `outputForm` names that OUTPUT-side relation directly, reusing the same
+// census primitive already used for input (`censusIds`/`firstDivergence`)
+// against `outHash`/`outBytes` instead of `inHash`/`inBytes` — never a new
+// notion of identity, per "never hand-roll identity in a probe":
+//   "append"     — cur's forwarded array is a strict positional prefix
+//                  extension of prev's (censusIds "identical" /
+//                  "append-only"): nothing already sent moved position, so
+//                  the cache's longest-identical-prefix boundary is
+//                  unaffected. `outputPreserved` is exactly this case.
+//   "splice@N"   — censusIds "splice/insert-mid" on the output arrays: every
+//                  message we already forwarded still exists, but new
+//                  content lands BEFORE the last surviving one, at index N —
+//                  content shifted, cache broken from N on even though
+//                  nothing was dropped. This is the class `mitigated: true`
+//                  can hide, because insertion-normalization's own
+//                  self-report is about the INPUT reconstruction, not about
+//                  where the result got serialised in the output.
+//   "edit@N"     — any other non-append output relation (reorder, drop,
+//                  replace) with the output arrays first diverging at N,
+//                  before the tail.
+// `mitigated` keeps its existing input-side meaning unchanged; a pair can
+// be `mitigated: true` and `outputPreserved: false` at once, and that
+// combination — not `mitigated` alone — is what determines whether the
+// cache was actually preserved.
 export function findMitigationGaps(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -642,6 +733,24 @@ export function findMitigationGaps(entries) {
       const inDiv = firstDivergence(prev.inHash, cur.inHash);
       const from = inDiv === null ? cur.inBytes.length : inDiv;
       const rebilled = cur.inBytes.slice(from).reduce((a, b) => a + b, 0);
+
+      // Output-side classification — see the block comment above.
+      const outKind = censusIds(prev.outHash, cur.outHash);
+      const outDiv = firstDivergence(prev.outHash, cur.outHash);
+      let outputForm;
+      if (outKind === "identical" || outKind === "append-only") {
+        outputForm = "append";
+      } else if (outKind === "splice/insert-mid") {
+        outputForm = `splice@${outDiv}`;
+      } else {
+        outputForm = `edit@${outDiv}`;
+      }
+      const outputPreserved = outputForm === "append";
+      const outFrom = outDiv === null ? cur.outBytes.length : outDiv;
+      const rebilledOutBytes = outputPreserved
+        ? 0
+        : cur.outBytes.slice(outFrom).reduce((a, b) => a + b, 0);
+
       rows.push({
         n: cur.n,
         prevN: prev.n,
@@ -651,6 +760,9 @@ export function findMitigationGaps(entries) {
         action: cur.action,
         resetReason: cur.resetReason,
         rebilledBytes: mitigated ? 0 : rebilled,
+        outputForm,
+        outputPreserved,
+        rebilledOutBytes,
       });
     }
   }
@@ -752,6 +864,123 @@ export function findEditPositions(entries) {
     }
   }
   return rows.sort((a, b) => b.rebilledBytes - a.rebilledBytes);
+}
+
+// --- Block migration ---
+//
+// semanticIds/semanticCore reduce a message to a hash and, for a
+// system-reminder-wrapped text block, drop it outright as decoration
+// (isVolatileTextBlock) — correct for the ordinary case where a hook
+// reminder is pure noise, and exactly what leaves census blind to the case
+// where the same bytes are NOT noise: they leave one message's content array
+// and reappear as a message of their own. That is the reminder-swap shape —
+// measured directly in capture s-633915a8,
+// n=26->28: message[30]'s 5th block, `<system-reminder>\nPreToolUse:Edit
+// hook additional context...\n</system-reminder>`, is gone from message[30]
+// on the n=28 side, and its inner text — wrapper stripped — is the entire
+// content of the new message[31] (role system).
+//
+// DEFINITION: a block migration exists, for a same-conversation pair
+// classified replace/edit or splice/insert-mid, when a content block present
+// inside one message's content array on one side of the pair (PREV) is
+// ABSENT from that message at the same position on the other side (CUR),
+// while a message on CUR, within +/-3 indices of the block's index in PREV,
+// carries that same block's bytes — either as the entirety of its content
+// ("standalone") or as one block among several in its content array
+// ("inline"). Identity of block bytes is the shared message-hash primitive's
+// hashing (hashMessageContent, imported — never re-derived); a
+// system-reminder wrapper is stripped before hashing on BOTH sides, because
+// that is the one normalization already established in this file
+// (semanticCore's VOLATILE_WRAP) for recognising the wrapper — undoing only
+// the wrapper, not inventing a new comparison, is what keeps identity
+// assumption-free. Direction is temporal, PREV(source) -> CUR(target):
+// "inline->standalone" when the block sat among other blocks in PREV and
+// stands alone in CUR; "standalone->inline" for the reverse. A block that is
+// still present at the SAME position on the other side is not a migration —
+// only its disappearance from that position is what makes the ±3 search
+// meaningful.
+const REMINDER_WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
+
+function unwrapReminder(block) {
+  if (block && typeof block === "object" && block.type === "text" && typeof block.text === "string") {
+    const m = REMINDER_WRAP.exec(block.text);
+    if (m) return { type: "text", text: m[1] };
+  }
+  return block;
+}
+
+// One identity unit per content block in a message. String content promotes
+// to a single text block first (the same shape fold semanticCore does for
+// bare-string messages), then each block is hashed via hashMessageContent —
+// the shared primitive, applied to a one-block wrapper so it still strips
+// only cache_control, nothing more. `standalone` records whether this unit IS
+// the message's entire content (length 1), which is the "consisting of" half
+// of the definition above.
+function blockUnits(msg) {
+  const c = msg?.content;
+  let blocks;
+  if (typeof c === "string") blocks = [{ type: "text", text: c }];
+  else if (Array.isArray(c)) blocks = c;
+  else return [];
+  return blocks
+    .map((b) => hashMessageContent({ content: [unwrapReminder(b)] }))
+    .map((hash) => ({ hash, standalone: blocks.length === 1 }))
+    .filter((u) => u.hash !== null);
+}
+
+const BLOCK_MIGRATION_KINDS = new Set(["replace/edit", "splice/insert-mid"]);
+const BLOCK_MIGRATION_WINDOW = 3;
+
+function scanBlockMigrations(prev, cur) {
+  const found = [];
+  for (let i = 0; i < prev.inBlocks.length; i++) {
+    const units = prev.inBlocks[i];
+    if (units.length < 1) continue;
+    const inline = units.length >= 2;
+    const standalone = units.length === 1;
+    const samePos = new Set((i < cur.inBlocks.length ? cur.inBlocks[i] : []).map((d) => d.hash));
+    for (const u of units) {
+      if (samePos.has(u.hash)) continue; // still there at the same position: not a migration
+      const lo = Math.max(0, i - BLOCK_MIGRATION_WINDOW);
+      const hi = Math.min(cur.inBlocks.length - 1, i + BLOCK_MIGRATION_WINDOW);
+      for (let j = lo; j <= hi; j++) {
+        const dstUnits = cur.inBlocks[j];
+        if (!dstUnits || !dstUnits.length) continue;
+        if (inline && dstUnits.some((d) => d.hash === u.hash && d.standalone)) {
+          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j });
+          break;
+        }
+        if (standalone && dstUnits.length >= 2 && dstUnits.some((d) => d.hash === u.hash)) {
+          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j });
+          break;
+        }
+      }
+    }
+  }
+  return found;
+}
+
+export function findBlockMigrations(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const cur = group[i];
+      const kind = censusIds(prev.inSem, cur.inSem);
+      if (!BLOCK_MIGRATION_KINDS.has(kind)) continue;
+      rows.push(...scanBlockMigrations(prev, cur));
+    }
+  }
+  return rows.sort((a, b) => a.n - b.n);
 }
 
 export function runCensus(entries) {
@@ -1157,6 +1386,7 @@ async function main() {
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
+  const blockMigrations = args.census ? findBlockMigrations(stability) : null;
   const successions = args.census ? findSuccessions(stability) : null;
   const trace = args.trace ? buildTrace(stability) : null;
 
@@ -1257,7 +1487,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, successions, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, safety, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -1401,8 +1631,15 @@ async function main() {
         for (const e of mid.slice(0, 6)) {
           const anchor =
             e.anchorDelta === null ? "no-human-anchor" : `anchor${e.anchorDelta >= 0 ? "+" : ""}${e.anchorDelta}`;
+          // blockMigration rides beside anchorDelta: same n/prevN pair, source
+          // index within the edit's neighbourhood — the reminder-swap shape
+          // the anchor alone cannot name.
+          const bm = (blockMigrations ?? []).filter((b) => b.n === e.n && b.prevN === e.prevN);
+          const bmTag = bm.length
+            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]`).join(" ")
+            : "";
           process.stdout.write(
-            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}] ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
+            `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}]${bmTag} ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
           );
         }
         // The measured norm (2026-07-29): edits cluster at the anchor. An
@@ -1440,6 +1677,14 @@ async function main() {
         }
       }
     }
+    if (blockMigrations && blockMigrations.length) {
+      process.stdout.write(`\nblock migrations (reminder-swap shape): ${blockMigrations.length}\n`);
+      for (const b of blockMigrations.slice(0, 10)) {
+        process.stdout.write(
+          `    n=${b.prevN}->${b.n} ${b.direction} ${b.sourceIdx}->${b.targetIdx} ${b.ts}\n`,
+        );
+      }
+    }
     if (mitigation) {
       // The question the four gates cannot ask: of the events this proxy
       // exists to absorb, how many did it actually absorb?
@@ -1447,6 +1692,24 @@ async function main() {
       const hit = mitigation.filter((m) => m.mitigated).length;
       const pct = total ? ((100 * hit) / total).toFixed(0) : "--";
       process.stdout.write(`\nmitigation: ${hit}/${total} mitigable events absorbed (${pct}%)\n`);
+      // `mitigated` is input-side only (see the definitional comment on
+      // findMitigationGaps) — a pair can pass it and still splice on the
+      // OUTPUT, moving the cache's prefix boundary earlier than the input
+      // check ever sees. Flagged separately from the "missed" list below
+      // because these pairs are NOT misses by the input-side count.
+      const inputMitigatedOutputSpliced = mitigation.filter(
+        (m) => m.mitigated && !m.outputPreserved,
+      );
+      if (inputMitigatedOutputSpliced.length) {
+        process.stdout.write(
+          `  ${inputMitigatedOutputSpliced.length} pair(s) input-mitigated but NOT output-preserved:\n`,
+        );
+        for (const m of inputMitigatedOutputSpliced) {
+          process.stdout.write(
+            `    n=${m.prevN}->${m.n} ${m.kind} ${m.outputForm} [INPUT-MITIGATED, OUTPUT-SPLICED] ~${(m.rebilledOutBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
+          );
+        }
+      }
       if (total > hit) {
         const missedBytes = mitigation.reduce((a, m) => a + m.rebilledBytes, 0);
         process.stdout.write(`  passed through: ~${(missedBytes / 1e6).toFixed(1)} MB re-billed\n`);
@@ -1463,8 +1726,16 @@ async function main() {
           process.stdout.write(`  ${String(v.n).padStart(5)}  ${k} — ~${(v.bytes / 1e6).toFixed(1)} MB\n`);
         }
         for (const m of mitigation.filter((x) => !x.mitigated).slice(0, 5)) {
+          // blockMigration beside the mitigation row for the same reason it
+          // rides beside anchorDelta on edit rows: splice/insert-mid is where
+          // the reminder-swap shape actually lands (n=26->28 is a splice, not
+          // a replace/edit, so it never reaches the edits-array printout).
+          const bm = (blockMigrations ?? []).filter((b) => b.n === m.n && b.prevN === m.prevN);
+          const bmTag = bm.length
+            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]`).join(" ")
+            : "";
           process.stdout.write(
-            `    n=${m.prevN}->${m.n} ${m.kind} ${m.resetReason ? `reset(${m.resetReason})` : m.action} ~${(m.rebilledBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
+            `    n=${m.prevN}->${m.n} ${m.kind} ${m.resetReason ? `reset(${m.resetReason})` : m.action}${bmTag} ~${(m.rebilledBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
           );
         }
       }
