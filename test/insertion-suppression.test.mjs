@@ -35,7 +35,6 @@ import {
   pinnedBlockHashes,
   findSuppressibleDuplicate,
 } from "../proxy/extensions/insertion-normalization.mjs";
-import { readPinnedFixture } from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -357,11 +356,19 @@ test(
     // Fixture-fallback: capture present -> unchanged live-capture path;
     // capture absent -> pinned fixture if present; else skip. Both readers
     // yield the same [n, line] tuple shape, so the replay loop below is
-    // identical either way.
+    // identical either way. The fixture reader ships in the tools slice
+    // (like replayTools below), so it loads dynamically — a tree without
+    // tools/ skips instead of failing at module load.
+    let readPinnedFixture;
+    try {
+      ({ readPinnedFixture } = await import("../tools/harvest.mjs"));
+    } catch {
+      readPinnedFixture = null;
+    }
     let source;
     if (existsSync(REAL_CAPTURE)) {
       source = null; // resolved below, once readCapture is loaded from tools/replay.mjs
-    } else if (existsSync(PINNED_FIXTURE)) {
+    } else if (existsSync(PINNED_FIXTURE) && readPinnedFixture) {
       source = readPinnedFixture(PINNED_FIXTURE);
     } else {
       t.skip(
@@ -459,9 +466,14 @@ test(
       // bounded contribution, not the BACKLOG entry's stated "outputForm
       // === append" criterion, which this pair cannot reach while
       // ttl-management's marker relocation exists. Surfaced as a gap.
-      assert.equal(row.outputForm, "edit@48", "residual divergence is the KNOWN, unrelated ttl-management marker relocation, not the reminder-swap");
-      assert.equal(row.outputPreserved, false);
-      assert.ok(row.rebilledOutBytes > 0 && row.rebilledOutBytes < 10000, "residual is the marker-sized tail, not the ~61kB pre-fix splice");
+      // The only remaining delta is ttl-management's cache_control marker
+      // relocating off the old tail — since the outputForm metric strips
+      // cache_control (903a2be: a moved marker is not a content splice),
+      // the suppressed pair now reads fully preserved. A regression that
+      // reintroduces CONTENT divergence flips this to a non-append form.
+      assert.equal(row.outputForm, "append", "suppression + marker-blind metric: nothing but the marker moved");
+      assert.equal(row.outputPreserved, true);
+      assert.equal(row.rebilledOutBytes, 0);
 
       // The n=28 entry itself: exactly one suppression, at the index the
       // fidelity probe named (message[31] in the pre-fix pipeline).
