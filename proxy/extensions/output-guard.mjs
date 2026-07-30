@@ -86,12 +86,41 @@ function checkContentPresent(body) {
   return null;
 }
 
-const VALIDATORS = [checkToolAdjacency, checkMarkerBudget, checkRoles, checkContentPresent];
+// Invariant 5 (BACKLOG.md, "suppression can strip a request's FINAL
+// message", 2026-07-30): a message-REMOVING mutation shipped (duplicate
+// suppression) without a tail-validity check, and three live requests
+// ended assistant-role -> upstream "400 must end with a user message".
+// The other four invariants are shape-level facts about ONE body; this
+// one needs the body CC actually sent, so it takes it as a second
+// argument rather than deriving anything from `body` alone.
+//
+// Conditioned on the INCOMING shape rather than an unconditional "never
+// end assistant": if CC itself sent a request already ending in
+// assistant role (a prefill-style continuation, however rare in observed
+// traffic), that is the client's own intent and not this guard's business
+// to overturn — the guard protects against OUR mutations, not against CC.
+// `incomingBody` absent (e.g. the pre-mutation stash unavailable, or a
+// direct unit-test call) means "cannot verify" for this one check, so it
+// yields no violation rather than guessing.
+function checkAssistantTerminal(body, incomingBody) {
+  if (!incomingBody || !Array.isArray(incomingBody.messages) || incomingBody.messages.length === 0) return null;
+  const incomingLast = incomingBody.messages[incomingBody.messages.length - 1];
+  if (incomingLast?.role === "assistant") return null;
+  const forwardedLast = body.messages[body.messages.length - 1];
+  if (forwardedLast?.role === "assistant") {
+    return "assistant-terminal: incoming request ended non-assistant but the forwarded body ends assistant — a mutation stripped the trailing message";
+  }
+  return null;
+}
 
-// Exported for tests: run all validators, return the first violation or null.
-export function findViolation(body) {
+const VALIDATORS = [checkToolAdjacency, checkMarkerBudget, checkRoles, checkContentPresent, checkAssistantTerminal];
+
+// Exported for tests: run all validators, return the first violation or
+// null. `incomingBody` is optional — only checkAssistantTerminal reads it;
+// every other validator is unaffected by its absence.
+export function findViolation(body, incomingBody) {
   for (const v of VALIDATORS) {
-    const violation = v(body);
+    const violation = v(body, incomingBody);
     if (violation) return violation;
   }
   return null;
@@ -122,7 +151,7 @@ export default {
     ctx.meta = ctx.meta || {};
     let violation;
     try {
-      violation = findViolation(ctx.body);
+      violation = findViolation(ctx.body, ctx.meta._preMutationBody);
     } catch (err) {
       // Cannot verify -> pass the mutated body through (fail-open); a
       // guard crash must never break the request or the pipeline's value.
