@@ -16,6 +16,40 @@ After any proxy/ change on main: re-pin CACHE_FIX_PROXY_TREE_PIN via
 `git rev-parse --short HEAD:proxy` (doc/test-only commits leave the
 tree unchanged and need no re-pin).
 
+## The loop — standing vision (operator, 2026-07-30)
+
+Everything this fork builds serves one closed loop:
+
+    SEE every bust -> ATTRIBUTE it (ours vs CC's, to bytes) ->
+    MITIGATE with proof, or PARK with its named missing piece ->
+    VERIFY every mitigation fidelity-safe -> RETIRE it when
+    upstream fixes theirs.
+
+Standing stances, each enforced somewhere concrete:
+
+- Any non-operator-initiated bust is a prevention target; cost never
+  gates mitigation (threat-matrix header).
+- Safety outranks cache: conversation fidelity is the protected
+  property, and the fidelity gate is its mechanism (directive
+  flap-move-mitigation-and-fidelity-gate).
+- "The tooling doesn't cover it" is never a terminal answer — a
+  coverage gap in the loop is a BACKLOG item by definition, at worst
+  parked with its named missing evidence. Too-bad is drift.
+- Attribution starts at our own event logs (dev-loop).
+- A manual investigation ends as machinery (dev-loop closing gate).
+- Upstream is part of the loop: sweep the tracker when an
+  investigation opens; post verified mechanisms back (operator GO
+  gates posts); the fire-rate ledger is the retirement machinery.
+
+Trajectory test at intake, for any new work here: name the loop stage
+it advances (see / attribute / mitigate / verify / retire). Work that
+advances none is either not this project's work, or evidence of a
+missing stage — surface which.
+
+Consumers: session intake (pointed from CLAUDE.local.md "The
+method"), directive triage (threat-matrix header), the fire-rate
+review.
+
 ## ⚠ Avoid restarting the proxy during a live Claude Code session
 
 **Observed, 2026-07-27 00:15:** a restart coincided with a ~225k-token
