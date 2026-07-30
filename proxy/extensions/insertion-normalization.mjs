@@ -854,11 +854,24 @@ export function classifyPinned(messages, priorCanonical) {
   // findSuppressibleDuplicate returns null, the entry is untouched here,
   // and whatever the existing rules above already decided (append/splice/
   // edit-shaped reset) stands — no new reset path is introduced.
+  // TAIL GUARD (BACKLOG.md, "suppression can strip a request's FINAL
+  // message", 2026-07-30). Three real 400s ("must end with a user
+  // message"): report-enforcer injects identical instruction bytes at
+  // every SubagentStop; the first occurrence gets pinned, and when the
+  // SAME bytes arrive again as the resume request's ONLY/new final
+  // message, suppressing it left the forwarded array ending on the prior
+  // assistant turn. A tail-position duplicate is never a stray migration
+  // copy of already-pinned content — CC just sent it as the live,
+  // load-bearing final entry of THIS request, and the model needs to see
+  // it. Applies uniformly to both single-block and join-hash matches: the
+  // guard is positional, not about which hash set matched.
+  const lastIdx = messages.length - 1;
   const pinnedHashes = pinnedBlockHashes(priorCanonical);
   const pinnedJoin = pinnedJoinHashes(priorCanonical);
   const suppressions = [];
   for (const e of newEntries) {
     if (e.r === "assistant") continue;
+    if (e.index === lastIdx) continue;
     const h = findSuppressibleDuplicate(messages[e.index], pinnedHashes, pinnedJoin);
     if (h !== null) suppressions.push({ index: e.index, hash: h });
   }
