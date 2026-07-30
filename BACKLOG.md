@@ -241,8 +241,18 @@ bullet, evidence pointer included.
   with the capture path renamed away (red: fallback absent ->
   skip). Done: flag + fallback + first pin landed.
 
-- **READY — one telemetry-consumer pattern in shape-verdicts (Q4
-  resolved by design)** (settled 2026-07-30, grounded in the
+- **DONE 2026-07-30 — telemetry-consumer table in shape-verdicts
+  (083c5d6 + dispatcher gate-source fix 8e91c69, pushed): five
+  entries, 13/13 bites, live-mutation red. Dispatcher verification
+  caught the gate-source gap (out-of-band runs read env, not
+  serving truth — fixed via gate-status fallback; the fix's own
+  first draft had its ReferenceError swallowed by its fail-open
+  catch, caught by the live-output check, not the suite). Residues
+  booked: session-mirror gate invisible to the fallback (sweep set
+  excludes mirror/capture by design) — warn stands as known;
+  upstream-change-detection logs ROUTINE message-count growth as
+  structural_change (alarm-noise calibration, row 5 territory);
+  the unknowable fs-error branch unbitten. Original entry:** (settled 2026-07-30, grounded in the
   consumer principle minted same day + the fresh no-consumer grep
   for suppressed/suppressions). Design: a declared table in
   shape-verdicts.mjs — {file, kind: alarm|log, maxAgeH, predicate}
