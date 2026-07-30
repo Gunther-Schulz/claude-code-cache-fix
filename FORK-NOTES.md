@@ -7,7 +7,9 @@ long-running branches (`local/marker-anchored-diff`, then
 `feature/mid-history-breakpoint-ladder` with the 2026-07-27 prevention
 stack) are fully merged into main and deleted, local + fork.
 
-Remotes: `origin` = upstream (cnighswonger), `fork` = our fork.
+Remotes (as of 2026-07-31): `origin` = our fork (Gunther-Schulz),
+`upstream` = cnighswonger. (An earlier note here had them reversed —
+verify with `git remote -v`, not this file.)
 The systemd unit (dotfiles: bootstrap/systemd/cache-fix-proxy.service)
 runs THIS clone on `main`. Pins live in dotfiles
 `bootstrap/manifest.py` (CACHE_FIX_PIN / CACHE_FIX_BRANCH /
