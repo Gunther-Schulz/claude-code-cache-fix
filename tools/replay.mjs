@@ -1118,12 +1118,16 @@ function scanBlockMigrations(prev, cur) {
       for (let j = lo; j <= hi; j++) {
         const dstUnits = cur.inBlocks[j];
         if (!dstUnits || !dstUnits.length) continue;
+        // `hash` rides on the row because it is the only thing that says
+        // WHICH block moved — the flap scan below needs that identity and
+        // must not recompute one of its own (dev-loop: never hand-roll
+        // identity in a probe; the unit hash here IS hashMessageContent's).
         if (inline && dstUnits.some((d) => d.hash === u.hash && d.standalone)) {
-          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j });
+          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j, hash: u.hash });
           break;
         }
         if (standalone && dstUnits.length >= 2 && dstUnits.some((d) => d.hash === u.hash)) {
-          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j });
+          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j, hash: u.hash });
           break;
         }
       }
@@ -1131,6 +1135,52 @@ function scanBlockMigrations(prev, cur) {
   }
   return found;
 }
+
+// --- Flap: a block migration that REVERSES a recent one ---
+//
+// A single migration is a one-way move and the volatile pin can absorb it.
+// An OSCILLATION cannot be absorbed by a pin that classifies only one of the
+// two shapes: the block keeps leaving and returning, so it busts on every
+// second flip at best. That is what the 2026-07-30 221k event was (threat
+// matrix row 4, session 0d6f38ba, n=102->104->105->108 in 11 seconds), and
+// it was visible only by reading three adjacent census lines and noticing the
+// direction column alternate — a hand-derivation, which is what this makes
+// mechanical.
+//
+// DEFINITION: a block migration row R is a FLAP when an earlier row E exists
+// such that (a) E and R are in the SAME conversation group — cache prefixes
+// are per-conversation, so requests of any other conversation are not part of
+// this clock; (b) E and R carry the same block bytes, meaning an identical
+// block `hash` — the unit hash scanBlockMigrations already computed, never a
+// second notion of sameness; (c) E.direction is the OPPOSITE of R.direction;
+// (d) E and R are at most FLAP_WINDOW requests of that conversation apart,
+// counted between their later (cur) sides, and at least 1 apart — two rows of
+// the SAME pair are not a reversal over time, they are one moment. Only R is
+// marked: the first leg of an oscillation is a plain migration until
+// something reverses it, and R names the row it reverses so the pair reads
+// off one line.
+const FLAP_WINDOW = 5;
+
+function markFlaps(items) {
+  // `items` are {row, pos} for one conversation, in ascending pos (pos is the
+  // index of the row's cur entry within the conversation group), so the
+  // backward scan can stop as soon as the window is exceeded.
+  for (let i = 0; i < items.length; i++) {
+    const { row, pos } = items[i];
+    for (let j = i - 1; j >= 0; j--) {
+      const span = pos - items[j].pos;
+      if (span > FLAP_WINDOW) break;
+      if (span < 1) continue; // same pair — one moment, not a reversal
+      const e = items[j].row;
+      if (e.hash !== row.hash || e.direction === row.direction) continue;
+      row.flap = { reversesPrevN: e.prevN, reversesN: e.n, span };
+      break;
+    }
+  }
+}
+
+const flapTag = (b) =>
+  b.flap ? ` [flap reverses n=${b.flap.reversesPrevN}->${b.flap.reversesN}, ${b.flap.span} req]` : "";
 
 export function findBlockMigrations(entries) {
   const groups = new Map();
@@ -1144,13 +1194,16 @@ export function findBlockMigrations(entries) {
   }
   const rows = [];
   for (const group of groups.values()) {
+    const inGroup = [];
     for (let i = 1; i < group.length; i++) {
       const prev = group[i - 1];
       const cur = group[i];
       const kind = censusIds(prev.inSem, cur.inSem);
       if (!BLOCK_MIGRATION_KINDS.has(kind)) continue;
-      rows.push(...scanBlockMigrations(prev, cur));
+      for (const row of scanBlockMigrations(prev, cur)) inGroup.push({ row, pos: i });
     }
+    markFlaps(inGroup);
+    for (const { row } of inGroup) rows.push(row);
   }
   return rows.sort((a, b) => a.n - b.n);
 }
@@ -1961,7 +2014,7 @@ async function main() {
           // the anchor alone cannot name.
           const bm = (blockMigrations ?? []).filter((b) => b.n === e.n && b.prevN === e.prevN);
           const bmTag = bm.length
-            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]`).join(" ")
+            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]${flapTag(b)}`).join(" ")
             : "";
           process.stdout.write(
             `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}]${bmTag} ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
@@ -2003,10 +2056,28 @@ async function main() {
       }
     }
     if (blockMigrations && blockMigrations.length) {
-      process.stdout.write(`\nblock migrations (reminder-swap shape): ${blockMigrations.length}\n`);
-      for (const b of blockMigrations.slice(0, 10)) {
+      const flaps = blockMigrations.filter((b) => b.flap);
+      process.stdout.write(
+        `\nblock migrations (reminder-swap shape): ${blockMigrations.length}, ${flaps.length} FLAP\n`,
+      );
+      if (flaps.length) {
         process.stdout.write(
-          `    n=${b.prevN}->${b.n} ${b.direction} ${b.sourceIdx}->${b.targetIdx} ${b.ts}\n`,
+          `  a FLAP reverses a migration of the SAME block within ${FLAP_WINDOW} requests of one conversation —\n` +
+            `  a pin that classifies only one of the two shapes absorbs one leg, so an oscillation busts on\n` +
+            `  every second flip at best (threat matrix row 4, 2026-07-30)\n`,
+        );
+        // Flaps first, so the truncation below can never drop them: the whole
+        // point is that they were previously findable only by reading adjacent
+        // lines and noticing the direction column alternate.
+        for (const b of flaps.slice(0, 10)) {
+          process.stdout.write(
+            `    n=${b.prevN}->${b.n} ${b.direction} ${b.sourceIdx}->${b.targetIdx}${flapTag(b)} ${b.ts}\n`,
+          );
+        }
+      }
+      for (const b of blockMigrations.filter((r) => !r.flap).slice(0, 10)) {
+        process.stdout.write(
+          `    n=${b.prevN}->${b.n} ${b.direction} ${b.sourceIdx}->${b.targetIdx}${flapTag(b)} ${b.ts}\n`,
         );
       }
     }
