@@ -559,3 +559,29 @@ bullet, evidence pointer included.
   Build trigger: the first system-delta question that needs an offline
   answer over a corpus — then a census kind beside toolsDeltas, same
   shape.
+
+- **READY — insertion-normalization per-block standalone match (the
+  2026-07-30 flap variant; matrix Row 4 datapoint 8cd4e1c).** Sibling
+  of 78940a0's join-hash: per pinned entry, ALSO register each volatile
+  block's individually-unwrapped text hash; a standalone system-role
+  string message matching one pinned block's unwrapped text suppresses
+  through the existing path. Covers blocks migrating as SEPARATE
+  standalones (the flap: n=102->104/104->105/105->108, edit@86, two
+  standalone legs 93+94), which the join-hash match (blocks joined
+  "\n\n") does not — census running 78940a0's code still lists the flap
+  pairs unabsorbed. Verifier: red-first bite from the real n=102->104
+  pair bytes (sanitized via the harvest sanitizer, same path as
+  requests_864); gates 0/0/0/0 on both corpora. Done-criterion: census
+  over capture s-0d6f38ba-…-requests.jsonl shows the three flap pairs
+  input-mitigated AND suppressed-counts on unaffected corpora unchanged
+  (no new false suppressions). Deployment: proxy/** → dotfiles pin bump
+  + restart; row-3 statement: state-content addition, no key/freeze
+  change — cache-transparent expected.
+
+- **READY — census flap annotation (blockMigration reversal).**
+  `replay.mjs --census` emits a `flap` marker when the same
+  blockMigration block-hash pair reverses direction within 5 requests
+  of one conversation — today the flap is visible only by reading
+  adjacent census lines (matrix 8cd4e1c). Verifier: emits on the
+  2026-07-30 triple (n=102-108), silent on a corpus without reversals;
+  mutation test in replay-gate-selfcheck per dev-loop "Adding a check".
