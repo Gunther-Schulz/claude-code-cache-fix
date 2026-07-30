@@ -36,6 +36,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { findMitigationGaps, readCapture } from "../tools/replay.mjs";
+import { readPinnedFixture } from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -102,12 +103,24 @@ test("mitigation output-form: a genuine tail-append reconstruction reports appen
 //
 // The capture lives outside the repo, in the per-machine capture directory
 // that rotates on a quadratic clock (docs/dev-loop.md, "Corpus hygiene") —
-// it is not a committed fixture. If it has rotated away since this test was
-// written, the test SKIPS with a stated reason rather than reporting a
-// false pass or a false fail (docs/dev-loop.md, "A checker has THREE
-// answers"); see the closing report for the harvesting gap this leaves.
+// it is not a committed fixture. If it has rotated away, this test falls
+// back to a PINNED fixture (BACKLOG.md "READY — harvest --pin freezes
+// evidence ranges as fixtures"): `node tools/harvest.mjs --pin <key> n..m`
+// freezes the sanitized range as test/fixtures/harvested/pinned-<key>-n-m
+// .json, committed and therefore immune to capture rotation. Only if BOTH
+// the live capture and the pinned fixture are unavailable does the test
+// SKIP with a stated reason, rather than reporting a false pass or a false
+// fail (docs/dev-loop.md, "A checker has THREE answers").
+//
+// Both paths are overridable via env for the fallback's own red-green test
+// (test/harvest-pin.test.mjs) — never by editing the real capture, which is
+// read-only evidence shared with other work.
 const REAL_CAPTURE =
+  process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE ??
   process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE ?? "";
+const PINNED_FIXTURE =
+  process.env.CACHE_FIX_TEST_FIXTURE_OVERRIDE ??
+  join(__dirname, "fixtures", "harvested", "pinned-s-4b6a435234bf-26-28.json");
 const GATES = {
   CACHE_FIX_FORWARD_PROXY: "on",
   CACHE_FIX_SESSION_MIRROR: "on",
@@ -125,8 +138,19 @@ const TARGET_N = 28;
 test(
   "mitigation output-form: real capture n=26->28 reports append/preserved once suppression and the cache_control strip both apply",
   async (t) => {
-    if (!existsSync(REAL_CAPTURE)) {
-      t.skip(`capture rotated away (not found at ${REAL_CAPTURE}) — COULD NOT VERIFY`);
+    // Fixture-fallback: capture present -> unchanged live-capture path;
+    // capture absent -> pinned fixture if present; else skip. Both readers
+    // yield the same [n, line] tuple shape, so the replay loop below is
+    // identical either way.
+    let source;
+    if (existsSync(REAL_CAPTURE)) {
+      source = readCapture(REAL_CAPTURE);
+    } else if (existsSync(PINNED_FIXTURE)) {
+      source = readPinnedFixture(PINNED_FIXTURE);
+    } else {
+      t.skip(
+        `capture rotated away (not found at ${REAL_CAPTURE}) and no pinned fixture at ${PINNED_FIXTURE} — COULD NOT VERIFY`,
+      );
       return;
     }
 
@@ -148,7 +172,7 @@ test(
 
       const entries = [];
       let reqN = -1;
-      for await (const [, line] of readCapture(REAL_CAPTURE)) {
+      for await (const [, line] of source) {
         let rec;
         try {
           rec = JSON.parse(line);
