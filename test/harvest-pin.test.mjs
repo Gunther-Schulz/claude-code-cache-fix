@@ -1,0 +1,191 @@
+// harvest --pin — BACKLOG.md "READY — harvest --pin freezes evidence
+// ranges as fixtures".
+//
+// Motivating instances: test/insertion-suppression.test.mjs and
+// test/mitigation-output-form.test.mjs both replay a specific real capture
+// (s-633915a8, pair n=26->28) and SKIP once that capture rotates out of the
+// per-machine retention window (~3 days, docs/dev-loop.md "Corpus
+// hygiene"). `harvest --pin <key> <n..m>` freezes the sanitized range as a
+// committed, rotation-immune fixture that both real-pair tests can fall
+// back to (fallback wiring lands in a follow-up commit; this one covers the
+// pin mechanism itself — unit-level, on a tiny synthetic capture).
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, writeFile, readFile, mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
+
+import { parsePinRange, pinRange, readPinnedFixture } from "../tools/harvest.mjs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO = join(__dirname, "..");
+const HARVEST_CLI = join(REPO, "tools", "harvest.mjs");
+
+// --- parsePinRange ---
+
+test("parsePinRange: n..m parses to {n, m}", () => {
+  assert.deepEqual(parsePinRange("26..28"), { n: 26, m: 28 });
+  assert.deepEqual(parsePinRange("0..0"), { n: 0, m: 0 });
+});
+
+test("parsePinRange: malformed range throws", () => {
+  assert.throws(() => parsePinRange("28"), /--pin range must look like/);
+  assert.throws(() => parsePinRange("a..b"), /--pin range must look like/);
+  assert.throws(() => parsePinRange(undefined), /--pin range must look like/);
+});
+
+test("parsePinRange: end before start throws", () => {
+  assert.throws(() => parsePinRange("3..1"), /end must be >= start/);
+});
+
+// --- pinRange: sanitized, well-formed, over a tiny synthetic capture ---
+
+const SECRET = "the operator's actual private project detail";
+
+async function writeTinyCapture(dir) {
+  const path = join(dir, "s-tiny0000-requests.jsonl");
+  const lines = [
+    JSON.stringify({ ts: "2026-01-01T00:00:00Z", type: "boot", pid: 1, proxyTree: "abc123", gates: { X: "1" } }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01Z",
+      sid: "s-tiny0000",
+      key: "s-tiny0000",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: SECRET }] }] },
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:02Z",
+      type: "outcome",
+      id: "out-1",
+      key: "s-tiny0000",
+      requestId: "req-1",
+      model: "claude-sonnet-5",
+      usage: { cacheRead: 0, cacheCreation: 0, inputTokens: 10, outputTokens: 1 },
+      outSha: "deadbeef",
+      outBytes: 100,
+      ms: 5,
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:03Z",
+      sid: "s-tiny0000",
+      key: "s-tiny0000",
+      headers: { "anthropic-beta": "x" },
+      body: {
+        model: "claude-sonnet-5",
+        system: "sys0",
+        messages: [
+          { role: "user", content: [{ type: "text", text: SECRET }] },
+          { role: "assistant", content: [{ type: "text", text: "a reply" }] },
+          { role: "user", content: [{ type: "text", text: "a second message" }] },
+        ],
+      },
+    }),
+  ];
+  await writeFile(path, lines.join("\n") + "\n");
+  return path;
+}
+
+test("pinRange: sanitized (no raw secret text), shape preserved, range covers boot/outcome/request through m", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-"));
+  const path = await writeTinyCapture(dir);
+
+  const records = await pinRange(path, 1);
+  const raw = JSON.stringify(records);
+
+  assert.ok(!raw.includes(SECRET), "no raw content leaks into the pinned fixture");
+  assert.equal(records.filter((r) => r.type === "boot").length, 1, "boot record kept for gate provenance");
+  assert.equal(records.filter((r) => r.type === "outcome").length, 1, "outcome record kept (the one before m)");
+  const requests = records.filter((r) => r.type !== "boot" && r.type !== "outcome");
+  assert.equal(requests.length, 2, "both request 0 and request 1 (the pinned range's full prefix) are present");
+  assert.ok(requests[0].body.messages[0].content[0].text.startsWith("t_"), "request text is tokenized");
+  assert.equal(requests[0].sid, requests[1].sid, "identity hashing is deterministic across records");
+});
+
+test("pinRange: m beyond available requests throws rather than writing a truncated fixture", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-"));
+  const path = await writeTinyCapture(dir);
+  await assert.rejects(() => pinRange(path, 5), /has only 2 request record\(s\), cannot pin through m=5/);
+});
+
+// --- CLI end-to-end: the actual entry point, not a re-derivation of it ---
+
+test("harvest --pin CLI: writes pinned-<key.slice(0,10)>-<n>-<m>.json with a header and sanitized records", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-cli-"));
+  const capturesDir = join(dir, "captures");
+  const outDir = join(dir, "out");
+  await mkdir(capturesDir, { recursive: true });
+  await writeTinyCapture(capturesDir);
+
+  const stdout = execFileSync(
+    process.execPath,
+    [HARVEST_CLI, "--captures", capturesDir, "--out", outDir, "--pin", "s-tiny0000", "0..1"],
+    { encoding: "utf-8" },
+  );
+  assert.match(stdout, /pinned 4 record\(s\), range 0\.\.1/);
+
+  const outPath = join(outDir, "pinned-s-tiny0000-0-1.json");
+  assert.ok(existsSync(outPath), "fixture written at the expected name (key sliced to 10 chars, matching the scheduled harvest's own convention)");
+
+  const fixture = JSON.parse(await readFile(outPath, "utf-8"));
+  assert.equal(fixture.header.key, "s-tiny0000");
+  assert.deepEqual(fixture.header.range, { n: 0, m: 1 });
+  assert.equal(fixture.header.replayFrom, 0);
+  assert.ok(fixture.header.sanitizer, "sanitizer note present");
+  assert.ok(fixture.header.harvestedAt, "harvest date present");
+  assert.ok(!JSON.stringify(fixture).includes(SECRET), "no raw content leaks through the CLI path either");
+});
+
+test("harvest --pin CLI: unknown key exits non-zero with a stated reason, writes nothing", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-cli-"));
+  const capturesDir = join(dir, "captures");
+  const outDir = join(dir, "out");
+  await mkdir(capturesDir, { recursive: true });
+  await writeTinyCapture(capturesDir);
+
+  assert.throws(() =>
+    execFileSync(
+      process.execPath,
+      [HARVEST_CLI, "--captures", capturesDir, "--out", outDir, "--pin", "s-nope", "0..1"],
+      { encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"] },
+    ),
+  );
+  assert.ok(!existsSync(join(outDir, "pinned-s-nope-0-1.json")));
+});
+
+// --- readPinnedFixture: round-trips through the same [n, line] tuple shape readCapture yields ---
+
+test("readPinnedFixture: yields [n, line] tuples whose parsed records match what was pinned", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-"));
+  const capturePath = await writeTinyCapture(dir);
+  const records = await pinRange(capturePath, 1);
+  const fixturePath = join(dir, "pinned-s-tiny0000-0-1.json");
+  await writeFile(
+    fixturePath,
+    JSON.stringify({ header: { key: "s-tiny0000", range: { n: 0, m: 1 } }, records }) + "\n",
+  );
+
+  const seen = [];
+  for await (const [n, line] of readPinnedFixture(fixturePath)) {
+    seen.push([n, JSON.parse(line)]);
+  }
+  assert.equal(seen.length, records.length);
+  assert.deepEqual(
+    seen.map(([, r]) => r),
+    // Compared through the same JSON round-trip the fixture file itself
+    // applies (JSON.stringify drops `undefined`-valued keys such as a
+    // tools-less body's `tools: undefined` from scrubRecord) — the fixture
+    // on disk never carries those keys either, so this is the fidelity
+    // contract that actually matters, not raw in-memory equality.
+    JSON.parse(JSON.stringify(records)),
+    "round-trips exactly — same records the pin wrote",
+  );
+  assert.deepEqual(
+    seen.map(([n]) => n),
+    records.map((_, i) => i),
+    "indices are 0-based and contiguous, same shape readCapture's own [n, line] yields",
+  );
+});
