@@ -279,6 +279,18 @@ const TELEMETRY_CONSUMERS = [
       process.env.CACHE_FIX_SESSION_MIRROR_EVENT_LOG ||
       join(claudeHome(), "session-mirrors", "session-mirror-events.jsonl"),
   },
+  {
+    // Born WITH its reader: this row landed before the gate's first flip
+    // (the CC#79989 first-hypothesis alarm), so the file never exists
+    // unread. Gate value is "on" — the extension checks !== "on", not "1".
+    name: "telemetry-upstream-errors",
+    kind: "alarm",
+    maxAgeH: HARVEST_MAX_AGE_H,
+    gate: () => gateResolves("CACHE_FIX_UPSTREAM_ERROR_LOG", "on"),
+    file: () =>
+      process.env.CACHE_FIX_UPSTREAM_ERROR_LOG_PATH ||
+      join(claudeHome(), "usage-log", "upstream-errors.jsonl"),
+  },
 ];
 
 // Resolve an entry to its newest matching file's mtime. `file` entries are
