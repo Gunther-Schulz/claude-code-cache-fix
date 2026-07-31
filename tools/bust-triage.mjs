@@ -172,20 +172,30 @@ export function migrationVerdict(pair) {
   for (const m of a) for (const t of reminderBlocks(m)) inlineAfter.add(t);
   const sysAfter = a.filter((m) => m?.role === "system").map(textOf);
   const sysBefore = b.filter((m) => m?.role === "system").map(textOf);
+  // A pair can carry SEVERAL migrating hosts (measured: the 11:41:05 pair has
+  // an EXACT at 97 and the interesting EXTENDED at 99). One result keeps the
+  // shape the selftest and --json read; returning the FIRST hid the EXTENDED
+  // behind the EXACT, so the most INFORMATIVE one wins instead:
+  // EXTENDED > EXACT > DROPPED.
+  const rank = { EXTENDED: 3, EXACT: 2, DROPPED: 1 };
+  let best = null;
   for (let i = 0; i < b.length; i++) {
     const blocks = reminderBlocks(b[i]);
     if (!blocks.length || blocks.some((t) => inlineAfter.has(t))) continue;
     const recon = canonical(blocks);
+    let found = { host: i, verdict: "DROPPED", sub: null };
     for (const t of sysAfter) {
       const v = classify(recon, t);
-      if (v === "EXACT") return { host: i, verdict: v, sub: null };
+      if (v === "EXACT" && found.verdict !== "EXTENDED") found = { host: i, verdict: v, sub: null };
       if (v === "EXTENDED") {
-        return { host: i, verdict: v, sub: subclassifyExtended(recon, t, sysBefore) };
+        found = { host: i, verdict: v, sub: subclassifyExtended(recon, t, sysBefore) };
+        break;
       }
     }
-    return { host: i, verdict: "DROPPED", sub: null };
+    if (!best || rank[found.verdict] > rank[best.verdict]) best = found;
+    if (best.verdict === "EXTENDED") break;
   }
-  return null;
+  return best;
 }
 
 /** Matrix rows whose status line we can quote, keyed by the classes we map to. */

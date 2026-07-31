@@ -232,12 +232,18 @@ bullet, evidence pointer included.
   slot-preserving (no emit) and should be unaffected, but that is a
   claim to verify at its integration, not a fact.
 
-- **READY — bust-triage's migrationVerdict imports subclassifyExtended
-  (report census-hardening §c4).** It still returns a bare EXTENDED;
-  import the sub-classifier from `reminder-migration-census.mjs` so a
-  triage verdict says MERGED-STANDALONE/NEW-TEXT directly. Verifier:
-  triage of the 11:41:05 event prints the sub-verdict. One import plus
-  a label — dispatchable with any tools bundle.
+- **RESOLVED 2026-07-31 (74f0f28 + the dispatcher's
+  most-informative-host preference; verified live: triage of
+  11:41:05 prints "row-4 container migration at host 99
+  (EXTENDED/MERGED-STANDALONE)") — bust-triage sub-verdict.** The
+  dispatch surfaced rather than built the one real decision: the
+  pair carries TWO migrating hosts and first-match hid the EXTENDED
+  behind an EXACT; ruling: one result kept (shape stable), most
+  informative wins (EXTENDED > EXACT > DROPPED). Also this evening,
+  same tool: capturePair now streams (7138ddd) — the 752 MB capture
+  killed the default run with the same ERR_STRING_TOO_LONG class
+  a77c930 fixed in the census; found live and independently by the
+  dispatch (its gap 2).
 
 - **RESOLVED 2026-07-31 — harvest scrub now preserves prefix/join byte
   relations (bffcb05, dispatcher-verified).** Was PARKED (report §c5:
@@ -860,6 +866,33 @@ bullet, evidence pointer included.
   consumer yet — the fields are in the status file, doctor ignores
   them silently (alarm-without-reader class).
 
+- **OPEN — twin busts 2026-07-31 19:13:48 (152k, s-7749d7fc) and
+  19:22:40 (190k, s-adf6cadb): KNOWN FAMILY suspected (row-4
+  mid-history mutation), plugin-update trigger hypothesis
+  unverified.** Evidence gathered at triage time: BOTH sessions'
+  telemetry shows a `not-subsequence` reset seconds before the ❄
+  stamp (7749d7fc 19:13:31 pinned=3; adf6cadb 19:22:22 pinned=1),
+  both on the PRE-restart serving code (deployment 20:04Z); both
+  transcripts say messages_changed (152k/165k). Two deep sessions,
+  9 minutes apart, same signature → shared trigger; candidate with
+  exact timing: `claude plugin update dispatch-guards` completed
+  19:13:13.559Z — 35 s before the first bust, and the second landed
+  at the other session's next turn (hook-set change plausibly
+  changes hook-context reminders mid-history in every live
+  session). ATTRIBUTE step owed: byte-diff the reset pair
+  (19:22:22 request vs its conversation predecessor) and say WHAT
+  moved; whether the deployed un-merge absorbs it is the live
+  question. TOOL GAP found en route (own fix candidate, small):
+  bust-triage's capturePair picks the newest plausible pair ≤ stamp
+  and chose an APPEND-ONLY pair 4-16 s after the actual
+  reset-carrying request → verdict UNCLASSIFIED was a
+  pair-SELECTION artifact, not a new class; candidate rule — prefer
+  the nearest same-conversation pair whose after-request carries a
+  non-append action (the telemetry knows), fall back to current
+  rule. NOTE for next occurrence: if this class fires again
+  POST-restart, the un-merge did not absorb it — that is the real
+  news; tonight's instances prove nothing about the new code.
+
 - **OPEN — the corpus's entire remaining stability debt: two
   deferred-tool-rewrite pairs on s-0d6f38ba** (n=709→710 outDiv=236,
   n=701→718 outDiv=82, gate attribution line, byte-identical across
@@ -1200,16 +1233,14 @@ bullet, evidence pointer included.
   then either move the order or update the assertion, with the
   reasoning in the commit. Known-red on both prepared branches;
   proven pre-existing at 53761a3.
-  `tools/verdict-ab.mjs` has no committed test: its COULD-NOT-VERIFY
-  exit-2 path was demonstrated red by execution and its fixture
-  reader was corrected after a real 2-of-6-corpora miss (report
-  lesson e2), but nothing in test/ pins either. Build
-  `test/verdict-ab.test.mjs` (name assigned): (1) exit 2 +
-  COULD-NOT-VERIFY on an empty fixture dir; (2) every committed
-  fixture shape is read — assert the skipped-file list names ONLY
-  the three non-message-array fixtures; (3) a synthetic differing
-  pair reports DIFFERS with the changed line. Red-first per dev-loop;
-  small, dispatchable with any tools bundle.
+- **RESOLVED 2026-07-31 (1770a97, small-pair dispatch,
+  dispatcher-verified: 11/11 tests) — verdict-ab self-test.** (This
+  bullet's header had been consumed by a neighboring edit — the
+  second same-day instance of the header-splice shape, this time the
+  dispatcher's own; restored as its resolution.) Skip-list derived
+  at test time by a shape-agnostic search, no fixture named — rename
+  -safe by construction; four mutants each bitten, including the
+  historical 2-of-6 reader-narrowing miss.
 
 - **PARKED — reserved-entry residuals, three named, all unmeasured
   (report gaps c3/c6 + not-verified list).** (1) heldCi retirement:
