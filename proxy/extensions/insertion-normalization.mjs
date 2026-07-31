@@ -1045,8 +1045,8 @@ export function classifyPinned(messages, priorCanonical) {
         if (mv) return { ...priorCanonical[mv.ci], rs: true };
         const rf = refireByIdx.get(e.index);
         if (rf) return priorCanonical[rf.ci];
-        const rc = matched.find((m) => m.idx === e.index && reclaimedCi.has(m.ci));
-        if (rc) return storedAt(rc.ci);
+        const rc = reclaimedByIdx.get(e.index);
+        if (rc !== undefined) return storedAt(rc);
         return buildPinEntry(e, out[e.index]);
       }),
       ...(applied > 0 || moves.length > 0 || refires.length > 0 || suppressedR.size > 0
@@ -1140,7 +1140,7 @@ export function classifyPinned(messages, priorCanonical) {
   // Role constraint (f) applies to both probes exactly as it applies at the
   // mint: the candidate's role must be "system" and so must the entry's.
   const refires = [];        // { ci, index, hash }
-  const reclaimedCi = new Set();
+  const reclaimedByIdx = new Map(); // wire index -> ci of the entry that reclaimed it
   const lapsedCi = new Set();
   const heldCi = new Set();  // unresolvable neighbourhood: no state change
   const reservedOverride = new Map(); // ci -> the re-keyed, rs-cleared entry
@@ -1199,10 +1199,10 @@ export function classifyPinned(messages, priorCanonical) {
         refires.push({ ci, index: refireIdx, hash });
       } else if (reclaimIdx >= 0) {
         claimed.add(reclaimIdx);
-        reclaimedCi.add(ci);
         const { rs, ...rest } = stored;
         const inc = incoming[reclaimIdx];
         reservedOverride.set(ci, { ...rest, h: inc.h, r: inc.r, o: inc.o });
+        reclaimedByIdx.set(reclaimIdx, ci);
         reclaims.push({ ci, idx: reclaimIdx });
       } else {
         lapsedCi.add(ci);
