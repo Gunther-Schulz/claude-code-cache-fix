@@ -458,7 +458,38 @@ detector residual, booked: per-block hashing counts LEGS, not
 relocations — two of the fixture's three standalone legs are JOINS
 it cannot see (joined-standalone migration target, BACKLOG).
 
+### Row 4 datapoint — 2026-07-31: the census's EXTENDED class IS the
+### cross-message join, and its placement is measured, not arguable
 
+`reminder-migration-census.mjs` calls a later standalone EXTENDED when
+it carries the canonical reconstruction as a byte PREFIX, and its
+header calls the remainder "new reminder text that did not exist at
+the earlier request ... NOT absorbable by any normalization". Measured
+over every EXTENDED occurrence in the readable corpus: 9 of 9 are the
+CROSS-MESSAGE JOIN this row already names one entry up — the
+remainder is byte-identical to a standalone system message the
+PREDECESSOR request carried, swallowed into the migrated reminder. 0
+are new text (4 sessions, 4 dates; the two remainder texts are the
+"task tools haven't been used recently" nudge, 421ch, and the "user
+sent a new message while you were working" note, 330ch). The census
+label and the blockMigration label name one class from two directions;
+only the second one's mitigation (directive
+flap-move-mitigation-and-fidelity-gate.md, unit 2 first-seen re-serve)
+addresses it.
+
+PLACEMENT, measured on the motivating pair (s-77fe2779, conversation
+e7394e05 replayed from its first request through the real pipeline
+under the SERVING gate set; first forwarded divergence, prefix-diff
+and an independent probe agreeing on the baseline):
+
+    baseline (today)                              100
+    delta re-emitted at a frozen TAIL index       100   <- no absorption
+    swallowed message restored at ITS index       123 of 124
+
+Correct bytes at the wrong index diverge the prefix just the same —
+the census's own placement rule, now with a number on both sides of
+it. Any mitigation for this class is an UN-MERGE (put the swallowed
+message back where it was), never a relocation.
 
 ## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
 ## CONTROLLED-CAUSE (instrument false positive, no bust)

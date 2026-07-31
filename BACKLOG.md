@@ -109,6 +109,49 @@ bullet, evidence pointer included.
   its blocking precondition "wait for capture/replay harness" is NOW MET
   (replay/census/bust-triage all exist); it can be scheduled on its own
   evidence.
+  BUILD REFUSED 2026-07-31 (dispatch
+  docs/directives/extended-class-absorb-directive.md; full evidence
+  docs/code-reviews/extended-absorb-report.md). Three measurements, in
+  the order that killed the design:
+  (1) THE PREMISE IS WRONG. The EXTENDED remainder is not "new reminder
+  text that did not exist yet" — it is a standalone system message the
+  PREDECESSOR request already carried, swallowed into the migrated
+  reminder. Measured on the motivating pair (capture s-77fe2779,
+  conversation e7394e05, requests 100->101): before[99] user + one
+  330ch wrapped reminder, before[100] system 421ch, after[101] system
+  716ch = 293 + "\n\n" + 421, the 421 byte-identical to before[100].
+  Corpus-wide, over every EXTENDED occurrence the census finds:
+  9 of 9 MERGED-STANDALONE, 0 genuinely new text (4 sessions, 4 dates).
+  (2) THE PLACEMENT IS A NO-OP. Real pipeline, serving gate set, the
+  conversation replayed from its first request: baseline first
+  forwarded divergence 100; with the delta re-emitted at a frozen TAIL
+  index (this item's design) 100 — unchanged, zero absorption, because
+  the bytes belong at the index the swallowed message occupied. Putting
+  them back THERE moves it to 123 of 124, i.e. past the >=122
+  done-criterion, the whole mid-history region byte-stable.
+  (3) IT IS ALREADY IN FLIGHT, under another name. That un-merge IS unit 2's
+  "first-seen re-serve" in
+  docs/directives/flap-move-mitigation-and-fidelity-gate.md — the
+  PARKED/UNPARKED cross-message-join item below (msg89's reminder +
+  "\n\n" + standalone msg90) is the same shape reached from the census's
+  blockMigration label instead of its EXTENDED label. Unit 2b is built
+  on branch wt/fidelity/opus and BLOCKED on THE IDENTITY DECISION, not
+  on a placement question. So this item is a DUPLICATE: it closes by
+  merging into that one, never by a second mechanism (the acc0814
+  lesson at the file level).
+  Shipped from the dispatch, in scope and independent of the design: the
+  reset path now DECLARES its suppressions (`suppressions: [{index,
+  hash}]`, not just the count), so replay's safety and conservation
+  gates stop reporting a designed behaviour as corruption — one false
+  safety violation and one false conservation violation on the
+  motivating conversation, both 0 after. Two spun-off items with their
+  verifiers written out live in the report file, un-lifted into this
+  backlog only because the dispatch's write boundary stopped at this
+  entry: a census EXTENDED->MERGED-STANDALONE annotation, and the
+  census byte-gate's SILENT capture skips (4 of 39 files, 6.2 GB — 79%
+  of the corpus by bytes — dropped on `RangeError: Cannot create a
+  string longer than 0x1fffffe8 characters`, reported as "25
+  capture(s)" with no could-not-verify line).
 
 - **READY — prune-event classification rides `--census` (mechanize the
   2026-07-31 drop-scan probe).** The row-22 refutation was produced by a
