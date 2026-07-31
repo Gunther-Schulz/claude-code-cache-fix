@@ -274,3 +274,7 @@ All eight, in full unless noted:
    identity, no PR gates, no label state machine.
 
 — opus subagent, small-pair dispatch
+
+---
+
+*Dispatcher addendum 2026-07-31 late: gap 2 (the >512 MB readFileSync crash) was hit live and fixed on main the same evening (7138ddd, streaming capturePair) — no longer a live gap. Gap 1 resolved on main with a most-informative-host rule, and the precedence comparator is now pinned by two multi-host selftest cases, red-proven against an inverted-comparator mutant (the post-close finding that they were uncovered was correct).*

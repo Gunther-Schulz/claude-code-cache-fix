@@ -398,6 +398,35 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
        "remainder no earlier request carried");
     eq(migrationVerdict(migPair(["PRIOR"], "R")).verdict, "EXACT", "byte-identical");
     eq(migrationVerdict(migPair(["PRIOR"], "R")).sub, null, "EXACT has no sub-class");
+    // Precedence over MULTIPLE migrating hosts (the 11:41 shape: an EXACT at an
+    // earlier host must not hide an EXTENDED at a later one; DROPPED loses to
+    // both). Built after the single-host cases above were shown not to
+    // exercise the comparator at all.
+    // Hosts need a non-reminder sibling block — a message that is ONLY a
+    // reminder is not a reminder HOST (probe-verified: reminderBlocks
+    // returns [] without the sibling).
+    const twoHost = (aText, bText) => ({
+      before: { body: { messages: [
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "T1" },
+                                  { type: "text", text: "<system-reminder>\nA\n</system-reminder>" }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "T2" },
+                                  { type: "text", text: "<system-reminder>\nB\n</system-reminder>" }] },
+        { role: "system", content: "PRIOR" },
+      ] } },
+      after: { body: { messages: [
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "T1" }] },
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "T2" }] },
+        ...(aText ? [{ role: "system", content: aText }] : []),
+        ...(bText ? [{ role: "system", content: bText }] : []),
+      ] } },
+    });
+    const multi = migrationVerdict(twoHost("A", "B\n\nPRIOR"));
+    eq(multi.verdict, "EXTENDED", "EXTENDED at the later host beats EXACT at the earlier");
+    eq(multi.host, 1, "and it is the EXTENDED host that is reported");
+    eq(multi.sub, "MERGED-STANDALONE", "with its sub-class");
+    const dropVsExact = migrationVerdict(twoHost(null, "B"));
+    eq(dropVsExact.verdict, "EXACT", "EXACT beats DROPPED");
+    eq(dropVsExact.host, 1, "the EXACT host wins over the dropped one");
     // retraction + cause-upgrade handling, on a synthetic ledger
     const { writeFileSync, mkdtempSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
