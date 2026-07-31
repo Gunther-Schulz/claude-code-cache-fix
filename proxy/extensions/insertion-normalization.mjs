@@ -782,12 +782,28 @@ export function classifyPinned(messages, priorCanonical) {
     const pinnedJoinR = pinnedJoinHashes(priorCanonical);
     const lastIdxR = messages.length - 1;
     const suppressedR = new Set();
+    // DECLARED, not merely counted. `suppressions` (the incoming indices) is
+    // what tools/replay.mjs keys its exemptions on — safetyViolation() filters
+    // them out of the input side before comparing lengths, and
+    // conservationViolations() accepts a missing unit only when it is part of a
+    // declared suppression. Reporting the COUNT alone left both gates blind on
+    // this path: replaying capture s-77fe2779 (conversation e7394e05, request
+    // 11:41:05.778Z) with the serving gates reported one safety violation
+    // (`length: 124 -> 123`) and one conservation violation (`lost: in[98]`)
+    // for a suppression that was working exactly as designed — a check firing
+    // on a non-defect, which is how a reader learns to ignore red. It also cost
+    // the per-suppression event lines in the telemetry log (onRequest emits one
+    // per entry of THIS array), i.e. the record dev-loop's "rule out ourselves"
+    // sweep reads — absent on the reset path, which is ~1 request in 3.
+    const suppressionsR = [];
     for (const e of incoming) {
       if (priorByKey.has(identityKey(e))) continue; // only entries CC newly sent
       if (e.r === "assistant") continue;
       if (e.index === lastIdxR) continue;           // tail growth is never a stray migration
-      if (findSuppressibleDuplicate(messages[e.index], pinnedHashesR, pinnedJoinR) !== null) {
+      const h = findSuppressibleDuplicate(messages[e.index], pinnedHashesR, pinnedJoinR);
+      if (h !== null) {
         suppressedR.add(e.index);
+        suppressionsR.push({ index: e.index, hash: h });
       }
     }
     const forwarded = suppressedR.size > 0
@@ -804,6 +820,7 @@ export function classifyPinned(messages, priorCanonical) {
       ...(applied > 0 || suppressedR.size > 0 ? { messages: forwarded } : {}),
       pinned: applied,
       suppressed: suppressedR.size,
+      suppressions: suppressionsR,
     };
   };
 
