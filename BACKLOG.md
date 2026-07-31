@@ -176,6 +176,17 @@ bullet, evidence pointer included.
   surfacing in the newly-readable 79% of corpus bytes is a FINDING to
   report, never a failure of this change. Done when `gate-live`'s
   sweep cannot report a clean byte-gate over a corpus it did not read.
+  **RESOLVED a77c930** — `read 39/39 capture(s), 0 UNREADABLE` against a
+  baseline re-run of the old code reporting `25 capture(s)` and exit 0;
+  tallies on the previously-readable 35 files unchanged (17 EXACT / 10
+  EXTENDED / 1 DROPPED / 0 MISMATCH), pairs 3661 vs the baseline's 3662
+  minutes later (live captures grew between runs). 2.4 GB capture
+  censused in 6 s under `--max-old-space-size=512`. Done-criterion met in
+  404d5fc: `gate-live` runs the census per capture and a byte-gate that
+  could not READ makes the row not clean. FINDING from the newly-readable
+  79%: placement is no longer single (56 at host+1, **3 at host+4**), so
+  "single placement; safe to emit" was a verdict over 21% of the corpus —
+  docs/code-reviews/census-hardening-report.md §c3.
 
 - **READY — census: EXTENDED sub-classification (MERGED-STANDALONE vs
   NEW-TEXT)** (lifted 2026-07-31 from the same report §c3; ORDER: land
@@ -190,6 +201,16 @@ bullet, evidence pointer included.
   the report's §b1 must print MERGED-STANDALONE, and a synthetic
   new-text pair must print NEW-TEXT. Done when the sub-verdict appears
   in `--json`, so `bust-triage` can key on it.
+  **RESOLVED a301ef1** — `extendedSub` rides `--json`; corpus-wide over
+  all 39 captures: **21 EXTENDED, 21 MERGED-STANDALONE, 0 NEW-TEXT**, and
+  each of the report's nine §b1 occurrences prints MERGED-STANDALONE.
+  Header comment corrected in place. Four unit tests red-first at a77c930
+  (test/census-extended-subclass.test.mjs), including the discriminating
+  case: a remainder present only in the LATER request is NEW-TEXT, since
+  matching the after request's own standalones would make every merge
+  trivially true. NOT done (out of both items' scope):
+  `bust-triage.mjs`'s `migrationVerdict` still returns a bare EXTENDED
+  and could import `subclassifyExtended` — report §c4.
 
 - **RESOLVED 2026-07-31 — harvest scrub now preserves prefix/join byte
   relations (bffcb05, dispatcher-verified).** Was PARKED (report §c5:
@@ -220,6 +241,27 @@ bullet, evidence pointer included.
   this session's capture must reproduce 12 events, 10 pure / 2 interior
   (11:31:58 and 11:41:05). Done when `gate-live.mjs`'s daily sweep carries
   the summary, so an interior-divergent prune surfaces without a hand-run.
+  **RESOLVED 404d5fc, with the verifier's SPLIT disputed — decision open.**
+  `classifyPrune` imports `firstDivergence` + `isHumanTurn`; `gate-live`
+  carries `prunes` per row and corpus-wide. Event COUNT reproduces exactly
+  (12 on s-77fe2779) and 11:41:05 is INTERIOR-DIVERGENT (breaks at 97,
+  anchor 123, re-bills 27 of 124). 11:31:58 does NOT reproduce as
+  interior: at the bytes it is the same phenomenon as the ten pure ones —
+  a `[SUGGESTION MODE: …]` block pruned, the user's real turn landing at
+  the same index — differing only in the live turn having produced 3
+  messages rather than 1-2. The entry's 10/2 is reachable only via a
+  "within N of the tail" threshold no definition produces, so the shipped
+  boundary is the ANCHOR (the relation row 4's verdict rests on): 11 pure
+  / 1 interior. OPEN for the operator: keep the anchor boundary (and
+  correct this verifier value) or pin 10/2. Corpus-wide: 226 drop events,
+  181 pure, 45 interior, 0 unanchored — two of them re-bill nearly
+  everything (12:42:11 n=688->675 breaks at 4, re-bills 671, in a capture
+  unreadable before a77c930; 11:40:24 n=83->81 breaks at 4, re-bills 77),
+  unexplained and worth their own triage (report §c2). Done-criterion met:
+  the full sweep prints `byte-gate corpus-wide: 59 EXACT / 22 EXTENDED (22
+  merged-standalone, 0 new-text) / 1 DROPPED / 0 MISMATCH; prunes 181 pure
+  / 46 INTERIOR-DIVERGENT` and all 39 rows carry `byteGate` in the status
+  file (`unreadable: 0`, `errors: 0`); `npm test` 1820/0.
 
 - **READY — bust-triage must see what the statusline shows (k:"cost"
   blindness).** Grounding, observed live 2026-07-31 ~13:53Z: statusline
@@ -238,6 +280,19 @@ bullet, evidence pointer included.
   no-args run. Done when a ❄-visible event can never be absent from
   `--list`. Per the three-answer rule: "cannot triage: controlled cause"
   is an answer; silence is not.
+  **RESOLVED 6efce90** — `coldEvents()` reads the whole ❄-visible
+  population and splits `bust` / `controlled`; `busts()` is a filter over
+  it, so nothing downstream shifted. Live `--list` now carries
+  `2026-07-31 13:43:54  55k  CONTROLLED(compact)  77fe2779`. The no-args
+  half could not be reproduced against the ledger as it stands (a bust
+  landed at 14:32:29, so the newest event is no longer controlled), so it
+  was exercised through the real `main()` against a copy truncated to
+  that instant: it prints the NOTE and names the 12:25:23 fallback — the
+  substitution that used to happen in silence. WIDENED beyond the entry,
+  deliberately: legacy `k:"resume"` is included with `k:"cost"`, because
+  the ❄ token advances on `cold_hit` and `cold_cost` and worktime's own
+  `--cold --all` filter is `hit or cost or resume` (3 resume records are
+  live in the ledger) — the done-criterion is the superset's.
 
 - **PARKED — commit-claim guard (commit-msg hook, warn-only): a message
   naming a file/symbol absent from the staged diff.** Evidence, twice in
