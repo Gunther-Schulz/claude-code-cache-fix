@@ -1120,36 +1120,19 @@ bullet, evidence pointer included.
   in the PARKED reserved-entry-residuals entry; verdict-ab self-test
   its own READY item.
 
-- **READY — harvest scrub misses image bytes: scrubBlock stops one
-  level above `source.data` (STOP finding, pr-prep report,
-  dispatcher-CONFIRMED by execution: harvest.mjs:169 tokenizes
-  `block.data`; wire images nest base64 at `block.source.data`;
-  reset-move fixture carries 5 raw PNGs, magic `iVBORw0KGgo`).**
-  Content verified benign (operator's own terminal prose, viewed),
-  but the sanitizer claim on the fixture is false as written and the
-  bug is generic. Build: (1) scrubBlock recurses into `source`
-  (`source.data` → `data_<sha10>` token, keep type/media_type
-  shape); (2) red-first bite that goes red on the committed
-  reset-move fixture's raw bytes BEFORE the fix; (3) re-scrub the
-  committed fixture in place and verify verdict-neutrality by
-  replay (images are not join constituents — same actions, same
-  suppression indices, same stability result); (4) corpus sweep:
-  every harvested fixture grepped for raw base64 under source.data,
-  results in the commit. Load-bearing (sanitizer, public repo).
-
-- **READY — flap fixture rebuilt SANITIZED via the scrub
-  homomorphism (pr-prep STOP finding 2).**
-  flap-s-0d6f38ba-86.json keeps 6 operator hook-prose strings raw
-  (quoting dispatch-discipline §1 / CLAUDE-maintenance by name) —
-  the raw retention pre-dated bffcb05's join-preserving scrub, and
-  the reset-move fixture's own header names this precedent as the
-  reason it deviated. Rebuild the fixture through scrubMessage with
-  the merged message re-joined from sanitized constituents (the
-  reset-move fixture's documented method); verifier: the three flap
-  pairs reproduce identical verdicts/suppression indices and
-  test/insertion-join-move.test.mjs + replay-gate-selfcheck stay
-  green. Fork main first; the upstream slices then carry the clean
-  fixture.
+- **READY — fixture sanitization: build
+  docs/directives/fixture-sanitization-directive.md** (supersedes
+  the two separate items minted earlier today — image-scrub depth
+  fix and flap rebuild — after the #272 thread showed the reviewer's
+  blocker 1 adds structural IDs and filenames to the same scrub, and
+  their explicit path is branch REWRITE upstream, never
+  scrub-on-top). Scope: scrubBlock recurses into source; keys/sids →
+  sha12 tokens; timestamps rebased to fixed epoch + deltas;
+  session-UUID-free filenames; all harvested fixtures rebuilt with
+  per-fixture verdict-neutrality asserted by replay; mechanical
+  absence-class bite red-first. Upstream branch rewrites are the
+  directive's §6, GATED on reviewer agreement — dispatcher-owned,
+  not part of the build dispatch.
 
 - **HOLD — prepared PR-slice branches, push blocked on two
   conditions (operator-visible).** State: pr/verification-tools
@@ -1161,11 +1144,52 @@ bullet, evidence pointer included.
   pre-existing proxy-read-dedupe failure (#272 open blocker 4,
   proven pre-existing at 53761a3). Drafts + exact push/gh commands:
   docs/audits/pr-prep-2026-07-31/. Conditions before any push:
-  (1) the two fixture items above land on fork main; (2) #272's
-  reviewer asked for an agreed sanitization path before more
-  fixture movement — respond on-thread first. Also fold in at
-  push time: the stacked PR body should name #273 as the third
-  stacked parent (the merge carries deferred-tool-rewrite.mjs).
+  (1) the fixture-sanitization directive lands on fork main;
+  (2) the #272 reviewer AGREES the path on-thread (their ask:
+  branch rewrite so dirty blobs never become reachable upstream —
+  reply drafted 2026-07-31, awaiting operator approval to post);
+  (3) the prepared branches are then REBUILT carrying only clean
+  fixture blobs (both are unpushed, so no force-push is needed on
+  them; #272's own branch rewrite is the reviewer-coordinated one).
+  Also fold in at push time: the stacked PR body should name #273
+  as the third stacked parent (the merge carries
+  deferred-tool-rewrite.mjs).
+
+- **READY-for-design — #272 blocker 2: a reminder-only BYTE change is
+  re-served stale (reviewer: "not patchable, needs a directive" —
+  agreed, and it is a genuine fidelity question, not appeasement).**
+  Volatile exclusion IS the pin mechanism, so the extension cannot
+  currently distinguish CC re-serializing a reminder (pin, correct)
+  from CC changing its bytes (stale forward, fidelity risk; reviewer
+  reproduced OLD→NEW overridden). Measurement FIRST, design second:
+  the corpus can answer how often pinned volatile bytes actually
+  change across matched entries (census-style sweep over harvested +
+  live captures). Outcome shapes the design — measured-never → the
+  evidenced allowlist the reviewer offered as the alternative;
+  measured-real → fail-closed re-pin (store the NEW bytes, honest
+  reset of that boundary only). Deliverable: the directive the
+  reviewer asked for, with the measurement inside.
+
+- **READY — #272 blocker 3 (series-wide): conversation-derived state
+  files land at ambient umask with raw bytes.** Canon/events (this
+  extension), request bodies (#275), system prompts (#280) — same
+  shape three times; the reviewer asks to fix it once as a pattern.
+  Fork-side too: ~/.claude state written by the serving proxy. Build:
+  explicit 0600 on every conversation-derived write (one helper,
+  grep-established call sites stated), hashes instead of raw bytes
+  where bytes are not structurally required (canon `entry.m` IS
+  structurally required — that stays, documented). Verifier: a bite
+  asserting mode 0600 on freshly written canon/events; sweep of
+  existing files chmod'd at deploy.
+
+- **READY — #272 blocker 4: proxy-read-dedupe adjacency assertion —
+  make the deliberate call.** The test pins cache-control-normalize
+  immediately after read-dedupe; insertion-normalization at order 395
+  lands between. Decide whether the adjacency is load-bearing for
+  read-dedupe (read its header/rationale first — doc-vs-artifact),
+  then either move the order or update the assertion, with the
+  reasoning in the commit. Known-red on both prepared branches;
+  proven pre-existing at 53761a3.
   `tools/verdict-ab.mjs` has no committed test: its COULD-NOT-VERIFY
   exit-2 path was demonstrated red by execution and its fixture
   reader was corrected after a real 2-of-6-corpora miss (report
