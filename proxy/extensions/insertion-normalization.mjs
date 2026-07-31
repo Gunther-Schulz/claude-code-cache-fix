@@ -581,6 +581,25 @@ export function stripVolatileBlocks(msg) {
   return { ...msg, content: kept };
 }
 
+// A STANDALONE CARRIER: a message that is neither user nor assistant (in this
+// transport, the mid-conversation `system` shape) whose whole content is one
+// text block. That is the form CC parks a migrated reminder in, and the form
+// of the task-tools nudge — the two message kinds the measured move shuffles
+// between inline and standalone positions.
+//
+// Its first-seen bytes are stored for one reason only: when CC merges such a
+// message INTO a neighbour's reminder and stops sending it (the cross-message
+// join, findJoinMoves below), re-serving it is the only way the merge can be
+// absorbed without dropping its bytes off the wire. Nothing else reads this
+// `m` — pinnedForwardForm returns the incoming message untouched for any
+// entry whose role is not "user", so storing it changes no forwarded byte on
+// any existing path.
+function isStandaloneCarrier(msg) {
+  if (!msg || msg.role === "user" || msg.role === "assistant") return false;
+  const shaped = canonicalMessageShape(msg);
+  return Array.isArray(shaped.content) && shaped.content.length === 1 && shaped.content[0]?.type === "text";
+}
+
 function buildPinEntry(identity, msg) {
   const entry = { h: identity.h, r: identity.r, o: identity.o };
   if (
@@ -591,6 +610,8 @@ function buildPinEntry(identity, msg) {
     // First-seen form, cache_control stripped: a marker the tail rotation
     // happened to leave on this message at creation must not be replayed
     // forever from the pin.
+    entry.m = stripAllCacheControl(msg);
+  } else if (isStandaloneCarrier(msg)) {
     entry.m = stripAllCacheControl(msg);
   }
   return entry;
@@ -670,6 +691,11 @@ function pinnedBlockHashes(priorCanonical) {
 // false suppression on coincidental partial matches. "\n\n" is hardcoded
 // to the one observed instance, not a general N-ary merge grammar — other
 // separators are unobserved, and the census keeps watching for them.
+// The one observed separator, named once. pinnedJoinHashes and the
+// cross-message move recognition below are the same grammar seen from two
+// sides, so they must not carry two copies of it.
+const JOIN_SEPARATOR = "\n\n";
+
 function pinnedJoinHashes(priorCanonical) {
   const hashes = new Set();
   if (!Array.isArray(priorCanonical)) return hashes;
@@ -677,7 +703,7 @@ function pinnedJoinHashes(priorCanonical) {
     if (entry.d || !entry.m || !Array.isArray(entry.m.content)) continue;
     const volatileTexts = entry.m.content.filter(isVolatileBlock).map((b) => unwrapVolatileText(b).text);
     if (volatileTexts.length < 2) continue;
-    const h = hashMessageContent({ content: [{ type: "text", text: volatileTexts.join("\n\n") }] });
+    const h = hashMessageContent({ content: [{ type: "text", text: volatileTexts.join(JOIN_SEPARATOR) }] });
     if (h !== null) hashes.add(h);
   }
   return hashes;
@@ -704,6 +730,119 @@ export function findSuppressibleDuplicate(msg, pinnedHashes, joinHashes) {
 }
 
 export { pinnedBlockHashes, pinnedJoinHashes };
+
+// --- Cross-message join MOVE (threat-matrix row 4, the 2026-07-30 flap) ---
+//
+// The leg no hash set could match, measured on the real bytes (fixture
+// flap-s-0dc8ac87c43d-86.json, request n=104):
+//
+//   INLINE      msg89 user [tool_result, tool_result, <system-reminder>683]
+//               msg90 system "The task tools haven't been used…"  (421 chars)
+//   STANDALONE  msg90 user [tool_result, tool_result]     <- msg89, reminder shed
+//               msg91 system  683 + "\n\n" + 421 = 1106   <- BOTH, merged
+//
+// So one message's reminder and the WHOLE of the standalone next to it left
+// together as a single new message, and msg90 stopped being sent at all.
+// pinnedBlockHashes matches one block; pinnedJoinHashes matches all blocks of
+// ONE entry. Neither can span two source messages, so msg91 read as genuine
+// new content landing in dropped msg90's gap — which is exactly the
+// co-location test isEdit uses, so classifyPinned returned reset("edit-shaped")
+// before the suppression pass could run, and the whole 221k prefix was
+// re-billed on every second flip.
+//
+// DEFINITION of a MOVE, narrowed to the measured shape and no further:
+// within one request, a canonical entry D disappears from the wire while a
+// NEW message N appears such that
+//   (a) D has stored first-seen bytes and is a standalone carrier — CC can
+//       only re-send what it once sent, and we can only re-serve what we
+//       kept;
+//   (b) P, the nearest LIVE canonical entry BEFORE D, is present on this
+//       request's wire and pins at least one reminder-WRAPPED block — the
+//       candidacy predicate (47defba): the wrapper is what makes a block the
+//       decoration CC relocates, and without it a message that merely shed a
+//       sibling reads as a migration source;
+//   (c) N's unwrapped text is exactly P's wrapped blocks joined with "\n\n",
+//       then "\n\n", then D's whole first-seen text — the two-constituent
+//       join in the measured order, never a subset, never another separator,
+//       never a third constituent;
+//   (d) N sits strictly inside D's gap — after P's wire index and before the
+//       next surviving canonical entry's — the same co-location discriminator
+//       isEdit uses, so a coincidental match elsewhere is not a move;
+//   (e) a surviving successor EXISTS. This bounds the search, and it also
+//       means N can never be the request's final message, so the tail guard
+//       below (a suppressed final message leaves the request ending on an
+//       assistant turn — three real 400s) cannot be reached from here.
+//
+// Everything else is out of scope by construction and stays on today's path
+// byte-for-byte: subset merges, three-plus-block joins, other separators,
+// moves of non-reminder content.
+const isReminderWrapped = (b) =>
+  b && typeof b === "object" && b.type === "text" && typeof b.text === "string" && b.text !== "" &&
+  VOLATILE_WRAP_REGEX.test(b.text);
+
+// The whole text of a message that consists of exactly one text block, wrapper
+// stripped. null for anything else — a multi-block message is not a standalone
+// and cannot be a join constituent under the definition above.
+function standaloneText(msg) {
+  if (!msg) return null; // an entry with no stored first-seen form
+  const shaped = canonicalMessageShape(msg);
+  if (!Array.isArray(shaped.content) || shaped.content.length !== 1) return null;
+  const b = unwrapVolatileText(shaped.content[0]);
+  return b && b.type === "text" && typeof b.text === "string" ? b.text : null;
+}
+
+// The reminder side of the join: a pinned entry's wrapped blocks, unwrapped
+// and joined in WIRE order — the same rule and separator pinnedJoinHashes
+// uses, so a one-block entry yields just its text and a two-block entry
+// yields the join the merged-standalone shape already matches.
+function pinnedReminderText(entry) {
+  if (!entry?.m || !Array.isArray(entry.m.content)) return null;
+  const texts = entry.m.content.filter(isReminderWrapped).map((b) => unwrapVolatileText(b).text);
+  return texts.length ? texts.join(JOIN_SEPARATOR) : null;
+}
+
+export function findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries }) {
+  const moves = [];
+  if (!droppedNow || droppedNow.size === 0) return moves;
+  const ciToIdx = new Map(matched.map((m) => [m.ci, m.idx]));
+  for (const ci of droppedNow) {
+    const dText = standaloneText(priorCanonical[ci]?.m);
+    if (dText === null) continue; // (a)
+
+    let pci = -1;
+    for (let j = ci - 1; j >= 0; j--) {
+      if (priorCanonical[j].d) continue;
+      pci = j;
+      break;
+    }
+    if (pci < 0 || !ciToIdx.has(pci)) continue; // (b) predecessor not on the wire
+    const pText = pinnedReminderText(priorCanonical[pci]);
+    if (pText === null) continue; // (b) predecessor pins no reminder
+
+    const loIdx = ciToIdx.get(pci);
+    let hiIdx = -1;
+    for (let j = ci + 1; j < priorCanonical.length; j++) {
+      if (priorCanonical[j].d) continue;
+      if (ciToIdx.has(j)) {
+        hiIdx = ciToIdx.get(j);
+        break;
+      }
+    }
+    if (hiIdx < 0) continue; // (e) no surviving successor: unbounded gap, and the tail
+
+    const wanted = pText + JOIN_SEPARATOR + dText;
+    for (const e of newEntries) {
+      if (e.index <= loIdx || e.index >= hiIdx) continue; // (d)
+      const t = standaloneText(messages[e.index]);
+      if (t === null || t !== wanted) continue; // (c)
+      const hash = hashMessageContent({ content: [{ type: "text", text: t }] });
+      if (hash === null) continue;
+      moves.push({ mergedIndex: e.index, ci, afterIdx: loIdx, hash });
+      break;
+    }
+  }
+  return moves;
+}
 
 // Pin-mode classification. Differences from classifyInsertion:
 //   - identities exclude volatile blocks (flip absorption);
@@ -736,6 +875,28 @@ export function classifyPinned(messages, priorCanonical) {
   // Deliberately NOT used by the adjacency-violation reset: that path exists
   // precisely because the pinned form broke tool adjacency, so it must send
   // the raw array.
+  //
+  // The SAME argument, one mechanism over: a reset must not abandon a
+  // recognized MOVE either. Measured 2026-07-30 on capture s-dc3f8071
+  // (n=196->197): the move was recognized on 196 and the absorbed entry's
+  // first-seen bytes served at wire index 223; on 197 the subsequence match
+  // failed, this path ran without move recognition, and the merged message
+  // went out raw again. Our bytes at 223 flipped where CC's were identical,
+  // moving the divergence 10 messages earlier than CC required — the row-22
+  // shape exactly. Three captures that are otherwise clean reported it.
+  //
+  // Condition by condition, the pin argument transfers:
+  //   - recognition needs no order model. findJoinMoves is a pure function of
+  //     `matched`, `droppedNow`, `priorCanonical` and the wire, all of which
+  //     this path already has, and the absorbed entry's first-seen bytes live
+  //     in the canonical whatever the order did;
+  //   - it FAILS CLOSED under disorder. Condition (d) bounds the merged
+  //     message by its matched neighbours' wire indices, so in a scrambled
+  //     request those bounds cross and nothing matches — raw forward, today's
+  //     behaviour. The substitution can only fire where the local
+  //     neighbourhood is still ordered;
+  //   - it is slot-preserving: 1 -> 1, in place, so count, roles and
+  //     adjacency are untouched, which is the pin argument verbatim.
   const priorByKey = new Map(
     (Array.isArray(priorCanonical) ? priorCanonical : []).map((e) => [identityKey(e), e]),
   );
@@ -751,12 +912,25 @@ export function classifyPinned(messages, priorCanonical) {
         applied++;
       }
     }
+    // Move substitutions, after the pins and on the same array. The two never
+    // collide: a pin applies to a MATCHED entry, a move replaces a NEW one.
+    const moves = findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries });
+    const movedByMergedIdx = new Map(moves.map((m) => [m.mergedIndex, m]));
+    for (const mv of moves) out[mv.mergedIndex] = priorCanonical[mv.ci].m;
+
     // The canonical must describe the wire we JUST FORWARDED — the same
     // invariant the success path states. Building it from `messages` while
     // sending `out` makes the two disagree, and the next request then
     // diverges against a baseline that was never on the wire. Measured: that
     // mistake turned 0 violations into 3 on capture s-0edbd11c before the
     // canonical was switched to the pinned array.
+    //
+    // A moved slot therefore files the ABSORBED entry, not a fresh identity
+    // built from the merge: the merge is not what we sent there. Filing the
+    // merge would end the substitution after exactly one request — the
+    // absorbed entry would be gone from the canonical, nothing would be left
+    // to re-serve, and the flip would simply land on the next request.
+    //
     // Suppression runs HERE too, not only on the success path.
     //
     // The defect this closes (measured 2026-07-31, session 77fe2779, the
@@ -795,8 +969,27 @@ export function classifyPinned(messages, priorCanonical) {
     // the per-suppression event lines in the telemetry log (onRequest emits one
     // per entry of THIS array), i.e. the record dev-loop's "rule out ourselves"
     // sweep reads — absent on the reset path, which is ~1 request in 3.
+    //
+    // ONE declaration array for BOTH suppression kinds, mirroring the success
+    // path: `kind: "join-move"` entries KEEP their slot (the absorbed entry is
+    // substituted into it above), plain duplicate entries are REMOVED from the
+    // forwarded array. tools/replay.mjs reads the kind to tell the two apart
+    // (`wireRemovedIndices` filters `kind !== "join-move"`), so a single array
+    // is what both gates already expect — two arrays would leave one of them
+    // blind on whichever kind it did not read.
     const suppressionsR = [];
     for (const e of incoming) {
+      const mv = movedByMergedIdx.get(e.index);
+      if (mv) {
+        // The merged message carries the bytes of TWO sources, so no single
+        // hash set can match it; findJoinMoves has already established that
+        // both constituents are on the wire (one pinned, one re-served into
+        // this very slot), which is the "a copy is present" condition the hash
+        // sets check. Declared here, never added to `suppressedR` — the slot
+        // stays, it just carries the first-seen bytes.
+        suppressionsR.push({ index: mv.mergedIndex, hash: mv.hash, kind: "join-move" });
+        continue;
+      }
       if (priorByKey.has(identityKey(e))) continue; // only entries CC newly sent
       if (e.r === "assistant") continue;
       if (e.index === lastIdxR) continue;           // tail growth is never a stray migration
@@ -811,16 +1004,23 @@ export function classifyPinned(messages, priorCanonical) {
       : out;
     // A suppressed entry was never forwarded, so it must not enter the
     // canonical either — same invariant the success path states: the canonical
-    // describes the wire we JUST FORWARDED.
+    // describes the wire we JUST FORWARDED. A MOVED slot is the opposite case:
+    // it IS on the forwarded wire, carrying the absorbed entry's bytes, so it
+    // files that entry.
     const keptEntries = incoming.filter((e) => !suppressedR.has(e.index));
     return {
       action: "reset",
       resetReason,
-      canonicalEntries: keptEntries.map((e) => buildPinEntry(e, out[e.index])),
-      ...(applied > 0 || suppressedR.size > 0 ? { messages: forwarded } : {}),
+      canonicalEntries: keptEntries.map((e) => {
+        const mv = movedByMergedIdx.get(e.index);
+        return mv ? priorCanonical[mv.ci] : buildPinEntry(e, out[e.index]);
+      }),
+      ...(applied > 0 || moves.length > 0 || suppressedR.size > 0 ? { messages: forwarded } : {}),
       pinned: applied,
-      suppressed: suppressedR.size,
+      moved: moves.length,
+      suppressed: suppressionsR.length,
       suppressions: suppressionsR,
+      reserves: moves.map((m) => ({ index: m.mergedIndex, hash: m.hash })),
     };
   };
 
@@ -843,6 +1043,14 @@ export function classifyPinned(messages, priorCanonical) {
     if (idx === undefined) droppedNow.add(ci);
     else matched.push({ ci, idx });
   }
+  // Computed here rather than after the order checks below because
+  // resetKeepingPins needs `newEntries` to recognize a move, and both of the
+  // resets below are call sites. Nothing here depends on the order model —
+  // only on which identities matched — so hoisting it changes no value.
+  const matchedIdxSet = new Set(matched.map((m) => m.idx));
+  const lastMatched = matched.length > 0 ? matched[matched.length - 1].idx : -1;
+  const newEntries = incoming.filter((e) => !matchedIdxSet.has(e.index));
+
   for (let i = 1; i < matched.length; i++) {
     if (matched[i].idx <= matched[i - 1].idx) {
       return resetKeepingPins("not-subsequence");
@@ -852,9 +1060,6 @@ export function classifyPinned(messages, priorCanonical) {
     return resetKeepingPins("dropped-majority");
   }
 
-  const matchedIdxSet = new Set(matched.map((m) => m.idx));
-  const lastMatched = matched.length > 0 ? matched[matched.length - 1].idx : -1;
-  const newEntries = incoming.filter((e) => !matchedIdxSet.has(e.index));
   const splicedEntries = newEntries.filter((e) => e.index <= lastMatched);
 
   // A true EDIT decomposes under drop-tolerance into drop + splice: the old
@@ -872,11 +1077,26 @@ export function classifyPinned(messages, priorCanonical) {
   // definite gap — between its nearest surviving predecessor and successor —
   // and only a spliced entry landing INSIDE that gap is a plausible
   // replacement for it. A splice elsewhere is an independent insertion.
+  // A recognized MOVE is classified BEFORE the edit-shaped test, and only for
+  // candidacy-class content (findJoinMoves' definition). CC did not edit
+  // history here — it re-packaged a reminder and its neighbouring standalone
+  // into one message — so the honest response is to serve the first-seen form,
+  // not to abandon the order model. Everything the recognition does not match
+  // falls through to exactly today's path.
+  const joinMoves = findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries });
+  const movedMergedIdx = new Set(joinMoves.map((m) => m.mergedIndex));
+  const movedCi = new Set(joinMoves.map((m) => m.ci));
+
   const matchedCi = new Set(matched.map((m) => m.ci));
   const isEdit = (() => {
     if (droppedNow.size === 0 || splicedEntries.length === 0) return false;
-    const splicedIdx = splicedEntries.map((e) => e.index);
+    // The merged message is not a replacement for the entry it absorbed, and
+    // that entry did not vanish — it is about to be re-served. Both sides of
+    // the co-location test therefore drop out of it.
+    const splicedIdx = splicedEntries.map((e) => e.index).filter((idx) => !movedMergedIdx.has(idx));
+    if (splicedIdx.length === 0) return false;
     for (const ci of droppedNow) {
+      if (movedCi.has(ci)) continue;
       // Nearest surviving neighbours of the dropped entry, in incoming space.
       let lo = -1;
       for (let j = ci - 1; j >= 0; j--) {
@@ -930,10 +1150,39 @@ export function classifyPinned(messages, priorCanonical) {
   for (const e of newEntries) {
     if (e.r === "assistant") continue;
     if (e.index === lastIdx) continue;
+    // A recognized move's merged message carries the bytes of TWO sources, so
+    // no single-hash set can match it; findJoinMoves has already established
+    // that both constituents are on the wire (one pinned, one re-served below),
+    // which is the same "a copy is present" condition the hash sets check.
+    if (movedMergedIdx.has(e.index)) {
+      suppressions.push({ index: e.index, hash: joinMoves.find((m) => m.mergedIndex === e.index).hash, kind: "join-move" });
+      continue;
+    }
     const h = findSuppressibleDuplicate(messages[e.index], pinnedHashes, pinnedJoin);
     if (h !== null) suppressions.push({ index: e.index, hash: h });
   }
   const suppressedIdx = new Set(suppressions.map((s) => s.index));
+  // A move is served IN PLACE OF the merged message — the re-served entry
+  // takes exactly the slot the merge occupied, which is the slot it held when
+  // it was first seen (it landed in that gap, immediately after its
+  // predecessor). One message in, one message out.
+  //
+  // The alternative — appending the re-serve after the predecessor and
+  // dropping the merge — was built first and was WRONG for a reason worth
+  // keeping: it made the move a deletion plus an insertion, so every check
+  // downstream needed to be told the OUTGOING index of a message we added,
+  // and that index is measured at THIS extension's tap point (order 395).
+  // deferred-tool-rewrite inserts its tool_addition announcement at order
+  // 425, so by the time the safety gate reads the forwarded array the number
+  // points at a different message: measured on capture s-0d6f38ba n=104, the
+  // recorded outIndex 89 held the re-served system message here and a
+  // `user [tool_result, tool_result, text]` in the final array, where the
+  // re-serve had shifted to 90 — 98 safety violations across the capture,
+  // all of them the instrument, none of them the conversation. Substituting
+  // in place needs no index to travel anywhere (dev-loop.md, "Tap points —
+  // every number names where it was measured").
+  const movedByMergedIdx = new Map(joinMoves.map((m) => [m.mergedIndex, m]));
+  const reserves = [];
 
   // Forwarded order is the INCOMING order, not "survivors then new". The two
   // agree for a plain append; they diverge when CC splices an entry
@@ -943,7 +1192,13 @@ export function classifyPinned(messages, priorCanonical) {
   const matchedByIdx = new Map(matched.map(({ ci, idx }) => [idx, ci]));
   const finalMessages = [];
   for (const e of incoming) {
-    if (suppressedIdx.has(e.index)) continue; // the pinned inline form already carries these bytes
+    if (suppressedIdx.has(e.index)) {
+      const mv = movedByMergedIdx.get(e.index);
+      if (!mv) continue; // an ordinary duplicate: the pinned inline form already carries these bytes
+      reserves.push({ index: mv.mergedIndex, hash: mv.hash });
+      finalMessages.push(priorCanonical[mv.ci].m);
+      continue;
+    }
     const ci = matchedByIdx.get(e.index);
     if (ci === undefined) {
       finalMessages.push(messages[e.index]);
@@ -991,6 +1246,13 @@ export function classifyPinned(messages, priorCanonical) {
         lastSeenIdx = hit.idx;
         continue;
       }
+      // A MOVED entry is absent from CC's array and PRESENT on ours — it was
+      // re-served into the merged message's slot — so it is neither dropped
+      // nor trailing: it is placed at that slot in the loop below, exactly
+      // where it sits on the wire we just forwarded. Marking it dropped, or
+      // trailing it here, would make the canonical describe an array we did
+      // not send, which is the invariant stated further down.
+      if (movedCi.has(ci)) continue;
       const marked = entry.d ? entry : { ...entry, d: true };
       if (!droppedAfter.has(lastSeenIdx)) droppedAfter.set(lastSeenIdx, []);
       droppedAfter.get(lastSeenIdx).push(marked);
@@ -1008,12 +1270,18 @@ export function classifyPinned(messages, priorCanonical) {
     // history, and it is re-detected and re-suppressed every time — no
     // persisted "suppressed" marker is needed for the suppression to stay
     // stable across subsequent requests.
-    if (suppressedIdx.has(e.index)) continue;
+    if (suppressedIdx.has(e.index)) {
+      // A moved entry occupies this slot on the forwarded wire, so it occupies
+      // it in the canonical too — the two must describe the same array.
+      const mv = movedByMergedIdx.get(e.index);
+      if (mv) canonicalEntries.push(priorCanonical[mv.ci]);
+      continue;
+    }
     canonicalEntries.push(canonByIdx.get(e.index) ?? newByIdx.get(e.index));
     for (const trailing of droppedAfter.get(e.index) ?? []) canonicalEntries.push(trailing);
   }
 
-  const changed = splicedEntries.length > 0 || pinApplied > 0 || suppressions.length > 0;
+  const changed = splicedEntries.length > 0 || pinApplied > 0 || suppressions.length > 0 || reserves.length > 0;
   return {
     action: changed ? "normalized" : "append-only",
     messages: finalMessages,
@@ -1053,9 +1321,14 @@ export function classifyPinned(messages, priorCanonical) {
     // not inflate this the way it would inflate a real insertion count.
     inserted: newEntries.length - suppressions.length,
     pinned: pinApplied,
-    dropped: droppedNow.size,
+    // A moved entry is not dropped — it is still being served, from its
+    // first-seen bytes. Counting it here would report a prune that did not
+    // happen and would make the drop rate unreadable.
+    dropped: droppedNow.size - movedCi.size,
     suppressed: suppressions.length,
     suppressions,
+    moved: joinMoves.length,
+    reserves,
   };
 }
 
@@ -1127,6 +1400,13 @@ export default {
               dropped: result.dropped ?? 0,
               suppressed: result.suppressed ?? 0,
               suppressions: result.suppressions ?? [],
+              // `reserves` is the mirror of `suppressions` and rides for the
+              // same reason: a message we ADD is invisible to a check that
+              // only knows what CC sent, so the gates read the outgoing
+              // indices from the extension's own report rather than
+              // re-deriving "this one looks synthetic".
+              moved: result.moved ?? 0,
+              reserves: result.reserves ?? [],
             }
           : {}),
       };
@@ -1141,7 +1421,7 @@ export default {
           action: result.action,
           inserted: result.inserted ?? 0,
           ...(result.resetReason ? { resetReason: result.resetReason } : {}),
-          ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0, suppressed: result.suppressed ?? 0 } : {}),
+          ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0, suppressed: result.suppressed ?? 0, moved: result.moved ?? 0 } : {}),
         },
         fs,
       );
@@ -1159,7 +1439,7 @@ export default {
               ts: new Date().toISOString(),
               key: sessionKey,
               sid: sessionId,
-              event: "suppressed-duplicate",
+              event: s.kind === "join-move" ? "join-move" : "suppressed-duplicate",
               index: s.index,
               hash: s.hash,
             },
