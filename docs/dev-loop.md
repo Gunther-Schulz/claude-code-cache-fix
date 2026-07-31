@@ -466,7 +466,15 @@ harvesting. `cache-fix-harvest.timer` runs twice daily for that reason;
 via per-capture watermarks.
 
 Harvested fixtures are sanitized (text replaced by deterministic hash tokens,
-structure preserved exactly) and therefore committable. Ledgers are
+structure preserved exactly) and therefore committable. Scrub granularity is
+per-`"\n\n"`-segment (relation-preserving — see
+`docs/directives/scrub-relation-preservation-directive.md`): tokens expose
+paragraph count, per-paragraph lengths, and cross-text sharing of identical
+paragraphs, never content bytes. Accepted here (operator, 2026-07-31) because
+this deployment runs local and controlled and commits only its own traffic's
+fixtures; anyone harvesting NON-local or third-party traffic should re-make
+that judgment before committing fixtures publicly — length vectors can
+fingerprint known public texts. Ledgers are
 per-machine (`LEDGER-<host>.json`); novelty is judged against every sibling
 ledger, so N machines share one deduplicated corpus with no coordination.
 

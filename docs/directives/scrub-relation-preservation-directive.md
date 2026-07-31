@@ -61,7 +61,10 @@ Guaranteed properties (assert them, in this order, in the test):
   preserved and that residual is accepted: the domain's join contract
   is `"\n\n"` and nothing narrower.
 
-**Named privacy delta (accepted at dispatch, operator veto open):**
+**Named privacy delta (operator ACCEPTED 2026-07-31 — this deployment
+is local and controlled; non-local/third-party-traffic deployments must
+re-make the judgment before committing fixtures publicly, see
+dev-loop.md corpus hygiene):**
 per-segment tokens reveal paragraph count, per-paragraph lengths, and
 cross-text sharing of identical paragraphs — where the old scrub
 revealed one total length and whole-text equality only. No content
