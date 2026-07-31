@@ -80,8 +80,15 @@ bullet, evidence pointer included.
   ~nothing live; per-request TOTAL absorption is the prize, so the last
   open class is worth as much as the first.
 
-- **READY — EXTENDED-class absorb: pin the first-seen form, relocate the
-  byte-computable delta (matrix row 4 residual).** Grounding: census over
+- **CLOSED 2026-07-31 — EXTENDED-class absorb: build refused on
+  measurement; duplicate of the flap-move cross-message-join class
+  (5c4d70a, dispatcher-verified: the merged-standalone byte relation
+  re-checked against the raw capture, npm test 1783/0).** Do not
+  re-dispatch off this entry — the un-merge lives in
+  docs/directives/flap-move-mitigation-and-fidelity-gate.md unit 2,
+  blocked on the identity decision. Original entry kept below for the
+  record; its premise and placement are both refuted in the resolution
+  lines at the bottom. Grounding: census over
   this session's capture reports exactly one EXTENDED occurrence
   (2026-07-31T11:41:05.778Z, host=99, recon=293ch, actual=716ch) and the
   extra text is the "task tools haven't been used recently" harness
@@ -152,6 +159,46 @@ bullet, evidence pointer included.
   of the corpus by bytes — dropped on `RangeError: Cannot create a
   string longer than 0x1fffffe8 characters`, reported as "25
   capture(s)" with no could-not-verify line).
+
+- **READY — census reads captures by LINE, and says what it could not
+  read** (lifted 2026-07-31 from
+  docs/code-reviews/extended-absorb-report.md §c4, where the measured
+  skip list lives). Replace `readCapture`'s `readFileSync` in
+  `tools/reminder-migration-census.mjs` with `readLines`
+  (`tools/read-lines.mjs`, already streaming and already the fix for
+  this exact RangeError class in `replay.mjs`); keep per-conversation
+  grouping unchanged. Report skipped/unreadable files as their own
+  line and make a run whose unreadable count is non-zero say so in
+  the verdict block (three-answer rule). Verifier: a run over
+  `~/.claude/cache-fix-captures/*.jsonl` reports 39 files considered
+  and 0 unreadable, versus 25/4 today; per-capture EXACT/EXTENDED
+  tallies on the 25 currently-readable files unchanged. A MISMATCH
+  surfacing in the newly-readable 79% of corpus bytes is a FINDING to
+  report, never a failure of this change. Done when `gate-live`'s
+  sweep cannot report a clean byte-gate over a corpus it did not read.
+
+- **READY — census: EXTENDED sub-classification (MERGED-STANDALONE vs
+  NEW-TEXT)** (lifted 2026-07-31 from the same report §c3; ORDER: land
+  the line-read item above first — this one's classifications then
+  cover the whole corpus). In `analysePair`, when a finding classifies
+  EXTENDED, compare `actual.slice(recon.length)` (leading `"\n\n"`
+  stripped) against the texts of the BEFORE request's standalone
+  `role:"system"` messages; emit the sub-verdict on the detail row and
+  in the non-EXACT listing. Also correct the header comment: "NOT
+  absorbable by any normalization" is refuted for the merged
+  sub-class. Verifier: red-first on the corpus — the 9 occurrences of
+  the report's §b1 must print MERGED-STANDALONE, and a synthetic
+  new-text pair must print NEW-TEXT. Done when the sub-verdict appears
+  in `--json`, so `bust-triage` can key on it.
+
+- **PARKED — harvest scrub cannot express prefix/join byte relations**
+  (report §c5, verified by executing `scrubMessage`:
+  `scrub(a+"\n\n"+b) != scrub(a)+"\n\n"+scrub(b)`, so a `--pin`ned
+  fixture of a merged-standalone pair does not reproduce the class it
+  was pinned for; tests work around it with synthetic tokens whose
+  relation holds by construction). Named missing piece: a
+  relation-preserving scrub design that does not weaken the privacy
+  guarantee — e.g. tokenizing at join boundaries — none proposed yet.
 
 - **READY — prune-event classification rides `--census` (mechanize the
   2026-07-31 drop-scan probe).** The row-22 refutation was produced by a
@@ -692,7 +739,13 @@ bullet, evidence pointer included.
   shape-verdicts alarm entry (Q4 pattern above) is its standing
   consumer — closes the alarm-without-reader gap for this file
   from day one. Done: gate serving + acceptance entry + doctor
-  green.
+  green. SAME BOUNDARY now also carries (2026-07-31): the dotfiles
+  proxy tree pin bump for 5c4d70a (insertion-normalization
+  declares reset-path suppressions — telemetry-only, no state
+  keys or freeze logic touched, so row-3 restart-safe) and the
+  post-restart gate stamp (the dispatch's gate run went to
+  scratchpad deliberately, so ~/.claude/cache-fix-gate-status.json
+  still describes the pre-5c4d70a tree).
 
 - **RESOLVED 2026-07-30 (probe, dispatcher-booked): forwardedStable
   was a census framing gap — deferred-tool-rewrite is NOT broken.**
@@ -810,7 +863,12 @@ bullet, evidence pointer included.
   mitigation): a settled answer to the two design questions, nothing
   else; the cost-trigger this entry briefly carried contradicted the
   recorded operator ruling (matrix header / row 6 ladder) and is
-  withdrawn. The detector supplies design specimens, not a
+  withdrawn. MERGE NOTE 2026-07-31: main now carries the reset-path
+  suppressions DECLARATION (5c4d70a) while branch wt/fidelity/opus
+  carries its own sibling declaration fix ("builder deviation,
+  REQUIRED and kept" in the flap-move directive's status) — the two
+  edit the same classifyPinned region and must be reconciled at that
+  branch's integration, not auto-merged. The detector supplies design specimens, not a
   worthiness threshold. UNPARKED 2026-07-30 (operator GO): both
   questions answered by mechanism in
   docs/directives/flap-move-mitigation-and-fidelity-gate.md —
