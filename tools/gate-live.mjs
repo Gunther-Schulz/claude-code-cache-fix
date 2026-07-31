@@ -42,6 +42,7 @@ import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
+const CENSUS = join(__dirname, "reminder-migration-census.mjs");
 const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
 const DEFAULT_STATUS = join(homedir(), ".claude", "cache-fix-gate-status.json");
 
@@ -111,12 +112,48 @@ export function replayArgs(file, env) {
   return args;
 }
 
+// The byte-gate rides the same sweep, as a second child per capture.
+//
+// Two answers only this delivers daily. The migration byte-test is the gate
+// "every NORMALIZATION design must pass before it ships" (dev-loop.md) and was
+// run by hand, at design time, over whatever corpus existed that day — while
+// its own COVERAGE was the thing that failed silently (it skipped the four
+// largest captures for weeks). And prune classification: an INTERIOR-DIVERGENT
+// prune re-bills settled history, ranges from 2 messages to a whole context,
+// and had no daily reader at all — it took a throwaway drop-scan probe to see
+// one. Both are cheap next to the replay (20 s over the whole corpus against
+// the replay's minutes), and neither has a home outside this sweep.
+export function censusArgs(file) {
+  return [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, CENSUS, file, "--json"];
+}
+
+// The census exits 1 when it could not read something, so the exit CODE is not
+// the signal here — the JSON is. A run that produced no JSON could not answer
+// at all, which is recorded as an error rather than as zero findings (the
+// three-answer rule this tool exists to keep).
+export function summariseCensus(res) {
+  if (res.code === -1) return { error: res.err };
+  let parsed = null;
+  try {
+    parsed = JSON.parse(res.out);
+  } catch {
+    return { error: res.err.trim().split("\n").slice(-4).join("\n") || "no JSON output" };
+  }
+  return {
+    pairs: parsed.pairs ?? 0,
+    unreadable: (parsed.unreadable ?? []).length,
+    tally: parsed.tally ?? null,
+    extendedSub: parsed.extendedSub ?? null,
+    prunes: parsed.prunes ?? null,
+  };
+}
+
 // A capture being written to right now is not a defect and not a skip: the
 // gate reads a prefix of it, which is a valid corpus. Recorded so a reader can
 // tell a short run from a truncated one.
-function runReplay(file, env) {
+function runChild(args) {
   return new Promise((resolve) => {
-    const child = spawn("node", replayArgs(file, env), {
+    const child = spawn("node", args, {
       stdio: ["ignore", "pipe", "pipe"],
     });
     let out = "";
@@ -127,6 +164,9 @@ function runReplay(file, env) {
     child.on("close", (code) => resolve({ code, out, err }));
   });
 }
+
+const runReplay = (file, env) => runChild(replayArgs(file, env));
+const runCensus = (file) => runChild(censusArgs(file));
 
 function summarise(file, bytes, res) {
   const row = { file, bytes, exit: res.code };
@@ -220,7 +260,31 @@ const rowIsClean = (r) =>
   !r.sequence &&
   !r.order &&
   // A fidelity mismatch invalidates every other number in the row.
-  !r.fidelityMismatch;
+  !r.fidelityMismatch &&
+  // A capture the byte-gate could not READ is a could-not-verify, and this
+  // sweep is where that has to bite: the whole defect was a normalization gate
+  // reporting clean over a corpus it never read. Findings the byte-gate DOES
+  // make (MISMATCH, interior prunes) are carried, not failed — they are
+  // findings about Claude Code's traffic, not about this pipeline, and a check
+  // that fires on a non-defect trains its reader to ignore red.
+  !r.byteGate?.error &&
+  !r.byteGate?.unreadable;
+
+/** One line per capture: what the byte-gate measured, or why it could not. */
+export function describeByteGate(g) {
+  if (!g) return "not run";
+  if (g.error) return `COULD NOT RUN — ${g.error.split("\n")[0]}`;
+  if (g.unreadable) return `COULD NOT READ ${g.unreadable} capture(s) — verdict does not cover them`;
+  const t = g.tally ?? {};
+  const p = g.prunes ?? {};
+  const merged = g.extendedSub?.["MERGED-STANDALONE"] ?? 0;
+  return (
+    `${t.EXACT ?? 0} EXACT / ${t.EXTENDED ?? 0} EXTENDED (${merged} merged) / ` +
+    `${t.DROPPED ?? 0} DROPPED / ${t.MISMATCH ?? 0} MISMATCH; ` +
+    `prunes ${p.pure ?? 0} pure / ${p.interior ?? 0} interior` +
+    (p.unanchored ? ` / ${p.unanchored} unanchored` : "")
+  );
+}
 
 function parseArgs(argv) {
   const args = { captures: DEFAULT_CAPTURES, status: DEFAULT_STATUS, quiet: false };
@@ -271,6 +335,7 @@ async function main() {
     if (bytes === 0) continue;
     const res = await runReplay(full, prodEnv);
     const row = summarise(f, bytes, res);
+    row.byteGate = summariseCensus(await runCensus(full));
     rows.push(row);
     if (!args.quiet) {
       const verdict = row.error
@@ -278,13 +343,32 @@ async function main() {
         : rowIsClean(row)
           ? "clean"
           : `stability=${row.stability} safety=${row.safety} conservation=${row.conservation} sequence=${row.sequence} order=${row.order}` +
-            (row.fidelityMismatch ? ` FIDELITY-MISMATCH=${row.fidelityMismatch}` : "");
+            (row.fidelityMismatch ? ` FIDELITY-MISMATCH=${row.fidelityMismatch}` : "") +
+            (row.byteGate?.unreadable ? " BYTE-GATE-UNREADABLE" : "") +
+            (row.byteGate?.error ? " BYTE-GATE-ERROR" : "");
       process.stdout.write(`${f} (${(bytes / 1e6).toFixed(1)} MB, ${row.requests ?? "?"} req): ${verdict}\n`);
+      process.stdout.write(`  byte-gate: ${describeByteGate(row.byteGate)}\n`);
     }
   }
 
   const failed = rows.filter((r) => !rowIsClean(r));
   const proving = rows.filter((r) => !r.error && !r.provesNothing);
+  // Sweep-level byte-gate totals: the daily answer to "did a normalization
+  // rule hold corpus-wide, and did any prune re-bill settled history". Read by
+  // the operator and by doctor; per-capture rows keep the detail.
+  const byteGate = rows.reduce((acc, r) => {
+    const g = r.byteGate;
+    if (!g) return acc;
+    if (g.error) { acc.errors++; return acc; }
+    acc.unreadable += g.unreadable ?? 0;
+    for (const k of ["EXACT", "EXTENDED", "DROPPED", "MISMATCH"]) acc.tally[k] += g.tally?.[k] ?? 0;
+    acc.merged += g.extendedSub?.["MERGED-STANDALONE"] ?? 0;
+    acc.newText += g.extendedSub?.["NEW-TEXT"] ?? 0;
+    for (const k of ["pure", "interior", "unanchored"]) acc.prunes[k] += g.prunes?.[k] ?? 0;
+    return acc;
+  }, { errors: 0, unreadable: 0, merged: 0, newText: 0,
+       tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
+       prunes: { pure: 0, interior: 0, unanchored: 0 } });
   // Fingerprints of the code this sweep actually exercised. The verdict
   // used to record which CONFIG it replayed but never which CODE — so a
   // morning verdict stayed "fresh" (age bound) across an afternoon of
@@ -316,6 +400,7 @@ async function main() {
     // ok requires at least one PROVING row: a sweep of empty and
     // single-request captures ran zero cross-request checks.
     ok: failed.length === 0 && proving.length > 0,
+    byteGate,
     rows,
   };
   await mkdir(dirname(args.status), { recursive: true });
@@ -323,7 +408,15 @@ async function main() {
 
   if (!args.quiet) {
     process.stdout.write(
-      `\n${rows.length} capture(s), ${(status.bytes / 1e6).toFixed(0)} MB, ${failed.length} failing -> ${args.status}\n`,
+      `\n${rows.length} capture(s), ${(status.bytes / 1e6).toFixed(0)} MB, ${failed.length} failing -> ${args.status}\n` +
+      `byte-gate corpus-wide: ${byteGate.tally.EXACT} EXACT / ${byteGate.tally.EXTENDED} EXTENDED ` +
+      `(${byteGate.merged} merged-standalone, ${byteGate.newText} new-text) / ` +
+      `${byteGate.tally.DROPPED} DROPPED / ${byteGate.tally.MISMATCH} MISMATCH; ` +
+      `prunes ${byteGate.prunes.pure} pure / ${byteGate.prunes.interior} INTERIOR-DIVERGENT` +
+      (byteGate.prunes.unanchored ? ` / ${byteGate.prunes.unanchored} unanchored` : "") +
+      (byteGate.unreadable || byteGate.errors
+        ? `\n  COULD NOT VERIFY: ${byteGate.unreadable} unreadable capture(s), ${byteGate.errors} failed run(s)\n`
+        : "\n"),
     );
   }
   // Non-zero on a failing sweep AND on an empty one: "no captures" means the
