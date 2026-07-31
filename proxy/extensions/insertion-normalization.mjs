@@ -771,7 +771,15 @@ export { pinnedBlockHashes, pinnedJoinHashes };
 //   (e) a surviving successor EXISTS. This bounds the search, and it also
 //       means N can never be the request's final message, so the tail guard
 //       below (a suppressed final message leaves the request ending on an
-//       assistant turn — three real 400s) cannot be reached from here.
+//       assistant turn — three real 400s) cannot be reached from here;
+//   (f) N's role is "system" and D's stored role is "system" — the only
+//       measured shape, and `role:"system"` inside `messages[]` is legitimate
+//       wire shape (deferred-tool-rewrite relies on it). Without it the
+//       substitution could rewrite a message in some other role in place and
+//       the safety gate would fire on a role mismatch; no corpus instance
+//       exists, and the constraint keeps it that way rather than leaving the
+//       question to chance. Surfaced as a latent gap by the unit-2b build
+//       (its closing report §c5) and closed here.
 //
 // Everything else is out of scope by construction and stays on today's path
 // byte-for-byte: subset merges, three-plus-block joins, other separators,
@@ -808,6 +816,7 @@ export function findJoinMoves({ messages, priorCanonical, matched, droppedNow, n
   for (const ci of droppedNow) {
     const dText = standaloneText(priorCanonical[ci]?.m);
     if (dText === null) continue; // (a)
+    if (priorCanonical[ci].r !== "system") continue; // (f)
 
     let pci = -1;
     for (let j = ci - 1; j >= 0; j--) {
@@ -833,6 +842,7 @@ export function findJoinMoves({ messages, priorCanonical, matched, droppedNow, n
     const wanted = pText + JOIN_SEPARATOR + dText;
     for (const e of newEntries) {
       if (e.index <= loIdx || e.index >= hiIdx) continue; // (d)
+      if (messages[e.index]?.role !== "system") continue; // (f)
       const t = standaloneText(messages[e.index]);
       if (t === null || t !== wanted) continue; // (c)
       const hash = hashMessageContent({ content: [{ type: "text", text: t }] });
@@ -914,9 +924,16 @@ export function classifyPinned(messages, priorCanonical) {
     }
     // Move substitutions, after the pins and on the same array. The two never
     // collide: a pin applies to a MATCHED entry, a move replaces a NEW one.
-    const moves = findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries });
+    //
+    // The RE-FIRES of already-reserved entries run here on exactly the same
+    // footing. The disposition pass that produced them needs no order model
+    // either — it resolves a neighbourhood out of `matched` and fails closed
+    // when the bounds collapse, which is the same fail-closed argument that
+    // lets move recognition run on this path at all.
+    const moves = findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries: moveCandidates });
     const movedByMergedIdx = new Map(moves.map((m) => [m.mergedIndex, m]));
     for (const mv of moves) out[mv.mergedIndex] = priorCanonical[mv.ci].m;
+    for (const rf of refires) out[rf.index] = priorCanonical[rf.ci].m;
 
     // The canonical must describe the wire we JUST FORWARDED — the same
     // invariant the success path states. Building it from `messages` while
@@ -979,6 +996,11 @@ export function classifyPinned(messages, priorCanonical) {
     // blind on whichever kind it did not read.
     const suppressionsR = [];
     for (const e of incoming) {
+      const rf = refireByIdx.get(e.index);
+      if (rf) {
+        suppressionsR.push({ index: rf.index, hash: rf.hash, kind: "join-move" });
+        continue;
+      }
       const mv = movedByMergedIdx.get(e.index);
       if (mv) {
         // The merged message carries the bytes of TWO sources, so no single
@@ -1004,23 +1026,40 @@ export function classifyPinned(messages, priorCanonical) {
       : out;
     // A suppressed entry was never forwarded, so it must not enter the
     // canonical either — same invariant the success path states: the canonical
-    // describes the wire we JUST FORWARDED. A MOVED slot is the opposite case:
-    // it IS on the forwarded wire, carrying the absorbed entry's bytes, so it
-    // files that entry.
+    // describes the wire we JUST FORWARDED. A MOVED or RE-FIRED slot is the
+    // opposite case: it IS on the forwarded wire, carrying the absorbed
+    // entry's bytes, so it files that entry — a newly recognized move with
+    // `rs` minted on it, a re-fire with `rs` kept, a reclaim re-keyed and no
+    // longer reserved.
+    //
+    // Reserved entries that neither re-fired nor reclaimed are not carried,
+    // which is this path's existing semantics for everything not on the wire
+    // (dropped entries are already discarded here, unlike on the success
+    // path). Fail-closed: the substitution simply stops.
     const keptEntries = incoming.filter((e) => !suppressedR.has(e.index));
     return {
       action: "reset",
       resetReason,
       canonicalEntries: keptEntries.map((e) => {
         const mv = movedByMergedIdx.get(e.index);
-        return mv ? priorCanonical[mv.ci] : buildPinEntry(e, out[e.index]);
+        if (mv) return { ...priorCanonical[mv.ci], rs: true };
+        const rf = refireByIdx.get(e.index);
+        if (rf) return priorCanonical[rf.ci];
+        const rc = matched.find((m) => m.idx === e.index && reclaimedCi.has(m.ci));
+        if (rc) return storedAt(rc.ci);
+        return buildPinEntry(e, out[e.index]);
       }),
-      ...(applied > 0 || moves.length > 0 || suppressedR.size > 0 ? { messages: forwarded } : {}),
+      ...(applied > 0 || moves.length > 0 || refires.length > 0 || suppressedR.size > 0
+        ? { messages: forwarded }
+        : {}),
       pinned: applied,
-      moved: moves.length,
+      moved: moves.length + refires.length,
       suppressed: suppressionsR.length,
       suppressions: suppressionsR,
-      reserves: moves.map((m) => ({ index: m.mergedIndex, hash: m.hash })),
+      reserves: [
+        ...moves.map((m) => ({ index: m.mergedIndex, hash: m.hash })),
+        ...refires.map((r) => ({ index: r.index, hash: r.hash })),
+      ],
     };
   };
 
@@ -1032,6 +1071,7 @@ export function classifyPinned(messages, priorCanonical) {
 
   const matched = []; // { ci: index into priorCanonical, idx: incoming index }
   const droppedNow = new Set();
+  const reserved = []; // ci list: entries that left the wire-identity space
   let droppedBefore = 0;
   for (let ci = 0; ci < priorCanonical.length; ci++) {
     const stored = priorCanonical[ci];
@@ -1039,10 +1079,148 @@ export function classifyPinned(messages, priorCanonical) {
       droppedBefore++;
       continue;
     }
+    // RESERVED-ENTRY IDENTITY (2026-07-31, the directive of that name). A
+    // re-served entry is one WE are keeping on the wire while CC has stopped
+    // sending it. Its stored key is (content-hash, role, occurrence-ordinal-
+    // within-the-request), and an ordinal is a claim about CC's array — an
+    // array this entry is not in. The claim goes false the moment CC sends one
+    // MORE copy of the same recurring text: the copy takes the ordinal, the
+    // entry binds to it at an unrelated position, and two things break at
+    // once — the entry leaves droppedNow so no move recognition can fire, and
+    // the inverted pair trips not-subsequence. Measured on capture s-dc3f8071
+    // at n=196->197 (an eighth copy of a tail reminder took o=7 and bound the
+    // entry 13 slots away) and again, same shape and same merged-content hash,
+    // at n=399->400. Frozen in reset-move-s-dc3f8071-196-197.json.
+    //
+    // So a reserved entry does not participate in wire matching AT ALL: not
+    // looked up, not counted as dropped. A fresh copy of its text takes the
+    // next free ordinal, matches nothing, and classifies as an ordinary new
+    // entry on the existing append/splice path. Its stored key is retained for
+    // telemetry and debugging and is no longer load-bearing anywhere.
+    //
+    // Non-reserved entries keep absolute (h, r, o) matching byte-for-byte:
+    // the general ordinal instability of duplicate copies under middle-copy
+    // drops is a pre-existing class and deliberately out of scope here.
+    if (stored.rs) {
+      reserved.push(ci);
+      continue;
+    }
     const idx = incomingByKey.get(identityKey(stored));
     if (idx === undefined) droppedNow.add(ci);
     else matched.push({ ci, idx });
   }
+
+  // --- Per-request disposition of the reserved entries ---
+  //
+  // What replaces the identity match: the entry's neighbourhood on THIS wire,
+  // resolved exactly as findJoinMoves' condition (d) resolves it — lo is the
+  // wire index of the nearest preceding live canonical entry (which must be
+  // matched), hi the wire index of the nearest following live matched one.
+  // One of three dispositions, in this order:
+  //
+  //   RE-FIRE  a wire message strictly inside (lo, hi) carries the merged form
+  //            again -> re-serve the stored bytes into that slot, declare the
+  //            join-move, keep the entry reserved.
+  //   RECLAIM  a wire message strictly inside carries the entry's WHOLE
+  //            first-seen text -> CC flipped back to the original form (the
+  //            measured oscillation leg). Clear `rs`, bind the entry to that
+  //            wire index as an ordinary matched entry, and rewrite its stored
+  //            key from that message's incoming identity so future absolute
+  //            lookups are consistent.
+  //   LAPSE    neighbourhood resolvable, neither form present -> CC genuinely
+  //            edited or pruned the region. The entry is not carried into the
+  //            rebuilt canonical. NEVER re-serve stored bytes into a context
+  //            that no longer carries the region — that is the one new risk
+  //            this design introduces and this is its mitigation.
+  //
+  // Bounds unresolvable or crossed (neighbour dropped, unmatched, or disorder)
+  // -> the pass does NOTHING for this entry this request: no substitution and
+  // no state change, raw forward. Fail-closed, today's behaviour.
+  //
+  // Role constraint (f) applies to both probes exactly as it applies at the
+  // mint: the candidate's role must be "system" and so must the entry's.
+  const refires = [];        // { ci, index, hash }
+  const reclaimedCi = new Set();
+  const lapsedCi = new Set();
+  const heldCi = new Set();  // unresolvable neighbourhood: no state change
+  const reservedOverride = new Map(); // ci -> the re-keyed, rs-cleared entry
+  if (reserved.length > 0) {
+    const ciToIdx0 = new Map(matched.map((m) => [m.ci, m.idx]));
+    const claimed = new Set(matched.map((m) => m.idx));
+    const reclaims = [];
+    for (const ci of reserved) {
+      const stored = priorCanonical[ci];
+      const dText = standaloneText(stored.m);
+      let pci = -1;
+      for (let j = ci - 1; j >= 0; j--) {
+        if (priorCanonical[j].d) continue;
+        pci = j;
+        break;
+      }
+      if (dText === null || stored.r !== "system" || pci < 0 || !ciToIdx0.has(pci)) {
+        heldCi.add(ci);
+        continue;
+      }
+      const lo = ciToIdx0.get(pci);
+      let hi = -1;
+      for (let j = ci + 1; j < priorCanonical.length; j++) {
+        if (priorCanonical[j].d) continue;
+        if (ciToIdx0.has(j)) {
+          hi = ciToIdx0.get(j);
+          break;
+        }
+      }
+      if (hi < 0 || hi <= lo) {
+        heldCi.add(ci);
+        continue;
+      }
+      const pText = pinnedReminderText(priorCanonical[pci]);
+      const merged = pText === null ? null : pText + JOIN_SEPARATOR + dText;
+      let refireIdx = -1;
+      let reclaimIdx = -1;
+      for (let idx = lo + 1; idx < hi; idx++) {
+        if (claimed.has(idx)) continue;
+        if (messages[idx]?.role !== "system") continue; // (f)
+        const t = standaloneText(messages[idx]);
+        if (t === null) continue;
+        if (merged !== null && t === merged) {
+          refireIdx = idx;
+          break;
+        }
+        if (reclaimIdx < 0 && t === dText) reclaimIdx = idx;
+      }
+      if (refireIdx >= 0) {
+        const hash = hashMessageContent({ content: [{ type: "text", text: merged }] });
+        if (hash === null) {
+          heldCi.add(ci);
+          continue;
+        }
+        claimed.add(refireIdx);
+        refires.push({ ci, index: refireIdx, hash });
+      } else if (reclaimIdx >= 0) {
+        claimed.add(reclaimIdx);
+        reclaimedCi.add(ci);
+        const { rs, ...rest } = stored;
+        const inc = incoming[reclaimIdx];
+        reservedOverride.set(ci, { ...rest, h: inc.h, r: inc.r, o: inc.o });
+        reclaims.push({ ci, idx: reclaimIdx });
+      } else {
+        lapsedCi.add(ci);
+      }
+    }
+    // A reclaimed entry is an ordinary matched entry from here on — the
+    // subsequence check, the edit-shaped co-location test and the canonical
+    // rebuild all read `matched` in canonical order, so it is merged in by ci
+    // rather than appended.
+    if (reclaims.length > 0) {
+      matched.push(...reclaims);
+      matched.sort((a, b) => a.ci - b.ci);
+    }
+  }
+  const refireByIdx = new Map(refires.map((r) => [r.index, r]));
+  const refiredCi = new Set(refires.map((r) => r.ci));
+  const storedAt = (ci) => reservedOverride.get(ci) ?? priorCanonical[ci];
+
   // Computed here rather than after the order checks below because
   // resetKeepingPins needs `newEntries` to recognize a move, and both of the
   // resets below are call sites. Nothing here depends on the order model —
@@ -1050,6 +1228,13 @@ export function classifyPinned(messages, priorCanonical) {
   const matchedIdxSet = new Set(matched.map((m) => m.idx));
   const lastMatched = matched.length > 0 ? matched[matched.length - 1].idx : -1;
   const newEntries = incoming.filter((e) => !matchedIdxSet.has(e.index));
+  // A re-fired slot is already spoken for by the disposition pass, so it is
+  // not offered to findJoinMoves as a merged-message candidate — two canonical
+  // entries claiming one wire slot is exactly the state/wire disagreement the
+  // canonical-order invariant exists to forbid.
+  const moveCandidates = refires.length > 0
+    ? newEntries.filter((e) => !refireByIdx.has(e.index))
+    : newEntries;
 
   for (let i = 1; i < matched.length; i++) {
     if (matched[i].idx <= matched[i - 1].idx) {
@@ -1083,7 +1268,7 @@ export function classifyPinned(messages, priorCanonical) {
   // into one message — so the honest response is to serve the first-seen form,
   // not to abandon the order model. Everything the recognition does not match
   // falls through to exactly today's path.
-  const joinMoves = findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries });
+  const joinMoves = findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries: moveCandidates });
   const movedMergedIdx = new Set(joinMoves.map((m) => m.mergedIndex));
   const movedCi = new Set(joinMoves.map((m) => m.ci));
 
@@ -1158,6 +1343,15 @@ export function classifyPinned(messages, priorCanonical) {
       suppressions.push({ index: e.index, hash: joinMoves.find((m) => m.mergedIndex === e.index).hash, kind: "join-move" });
       continue;
     }
+    // A RE-FIRE is the same declaration for an already-reserved entry: the
+    // merged form is on the wire again, and the slot will carry the stored
+    // first-seen bytes instead. The gates must read it identically or the
+    // merged bytes report as lost.
+    const rf = refireByIdx.get(e.index);
+    if (rf) {
+      suppressions.push({ index: rf.index, hash: rf.hash, kind: "join-move" });
+      continue;
+    }
     const h = findSuppressibleDuplicate(messages[e.index], pinnedHashes, pinnedJoin);
     if (h !== null) suppressions.push({ index: e.index, hash: h });
   }
@@ -1194,17 +1388,25 @@ export function classifyPinned(messages, priorCanonical) {
   for (const e of incoming) {
     if (suppressedIdx.has(e.index)) {
       const mv = movedByMergedIdx.get(e.index);
-      if (!mv) continue; // an ordinary duplicate: the pinned inline form already carries these bytes
-      reserves.push({ index: mv.mergedIndex, hash: mv.hash });
-      finalMessages.push(priorCanonical[mv.ci].m);
-      continue;
+      if (mv) {
+        reserves.push({ index: mv.mergedIndex, hash: mv.hash });
+        finalMessages.push(priorCanonical[mv.ci].m);
+        continue;
+      }
+      const rf = refireByIdx.get(e.index);
+      if (rf) {
+        reserves.push({ index: rf.index, hash: rf.hash });
+        finalMessages.push(priorCanonical[rf.ci].m);
+        continue;
+      }
+      continue; // an ordinary duplicate: the pinned inline form already carries these bytes
     }
     const ci = matchedByIdx.get(e.index);
     if (ci === undefined) {
       finalMessages.push(messages[e.index]);
       continue;
     }
-    const fwd = pinnedForwardForm(priorCanonical[ci], messages[e.index]);
+    const fwd = pinnedForwardForm(storedAt(ci), messages[e.index]);
     if (fwd !== messages[e.index] && JSON.stringify(fwd) !== JSON.stringify(messages[e.index])) {
       pinApplied++;
       finalMessages.push(fwd);
@@ -1234,7 +1436,7 @@ export function classifyPinned(messages, priorCanonical) {
   // that preceded them — keeping them adjacent to their original neighbours
   // so a later un-prune still matches in order.
   const canonByIdx = new Map();
-  for (const { ci, idx } of matched) canonByIdx.set(idx, priorCanonical[ci]);
+  for (const { ci, idx } of matched) canonByIdx.set(idx, storedAt(ci));
   const newByIdx = new Map(newEntries.map((e) => [e.index, buildPinEntry(e, messages[e.index])]));
   const droppedAfter = new Map(); // incoming index -> canonical entries to trail it
   {
@@ -1253,7 +1455,18 @@ export function classifyPinned(messages, priorCanonical) {
       // trailing it here, would make the canonical describe an array we did
       // not send, which is the invariant stated further down.
       if (movedCi.has(ci)) continue;
-      const marked = entry.d ? entry : { ...entry, d: true };
+      // A RE-FIRED entry is likewise on the forwarded wire, at its own slot,
+      // and is placed there in the loop below. A LAPSED one is deliberately
+      // not carried at all — its region is gone from CC's array, so there is
+      // nothing left to re-serve into.
+      if (refiredCi.has(ci)) continue;
+      if (lapsedCi.has(ci)) continue;
+      // A HELD entry's neighbourhood could not be resolved this request, and
+      // the rule for that is NO STATE CHANGE — so it is carried forward
+      // exactly as stored, still reserved, and specifically NOT marked
+      // dropped: `d` is skipped by the match loop for good, which would retire
+      // an entry the pass has not decided about.
+      const marked = heldCi.has(ci) ? entry : (entry.d ? entry : { ...entry, d: true });
       if (!droppedAfter.has(lastSeenIdx)) droppedAfter.set(lastSeenIdx, []);
       droppedAfter.get(lastSeenIdx).push(marked);
     }
@@ -1272,9 +1485,15 @@ export function classifyPinned(messages, priorCanonical) {
     // stable across subsequent requests.
     if (suppressedIdx.has(e.index)) {
       // A moved entry occupies this slot on the forwarded wire, so it occupies
-      // it in the canonical too — the two must describe the same array.
+      // it in the canonical too — the two must describe the same array. The
+      // MINT happens here: from this request on the entry is re-served, so it
+      // leaves the wire-identity space and carries `rs`.
       const mv = movedByMergedIdx.get(e.index);
-      if (mv) canonicalEntries.push(priorCanonical[mv.ci]);
+      if (mv) canonicalEntries.push({ ...priorCanonical[mv.ci], rs: true });
+      // A re-fire is the same slot one request later; `rs` is already set and
+      // stays set for as long as the re-serve keeps firing.
+      const rf = refireByIdx.get(e.index);
+      if (rf) canonicalEntries.push(priorCanonical[rf.ci]);
       continue;
     }
     canonicalEntries.push(canonByIdx.get(e.index) ?? newByIdx.get(e.index));
@@ -1308,6 +1527,12 @@ export function classifyPinned(messages, priorCanonical) {
       let seen = 0;
       for (const entry of canonicalEntries) {
         if (entry.d) continue;
+        // A reserved entry's stored key is explicitly no longer load-bearing:
+        // it names an occurrence in an array CC no longer sends. Reading it
+        // here would resurrect the very collision the reservation removes —
+        // a stale key that happens to hit an unrelated copy would report our
+        // state model as drifted when it is exactly where we put it.
+        if (entry.rs) continue;
         const idx = wireOf.get(identityKey(entry));
         if (idx === undefined) continue;
         seen++;
@@ -1327,7 +1552,12 @@ export function classifyPinned(messages, priorCanonical) {
     dropped: droppedNow.size - movedCi.size,
     suppressed: suppressions.length,
     suppressions,
-    moved: joinMoves.length,
+    // A re-fire is a move being served for another request. Counting only
+    // findJoinMoves' recognitions would report the substitution as having
+    // stopped on the very requests where it is doing its work — reservation
+    // takes the entry out of `droppedNow`, so recognition fires exactly once
+    // per move and every later request is a re-fire.
+    moved: joinMoves.length + refires.length,
     reserves,
   };
 }
