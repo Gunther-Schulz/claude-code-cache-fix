@@ -62,6 +62,66 @@ bullet, evidence pointer included.
   NOT gated on the rate re-measure below: the Mitigation policy states fire
   counts are "never a worthiness threshold" and cost never gates the work —
   an earlier revision of this item made exactly that error.
+  CORRECTION 2026-07-31 (same day, later): "neither absorbable by a
+  serialization rule" did not survive measurement. (a) The pruning half is
+  a measured NON-EVENT on its own — 10 of 10 pure tail prunes in this
+  session's capture produced zero `cache_miss_reason` entries (matrix
+  row 22 carries the probe); it costs only when a co-occurring mid-history
+  change breaks the prefix below the injection point. (b) The EXTENDED
+  half IS absorbable — not by predicting bytes but by refusing the edit:
+  the census verdict is defined as `actual.startsWith(reconstructed)`
+  (`reminder-migration-census.mjs:96`), so the delta is byte-computable.
+  READY item below. Also grounded same day: billing is ALL-OR-NOTHING per
+  request — the 11:41 bust turn's transcript usage reads
+  `cache_read 15,214 / cache_creation 123,032` on a divergence at msg 98
+  of 124 whose suffix is only ~19k tokens; with breakpoints at
+  {system, messages[0], tail} a mid-history divergence re-bills nearly the
+  whole context regardless of depth. Consequence: partial absorption buys
+  ~nothing live; per-request TOTAL absorption is the prize, so the last
+  open class is worth as much as the first.
+
+- **READY — EXTENDED-class absorb: pin the first-seen form, relocate the
+  byte-computable delta (matrix row 4 residual).** Grounding: census over
+  this session's capture reports exactly one EXTENDED occurrence
+  (2026-07-31T11:41:05.778Z, host=99, recon=293ch, actual=716ch) and the
+  extra text is the "task tools haven't been used recently" harness
+  reminder appended after `\n\n` — bookkeeping-class, position-insensitive.
+  EXTENDED is definitionally append-shaped (`actual.startsWith(recon)`,
+  `reminder-migration-census.mjs:96`), so `delta = actual.slice(recon.length)`
+  needs no prediction. Design (settled): inside insertion-normalization
+  (extend, never a new extension — the acc0814 lesson above), when a
+  pinned/canonical standalone's incoming bytes EXTEND the first-seen form,
+  forward the first-seen bytes at the original position and emit the delta
+  as a proxy-authored `role:"system"` entry at a FROZEN index — appended at
+  the current tail on first sight, then held at that index forever (same
+  stable-insertion machinery the pins already use; precedent for
+  content-at-relocated-position: `deferred-tool-rewrite.mjs` tool_addition
+  blocks). Class-gated: only text matching the harness-bookkeeping wrap
+  contract; anything else takes the honest reset. Safety argument: the
+  model reads identical information, a few positions later; information is
+  never dropped. Verifier: replay the 11:41 pair through the pipeline —
+  first forwarded divergence must move past the EXTENDED host (beyond
+  index 99); plus a unit test red-first on the captured 293→716ch pair.
+  Done-criterion: on the motivating pair, with row-4 suppression + this,
+  forwarded divergence ≥ 122 (the injection point), i.e. the entire
+  mid-history region byte-stable, leaving only the self-healing prune.
+  NOT bundled: the volatile-block-pinning directive (flip class) — note
+  its blocking precondition "wait for capture/replay harness" is NOW MET
+  (replay/census/bust-triage all exist); it can be scheduled on its own
+  evidence.
+
+- **READY — prune-event classification rides `--census` (mechanize the
+  2026-07-31 drop-scan probe).** The row-22 refutation was produced by a
+  throwaway inline script (per-message hash prefixes; drop events
+  classified PURE-TAIL-PRUNE vs INTERIOR-DIVERGENT by first-differing
+  index) plus a transcript join on `cache_miss_reason` (±90s). Extend
+  `reminder-migration-census.mjs` (never a new tool): census already pairs
+  same-conversation requests, so add a per-pair `nDrop` classification and
+  a summary line (`prunes: {pure, interior}`), and let `bust-triage.mjs`
+  do the transcript join it already knows how to do. Verifier: re-run over
+  this session's capture must reproduce 12 events, 10 pure / 2 interior
+  (11:31:58 and 11:41:05). Done when `gate-live.mjs`'s daily sweep carries
+  the summary, so an interior-divergent prune surfaces without a hand-run.
 
 - **PARKED — row 4 rate re-measure (telemetry, NOT a gate on the item
   above).** Missing evidence, named: 14 replace/edits in 179 pairs (7.8%)
