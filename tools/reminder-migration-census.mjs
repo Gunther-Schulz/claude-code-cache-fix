@@ -70,6 +70,7 @@
 
 import { createHash } from "node:crypto";
 import { readLines } from "./read-lines.mjs";
+import { firstDivergence, isHumanTurn } from "./replay.mjs";
 
 const WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 
@@ -234,6 +235,63 @@ function analysePair(before, after) {
 }
 
 /**
+ * Prune classification for one same-conversation pair.
+ *
+ * A PRUNE is a pair whose message count DECREASED: CC removed entries it had
+ * already sent (threat-matrix row 22's suggestion-mode scaffolding is the
+ * measured case). What it COSTS is positional and only positional — the API
+ * keys on the longest identical PREFIX — so the classifier asks where the
+ * prefix breaks, and against what:
+ *
+ *   PURE-TAIL-PRUNE     the retained prefix is byte-identical up to the LIVE
+ *                       TURN: either nothing retained changed at all
+ *                       (firstDivergence === null), or the first change sits
+ *                       at or after the last human-typed message. The turn the
+ *                       user is producing is rewritten by every request
+ *                       anyway, so a prune confined to it invalidates nothing
+ *                       that was settled. Cost: the live turn, which was never
+ *                       free.
+ *   INTERIOR-DIVERGENT  the first change sits BEFORE the last human turn:
+ *                       settled history moved, and everything from that index
+ *                       re-bills. `rebilled` carries the magnitude, because
+ *                       these range from 2 messages to the whole context.
+ *   UNANCHORED          no human-typed message in the later array, so "live
+ *                       turn" has no referent and neither verdict is earned
+ *                       (dev-loop.md, "A checker has THREE answers"). Zero
+ *                       occurrences in 226 drop events across the 39-capture
+ *                       corpus — kept because the alternative is answering
+ *                       PURE without a basis, not because it is expected.
+ *
+ * The boundary is the ANCHOR rather than a distance: `isHumanTurn` is the same
+ * primitive row 4's verdict rests on (`anchorDelta`), and the alternative on
+ * offer was a message-count threshold that no definition produces. Measured on
+ * the pair that forced the question (2026-07-31 11:31:58, n=83->77): CC pruned
+ * a `[SUGGESTION MODE: …]` scaffolding block and the user's real turn landed at
+ * the same index — byte-for-byte the same phenomenon as the events that
+ * re-bill one message, differing only in how many messages the live turn had
+ * produced when the request went out. A threshold splits those; the anchor
+ * does not.
+ *
+ * Mechanized from the 2026-07-31 drop-scan probe that refuted row 22 as a bust
+ * cause. The probe was a throwaway with hand-rolled per-message hashes — the
+ * tell that a check was missing — so identity here is `firstDivergence` and
+ * `isHumanTurn`, imported from the gate rather than restated.
+ */
+export function classifyPrune(beforeMsgs, afterMsgs) {
+  if (!Array.isArray(beforeMsgs) || !Array.isArray(afterMsgs)) return null;
+  const n0 = beforeMsgs.length, n1 = afterMsgs.length;
+  if (n1 >= n0) return null;
+  const div = firstDivergence(beforeMsgs, afterMsgs);
+  if (div === null) return { kind: "PURE-TAIL-PRUNE", div, anchor: null, rebilled: 0, n0, n1 };
+  let anchor = -1;
+  for (let i = 0; i < n1; i++) if (isHumanTurn(afterMsgs[i])) anchor = i;
+  const rebilled = n1 - div;
+  if (anchor < 0) return { kind: "UNANCHORED", div, anchor: null, rebilled, n0, n1 };
+  return { kind: div >= anchor ? "PURE-TAIL-PRUNE" : "INTERIOR-DIVERGENT",
+           div, anchor, rebilled, n0, n1 };
+}
+
+/**
  * Conversation identity: the first message's byte hash.
  *
  * Same definition as replay.mjs's `conversationOf` (replay.mjs:692,
@@ -256,6 +314,8 @@ export function conversationOf(rec) {
 export async function census(paths) {
   const tally = { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 };
   const extendedSub = { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 };
+  const prunes = { pure: 0, interior: 0, unanchored: 0 };
+  const pruneDetails = [];
   const details = [];
   const unreadable = [];
   let pairs = 0, captures = 0, conversations = 0;
@@ -277,6 +337,12 @@ export async function census(paths) {
         if (!before) continue;
         pairs++;
         withPairs.add(cid);
+        const prune = classifyPrune(before.body.messages, r.body.messages);
+        if (prune) {
+          prunes[{ "PURE-TAIL-PRUNE": "pure", "INTERIOR-DIVERGENT": "interior",
+                   UNANCHORED: "unanchored" }[prune.kind]]++;
+          pruneDetails.push({ path, ts: r.ts, ...prune });
+        }
         for (const f of analysePair(before, r)) {
           tally[f.verdict]++;
           if (f.sub) extendedSub[f.sub]++;
@@ -292,8 +358,8 @@ export async function census(paths) {
     if (withPairs.size) captures++;
     conversations += withPairs.size;
   }
-  return { tally, extendedSub, details, pairs, captures, conversations, unreadable,
-           considered: paths.length };
+  return { tally, extendedSub, prunes, pruneDetails, details, pairs, captures, conversations,
+           unreadable, considered: paths.length };
 }
 
 async function main(argv) {
@@ -305,8 +371,8 @@ async function main(argv) {
     process.stderr.write("usage: reminder-migration-census <capture.jsonl> ...\n");
     return 1;
   }
-  const { tally, extendedSub, details, pairs, captures, conversations, unreadable, considered } =
-    await census(paths);
+  const { tally, extendedSub, prunes, pruneDetails, details, pairs, captures, conversations,
+          unreadable, considered } = await census(paths);
   const total = tally.EXACT + tally.EXTENDED + tally.DROPPED + tally.MISMATCH;
   // Printed with every verdict, clean or not: the reader of a byte-gate needs
   // the DENOMINATOR, and "25 capture(s)" over a 39-file corpus read like one.
@@ -316,7 +382,7 @@ async function main(argv) {
 
   if (json) {
     process.stdout.write(JSON.stringify(
-      { tally, extendedSub, pairs, captures, conversations, total, considered, unreadable },
+      { tally, extendedSub, prunes, pairs, captures, conversations, total, considered, unreadable },
       null, 2) + "\n");
     return unreadable.length ? 1 : 0;
   }
@@ -328,6 +394,36 @@ async function main(argv) {
     for (const u of unreadable) process.stdout.write(`  ${u.path} :: ${u.error}\n`);
     process.stdout.write("\n");
   }
+  // Prunes are reported before (and independently of) the migration verdict:
+  // they are a different class on the same pairs, and a corpus with no
+  // migrations at all still answers the row-22 question.
+  const nPrunes = prunes.pure + prunes.interior + prunes.unanchored;
+  process.stdout.write(
+    nPrunes === 0
+      ? `prune events (message count decreased): none in ${pairs} pair(s)\n\n`
+      : `prune events (message count decreased): ${nPrunes} — ` +
+        `${prunes.pure} PURE-TAIL-PRUNE (prefix intact up to the live turn), ` +
+        `${prunes.interior} INTERIOR-DIVERGENT` +
+        (prunes.unanchored ? `, ${prunes.unanchored} UNANCHORED (no human turn — unclassifiable)` : "") +
+        "\n");
+  // Sorted by what re-bills, not by time: these range from 2 messages to the
+  // whole context, and the deep ones are the finding. An interior prune of 2
+  // is a rounding error; one of 671 is the entire conversation re-written.
+  const interior = pruneDetails
+    .filter((p) => p.kind !== "PURE-TAIL-PRUNE")
+    .sort((x, y) => y.rebilled - x.rebilled);
+  if (interior.length) {
+    for (const p of (verbose ? interior : interior.slice(0, 10))) {
+      process.stdout.write(
+        `  ${p.kind.padEnd(18)} ${p.ts}  n=${p.n0}->${p.n1}  breaks at ${p.div}` +
+        ` (anchor ${p.anchor ?? "none"})  re-bills ${p.rebilled} of ${p.n1}\n`);
+    }
+    if (!verbose && interior.length > 10) {
+      process.stdout.write(`  ... ${interior.length - 10} more (--verbose for all)\n`);
+    }
+  }
+  if (nPrunes) process.stdout.write("\n");
+
   if (total === 0) {
     // "none found" must be distinguishable from "not looked for".
     process.stdout.write(
@@ -433,6 +529,27 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     eq(reminderBlocks({ content: [{ type: "text", text: "<system-reminder>\nX\n</system-reminder>" }] }).length,
        0, "leading-only is not a host");
     eq(textOf({ content: "str" }), "str", "string content");
+    // prunes: a drop whose retained prefix is byte-identical costs nothing;
+    // one whose retained prefix breaks re-bills from the breaking index.
+    const M = (t) => ({ role: "user", content: t });      // a human-typed turn
+    const T = (t) => ({ role: "user", content: [{ type: "tool_result", content: t }] });
+    eq(classifyPrune([M("a"), M("b"), M("c")], [M("a"), M("b")]).kind,
+       "PURE-TAIL-PRUNE", "after is a prefix of before");
+    eq(classifyPrune([M("a"), T("x"), M("live-old")], [M("a"), T("x"), M("live-new")]),
+       null, "same length is not a prune");
+    // divergence AT the live turn: the turn the user is producing, not history
+    eq(classifyPrune([M("a"), T("x"), T("y"), M("old")], [M("a"), T("x"), M("new")]).kind,
+       "PURE-TAIL-PRUNE", "prune landing on the last human turn");
+    // divergence BEFORE the live turn: settled history moved
+    const interior = classifyPrune([M("a"), T("x"), T("y"), M("live")],
+                                   [M("a"), T("CHANGED"), M("live")]);
+    eq(interior.kind, "INTERIOR-DIVERGENT", "retained history changed");
+    eq(interior.div, 1, "breaks at 1");
+    eq(interior.rebilled, 2, "re-bills from the break to the end");
+    // no human turn at all: neither verdict is earned
+    eq(classifyPrune([T("a"), T("b"), T("c")], [T("a"), T("ZZ")]).kind,
+       "UNANCHORED", "no anchor, no verdict");
+    eq(classifyPrune([M("a")], [M("a"), M("b")]), null, "growth is not a prune");
     process.stdout.write("reminder-migration-census: selftest passed\n");
     process.exit(0);
   }
