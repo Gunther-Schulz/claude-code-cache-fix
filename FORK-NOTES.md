@@ -134,13 +134,20 @@ co-tenant traffic rendered as prefix churn and was misread as a bust
 cause. A `crossTenant` record is not evidence of a bust.
 
 Hot-reload is off (`CACHE_FIX_HOT_RELOAD`), so extension edits need a
-supervisor-level restart. Batch them at session boundaries. Reading
-`<key>-events.jsonl` (append-only) needs no live intervention —
-never restart to investigate.
+supervisor-level restart. Restarts are cache-transparent (matrix
+row 3; measured 2026-07-31, `verdict-ab --seed-from-a` IDENTICAL over
+old-canon state) UNLESS the change touches state KEYS or freeze
+logic — such a change states its row-3 declaration before the
+restart. Reading `<key>-events.jsonl` (append-only) needs no live
+intervention — never restart to investigate.
 
 ## Update-from-upstream procedure
 
-    # Run BETWEEN sessions — the restart below busts live sessions.
+    # Restart timing is free: restarts are cache-transparent (row 3,
+    # measured — see above) unless the merged change touches state
+    # keys or freeze logic, which states its declaration first.
+    # (The old "busts live sessions" caution predated the freeze
+    # logic and was removed on operator ruling 2026-07-31.)
     git fetch origin
     git merge origin/main            # on main (merge, not rebase —
                                      # fork main is deployed state,
