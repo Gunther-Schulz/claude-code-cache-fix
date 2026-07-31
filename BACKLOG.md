@@ -8,6 +8,52 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **PARKED — row 4 (mid-history replace/edit): re-measure the rate
+  before designing a mitigation.** Missing evidence, named: the
+  re-open (matrix row 4, 2026-07-31) rests on ONE deep instance in
+  ONE session — `edit@98 of 123 [anchor-25] ~75 kB`, transcript
+  `messages_changed / 105006`. Frequency is NOT established: 14
+  replace/edits in 179 pairs (7.8%) here vs 5 in 838 (0.6%) in the
+  940-request corpus that closed the row on 2026-07-28. That is one
+  session against a corpus, so it is a signal to re-measure, not a
+  rate. Trigger to unpark: a `--census` sweep over the harvested
+  corpus (not one capture) reporting the MID-HISTORY replace/edit
+  count with anchor distances, so "deep vs 1-2 off the tail" is
+  separable — the four other mid-history hits in this capture sit
+  1-2 messages off the tail at ~1-5 kB and would not on their own
+  have justified re-opening. Design deliberately NOT decided here:
+  the closure's warning still stands unrefuted — a mutation-tolerant
+  identity risks forwarding a genuine tail edit stale, and safety
+  outranks cache.
+
+- **PARKED — suggestion-mode ephemeral turns (matrix row 22): establish
+  fire rate and pruning-boundary stability.** Missing evidence, named:
+  (a) how often CC injects `[SUGGESTION MODE: …]` turns into the live
+  `messages[]` — observed once, at 2026-07-31T11:41:05.778Z, where 8
+  scaffolding entries were pruned as the array went 130→124; (b)
+  whether the injection/pruning boundary is stable enough to pin, i.e.
+  whether the turns are recognisable by something better than their
+  text prefix. Mitigability is UNASSESSED and must stay so until (b):
+  these entries carry ordinary `user`/`assistant` roles, so holding
+  them out of canonical history on a text match risks dropping real
+  conversation — safety outranks cache. Note the class is
+  independently real but was NOT the cause of the 11:41 bust (row 4's
+  mutation at index 98 sat earlier and dominated the re-bill).
+
+- **PARKED — `role:"system"` entries inside `messages[]`: establish what
+  they are before assuming they matter.** Missing evidence, named:
+  the 2026-07-31 capture shows 13 of 124 messages carrying
+  `role:"system"` (55 assistant / 56 user / 13 system) — not an
+  Anthropic API role, so these are CC-internal entries that the
+  pre-pipeline capture sees. Unknown, and NOT to be guessed: whether
+  the proxy forwards them as-is, whether they are what row 4's
+  mutation re-materialises as (the two hook-context blocks reappeared
+  as standalone `role:"system"` entries), and whether
+  `microcompact-stability` (order 350) already handles them. Trigger
+  to unpark: read the forwarded body for the same request and compare
+  its role distribution against the capture — one grep answers
+  whether this is a real wire-level fact or a capture-format artifact.
+
 - **READY — slice-port preflight: resolve a test file's module-scope
   reads against the slice tree before mapping it.** Grounding: both
   wave-2 load failures (2026-07-30) were the same shape — a test
