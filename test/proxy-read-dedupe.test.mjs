@@ -515,6 +515,25 @@ test("28. read-dedupe loads at order 380, sandwiched between its immediate order
   // currently hold the closest order values below/above 380) rather than
   // hardcoding a specific neighbor's name — a new extension slotting in
   // between (e.g. insertion-normalization at 395) must not break this test.
+  //
+  // The deliberate call (#272 blocker 4). This test once pinned
+  // `cache-control-normalize` as read-dedupe's immediate successor, and
+  // inserting insertion-normalization at 395 between them turned it red.
+  // Two ways out — move the order, or loosen the assertion — and which is
+  // right depends on whether that adjacency is load-bearing FOR read-dedupe,
+  // not on which one makes the test pass.
+  //
+  // It is not. read-dedupe contains no reference to cache-control-normalize
+  // or to cache_control at all (`grep -rn -i "cache-control-normalize\|
+  // cache_control\|breakpoint" proxy/extensions/read-dedupe.mjs` → 0 hits):
+  // it rewrites duplicate Read tool_result bodies and reads nothing that a
+  // later breakpoint pass writes. The adjacency was an incidental fact about
+  // the registry on the day this test was written, never a contract.
+  //
+  // What IS load-bearing is asserted above and stays: read-dedupe's own
+  // order value (380) and that it is bracketed rather than at an end. So
+  // the assertion loosens and the order does not move — which also keeps
+  // this out of threat-matrix row 3, since no pipeline order changes.
   if (idx > 0) assert.ok(reg[idx - 1].order < 380, "previous entry must have a lower order");
   if (idx < reg.length - 1) assert.ok(reg[idx + 1].order > 380, "next entry must have a higher order");
 });
