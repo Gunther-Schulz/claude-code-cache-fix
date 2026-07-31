@@ -224,7 +224,13 @@ anchors to the last human message." Two rules from the miss:
   edit row, with a "far from any anchor = new mechanism" callout) — the
   matcher was the prototype, per the standing rule about throwaway probes.
 - **Sweep the public tracker when an investigation OPENS, not after it
-  ships.** The row-4 mechanism sat in a public issue for over two weeks
+  ships — and sweep the matrix and backlog for the same class under
+  ANOTHER LABEL.** One phenomenon reached from two directions grows two
+  names, and each name grows its own item, directive and dispatch: the
+  census's content-relational EXTENDED and its position-relational
+  blockMigration named one class, and the duplicate was caught only at
+  build time, by refusing a dispatched design (extended-absorb report,
+  lesson 2). The cross-check is one grep per new class name, at intake. The row-4 mechanism sat in a public issue for over two weeks
   while we derived the same facts independently. One `gh search issues` per
   new unexplained class converts an investigation into a verification —
   strictly cheaper, and the verification is worth posting back.

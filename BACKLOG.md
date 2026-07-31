@@ -839,7 +839,11 @@ bullet, evidence pointer included.
   keys or freeze logic touched, so row-3 restart-safe) and the
   post-restart gate stamp (the dispatch's gate run went to
   scratchpad deliberately, so ~/.claude/cache-fix-gate-status.json
-  still describes the pre-5c4d70a tree).
+  still describes the pre-5c4d70a tree). Also at that boundary
+  (dotfiles-side): the daily sweep's status file now carries
+  `byteGate` and `prunes` fields (404d5fc) that doctor has never
+  seen — they need their three-answer doctor verdict with the first
+  timer-path run (census-hardening report, NOT-VERIFIED slot).
 
 - **RESOLVED 2026-07-30 (probe, dispatcher-booked): forwardedStable
   was a census framing gap — deferred-tool-rewrite is NOT broken.**
