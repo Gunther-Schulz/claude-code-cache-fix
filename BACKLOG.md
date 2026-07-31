@@ -1120,7 +1120,52 @@ bullet, evidence pointer included.
   in the PARKED reserved-entry-residuals entry; verdict-ab self-test
   its own READY item.
 
-- **READY — verdict-ab self-test (report gap c5).**
+- **READY — harvest scrub misses image bytes: scrubBlock stops one
+  level above `source.data` (STOP finding, pr-prep report,
+  dispatcher-CONFIRMED by execution: harvest.mjs:169 tokenizes
+  `block.data`; wire images nest base64 at `block.source.data`;
+  reset-move fixture carries 5 raw PNGs, magic `iVBORw0KGgo`).**
+  Content verified benign (operator's own terminal prose, viewed),
+  but the sanitizer claim on the fixture is false as written and the
+  bug is generic. Build: (1) scrubBlock recurses into `source`
+  (`source.data` → `data_<sha10>` token, keep type/media_type
+  shape); (2) red-first bite that goes red on the committed
+  reset-move fixture's raw bytes BEFORE the fix; (3) re-scrub the
+  committed fixture in place and verify verdict-neutrality by
+  replay (images are not join constituents — same actions, same
+  suppression indices, same stability result); (4) corpus sweep:
+  every harvested fixture grepped for raw base64 under source.data,
+  results in the commit. Load-bearing (sanitizer, public repo).
+
+- **READY — flap fixture rebuilt SANITIZED via the scrub
+  homomorphism (pr-prep STOP finding 2).**
+  flap-s-0d6f38ba-86.json keeps 6 operator hook-prose strings raw
+  (quoting dispatch-discipline §1 / CLAUDE-maintenance by name) —
+  the raw retention pre-dated bffcb05's join-preserving scrub, and
+  the reset-move fixture's own header names this precedent as the
+  reason it deviated. Rebuild the fixture through scrubMessage with
+  the merged message re-joined from sanitized constituents (the
+  reset-move fixture's documented method); verifier: the three flap
+  pairs reproduce identical verdicts/suppression indices and
+  test/insertion-join-move.test.mjs + replay-gate-selfcheck stay
+  green. Fork main first; the upstream slices then carry the clean
+  fixture.
+
+- **HOLD — prepared PR-slice branches, push blocked on two
+  conditions (operator-visible).** State: pr/verification-tools
+  advanced 53761a3 → a0a051f (15 commits, tools/ byte-equal to fork
+  main) in worktree cache-fix-pr4; NEW pr/insertion-join-moves at
+  fbec02f (b713b2f + merge of a0a051f + 7 commits, extension
+  byte-equal to fork main) in worktree cache-fix-pr12; both merge
+  clean onto upstream/main 0817302; suites green except the
+  pre-existing proxy-read-dedupe failure (#272 open blocker 4,
+  proven pre-existing at 53761a3). Drafts + exact push/gh commands:
+  docs/audits/pr-prep-2026-07-31/. Conditions before any push:
+  (1) the two fixture items above land on fork main; (2) #272's
+  reviewer asked for an agreed sanitization path before more
+  fixture movement — respond on-thread first. Also fold in at
+  push time: the stacked PR body should name #273 as the third
+  stacked parent (the merge carries deferred-tool-rewrite.mjs).
   `tools/verdict-ab.mjs` has no committed test: its COULD-NOT-VERIFY
   exit-2 path was demonstrated red by execution and its fixture
   reader was corrected after a real 2-of-6-corpora miss (report
