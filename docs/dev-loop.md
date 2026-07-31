@@ -204,10 +204,35 @@ code uses:
   divergence in the same output and it was read past — set membership says
   "these entries all still exist", which is not the question a cache asks.
 
+A third on 2026-07-31, in a NEW tool rather than a throwaway probe: a census
+of the row-4 container migration paired requests by `sid`, then by its own
+first-message hash, instead of importing `conversationOf`. It reported 475
+rule failures — 99.3% — and every row read `actual=0ch`, the tell that no
+counterpart was found AT ALL rather than a rule that failed. Two distinct
+errors rode in on the hand-rolled identity: comparing `before[i]` to
+`after[i]` by INDEX (one inserted message shifts every later index), and
+pairing ADJACENT capture lines (live traffic interleaves main, subagent and
+sidecar, so two requests of one conversation sit several lines apart — the
+trap `replay.mjs` already documents at its grouping comment). Corrected
+grouping turned 475 failures into 0. Both wrong answers looked like findings
+and would have blocked a correct mitigation.
+
 Both are the same mistake as the collisions in the extensions themselves: an
 identity computed more cheaply than the thing it identifies. Import
-`semanticIds`, `identityKey`, `firstDivergence`, `censusPair` — never re-derive
-them inline. And when a question is about CACHE, the answer is always
+`semanticIds`, `identityKey`, `firstDivergence`, `censusPair`,
+`conversationOf` — never re-derive them inline. Two corollaries the third
+instance forced:
+
+- **Extend an existing tool before writing a new one.** If a tool in the
+  domain already exists, the default is to add the mode there; a new file
+  needs a stated reason the existing one did not fit. This is not tidiness —
+  reuse INHERITS hard-won correctness (the interleaving lesson, the pairing
+  rule, the three-answer discipline), while a fresh file re-earns every one
+  of them from zero, silently and usually wrongly.
+- **Any comparison of two requests is grouped by CONVERSATION, never by
+  capture adjacency and never by index.** `conversationOf` is exported from
+  `replay.mjs` for exactly this; if a tool needs an identity that is not
+  exported yet, export it rather than restate it. And when a question is about CACHE, the answer is always
 POSITIONAL: the API keys on the longest identical PREFIX, so "what changed and
 at which index" is the only form that means anything. "Which entries exist"
 never is.

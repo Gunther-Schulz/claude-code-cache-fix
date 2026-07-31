@@ -689,7 +689,11 @@ const asCompact = (e) => (e.inHash ? e : compactEntry(e));
 
 // Conversation identity from the compact form: the first message's byte hash
 // is exactly what conversationId hashed before.
-const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
+// Exported: any tool comparing two requests of one conversation MUST use
+// this identity rather than capture adjacency or index alignment. Both
+// alternatives are silently wrong on interleaved traffic (see the note
+// above), and a second tool restating the rule is how the two drift.
+export const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
 
 // The threat-matrix coverage note ("hidden duplicate request", CC#78420,
 // v2.1.209+) was answered 2026-07-29 by a throwaway python scan over raw
