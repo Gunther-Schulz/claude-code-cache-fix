@@ -842,19 +842,35 @@ bullet, evidence pointer included.
   opt-in timer, last-activity from capture mtime, capped extension
   window.
 
-- **READY — upstream-error-log gate ON at the next restart boundary**
-  (operator settle 2026-07-30; TIMING re-settled 2026-07-31 by the
-  operator: the boundary WAITS until all proxy work finishes — i.e.
-  the reserved-entry-identity build lands — and the whole bundle
-  below ships in that single restart. CONDITION MET 2026-07-31
-  evening: the identity build is on main (fad6f6b et al.,
-  dispatcher-verified), no further proxy/** work queued. The bundle
-  now also carries the units-2/2b + identity code: pin bump =
-  `git rev-parse --short HEAD:proxy` at the final proxy commit;
-  restart is cache-transparent per the directive's measured row-3
-  declaration (verdict-ab --seed-from-a IDENTICAL). Boundary is
-  executable at the operator's chosen moment — avoid mid-live-CC
-  sessions per standing rule). Unit bites exist
+- **RESOLVED 2026-07-31 — restart boundary EXECUTED (operator GO
+  "restart now"; same GO retired the restart-busts-live-sessions
+  caution, 747f5e6).** Evidence chain: pin bumped 3730d27 → 00f4273
+  with acceptance extended (dotfiles 7f03a2c); proxy restarted
+  ~22:04 CEST, /health ok, serving tree 06ed53a421a6; error-log
+  flip live (unit already carried =on, activated by this restart;
+  acceptance was on file since 2026-07-30); doctor: pin OK, running
+  process = disk tree OK, all gates classified+accepted; fresh gate
+  stamp 20:18:58Z describes the SERVING tree — byteGate 0 MISMATCH
+  / 0 unreadable, sole failing capture s-0d6f38ba (the two
+  pre-existing deferred-tool-rewrite pairs, own OPEN item below).
+  Telemetry "needs a look" warns both walked to controlled causes
+  (this session's tool-schema flips; model:"test" 401s from today's
+  test runs). RIDER STILL OPEN, moved to the dotfiles BACKLOG
+  (deployment items live there): doctor has no byteGate/prunes
+  consumer yet — the fields are in the status file, doctor ignores
+  them silently (alarm-without-reader class).
+
+- **OPEN — the corpus's entire remaining stability debt: two
+  deferred-tool-rewrite pairs on s-0d6f38ba** (n=709→710 outDiv=236,
+  n=701→718 outDiv=82, gate attribution line, byte-identical across
+  the identity-build A/B — pre-existing, not insertion-normalization;
+  named "worth a separate look" in the unit-2b report (g) and now
+  the sole red row in every sweep, incl. the fresh post-deployment
+  stamp). ATTRIBUTE step owed: pull the two pairs' per-request
+  deferred-tool-rewrite telemetry and classify — real self-inflicted
+  flip vs instrument/exemption gap. That capture is a live session's
+  own file, so a strict A/B needs it to rotate out first (the
+  unit-2b report's stated constraint). Unit bites exist
   (test/proxy-upstream-error-log.test.mjs, #235); flip =
   CACHE_FIX_UPSTREAM_ERROR_LOG=1 in the serving unit riding the
   NEXT proxy restart (no dedicated restart), acceptance recorded
