@@ -160,7 +160,7 @@ bullet, evidence pointer included.
   string longer than 0x1fffffe8 characters`, reported as "25
   capture(s)" with no could-not-verify line).
 
-- **READY — census reads captures by LINE, and says what it could not
+- **RESOLVED 2026-07-31 (a77c930) — census reads captures by LINE, and says what it could not
   read** (lifted 2026-07-31 from
   docs/code-reviews/extended-absorb-report.md §c4, where the measured
   skip list lives). Replace `readCapture`'s `readFileSync` in
@@ -188,7 +188,7 @@ bullet, evidence pointer included.
   "single placement; safe to emit" was a verdict over 21% of the corpus —
   docs/code-reviews/census-hardening-report.md §c3.
 
-- **READY — census: EXTENDED sub-classification (MERGED-STANDALONE vs
+- **RESOLVED 2026-07-31 (a301ef1) — census: EXTENDED sub-classification (MERGED-STANDALONE vs
   NEW-TEXT)** (lifted 2026-07-31 from the same report §c3; ORDER: land
   the line-read item above first — this one's classifications then
   cover the whole corpus). In `analysePair`, when a finding classifies
@@ -256,7 +256,7 @@ bullet, evidence pointer included.
   predecessor standalone, i.e. the class survives sanitization
   end-to-end.
 
-- **READY — prune-event classification rides `--census` (mechanize the
+- **RESOLVED 2026-07-31 (404d5fc; boundary decided, see below) — prune-event classification rides `--census` (mechanize the
   2026-07-31 drop-scan probe).** The row-22 refutation was produced by a
   throwaway inline script (per-message hash prefixes; drop events
   classified PURE-TAIL-PRUNE vs INTERIOR-DIVERGENT by first-differing
@@ -294,7 +294,7 @@ bullet, evidence pointer included.
   / 46 INTERIOR-DIVERGENT` and all 39 rows carry `byteGate` in the status
   file (`unreadable: 0`, `errors: 0`); `npm test` 1820/0.
 
-- **READY — bust-triage must see what the statusline shows (k:"cost"
+- **RESOLVED 2026-07-31 (6efce90) — bust-triage must see what the statusline shows (k:"cost"
   blindness).** Grounding, observed live 2026-07-31 ~13:53Z: statusline
   showed `❄ 55k compact (8m)` (ledger `k:"cost"` t=1785505434, this
   session); `bust-triage` and `--list` showed nothing newer than 12:25
