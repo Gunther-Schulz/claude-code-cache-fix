@@ -1147,7 +1147,9 @@ bullet, evidence pointer included.
   (1) the fixture-sanitization directive lands on fork main;
   (2) the #272 reviewer AGREES the path on-thread (their ask:
   branch rewrite so dirty blobs never become reachable upstream —
-  reply drafted 2026-07-31, awaiting operator approval to post);
+  reply POSTED 2026-07-31 with operator approval:
+  cnighswonger/claude-code-cache-fix#272 issuecomment-5147223070;
+  awaiting their confirmation);
   (3) the prepared branches are then REBUILT carrying only clean
   fixture blobs (both are unpushed, so no force-push is needed on
   them; #272's own branch rewrite is the reviewer-coordinated one).
