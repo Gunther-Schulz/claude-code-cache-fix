@@ -1,5 +1,4 @@
 import {
-  writeFileSync,
   readFileSync,
   renameSync,
   unlinkSync,
@@ -9,6 +8,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
+import { writeFileSyncOwnerOnly } from "./write-owner-only.mjs";
 
 // Paths are resolved per call (not cached at module load) so tests can swap
 // CLAUDE_CONFIG_DIR / $HOME between cases; claudeHome() reads the env live.
@@ -227,7 +227,10 @@ function parseHeaders(headers) {
 
 function atomicWrite(finalPath, content) {
   const tmp = `${finalPath}.tmp.${process.pid}.${randomBytes(4).toString("hex")}`;
-  writeFileSync(tmp, content);
+  // Owner-only: per-session telemetry is keyed by, and carries, the stable
+  // session identifier. The tmp file is new every time, so it is born 0600
+  // and the rename carries that mode onto the final path.
+  writeFileSyncOwnerOnly(tmp, content);
   renameSync(tmp, finalPath);
 }
 

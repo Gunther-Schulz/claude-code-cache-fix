@@ -39,6 +39,7 @@ import {
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
+import { writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 const SKIP = process.env.CACHE_FIX_SKIP_DEFERRED_TOOLS_RESTORE === "1";
 const DEBUG = process.env.CACHE_FIX_DEBUG === "1";
@@ -188,7 +189,7 @@ async function atomicWriteText(finalPath, data, fs) {
   const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random()
     .toString(36)
     .slice(2, 10)}.tmp`;
-  await fs.writeFile(tmpPath, data);
+  await writeFileOwnerOnly(tmpPath, data, fs);
   await fs.rename(tmpPath, finalPath);
 }
 

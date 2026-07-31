@@ -18,12 +18,17 @@ const chains = new Map(); // absolute path -> tail Promise of that path's chain
 // `path`. A prior caller's rejection must not poison later callers on the
 // same path — each append either succeeds or fails on its own, exactly as
 // bare appendFile would, just strictly ordered.
-export function queuedAppend(path, data, fs) {
+// `opts` is forwarded to `fs.appendFile` when given — callers writing
+// conversation-derived state pass `{ mode: 0o600 }` so a file this queue
+// creates is owner-only from birth (see write-owner-only.mjs).
+export function queuedAppend(path, data, fs, opts) {
   if (typeof fs?.appendFile !== "function") {
     throw new TypeError("queuedAppend requires fs.appendFile");
   }
   const prior = chains.get(path) || Promise.resolve();
-  const next = prior.catch(() => {}).then(() => fs.appendFile(path, data));
+  const next = prior
+    .catch(() => {})
+    .then(() => (opts ? fs.appendFile(path, data, opts) : fs.appendFile(path, data)));
   chains.set(path, next);
   // Drop the entry once it drains, so the map does not grow unbounded over
   // the life of the process. Guarded: only delete if nothing chained after us.

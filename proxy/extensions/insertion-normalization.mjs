@@ -141,6 +141,7 @@ import { join } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
+import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
 
@@ -284,14 +285,19 @@ async function saveCanonical(dir, sessionKey, entries, fs, mode = "plain") {
   await fs.mkdir(dir, { recursive: true });
   const finalPath = canonPath(dir, sessionKey);
   const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify({ mode, entries }, null, 2));
+  // Owner-only: canon holds first-seen message bytes in `entry.m`. Those
+  // bytes are structurally required — replaying them is the whole pinning
+  // mechanism, so a hash cannot stand in for them — which is exactly why
+  // the file must not be readable by group or other. See write-owner-only.
+  await writeFileOwnerOnly(tmpPath, JSON.stringify({ mode, entries }, null, 2), fs);
   await fs.rename(tmpPath, finalPath);
 }
 
 async function appendTelemetry(dir, sessionKey, record, fs) {
   try {
     await fs.mkdir(dir, { recursive: true });
-    await fs.appendFile(eventsPath(dir, sessionKey), JSON.stringify(record) + "\n");
+    // Owner-only: events carry stable session identifiers.
+    await appendFileOwnerOnly(eventsPath(dir, sessionKey), JSON.stringify(record) + "\n", fs);
   } catch (err) {
     debug(`telemetry append failed: ${err?.message ?? err}`);
   }
@@ -734,7 +740,7 @@ export { pinnedBlockHashes, pinnedJoinHashes };
 // --- Cross-message join MOVE (threat-matrix row 4, the 2026-07-30 flap) ---
 //
 // The leg no hash set could match, measured on the real bytes (fixture
-// flap-s-0d6f38ba-86.json, request n=104):
+// flap-s-0dc8ac87c43d-86.json, captured as s-0d6f38ba, request n=104):
 //
 //   INLINE      msg89 user [tool_result, tool_result, <system-reminder>683]
 //               msg90 system "The task tools haven't been used…"  (421 chars)
@@ -1090,7 +1096,8 @@ export function classifyPinned(messages, priorCanonical) {
     // the inverted pair trips not-subsequence. Measured on capture s-dc3f8071
     // at n=196->197 (an eighth copy of a tail reminder took o=7 and bound the
     // entry 13 slots away) and again, same shape and same merged-content hash,
-    // at n=399->400. Frozen in reset-move-s-dc3f8071-196-197.json.
+    // at n=399->400. Frozen in reset-move-s-97097e027ac0-196-197.json
+    // (captured as s-dc3f8071).
     //
     // So a reserved entry does not participate in wire matching AT ALL: not
     // looked up, not counted as dropped. A fresh copy of its text takes the

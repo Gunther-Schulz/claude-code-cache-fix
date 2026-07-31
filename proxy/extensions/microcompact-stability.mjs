@@ -23,7 +23,8 @@
 // See `docs/directives/proxy-microcompact-cache-stability.md` for the full
 // design (Mode A/B contract, privacy guarantees, Phase 2 deferral).
 
-import { appendFile, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 import { dirname } from "node:path";
 import { createHash } from "node:crypto";
 
@@ -295,7 +296,7 @@ export function buildDiagnosticRecord(reqCtx, exact_matches, partial_matches, to
 
 export async function appendDiagnosticRecord(path, record) {
   await mkdir(dirname(path), { recursive: true });
-  await appendFile(path, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(path, JSON.stringify(record) + "\n");
 }
 
 // --- Stats shape ---

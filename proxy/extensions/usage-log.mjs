@@ -51,7 +51,8 @@
 //
 // See `docs/directives/proxy-claude-meter-compat.md` for full design.
 
-import { appendFile, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
@@ -277,14 +278,14 @@ export function assembleRecord({ start, delta, quota, requestedModel, sid, prevQ
 
 async function appendJsonl(record, path = logPath()) {
   await mkdir(claudeHome(), { recursive: true });
-  await appendFile(path, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(path, JSON.stringify(record) + "\n");
 }
 
 // Test helper: write a record to a caller-supplied path. Bypasses env-var
 // lookup so tests don't race on a shared env.
 export async function writeRecord(record, path) {
   await mkdir(path.substring(0, path.lastIndexOf("/")), { recursive: true });
-  await appendFile(path, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(path, JSON.stringify(record) + "\n");
 }
 
 // Test helper: reset module-scope delta state.

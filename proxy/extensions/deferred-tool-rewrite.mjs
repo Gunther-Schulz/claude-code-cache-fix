@@ -74,6 +74,7 @@ import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
 import { systemPromptSubKey } from "./insertion-normalization.mjs";
+import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 import { createHash } from "node:crypto";
 
 // Models known to ACCEPT the mid-conversation-tool-changes contract.
@@ -198,14 +199,14 @@ async function saveState(dir, sessionKey, state, fs) {
   await fs.mkdir(dir, { recursive: true });
   const finalPath = statePath(dir, sessionKey);
   const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify(state, null, 2));
+  await writeFileOwnerOnly(tmpPath, JSON.stringify(state, null, 2), fs);
   await fs.rename(tmpPath, finalPath);
 }
 
 async function appendTelemetry(dir, sessionKey, record, fs) {
   try {
     await fs.mkdir(dir, { recursive: true });
-    await fs.appendFile(eventsPath(dir, sessionKey), JSON.stringify(record) + "\n");
+    await appendFileOwnerOnly(eventsPath(dir, sessionKey), JSON.stringify(record) + "\n", fs);
   } catch (err) {
     debug(`telemetry append failed: ${err?.message ?? err}`);
   }

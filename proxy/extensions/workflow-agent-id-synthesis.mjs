@@ -31,7 +31,8 @@
 // (Default-on per directive — no behavior change for traffic that doesn't
 // match conditions.)
 
-import { appendFileSync, statSync, renameSync, mkdirSync } from "node:fs";
+import { statSync, renameSync, mkdirSync } from "node:fs";
+import { appendFileSyncOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
 
 import { resolveSessionId, sessionFilename } from "./cache-telemetry.mjs";
@@ -72,7 +73,7 @@ function appendRecord(record) {
   try {
     mkdirSync(dirname(path), { recursive: true });
     rotateIfNeeded(path);
-    appendFileSync(path, JSON.stringify(record) + "\n");
+    appendFileSyncOwnerOnly(path, JSON.stringify(record) + "\n");
   } catch (err) {
     process.stderr.write(`[workflow-agent-id-synthesis] log write failed: ${err.message}\n`);
   }

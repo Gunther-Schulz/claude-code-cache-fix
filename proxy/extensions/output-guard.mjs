@@ -24,6 +24,7 @@ import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { validateToolAdjacency } from "./insertion-normalization.mjs";
 import { isGuardEnabled } from "./output-guard-stash.mjs";
+import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 
 const MAX_MARKERS = 4;
 
@@ -129,7 +130,7 @@ export function findViolation(body, incomingBody) {
 async function appendGuardEvent(dir, key, record) {
   try {
     await mkdir(dir, { recursive: true });
-    await appendFile(join(dir, `${key}-guard-events.jsonl`), JSON.stringify(record) + "\n");
+    await appendFileOwnerOnly(join(dir, `${key}-guard-events.jsonl`), JSON.stringify(record) + "\n");
   } catch {
     // Telemetry loss must not affect the request.
   }

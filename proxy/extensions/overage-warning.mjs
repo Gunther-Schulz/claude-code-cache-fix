@@ -12,7 +12,8 @@
 //
 // See `docs/directives/proxy-overage-cost-warning.md` for the full design.
 
-import { appendFile, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
 
 import { WEIGHTED_TOKEN_COST_USD_COARSE } from "../rates.mjs";
@@ -247,7 +248,7 @@ async function appendJsonl(record, dir) {
   const outDir = dir || (process.env.CACHE_FIX_OVERAGE_WARNING_DIR || claudeHome());
   const outPath = join(outDir, "overage-warnings.jsonl");
   await mkdir(outDir, { recursive: true });
-  await appendFile(outPath, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(outPath, JSON.stringify(record) + "\n");
 }
 
 // Test helper: write a record using a caller-supplied directory. Bypasses

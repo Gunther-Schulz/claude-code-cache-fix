@@ -1,4 +1,4 @@
-import { appendFile } from "node:fs/promises";
+import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 
 const LOG_PATH = process.env.CACHE_FIX_REQUEST_LOG || "";
 
@@ -28,7 +28,7 @@ export default {
         cacheCreation: ctx.meta.cacheStats?.cacheCreation || 0,
       };
       try {
-        await appendFile(LOG_PATH, JSON.stringify(entry) + "\n");
+        await appendFileOwnerOnly(LOG_PATH, JSON.stringify(entry) + "\n");
       } catch {}
     }
   },

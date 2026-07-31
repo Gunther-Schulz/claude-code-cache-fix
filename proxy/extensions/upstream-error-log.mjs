@@ -35,7 +35,8 @@
 // Activation: enabled:true in proxy/extensions.json + runtime env-gate
 // `CACHE_FIX_UPSTREAM_ERROR_LOG=on`. Default OFF.
 
-import { appendFile, mkdir } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
+import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
 import { claudeHome } from "../claude-home.mjs";
 
@@ -127,13 +128,13 @@ export function buildRecord({ ctx, now = new Date() }) {
 
 async function appendJsonl(record, path) {
   await mkdir(dirname(path), { recursive: true });
-  await appendFile(path, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(path, JSON.stringify(record) + "\n");
 }
 
 // Test helper: write to a caller-supplied path (bypasses default).
 export async function writeRecord(record, path) {
   await mkdir(dirname(path), { recursive: true });
-  await appendFile(path, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(path, JSON.stringify(record) + "\n");
 }
 
 export function getLogPath() {

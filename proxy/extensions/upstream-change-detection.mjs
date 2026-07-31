@@ -30,6 +30,7 @@ import {
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
+import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 // --- Allowlists ---
 //
@@ -404,7 +405,7 @@ async function persistBaseline(fs = DEFAULT_FS, dir = getOutputDir()) {
   };
   try {
     await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(tmpPath, JSON.stringify(doc));
+    await writeFileOwnerOnly(tmpPath, JSON.stringify(doc), fs);
     await fs.rename(tmpPath, finalPath);
   } finally {
     try { await fs.unlink(tmpPath); } catch {}
@@ -414,7 +415,7 @@ async function persistBaseline(fs = DEFAULT_FS, dir = getOutputDir()) {
 async function appendEvent(record, fs = DEFAULT_FS, dir = getOutputDir()) {
   const path = getJsonlPath(dir);
   await fs.mkdir(dir, { recursive: true });
-  await fs.appendFile(path, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(path, JSON.stringify(record) + "\n", fs);
 }
 
 // Test seam: bypass module-scope state and operate on a caller-supplied map.

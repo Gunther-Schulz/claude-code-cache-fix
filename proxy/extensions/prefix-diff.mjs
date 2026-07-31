@@ -101,6 +101,7 @@ import {
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
+import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
 
@@ -878,7 +879,7 @@ async function atomicWriteJson(finalPath, obj, fs) {
   const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random()
     .toString(36)
     .slice(2, 10)}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify(obj, null, 2));
+  await writeFileOwnerOnly(tmpPath, JSON.stringify(obj, null, 2), fs);
   await fs.rename(tmpPath, finalPath);
 }
 
@@ -894,7 +895,7 @@ async function appendEvent(eventsPath, record, fs) {
   } catch {
     // Rotation is best-effort; never block the append on it.
   }
-  await fs.appendFile(eventsPath, JSON.stringify(record) + "\n");
+  await appendFileOwnerOnly(eventsPath, JSON.stringify(record) + "\n", fs);
 }
 
 /**

@@ -24,15 +24,26 @@
 // SWEEP_EVERY appends per process; oldest capture files deleted first
 // until under the cap. The sweep is best-effort and fail-open.
 
-import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
+import { appendFile, chmod, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { createHash } from "node:crypto";
 import { queuedAppend } from "./append-queue.mjs";
+import { ensureOwnerOnly, OWNER_ONLY } from "./write-owner-only.mjs";
 
-const DEFAULT_FS = { appendFile, mkdir, readdir, stat, unlink };
+const DEFAULT_FS = { appendFile, chmod, mkdir, readdir, stat, unlink };
+
+// Captures hold full request bodies — the most conversation-derived thing
+// this proxy writes — so they are owner-only. Routed through the append
+// queue rather than through appendFileOwnerOnly because these appends can
+// be ~1MB and concurrent, and tearing is the defect append-queue exists
+// for; the mode and the lazy repair ride along on top of it.
+async function captureAppend(path, line) {
+  await ensureOwnerOnly(path, DEFAULT_FS);
+  return queuedAppend(path, line, DEFAULT_FS, { mode: OWNER_ONLY });
+}
 const SWEEP_EVERY = 50;
 
 let _appendsSinceSweep = 0;
@@ -266,18 +277,13 @@ export default {
       if (!_bootWrittenFor.has(record.key)) {
         _bootWrittenFor.add(record.key);
         await DEFAULT_FS.mkdir(dir, { recursive: true });
-        await queuedAppend(
+        await captureAppend(
           join(dir, `${record.key}-requests.jsonl`),
           JSON.stringify(buildBootRecord(new Date(), process.env, proxyTree())) + "\n",
-          DEFAULT_FS,
         );
       }
       await DEFAULT_FS.mkdir(dir, { recursive: true });
-      await queuedAppend(
-        join(dir, `${record.key}-requests.jsonl`),
-        JSON.stringify(record) + "\n",
-        DEFAULT_FS,
-      );
+      await captureAppend(join(dir, `${record.key}-requests.jsonl`), JSON.stringify(record) + "\n");
       if (++_appendsSinceSweep >= SWEEP_EVERY) {
         _appendsSinceSweep = 0;
         await sweepCaptureDir(dir, getMaxBytes(), DEFAULT_FS);
@@ -311,11 +317,7 @@ export default {
         const record = buildOutcomeRecord(ctx, id, key);
       if (!record) return;
       ctx.meta._captureOutcomeWritten = true;
-      await queuedAppend(
-        join(getCaptureDir(), `${key}-requests.jsonl`),
-        JSON.stringify(record) + "\n",
-        DEFAULT_FS,
-      );
+      await captureAppend(join(getCaptureDir(), `${key}-requests.jsonl`), JSON.stringify(record) + "\n");
     } catch (err) {
       debug(`outcome capture failed: ${err?.message ?? err}`);
     }

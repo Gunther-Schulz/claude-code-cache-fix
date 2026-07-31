@@ -1,4 +1,5 @@
-import { appendFileSync, statSync, renameSync, mkdirSync } from "node:fs";
+import { statSync, renameSync, mkdirSync } from "node:fs";
+import { appendFileSyncOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
@@ -35,7 +36,7 @@ function appendRecord(record) {
   try {
     mkdirSync(dirname(path), { recursive: true });
     rotateIfNeeded(path);
-    appendFileSync(path, JSON.stringify(record) + "\n");
+    appendFileSyncOwnerOnly(path, JSON.stringify(record) + "\n");
   } catch (err) {
     process.stderr.write(`[bootstrap-defense] log write failed: ${err.message}\n`);
   }

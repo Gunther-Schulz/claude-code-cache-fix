@@ -30,7 +30,8 @@
 // ~X% of the account's 5h quota burn" figure in the fire event log. API-key traffic
 // lacks the header, so the signal reads absent and simply isn't emitted.
 
-import { appendFileSync, statSync, renameSync, mkdirSync, readFileSync } from "node:fs";
+import { statSync, renameSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSyncOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { claudeHome } from "../claude-home.mjs";
@@ -212,7 +213,7 @@ function logEvent(rec) {
     const path = eventLogPath();
     mkdirSync(dirname(path), { recursive: true });
     rotateIfNeeded(path);
-    appendFileSync(path, JSON.stringify(rec) + "\n");
+    appendFileSyncOwnerOnly(path, JSON.stringify(rec) + "\n");
   } catch {}
 }
 
