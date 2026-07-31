@@ -866,36 +866,61 @@ test("BITE — the same phantom in reverse: a host REGAINING a reminder is not i
 // flap-s-0dc8ac87c43d-86.json holds the full message arrays for all four
 // requests of the three flap pairs.
 //
-// Expected values come from the DEFINITION, not from what the census
-// currently prints: ONE reminder block leaves msg92 and comes back, three
-// times. So there are three migration rows, all carrying the SAME block
-// hash, and the two that reverse a predecessor are flaps. Before the
-// candidacy fix this fixture produced six rows and four flaps — the
-// tool_result of msg92 was reported as migrating to msg93, which is msg92
-// itself, having shed the reminder and shifted index.
+// Expected values come from the fixture's own `_legs` header — which
+// describes the BYTES, was written by the harvest before either detector
+// existed, and is therefore the one statement of what is in this file that
+// does not share parentage with the code under test. It says the standalone
+// leg carries THREE relocated hosts, not one:
+//
+//   msg86 = the JOIN of msg85's four unwrapped reminders
+//   msg91 = a CROSS-MESSAGE join: msg89's unwrapped reminder + the whole of
+//           the standalone msg90 that followed it
+//   msg94 = msg92's unwrapped reminder, alone
+//
+// So the event is three hosts × three legs = nine rows, three distinct
+// hashes, and the two later legs of each host reverse a predecessor: six
+// flaps. Two thirds of that was invisible before the join scan — msg86 and
+// msg91 match no single block's hash, so the census reported only the msg94
+// column and a reader would have priced this event at one third its size.
+// Before the 47defba candidacy fix the msg94 column alone produced six rows
+// and four flaps: the tool_result of msg92 was reported as migrating to
+// msg93, which is msg92 itself, having shed the reminder and shifted index.
 import { readFileSync } from "node:fs";
 import { dirname } from "node:path"; // `join` is already imported at the top of this file
 import { fileURLToPath } from "node:url";
 
-const FLAP_FIXTURE = JSON.parse(
-  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "harvested", "flap-s-0dc8ac87c43d-86.json"), "utf-8"),
-);
+const fixture = (name) =>
+  JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "harvested", name), "utf-8"));
 
-test("BITE — the real 2026-07-30 flap: one reminder block, three legs, two of them flaps", () => {
+const FLAP_FIXTURE = fixture("flap-s-0dc8ac87c43d-86.json");
+
+const rowLine = (r) => `n=${r.prevN}->${r.n} ${r.join ?? "block"} ${r.direction} ${r.sourceIdx}->${r.targetIdx}`;
+
+test("BITE — the real 2026-07-30 flap: three relocated hosts, three legs, six flaps", () => {
   const rows = findBlockMigrations(
     FLAP_FIXTURE.requests.map((r) => ({
       n: r.n, ts: r.ts, key: "s-0d6f38ba", inMsgs: r.messages, outMsgs: r.messages, inTools: [], outTools: [],
     })),
   );
 
-  assert.equal(rows.length, 3, "three pairs, one block changing host in each");
-  assert.equal(new Set(rows.map((r) => r.hash)).size, 1, "the SAME block throughout — that is what makes it one flap");
+  assert.equal(rows.length, 9, "three hosts changing shape in each of the three pairs");
+  assert.equal(
+    new Set(rows.map((r) => r.hash)).size,
+    3,
+    "one hash per relocated host — each keeps its identity across the legs, which is what makes each a flap",
+  );
   assert.deepEqual(
-    rows.map((r) => `n=${r.prevN}->${r.n} ${r.direction} ${r.sourceIdx}->${r.targetIdx}`),
+    rows.map(rowLine),
     [
-      "n=102->104 inline->standalone 92->94",
-      "n=104->105 standalone->inline 94->92",
-      "n=105->108 inline->standalone 92->94",
+      "n=102->104 block inline->standalone 92->94",
+      "n=102->104 in-entry inline->standalone 85->86",
+      "n=102->104 cross-message inline->standalone 89->91",
+      "n=104->105 block standalone->inline 94->92",
+      "n=104->105 in-entry standalone->inline 86->85",
+      "n=104->105 cross-message standalone->inline 91->89",
+      "n=105->108 block inline->standalone 92->94",
+      "n=105->108 in-entry inline->standalone 85->86",
+      "n=105->108 cross-message inline->standalone 89->91",
     ],
   );
   assert.equal(
@@ -904,9 +929,189 @@ test("BITE — the real 2026-07-30 flap: one reminder block, three legs, two of 
     "msg93 is msg92 after shedding its reminder — nothing migrated to or from it",
   );
 
+  // Exactly one of the nine is the shape no hash set in the extension can
+  // match, per leg. That count is the whole point of the tag.
+  assert.equal(rows.filter((r) => r.join === "cross-message").length, 3);
+
+  assert.deepEqual(
+    rows.filter((r) => !r.flap).map(rowLine),
+    [
+      "n=102->104 block inline->standalone 92->94",
+      "n=102->104 in-entry inline->standalone 85->86",
+      "n=102->104 cross-message inline->standalone 89->91",
+    ],
+    "only the OPENING leg of each host reverses nothing",
+  );
+  assert.deepEqual(
+    rows.filter((r) => r.flap).map((r) => r.flap),
+    [
+      { reversesPrevN: 102, reversesN: 104, span: 1 },
+      { reversesPrevN: 102, reversesN: 104, span: 1 },
+      { reversesPrevN: 102, reversesN: 104, span: 1 },
+      { reversesPrevN: 104, reversesN: 105, span: 1 },
+      { reversesPrevN: 104, reversesN: 105, span: 1 },
+      { reversesPrevN: 104, reversesN: 105, span: 1 },
+    ],
+    "each host's second and third legs reverse its own predecessor",
+  );
+});
+
+// --- Join migrations: the standalone side is a JOIN, not a block ---
+//
+// DEFINITION lives beside the implementation (tools/replay.mjs, above
+// scanJoinMigrations). Restated as the assertions below need it: several
+// reminders leave one host and arrive as a SINGLE "\n\n"-joined standalone
+// message. No unit hash equals that message's hash, so before this scan the
+// class produced no row at all — the detector reported nothing on a fixture
+// harvested for oscillating.
+//
+// Two conditions, and the two fires-on-non-defect guards below remove exactly
+// one each: (A) the joined standalone is a whole message on one side and on
+// neither the other, within the same +/-3 window the block scan uses; (B) no
+// constituent is still <system-reminder>-wrapped on the standalone side — a
+// surviving wrapper means the bytes were COPIED, and a copy is not a move.
+
+const OSC_FIXTURE = fixture("oscillation-s-4b6a435234bf-863.json");
+
+// The oscillation fixture carries only the two messages the event is about
+// (msg863 and, where it exists, msg864) — not the 913-message array they sat
+// in. Reconstruct a minimal history around the REAL bytes: two pads before,
+// one changing turn after, which is what makes each pair splice/insert-mid
+// rather than a kind the scan skips. Request numbers are synthetic for the
+// same reason — the fixture records timestamps, not `n`.
+const oscEntries = () => {
+  const msg864At = new Map(OSC_FIXTURE.requests_864.map((r) => [r.ts, r.msg864]));
+  return OSC_FIXTURE.requests.map((r, i) => {
+    const msgs = [asst("pad0"), asst("pad1"), r.msg863];
+    const m864 = msg864At.get(r.ts);
+    if (m864) msgs.push(m864);
+    msgs.push(asst(`turn${i}`));
+    return { n: i, ts: r.ts, key: "s-4b6a435234bf", inMsgs: msgs, outMsgs: msgs, inTools: [], outTools: [] };
+  });
+};
+
+test("BITE — the real s-4b6a435234bf oscillation: a MERGED standalone is a migration, and it flaps", () => {
+  // The fixture's `_merge_standalone` header states the relation these bytes
+  // exist to carry: msg864 is msg863's two hook reminders, wrapper-stripped
+  // and "\n\n"-joined. Three of the eight requests carry it, so msg863 sheds
+  // the pair, takes it back, and sheds it again — one migration per flip,
+  // the later two reversing their predecessor.
+  const rows = findBlockMigrations(oscEntries());
+
+  assert.equal(rows.length, 3, "one row per flip of the merged pair");
+  assert.equal(new Set(rows.map((r) => r.hash)).size, 1, "the same joined bytes throughout");
+  assert.deepEqual(
+    rows.map(rowLine),
+    [
+      "n=3->4 in-entry inline->standalone 2->3",
+      "n=4->5 in-entry standalone->inline 3->2",
+      "n=5->6 in-entry inline->standalone 2->3",
+    ],
+    "in-entry: both constituents are blocks of the SAME host, so this is the join the extension can already match",
+  );
   assert.equal(rows[0].flap, undefined, "the opening leg reverses nothing");
-  assert.deepEqual(rows[1].flap, { reversesPrevN: 102, reversesN: 104, span: 1 });
-  assert.deepEqual(rows[2].flap, { reversesPrevN: 104, reversesN: 105, span: 1 });
+  assert.deepEqual(rows[1].flap, { reversesPrevN: 3, reversesN: 4, span: 1 });
+  assert.deepEqual(rows[2].flap, { reversesPrevN: 4, reversesN: 5, span: 1 });
+});
+
+// Synthetic shapes for the guards. `hostOf` is the inline side (a tool result
+// plus N wrapped reminders); `merged` is the standalone side.
+const wrap = (t) => txt(`<system-reminder>\n${t}\n</system-reminder>`);
+const R1 = "PreToolUse:Edit hook additional context: first";
+const R2 = "PostToolUse:Edit hook additional context: second";
+const hostOf = (...inner) => ({ role: "user", content: [toolResult("tu9"), ...inner.map(wrap)] });
+const merged = (...inner) => ({ role: "system", content: inner.join("\n\n") });
+
+test("BITE — a cross-message join carries its own kind: the extension has no hash set for it", () => {
+  // The measured shape (flap fixture msg91): a host's reminder merges with
+  // the WHOLE of the standalone message that follows it. in-entry joins are
+  // findSuppressibleDuplicate's own rule; this one spans two messages and
+  // nothing in the extension matches it, so the tag is what counts the class.
+  const tail = "the standalone nudge that follows the host";
+  const prev = [user("q1"), asst("a1"), hostOf(R1), { role: "system", content: tail }, asst("a2")];
+  const cur = [
+    user("q1"),
+    asst("a1"),
+    asst("inserted above, so the host's own index shifts"),
+    { role: "user", content: [toolResult("tu9")] },
+    merged(R1, tail),
+    asst("a2"),
+  ];
+  const rows = findBlockMigrations([entry(0, prev, prev), entry(1, cur, cur)]);
+  assert.equal(rows.length, 1, "one join moved; the tool_result never left its message");
+  assert.equal(rows[0].join, "cross-message");
+  assert.equal(rows[0].direction, "inline->standalone");
+  assert.equal(rows[0].sourceIdx, 2, "the reminder-side host; the absorbed neighbour is its successor by definition");
+  assert.equal(rows[0].targetIdx, 4);
+});
+
+test("join: fires-on-non-defect guard — a joined standalone present on BOTH sides did not ARRIVE", () => {
+  // Condition (A), and it has to be isolated from (B) to be tested at all:
+  // the first draft of this bite kept the reminders wrapped on both sides,
+  // which (B) rejects first — deleting (A) left it green, so it was checking
+  // the other guard. (dev-loop "Adding a check": a mutation that leaves the
+  // bite green is evidence about the mutation before it is evidence about
+  // the bite.)
+  //
+  // The shape that reaches (A): the joined bytes are ALREADY a standalone
+  // message in the predecessor, sitting beside a host that also carries them
+  // wrapped, and the host then sheds its copy. The constituents do leave
+  // their wrapper, so (B) passes — but nothing arrived anywhere. That is a
+  // de-duplication, and pricing it as a relocation would misattribute a
+  // whole class of harmless request.
+  const shrunk = { role: "user", content: [toolResult("tu9")] };
+  const novel = asst("a novel turn mid-history, so the pair is splice/insert-mid");
+
+  const beforeInline = [user("q1"), asst("a1"), hostOf(R1, R2), merged(R1, R2), asst("a2")];
+  const afterShed = [user("q1"), asst("a1"), novel, shrunk, merged(R1, R2), asst("a2")];
+  assert.deepEqual(
+    findBlockMigrations([entry(0, beforeInline, beforeInline), entry(1, afterShed, afterShed)]),
+    [],
+    "the standalone was already there — the host merely stopped duplicating it",
+  );
+
+  // The mirror: the host GAINS a wrapped copy of a standalone that was
+  // already present and stays present. Nothing left the standalone either.
+  const beforeShed = [user("q1"), asst("a1"), shrunk, merged(R1, R2), asst("a2")];
+  const afterInline = [user("q1"), asst("a1"), novel, hostOf(R1, R2), merged(R1, R2), asst("a2")];
+  assert.deepEqual(
+    findBlockMigrations([entry(0, beforeShed, beforeShed), entry(1, afterInline, afterInline)]),
+    [],
+    "the standalone survived into the successor — it did not dissolve into the host",
+  );
+});
+
+test("join: fires-on-non-defect guard — constituents still WRAPPED on the standalone side are a copy, not a move", () => {
+  // Condition (B). The merged message appears, but the host still carries
+  // both reminders in wrapped form: the bytes were duplicated, and the cache
+  // consequence of a duplication is not the consequence of a relocation.
+  const prev = [user("q1"), asst("a1"), hostOf(R1, R2), asst("a2")];
+  const cur = [user("q1"), asst("a1"), hostOf(R1, R2), merged(R1, R2), asst("a2")];
+  const rows = findBlockMigrations([entry(0, prev, prev), entry(1, cur, cur)]);
+  assert.deepEqual(rows, []);
+});
+
+test("join: the merged standalone must land within the same +/-3 window a block migration uses", () => {
+  // Condition (A), the window half. Same relocation, but the merged message
+  // arrives four messages away from its host — beyond the neighbourhood the
+  // census claims to be searching. Reported as a migration it would be an
+  // unproven pairing of two messages that merely share bytes.
+  const build = (gap) => {
+    const filler = Array.from({ length: gap }, (_, k) => asst(`filler${k}`));
+    const prev = [user("q1"), asst("a1"), hostOf(R1, R2), ...filler, asst("a2")];
+    const cur = [
+      user("q1"),
+      asst("a1"),
+      { role: "user", content: [toolResult("tu9")] },
+      ...filler,
+      merged(R1, R2),
+      asst("a2"),
+    ];
+    return findBlockMigrations([entry(0, prev, prev), entry(1, cur, cur)]);
+  };
+  assert.equal(build(2).length, 1, "three messages apart: inside the window");
+  assert.equal(build(2)[0].join, "in-entry");
+  assert.deepEqual(build(3), [], "four apart: outside it");
 });
 
 // =====================================================================

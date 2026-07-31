@@ -583,6 +583,16 @@ function outputContentHash(m) {
 export function compactEntry(e) {
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
+  // One derivation of the input-side block units, two projections. `inBlocks`
+  // below is the text-free one this entry retains; `inJoins` is the other, and
+  // it has to be computed HERE rather than by the checker because a join is a
+  // concatenation and hashes do not concatenate — reconstructing a join hash
+  // from `inBlocks` is impossible, and retaining the text to do it later is
+  // the O(file) retention class this file has paid for three times already.
+  // Two extra hash strings per message, both null for the overwhelming
+  // majority of them (a message with no reminder-wrapped block produces
+  // neither), against one string per BLOCK that inBlocks already keeps.
+  const inUnits = inMsgs.map(blockUnitsFull);
   return {
     n: e.n,
     ts: e.ts,
@@ -609,7 +619,16 @@ export function compactEntry(e) {
     // what lets rebilledOutBytes be priced without retaining a message body.
     outBytes: outMsgs.map((m) => JSON.stringify(m).length),
     inSem: semanticIds(inMsgs),
-    inBlocks: inMsgs.map(blockUnits),
+    inBlocks: inUnits.map((us) => us.map(({ hash, wrapped, standalone }) => ({ hash, wrapped, standalone }))),
+    // The two join hashes of message i, by the SAME "\n\n" rule the extension
+    // and the conservation gate use (joinUnitHash / crossJoinUnitHash — one
+    // definition of a join in this file, not three): `self` is the join of
+    // this message's own reminder-wrapped blocks, `cross` the join of them
+    // with the WHOLE of the next message. scanJoinMigrations is the consumer.
+    inJoins: inUnits.map((us, i) => ({
+      self: joinUnitHash(us),
+      cross: i + 1 < inUnits.length ? crossJoinUnitHash(us, inUnits[i + 1]) : null,
+    })),
     msgs: inMsgs.length,
     inTools: toolsFingerprints(e.inTools),
     outTools: toolsFingerprints(e.outTools),
@@ -1167,10 +1186,6 @@ function blockUnitsFull(msg) {
     .filter((u) => u.hash !== null);
 }
 
-function blockUnits(msg) {
-  return blockUnitsFull(msg).map(({ hash, wrapped, standalone }) => ({ hash, wrapped, standalone }));
-}
-
 const BLOCK_MIGRATION_KINDS = new Set(["replace/edit", "splice/insert-mid"]);
 const BLOCK_MIGRATION_WINDOW = 3;
 
@@ -1207,6 +1222,131 @@ function scanBlockMigrations(prev, cur) {
           break;
         }
       }
+    }
+  }
+  return found;
+}
+
+// --- Join migrations: the standalone side is a JOIN, not a block ---
+//
+// scanBlockMigrations matches a unit hash against a unit hash, so it can only
+// see a standalone that is ONE block's bytes. CC frequently emits the other
+// shape: several reminders leave their host and arrive as a SINGLE standalone
+// message, "\n\n"-joined. No unit hash equals that message's hash, so the
+// whole class produces no row at all — measured on both committed fixtures:
+//
+//   flap-s-0dc8ac87c43d-86.json (capture s-0d6f38ba, the 2026-07-30 221k
+//   event): of the three standalone messages the standalone leg carries, only
+//   msg94 is a lone block. msg86 is the join of msg85's four wrapped
+//   reminders; msg91 is msg89's reminder joined with the WHOLE of the
+//   standalone msg90 that followed it. Two thirds of the event was invisible.
+//
+//   oscillation-s-4b6a435234bf-863.json: the fixture's entire subject —
+//   msg863's two wrapped reminders becoming the merged msg864 — is a join, so
+//   the detector reported nothing on a capture harvested for oscillating.
+//
+// DEFINITION. A JOIN MIGRATION is the same reminder-swap event as a block
+// migration, with the joined text in place of the single block. One side is
+// the INLINE side (the constituents sit reminder-wrapped inside a message),
+// the other the STANDALONE side (their "\n\n"-join is a whole message of its
+// own); direction is temporal as before, PREV -> CUR. Two conditions, the
+// direct analogues of the block scan's `samePos` and wrapper guards:
+//
+//   (A) THE JOIN MOVED. The joined text is a whole single-block message on
+//       the standalone side, within +/-BLOCK_MIGRATION_WINDOW of the inline
+//       host's index, and is a whole message NOWHERE on the inline side. A
+//       joined standalone that is present on both sides did not move.
+//   (B) THE CONSTITUENTS LEFT THEIR WRAPPER. No constituent block appears
+//       <system-reminder>-WRAPPED anywhere on the standalone side. This is
+//       the candidacy rule of the block scan, restated for a set: a wrapper
+//       still present means the bytes were COPIED, not relocated. It is
+//       deliberately index-free — the host's own index shifts when messages
+//       are inserted above it, which is exactly the phantom the block scan's
+//       positional guard produced before 47defba.
+//
+// KINDS, and they are not one finding. `in-entry` joins ALL of one message's
+// wrapped blocks, wire order, no subsets — 78940a0's rule, which is
+// findSuppressibleDuplicate's own hash set, so an in-entry join is a
+// migration the shipped mitigation can already match. `cross-message` spans
+// two ADJACENT messages (a message's wrapped blocks plus the whole of the
+// next one) and no hash set in the extension covers it — that is the parked
+// design item's subject, and the tag is what will count it. Which is why the
+// kind rides on the row rather than being folded away: the census reader has
+// to be able to tell "already matchable" from "nothing can match this yet".
+//
+// The join hashes themselves are NOT computed here — they ride on the compact
+// entry (`inJoins`, compactEntry), because a join needs the block TEXT and
+// the retained entry deliberately has none.
+
+// Per-side index for one entry: where the whole-message (single-block) hashes
+// are, and which block hashes appear reminder-wrapped. Both conditions above
+// are lookups in these.
+function joinSideIndex(e) {
+  const standalone = new Map(); // whole-message hash -> [indices]
+  const wrapped = new Set(); // every reminder-wrapped block hash on this side
+  e.inBlocks.forEach((us, i) => {
+    if (us.length === 1) {
+      const at = standalone.get(us[0].hash);
+      if (at) at.push(i);
+      else standalone.set(us[0].hash, [i]);
+    }
+    for (const u of us) if (u.wrapped) wrapped.add(u.hash);
+  });
+  return { standalone, wrapped };
+}
+
+function scanJoinMigrations(prev, cur) {
+  const found = [];
+  const P = joinSideIndex(prev);
+  const C = joinSideIndex(cur);
+
+  // Condition (A), second half: the nearest whole-message occurrence of
+  // `hash` on `side` within the window of `i`, or -1.
+  const wholeMsgNear = (side, hash, i) => {
+    const at = side.standalone.get(hash);
+    if (!at) return -1;
+    for (const j of at) if (Math.abs(j - i) <= BLOCK_MIGRATION_WINDOW) return j;
+    return -1;
+  };
+
+  // The constituent block hashes of the join at index i of `e`: that
+  // message's wrapped blocks, plus — for the cross-message kind — the whole
+  // of the next message, which is a single block by construction
+  // (crossJoinUnitHash returns null otherwise, so `cross` is null and this is
+  // never reached for a multi-block neighbour).
+  const constituents = (e, i, kind) => {
+    const own = e.inBlocks[i].filter((u) => u.wrapped).map((u) => u.hash);
+    return kind === "cross-message" ? own.concat(e.inBlocks[i + 1][0].hash) : own;
+  };
+
+  // Condition (B): none of the constituents is still wrapped on the
+  // standalone side. The cross-message kind's right constituent is a whole
+  // message rather than a wrapped block, so it is simply absent from the
+  // wrapped set and the test passes on it — correct, its own movement is
+  // condition (A)'s business, not this one's.
+  const unwrappedOn = (side, hashes) => hashes.every((h) => !side.wrapped.has(h));
+
+  for (const kind of ["in-entry", "cross-message"]) {
+    const field = kind === "in-entry" ? "self" : "cross";
+    // PREV inline, CUR standalone: the join appeared.
+    for (let i = 0; i < prev.inJoins.length; i++) {
+      const jh = prev.inJoins[i][field];
+      if (jh === null) continue;
+      if (P.standalone.has(jh)) continue; // (A): it was already a message of its own
+      const j = wholeMsgNear(C, jh, i);
+      if (j < 0) continue;
+      if (!unwrappedOn(C, constituents(prev, i, kind))) continue; // (B)
+      found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j, hash: jh, join: kind });
+    }
+    // PREV standalone, CUR inline: the join dissolved back into its host.
+    for (let j = 0; j < cur.inJoins.length; j++) {
+      const jh = cur.inJoins[j][field];
+      if (jh === null) continue;
+      if (C.standalone.has(jh)) continue; // (A)
+      const i = wholeMsgNear(P, jh, j);
+      if (i < 0) continue;
+      if (!unwrappedOn(P, constituents(cur, j, kind))) continue; // (B)
+      found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j, hash: jh, join: kind });
     }
   }
   return found;
@@ -1258,6 +1398,18 @@ function markFlaps(items) {
 const flapTag = (b) =>
   b.flap ? ` [flap reverses n=${b.flap.reversesPrevN}->${b.flap.reversesN}, ${b.flap.span} req]` : "";
 
+// How a migration row renders its endpoints. A cross-message join has TWO
+// messages on its inline side — index i and, by definition, i+1 — so a plain
+// `a->b` would silently drop the message that was absorbed (or split off).
+const migrationSpan = (b) =>
+  b.join !== "cross-message"
+    ? `${b.sourceIdx}->${b.targetIdx}`
+    : b.direction === "inline->standalone"
+      ? `${b.sourceIdx}+${b.sourceIdx + 1}->${b.targetIdx}`
+      : `${b.sourceIdx}->${b.targetIdx}+${b.targetIdx + 1}`;
+const joinTag = (b) => (b.join ? ` join:${b.join}` : "");
+const migrationLine = (b) => `${joinTag(b)} ${b.direction} ${migrationSpan(b)}`.trimStart();
+
 export function findBlockMigrations(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -1277,6 +1429,11 @@ export function findBlockMigrations(entries) {
       const kind = censusIds(prev.inSem, cur.inSem);
       if (!BLOCK_MIGRATION_KINDS.has(kind)) continue;
       for (const row of scanBlockMigrations(prev, cur)) inGroup.push({ row, pos: i });
+      // Join rows join the SAME list before markFlaps runs: an oscillation
+      // whose standalone side is a join reverses exactly like one whose
+      // standalone side is a block, and the flap scan keys on `hash`, which a
+      // join row carries the same way.
+      for (const row of scanJoinMigrations(prev, cur)) inGroup.push({ row, pos: i });
     }
     markFlaps(inGroup);
     for (const { row } of inGroup) rows.push(row);
@@ -1510,6 +1667,12 @@ function conservationUnits(msg) {
 // order, no subset merges" rule — but computed over the FORWARDED array,
 // which is where a suppressed message's copy has to be for the suppression to
 // have been honest.
+//
+// SHARED, not conservation-only: compactEntry calls this and crossJoinUnitHash
+// below over the INPUT array too, so scanJoinMigrations can ask the same
+// question of the census (a joined standalone is a migration target). One
+// definition of "a join" in this file — a second would be a second truth
+// about what the extension can match.
 function joinUnitHash(units) {
   const texts = units.filter((u) => u.wrapped && u.text !== null).map((u) => u.text);
   if (texts.length < 2) return null;
@@ -2352,7 +2515,7 @@ async function main() {
           // the anchor alone cannot name.
           const bm = (blockMigrations ?? []).filter((b) => b.n === e.n && b.prevN === e.prevN);
           const bmTag = bm.length
-            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]${flapTag(b)}`).join(" ")
+            ? " " + bm.map((b) => `[blockMigration ${migrationLine(b)}]${flapTag(b)}`).join(" ")
             : "";
           process.stdout.write(
             `    n=${e.prevN}->${e.n} edit@${e.at} of ${e.lastIdx} [${anchor}]${bmTag} ~${(e.rebilledBytes / 1e3).toFixed(0)} kB ${e.ts}\n`,
@@ -2395,9 +2558,18 @@ async function main() {
     }
     if (blockMigrations && blockMigrations.length) {
       const flaps = blockMigrations.filter((b) => b.flap);
+      const joins = blockMigrations.filter((b) => b.join);
+      const crossJoins = joins.filter((b) => b.join === "cross-message");
       process.stdout.write(
-        `\nblock migrations (reminder-swap shape): ${blockMigrations.length}, ${flaps.length} FLAP\n`,
+        `\nblock migrations (reminder-swap shape): ${blockMigrations.length}, ${flaps.length} FLAP,` +
+          ` ${joins.length} JOIN (${crossJoins.length} cross-message)\n`,
       );
+      if (crossJoins.length) {
+        process.stdout.write(
+          `  a cross-message join spans two messages, so no hash set in the extension matches it —\n` +
+            `  in-entry joins are already findSuppressibleDuplicate's shape (78940a0), these are not\n`,
+        );
+      }
       if (flaps.length) {
         process.stdout.write(
           `  a FLAP reverses a migration of the SAME block within ${FLAP_WINDOW} requests of one conversation —\n` +
@@ -2408,15 +2580,11 @@ async function main() {
         // point is that they were previously findable only by reading adjacent
         // lines and noticing the direction column alternate.
         for (const b of flaps.slice(0, 10)) {
-          process.stdout.write(
-            `    n=${b.prevN}->${b.n} ${b.direction} ${b.sourceIdx}->${b.targetIdx}${flapTag(b)} ${b.ts}\n`,
-          );
+          process.stdout.write(`    n=${b.prevN}->${b.n} ${migrationLine(b)}${flapTag(b)} ${b.ts}\n`);
         }
       }
       for (const b of blockMigrations.filter((r) => !r.flap).slice(0, 10)) {
-        process.stdout.write(
-          `    n=${b.prevN}->${b.n} ${b.direction} ${b.sourceIdx}->${b.targetIdx}${flapTag(b)} ${b.ts}\n`,
-        );
+        process.stdout.write(`    n=${b.prevN}->${b.n} ${migrationLine(b)}${flapTag(b)} ${b.ts}\n`);
       }
     }
     if (mitigation) {
@@ -2466,7 +2634,7 @@ async function main() {
           // a replace/edit, so it never reaches the edits-array printout).
           const bm = (blockMigrations ?? []).filter((b) => b.n === m.n && b.prevN === m.prevN);
           const bmTag = bm.length
-            ? " " + bm.map((b) => `[blockMigration ${b.direction} ${b.sourceIdx}->${b.targetIdx}]`).join(" ")
+            ? " " + bm.map((b) => `[blockMigration ${migrationLine(b)}]`).join(" ")
             : "";
           process.stdout.write(
             `    n=${m.prevN}->${m.n} ${m.kind} ${m.resetReason ? `reset(${m.resetReason})` : m.action}${bmTag} ~${(m.rebilledBytes / 1e3).toFixed(0)} kB ${m.ts}\n`,
