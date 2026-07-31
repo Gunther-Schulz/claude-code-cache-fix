@@ -38,7 +38,8 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { censusPair } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
-import { canonical, classify, reminderBlocks, textOf } from "./reminder-migration-census.mjs";
+import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
+  from "./reminder-migration-census.mjs";
 
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
 const CAPTURES = join(homedir(), ".claude/cache-fix-captures");
@@ -153,21 +154,36 @@ export async function capturePair(sid, tsEpoch) {
   return before ? { before, after } : null;
 }
 
-/** Does the pair carry the row-4 reminder container migration? */
+/**
+ * Does the pair carry the row-4 reminder container migration?
+ *
+ * A bare EXTENDED is not actionable: the two sub-classes have opposite
+ * mitigation stories. MERGED-STANDALONE means the extra bytes are a standalone
+ * the PREDECESSOR already sent — append-shaped, absorbable by a normalization.
+ * NEW-TEXT means content no earlier request carried, which no re-serve can
+ * reconstruct. The sub-classifier is imported rather than re-derived so this
+ * tool and the census can never disagree about what a merge is (dev-loop,
+ * "chain existing tools"); `sysBefore` is the predecessor's standalones
+ * because that is the population its contract checks against.
+ */
 export function migrationVerdict(pair) {
   const b = pair.before.body.messages, a = pair.after.body.messages;
   const inlineAfter = new Set();
   for (const m of a) for (const t of reminderBlocks(m)) inlineAfter.add(t);
   const sysAfter = a.filter((m) => m?.role === "system").map(textOf);
+  const sysBefore = b.filter((m) => m?.role === "system").map(textOf);
   for (let i = 0; i < b.length; i++) {
     const blocks = reminderBlocks(b[i]);
     if (!blocks.length || blocks.some((t) => inlineAfter.has(t))) continue;
     const recon = canonical(blocks);
     for (const t of sysAfter) {
       const v = classify(recon, t);
-      if (v === "EXACT" || v === "EXTENDED") return { host: i, verdict: v };
+      if (v === "EXACT") return { host: i, verdict: v, sub: null };
+      if (v === "EXTENDED") {
+        return { host: i, verdict: v, sub: subclassifyExtended(recon, t, sysBefore) };
+      }
     }
-    return { host: i, verdict: "DROPPED" };
+    return { host: i, verdict: "DROPPED", sub: null };
   }
   return null;
 }
@@ -230,7 +246,9 @@ export async function triage(bust) {
 
   const mig = migrationVerdict(pair);
   steps.push(mig
-    ? { step: "migration", ok: true, detail: `row-4 container migration at host ${mig.host} (${mig.verdict})` }
+    ? { step: "migration", ok: true,
+        detail: `row-4 container migration at host ${mig.host} ` +
+                `(${mig.verdict}${mig.sub ? `/${mig.sub}` : ""})` }
     : { step: "migration", ok: true, detail: "no reminder container migration in this pair" });
 
   const rowN = classToRow(cls, mig);
@@ -347,6 +365,29 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     eq(classToRow("splice/insert-mid", null), 1, "splice -> row 1");
     eq(classToRow("replace/edit", null), 4, "replace/edit -> row 4");
     eq(classToRow("append-only", { host: 3, verdict: "EXACT" }), 4, "migration wins -> row 4");
+    // A bare EXTENDED is unactionable, so migrationVerdict must carry the
+    // sub-class. The expectation is the CENSUS's definition, not this code's:
+    // the remainder beyond the reconstruction is MERGED-STANDALONE iff it is
+    // byte-equal to a standalone role:"system" message the BEFORE request
+    // already carried, NEW-TEXT otherwise; an EXACT match has no remainder and
+    // therefore no sub-class at all.
+    const migPair = (beforeSys, afterText) => ({
+      before: { body: { messages: [
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "T1" },
+                                  { type: "text", text: "<system-reminder>\nR\n</system-reminder>" }] },
+        ...beforeSys.map((t) => ({ role: "system", content: t })),
+      ] } },
+      after: { body: { messages: [
+        { role: "user", content: [{ type: "tool_result", tool_use_id: "T1" }] },
+        { role: "system", content: afterText },
+      ] } },
+    });
+    eq(migrationVerdict(migPair(["PRIOR"], "R\n\nPRIOR")).sub, "MERGED-STANDALONE",
+       "remainder the predecessor already sent");
+    eq(migrationVerdict(migPair([], "R\n\nPRIOR")).sub, "NEW-TEXT",
+       "remainder no earlier request carried");
+    eq(migrationVerdict(migPair(["PRIOR"], "R")).verdict, "EXACT", "byte-identical");
+    eq(migrationVerdict(migPair(["PRIOR"], "R")).sub, null, "EXACT has no sub-class");
     // retraction + cause-upgrade handling, on a synthetic ledger
     const { writeFileSync, mkdtempSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
