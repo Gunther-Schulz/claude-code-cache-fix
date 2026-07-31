@@ -1,0 +1,146 @@
+{
+  "key": "s-2cd640f8-0062-4d81-9a7e-a8b5b9082d85",
+  "field": "toolsBytes",
+  "oldBytes": 32475,
+  "newBytes": 41385,
+  "watermark": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_2719b7a469d9_57",
+        "bytes": 82
+      },
+      {
+        "type": "text",
+        "text": "t_3b27271fa44c_1210",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h",
+          "scope": "global"
+        },
+        "bytes": 1310
+      },
+      {
+        "type": "text",
+        "text": "t_749b5ea5c7e9_8634",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        "bytes": 8791
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 3484
+      },
+      {
+        "name": "Artifact",
+        "bytes": 10512
+      },
+      {
+        "name": "Bash",
+        "bytes": 2984
+      },
+      {
+        "name": "Edit",
+        "bytes": 993
+      },
+      {
+        "name": "Read",
+        "bytes": 1617
+      },
+      {
+        "name": "ReportFindings",
+        "bytes": 2206
+      },
+      {
+        "name": "ScheduleWakeup",
+        "bytes": 3839
+      },
+      {
+        "name": "SendUserFile",
+        "bytes": 2654
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 668
+      }
+    ]
+  },
+  "newest": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_0d7062851dd7_62",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 124
+      },
+      {
+        "type": "text",
+        "text": "t_1d1b08fd15ca_11878",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 12060
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 7229
+      },
+      {
+        "name": "Artifact",
+        "bytes": 10512
+      },
+      {
+        "name": "Bash",
+        "bytes": 11914
+      },
+      {
+        "name": "Edit",
+        "bytes": 1731
+      },
+      {
+        "name": "Read",
+        "bytes": 2615
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 2817
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 1051
+      }
+    ]
+  }
+}
