@@ -1172,6 +1172,14 @@ bullet, evidence pointer included.
   reset of that boundary only). Deliverable: the directive the
   reviewer asked for, with the measurement inside.
 
+- STANDING GO (operator, 2026-07-31 late): the held execution items
+  below — blockers 3+4, census flap annotation, joined-standalone
+  target — dispatch WITHOUT a further per-item GO the moment their
+  file sets free (the fixture-sanitize lane closing is the trigger
+  for the test-file overlaps). The same standing GO covers the
+  design-tier openers (blocker-2 measurement+directive, enormous
+  prunes, placement re-check) at next session start.
+
 - **READY — #272 blocker 3 (series-wide): conversation-derived state
   files land at ambient umask with raw bytes.** Canon/events (this
   extension), request bodies (#275), system prompts (#280) — same
