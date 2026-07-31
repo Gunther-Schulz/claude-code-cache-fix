@@ -21,7 +21,8 @@
 // Usage:
 //   node tools/bust-triage.mjs                  # newest bust in the ledger
 //   node tools/bust-triage.mjs --at 1785498086  # a specific one (epoch or ISO)
-//   node tools/bust-triage.mjs --list           # recent busts, newest first
+//   node tools/bust-triage.mjs --list           # recent ❄ events, newest first
+//                                               # (busts AND controlled costs)
 //   ... --json
 //
 // THREE answers, never two (dev-loop.md, "A checker has THREE answers"):
@@ -46,8 +47,23 @@ const MATRIX = "docs/directives/robustness-threat-matrix.md";
 const j = (line) => { try { return JSON.parse(line); } catch { return null; } };
 const lines = (p) => (existsSync(p) ? readFileSync(p, "utf8").split("\n").filter(Boolean) : []);
 
-/** Cold HIT records from the worktime ledger, newest first, retractions applied. */
-export function busts(ledgerPath = LEDGER) {
+// The ❄-visible cold classes, and the definition is the statusline's own.
+// `claude-worktime` advances the ❄ token on two paths — `cold_hit` (k:"hit")
+// and `cold_cost` (k:"cost", plus legacy k:"resume" records) — and its
+// `--cold --all` filter is written exactly that way. This tool read only
+// k:"hit", so on 2026-07-31 the statusline showed `❄ 55k compact (8m)` while
+// `--list` showed nothing newer than 90 minutes earlier and the default run
+// silently triaged an older, unrelated event. An event the operator can SEE
+// must never be missing from the tool that explains events.
+const CONTROLLED = new Set(["cost", "resume"]);
+
+/**
+ * Every ❄-visible cold event, newest first, retractions and cause upgrades
+ * applied. `cls` splits them: "bust" is a preventable cache loss, "controlled"
+ * is a cost the operator (or the auto-compact ceiling) caused — real, visible,
+ * and NOT triageable, which is an answer rather than a reason to hide it.
+ */
+export function coldEvents(ledgerPath = LEDGER) {
   const recs = lines(ledgerPath).map(j).filter((r) => r && r.type === "cold");
   const retracted = new Set(
     recs.filter((r) => r.k === "hit-retract").map((r) => `${r.s}#${r.hit_t}`));
@@ -56,9 +72,15 @@ export function busts(ledgerPath = LEDGER) {
   const causeFix = new Map(
     recs.filter((r) => r.k === "hit-cause").map((r) => [`${r.s}#${r.hit_t}`, r.cause]));
   return recs
-    .filter((r) => r.k === "hit" && !retracted.has(`${r.s}#${r.t}`))
-    .map((r) => ({ ...r, cause: causeFix.get(`${r.s}#${r.t}`) ?? r.cause }))
+    .filter((r) => (r.k === "hit" || CONTROLLED.has(r.k)) && !retracted.has(`${r.s}#${r.t}`))
+    .map((r) => ({ ...r, cls: r.k === "hit" ? "bust" : "controlled",
+                   cause: causeFix.get(`${r.s}#${r.t}`) ?? r.cause }))
     .sort((x, y) => y.t - x.t);
+}
+
+/** Cold HIT records only — the population that can actually be triaged. */
+export function busts(ledgerPath = LEDGER) {
+  return coldEvents(ledgerPath).filter((e) => e.cls === "bust");
 }
 
 /** The transcript's own diagnostic for a bust, or null when unreadable. */
@@ -219,31 +241,75 @@ export function triage(bust) {
 
 function fmt(t) { return new Date(t * 1000).toISOString().replace("T", " ").slice(0, 19); }
 
+/** `--list` rows: every ❄-visible event, controlled ones labelled as such. */
+export function listRows(events) {
+  return events.map((e) => {
+    const label = e.cls === "controlled" ? `CONTROLLED(${e.cause ?? "-"})` : (e.cause ?? "-");
+    return `  ${fmt(e.t)}  ${String(Math.round((e.cc ?? 0) / 1000)).padStart(4)}k  ` +
+           `${label.padEnd(30)} ${e.s.slice(0, 8)}`;
+  });
+}
+
+/**
+ * What the default (no-args) run must say when the NEWEST cold event is not
+ * the one it is about to triage. Silence here is the defect: the operator sees
+ * a ❄ token, runs the tool, and gets a verdict about a different, older event
+ * with nothing marking the substitution.
+ */
+export function fallbackNote(events) {
+  const newest = events[0];
+  if (!newest || newest.cls !== "controlled") return [];
+  const bust = events.find((e) => e.cls === "bust");
+  const head =
+    `  NOTE  the newest cold event is ${fmt(newest.t)} ` +
+    `CONTROLLED(${newest.cause ?? "-"}), ${Math.round((newest.cc ?? 0) / 1000)}k re-written.\n` +
+    "        Cannot triage: a controlled cause (compact/resume) is a cost you\n" +
+    "        caused, not a bust — there is no prevented-loss verdict to give.";
+  return [head, bust
+    ? `        Falling back to the newest BUST: ${fmt(bust.t)} (${(bust.cause ?? "-")}).`
+    : "        No bust in the ledger to fall back to."];
+}
+
 function main(argv) {
   const args = argv.slice(2);
   const json = args.includes("--json");
-  const all = busts();
-  if (!all.length) {
-    process.stdout.write("no cold-cache hits in the worktime ledger.\n");
+  const events = coldEvents();
+  const all = events.filter((e) => e.cls === "bust");
+  if (args.includes("--list")) {
+    if (!events.length) {
+      process.stdout.write("no cold events in the worktime ledger.\n");
+      return 0;
+    }
+    for (const row of listRows(events.slice(0, 15))) process.stdout.write(row + "\n");
     return 0;
   }
-  if (args.includes("--list")) {
-    for (const b of all.slice(0, 15)) {
-      process.stdout.write(`  ${fmt(b.t)}  ${String(Math.round(b.cc / 1000)).padStart(4)}k  ${(b.cause ?? "-").padEnd(26)} ${b.s.slice(0, 8)}\n`);
-    }
+  const note = fallbackNote(events);
+  if (!all.length) {
+    // "no busts" and "nothing happened" are different statements, and the
+    // controlled events are exactly what distinguishes them.
+    for (const line of note) process.stdout.write(line + "\n");
+    process.stdout.write("no cold-cache BUSTS in the worktime ledger.\n");
     return 0;
   }
   const atI = args.indexOf("--at");
+  const explicit = atI >= 0;
   let bust = all[0];
-  if (atI >= 0) {
+  if (explicit) {
     const raw = args[atI + 1] ?? "";
     const want = /^\d+$/.test(raw) ? Number(raw) : Math.floor(Date.parse(raw) / 1000);
     bust = all.reduce((best, b) =>
       Math.abs(b.t - want) < Math.abs(best.t - want) ? b : best, all[0]);
   }
   const r = triage(bust);
-  if (json) { process.stdout.write(JSON.stringify(r, null, 2) + "\n"); return 0; }
+  if (json) {
+    // `newest` rides the JSON so a consumer can see the substitution too — the
+    // whole failure was that it happened invisibly.
+    process.stdout.write(JSON.stringify(
+      { ...r, newest: events[0] ?? null, fellBack: !explicit && note.length > 0 }, null, 2) + "\n");
+    return 0;
+  }
 
+  if (!explicit && note.length) process.stdout.write("\n" + note.join("\n") + "\n");
   process.stdout.write(`\nbust-triage — ${fmt(bust.t)}  ${Math.round(bust.cc / 1000)}k re-written  session ${bust.s.slice(0, 8)}\n\n`);
   for (const s of r.steps) {
     process.stdout.write(`  ${s.ok ? "OK  " : "WARN"}  ${s.step.padEnd(11)} ${s.detail}\n`);
