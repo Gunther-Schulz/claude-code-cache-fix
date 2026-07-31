@@ -8,27 +8,54 @@ bullet, evidence pointer included.
 
 ## Open
 
-- **PARKED — row 4 (mid-history replace/edit): re-measure the rate
-  before designing a mitigation.** Missing evidence, named: the
-  re-open (matrix row 4, 2026-07-31) rests on ONE deep instance in
-  ONE session — `edit@98 of 123 [anchor-25] ~75 kB`, transcript
-  `messages_changed / 105006`. Frequency is NOT established: 14
-  replace/edits in 179 pairs (7.8%) here vs 5 in 838 (0.6%) in the
-  940-request corpus that closed the row on 2026-07-28. That is one
-  session against a corpus, so it is a signal to re-measure, not a
-  rate. Trigger to unpark: a `--census` sweep over the harvested
-  corpus (not one capture) reporting the MID-HISTORY replace/edit
-  count with anchor distances, so "deep vs 1-2 off the tail" is
-  separable — the four other mid-history hits in this capture sit
-  1-2 messages off the tail at ~1-5 kB and would not on their own
-  have justified re-opening. Design deliberately NOT decided here:
-  the closure's warning still stands unrefuted — a mutation-tolerant
-  identity risks forwarding a genuine tail edit stale, and safety
-  outranks cache.
+- **READY — hook-context container normalization (matrix row 4,
+  mid-history replace/edit).** Grounding: measured live 2026-07-31, two
+  instruments agreeing (`--census`: `edit@98 of 123 [anchor-25] ~75 kB`;
+  raw capture diff of the adjacent requests), end-to-end cost from the
+  transcript's own `cache_miss_reason messages_changed / 105006`. The
+  mutation is a deterministic CONTAINER change, not a content change:
+  CC first appends hook additional-context as text blocks INSIDE the
+  preceding message, each wrapped `<system-reminder>\n…\n</system-reminder>`
+  (observed: msg 97, two blocks, 387 + 313 chars); a later request emits
+  the same text as ONE standalone `role:"system"` message positioned after
+  the host (observed: idx 98, 627 chars), wrappers STRIPPED and the blocks
+  JOINED with `\n\n`. Verified not byte-identical across the move, and the
+  transformation fully accounts for the difference. Mitigability —
+  the only deliberation the matrix's Mitigation policy allows — is
+  ANSWERED YES: the class is recognisable by that shape, and both forms
+  carry identical information, so pinning changes serialization only, never
+  what the model reads. Same safety argument insertion-normalization
+  already makes for the splice direction; this is its mirror for the
+  replace direction. Design (settled): canonicalize FORWARD to the standalone
+  form on every request — strip the wrappers, join with `\n\n`, emit as one
+  `role:"system"` message after the host. Forward-only, so the `\n\n` join
+  is never ambiguously re-split; the A→B transition then changes no bytes.
+  `role:"system"` inside `messages[]` is legitimate wire shape, not an
+  anomaly — it is the `mid-conversation-tool-changes` beta's format
+  (`deferred-tool-rewrite.mjs:16,381`). Verifier: replay the 2026-07-31
+  capture — `--census` must stop reporting `edit@98 of 123` as MID-HISTORY
+  replace/edit, with 0 new stability/safety violations. Done-criterion:
+  extension shipped behind its own gate, red-then-green on that capture.
+  NOT gated on the rate re-measure below: the Mitigation policy states fire
+  counts are "never a worthiness threshold" and cost never gates the work —
+  an earlier revision of this item made exactly that error.
+
+- **PARKED — row 4 rate re-measure (telemetry, NOT a gate on the item
+  above).** Missing evidence, named: 14 replace/edits in 179 pairs (7.8%)
+  in one session vs 5 in 838 (0.6%) in the 940-request corpus that closed
+  the row on 2026-07-28 — one session against a corpus, so the rate is not
+  established. Trigger to unpark: a `--census` sweep over the harvested
+  corpus reporting MID-HISTORY replace/edit counts WITH anchor distances,
+  so "deep" separates from "1-2 off the tail" (four of the five here were
+  the latter, ~1-5 kB). Value is retirement/telemetry evidence and sizing
+  the win — never permission to build.
 
 - **PARKED — suggestion-mode ephemeral turns (matrix row 22): establish
-  fire rate and pruning-boundary stability.** Missing evidence, named:
-  (a) how often CC injects `[SUGGESTION MODE: …]` turns into the live
+  pruning-boundary stability.** Missing evidence, named — and note the
+  fire rate is deliberately NOT among it: the Mitigation policy states
+  fire counts are never a worthiness threshold, so frequency sizes the
+  win but cannot gate the work. What DOES block is mitigability:
+  (a) context only — how often CC injects `[SUGGESTION MODE: …]` turns into the live
   `messages[]` — observed once, at 2026-07-31T11:41:05.778Z, where 8
   scaffolding entries were pruned as the array went 130→124; (b)
   whether the injection/pruning boundary is stable enough to pin, i.e.
@@ -40,19 +67,15 @@ bullet, evidence pointer included.
   independently real but was NOT the cause of the 11:41 bust (row 4's
   mutation at index 98 sat earlier and dominated the re-bill).
 
-- **PARKED — `role:"system"` entries inside `messages[]`: establish what
-  they are before assuming they matter.** Missing evidence, named:
-  the 2026-07-31 capture shows 13 of 124 messages carrying
-  `role:"system"` (55 assistant / 56 user / 13 system) — not an
-  Anthropic API role, so these are CC-internal entries that the
-  pre-pipeline capture sees. Unknown, and NOT to be guessed: whether
-  the proxy forwards them as-is, whether they are what row 4's
-  mutation re-materialises as (the two hook-context blocks reappeared
-  as standalone `role:"system"` entries), and whether
-  `microcompact-stability` (order 350) already handles them. Trigger
-  to unpark: read the forwarded body for the same request and compare
-  its role distribution against the capture — one grep answers
-  whether this is a real wire-level fact or a capture-format artifact.
+- **RESOLVED 2026-07-31 — `role:"system"` inside `messages[]` is
+  legitimate wire shape, not an anomaly.** It is the
+  `mid-conversation-tool-changes` beta's format
+  (`deferred-tool-rewrite.mjs:16,381`), and CC additionally uses that
+  role to carry hook additional-context. The observation that opened
+  this item (13 of 124 messages) needed no mitigation of its own — it
+  was the CONTAINER half of row 4's mutation, and is folded into the
+  READY item above. Kept as a line rather than deleted so a future
+  session re-encountering the role does not re-derive it.
 
 - **READY — slice-port preflight: resolve a test file's module-scope
   reads against the slice tree before mapping it.** Grounding: both
