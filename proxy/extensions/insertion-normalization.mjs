@@ -1157,6 +1157,12 @@ export function classifyPinned(messages, priorCanonical) {
         pci = j;
         break;
       }
+      // The first two conditions re-check what the mint already guaranteed —
+      // deliberately, and not as defensive padding for an impossible case: the
+      // mint happened in a PREVIOUS process, and this entry arrived through a
+      // canon file on disk. A deserialization boundary is where an invariant
+      // established in memory stops being established. The other two are the
+      // neighbourhood's lower bound.
       if (dText === null || stored.r !== "system" || pci < 0 || !ciToIdx0.has(pci)) {
         heldCi.add(ci);
         continue;

@@ -1,12 +1,33 @@
 # Directive: reserved-entry identity — a re-served entry leaves the wire-identity space
 
-Status: DESIGN SETTLED 2026-07-31 (fable session adf6cadb, design pass
-the unit-2b closing report asked for; not built). Consumers: the build
-dispatch for this directive; the flap-move directive
+Status: BUILT 2026-07-31, criterion MET, NOT DEPLOYED (opus dispatch of
+session adf6cadb; commits b70c88b + 71a482e + 1493892 + a6ccc2d,
+unpushed). Units 2 and 2b integrated and reconciled with 5c4d70a's
+reset-path duplicate suppression; the design below built as written.
+Measured A/B between two detached worktrees differing only by this
+diff, whole live corpus (8.5 GB, 36 captures, serving gate set):
+stability 10 → 2, and the 2 survivors are attributed by the gate to
+deferred-tool-rewrite and are identical in both trees — ZERO
+insertion-normalization stability violations remain. s-dc3f8071 goes
+2 → 0 (n=196→197, n=399→400), and so do s-58c979ce, s-633915a8 and
+s-9f9d8a9d, which unit 2b could not close: the same ordinal collision
+was firing on four captures, not one. Safety, conservation, sequence
+and canonical order are 0 everywhere in both trees. The
+old-canon compatibility probe (`tools/verdict-ab.mjs --seed-from-a`,
+the A/B instrument graduated to a tool) is IDENTICAL across 44 verdict
+lines / 6 corpora — so the row-3 restart declaration below is now
+measured rather than argued. Two of unit 2b's three TODO tests flip to
+passing unedited; the third does NOT, because this directive's
+verifier 1 ("n=197 must not reset") and its integration-plan step 3
+("the TODO tests flip without edits to their expectations")
+contradict each other — that test's control asserts the reset this
+design removes. Full evidence and the open decisions:
+`docs/code-reviews/reserved-entry-identity-report.md`.
+Consumers: the flap-move directive
 (`flap-move-mitigation-and-fidelity-gate.md`) whose units 2/2b are
-blocked on exactly this decision; the restart-boundary BACKLOG item
-(this build rides the same deferred restart, operator settle
-2026-07-31: after all proxy work).
+unblocked by this; the restart-boundary BACKLOG item (this build rides
+the same deferred restart, operator settle 2026-07-31: after all proxy
+work).
 
 ## Goal / Background
 
