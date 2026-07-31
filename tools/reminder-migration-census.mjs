@@ -40,9 +40,22 @@
 //
 // Exit code is 0 for a clean read and 1 only when a capture could not be read
 // at all — a MISMATCH is a finding to report, not a failure of this tool.
+//
+// Reading is by LINE, and unreadable captures are named. Until 2026-07-31 this
+// tool slurped each capture with readFileSync and swallowed the failure
+// (`catch { continue; }`): on the live corpus that silently dropped the four
+// LARGEST captures — 6.2 GB of 7.8 GB, 79% by bytes — on `RangeError: Cannot
+// create a string longer than 0x1fffffe8 characters`, while reporting "25
+// capture(s)" as though that were the corpus. Every verdict this "gate every
+// NORMALIZATION must pass" ever produced covered 21% of the bytes and said
+// nothing about the rest. That is the same RangeError `replay.mjs` was fixed
+// for on 2026-07-28, re-committed in a newer tool, plus the three-answer
+// violation (dev-loop.md): an absence reported as a pass. So the read shares
+// `read-lines.mjs` with the gate, and a run that could not read something says
+// so in its verdict block instead of counting it as zero findings.
 
-import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { readLines } from "./read-lines.mjs";
 
 const WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 
@@ -97,20 +110,25 @@ export function classify(reconstructed, actual) {
   return "MISMATCH";
 }
 
-function readCapture(path) {
-  const out = [];
-  for (const line of readFileSync(path, "utf8").split("\n")) {
+/**
+ * Capture records, one line at a time. Pull-based via `readLines`, so the read
+ * position stands still between yields: memory is bounded by what the consumer
+ * retains, never by the file. A read error propagates — the caller names the
+ * file it could not read rather than continuing as if it held nothing.
+ */
+async function* readRecords(path) {
+  for await (const line of readLines(path)) {
     if (!line.trim()) continue;
-    try {
-      const r = JSON.parse(line);
-      if (r?.body?.messages && r?.ts) out.push(r);
-    } catch { /* corrupt line costs one record, not the file */ }
+    let r;
+    try { r = JSON.parse(line); } catch { continue; } // corrupt line costs one record, not the file
+    if (r?.body?.messages && r?.ts) yield r;
   }
-  return out;
 }
 
 function analysePair(before, after) {
   const b = before.body.messages, a = after.body.messages;
+  let wholeAfterCache = null;
+  const wholeAfter = () => (wholeAfterCache ??= JSON.stringify(a));
   const sysAfter = a
     .map((m, j) => (m?.role === "system" ? { j, text: textOf(m) } : null))
     .filter(Boolean);
@@ -156,11 +174,14 @@ function analysePair(before, after) {
     // was never exercised — calling that MISMATCH blames the rule for a
     // different phenomenon and manufactures a blocker. (Observed: a 3-block
     // host whose blocks vanished as the array went 211 -> 209.)
-    const wholeAfter = JSON.stringify(a);
+    // Serialized at most once per PAIR, not once per unmatched host: on the
+    // corpus's largest captures one request body is tens of MB, and the
+    // per-host form made this O(hosts x bytes) on exactly the files that only
+    // became readable when the read was fixed.
     const anyPresent = blocks.some((t) => {
       const inner = WRAP.exec(t);
       const probe = (inner ? inner[1] : t).slice(0, 60);
-      return probe.length > 0 && wholeAfter.includes(JSON.stringify(probe).slice(1, -1));
+      return probe.length > 0 && wholeAfter().includes(JSON.stringify(probe).slice(1, -1));
     });
     findings.push({ host: i, blocks: blocks.length,
                     verdict: anyPresent ? "MISMATCH" : "DROPPED",
@@ -189,40 +210,47 @@ export function conversationOf(rec) {
   return createHash("sha256").update(JSON.stringify(m0)).digest("hex").slice(0, 16);
 }
 
-export function census(paths) {
+export async function census(paths) {
   const tally = { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 };
   const details = [];
+  const unreadable = [];
   let pairs = 0, captures = 0, conversations = 0;
   for (const path of paths) {
-    let recs;
-    try { recs = readCapture(path); } catch { continue; }
-    if (recs.length < 2) continue;
-    captures++;
     // Group by conversation, then compare consecutive requests WITHIN each
-    // group in arrival order — never adjacent capture lines.
-    const groups = new Map();
-    for (const r of recs) {
-      const cid = conversationOf(r);
-      if (cid === null) continue;
-      if (!groups.has(cid)) groups.set(cid, []);
-      groups.get(cid).push(r);
-    }
-    for (const group of groups.values()) {
-      if (group.length < 2) continue;
-      conversations++;
-      for (let k = 1; k < group.length; k++) {
+    // group in arrival order — never adjacent capture lines. Streamed, so the
+    // grouping keeps only each conversation's PREVIOUS request rather than
+    // every record of the file: the pair a group yields is (previous, current)
+    // either way, and retaining the whole file is how the sibling tools each
+    // hit their own memory wall (replay.mjs's 3.2 GB peak, harvest's 2.1 GB).
+    const prev = new Map();
+    const withPairs = new Set();
+    try {
+      for await (const r of readRecords(path)) {
+        const cid = conversationOf(r);
+        if (cid === null) continue;
+        const before = prev.get(cid);
+        prev.set(cid, r);
+        if (!before) continue;
         pairs++;
-        for (const f of analysePair(group[k - 1], group[k])) {
+        withPairs.add(cid);
+        for (const f of analysePair(before, r)) {
           tally[f.verdict]++;
-          details.push({ path, ts: group[k].ts, ...f });
+          details.push({ path, ts: r.ts, ...f });
         }
       }
+    } catch (e) {
+      // A capture that could not be read is its own answer, never a silent
+      // zero: it is the population this verdict does NOT cover.
+      unreadable.push({ path, error: String(e?.message ?? e) });
+      continue;
     }
+    if (withPairs.size) captures++;
+    conversations += withPairs.size;
   }
-  return { tally, details, pairs, captures, conversations };
+  return { tally, details, pairs, captures, conversations, unreadable, considered: paths.length };
 }
 
-function main(argv) {
+async function main(argv) {
   const args = argv.slice(2);
   const json = args.includes("--json");
   const verbose = args.includes("--verbose");
@@ -231,23 +259,34 @@ function main(argv) {
     process.stderr.write("usage: reminder-migration-census <capture.jsonl> ...\n");
     return 1;
   }
-  const { tally, details, pairs, captures, conversations } = census(paths);
+  const { tally, details, pairs, captures, conversations, unreadable, considered } = await census(paths);
   const total = tally.EXACT + tally.EXTENDED + tally.DROPPED + tally.MISMATCH;
+  // Printed with every verdict, clean or not: the reader of a byte-gate needs
+  // the DENOMINATOR, and "25 capture(s)" over a 39-file corpus read like one.
+  const coverage =
+    `read ${considered - unreadable.length}/${considered} capture(s), ` +
+    `${unreadable.length} UNREADABLE, ${captures} with pairs`;
 
   if (json) {
-    process.stdout.write(JSON.stringify({ tally, pairs, captures, conversations, total }, null, 2) + "\n");
-    return 0;
+    process.stdout.write(JSON.stringify(
+      { tally, pairs, captures, conversations, total, considered, unreadable }, null, 2) + "\n");
+    return unreadable.length ? 1 : 0;
   }
 
   process.stdout.write(
-    `\nreminder-migration census — ${captures} capture(s), ${conversations} conversation(s), ${pairs} same-conversation pair(s)\n\n`);
+    `\nreminder-migration census — ${coverage}, ${conversations} conversation(s), ${pairs} same-conversation pair(s)\n\n`);
+  if (unreadable.length) {
+    process.stdout.write("COULD NOT READ — outside every number below:\n");
+    for (const u of unreadable) process.stdout.write(`  ${u.path} :: ${u.error}\n`);
+    process.stdout.write("\n");
+  }
   if (total === 0) {
     // "none found" must be distinguishable from "not looked for".
     process.stdout.write(
       "  no container migrations observed in this corpus.\n" +
       "  (That is a measured absence, not a clean bill: the class needs a\n" +
       "   host whose reminder blocks move out between two adjacent requests.)\n\n");
-    return 0;
+    return unreadable.length ? 1 : 0;
   }
   const pct = (n) => `${((n / total) * 100).toFixed(1)}%`;
   process.stdout.write(
@@ -301,7 +340,16 @@ function main(argv) {
       : `  the rule holds on every occurrence it applies to; EXTENDED cases are a\n` +
         `  separate class and must be booked separately, never folded into the\n` +
         `  absorbable claim.\n\n`));
-  return 0;
+  // The third answer, and it OVERRIDES the two above: a rule proven on the
+  // corpus this run could read says nothing about the captures it could not,
+  // and the unreadable ones are the largest — the likeliest to carry the class.
+  if (unreadable.length) {
+    process.stdout.write(
+      `  COULD NOT VERIFY over ${unreadable.length} of ${considered} capture(s) (listed above).\n` +
+      "  This is NOT a clean byte-gate: treat the verdict as covering the read\n" +
+      "  corpus only, and fix the read before shipping a normalization on it.\n\n");
+  }
+  return unreadable.length ? 1 : 0;
 }
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
@@ -329,5 +377,5 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     process.stdout.write("reminder-migration-census: selftest passed\n");
     process.exit(0);
   }
-  process.exit(main(process.argv));
+  process.exit(await main(process.argv));
 }
