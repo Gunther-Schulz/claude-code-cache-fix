@@ -1255,7 +1255,10 @@ bullet, evidence pointer included.
   file sets free (the fixture-sanitize lane closing is the trigger
   for the test-file overlaps). The same standing GO covers the
   design-tier openers (blocker-2 measurement+directive, enormous
-  prunes, placement re-check) at next session start.
+  prunes, placement re-check, and the s-0d6f38ba
+  deferred-tool-rewrite pairs' ATTRIBUTE step — telemetry pull +
+  three-way classification per its OPEN item) at next session
+  start.
 
 - **RESOLVED 2026-07-31 (blockers 3+4, opus dispatch,
   dispatcher-verified: full suite 1843/1843/0 on main; report
