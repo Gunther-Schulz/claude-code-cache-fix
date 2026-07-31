@@ -22,10 +22,24 @@
 //   EXACT     — canonical reconstruction is byte-identical to CC's own later
 //               message. This is the absorbable population.
 //   EXTENDED  — CC's later message CONTAINS the reconstruction as a prefix but
-//               carries more: new reminder text that did not exist at the
-//               earlier request. NOT absorbable by any normalization — new
-//               information, not re-serialization — and counted separately so
-//               it can never inflate the absorbable claim.
+//               carries more. Counted separately so it can never inflate the
+//               absorbable claim, and SUB-CLASSIFIED by where the remainder
+//               came from, because that is what decides a mitigation:
+//                 MERGED-STANDALONE — the remainder is, byte-for-byte, a
+//                   standalone role:"system" message the BEFORE request
+//                   already carried. CC merged an existing message into the
+//                   migrated one; nothing new crossed the wire, so the later
+//                   form is computable from the predecessor alone.
+//                 NEW-TEXT — the remainder matches no such message: content
+//                   that did not exist at the earlier request, and no
+//                   normalization can predict it.
+//               An earlier revision of this header called the whole class
+//               "NOT absorbable by any normalization — new information, not
+//               re-serialization". That reading is REFUTED for the merged
+//               sub-class and was measured, not argued: 9 of 9 EXTENDED
+//               occurrences in the then-readable corpus were merged
+//               standalones and 0 were new text (report §b1). "Absorbable"
+//               still needs the placement half — see the placement block.
 //   DROPPED   — the blocks vanished and the text is absent from the later
 //               request entirely. Nothing migrated, so the rule was never
 //               exercised; counting these as failures manufactures a blocker.
@@ -111,6 +125,29 @@ export function classify(reconstructed, actual) {
 }
 
 /**
+ * The bytes an EXTENDED occurrence carries BEYOND the reconstruction, with the
+ * "\n\n" that joins them removed — the same join `canonical` uses, so the
+ * remainder is the merged message itself rather than the message plus glue.
+ */
+export function extendedRemainder(reconstructed, actual) {
+  const extra = actual.slice(reconstructed.length);
+  return extra.startsWith("\n\n") ? extra.slice(2) : extra;
+}
+
+/**
+ * Where an EXTENDED remainder came from. `beforeStandalones` are the texts of
+ * the BEFORE request's standalone role:"system" messages — the predecessor's,
+ * deliberately: the question is whether the later form is derivable from what
+ * CC had ALREADY sent. Matching against the after request's own standalones
+ * would make every merge trivially true, since the message being classified is
+ * one of them.
+ */
+export function subclassifyExtended(reconstructed, actual, beforeStandalones) {
+  const extra = extendedRemainder(reconstructed, actual);
+  return beforeStandalones.includes(extra) ? "MERGED-STANDALONE" : "NEW-TEXT";
+}
+
+/**
  * Capture records, one line at a time. Pull-based via `readLines`, so the read
  * position stands still between yields: memory is bounded by what the consumer
  * retains, never by the file. A read error propagates — the caller names the
@@ -132,6 +169,9 @@ function analysePair(before, after) {
   const sysAfter = a
     .map((m, j) => (m?.role === "system" ? { j, text: textOf(m) } : null))
     .filter(Boolean);
+  // The predecessor's standalone system messages: the population an EXTENDED
+  // remainder is checked against (subclassifyExtended).
+  const sysBefore = b.filter((m) => m?.role === "system").map(textOf);
   // Every reminder block still living INLINE anywhere in `after`, by text.
   // Index alignment cannot be used here: one inserted message shifts every
   // later index, so comparing before[i] to after[i] reports a migration for
@@ -166,7 +206,10 @@ function analysePair(before, after) {
     }
     const offset = best && hj !== null && hj >= 0 ? best.j - hj : null;
     if (best) {
-      findings.push({ host: i, blocks: blocks.length, ...best, recon, offset });
+      const sub = best.verdict === "EXTENDED"
+        ? subclassifyExtended(recon, best.text, sysBefore)
+        : null;
+      findings.push({ host: i, blocks: blocks.length, ...best, recon, offset, sub });
       continue;
     }
     // No standalone counterpart. Distinguish a DROP from a rule failure: if
@@ -185,7 +228,7 @@ function analysePair(before, after) {
     });
     findings.push({ host: i, blocks: blocks.length,
                     verdict: anyPresent ? "MISMATCH" : "DROPPED",
-                    j: null, text: "", recon });
+                    j: null, text: "", recon, sub: null });
   }
   return findings;
 }
@@ -212,6 +255,7 @@ export function conversationOf(rec) {
 
 export async function census(paths) {
   const tally = { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 };
+  const extendedSub = { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 };
   const details = [];
   const unreadable = [];
   let pairs = 0, captures = 0, conversations = 0;
@@ -235,6 +279,7 @@ export async function census(paths) {
         withPairs.add(cid);
         for (const f of analysePair(before, r)) {
           tally[f.verdict]++;
+          if (f.sub) extendedSub[f.sub]++;
           details.push({ path, ts: r.ts, ...f });
         }
       }
@@ -247,7 +292,8 @@ export async function census(paths) {
     if (withPairs.size) captures++;
     conversations += withPairs.size;
   }
-  return { tally, details, pairs, captures, conversations, unreadable, considered: paths.length };
+  return { tally, extendedSub, details, pairs, captures, conversations, unreadable,
+           considered: paths.length };
 }
 
 async function main(argv) {
@@ -259,7 +305,8 @@ async function main(argv) {
     process.stderr.write("usage: reminder-migration-census <capture.jsonl> ...\n");
     return 1;
   }
-  const { tally, details, pairs, captures, conversations, unreadable, considered } = await census(paths);
+  const { tally, extendedSub, details, pairs, captures, conversations, unreadable, considered } =
+    await census(paths);
   const total = tally.EXACT + tally.EXTENDED + tally.DROPPED + tally.MISMATCH;
   // Printed with every verdict, clean or not: the reader of a byte-gate needs
   // the DENOMINATOR, and "25 capture(s)" over a 39-file corpus read like one.
@@ -269,7 +316,8 @@ async function main(argv) {
 
   if (json) {
     process.stdout.write(JSON.stringify(
-      { tally, pairs, captures, conversations, total, considered, unreadable }, null, 2) + "\n");
+      { tally, extendedSub, pairs, captures, conversations, total, considered, unreadable },
+      null, 2) + "\n");
     return unreadable.length ? 1 : 0;
   }
 
@@ -291,7 +339,11 @@ async function main(argv) {
   const pct = (n) => `${((n / total) * 100).toFixed(1)}%`;
   process.stdout.write(
     `  ${String(tally.EXACT).padStart(5)}  ${pct(tally.EXACT).padStart(6)}  EXACT     canonical rule reproduces CC byte-for-byte — absorbable\n` +
-    `  ${String(tally.EXTENDED).padStart(5)}  ${pct(tally.EXTENDED).padStart(6)}  EXTENDED  CC's later form carries NEW text — a different class, not absorbable\n` +
+    `  ${String(tally.EXTENDED).padStart(5)}  ${pct(tally.EXTENDED).padStart(6)}  EXTENDED  CC's later form carries MORE than the reconstruction\n` +
+    (tally.EXTENDED
+      ? `         ${String(extendedSub["MERGED-STANDALONE"]).padStart(5)}  MERGED-STANDALONE  the remainder is a standalone the PREDECESSOR already sent\n` +
+        `         ${String(extendedSub["NEW-TEXT"]).padStart(5)}  NEW-TEXT           the remainder is content no earlier request carried\n`
+      : "") +
     `  ${String(tally.DROPPED).padStart(5)}  ${pct(tally.DROPPED).padStart(6)}  DROPPED   blocks vanished, no counterpart — nothing migrated, rule not exercised\n` +
     `  ${String(tally.MISMATCH).padStart(5)}  ${pct(tally.MISMATCH).padStart(6)}  MISMATCH  rule does not hold — every one is a hole\n\n`);
 
@@ -320,9 +372,9 @@ async function main(argv) {
     for (const d of (verbose ? show : show.slice(0, 5))) {
       process.stdout.write(
         `  ${d.verdict.padEnd(8)} ${d.ts}  host=${d.host} blocks=${d.blocks}` +
-        ` recon=${d.recon.length}ch actual=${d.text.length}ch\n`);
+        ` recon=${d.recon.length}ch actual=${d.text.length}ch${d.sub ? `  ${d.sub}` : ""}\n`);
       if (d.verdict === "EXTENDED") {
-        const extra = d.text.slice(d.recon.length);
+        const extra = extendedRemainder(d.recon, d.text);
         process.stdout.write(`             extra: ${JSON.stringify(extra.slice(0, 120))}\n`);
       }
     }
@@ -367,6 +419,13 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     // EXTENDED must NOT be reported as EXACT — that conflation is what would
     // let new-information cases inflate the absorbable population.
     eq(classify("A", "AB") === "EXACT", false, "extended is not exact");
+    // the EXTENDED remainder is the merged message, not the message plus glue
+    eq(extendedRemainder("A", "A\n\nB"), "B", "join stripped");
+    eq(extendedRemainder("A", "AB"), "B", "no join to strip");
+    // and it is MERGED only against what the PREDECESSOR already sent
+    eq(subclassifyExtended("A", "A\n\nB", ["B"]), "MERGED-STANDALONE", "merged");
+    eq(subclassifyExtended("A", "A\n\nB", ["C"]), "NEW-TEXT", "not in predecessor");
+    eq(subclassifyExtended("A", "A\n\nB", []), "NEW-TEXT", "no standalones, no merge");
     // reminderBlocks only picks trailing wrapped text, never the leading block
     eq(reminderBlocks({ content: [{ type: "tool_result" },
                                   { type: "text", text: "<system-reminder>\nX\n</system-reminder>" }] }).length,
