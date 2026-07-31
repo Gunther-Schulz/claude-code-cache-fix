@@ -54,6 +54,20 @@ export function textOf(msg) {
   return c.filter((x) => x && x.type === "text").map((x) => x.text ?? "").join("");
 }
 
+/**
+ * Stable identity for a HOST message across two requests: the tool_use_id of
+ * its leading tool_result block. Index cannot be used (it shifts), and text
+ * cannot (the reminder text repeats verbatim many times in one conversation —
+ * matching on it alone picked a system message hundreds of slots away and
+ * produced offsets like -839).
+ */
+export function hostId(msg) {
+  const c = msg?.content;
+  if (!Array.isArray(c) || !c.length) return null;
+  const first = c[0];
+  return (first && typeof first === "object" && first.tool_use_id) || null;
+}
+
 /** Trailing text blocks of a message that are <system-reminder> wrapped. */
 export function reminderBlocks(msg) {
   const c = msg?.content;
@@ -117,14 +131,24 @@ function analysePair(before, after) {
     // If any block is still inline somewhere in `after`, nothing migrated.
     if (blocks.some((t) => inlineAfter.has(t))) continue;
     const recon = canonical(blocks);
+    // Where the host ended up in `after`, by tool_use_id — needed to measure
+    // PLACEMENT. Content byte-matching alone is not sufficient for a
+    // mitigation: emitting the right bytes at the wrong index diverges the
+    // prefix just the same.
+    const hid = hostId(b[i]);
+    const hj = hid === null ? null : a.findIndex((m) => hostId(m) === hid);
+    // Duplicate reminder texts recur, so a candidate must sit AFTER its host;
+    // the nearest such is the migrated one.
     let best = null;
     for (const s of sysAfter) {
+      if (hj !== null && hj >= 0 && s.j <= hj) continue;
       const verdict = classify(recon, s.text);
       if (verdict === "EXACT") { best = { verdict, ...s }; break; }
       if (verdict === "EXTENDED" && !best) best = { verdict, ...s };
     }
+    const offset = best && hj !== null && hj >= 0 ? best.j - hj : null;
     if (best) {
-      findings.push({ host: i, blocks: blocks.length, ...best, recon });
+      findings.push({ host: i, blocks: blocks.length, ...best, recon, offset });
       continue;
     }
     // No standalone counterpart. Distinguish a DROP from a rule failure: if
@@ -231,6 +255,25 @@ function main(argv) {
     `  ${String(tally.EXTENDED).padStart(5)}  ${pct(tally.EXTENDED).padStart(6)}  EXTENDED  CC's later form carries NEW text — a different class, not absorbable\n` +
     `  ${String(tally.DROPPED).padStart(5)}  ${pct(tally.DROPPED).padStart(6)}  DROPPED   blocks vanished, no counterpart — nothing migrated, rule not exercised\n` +
     `  ${String(tally.MISMATCH).padStart(5)}  ${pct(tally.MISMATCH).padStart(6)}  MISMATCH  rule does not hold — every one is a hole\n\n`);
+
+  const offs = details.filter((d) => d.verdict === "EXACT" && d.offset !== null && d.offset !== undefined);
+  if (offs.length) {
+    const tallyOff = new Map();
+    for (const d of offs) tallyOff.set(d.offset, (tallyOff.get(d.offset) ?? 0) + 1);
+    const sorted = [...tallyOff.entries()].sort((x, y) => y[1] - x[1]);
+    process.stdout.write("placement (standalone index - host index, EXACT only):\n");
+    for (const [o, c] of sorted) {
+      process.stdout.write(`  ${String(o >= 0 ? "+" + o : o).padStart(5)}  ${String(c).padStart(4)}` +
+        `${sorted.length === 1 ? "   <- single placement; safe to emit" : ""}\n`);
+    }
+    if (sorted.length > 1) {
+      process.stdout.write(
+        "  MORE THAN ONE PLACEMENT — a mitigation cannot pick an index that is\n" +
+        "  right every time; emitting at the wrong one diverges the prefix even\n" +
+        "  with byte-correct content.\n");
+    }
+    process.stdout.write("\n");
+  }
 
   const show = details.filter((d) => d.verdict !== "EXACT");
   if (show.length) {
