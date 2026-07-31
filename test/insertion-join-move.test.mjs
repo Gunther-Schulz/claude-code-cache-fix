@@ -648,3 +648,227 @@ test("a reset with no move in it forwards exactly what it forwarded before (fire
   assert.equal(res.moved ?? 0, 0);
   assert.deepEqual((res.messages ?? cur)[4], cur[4]);
 });
+
+// =====================================================================
+// (e) Reserved-entry identity — a re-served entry leaves the wire-identity
+//     space (docs/directives/reserved-entry-identity-directive.md)
+// =====================================================================
+//
+// DEFINITION, written from the directive before any of it was implemented.
+//
+// A recognized move keeps an entry ALIVE in our canonical that CC has stopped
+// sending. Its stored key is (content-hash, role, occurrence-ordinal-within-
+// the-request) — an ordinal is a claim about CC's array, and the entry is not
+// in CC's array. So the claim is false the moment CC sends one MORE copy of
+// that recurring text: the copy takes the ordinal, the entry binds to it at an
+// unrelated position, the move recognition dies (the entry is no longer
+// dropped) and the inversion trips not-subsequence. Measured on
+// reset-move-s-dc3f8071-196-197.json at n=197 and again at n=400.
+//
+// THE RULE: a re-served entry's identity is its stored first-seen bytes plus
+// the canonical slot where we last forwarded them. It does not participate in
+// (hash, role, ordinal) wire matching AT ALL. Marked `rs: true` at the mint.
+//
+//   MINT            a recognized move files the absorbed entry at the merged
+//                   message's slot with `rs: true`. The reminder-carrying
+//                   predecessor P is matched normally and is never flagged.
+//   MATCH EXCLUSION an `rs` entry is neither looked up in the incoming
+//                   identity map nor counted as dropped. A fresh copy of the
+//                   same text therefore matches nothing and classifies as a
+//                   new entry — no re-bind, no inversion, no reset.
+//   DISPOSITION     per request, one of three, checked in this order, over the
+//                   neighbourhood (lo, hi) = the wire indices of the nearest
+//                   preceding and following live MATCHED canonical entries:
+//                     1 RE-FIRE  a wire message strictly inside carries the
+//                                merged form -> substitute the stored bytes
+//                                into that slot, declare `join-move`, keep rs.
+//                     2 RECLAIM  a wire message strictly inside carries D's
+//                                whole first-seen text -> clear rs, bind D to
+//                                that index as an ordinary matched entry, and
+//                                REWRITE its stored key from that message's
+//                                incoming identity.
+//                     3 LAPSE    neighbourhood resolvable, neither form
+//                                present -> the entry is not carried into the
+//                                rebuilt canonical. Never re-serve into a
+//                                context that no longer carries the region.
+//                   Bounds unresolvable or crossed -> the pass does NOTHING
+//                   for this entry this request: no substitution, no state
+//                   change, raw forward. Fail-closed.
+//   ROLE (f)        the merged wire message's role and the absorbed entry's
+//                   stored role must both be "system" — the only measured
+//                   shape. Applies at the mint and to both probes.
+
+// The canonical after ONE recognized move: the absorbed NUDGE entry is filed
+// at the merged message's slot, marked reserved.
+const afterMove = () => {
+  const primed = classifyPinned(inlineLeg(), null);
+  return classifyPinned(standaloneLeg(), primed.canonicalEntries);
+};
+const reservedIn = (entries) => (entries ?? []).filter((e) => e.rs);
+// "First-seen bytes" means exactly what CC sent the first time — the message
+// object at index 3 of the inline leg, shape and all. Naming it from the leg
+// rather than re-typing a literal keeps the expectation parented on the
+// definition instead of on whatever the pin happens to store.
+const FIRST_SEEN = inlineLeg()[3];
+// Request 3 shapes. Each keeps a growth tail so the pair is never a drop-only
+// shrink, and none disturbs indices 0..3 unless the case says so.
+const thirdLeg = (msgs) => [...msgs, { role: "assistant", content: [txt("a2")] }];
+
+test("BITE — MINT: a recognized move files the absorbed entry with rs:true, and P is never flagged", () => {
+  const moved = afterMove();
+  assert.equal(moved.moved, 1, "control: this really is a recognized move");
+  const reserved = reservedIn(moved.canonicalEntries);
+  assert.equal(reserved.length, 1, "exactly one entry is reserved — the absorbed one");
+  assert.deepEqual(reserved[0].m, FIRST_SEEN,
+    "and it carries the absorbed entry's first-seen bytes, not the merge's");
+  assert.equal(moved.canonicalEntries[3].rs, true, "filed at the merged message's SLOT");
+  assert.ok(!moved.canonicalEntries[2].rs, "P — the reminder-carrying predecessor — is matched normally");
+});
+
+test("BITE — MATCH EXCLUSION: one MORE copy of the reserved text does not re-bind it", () => {
+  // THE MEASURED DEFECT, in miniature. n=197's eighth copy of a recurring
+  // nudge took the ordinal the reserved entry's key claimed, bound it 13 slots
+  // away, and tripped not-subsequence. The copy here sits at the TAIL, well
+  // outside the reserved entry's neighbourhood, so nothing about it is a
+  // reclaim — it is an unrelated recurrence and must classify as a new entry.
+  const moved = afterMove();
+  const cur = thirdLeg([...standaloneLeg(), { role: "system", content: NUDGE }]);
+  const res = classifyPinned(cur, moved.canonicalEntries);
+
+  assert.notEqual(res.action, "reset", "the re-bind is what caused the reset; excluded, there is none");
+  assert.equal(res.moved, 1, "and the re-serve survives the extra copy");
+  assert.deepEqual(res.messages[3], FIRST_SEEN,
+    "the merged slot still carries the first-seen bytes");
+  assert.equal(reservedIn(res.canonicalEntries).length, 1, "still exactly one reserved entry");
+});
+
+test("BITE — RE-FIRE: the merged form still on the wire re-serves the stored bytes, declared", () => {
+  const moved = afterMove();
+  const cur = thirdLeg(standaloneLeg());
+  const res = classifyPinned(cur, moved.canonicalEntries);
+
+  assert.equal(res.moved, 1, "the disposition pass re-fires without findJoinMoves seeing a drop");
+  assert.deepEqual(res.messages[3], FIRST_SEEN);
+  assert.equal(res.messages.length, cur.length, "substitution: one message in, one out");
+  const decl = (res.suppressions ?? []).filter((s) => s.kind === "join-move");
+  assert.deepEqual(decl.map((s) => s.index), [3], "DECLARED — the gates read the join off this array");
+  assert.deepEqual((res.reserves ?? []).map((r) => r.index), [3]);
+  assert.equal(res.canonicalEntries[3].rs, true, "and stays reserved, so the next request can re-fire too");
+});
+
+test("BITE — RECLAIM: CC flips back to the original form, so the entry rejoins wire identity", () => {
+  // The oscillation leg. The standalone nudge is on the wire again, strictly
+  // inside the neighbourhood, carrying exactly the reserved entry's first-seen
+  // text. That is not new content and not a move — it is the entry itself,
+  // back. It must stop being reserved and its stored key must be rewritten
+  // from THIS message's incoming identity, or the next request's absolute
+  // lookup misses it and the whole cycle restarts.
+  const moved = afterMove();
+  const cur = thirdLeg(inlineLeg());
+  const res = classifyPinned(cur, moved.canonicalEntries);
+
+  assert.equal(reservedIn(res.canonicalEntries).length, 0, "rs cleared");
+  assert.deepEqual(res.messages ?? cur, cur, "CC's own bytes go out — nothing to substitute");
+  const at3 = res.canonicalEntries[3];
+  assert.deepEqual(at3.m, FIRST_SEEN, "same entry, same stored bytes");
+
+  // What separates a RECLAIM from a LAPSE that happens to be followed by a
+  // fresh entry with the same bytes — and the two are otherwise
+  // indistinguishable in this shape, which is how the first draft of this bite
+  // survived the mutation that deleted the reclaim. The entry BINDS: it is an
+  // ordinary matched entry, so the message at that index is not an insertion
+  // and the request is a plain tail append. Under a lapse it would be a new
+  // spliced entry mid-history and the request would classify as normalized.
+  assert.equal(res.inserted, 1, "only the tail turn is new — the reclaimed message is MATCHED");
+  assert.equal(res.action, "append-only", "nothing was spliced, nothing substituted");
+
+  // The key really is the incoming one: a FOURTH request with the same shape
+  // matches it absolutely, with no disposition pass involved.
+  const res2 = classifyPinned(thirdLeg(inlineLeg()), res.canonicalEntries);
+  assert.notEqual(res2.action, "reset");
+  assert.equal(res2.moved ?? 0, 0, "no re-serve — the entry is an ordinary matched entry now");
+  assert.equal(res2.dropped ?? 0, 0, "and it is not dropped either: it matched");
+});
+
+test("BITE — LAPSE: the region is gone, so the entry is dropped rather than re-served", () => {
+  // Fails CLOSED in the direction that matters for the threat model: never
+  // re-serve stored bytes into a context CC has pruned or edited away.
+  const moved = afterMove();
+  const cur = thirdLeg(standaloneLeg("something else entirely"));
+  const res = classifyPinned(cur, moved.canonicalEntries);
+
+  assert.equal(res.moved ?? 0, 0, "no re-serve");
+  assert.deepEqual((res.messages ?? cur)[3], cur[3], "CC's own bytes at the slot, untouched");
+  assert.equal(reservedIn(res.canonicalEntries).length, 0, "the entry is not carried forward");
+});
+
+test("BITE — FAIL-CLOSED: an unresolvable neighbourhood changes nothing at all", () => {
+  // The successor bound cannot be resolved: everything after the merged
+  // message is gone, so there is no following matched canonical entry. The
+  // directive's rule is NOTHING — no substitution AND no state change, so the
+  // entry survives, still reserved, for a request that can resolve it.
+  const moved = afterMove();
+  const cur = [
+    { role: "user", content: [txt("q1")] },
+    toolUse("tu1"),
+    toolResult("tu1"),
+    { role: "system", content: `${REM}\n\n${NUDGE}` },
+  ];
+  const res = classifyPinned(cur, moved.canonicalEntries);
+
+  assert.equal(res.moved ?? 0, 0, "no substitution");
+  assert.deepEqual((res.messages ?? cur)[3], cur[3], "the merged message is forwarded RAW");
+  assert.equal(reservedIn(res.canonicalEntries).length, 1, "and no state change: still reserved");
+});
+
+test("BITE — role (f): a merged message in a non-system role is not a move", () => {
+  const primed = classifyPinned(inlineLeg(), null);
+  const cur = standaloneLeg().map((m, i) =>
+    i === 3 ? { role: "developer", content: `${REM}\n\n${NUDGE}` } : m);
+  const res = classifyPinned(cur, primed.canonicalEntries);
+  assert.equal(res.moved ?? 0, 0, "the only measured shape is system -> system");
+  assert.equal(reservedIn(res.canonicalEntries).length, 0);
+});
+
+test("BITE — role (f): an absorbed entry whose stored role is not system is not a move", () => {
+  const first = inlineLeg().map((m, i) =>
+    i === 3 ? { role: "developer", content: NUDGE } : m);
+  const primed = classifyPinned(first, null);
+  const res = classifyPinned(standaloneLeg(), primed.canonicalEntries);
+  assert.equal(res.moved ?? 0, 0);
+  assert.equal(reservedIn(res.canonicalEntries).length, 0);
+});
+
+test("BITE — role (f): a non-system candidate inside the gap is neither a re-fire nor a reclaim", () => {
+  const moved = afterMove();
+  const cur = thirdLeg(standaloneLeg()).map((m, i) =>
+    i === 3 ? { role: "developer", content: `${REM}\n\n${NUDGE}` } : m);
+  const res = classifyPinned(cur, moved.canonicalEntries);
+  assert.equal(res.moved ?? 0, 0, "the probes carry the same role constraint as the mint");
+  assert.deepEqual((res.messages ?? cur)[3], cur[3], "raw bytes out");
+});
+
+test("a reserved entry never reports as dropped, and never as a canonical-order violation", () => {
+  // Two counters that read the canonical. `dropped` is a claim about CC's
+  // array and a reserved entry is not in it — reporting one would show a prune
+  // that did not happen. `canonOrderViolation` maps canonical entries to wire
+  // indices BY KEY, and a reserved entry's key is explicitly no longer
+  // load-bearing, so a stale key that happens to collide must not be read as
+  // our state model drifting.
+  const moved = afterMove();
+  const cur = thirdLeg([...standaloneLeg(), { role: "system", content: NUDGE }]);
+  const res = classifyPinned(cur, moved.canonicalEntries);
+  assert.equal(res.dropped ?? 0, 0);
+  assert.equal(res.canonOrderViolation, null);
+});
+
+test("traffic that never recognized a move is byte-for-byte today's behaviour (fires-on-a-non-defect)", () => {
+  // The disposition pass must be invisible where there is nothing reserved.
+  const primed = classifyPinned(inlineLeg(), null);
+  assert.equal(reservedIn(primed.canonicalEntries).length, 0);
+  const grown = thirdLeg(inlineLeg());
+  const res = classifyPinned(grown, primed.canonicalEntries);
+  assert.equal(res.action, "append-only");
+  assert.equal(res.moved ?? 0, 0);
+  assert.deepEqual(res.messages, grown);
+});
