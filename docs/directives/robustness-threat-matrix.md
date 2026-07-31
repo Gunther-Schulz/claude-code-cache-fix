@@ -435,6 +435,35 @@ it cannot see (joined-standalone migration target, BACKLOG).
 
 
 
+## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
+## CONTROLLED-CAUSE (instrument false positive, no bust)
+
+Statusline showed `❄ 51k previous_message_not_found (12m)` on session
+s-f94e53ce. Walked to disposition (basis: worktime activity ledger +
+the session transcript's own `cache_miss_reason` diagnostics):
+
+- The session sat idle ~10h (last turn 22:11Z at ~355k ctx, past TTL),
+  operator resumed and ran `/compact` FIRST (07:54–07:56Z), then the
+  first real prompt at 08:28Z. First API call 08:29:04Z: cc=51061,
+  cr=0, `previous_message_not_found` — the inherent first write of the
+  brand-new post-compact prefix. Next call read cr=51061 immediately;
+  caching healthy throughout. Compact-before-work SAVED a 355k rewrite
+  (optimal operator behavior). Nothing proxy-side; no mitigation
+  target exists here.
+- Why it displayed as a bust — three stacked worktime instrument
+  defects (booked in claude-worktime BACKLOG, not here): (1) the
+  compact-completion render logged a tokens entry `cr=0,cc=0,ui=0`,
+  resetting the idle clock (gap read 32min, not 10h → idle classifier
+  missed) and zeroing the cold state's prev-ctx (→ the compact-skip
+  predicate `cc ≥ 0.6×prev` fired on prev=0); (2) the busting turn's
+  transcript entry wasn't flushed at detection (race) → cause "other"
+  → the resume-split (`previous_message_not_found` never books a hit)
+  could not fire → false k:"hit" in the ledger; (3) the late-bind
+  cause upgrade lacks that split, so the resume-class cause landed in
+  the ❄ display — a token the split's contract says never renders it.
+  Check-fires-on-non-defect class: each false ❄ trains the operator to
+  discount the real ones.
+
 ## External issue sweep vs. this stack — coverage matrix (2026-07-29)
 
 A sweep of anthropics/claude-code issues (33 included, 25 read in full;
