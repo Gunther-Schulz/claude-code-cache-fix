@@ -462,7 +462,10 @@ the session transcript's own `cache_miss_reason` diagnostics):
   cause upgrade lacks that split, so the resume-class cause landed in
   the ❄ display — a token the split's contract says never renders it.
   Check-fires-on-non-defect class: each false ❄ trains the operator to
-  discount the real ones.
+  discount the real ones. FIXED same day (claude-worktime 62420da,
+  red-first, suite green): zero-usage renders never persisted;
+  late-bind retracts via k:"hit-retract" (readers drop retracted
+  hits); the live false hit and the session's ❄ state retro-corrected.
 
 ## External issue sweep vs. this stack — coverage matrix (2026-07-29)
 
