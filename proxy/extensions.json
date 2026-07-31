@@ -114,9 +114,5 @@
   "jsonl-session-mirror": {
     "enabled": true,
     "order": 720
-  },
-  "hook-context-normalize": {
-    "enabled": true,
-    "order": 355
   }
 }

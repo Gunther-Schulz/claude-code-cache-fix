@@ -37,16 +37,28 @@ bullet, evidence pointer included.
   ever change `edit@98 of 123`; that line names the class, never the
   absorption. The real check is whether the FORWARDED bodies converge —
   run `normalizeMessages` over both captured requests and compare the first
-  divergence index. SHIPPED 2026-07-31 (`hook-context-normalize`, order 355,
-  gated `CACHE_FIX_HOOK_CONTEXT_NORMALIZE=1`, additionally requiring the
-  `mid-conversation-system-2026-04-07` beta before emitting a role:"system"
-  entry; commit acc0814). Measured on the motivating capture: first
-  divergence 97 -> 101, re-bill ~104 kB -> ~97 kB. PARTIAL by construction
-  and stated as such — the EXACT host is absorbed, then the divergence lands
-  on the EXTENDED host at 101 whose later form carries text that did not
-  exist yet. Closing this event fully needs the EXTENDED class
-  (new-reminder accumulation), which no serialization rule can absorb;
-  booked separately rather than folded in.
+  divergence index. RESOLVED 2026-07-31 — and NOT by the extension this
+  item proposed. The mechanism already existed: insertion-normalization's
+  migrated-duplicate suppression (#76606, decision B) covers exactly this
+  shape, and its telemetry for the busting request read
+  `action=reset resetReason=not-subsequence pinned=2 suppressed=0` — pins
+  restored, suppression skipped, because `resetKeepingPins` returns before the
+  suppression pass. The suppression was therefore disabled by ANY reset, and
+  this extension's own measurement puts resets at ~1 request in 3. Fixed in
+  059aae3 by running suppression on the reset path, reusing the pins it has
+  already restored. Measured on the motivating pair: divergence 97 -> 100,
+  re-bill ~104 kB -> ~96 kB, suppressed=1.
+  A separate `hook-context-normalize` extension WAS written first (acc0814)
+  and has been REVERTED. It duplicated VOLATILE_WRAP_REGEX and the
+  canonical-join concept in a second file, and measured WORSE than fixing the
+  existing one (97 -> 101, ~97 kB). The diagnosis that justified it — "the
+  class was never in insertion-normalization's scope" — came from reading that
+  extension's header instead of its telemetry, which said the opposite. That
+  is the dev-loop rule "extend an existing tool before writing a new one",
+  violated one day after writing it; recorded rather than tidied away.
+  Residual, NOT closed: divergence still lands at 100. The remainder is the
+  EXTENDED class (a later form carrying text that did not exist yet) plus the
+  ephemeral-turn pruning — neither absorbable by a serialization rule.
   NOT gated on the rate re-measure below: the Mitigation policy states fire
   counts are "never a worthiness threshold" and cost never gates the work —
   an earlier revision of this item made exactly that error.
