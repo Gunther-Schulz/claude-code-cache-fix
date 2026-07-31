@@ -1,7 +1,14 @@
 # Directive: relation-preserving scrub — make scrubText a `"\n\n"`-homomorphism
 
-Status: DISPATCHED 2026-07-31 (executor: opus-5, worktree-isolated;
-dispatcher: fable session adf6cadb). Unparks BACKLOG "PARKED — harvest
+Status: EXECUTED 2026-07-31 (executor: opus-5, worktree-isolated,
+unpushed; dispatcher: fable session adf6cadb). Report:
+`docs/code-reviews/scrub-relations-report.md` — four properties red-first
+then green, `npm test` 1800/1800, live `--dry-run` clean (also under a
+512 MB heap cap). Privacy delta ACCEPTED by operator ruling for this
+local, controlled deployment, with the audience caveat carried in
+`scrubText`'s comment. Neither STOP condition fired. Still open, by
+design: the dispatcher's cross-tool round-trip (harvest a
+merged-standalone pair, census must classify it EXTENDED post-scrub). Unparks BACKLOG "PARKED — harvest
 scrub cannot express prefix/join byte relations"; the named missing
 piece (a relation-preserving scrub design that does not weaken the
 privacy guarantee) is settled below. Origin of the gap:
