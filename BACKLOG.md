@@ -1210,6 +1210,10 @@ bullet, evidence pointer included.
   (3) the prepared branches are then REBUILT carrying only clean
   fixture blobs (both are unpushed, so no force-push is needed on
   them; #272's own branch rewrite is the reviewer-coordinated one).
+  Rewrite detail from the hardening gap 3 disposition: the slice
+  copies of insertion-normalization.mjs drop the capture-prefix
+  half of the fixture-name comments — the token↔capture pairing
+  stays fork-only.
   Also fold in at push time: the stacked PR body should name #273
   as the third stacked parent (the merge carries
   deferred-tool-rewrite.mjs).
@@ -1237,8 +1241,37 @@ bullet, evidence pointer included.
   design-tier openers (blocker-2 measurement+directive, enormous
   prunes, placement re-check) at next session start.
 
-- **READY — #272 blocker 3 (series-wide): conversation-derived state
-  files land at ambient umask with raw bytes.** Canon/events (this
+- **RESOLVED 2026-07-31 (blockers 3+4, opus dispatch,
+  dispatcher-verified: full suite 1843/1843/0 on main; report
+  docs/code-reviews/hardening-blockers34-report.md).** Blocker 3:
+  write-owner-only primitive, 27 write sites / 18 extensions, mode
+  at create + lazy chmod (Node's mode option is CREATE-only — the
+  booked lesson), red-first 0/4 → 4/4 with mutation-split
+  mechanisms. Blocker 4: adjacency NOT load-bearing (grep basis:
+  read-dedupe.mjs has zero cache-control references); assertion
+  already green on fork main since 60cb337 — the missing piece was
+  the recorded reasoning, now beside the assertion. Gap
+  dispositions: prefix-diff's truncated raw snapshot KEPT
+  (diagnostic purpose; 0600 covers; same treatment as canon
+  entry.m); the token↔capture-prefix comment pairing stays on fork
+  (association already public here) but the §6 slice rewrite DROPS
+  the capture half upstream (noted on the HOLD entry); missing
+  proxy-read-dedupe.md directive → READY item below. NEXT PROXY
+  BOUNDARY owed (pin bump + restart + gate): carries 0600 +
+  comment fixes; row-3 clear per the report (no state keys, no
+  freeze logic, no order change).
+
+- **READY — proxy-read-dedupe.md is cited twice and does not exist**
+  (read-dedupe.mjs:3, docs/extension-impact-guide.md:276; found by
+  the hardening dispatch). Decide from the extension header's actual
+  content: if it carries the full rationale, write the directive as
+  its extraction; if not, drop both refs. Small; verifier: no
+  dangling doc reference (grep).
+
+- **RETIRED-marker (see RESOLVED above) — original blocker-3 entry
+  follows for the record.**
+  Original: conversation-derived state
+  files land at ambient umask with raw bytes. Canon/events (this
   extension), request bodies (#275), system prompts (#280) — same
   shape three times; the reviewer asks to fix it once as a pattern.
   Fork-side too: ~/.claude state written by the serving proxy. Build:
