@@ -23,6 +23,22 @@ verifier 1 ("n=197 must not reset") and its integration-plan step 3
 contradict each other — that test's control asserts the reset this
 design removes. Full evidence and the open decisions:
 `docs/code-reviews/reserved-entry-identity-report.md`.
+Dispatcher dispositions (2026-07-31, post-verification, integrated on
+main): TODO 15's control was symptom-parented (it asserted the very
+reset this design removes) and expired with the defect — REWRITTEN to
+assert verifier 1's definition (n=197 `normalized`, re-fire continues,
+bytes hold); integration-plan step 3's "without edits" clause is
+hereby corrected to scope to TODOs 16/17, whose expectations were
+definition-parented and flipped unedited. The lapse reading is
+RATIFIED as the explicit clause — a lapsed entry is dropped outright;
+the "(today's drop semantics)" parenthetical below was loose wording,
+not intent. The byte-gate question (report c4) is answered by
+measurement: the POST sweep's corpus-wide `byteGate` reads 0 MISMATCH
+/ 0 unreadable, so the NORMALIZATION pre-ship gate is satisfied
+without a separate run. Residuals (heldCi retirement,
+dropped-majority precedence, multi-reserve conversations) are PARKED
+in BACKLOG with their trigger; verdict-ab's self-test is a READY
+item.
 Consumers: the flap-move directive
 (`flap-move-mitigation-and-fidelity-gate.md`) whose units 2/2b are
 unblocked by this; the restart-boundary BACKLOG item (this build rides

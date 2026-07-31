@@ -491,6 +491,26 @@ the census's own placement rule, now with a number on both sides of
 it. Any mitigation for this class is an UN-MERGE (put the swallowed
 message back where it was), never a relocation.
 
+### Row 4 datapoint — 2026-07-31 (later): the flap/cross-message-join
+### mitigation is BUILT and corpus-clean, pending deployment
+
+The un-merge exists and holds: units 2/2b (join-move first-seen
+re-serve, moves surviving resets) plus the reserved-entry identity
+build (directive `reserved-entry-identity-directive.md`; the ordinal
+re-bind was the last escape). Measured A/B over the whole live corpus
+(8.5 GB, 36 captures, serving gate set, dispatcher-verified): ZERO
+insertion-normalization stability violations remain — s-dc3f8071,
+s-58c979ce, s-633915a8, s-9f9d8a9d all at 0; the corpus's entire
+remaining stability debt is two deferred-tool-rewrite pairs on
+s-0d6f38ba, identical pre/post. Old-canon restart transparency
+measured (`verdict-ab --seed-from-a` IDENTICAL, 44 lines). NOT
+deployed: ships at the deferred restart boundary (operator settle:
+after all proxy work — condition now met). The row stays OPEN until
+the deployed proxy shows the class as a live non-event; the un-merge
+covers the measured join shape — whether every container-migration
+EXTENDED instance (e.g. the 14:32:29 KNOWN-OPEN bust) matches its
+conditions (a)–(f) live is the post-restart verification question.
+
 ## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
 ## CONTROLLED-CAUSE (instrument false positive, no bust)
 

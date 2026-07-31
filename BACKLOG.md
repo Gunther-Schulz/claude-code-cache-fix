@@ -846,7 +846,15 @@ bullet, evidence pointer included.
   (operator settle 2026-07-30; TIMING re-settled 2026-07-31 by the
   operator: the boundary WAITS until all proxy work finishes — i.e.
   the reserved-entry-identity build lands — and the whole bundle
-  below ships in that single restart). Unit bites exist
+  below ships in that single restart. CONDITION MET 2026-07-31
+  evening: the identity build is on main (fad6f6b et al.,
+  dispatcher-verified), no further proxy/** work queued. The bundle
+  now also carries the units-2/2b + identity code: pin bump =
+  `git rev-parse --short HEAD:proxy` at the final proxy commit;
+  restart is cache-transparent per the directive's measured row-3
+  declaration (verdict-ab --seed-from-a IDENTICAL). Boundary is
+  executable at the operator's chosen moment — avoid mid-live-CC
+  sessions per standing rule). Unit bites exist
   (test/proxy-upstream-error-log.test.mjs, #235); flip =
   CACHE_FIX_UPSTREAM_ERROR_LOG=1 in the serving unit riding the
   NEXT proxy restart (no dedicated restart), acceptance recorded
@@ -998,6 +1006,15 @@ bullet, evidence pointer included.
   reset-abandons-move regression (branch wt/fidelity/opus, directive
   Status section has the shape + candidate fix); next step is the
   reset-path design decision + five-gate re-sweep.
+  RESOLVED 2026-07-31: units 2/2b integrated (reconciled with 5c4d70a
+  per the MERGE NOTE above) and the last escape — the ordinal
+  re-bind — closed by the reserved-entry identity build
+  (a1170a7..9983a1b + the TODO-15 rewrite; directive
+  reserved-entry-identity-directive.md, report
+  docs/code-reviews/reserved-entry-identity-report.md).
+  Corpus-verified zero insertion-normalization stability violations;
+  deployment rides the restart boundary. Branch wt/fidelity/opus is
+  consumed (cherry-picked, squashed) and deletable.
 
 - **READY — census flap annotation (blockMigration reversal).**
   `replay.mjs --census` emits a `flap` marker when the same
@@ -1071,22 +1088,46 @@ bullet, evidence pointer included.
   first; if it already does this, the item dissolves into a doc
   pointer.
 
-- **READY — reserved-entry identity: build
-  docs/directives/reserved-entry-identity-directive.md (the flap
-  class's true blocker, design settled).** DESIGN SETTLED 2026-07-31
-  (fable session adf6cadb, operator GO "do the design"): a re-served
-  entry leaves the (hash, role, ordinal) wire-identity space — `rs`
-  flag, match exclusion, per-request disposition
-  re-fire/reclaim/lapse, all fail-closed; directions A and C rejected
-  with reasons in the directive. Row-3 restart declaration inside
-  (restart-transparent: `rs` optional, no deployed canon carries a
-  re-serve). Sub-gap folded in: findJoinMoves role constraint (f).
-  NOT folded (own items, not preconditions): harvest select-ordinals
-  mode; census replace/edit absorption class. Integration: rebase
-  wt/fidelity/opus (aef760b + dc8c475, unpushed) onto main,
-  reconcile resetKeepingPins with 5c4d70a (named collision), build on
-  top; ships as ONE deployment at the deferred restart boundary.
-  Verifier chain and done-criterion: the directive's Verifiers
-  section; the three TODO tests in test/insertion-join-move.test.mjs
-  flipping to passing without expectation edits is the headline.
+- **RESOLVED 2026-07-31 — reserved-entry identity built, criterion
+  met and exceeded (a1170a7 integration, fad6f6b build, da8b837
+  verdict-ab, 0cc05c7 perf, 9983a1b docs; opus dispatch,
+  dispatcher-verified: suites 253/0 and 1826/0 re-run, s-dc3f8071
+  five gates 0/0/0/0/0 re-run, verdict-ab --seed-from-a IDENTICAL/44
+  re-run).** Was READY with the directive as brief. Corpus-wide:
+  stability 10 → 2, both survivors deferred-tool-rewrite on
+  s-0d6f38ba, ZERO insertion-normalization violations left; the
+  ordinal collision turned out to be firing on four captures, not
+  one. All three unit-2b TODO tests now pass — TODO 15's control was
+  symptom-parented and was rewritten by the dispatcher to assert the
+  definition (n=197 normalized). Lapse read ratified (dropped
+  outright). Deployment rides the restart boundary. Residuals below
+  in the PARKED reserved-entry-residuals entry; verdict-ab self-test
+  its own READY item.
+
+- **READY — verdict-ab self-test (report gap c5).**
+  `tools/verdict-ab.mjs` has no committed test: its COULD-NOT-VERIFY
+  exit-2 path was demonstrated red by execution and its fixture
+  reader was corrected after a real 2-of-6-corpora miss (report
+  lesson e2), but nothing in test/ pins either. Build
+  `test/verdict-ab.test.mjs` (name assigned): (1) exit 2 +
+  COULD-NOT-VERIFY on an empty fixture dir; (2) every committed
+  fixture shape is read — assert the skipped-file list names ONLY
+  the three non-message-array fixtures; (3) a synthetic differing
+  pair reports DIFFERS with the changed line. Red-first per dev-loop;
+  small, dispatchable with any tools bundle.
+
+- **PARKED — reserved-entry residuals, three named, all unmeasured
+  (report gaps c3/c6 + not-verified list).** (1) heldCi retirement:
+  a reserved entry with a permanently unresolvable neighbourhood is
+  carried forward inert forever on the success path (the reset path
+  retires it); bounded (~1-2 entries/conversation measured), costs
+  one canonical entry. (2) dropped-majority precedence relative to
+  move recognition: the disposition pass runs on that path too; no
+  corpus instance exercises it (named unmeasured three reports
+  running). (3) conversations with >1 reserved entry at a time: the
+  pass handles a list and guards double-claims, but every measured
+  instance has exactly one. Missing evidence, named: a corpus
+  instance of any of the three. Trigger: first live sighting (a
+  held entry, a dropped-majority reset with a live move, or a
+  two-reserve conversation) — then measure before designing.
 
