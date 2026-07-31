@@ -339,8 +339,21 @@ bullet, evidence pointer included.
   — "matrix row 4", "see BACKLOG"); candidate slice: warn only when a
   message uses change verbs (add/fix/export/remove) adjacent to a
   path-or-symbol token that greps to zero hits in `git diff --cached`.
-  Trigger to unpark: a third incident, or the operator picking the
-  predicate up in dotfiles.
+  Trigger reworded 2026-07-31 (operator GO) from a count to a content
+  test — a third incident adds count, not information; the predicate's
+  false-fire problem is not fixed by more examples. Unpark and BUILD
+  (backtick-scoped slice only: change verb + backtick-quoted
+  path-or-symbol token with zero hits in `git diff --cached`) when an
+  incident arrives where the false message carried real cost (someone
+  acted on it before the diff corrected them) OR one the backtick
+  slice would provably have caught. A further CHEAP self-surfacing
+  incident is instead evidence to DROP the item with a one-line
+  reason: the class is real but self-healing (the message sits
+  permanently beside its own refutation, the diff), and exposure has
+  shrunk since the park — the push-claim reminder (dispatch-guards
+  0.1.12) now creates a review moment before agent commits publish.
+  Either way the next incident decides; the item leaves in one of the
+  two directions.
 
 - **PARKED — row 4 rate re-measure (telemetry, NOT a gate on the item
   above).** (Header restored 2026-07-31 — c53ea3a replaced this line
