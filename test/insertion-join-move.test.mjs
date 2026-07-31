@@ -397,20 +397,18 @@ function replayFixture(fixture, key) {
   return entries;
 }
 
-// The three tests below are TODO, not skipped: they run, they print why they
-// fail, and they announce themselves the day they start passing. Each asserts
-// the criterion unit 2b was supposed to reach; the reason they do not reach it
-// is a SECOND defect, measured while building 2b and recorded in the fixture's
-// `_mechanism` note — the absorbed entry's identity is (content-hash, role,
-// occurrence-ordinal), and by n=197 CC has sent one MORE copy of that entry's
-// text, which takes the ordinal and matches the entry to a message 13 slots
-// away. The entry is therefore not DROPPED on the reset request, so there is
-// no move for any amount of reset-path recognition to find (measured:
-// `dropped: 0` on both n=197 and n=400). Closing them needs a decision about
-// message identity, which is above this unit's scope.
-test("BITE — the real reset leg: n=197's reset keeps the move, and the stability gate goes quiet", {
-  todo: "blocked on the ordinal-collision defect — see the fixture's _mechanism note; needs an identity decision, not a reset-path one",
-}, () => {
+// The three tests below were TODO from unit 2b until the reserved-entry
+// identity build (docs/directives/reserved-entry-identity-directive.md):
+// the absorbed entry's identity was (content-hash, role, occurrence-ordinal),
+// and by n=197 CC has sent one MORE copy of that entry's text, which took the
+// ordinal and re-bound the entry to a message 13 slots away — no move to
+// recognize, and a not-subsequence reset as the SYMPTOM (history in the
+// fixture's `_mechanism` note). A reserved entry now claims no ordinal in
+// CC's array, so the tests assert the criterion directly. The first one's
+// original control asserted the reset itself — the symptom's signature — and
+// expired with the defect; its control now asserts what the directive
+// defines: n=197 must not reset.
+test("the n=197 leg: one MORE copy of the reserved text neither re-binds nor resets, and the re-served bytes hold", () => {
   // The fixture's own _measured note records the pre-2b verdict: n=197 came
   // back moved=0 and the forwarded bytes at wire index 223 flipped from the
   // re-served first-seen form back to CC's raw merge, one violation at
@@ -419,14 +417,14 @@ test("BITE — the real reset leg: n=197's reset keeps the move, and the stabili
   const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
   const at = (n) => entries.find((e) => e.n === n);
 
-  // The control: the requests before the reset really do recognize the move,
-  // or the assertion below is about nothing.
+  // The control: the requests before recognize the move, or the assertions
+  // below are about nothing.
   assert.equal(at(195).stats.moved, 1, "control: 195 recognizes the move");
   assert.equal(at(196).stats.moved, 1, "control: 196 recognizes the move");
 
-  assert.equal(at(197).action, "reset", "control: 197 really is the reset leg");
-  assert.equal(at(197).resetReason, "not-subsequence");
-  assert.equal(at(197).stats.moved, 1, "the reset abandons the ORDER model, not the substitution");
+  assert.equal(at(197).action, "normalized", "197 no longer resets: a reserved entry claims no ordinal in CC's array");
+  assert.equal(at(197).resetReason ?? null, null, "no reset reason — the inversion that tripped not-subsequence cannot form");
+  assert.equal(at(197).stats.moved, 1, "the substitution continues as a re-fire");
 
   // The property that costs cache, stated positionally: the bytes at the
   // merged message's slot are the ones we forwarded on the previous request.
@@ -440,19 +438,17 @@ test("BITE — the real reset leg: n=197's reset keeps the move, and the stabili
   assert.deepEqual(findStabilityViolations(entries), []);
 });
 
-test("BITE — the reset's canonical describes the wire it forwarded, so the NEXT request still sees a move", {
-  todo: "blocked on the same ordinal collision — 197 never recognizes the move, so 198 has nothing to inherit",
-}, () => {
-  // Separate condition, separate bite. resetKeepingPins states the invariant
-  // itself: the canonical it writes must describe the array it just sent. It
-  // just sent the absorbed entry's bytes at the merged message's slot, so the
-  // canonical must carry THAT entry there — not a fresh identity built from
-  // the merge. Get this half wrong and the substitution survives exactly one
-  // request: the merge becomes canonical, the absorbed entry is gone for
-  // good, and the flip lands on the request after the reset instead.
+test("the canonical describes the wire we forwarded, so n=198 still sees the move", () => {
+  // Separate condition, separate assertion. Both rebuild sites state the
+  // invariant themselves: the canonical they write must describe the array
+  // just sent. n=197 sent the absorbed entry's bytes at the merged message's
+  // slot, so the canonical must carry THAT entry there — not a fresh identity
+  // built from the merge. Get this half wrong and the substitution survives
+  // exactly one request: the merge becomes canonical, the absorbed entry is
+  // gone for good, and the flip lands one request later.
   const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
   const at = (n) => entries.find((e) => e.n === n);
-  assert.equal(at(198).stats.moved, 1, "the move is still recognizable after the reset");
+  assert.equal(at(198).stats.moved, 1, "the move is still live on the request after");
   assert.deepEqual(
     at(198).outMsgs[223],
     at(197).outMsgs[223],
@@ -460,9 +456,7 @@ test("BITE — the reset's canonical describes the wire it forwarded, so the NEX
   );
 });
 
-test("the real reset leg passes all five gates", {
-  todo: "stability only — the other four are clean today; blocked on the ordinal collision",
-}, () => {
+test("the n=197 leg passes all five gates", () => {
   const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
   assert.deepEqual(findStabilityViolations(entries), []);
   assert.deepEqual(findSafetyViolations(entries), []);
@@ -471,19 +465,18 @@ test("the real reset leg passes all five gates", {
   assert.deepEqual(entries.filter((e) => e.stats.canonOrderViolation).map((e) => e.n), []);
 });
 
-test("the real reset leg corrupts nothing — safety, conservation, sequence and canonical order are clean", () => {
-  // The four gates that ARE met today, asserted for real rather than left to
-  // the todo above: whatever the stability defect costs in cache, the
+test("the n=197 leg corrupts nothing — safety, conservation, sequence and canonical order are clean", () => {
+  // The four gates that held even while the stability defect was open,
+  // asserted independently of it: whatever stability costs in cache, the
   // conversation itself must stay intact and every byte CC sent must stay
-  // accounted for. This is the half of the fixture's verdict that must never
-  // regress while the identity question is open.
+  // accounted for. This half of the fixture's verdict must never regress.
   const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
   assert.deepEqual(findSafetyViolations(entries), []);
   assert.deepEqual(findConservationViolations(entries), []);
   assert.deepEqual(findSequenceViolations(entries), []);
   assert.deepEqual(entries.filter((e) => e.stats.canonOrderViolation).map((e) => e.n), []);
-  // And the move really is recognized before the reset, which is what makes
-  // the todo above a statement about the reset leg and not about the fixture.
+  // And the move really is recognized on the legs before, which is what makes
+  // the tests above statements about n=197 and not about the fixture.
   assert.equal(entries.find((e) => e.n === 196).stats.moved, 1);
 });
 
@@ -526,8 +519,9 @@ test("BITE — a not-subsequence reset with a move in it re-serves the first-see
 });
 
 test("BITE — the reset's canonical files the ABSORBED entry at the moved slot, so the move survives into the next request", () => {
-  // The second half of the change, and the one the real-bytes fixture cannot
-  // currently reach (see the todo above). resetKeepingPins states the
+  // The second half of the change — one the real-bytes fixture no longer
+  // reaches, since n=197 stopped resetting once reserved entries left wire
+  // identity; the synthetic scramble keeps it covered. resetKeepingPins states the
   // invariant itself: the canonical it writes must describe the array it just
   // sent. It sent the absorbed entry's bytes at the merged message's slot, so
   // that is what belongs there. File a fresh identity built from the MERGE
