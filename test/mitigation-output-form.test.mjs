@@ -120,7 +120,7 @@ const REAL_CAPTURE =
   "/home/g/.claude/cache-fix-captures/s-633915a8-dcfd-479a-8ca8-0c4452d5a9b6-requests.jsonl";
 const PINNED_FIXTURE =
   process.env.CACHE_FIX_TEST_FIXTURE_OVERRIDE ??
-  join(__dirname, "fixtures", "harvested", "pinned-s-633915a8-26-28.json");
+  join(__dirname, "fixtures", "harvested", "pinned-s-4b6a435234bf-26-28.json");
 const GATES = {
   CACHE_FIX_FORWARD_PROXY: "on",
   CACHE_FIX_SESSION_MIRROR: "on",

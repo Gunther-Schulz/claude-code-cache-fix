@@ -7,7 +7,7 @@
 // being sent at all.
 //
 // Measured, threat-matrix row 4's 2026-07-30 datapoint (221k bust, session
-// 0d6f38ba). Fixture flap-s-0d6f38ba-86.json carries the real four requests,
+// 0d6f38ba). Fixture flap-s-0dc8ac87c43d-86.json carries the real four requests,
 // so the proof outlives the capture's rotation.
 //
 // The expected values below come from the DEFINITION (findJoinMoves' comment
@@ -35,11 +35,11 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FLAP = JSON.parse(
-  readFileSync(join(__dirname, "fixtures", "harvested", "flap-s-0d6f38ba-86.json"), "utf-8"),
+  readFileSync(join(__dirname, "fixtures", "harvested", "flap-s-0dc8ac87c43d-86.json"), "utf-8"),
 );
 // The reset leg (unit 2b). Section (d) below is the only reader.
 const RESET_MOVE = JSON.parse(
-  readFileSync(join(__dirname, "fixtures", "harvested", "reset-move-s-dc3f8071-196-197.json"), "utf-8"),
+  readFileSync(join(__dirname, "fixtures", "harvested", "reset-move-s-97097e027ac0-196-197.json"), "utf-8"),
 );
 
 const REM = "PreToolUse:Edit hook additional context: check the date";
@@ -376,7 +376,7 @@ test("BITE — a move stays safe when a LATER extension injects into the forward
 // KNOWN DEFECT note): three otherwise-clean captures reported byte-stability
 // violations, all attributed to insertion-normalization and all carrying
 // `[CC bytes at outDiv IDENTICAL -> ours]`. Fixture
-// reset-move-s-dc3f8071-196-197.json freezes the pair before the capture
+// reset-move-s-97097e027ac0-196-197.json freezes the pair before the capture
 // rotates.
 
 // Replay a fixture's requests in order through classifyPinned, returning the
@@ -657,7 +657,7 @@ test("a reset with no move in it forwards exactly what it forwarded before (fire
 // that recurring text: the copy takes the ordinal, the entry binds to it at an
 // unrelated position, the move recognition dies (the entry is no longer
 // dropped) and the inversion trips not-subsequence. Measured on
-// reset-move-s-dc3f8071-196-197.json at n=197 and again at n=400.
+// reset-move-s-97097e027ac0-196-197.json at n=197 and again at n=400.
 //
 // THE RULE: a re-served entry's identity is its stored first-seen bytes plus
 // the canonical slot where we last forwarded them. It does not participate in

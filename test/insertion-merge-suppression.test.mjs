@@ -29,7 +29,7 @@ import {
 } from "../proxy/extensions/insertion-normalization.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const FIXTURE_PATH = join(__dirname, "fixtures", "harvested", "oscillation-s-633915a8-863.json");
+const FIXTURE_PATH = join(__dirname, "fixtures", "harvested", "oscillation-s-4b6a435234bf-863.json");
 const fixture = JSON.parse(readFileSync(FIXTURE_PATH, "utf-8"));
 
 // The real msg863 form (1243B-shaped: tool_result + two <system-reminder>

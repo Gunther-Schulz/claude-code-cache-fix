@@ -781,7 +781,7 @@ test("flap: fires-on-non-defect guard — opposite directions by DIFFERENT block
 //     standalone emergence ---
 //
 // Measured on the real 2026-07-30 flap bytes (capture s-0d6f38ba, pair
-// n=102->104; fixture flap-s-0d6f38ba-86.json, harvested by the sibling
+// n=102->104; fixture flap-s-0dc8ac87c43d-86.json, harvested by the sibling
 // build). The alignment there is:
 //
 //   PREV[92] user [tool_result, text(<system-reminder> 720 chars)]
@@ -863,7 +863,7 @@ test("BITE — the same phantom in reverse: a host REGAINING a reminder is not i
 // The two bites above reproduce the measured SHAPE synthetically. This one
 // runs the actual capture bytes, so the check is anchored to a fixed
 // reference that outlives the capture (which rotates): fixture
-// flap-s-0d6f38ba-86.json holds the full message arrays for all four
+// flap-s-0dc8ac87c43d-86.json holds the full message arrays for all four
 // requests of the three flap pairs.
 //
 // Expected values come from the DEFINITION, not from what the census
@@ -878,7 +878,7 @@ import { dirname } from "node:path"; // `join` is already imported at the top of
 import { fileURLToPath } from "node:url";
 
 const FLAP_FIXTURE = JSON.parse(
-  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "harvested", "flap-s-0d6f38ba-86.json"), "utf-8"),
+  readFileSync(join(dirname(fileURLToPath(import.meta.url)), "fixtures", "harvested", "flap-s-0dc8ac87c43d-86.json"), "utf-8"),
 );
 
 test("BITE — the real 2026-07-30 flap: one reminder block, three legs, two of them flaps", () => {
@@ -1100,7 +1100,7 @@ const crossCur = () => [user("u0"), asst("a1"), { role: "user", content: [txt("t
 const crossSuppressed = { stats: { suppressions: [{ index: 3, hash: "h" }] } };
 
 test("conservation: a suppression matching a CROSS-MESSAGE join of two forwarded messages is GREEN", () => {
-  // The 2026-07-30 flap's novel leg (fixture flap-s-0d6f38ba-86.json, msg91):
+  // The 2026-07-30 flap's novel leg (fixture flap-s-0dc8ac87c43d-86.json, msg91):
   // CC merged one message's reminder with the WHOLE standalone that followed
   // it. The copy on the wire is split across two ADJACENT forwarded messages —
   // the pinned host, and the re-served standalone right after it.

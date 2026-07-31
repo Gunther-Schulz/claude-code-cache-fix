@@ -1,8 +1,8 @@
 {
-  "key": "s-633915a8-dcfd-479a-8ca8-0c4452d5a9b6",
+  "key": "s-b2d596db197e",
   "field": "toolsBytes",
-  "oldBytes": 32398,
-  "newBytes": 49133,
+  "oldBytes": 32475,
+  "newBytes": 41385,
   "watermark": {
     "system": [
       {
@@ -22,12 +22,12 @@
       },
       {
         "type": "text",
-        "text": "t_4de4f7d57b20_9708",
+        "text": "t_749b5ea5c7e9_8634",
         "cache_control": {
           "type": "ephemeral",
           "ttl": "1h"
         },
-        "bytes": 9879
+        "bytes": 8791
       }
     ],
     "tools": [
@@ -41,7 +41,7 @@
       },
       {
         "name": "Bash",
-        "bytes": 2907
+        "bytes": 2984
       },
       {
         "name": "Edit",
@@ -93,11 +93,11 @@
       },
       {
         "type": "text",
-        "text": "t_46538f71022c_13028",
+        "text": "t_1d1b08fd15ca_11878",
         "cache_control": {
           "type": "ephemeral"
         },
-        "bytes": 13226
+        "bytes": 12060
       }
     ],
     "tools": [
@@ -111,15 +111,11 @@
       },
       {
         "name": "Bash",
-        "bytes": 11890
+        "bytes": 11914
       },
       {
         "name": "Edit",
         "bytes": 1731
-      },
-      {
-        "name": "Monitor",
-        "bytes": 7771
       },
       {
         "name": "Read",

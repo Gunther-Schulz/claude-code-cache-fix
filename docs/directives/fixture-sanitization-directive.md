@@ -1,6 +1,10 @@
 # Directive: fixture sanitization — full-fidelity scrub (bytes, structural IDs, filenames), fixtures rebuilt, upstream blobs never reachable
 
-Status: DESIGN SETTLED 2026-07-31 (fable session adf6cadb, operator GO;
+Status: SECTIONS 1-5 EXECUTED 2026-07-31 (opus-5 dispatch; report:
+docs/code-reviews/fixture-sanitization-report.md — verdict-neutral across
+all 44 corpus verdict lines, suite 1826->1836/0 fail, +10 bites).
+Section 6 (upstream branch rewrites) remains GATED and dispatcher-owned.
+DESIGN SETTLED 2026-07-31 (fable session adf6cadb, operator GO;
 the upstream path follows #272 reviewer Proxy Builder's explicit ask:
 branch REWRITE so no identifying blob is ever reachable from upstream
 main — never a scrub commit on top). Fork-side execution dispatchable
