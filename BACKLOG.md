@@ -340,7 +340,12 @@ bullet, evidence pointer included.
   message uses change verbs (add/fix/export/remove) adjacent to a
   path-or-symbol token that greps to zero hits in `git diff --cached`.
   Trigger to unpark: a third incident, or the operator picking the
-  predicate up in dotfiles. Missing evidence, named: 14 replace/edits in 179 pairs (7.8%)
+  predicate up in dotfiles.
+
+- **PARKED — row 4 rate re-measure (telemetry, NOT a gate on the item
+  above).** (Header restored 2026-07-31 — c53ea3a replaced this line
+  instead of inserting above it, gluing this item's body onto the
+  commit-claim entry.) Missing evidence, named: 14 replace/edits in 179 pairs (7.8%)
   in one session vs 5 in 838 (0.6%) in the 940-request corpus that closed
   the row on 2026-07-28 — one session against a corpus, so the rate is not
   established. Trigger to unpark: a `--census` sweep over the harvested
@@ -825,7 +830,10 @@ bullet, evidence pointer included.
   window.
 
 - **READY — upstream-error-log gate ON at the next restart boundary**
-  (operator settle 2026-07-30). Unit bites exist
+  (operator settle 2026-07-30; TIMING re-settled 2026-07-31 by the
+  operator: the boundary WAITS until all proxy work finishes — i.e.
+  the reserved-entry-identity build lands — and the whole bundle
+  below ships in that single restart). Unit bites exist
   (test/proxy-upstream-error-log.test.mjs, #235); flip =
   CACHE_FIX_UPSTREAM_ERROR_LOG=1 in the serving unit riding the
   NEXT proxy restart (no dedicated restart), acceptance recorded
@@ -1050,20 +1058,22 @@ bullet, evidence pointer included.
   first; if it already does this, the item dissolves into a doc
   pointer.
 
-- **READY-for-design — the identity decision: how a re-served entry
-  is identified once CC stops sending it (the flap class's true
-  blocker).** Mechanism frozen in fixture
-  reset-move-s-dc3f8071-196-197.json and
-  docs/audits/unit-2b-closing-report-2026-07-30.md (three candidate
-  directions enumerated there, none chosen — deliberately returned
-  to the design tier). Constraint: identity/state-key changes are the
-  one restart-UNSAFE class (threat-matrix row 3) — the design pass
-  states its restart-boundary plan before any build. Sub-gaps folded
-  in: findJoinMoves role constraint on the merged message; harvest
-  "select ordinals + keep join relation" mode; a census absorption
-  class for replace/edit pairs (until then the done-criterion is the
-  corrected one in the directive Status). Carrier branch:
-  wt/fidelity/opus (aef760b unit 2 + dc8c475 unit 2b, both unpushed,
-  both gated clean on fidelity/safety). Consumer: a fresh design
-  session with docs/dev-loop.md loaded.
+- **READY — reserved-entry identity: build
+  docs/directives/reserved-entry-identity-directive.md (the flap
+  class's true blocker, design settled).** DESIGN SETTLED 2026-07-31
+  (fable session adf6cadb, operator GO "do the design"): a re-served
+  entry leaves the (hash, role, ordinal) wire-identity space — `rs`
+  flag, match exclusion, per-request disposition
+  re-fire/reclaim/lapse, all fail-closed; directions A and C rejected
+  with reasons in the directive. Row-3 restart declaration inside
+  (restart-transparent: `rs` optional, no deployed canon carries a
+  re-serve). Sub-gap folded in: findJoinMoves role constraint (f).
+  NOT folded (own items, not preconditions): harvest select-ordinals
+  mode; census replace/edit absorption class. Integration: rebase
+  wt/fidelity/opus (aef760b + dc8c475, unpushed) onto main,
+  reconcile resetKeepingPins with 5c4d70a (named collision), build on
+  top; ships as ONE deployment at the deferred restart boundary.
+  Verifier chain and done-criterion: the directive's Verifiers
+  section; the three TODO tests in test/insertion-join-move.test.mjs
+  flipping to passing without expectation edits is the headline.
 
