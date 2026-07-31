@@ -161,10 +161,14 @@ export function findStabilityExemptions(entries) {
 // its `inHash` before comparing, using the extension's own report
 // (`stats.suppressions`) — never a re-derived guess — the same source
 // safetyViolation's declared exemption already reads.
+// Only the REMOVING suppressions shift the index space (see
+// wireRemovedIndices): a join-move keeps its slot, filled with the re-served
+// bytes, so filtering it here would over-correct by one and manufacture the
+// very off-by-one signature this adjustment exists to remove.
 function adjustedInHash(e) {
-  const suppressed = suppressedIndices(e.stats);
-  if (suppressed.size === 0) return e.inHash;
-  return e.inHash.filter((_, i) => !suppressed.has(i));
+  const removed = wireRemovedIndices(e.stats);
+  if (removed.size === 0) return e.inHash;
+  return e.inHash.filter((_, i) => !removed.has(i));
 }
 
 // fresh-session-sort's relocate branch reports what it did
@@ -293,6 +297,20 @@ function suppressedIndices(stats) {
   return new Set((stats?.suppressions ?? []).map((s) => s.index));
 }
 
+// Not every declared suppression REMOVES a message from the wire. A join-move
+// suppression is a SUBSTITUTION: insertion-normalization forwards the
+// re-served first-seen bytes in the merged message's own slot, so the array
+// keeps its length and the index spaces stay aligned. Only the removing kind
+// may be filtered out to realign them.
+//
+// The distinction is load-bearing in both directions, and getting it wrong is
+// how the first build of the move failed: treating a substitution as a removal
+// shortens the input by one against an output that never shrank, which reads
+// as a role mismatch on every subsequent message.
+function wireRemovedIndices(stats) {
+  return new Set((stats?.suppressions ?? []).filter((s) => s.kind !== "join-move").map((s) => s.index));
+}
+
 export function safetyViolation(e) {
   // Declared injections are removed from BOTH sides before comparing. The
   // filter was output-side only until 2026-07-29, which was correct while
@@ -303,8 +321,8 @@ export function safetyViolation(e) {
   // not from in, and the first census-enabled sweep failed a capture over a
   // message nobody dropped — a check firing on a non-defect, found by
   // rule-out-the-instrument within the hour.
-  const suppressed = suppressedIndices(e.stats);
-  const inM = e.inMsgs.filter((m, i) => !isDeclaredInjection(m) && !suppressed.has(i));
+  const removed = wireRemovedIndices(e.stats);
+  const inM = e.inMsgs.filter((m, i) => !isDeclaredInjection(m) && !removed.has(i));
   const outM = e.outMsgs.filter((m) => !isDeclaredInjection(m));
   if (outM.length !== inM.length) {
     return { n: e.n, ts: e.ts, kind: "length", detail: `${inM.length} -> ${outM.length}` };
