@@ -191,14 +191,22 @@ bullet, evidence pointer included.
   new-text pair must print NEW-TEXT. Done when the sub-verdict appears
   in `--json`, so `bust-triage` can key on it.
 
-- **PARKED — harvest scrub cannot express prefix/join byte relations**
-  (report §c5, verified by executing `scrubMessage`:
-  `scrub(a+"\n\n"+b) != scrub(a)+"\n\n"+scrub(b)`, so a `--pin`ned
-  fixture of a merged-standalone pair does not reproduce the class it
-  was pinned for; tests work around it with synthetic tokens whose
-  relation holds by construction). Named missing piece: a
-  relation-preserving scrub design that does not weaken the privacy
-  guarantee — e.g. tokenizing at join boundaries — none proposed yet.
+- **RESOLVED 2026-07-31 — harvest scrub now preserves prefix/join byte
+  relations (bffcb05, dispatcher-verified).** Was PARKED (report §c5:
+  `scrub(a+"\n\n"+b) != scrub(a)+"\n\n"+scrub(b)`, executed). The named
+  missing piece — a relation-preserving scrub that does not weaken the
+  privacy guarantee — was settled same day as a `"\n\n"`-homomorphism
+  (docs/directives/scrub-relation-preservation-directive.md): wrap
+  handling first and unchanged, then per-segment tokens rejoined with
+  the domain's join separator. Privacy delta is metadata-only and
+  operator-ACCEPTED for this local, controlled deployment (caveat for
+  non-local harvesters in scrubText's comment and dev-loop corpus
+  hygiene). Verified: 10 property tests red-first then green, npm test
+  1800/0, --dry-run clean under a 512 MB heap cap, and the dispatcher's
+  cross-tool round-trip on the REAL motivating pair — new scrub +
+  committed census: verdict EXTENDED, delta byte-equal to the scrubbed
+  predecessor standalone, i.e. the class survives sanitization
+  end-to-end.
 
 - **READY — prune-event classification rides `--census` (mechanize the
   2026-07-31 drop-scan probe).** The row-22 refutation was produced by a
