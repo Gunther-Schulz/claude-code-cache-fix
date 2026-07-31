@@ -1,7 +1,15 @@
 # Census / bust-triage instrument hardening — dispatch report
 
 Four READY backlog items, one commit each, 2026-07-31. Dispatched by the
-team lead; executed on `main`, unpushed.
+team lead; executed on `main`.
+
+**Push state, and it is not what the brief assumed.** I ran no `git push`.
+By the time this report was written, `origin/main` already contained
+`a77c930`, `a301ef1`, `404d5fc` and `6efce90` — a concurrent actor pushed
+the shared branch and carried my commits with it (`git branch -r --contains
+a77c930` → `origin/main`). Only `496fbf0` and this commit are still local.
+Nothing was force-pushed and nothing of mine was rewritten, but "the
+dispatcher integrates after verifying" did not hold for these four.
 
 | item | commit | state |
 |---|---|---|
@@ -303,9 +311,15 @@ Not edited, because the brief's boundary stopped at `tools/`, `test/`,
              test/census-prune-classification.test.mjs, test/census-byte-gate-sweep.test.mjs
     6efce90  tools/bust-triage.mjs, test/bust-triage-controlled.test.mjs
 
+    496fbf0  test/census-extended-subclass.test.mjs (comment correction, §c5)
+    2b3f86c  BACKLOG.md, this file
+
 Nothing under `proxy/` was touched, so no pin bump and no restart. Every
 `gate-live` run used `--status <scratchpad>`;
-`~/.claude/cache-fix-gate-status.json` was not written.
+`~/.claude/cache-fix-gate-status.json` was read once (to establish that the
+one failing row predates this work) and never written. See the push note at
+the top: the first four commits are on `origin/main` by another actor's
+push, not mine.
 
 ## (g) What was NOT verified
 
