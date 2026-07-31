@@ -212,6 +212,33 @@ bullet, evidence pointer included.
   `bust-triage.mjs`'s `migrationVerdict` still returns a bare EXTENDED
   and could import `subclassifyExtended` — report §c4.
 
+- **OPEN — two enormous interior prunes, unexplained (report
+  census-hardening §c2).** `12:42:11.673Z n=688->675 div=4 anchor=674
+  rebilled=671` (s-f94e53ce — invisible to every verdict until
+  a77c930) and `11:40:24.245Z n=83->81 div=4 anchor=80 rebilled=77`
+  (s-b6952ffc). A prune whose prefix breaks at index 4 re-bills
+  essentially the whole context; the cause is not guessable from the
+  drop shape. Next step: dossier the 12:42:11 pair (bytes at index 4,
+  both sides) and join against that session's transcript; the census
+  prune rows now surface any recurrence without a hand-run.
+
+- **OPEN — placement is no longer single: re-check what rested on it
+  (report census-hardening §c3).** Full-corpus census prints 56
+  standalones at host+1 and **3 at host+4** with the tool's own
+  MORE-THAN-ONE-PLACEMENT warning, where the readable-21% corpus said
+  "single placement; safe to emit". The 3 host+4 occurrences are
+  uninvestigated. Consumers to re-check: any NORMALIZATION design that
+  emits at a fixed host offset — the flap-move unit-2 re-serve is
+  slot-preserving (no emit) and should be unaffected, but that is a
+  claim to verify at its integration, not a fact.
+
+- **READY — bust-triage's migrationVerdict imports subclassifyExtended
+  (report census-hardening §c4).** It still returns a bare EXTENDED;
+  import the sub-classifier from `reminder-migration-census.mjs` so a
+  triage verdict says MERGED-STANDALONE/NEW-TEXT directly. Verifier:
+  triage of the 11:41:05 event prints the sub-verdict. One import plus
+  a label — dispatchable with any tools bundle.
+
 - **RESOLVED 2026-07-31 — harvest scrub now preserves prefix/join byte
   relations (bffcb05, dispatcher-verified).** Was PARKED (report §c5:
   `scrub(a+"\n\n"+b) != scrub(a)+"\n\n"+scrub(b)`, executed). The named
@@ -252,8 +279,12 @@ bullet, evidence pointer included.
   messages rather than 1-2. The entry's 10/2 is reachable only via a
   "within N of the tail" threshold no definition produces, so the shipped
   boundary is the ANCHOR (the relation row 4's verdict rests on): 11 pure
-  / 1 interior. OPEN for the operator: keep the anchor boundary (and
-  correct this verifier value) or pin 10/2. Corpus-wide: 226 drop events,
+  / 1 interior. DECIDED 2026-07-31 (dispatcher): the ANCHOR boundary is
+  KEPT and this entry's 10/2 is corrected to 11/1 — the 10/2 was
+  parented on the throwaway probe's output (the remembered symptom,
+  dev-loop "Adding a check" rule 2), the bytes show 11:31:58
+  shape-identical to the pure events, and reproducing 10/2 requires a
+  tail-distance threshold no definition produces. Corpus-wide: 226 drop events,
   181 pure, 45 interior, 0 unanchored — two of them re-bill nearly
   everything (12:42:11 n=688->675 breaks at 4, re-bills 671, in a capture
   unreadable before a77c930; 11:40:24 n=83->81 breaks at 4, re-bills 77),

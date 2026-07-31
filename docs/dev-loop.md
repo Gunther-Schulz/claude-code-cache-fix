@@ -40,7 +40,14 @@ node tools/reminder-migration-census.mjs ~/.claude/cache-fix-captures/*.jsonl
 
 It byte-tests a canonical rule against what CC itself emits, across the whole
 corpus, and reports EXACT / EXTENDED / DROPPED / MISMATCH plus the PLACEMENT
-distribution. Both halves are load-bearing: correct bytes at the wrong index
+distribution. Since 2026-07-31 it also sub-classifies every EXTENDED
+(MERGED-STANDALONE — the remainder is a standalone the predecessor already
+sent — vs NEW-TEXT), classifies every message-count drop
+(PURE-TAIL-PRUNE / INTERIOR-DIVERGENT / UNANCHORED, anchor = `isHumanTurn`,
+with the re-billed suffix length per row), reads captures by LINE, and
+names what it could not read — a non-zero unreadable count is a failing
+run, and `gate-live`'s daily sweep carries the byte-gate and prune summary
+per capture (`byteGate` in the status file). Both halves are load-bearing: correct bytes at the wrong index
 diverge the prefix just the same, and a rule proven on one occurrence is not
 proven (the row-4 rule matched one hand-read case and failed the next). Any
 MISMATCH blocks shipping — see the matrix's "Byte-match test".
