@@ -1200,7 +1200,8 @@ bullet, evidence pointer included.
   pre-existing proxy-read-dedupe failure (#272 open blocker 4,
   proven pre-existing at 53761a3). Drafts + exact push/gh commands:
   docs/audits/pr-prep-2026-07-31/. Conditions before any push:
-  (1) the fixture-sanitization directive lands on fork main;
+  (1) MET 2026-07-31 late (687cbc5) — fixture-sanitization §§1-5 on
+  fork main;
   (2) the #272 reviewer AGREES the path on-thread (their ask:
   branch rewrite so dirty blobs never become reachable upstream —
   reply POSTED 2026-07-31 with operator approval:
