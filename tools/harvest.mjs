@@ -123,12 +123,40 @@ const VOLATILE_WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 // captured inner text keeps both sides deterministic and equal when their
 // real bytes were equal, wrapped or not — the wrapper tags still survive
 // verbatim, so a check that only tests for wrapper PRESENCE is unaffected.
+//
+// PER SEGMENT, not per whole text: the scrub is a homomorphism over "\n\n".
+// Tokenizing whole texts destroyed the relations that DEFINE the classes we
+// harvest for — measured, not inferred (extended-absorb-report §c5):
+// `scrub(a + "\n\n" + b) !== scrub(a) + "\n\n" + scrub(b)`, so a fixture
+// pinned for a merged-standalone pair could not reproduce the class it was
+// pinned for. "\n\n" is the domain's join and nothing narrower: the census's
+// canonical()/classify() join stripped reminder blocks with it, and
+// insertion-normalization's duplicate suppression compares the same join.
+// Splitting on it makes both survive scrubbing (test/harvest-scrub-relations
+// .test.mjs). A boundary that lands inside a longer newline run re-splits and
+// loses the relation — that degrades to the old whole-text behaviour, no
+// crash and no leak, and sub-paragraph relations are not promised at all.
+//
+// Audience caveat on the privacy delta. Per-segment tokens expose paragraph
+// COUNT, per-paragraph LENGTHS, and cross-text sharing of identical
+// paragraphs, where whole-text tokens exposed one total length and whole-text
+// equality. No content bytes either way. That delta is accepted for THIS
+// deployment because the captured traffic is local and operator-controlled
+// (operator ruling 2026-07-31). Anyone harvesting non-local or third-party
+// traffic must re-make that judgment before committing fixtures publicly: a
+// length vector can fingerprint a known public text that a single total
+// length would not.
+const PARA_SEP = "\n\n";
 function scrubText(text) {
   if (typeof text !== "string") return text;
   const wrapped = VOLATILE_WRAP.exec(text);
   if (wrapped) return `<system-reminder>\n${scrubText(wrapped[1])}\n</system-reminder>`;
-  if (text === "") return "";
-  return `t_${sha(text).slice(0, 12)}_${text.length}`;
+  // An empty segment carries no bytes, so there is nothing to tokenize; it
+  // stays empty and the separators around it survive untouched.
+  return text
+    .split(PARA_SEP)
+    .map((seg) => (seg === "" ? "" : `t_${sha(seg).slice(0, 12)}_${seg.length}`))
+    .join(PARA_SEP);
 }
 
 function scrubBlock(block) {
