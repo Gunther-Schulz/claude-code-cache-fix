@@ -141,8 +141,22 @@ bullet, evidence pointer included.
   `--list`. Per the three-answer rule: "cannot triage: controlled cause"
   is an answer; silence is not.
 
-- **PARKED — row 4 rate re-measure (telemetry, NOT a gate on the item
-  above).** Missing evidence, named: 14 replace/edits in 179 pairs (7.8%)
+- **PARKED — commit-claim guard (commit-msg hook, warn-only): a message
+  naming a file/symbol absent from the staged diff.** Evidence, twice in
+  two days in THIS repo: acc0814's message claimed a BACKLOG.md edit the
+  commit did not contain (landed separately as c369e50), and 7b2a5ef's
+  message listed `hostId` among the census exports while the staged file
+  lacked it — the code sat uncommitted until session close 2026-07-31
+  (committed 3afce21). Both are the same shape: the message was written
+  against intended state, not staged state. Parked on a design decision
+  the operator owns: the hook lives in dotfiles (git hooks are deployed
+  from there), and the computable predicate needs care to avoid
+  fire-on-non-defect (messages legitimately name files they do not touch
+  — "matrix row 4", "see BACKLOG"); candidate slice: warn only when a
+  message uses change verbs (add/fix/export/remove) adjacent to a
+  path-or-symbol token that greps to zero hits in `git diff --cached`.
+  Trigger to unpark: a third incident, or the operator picking the
+  predicate up in dotfiles. Missing evidence, named: 14 replace/edits in 179 pairs (7.8%)
   in one session vs 5 in 838 (0.6%) in the 940-request corpus that closed
   the row on 2026-07-28 — one session against a corpus, so the rate is not
   established. Trigger to unpark: a `--census` sweep over the harvested
