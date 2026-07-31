@@ -37,6 +37,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { censusPair } from "./replay.mjs";
+import { readLines } from "./read-lines.mjs";
 import { canonical, classify, reminderBlocks, textOf } from "./reminder-migration-census.mjs";
 
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
@@ -101,12 +102,15 @@ export function transcriptCause(sid, cc) {
   return null;
 }
 
-/** The capture request pair straddling a bust, by conversation. */
-export function capturePair(sid, tsEpoch) {
+/** The capture request pair straddling a bust, by conversation.
+ * Streamed via readLines, never readFileSync: the busting session's own
+ * capture is routinely the largest on disk, and the whole-file string read
+ * died at >512 MB (ERR_STRING_TOO_LONG, live 2026-07-31) — the same class
+ * a77c930 fixed in the census. Two passes, retaining only the two records
+ * that matter. */
+export async function capturePair(sid, tsEpoch) {
   const f = join(CAPTURES, `s-${sid}-requests.jsonl`);
   if (!existsSync(f)) return null;
-  const recs = lines(f).map(j).filter((r) => r?.body?.messages && r?.ts);
-  if (recs.length < 2) return null;
   // The busting request is the newest one at or before the ledger stamp; its
   // predecessor IN THE SAME CONVERSATION is the comparison. Conversation, not
   // adjacency — interleaved tenants sit several lines apart.
@@ -126,15 +130,22 @@ export function capturePair(sid, tsEpoch) {
   const cutoff = tsEpoch * 1000;
   const plausible = (r) => (r.body.messages?.length ?? 0) >= 2;
   let after = null;
-  for (const r of recs) {
+  let seen = 0;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (!r?.body?.messages || !r?.ts) continue;
+    seen++;
     const t = Date.parse(r.ts);
     if (t <= cutoff && plausible(r) && (!after || t > Date.parse(after.ts))) after = r;
   }
-  if (!after) return null;
+  if (seen < 2 || !after) return null;
   const cid = JSON.stringify(after.body.messages[0]);
   let before = null;
-  for (const r of recs) {
-    if (r === after) continue;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (!r?.body?.messages || !r?.ts) continue;
+    // `after` itself is excluded by the strict earlier-than check below —
+    // the cross-pass object-identity test the array version used is gone.
     if (JSON.stringify(r.body.messages[0]) !== cid) continue;
     if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
     if (!before || Date.parse(r.ts) > Date.parse(before.ts)) before = r;
@@ -186,7 +197,7 @@ export function classToRow(censusClass, migration) {
   return null;
 }
 
-export function triage(bust) {
+export async function triage(bust) {
   const steps = [];
   const tc = transcriptCause(bust.s, bust.cc);
   steps.push(tc
@@ -206,7 +217,7 @@ export function triage(bust) {
     steps.push({ step: "reconcile", ok: true, detail: "ledger and transcript agree" });
   }
 
-  const pair = capturePair(bust.s, bust.t);
+  const pair = await capturePair(bust.s, bust.t);
   if (!pair) {
     steps.push({ step: "capture", ok: false, detail: "no capture pair (capture off, or rotated)" });
     return { bust, steps, verdict: "UNVERIFIABLE", why: "no capture pair to classify" };
@@ -270,7 +281,7 @@ export function fallbackNote(events) {
     : "        No bust in the ledger to fall back to."];
 }
 
-function main(argv) {
+async function main(argv) {
   const args = argv.slice(2);
   const json = args.includes("--json");
   const events = coldEvents();
@@ -300,7 +311,7 @@ function main(argv) {
     bust = all.reduce((best, b) =>
       Math.abs(b.t - want) < Math.abs(best.t - want) ? b : best, all[0]);
   }
-  const r = triage(bust);
+  const r = await triage(bust);
   if (json) {
     // `newest` rides the JSON so a consumer can see the substitution too — the
     // whole failure was that it happened invisibly.
@@ -358,5 +369,5 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     process.stdout.write("bust-triage: selftest passed\n");
     process.exit(0);
   }
-  process.exit(main(process.argv));
+  process.exit(await main(process.argv));
 }
