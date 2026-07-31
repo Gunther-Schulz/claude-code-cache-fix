@@ -19,11 +19,15 @@
 // text) — a hand-classification the tool did not carry, so the next session
 // would have re-derived it.
 //
-// Fixtures are synthetic, and must be: harvest's scrub tokenizes each text
-// independently, so scrub(a + "\n\n" + b) != scrub(a) + "\n\n" + scrub(b) and a
-// harvested fixture of a real merged pair does not reproduce the prefix/join
-// relation that DEFINES the class (report §c5, BACKLOG "harvest scrub cannot
-// express prefix/join byte relations").
+// Fixtures are synthetic because a unit test wants a minimal pair it fully
+// controls — not because the class cannot be harvested. It can, as of bffcb05
+// (same day): the scrub is a "\n\n"-homomorphism now, so the prefix/join
+// relation that DEFINES this class survives sanitization. Executed against the
+// shipped `scrubMessage` rather than read from its diff — scrub(a+"\n\n"+b)
+// === scrub(a)+"\n\n"+scrub(b), and this file's own `subclassifyExtended`
+// returns MERGED-STANDALONE on the scrubbed bytes. An earlier revision of this
+// comment said the opposite, from report §c5, which was true when it was
+// written and had already been fixed when this landed.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
