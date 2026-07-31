@@ -382,6 +382,11 @@ population on every `--census` run, and `tools/gate-live.mjs` runs daily.
 Row 4's disposition is now a measurement, not a memory.
 
 ### Row 4 datapoint — 2026-07-30: first measured OSCILLATION (221k bust)
+### [CORRECTED 2026-07-31 late: the census join-target run over the live
+### capture shows THREE hosts reversing in this event, not the single
+### 92→94 pair the flap-probe addendum priced — the 221k was measured at
+### a third of its true per-host size. Basis: census-flap-joined-report,
+### live slice "10, 6 FLAP, 7 JOIN (3 cross-message)".]
 
 Session 0d6f38ba, 16:57:14Z, `messages_changed`, cc 221,065. The Agent
 hook-reminder pair FLAPPED inline->standalone->inline->standalone across

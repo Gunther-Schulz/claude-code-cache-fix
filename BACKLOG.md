@@ -1065,7 +1065,20 @@ bullet, evidence pointer included.
   deployment rides the restart boundary. Branch wt/fidelity/opus is
   consumed (cherry-picked, squashed) and deletable.
 
-- **READY — census flap annotation (blockMigration reversal).**
+- **RESOLVED — census flap annotation: shipped BEFORE the dispatch
+  that was sent to build it (fc44da3 marker + 47defba addendum, both
+  ancestors of the dispatch base 94cbf82; caught by the census-pair
+  agent's premise check, git log on the target file, before any
+  build — its lesson (i)). Entry left by those refs; joined-standalone
+  below resolved by 9ff79f7 the same night (dispatcher-verified:
+  selfcheck 66/66, full suite 1848/1848/0; live slice of s-0d6f38ba:
+  "10, 6 FLAP, 7 JOIN (3 cross-message)" vs "3, 2 FLAP" at base).
+  CORRECTION riding this (agent gap 2, matrix updated): the
+  addendum's "the real flap is the single 92→94 pair" is REFUTED by
+  the live run — THREE hosts reverse, so row 4's 221k event was
+  priced at a third of its true size.** Original entry kept below
+  for the record.
+  Original: census flap annotation (blockMigration reversal).
   `replay.mjs --census` emits a `flap` marker when the same
   blockMigration block-hash pair reverses direction within 5 requests
   of one conversation — today the flap is visible only by reading
@@ -1078,7 +1091,10 @@ bullet, evidence pointer included.
   annotation builder, red-first, before the detector lands. On the
   2026-07-30 triple the real flap is the single 92->94 pair reversing.
 
-- **READY — census: joined-standalone migration target.** blockUnits
+- **RESOLVED 2026-07-31 (9ff79f7, census-pair dispatch — see the
+  flap-annotation resolution above for the shared evidence; kinds
+  tagged in-entry vs cross-message, join hashes on compactEntry, no
+  text retained, dead blockUnits removed).** Original: blockUnits
   hashes blocks individually, so a standalone that is a JOIN produces
   no migration row — two of the three standalone legs in fixture
   flap-s-0d6f38ba-86.json are joins the detector cannot see, and the
