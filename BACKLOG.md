@@ -32,10 +32,21 @@ bullet, evidence pointer included.
   is never ambiguously re-split; the A→B transition then changes no bytes.
   `role:"system"` inside `messages[]` is legitimate wire shape, not an
   anomaly — it is the `mid-conversation-tool-changes` beta's format
-  (`deferred-tool-rewrite.mjs:16,381`). Verifier: replay the 2026-07-31
-  capture — `--census` must stop reporting `edit@98 of 123` as MID-HISTORY
-  replace/edit, with 0 new stability/safety violations. Done-criterion:
-  extension shipped behind its own gate, red-then-green on that capture.
+  (`deferred-tool-rewrite.mjs:16,381`). Verifier — NOTE the first one named here was WRONG and the run proved
+  it: `--census` classifies the INPUT (what CC sent), so no mitigation can
+  ever change `edit@98 of 123`; that line names the class, never the
+  absorption. The real check is whether the FORWARDED bodies converge —
+  run `normalizeMessages` over both captured requests and compare the first
+  divergence index. SHIPPED 2026-07-31 (`hook-context-normalize`, order 355,
+  gated `CACHE_FIX_HOOK_CONTEXT_NORMALIZE=1`, additionally requiring the
+  `mid-conversation-system-2026-04-07` beta before emitting a role:"system"
+  entry; commit acc0814). Measured on the motivating capture: first
+  divergence 97 -> 101, re-bill ~104 kB -> ~97 kB. PARTIAL by construction
+  and stated as such — the EXACT host is absorbed, then the divergence lands
+  on the EXTENDED host at 101 whose later form carries text that did not
+  exist yet. Closing this event fully needs the EXTENDED class
+  (new-reminder accumulation), which no serialization rule can absorb;
+  booked separately rather than folded in.
   NOT gated on the rate re-measure below: the Mitigation policy states fire
   counts are "never a worthiness threshold" and cost never gates the work —
   an earlier revision of this item made exactly that error.
