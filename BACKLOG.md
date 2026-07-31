@@ -123,6 +123,24 @@ bullet, evidence pointer included.
   (11:31:58 and 11:41:05). Done when `gate-live.mjs`'s daily sweep carries
   the summary, so an interior-divergent prune surfaces without a hand-run.
 
+- **READY — bust-triage must see what the statusline shows (k:"cost"
+  blindness).** Grounding, observed live 2026-07-31 ~13:53Z: statusline
+  showed `❄ 55k compact (8m)` (ledger `k:"cost"` t=1785505434, this
+  session); `bust-triage` and `--list` showed nothing newer than 12:25
+  because `bust-triage.mjs:59` filters `k === "hit"` only — the default
+  run silently triaged an older, different event. The event itself was
+  controlled (post-/compact + model-switch first write, same instant as
+  the transcript's `model_changed mtok=49784` diagnostic at 13:43:54Z;
+  worktime cc=54908 is total-written, mtok is missed-portion — one event,
+  two measures). Fix (extend, not new tool): include `k:"cost"` entries in
+  `--list` labeled `CONTROLLED(<cause>)`; when the newest ledger event is
+  a controlled class, the default run states that and names the event it
+  fell back to instead of silently skipping. Verifier: re-run against the
+  current ledger must list the 1785505434 compact event and say so in the
+  no-args run. Done when a ❄-visible event can never be absent from
+  `--list`. Per the three-answer rule: "cannot triage: controlled cause"
+  is an answer; silence is not.
+
 - **PARKED — row 4 rate re-measure (telemetry, NOT a gate on the item
   above).** Missing evidence, named: 14 replace/edits in 179 pairs (7.8%)
   in one session vs 5 in 838 (0.6%) in the 940-request corpus that closed
