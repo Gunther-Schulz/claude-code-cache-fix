@@ -1096,7 +1096,7 @@ export function findEditPositions(entries) {
 // meaningful.
 //
 // CANDIDACY (2026-07-30, measured on the real flap bytes — capture
-// s-0d6f38ba pair n=102->104, fixture flap-s-0d6f38ba-86.json): the block
+// s-0d6f38ba pair n=102->104, fixture flap-s-0dc8ac87c43d-86.json (capture s-0d6f38ba)): the block
 // must appear <system-reminder>-WRAPPED on whichever side it is INLINE.
 // Without that condition the definition above over-reports, because both of
 // its guards can be true of a block that never moved:
@@ -1518,7 +1518,7 @@ function joinUnitHash(units) {
 
 // The CROSS-MESSAGE join — the definition's "including as a join constituent"
 // clause, and the shape the single-message join above cannot express. Measured
-// (fixture flap-s-0d6f38ba-86.json, request n=104, message 91): CC merged one
+// (fixture flap-s-0dc8ac87c43d-86.json (capture s-0d6f38ba), request n=104, message 91): CC merged one
 // message's reminder with the WHOLE of the standalone message that followed
 // it, "\n\n"-joined, and sent the two as a single message. A copy of that
 // message on the wire is therefore split across two forwarded messages, and is

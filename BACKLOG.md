@@ -1153,19 +1153,42 @@ bullet, evidence pointer included.
   in the PARKED reserved-entry-residuals entry; verdict-ab self-test
   its own READY item.
 
-- **READY — fixture sanitization: build
-  docs/directives/fixture-sanitization-directive.md** (supersedes
-  the two separate items minted earlier today — image-scrub depth
-  fix and flap rebuild — after the #272 thread showed the reviewer's
-  blocker 1 adds structural IDs and filenames to the same scrub, and
-  their explicit path is branch REWRITE upstream, never
-  scrub-on-top). Scope: scrubBlock recurses into source; keys/sids →
-  sha12 tokens; timestamps rebased to fixed epoch + deltas;
-  session-UUID-free filenames; all harvested fixtures rebuilt with
-  per-fixture verdict-neutrality asserted by replay; mechanical
-  absence-class bite red-first. Upstream branch rewrites are the
-  directive's §6, GATED on reviewer agreement — dispatcher-owned,
-  not part of the build dispatch.
+- **RESOLVED 2026-07-31 (687cbc5, opus dispatch,
+  dispatcher-verified: full suite 1839/1839/0 on main
+  post-integration; report
+  docs/code-reviews/fixture-sanitization-report.md) — fixture
+  sanitization, directive §§1-5.** 9/20 absence bites red-first on
+  the old fixtures (5 raw PNGs, 83 live timestamps, 3 UUIDs, 57 raw
+  strings, 4 raw signatures); verdict-neutral across all 44 corpus
+  verdict lines; all 9 non-LEDGER fixtures rebuilt+renamed;
+  oscillation fixture's "already tokenized" premise REFUTED and
+  fully rebuilt; the merged-join byte-equality is now a CHECK,
+  retiring the raw-retention precedent. §6 (upstream rewrites)
+  stays reviewer-gated. Dispatch gap dispositions: (g1)
+  LEDGER-Siren.json's 42 session UUIDs + wall-clock = ACCEPTED
+  RESIDUAL for this local/controlled deployment per the operator's
+  2026-07-31 corpus-hygiene ruling; tokenizing the ledger is PARKED
+  below. (g2) hardcoded UUID + /home path in two test REAL_CAPTURE
+  defaults → READY item below. (g3) four stale fixture-name
+  comments: replay.mjs's two fixed same evening; the extension's
+  two ride the next proxy boundary (folded into the blocker-3
+  item's note).
+
+- **PARKED — tokenize LEDGER-Siren.json keys (g1 follow-up).**
+  Accepted residual today (operator ruling, local deployment);
+  becomes real work only if the ledger ever feeds a PR slice or a
+  non-local consumer. Same sidToken scheme harvest now uses;
+  consumer to name at build time: growth snapshots + doctor
+  bookings read it.
+
+- **READY — test REAL_CAPTURE defaults carry a live session UUID and
+  an absolute /home path (g2).** insertion-suppression.test.mjs:288
+  and mitigation-output-form.test.mjs:120. Fix: derive the default
+  by scanning ~/.claude/cache-fix-captures at runtime (newest
+  capture), env override kept; no identifier in source. Verifier:
+  grep for 8-4-4-4-12 UUIDs and /home/ paths in test/ source goes
+  to zero; both tests keep their designed skip when no capture
+  exists.
 
 - **HOLD — prepared PR-slice branches, push blocked on two
   conditions (operator-visible).** State: pr/verification-tools
