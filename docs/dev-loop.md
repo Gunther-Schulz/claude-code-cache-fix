@@ -14,6 +14,37 @@ node tools/harvest.mjs                           # promote novel pairs to fixtur
 npm test                                         # committed fixtures, deterministic
 ```
 
+And when a bust actually HAPPENS, start here rather than at a jq prompt:
+
+```sh
+node tools/bust-triage.mjs                       # newest bust -> classified verdict
+node tools/bust-triage.mjs --list                # recent busts, newest first
+node tools/bust-triage.mjs --at <epoch|ISO>      # one specific bust
+```
+
+`bust-triage` chains what used to be a six-step hand walk — worktime ledger,
+CC transcript, capture pair, `censusPair`, container byte-test, threat-matrix
+lookup — into one verdict, and it reconciles the ledger against the transcript
+because those two have disagreed live. Its verdicts are MITIGATED /
+KNOWN-OPEN / **UNCLASSIFIED** / UNVERIFIABLE. UNCLASSIFIED is the one to stop
+on: it means the shape maps to no matrix row, i.e. a class nothing currently
+watches — which is exactly how a whole bust class stayed invisible until a
+diff happened to be read by hand.
+
+Designing a NORMALIZATION (rewriting CC's form into a canonical one) has its
+own gate, and it is not optional:
+
+```sh
+node tools/reminder-migration-census.mjs ~/.claude/cache-fix-captures/*.jsonl
+```
+
+It byte-tests a canonical rule against what CC itself emits, across the whole
+corpus, and reports EXACT / EXTENDED / DROPPED / MISMATCH plus the PLACEMENT
+distribution. Both halves are load-bearing: correct bytes at the wrong index
+diverge the prefix just the same, and a rule proven on one occurrence is not
+proven (the row-4 rule matched one hand-read case and failed the next). Any
+MISMATCH blocks shipping — see the matrix's "Byte-match test".
+
 `npm test` is necessary and not sufficient — see "the corpus is blind along
 its own curation axis" below. `gate-live` is the one that runs against
 production-shaped input.
