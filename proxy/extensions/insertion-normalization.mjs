@@ -757,12 +757,53 @@ export function classifyPinned(messages, priorCanonical) {
     // diverges against a baseline that was never on the wire. Measured: that
     // mistake turned 0 violations into 3 on capture s-0edbd11c before the
     // canonical was switched to the pinned array.
+    // Suppression runs HERE too, not only on the success path.
+    //
+    // The defect this closes (measured 2026-07-31, session 77fe2779, the
+    // 11:41:05 request): CC pruned six ephemeral turns, the survivors stopped
+    // being a subsequence, and this reset fired. It kept the pins — the event
+    // recorded `pinned: 2` — but returned BEFORE the migrated-duplicate pass,
+    // so the event also recorded `suppressed: 0` and the standalone copy of an
+    // already-pinned reminder went out on the wire. The prefix broke at the
+    // host and everything after it re-billed: `edit@98 of 123`, transcript
+    // `cache_miss_reason messages_changed / 105006`, ~104 kB.
+    //
+    // The suppression built for exactly that shape was therefore disarmed by
+    // any reset — and resets are not rare (this file's own measurement: 125
+    // across 350 requests, roughly one in three). A mitigation that switches
+    // off on a third of requests, silently, is the shape that reads as shipped
+    // and behaves as absent.
+    //
+    // The pins are already in hand here, which is what makes this correct
+    // rather than a second mechanism: a standalone duplicate is suppressible
+    // precisely when the inline form it duplicates is being restored, and
+    // `applied` above is that restoration.
+    const pinnedHashesR = pinnedBlockHashes(priorCanonical);
+    const pinnedJoinR = pinnedJoinHashes(priorCanonical);
+    const lastIdxR = messages.length - 1;
+    const suppressedR = new Set();
+    for (const e of incoming) {
+      if (priorByKey.has(identityKey(e))) continue; // only entries CC newly sent
+      if (e.r === "assistant") continue;
+      if (e.index === lastIdxR) continue;           // tail growth is never a stray migration
+      if (findSuppressibleDuplicate(messages[e.index], pinnedHashesR, pinnedJoinR) !== null) {
+        suppressedR.add(e.index);
+      }
+    }
+    const forwarded = suppressedR.size > 0
+      ? out.filter((_, i) => !suppressedR.has(i))
+      : out;
+    // A suppressed entry was never forwarded, so it must not enter the
+    // canonical either — same invariant the success path states: the canonical
+    // describes the wire we JUST FORWARDED.
+    const keptEntries = incoming.filter((e) => !suppressedR.has(e.index));
     return {
       action: "reset",
       resetReason,
-      canonicalEntries: incoming.map((e) => buildPinEntry(e, out[e.index])),
-      ...(applied > 0 ? { messages: out } : {}),
+      canonicalEntries: keptEntries.map((e) => buildPinEntry(e, out[e.index])),
+      ...(applied > 0 || suppressedR.size > 0 ? { messages: forwarded } : {}),
       pinned: applied,
+      suppressed: suppressedR.size,
     };
   };
 
