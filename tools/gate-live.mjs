@@ -33,7 +33,7 @@
 // precisely what this is here to report.
 
 import { spawn, spawnSync } from "node:child_process";
-import { readdir, stat, writeFile, mkdir } from "node:fs/promises";
+import { readdir, stat, writeFile, mkdir, readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir, hostname } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -193,6 +193,10 @@ function summarise(file, bytes, res) {
   }
   row.requests = parsed.report?.length ?? 0;
   row.stability = parsed.violations?.length ?? 0;
+  // Exempted divergences are ABSENT from `violations` by design; without
+  // this field a status reader cannot tell "no divergence" from
+  // "divergence declared exempt" (reset-wipes exemption).
+  row.stabilityExempt = parsed.exemptions?.length ?? 0;
   row.safety = parsed.safety?.length ?? 0;
   // Content conservation (the fifth gate): bytes CC sent that the pipeline
   // neither forwarded nor accounted for. Ranked with safety rather than with
@@ -420,6 +424,22 @@ async function main() {
   } catch {
     code = null; // never block the verdict on the stamp; absent reads as unstamped
   }
+  // Backlog header lint (WARN-only, fork-side): a stale header over a
+  // resolved body mis-grades surveys; the daily sweep is its standing
+  // consumer. Never gates the sweep; absent BACKLOG.md (upstream trees)
+  // reads as null, not zero.
+  let backlogLint = null;
+  try {
+    const { lintText } = await import("./backlog-lint.mjs");
+    const findings = lintText(await readFile(join(__dirname, "..", "BACKLOG.md"), "utf-8"));
+    backlogLint = findings.length;
+    for (const f of findings) {
+      process.stderr.write(`WARN backlog-header line=${f.line} grade=${f.grade} header="${f.header}"\n`);
+    }
+  } catch {
+    backlogLint = null;
+  }
+
   const status = {
     version: 1,
     started,
@@ -439,6 +459,7 @@ async function main() {
     // single-request captures ran zero cross-request checks.
     ok: failed.length === 0 && proving.length > 0,
     byteGate,
+    backlogLint,
     rows,
   };
   await mkdir(dirname(args.status), { recursive: true });

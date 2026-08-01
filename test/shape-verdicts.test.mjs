@@ -98,15 +98,19 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
   const dir = await mkdtemp(join(tmpdir(), "shape-verdicts-"));
   try {
     const verdicts = await computeVerdicts(join(dir, "no-such-ledger.json"));
-    // 3 ledger-shape verdicts + the telemetry-consumer table (Q4). The
-    // table length is asserted against the TABLE, not a literal — a row
-    // legitimately added must not redden this test (the hardcoded-count
-    // anti-pattern bit exactly once, 2026-07-30).
+    // 4 standing verdicts (3 ledger-shape + duplicate-billing) + the
+    // telemetry-consumer table (Q4). The table length is asserted against
+    // the TABLE, not a literal — a row legitimately added must not redden
+    // this test (the hardcoded-count anti-pattern bit 2026-07-30, and
+    // again at this line's own former "3" on 2026-08-01).
     const { TELEMETRY_CONSUMERS } = await import("../tools/shape-verdicts.mjs");
-    assert.equal(verdicts.length, 3 + TELEMETRY_CONSUMERS.length);
-    assert.ok(verdicts.every((v) => v.level === "warn" || v.name === "baseline"));
+    assert.equal(verdicts.length, 4 + TELEMETRY_CONSUMERS.length);
+    // duplicate-billing reads MACHINE state (the gate status file), so its
+    // level legitimately varies here; the ledger-shape claim is about the
+    // ledger verdicts only.
+    assert.ok(verdicts.every((v) => v.level === "warn" || v.name === "baseline" || v.name === "duplicate-billing"));
     assert.equal(verdicts[0].level, "warn", "shape-watch cannot read as green without a ledger");
-    const telemetryNames = verdicts.slice(3).map((v) => v.name);
+    const telemetryNames = verdicts.slice(4).map((v) => v.name);
     assert.deepEqual(telemetryNames, TELEMETRY_CONSUMERS.map((e) => e.name));
   } finally {
     await rm(dir, { recursive: true, force: true });
