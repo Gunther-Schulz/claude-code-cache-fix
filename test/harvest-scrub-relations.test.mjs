@@ -44,6 +44,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { scrubMessage } from "../tools/harvest.mjs";
+// Section 6's classes, the walker and the allowlist now live in
+// tools/absence-scan.mjs, so the pre-push hook runs the SAME predicates this
+// suite asserts on. The assertions below are unchanged; only their source of
+// the predicates moved.
+import { scanDocument, scanName, isAllowlisted, CLASS_NAMES } from "../tools/absence-scan.mjs";
 
 const scrub = (text) => scrubMessage({ role: "user", content: text }).content;
 
@@ -292,19 +297,16 @@ test("nesting: an unknown long string under source is tokenized too (fail closed
 // than left implicit.
 
 const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "harvested");
-const B64_RUN = /[A-Za-z0-9+/]{201,}/;
-const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
-// Stated from the directive, not read back from tools/harvest.mjs: an
-// expectation with the same parentage as the code pins the bug it should
-// catch (docs/dev-loop.md, "Adding a check").
-const EPOCH_START = Date.parse("2000-01-01T00:00:00.000Z");
-const EPOCH_END = Date.parse("2001-01-01T00:00:00.000Z");
+
+// The LEDGER exclusion is the tool's allowlist, matched on the repo-relative
+// path — one source for this suite and for the pre-push hook, so neither can
+// drift into accepting something the other rejects.
+const corpusPath = (f) => `test/fixtures/harvested/${f}`;
 
 function committedFixtures() {
   return readdirSync(FIXTURE_DIR)
-    .filter((f) => !f.startsWith("LEDGER-"))
     .filter((f) => f.endsWith(".json") || f.endsWith(".jsonl"))
+    .filter((f) => !isAllowlisted(corpusPath(f)))
     .sort()
     .map((f) => {
       const text = readFileSync(join(FIXTURE_DIR, f), "utf-8");
@@ -315,88 +317,62 @@ function committedFixtures() {
     });
 }
 
-// Every string VALUE in a fixture, with the path that reaches it, plus the
-// object that owns it — the scan has to see structure (`source.data`) as well
-// as bytes.
-function* strings(node, path = "$") {
-  if (typeof node === "string") return yield { path, value: node, owner: null };
-  if (Array.isArray(node)) {
-    for (let i = 0; i < node.length; i++) yield* strings(node[i], `${path}[${i}]`);
-    return;
+// One pass of every class over the whole corpus. `seen` is each class's
+// DOMAIN size — how many strings it had an opinion about — which is what the
+// vacuity assertions below read: a scan that matched nothing because it looked
+// at nothing must not read as clean.
+function corpusScan() {
+  const findings = [];
+  const seen = Object.fromEntries(CLASS_NAMES.map((n) => [n, 0]));
+  let scanned = 0;
+  const fixtures = committedFixtures();
+  for (const { name, docs } of fixtures) {
+    docs.forEach((doc, i) => {
+      const r = scanDocument(doc, { file: name, path: docs.length > 1 ? `$[${i}]` : "$" });
+      findings.push(...r.findings);
+      for (const n of CLASS_NAMES) seen[n] += r.seen[n];
+      scanned += r.scanned;
+    });
   }
-  if (node && typeof node === "object") {
-    for (const [k, v] of Object.entries(node)) {
-      if (typeof v === "string") yield { path: `${path}.${k}`, value: v, owner: node, key: k };
-      else yield* strings(v, `${path}.${k}`);
-    }
-  }
+  return { fixtures, findings, seen, scanned };
 }
 
+// A finding never carries the matched bytes — printing a leak into a test log
+// moves it rather than finding it — so a failure message names the class, the
+// file, the JSON path and the length.
+const hitsOf = (findings, cls) =>
+  findings.filter((f) => f.class === cls).map((f) => `${f.file} ${f.path} (${f.length} chars)`);
+
 test("absence: the committed corpus is non-empty and every fixture parses (the scan cannot pass vacuously)", () => {
-  const fixtures = committedFixtures();
+  const { fixtures, scanned } = corpusScan();
   assert.ok(fixtures.length >= 8, `expected the harvested corpus, found ${fixtures.length} fixture(s)`);
-  let scanned = 0;
-  for (const { docs } of fixtures) for (const doc of docs) for (const _ of strings(doc)) scanned++;
   assert.ok(scanned > 1000, `expected thousands of strings to scan, saw ${scanned}`);
 });
 
 test("absence (a): no committed fixture carries a base64 run longer than 200 characters", () => {
-  const hits = [];
-  for (const { name, docs } of committedFixtures()) {
-    for (const doc of docs) {
-      for (const { path, value } of strings(doc)) {
-        const m = B64_RUN.exec(value);
-        if (m) hits.push(`${name} ${path} (${m[0].length} chars)`);
-      }
-    }
-  }
-  assert.deepEqual(hits, [], "a long base64 run is an unsanitized payload");
+  const { findings } = corpusScan();
+  assert.deepEqual(hitsOf(findings, "b64-run"), [], "a long base64 run is an unsanitized payload");
 });
 
 test("absence (b): every source.data in the corpus is a data_ token", () => {
-  const hits = [];
-  let seen = 0;
-  for (const { name, docs } of committedFixtures()) {
-    for (const doc of docs) {
-      for (const { path, value, key, owner } of strings(doc)) {
-        if (key !== "data" || !owner || !path.endsWith(".source.data")) continue;
-        seen++;
-        if (!DATA_TOKEN.test(value)) hits.push(`${name} ${path} (${value.length} chars)`);
-      }
-    }
-  }
-  assert.deepEqual(hits, [], "a raw source.data is the measured 2026-07-31 image gap");
-  assert.ok(seen > 0, "the corpus must still contain nested-payload blocks, or this asserts nothing");
+  const { findings, seen } = corpusScan();
+  assert.deepEqual(hitsOf(findings, "nested-payload"), [],
+    "a raw source.data is the measured 2026-07-31 image gap");
+  assert.ok(seen["nested-payload"] > 0,
+    "the corpus must still contain nested-payload blocks, or this asserts nothing");
 });
 
 test("absence (c): every whole-string ISO instant lies in the fixed-epoch family", () => {
-  const hits = [];
-  let seen = 0;
-  for (const { name, docs } of committedFixtures()) {
-    for (const doc of docs) {
-      for (const { path, value } of strings(doc)) {
-        if (!ISO_INSTANT.test(value)) continue;
-        seen++;
-        const t = Date.parse(value);
-        if (!(t >= EPOCH_START && t < EPOCH_END)) hits.push(`${name} ${path} = ${value}`);
-      }
-    }
-  }
-  assert.deepEqual(hits, [], "a live wall-clock timestamp survived the rebase");
-  assert.ok(seen > 0, "fixtures carry timestamps; seeing none means the scan is broken");
+  const { findings, seen } = corpusScan();
+  assert.deepEqual(hitsOf(findings, "live-timestamp"), [],
+    "a live wall-clock timestamp survived the rebase");
+  assert.ok(seen["live-timestamp"] > 0,
+    "fixtures carry timestamps; seeing none means the scan is broken");
 });
 
 test("absence (d): no 8-4-4-4-12 UUID appears anywhere in the corpus", () => {
-  const hits = [];
-  for (const { name, docs } of committedFixtures()) {
-    for (const doc of docs) {
-      for (const { path, value } of strings(doc)) {
-        const m = UUID.exec(value);
-        if (m) hits.push(`${name} ${path} = …${m[0]}…`);
-      }
-    }
-  }
-  assert.deepEqual(hits, [], "a session UUID is a live capture identifier");
+  const { findings } = corpusScan();
+  assert.deepEqual(hitsOf(findings, "capture-uuid"), [], "a session UUID is a live capture identifier");
 });
 
 // A FIFTH absence class, beyond the directive's four. The directive names
@@ -418,26 +394,10 @@ test("absence (d): no 8-4-4-4-12 UUID appears anywhere in the corpus", () => {
 // reminder scrub still present in the three legacy `harvested-*.jsonl`
 // fixtures) and the empty string.
 
-const CONTENT_KEYS = new Set(["text", "thinking", "content"]);
-const WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
-
 test("absence (e): every content string in the corpus is a token, not capture prose", () => {
-  const hits = [];
-  let seen = 0;
-  for (const { name, docs } of committedFixtures()) {
-    for (const doc of docs) {
-      for (const { path, value, key } of strings(doc)) {
-        if (!CONTENT_KEYS.has(key)) continue;
-        if (value === "" || value === "REDACTED") continue;
-        seen++;
-        const inner = WRAP.exec(value)?.[1] ?? value;
-        if (inner === "REDACTED") continue;
-        if (!wellFormed(inner)) hits.push(`${name} ${path} (${value.length} chars): ${JSON.stringify(value.slice(0, 60))}`);
-      }
-    }
-  }
-  assert.deepEqual(hits, [], "raw capture prose in a public-repo fixture");
-  assert.ok(seen > 500, `expected the corpus's content strings, saw ${seen}`);
+  const { findings, seen } = corpusScan();
+  assert.deepEqual(hitsOf(findings, "raw-content"), [], "raw capture prose in a public-repo fixture");
+  assert.ok(seen["raw-content"] > 500, `expected the corpus's content strings, saw ${seen["raw-content"]}`);
 });
 
 test("absence (d): no fixture FILENAME carries a UUID or a UUID prefix segment", () => {
@@ -446,7 +406,7 @@ test("absence (d): no fixture FILENAME carries a UUID or a UUID prefix segment",
   // the session UUID segment — 12 hex after `s-`, never 8 and never a dashed
   // UUID, so a name can never be matched back to a session by prefix.
   const bad = readdirSync(FIXTURE_DIR)
-    .filter((f) => !f.startsWith("LEDGER-"))
-    .filter((f) => UUID.test(f) || /(^|[^0-9a-f])s-[0-9a-f]{8}(?![0-9a-f])/.test(f));
+    .filter((f) => !isAllowlisted(corpusPath(f)))
+    .filter((f) => scanName(f).length > 0);
   assert.deepEqual(bad, [], "fixture names must carry the s-<sha12> token, not a session UUID or its prefix");
 });
