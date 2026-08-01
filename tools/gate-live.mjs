@@ -145,6 +145,13 @@ export function summariseCensus(res) {
     tally: parsed.tally ?? null,
     extendedSub: parsed.extendedSub ?? null,
     prunes: parsed.prunes ?? null,
+    // dup-census gap 2 (BACKLOG "wire `duplicates` into the daily gate"): the
+    // census's duplicate-request rollup (reminder-migration-census.mjs
+    // summariseDuplicates, 4185fb4) rides on every sweep already via --json,
+    // but was whitelisted out of this summary — the daily status file never
+    // carried it. `null` when the census run predates the field or never
+    // produced one, same convention as tally/extendedSub/prunes above.
+    duplicates: parsed.duplicates ?? null,
   };
 }
 
@@ -270,6 +277,49 @@ const rowIsClean = (r) =>
   !r.byteGate?.error &&
   !r.byteGate?.unreadable;
 
+/** Sweep-wide byte-gate totals: what `main` writes into the daily status
+ * file's `byteGate` field, extracted so the rollup is testable on its own
+ * (a synthetic array of rows) rather than only through a live sweep.
+ *
+ * Duplicate-request rollup (dup-census gap 2, BACKLOG "wire `duplicates`
+ * into the daily gate"): additive across captures like tally/prunes above,
+ * EXCEPT maxStreak, which is the longest run SEEN corpus-wide, not a sum of
+ * per-capture maxima — summing it would inflate the number every capture
+ * touches. `doubleBilledStreaks` is the alarm column, not `billedStreaks`:
+ * a retry that finally succeeds bills exactly one of its sends, which is
+ * correct behaviour (reminder-migration-census.mjs summariseDuplicates);
+ * two-or-more outcome records inside one streak is the CC#78420 shape.
+ */
+export function reduceByteGate(rows) {
+  return rows.reduce((acc, r) => {
+    const g = r.byteGate;
+    if (!g) return acc;
+    if (g.error) { acc.errors++; return acc; }
+    acc.unreadable += g.unreadable ?? 0;
+    for (const k of ["EXACT", "EXTENDED", "DROPPED", "MISMATCH"]) acc.tally[k] += g.tally?.[k] ?? 0;
+    acc.merged += g.extendedSub?.["MERGED-STANDALONE"] ?? 0;
+    acc.newText += g.extendedSub?.["NEW-TEXT"] ?? 0;
+    for (const k of ["pure", "interior", "unanchored"]) acc.prunes[k] += g.prunes?.[k] ?? 0;
+    if (g.duplicates) {
+      const d = g.duplicates;
+      acc.duplicates.pairs += d.pairs ?? 0;
+      acc.duplicates.streaks += d.streaks ?? 0;
+      acc.duplicates.maxStreak = Math.max(acc.duplicates.maxStreak, d.maxStreak ?? 0);
+      acc.duplicates.requests += d.requests ?? 0;
+      acc.duplicates.billedRequests += d.billedRequests ?? 0;
+      acc.duplicates.billedStreaks += d.billedStreaks ?? 0;
+      acc.duplicates.doubleBilledStreaks += d.doubleBilledStreaks ?? 0;
+      acc.duplicates.membersWithoutId += d.membersWithoutId ?? 0;
+    }
+    return acc;
+  }, { errors: 0, unreadable: 0, merged: 0, newText: 0,
+       tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
+       prunes: { pure: 0, interior: 0, unanchored: 0 },
+       duplicates: { pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
+                      billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
+                      membersWithoutId: 0 } });
+}
+
 /** One line per capture: what the byte-gate measured, or why it could not. */
 export function describeByteGate(g) {
   if (!g) return "not run";
@@ -356,19 +406,7 @@ async function main() {
   // Sweep-level byte-gate totals: the daily answer to "did a normalization
   // rule hold corpus-wide, and did any prune re-bill settled history". Read by
   // the operator and by doctor; per-capture rows keep the detail.
-  const byteGate = rows.reduce((acc, r) => {
-    const g = r.byteGate;
-    if (!g) return acc;
-    if (g.error) { acc.errors++; return acc; }
-    acc.unreadable += g.unreadable ?? 0;
-    for (const k of ["EXACT", "EXTENDED", "DROPPED", "MISMATCH"]) acc.tally[k] += g.tally?.[k] ?? 0;
-    acc.merged += g.extendedSub?.["MERGED-STANDALONE"] ?? 0;
-    acc.newText += g.extendedSub?.["NEW-TEXT"] ?? 0;
-    for (const k of ["pure", "interior", "unanchored"]) acc.prunes[k] += g.prunes?.[k] ?? 0;
-    return acc;
-  }, { errors: 0, unreadable: 0, merged: 0, newText: 0,
-       tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
-       prunes: { pure: 0, interior: 0, unanchored: 0 } });
+  const byteGate = reduceByteGate(rows);
   // Fingerprints of the code this sweep actually exercised. The verdict
   // used to record which CONFIG it replayed but never which CODE — so a
   // morning verdict stayed "fresh" (age bound) across an afternoon of

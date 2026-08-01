@@ -375,6 +375,66 @@ export async function computeTelemetryVerdicts(nowMs = Date.now()) {
   return Promise.all(TELEMETRY_CONSUMERS.map((e) => telemetryConsumerVerdict(e, nowMs)));
 }
 
+// --- Duplicate-billing alarm (dup-census gap 2, BACKLOG "wire `duplicates`
+// into the daily gate") ---
+//
+// gate-live's daily sweep now carries byteGate.duplicates (reduceByteGate,
+// tools/gate-live.mjs): the corpus-wide rollup of reminder-migration-census's
+// duplicate-request scan. `doubleBilledStreaks` is the alarm column, not
+// `billedStreaks` — a retry that finally succeeds bills exactly one of its
+// sends, which is correct behaviour; TWO OR MORE outcome records inside one
+// streak is the shape CC#78420 alleges (reminder-migration-census.mjs
+// summariseDuplicates). Same three-answer pattern as the verdicts above: a
+// status file that predates this field (byteGate.duplicates absent —
+// the field lands with the next daily run) reads as a named could-not-verify,
+// never as a silent pass.
+export function duplicateBillingVerdict(status) {
+  if (!status || typeof status !== "object") {
+    return {
+      name: "duplicate-billing",
+      level: "warn",
+      message: "duplicate-billing: gate status missing or unreadable — double-billed streaks NOT currently watched",
+    };
+  }
+  const d = status.byteGate?.duplicates;
+  if (!d || typeof d !== "object") {
+    return {
+      name: "duplicate-billing",
+      level: "warn",
+      message: "duplicate-billing: gate status predates the duplicates field — lands with the next daily run",
+    };
+  }
+  const n = d.doubleBilledStreaks ?? 0;
+  if (n > 0) {
+    return {
+      name: "duplicate-billing",
+      level: "warn",
+      message:
+        `duplicate-billing: ${n} streak(s) carry TWO OR MORE billed outcomes ` +
+        `(of ${d.streaks ?? 0} duplicate streak(s), ${d.billedStreaks ?? 0} billed once) — CC#78420 shape, needs a look`,
+    };
+  }
+  return {
+    name: "duplicate-billing",
+    level: "ok",
+    message: `duplicate-billing: 0 double-billed streaks (${d.streaks ?? 0} duplicate streak(s), ${d.billedStreaks ?? 0} billed once)`,
+  };
+}
+
+// Read the same status file servingGate reads (cache-fix-gate-status.json),
+// async and uncached — computeVerdicts runs once per CLI invocation, so a
+// per-process cache buys nothing here and would only risk staleness if this
+// function is ever called more than once in a process (servingGate's cache
+// is justified by gateResolves being called per telemetry-consumer row;
+// this is called once).
+async function readGateStatus() {
+  try {
+    return JSON.parse(await readFile(join(claudeHome(), "cache-fix-gate-status.json"), "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
 export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
   let current = null;
   try {
@@ -396,6 +456,7 @@ export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
     shapeWatchVerdict(current),
     baselineStepVerdict(committed, current),
     retentionVerdict(committed, current),
+    duplicateBillingVerdict(await readGateStatus()),
     ...(await computeTelemetryVerdicts()),
   ];
 }
