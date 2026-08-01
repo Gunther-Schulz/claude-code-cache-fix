@@ -471,7 +471,13 @@ bullet, evidence pointer included.
   unverified; the post-restart live non-event is the closer).
 
 - **OPEN — mitigation fire-rate ledger: which extensions still earn
-  their keep** (operator question 2026-07-30: upstream may fix CC
+  their keep**
+  (UPSTREAM-REF candidate logged 2026-08-01: anthropics/claude-code
+  #81077 — "PostToolUse additionalContext re-serialized between
+  turns, invalidating prompt cache" — is the row-4 class filed
+  upstream; found by the dossier's gh sweep. A future row-4
+  retirement names it, per refinement (1) below.)
+  (operator question 2026-07-30: upstream may fix CC
   bugs; mitigations should retire on quiet evidence, like corpus
   rules at fire-rate reviews). Today: per-class fire EVIDENCE exists
   (insertion/deferred event logs, guard-events, census per-sweep
@@ -1163,7 +1169,18 @@ bullet, evidence pointer included.
   the join-standalone row; selfcheck mutation test added per
   dev-loop "Adding a check".
 
-- **READY — proxy-side cold detection: subagent-complete bust
+- **RESOLVED 2026-08-01 (eead8bc, loop-trio dispatch,
+  dispatcher-verified 126/126; live ledgers verifiably untouched).
+  Done-criterion ruling (its G1): SATISFIED — the entry named a
+  SPEND case as the test case for a THRESHOLD detector (the 1.07M
+  fable-verify dispatch had a healthy cache; zero threshold events
+  is the CORRECT answer, and its spend rides the totals row), and
+  the entry's intent — subagent busts worktime cannot see — is
+  decisively measured: six events, ~1.5M cc, on 07-30 alone, none
+  in worktime's ledger. Feasibility answer: NO new response tap —
+  request-capture outcome records carry usage since e57a0de.
+  Follow-up decisions → the wiring/grain OPEN entry below —
+  proxy-side cold detection: subagent-complete bust
   visibility (loop: SEE).** worktime's cold ledger is main-session
   only by design; subagent spend is invisible (a verify dispatch cost
   ≈1.1M processed tokens dedup-corrected, excavated by hand from
@@ -1179,7 +1196,13 @@ bullet, evidence pointer included.
   dispatch is the known test case). Done-criterion: that dispatch
   would have produced an event row.
 
-- **READY — bust dossier tool (loop: ATTRIBUTE).** `tools/dossier.mjs
+- **RESOLVED 2026-08-01 (0486395, loop-trio dispatch,
+  dispatcher-verified; entry verifier 5/5 evidence classes PRESENT
+  against the 07-30 16:57 event, matrix-datapoint facts verbatim;
+  bonus find: the gh sweep surfaced anthropics/claude-code#81077 —
+  the row-4 class already filed upstream, logged on the fire-rate
+  entry as its upstream-ref candidate) — bust dossier tool
+  (loop: ATTRIBUTE).** `tools/dossier.mjs
   <utc-timestamp|--last>`: emits ONE file joining the worktime row,
   the prefix-diff snapshot-ledger slice for the window, census lines
   for the affected pairs, transcript context pointers, and the
@@ -1191,12 +1214,31 @@ bullet, evidence pointer included.
   all four runbook steps' evidence present or explicitly marked
   absent (three-answer rule).
 
-- **READY — key→conversation map (rides the dossier; loop:
+- **RESOLVED 2026-08-01 (7a4f226, loop-trio dispatch,
+  dispatcher-verified; ENOENT-strict "new key" predicate — the one
+  surviving mutant got its own seventh bite; activation rides the
+  next proxy boundary, no deploy performed) — key→conversation map
+  (rides the dossier; loop:
   ATTRIBUTE).** prefix-diff appends one line per NEW key — (key,
   session-id, model, first-seen ts) — to a keymap ledger; deletes the
   runbook's "the mapping is recorded nowhere; select by TIME"
   friction. Verifier: the 2026-07-30 main-vs-verifier key confusion
   becomes a single lookup.
+
+- **OPEN (design) — cold-events wiring + tenant grain (loop-trio
+  G2/G3).** Nothing invokes cold-events yet (DEFAULT_LEDGER_PATH
+  exported for whoever wires it), and the grain decision gates the
+  wiring: capture outcome records are SESSION-grained (the Messages
+  API has no agentId slot), and a real run over s-24fc5191 MEASURED
+  a false event (cause=model, prevCtx=1k — a haiku background call
+  and the main conversation diffing against each other; exactly the
+  co-tenant artifact prefix-diff's tenantId exists to remove).
+  Options, undecided: (a) run over transcripts
+  (conversation-grained — what both verifiers used, proven), (b)
+  give capture rows a tenant via prefix-diff's tenantId hash, (c)
+  accept session grain and filter. Until settled, capture-only
+  proxy-side detection manufactures false events — do not wire that
+  path. Evidence: loop-trio report 3a, eead8bc's test suite.
 
 - **PARKED — CC-version tripwire (loop: premise staleness).** On
   first traffic from a new CC client version, one alarm suggesting a
