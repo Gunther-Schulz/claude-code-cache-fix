@@ -916,9 +916,22 @@ bullet, evidence pointer included.
   the sole red row in every sweep, incl. the fresh post-deployment
   stamp). ATTRIBUTE step owed: pull the two pairs' per-request
   deferred-tool-rewrite telemetry and classify — real self-inflicted
-  flip vs instrument/exemption gap. That capture is a live session's
-  own file, so a strict A/B needs it to rotate out first (the
-  unit-2b report's stated constraint). Unit bites exist
+  flip vs instrument/exemption gap.
+  DONE 2026-08-01 (sonnet discovery, dispatcher-classified; evidence
+  docs/code-reviews/s-0dc8ac87c43d-attribute-evidence.md — token
+  name, capture = this entry's): both divergences are
+  deferred-tool-rewrite's own reset branch wiping its injected
+  announcements (reason=tool-schema-changed; CC raw bytes identical
+  at both indices; attribution instrument-bisected, violations=2
+  exemptions=0 corpus-wide). Classification: self-inflicted in FORM,
+  zero marginal billing in SUBSTANCE — the schema change that
+  triggers the reset busts the tools-block cache prefix regardless
+  (premise: tools precede messages in the cache prefix, Anthropic
+  caching docs — the one reviewer-checkable premise). Remedy decided
+  → READY exemption entry below; reset-preserving-additions REJECTED
+  (no billing win, muddies honest-reset semantics). The strict-A/B
+  rotation constraint is superseded by the bisection unless the
+  exemption bite demands live confirmation. Unit bites exist
   (test/proxy-upstream-error-log.test.mjs, #235); flip =
   CACHE_FIX_UPSTREAM_ERROR_LOG=1 in the serving unit riding the
   NEXT proxy restart (no dedicated restart), acceptance recorded
@@ -937,6 +950,22 @@ bullet, evidence pointer included.
   `byteGate` and `prunes` fields (404d5fc) that doctor has never
   seen — they need their three-answer doctor verdict with the first
   timer-path run (census-hardening report, NOT-VERIFIED slot).
+
+- **READY — declare the reset-wipes-additions exemption in replay's
+  stability check (clears the standing daily-gate red).** In
+  scanGroup, beside freshSessionSortExemption: exempt a violation
+  iff the after-request's deferred-tool-rewrite telemetry shows
+  action=reset reason=tool-schema-changed AND the divergence is
+  fully explained by removed tool_addition injection message(s) AND
+  CC's raw messages are identical at outDiv. Build note: replay's
+  compact stability entries do not carry deferredToolRewriteStats
+  today (the evidence probe had to re-run the pipeline) — carrying
+  action/reason into the entry is part of the build. Bite red-first
+  on a synthetic pair pinning the shape; live confirmation: corpus
+  violations 2→0 with exemptions=2 and the doctor cache-fix-gate
+  goes GREEN. Urgency basis: a standing FAIL on a non-defect trains
+  readers to discount the gate (the check-fires-on-non-defect
+  shape). Evidence: the attribute file above.
 
 - **RESOLVED 2026-07-30 (probe, dispatcher-booked): forwardedStable
   was a census framing gap — deferred-tool-rewrite is NOT broken.**
