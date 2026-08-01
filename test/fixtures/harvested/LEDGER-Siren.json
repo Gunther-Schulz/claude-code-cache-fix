@@ -2,9 +2,9 @@
   "version": 1,
   "keys": {
     "c-empty": {
-      "requests": 93,
-      "bytes": 18921,
-      "lastHarvest": "2026-07-31T16:02:52.902Z",
+      "requests": 109,
+      "bytes": 22105,
+      "lastHarvest": "2026-08-01T07:53:43.417Z",
       "classes": [],
       "shape": {
         "pairs": 0,
@@ -44,7 +44,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 44066
-      }
+      },
+      "gone": true
     },
     "s-61976797-899d-4741-aac0-27d39a311e49": {
       "requests": 43,
@@ -78,7 +79,8 @@
       "requests": 513,
       "bytes": 403914981,
       "lastHarvest": "2026-07-29T07:40:11.431Z",
-      "classes": []
+      "classes": [],
+      "gone": true
     },
     "s-924f2860-f1d3-44f5-8593-975d381aacd2": {
       "requests": 221,
@@ -91,7 +93,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 41361
-      }
+      },
+      "gone": true
     },
     "s-c05a754c-dc7b-46d6-80eb-10333d4c1e7c": {
       "requests": 2,
@@ -104,7 +107,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 9277,
         "toolsBytes": 26870
-      }
+      },
+      "gone": true
     },
     "s-c20a44fd-0438-4a95-a372-22500895fa7f": {
       "requests": 13,
@@ -117,7 +121,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
     "s-e52453a1-f839-4e1a-84b5-3d510eb643b4": {
       "requests": 1,
@@ -130,7 +135,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "s-1fa6ad76-7a20-4d01-9684-16afcaac0a6c": {
       "requests": 1,
@@ -406,16 +412,16 @@
       }
     },
     "s-7749d7fc-fbc1-4dbd-ab13-0821b5c53b9a": {
-      "requests": 144,
-      "bytes": 53342078,
-      "lastHarvest": "2026-07-31T16:03:05.760Z",
+      "requests": 1869,
+      "bytes": 858832863,
+      "lastHarvest": "2026-08-01T07:53:54.997Z",
       "classes": [],
       "shape": {
-        "pairs": 130,
-        "thinkingDropPairs": 0,
+        "pairs": 1750,
+        "thinkingDropPairs": 1,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
-        "toolsBytes": 32398
+        "toolsBytes": 42852
       }
     },
     "s-77fe2779-af11-43c0-b212-d8c67c29eff1": {
@@ -458,12 +464,12 @@
       }
     },
     "s-adf6cadb-d98f-49c5-ae2c-578f4596ca9a": {
-      "requests": 437,
-      "bytes": 218462495,
-      "lastHarvest": "2026-07-31T16:03:10.269Z",
+      "requests": 1624,
+      "bytes": 995004562,
+      "lastHarvest": "2026-08-01T07:54:01.807Z",
       "classes": [],
       "shape": {
-        "pairs": 417,
+        "pairs": 1573,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
@@ -497,29 +503,42 @@
       }
     },
     "s-cbc27f3c-84c1-4158-91b0-856277d4218e": {
-      "requests": 191,
-      "bytes": 83770886,
-      "lastHarvest": "2026-07-31T16:03:11.114Z",
+      "requests": 593,
+      "bytes": 485685382,
+      "lastHarvest": "2026-08-01T07:54:04.331Z",
       "classes": [],
       "shape": {
-        "pairs": 176,
-        "thinkingDropPairs": 0,
+        "pairs": 565,
+        "thinkingDropPairs": 2,
         "thinkingTextCompleted": 0,
         "systemBytes": 12699,
-        "toolsBytes": 34268
+        "toolsBytes": 40056
       }
     },
     "s-d06b9ff1-a664-4f3b-9d99-382617c4487e": {
-      "requests": 79,
-      "bytes": 17367667,
-      "lastHarvest": "2026-07-31T16:03:11.202Z",
+      "requests": 235,
+      "bytes": 46113469,
+      "lastHarvest": "2026-08-01T07:54:04.548Z",
       "classes": [],
       "shape": {
-        "pairs": 71,
+        "pairs": 172,
+        "thinkingDropPairs": 1,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 45452
+      }
+    },
+    "s-2b846d33-b48c-42e6-bbb5-d3fa91362480": {
+      "requests": 17,
+      "bytes": 1518593,
+      "lastHarvest": "2026-08-01T07:53:45.110Z",
+      "classes": [],
+      "shape": {
+        "pairs": 12,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
-        "toolsBytes": 32398
+        "toolsBytes": 32475
       }
     }
   }
