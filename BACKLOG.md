@@ -8,7 +8,9 @@ bullet, evidence pointer included.
 
 ## Open
 
-- **READY — hook-context container normalization (matrix row 4,
+- **RESOLVED 2026-07-31 (059aae3 — suppression runs on the reset
+  path; header re-titled 2026-08-01, body was already resolved) —
+  hook-context container normalization (matrix row 4,
   mid-history replace/edit).** Grounding: measured live 2026-07-31, two
   instruments agreeing (`--census`: `edit@98 of 123 [anchor-25] ~75 kB`;
   raw capture diff of the adjacent requests), end-to-end cost from the
@@ -1246,7 +1248,11 @@ bullet, evidence pointer included.
   as the third stacked parent (the merge carries
   deferred-tool-rewrite.mjs).
 
-- **READY-for-design — #272 blocker 2: a reminder-only BYTE change is
+- **RESOLVED 2026-08-01 (measurement 97867f3, directive 40c11b2,
+  delivered on-thread: PR #272 issuecomment-5151089462; decision =
+  evidenced allowlist monitored by the daily census IN-PLACE-TEXT
+  metric, fail-closed re-pin is the build trigger on first
+  occurrence) — #272 blocker 2: a reminder-only BYTE change is
   re-served stale (reviewer: "not patchable, needs a directive" —
   agreed, and it is a genuine fidelity question, not appeasement).**
   Volatile exclusion IS the pin mechanism, so the extension cannot
@@ -1348,14 +1354,11 @@ bullet, evidence pointer included.
   asserting mode 0600 on freshly written canon/events; sweep of
   existing files chmod'd at deploy.
 
-- **READY — #272 blocker 4: proxy-read-dedupe adjacency assertion —
-  make the deliberate call.** The test pins cache-control-normalize
-  immediately after read-dedupe; insertion-normalization at order 395
-  lands between. Decide whether the adjacency is load-bearing for
-  read-dedupe (read its header/rationale first — doc-vs-artifact),
-  then either move the order or update the assertion, with the
-  reasoning in the commit. Known-red on both prepared branches;
-  proven pre-existing at 53761a3.
+- DROPPED 2026-08-01 (duplicate): the #272 blocker-4 adjacency entry —
+  already resolved 2026-07-31 (see the RESOLVED blockers 3+4 entry
+  above: adjacency not load-bearing, assertion green since 60cb337,
+  reasoning recorded beside it). The prepared branches' known-red is
+  cured by their rebuild (HOLD entry, condition 3).
 - **RESOLVED 2026-07-31 (1770a97, small-pair dispatch,
   dispatcher-verified: 11/11 tests) — verdict-ab self-test.** (This
   bullet's header had been consumed by a neighboring edit — the
