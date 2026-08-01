@@ -1015,6 +1015,40 @@ bullet, evidence pointer included.
   timestamps is the confirming check, rides the first week of that
   gate. Honest gap: the 07-29 probe's exact runtime/file list not
   recoverable.
+  REVISED 2026-08-01: the zero-billed discriminator was SAMPLE-BOUND
+  — the counter's first live run over the current corpus found a
+  second population; see the double-billed OPEN entry below.
+
+- **OPEN — double-billed duplicate pairs: 29 streaks live
+  (dup-census first run, 2026-08-01), hand-verified at the
+  altitude.** Two examples records-read-directly: s-0fbf8674 lines
+  3/5 (identical 2384-char haiku bodies, 14 ms apart, BOTH answered,
+  587 input tokens charged EACH) and s-cbc27f3c lines 654/656
+  (identical 1.84 MB fable bodies 11 s apart, both answered;
+  outputTokens 2 and 1 — the first answers look degenerate; second
+  read 360k cached). Corpus rollup: 71 pairs / 67 streaks / 32
+  billed / 29 double-billed of 10,454 same-conversation pairs.
+  Shape: one pair near session start per session + scattered
+  mid-session. OPEN question: CC defect (needless re-send, the
+  #78420-adjacent shape) vs legitimate retry after a degenerate
+  answer — the outputTokens 2/1 pattern leans retry-after-degenerate
+  but is unclassified. Next evidence: inspect the paired answers'
+  content class; correlate streak timestamps with upstream errors
+  once the error-log gate flips (same rider as the retry residue
+  above). Not comparable to the 07-30 numbers: that sample's capture
+  aged out of the corpus mid-measurement.
+
+- **READY — wire `duplicates` into the daily gate (dup-census gap
+  2).** tools/gate-live.mjs summariseCensus (≈:134-149) whitelists
+  pairs/unreadable/tally/extendedSub/prunes and drops the census's
+  new `duplicates` key; add it plus a sweep-level reduce so the
+  status file carries pairs/streaks/billed/doubleBilled per sweep —
+  that line is what makes Q1's "re-answers daily" true, and
+  doubleBilledStreaks is the alarm column (first standing consumer:
+  shape-verdicts, same pattern as the volatile-change metric).
+  Verifier: the field present in the next daily status file with
+  the live numbers; a synthetic sweep bite red-first on the dropped
+  key. Effort S.
 
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
@@ -1037,9 +1071,13 @@ bullet, evidence pointer included.
   emits exactly the tools-only classification row 6 says "cannot be run
   as-is". With --census now on every sweep, read the answer off the
   next gate status and update row 6. Effort S, blocked on one timer run.
-- **Duplicate-request probe → census check (Q1).** The #78420 falsifier
-  (adjacent byte-identical bodies) was a throwaway python scan; as a
-  census counter it re-answers daily. Effort S.
+- DONE 2026-08-01 (4185fb4, dup-census dispatch, dispatcher-verified:
+  selftest + 29/29; red-first structural AND mutation; the naive
+  forward-only billing match was itself caught red by the order-true
+  fixture) — Duplicate-request probe → census check (Q1). The counter
+  found a real population on its first live run → the double-billed
+  OPEN entry near the resolved duplicate-request item. Daily
+  re-answering still needs the gate-live wiring (READY below).
 - **upstream-error-log gate ON? (operator decision.)** CC#79989's named
   first-hypothesis alarm exists in-tree and is OFF. Needs the standard
   acceptance probe before flipping — a gate flip without one is the
