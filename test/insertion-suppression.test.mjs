@@ -286,45 +286,42 @@ test("classifyPinned: an assistant-role standalone entry is never suppressed, ev
 const PINNED_FIXTURE =
   process.env.CACHE_FIX_TEST_FIXTURE_OVERRIDE ??
   join(__dirname, "fixtures", "harvested", "pinned-s-4b6a435234bf-26-28.json");
-// The capture is NAMED WITHOUT BEING NAMED: the pinned fixture's header
-// carries `s-<sha12>` = sidToken(conversation key) for the capture it was
-// frozen from, and every capture on disk is named `<key>-requests.jsonl`,
-// so the right file is recoverable by hashing the candidates rather than
-// by hardcoding one — this repo is public, and a capture UUID plus a home
-// path is a live identifier. The per-machine capture directory comes from
-// homedir(), never a literal path; `sidToken` ships in the tools slice,
-// so a tree without tools/ resolves no capture and the pinned fixture
-// below is the source.
-async function resolveRealCapture(fixturePath) {
+
+// The capture is NAMED WITHOUT BEING NAMED (BACKLOG.md g2: "test
+// REAL_CAPTURE defaults carry a live session UUID and an absolute /home
+// path" — this repo is public, and a capture UUID plus a home path is a live
+// identifier). The pinned fixture's header already carries `s-<sha12>` =
+// sidToken(conversation key) for the capture it was frozen from, and every
+// capture on disk is named `<key>-requests.jsonl`, so the right file is
+// recoverable by hashing the candidates rather than by hardcoding one. The
+// per-machine capture directory itself comes from homedir(), never a literal
+// path. `sidToken` ships in the tools slice, so it is passed in by the test
+// (which loads tools/harvest.mjs dynamically); no tools/ -> no capture
+// resolution -> the fixture fallback, then the designed skip.
+function resolveRealCapture(fixturePath, sidToken) {
   if (process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE) return process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE;
-  let sidToken;
-  try {
-    ({ sidToken } = await import("../tools/harvest.mjs"));
-  } catch {
-    return "";
-  }
+  if (!sidToken) return null;
   let wanted;
   try {
     wanted = JSON.parse(readFileSync(fixturePath, "utf-8")).header?.key;
   } catch {
-    return "";
+    return null;
   }
-  if (!wanted) return "";
+  if (!wanted) return null;
   const dir = join(homedir(), ".claude", "cache-fix-captures");
   let names;
   try {
     names = readdirSync(dir);
   } catch {
-    return "";
+    return null;
   }
   const SUFFIX = "-requests.jsonl";
   for (const name of names) {
     if (!name.endsWith(SUFFIX)) continue;
     if (sidToken(name.slice(0, -SUFFIX.length)) === wanted) return join(dir, name);
   }
-  return "";
+  return null;
 }
-const REAL_CAPTURE = await resolveRealCapture(PINNED_FIXTURE);
 const GATES = {
   CACHE_FIX_FORWARD_PROXY: "on",
   CACHE_FIX_SESSION_MIRROR: "on",
@@ -359,20 +356,33 @@ test(
     // identical either way. The fixture reader ships in the tools slice
     // (like replayTools below), so it loads dynamically — a tree without
     // tools/ skips instead of failing at module load.
+    //
+    // ORDINALS. The fixture is MINIMIZED (directive, "Fixture strategy"): it
+    // holds capture ordinals replayFrom..m rather than 0..m, since the
+    // dropped prefix only ever established pin state. Numbering the replayed
+    // entries from `header.replayFrom` instead of from 0 is what keeps
+    // "n=26->28" (and the suppressed index 31) the same facts on both paths —
+    // the assertions below are untouched by the cut. The live capture starts
+    // at 0 by definition.
     let readPinnedFixture;
+    let sidToken;
     try {
-      ({ readPinnedFixture } = await import("../tools/harvest.mjs"));
+      ({ readPinnedFixture, sidToken } = await import("../tools/harvest.mjs"));
     } catch {
       readPinnedFixture = null;
+      sidToken = null;
     }
+    const REAL_CAPTURE = resolveRealCapture(PINNED_FIXTURE, sidToken);
     let source;
-    if (existsSync(REAL_CAPTURE)) {
+    let replayFrom = 0;
+    if (REAL_CAPTURE && existsSync(REAL_CAPTURE)) {
       source = null; // resolved below, once readCapture is loaded from tools/replay.mjs
     } else if (existsSync(PINNED_FIXTURE) && readPinnedFixture) {
       source = readPinnedFixture(PINNED_FIXTURE);
+      replayFrom = JSON.parse(readFileSync(PINNED_FIXTURE, "utf-8")).header?.replayFrom ?? 0;
     } else {
       t.skip(
-        `capture rotated away (not found at ${REAL_CAPTURE}) and no pinned fixture at ${PINNED_FIXTURE} — COULD NOT VERIFY`,
+        `capture rotated away (no capture on disk hashing to the fixture's key) and no pinned fixture at ${PINNED_FIXTURE} — COULD NOT VERIFY`,
       );
       return;
     }
@@ -406,7 +416,7 @@ test(
       const extensions = await loadExtensions(EXT_DIR, EXT_CONFIG);
 
       const entries = [];
-      let reqN = -1;
+      let reqN = replayFrom - 1;
       for await (const [, line] of source) {
         let rec;
         try {
