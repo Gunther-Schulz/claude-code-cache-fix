@@ -73,3 +73,26 @@ the stack comes / on demand): #273, #275, #278, #279, #280, #282.
 ## Status ledger (append as steps complete)
 
 - 2026-08-01: plan written; no branch touched yet.
+- 2026-08-01: #272 REBUILT → tip 720ecb4 (7 commits on 23346ac; backup
+  ref backup/insertion-normalization-pre-rewrite). Beyond the plan: the
+  capture-path literal (g2 class, raw session UUID + /home path in
+  test/insertion-suppression.test.mjs) entered at the branch's 2nd
+  commit and was excised at both stages via a stage-appropriate
+  resolveRealCapture transplant (token-anchored at stage 1,
+  fixture-header-anchored at stage 2 — eb4f844's design). Verified:
+  dirty-blob reachability empty vs upstream/main; per-commit full-UUID
+  scan clean ×7; no fixture↔capture pairings; suite 1550/1552 pass,
+  1 designed skip, 1 fail = the documented pre-existing read-dedupe
+  adjacency red (#272 blocker 4, not load-bearing).
+- 2026-08-01: #281 REBUILT → tip fb63f61 (720ecb4 + b07c0dc replay;
+  backup/retire-mcb-pre-rewrite). Blobs clean; suite 1510/1512, same
+  single known-red, same designed skip.
+- 2026-08-01: #276 scope DISCOVERED wider than planned: tip a0a051f
+  predates eb4f844 (g2) — its REAL_CAPTURE test literals need the same
+  excision — and tools/ has drifted from main (9 files). Rebuild =
+  historical blob purge (filter-repo-style or replay) + a tip sync
+  commit: current tools/harvest.mjs (sanitization-hardened — the slice
+  SHIPS the scrubber, so shipping the pre-fix version would recreate
+  the leak class upstream), main's g2-fixed test files, and the
+  absence-scan pair iff it runs green on the slice tree (its walk
+  asserts a docs/ root — check against the slice tree first).
