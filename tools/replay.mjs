@@ -106,9 +106,9 @@ export function firstDivergence(a, b) {
 // The check itself. Entries are grouped by (capture key, conversation) and
 // compared pairwise in arrival order WITHIN each group. A violation is an
 // output divergence strictly earlier than the input's — except a divergence
-// with a matching telemetry-keyed exemption (see freshSessionSortExemption
-// below), which is reported separately by findStabilityExemptions rather
-// than silently dropped.
+// with a matching telemetry-keyed exemption (freshSessionSortExemption and
+// resetWipesAdditionsExemption below), which is reported separately by
+// findStabilityExemptions rather than silently dropped.
 function scanAllGroups(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -137,7 +137,9 @@ export function findStabilityViolations(entries) {
 }
 
 // Exempted divergences, annotated with their basis — not silently dropped.
-// See freshSessionSortExemption for the only exemption currently declared.
+// Two exemptions are declared: freshSessionSortExemption and
+// resetWipesAdditionsExemption, both below, both keyed on the responsible
+// extension's own telemetry.
 export function findStabilityExemptions(entries) {
   return scanAllGroups(entries).exemptions;
 }
@@ -195,6 +197,51 @@ function freshSessionSortExemption(cur, outDiv) {
   return { type: hit.type, targetIndex: stats.targetIndex };
 }
 
+// deferred-tool-rewrite's one designed "honest reset" branch reports itself
+// too (ctx.meta.deferredToolRewriteStats, compactEntry's
+// deferredToolRewriteStats): when a tool that was already known arrives with
+// a DIFFERENT schema, the extension passes CC's tools[] through untouched and
+// empties `additions` — which drops the previously-injected tool_addition
+// announcement message(s) from OUR forwarded array while CC's own history is
+// untouched (CC never echoes the injection back). The forwarded array
+// therefore diverges one slot EARLIER than CC's: the stability check's
+// violation shape, produced by a declared branch.
+//
+// Attributed on the real corpus (s-0d6f38ba, n=709->710 outDiv=236 and
+// n=701->718 outDiv=82) by this file's own bisection, and classified
+// zero-marginal-cost: the schema change that triggers the reset invalidates
+// the tools-block prefix anyway, since tools[] renders before messages.
+// Left unexempted it is a standing FAIL on a non-defect, which trains the
+// reader to discount the gate.
+//
+// Exempt ONLY when all three hold — the same telemetry-not-shape discipline
+// as freshSessionSortExemption above:
+//   1. the CURRENT entry reports action=reset with reason=tool-schema-changed
+//      (any other reset reason, or the same reason on a non-reset action, is
+//      a cause nobody has classified),
+//   2. CC's own bytes at the divergence index are identical across the pair
+//      (an append-only input, where CC has no byte at that index at all,
+//      reads as false here and stays a violation — deliberately strict), and
+//   3. the divergence is FULLY explained by the removal: filter the declared
+//      injections out of BOTH outputs and what is left must not diverge below
+//      the bar. Without this, the exemption would be a blanket amnesty for
+//      every schema-change reset.
+function resetWipesAdditionsExemption(prev, cur, bar, ccSame) {
+  const stats = cur.deferredToolRewriteStats;
+  if (!stats || stats.action !== "reset" || stats.reason !== "tool-schema-changed") return null;
+  if (!ccSame) return null;
+  const prevInj = new Set(prev.outInjections ?? []);
+  const curInj = new Set(cur.outInjections ?? []);
+  // Something must actually have been REMOVED; "reset" alone is not the claim.
+  if (prevInj.size <= curInj.size) return null;
+  const residual = firstDivergence(
+    prev.outHash.filter((_, i) => !prevInj.has(i)),
+    cur.outHash.filter((_, i) => !curInj.has(i)),
+  );
+  if (residual !== null && residual < bar) return null;
+  return { type: stats.reason, removedInjections: prevInj.size - curInj.size, residualOutDiv: residual };
+}
+
 function scanGroup(entries) {
   const violations = [];
   const exemptions = [];
@@ -234,12 +281,19 @@ function scanGroup(entries) {
         // false => CC also changed that message; ours may be amplification.
         ccIdenticalAtOutDiv: ccSame,
       };
-      const exemption = freshSessionSortExemption(cur, outDiv);
-      if (exemption) {
+      const relocation = freshSessionSortExemption(cur, outDiv);
+      const resetWipe = relocation ? null : resetWipesAdditionsExemption(prev, cur, bar, ccSame);
+      if (relocation) {
         exemptions.push({
           ...record,
           exemptReason: "fresh-session-sort:first-appearance-relocation",
-          exemptBasis: exemption,
+          exemptBasis: relocation,
+        });
+      } else if (resetWipe) {
+        exemptions.push({
+          ...record,
+          exemptReason: "deferred-tool-rewrite:reset-wipes-additions",
+          exemptBasis: resetWipe,
         });
       } else {
         violations.push(record);
@@ -639,6 +693,20 @@ export function compactEntry(e) {
     // exemption for the stability check below) — never re-derived from
     // outHash shape, same discipline as `stats.suppressions`.
     freshSessionSortStats: e.freshSessionSortStats ?? null,
+    // deferred-tool-rewrite's own report (action/reason), the key for
+    // resetWipesAdditionsExemption. Retained for the same reason
+    // freshSessionSortStats is: an exemption keyed on shape is an exemption
+    // that drifts. Absent until 2026-08-01, which is why the reset-wipes-
+    // additions attribution had to re-run the whole pipeline in a probe.
+    deferredToolRewriteStats: e.deferredToolRewriteStats ?? null,
+    // WHERE the declared tool_addition announcements sit in the forwarded
+    // array. Positions, not messages — the exemption has to remove them from
+    // the comparison, and a hash array cannot be filtered by a shape test
+    // after the bodies are gone. `isDeclaredInjection` is the same predicate
+    // the safety gate already declares an injection by; the extension's own
+    // telemetry reports only how MANY additions were live, never their
+    // indices, so this is the one place the position can be read.
+    outInjections: outMsgs.reduce((acc, m, i) => (isDeclaredInjection(m) ? (acc.push(i), acc) : acc), []),
   };
 }
 
@@ -2138,6 +2206,7 @@ async function main() {
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
       stats: ctx.meta.insertionNormalizeStats ?? null,
       freshSessionSortStats: ctx.meta.freshSessionSortStats ?? null,
+      deferredToolRewriteStats: ctx.meta.deferredToolRewriteStats ?? null,
     };
     // Safety is a per-request question, so answer it now and keep only the
     // verdict; the messages become garbage as soon as this iteration ends.
@@ -2263,9 +2332,10 @@ async function main() {
   // stateful run, which is what makes the attribution trustworthy.
   const violations = findStabilityViolations(stability);
   // Telemetry-keyed exemptions (fresh-session-sort's first-appearance
-  // relocations, currently the only declared one) — kept out of `violations`
-  // but reported alongside it, annotated with their basis, so an exempted
-  // divergence stays visible rather than silently dropped.
+  // relocations; deferred-tool-rewrite's schema-change reset wiping its own
+  // injections) — kept out of `violations` but reported alongside it,
+  // annotated with their basis, so an exempted divergence stays visible
+  // rather than silently dropped.
   const exemptions = findStabilityExemptions(stability);
   if (violations.length) {
     const mutators = extensions.filter((e) => e.onRequest);
@@ -2391,8 +2461,10 @@ async function main() {
     }
 
     // Exempted, not silently dropped: same divergence shape as a violation
-    // above, but the extension's own telemetry accounts for it (currently
-    // only fresh-session-sort's first-appearance relocations).
+    // above, but the extension's own telemetry accounts for it —
+    // fresh-session-sort's first-appearance relocations, and
+    // deferred-tool-rewrite's tool-schema-changed reset wiping the
+    // announcements it had injected.
     process.stdout.write(`\nstability exemptions (telemetry-backed, not counted as violations): ${exemptions.length}\n`);
     for (const x of exemptions.slice(0, 20)) {
       process.stdout.write(

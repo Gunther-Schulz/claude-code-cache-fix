@@ -204,6 +204,123 @@ test("stability: BITE — telemetry reporting a recurring (non-first-appearance)
   assert.equal(v.length, 1, "a recurring relocation is not the deliberate one-time bust and must not be exempted");
 });
 
+// --- deferred-tool-rewrite's reset-wipes-additions exemption (2026-08-01) ---
+//
+// The real case (s-0d6f38ba, pairs n=709->710 outDiv=236 and n=701->718
+// outDiv=82, both attributed to deferred-tool-rewrite by replay's own
+// bisection): a known tool's schema changed, so the extension takes its one
+// designed "honest reset" branch — CC's tools[] pass through untouched and
+// `additions` is emptied. Emptying it drops the previously-injected
+// tool_addition announcement message from OUR forwarded array while CC's
+// own history is untouched (CC never echoes the injection back), so the
+// output diverges one index EARLIER than the input: the stability check's
+// violation shape, produced by a declared branch rather than a regression.
+//
+// The exemption is keyed on the extension's own report
+// (ctx.meta.deferredToolRewriteStats) AND on the divergence being fully
+// accounted for by the removed injection(s) — never on the shape alone,
+// mirroring fresh-session-sort's discipline above.
+
+// A declared tool_addition announcement, in the form the extension injects.
+const inj = (name) => ({ role: "system", content: [{ type: "tool_addition", name }] });
+
+test("stability: a reset that wipes its own injected additions is exempt, not a violation", () => {
+  // prev forwarded the announcement at index 2; cur (the reset) does not,
+  // and CC edited a LATER message on its own, so inDiv=3 / outDiv=2.
+  const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const aOut = [user("u0"), asst("a1"), inj("SendMessage"), user("u2"), asst("a3")];
+  const bIn = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const bOut = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const reset = {
+    deferredToolRewriteStats: { action: "reset", reason: "tool-schema-changed", injected: 0, reanchored: 0 },
+  };
+
+  const v = findStabilityViolations([entry(0, aIn, aOut), entry(1, bIn, bOut, reset)]);
+  assert.equal(v.length, 0, "the reset branch removing its own injection is declared, not self-inflicted");
+
+  const x = findStabilityExemptions([entry(0, aIn, aOut), entry(1, bIn, bOut, reset)]);
+  assert.equal(x.length, 1, "the exemption must be annotated in the output, not silently dropped");
+  assert.equal(x[0].outDiv, 2);
+  assert.equal(x[0].inDiv, 3);
+  assert.equal(x[0].ccIdenticalAtOutDiv, true);
+  assert.equal(x[0].exemptReason, "deferred-tool-rewrite:reset-wipes-additions");
+  assert.equal(x[0].exemptBasis.type, "tool-schema-changed");
+  assert.equal(x[0].exemptBasis.removedInjections, 1);
+});
+
+test("stability: BITE — the identical divergence WITHOUT deferred-tool-rewrite telemetry stays a violation", () => {
+  // Same bytes, no report from the extension: a pre-telemetry build, or any
+  // other cause producing the same shape. No telemetry, no exemption.
+  const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const aOut = [user("u0"), asst("a1"), inj("SendMessage"), user("u2"), asst("a3")];
+  const bIn = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const bOut = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const v = findStabilityViolations([entry(0, aIn, aOut), entry(1, bIn, bOut)]);
+  assert.equal(v.length, 1, "the exemption must not fire on shape alone");
+  assert.equal(v[0].outDiv, 2);
+  assert.equal(findStabilityExemptions([entry(0, aIn, aOut), entry(1, bIn, bOut)]).length, 0);
+});
+
+test("stability: BITE — a reset for any OTHER reason stays a violation", () => {
+  // Only the tool-schema-changed reset is the declared wipe. A different
+  // reset reason dropping an injection is a cause nobody has classified.
+  const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const aOut = [user("u0"), asst("a1"), inj("SendMessage"), user("u2"), asst("a3")];
+  const bIn = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const bOut = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const v = findStabilityViolations([
+    entry(0, aIn, aOut),
+    entry(1, bIn, bOut, {
+      deferredToolRewriteStats: { action: "reset", reason: "some-other-reason", injected: 0, reanchored: 0 },
+    }),
+  ]);
+  assert.equal(v.length, 1);
+
+  // ... and so does a non-reset action reporting the same reason field.
+  const v2 = findStabilityViolations([
+    entry(0, aIn, aOut),
+    entry(1, bIn, bOut, {
+      deferredToolRewriteStats: { action: "rewrite", reason: "tool-schema-changed", injected: 0, reanchored: 0 },
+    }),
+  ]);
+  assert.equal(v2.length, 1);
+});
+
+test("stability: BITE — a reset that ALSO mangles a message is not fully explained, and stays a violation", () => {
+  // The guard that keeps this exemption from becoming a blanket amnesty for
+  // every reset: remove the injection from the comparison and the output
+  // STILL diverges below the bar, so something else moved too.
+  const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const aOut = [user("u0"), asst("a1"), inj("SendMessage"), user("u2"), asst("a3")];
+  const bIn = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const bOut = [user("u0"), asst("MANGLED-BY-US"), user("u2"), asst("CC-EDITED-a3")];
+  const v = findStabilityViolations([
+    entry(0, aIn, aOut),
+    entry(1, bIn, bOut, {
+      deferredToolRewriteStats: { action: "reset", reason: "tool-schema-changed", injected: 0, reanchored: 0 },
+    }),
+  ]);
+  assert.equal(v.length, 1, "a divergence the removal does not account for is still ours");
+  assert.equal(v[0].outDiv, 1);
+});
+
+test("stability: BITE — a reset with no injection to remove is not exempt", () => {
+  // Telemetry says reset, but the pair carries no removed announcement —
+  // whatever moved the output earlier than the input, this exemption does
+  // not describe it.
+  const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const aOut = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const bIn = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const bOut = [user("u0"), asst("MANGLED-BY-US"), user("u2"), asst("CC-EDITED-a3")];
+  const v = findStabilityViolations([
+    entry(0, aIn, aOut),
+    entry(1, bIn, bOut, {
+      deferredToolRewriteStats: { action: "reset", reason: "tool-schema-changed", injected: 0, reanchored: 0 },
+    }),
+  ]);
+  assert.equal(v.length, 1);
+});
+
 // --- Safety gate ---
 
 test("safety: faithful passthrough is GREEN", () => {
