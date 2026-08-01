@@ -1594,9 +1594,15 @@ bullet, evidence pointer included.
   f1fc59f (existing proxy-suite synthetic swapped in, no allowlist
   growth; the leaked UUID itself is unscrubbable history, same
   accepted-residual class as the LEDGER keys, PARKED above).
-  Decision owed: which seam runs the scan — a dotfiles pre-push
-  hook (carrier: dotfiles repo, machine trip) vs. folding into
-  gate-live's daily sweep (repo-owned, but a day late for a push).
+  Decision RESOLVED 2026-08-01 — by the operator's dotfiles,
+  independently and before this entry was booked: pre-push
+  absence-scan guard deployed 10:47 (dotfiles 7d1b3df), runs the
+  pushing tree's tools/absence-scan.mjs over every outgoing range,
+  EMPTY..tip for new refs. Verified live the same day: blocked a
+  new-branch push on upstream's own transcript-shape fixture —
+  a pre-existing-third-party false fire, repaired by declared
+  ALLOWLIST exemption with provenance (the guard's documented
+  remedy), not by --no-verify.
   Same day, same prose-vs-guard shape: reader worktrees
   (dispatch-discipline's frozen-reader recipe) have no removal
   clause — two frozen /tmp probe worktrees found still registered
