@@ -1584,8 +1584,10 @@ bullet, evidence pointer included.
   two-reserve conversation) — then measure before designing.
 
 
-- **OPEN — absence-scan has no run-seam: the class recurred one day
-  after the mechanism shipped.** 2026-08-01: seven full-UUID
+- **RESOLVED 2026-08-01 (dotfiles 7d1b3df, verified live on a blocked
+  push; fork-side exemption 9db47fc) — absence-scan run-seam: the class
+  recurred one day after the mechanism shipped, and the seam is now a
+  pre-push guard.** 2026-08-01: seven full-UUID
   literals of capture 0d6f38ba landed via three loop-trio commits
   and were pushed public with absence-scan.test.mjs already on main
   (red-first mint 2026-07-31, the g2 entry above) — the mechanism
