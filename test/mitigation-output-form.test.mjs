@@ -29,7 +29,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
@@ -142,11 +142,20 @@ test(
     // capture absent -> pinned fixture if present; else skip. Both readers
     // yield the same [n, line] tuple shape, so the replay loop below is
     // identical either way.
+    //
+    // ORDINALS. The fixture is MINIMIZED (directive, "Fixture strategy"): it
+    // holds capture ordinals replayFrom..m rather than 0..m, since the
+    // dropped prefix only ever established pin state. Numbering the replayed
+    // entries from `header.replayFrom` instead of from 0 is what keeps
+    // "n=26->28" the same pair on both paths — the assertions below are
+    // untouched by the cut. The live capture starts at 0 by definition.
     let source;
+    let replayFrom = 0;
     if (existsSync(REAL_CAPTURE)) {
       source = readCapture(REAL_CAPTURE);
     } else if (existsSync(PINNED_FIXTURE)) {
       source = readPinnedFixture(PINNED_FIXTURE);
+      replayFrom = JSON.parse(readFileSync(PINNED_FIXTURE, "utf-8")).header?.replayFrom ?? 0;
     } else {
       t.skip(
         `capture rotated away (not found at ${REAL_CAPTURE}) and no pinned fixture at ${PINNED_FIXTURE} — COULD NOT VERIFY`,
@@ -171,7 +180,7 @@ test(
       const extensions = await loadExtensions(EXT_DIR, EXT_CONFIG);
 
       const entries = [];
-      let reqN = -1;
+      let reqN = replayFrom - 1;
       for await (const [, line] of source) {
         let rec;
         try {
