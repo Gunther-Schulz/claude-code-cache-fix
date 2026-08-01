@@ -273,7 +273,7 @@ This extension walks every `Read`-originated `tool_result`, keeps the **first** 
 
 **Measured impact:** Pending live measurement; default-off until validated against real workloads, then revisit. Expected upside scales with Read-heavy workflows: a 30-turn session that re-reads three 50 KB files five times each pays ~750 KB/turn of redundant `tool_result` content after the first cache miss; this extension collapses that to roughly 12 × ~60-byte pointer lines per turn after the first occurrence — orders of magnitude in pathological cases, zero in workflows that don't re-read.
 
-**When to disable:** Always default. Disable for any workflow that legitimately depends on byte-identical replay of historical `Read` tool_results (rare, and would also break the cache anyway). Tracked under issue #85; directive at `docs/directives/proxy-read-dedupe.md`.
+**When to disable:** Always default. Disable for any workflow that legitimately depends on byte-identical replay of historical `Read` tool_results (rare, and would also break the cache anyway). Tracked under issue #85. There is no directive file: the one this section and `proxy/extensions/read-dedupe.mjs` used to cite (`docs/directives/proxy-read-dedupe.md`) was never committed, and this section is the spec of record (BACKLOG.md, "proxy-read-dedupe.md is cited twice and does not exist").
 
 **Telemetry surface (`ctx.meta.readDedupeStats`):**
 ```js

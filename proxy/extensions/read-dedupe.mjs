@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 
-// Opt-in env gate. Per the directive (docs/directives/proxy-read-dedupe.md),
-// the only accepted truthy value is the literal "1" — no "on" / "true" /
-// case-insensitive variants. Keeping the gate strict avoids accidental
+// Opt-in env gate: the only accepted truthy value is the literal "1" — no
+// "on" / "true" / case-insensitive variants. (This cited a directive at
+// docs/directives/proxy-read-dedupe.md that was never committed; the
+// operator-facing spec that DOES exist is docs/extension-impact-guide.md
+// §12. BACKLOG.md, "proxy-read-dedupe.md is cited twice and does not
+// exist".) Keeping the gate strict avoids accidental
 // activation from an operator-set CACHE_FIX_READ_DEDUPE=on borrowed from
 // the on/off-style extensions; if Codex review pushes back we widen here.
 const ENV_VAR = "CACHE_FIX_READ_DEDUPE";
