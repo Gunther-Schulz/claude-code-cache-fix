@@ -229,7 +229,14 @@ bullet, evidence pointer included.
   standalones at host+1 and **3 at host+4** with the tool's own
   MORE-THAN-ONE-PLACEMENT warning, where the readable-21% corpus said
   "single placement; safe to emit". The 3 host+4 occurrences are
-  uninvestigated. Consumers to re-check: any NORMALIZATION design that
+  uninvestigated.
+  NARROWED 2026-08-01 (same sonnet discovery, per-occurrence finder
+  built from the census's own exported primitives and
+  cross-validated against the shipped tally): the 3 occurrences are
+  NOT in the twin-bust or enormous-prune captures — every placement
+  there is host+1. They live among the ~35 untouched, mostly-live
+  captures; locate when those rotate, or via the finder over the
+  full corpus in a quiet window. Consumers to re-check: any NORMALIZATION design that
   emits at a fixed host offset — the flap-move unit-2 re-serve is
   slot-preserving (no emit) and should be unaffected, but that is a
   claim to verify at its integration, not a fact.
@@ -910,7 +917,22 @@ bullet, evidence pointer included.
   session). ATTRIBUTE step owed: byte-diff the reset pair
   (19:22:22 request vs its conversation predecessor) and say WHAT
   moved; whether the deployed un-merge absorbs it is the live
-  question. TOOL GAP found en route (own fix candidate, small):
+  question.
+  ATTRIBUTE DONE 2026-08-01 (sonnet discovery, frozen copies,
+  originals byte-identical before/after): KNOWN FAMILY CONFIRMED at
+  byte level — both resets are the row-4 container migration
+  (reminder blocks leave a host whose hostId/tool_use_id stays;
+  not-subsequence confirmed both sides): adf6cadb diverges at
+  msg-index 58 in a SIDECAR conversation, its departed blocks JOIN
+  an existing standalone (452→1085 B, same index — the
+  merged-standalone shape 78940a0 targets); 7749d7fc at index 69 in
+  main, a fresh 1925 B standalone. Trigger hypothesis holds as the
+  entry predicted: 7749d7fc reset +17.7 s after the plugin-update
+  completion, adf6cadb at its own next turn (+549 s), and BOTH
+  sessions show the same ~17 s reset→bust-stamp internal lag. The
+  live question is unchanged and time-gated: a post-restart
+  recurrence means the un-merge did not absorb it; silence means it
+  did. TOOL GAP found en route (own fix candidate, small):
   bust-triage's capturePair picks the newest plausible pair ≤ stamp
   and chose an APPEND-ONLY pair 4-16 s after the actual
   reset-carrying request → verdict UNCLASSIFIED was a
