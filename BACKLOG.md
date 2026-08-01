@@ -946,7 +946,9 @@ bullet, evidence pointer included.
   now measured AS MADE by the daily sweep. Matrix row 6 updated
   same day with the measured number.
 
-- **OPEN — duplicate-request contradiction: ~100 adjacent identical
+- **RESOLVED 2026-07-30 (probe; header re-titled 2026-08-01, body
+  already carried the resolution — third stale-header instance that
+  day) — duplicate-request contradiction: ~100 adjacent identical
   pairs vs the booked "one instance in 3,446"** (new per-conversation
   counter, 2026-07-30: 72+28 pairs in 21+2 streaks across the two
   current captures; the 07-29 probe that dispositioned CC#78420
