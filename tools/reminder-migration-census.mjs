@@ -46,6 +46,18 @@
 //   MISMATCH  — neither. Every one is a hole in the rule and is printed in
 //               full, because these are what would silently move a bust.
 //
+// SECOND MEASUREMENT — volatile-block CHANGE across matched pinned entries
+// (#272 blocker 2, `--volatile` section of the output).
+// insertion-normalization pins a matched user message to its FIRST-SEEN bytes,
+// and pin-mode identity deliberately EXCLUDES volatile blocks from the hash.
+// That exclusion IS the flip-absorption mechanism, and it is also why the
+// extension cannot distinguish CC RE-SERIALIZING a reminder (pin: correct)
+// from CC CHANGING its bytes (stale forward: the model is shown text CC
+// replaced). The upstream reviewer reproduced the second. Which fix is right —
+// an evidenced allowlist or a fail-closed re-pin — turns on how often the
+// second actually occurs, so this sweep counts it instead of arguing it. See
+// `scanVolatileRegions` for the classification and its definitional comment.
+//
 // Usage:
 //   node tools/reminder-migration-census.mjs <capture.jsonl> [more.jsonl ...]
 //   node tools/reminder-migration-census.mjs ~/.claude/cache-fix-captures/*.jsonl
@@ -69,10 +81,27 @@
 // so in its verdict block instead of counting it as zero findings.
 
 import { createHash } from "node:crypto";
+import { basename } from "node:path";
 import { readLines } from "./read-lines.mjs";
 import { firstDivergence, isHumanTurn } from "./replay.mjs";
+// The volatile-change sweep asks "when the PIN's identity matches, do the
+// pinned bytes differ", so identity must be the MECHANISM's, never an
+// approximation of it (dev-loop.md, "Never hand-roll identity in a probe").
+import { computePinnedIdentities, isVolatileBlock }
+  from "../proxy/extensions/insertion-normalization.mjs";
 
 const WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
+
+/** One block's text with the reminder wrapper removed; anything else verbatim. */
+const unwrapText = (t) => {
+  const m = WRAP.exec(t);
+  return m ? m[1] : t;
+};
+
+// The separator CC joins migrated reminder blocks with — the extension names
+// the same constant JOIN_SEPARATOR. Named once here so `canonical` and the
+// volatile-change normal form cannot drift into two grammars.
+const JOIN = "\n\n";
 
 /** Text of a message, whether content is a string or a block array. */
 export function textOf(msg) {
@@ -112,10 +141,7 @@ export function reminderBlocks(msg) {
  * and the mitigation can never drift apart in what they mean by "canonical".
  */
 export function canonical(blocks) {
-  return blocks.map((t) => {
-    const m = WRAP.exec(t);
-    return m ? m[1] : t;
-  }).join("\n\n");
+  return blocks.map(unwrapText).join(JOIN);
 }
 
 /** Classify one reconstruction against CC's own later text. */
@@ -154,12 +180,24 @@ export function subclassifyExtended(reconstructed, actual, beforeStandalones) {
  * retains, never by the file. A read error propagates — the caller names the
  * file it could not read rather than continuing as if it held nothing.
  */
-async function* readRecords(path) {
+async function* readRecords(path, tornCount) {
+  let lineNo = 0;
   for await (const line of readLines(path)) {
+    lineNo++;
     if (!line.trim()) continue;
     let r;
-    try { r = JSON.parse(line); } catch { continue; } // corrupt line costs one record, not the file
-    if (r?.body?.messages && r?.ts) yield r;
+    // A corrupt line costs one record, not the file — but it is still a record
+    // this run did not see, so it is COUNTED rather than swallowed. Measured
+    // 2026-08-01: 54 such lines across the corpus, arriving in pairs (a record
+    // cut mid-JSON followed by its remainder), i.e. torn appends by the
+    // capture writer. Silence here was the tool's own three-answer violation:
+    // an absence of coverage reported as nothing at all.
+    try { r = JSON.parse(line); } catch { if (tornCount) tornCount.n++; continue; }
+    // 1-based LINE ordinal, counting blank and corrupt lines too, so a detail
+    // row's pointer resolves with `sed -n '<N>p'` on the capture itself. Set
+    // on the record rather than yielded alongside it because the record is
+    // never re-serialized — the pair analysis stringifies `body.messages`.
+    if (r?.body?.messages && r?.ts) { r.__line = lineNo; yield r; }
   }
 }
 
@@ -311,6 +349,182 @@ export function conversationOf(rec) {
   return createHash("sha256").update(JSON.stringify(m0)).digest("hex").slice(0, 16);
 }
 
+// --- #272 blocker 2: do PINNED volatile bytes actually change? ---
+
+/**
+ * The volatile region of a message: the blocks insertion-normalization's pin
+ * overrides, in wire order, cache_control stripped.
+ *
+ * `isVolatileBlock` is imported, not restated — it is the predicate that
+ * decides what the pin excludes from identity, and a second copy of it here
+ * would be measuring a different mechanism than the one that ships.
+ * cache_control is stripped for the same reason `buildPinEntry` strips it
+ * (stripAllCacheControl): a marker the tail rotation happened to leave on the
+ * message is the proxy's own mutation, so counting it as a CC byte change
+ * would manufacture findings.
+ *
+ * null for anything the pin cannot rewrite as a volatile-carrying user
+ * message (`pinnedForwardForm` returns non-user entries untouched).
+ *
+ * Only `raw` is retained per entry, deliberately: it is the exact byte form,
+ * and everything else (unwrapped texts, the joined normal form) is recovered
+ * from it on the RARE path where the raw bytes differ. Retaining the derived
+ * forms too would double a per-conversation map that the corpus's largest
+ * captures already stress.
+ */
+export function volatileRegionOf(msg) {
+  if (!msg || msg.role !== "user" || !Array.isArray(msg.content)) return null;
+  const kept = [];
+  let cacheControl = false;
+  for (const b of msg.content) {
+    if (b && typeof b === "object" && b.cache_control) cacheControl = true;
+    if (!isVolatileBlock(b)) continue;
+    const { cache_control, ...rest } = b;
+    kept.push(rest);
+  }
+  return { blocks: kept.length, raw: JSON.stringify(kept), cacheControl };
+}
+
+/**
+ * The INFORMATION a volatile region carries: each block's text with the
+ * reminder wrapper removed, empties dropped, in order. Empty text blocks are
+ * volatile by `isVolatileBlock` (the measured flip alternates a reminder with
+ * an empty block) and carry nothing, so they are presence, not content.
+ */
+export function regionTexts(region) {
+  let blocks;
+  try { blocks = JSON.parse(region.raw); } catch { return []; }
+  return blocks
+    .map((b) => unwrapText(typeof b?.text === "string" ? b.text : ""))
+    .filter((t) => t !== "");
+}
+
+const isSubsequence = (small, big) => {
+  let i = 0;
+  for (const t of big) if (i < small.length && small[i] === t) i++;
+  return i === small.length;
+};
+
+/**
+ * DEFINITION first, because the whole directive rests on this boundary and an
+ * expectation derived from the implementation would pin whatever the
+ * implementation does (dev-loop.md, "Adding a check", rule on parentage).
+ *
+ * The pin serves a matched entry's FIRST-SEEN volatile bytes. The fidelity
+ * question is therefore: relative to those bytes, does this occurrence carry
+ * the same INFORMATION?
+ *
+ *   IDENTICAL     the region's bytes are unchanged. The pin is a no-op here.
+ *   RESERIALIZED  the bytes differ but the unwrapped, empty-dropped texts
+ *                 joined with "\n\n" are equal — CC re-wrapped, re-split, or
+ *                 re-joined the same reminders. This is the class the pin
+ *                 exists to absorb, and it is the same "\n\n" grammar
+ *                 `canonical` and the extension's join-move recognition use,
+ *                 so a block pair merged into one block lands here rather
+ *                 than reading as new text.
+ *   CHANGED       neither. The information differs, so the pin forwards bytes
+ *                 that no longer say what CC is saying. Sub-classified,
+ *                 because these are NOT one phenomenon and a single number
+ *                 would hide the one the reviewer reproduced:
+ *                   IN-PLACE-TEXT  some reminder's text was replaced — the
+ *                                  texts are neither a superset nor a subset
+ *                                  of first-seen. THE reviewer's OLD->NEW
+ *                                  shape, and the count the design turns on.
+ *                   VANISHED       every reminder is gone. The measured flip;
+ *                                  the pin re-serves what the model already
+ *                                  consumed, stating nothing false.
+ *                   APPEARED       first-seen carried none and this occurrence
+ *                                  does; the pin strips them
+ *                                  (`stripVolatileBlocks`), suppressing new
+ *                                  text without contradicting old text.
+ *                   AUGMENTED      first-seen's texts survive in order and
+ *                                  more were added — suppressed addition.
+ *                   REDUCED        a subset of first-seen's texts survives —
+ *                                  suppressed removal.
+ * `changed` stays the total of all five: the sub-kinds decompose it, they
+ * never shrink it.
+ */
+export function classifyVolatileChange(first, now) {
+  if (first.raw === now.raw) return { verdict: "IDENTICAL", kind: null };
+  const tf = regionTexts(first), tn = regionTexts(now);
+  if (tf.join(JOIN) === tn.join(JOIN)) return { verdict: "RESERIALIZED", kind: null };
+  let kind;
+  if (tn.length === 0) kind = "VANISHED";
+  else if (tf.length === 0) kind = "APPEARED";
+  else if (isSubsequence(tf, tn)) kind = "AUGMENTED";
+  else if (isSubsequence(tn, tf)) kind = "REDUCED";
+  else kind = "IN-PLACE-TEXT";
+  return { verdict: "CHANGED", kind };
+}
+
+/** Offset of the first differing character; -1 when the strings are equal. */
+export function firstDiffOffset(a, b) {
+  const n = Math.min(a.length, b.length);
+  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return i;
+  return a.length === b.length ? -1 : n;
+}
+
+/**
+ * One request's volatile-region comparisons against a conversation's
+ * FIRST-SEEN forms. `seen` is the conversation's accumulator (identity tuple
+ * -> first-seen region) and is MUTATED: an identity not yet present records
+ * its region and yields no comparison; one already present yields exactly one
+ * comparison against THAT first-seen form.
+ *
+ * First-seen, not adjacent: the pin restores first-seen bytes, so that is the
+ * comparison the mechanism actually performs. An adjacent-only sweep is the
+ * known checker-failure shape (dev-loop.md) and would score a reminder that
+ * changed once and then held as a single event no matter how long it was
+ * served stale.
+ *
+ * `matchedAll` counts every re-occurrence of a pinned identity; `matched`
+ * counts only those where the pin rewrites bytes at all — a region empty on
+ * BOTH sides is a message the pin passes through, and folding those into the
+ * denominator would bury the rate under the conversation's whole history.
+ */
+export function scanVolatileRegions(messages, seen) {
+  const rows = [];
+  const counts = { matchedAll: 0, matched: 0, identical: 0, reserialized: 0, changed: 0 };
+  for (const e of computePinnedIdentities(messages)) {
+    const region = volatileRegionOf(messages[e.index]);
+    if (region === null) continue;
+    // The identity is the (h, r, o) TUPLE. insertion-normalization's
+    // `identityKey` joins it exactly this way but is module-private; the join
+    // is a Map-key encoding of an imported identity, not a second derivation
+    // of one.
+    const key = `${e.h}|${e.r}|${e.o}`;
+    const first = seen.get(key);
+    if (!first) { seen.set(key, region); continue; }
+    counts.matchedAll++;
+    if (first.blocks === 0 && region.blocks === 0) continue;
+    counts.matched++;
+    const { verdict, kind } = classifyVolatileChange(first, region);
+    if (verdict === "IDENTICAL") { counts.identical++; continue; }
+    if (verdict === "RESERIALIZED") { counts.reserialized++; continue; }
+    counts.changed++;
+    rows.push({
+      kind, index: e.index, h: e.h, key,
+      firstBytes: first.raw.length, nowBytes: region.raw.length,
+      divOffset: firstDiffOffset(first.raw, region.raw),
+      // The live pin never rewrites a message currently carrying a
+      // cache_control marker (`pinnedForwardForm`), so these rows are changes
+      // the shipped extension would not have overridden. Counted, not
+      // dropped: the sweep stays a superset.
+      cacheControlExempt: region.cacheControl,
+    });
+  }
+  return { rows, counts };
+}
+
+// Detail rows are retained ONE PER DISTINCT ENTRY, not one per occurrence:
+// an entry whose region changes once and then holds produces a row per later
+// request, and a flat occurrence cap then enumerates the first few entries
+// exhaustively and the rest not at all — which is the opposite of what a
+// design needs. Keyed by entry, the retained set covers EVERY changed entry
+// and each row carries its own repeat count. The cap below is a memory
+// backstop, not the working limit, and tripping it is reported.
+const ENTRY_ROW_CAP = 5000;
+
 export async function census(paths) {
   const tally = { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 };
   const extendedSub = { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 };
@@ -318,6 +532,23 @@ export async function census(paths) {
   const pruneDetails = [];
   const details = [];
   const unreadable = [];
+  // #272 blocker 2. Counts are corpus-wide and exact; `volatileRows` is capped
+  // per kind and `volatileTruncated` names what the cap dropped.
+  const volatileChange = { matchedAll: 0, matched: 0, identical: 0, reserialized: 0, changed: 0 };
+  const volatileKinds = { "IN-PLACE-TEXT": 0, VANISHED: 0, APPEARED: 0, AUGMENTED: 0, REDUCED: 0 };
+  const volatileByCapture = new Map();
+  const volatileTruncated = {};
+  const rowByEntry = new Map();
+  let volatileExempt = 0;
+  // DISTINCT entries, not comparisons. A pinned entry whose region changes
+  // once then HOLDS is re-counted on every later request (correctly — each is
+  // another request served stale), so the occurrence count answers "how much
+  // staleness" while this answers "how many reminders". The measured spread is
+  // wide enough that reporting only one of them would mislead: 284 REDUCED
+  // occurrences on the first corpus run came from a handful of entries.
+  const volatileEntries = new Set();
+  const volatileEntriesByKind = {};
+  const torn = { n: 0 };
   let pairs = 0, captures = 0, conversations = 0;
   for (const path of paths) {
     // Group by conversation, then compare consecutive requests WITHIN each
@@ -328,10 +559,60 @@ export async function census(paths) {
     // hit their own memory wall (replay.mjs's 3.2 GB peak, harvest's 2.1 GB).
     const prev = new Map();
     const withPairs = new Set();
+    // Per-conversation first-seen volatile regions and request ordinals. Scoped
+    // to the capture, like `prev`: a conversation spanning two capture files
+    // restarts its first-seen baseline, which can only UNDER-count changes.
+    const firstSeen = new Map();
+    const reqOrd = new Map();
     try {
-      for await (const r of readRecords(path)) {
+      for await (const r of readRecords(path, torn)) {
         const cid = conversationOf(r);
         if (cid === null) continue;
+
+        // Runs on EVERY request, including a conversation's first — that is
+        // where first-seen is established, and the pair loop below skips it.
+        let seen = firstSeen.get(cid);
+        if (!seen) { seen = new Map(); firstSeen.set(cid, seen); }
+        const ord = (reqOrd.get(cid) ?? 0) + 1;
+        reqOrd.set(cid, ord);
+        const vol = scanVolatileRegions(r.body.messages, seen);
+        for (const k of Object.keys(volatileChange)) volatileChange[k] += vol.counts[k];
+        if (vol.counts.matched) {
+          const agg = volatileByCapture.get(path) ??
+            { matched: 0, identical: 0, reserialized: 0, changed: 0, kinds: {} };
+          agg.matched += vol.counts.matched;
+          agg.identical += vol.counts.identical;
+          agg.reserialized += vol.counts.reserialized;
+          agg.changed += vol.counts.changed;
+          volatileByCapture.set(path, agg);
+        }
+        for (const row of vol.rows) {
+          volatileKinds[row.kind]++;
+          const agg = volatileByCapture.get(path);
+          agg.kinds[row.kind] = (agg.kinds[row.kind] ?? 0) + 1;
+          if (row.cacheControlExempt) volatileExempt++;
+          const entryId = `${path}|${cid}|${row.key}`;
+          volatileEntries.add(entryId);
+          (volatileEntriesByKind[row.kind] ??= new Set()).add(entryId);
+          const seenRow = rowByEntry.get(entryId);
+          if (seenRow) {
+            // Same entry, still diverging from first-seen: another request
+            // served stale, not another finding.
+            seenRow.occurrences++;
+            seenRow.lastTs = r.ts;
+            seenRow.lastLine = r.__line;
+            seenRow.lastReq = ord;
+            continue;
+          }
+          if (rowByEntry.size >= ENTRY_ROW_CAP) {
+            volatileTruncated[row.kind] = (volatileTruncated[row.kind] ?? 0) + 1;
+            continue;
+          }
+          rowByEntry.set(entryId, { path, sid: r.sid ?? null, ts: r.ts, cid,
+                                    line: r.__line, req: ord, occurrences: 1,
+                                    lastTs: r.ts, lastLine: r.__line, lastReq: ord, ...row });
+        }
+
         const before = prev.get(cid);
         prev.set(cid, r);
         if (!before) continue;
@@ -359,7 +640,12 @@ export async function census(paths) {
     conversations += withPairs.size;
   }
   return { tally, extendedSub, prunes, pruneDetails, details, pairs, captures, conversations,
-           unreadable, considered: paths.length };
+           unreadable, considered: paths.length, tornLines: torn.n,
+           volatileChange, volatileKinds, volatileRows: [...rowByEntry.values()], volatileTruncated,
+           volatileExempt, volatileByCapture: [...volatileByCapture.entries()],
+           volatileEntries: volatileEntries.size,
+           volatileEntriesByKind: Object.fromEntries(
+             Object.entries(volatileEntriesByKind).map(([k, s]) => [k, s.size])) };
 }
 
 async function main(argv) {
@@ -372,17 +658,29 @@ async function main(argv) {
     return 1;
   }
   const { tally, extendedSub, prunes, pruneDetails, details, pairs, captures, conversations,
-          unreadable, considered } = await census(paths);
+          unreadable, considered, tornLines, volatileChange, volatileKinds, volatileRows,
+          volatileTruncated, volatileExempt, volatileByCapture,
+          volatileEntries, volatileEntriesByKind } = await census(paths);
   const total = tally.EXACT + tally.EXTENDED + tally.DROPPED + tally.MISMATCH;
   // Printed with every verdict, clean or not: the reader of a byte-gate needs
   // the DENOMINATOR, and "25 capture(s)" over a 39-file corpus read like one.
   const coverage =
     `read ${considered - unreadable.length}/${considered} capture(s), ` +
-    `${unreadable.length} UNREADABLE, ${captures} with pairs`;
+    `${unreadable.length} UNREADABLE, ${captures} with pairs` +
+    (tornLines ? `, ${tornLines} TORN line(s) skipped` : "");
 
   if (json) {
+    // ADDITIVE ONLY. gate-live's summariseCensus and bust-triage read named
+    // fields, so new keys ride along without touching either; `volatileChange`
+    // keeps the flat counts a daily status file can carry, and the unbounded
+    // detail rows appear only under --verbose so the sweep's status file does
+    // not grow a row per reminder flip.
     process.stdout.write(JSON.stringify(
-      { tally, extendedSub, prunes, pairs, captures, conversations, total, considered, unreadable },
+      { tally, extendedSub, prunes, pairs, captures, conversations, total, considered, unreadable,
+        tornLines,
+        volatileChange, volatileKinds, volatileTruncated, volatileExempt,
+        volatileByCapture, volatileEntries, volatileEntriesByKind,
+        ...(verbose ? { volatileRows } : {}) },
       null, 2) + "\n");
     return unreadable.length ? 1 : 0;
   }
@@ -423,6 +721,85 @@ async function main(argv) {
     }
   }
   if (nPrunes) process.stdout.write("\n");
+
+  // Volatile-block change across matched pinned entries (#272 blocker 2).
+  // Printed BEFORE the migration verdict's early return: a corpus with no
+  // container migrations at all still answers this question.
+  const vc = volatileChange;
+  if (vc.matched === 0) {
+    process.stdout.write(
+      "pinned volatile-block change: no matched entry in this corpus has a volatile\n" +
+      `  region on either side (${vc.matchedAll} pinned re-occurrence(s) seen). Nothing\n` +
+      "  measured — an absence of the population, not a measurement of zero change.\n\n");
+  } else {
+    const vpct = (n) => `${((n / vc.matched) * 100).toFixed(2)}%`;
+    process.stdout.write(
+      `pinned volatile-block change — ${vc.matched} matched comparison(s) where the pin\n` +
+      `  rewrites bytes (of ${vc.matchedAll} pinned re-occurrence(s)), each against the\n` +
+      "  entry's FIRST-SEEN form:\n" +
+      `  ${String(vc.identical).padStart(7)}  ${vpct(vc.identical).padStart(7)}  IDENTICAL     bytes unchanged\n` +
+      `  ${String(vc.reserialized).padStart(7)}  ${vpct(vc.reserialized).padStart(7)}  RESERIALIZED  same texts, re-wrapped/re-split/re-joined\n` +
+      `  ${String(vc.changed).padStart(7)}  ${vpct(vc.changed).padStart(7)}  CHANGED       the information differs\n`);
+    for (const [k, n] of Object.entries(volatileKinds)) {
+      if (!n) continue;
+      const note = {
+        "IN-PLACE-TEXT": "reminder text REPLACED — the reviewer's OLD->NEW shape",
+        VANISHED: "all reminders gone — the measured flip",
+        APPEARED: "first-seen had none; pin strips the new ones",
+        AUGMENTED: "first-seen's texts survive, more added",
+        REDUCED: "a subset of first-seen's texts survives",
+      }[k];
+      process.stdout.write(
+        `         ${String(n).padStart(7)}  ${k.padEnd(13)} ${note}\n` +
+        `         ${String(volatileEntriesByKind[k] ?? 0).padStart(7)}  ` +
+        `${"".padEnd(13)} ^ distinct pinned entries behind those\n`);
+    }
+    process.stdout.write(
+      `  ${vc.changed} CHANGED comparison(s) come from ${volatileEntries} DISTINCT pinned entr(ies):\n` +
+      "  an entry whose region changes once and then holds is re-counted on every\n" +
+      "  later request, so occurrences measure staleness and entries measure reminders.\n");
+    process.stdout.write(
+      `  of the ${vc.changed} CHANGED, ${volatileExempt} sit on a message carrying a cache_control\n` +
+      "  marker, which pinnedForwardForm never rewrites — the live pin would not have\n" +
+      "  overridden those.\n");
+    process.stdout.write(
+      "  This sweep ignores canonical-state RESETS, so it counts a SUPERSET of the\n" +
+      "  comparisons the live pin performs: it can only find more changes than\n" +
+      "  re-serving actually made.\n\n");
+
+    if (volatileByCapture.length > 1) {
+      process.stdout.write("  per capture (matched / identical / reserialized / changed):\n");
+      for (const [p, a] of volatileByCapture) {
+        const kinds = Object.entries(a.kinds).map(([k, n]) => `${n} ${k}`).join(", ");
+        process.stdout.write(
+          `    ${basename(p).padEnd(52)} ${String(a.matched).padStart(7)} /` +
+          ` ${String(a.identical).padStart(7)} / ${String(a.reserialized).padStart(6)} /` +
+          ` ${String(a.changed).padStart(6)}${kinds ? `  (${kinds})` : ""}\n`);
+      }
+      process.stdout.write("\n");
+    }
+
+    if (volatileRows.length) {
+      process.stdout.write(
+        `CHANGED detail — one row per DISTINCT pinned entry (${volatileRows.length}), at its\n` +
+        "  FIRST diverging request. No reminder text is printed, by corpus hygiene:\n");
+      for (const r of volatileRows) {
+        process.stdout.write(
+          `  ${r.kind.padEnd(13)} ${r.ts}  ${basename(r.path)}:${r.line}` +
+          `  sid=${(r.sid ?? "?").slice(0, 8)} conv=${r.cid} req#${r.req} msg=${r.index}` +
+          `  id=${r.h}  ${r.firstBytes}->${r.nowBytes}ch  firstDiff@${r.divOffset}` +
+          `  x${r.occurrences} request(s) (through :${r.lastLine})` +
+          `${r.cacheControlExempt ? "  [cache_control: pin exempt]" : ""}\n`);
+      }
+      process.stdout.write("\n");
+    }
+    const truncTotal = Object.values(volatileTruncated).reduce((a, b) => a + b, 0);
+    if (truncTotal) {
+      process.stdout.write(
+        `  ROWS TRUNCATED (counts above are exact): ${Object.entries(volatileTruncated)
+          .map(([k, n]) => `${n} ${k}`).join(", ")} beyond ${ENTRY_ROW_CAP} distinct entries.\n\n`);
+    }
+  }
 
   if (total === 0) {
     // "none found" must be distinguishable from "not looked for".
@@ -550,6 +927,55 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     eq(classifyPrune([T("a"), T("b"), T("c")], [T("a"), T("ZZ")]).kind,
        "UNANCHORED", "no anchor, no verdict");
     eq(classifyPrune([M("a")], [M("a"), M("b")]), null, "growth is not a prune");
+
+    // --- volatile-change (#272 blocker 2) ---
+    // The census's WRAP and the extension's VOLATILE_WRAP_REGEX must agree on
+    // what a volatile block IS, or this sweep measures a different mechanism
+    // than the one that ships. Pinned by behaviour rather than by hope: the
+    // extension's predicate is imported, so this goes red if it moves.
+    const R = (t) => ({ type: "text", text: t });
+    for (const t of ["<system-reminder>\nA\n</system-reminder>", "", "plain",
+                     "<system-reminder>\nA\n</system-reminder>\n",
+                     "lead <system-reminder>\nA\n</system-reminder>"]) {
+      eq(isVolatileBlock(R(t)), WRAP.test(t) || t === "", `volatile predicate agrees on ${JSON.stringify(t)}`);
+    }
+    eq(isVolatileBlock({ type: "tool_result", text: "" }), false, "tool_result is never volatile");
+
+    const reg = (blocks) => volatileRegionOf({ role: "user", content: blocks });
+    eq(reg([R("x")]) === null, false, "user block-array has a region");
+    eq(volatileRegionOf({ role: "system", content: [R("")] }), null, "non-user has no pinned region");
+    eq(reg([{ type: "tool_result", tool_use_id: "t" }]).blocks, 0, "no volatile blocks");
+    // cache_control is the proxy's OWN mutation and must not read as a change
+    eq(reg([{ ...R("<system-reminder>\nA\n</system-reminder>"), cache_control: { type: "ephemeral" } }]).raw,
+       reg([R("<system-reminder>\nA\n</system-reminder>")]).raw, "cache_control stripped from the region");
+    eq(reg([{ ...R("x"), cache_control: { type: "ephemeral" } }]).cacheControl, true, "marker noticed");
+
+    const V = (verdict, kind) => JSON.stringify({ verdict, kind });
+    const cvc = (a, b) => JSON.stringify(classifyVolatileChange(reg(a), reg(b)));
+    const SR = (t) => R(`<system-reminder>\n${t}\n</system-reminder>`);
+    eq(cvc([SR("A")], [SR("A")]), V("IDENTICAL", null), "same bytes");
+    // wrapper add/remove, empty-block presence and "\n\n" split/merge are all
+    // re-serialization: the texts are unchanged
+    eq(cvc([SR("A")], [SR("A"), R("")]), V("RESERIALIZED", null), "empty block added");
+    eq(cvc([SR("A"), SR("B")], [SR("A\n\nB")]), V("RESERIALIZED", null), "two blocks merged on the join");
+    eq(cvc([SR("A\n\nB")], [SR("A"), SR("B")]), V("RESERIALIZED", null), "one block split on the join");
+    // and the changes, each by its definition
+    eq(cvc([SR("OLD")], [SR("NEW")]), V("CHANGED", "IN-PLACE-TEXT"), "text replaced");
+    eq(cvc([SR("A")], [R("")]), V("CHANGED", "VANISHED"), "the measured flip");
+    eq(cvc([R("")], [SR("A")]), V("CHANGED", "APPEARED"), "gained a reminder");
+    eq(cvc([SR("A")], [SR("A"), SR("B")]), V("CHANGED", "AUGMENTED"), "reminder added alongside");
+    eq(cvc([SR("A"), SR("B")], [SR("A")]), V("CHANGED", "REDUCED"), "reminder removed");
+    // a region empty on BOTH sides is outside the population entirely
+    const seen = new Map();
+    const plain = [{ role: "user", content: [{ type: "tool_result", tool_use_id: "t" }] }];
+    scanVolatileRegions(plain, seen);
+    const s2 = scanVolatileRegions(plain, seen);
+    eq(s2.counts.matchedAll, 1, "re-occurrence counted");
+    eq(s2.counts.matched, 0, "but the pin rewrites nothing there");
+    eq(firstDiffOffset("abc", "abd"), 2, "first divergence offset");
+    eq(firstDiffOffset("ab", "abc"), 2, "prefix then longer");
+    eq(firstDiffOffset("ab", "ab"), -1, "equal strings");
+
     process.stdout.write("reminder-migration-census: selftest passed\n");
     process.exit(0);
   }
