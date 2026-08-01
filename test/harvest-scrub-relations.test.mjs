@@ -190,3 +190,69 @@ test("degradation: non-strings and the empty string pass through unchanged", () 
   const m = scrubMessage({ role: "user", content: [{ type: "text", text: "" }] });
   assert.equal(m.content[0].text, "");
 });
+
+// --- 5. Nesting: the payload one level below where the scrubber looks --------
+//
+// DEFINITION (Anthropic Messages wire format): a content block carries its
+// binary payload at `block.source.data`, with `block.source.type` and
+// `block.source.media_type` as shape fields beside it. The sanitizer's
+// contract is "no raw content bytes leave the capture" — a contract about the
+// PAYLOAD, not about a field name at a particular depth. So the expectation
+// here is: whatever string a block's `source` carries as content must come out
+// tokenized, exactly like a top-level `data`.
+//
+// This is not a hypothetical depth. Measured 2026-07-31
+// (docs/audits/pr-prep-2026-07-31/pr-prep-report.md gap 1): the committed
+// reset-move fixture carried five image/png blocks with 13,060 raw base64
+// chars each at `source.data`, decoding to a screenshot with `tEXt` chunks
+// naming the desktop environment, locale and wall-clock — while the fixture's
+// own `_sanitization` header claimed it "keeps no raw text at all".
+//
+// Fail closed, not open: the wire format is not ours to freeze, so any OTHER
+// string under `source` longer than 64 chars is tokenized too. Short shape
+// fields (`type`, `media_type`) pass, because a reader that branches on them
+// is testing the block's KIND, which is structure, not content.
+
+const IMAGE_B64 =
+  // synthetic, not a real image: 300 base64-alphabet chars, long enough to be
+  // a payload by any measure and to trip the corpus scan in section 6.
+  "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0" .repeat(4);
+const DATA_TOKEN = /^data_[0-9a-f]{10}$/;
+
+test("nesting: a wire image block's source.data is tokenized, its shape fields survive", () => {
+  const block = {
+    type: "image",
+    source: { type: "base64", media_type: "image/png", data: IMAGE_B64 },
+  };
+  const out = scrubMessage({ role: "user", content: [block] }).content[0];
+  assert.match(out.source.data, DATA_TOKEN, "the payload must become a data_ token");
+  assert.ok(!out.source.data.includes(IMAGE_B64.slice(0, 32)), "no payload bytes may survive");
+  assert.equal(out.source.type, "base64", "shape fields are structure and survive");
+  assert.equal(out.source.media_type, "image/png");
+  assert.equal(out.type, "image");
+});
+
+test("nesting: equal payloads tokenize equal, different payloads differ", () => {
+  // The same determinism the top-level `data` field has: five copies of one
+  // image in one fixture must stay five copies of one token, or a fixture
+  // built for a re-send class stops showing the re-send.
+  const mk = (d) => scrubMessage({
+    role: "user",
+    content: [{ type: "image", source: { type: "base64", media_type: "image/png", data: d } }],
+  }).content[0].source.data;
+  // Both legs must be TOKENS, or the property passes for the wrong reason:
+  // raw payloads are trivially equal to themselves and unequal to others, so
+  // without this the assertion is satisfied by the unfixed scrubber.
+  assert.match(mk(IMAGE_B64), DATA_TOKEN);
+  assert.equal(mk(IMAGE_B64), mk(IMAGE_B64));
+  assert.notEqual(mk(IMAGE_B64), mk(`${IMAGE_B64}A`));
+});
+
+test("nesting: an unknown long string under source is tokenized too (fail closed)", () => {
+  const out = scrubMessage({
+    role: "user",
+    content: [{ type: "document", source: { type: "text", media_type: "text/plain", url: `https://example.invalid/${"p".repeat(80)}` } }],
+  }).content[0];
+  assert.match(out.source.url, DATA_TOKEN, "a >64-char string under source is a payload until proven otherwise");
+  assert.equal(out.source.media_type, "text/plain", "a short shape field still passes");
+});

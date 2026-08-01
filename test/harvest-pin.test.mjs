@@ -27,6 +27,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 
 import { parsePinRange, pinRange, readPinnedFixture } from "../tools/harvest.mjs";
 
@@ -122,7 +123,14 @@ test("pinRange: m beyond available requests throws rather than writing a truncat
 
 // --- CLI end-to-end: the actual entry point, not a re-derivation of it ---
 
-test("harvest --pin CLI: writes pinned-<key.slice(0,10)>-<n>-<m>.json with a header and sanitized records", async () => {
+// The sanitized token that names the fixture, stated from its DEFINITION
+// (docs/directives/fixture-sanitization-directive.md, settled design 2: a
+// conversation key becomes "s-" + the first 12 hex of its sha256) rather than
+// imported from tools/harvest.mjs — an expectation with the same parentage as
+// the code pins the bug it should catch.
+const KEY_TOKEN = `s-${createHash("sha256").update("s-tiny0000").digest("hex").slice(0, 12)}`;
+
+test("harvest --pin CLI: writes pinned-<s-sha12>-<n>-<m>.json, no session key in the name, header or records", async () => {
   const dir = await mkdtemp(join(tmpdir(), "harvest-pin-cli-"));
   const capturesDir = join(dir, "captures");
   const outDir = join(dir, "out");
@@ -136,16 +144,27 @@ test("harvest --pin CLI: writes pinned-<key.slice(0,10)>-<n>-<m>.json with a hea
   );
   assert.match(stdout, /pinned 4 record\(s\), range 0\.\.1/);
 
-  const outPath = join(outDir, "pinned-s-tiny0000-0-1.json");
-  assert.ok(existsSync(outPath), "fixture written at the expected name (key sliced to 10 chars, matching the scheduled harvest's own convention)");
+  const outPath = join(outDir, `pinned-${KEY_TOKEN}-0-1.json`);
+  assert.ok(existsSync(outPath), "fixture written at the expected name (the key's s-<sha12> token, never the session key)");
 
   const fixture = JSON.parse(await readFile(outPath, "utf-8"));
-  assert.equal(fixture.header.key, "s-tiny0000");
+  assert.equal(fixture.header.key, KEY_TOKEN);
   assert.deepEqual(fixture.header.range, { n: 0, m: 1 });
   assert.equal(fixture.header.replayFrom, 0);
   assert.ok(fixture.header.sanitizer, "sanitizer note present");
   assert.ok(fixture.header.harvestedAt, "harvest date present");
-  assert.ok(!JSON.stringify(fixture).includes(SECRET), "no raw content leaks through the CLI path either");
+  const serialized = JSON.stringify(fixture);
+  assert.ok(!serialized.includes(SECRET), "no raw content leaks through the CLI path either");
+  assert.ok(!serialized.includes("s-tiny0000"), "the raw conversation key leaks nowhere — header, records or metadata");
+  // Rebased, not stamped: the capture's own 2026-01-01 wall-clock is gone and
+  // the deltas between records survive (boot at +0s, the two requests at +1s
+  // and +3s, matching writeTinyCapture's spacing).
+  assert.equal(fixture.records[0].ts, "2000-01-01T00:00:00.000Z");
+  assert.deepEqual(
+    fixture.records.map((r) => Date.parse(r.ts) - Date.parse(fixture.records[0].ts)),
+    [0, 1000, 2000, 3000],
+  );
+  assert.ok(!serialized.includes("2026-01-01"), "no live wall-clock survives");
 });
 
 test("harvest --pin CLI: unknown key exits non-zero with a stated reason, writes nothing", async () => {
