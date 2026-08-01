@@ -1563,3 +1563,23 @@ bullet, evidence pointer included.
   held entry, a dropped-majority reset with a live move, or a
   two-reserve conversation) — then measure before designing.
 
+
+- **OPEN — absence-scan has no run-seam: the class recurred one day
+  after the mechanism shipped.** 2026-08-01: seven full-UUID
+  literals of capture 0d6f38ba landed via three loop-trio commits
+  and were pushed public with absence-scan.test.mjs already on main
+  (red-first mint 2026-07-31, the g2 entry above) — the mechanism
+  caught nothing because nothing runs it at the push seam; it fired
+  only when a later session ran the suite by hand. Fixed forward
+  f1fc59f (existing proxy-suite synthetic swapped in, no allowlist
+  growth; the leaked UUID itself is unscrubbable history, same
+  accepted-residual class as the LEDGER keys, PARKED above).
+  Decision owed: which seam runs the scan — a dotfiles pre-push
+  hook (carrier: dotfiles repo, machine trip) vs. folding into
+  gate-live's daily sweep (repo-owned, but a day late for a push).
+  Same day, same prose-vs-guard shape: reader worktrees
+  (dispatch-discipline's frozen-reader recipe) have no removal
+  clause — two frozen /tmp probe worktrees found still registered
+  days after their sessions ended (verified clean ancestors,
+  removed 2026-08-01); the discipline edit's carrier is ~/.claude
+  (operator corpus, GO owed).
