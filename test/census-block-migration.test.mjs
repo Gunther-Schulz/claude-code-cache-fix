@@ -6,7 +6,7 @@
 // noise, and exactly what makes the census blind to the case where the same
 // bytes are NOT noise: they leave one message's content array and reappear
 // as a message of their own (measured directly in capture
-// s-633915a8-dcfd-479a-8ca8-0c4452d5a9b6, n=26->28, message[30]'s 5th block
+// s-4b6a435234bf (tokenized), n=26->28, message[30]'s 5th block
 // -> the new message[31]). blockMigration is the check for that shape; see
 // tools/replay.mjs for the DEFINITION comment above findBlockMigrations.
 

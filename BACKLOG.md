@@ -1204,14 +1204,19 @@ bullet, evidence pointer included.
   consumer to name at build time: growth snapshots + doctor
   bookings read it.
 
-- **READY — test REAL_CAPTURE defaults carry a live session UUID and
-  an absolute /home path (g2).** insertion-suppression.test.mjs:288
-  and mitigation-output-form.test.mjs:120. Fix: derive the default
-  by scanning ~/.claude/cache-fix-captures at runtime (newest
-  capture), env override kept; no identifier in source. Verifier:
-  grep for 8-4-4-4-12 UUIDs and /home/ paths in test/ source goes
-  to zero; both tests keep their designed skip when no capture
-  exists.
+- **RESOLVED 2026-08-01 (eb4f844, fixture-cut dispatch,
+  dispatcher-verified) — test REAL_CAPTURE defaults (g2).** With a
+  correction to this entry's own design: "newest capture" was wrong
+  on contact with the data (the newest file belongs to an unrelated
+  conversation and fails the pair assertions) — the landed fix
+  recovers the capture by HASHING candidates (sidToken(filename) ==
+  fixture header.key over the capture dir); override kept, designed
+  skip kept, no identifier in source. Lesson booked: a backlog
+  entry can carry a decision falsified by one ls. The verifier's
+  "zero UUIDs in test/ source" is now a standing mechanism:
+  absence-scan.test.mjs source-allowlist test (red-first on the two
+  live instances it then caught — census-block-migration comment +
+  tools/replay.mjs, both fixed same commit).
 
 - **HOLD — prepared PR-slice branches, push blocked on two
   conditions (operator-visible).** State: pr/verification-tools
@@ -1294,12 +1299,40 @@ bullet, evidence pointer included.
   comment fixes; row-3 clear per the report (no state keys, no
   freeze logic, no order change).
 
-- **READY — proxy-read-dedupe.md is cited twice and does not exist**
-  (read-dedupe.mjs:3, docs/extension-impact-guide.md:276; found by
-  the hardening dispatch). Decide from the extension header's actual
-  content: if it carries the full rationale, write the directive as
-  its extraction; if not, drop both refs. Small; verifier: no
-  dangling doc reference (grep).
+- **RESOLVED 2026-08-01 (0c487c7, fixture-cut dispatch,
+  dispatcher-verified: grep leaves no citation not immediately
+  followed by "was never committed") — proxy-read-dedupe.md refs.**
+  Conservative branch taken per the entry's rule: the header carries
+  contracts but no goal/threat-model and defers to sections it
+  cannot supply (incl. an open msgIdx question) — extraction would
+  have meant new claims, so both refs now state the file never
+  existed and point at extension-impact-guide §12.
+
+- **PARKED — harvest --pin --replay-from K (fixture-cut c3).**
+  runPin always writes replayFrom 0 + the full prefix, so
+  regenerating the pinned fixture would restore the 432 kB dump.
+  Ruling 2026-08-01: minimization STAYS a post-step gated by
+  tools/fixture-verdict-identity.mjs — the floor is swept per
+  fixture, not a harvest parameter. Trigger to build: a second
+  fixture needing minimization at harvest time.
+
+- **READY — committed bite for tools/fixture-verdict-identity.mjs
+  (fixture-cut c2).** test/fixture-verdict-identity.test.mjs seeding
+  both demonstrated reds as fixtures: (1) a cut missing a covered
+  ordinal → coverage divergence; (2) a cut keeping every record but
+  stripping the pin-establishing reminder bytes → outHash
+  divergence inside the comparison. Verifier: both seeds exit 1
+  with the named divergence, the real pair exits 0. Done-criterion:
+  node --test green + both mutants bitten.
+
+- **READY — docs/ UUID triage (source-scan follow-up).** Full
+  8-4-4-4-12 UUIDs appear in 9+ files under docs/ (sweep
+  2026-08-01: code-reviews, directives, release-tests, audits).
+  Classify per hit: synthetic example vs capture/session-derived;
+  tokenize the real ones (burn-forward, history unscrubbable);
+  uncertain → surface, never guess. Verifier: extend the
+  absence-scan source test's scope to docs/ with the synthetics
+  allowlisted — the extension IS the done-criterion.
 
 - **RETIRED-marker (see RESOLVED above) — original blocker-3 entry
   follows for the record.**

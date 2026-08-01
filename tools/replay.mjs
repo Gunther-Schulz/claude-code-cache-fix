@@ -1088,7 +1088,7 @@ export function findEditPositions(entries) {
 // reminder is pure noise, and exactly what leaves census blind to the case
 // where the same bytes are NOT noise: they leave one message's content array
 // and reappear as a message of their own. That is the reminder-swap shape —
-// measured directly in capture s-633915a8-dcfd-479a-8ca8-0c4452d5a9b6,
+// measured directly in capture s-4b6a435234bf (tokenized),
 // n=26->28: message[30]'s 5th block, `<system-reminder>\nPreToolUse:Edit
 // hook additional context...\n</system-reminder>`, is gone from message[30]
 // on the n=28 side, and its inner text — wrapper stripped — is the entire

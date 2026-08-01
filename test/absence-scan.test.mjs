@@ -18,7 +18,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -256,4 +256,51 @@ test("git-range: an unresolvable base ref degrades to a full scan rather than er
     assert.equal(r.status, 2, r.stdout + r.stderr);
     assert.match(r.stdout, /^degraded: base ref /m);
   });
+});
+
+// ── Source files: a capture UUID may exist only on the allowlist ──────────────
+//
+// Fixtures are covered by the classes above; SOURCE leaks ride in comments and
+// string literals instead (found live 2026-08-01: the same capture UUID in a
+// test file's evidence comment and in tools/replay.mjs — public repo,
+// unscrubbable history). A bare "no UUIDs in source" rule would fire on the
+// synthetic ones, so the rule is: every UUID in test/, tools/, and proxy/
+// source is on the explicit synthetic allowlist below, or this test fails. A
+// new legitimate synthetic is added HERE, deliberately, in the same diff a
+// reviewer sees — never waved through.
+const SOURCE_UUID_ALLOWLIST = new Set([
+  FAKE_UUID,                              // this suite's seeded defect
+  "b16c607d-d484-4935-840e-e3f7ee78eb08", // proxy suites' synthetic session id
+  "00000000-0000-4000-8000-c4f1efb22220", // session-mirror synthetic
+  "9d1c250a-e61b-44d9-88ed-5944d1962f5e", // Anthropic's PUBLIC OAuth client_id
+]);
+
+test("source: every UUID in test/, tools/, proxy/ is on the synthetic allowlist", () => {
+  const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+  const files = [];
+  const collect = (dir) => {
+    for (const e of readdirSync(join(root, dir), { withFileTypes: true })) {
+      const rel = join(dir, e.name);
+      if (e.isDirectory()) {
+        if (dir.startsWith("proxy")) collect(rel); // test/ and tools/ are flat
+        continue;
+      }
+      if (e.name.endsWith(".mjs")) files.push(rel);
+    }
+  };
+  collect("test");
+  collect("tools");
+  collect("proxy");
+  const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
+  const offenders = [];
+  for (const rel of files) {
+    const text = readFileSync(join(root, rel), "utf8");
+    for (const hit of text.match(uuidRe) ?? []) {
+      if (!SOURCE_UUID_ALLOWLIST.has(hit)) offenders.push(`${rel}: ${hit}`);
+    }
+  }
+  assert.deepEqual(
+    offenders, [],
+    `unlisted UUID(s) in source — a capture identifier in a public tree, or a new synthetic missing from the allowlist:\n${offenders.join("\n")}`,
+  );
 });
