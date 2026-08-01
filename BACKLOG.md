@@ -402,7 +402,14 @@ bullet, evidence pointer included.
   READY item above. Kept as a line rather than deleted so a future
   session re-encountering the role does not re-derive it.
 
-- **READY — slice-port preflight: resolve a test file's module-scope
+- **RESOLVED 2026-08-01 (f71dd3a, ready-bundle dispatch,
+  dispatcher-verified: 51/51, clean over all 123 test files; the
+  verifier took the REAL-HISTORY route — both wave-2 defects
+  reproduced from git-show reconstructions, cured tree green, and
+  the WIDENED fixture arm red-first. Residual: the "wired into the
+  next port brief" arm lands with the rebuild brief (HOLD entry);
+  not yet run against a live slice worktree) — slice-port
+  preflight: resolve a test file's module-scope
   reads against the slice tree before mapping it.** Grounding: both
   wave-2 load failures (2026-07-30) were the same shape — a test
   file mapped into a slice by `--stat` carried a module-scope
@@ -1359,8 +1366,12 @@ bullet, evidence pointer included.
   fixture, not a harvest parameter. Trigger to build: a second
   fixture needing minimization at harvest time.
 
-- **READY — committed bite for tools/fixture-verdict-identity.mjs
-  (fixture-cut c2).** test/fixture-verdict-identity.test.mjs seeding
+- **RESOLVED 2026-08-01 (78bf112, ready-bundle dispatch,
+  dispatcher-verified; mutants derived at test time, fixture
+  discovered shape-agnostically, both reds land inside the
+  comparison; known limit: one replayable fixture today, first by
+  sort order if more appear) — committed bite for
+  tools/fixture-verdict-identity.mjs (fixture-cut c2).** test/fixture-verdict-identity.test.mjs seeding
   both demonstrated reds as fixtures: (1) a cut missing a covered
   ordinal → coverage divergence; (2) a cut keeping every record but
   stripping the pin-establishing reminder bytes → outHash
@@ -1368,7 +1379,11 @@ bullet, evidence pointer included.
   with the named divergence, the real pair exits 0. Done-criterion:
   node --test green + both mutants bitten.
 
-- **READY — docs/ UUID triage (source-scan follow-up).** Full
+- **RESOLVED 2026-08-01 (df902a2, ready-bundle dispatch,
+  dispatcher-verified: red-first on exactly 7 real hits, tokens
+  cross-checked against committed fixture names by executing
+  sidToken, org-id redacted per the asymmetry ruling, source scan
+  now walks docs/) — docs/ UUID triage (source-scan follow-up).** Full
   8-4-4-4-12 UUIDs appear in 9+ files under docs/ (sweep
   2026-08-01: code-reviews, directives, release-tests, audits).
   Classify per hit: synthetic example vs capture/session-derived;
@@ -1376,6 +1391,18 @@ bullet, evidence pointer included.
   uncertain → surface, never guess. Verifier: extend the
   absence-scan source test's scope to docs/ with the synthetics
   allowlisted — the extension IS the done-criterion.
+
+- **PARKED — bare s-<8hex> short forms in fork docs prose
+  (ready-bundle residual c2: s-58c979ce, s-9f9d8a9d, s-77fe2779 in
+  the threat matrix; BACKLOG prose carries many more).** Ruling
+  2026-08-01, consistent with the 07-31 association-on-fork ruling:
+  ACCEPTED residual on this fork — the short forms carry
+  operator-local cross-referencing value and the token↔capture
+  association is already public here; the exception (same file
+  redacts the full UUID → tokenize the short forms too) was applied
+  by the triage. Trigger to act: any such doc ported upstream —
+  tokenize at the port, and the slice preflight's absence arm is
+  the backstop.
 
 - **READY — backlog header lint (FIVE stale headers found
   2026-08-01: row-4, blocker-4 dup, duplicate-request,
