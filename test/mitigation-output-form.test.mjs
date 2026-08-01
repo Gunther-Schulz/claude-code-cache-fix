@@ -13,8 +13,10 @@
 // compare `outHash`/`outBytes` — what we actually forwarded — instead of
 // `inHash`/`inBytes` — what CC sent.
 //
-// Full evidence trail: the fidelity probe report at
-// /tmp/claude-1000/-home-g-dev-vendor-claude-code-cache-fix/633915a8-dcfd-479a-8ca8-0c4452d5a9b6/scratchpad/fidelity-probe-report.md
+// Full evidence trail: the fidelity probe report, `fidelity-probe-report.md`,
+// in the authoring session's scratchpad. Its absolute path is not repeated
+// here — it carried the live session UUID, and this repo is public (same
+// class as the REAL_CAPTURE default below, BACKLOG.md g2).
 //
 // Since this file was written, two further fixes landed on the SAME pair:
 // insertion-normalization's pin-and-suppress (c5d870d) removed the 61 kB
@@ -29,14 +31,14 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpdir, homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { findMitigationGaps, readCapture } from "../tools/replay.mjs";
-import { readPinnedFixture } from "../tools/harvest.mjs";
+import { readPinnedFixture, sidToken } from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -115,12 +117,44 @@ test("mitigation output-form: a genuine tail-append reconstruction reports appen
 // Both paths are overridable via env for the fallback's own red-green test
 // (test/harvest-pin.test.mjs) — never by editing the real capture, which is
 // read-only evidence shared with other work.
-const REAL_CAPTURE =
-  process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE ??
-  "/home/g/.claude/cache-fix-captures/s-633915a8-dcfd-479a-8ca8-0c4452d5a9b6-requests.jsonl";
 const PINNED_FIXTURE =
   process.env.CACHE_FIX_TEST_FIXTURE_OVERRIDE ??
   join(__dirname, "fixtures", "harvested", "pinned-s-4b6a435234bf-26-28.json");
+
+// The capture is NAMED WITHOUT BEING NAMED (BACKLOG.md g2: "test
+// REAL_CAPTURE defaults carry a live session UUID and an absolute /home
+// path" — this repo is public, and a capture UUID plus a home path is a live
+// identifier). The pinned fixture's header already carries `s-<sha12>` =
+// sidToken(conversation key) for the capture it was frozen from, and every
+// capture on disk is named `<key>-requests.jsonl`, so the right file is
+// recoverable by hashing the candidates rather than by hardcoding one. The
+// per-machine capture directory itself comes from homedir(), never a literal
+// path. Nothing on disk that matches -> null -> the fixture fallback, then
+// the designed skip.
+function resolveRealCapture(fixturePath) {
+  if (process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE) return process.env.CACHE_FIX_TEST_CAPTURE_OVERRIDE;
+  let wanted;
+  try {
+    wanted = JSON.parse(readFileSync(fixturePath, "utf-8")).header?.key;
+  } catch {
+    return null;
+  }
+  if (!wanted) return null;
+  const dir = join(homedir(), ".claude", "cache-fix-captures");
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return null;
+  }
+  const SUFFIX = "-requests.jsonl";
+  for (const name of names) {
+    if (!name.endsWith(SUFFIX)) continue;
+    if (sidToken(name.slice(0, -SUFFIX.length)) === wanted) return join(dir, name);
+  }
+  return null;
+}
+const REAL_CAPTURE = resolveRealCapture(PINNED_FIXTURE);
 const GATES = {
   CACHE_FIX_FORWARD_PROXY: "on",
   CACHE_FIX_SESSION_MIRROR: "on",
@@ -151,14 +185,14 @@ test(
     // untouched by the cut. The live capture starts at 0 by definition.
     let source;
     let replayFrom = 0;
-    if (existsSync(REAL_CAPTURE)) {
+    if (REAL_CAPTURE && existsSync(REAL_CAPTURE)) {
       source = readCapture(REAL_CAPTURE);
     } else if (existsSync(PINNED_FIXTURE)) {
       source = readPinnedFixture(PINNED_FIXTURE);
       replayFrom = JSON.parse(readFileSync(PINNED_FIXTURE, "utf-8")).header?.replayFrom ?? 0;
     } else {
       t.skip(
-        `capture rotated away (not found at ${REAL_CAPTURE}) and no pinned fixture at ${PINNED_FIXTURE} — COULD NOT VERIFY`,
+        `capture rotated away (no capture on disk hashing to the fixture's key) and no pinned fixture at ${PINNED_FIXTURE} — COULD NOT VERIFY`,
       );
       return;
     }
