@@ -1378,8 +1378,15 @@ bullet, evidence pointer included.
   live instances it then caught — census-block-migration comment +
   tools/replay.mjs, both fixed same commit).
 
-- **HOLD — prepared PR-slice branches, push blocked on two
-  conditions (operator-visible).** State: pr/verification-tools
+- **RESOLVED 2026-08-01 — prepared PR-slice branches: all conditions
+  met, rewritten and pushed.** #272 rewritten (tip 720ecb4, forced),
+  #276 rewritten via filter-repo + sanitization sync commit (tip
+  8bb3af4, forced), #281 rebased (fb63f61, forced), the join-moves
+  branch rebuilt from the rewritten tips and pushed as draft PR #295;
+  rewrite-done comments on #272 (issuecomment-5151725115) and #276
+  (issuecomment-5151722072). Full verification per
+  docs/audits/pr-prep-2026-08-01/rewrite-plan.md status ledger.
+  Original entry (conditions historical): State: pr/verification-tools
   advanced 53761a3 → a0a051f (15 commits, tools/ byte-equal to fork
   main) in worktree cache-fix-pr4; NEW pr/insertion-join-moves at
   fbec02f (b713b2f + merge of a0a051f + 7 commits, extension

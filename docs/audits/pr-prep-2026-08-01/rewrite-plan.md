@@ -96,3 +96,23 @@ the stack comes / on demand): #273, #275, #278, #279, #280, #282.
   the leak class upstream), main's g2-fixed test files, and the
   absence-scan pair iff it runs green on the slice tree (its walk
   asserts a docs/ root — check against the slice tree first).
+- 2026-08-01: #276 REBUILT → filter-repo (isolated clone, blob-callback
+  swapping the five dirty blob OIDs for clean bytes, name+text
+  substitutions incl. one commit message) + rebase onto 23346ac + tip
+  sync commit 4bbc4cf (hardened scrubber, identifier-free capture
+  discovery via main's g2-fixed test files, absence-scan pair with one
+  provenance-lined allowlist entry for upstream's own org_id example).
+  Suite 1804/1805 (known adjacency red only); branch's own
+  absence-scan over its whole delta: clean, exit 0.
+- 2026-08-01: pr12 REBUILT → rewritten-#272 tip + merge of #276 +
+  7 replayed commits with the reset-move swap at its dirty point; tip
+  edd3173 after the allowlist exemption commit. Suite 1856/1857 (same
+  single known red); scan clean.
+- 2026-08-01: PUSHED — #272 720ecb4 (forced), #276 8bb3af4 (forced),
+  #281 fb63f61 (forced), pr/insertion-join-moves edd3173 (new) → draft
+  PR #295 opened. The dotfiles pre-push absence guard (deployed the
+  same morning, 7d1b3df) blocked pr12's first push on upstream's own
+  transcript-shape fixture — pre-existing third-party content, repaired
+  by declared ALLOWLIST exemption (9db47fc on main, mirrored on the
+  branches), not by --no-verify. Remaining: #273/#278 rebases ride the
+  reviewer's stated order as the fresh #272 round proceeds.
