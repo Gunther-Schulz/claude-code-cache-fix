@@ -44,7 +44,16 @@ import { basename } from "node:path";
 // part of an upstream slice, and keyed by raw capture key BY DESIGN. That is a
 // real residual (operator ruling 2026-07-31) and is named rather than left
 // implicit.
-export const ALLOWLIST = [/(^|\/)test\/fixtures\/harvested\/LEDGER-[^/]*\.json$/];
+export const ALLOWLIST = [
+  /(^|\/)test\/fixtures\/harvested\/LEDGER-[^/]*\.json$/,
+  // Upstream's own transcript-shape fixture: committed upstream with that
+  // machine's identifiers, public in the upstream tree before this scan
+  // existed. A NEW-branch push scans EMPTY..tip and would go red forever on
+  // content this repo cannot change — so the pre-existing third-party file
+  // is a declared exemption here (the pre-push guard's documented remedy),
+  // never a softened predicate.
+  /(^|\/)test\/fixtures\/cc-transcript-shape-snapshot\.json$/,
+];
 
 export function isAllowlisted(path) {
   const p = String(path).replace(/\\/g, "/");
