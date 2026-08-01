@@ -58,6 +58,47 @@
 // second actually occurs, so this sweep counts it instead of arguing it. See
 // `scanVolatileRegions` for the classification and its definitional comment.
 //
+// THIRD MEASUREMENT — DUPLICATE REQUESTS (`duplicates` in the output).
+// CC#78420 is "the same request body sent twice and charged twice". The
+// falsifier for it — adjacent byte-identical request bodies — has been run by
+// hand twice and answered differently each time, and the difference was the
+// DEFINITION of "adjacent":
+//   2026-07-29, a throwaway python scan over capture LINES, reported the class
+//     ABSENT on this setup. Live traffic interleaves tenants (main, subagent,
+//     sidecar), so two requests of one conversation are usually several lines
+//     apart: file adjacency breaks on interleaving and under-counts.
+//   2026-07-30, a per-CONVERSATION scan, reported ~100 pairs in ~23 streaks.
+// Per-conversation adjacency is the definition here, and it is the one this
+// tool already uses everywhere else (`conversationOf`, the pair loop) — a
+// global-file scan is not a variant of it, it is a different question.
+//
+// The number alone does not say whether #78420 is happening, which is why the
+// counter carries its DISCRIMINATOR: how many requests of each streak have a
+// matching OUTCOME record (`type:"outcome"`, keyed by the request's `id` —
+// replay.mjs writes `captureId: rec.id` and reads `outcomes.get(...)` the same
+// way). The 07-30 measurement resolved the streaks as CLIENT RETRIES: distinct
+// ids, backoff-shaped intervals, and ZERO outcome records — nothing was
+// charged, so nothing was double-billed.
+//
+// The alarm is `doubleBilledStreaks` — a streak carrying TWO OR MORE outcome
+// records — never `billedStreaks`: a retry that finally succeeds bills exactly
+// one of its sends, which is correct. See `summariseDuplicates`. First live
+// run, 2026-08-01T14:15+02:00 over 28 captures (the corpus rotates; the
+// capture carrying the 07-30 streaks had already aged out): 71 duplicate
+// pairs of 10,454 same-conversation pairs, in 67 streaks, longest run 4, 61
+// billed requests over 32 streaks — and 29 streaks DOUBLE-billed. Verified by
+// hand on two of them: s-0fbf8674 lines 3/5, identical 2384-byte haiku bodies
+// 14 ms apart, 587 input tokens charged on each; s-cbc27f3c lines 654/656,
+// identical 1.84 MB fable bodies 11 s apart, both answered (outputTokens 2
+// and 1, the second reading 360,598 cached tokens). Duplicate SENDS cost
+// nothing; duplicate ANSWERS do.
+//
+// Two honest edges, neither bridged: a member whose record carries no `id` can
+// not be matched at all (`membersWithoutId`, reported separately from a
+// missing outcome), and a streak at the very TAIL of a live capture may have
+// outcome records that were not yet written when the file was read — billing
+// is matched within one capture only.
+//
 // Usage:
 //   node tools/reminder-migration-census.mjs <capture.jsonl> [more.jsonl ...]
 //   node tools/reminder-migration-census.mjs ~/.claude/cache-fix-captures/*.jsonl
@@ -193,6 +234,11 @@ async function* readRecords(path, tornCount) {
     // capture writer. Silence here was the tool's own three-answer violation:
     // an absence of coverage reported as nothing at all.
     try { r = JSON.parse(line); } catch { if (tornCount) tornCount.n++; continue; }
+    // Outcome records (what the API actually charged) share the file, carry no
+    // body, and are yielded for ONE consumer: the duplicate counter's billing
+    // discriminator. They deliberately get no `__line` — nothing points at
+    // them — and every other analysis skips them on `type`.
+    if (r?.type === "outcome" && typeof r?.id === "string") { yield r; continue; }
     // 1-based LINE ordinal, counting blank and corrupt lines too, so a detail
     // row's pointer resolves with `sed -n '<N>p'` on the capture itself. Set
     // on the record rather than yielded alongside it because the record is
@@ -347,6 +393,146 @@ export function conversationOf(rec) {
   const m0 = rec?.body?.messages?.[0];
   if (!m0) return null;
   return createHash("sha256").update(JSON.stringify(m0)).digest("hex").slice(0, 16);
+}
+
+// --- duplicate requests (CC#78420's falsifier, as a standing counter) ---
+
+/**
+ * DEFINITION: two request bodies are the same request when their bodies are
+ * byte-identical — the WHOLE body (model, max_tokens, messages, metadata),
+ * not the messages alone, because what #78420 alleges is the same REQUEST
+ * charged twice.
+ *
+ * Byte-identical is measured on the parse/stringify normal form, the same one
+ * `analysePair` compares message arrays with. Key ORDER survives a JSON
+ * round trip, so this is the capture's bytes up to whitespace.
+ *
+ * The message-count test is a short-circuit, not a second definition: equal
+ * bodies necessarily have equal message counts, so it can reject pairs but can
+ * never hide one. It is here because consecutive requests in a conversation
+ * normally GROW, and stringifying two multi-megabyte bodies on every pair of
+ * the corpus would double the sweep's runtime to answer a question the length
+ * already answered.
+ */
+export function sameBody(a, b) {
+  const ma = a?.messages, mb = b?.messages;
+  if (!Array.isArray(ma) || !Array.isArray(mb)) return false;
+  if (ma.length !== mb.length) return false;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/**
+ * Accumulator for one CAPTURE's duplicate scan: per-conversation open runs,
+ * member ids whose outcome has not arrived (`pending`), outcome ids that
+ * arrived BEFORE their request was known to be a member (`billed`), and the
+ * streaks seen so far.
+ *
+ * `billed` exists because of the ordering the wire actually has, which the
+ * first version of this counter got wrong and its own test caught: a streak's
+ * FIRST request is answered — and its outcome record written — before the
+ * duplicate send that makes it a member. Matching only forwards attributed
+ * zero billing to every streak opener, i.e. it under-reported exactly the
+ * #78420 signal (first send charged, duplicate charged again) it exists to
+ * catch. It holds one short id per outcome record and is dropped with the
+ * capture — negligible beside the previous BODY per conversation the census
+ * loop already retains.
+ */
+export function newDuplicateScan() {
+  return { runs: new Map(), pending: new Map(), billed: new Set(), streaks: [] };
+}
+
+/** A request joins the run it duplicates, and brings its billing state with
+ *  it: its outcome record may already have gone past. An id-less record cannot
+ *  be matched to an outcome at all, and says so rather than reading as
+ *  unbilled. */
+function addMember(scan, run, id) {
+  run.length++;
+  if (typeof id !== "string" || !id) { run.noId++; return; }
+  if (scan.billed.delete(id)) run.billed++;
+  else scan.pending.set(id, run);
+}
+
+/**
+ * Track one same-conversation ADJACENT pair. `scan.runs` holds at most one
+ * OPEN run per conversation, so a maximal run of k identical bodies is one
+ * streak of length k and k-1 pairs — never k-1 streaks of 2.
+ *
+ * Adjacency is the conversation's, never the file's: the caller pairs
+ * (previous request of THIS conversation, current), which is what makes an
+ * interleaved subagent request stop being an artificial break. That is the
+ * whole difference between the 07-29 and 07-30 hand probes (header).
+ *
+ * Returns the run this pair belongs to, or null when the bodies differ — in
+ * which case any open run for the conversation is closed, since a streak is
+ * maximal by definition.
+ */
+export function trackDuplicate(scan, cid, before, current) {
+  if (!sameBody(before?.body, current?.body)) {
+    scan.runs.delete(cid);
+    return null;
+  }
+  let run = scan.runs.get(cid);
+  if (!run) {
+    run = { cid, sid: current.sid ?? null, length: 0, billed: 0, noId: 0,
+            startTs: before.ts ?? null, startLine: before.__line ?? null,
+            lastTs: before.ts ?? null, lastLine: before.__line ?? null };
+    addMember(scan, run, before.id);
+    scan.runs.set(cid, run);
+    scan.streaks.push(run);
+  }
+  addMember(scan, run, current.id);
+  run.lastTs = current.ts ?? null;
+  run.lastLine = current.__line ?? null;
+  return run;
+}
+
+/**
+ * An outcome record: that request was answered and charged. It bills a member
+ * immediately, or is REMEMBERED for the request that has not yet turned out to
+ * be one (see `newDuplicateScan` on why that direction is the common one).
+ * Consumed on match, so one outcome record can never bill two requests.
+ * Returns whether it billed a member right now.
+ */
+export function noteOutcome(scan, id) {
+  if (typeof id !== "string" || !id) return false;
+  const run = scan.pending.get(id);
+  if (!run) { scan.billed.add(id); return false; }
+  scan.pending.delete(id);
+  run.billed++;
+  return true;
+}
+
+/**
+ * The capture's rollup. `pairs` is derived from the streaks (sum of
+ * length - 1) rather than counted alongside them, so the two can never
+ * disagree about what a streak is.
+ *
+ * THE ALARM IS `doubleBilledStreaks`, not `billedStreaks`, and the difference
+ * is the definition of the defect rather than a threshold. A retry that
+ * finally succeeds bills EXACTLY ONE of its sends: the failed attempts never
+ * produced an outcome record, and one charge for one answer is correct
+ * behaviour. Measured on the live corpus 2026-08-01: 32 of 67 streaks carry a
+ * billed request, and treating that as the signal would raise an alarm on the
+ * corpus's normal state — the check-that-fires-on-a-non-defect shape
+ * (dev-loop.md). Two or more outcome records inside one streak is the thing
+ * CC#78420 alleges: one body, answered and charged more than once.
+ * `billedStreaks` and `billedRequests` stay as the decomposition.
+ */
+export function summariseDuplicates(scan) {
+  const s = { pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
+              billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
+              membersWithoutId: 0 };
+  for (const run of scan.streaks) {
+    s.streaks++;
+    s.pairs += run.length - 1;
+    s.requests += run.length;
+    s.billedRequests += run.billed;
+    s.membersWithoutId += run.noId;
+    if (run.billed > 0) s.billedStreaks++;
+    if (run.billed > 1) s.doubleBilledStreaks++;
+    if (run.length > s.maxStreak) s.maxStreak = run.length;
+  }
+  return s;
 }
 
 // --- #272 blocker 2: do PINNED volatile bytes actually change? ---
@@ -525,6 +711,12 @@ export function scanVolatileRegions(messages, seen) {
 // backstop, not the working limit, and tripping it is reported.
 const ENTRY_ROW_CAP = 5000;
 
+// Same shape of backstop for duplicate-streak detail rows: the counts stay
+// exact, the rows are capped and the cap reports what it dropped. Streaks are
+// a small population by construction (a hundred pairs across a corpus), so
+// tripping this would itself be the finding.
+const DUP_ROW_CAP = 5000;
+
 export async function census(paths) {
   const tally = { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 };
   const extendedSub = { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 };
@@ -548,6 +740,14 @@ export async function census(paths) {
   // occurrences on the first corpus run came from a handful of entries.
   const volatileEntries = new Set();
   const volatileEntriesByKind = {};
+  // Duplicate requests: corpus totals, per-capture rollups, capped detail rows.
+  // The totals are an EMPTY rollup rather than a second field list — a
+  // hand-copied one drifts from `summariseDuplicates` silently, and the
+  // key-by-key accumulation below would then add `undefined` and print NaN.
+  const duplicates = summariseDuplicates(newDuplicateScan());
+  const duplicatesByCapture = new Map();
+  const duplicateRows = [];
+  let duplicatesTruncated = 0;
   const torn = { n: 0 };
   let pairs = 0, captures = 0, conversations = 0;
   for (const path of paths) {
@@ -564,8 +764,17 @@ export async function census(paths) {
     // restarts its first-seen baseline, which can only UNDER-count changes.
     const firstSeen = new Map();
     const reqOrd = new Map();
+    // Duplicate-request scan, scoped to the capture like `prev`: billing is
+    // matched within one file, and a conversation continued in another capture
+    // restarts its run — which can only UNDER-count streaks.
+    const dupScan = newDuplicateScan();
     try {
       for await (const r of readRecords(path, torn)) {
+        // The billing side of the duplicate counter, and nothing else: an
+        // outcome record carries no body, so every analysis below would skip
+        // it anyway — it is handled here so that skip is a decision, not a
+        // side effect of `conversationOf` returning null.
+        if (r.type === "outcome") { noteOutcome(dupScan, r.id); continue; }
         const cid = conversationOf(r);
         if (cid === null) continue;
 
@@ -618,6 +827,7 @@ export async function census(paths) {
         if (!before) continue;
         pairs++;
         withPairs.add(cid);
+        trackDuplicate(dupScan, cid, before, r);
         const prune = classifyPrune(before.body.messages, r.body.messages);
         if (prune) {
           prunes[{ "PURE-TAIL-PRUNE": "pure", "INTERIOR-DIVERGENT": "interior",
@@ -635,6 +845,23 @@ export async function census(paths) {
       // zero: it is the population this verdict does NOT cover.
       unreadable.push({ path, error: String(e?.message ?? e) });
       continue;
+    } finally {
+      // Runs on the read-error path too (that is what `finally` buys): a
+      // capture that died halfway still measured the part it read, and
+      // dropping those streaks would report a partial read as zero duplicates
+      // — the absence-as-a-pass shape this tool was fixed for once already.
+      const dup = summariseDuplicates(dupScan);
+      if (dup.streaks) {
+        for (const k of Object.keys(duplicates)) {
+          if (k === "maxStreak") duplicates.maxStreak = Math.max(duplicates.maxStreak, dup.maxStreak);
+          else duplicates[k] += dup[k];
+        }
+        duplicatesByCapture.set(path, dup);
+        for (const run of dupScan.streaks) {
+          if (duplicateRows.length >= DUP_ROW_CAP) { duplicatesTruncated++; continue; }
+          duplicateRows.push({ path, ...run });
+        }
+      }
     }
     if (withPairs.size) captures++;
     conversations += withPairs.size;
@@ -645,7 +872,9 @@ export async function census(paths) {
            volatileExempt, volatileByCapture: [...volatileByCapture.entries()],
            volatileEntries: volatileEntries.size,
            volatileEntriesByKind: Object.fromEntries(
-             Object.entries(volatileEntriesByKind).map(([k, s]) => [k, s.size])) };
+             Object.entries(volatileEntriesByKind).map(([k, s]) => [k, s.size])),
+           duplicates, duplicatesByCapture: [...duplicatesByCapture.entries()],
+           duplicateRows, duplicatesTruncated };
 }
 
 async function main(argv) {
@@ -660,7 +889,8 @@ async function main(argv) {
   const { tally, extendedSub, prunes, pruneDetails, details, pairs, captures, conversations,
           unreadable, considered, tornLines, volatileChange, volatileKinds, volatileRows,
           volatileTruncated, volatileExempt, volatileByCapture,
-          volatileEntries, volatileEntriesByKind } = await census(paths);
+          volatileEntries, volatileEntriesByKind,
+          duplicates, duplicatesByCapture, duplicateRows, duplicatesTruncated } = await census(paths);
   const total = tally.EXACT + tally.EXTENDED + tally.DROPPED + tally.MISMATCH;
   // Printed with every verdict, clean or not: the reader of a byte-gate needs
   // the DENOMINATOR, and "25 capture(s)" over a 39-file corpus read like one.
@@ -680,7 +910,8 @@ async function main(argv) {
         tornLines,
         volatileChange, volatileKinds, volatileTruncated, volatileExempt,
         volatileByCapture, volatileEntries, volatileEntriesByKind,
-        ...(verbose ? { volatileRows } : {}) },
+        duplicates, duplicatesByCapture, duplicatesTruncated,
+        ...(verbose ? { volatileRows, duplicateRows } : {}) },
       null, 2) + "\n");
     return unreadable.length ? 1 : 0;
   }
@@ -721,6 +952,68 @@ async function main(argv) {
     }
   }
   if (nPrunes) process.stdout.write("\n");
+
+  // Duplicate requests (CC#78420's falsifier as a standing counter). Printed
+  // before the migration verdict's early return, like the prunes: a corpus
+  // with no container migrations still answers this question. Totals and
+  // per-capture rollups only — the streak rows are --verbose, so the daily
+  // sweep's status file never grows a row per duplicate.
+  const d = duplicates;
+  if (d.pairs === 0) {
+    process.stdout.write(
+      `duplicate requests (same conversation, adjacent, byte-identical bodies): none in ${pairs} pair(s)\n\n`);
+  } else {
+    process.stdout.write(
+      `duplicate requests — ${d.pairs} adjacent byte-identical pair(s) of ${pairs}, in\n` +
+      `  ${d.streaks} streak(s) (longest run ${d.maxStreak} requests) covering ${d.requests} request(s).\n` +
+      "  Adjacency is the CONVERSATION's, never the capture file's: interleaved\n" +
+      "  tenants sit between two requests of one conversation, and a file-adjacent\n" +
+      "  scan reports the class absent (the 2026-07-29 probe did exactly that).\n" +
+      `  BILLED: ${d.billedRequests} of those requests have a matching outcome record,\n` +
+      `  spread over ${d.billedStreaks} streak(s)` +
+      (d.membersWithoutId ? `; ${d.membersWithoutId} request(s) carry no id to match on` : "") +
+      ".\n" +
+      `  DOUBLE-BILLED: ${d.doubleBilledStreaks} streak(s) carry TWO OR MORE outcome records.\n` +
+      (d.doubleBilledStreaks === 0
+        ? "  That is the CC#78420 claim, and it is not happening here: a streak billed\n" +
+          "  once is a retry that finally succeeded (failed sends produce no outcome\n" +
+          "  record), and one charge for one answer is correct. Duplicate SENDS cost\n" +
+          "  nothing on their own.\n"
+        : "  That is the CC#78420 SHAPE — one body, answered and charged more than\n" +
+          "  once — and the charge is real whatever produced it. It does NOT by\n" +
+          "  itself say CC sent a request it did not need to: a re-send after a\n" +
+          "  degenerate answer (outputTokens 1-2) lands here too, billed because\n" +
+          "  upstream did answer. Read the rows (--verbose) and their outcome\n" +
+          "  records — model, usage, interval — before booking either reading.\n") +
+      "  Billing is matched WITHIN a capture, so a streak at a live file's tail may\n" +
+      "  have outcome records that were not written yet when it was read.\n");
+    if (duplicatesByCapture.length > 1) {
+      process.stdout.write(
+        "  per capture (pairs / streaks / longest / requests / billed / DOUBLE-billed streaks):\n");
+      for (const [p, a] of duplicatesByCapture) {
+        process.stdout.write(
+          `    ${basename(p).padEnd(52)} ${String(a.pairs).padStart(6)} /` +
+          ` ${String(a.streaks).padStart(6)} / ${String(a.maxStreak).padStart(6)} /` +
+          ` ${String(a.requests).padStart(6)} / ${String(a.billedRequests).padStart(6)} /` +
+          ` ${String(a.doubleBilledStreaks).padStart(6)}\n`);
+      }
+    }
+    if (verbose && duplicateRows.length) {
+      process.stdout.write("  streaks — one row each, pointers only (no bodies):\n");
+      for (const row of duplicateRows) {
+        process.stdout.write(
+          `    x${String(row.length).padStart(3)}  ${row.startTs} -> ${row.lastTs}` +
+          `  ${basename(row.path)}:${row.startLine}-${row.lastLine}` +
+          `  sid=${(row.sid ?? "?").slice(0, 8)} conv=${row.cid}` +
+          `  billed=${row.billed}${row.noId ? ` no-id=${row.noId}` : ""}\n`);
+      }
+    }
+    if (duplicatesTruncated) {
+      process.stdout.write(
+        `  ROWS TRUNCATED (counts above are exact): ${duplicatesTruncated} streak(s) beyond ${DUP_ROW_CAP}.\n`);
+    }
+    process.stdout.write("\n");
+  }
 
   // Volatile-block change across matched pinned entries (#272 blocker 2).
   // Printed BEFORE the migration verdict's early return: a corpus with no
@@ -972,6 +1265,61 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     const s2 = scanVolatileRegions(plain, seen);
     eq(s2.counts.matchedAll, 1, "re-occurrence counted");
     eq(s2.counts.matched, 0, "but the pin rewrites nothing there");
+    // --- duplicate requests (CC#78420's falsifier) ---
+    // The definition is the WHOLE body, byte-identical.
+    const B = (msgs, extra = {}) => ({ model: "m", messages: msgs, ...extra });
+    eq(sameBody(B([M("a")]), B([M("a")])), true, "identical bodies");
+    eq(sameBody(B([M("a")]), B([M("b")])), false, "different message text");
+    eq(sameBody(B([M("a")]), B([M("a"), M("b")])), false, "different message count");
+    eq(sameBody(B([M("a")], { max_tokens: 1 }), B([M("a")], { max_tokens: 2 })), false,
+       "same messages, different request parameter — not the same request");
+    // Streaks: a run of k identical bodies is ONE streak of length k, never
+    // k-1 streaks of 2. Collapsing that is the mutation the test file names.
+    const rec = (id, msgs, ts) => ({ id, ts, sid: "s", __line: id, body: B(msgs) });
+    const runOf = (...bodies) => {
+      const sc = newDuplicateScan();
+      const recs = bodies.map((m, i) => rec(String(i + 1), m, `t${i + 1}`));
+      for (let i = 1; i < recs.length; i++) trackDuplicate(sc, "c", recs[i - 1], recs[i]);
+      return sc;
+    };
+    const three = runOf([M("a")], [M("a")], [M("a")]);
+    eq(summariseDuplicates(three).streaks, 1, "a 3-run is one streak");
+    eq(summariseDuplicates(three).pairs, 2, "and two adjacent pairs");
+    eq(summariseDuplicates(three).maxStreak, 3, "of length 3");
+    eq(summariseDuplicates(three).requests, 3, "covering three requests");
+    // A gap CLOSES the run: streaks are maximal, so A A B A A is two of two.
+    const split = runOf([M("a")], [M("a")], [M("b")], [M("a")], [M("a")]);
+    eq(summariseDuplicates(split).streaks, 2, "a differing body closes the run");
+    eq(summariseDuplicates(split).maxStreak, 2, "neither run is longer than 2");
+    // Non-adjacent repeats are not duplicates at all.
+    eq(summariseDuplicates(runOf([M("a")], [M("b")], [M("a")])).pairs, 0,
+       "identical but not adjacent");
+    // The billing discriminator: an outcome record for a member bills it.
+    eq(summariseDuplicates(three).billedRequests, 0, "no outcome records seen");
+    eq(noteOutcome(three, "2"), true, "outcome for a streak member");
+    eq(noteOutcome(three, "2"), false, "one outcome bills exactly one request");
+    eq(noteOutcome(three, "999"), false, "outcome for a non-member bills nothing");
+    eq(summariseDuplicates(three).billedRequests, 1, "billed request counted");
+    eq(summariseDuplicates(three).billedStreaks, 1, "and its streak is a billed one");
+    // ONE charge for one answer is a successful retry, not a double bill —
+    // the alarm needs a second outcome record inside the same streak.
+    eq(summariseDuplicates(three).doubleBilledStreaks, 0, "one charge is not a double charge");
+    eq(noteOutcome(three, "3"), true, "a second member of the same streak was charged");
+    eq(summariseDuplicates(three).doubleBilledStreaks, 1, "one body, two charges — the alarm");
+    // The ORDER the wire has: a streak's first request is answered before the
+    // duplicate send exists, so its outcome record goes past BEFORE it is a
+    // member. Matching only forwards zeroes out every streak opener.
+    const early = newDuplicateScan();
+    const r1 = rec("e1", [M("a")], "t1"), r2 = rec("e2", [M("a")], "t2");
+    eq(noteOutcome(early, "e1"), false, "not a member yet");
+    trackDuplicate(early, "c", r1, r2);
+    eq(summariseDuplicates(early).billedRequests, 1, "the opener's earlier outcome still bills it");
+    // An id-less member cannot be matched — that is a THIRD answer, not "unbilled".
+    const noid = newDuplicateScan();
+    trackDuplicate(noid, "c", { ts: "t1", body: B([M("a")]) }, { ts: "t2", body: B([M("a")]) });
+    eq(summariseDuplicates(noid).membersWithoutId, 2, "no id, no match possible");
+    eq(summariseDuplicates(noid).billedRequests, 0, "and nothing is claimed about billing");
+
     eq(firstDiffOffset("abc", "abd"), 2, "first divergence offset");
     eq(firstDiffOffset("ab", "abc"), 2, "prefix then longer");
     eq(firstDiffOffset("ab", "ab"), -1, "equal strings");
