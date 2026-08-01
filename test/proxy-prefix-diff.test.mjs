@@ -28,6 +28,7 @@ import ext, {
   diffHasChanges,
   buildBetaHeaderSnapshot,
   diffBetaHeader,
+  buildKeymapRecord,
   TAP_ORDER,
   TAP_VIEW,
 } from "../proxy/extensions/prefix-diff.mjs";
@@ -405,7 +406,10 @@ test("snapshotPrefix: writes <key>-last.json on first invocation", async () => {
     assert.equal(result.wroteDiff, false);
     const expected = `${result.key}-last.json`;
     const files = await listFiles(dir);
-    assert.deepEqual(files, [expected]);
+    // The listing stays EXACT — its point is that nothing unexpected is
+    // written. The key->conversation map joins it because a first invocation
+    // is by definition a first sighting of the key.
+    assert.deepEqual(files, [expected, "cache-fix-keymap.jsonl"].sort());
     // The file holds one baseline per tenant (co-tenants share a session id).
     const json = JSON.parse(await readFile(join(dir, expected), "utf-8"));
     assert.equal(json.tenants[json.lastTenant].messageCount, 2);
@@ -423,7 +427,9 @@ test("snapshotPrefix: identical second call rewrites last.json, no diff file", a
     assert.ok(r2.wroteSnapshot);
     assert.equal(r2.wroteDiff, false);
     const files = await listFiles(dir);
-    assert.deepEqual(files, [`${r1.key}-last.json`]);
+    // One keymap line was written by the FIRST call; the identical second
+    // call adds no file and no line.
+    assert.deepEqual(files, [`${r1.key}-last.json`, "cache-fix-keymap.jsonl"].sort());
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -455,7 +461,8 @@ test("snapshotPrefix: differing second call writes <key>-diff.json with prefixDi
       `${r1.key}-diff.json`,
       `${r1.key}-events.jsonl`,
       `${r1.key}-last.json`,
-    ]);
+      "cache-fix-keymap.jsonl",
+    ].sort());
     const diff = JSON.parse(await readFile(join(dir, `${r1.key}-diff.json`), "utf-8"));
     assert.ok(diff.prefixDiffs.length > 0);
     assert.equal(diff.prefixDiffs[0].index, 0);
@@ -1364,6 +1371,154 @@ test("concurrent co-tenants each keep a baseline (no lost update)", async () => 
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+// --- key -> conversation map ---
+//
+// The definition, from the cachebust runbook's step 2: the storage key is
+// `s-` + a hash of the session id, "the mapping is recorded nowhere", so a
+// reader is told to select by TIME and confirm with the model. The map's
+// contract is therefore: one line per key, the FIRST time that key is seen,
+// carrying the session id the key hashes and the model that would otherwise
+// have been the confirmation heuristic.
+
+const keymapLines = async (dir) => {
+  const txt = await readFile(join(dir, "cache-fix-keymap.jsonl"), "utf-8");
+  return txt.trim().split("\n").filter(Boolean).map((l) => JSON.parse(l));
+};
+
+test("keymap: a new key is recorded once, with the session id its hash hides", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "0d6f38ba-e2a1-41c2-9558-b06bc238c79d" };
+  try {
+    const payload = { ...makePayload(), model: "claude-fable-5" };
+    const r = await captureStderr(async () => {
+      await snapshotPrefix(payload, { dir, headers });
+    });
+    void r;
+    const rows = await keymapLines(dir);
+    assert.equal(rows.length, 1, "one line for the first sighting");
+    assert.equal(rows[0].key, resolveSessionKey(headers, payload.system));
+    assert.equal(rows[0].sid, "0d6f38ba-e2a1-41c2-9558-b06bc238c79d");
+    assert.equal(rows[0].model, "claude-fable-5");
+    assert.match(rows[0].ts, /^\d{4}-\d{2}-\d{2}T/);
+    // The lookup the runbook could not do: hash -> id, in one direction the
+    // hash itself does not allow.
+    assert.notEqual(rows[0].key, rows[0].sid);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("keymap: later requests on a known key add nothing — it is a map, not a log", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "S1" };
+  try {
+    await captureStderr(async () => {
+      for (let i = 0; i < 4; i++) {
+        await snapshotPrefix(
+          { ...makePayload({ messages: [{ role: "user", content: [{ type: "text", text: `t${i}` }] }] }),
+            model: "claude-opus-5" },
+          { dir, headers },
+        );
+      }
+    });
+    assert.equal((await keymapLines(dir)).length, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("keymap: each key gets its own line — this is what separates main from its verifier", async () => {
+  // The 2026-07-30 confusion: two conversations, two keys, and time as the
+  // only discriminator. Distinct session ids must produce distinct rows.
+  const dir = await newTmp();
+  try {
+    await captureStderr(async () => {
+      await snapshotPrefix({ ...makePayload(), model: "claude-fable-5" },
+                           { dir, headers: { "x-claude-code-session-id": "main-sid" } });
+      await snapshotPrefix({ ...makePayload(), model: "claude-opus-5" },
+                           { dir, headers: { "x-claude-code-session-id": "verifier-sid" } });
+    });
+    const rows = await keymapLines(dir);
+    assert.equal(rows.length, 2);
+    assert.deepEqual(rows.map((r) => r.sid).sort(), ["main-sid", "verifier-sid"]);
+    assert.equal(new Set(rows.map((r) => r.key)).size, 2, "distinct sessions, distinct keys");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("keymap: a headerless request records sid:null, not a missing field", async () => {
+  // `sid: null` is a real state — the content-hash fallback key. A reader who
+  // cannot tell it from an omission goes hunting for an id that never existed.
+  const dir = await newTmp();
+  try {
+    await captureStderr(async () => {
+      await snapshotPrefix({ ...makePayload(), model: "m" }, { dir });
+    });
+    const rows = await keymapLines(dir);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].sid, null);
+    assert.ok("sid" in rows[0], "the field is present and null, never absent");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("keymap: an append failure never fails the snapshot (fail-open)", async () => {
+  const dir = await newTmp();
+  try {
+    let wrote = null;
+    await captureStderr(async () => {
+      wrote = await snapshotPrefix({ ...makePayload(), model: "m" }, {
+        dir,
+        headers: { "x-claude-code-session-id": "S" },
+        fs: { appendFile: async () => { throw new Error("disk full"); } },
+      });
+    });
+    assert.equal(wrote.wroteSnapshot, true, "the snapshot still lands");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("keymap: an unreadable snapshot is a SEEN key — first-seen must stay first", async () => {
+  // "New" is defined by the snapshot file's ABSENCE, not by the read failing.
+  // A corrupt or permission-denied read means the key has been seen; appending
+  // again would stamp a later ts on a line whose whole content is the FIRST
+  // sighting, and would keep doing so on every request.
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "S" };
+  try {
+    await captureStderr(async () => {
+      await snapshotPrefix({ ...makePayload(), model: "m" }, { dir, headers });
+    });
+    assert.equal((await keymapLines(dir)).length, 1);
+    const key = resolveSessionKey(headers, makePayload().system);
+    await writeFile(join(dir, `${key}-last.json`), "{not json");
+    await captureStderr(async () => {
+      await snapshotPrefix({ ...makePayload(), model: "m" }, { dir, headers });
+    });
+    assert.equal((await keymapLines(dir)).length, 1, "corrupt baseline must not re-append");
+    // And a hard read failure is the same statement.
+    await captureStderr(async () => {
+      await snapshotPrefix({ ...makePayload(), model: "m" }, {
+        dir, headers,
+        fs: { readFile: async () => { const e = new Error("EACCES"); e.code = "EACCES"; throw e; } },
+      });
+    });
+    assert.equal((await keymapLines(dir)).length, 1, "unreadable baseline must not re-append");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("buildKeymapRecord: the record is flat, bounded, and carries no payload", () => {
+  const rec = buildKeymapRecord("s-abc", "sid-1", "claude-opus-5", new Date(0));
+  assert.deepEqual(rec, { ts: "1970-01-01T00:00:00.000Z", key: "s-abc", sid: "sid-1", model: "claude-opus-5" });
+  assert.deepEqual(buildKeymapRecord("hex", null, undefined, new Date(0)),
+                   { ts: "1970-01-01T00:00:00.000Z", key: "hex", sid: null, model: null });
 });
 
 test("tenant eviction drops the oldest by timestamp, not by key order", () => {

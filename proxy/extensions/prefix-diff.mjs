@@ -8,6 +8,9 @@
 //   <key>-diff.json    latest diff, full detail (overwritten)
 //   <key>-events.jsonl append-only ledger, one bounded record per diff
 //
+// Plus one line per NEW key in `~/.claude/cache-fix-keymap.jsonl` — the
+// key -> (session id, model, first-seen) map (see getKeymapPath).
+//
 // No request mutation. Fail-open: any I/O error is swallowed. Set
 // CACHE_FIX_DEBUG=1 to also log swallowed errors.
 //
@@ -174,6 +177,24 @@ const TRACKED_PARAMS = [
 
 function getSnapshotDir() {
   return join(claudeHome(), "cache-fix-snapshots");
+}
+
+// The key->conversation map. One line per key the FIRST time it is seen.
+//
+// The storage key is `s-` + sha256(session-id).slice(0,12), so `ls | grep
+// <session-id>` finds nothing and the mapping existed nowhere: the cachebust
+// runbook's step 2 tells a reader to give up on the name and "select by TIME",
+// then confirm the guess by reading a hit's `params.model`. That is a
+// heuristic standing in for a lookup, and on 2026-07-30 it picked the wrong
+// key — a main session and its verifier dispatch were confused for each other
+// because time was the only discriminator available.
+//
+// Recorded HERE rather than derived later because this is the one place both
+// halves exist at once: the hash is computed from the header on the same
+// frame the header is readable. Nothing downstream can reconstruct it — the
+// hash is one-way, and the id never appears in a file name.
+function getKeymapPath() {
+  return join(claudeHome(), "cache-fix-keymap.jsonl");
 }
 
 function debug(msg) {
@@ -883,6 +904,24 @@ async function atomicWriteJson(finalPath, obj, fs) {
   await fs.rename(tmpPath, finalPath);
 }
 
+/**
+ * The keymap record for a newly-seen key. Bounded and flat on purpose: this
+ * file is read by a human (or a dossier) hunting one key, months later.
+ *
+ * `sid: null` is a real state, not a gap — it means the request carried no
+ * session header at all and `key` is the content-hash fallback. A reader that
+ * cannot tell those apart would go looking for a session id that never
+ * existed.
+ */
+export function buildKeymapRecord(key, sessionId, model, now = new Date()) {
+  return {
+    ts: now.toISOString(),
+    key,
+    sid: sessionId ?? null,
+    model: model ?? null,
+  };
+}
+
 // Append one JSONL record, rotating past EVENTS_MAX_BYTES so the ledger
 // is permanent but not unbounded. Rotation keeps exactly one generation:
 // the point is surviving the next overwrite, not indefinite history.
@@ -907,6 +946,9 @@ async function appendEvent(eventsPath, record, fs) {
  * @param {object} payload  The request body (system, tools, messages).
  * @param {object} options
  * @param {string} [options.dir] Snapshot directory. Defaults to ~/.claude/cache-fix-snapshots.
+ * @param {string} [options.keymapPath] key->conversation map. Defaults to
+ *                               <dir>/cache-fix-keymap.jsonl when `dir` is
+ *                               given, else ~/.claude/cache-fix-keymap.jsonl.
  * @param {object} [options.headers] Request headers, used to derive a
  *                               drift-proof storage key from the session id.
  * @param {object} [options.fs]  fs/promises overrides for tests:
@@ -985,12 +1027,41 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
   const tid = tenantId(headers, payload.system);
   let prev = null;
   let stored = null;
+  // A key is NEW exactly when its snapshot file does not exist yet. Strictly
+  // ENOENT: a corrupt or permission-denied read means the key HAS been seen,
+  // and treating that as "new" would re-append on every request and turn an
+  // append-only map into a log.
+  let keyIsNew = false;
   try {
     const txt = await fs.readFile(lastPath, "utf-8");
     stored = JSON.parse(txt);
   } catch (err) {
-    if (err && err.code !== "ENOENT") {
+    if (err && err.code === "ENOENT") {
+      keyIsNew = true;
+    } else {
       debug(`prior snapshot unreadable at ${lastPath}: ${err?.message ?? err}`);
+    }
+  }
+
+  // Record the key -> conversation mapping on first sighting, while the
+  // session id is still in hand (the key is a one-way hash of it, and the id
+  // appears in no file name). Fail-open like everything else in this module.
+  //
+  // Path: an explicit `keymapPath` wins; otherwise a caller that redirected
+  // `dir` — which is every test — keeps its map inside that directory, so a
+  // test run can never reach the live map. Production passes neither and gets
+  // the assigned path.
+  if (keyIsNew) {
+    const keymapPath =
+      options.keymapPath || (options.dir ? join(options.dir, "cache-fix-keymap.jsonl") : getKeymapPath());
+    try {
+      await appendFileOwnerOnly(
+        keymapPath,
+        JSON.stringify(buildKeymapRecord(sessionKey, sessionId, payload?.model)) + "\n",
+        fs,
+      );
+    } catch (err) {
+      debug(`keymap append failed at ${keymapPath}: ${err?.message ?? err}`);
     }
   }
   // A request whose tenant we have never seen is ambiguous: either a
