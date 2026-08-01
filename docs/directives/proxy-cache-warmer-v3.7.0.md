@@ -153,7 +153,7 @@ Memory-only state + no persistence means the warmer has no snapshots or timers a
   },
   "accounts": [
     {
-      "org_id": "1a6869d5-283e-43a3-9ba3-4495ceaa239a",
+      "org_id": "<org-id>",
       "daily_tokens": {
         "spent": 4475000,
         "cap": 30000000,
@@ -165,7 +165,7 @@ Memory-only state + no persistence means the warmer has no snapshots or timers a
   "sessions": [
     {
       "session_id": "abc12345",
-      "org_id": "1a6869d5-283e-43a3-9ba3-4495ceaa239a",
+      "org_id": "<org-id>",
       "last_real_request_at": "2026-05-16T13:25:01Z",
       "last_warming_ping_at": "2026-05-16T14:15:03Z",
       "last_warming_result": {
@@ -182,7 +182,7 @@ Memory-only state + no persistence means the warmer has no snapshots or timers a
 
 `proxy_started_at` makes restart-priming visible during debugging — if `now - proxy_started_at` is small and many sessions show `last_real_request_at` as null, the warmer is in the "cold-started, awaiting re-priming" state by design rather than misbehaving.
 
-`accounts` is the per-org-id rollup, present because daily token caps are per-account; sessions point back at their bound org via `org_id`. A session that hasn't yet seen an `anthropic-organization-id` response header has `org_id: null` and is not warmed (see §Account identity).
+`accounts` is the per-org-id rollup, present because daily token caps are per-account; sessions point back at their bound org via `org_id`. (The sample above carried a literal 8-4-4-4-12 org id; redacted to `<org-id>` 2026-08-01 — this repo is public and the value could not be shown to be synthetic.) A session that hasn't yet seen an `anthropic-organization-id` response header has `org_id: null` and is not warmed (see §Account identity).
 
 Pretty per-session dashboard / visualization remains out of v0 scope.
 

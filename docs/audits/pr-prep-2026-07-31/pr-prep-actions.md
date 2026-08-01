@@ -10,6 +10,10 @@ Everything below is prepared and unpushed. Two worktrees hold the work:
 Both merge cleanly onto `upstream/main` (`0817302`) — `git merge-tree
 --write-tree` exits 0 for each, so no rebase is needed.
 
+The `<session-uuid>` in the scratchpad paths below stands for the dispatching
+session's own id (redacted 2026-08-01 — this repo is public); substitute the
+live one when running these commands.
+
 ---
 
 ## STOP — decide this before step 1
@@ -82,7 +86,7 @@ needed.
 ```bash
 cd /home/g/dev/vendor/claude-code-cache-fix
 gh pr comment 276 --repo cnighswonger/claude-code-cache-fix \
-  --body-file /tmp/claude-1000/-home-g-dev-vendor-claude-code-cache-fix/adf6cadb-d98f-49c5-ae2c-578f4596ca9a/scratchpad/pr-prep-comment-276.md
+  --body-file /tmp/claude-1000/-home-g-dev-vendor-claude-code-cache-fix/<session-uuid>/scratchpad/pr-prep-comment-276.md
 ```
 
 ## 3 — push the new branch
@@ -99,7 +103,7 @@ the title, the rest (from `# BODY`) is the body. Strip the two headers before
 posting, e.g.:
 
 ```bash
-SP=/tmp/claude-1000/-home-g-dev-vendor-claude-code-cache-fix/adf6cadb-d98f-49c5-ae2c-578f4596ca9a/scratchpad
+SP=/tmp/claude-1000/-home-g-dev-vendor-claude-code-cache-fix/<session-uuid>/scratchpad
 sed -n '/^# BODY$/,$p' $SP/pr-prep-body-join-moves.md | tail -n +3 > $SP/pr-prep-body-join-moves.rendered.md
 
 cd /home/g/dev/vendor/claude-code-cache-fix

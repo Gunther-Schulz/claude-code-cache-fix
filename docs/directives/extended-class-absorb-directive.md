@@ -68,8 +68,10 @@ changes no bytes in the mid-history region.
    conversation, the closing gate.
 6. `docs/directives/robustness-threat-matrix.md` — row 4 (line ~309 on)
    and row 22 (the prune-refutation measurement).
-7. The motivating capture:
-   `~/.claude/cache-fix-captures/s-77fe2779-af11-43c0-b212-d8c67c29eff1-requests.jsonl`
+7. The motivating capture: the file under `~/.claude/cache-fix-captures/`
+   whose conversation key tokenizes to `s-3b22c084eddd` (raw key tokenized
+   2026-08-01 via `sidToken` in `tools/harvest.mjs`; the on-disk name carries
+   the raw key, which does not belong in a public tree)
    — contains the request with top-level `ts` `2026-07-31T11:41:05.778Z`
    (EXTENDED occurrence: host=99, recon=293ch, actual=716ch; delta is the
    "task tools haven't been used recently" harness reminder appended after

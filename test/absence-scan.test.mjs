@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, dirname } from "node:path";
+import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { scanDocument, scanContent, isAllowlisted, CLASSES } from "../tools/absence-scan.mjs";
@@ -268,29 +268,46 @@ test("git-range: an unresolvable base ref degrades to a full scan rather than er
 // source is on the explicit synthetic allowlist below, or this test fails. A
 // new legitimate synthetic is added HERE, deliberately, in the same diff a
 // reviewer sees — never waved through.
+//
+// docs/ IS THE SAME SURFACE (widened 2026-08-01, BACKLOG "docs/ UUID triage"):
+// a directive, a review or a release-test log is as public as a source file,
+// and the same sweep found real capture keys and a session id sitting in four
+// of them. Prose carries more legitimate synthetics than code does — hence the
+// provenance line on each entry below.
 const SOURCE_UUID_ALLOWLIST = new Set([
   FAKE_UUID,                              // this suite's seeded defect
   "b16c607d-d484-4935-840e-e3f7ee78eb08", // proxy suites' synthetic session id
   "00000000-0000-4000-8000-c4f1efb22220", // session-mirror synthetic
   "9d1c250a-e61b-44d9-88ed-5944d1962f5e", // Anthropic's PUBLIC OAuth client_id
+  // docs/ synthetics, each a placeholder by construction:
+  "00000000-0000-4000-8000-c4f1efb22221", // release-test harness's pinned --session-id, sibling of ...22220
+  "abcd1234-5678-90ab-cdef-1234567890ab", // the "e.g." 8-4-4-4-12 format sample in proxy-jsonl-session-mirror.md
 ]);
 
-test("source: every UUID in test/, tools/, proxy/ is on the synthetic allowlist", () => {
+test("source: every UUID in test/, tools/, proxy/ and docs/ is on the synthetic allowlist", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   const files = [];
-  const collect = (dir) => {
+  const collect = (dir, ext) => {
     for (const e of readdirSync(join(root, dir), { withFileTypes: true })) {
       const rel = join(dir, e.name);
       if (e.isDirectory()) {
-        if (dir.startsWith("proxy")) collect(rel); // test/ and tools/ are flat
+        // test/ and tools/ are flat; proxy/ and docs/ are not.
+        if (dir.startsWith("proxy") || dir.startsWith("docs")) collect(rel, ext);
         continue;
       }
-      if (e.name.endsWith(".mjs")) files.push(rel);
+      if (e.name.endsWith(ext)) files.push(rel);
     }
   };
-  collect("test");
-  collect("tools");
-  collect("proxy");
+  collect("test", ".mjs");
+  collect("tools", ".mjs");
+  collect("proxy", ".mjs");
+  collect("docs", ".md");
+  // Guard the guard: a walk that collected nothing from a root would pass
+  // this test while checking that root not at all — the silent scope collapse
+  // a rename or a moved directory causes.
+  for (const root_ of ["test", "tools", "proxy", "docs"]) {
+    assert.ok(files.some((f) => f.startsWith(root_ + sep)), `the walk collected no file under ${root_}/`);
+  }
   const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
   const offenders = [];
   for (const rel of files) {
