@@ -986,8 +986,14 @@ bullet, evidence pointer included.
   seen — they need their three-answer doctor verdict with the first
   timer-path run (census-hardening report, NOT-VERIFIED slot).
 
-- **READY — declare the reset-wipes-additions exemption in replay's
-  stability check (clears the standing daily-gate red).** In
+- **DONE 2026-08-01 (8e28833, opus dispatch, dispatcher-verified
+  114/114; agent live A/B on the evidence capture: violations 2->0,
+  exemptions=2, gate exit 1->0) — reset-wipes-additions exemption.**
+  Residuals, named: an append-only+reset pair stays a VIOLATION by this
+  entry's own ccIdentical condition (future false red, named in the code
+  comment); corpus-wide no-new-exemptions unmeasured until the next
+  daily sweep; the status row now carries stabilityExempt so
+  GREEN-by-exemption is visible to the doctor. Original entry: In
   scanGroup, beside freshSessionSortExemption: exempt a violation
   iff the after-request's deferred-tool-rewrite telemetry shows
   action=reset reason=tool-schema-changed AND the divergence is
@@ -1060,8 +1066,14 @@ bullet, evidence pointer included.
   above). Not comparable to the 07-30 numbers: that sample's capture
   aged out of the corpus mid-measurement.
 
-- **READY — wire `duplicates` into the daily gate (dup-census gap
-  2).** tools/gate-live.mjs summariseCensus (≈:134-149) whitelists
+- **DONE 2026-08-01 (194baf2 + dispatcher wiring, sonnet dispatch,
+  dispatcher-verified) — duplicates wired into the daily gate.** Two
+  corrections booked from the build: the census `duplicates` key is
+  produced by reminder-migration-census.mjs, not replay.mjs; and no
+  "volatile-change metric consumer" existed as code to pattern on — the
+  verdict follows shape-verdicts' three-answer convention instead.
+  Field lands with the next daily run (deployment-side). Original
+  entry: tools/gate-live.mjs summariseCensus (≈:134-149) whitelists
   pairs/unreadable/tally/extendedSub/prunes and drops the census's
   new `duplicates` key; add it plus a sweep-level reduce so the
   status file carries pairs/streaks/billed/doubleBilled per sweep —
@@ -1510,7 +1522,11 @@ bullet, evidence pointer included.
   tokenize at the port, and the slice preflight's absence arm is
   the backstop.
 
-- **READY — backlog header lint (FIVE stale headers found
+- **DONE 2026-08-01 (8578ebb + sweep wiring, sonnet dispatch,
+  dispatcher-verified: red-first on 4 of the 5 named instances; the
+  5th, blocker-4 dup, is a CROSS-entry duplicate outside the same-entry
+  rule — resolved by deletion in 9ae9e9b, and cross-entry near-duplicate
+  detection deliberately not built) — backlog header lint (FIVE stale headers found
   2026-08-01: row-4, blocker-4 dup, duplicate-request,
   merged-standalone, final-message strip — each header
   contradicting its own body's recorded resolution; two of them
