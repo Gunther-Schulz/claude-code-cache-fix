@@ -422,6 +422,13 @@ bullet, evidence pointer included.
   brief-prescribed discard paths (no-op resolution, proceed) from
   content (`UU`) conflicts (abort) — wave-2's executor had to
   deviate to deliver anything (report §d D1).
+  WIDENED 2026-08-01 (fixture-leak post-incident, operator GO): the
+  preflight also flags a FIXTURE mapped into a slice without its
+  absence coverage — any test/fixtures/** file in a slice whose
+  absence scan (tools/absence-scan.mjs, extracted from
+  harvest-scrub-relations §6) is not runnable in that slice = red,
+  named. The dotfiles pre-push guard is the boundary backstop either
+  way, so this preflight arm is defense-in-depth, not the only line.
 
 - **OPEN/HOT — MERGED-reminder standalone: the 587k's real mechanism
   (premise corrected by the builder's probe, dispatcher
@@ -1248,6 +1255,13 @@ bullet, evidence pointer included.
   measured-real → fail-closed re-pin (store the NEW bytes, honest
   reset of that boundary only). Deliverable: the directive the
   reviewer asked for, with the measurement inside.
+  ALSO IN THE DIRECTIVE (2026-08-01 GO): the fixture-strategy section
+  the reviewer asked for — synthesized-by-default for public trees,
+  harvested-and-scrubbed as the justified exception gated on the
+  absence scan; minification; the body/headers-retention question
+  answered together with the persistence story; and the widened
+  public-repo hygiene class (conversation/capture data alongside
+  origin-server info) proposed for upstream's CLAUDE.md.
 
 - STANDING GO (operator, 2026-07-31 late): the held execution items
   below — blockers 3+4, census flap annotation, joined-standalone

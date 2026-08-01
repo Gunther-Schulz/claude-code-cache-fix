@@ -491,6 +491,21 @@ fingerprint known public texts. Ledgers are
 per-machine (`LEDGER-<host>.json`); novelty is judged against every sibling
 ledger, so N machines share one deduplicated corpus with no coordination.
 
+Sanitization is subtractive — it removes the hazards someone enumerated, and
+the unanticipated field ships by default (measured 2026-07-31: conversation
+keys, sids, wall-clock timestamps, a session UUID in a filename, and nested
+`source.data` image bytes all rode through a scrubber whose header claimed
+completeness, into a public PR — caught by the upstream reviewer, not by us).
+Two standing rules from that incident. **Fixtures bound for a public tree are
+synthesized by default**; a harvested-and-scrubbed fixture is the exception,
+justified by real-pair evidence value (a class only real traffic teaches) and
+committable only with the absence scan green. **A sanitization claim counts
+only as its checker's output**: the absence classes live in
+`tools/absence-scan.mjs` — imported by `test/harvest-scrub-relations.test.mjs`
+at test time, run again by the dotfiles pre-push guard at the boundary where
+git history becomes unscrubbable. A new identifier class discovered later is
+added to the scanner first (red on the live instance), then scrubbed.
+
 The gate reads captures **line by line**, so pointing it at a live
 multi-hundred-megabyte capture is the intended use, not an abuse. It slurped
 them until 2026-07-28, when a 955 MB capture produced `RangeError: Invalid
