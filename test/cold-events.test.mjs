@@ -170,19 +170,19 @@ test("normalizeRow keys a transcript row by CONVERSATION, not by session id", ()
     timestamp: "2026-07-30T16:51:17.379Z",
     requestId: "req_1",
     agentId: "afable-verify-retro-2038e0fed16a0285",
-    sessionId: "0d6f38ba-e2a1-41c2-9558-b06bc238c79d",
+    sessionId: "b16c607d-d484-4935-840e-e3f7ee78eb08",
     message: { model: "claude-fable-5", usage: { cache_creation_input_tokens: 38589, cache_read_input_tokens: 0, input_tokens: 2 } },
   });
   assert.equal(sub.key, "a-afable-verify-retro-2038e0fed16a0285");
-  assert.equal(sub.sid, "0d6f38ba-e2a1-41c2-9558-b06bc238c79d");
+  assert.equal(sub.sid, "b16c607d-d484-4935-840e-e3f7ee78eb08");
   assert.equal(sub.grain, "conversation");
   const main0 = normalizeRow({
     timestamp: "2026-07-30T16:57:13.833Z",
     requestId: "req_2",
-    sessionId: "0d6f38ba-e2a1-41c2-9558-b06bc238c79d",
+    sessionId: "b16c607d-d484-4935-840e-e3f7ee78eb08",
     message: { usage: { cache_creation_input_tokens: 1, cache_read_input_tokens: 1, input_tokens: 1 } },
   });
-  assert.equal(main0.key, "s-0d6f38ba-e2a1-41c2-9558-b06bc238c79d");
+  assert.equal(main0.key, "s-b16c607d-d484-4935-840e-e3f7ee78eb08");
   assert.equal(main0.grain, "session");
 });
 

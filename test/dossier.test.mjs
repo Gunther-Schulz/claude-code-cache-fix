@@ -31,7 +31,7 @@ import {
 } from "../tools/dossier.mjs";
 
 const TS = Math.floor(Date.parse("2026-07-30T16:57:14Z") / 1000);
-const SID = "0d6f38ba-e2a1-41c2-9558-b06bc238c79d";
+const SID = "b16c607d-d484-4935-840e-e3f7ee78eb08";
 
 const bust = {
   type: "cold", k: "hit", cls: "bust", t: TS, s: SID,

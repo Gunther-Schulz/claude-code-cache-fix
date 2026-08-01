@@ -1389,7 +1389,7 @@ const keymapLines = async (dir) => {
 
 test("keymap: a new key is recorded once, with the session id its hash hides", async () => {
   const dir = await newTmp();
-  const headers = { "x-claude-code-session-id": "0d6f38ba-e2a1-41c2-9558-b06bc238c79d" };
+  const headers = { "x-claude-code-session-id": "b16c607d-d484-4935-840e-e3f7ee78eb08" };
   try {
     const payload = { ...makePayload(), model: "claude-fable-5" };
     const r = await captureStderr(async () => {
@@ -1399,7 +1399,7 @@ test("keymap: a new key is recorded once, with the session id its hash hides", a
     const rows = await keymapLines(dir);
     assert.equal(rows.length, 1, "one line for the first sighting");
     assert.equal(rows[0].key, resolveSessionKey(headers, payload.system));
-    assert.equal(rows[0].sid, "0d6f38ba-e2a1-41c2-9558-b06bc238c79d");
+    assert.equal(rows[0].sid, "b16c607d-d484-4935-840e-e3f7ee78eb08");
     assert.equal(rows[0].model, "claude-fable-5");
     assert.match(rows[0].ts, /^\d{4}-\d{2}-\d{2}T/);
     // The lookup the runbook could not do: hash -> id, in one direction the
