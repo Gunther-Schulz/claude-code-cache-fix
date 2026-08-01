@@ -62,6 +62,29 @@
 //
 // Tool SCHEMAS are dropped rather than sanitized: they carry descriptions
 // and parameter docs, and no message-shape class depends on them.
+//
+// Two classes below the text layer, added 2026-07-31 after both were found
+// LIVE in committed fixtures (docs/audits/pr-prep-2026-07-31/pr-prep-report.md;
+// docs/directives/fixture-sanitization-directive.md):
+//
+//   - NESTED PAYLOADS. A block's binary content sits at `block.source.data`,
+//     one level below the `block.data` this scrubber redacted, so five raw
+//     PNGs rode into a public repo behind a header claiming the fixture kept
+//     "no raw text at all". scrubBlock now recurses into `source` and fails
+//     CLOSED there: `data` always, plus any other string over 64 chars.
+//   - STRUCTURAL CAPTURE IDENTIFIERS. Session keys/sids and wall-clock
+//     timestamps are not conversation content, so the text scrub never saw
+//     them; they identify a real session, a real machine and a real moment.
+//     Keys and sids become `s-<sha256-prefix-12>` (sidToken) — same hashing
+//     scheme, `s-` prefix kept so readers that pattern-match it still work —
+//     and timestamps are rebased onto a FIXED epoch keeping their intra-
+//     fixture deltas (rebaseTimestamps), so ordering and proximity joins
+//     survive with the wall-clock gone. The same token names the FIXTURE
+//     FILE, so no session UUID survives in a filename either.
+//
+// Accepted residual (operator ruling 2026-07-31, local operator-controlled
+// traffic): token lengths, paragraph structure, intra-fixture timing deltas,
+// and equality relations. See the audience caveat on scrubText below.
 
 import { readdir, readFile, writeFile, stat, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
@@ -147,6 +170,13 @@ const VOLATILE_WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 // length vector can fingerprint a known public text that a single total
 // length would not.
 const PARA_SEP = "\n\n";
+// Longest string under `source` that counts as a shape field rather than a
+// payload. The known shape fields (`type`, `media_type`, `url`-style short
+// forms) sit far below this; an unknown longer one is treated as content. The
+// asymmetry is deliberate: a shape field wrongly tokenized is an unreadable
+// but visible token in a fixture, while a payload wrongly passed is a silent
+// leak into a public repo.
+const SOURCE_SHAPE_MAX = 64;
 function scrubText(text) {
   if (typeof text !== "string") return text;
   const wrapped = VOLATILE_WRAP.exec(text);
@@ -167,6 +197,21 @@ function scrubBlock(block) {
   if (typeof out.thinking === "string" && out.thinking !== "") out.thinking = scrubText(out.thinking);
   if (typeof out.signature === "string") out.signature = `sig_${sha(out.signature).slice(0, 10)}`;
   if (typeof out.data === "string") out.data = `data_${sha(out.data).slice(0, 10)}`;
+  // The payload one level down. `source.data` is where the wire actually
+  // carries image bytes; `type`/`media_type` and the other short shape fields
+  // are structure and survive, because a reader branching on them is testing
+  // the block's KIND. Fail CLOSED on everything else: the wire format is not
+  // ours to freeze, so an unrecognised string over 64 chars under `source` is
+  // treated as a payload rather than waved through.
+  if (out.source && typeof out.source === "object" && !Array.isArray(out.source)) {
+    out.source = Object.fromEntries(
+      Object.entries(out.source).map(([k, v]) =>
+        typeof v === "string" && (k === "data" || v.length > SOURCE_SHAPE_MAX)
+          ? [k, `data_${sha(v).slice(0, 10)}`]
+          : [k, v],
+      ),
+    );
+  }
   // tool_result content can be a string or a block array.
   if (typeof out.content === "string") out.content = scrubText(out.content);
   else if (Array.isArray(out.content)) out.content = out.content.map(scrubBlock);
@@ -185,6 +230,54 @@ export function scrubMessage(msg) {
   return out;
 }
 
+// --- Structural identifiers: keys, sids, wall-clock ---
+//
+// A conversation key or sid is a live capture identifier, not content, so the
+// text scrub never touched it. Same hashing scheme as everything else, and the
+// `s-` prefix of a real key is kept so a reader that pattern-matches `s-…`
+// still works. Distinctness is preserved (different originals hash apart) and
+// so is equality (the same original always yields the same token), which is
+// what lets a fixture still show "these records are one conversation".
+export const sidToken = (original) => `s-${sha(original).slice(0, 12)}`;
+
+// Rebased onto a fixed epoch, keeping every DELTA from the fixture's earliest
+// instant. Ordering survives, so does proximity — bust-triage-style ±window
+// joins still work INSIDE a fixture — while the wall-clock (which machine, at
+// what hour, in what timezone) is gone. Fixture-wide by necessity: the
+// earliest instant is a property of the whole artifact, not of one record,
+// which is why this runs at fixture-WRITE time rather than inside scrubRecord.
+export const FIXED_EPOCH = "2000-01-01T00:00:00.000Z";
+const FIXED_EPOCH_MS = Date.parse(FIXED_EPOCH);
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+// Whole-string instants only. A date inside authored prose (a fixture's own
+// "measured on 2026-07-30" provenance note, a growth artifact's filename) is
+// documentation the artifact exists to carry, not capture data.
+function mapStrings(node, fn) {
+  if (typeof node === "string") return fn(node);
+  if (Array.isArray(node)) return node.map((v) => mapStrings(v, fn));
+  if (node && typeof node === "object") {
+    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, mapStrings(v, fn)]));
+  }
+  return node;
+}
+
+export function rebaseTimestamps(fixture) {
+  let earliest = null;
+  mapStrings(fixture, (s) => {
+    if (!ISO_INSTANT.test(s)) return s;
+    const t = Date.parse(s);
+    if (Number.isFinite(t) && (earliest === null || t < earliest)) earliest = t;
+    return s;
+  });
+  if (earliest === null) return fixture;
+  return mapStrings(fixture, (s) => {
+    if (!ISO_INSTANT.test(s)) return s;
+    const t = Date.parse(s);
+    return Number.isFinite(t) ? new Date(FIXED_EPOCH_MS + (t - earliest)).toISOString() : s;
+  });
+}
+
 export function scrubRecord(rec) {
   const body = rec.body ?? {};
   const system = Array.isArray(body.system)
@@ -194,8 +287,8 @@ export function scrubRecord(rec) {
       : body.system;
   return {
     ts: rec.ts,
-    sid: rec.sid ? `sid_${sha(rec.sid).slice(0, 8)}` : null,
-    key: rec.key ? `k_${sha(rec.key).slice(0, 8)}` : null,
+    sid: rec.sid ? sidToken(rec.sid) : null,
+    key: rec.key ? sidToken(rec.key) : null,
     headers: { "anthropic-beta": rec.headers?.["anthropic-beta"] ?? null },
     body: {
       model: body.model,
@@ -505,7 +598,7 @@ function scrubOutcomeRecord(rec) {
     ts: rec.ts,
     type: "outcome",
     id: rec.id ? `id_${sha(rec.id).slice(0, 8)}` : null,
-    key: rec.key ? `k_${sha(rec.key).slice(0, 8)}` : null,
+    key: rec.key ? sidToken(rec.key) : null,
     requestId: rec.requestId ? `rq_${sha(rec.requestId).slice(0, 8)}` : null,
     model: rec.model ?? null,
     usage: rec.usage ?? null,
@@ -583,9 +676,9 @@ async function runPin(args) {
     process.exit(1);
   }
 
-  const fixture = {
+  const fixture = rebaseTimestamps({
     header: {
-      key,
+      key: sidToken(key),
       range: { n, m },
       replayFrom: 0,
       note:
@@ -596,16 +689,30 @@ async function runPin(args) {
         "names the pair under test, not a truncation point.",
       harvestedAt: new Date().toISOString(),
       sanitizer:
-        "tools/harvest.mjs scrubRecord (tool schemas dropped; text tokenized " +
-        "deterministically, including inside <system-reminder> wrappers)",
+        "tools/harvest.mjs scrubRecord + rebaseTimestamps. TOKENIZED: every " +
+        "text, per '\\n\\n' segment, as t_<sha12>_<len> (tool schemas dropped; " +
+        "<system-reminder> WRAPPERS survive verbatim around a tokenized inner " +
+        "text); every nested payload (block.data, block.source.data, any " +
+        ">64-char string under source) as data_<sha10>; thinking signatures " +
+        "as sig_<sha10>; conversation keys and sids as s-<sha12>, the same " +
+        "token the filename carries. REBASED: every timestamp onto " +
+        "2000-01-01T00:00:00.000Z + its original delta from this fixture's " +
+        "earliest instant. PRESERVED (this is what the fixture is FOR): " +
+        "equality of equal texts, the '\\n\\n' join and paragraph-prefix " +
+        "relations, tool_use_id/id pairing, message and block ordering, and " +
+        "timestamp ordering and spacing within the fixture. RESIDUAL, " +
+        "accepted: token lengths, paragraph counts, intra-fixture timing " +
+        "deltas. Verified, not asserted: test/harvest-scrub-relations.test.mjs " +
+        "walks this file and re-checks each absence class mechanically.",
     },
     records,
-  };
+  });
 
-  // File name matches the scheduled harvest's own convention (key.slice(0,
-  // 10) — see the harvested-*.jsonl naming above): a full session key is
-  // long and the 10-char prefix already disambiguates in practice.
-  const outName = `pinned-${key.slice(0, 10)}-${n}-${m}.json`;
+  // File name carries the key's sanitized token, never the session UUID — a
+  // filename is as public as the content, and `pinned-s-633915a8-…` named a
+  // real session. Same token as the header and the records, so a reader can
+  // still tell which fixtures came from one capture.
+  const outName = `pinned-${sidToken(key)}-${n}-${m}.json`;
   const outPath = join(args.out, outName);
   if (!args.dryRun) {
     await mkdir(args.out, { recursive: true });
@@ -698,9 +805,9 @@ async function main() {
     // while the capture still holds it (see the snapshot helpers' header).
     for (const step of detectGrowthSteps(prior.shape, shape)) {
       const date = new Date().toISOString().slice(0, 10);
-      const name = `growth-${key.slice(0, 10)}-${step.field}-${date}.json`;
+      const name = `growth-${sidToken(key)}-${step.field}-${date}.json`;
       const artifact = {
-        key,
+        key: sidToken(key),
         ...step,
         // "old" = newest at the previous harvest (last pre-watermark
         // request); "new" = current max-baseline conversation-newest. May
@@ -717,8 +824,13 @@ async function main() {
     }
 
     for (const pick of picks) {
-      const name = `harvested-${pick.kind.replace(/[^a-z]+/gi, "-")}-${key.slice(0, 10)}-${pick.cur}.jsonl`;
-      const body = [pick.prevRec, pick.rec].map((r) => JSON.stringify(scrubRecord(r))).join("\n") + "\n";
+      const name = `harvested-${pick.kind.replace(/[^a-z]+/gi, "-")}-${sidToken(key)}-${pick.cur}.jsonl`;
+      // Rebased as ONE unit, so the pair's own inter-request delta — the
+      // only timing fact a two-record fixture carries — survives.
+      const body =
+        rebaseTimestamps([pick.prevRec, pick.rec].map(scrubRecord))
+          .map((r) => JSON.stringify(r))
+          .join("\n") + "\n";
       if (!args.dryRun) {
         await mkdir(args.out, { recursive: true });
         await writeFile(join(args.out, name), body);
