@@ -1378,11 +1378,15 @@ bullet, evidence pointer included.
   docs/audits/pr-prep-2026-07-31/. Conditions before any push:
   (1) MET 2026-07-31 late (687cbc5) — fixture-sanitization §§1-5 on
   fork main;
-  (2) the #272 reviewer AGREES the path on-thread (their ask:
-  branch rewrite so dirty blobs never become reachable upstream —
-  reply POSTED 2026-07-31 with operator approval:
-  cnighswonger/claude-code-cache-fix#272 issuecomment-5147223070;
-  awaiting their confirmation);
+  (2) MET 2026-08-01 10:53Z — the #272 reviewer CONFIRMED the path
+  on-thread ("On the rewrite — go ahead … Force-push when ready;
+  nothing here depends on the current SHAs"):
+  cnighswonger/claude-code-cache-fix#272 issuecomment-5151107400,
+  replying to the operator-approved plan issuecomment-5147223070.
+  Same comment sets the landing order: after #272's rewrite lands,
+  rebase the stack #273 → #276 → #278, #281 last; reviewer will
+  re-review #272 from the top (fresh round, review state already
+  changes-requested); Chris review still required (load-bearing);
   (3) the prepared branches are then REBUILT carrying only clean
   fixture blobs (both are unpushed, so no force-push is needed on
   them; #272's own branch rewrite is the reviewer-coordinated one).
