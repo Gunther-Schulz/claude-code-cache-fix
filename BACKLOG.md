@@ -432,7 +432,10 @@ bullet, evidence pointer included.
   named. The dotfiles pre-push guard is the boundary backstop either
   way, so this preflight arm is defense-in-depth, not the only line.
 
-- **OPEN/HOT — MERGED-reminder standalone: the 587k's real mechanism
+- **BUILT+SERVING 2026-07-30 (78940a0, rides the restart with
+  b167fa5; residual OPEN: sole-587k-contributor question, closer =
+  the post-restart live non-event; header re-titled 2026-08-01) —
+  MERGED-reminder standalone: the 587k's real mechanism
   (premise corrected by the builder's probe, dispatcher
   byte-verified 2026-07-30).** The oscillation-pin premise was
   DISPROVEN against real code + production telemetry: the pin
@@ -517,7 +520,10 @@ bullet, evidence pointer included.
   eyeball verification; deep-range pins also need a no-full-prefix
   mode (297 MB fixture from an 8-request window).
 
-- **OPEN/HOT — suppression can strip a request's FINAL message ->
+- **FIXED + CLASS CLOSED 2026-07-30 (e0f8fcb; all three real
+  failures replay clean, fourth 400 was the deploy window; two
+  residues named in body; header re-titled 2026-08-01) —
+  suppression can strip a request's FINAL message ->
   assistant-terminal 400: OUR bug, three live failures 2026-07-30**
   (operator push overturned the dispatcher's "harness noise" claim
   — twice booked wrong in chat before the log check). Evidence:
@@ -1341,6 +1347,20 @@ bullet, evidence pointer included.
   uncertain → surface, never guess. Verifier: extend the
   absence-scan source test's scope to docs/ with the synthetics
   allowlisted — the extension IS the done-criterion.
+
+- **READY — backlog header lint (FIVE stale headers found
+  2026-08-01: row-4, blocker-4 dup, duplicate-request,
+  merged-standalone, final-message strip — each header
+  contradicting its own body's recorded resolution; two of them
+  mis-graded a survey before being caught).** tools/backlog-lint.mjs,
+  WARN-only: flag an entry whose header grade is OPEN/READY/HOT
+  while the SAME entry's body (scoped `- **` to next `- **`)
+  carries a dated resolution marker (RESOLVED/FIXED/BUILT +
+  VERIFIED/CLASS CLOSED). Verifier: red on the five instances as
+  they stood at 40c11b2 (`git show 40c11b2:BACKLOG.md`), zero
+  false fires on the current file. Done-criterion: lint in tools/,
+  red-first demonstrated, wired as a WARN into the daily sweep or
+  doctor.
 
 - **RETIRED-marker (see RESOLVED above) — original blocker-3 entry
   follows for the record.**
