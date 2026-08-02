@@ -218,9 +218,17 @@ export function firstDivergence(full, cut) {
       }
     }
   }
-  // The pair under test must still PRODUCE a row, or the cut silently
-  // removed the very comparison the fixture exists for.
-  if (!cut.rows.some((r) => r.n === range.m)) {
+  // The pair under test must still PRODUCE a row, or the cut silently removed
+  // the very comparison the fixture exists for. TWO-SIDED, and it has to be:
+  // asking only whether the CUT has the row makes this a hidden assertion
+  // about the input rather than a comparison, and identity stops being
+  // reflexive — `firstDivergence(x, x)` returns a divergence for any x whose
+  // pinned range produces no row. That is not hypothetical. The 46 MB row-4
+  // fixture replays 895 entries and produces exactly one mitigation row, at
+  // 783->804; the one-sided form refused it against itself, fixture-cut
+  // reported the refusal as its own internal error, and the evidence stayed
+  // out of git. A row the full replay never had is not a row the cut lost.
+  if (full.rows.some((r) => r.n === range.m) && !cut.rows.some((r) => r.n === range.m)) {
     return { where: `mitigation row for n=${range.m}`, detail: "the cut produces no mitigation row for the pinned pair's end" };
   }
 

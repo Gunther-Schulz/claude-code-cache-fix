@@ -174,3 +174,51 @@ test("(3) a byte-identical copy diverges nowhere, exit 0 — and the run says ho
   assert.ok(Number(compared[1]) > 0, "a green over zero entry verdicts is not identity");
   assert.ok(Number(compared[2]) > 0, "a green over zero mitigation rows is not identity");
 });
+
+// --- (4) REFLEXIVITY, over a fixture whose pinned range produces no row ---
+//
+// DEFINITION, taken from what an identity check IS rather than from this
+// implementation: identity is reflexive. `firstDivergence(x, x)` must be null
+// for every x, whatever x happens to contain — a comparison that reports two
+// identical inputs as divergent is not an identity check, it is a second,
+// hidden assertion about the input wearing identity's clothes.
+//
+// Test (3) above already asserts reflexivity, and it passes — but only over
+// the COMMITTED fixture, which happens to produce a mitigation row at its
+// pinned range end, so the hidden assertion is satisfied and never shows.
+// That is the same-parentage trap: the expectation was checked against the one
+// input that cannot expose it. This case supplies the input that can.
+//
+// Found the hard way (2026-08-02): fixture-cut refused to minimize the 46 MB
+// row-4 fixture, reporting "the unmodified fixture (d=0) failed its own
+// identity check against itself; this is a bug in fixture-cut.mjs". It was not
+// a bug in fixture-cut. That fixture replays 895 entries and produces exactly
+// ONE mitigation row, at 783->804 — nothing at its pinned range 892..894 — so
+// the presence guard below fired although the cut had lost nothing, and the
+// row-4 evidence stayed out of git for want of a two-sided comparison.
+test("(4) REFLEXIVITY — a dump with no mitigation row at the pinned range end does not diverge from itself", async () => {
+  const { firstDivergence } = await import(join(REPO, "tools", "fixture-verdict-identity.mjs"));
+  const entry = (n) => ({
+    n, action: "normalized", resetReason: null, suppressed: 0, suppressions: [],
+    inLen: 10, outLen: 10, outHash: `h${n}`,
+  });
+  const dump = {
+    range: { n: 892, m: 894 },
+    perEntry: [entry(892), entry(893), entry(894)],
+    // The shape the real fixture has: a row, but not at the range's end.
+    rows: [{ prevN: 783, n: 804, kind: "x", mitigated: true, rebilledBytes: 0 }],
+    safety: [],
+  };
+  assert.equal(firstDivergence(dump, dump), null,
+    "identity must be reflexive — a fixture is not divergent from itself");
+
+  // And the guard must still catch what it exists for: a cut that DROPS a row
+  // the full replay produced at the pinned range end.
+  const withEndRow = {
+    ...dump,
+    rows: [...dump.rows, { prevN: 893, n: 894, kind: "x", mitigated: true, rebilledBytes: 0 }],
+  };
+  const d = firstDivergence(withEndRow, dump);
+  assert.ok(d, "a cut that lost the pinned pair's own row is still a divergence");
+  assert.match(`${d.where}`, /894/, `the report names the lost row: ${JSON.stringify(d)}`);
+});
