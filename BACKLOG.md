@@ -565,15 +565,33 @@ bullet, evidence pointer included.
   first so the series starts accumulating; bytes join it on their
   own dispatch.
 
-- **OPEN — new live conservation failure: s-00b19d9b, conservation=10,
-  gate exit 1 (found 2026-08-02 by the fire-ledger dispatch's
-  full-corpus run — 34 captures vs the 07:51 production sweep's 28;
-  NOT caused by the fire-ledger work, which touches no replay or
-  extension path).** The next scheduled sweep (Mon 07:18 timer) will
-  hit it too — a red gate status is expected until attributed.
-  ATTRIBUTE step owed: replay that capture alone, find which
-  invariant loses the 10 messages, classify against the matrix.
-  Evidence: the dispatch's scratchpad gate-run.log.
+- **OPEN (remedy dispatched) — new live conservation failure:
+  s-00b19d9b, conservation=10, gate exit 1 (found 2026-08-02 by the
+  fire-ledger dispatch's full-corpus run — 34 captures vs the 07:51
+  production sweep's 28; NOT caused by the fire-ledger work, which
+  touches no replay or extension path).** The next scheduled sweep
+  (Mon 07:18 timer) will hit it too — a red gate status is expected
+  until the exemption lands.
+  ATTRIBUTE DONE 2026-08-02 (inline, dispatcher; replayed the
+  capture alone with --gates-from-capture, dumped in[2] of the
+  09:18:11 request): NOT a defect — the gate fires on legitimate,
+  declared mitigation work it predates. Five requests
+  09:18:11–09:18:45, each losing 1 user tool_result unit at in[2]
+  and inventing 2 at out[2] — the exact signature of
+  smoosh-split.mjs (ON in serving config; declares
+  ctx.meta.smooshSplitStats) peeling a trailing <system-reminder>
+  (MCP server instructions, smooshed by CC into a WebFetch
+  redirect tool_result string) into a text block appended to the
+  same message. The conservation gate's definition (replay.mjs
+  ~:1683) has clauses for suppressions and declared injections,
+  none for the peel — first live smoosh since the gate shipped.
+  Remedy per the check-fires-on-non-defect rule: declared
+  exemption the gate byte-verifies by CHAINING the extension's own
+  exported splitSmooshedReminders (census-sub-classifier
+  precedent), tamper stays red, exemptions counted visibly;
+  sonnet dispatch in flight, resolution ref lands with its booked
+  report. Capture note: the session is LIVE — counts may exceed 10
+  by verification time; same-class growth is expected.
 
 - **Candidate — docs-name-real-gates test** (2026-07-30, consumer-doc
   tiering): a small test asserting every CACHE_FIX_* named in
