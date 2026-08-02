@@ -112,3 +112,37 @@ test("BITE — --list names its ordering and its truncation", () => {
   const cut = listHeader(events, 1);
   assert.match(cut, /showing 1 of 3/, `truncation hidden: ${cut}`);
 });
+
+// --- the pair carries the ordinals `harvest --pin` actually takes ---
+//
+// bust-triage reports `n=591->595`, which is a MESSAGE COUNT. `harvest --pin
+// <key> n..m` takes file-wide REQUEST ORDINALS (harvest.mjs pinRange). Pinning
+// the reported numbers froze an unrelated range 90 minutes away and produced a
+// fixture of the wrong thing, caught only because a second reader cross-checked
+// it (2026-08-02). Two different numbers with no way to tell them apart is the
+// instrument's problem, not the reader's, so the pair carries the ordinals and
+// the run prints a copy-pasteable pin command.
+//
+// The counting rule is HARVEST'S, not a re-derivation: non-boot/non-outcome
+// records only, zero-based (harvest.mjs pinRange `const idx = count++`). A
+// second definition here would be a second truth about what an ordinal is.
+test("BITE — capturePair reports harvest's own request ordinals", async () => {
+  const { mkdtempSync, writeFileSync } = await import("node:fs");
+  const dir = mkdtempSync(join(tmpdir(), "bt-ord-"));
+  const key = "s-ord0001";
+  const f = join(dir, `${key}-requests.jsonl`);
+  const msg = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
+  const req = (ts, n) => JSON.stringify({ ts, id: ts, body: { messages: Array.from({ length: n }, (_, i) => msg("m" + i)) } });
+  writeFileSync(f, [
+    JSON.stringify({ type: "boot", ts: "2026-08-02T00:00:00.000Z" }),   // not an ordinal
+    req("2026-08-02T00:00:01.000Z", 2),                                  // ordinal 0
+    JSON.stringify({ type: "outcome", ts: "2026-08-02T00:00:02.000Z", id: "x" }), // not an ordinal
+    req("2026-08-02T00:00:03.000Z", 3),                                  // ordinal 1
+  ].join("\n") + "\n");
+
+  const { capturePair } = await import("../tools/bust-triage.mjs");
+  const pair = await capturePair("ord0001", Date.parse("2026-08-02T00:00:04.000Z") / 1000, dir);
+  assert.ok(pair, "pair found");
+  assert.equal(pair.before.ord, 0, "boot and outcome records do not consume ordinals");
+  assert.equal(pair.after.ord, 1, "the second request is ordinal 1, not 3");
+});

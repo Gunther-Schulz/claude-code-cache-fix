@@ -249,8 +249,8 @@ export function preferTelemetryConfirmed(candidates, events, windowMs = TELEMETR
  * died at >512 MB (ERR_STRING_TOO_LONG, live 2026-07-31) — the same class
  * a77c930 fixed in the census. Two passes, retaining only the two records
  * that matter. */
-export async function capturePair(sid, tsEpoch) {
-  const f = join(CAPTURES, `s-${sid}-requests.jsonl`);
+export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
+  const f = join(capturesDir, `s-${sid}-requests.jsonl`);
   if (!existsSync(f)) return null;
   // The busting request is the newest one at or before the ledger stamp; its
   // predecessor IN THE SAME CONVERSATION is the comparison. Conversation, not
@@ -283,9 +283,18 @@ export async function capturePair(sid, tsEpoch) {
   // chosen (`after`, `before`) ever get held in full.
   const candidates = [];
   let seen = 0;
+  // File-wide REQUEST ORDINAL, counted by HARVEST's rule so the number this
+  // tool prints is the number `harvest --pin <key> n..m` takes: non-boot and
+  // non-outcome records only, zero-based (harvest.mjs pinRange). It is NOT the
+  // message count this tool also reports — conflating the two froze the wrong
+  // evidence range once, so the pair now carries the ordinal and the run
+  // prints a pin command that can be pasted.
+  let ord = -1;
   for await (const line of readLines(f)) {
     const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") ord++;
     if (!r?.body?.messages || !r?.ts) continue;
+    r.ord = ord;
     seen++;
     const t = Date.parse(r.ts);
     if (t <= cutoff && plausible(r)) {
@@ -305,9 +314,12 @@ export async function capturePair(sid, tsEpoch) {
       // The preference overrode the recency default — refetch the full
       // record for the chosen ts (rare: only when telemetry disagrees with
       // "newest plausible"). A second streaming pass, same file.
+      let o2 = -1;
       for await (const line of readLines(f)) {
         const r = j(line);
+        if (r && r.type !== "boot" && r.type !== "outcome") o2++;
         if (!r?.body?.messages || !r?.ts) continue;
+        r.ord = o2;
         if (plausible(r) && Date.parse(r.ts) === chosen.ts) { after = r; break; }
       }
     }
@@ -315,9 +327,12 @@ export async function capturePair(sid, tsEpoch) {
 
   const cid = JSON.stringify(after.body.messages[0]);
   let before = null;
+  let o3 = -1;
   for await (const line of readLines(f)) {
     const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") o3++;
     if (!r?.body?.messages || !r?.ts) continue;
+    r.ord = o3;
     // `after` itself is excluded by the strict earlier-than check below —
     // the cross-pass object-identity test the array version used is gone.
     if (JSON.stringify(r.body.messages[0]) !== cid) continue;
@@ -421,8 +436,17 @@ export async function triage(bust) {
     steps.push({ step: "capture", ok: false, detail: "no capture pair (capture off, or rotated)" });
     return { bust, steps, verdict: "UNVERIFIABLE", why: "no capture pair to classify" };
   }
+  // Both numbers, and which is which: `n=` is the MESSAGE COUNT, the pin
+  // hint carries the file-wide REQUEST ORDINALS `harvest --pin` takes. They
+  // are far apart in a long capture (message 591 vs ordinal 892 on the
+  // motivating pair), and pinning one where the other was meant freezes an
+  // unrelated range — silently, since a fixture of the wrong requests still
+  // looks like a fixture.
+  const ords = pair.before.ord != null && pair.after.ord != null
+    ? ` | freeze: harvest --pin s-${bust.s} ${pair.before.ord}..${pair.after.ord}`
+    : "";
   steps.push({ step: "capture", ok: true,
-               detail: `${pair.before.ts} -> ${pair.after.ts}, n=${pair.before.body.messages.length}->${pair.after.body.messages.length}` });
+               detail: `${pair.before.ts} -> ${pair.after.ts}, n=${pair.before.body.messages.length}->${pair.after.body.messages.length}${ords}` });
 
   const cls = censusPair(pair.before.body.messages, pair.after.body.messages);
   steps.push({ step: "census", ok: true, detail: cls });
