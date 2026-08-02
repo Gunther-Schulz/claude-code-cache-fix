@@ -44,8 +44,20 @@ bullet, evidence pointer included.
   called this UNCLASSIFIED although it had already read and printed
   `transcript tools_changed`.
 
-- **READY — bust-triage's verdict must consult the transcript cause,
-  not only the census class.** On the 15:53:46 bust the tool printed
+- **DONE 2026-08-02 (caa38c5, inline, parallel to three dispatches;
+  13/13 tests + selftest green, and the live 15:53:46 bust re-triages
+  from UNCLASSIFIED to KNOWN-OPEN/row 23) — bust-triage's verdict
+  consults the transcript cause.** Shipped slightly WIDER than this
+  entry specified, deliberately: rather than mapping `tools_changed`
+  to the general row and stopping, `causeToRow` discriminates the
+  tools delta from the pair it already holds — every tool's `name`
+  and `input_schema` byte-identical with changed prose is row 23
+  (absorbable), anything touching schema, set or order is row 6. That
+  discrimination is precisely the three hand probes this session
+  spent on the live capture, and the manual pass is unfinished while
+  the check does not exist. UNCLASSIFIED stays reachable and now
+  requires BOTH axes to miss, with the why-line naming which cause
+  was considered. Original entry: On the 15:53:46 bust the tool printed
   `OK transcript tools_changed / 484972` and then `VERDICT:
   UNCLASSIFIED — census class "append-only" maps to no
   threat-matrix row`. Both statements are true and the verdict is
