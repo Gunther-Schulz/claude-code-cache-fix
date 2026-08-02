@@ -1222,6 +1222,19 @@ bullet, evidence pointer included.
   minimal absorb design and its red-first bite; any proxy/** fix is
   deployment-coupled and rides a stated boundary. Cost datum for the
   Mitigation policy: this single instance re-billed 535k tokens.
+  CLASS COST, measured 2026-08-02 over the whole worktime ledger
+  (58 bust events, 6 distinct days): `messages_changed` is the
+  LARGEST single cause — 21 events, 5.99M tokens of context
+  re-written, ~38% of the 15.7M total; next are `other` (23, 5.45M),
+  `tools_changed` (3, 1.26M), `model_changed` (4, 1.25M), `idle`
+  (4, 1.06M), `model` (3, 0.71M). Framing per the Mitigation policy:
+  this is a PRIORITY datum and explicitly NOT a worthiness
+  threshold — cost never gates whether the work happens (an earlier
+  revision of the row-4 entry made exactly that error). Two
+  caveats: `cc` is context size re-written, an approximation of the
+  true re-bill (the transcript's cache_creation is exact), and
+  `messages_changed` is a cause label that may cover classes beyond
+  row-4.
 
 - **DONE 2026-08-02 (092a7cf + d2c9d00, sonnet dispatch,
   dispatcher-verified: selftest green, controlled 8/8, dossier
