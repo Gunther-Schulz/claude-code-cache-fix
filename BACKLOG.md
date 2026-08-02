@@ -941,9 +941,45 @@ bullet, evidence pointer included.
   pair-SELECTION artifact, not a new class; candidate rule — prefer
   the nearest same-conversation pair whose after-request carries a
   non-append action (the telemetry knows), fall back to current
-  rule. NOTE for next occurrence: if this class fires again
+  rule.
+  TOOL GAP RESOLVED 2026-08-02 (092a7cf + d2c9d00, sonnet dispatch,
+  dispatcher-verified: selftest green, controlled 8/8, dossier
+  19/19, real triage re-run). Three layers, each red-proven on real
+  numbers: (1) telemetry-confirmed preference; (2) nearest-event
+  wins over newest-of-matches (5 ms genuine vs 1899 ms spurious
+  cross-conversation match), candidates scoped to 60 s of the
+  recency pick (unscoped, an exact coincidental match 18 min out
+  won); (3) match narrowed to action="reset" only — "non-append"
+  was a paraphrase; the extension's own action contract
+  (insertion-normalization.mjs ~483-554) defines reset as the
+  cache-invalidating action, and "normalized" fires on ordinary
+  successful requests (a 4 ms normalized decoy beat the genuine
+  5 ms reset match). Result: BOTH twin busts now classify
+  mechanically — adf6cadb KNOWN-OPEN/row-4 host 58
+  MERGED-STANDALONE via --at; 7749d7fc KNOWN-OPEN/row-4 host 71
+  EXTENDED/NEW-TEXT via direct capturePair+censusPair+
+  migrationVerdict call (its LEDGER ENTRY IS PRUNED — activity.jsonl
+  greps empty — so the --at flow cannot reach it). Residuals, named:
+  BACKLOG's byte attribution said "index 69" where the tool reports
+  host 71 — unchased; no broader sid sweep for other
+  normalized-vs-reset collisions; same-conversation join key parked
+  below. NOTE for next occurrence: if this class fires again
   POST-restart, the un-merge did not absorb it — that is the real
   news; tonight's instances prove nothing about the new code.
+
+- **PARKED — bust-triage pair selection: same-conversation join key
+  (twin-busts tool-gap residual, 2026-08-02).** The timestamp join
+  shipped in 092a7cf/d2c9d00 is a proximity heuristic; the exact fix
+  joins on the insertion events' own `key` field (full sessionKey)
+  against a per-candidate key computed from conversationSubKey
+  (exported, proxy/extensions/message-hash.mjs) + systemPromptSubKey
+  (NOT exported from insertion-normalization.mjs) + resolveSessionId.
+  Named missing piece: the systemPromptSubKey export is a proxy/**
+  change — deployment-coupled (pin bump + restart), so it rides the
+  next proxy boundary, never alone. Evidence: sonnet dispatch report
+  2026-08-02 — reset-only matching closed both live cases without
+  it; trigger to build is the next selection miss the heuristic
+  cannot break.
 
 - **OPEN — the corpus's entire remaining stability debt: two
   deferred-tool-rewrite pairs on s-0d6f38ba** (n=709→710 outDiv=236,
