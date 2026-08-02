@@ -59,29 +59,92 @@ bullet, evidence pointer included.
   description-absorb build: 182 lines of deferred-tool-rewrite.mjs
   plus the 366-line bite, which the dispatcher confirmed genuinely
   red against clean HEAD (5 behavioural fails, both safety CONTROLs
-  already green). **UNVERIFIED BY THE DISPATCHER** — the agent was
-  still running its corpus check when the session was stopped, and
-  its closing report may not have arrived. Do not merge on trust:
-  cherry-pick onto main, run the 9-test bite, the extension's own
-  suite, the full suite, and the old-vs-new replay of
-  s-ddd9fd7d — then integrate. Its worktree
-  (scratchpad/wt-desc-absorb) is disposable; the branch is the work.
+  already green). Its full report DID arrive before the session
+  closed and it changes the picture — **do not deploy fd87e12 as it
+  stands.** NOT RE-RUN BY THE DISPATCHER; what the AGENT verified:
+  bite 9/9, deferred-tool-rewrite 40/40, `npm test` 2044/2043 (sole
+  failure = the absence-scan guard expected at its pre-fix base),
+  corpus replay complete both sides, and red-first RE-ESTABLISHED
+  independently in its own clean worktree at 9799ff0 (9 tests,
+  4 pass / 5 fail, both safety CONTROLs among the passes).
+  Deviations: none, bite untouched.
+  **THREE THINGS BLOCK DEPLOYMENT, all raised by the agent as
+  questions above its tier — the next session's first decisions.**
+  **G2, the important one: THE SHIPPED FORM MISSES THE BUST THAT
+  MOTIVATED IT.** `classifyToolChange` on the raw captured arrays
+  does return `description-absorbed` for the 15:53 pair — but in the
+  REAL state chain request 1202 still RESETS, because the canonical
+  holds FIRST-SEEN order while sort-stabilization (order 200)
+  name-sorts the incoming array, so after any earlier addition the
+  orders never match again (that key shows 370 pure-reorder
+  `rewrite` results before 1202). Counterfactual, on a chain the
+  agent first validated by reproducing the executed pipeline's own
+  histogram and absorb ordinals exactly: relaxing the precondition
+  from ORDER-identity to SET-identity (same names, no held, no new;
+  `input_schema` identity UNCHANGED so the safety boundary is
+  untouched, and the extension already forwards its own order) takes
+  the corpus from 14 absorbs to 52, resets 3 -> 2, and COVERS 1202 —
+  the live 484,972-token bust. The agent shipped the strict form
+  because the BITE mandates it ("CONTROL — order is part of the
+  identity the absorb requires") and correctly refused to edit the
+  bite to fit its code. THE DECISION IS OURS: is tools[] order part
+  of the callable contract, or is SET-identity the intended
+  precondition? If SET-identity, re-specify the bite's reorder
+  CONTROL FIRST, then change the code — never the other way round.
+  **G1: the offline gate does not declare the new announcement.**
+  Corpus old -> new: safety 0 -> 14, conservation 2 -> 16 (+14
+  `invented`), one cause — `isDeclaredInjection` (tools/replay.mjs
+  :330, and the conservation clause at :1949) accepts ONLY a system
+  message whose content is entirely `tool_addition` blocks, while
+  the description notice carries TEXT blocks (it must: no tool is
+  added). Not corruption; the gate needs widening, keyed on the
+  extension's reported `descriptionChangedNames` rather than on
+  shape. Until then the daily gate goes RED on legitimate work —
+  the fires-on-a-non-defect class this repo treats as its own
+  defect.
+  **G3: the wire carrier is unproven against the live API.**
+  `tool_addition` blocks are probe-backed for opus-5/fable-5; a TEXT
+  block on a mid-conversation system message under that beta is NOT,
+  and the shipped code assumes the allowlist built for the former
+  covers the latter. One `tools/probe-tool-addition.mjs`-style run
+  settles it and is owed BEFORE this rides live.
+  **Row 3 for fd87e12:** no state-key change; freeze logic EXTENDED
+  not altered (the canonical is now retained across one delta class
+  that previously re-baselined); persisted `additions` entries gain
+  additive `kind`/`sig` fields. Old files read fine, but state
+  written by this build and read by the OLD build mis-marks
+  defer_loading — **forward-compatible only, so a rollback after
+  deploying it is not clean.**
+  Its worktree (scratchpad/wt-desc-absorb) is disposable; the branch
+  is the work. Note the agent did NOT read BACKLOG.md or matrix rows
+  23/24 — both were on its do-not-touch list and it worked from the
+  bite — so nothing in those files informed its G2 choice.
   **DEPLOYMENT IS OWED AND NOT DONE — this is the largest open
-  item.** Three shipped proxy/** changes are sitting undeployed:
-  the ordinal fix, the movedFresh split, and (once integrated) the
-  description-absorb. The plan was always ONE restart carrying all
-  three. Dotfiles pin `CACHE_FIX_PROXY_TREE_PIN` is at `ad4ff80`
-  (bootstrap/manifest.py:157); the current proxy tree is `5d651e7`
-  as of 9059d3a and will change again when fd87e12 lands, so compute
-  it fresh with `git rev-parse --short HEAD:proxy` rather than
-  copying that value. Then `systemctl --user restart
-  cache-fix-proxy`, then one gate run. Row 3 answered for both
-  landed changes: NO new state key, NO persisted schema change (only
-  canonical `o` VALUES corrected in place), and `freeze` does not
-  appear in insertion-normalization.mjs at all — so the restart is
-  cache-transparent. Get the same answer for fd87e12 before
-  restarting. Rows 4 and 23 close on the LIVE non-event, not on the
-  build, so the restart is what closes them.
+  item, and the plan CHANGED at the last minute.** The intent was
+  one restart carrying all three proxy/** changes. G1-G3 above take
+  fd87e12 off that list, so the choice is now explicit and it is the
+  next session's to make: **deploy the TWO landed changes now** (the
+  ordinal fix + the movedFresh split, both on main, both green, both
+  cache-transparent), or hold the restart until the description
+  absorb clears its three blockers. The recommendation from here is
+  DEPLOY THE TWO: the ordinal fix is the 535k-token class and it
+  earns nothing sitting on disk, row 4 closes only on the live
+  non-event, and fd87e12's G2 decision may take a round or two. The
+  cost of not bundling is one extra restart, which is cheap and
+  cache-transparent; the cost of bundling is that the largest
+  measured win waits on an open design question.
+  Mechanics: dotfiles pin `CACHE_FIX_PROXY_TREE_PIN` is at `ad4ff80`
+  (bootstrap/manifest.py:157); the proxy tree is `5d651e7` as of
+  9059d3a — recompute with `git rev-parse --short HEAD:proxy` rather
+  than copying that value, since it moves with any proxy/** commit.
+  Then `systemctl --user restart cache-fix-proxy`, then one gate
+  run. Row 3 is answered for BOTH landed changes: no new state key,
+  no persisted schema change (only canonical `o` VALUES corrected in
+  place), and `freeze` does not appear in insertion-normalization
+  .mjs at all — the restart is cache-transparent and cleanly
+  reversible. fd87e12 is NOT (forward-compatible only; see its Row 3
+  note above), which is a second, independent reason not to bundle
+  it. Rows 4 and 23 close on the LIVE non-event, not on the build.
   **ENVIRONMENT TRAP that cost this session real time, and will cost
   the next one the same:** a git worktree does NOT inherit
   `node_modules`, so `npm test` in a fresh worktree dies with
@@ -103,14 +166,22 @@ bullet, evidence pointer included.
   should NOT be deleted — but fixture-cut cannot make it
   committable; see the content-addressed-fixture READY item for the
   axis that can.
-  **PRIORITY ORDER for the next session:** (1) verify and integrate
-  fd87e12; (2) the deployment boundary carrying all three changes,
-  then the gate run that closes rows 4 and 23 on live non-events;
-  (3) price the NARROW container normalisation from the row-24
-  messages design — it covers the unconditional 589k half by itself
-  and may make the wide message-level pin unnecessary; (4) the
-  content-addressed fixture format, before pinning the next large
-  fixture. STANDING GO carries forward with both refinements (do not
+  **PRIORITY ORDER for the next session, revised after the agents'
+  final reports:** (1) **settle G2** — order-identity vs
+  set-identity for the description absorb. It is a one-question
+  design decision worth 484,972 measured tokens on the very bust
+  that motivated the build, and everything else about fd87e12 waits
+  behind it. If the answer is set-identity, the BITE changes first.
+  (2) G1, widening replay's `isDeclaredInjection` — cheap, tools/-
+  only, not deployment-coupled, and until it lands the daily gate
+  reports 14 false violations. (3) The deployment boundary for the
+  two landed changes (see the recommendation above), then the gate
+  run that closes row 4 on a live non-event. (4) G3's carrier probe,
+  before fd87e12 ever rides live. (5) Price the NARROW container
+  normalisation from the row-24 messages design — it covers the
+  unconditional 589k half by itself and may make the wide
+  message-level pin unnecessary. (6) The content-addressed fixture
+  format, before pinning the next large fixture. STANDING GO carries forward with both refinements (do not
   blindly book a mis-scoped request; do not close an investigation on
   a first negative) and all gates still bind.
   **RESIDUE, named:** the movedFresh reset-path emitter is covered by
