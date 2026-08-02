@@ -411,6 +411,41 @@ export function classToRow(censusClass, migration) {
   return null;
 }
 
+/**
+ * The SECOND classification axis: the transcript's own cause.
+ *
+ * The census classifies the MESSAGE array, so a tools-driven bust — whose
+ * messages are legitimately append-only — maps to no row by construction.
+ * Live 2026-08-02: the run printed `transcript tools_changed / 484972` and
+ * then called the bust UNCLASSIFIED, with the answer one line above it. That
+ * verdict is this tool's payload and stays reachable, but only when NEITHER
+ * axis maps; otherwise a known class hides behind the word reserved for a
+ * new one.
+ *
+ * `tools_changed` is discriminated rather than lumped, because the two
+ * sub-classes have opposite mitigation stories and the pair carries the
+ * evidence: when every tool's `name` and `input_schema` are byte-identical
+ * and only `description` differs, the model cannot emit a call the client
+ * is unable to execute, so the block is absorbable (row 23); any change to
+ * a schema, the set, or the order is not (row 6). Discriminating this took
+ * three hand probes on the live capture — the mechanism is the deliverable.
+ */
+export function causeToRow(cause, pair) {
+  if (cause === "messages_changed") return 4;
+  if (cause !== "tools_changed") return null;
+  const b = pair?.before?.body?.tools;
+  const a = pair?.after?.body?.tools;
+  if (!Array.isArray(b) || !Array.isArray(a)) return 6;   // cannot tell: the general row
+  if (b.length !== a.length) return 6;
+  let descOnly = false;
+  for (let i = 0; i < b.length; i++) {
+    if (b[i]?.name !== a[i]?.name) return 6;              // set or order moved
+    if (JSON.stringify(b[i]?.input_schema) !== JSON.stringify(a[i]?.input_schema)) return 6;
+    if (b[i]?.description !== a[i]?.description) descOnly = true;
+  }
+  return descOnly ? 23 : 6;
+}
+
 export async function triage(bust) {
   const steps = [];
   const tc = transcriptCause(bust.s, bust.cc);
@@ -458,10 +493,15 @@ export async function triage(bust) {
                 `(${mig.verdict}${mig.sub ? `/${mig.sub}` : ""})` }
     : { step: "migration", ok: true, detail: "no reminder container migration in this pair" });
 
-  const rowN = classToRow(cls, mig);
+  // Two axes, in order: the message census first (it is the more specific
+  // statement), then the transcript's own cause. UNCLASSIFIED requires BOTH
+  // to miss — see causeToRow's docstring for why the second axis exists.
+  let rowN = classToRow(cls, mig);
+  if (rowN === null) rowN = causeToRow(tc?.type, pair);
   if (rowN === null) {
     return { bust, steps, verdict: "UNCLASSIFIED",
-             why: `census class "${cls}" maps to no threat-matrix row — a class nothing currently covers` };
+             why: `census class "${cls}" maps to no threat-matrix row, and the transcript cause ` +
+                  `${tc?.type ? `"${tc.type}" ` : "is absent, so it "}adds none — a class nothing currently covers` };
   }
   const row = matrixRow(rowN);
   if (!row) {

@@ -19,7 +19,7 @@ import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { coldEvents, busts, listRows, listHeader, fallbackNote } from "../tools/bust-triage.mjs";
+import { coldEvents, busts, listRows, listHeader, causeToRow, fallbackNote } from "../tools/bust-triage.mjs";
 
 function ledger(records) {
   const d = mkdtempSync(join(tmpdir(), "bt-controlled-"));
@@ -145,4 +145,44 @@ test("BITE — capturePair reports harvest's own request ordinals", async () => 
   assert.ok(pair, "pair found");
   assert.equal(pair.before.ord, 0, "boot and outcome records do not consume ordinals");
   assert.equal(pair.after.ord, 1, "the second request is ordinal 1, not 3");
+});
+
+// --- the verdict must use the transcript cause the tool already read ---
+//
+// A tools-driven bust leaves the MESSAGE array legitimately append-only, so
+// the census — which classifies messages — maps it to no row BY CONSTRUCTION.
+// Live 2026-08-02: the run printed `transcript tools_changed / 484972` and
+// then `UNCLASSIFIED: census class "append-only" maps to no row`. Both true;
+// the verdict still wrong, with the answer one line above it. UNCLASSIFIED is
+// this tool's payload and must stay reachable — but only when NEITHER axis
+// maps, otherwise a real class hides behind the word for a new one.
+//
+// The tools delta is discriminated rather than lumped: a description-only
+// edit (name + input_schema byte-identical) is row 23 and absorbable; any
+// schema/set/order change is row 6. That distinction took three hand probes
+// on the live capture, which is exactly what belongs in the tool.
+const toolsBody = (desc, schema = { type: "object", properties: {} }) => ({
+  messages: [{ role: "user", content: [{ type: "text", text: "u" }] }],
+  tools: [{ name: "Bash", description: desc, input_schema: schema }],
+});
+
+test("BITE — a description-only tools delta names row 23, not UNCLASSIFIED", () => {
+  const pair = {
+    before: { ts: "2026-08-02T15:53:08.789Z", body: toolsBody("old text") },
+    after: { ts: "2026-08-02T15:53:26.105Z", body: toolsBody("old text plus a line") },
+  };
+  assert.equal(causeToRow("tools_changed", pair), 23, "same schema, changed prose -> the description-only row");
+});
+
+test("BITE — a schema change on the same tool is row 6, not row 23", () => {
+  const pair = {
+    before: { ts: "a", body: toolsBody("d", { type: "object", properties: {} }) },
+    after: { ts: "b", body: toolsBody("d", { type: "object", properties: { x: { type: "string" } } }) },
+  };
+  assert.equal(causeToRow("tools_changed", pair), 6, "a real schema change is not absorbable as prose");
+});
+
+test("a cause with no row mapping still yields no row — UNCLASSIFIED stays reachable", () => {
+  assert.equal(causeToRow("other", null), null);
+  assert.equal(causeToRow(null, null), null);
 });
