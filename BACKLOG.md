@@ -14,8 +14,22 @@ bullet, evidence pointer included.
   ended at ~650k tokens; everything verified is already committed and
   pushed, so `git log` is trustworthy — what follows is only the
   work that is NOT in a commit.
-  (1) **Ordinal fix (row-4, the 535k class) — implementation lives in
-  `stash@{0}`**, "WIP on main: 1ea9804", 143 insertions / 4 deletions
+  (1) **RESOLVED 2026-08-02 evening (739aa22, pushed) — the stash is
+  popped, verified and committed; `git stash list` is empty and the
+  bite is tracked at test/insertion-ordinal-reattribution.test.mjs.**
+  Red-first arrangement stated in the commit: NEW bite against OLD
+  implementation (main tip, patch out of the tree) → moved 0,
+  reset/not-subsequence, CONTROL green; same bite green with the
+  patch. Corpus A/B over four captures / 4,136 requests eliminated
+  three resets, one per busting capture (c7c83ca5 n=894, 6df6b9d2
+  n=839, 0fbf8674 n=1417 — the last two are the very instances the
+  design entry named), with zero deltas on a capture lacking the
+  shape. Row 3: no new state key, no schema change, `freeze` absent
+  from the file. Row-4 datapoint written to the threat matrix. What
+  remains is DEPLOYMENT only, on the shared boundary. Original entry
+  follows for the record.
+  **(1-orig) Ordinal fix (row-4, the 535k class) — implementation
+  lived in `stash@{0}`**, "WIP on main: 1ea9804", 143 insertions / 4 deletions
   in proxy/extensions/insertion-normalization.mjs. Its red-first bite
   is on disk UNTRACKED at test/insertion-ordinal-reattribution.test
   .mjs (88 lines) and is EXPECTED TO FAIL without the stash — do not

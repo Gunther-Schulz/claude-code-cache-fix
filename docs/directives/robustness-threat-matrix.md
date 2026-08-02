@@ -551,6 +551,56 @@ covers the measured join shape — whether every container-migration
 EXTENDED instance (e.g. the 14:32:29 KNOWN-OPEN bust) matches its
 conditions (a)–(f) live is the post-restart verification question.
 
+### Row 4 datapoint — 2026-08-02: the escape the un-merge left open is
+### SHIPPED — occurrence-ordinal re-attribution (739aa22)
+
+The entry above calls the ordinal re-bind "the last escape" and it was
+right, but only for RESERVED entries. Non-reserved entries kept
+absolute `(h, r, o)` matching, and the file said so in a sentence that
+declared the general case out of scope (`:1108-1110`) — that sentence
+was the defect, and it cost 535k tokens on 2026-08-02.
+
+Mechanism, measured not modelled: an ordinal is a position within a
+family of identical (hash, role) copies. CC swallowed a MIDDLE copy of
+the 421-byte "task tools haven't been used recently" nudge, which stood
+28x in the canon against 27x on the wire; every later copy shifted down
+one, so each survivor bound to its NEIGHBOUR'S wire slot and the LAST
+ordinal was reported as the entry that vanished. The entry that
+actually left therefore never reached findJoinMoves, which took its
+condition-(b) `continue` and returned [] — `moved:5` was five re-fires
+of reserved entries with ZERO fresh recognitions, which is exactly why
+"the mitigation ran" and "the mitigation matched" came apart in the
+telemetry.
+
+Fix: for a family whose live stored count exceeds its wire count by
+exactly one, attribution is re-derived with findJoinMoves' own
+condition-(d) lo/hi neighbourhood discriminator; everything else fails
+closed, INCLUDING an ambiguous family (two qualifying candidates keeps
+today's behaviour rather than guessing, because guessing re-serves one
+entry's bytes into another's slot).
+
+Corpus A/B, four captures / 4,136 requests, old vs new under each
+capture's own serving gates (`tools/replay-compare.mjs --summary`):
+three resets eliminated, one per busting capture — s-c7c83ca5 n=894
+(the 660k instance), s-6df6b9d2 n=839, s-0fbf8674 n=1417 — each
+flipping `reset/not-subsequence` -> `normalized`. The latter two are
+precisely the captures the investigation had recorded as reporting
+canonical ORDER violations under the pre-re-keying revision;
+`orderViolations` now reads 0 on BOTH sides of all four, which is the
+re-keying doing its job. Every delta begins AT the busting request and
+none before it (893, 838 and 1416 preceding requests byte-identical),
+every delta absorbs rather than releases (+56/-0, +79/-0, +10/-0 on
+suppressed/moved/canonSize), and a capture without the shape
+(s-3538fb2e, 261 requests) shows ZERO deltas — the inertness control.
+
+Restart safety (row 3): no new state key, no persisted schema change —
+canonical entries keep `{h,r,o}` and only the `o` VALUES are corrected
+in place; `freeze` does not appear in this file at all. NOT deployed at
+the time of writing: rides one boundary with the row-23 absorb and the
+`movedFresh` telemetry split. The row stays OPEN until the deployed
+proxy shows the class as a live non-event — a shipped extension is not
+a closed row, per this matrix's own rule.
+
 ## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
 ## CONTROLLED-CAUSE (instrument false positive, no bust)
 
