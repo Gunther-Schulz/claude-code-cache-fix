@@ -45,6 +45,30 @@ const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
 const CAPTURES = join(homedir(), ".claude/cache-fix-captures");
 const PROJECTS = join(homedir(), ".claude/projects");
 const MATRIX = "docs/directives/robustness-threat-matrix.md";
+// Mirrors CAPTURES above: hardcoded to ~/.claude rather than routed through
+// proxy/claude-home.mjs's claudeHome() (which also honors CLAUDE_CONFIG_DIR)
+// — pre-existing in this file, not introduced here.
+const SNAPSHOTS = join(homedir(), ".claude/cache-fix-snapshots");
+// A non-append telemetry event within this many ms of a candidate request's
+// own `ts` is treated as "that request is what the event is reporting on"
+// (BACKLOG TOOL GAP, 2026-07-31 twin-busts entry). Measured live on the
+// motivating case: the reset event and its causing request's ts differ by
+// ~5ms; the wrongly-chosen append-only request sat ~15.8s from that reset,
+// well outside this window.
+const TELEMETRY_WINDOW_MS = 3000;
+// How far back from the recency-picked `after` the telemetry preference is
+// even allowed to look for a replacement candidate. Discovered live: without
+// this bound, "nearest wins" (preferTelemetryConfirmed) searches EVERY
+// plausible candidate in the whole capture — and every non-append-only
+// request writes its OWN telemetry line moments after itself, so near-zero
+// coincidental matches are common throughout a long session, not rare. On
+// the 19:22:40 capture this picked a candidate from ~18 MINUTES earlier
+// (an unrelated near-exact match) over the genuine 5ms one 16s before the
+// wrongly-selected newest candidate. The observed real gap between a wrong
+// newest pick and its correct predecessor is 4-16s (BACKLOG); this window
+// is generous against that (10x the high end) while still nowhere near
+// covering a multi-hour session, so an unrelated old coincidence can't win.
+const NEAR_CUTOFF_WINDOW_MS = 60_000;
 
 const j = (line) => { try { return JSON.parse(line); } catch { return null; } };
 const lines = (p) => (existsSync(p) ? readFileSync(p, "utf8").split("\n").filter(Boolean) : []);
@@ -103,6 +127,100 @@ export function transcriptCause(sid, cc) {
   return null;
 }
 
+/**
+ * Non-append insertion-normalization telemetry for a session, at or before
+ * a cutoff (epoch ms) — the population `preferTelemetryConfirmed` matches
+ * candidates against. Filename pattern mirrors
+ * proxy/extensions/insertion-normalization.mjs's eventsPath/
+ * resolveInsertionSessionKey: `s-${sid}-<systemPromptSubKey>-<conv>-
+ * insertion-events.jsonl`. One sid owns SEVERAL such files — one per
+ * conversation/system-prompt sub-key (main thread, sidecars, subagents) —
+ * and the sub-key components are internal to that extension and not
+ * re-derivable here, so this globs by prefix rather than composing the
+ * exact key. Record shape grounded on a real file (2026-08-02, files under
+ * ~/.claude/cache-fix-snapshots/): {ts (ISO), key, sid, action, inserted,
+ * resetReason?, pinned, dropped, suppressed, moved}. The motivating case's
+ * reset event lived in a DIFFERENT conversation sub-key than the one that
+ * produced the wrongly-chosen append-only candidate, which is why this
+ * cannot be narrowed to a single exact events file.
+ * Returns null (never []) for "missing/unreadable directory or no matching
+ * files" so the caller can skip the preference and fall through to the
+ * unchanged existing rule, exactly.
+ */
+export function nonAppendEvents(sid, cutoffMs, dir = SNAPSHOTS) {
+  if (!existsSync(dir)) return null;
+  let files;
+  try {
+    files = readdirSync(dir).filter(
+      (f) => f.startsWith(`s-${sid}-`) && f.endsWith("-insertion-events.jsonl"));
+  } catch {
+    return null;
+  }
+  if (!files.length) return null;
+  const out = [];
+  for (const name of files) {
+    for (const line of lines(join(dir, name))) {
+      const r = j(line);
+      if (!r?.ts || !r.action || r.action === "append-only") continue;
+      const t = Date.parse(r.ts);
+      if (!Number.isNaN(t) && t <= cutoffMs) out.push({ ts: t, action: r.action });
+    }
+  }
+  return out;
+}
+
+/**
+ * Pure preference decision (BACKLOG TOOL GAP, 2026-07-31 twin-busts entry,
+ * "TOOL GAP found en route"): capturePair's plain rule — the newest
+ * plausible same-conversation candidate at-or-before the bust stamp — chose
+ * an APPEND-ONLY request 4-16s after the actual reset-carrying request in
+ * the 19:22:40 case, and the resulting UNCLASSIFIED verdict was a pair-
+ * SELECTION artifact, not a new bust class.
+ *
+ * Rule (dispatcher decision, superseding a first "newest-of-matches"
+ * attempt that shipped but did not fix the motivating case — see below):
+ * among candidates within `windowMs` of a telemetry event whose action is
+ * NOT "append-only" (append-only cannot have rewritten the cached prefix,
+ * so it is never the event a real bust is reporting on), the one with the
+ * SMALLEST |candidate.ts - event.ts| wins; ties broken by newest candidate.
+ * Basis: the event is written during the SAME request's processing, so a
+ * genuine join is millisecond-scale, while a spurious cross-conversation
+ * join (a different, unrelated sub-key's own event landing in the window
+ * by coincidence) lands randomly across the window. Live-traced on the
+ * 19:22:40 capture: the genuine join was 5ms away, a same-window spurious
+ * join from an unrelated single-message sidecar's own bootstrap reset
+ * ("no-prior-canonical") was 1899ms away — the FIRST version of this rule
+ * ("prefer the newest of all matching candidates") picked the spurious
+ * one, because both were "a match" and the wrong one was newer. Nearness
+ * to the matching event, not recency of the candidate, is what
+ * distinguishes a real causal link from a coincidence.
+ * Falls back to the newest candidate overall — the pre-existing rule,
+ * unchanged — when no candidate matches, including when `events` is
+ * null/empty (the "missing/unreadable events file" case).
+ *
+ * Takes only `{ts}`-shaped candidates (epoch ms) rather than full capture
+ * records, deliberately: this is the pure decision core the selftest
+ * exercises without filesystem fixtures, and it is also what lets
+ * capturePair's streaming pass build the candidate list without holding
+ * full (multi-MB) request bodies for every candidate at once.
+ */
+export function preferTelemetryConfirmed(candidates, events, windowMs = TELEMETRY_WINDOW_MS) {
+  let newest = null;
+  let best = null; // { c, dist }
+  for (const c of candidates) {
+    if (!newest || c.ts > newest.ts) newest = c;
+    if (!events || !events.length) continue;
+    let dist = Infinity;
+    for (const e of events) {
+      const d = Math.abs(e.ts - c.ts);
+      if (d < dist) dist = d;
+    }
+    if (dist > windowMs) continue;
+    if (!best || dist < best.dist || (dist === best.dist && c.ts > best.c.ts)) best = { c, dist };
+  }
+  return best ? best.c : newest;
+}
+
 /** The capture request pair straddling a bust, by conversation.
  * Streamed via readLines, never readFileSync: the busting session's own
  * capture is routinely the largest on disk, and the whole-file string read
@@ -130,16 +248,49 @@ export async function capturePair(sid, tsEpoch) {
   // since a single-message request has no prefix to bust.
   const cutoff = tsEpoch * 1000;
   const plausible = (r) => (r.body.messages?.length ?? 0) >= 2;
+  // Telemetry preference (BACKLOG TOOL GAP, 2026-07-31): computed BEFORE the
+  // scan so a missing/unreadable events file costs nothing extra — the
+  // `candidates` accumulation below only happens when `events` is truthy,
+  // keeping the "missing events file => existing behavior exactly" case
+  // identical in both output and cost to the pre-existing single-pass scan.
+  const events = nonAppendEvents(sid, cutoff);
   let after = null;
+  // Lightweight {ts}-only candidates, never full records — a candidate's
+  // body can be multi-MB (the same reason this function streams at all;
+  // see the header comment above), so only the two records that end up
+  // chosen (`after`, `before`) ever get held in full.
+  const candidates = [];
   let seen = 0;
   for await (const line of readLines(f)) {
     const r = j(line);
     if (!r?.body?.messages || !r?.ts) continue;
     seen++;
     const t = Date.parse(r.ts);
-    if (t <= cutoff && plausible(r) && (!after || t > Date.parse(after.ts))) after = r;
+    if (t <= cutoff && plausible(r)) {
+      if (!after || t > Date.parse(after.ts)) after = r;
+      if (events) candidates.push({ ts: t });
+    }
   }
   if (seen < 2 || !after) return null;
+
+  if (events && events.length) {
+    const afterT = Date.parse(after.ts);
+    // Scope to NEAR_CUTOFF_WINDOW_MS of the recency pick — see its comment
+    // for why an unscoped search over the whole capture is wrong.
+    const nearby = candidates.filter((c) => afterT - c.ts <= NEAR_CUTOFF_WINDOW_MS);
+    const chosen = preferTelemetryConfirmed(nearby, events);
+    if (chosen && chosen.ts !== afterT) {
+      // The preference overrode the recency default — refetch the full
+      // record for the chosen ts (rare: only when telemetry disagrees with
+      // "newest plausible"). A second streaming pass, same file.
+      for await (const line of readLines(f)) {
+        const r = j(line);
+        if (!r?.body?.messages || !r?.ts) continue;
+        if (plausible(r) && Date.parse(r.ts) === chosen.ts) { after = r; break; }
+      }
+    }
+  }
+
   const cid = JSON.stringify(after.body.messages[0]);
   let before = null;
   for await (const line of readLines(f)) {
@@ -446,6 +597,112 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     const r4 = matrixRow(4);
     eq(r4 !== null, true, "row 4 readable");
     eq(r4.open, true, "row 4 is currently OPEN (re-opened 2026-07-31)");
+
+    // Telemetry pair-selection preference (BACKLOG TOOL GAP, 2026-07-31
+    // twin-busts entry). Motivating shape: two candidate afters, the NEWER
+    // has no matching non-append telemetry event, the EARLIER matches a
+    // reset event within the window — the live 19:22:40 case (reset at
+    // 19:22:22.257, wrongly-chosen append-only request at 19:22:38.008,
+    // ~15.8s later). Against the pre-change logic (bare "newest plausible",
+    // ignoring `events` entirely) this assertion is RED: that rule always
+    // returns the later candidate regardless of telemetry.
+    eq(preferTelemetryConfirmed(
+      [{ ts: 1785526942257 }, { ts: 1785526958008 }],
+      [{ ts: 1785526942252, action: "reset" }],
+    ).ts, 1785526942257, "prefers the telemetry-confirmed earlier candidate over the unmatched newer one");
+    // No candidate falls within the window of any event -> existing
+    // newest-plausible rule stands, unchanged.
+    eq(preferTelemetryConfirmed(
+      [{ ts: 1000 }, { ts: 1016000 }],
+      [{ ts: 500000, action: "reset" }],
+    ).ts, 1016000, "falls back to newest-plausible when no candidate matches");
+    // Missing/unreadable events file (null) -> same fallback, unchanged —
+    // this is the "existing behavior exactly" contract for that case.
+    eq(preferTelemetryConfirmed([{ ts: 1000 }, { ts: 1016000 }], null).ts, 1016000,
+       "null events (missing/unreadable file) leaves the newest-plausible rule untouched");
+    // Two EQUALLY-near matches (dist 0 for both) -> tie-break is newest
+    // candidate, not "first" or "last in iteration order".
+    eq(preferTelemetryConfirmed(
+      [{ ts: 1000 }, { ts: 2000 }, { ts: 500000 }],
+      [{ ts: 1000, action: "reset" }, { ts: 2000, action: "normalized" }],
+    ).ts, 2000, "equal-distance matches: the newest candidate wins the tie-break");
+
+    // COLLISION SHAPE (dispatcher decision, superseding a first "newest-of-
+    // matches" attempt): a candidate merely being newer must NOT beat one
+    // that is a closer telemetry match. Real numbers off the live 19:22:40
+    // capture (s-adf6cadb) — the CORRECT candidate (19:22:22.252Z) sits 5ms
+    // from its own reset event (19:22:22.257Z, resetReason=not-subsequence,
+    // the actual bust-causing reset); the WRONGLY-selected candidate
+    // (19:22:38.008Z) ALSO falls inside the ±3s window of a second, unrelated
+    // event (19:22:39.907Z, resetReason=no-prior-canonical — a different,
+    // brand-new single-message sidecar conversation's own bootstrap reset),
+    // 1899ms away. Confirmed RED against the superseded "newest-of-matches"
+    // rule by direct invocation before this fix (both candidates "matched",
+    // so that rule picked the newer/wrong one, ts 1785525758008) — this
+    // assertion pins the corrected outcome.
+    eq(preferTelemetryConfirmed(
+      [{ ts: 1785525742252 }, { ts: 1785525758008 }],
+      [{ ts: 1785525742257, action: "reset" }, { ts: 1785525759907, action: "reset" }],
+    ).ts, 1785525742252, "nearest-to-its-own-event wins over a same-window spurious match from an unrelated conversation");
+
+    // capturePair's NEAR_CUTOFF_WINDOW_MS scoping (own bug, found while
+    // verifying the rule above against the real 19:22:40 capture): unscoped,
+    // "nearest wins" searches the WHOLE plausible-candidate population, and
+    // every non-append-only request writes its own telemetry line moments
+    // after itself — so a near-zero coincidental match minutes or hours away
+    // is common, not rare, and can beat a genuine few-ms match near the
+    // cutoff purely on distance. Reproduced here with the real numbers plus
+    // one far-away decoy (18 minutes earlier, dist 0 — an exact coincidental
+    // match, standing in for "some unrelated request's own telemetry line").
+    // Confirmed RED by direct invocation on the real capture before this
+    // window existed: preferTelemetryConfirmed(unscoped candidates, events)
+    // returned ts 1785524659672 (~18 minutes before the bust), not the
+    // genuine 1785525742252. capturePair must filter to
+    // NEAR_CUTOFF_WINDOW_MS of the recency pick BEFORE calling
+    // preferTelemetryConfirmed — this pins that the filter, not the
+    // preference function itself, is what excludes the decoy.
+    {
+      const genuine = { ts: 1785525742252 };
+      const decoy = { ts: 1785525742252 - 18 * 60 * 1000 }; // 18 min earlier
+      const wrongNewest = { ts: 1785525758008 };
+      const evs = [
+        { ts: 1785525742257, action: "reset" },        // 5ms from `genuine`
+        { ts: decoy.ts, action: "normalized" },          // 0ms from `decoy`
+        { ts: 1785525759907, action: "reset" },          // 1899ms from `wrongNewest`
+      ];
+      const all = [decoy, genuine, wrongNewest];
+      const unscoped = preferTelemetryConfirmed(all, evs);
+      eq(unscoped.ts, decoy.ts,
+         "RED check: unscoped, the far-away exact coincidence outranks the genuine near match");
+      const afterT = wrongNewest.ts; // capturePair's recency pick
+      const nearby = all.filter((c) => afterT - c.ts <= NEAR_CUTOFF_WINDOW_MS);
+      const scoped = preferTelemetryConfirmed(nearby, evs);
+      eq(scoped.ts, genuine.ts,
+         "scoped to NEAR_CUTOFF_WINDOW_MS of the recency pick, the decoy is excluded and the genuine match wins");
+    }
+
+    // nonAppendEvents: globs every insertion-events file for the sid (one
+    // sid owns several — one per conversation/system-prompt sub-key, per
+    // insertion-normalization.mjs's resolveInsertionSessionKey), filters
+    // out append-only and anything after the cutoff.
+    {
+      const evDir = mkdtempSync(join(tmpdir(), "bt-events-"));
+      writeFileSync(join(evDir, "s-SID-key1-insertion-events.jsonl"), [
+        JSON.stringify({ ts: "2026-07-31T19:22:22.257Z", sid: "SID", action: "reset", resetReason: "not-subsequence" }),
+        JSON.stringify({ ts: "2026-07-31T19:23:00.000Z", sid: "SID", action: "reset" }), // after cutoff
+      ].join("\n") + "\n");
+      writeFileSync(join(evDir, "s-SID-key2-insertion-events.jsonl"), [
+        JSON.stringify({ ts: "2026-07-31T19:22:38.015Z", sid: "SID", action: "append-only" }),
+      ].join("\n") + "\n");
+      const cutoffMs = Date.parse("2026-07-31T19:22:40.000Z");
+      const ev = nonAppendEvents("SID", cutoffMs, evDir);
+      eq(ev.length, 1, "one non-append, pre-cutoff event across both files");
+      eq(ev[0].action, "reset", "the reset survives the filter");
+      eq(nonAppendEvents("SID", cutoffMs, join(evDir, "does-not-exist")), null,
+         "missing directory reads as null, not []");
+      eq(nonAppendEvents("OTHER-SID", cutoffMs, evDir), null,
+         "a sid with no matching files reads as null too");
+    }
     process.stdout.write("bust-triage: selftest passed\n");
     process.exit(0);
   }
