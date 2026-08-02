@@ -601,6 +601,126 @@ the time of writing: rides one boundary with the row-23 absorb and the
 proxy shows the class as a live non-event — a shipped extension is not
 a closed row, per this matrix's own rule.
 
+## Row 24 — messages layer: DESIGN, not a negative (2026-08-02,
+## opus investigation, dispatcher-verified independently)
+
+The row's messages half was once graded "probably not mitigable" on the
+argument that a 28-message-shorter history is not a subsequence, so
+re-serving the pre-exit array would send turns CC no longer believes
+exist. The operator rejected that deferral. The argument is not merely
+weak — **it is false**, and the measurement says so twice over.
+
+ZERO REAL TURNS ARE DROPPED. Positional LCS over `semanticIds` gives 76
+dropped / 48 added (the row's earlier 49/18 was a SET difference and
+undercounts). All 76 dropped are `role:"system"`; of the 48 added, 46
+are `role:"system"` and the other two are ordinary tail growth. Two
+mechanisms, both decoration: (a) PreToolUse hook contexts are not
+replayed on resume — 37 `PreToolUse:Bash` messages plus the Pre-halves
+of 9 combined Pre+Post messages are present pre-exit and absent after;
+(b) the recurring task-tools nudge is re-emitted at different indices,
+byte-identical text, its cadence counter restarted by the resume.
+
+VERIFIED INDEPENDENTLY by the dispatcher on a DIFFERENT identity
+function (raw content hashing, not replay.mjs's semanticIds — an
+independent check that borrows the instrument inherits its blind spot):
+**846 of 846** of the pre-exit array's real turns embed in the resumed
+array as a clean subsequence, once `messages[0]` and 3 turns are set
+aside. PRECISION, because the two levels get confused: "zero real turns
+dropped" holds at POST-NORMALIZATION identity. At raw bytes the dropped
+multiset is 46 system + 3 USER, and those 3 differ only by an
+in-message `<system-reminder>` block that the ALREADY-SHIPPED volatile
+pin absorbs. A later reader checking the claim at the wrong level will
+think it failed.
+
+WHAT PINNING REACHES, nested, same pair:
+- `messages[0]` alone: divergence 0 -> 41, i.e. 198,686 of 1,743,269
+  message bytes = 11.4%, ~67k tokens. **Not worth a restart alone** —
+  which is exactly why the row's original single-layer design would
+  have underdelivered.
+- plus the `role:"system"` layer canonicalised: 99.63%, ~589k tokens.
+- plus the shipped volatile-block pin: **100.00%** — 849 of 849
+  non-system turns match. The post-resume array is a strict SUPERSET of
+  the pre-exit conversation: same real turns, same order, byte-identical
+  modulo decoration, plus 3 new tail items.
+
+A SECOND ROOT CAUSE THE ROW DID NOT HAVE, and it is NOT resume-specific.
+The 16:13:10 request is a clean MESSAGE-LAYER ISOLATION — `cacheRead =
+15,223`, exactly tools+system, byte-identical across that pair — and it
+still re-billed 588,956. Byte firstDivergence is 937, the last message
+of 938: `role:"system"`, the SessionStart:resume hook output, inner text
+BYTE-IDENTICAL at 21,570 chars. Only the CONTAINER differs —
+`content:[{type,text,cache_control}]` becomes a bare string `content:T`.
+CC wraps a string-content message in a block array to attach the
+breakpoint, then reverts it once the marker moves on. Trigger is
+computable: the breakpoint lands on a message whose natural
+serialisation is a bare string, which is precisely these harness-emitted
+`role:"system"` messages — it does not fire on ordinary multi-block
+messages, which is why it is not busting every turn. TWO-VARIABLE
+CAVEAT, stated rather than attributed: container shape and the
+`cache_control` marker changed together at 937, so this pair cannot say
+which the server hashed.
+
+COST MODEL, general and worth its own line — it sharpens every other
+row. Dispatcher-measured over the whole capture, 1,512 requests with
+messages: **1,414 carry a message-layer breakpoint and every one of them
+carries exactly ONE — no exceptions.** That single-mark fact is what
+"no partial credit" rests on: any divergence before the tail breakpoint
+forfeits the entire message prefix. Placement is the softer half and
+must be written as such — 1,408 put the mark on the final message and
+**6 put it one-to-two from the end** (e.g. 43.1 of 45, 172.1 of 174);
+the remaining 98 requests are single-message sidecar traffic carrying no
+mark at all. "Always on the last message" is falsifiable in six places;
+"one breakpoint, normally on the tail" is not.
+
+DESIGN (simulated on the real pair, not reasoned): widen phase-3's
+volatile pin from BLOCK level to MESSAGE level — a whole `role:"system"`
+message that is harness-emitted decoration is volatile in the same sense
+a `<system-reminder>` block already is — keyed on the existing canonical
+entry identity (`computePinnedIdentities`, hash|role|ordinal). ONE
+CHANGE REQUIRED: today's removal tolerance marks a canonical entry
+missing from incoming as dropped and never forwards it; for this class
+it must RE-SERVE the canonical first-seen bytes at their canonical
+position. Order violations among survivors and >50% drops keep
+resetting — 76/966 = 7.9%, far under. Simulation: forwarded = canonical
+A (966, first-seen bytes) + the 48 unmatched B entries in B order =
+1,014 messages; `firstDivergence(A, forwarded) = null`, so A is a PURE
+PREFIX and the pre-exit breakpoint at 965 is readable;
+`validateToolAdjacency` true; the only 3 messages not byte-present are
+the already-shipped volatile-pin cases.
+
+SAFETY, and it is stronger than the usual stale-serve argument: the
+re-served bytes are ones the model ALREADY SAW in this same
+conversation, at the same positions, adjacent to the same tool calls.
+The canonical array IS the conversation as the model experienced it, and
+CC's resume reconstruction is the lossy party — so this pin does not
+serve a stale view, it serves the true one.
+
+NAMED RISK, carried into the build: pinning first-seen bytes for a
+message that carried a breakpoint re-serves a stale `cache_control`
+beside the live one. The API allows 4, so two is in budget, but the
+implementation must COUNT them rather than assume.
+
+NAMED GAP, not bridged: the container flip has ONE measured instance;
+corpus-wide frequency is unmeasured. The check that would settle it —
+"divergence at a string-content message that previously carried
+cache_control" — does not exist in replay.mjs.
+
+THE CHEAPER DESIGN THIS BASIS DOES NOT RULE OUT, per the standing
+not-a-cheap-negative rule applied in the affirmative direction: normalise
+ONLY the string <-> single-block container and leave `cache_control`
+alone. That is narrower than the message-level pin and, because the
+588,956 half needs no tools or system fix, **it would cover the
+unconditional half by itself**. Price it before building the wider pin.
+
+VALUE SPLIT, which decides scheduling: 588,956 tokens are recoverable by
+this design ALONE, gated by nothing. A further ~603,242 needs row 23's
+tools absorb AND the system-prompt half to BOTH land, because the cache
+is a strict prefix [tools][system][messages] and tools differ by
+construction on resume. **The system-prompt half is therefore the
+binding constraint on the resume's FIRST request — not the messages
+half.** Session profile for scale: 20 busts over 100k in this session,
+4,566,292 tokens re-billed; the resume pair is 1,192,198 of that, 26%.
+
 ## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
 ## CONTROLLED-CAUSE (instrument false positive, no bust)
 

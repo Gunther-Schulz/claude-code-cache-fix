@@ -255,6 +255,39 @@ bullet, evidence pointer included.
   tools/fixture-verdict-identity.mjs still holds — this item is the
   post-step being built, not a harvest parameter.
 
+- **READY — price the NARROW container normalisation before building
+  the wide message-level pin (row 24 messages half, 2026-08-02).**
+  Order matters here and the investigation said so itself: the narrow
+  fix — normalise ONLY the string <-> single-block `content` container
+  on a `role:"system"` message, leaving `cache_control` untouched —
+  covers the 588,956-token UNCONDITIONAL half by itself, because that
+  bust was a clean message-layer isolation (`cacheRead=15,223`, exactly
+  tools+system, byte-identical). The wide fix (volatile pin widened
+  from block level to message level, plus removal tolerance re-serving
+  canonical bytes instead of dropping) reaches 100% of the pre-exit
+  array but is a much larger change to phase-3 behaviour. Do the
+  pricing first: if the narrow one holds, the wide one may not be owed
+  at all. Both are proxy/**, deployment-coupled.
+  Full design, simulation, safety argument, named risk (stale
+  `cache_control` re-served beside the live one — count them, budget
+  is 4) and the value split are in the threat matrix, section
+  "Row 24 — messages layer". Verifier for either: the simulation the
+  investigation already ran — `firstDivergence(A, forwarded) === null`
+  plus `validateToolAdjacency(forwarded)` on the real 16:06:39 /
+  16:12:42 pair of s-ddd9fd7d — as a red-first bite, since neither
+  holds today.
+  NAMED MISSING EVIDENCE, and it gates nothing but should ride along:
+  the container flip has ONE measured instance and its corpus-wide
+  frequency is unmeasured. The check that would settle it does not
+  exist — "divergence at a string-content message that previously
+  carried `cache_control`", a replay.mjs addition, tools/-only and not
+  deployment-coupled.
+  SCHEDULING NOTE, from the same measurement: the cache is a strict
+  prefix [tools][system][messages] and tools differ by construction on
+  every resume, so the resume's FIRST request is gated by the
+  SYSTEM-PROMPT half, not by this one. This work buys the second
+  request and everything after it.
+
 - **READY — content-addressed fixture format: the axis that actually
   makes a pinned fixture committable (2026-08-02, measured).**
   fixture-cut WORKS now (it was blocked by the firstDivergence guard,
