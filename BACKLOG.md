@@ -255,6 +255,36 @@ bullet, evidence pointer included.
   tools/fixture-verdict-identity.mjs still holds — this item is the
   post-step being built, not a harvest parameter.
 
+- **READY — content-addressed fixture format: the axis that actually
+  makes a pinned fixture committable (2026-08-02, measured).**
+  fixture-cut WORKS now (it was blocked by the firstDivergence guard,
+  fixed 268278c) and on its motivating case it is close to useless:
+  on the 46 MB row-4 fixture it dropped 16 of 1707 prefix records —
+  ~1% of content; the headline 47.9 MB -> 23.5 MB is almost entirely
+  the input being pretty-printed and the output compact. This is NOT
+  a fixture-cut defect. Front-truncation is the wrong axis, because
+  insertion-normalization's canonical state is stateful from request
+  0, so nearly every prefix record is genuinely load-bearing and the
+  bisection is right to keep it.
+  THE REAL SIZE DRIVER, measured on the cut file: a capture stores
+  the WHOLE `messages` array per request, so 887 request records hold
+  95,613 message objects of which only 2,466 are DISTINCT — a 38.8x
+  redundancy that grows quadratically with conversation length. The
+  fixture is big because it stores the same ~2.5k messages 38 times
+  over, not because it retains too many requests.
+  Design: a content-addressed fixture format — each distinct message
+  object stored once in a `messages` pool keyed by hash, each request
+  carrying the ordered list of keys; rehydrate at load in
+  fixture-verdict-identity's replay path (and harvest's writer).
+  Projected: ~23.5 MB -> under 1 MB, i.e. committable, which is the
+  entire point of the parent item. Verifier: byte-identity of the
+  rehydrated fixture's REPLAY VERDICTS against the flat form —
+  fixture-verdict-identity is exactly that comparison and already
+  exists, so the check is `firstDivergence(flat, rehydrated) === null`
+  over the real 46 MB fixture, plus a red-first bite proving a
+  corrupted pool entry is caught rather than silently rehydrated.
+  Blocked on nothing. Do it before pinning the next large fixture.
+
 - **READY — census must distinguish "no counterpart" from
   "counterpart present but unmatched".** Grounding: the diagnostic
   cost the dispatcher several investigation steps today. On a
