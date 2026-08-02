@@ -367,6 +367,15 @@ export function describeByteGate(g) {
 // the previous ledger line, so the absorbed series is additive and
 // non-overlapping across runs.
 //
+// Nor the same UNIT, which the first real line makes obvious: 166 raw
+// suppressions against 14,920 absorbed, same sweep. RAW counts distinct
+// occurrences in adjacent-request pairs; ABSORBED counts APPLICATIONS, and
+// a suppression re-applies on every later request in the conversation by
+// design ("it is re-detected and re-suppressed every time",
+// insertion-normalization.mjs:1496). So a ratio between the columns means
+// nothing. Each column is its own time series, read down the ledger, and
+// the retirement question is asked of RAW alone.
+//
 // `null` is not 0 anywhere here. A class whose source is absent (no census
 // measure, gate off, unreadable log) records null; 0 means the source was
 // read and nothing fired. Collapsing those two is exactly how a mitigation
