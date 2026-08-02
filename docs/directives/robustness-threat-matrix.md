@@ -16,6 +16,39 @@ absorbed without risking conversation fidelity (safety outranks
 cache). Detectors and fire counts supply specimens and retirement
 evidence — never a worthiness threshold.
 
+Retirement policy (2026-08-02, the other end of the Mitigation policy
+above): upstream fixes CC bugs, so a mitigation can stop earning its
+keep — and "it has been quiet lately" retires nothing. A retirement
+carries three things, all three or it does not happen:
+
+  (a) **Ledger evidence.** `~/.claude/cache-fix-fire-ledger.jsonl`
+      (written per sweep by `tools/gate-live.mjs --fire-ledger`, read by
+      `tools/shape-verdicts.mjs`'s `fire-ledger` verdict) carries two
+      columns per class: RAW — what CC did, measured off the captured
+      request bytes, which keeps counting with the gate OFF — and
+      ABSORBED — what the mitigation did about it. The claim is
+      **"0 RAW occurrences across N sweeps spanning cc-versions >= X,
+      where X ships the fix"**, quoted with those numbers. A quiet
+      ABSORBED column alone is not it: absorbed goes quiet the moment a
+      gate flips, which is why RAW is the column that decides. `null` in
+      either column is not 0 — it means nobody measured, and a sweep
+      that did not measure cannot contribute to N.
+  (b) **A named upstream ref** — issue closed, changelog entry, or the
+      version that ships the fix. The CC-side half of the basis: without
+      it the quiet is a coincidence of one machine's traffic. Row 4's
+      candidate is `anthropics/claude-code#81077` (PostToolUse
+      additionalContext re-serialized between turns), logged 2026-08-01.
+  (c) **Gate OFF, never code deletion.** Retirement is reversible by
+      construction — the built-and-dormant pattern. The re-add trigger is
+      mechanical: the RAW column returns after retirement, which is
+      exactly why RAW keeps being measured with the gate off. Re-enabling
+      takes a fresh acceptance entry, like every other REMOVED entry
+      whose re-enable "verlangt eine neue Abnahme".
+
+Not in scope here, and open: per-row retire triggers (each row naming
+its own quiet-threshold and upstream ref). The policy is the standing
+rule; the rows have not been walked against it.
+
 Grounding policy for mitigation DESIGN (operator ruling 2026-07-31):
 the goal is mitigation, and the path to design-complete is walked with
 every tool available — parking for missing evidence is not an option, it
