@@ -255,6 +255,24 @@ bullet, evidence pointer included.
   tools/fixture-verdict-identity.mjs still holds — this item is the
   post-step being built, not a harvest parameter.
 
+- **CANDIDATE MINT, belongs to the CORPUS layer not this repo —
+  brief-time path existence check (dispatcher defect, 2026-08-02).**
+  Evidence: the row-24 investigation brief listed `tools/census.mjs`
+  as a file to read. That file does not exist — the census lives
+  inside `tools/replay.mjs`. The agent surfaced it as a gap instead
+  of bridging it (correct behaviour, and the reason it cost nothing),
+  but a cheaper-tier executor might have invented a plausible
+  substitute. dispatch-discipline §1 already carries the rule this
+  violates ("Files to read, listed — never paraphrased"); what it
+  lacks is the check, and I named the path from memory.
+  Per CLAUDE-maintenance's precipitation-first rule this is a HOOK
+  candidate rather than prose: "every repo-relative path named in a
+  dispatch prompt exists" is computable with near-zero false fires.
+  A hook is a config write and therefore veto-gated, and the corpus
+  is the operator's layer — so this is recorded here as a candidate
+  and surfaced, not minted from a fork session. Widening the existing
+  §1 clause beats adding an entry if it stays prose.
+
 - **READY — price the NARROW container normalisation before building
   the wide message-level pin (row 24 messages half, 2026-08-02).**
   Order matters here and the investigation said so itself: the narrow
