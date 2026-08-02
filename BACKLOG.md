@@ -38,6 +38,91 @@ bullet, evidence pointer included.
   file is deployed from dotfiles and must be edited there, so the
   question travels to the operator rather than being resolved here.
 
+- **HANDOFF 2026-08-02 LATE evening — supersedes the earlier handoff
+  below on every point they disagree. Read this first.** Main is at
+  9059d3a, everything pushed, working tree clean, `git stash list`
+  EMPTY (the earlier handoff's stash item is resolved). Full suite
+  2054/2054/0, run on main after the last integration — main is
+  GREEN, which it was not when this session started.
+  **WHAT LANDED** (all pushed): 739aa22 the row-4 ordinal fix (the
+  535k class, verified four independent ways — see the matrix
+  datapoint); 9059d3a the movedFresh/movedRefires split, integrated
+  from a sonnet dispatch and dispatcher-verified; 770e915 a RED MAIN
+  fixed forward (real capture session ids in tracked .mjs, guard
+  broken for a day); 268278c firstDivergence made two-sided
+  (identity was not reflexive); 1ed57a7 tools/replay-compare.mjs;
+  7673050 the row-24 messages-half investigation booked as a DESIGN.
+  **THE ONE THING NOT INTEGRATED — pick this up first.** Branch
+  `wt/description-absorb`, commit **fd87e12**, PUSHED to origin as
+  insurance (its worktree lives under /tmp and will not survive a
+  reboot; the branch will). It is the row-23 + row-24-tools-layer
+  description-absorb build: 182 lines of deferred-tool-rewrite.mjs
+  plus the 366-line bite, which the dispatcher confirmed genuinely
+  red against clean HEAD (5 behavioural fails, both safety CONTROLs
+  already green). **UNVERIFIED BY THE DISPATCHER** — the agent was
+  still running its corpus check when the session was stopped, and
+  its closing report may not have arrived. Do not merge on trust:
+  cherry-pick onto main, run the 9-test bite, the extension's own
+  suite, the full suite, and the old-vs-new replay of
+  s-ddd9fd7d — then integrate. Its worktree
+  (scratchpad/wt-desc-absorb) is disposable; the branch is the work.
+  **DEPLOYMENT IS OWED AND NOT DONE — this is the largest open
+  item.** Three shipped proxy/** changes are sitting undeployed:
+  the ordinal fix, the movedFresh split, and (once integrated) the
+  description-absorb. The plan was always ONE restart carrying all
+  three. Dotfiles pin `CACHE_FIX_PROXY_TREE_PIN` is at `ad4ff80`
+  (bootstrap/manifest.py:157); the current proxy tree is `5d651e7`
+  as of 9059d3a and will change again when fd87e12 lands, so compute
+  it fresh with `git rev-parse --short HEAD:proxy` rather than
+  copying that value. Then `systemctl --user restart
+  cache-fix-proxy`, then one gate run. Row 3 answered for both
+  landed changes: NO new state key, NO persisted schema change (only
+  canonical `o` VALUES corrected in place), and `freeze` does not
+  appear in insertion-normalization.mjs at all — so the restart is
+  cache-transparent. Get the same answer for fd87e12 before
+  restarting. Rows 4 and 23 close on the LIVE non-event, not on the
+  build, so the restart is what closes them.
+  **ENVIRONMENT TRAP that cost this session real time, and will cost
+  the next one the same:** a git worktree does NOT inherit
+  `node_modules`, so `npm test` in a fresh worktree dies with
+  `ERR_MODULE_NOT_FOUND: Cannot find package 'hpagent'` across every
+  proxy-* suite and two tests then appear to HANG for ~899 s. Both
+  agents hit it and one of them misread it as CLAUDE.local's
+  documented production-port hazard. Fix when creating a worktree:
+  `ln -s /home/g/dev/vendor/claude-code-cache-fix/node_modules
+  <worktree>/node_modules` (5 packages, that is all this repo
+  needs). COROLLARY, and it corrects an earlier claim in this file:
+  the "npm test can hang on the production port" warning is
+  NEITHER confirmed nor refuted by today's evidence — both observed
+  hangs are fully explained by the missing dependencies, so they are
+  evidence for neither side. The stale-premise question stays open.
+  **STILL LIVE OFF-GIT:** the 46 MB row-4 pin
+  (test/fixtures/harvested/pinned-s-9f12950909ed-892-894.json,
+  untracked, git-excluded) and its source capture both still exist.
+  It earned its keep twice today (see the 3-UPDATE item below) and
+  should NOT be deleted — but fixture-cut cannot make it
+  committable; see the content-addressed-fixture READY item for the
+  axis that can.
+  **PRIORITY ORDER for the next session:** (1) verify and integrate
+  fd87e12; (2) the deployment boundary carrying all three changes,
+  then the gate run that closes rows 4 and 23 on live non-events;
+  (3) price the NARROW container normalisation from the row-24
+  messages design — it covers the unconditional 589k half by itself
+  and may make the wide message-level pin unnecessary; (4) the
+  content-addressed fixture format, before pinning the next large
+  fixture. STANDING GO carries forward with both refinements (do not
+  blindly book a mis-scoped request; do not close an investigation on
+  a first negative) and all gates still bind.
+  **RESIDUE, named:** the movedFresh reset-path emitter is covered by
+  reading and by a success-path bite, but the reset+re-fire-only
+  combination was never executed — the dispatcher looked for it
+  across a 963-request capture and found ZERO instances, so it
+  remains not-observed rather than confirmed. Two worktrees I created
+  were removed at wrap-up, and the old locked
+  agent-ade6b83a41d013bf0 worktree was removed too: its only content
+  was the description-absorb bite, now committed byte-identically in
+  fd87e12 (diffed before removing).
+
 - **HANDOFF 2026-08-02 evening — three items carry LIVE OFF-GIT STATE
   a fresh session cannot discover by reading the repo. Read this
   before starting anything below.** The session that produced them
