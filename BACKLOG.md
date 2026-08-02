@@ -687,10 +687,12 @@ bullet, evidence pointer included.
   set) shares the code path but has no bite; no real multi-boot
   fixture in-repo (union exercised against the live capture only).
   Convention from the incident: extract gates via the ALL-boots
-  union, never head -1 — and READY, the mechanized form: a
+  union, never head -1 — and DONE 2026-07-30 (dac26a0; clause sat
+  stale as READY until booked 2026-08-02), the mechanized form: a
   `--gates-from-capture` replay flag applying the union (names AND
   values, later boots winning) so no operator hand-extracts gates
-  at all; the warning text then names the flag as the remedy.
+  at all; the warning text now names the flag as the remedy
+  (replay.mjs:2242).
   Design: reuse declaredGateNames' iteration, apply before
   extension load (same merge point as --env); --env still wins
   over the flag where both name a gate. Verifier: bite — flag on
