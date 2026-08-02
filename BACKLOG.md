@@ -8,6 +8,38 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **OPEN (attributed 2026-08-02, fix serialized behind a running
+  read-only dispatch) — conservation gate fires on
+  fresh-session-sort's declared rewrite: 38 violations, capture
+  s-c7c83ca5, the sole red row in the 15:05 sweep (29 captures,
+  ok=false failing=1).** NOT a defect and NOT the smoosh class (that
+  exemption stands; conservation exemptions on this capture = 0).
+  Attribution, dispatcher-run: every failing request is the FIRST
+  request of a fresh sub-key (deferred-tool telemetry reads
+  `action=no-baseline` at each), i.e. the parallel agent spawns at
+  10:43-10:44; the violations sit at in[0]/in[6] as "1 of 4 units
+  lost, 1 of 5 invented" — 4 blocks in, 5 out. Mechanism:
+  fresh-session-sort REWRITES a system-reminder block in place
+  (`sortSkillsBlock` sorts the skills list's lines) and relocates
+  hooks/skills/deferred-tools/MCP blocks
+  (`isRelocatableBlock`), so CC's original bytes are neither
+  forwarded nor accounted for by any clause the fifth gate carries.
+  The extension DECLARES its work
+  (`ctx.meta.freshSessionSortStats`, fresh-session-sort.mjs:211) and
+  the STABILITY gate already keys an exemption off exactly that
+  (`freshSessionSortExemption`, replay.mjs:193) — conservation, being
+  newer, never got the clause. Remedy (same shape as the smoosh
+  exemption that shipped this morning, 3b32e6b): a declared
+  exemption the gate BYTE-VERIFIES by chaining the extension's own
+  transform, tamper stays red, exemptions counted visibly.
+  Complication, named: fresh-session-sort does not export its
+  transform today, so chaining it needs an export — a proxy/**
+  change, behaviour-neutral but deployment-coupled (pin bump +
+  restart; row-3 clear, no state keys or freeze logic). SERIALIZED,
+  not parked: tools/replay.mjs is in the read set of the running
+  un-merge investigation, and a concurrent writer there would hand
+  that agent an unstable instrument.
+
 - **RESOLVED 2026-07-31 (059aae3 — suppression runs on the reset
   path; header re-titled 2026-08-01, body was already resolved) —
   hook-context container normalization (matrix row 4,
