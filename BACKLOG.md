@@ -8,6 +8,36 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **READY — a full-suite gate before push (the red-main incident,
+  2026-08-02 evening).** What happened: the source-UUID guard landed
+  2026-08-01 (2a8738d); on 2026-08-02 two commits (0def5ca, 3b32e6b)
+  each put a REAL capture session id into a tracked `.mjs`, and both
+  pushed with the guard red. Nobody ran `npm test` — targeted files
+  were run instead, which is the documented habit and is usually
+  right. The red survived a day and was found only because an
+  unrelated full-suite run happened during other work; fixed forward
+  in 770e915. Note what did NOT fail: the guard itself fired
+  correctly, on a real defect, the first time it was asked.
+  The post-incident question (1) answers YES here — "the full suite
+  is green" is a computable predicate with near-zero false-fire risk,
+  because the suite is FAST: measured twice today at ~17 s wall clock
+  for 2036 tests. Design: a `pre-push` git hook running `npm test`,
+  refusing the push on a non-zero exit, with an explicit bypass
+  documented for the deliberate-WIP case. Verifier: the hook refuses
+  a push with a seeded failing test and permits it once removed.
+  NAMED OBSTACLE, not a blocker but the reason this is READY rather
+  than done: git hooks live in `.git/hooks`, which is untracked, so
+  the hook is machine-local and invisible to a fresh clone — placing
+  it is arguably a dotfiles-repo act (CLAUDE.local: deployment items
+  live there), and this fork-side entry should not decide that. Also
+  named: `CLAUDE.local.md` warns `npm test` "can hang on the
+  production port"; that did not reproduce in either of today's two
+  full runs, so the warning is a STALE-PREMISE CANDIDATE — if it is
+  live, the hook needs a timeout and the warning needs its trigger
+  condition written down; if it is stale, the warning should go. That
+  file is deployed from dotfiles and must be edited there, so the
+  question travels to the operator rather than being resolved here.
+
 - **HANDOFF 2026-08-02 evening — three items carry LIVE OFF-GIT STATE
   a fresh session cannot discover by reading the repo. Read this
   before starting anything below.** The session that produced them
@@ -56,6 +86,26 @@ bullet, evidence pointer included.
   bust (session id embedded in the Bash description), so it now has
   TWO real test cases, and the second is the better one because it
   recurs on every resume.
+  (3-UPDATE 2026-08-02 evening) The 46 MB pin is still on disk and its
+  source capture still exists. It has now EARNED its keep twice over.
+  First, as independent verification of the ordinal fix on sanitized
+  bytes: replayed under pre-fix and post-fix code, exactly 1 of 895
+  entry verdicts differs — n=894, `reset/not-subsequence` (suppressed
+  31) -> `normalized` (suppressed 32). That is a stronger inertness
+  statement than the live-capture A/B because the fixture is
+  tokenized, so it holds even after the capture rotates. Second, the
+  attempt to minimize it exposed a real instrument bug: fixture-cut
+  refused with "internal error … d=0 failed its own identity check
+  against itself", which was NOT fixture-cut's bug but a one-sided
+  presence guard in firstDivergence — fixed two-sided in 268278c with
+  a red-first reflexivity bite. Minimization re-run after that fix;
+  whether the fixture becomes committable is recorded below when the
+  run lands. NOTE for whoever reads the fixture as row-4 evidence: it
+  produces exactly ONE mitigation row, at 783->804, and none at the
+  pinned range 892..894 — the pair's value here is the ENTRY VERDICT
+  flip at n=894, not a mitigation row. Also n=893 replays as
+  `reset/no-prior-canonical` with inLen=1, i.e. a foreign
+  single-message request sits inside the pinned range.
   (3) **Frozen evidence, untracked and locally git-excluded:**
   test/fixtures/harvested/pinned-s-9f12950909ed-892-894.json (46 MB,
   the row-4 busting pair). tools/fixture-cut.mjs now exists (2cd23fa)
