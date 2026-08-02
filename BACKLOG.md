@@ -53,6 +53,34 @@ bullet, evidence pointer included.
   tools/fixture-verdict-identity.mjs still holds — this item is the
   post-step being built, not a harvest parameter.
 
+- **READY — census must distinguish "no counterpart" from
+  "counterpart present but unmatched".** Grounding: the diagnostic
+  cost the dispatcher several investigation steps today. On a
+  MISMATCH the census prints `actual=0ch`, and its own comment
+  (:264) documents that as "the tell that no counterpart was found
+  at all, rather than a rule that failed". For the s-66797e31 rows
+  that tell was WRONG: a counterpart existed at host+1 and merely
+  failed the standalone predicate (it was wrapper-retaining), so the
+  number said "absent" about something present. Design: when the
+  no-counterpart branch is taken, report whether a candidate
+  standalone existed at the expected position and was rejected — a
+  third state alongside the DROPPED/MISMATCH split that already
+  lives there (:300-316), with the rejected candidate's length so
+  `recon` and it can be compared at a glance. Verifier: bite
+  red-first on the s-66797e31 shape (a wrapper-retaining standalone
+  at host+1) asserting the row does NOT read 0ch.
+
+- **Candidate — gate status code-stamp races a concurrent commit.**
+  Today's sweep stamped `toolsTree` at start and a tools/ commit
+  landed during its 75-minute run, so the finished status file
+  describes a tree that no longer exists and the doctor's
+  code-mismatch warning fires on a non-defect — the shape that
+  trains readers to discount warnings. Cheapest honest fix: stamp
+  the tree at start AND at finish, and say "code changed during the
+  sweep" when they differ, which is a different statement from
+  "verdict is stale". Build if the warning fires again on a clean
+  run; one occurrence is not yet a pattern.
+
 - **Candidate — corpus-wide ordinal-drift detector.** The
   investigation hand-derived "1 of 534 families drifts on the
   busting request"; the manual pass found it once, a stat would
