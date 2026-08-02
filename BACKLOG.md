@@ -1340,10 +1340,32 @@ bullet, evidence pointer included.
   same bytes, tokens 2 vs 1); the 7 mid-session streaks' trigger
   uncharacterized. Evidence: the discovery report in the
   dispatching session's scratchpad; re-derivable from the census
-  duplicates key + outcome outSha join. Next: fold into the
-  #272/#273 week-of-soak summary (due ~08-07) and/or file upstream
-  as the #78420-adjacent shape — Public Communication rule: draft
-  first, operator approves before posting.
+  duplicates key + outcome outSha join.
+  UPSTREAM FILING BLOCKED 2026-08-02 by its own refutation probe
+  (dispatcher, run BEFORE drafting): the report's open item 3 — "is
+  CC actually sending two physically distinct HTTP requests, or is
+  one proxy-side" — probed on the hand-verified s-0fbf8674 pair.
+  Half-answered, and it reframes the finding. Both answers carry
+  DISTINCT server-assigned request-ids (req_011Cdbpbge…,
+  req_011Cdbpbgi…), so two real API calls were made and billed, and
+  the proxy forwards one-inbound-one-upstream (server.mjs
+  forwardRequest per request, no retry loop in the handler) — the
+  duplication is client-side, not ours. BUT the pair is a HAIKU
+  SIDECAR (model claude-haiku-4-5, msgs=1, max_tokens=32000), not
+  the main conversation, and neither id appears in that session's CC
+  transcript — which carries requestId 1648 times, so the absence is
+  real rather than an instrument gap: background calls simply are not
+  transcript-recorded. Consequence: "CC re-sends CONVERSATION
+  requests" is the wrong framing for at least the session-start
+  majority, which looks like the background sidecar double-firing —
+  and session start is where 26/33 streaks sit by construction.
+  Owed before any upstream text: split the 33 streaks by MODEL and
+  caller class (sidecar vs main thread), then re-run the transcript
+  check on a MAIN-thread streak — the fable pair s-cbc27f3c 654/656
+  is the named candidate. Then: fold into the #272/#273 week-of-soak
+  summary (due ~08-07) and/or file upstream as the #78420-adjacent
+  shape — Public Communication rule: draft first, operator approves
+  before posting.
   Original entry: **double-billed duplicate pairs: 29 streaks live
   (dup-census first run, 2026-08-01), hand-verified at the
   altitude.** Two examples records-read-directly: s-0fbf8674 lines
