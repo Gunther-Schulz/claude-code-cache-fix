@@ -309,6 +309,12 @@ test("absorbed: real event-log shapes tally into their own classes", async (t) =
     suppressions: false, relocations: false, toolAdditionAnnouncements: false, guardRestores: false,
   });
   for (const cls of FIRE_CLASSES) assert.equal(off[cls], null, `${cls} unmeasurable with every gate off`);
+
+  // A snapshots directory that is not THERE is the dangerous shape: a fresh
+  // machine and a sweep pointed at the wrong path look identical from here,
+  // and reading it as 0 feeds a false quiet straight into a retirement.
+  const gone = await collectAbsorbed(join(dir, "not-here"), Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"), all);
+  for (const cls of FIRE_CLASSES) assert.equal(gone[cls], null, `${cls} must not read 0 from a directory nobody found`);
 });
 
 test("cc versions: read from the transcript that owns the swept session", async (t) => {

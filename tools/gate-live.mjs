@@ -543,13 +543,14 @@ export async function collectAbsorbed(dir, sinceMs, untilMs, measurable) {
   let names;
   try {
     names = await readdir(dir);
-  } catch (err) {
-    // ENOENT is a real answer (nothing has ever been written) only if the
-    // gates say the writers are on — and they do, or we would not be here.
-    // Any other failure means the source could not be read: back to null.
-    if (err?.code !== "ENOENT") for (const cls of Object.keys(absorbed)) {
-      if (absorbed[cls] === 0) absorbed[cls] = null;
-    }
+  } catch {
+    // A snapshots directory that is not there is NOT "no fires", ENOENT
+    // included. The two shapes are indistinguishable from here — a fresh
+    // machine that has written nothing yet, and a sweep pointed at the wrong
+    // path while the writers fill another one — and only one of them is a
+    // zero. Reporting the wrong one feeds a false quiet straight into a
+    // retirement, so both read as unmeasurable.
+    for (const cls of Object.keys(absorbed)) absorbed[cls] = null;
     return absorbed;
   }
   for (const [suffix, adders] of bySuffix) {
