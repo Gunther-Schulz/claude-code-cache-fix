@@ -247,7 +247,7 @@ async function* readRecords(path, tornCount) {
   }
 }
 
-function analysePair(before, after) {
+export function analysePair(before, after) {
   const b = before.body.messages, a = after.body.messages;
   let wholeAfterCache = null;
   const wholeAfter = () => (wholeAfterCache ??= JSON.stringify(a));
@@ -261,8 +261,19 @@ function analysePair(before, after) {
   // Index alignment cannot be used here: one inserted message shifts every
   // later index, so comparing before[i] to after[i] reports a migration for
   // messages that merely moved. (That bug scored 99.3% MISMATCH with
-  // actual=0ch on every row — the tell that no counterpart was found at all,
-  // rather than a rule that failed.)
+  // actual=0ch on every row — the tell, BACK THEN, that no counterpart was
+  // found at all, rather than a rule that failed. That reading stopped being
+  // safe once a real corpus produced a counter-instance: capture s-66797e31,
+  // host=30/74, where a candidate standalone DID exist at the expected
+  // position — role:"system", string content, wrapper retained — and was
+  // REJECTED by the classify() loop below (MISMATCH, since the wrapped bytes
+  // are neither equal to nor prefixed by the unwrapped reconstruction), never
+  // absent. `actual=0ch` on a no-counterpart row is therefore two different
+  // populations conflated under one number: truly nothing found, and a
+  // candidate found and rejected. The no-counterpart branch now tells them
+  // apart (`rejectedCandidate`, tracked as `best` is sought below) and the
+  // human output line prints the rejected candidate's length instead of a
+  // bare 0 when one exists — see the row print in `main`.)
   const inlineAfter = new Set();
   for (const m of a) for (const t of reminderBlocks(m)) inlineAfter.add(t);
 
@@ -283,11 +294,18 @@ function analysePair(before, after) {
     // Duplicate reminder texts recur, so a candidate must sit AFTER its host;
     // the nearest such is the migrated one.
     let best = null;
+    // The nearest position-eligible standalone that classify() REJECTED
+    // (MISMATCH) before any EXACT/EXTENDED match was found — i.e. the
+    // candidate the no-counterpart branch below would otherwise report as
+    // flat absence. Never overrides `best`; only consulted when `best` stays
+    // null for the whole scan (see the no-counterpart branch).
+    let rejectedCandidate = null;
     for (const s of sysAfter) {
       if (hj !== null && hj >= 0 && s.j <= hj) continue;
       const verdict = classify(recon, s.text);
       if (verdict === "EXACT") { best = { verdict, ...s }; break; }
-      if (verdict === "EXTENDED" && !best) best = { verdict, ...s };
+      if (verdict === "EXTENDED") { if (!best) best = { verdict, ...s }; continue; }
+      if (!best && !rejectedCandidate) rejectedCandidate = { j: s.j, chars: s.text.length };
     }
     const offset = best && hj !== null && hj >= 0 ? best.j - hj : null;
     if (best) {
@@ -313,7 +331,7 @@ function analysePair(before, after) {
     });
     findings.push({ host: i, blocks: blocks.length,
                     verdict: anyPresent ? "MISMATCH" : "DROPPED",
-                    j: null, text: "", recon, sub: null });
+                    j: null, text: "", recon, sub: null, rejectedCandidate });
   }
   return findings;
 }
@@ -1136,9 +1154,16 @@ async function main(argv) {
   if (show.length) {
     process.stdout.write("non-EXACT occurrences:\n");
     for (const d of (verbose ? show : show.slice(0, 5))) {
+      // A no-counterpart row (DROPPED/MISMATCH, `d.text` always "") prints
+      // its rejected candidate's length when one exists, never a bare 0ch
+      // that reads as "nothing found" — see the ~264 comment and BACKLOG's
+      // "census must distinguish" entry.
+      const actualPart = d.rejectedCandidate
+        ? `rejected=${d.rejectedCandidate.chars}ch`
+        : `actual=${d.text.length}ch`;
       process.stdout.write(
         `  ${d.verdict.padEnd(8)} ${d.ts}  host=${d.host} blocks=${d.blocks}` +
-        ` recon=${d.recon.length}ch actual=${d.text.length}ch${d.sub ? `  ${d.sub}` : ""}\n`);
+        ` recon=${d.recon.length}ch ${actualPart}${d.sub ? `  ${d.sub}` : ""}\n`);
       if (d.verdict === "EXTENDED") {
         const extra = extendedRemainder(d.recon, d.text);
         process.stdout.write(`             extra: ${JSON.stringify(extra.slice(0, 120))}\n`);
