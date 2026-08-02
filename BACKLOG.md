@@ -81,6 +81,14 @@ bullet, evidence pointer included.
   whole context regardless of depth. Consequence: partial absorption buys
   ~nothing live; per-request TOTAL absorption is the prize, so the last
   open class is worth as much as the first.
+  CORRECTION 2026-08-02 (prune dossier, dispatcher-verified): scope
+  NARROWED — all-or-nothing holds WHEN a miss fires (the 11:41
+  measurement stands); instrument-visible divergence does not imply
+  a miss fires: 14 interior role:"system" removals (f94e53ce,
+  div=4) measured billing-free (zero cache_miss_reason, ordinary
+  creations). "Any unabsorbed mid-history divergence pays ~full
+  price" over-claimed; at least the interior system-removal class
+  is free. See the reframed interior-prunes entry above.
 
 - **CLOSED 2026-07-31 — EXTENDED-class absorb: build refused on
   measurement; duplicate of the flap-move cross-message-join class
@@ -214,15 +222,50 @@ bullet, evidence pointer included.
   `bust-triage.mjs`'s `migrationVerdict` still returns a bare EXTENDED
   and could import `subclassifyExtended` — report §c4.
 
-- **OPEN — two enormous interior prunes, unexplained (report
-  census-hardening §c2).** `12:42:11.673Z n=688->675 div=4 anchor=674
+- **REFRAMED 2026-08-02 (sonnet dossier, dispatcher-verified in the
+  transcript: cache_read climbs smoothly through the event, creations
+  stay sub-3k, zero cache_miss_reason) — the two enormous interior
+  prunes BILLED NOTHING; the open question is now the
+  instrument-vs-billing mismatch, not the prune size.** Dossier of
+  12:42:11.673Z (f94e53ce, capture present; b6952ffc's rotated
+  away): 14 messages removed, ALL role:"system" (899–15852 B),
+  scattered indices 4→653, not anchor-clustered; index-4 BEFORE =
+  role:"system" CC date-changed reminder (15852 B), AFTER =
+  ordinary assistant turn. Raw-capture divergence at div=4 AND the
+  prefix-diff ledger's independent flag at the same index/moment —
+  yet the transcript shows no billing event at all. Consequence,
+  the stale-premise cascade: "billing is all-or-nothing per
+  request" NARROWS to "when a mid-history miss FIRES, re-bill is
+  ~total (11:41 measurement stands); instrument-visible divergence
+  does NOT imply a miss fires — interior role:'system' removals
+  measured billing-free" (correction lines added at both homes:
+  the row-4 entry below and matrix row 4). Mitigation consequence:
+  this prune class needs NO absorption — it is already free; what
+  it needs is the instruments learning which divergences bill.
+  OPEN question, next step: characterize what the API's cache
+  actually keys on across role:"system" entries (a controlled
+  probe, or passive: census prune rows joined against transcript
+  usage per event — the join the dossier hand-ran, mechanizable).
+  Instrument findings booked: capturePair silently picks the wrong
+  pair when driven by a floored timestamp (candidate below); the
+  s-<8hex> tokens here are raw UUID prefixes, not sidToken hashes
+  (bust-triage.mjs:461 — brief premise corrected).
+  Original entry: `12:42:11.673Z n=688->675 div=4 anchor=674
   rebilled=671` (s-f94e53ce — invisible to every verdict until
   a77c930) and `11:40:24.245Z n=83->81 div=4 anchor=80 rebilled=77`
-  (s-b6952ffc). A prune whose prefix breaks at index 4 re-bills
-  essentially the whole context; the cause is not guessable from the
-  drop shape. Next step: dossier the 12:42:11 pair (bytes at index 4,
-  both sides) and join against that session's transcript; the census
-  prune rows now surface any recurrence without a hand-run.
+  (s-b6952ffc); the census prune rows surface any recurrence
+  without a hand-run.
+
+- **Candidate — capturePair floored-timestamp mis-selection
+  (prune-dossier instrument finding, 2026-08-02).** Driven by a
+  floored/seconds-grain timestamp, capturePair (bust-triage.mjs:252,
+  also dossier.mjs's path) silently picks the wrong request pair for
+  sub-second-adjacent events — the dossier worked around it by
+  locating the pair by hand and calling the classifiers directly.
+  Adjacent to the resolved reset-telemetry preference and the parked
+  join-key entry; fix candidate: carry ms precision end-to-end or
+  prefer the pair bracketing the exact event ts. Trigger: next
+  bust-triage/dossier session touching that file.
 
 - **CLOSED 2026-08-02 (sonnet discovery, dispatcher-verified at the
   cited lines) — placement multiplicity is interleaving depth, and
