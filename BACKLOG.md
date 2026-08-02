@@ -1140,6 +1140,31 @@ bullet, evidence pointer included.
   NOTE for next occurrence: if this class fires again
   POST-restart, the un-merge did not absorb it — that is the real
   news; tonight's instances prove nothing about the new code.
+  WATCH ARMED 2026-08-02T14:32:54Z (dispatcher): the same trigger
+  class was fired deliberately — `claude plugin update
+  dispatch-guards` 0.1.15 -> 0.1.17 — with the serving code VERIFIED
+  current first (proxy source fingerprint a80e29b2b356 equals the
+  on-disk tree, so the un-merge IS live; /health, not inferred).
+  Baseline: 7 bust events 2026-08-02, ZERO of cause
+  messages_changed; three model_changed at 14:30-14:32 (537k+281k+
+  267k re-billed) belong to an operator model switch ~39 s BEFORE
+  the update — a co-occurring variable the cause label separates,
+  and the reason the discriminator is the CAUSE, not the count.
+  Result at +3 min: no bust of any cause. NOT YET CONCLUSIVE, and
+  the reason is the non-event rule: census over the dispatching
+  session's own capture shows NO row-4 migration in the post-update
+  traffic (69 edits / 18 blockMigrations in the file, none after
+  14:32:54), i.e. the trigger has not fired yet — silence so far is
+  absence of stimulus, not proven absorption. Live sessions may also
+  need /reload-plugins (the update printed "Restart to apply") for
+  the new hook set to reach them. How to close this properly: the
+  census classifies CC's INPUT independently of billing, so the
+  conclusive pair is a request where the census SHOWS the row-4
+  container migration AND the ledger shows no messages_changed —
+  absorption demonstrated; a messages_changed bust on such a pair
+  refutes the un-merge. Next session reading this: run
+  `bust-triage --list | rg messages_changed` and the census over any
+  capture spanning a hook-set change.
 
 - **DONE 2026-08-02 (092a7cf + d2c9d00, sonnet dispatch,
   dispatcher-verified: selftest green, controlled 8/8, dossier
