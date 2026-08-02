@@ -41,6 +41,32 @@ bullet, evidence pointer included.
   point, and whether the corpus's EXACT rows are all stripped-form
   (i.e. is this rare or merely rarely matched). Do NOT re-grade the
   row-4 design as settled until that is answered.
+  SCOPE SETTLED 2026-08-02 (same day) by the host-568 investigation
+  this evidence was sent to — and consequence (2) above is REFUTED,
+  recorded rather than quietly dropped. Executed on the busting
+  pair's raw bytes: the migrated standalone at after[569] contains
+  `<system-reminder>` NOWHERE, both source blocks at before[568] DO
+  carry wrappers, and stripped-join + "\n\n" + before[569] ===
+  after[569] is TRUE while the wrapper-retained join is FALSE — CC
+  applied the canonical rule there exactly as both homes state it.
+  Capture-wide over that 498 MB file: ZERO wrapper-carrying
+  standalones, and the zero is trustworthy because the instrument
+  was proven live in the same run (base pattern
+  `"role":"system","content":"` matches 820 lines; a synthetic
+  positive control matches the wrapper-retaining pattern) — the
+  non-event probe done properly. Edge named by that run, not
+  bridged: the looser variant cannot cross an escaped quote, so a
+  wrapper appearing mid-text after an escaped `"` would be missed;
+  the wholly-wrapped shape this entry describes is what the strict
+  pattern catches, and that is 0. Net: the falsification STANDS
+  (the premise is not universal; s-66797e31 is a real
+  counter-instance and surfaces as MISMATCH, a different verdict
+  from that pair's clean EXTENDED), but the form is RARE rather
+  than merely rarely matched, it did NOT cause the host-568 miss
+  (ordinal misattribution did), and it does not change the ordinal
+  fix's design. The only open half left is the first one above:
+  distinct CC behaviour, or the same one at a different lifecycle
+  point.
 
 - **OPEN (attributed 2026-08-02, fix serialized behind a running
   read-only dispatch) — conservation gate fires on
