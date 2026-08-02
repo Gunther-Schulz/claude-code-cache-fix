@@ -8,6 +8,61 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **READY — split `moved` into fresh recognitions vs re-fires
+  (the instrument change the 660k bust argues for).** Grounding,
+  verified at the line: insertion-normalization.mjs:1062 emits
+  `moved: moves.length + refires.length` — the code holds the two
+  populations in SEPARATE arrays and sums them at the telemetry
+  boundary. That single `+` is why the busting request reported
+  `moved:5` while findJoinMoves had minted ZERO fresh recognitions,
+  and why "the mitigation ran" could not be distinguished from "the
+  mitigation matched" until an investigation read the code. Design:
+  keep `moved` (consumers exist), add `movedFresh: moves.length`
+  and `movedRefires: refires.length`. Consumers to wire in the same
+  pass: a shape-verdicts entry whose alarm is exactly
+  "join-moves re-firing while fresh recognitions stay 0 over N
+  requests" (the shape that just cost 535k tokens), and the fire
+  ledger's absorbed column, which today counts activity that may be
+  pure re-fire. Verifier: bite red-first on a synthetic pair where
+  moves=0 and refires>0 — today's telemetry cannot express it.
+  SERIALIZED behind the ordinal fix (same file), and it should ride
+  the SAME proxy boundary — one restart carries both.
+
+- **READY — bust-triage prints pin-ready request ordinals.**
+  Grounding: an evidence-freezing error made by the dispatcher
+  today. bust-triage's capture line reports `n=591->595`, which is a
+  MESSAGE COUNT, while `harvest --pin <key> n..m` takes file-wide
+  REQUEST ORDINALS (harvest.mjs:612-648) — the busting pair was
+  ordinals 892..894. Pinning the reported numbers froze an unrelated
+  90-minute-earlier range and produced a 17 MB fixture of the wrong
+  thing, undetected until an agent cross-checked. Design: the
+  capture line also prints the two ordinals, or emits the exact
+  `harvest --pin` command; the two numbers live in the same record
+  the line is built from. tools/-only, no deployment coupling.
+  Verifier: bite asserting the printed ordinals address the same
+  records the pair was read from.
+
+- **READY (trigger fired) — fixture minimization at pin time
+  (was PARKED as "harvest --pin --replay-from K", fixture-cut c3).**
+  The park's stated build trigger was "a second fixture needing
+  minimization"; today produced it — pinned-s-9f12950909ed-892-894
+  .json is 46 MB (full prefix from 0) and is untracked-and-excluded
+  precisely because it cannot be committed at that size, which
+  leaves the row-4 evidence outside git rather than in it. The
+  2026-08-01 ruling that minimization stays a post-step gated by
+  tools/fixture-verdict-identity.mjs still holds — this item is the
+  post-step being built, not a harvest parameter.
+
+- **Candidate — corpus-wide ordinal-drift detector.** The
+  investigation hand-derived "1 of 534 families drifts on the
+  busting request"; the manual pass found it once, a stat would
+  watch it forever (and would answer the ordinal fix's own named
+  gap: how often the class occurs across captures). Design sketch: a
+  per-request census/replay stat counting families whose stored
+  count exceeds their wire count, reported like the existing
+  tallies. Build only if the ordinal fix's corpus verification does
+  not already answer the frequency question.
+
 - **OPEN (2026-08-02, dispatcher-measured) — PREMISE FALSIFIED: the
   migrated standalone is NOT always wrapper-stripped, so
   "canonicalize forward to the standalone form" does not cover every
