@@ -1165,6 +1165,31 @@ bullet, evidence pointer included.
   refutes the un-merge. Next session reading this: run
   `bust-triage --list | rg messages_changed` and the census over any
   capture spanning a hook-set change.
+  WATCH ANSWERED 2026-08-02T14:58:11Z — NEGATIVE, which is this
+  entry's own stated real news: the un-merge did NOT absorb the
+  class. Operator-reported ❄, triaged mechanically with the tooling
+  built today: session c7c83ca5, 660k re-written, transcript
+  `messages_changed / 535102`, capture pair 14:56:52.670 ->
+  14:57:41.375 n=591->595, census replace/edit, migration = row-4
+  container migration at host 568 (EXTENDED/MERGED-STANDALONE),
+  VERDICT KNOWN-OPEN. It fired 25 min after the deliberate plugin
+  update (14:32:54) on serving code checked current, so the trigger
+  hypothesis holds and the absorption question is settled negative.
+  NOT a dead mechanism — insertion-normalization's telemetry for the
+  main sub-key shows it RAN on the busting request:
+  `14:57:41.399Z reset resetReason=not-subsequence pinned=34
+  suppressed=31 moved=5` (predecessor 14:56:52.694Z: normalized
+  pinned=31 suppressed=29 moved=5). Pins restored, 31 suppressions
+  applied, 5 join-moves re-served — and host 568 still diverged, so
+  the gap is in MATCHING, not in firing: the one shape a non-event
+  probe could never have distinguished. Evidence frozen against
+  rotation: test/fixtures/harvested/pinned-s-9f12950909ed-590-596
+  .json (17 MB, UNTRACKED by design — the fixture-cut minimization
+  floor applies before it could ever be committed). Investigation
+  dispatched (opus, read-only) for the mechanism at file:line plus a
+  minimal absorb design and its red-first bite; any proxy/** fix is
+  deployment-coupled and rides a stated boundary. Cost datum for the
+  Mitigation policy: this single instance re-billed 535k tokens.
 
 - **DONE 2026-08-02 (092a7cf + d2c9d00, sonnet dispatch,
   dispatcher-verified: selftest green, controlled 8/8, dossier
