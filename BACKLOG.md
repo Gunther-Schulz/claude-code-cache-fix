@@ -224,8 +224,27 @@ bullet, evidence pointer included.
   both sides) and join against that session's transcript; the census
   prune rows now surface any recurrence without a hand-run.
 
-- **OPEN — placement is no longer single: re-check what rested on it
-  (report census-hardening §c3).** Full-corpus census prints 56
+- **CLOSED 2026-08-02 (sonnet discovery, dispatcher-verified at the
+  cited lines) — placement multiplicity is interleaving depth, and
+  nothing rests on a fixed offset.** The finder (chained from
+  census()'s own exports, 30 live captures, 0 unreadable) found the
+  corpus rotated to ONE host+4 occurrence (s-0fbf8674, host@128 ->
+  standalone@132, EXACT, 327B): a leftover EXTENDED standalone at
+  +1, a real tool round-trip at +2/+3, the migrated standalone at
+  +4 — interleaving, not a new migration shape. The consumer
+  re-check the entry owed is now VERIFIED, not deferred:
+  findSuppressibleDuplicate matches by content hash ("never a
+  positional or role heuristic", insertion-normalization.mjs:726),
+  findJoinMoves searches a bounded byte-match window, and the
+  flap-move unit-2 re-serve substitutes in place at the move's own
+  mergedIndex (:1372-1390, rationale recorded in the code).
+  Placement tally today: 8 distinct EXACT offsets
+  (+1:213, +6:2, +10:2, +4/+11/+12/+17/+42: 1 each) — the
+  MORE-THAN-ONE-PLACEMENT warning is correct and stays. Residual,
+  named: the earlier narrowing's other 2 host+4 occurrences rotated
+  out unreconciled — no basis to say what they were.
+  Original entry: **placement is no longer single: re-check what
+  rested on it (report census-hardening §c3).** Full-corpus census prints 56
   standalones at host+1 and **3 at host+4** with the tool's own
   MORE-THAN-ONE-PLACEMENT warning, where the readable-21% corpus said
   "single placement; safe to emit". The 3 host+4 occurrences are
