@@ -1443,10 +1443,27 @@ bullet, evidence pointer included.
   requests" is the wrong framing for at least the session-start
   majority, which looks like the background sidecar double-firing —
   and session start is where 26/33 streaks sit by construction.
-  Owed before any upstream text: split the 33 streaks by MODEL and
-  caller class (sidecar vs main thread), then re-run the transcript
-  check on a MAIN-thread streak — the fable pair s-cbc27f3c 654/656
-  is the named candidate. Then: fold into the #272/#273 week-of-soak
+  SPLIT DONE 2026-08-02 (sonnet discovery, dispatcher-verified on
+  s-0fbf8674 751/754 with my own probe): of 31 double-billed
+  streaks, 24 are HAIKU SIDECAR calls (nMsg=1, max_tokens=32000) and
+  7 are MAIN-THREAD shaped (fable-5/opus-5, nMsg>1,
+  max_tokens=64000) — clean split, zero ambiguous. The entry's
+  "one pair near session start" shape is ENTIRELY a sidecar artifact:
+  all 24 sit at capture lines 3-5, every session. Discriminator note
+  from the build: system-prompt presence does NOT separate the
+  classes (every request carries one, sidecars included) — message
+  count + model does. TRANSCRIPT ASYMMETRY, the finding that makes
+  the main-thread subset reportable: on s-0fbf8674 751/754 (two
+  fable-5 requests, 152 messages each, responses byte-identical at
+  outSha 62baa3a1 / 3,043,768 B) CC's own transcript records the
+  SECOND request-id three times and the FIRST zero times — so CC
+  received a COMPLETE answer, discarded it, re-sent the identical
+  request and kept the second answer; both were billed. Completeness
+  matters to the reading: identical outSha means the discarded
+  response was not truncated, which argues against retry-after-
+  failed-stream and toward a genuine duplicate send. Across 3
+  main-thread streaks checked, 0 had both ids present and 2 had
+  exactly one — consistent shape, small n, stated as such. Then: fold into the #272/#273 week-of-soak
   summary (due ~08-07) and/or file upstream as the #78420-adjacent
   shape — Public Communication rule: draft first, operator approves
   before posting.
