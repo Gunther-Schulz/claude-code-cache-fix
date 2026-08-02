@@ -477,8 +477,45 @@ bullet, evidence pointer included.
   this is the sole 587k contributor or one of several (agent flag,
   unverified; the post-restart live non-event is the closer).
 
-- **OPEN — mitigation fire-rate ledger: which extensions still earn
-  their keep**
+- **RESOLVED 2026-08-02 (0def5ca + bc454d1 + b702b69 + 07218a1, opus
+  dispatch, dispatcher-verified: 39/39 on both suites re-run, all
+  four red-first probes reported broken->red->green, live
+  shape-verdicts run shows the fire-ledger verdict, commit graph
+  re-verified after the amend incidents) — mitigation fire-rate
+  ledger.** gate-live --fire-ledger (default
+  ~/.claude/cache-fix-fire-ledger.jsonl, no systemd change needed —
+  the series starts with the next timer run) appends one line per
+  sweep: {ts, windowFrom, windowSeeded, ccVersions, captures,
+  raw{7}, absorbed{7}}; RAW = census-measured CC behaviour per
+  class, ABSORBED = event-log applications over the inter-sweep
+  window; null never 0 on a missing source (bitten in-suite).
+  NOT THE SAME UNIT: raw counts occurrences, absorbed counts
+  applications (a suppression re-applies per request by design) —
+  ratio-blind by construction, said in the file header (b702b69).
+  shape-verdicts `fire-ledger` is informational unless the series
+  itself cannot answer (no ledger / undated / >26h frozen) — the
+  check-fires-on-non-defect rule applied at design time. Matrix
+  gains the Retirement policy block (bc454d1): 0 RAW across N sweeps
+  spanning cc-versions >= X + named upstream ref (row 4 candidate:
+  anthropics/claude-code#81077) + gate OFF never deletion, RAW
+  return = mechanical re-add trigger. DECISION booked (2026-08-02):
+  ccVersions joins capture sid -> CC transcript's own top-level
+  `version` — the brief's "cc-version namespace already in captures"
+  premise was REFUTED in the artifact (0 grep hits across all 34
+  captures; request-capture stores only anthropic-beta + session-id,
+  request-capture.mjs:108); the transcript is CC's own version
+  record, accepted as retirement evidence. Residuals, named:
+  guardRestores RAW = null by definition (answers our pipeline, not
+  CC; suite-asserted so a future measure must argue with a test);
+  oscillationAbsorptions has no ABSORBED source without an
+  extension-side field (proxy/** — rides a proxy boundary, never
+  alone); blockMigrations/duplicates absorbed-null (no mitigation
+  absorbs those classes); 4 single-request captures resolved
+  ccVersions []; multi-day verdict wording fixture-tested only; 26h
+  staleness threshold inherited from HARVEST_MAX_AGE_H, not measured
+  against the gate cadence; per-row retire triggers still open in
+  the matrix block. SAVED-vs-LEAKED bytes clause NOT built — its own
+  OPEN item below. Original entry follows.
   (UPSTREAM-REF candidate logged 2026-08-01: anthropics/claude-code
   #81077 — "PostToolUse additionalContext re-serialized between
   turns, invalidating prompt cache" — is the row-4 class filed
@@ -517,6 +554,26 @@ bullet, evidence pointer included.
   entries whose re-enable "verlangt eine neue Abnahme", and the
   doctor enforces it). Pairs naturally with the soak summary and
   the watch threads.
+
+- **OPEN — fire-ledger SAVED-vs-LEAKED bytes columns (the WIDENED
+  clause of the resolved entry above, deliberately not built
+  2026-08-02).** Per-run absorbed bytes vs passed-through re-billed
+  bytes — the retirement evidence and the proxy's justification
+  number in one series. The data already exists per mitigation row
+  (rebilledBytes/rebilledOutBytes); design: extend the ledger line
+  schema (new fields only, old lines stay parseable). Counts shipped
+  first so the series starts accumulating; bytes join it on their
+  own dispatch.
+
+- **OPEN — new live conservation failure: s-00b19d9b, conservation=10,
+  gate exit 1 (found 2026-08-02 by the fire-ledger dispatch's
+  full-corpus run — 34 captures vs the 07:51 production sweep's 28;
+  NOT caused by the fire-ledger work, which touches no replay or
+  extension path).** The next scheduled sweep (Mon 07:18 timer) will
+  hit it too — a red gate status is expected until attributed.
+  ATTRIBUTE step owed: replay that capture alone, find which
+  invariant loses the 10 messages, classify against the matrix.
+  Evidence: the dispatch's scratchpad gate-run.log.
 
 - **Candidate — docs-name-real-gates test** (2026-07-30, consumer-doc
   tiering): a small test asserting every CACHE_FIX_* named in
