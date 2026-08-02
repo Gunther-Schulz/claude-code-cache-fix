@@ -1142,7 +1142,7 @@ bullet, evidence pointer included.
   news; tonight's instances prove nothing about the new code.
   WATCH ARMED 2026-08-02T14:32:54Z (dispatcher): the same trigger
   class was fired deliberately — `claude plugin update
-  dispatch-guards` 0.1.15 -> 0.1.17 — with the serving code VERIFIED
+  dispatch-guards` 0.1.15 -> 0.1.17 — with the serving code checked
   current first (proxy source fingerprint a80e29b2b356 equals the
   on-disk tree, so the un-merge IS live; /health, not inferred).
   Baseline: 7 bust events 2026-08-02, ZERO of cause
