@@ -8,6 +8,51 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **HANDOFF 2026-08-02 evening — three items carry LIVE OFF-GIT STATE
+  a fresh session cannot discover by reading the repo. Read this
+  before starting anything below.** The session that produced them
+  ended at ~650k tokens; everything verified is already committed and
+  pushed, so `git log` is trustworthy — what follows is only the
+  work that is NOT in a commit.
+  (1) **Ordinal fix (row-4, the 535k class) — implementation lives in
+  `stash@{0}`**, "WIP on main: 1ea9804", 143 insertions / 4 deletions
+  in proxy/extensions/insertion-normalization.mjs. Its red-first bite
+  is on disk UNTRACKED at test/insertion-ordinal-reattribution.test
+  .mjs (88 lines) and is EXPECTED TO FAIL without the stash — do not
+  commit it alone, that would put a failing test on main. Recipe:
+  `git stash pop`, run the bite (RED before / GREEN after was already
+  demonstrated by hand), then the four suites named in the design
+  entry, then a corpus check over >=3 captures incl.
+  s-c7c83ca5-9816-4bb1-9056-d7d22b8e8bfb. The design is settled and
+  written out in the "MECHANISM FOUND" entry below — classifyPinned's
+  match loop, family (h,r) whose stored count exceeds wire count by
+  exactly one, re-attribute via condition (d)'s lo/hi discriminator,
+  fail closed otherwise. proxy/** so it is deployment-coupled: pin
+  bump + restart at a stated boundary, and the report must state
+  whether it writes a state key or touches freeze logic (row 3).
+  (2) **Description-absorb (row 23 + the row-24 tools layer) —
+  worktree `.claude/worktrees/agent-ade6b83a41d013bf0` at base
+  360093a, LOCKED, holding only an untracked
+  test/deferred-tool-description-absorb.test.mjs.** The extension was
+  never modified; the agent was aborted early. Either finish it there
+  and cherry-pick, or delete the worktree
+  (`git worktree remove ... --force`) and restart from the design in
+  the row-23 entry. NOTE the scope GREW after that brief was written:
+  this same mitigation also absorbs the row-24 `/resume` tools-layer
+  bust (session id embedded in the Bash description), so it now has
+  TWO real test cases, and the second is the better one because it
+  recurs on every resume.
+  (3) **Frozen evidence, untracked and locally git-excluded:**
+  test/fixtures/harvested/pinned-s-9f12950909ed-892-894.json (46 MB,
+  the row-4 busting pair). tools/fixture-cut.mjs now exists (2cd23fa)
+  and is the tool that would make it committable — that sweep was
+  never run. If the file is gone, re-pin with
+  `harvest --pin s-c7c83ca5-9816-4bb1-9056-d7d22b8e8bfb 892..894`
+  while that capture survives.
+  Also live: two worktrees were removed at integration today; if
+  `git worktree list` ever shows an `agent-` entry with no running
+  agent, it is a leak — remove it.
+
 - **NEW CLASS 2026-08-02 — description-only tools[] change re-bills
   the whole context; mitigation dispatched.** Live in the
   dispatcher's own session: bust 15:53:46, 552k re-written,
