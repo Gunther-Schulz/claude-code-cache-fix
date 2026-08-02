@@ -70,17 +70,26 @@ const HEADER_GRADE = /^- \*\*(OPEN\/HOT|OPEN|READY|HOT)\b/;
 // Marker word must not be part of a slash-joined enumeration (the guard
 // described above), and the verification word must not be negated.
 const RES_WORD = /(?<!\/)\b(RESOLVED|FIXED|BUILT)\b(?!\/)/g;
+// DONE grades entries here as freely as RESOLVED does, but it needs the
+// LINE-INITIAL constraint the others do not: this corpus writes qualified
+// sub-steps ("ATTRIBUTE DONE <date>") inside entries that are correctly
+// still open, and a bare match would fire on those — a guard firing on
+// legitimate work is the failure that trains the override reflex. Only a
+// DONE that opens its own line is claiming the ENTRY is done.
+const DONE_LINE = /^[ \t]*(DONE)\b/gm;
 const VERIF_WORD = /(?<!\/)(?<!NOT[- ])\b(VERIFIED|CLASS CLOSED)\b(?!\/)/g;
 const DATE = /\d{4}-\d{2}-\d{2}/;
 const DATE_PROXIMITY = 40;
 
 function findDatedResolution(body) {
-  RES_WORD.lastIndex = 0;
-  let m;
-  while ((m = RES_WORD.exec(body))) {
-    const start = Math.max(0, m.index - DATE_PROXIMITY);
-    const end = Math.min(body.length, m.index + m[0].length + DATE_PROXIMITY);
-    if (DATE.test(body.slice(start, end))) return m[1];
+  for (const re of [RES_WORD, DONE_LINE]) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(body))) {
+      const start = Math.max(0, m.index - DATE_PROXIMITY);
+      const end = Math.min(body.length, m.index + m[0].length + DATE_PROXIMITY);
+      if (DATE.test(body.slice(start, end))) return m[1];
+    }
   }
   return null;
 }

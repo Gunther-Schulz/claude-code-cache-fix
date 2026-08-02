@@ -1205,7 +1205,20 @@ bullet, evidence pointer included.
   it; trigger to build is the next selection miss the heuristic
   cannot break.
 
-- **OPEN — the corpus's entire remaining stability debt: two
+- **RESOLVED (attribution 2026-08-01; remedy 8e28833; deployment
+  legs re-checked 2026-08-02 by the dispatcher: CACHE_FIX_UPSTREAM_
+  ERROR_LOG reads `on` in the serving unit per /health, proxy pin
+  ad4ff80 equals HEAD:proxy, and the status stamp's proxyTree
+  a80e29b2b356 equals the on-disk source fingerprint — so the
+  "still describes the pre-5c4d70a tree" clause below is itself
+  superseded). RESIDUAL, dotfiles-side and unclosed: the doctor's
+  three-answer verdict on the sweep status file's `byteGate` and
+  `prunes` fields. Header re-graded 2026-08-02 — it read OPEN with
+  "ATTRIBUTE step owed" while its own body recorded the attribution
+  DONE; caught by backlog-lint only after DONE was added to its
+  marker set (9d20b7d follow-up), i.e. the guard was blind to this
+  corpus's most-used grade word — the corpus's entire remaining
+  stability debt: two
   deferred-tool-rewrite pairs on s-0d6f38ba** (n=709→710 outDiv=236,
   n=701→718 outDiv=82, gate attribution line, byte-identical across
   the identity-build A/B — pre-existing, not insertion-normalization;

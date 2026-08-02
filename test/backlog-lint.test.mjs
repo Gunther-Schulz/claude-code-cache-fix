@@ -188,3 +188,43 @@ test("CLI: defaults to the repo's own BACKLOG.md with no argument", () => {
   assert.equal(code, 0);
   assert.match(out, /backlog-lint: clean/);
 });
+
+// --- DONE is a grade word here, and the marker set could not see it ---
+//
+// This corpus grades with DONE as freely as with RESOLVED, so an entry could
+// record its own completion and keep an OPEN header without the guard
+// noticing — a checker that passes review and catches nothing, in the class
+// it was built for (found live 2026-08-02: an OPEN entry whose body carried
+// "DONE <date>" and whose remedy had shipped).
+//
+// The discriminator is LINE-INITIAL, because this corpus also writes
+// qualified sub-steps — "ATTRIBUTE DONE <date>" — inside entries that are
+// correctly still open. Matching a bare DONE anywhere would fire on those,
+// and a guard that fires on legitimate work trains the override reflex.
+test("fires on an OPEN header whose body carries a line-initial dated DONE", () => {
+  const doc = [
+    "- **OPEN — a thing that quietly finished**",
+    "  Some context about the thing.",
+    "  DONE 2026-08-01 (abc1234, the remedy shipped).",
+  ].join("\n");
+  const findings = lintText(doc);
+  assert.equal(findings.length, 1, "a self-recorded DONE under OPEN must be seen");
+  assert.equal(findings[0].marker, "DONE");
+});
+
+test("does NOT fire on a qualified sub-step DONE under a correctly-open header", () => {
+  const doc = [
+    "- **OPEN — a live question with one finished sub-step**",
+    "  ATTRIBUTE DONE 2026-08-01 (the attribution, not the entry).",
+    "  The live question is unchanged and time-gated.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), [], "a sub-step qualifier is not a grade claim");
+});
+
+test("does NOT fire on an undated DONE — the date is what makes it a grade claim", () => {
+  const doc = [
+    "- **OPEN — a thing**",
+    "  DONE is the word we use when something finishes.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), [], "prose use of the word is not a resolution");
+});
