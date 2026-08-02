@@ -1341,6 +1341,33 @@ bullet, evidence pointer included.
   uncharacterized. Evidence: the discovery report in the
   dispatching session's scratchpad; re-derivable from the census
   duplicates key + outcome outSha join.
+  INSTRUMENT DEFECT 2026-08-02, and it invalidates this entry's own
+  "degenerate answer" reasoning: the capture outcome record's
+  `usage.outputTokens` is the `message_start` PLACEHOLDER, never the
+  completion length. request-capture builds the outcome on
+  message_start only (request-capture.mjs:311) and its own comment
+  says message_delta updates output tokens afterwards but waiting
+  risks losing the record on a cancelled stream — a defensible
+  choice, recorded under a field name that reads as final. Measured:
+  in one 805-outcome capture, 803 responses exceed 20 kB while the
+  MAXIMUM outputTokens ever recorded is 73, mass at 1-3. So every
+  "outputTokens 1-2 => degenerate answer" inference is void — this
+  entry's original one, the census's help text
+  (reminder-migration-census.mjs:92,985), and the discovery's
+  content-class split (24 deg/deg etc.), which its own outSha
+  finding had already superseded for a different reason. The
+  byte-identity result is UNAFFECTED (outSha/outBytes are real).
+  A correct source already exists: cache-telemetry, request-log and
+  usage-log read `event.usage.output_tokens` off message_delta
+  (stream.mjs, cache-telemetry.mjs) — final, not placeholder. Fix
+  design (proxy/**, so it RIDES THE NEXT PROXY BOUNDARY, never
+  alone): rename to `outputTokensAtStart` in the outcome record and
+  let consumers that want the real length join the request-log `n`;
+  dependents search run before the rename lands (this entry's own
+  grep found the census help text and the two test fixtures).
+  Undiagnosed, named: the recorded distribution has a 34-73 tail no
+  message_start story explains — not chased, and not needed for the
+  invalidation above.
   UPSTREAM FILING BLOCKED 2026-08-02 by its own refutation probe
   (dispatcher, run BEFORE drafting): the report's open item 3 — "is
   CC actually sending two physically distinct HTTP requests, or is
