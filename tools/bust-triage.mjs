@@ -49,12 +49,13 @@ const MATRIX = "docs/directives/robustness-threat-matrix.md";
 // proxy/claude-home.mjs's claudeHome() (which also honors CLAUDE_CONFIG_DIR)
 // — pre-existing in this file, not introduced here.
 const SNAPSHOTS = join(homedir(), ".claude/cache-fix-snapshots");
-// A non-append telemetry event within this many ms of a candidate request's
-// own `ts` is treated as "that request is what the event is reporting on"
+// A reset telemetry event within this many ms of a candidate request's own
+// `ts` is treated as "that request is what the event is reporting on"
 // (BACKLOG TOOL GAP, 2026-07-31 twin-busts entry). Measured live on the
 // motivating case: the reset event and its causing request's ts differ by
 // ~5ms; the wrongly-chosen append-only request sat ~15.8s from that reset,
-// well outside this window.
+// well outside this window. (Originally matched ANY non-append action;
+// narrowed to reset-only — see resetEvents's docstring for why.)
 const TELEMETRY_WINDOW_MS = 3000;
 // How far back from the recency-picked `after` the telemetry preference is
 // even allowed to look for a replacement candidate. Discovered live: without
@@ -128,7 +129,7 @@ export function transcriptCause(sid, cc) {
 }
 
 /**
- * Non-append insertion-normalization telemetry for a session, at or before
+ * RESET-ONLY insertion-normalization telemetry for a session, at or before
  * a cutoff (epoch ms) — the population `preferTelemetryConfirmed` matches
  * candidates against. Filename pattern mirrors
  * proxy/extensions/insertion-normalization.mjs's eventsPath/
@@ -139,15 +140,33 @@ export function transcriptCause(sid, cc) {
  * re-derivable here, so this globs by prefix rather than composing the
  * exact key. Record shape grounded on a real file (2026-08-02, files under
  * ~/.claude/cache-fix-snapshots/): {ts (ISO), key, sid, action, inserted,
- * resetReason?, pinned, dropped, suppressed, moved}. The motivating case's
- * reset event lived in a DIFFERENT conversation sub-key than the one that
- * produced the wrongly-chosen append-only candidate, which is why this
- * cannot be narrowed to a single exact events file.
+ * resetReason?, pinned, dropped, suppressed, moved}.
+ *
+ * Restricted to action === "reset" specifically (dispatcher decision,
+ * 2026-08-02 — narrower than "non-append", which this function returned
+ * originally). Basis is the extension's OWN action contract
+ * (insertion-normalization.mjs ~483-554), not wording: "reset" is defined
+ * as `canonical := fresh(incoming)` — the cache-invalidating action, the
+ * only one that can be "the request that carried the busting change" —
+ * while "normalized" is a SUCCESSFUL reconciliation (re-serialized,
+ * forwarded) and "append-only" a no-op passthrough; neither is a bust
+ * signal. This matters because "normalized" fires on ordinary, non-busting
+ * requests too, so a wider match spuriously confirms candidates that have
+ * nothing to do with the bust: on the 7749d7fc companion capture, the
+ * correct candidate's genuine reset match (5ms away) LOST to the wrongly-
+ * selected candidate's own "normalized" event (4ms away) under the
+ * originally-shipped "any non-append action" rule — reset-only removes
+ * that false signal entirely, since "normalized" is no longer eligible to
+ * match anything.
+ * The motivating case's reset event lived in a DIFFERENT conversation
+ * sub-key than the one that produced the wrongly-chosen append-only
+ * candidate, which is why this cannot be narrowed to a single exact events
+ * file.
  * Returns null (never []) for "missing/unreadable directory or no matching
  * files" so the caller can skip the preference and fall through to the
  * unchanged existing rule, exactly.
  */
-export function nonAppendEvents(sid, cutoffMs, dir = SNAPSHOTS) {
+export function resetEvents(sid, cutoffMs, dir = SNAPSHOTS) {
   if (!existsSync(dir)) return null;
   let files;
   try {
@@ -161,7 +180,7 @@ export function nonAppendEvents(sid, cutoffMs, dir = SNAPSHOTS) {
   for (const name of files) {
     for (const line of lines(join(dir, name))) {
       const r = j(line);
-      if (!r?.ts || !r.action || r.action === "append-only") continue;
+      if (!r?.ts || r.action !== "reset") continue;
       const t = Date.parse(r.ts);
       if (!Number.isNaN(t) && t <= cutoffMs) out.push({ ts: t, action: r.action });
     }
@@ -179,21 +198,24 @@ export function nonAppendEvents(sid, cutoffMs, dir = SNAPSHOTS) {
  *
  * Rule (dispatcher decision, superseding a first "newest-of-matches"
  * attempt that shipped but did not fix the motivating case — see below):
- * among candidates within `windowMs` of a telemetry event whose action is
- * NOT "append-only" (append-only cannot have rewritten the cached prefix,
- * so it is never the event a real bust is reporting on), the one with the
- * SMALLEST |candidate.ts - event.ts| wins; ties broken by newest candidate.
- * Basis: the event is written during the SAME request's processing, so a
- * genuine join is millisecond-scale, while a spurious cross-conversation
- * join (a different, unrelated sub-key's own event landing in the window
- * by coincidence) lands randomly across the window. Live-traced on the
- * 19:22:40 capture: the genuine join was 5ms away, a same-window spurious
- * join from an unrelated single-message sidecar's own bootstrap reset
- * ("no-prior-canonical") was 1899ms away — the FIRST version of this rule
- * ("prefer the newest of all matching candidates") picked the spurious
- * one, because both were "a match" and the wrong one was newer. Nearness
- * to the matching event, not recency of the candidate, is what
- * distinguishes a real causal link from a coincidence.
+ * among candidates within `windowMs` of an event, the one with the SMALLEST
+ * |candidate.ts - event.ts| wins; ties broken by newest candidate. This
+ * function is action-agnostic — it trusts `events` to already be the
+ * RIGHT population (the caller, capturePair, passes `resetEvents`'s
+ * output: action === "reset" only, not "any non-append action" — see
+ * resetEvents's docstring for why "normalized" had to be excluded too).
+ * Basis for nearest-over-newest: the event is written during the SAME
+ * request's processing, so a genuine join is millisecond-scale, while a
+ * spurious cross-conversation join (a different, unrelated sub-key's own
+ * event landing in the window by coincidence) lands randomly across the
+ * window. Live-traced on the 19:22:40 capture: the genuine join was 5ms
+ * away, a same-window spurious join from an unrelated single-message
+ * sidecar's own bootstrap reset ("no-prior-canonical") was 1899ms away —
+ * the FIRST version of this rule ("prefer the newest of all matching
+ * candidates") picked the spurious one, because both were "a match" and
+ * the wrong one was newer. Nearness to the matching event, not recency of
+ * the candidate, is what distinguishes a real causal link from a
+ * coincidence.
  * Falls back to the newest candidate overall — the pre-existing rule,
  * unchanged — when no candidate matches, including when `events` is
  * null/empty (the "missing/unreadable events file" case).
@@ -253,7 +275,7 @@ export async function capturePair(sid, tsEpoch) {
   // `candidates` accumulation below only happens when `events` is truthy,
   // keeping the "missing events file => existing behavior exactly" case
   // identical in both output and cost to the pre-existing single-pass scan.
-  const events = nonAppendEvents(sid, cutoff);
+  const events = resetEvents(sid, cutoff);
   let after = null;
   // Lightweight {ts}-only candidates, never full records — a candidate's
   // body can be multi-MB (the same reason this function streams at all;
@@ -681,10 +703,43 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
          "scoped to NEAR_CUTOFF_WINDOW_MS of the recency pick, the decoy is excluded and the genuine match wins");
     }
 
-    // nonAppendEvents: globs every insertion-events file for the sid (one
-    // sid owns several — one per conversation/system-prompt sub-key, per
-    // insertion-normalization.mjs's resolveInsertionSessionKey), filters
-    // out append-only and anything after the cutoff.
+    // 7749d7fc companion-case collision (dispatcher decision, 2026-08-02,
+    // narrowing "non-append" to reset-only): the correct candidate's own
+    // reset event and the wrongly-favored candidate's own "normalized"
+    // event are BOTH within the window — and the normalized one is
+    // CLOSER (4ms vs 5ms), so even with nearest-wins the wrong candidate
+    // won under the originally-shipped "any non-append action" rule. Real
+    // numbers off the live 19:13:48 companion capture (s-7749d7fc): the
+    // genuine reset request sits at 19:13:31.253Z (resetReason=
+    // not-subsequence, matches BACKLOG's byte attribution), its own event
+    // 5ms away; the wrongly-favored next-turn request sits at
+    // 19:13:47.849Z, its own "normalized" event only 4ms away. Confirmed
+    // RED first: `preferTelemetryConfirmed` given both action types picks
+    // the decoy purely because 4ms < 5ms — "normalized" firing on an
+    // ordinary, non-busting request is indistinguishable from a genuine
+    // signal until the action itself is restricted.
+    {
+      const genuine = { ts: 1785525211253 };
+      const decoy = { ts: 1785525227849 };
+      const withNormalized = [
+        { ts: 1785525211258, action: "reset" },       // 5ms from genuine
+        { ts: 1785525227853, action: "normalized" },  // 4ms from decoy
+      ];
+      const redOld = preferTelemetryConfirmed([genuine, decoy], withNormalized);
+      eq(redOld.ts, decoy.ts,
+         "RED check: 'any non-append action' picks the decoy — its normalized match is 1ms closer than the genuine reset match");
+      const onlyReset = withNormalized.filter((e) => e.action === "reset");
+      const fixed = preferTelemetryConfirmed([genuine, decoy], onlyReset);
+      eq(fixed.ts, genuine.ts,
+         "reset-only excludes the normalized decoy match entirely, so the genuine reset match wins");
+    }
+
+    // resetEvents: globs every insertion-events file for the sid (one sid
+    // owns several — one per conversation/system-prompt sub-key, per
+    // insertion-normalization.mjs's resolveInsertionSessionKey), keeps
+    // ONLY action==="reset" (both append-only AND normalized excluded —
+    // see resetEvents's docstring for why normalized had to go too), and
+    // anything after the cutoff.
     {
       const evDir = mkdtempSync(join(tmpdir(), "bt-events-"));
       writeFileSync(join(evDir, "s-SID-key1-insertion-events.jsonl"), [
@@ -693,14 +748,15 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
       ].join("\n") + "\n");
       writeFileSync(join(evDir, "s-SID-key2-insertion-events.jsonl"), [
         JSON.stringify({ ts: "2026-07-31T19:22:38.015Z", sid: "SID", action: "append-only" }),
+        JSON.stringify({ ts: "2026-07-31T19:22:39.000Z", sid: "SID", action: "normalized" }),
       ].join("\n") + "\n");
       const cutoffMs = Date.parse("2026-07-31T19:22:40.000Z");
-      const ev = nonAppendEvents("SID", cutoffMs, evDir);
-      eq(ev.length, 1, "one non-append, pre-cutoff event across both files");
+      const ev = resetEvents("SID", cutoffMs, evDir);
+      eq(ev.length, 1, "one reset, pre-cutoff event across both files — append-only AND normalized excluded");
       eq(ev[0].action, "reset", "the reset survives the filter");
-      eq(nonAppendEvents("SID", cutoffMs, join(evDir, "does-not-exist")), null,
+      eq(resetEvents("SID", cutoffMs, join(evDir, "does-not-exist")), null,
          "missing directory reads as null, not []");
-      eq(nonAppendEvents("OTHER-SID", cutoffMs, evDir), null,
+      eq(resetEvents("OTHER-SID", cutoffMs, evDir), null,
          "a sid with no matching files reads as null too");
     }
     process.stdout.write("bust-triage: selftest passed\n");
