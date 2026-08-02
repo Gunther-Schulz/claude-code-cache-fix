@@ -279,3 +279,40 @@ test(
     }
   },
 );
+
+// --- savedBytes: the retained pre-mitigation re-bill (BACKLOG "replay keeps
+// the pre-mitigation re-bill"). `rebilledBytes: mitigated ? 0 : rebilled`
+// prices the LEAK and discards the SAVE; savedBytes is the same computed
+// number retained on the mitigated branch instead of thrown away. The two
+// are complements by construction: same pair replayed mitigated and
+// unmitigated must put the SAME number in opposite fields — retained, not
+// recomputed, so the fire ledger's saved column prices exactly what the
+// leak column would have priced had the mitigation not fired.
+test("mitigation rows: savedBytes retains on the mitigated branch what rebilledBytes prices on the unmitigated one", () => {
+  const prevIn = [user("u0"), asst("a1"), user("u2")];
+  const curIn = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+  const prevOut = [user("u0"), asst("a1"), user("u2")];
+  const curOut = [user("u0"), asst("a1"), user("u2"), user("SPLICED")];
+
+  const mitigated = findMitigationGaps([
+    entry(0, prevIn, prevOut, { action: "append-only" }),
+    entry(1, curIn, curOut, { action: "normalized" }),
+  ]);
+  const unmitigated = findMitigationGaps([
+    entry(0, prevIn, prevOut, { action: "append-only" }),
+    entry(1, curIn, curOut, { action: null }),
+  ]);
+
+  assert.equal(mitigated.length, 1);
+  assert.equal(unmitigated.length, 1);
+  assert.equal(mitigated[0].mitigated, true);
+  assert.equal(unmitigated[0].mitigated, false);
+  assert.ok(unmitigated[0].rebilledBytes > 0, "control: the unmitigated pair re-bills something");
+  assert.equal(mitigated[0].rebilledBytes, 0, "mitigated leak stays 0 — existing contract untouched");
+  assert.equal(
+    mitigated[0].savedBytes,
+    unmitigated[0].rebilledBytes,
+    "the mitigated row retains exactly the number the unmitigated row would have leaked",
+  );
+  assert.equal(unmitigated[0].savedBytes, 0, "an unmitigated pair saves nothing");
+});

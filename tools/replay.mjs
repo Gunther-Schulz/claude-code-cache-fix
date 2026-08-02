@@ -1049,6 +1049,12 @@ export function findMitigationGaps(entries) {
         action: cur.action,
         resetReason: cur.resetReason,
         rebilledBytes: mitigated ? 0 : rebilled,
+        // The same computed number, retained on the branch that used to
+        // discard it: what this mitigation ABSORBED, priced identically to
+        // what a miss would have leaked. Complement of rebilledBytes by
+        // construction (their sum is always `rebilled`) — the fire ledger's
+        // saved column reads it (gate-live summariseFireBytes).
+        savedBytes: mitigated ? rebilled : 0,
         outputForm,
         outputPreserved,
         rebilledOutBytes,

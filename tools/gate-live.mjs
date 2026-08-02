@@ -504,17 +504,14 @@ export function reduceFireRaw(rows) {
 //                (reduceByteGate above); guardRestores has no raw source at
 //                all. Six nulls, six different reasons, none of them zero.
 //
-// SAVED is null in all seven, and the reason is one expression rather than a
-// missing concept: findMitigationGaps computes the pre-mitigation re-bill and
-// then throws it away — `rebilledBytes: mitigated ? 0 : rebilled`
-// (replay.mjs:1044). The size a mitigation ABSORBED is therefore not in the
-// row, and gate-live cannot recover it (the census JSON carries no per-message
-// byte arrays — checked: its top-level keys are report/violations/…/trace, no
-// inBytes). Writing 0 here would report "saved nothing" for the one class that
-// demonstrably saves the most — the null-vs-0 error this whole ledger exists
-// to avoid. Making it real is a replay.mjs change (retain the pre-mitigation
-// number in its own field); until then the column is honestly empty, and the
-// suite pins it so a future invented proxy measure has to argue with a test.
+// SAVED: relocations is live since replay retains the pre-mitigation re-bill
+// in its own `savedBytes` row field (the complement of `rebilledBytes` —
+// their sum is always the full re-bill; replay.mjs findMitigationGaps). The
+// other six stay null for the same six reasons as their leaked column. An
+// OLD-SCHEMA census (mitigation rows predating the field) is unmeasured —
+// null, never 0 (writing 0 would report "saved nothing" for the one class
+// that demonstrably saves the most); an EMPTY measured array is a real zero,
+// matching leaked's convention. The suite pins all three states.
 //
 // `rebilledOutBytes` is deliberately NOT summed into leakedBytes: output
 // tokens price differently from input tokens, so a sum of the two prices
@@ -532,6 +529,10 @@ export function summariseFireBytes(parsed) {
       (a, m) => a + (typeof m.rebilledBytes === "number" ? m.rebilledBytes : 0),
       0,
     );
+    saved.relocations =
+      mit.length === 0 || mit.some((m) => typeof m.savedBytes === "number")
+        ? mit.reduce((a, m) => a + (typeof m.savedBytes === "number" ? m.savedBytes : 0), 0)
+        : null;
   }
   return { saved, leaked };
 }
