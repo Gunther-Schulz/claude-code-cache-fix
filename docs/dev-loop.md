@@ -103,6 +103,30 @@ deltas on one corpus, never as a verdict.
 commit in the same repo makes it block on `index.lock` — once observed as a
 600-second hang that looked like a hung test.
 
+**A mitigation ships with its SIBLINGS enumerated.** A class arrives as one
+instance, and a fix scoped to that instance leaves the cases one step out
+along the same axis uncovered — which is how a single afternoon (2026-08-02)
+produced a `tools[]` mitigation that held ADDITIONS byte-stable but reset on a
+77-byte DESCRIPTION edit (485k tokens re-billed), and a join-move matcher that
+absorbed a migrated standalone with ONE copy while missing it when duplicate
+siblings re-bound the ordinals (535k). Neither was a design error; both were
+scope stated once and never re-asked. So at ship time, list the adjacent cases
+— the same event with one attribute varied: added / removed / renamed /
+reordered / re-described / duplicated / arriving during a reset — and state
+for each whether the mitigation's OWN safety argument reaches it. Ship what it
+reaches; the rest becomes a matrix row, never a TODO in the code. Doing this
+once immediately connected the new description-only row to row 6, which had
+sat at "OBSERVED, CAUSE NOT ISOLATED".
+
+The rule is ENUMERATION, not maximal width. Widening past where the safety
+argument reaches is how a mitigation MOVES a bust instead of absorbing it:
+the byte-match census answers `MISMATCH — DO NOT SHIP as-is` for exactly that
+case, and it was right the day the canonical rule's "wrappers are stripped"
+premise turned out not to hold universally. The safety argument is the
+boundary — for the tools block it is `input_schema` identity, which is what
+makes a stale DESCRIPTION safe and a stale SCHEMA not — and a sibling it
+cannot justify is named, not shipped.
+
 ## Replay the configuration that is SERVING, not the defaults
 
 `replay.mjs` inherits nothing from the systemd unit. Extension gates are read
