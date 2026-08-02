@@ -70,6 +70,19 @@ bullet, evidence pointer included.
   red-first on the s-66797e31 shape (a wrapper-retaining standalone
   at host+1) asserting the row does NOT read 0ch.
 
+- **Candidate — census `--json` carries no finding rows.** Surfaced
+  by the rejectedCandidate build (2026-08-02) and correctly returned
+  as a question rather than widened into its scope: the JSON output
+  has always emitted rollups (tally/prunes/duplicates/…) and never
+  the per-finding rows, so `rejectedCandidate` — and every other
+  per-row detail — is visible only in the human print. Consequence:
+  a machine consumer sees verdict COUNTS and cannot see which
+  occurrence produced them, which is why per-row questions keep
+  being answered by re-running the tool by hand and reading prose.
+  Build when a second consumer needs row-level data; natural shape
+  is a `details` array behind a flag, so the default output size
+  does not change.
+
 - **Candidate — gate status code-stamp races a concurrent commit.**
   Today's sweep stamped `toolsTree` at start and a tools/ commit
   landed during its 75-minute run, so the finished status file
