@@ -555,15 +555,56 @@ bullet, evidence pointer included.
   doctor enforces it). Pairs naturally with the soak summary and
   the watch threads.
 
-- **OPEN — fire-ledger SAVED-vs-LEAKED bytes columns (the WIDENED
-  clause of the resolved entry above, deliberately not built
-  2026-08-02).** Per-run absorbed bytes vs passed-through re-billed
-  bytes — the retirement evidence and the proxy's justification
-  number in one series. The data already exists per mitigation row
-  (rebilledBytes/rebilledOutBytes); design: extend the ledger line
-  schema (new fields only, old lines stay parseable). Counts shipped
-  first so the series starts accumulating; bytes join it on their
-  own dispatch.
+- **BUILT 2026-08-02 (dc0fce1, opus dispatch, dispatcher-verified:
+  61/61 across five suites, four red-first probes, real subset line
+  appended to scratch) — fire-ledger SAVED-vs-LEAKED bytes columns;
+  saved side NULL-BLOCKED on a replay field, its READY item below.**
+  Line schema gains savedBytes/leakedBytes (7-class key set, null
+  never 0, old lines parseable — bitten). This entry's own premise
+  "the data already exists per mitigation row" was REFUTED in the
+  artifact: only relocations carries byte fields; leakedBytes is
+  1-of-7 live and PROVEN to move when the mitigation fires (A/B
+  replay on s-66797e31: gate OFF 23865, serving 13952 — the 9913
+  delta is the absorbed re-bill). savedBytes is 7/7 null under both
+  readings (census AND event logs carry no byte field anywhere) —
+  the one blocking expression is replay.mjs:1044
+  `rebilledBytes: mitigated ? 0 : rebilled`, which computes the
+  justification number and discards it. Dispatcher rulings
+  2026-08-02: shipped-all-null RATIFIED (an all-null column reads
+  "unmeasured", the ledger's own discipline); rebilledOutBytes
+  correctly NOT summed into leakedBytes (output tokens price
+  differently — own column if ever wanted, candidate below);
+  verdict message stays counts-only until saved is real. Lesson
+  booked from the refutation: "the data already exists" in a
+  backlog entry is an artifact claim and decays as the artifact
+  moves.
+
+- **READY — replay keeps the pre-mitigation re-bill: savedBytes'
+  one missing field (fire-bytes dispatch gap 1, 2026-08-02).**
+  Design decided: at replay.mjs:1044, retain the computed `rebilled`
+  in its own field on the mitigation row (savedBytes-side source;
+  rebilledBytes stays as-is for every existing consumer), then
+  summariseFireBytes reads it — the dispatch verified NO gate-live
+  change is needed beyond that read. Verifier: bite red-first on a
+  mitigated row exposing the retained field; live check = the A/B
+  pair above (the retained field on s-66797e31's n=63 row must read
+  9913 under serving config, and savedBytes.relocations lights up in
+  a subset sweep — the dispatch's stated untested prediction).
+  Done-criterion: subset ledger line shows savedBytes.relocations
+  non-null equal to the A/B number. NOTE: tools/replay.mjs is in the
+  smoosh-exemption dispatch's write lane — serialize after that
+  report books.
+
+- **Candidate — leakedOutBytes column (fire-bytes proposal 3,
+  2026-08-02).** rebilledOutBytes exists and is real but every
+  observed row read 0 (outputPreserved:true) — build only if the
+  output-side leak ever measures non-zero; trigger: a sweep showing
+  rebilledOutBytes > 0.
+
+- **Candidate — fire-ledger verdict gains saved/(saved+leaked)
+  (fire-bytes proposal 4).** Blocked on the READY item above; those
+  two share RAW's denominator, so theirs is the one meaningful ratio
+  on the line (units note already in gate-live's header).
 
 - **OPEN (remedy dispatched) — new live conservation failure:
   s-00b19d9b, conservation=10, gate exit 1 (found 2026-08-02 by the
