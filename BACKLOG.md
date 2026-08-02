@@ -579,21 +579,22 @@ bullet, evidence pointer included.
   backlog entry is an artifact claim and decays as the artifact
   moves.
 
-- **READY — replay keeps the pre-mitigation re-bill: savedBytes'
-  one missing field (fire-bytes dispatch gap 1, 2026-08-02).**
-  Design decided: at replay.mjs:1044, retain the computed `rebilled`
-  in its own field on the mitigation row (savedBytes-side source;
-  rebilledBytes stays as-is for every existing consumer), then
-  summariseFireBytes reads it — the dispatch verified NO gate-live
-  change is needed beyond that read. Verifier: bite red-first on a
-  mitigated row exposing the retained field; live check = the A/B
-  pair above (the retained field on s-66797e31's n=63 row must read
-  9913 under serving config, and savedBytes.relocations lights up in
-  a subset sweep — the dispatch's stated untested prediction).
-  Done-criterion: subset ledger line shows savedBytes.relocations
-  non-null equal to the A/B number. NOTE: tools/replay.mjs is in the
-  smoosh-exemption dispatch's write lane — serialize after that
-  report books.
+- **RESOLVED 2026-08-02 (0a905a5, inline after the smoosh lane
+  closed; 128/128 across six affected suites) — replay keeps the
+  pre-mitigation re-bill: savedBytes' one missing field.** Landed
+  as designed with one correction to the entry's own claim: "NO
+  gate-live change needed" was the dispatch's overstatement — its
+  shipped summariseFireBytes hard-nulled saved, so the read had to
+  be added there (with an old-schema guard: rows predating the
+  field stay null, measured-empty is a real zero, three states
+  pinned in-suite). Retained-not-recomputed pinned by replaying the
+  same pair mitigated and unmitigated (equal numbers, opposite
+  fields). Done-criterion met exactly: n=63 row savedBytes 9913
+  under serving gates, subset ledger line
+  savedBytes.relocations 9913 / leakedBytes.relocations 13952 —
+  byte-equal to the dispatch's A/B evidence. The fire ledger now
+  prices both directions; the saved/(saved+leaked) verdict ratio
+  (candidate below) is unblocked.
 
 - **Candidate — leakedOutBytes column (fire-bytes proposal 3,
   2026-08-02).** rebilledOutBytes exists and is real but every
@@ -602,17 +603,32 @@ bullet, evidence pointer included.
   rebilledOutBytes > 0.
 
 - **Candidate — fire-ledger verdict gains saved/(saved+leaked)
-  (fire-bytes proposal 4).** Blocked on the READY item above; those
-  two share RAW's denominator, so theirs is the one meaningful ratio
-  on the line (units note already in gate-live's header).
+  (fire-bytes proposal 4).** UNBLOCKED 2026-08-02 (0a905a5 —
+  savedBytes live); those two share RAW's denominator, so theirs is
+  the one meaningful ratio on the line (units note already in
+  gate-live's header). Build on operator wish or when the series
+  has enough lines for the ratio to say something.
 
-- **OPEN (remedy dispatched) — new live conservation failure:
-  s-00b19d9b, conservation=10, gate exit 1 (found 2026-08-02 by the
-  fire-ledger dispatch's full-corpus run — 34 captures vs the 07:51
-  production sweep's 28; NOT caused by the fire-ledger work, which
-  touches no replay or extension path).** The next scheduled sweep
-  (Mon 07:18 timer) will hit it too — a red gate status is expected
-  until the exemption lands.
+- **RESOLVED 2026-08-02 (3b32e6b, sonnet dispatch,
+  dispatcher-verified: five replay suites green, live replay of the
+  capture 10 violations -> 0 with 10 visible same-class exemptions,
+  exit 0) — new live conservation failure: s-00b19d9b,
+  conservation=10, gate exit 1 (found 2026-08-02 by the fire-ledger
+  dispatch's full-corpus run — 34 captures vs the 07:51 production
+  sweep's 28; NOT caused by the fire-ledger work, which touches no
+  replay or extension path).** The gate now byte-verifies
+  smoosh-split's declared peel by chaining the extension's own
+  export; tamper stays red; the gate's DEFINITION comment carries
+  the new clause (d), and the dispatch also repaired pre-existing
+  drift there (isDeclaredStrip's dangling clause-(c)
+  self-reference). Residual, named: exemption granularity is
+  message-level — a message carrying BOTH a legitimate peel and an
+  unrelated genuine drop stays a plain violation with no
+  known-good-part hint (safe direction, never masks a loss; not
+  observed live). Lesson: "the comment is the definition" needs
+  occasional audit against the code's inline clause references —
+  drift compounds silently until someone adds an adjacent clause.
+  Mon 07:18 sweep expected GREEN.
   ATTRIBUTE DONE 2026-08-02 (inline, dispatcher; replayed the
   capture alone with --gates-from-capture, dumped in[2] of the
   09:18:11 request): NOT a defect — the gate fires on legitimate,
@@ -1057,10 +1073,17 @@ bullet, evidence pointer included.
   pair-SELECTION artifact, not a new class; candidate rule — prefer
   the nearest same-conversation pair whose after-request carries a
   non-append action (the telemetry knows), fall back to current
-  rule.
-  TOOL GAP RESOLVED 2026-08-02 (092a7cf + d2c9d00, sonnet dispatch,
+  rule. Tool gap resolved — its own DONE entry directly below;
+  THIS entry stays open only on the time-gated absorption question.
+  NOTE for next occurrence: if this class fires again
+  POST-restart, the un-merge did not absorb it — that is the real
+  news; tonight's instances prove nothing about the new code.
+
+- **DONE 2026-08-02 (092a7cf + d2c9d00, sonnet dispatch,
   dispatcher-verified: selftest green, controlled 8/8, dossier
-  19/19, real triage re-run). Three layers, each red-proven on real
+  19/19, real triage re-run) — bust-triage pair-selection tool gap
+  (split out of the twin-busts entry above, whose absorption
+  question stays open).** Three layers, each red-proven on real
   numbers: (1) telemetry-confirmed preference; (2) nearest-event
   wins over newest-of-matches (5 ms genuine vs 1899 ms spurious
   cross-conversation match), candidates scoped to 60 s of the
@@ -1076,12 +1099,10 @@ bullet, evidence pointer included.
   EXTENDED/NEW-TEXT via direct capturePair+censusPair+
   migrationVerdict call (its LEDGER ENTRY IS PRUNED — activity.jsonl
   greps empty — so the --at flow cannot reach it). Residuals, named:
-  BACKLOG's byte attribution said "index 69" where the tool reports
-  host 71 — unchased; no broader sid sweep for other
+  the twin-busts entry's byte attribution said "index 69" where the
+  tool reports host 71 — unchased; no broader sid sweep for other
   normalized-vs-reset collisions; same-conversation join key parked
-  below. NOTE for next occurrence: if this class fires again
-  POST-restart, the un-merge did not absorb it — that is the real
-  news; tonight's instances prove nothing about the new code.
+  below.
 
 - **PARKED — bust-triage pair selection: same-conversation join key
   (twin-busts tool-gap residual, 2026-08-02).** The timestamp join
