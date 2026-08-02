@@ -1241,7 +1241,29 @@ bullet, evidence pointer included.
   — the counter's first live run over the current corpus found a
   second population; see the double-billed OPEN entry below.
 
-- **OPEN — double-billed duplicate pairs: 29 streaks live
+- **OPEN (attributed 2026-08-02: CC-defect-resend lean, upstream
+  filing is the next step and needs operator GO) — double-billed
+  duplicate pairs, now 33 streaks.** Sonnet discovery
+  (dispatcher-spot-checked: the hand-verified s-0fbf8674 streak's
+  two outcomes read identical outSha 610e911e / outBytes 2406 under
+  my own probe): 33/33 double-billed streaks have byte-IDENTICAL
+  response content between both billed answers — retry-refuting
+  (a retry hoping for better gets different bytes); 79% land at the
+  session's very first request (structural, not content-gated);
+  upstream-error correlation 1/33 and that one sits inside a 2-hour
+  401 burst (auth noise, not signal — 30/32 log entries are 401s).
+  The entry's earlier degenerate-lean was the wrong lens: the
+  content-class split (24 deg/deg, 4 deg/sub, 2 sub/deg, 3 sub/sub)
+  is superseded by the hash identity. Residues, named: one
+  outputTokens-vs-outSha accounting anomaly (s-cbc27f3c 654/656:
+  same bytes, tokens 2 vs 1); the 7 mid-session streaks' trigger
+  uncharacterized. Evidence: the discovery report in the
+  dispatching session's scratchpad; re-derivable from the census
+  duplicates key + outcome outSha join. Next: fold into the
+  #272/#273 week-of-soak summary (due ~08-07) and/or file upstream
+  as the #78420-adjacent shape — Public Communication rule: draft
+  first, operator approves before posting.
+  Original entry: **double-billed duplicate pairs: 29 streaks live
   (dup-census first run, 2026-08-01), hand-verified at the
   altitude.** Two examples records-read-directly: s-0fbf8674 lines
   3/5 (identical 2384-char haiku bodies, 14 ms apart, BOTH answered,
