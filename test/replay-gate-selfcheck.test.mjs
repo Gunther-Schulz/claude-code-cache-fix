@@ -1498,3 +1498,79 @@ test("conservation: BITE — the strip exemption does NOT cover ordinary content
   assert.equal(v[0].kind, "lost");
   assert.match(v[0].detail, /1 of 3/, "the declared artifact is exempt; the real block is not");
 });
+
+// --- Clause (d): smoosh-split's declared peel ---
+//
+// The live shape found on capture s-00b19d9b-afd8-4476-b177-87f2deca0352: a
+// tool_result's STRING content ends with a trailing <system-reminder>, and
+// smoosh-split peels it into a standalone text block appended to the SAME
+// message — content redistributed within the message, never removed.
+const smooshedIn = () => [
+  user("u0"),
+  asst("a1"),
+  {
+    role: "user",
+    content: [
+      {
+        type: "tool_result",
+        tool_use_id: "t1",
+        content: "tool output\n\n<system-reminder>\nhook says hi\n</system-reminder>",
+      },
+    ],
+  },
+];
+// The exact split smoosh-split's own splitSmooshedReminders produces.
+const smooshedOutPeeled = () => [
+  user("u0"),
+  asst("a1"),
+  {
+    role: "user",
+    content: [
+      { type: "tool_result", tool_use_id: "t1", content: "tool output" },
+      { type: "text", text: "<system-reminder>\nhook says hi\n</system-reminder>" },
+    ],
+  },
+];
+
+test("conservation: BITE — the smoosh-split shape WITHOUT declared stats is a violation", () => {
+  // No declaration at all: the same shape a re-derived "this looks peeled"
+  // guess would be tempted to wave through, and exactly why the exemption
+  // must be telemetry-gated rather than shape-gated.
+  const v = findConservationViolations([entry(0, smooshedIn(), smooshedOutPeeled())]);
+  assert.equal(v.length, 2, "one lost R-side unit at in[2], one invented F-side record at out[2]");
+  assert.equal(v.filter((x) => x.kind === "lost").length, 1);
+  assert.equal(v.filter((x) => x.kind === "invented").length, 1);
+  assert.match(v.find((x) => x.kind === "invented").detail, /2 of 2/, "both post-peel blocks read as invented");
+});
+
+test("conservation: smoosh-split's declared peel is exempt on both sides", () => {
+  const cv = conservationViolations(entry(0, smooshedIn(), smooshedOutPeeled(), { smooshSplitStats: { peeled: 1 } }), new Set());
+  assert.deepEqual(cv.violations, [], "declared, byte-verified peel clears both the lost and the invented side");
+  assert.equal(cv.exemptions.length, 2, "one exemption record per side — lost at in[2], invented at out[2]");
+  assert.equal(cv.exemptions.filter((x) => x.kind === "lost").length, 1);
+  assert.equal(cv.exemptions.filter((x) => x.kind === "invented").length, 1);
+  for (const x of cv.exemptions) assert.equal(x.exemptReason, "smoosh-split:declared-peel");
+});
+
+test("conservation: BITE — declared smoosh-split stats do not survive a tampered forward", () => {
+  // Same declaration as the GREEN case above, but the forwarded reminder text
+  // has one byte changed ("hi" -> "HI"). The exemption re-derives the peel
+  // from R and requires it byte-identical in F — it must not just trust the
+  // declaration — so the mismatch leaves the violation standing exactly as
+  // if nothing had been declared.
+  const tamperedOut = () => [
+    user("u0"),
+    asst("a1"),
+    {
+      role: "user",
+      content: [
+        { type: "tool_result", tool_use_id: "t1", content: "tool output" },
+        { type: "text", text: "<system-reminder>\nhook says HI\n</system-reminder>" },
+      ],
+    },
+  ];
+  const v = findConservationViolations([
+    entry(0, smooshedIn(), tamperedOut(), { smooshSplitStats: { peeled: 1 } }),
+  ]);
+  assert.equal(v.length, 2, "a declared but unverifiable peel is not exempt");
+});

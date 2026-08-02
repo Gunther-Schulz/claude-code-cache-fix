@@ -67,6 +67,7 @@ import { createHash } from "node:crypto";
 import { readLines } from "./read-lines.mjs";
 import { hashMessageContent } from "../proxy/extensions/message-hash.mjs";
 import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
+import { splitSmooshedReminders } from "../proxy/extensions/smoosh-split.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -699,6 +700,12 @@ export function compactEntry(e) {
     // that drifts. Absent until 2026-08-01, which is why the reset-wipes-
     // additions attribution had to re-run the whole pipeline in a probe.
     deferredToolRewriteStats: e.deferredToolRewriteStats ?? null,
+    // smoosh-split's own report (peeled count), the conservation gate's
+    // declared-peel exemption key — same discipline as
+    // freshSessionSortStats and deferredToolRewriteStats above: an
+    // exemption keyed on shape drifts, one keyed on the extension's own
+    // telemetry does not.
+    smooshSplitStats: e.smooshSplitStats ?? null,
     // WHERE the declared tool_addition announcements sit in the forwarded
     // array. Positions, not messages — the exemption has to remove them from
     // the comparison, and a hash array cannot be filtered by a shape test
@@ -1692,7 +1699,22 @@ export function findSuccessions(entries) {
 //         guess) whose content is RECONSTRUCTIBLE from F: its unwrapped
 //         bytes equal either a unit present in F, or the "\n\n" join of all
 //         volatile blocks of one message present in F (the merged-standalone
-//         shape, 78940a0).
+//         shape, 78940a0), or
+//     (c) a declared STRIP (isDeclaredStrip, imported from
+//         fresh-session-sort's own isClearArtifact — never a re-derived
+//         "looks like a clear artifact" guess): the harness's own
+//         `/clear`-command echo, which really does leave the wire and is
+//         meant to, or
+//     (d) part of a DECLARED PEEL (smoosh-split's own report,
+//         smooshSplitStats.peeled — never a re-derived "this looks
+//         smooshed" guess): re-running the extension's OWN
+//         splitSmooshedReminders on this one message reproduces a form
+//         every unit of which is present in F byte-identically. Unlike a
+//         suppression, a peel never leaves the message: it redistributes
+//         one tool_result's trailing reminder(s) into standalone text
+//         blocks of the SAME message, so the verified split form accounts
+//         for both the R-side unit that disappears and the F-side unit(s)
+//         that appear in its place (clause (d) below, F-side).
 //   F-side. Every content unit of a non-assistant message of F is either
 //     (a) present in R, or
 //     (b) present in an EARLIER request of the same conversation — this is
@@ -1700,7 +1722,12 @@ export function findSuccessions(entries) {
 //         checkable property rather than trusted: a re-served byte must be a
 //         byte CC itself once sent here, and one we invented is red, or
 //     (c) a declared injection (isDeclaredInjection — deferred-tool-rewrite's
-//         tool_addition announcement, already exempt in the safety gate).
+//         tool_addition announcement, already exempt in the safety gate), or
+//     (d) produced by the same DECLARED PEEL verified on the R-side (d) —
+//         the post-peel tool_result and each peeled reminder's standalone
+//         text block are new bytes on the wire by construction (a peel
+//         REDISTRIBUTES within a message; it never equals any single
+//         pre-peel unit), so without this clause they read as invented.
 //
 // POPULATION — non-assistant messages, and the reason is definitional rather
 // than convenient. Every mechanism that can delete or re-serve content in
@@ -1796,6 +1823,32 @@ const isAssistant = (m) => m?.role === "assistant";
 // mask a conversation byte — but it is a widening, not an equality.
 const isDeclaredStrip = (u) => u.text !== null && isClearArtifact(u.text);
 
+// DECLARED PEEL — the definition's clause (d), and a check firing on
+// legitimate mitigation work rather than a defect: smoosh-split peels a
+// TRAILING <system-reminder> out of a tool_result's STRING content into a
+// standalone text block appended to the SAME message (bytes redistributed
+// within one message, never removed). Left unexempted this gate read the
+// peel as a lost R-side unit (the whole pre-peel tool_result) plus an
+// invented F-side unit per resulting block (the post-peel tool_result and
+// each peeled reminder) — ten violations, five requests, all at [2], on
+// capture s-00b19d9b-afd8-4476-b177-87f2deca0352.
+//
+// Chains the extension's OWN export rather than re-deriving the regex or the
+// peel logic — one definition of "a peel" in the codebase, same discipline
+// as isDeclaredStrip importing isClearArtifact. Declared via
+// e.smooshSplitStats.peeled > 0 on the entry (the caller's job, see
+// conservationViolations below) — no declaration, no exemption. Applied
+// per-message: re-run the peel on THIS raw message and require EVERY
+// resulting unit present in F byte-identically. A mismatch (tampered
+// forward, or bytes the peel didn't actually reach) returns null and the
+// caller leaves the violation standing — the exemption verifies the
+// declaration, it never trusts it.
+function smooshSplitPeelUnits(msg) {
+  const { messages, stats } = splitSmooshedReminders([msg]);
+  if (!stats || !(stats.peeled > 0)) return null;
+  return conservationUnits(messages[0]);
+}
+
 // Per-request verdict, `seen` being the per-conversation set of unit hashes CC
 // has sent in ANY earlier request of this conversation. Per-entry for the same
 // reason safetyViolation is: it runs in the replay loop where the messages are
@@ -1805,9 +1858,18 @@ const isDeclaredStrip = (u) => u.text !== null && isClearArtifact(u.text);
 // the distinction that keeps this off the O(file) retention path.
 export function conservationViolations(e, seen) {
   const out = [];
+  const exemptions = [];
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
   const suppressed = suppressedIndices(e.stats);
+  // No declaration on the entry, no exemption attempt at all — the peel
+  // check below is skipped entirely rather than run and found null every
+  // time, same short-circuit isDeclaredStrip's caller already relies on.
+  const smooshDeclared = (e.smooshSplitStats?.peeled ?? 0) > 0;
+  // Hashes a verified peel introduced — filled during the R-side loop
+  // below, read by the F-side loop after it, so a peeled unit's F-side
+  // "invented" candidacy is judged only once the R-side has verified it.
+  const smooshExemptFHashes = new Set();
 
   const fUnitsByMsg = outMsgs.map(conservationUnits);
   const fHashes = new Set();
@@ -1848,19 +1910,49 @@ export function conservationViolations(e, seen) {
     }
     const lost = units.filter((u) => !fHashes.has(u.hash) && !isDeclaredStrip(u));
     if (lost.length) {
-      out.push({
-        n: e.n,
-        ts: e.ts,
-        kind: "lost",
-        detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) present in CC's request and in no forwarded message`,
-      });
+      // Clause (d): a declared peel that re-derives, byte-identically, into
+      // F exempts the whole message's lost list — never a subset. A
+      // mismatch anywhere in the re-run split (an unrelated real drop
+      // alongside a legitimate peel, or tampered forward bytes) fails
+      // `.every` and the violation stands undiminished; smoosh-split never
+      // touches non-tool_result blocks, so a clean peel result covering
+      // every unit is exactly the byte-verification the definition requires.
+      const peeled = smooshDeclared ? smooshSplitPeelUnits(msg) : null;
+      if (peeled && peeled.every((u) => fHashes.has(u.hash))) {
+        for (const u of peeled) smooshExemptFHashes.add(u.hash);
+        exemptions.push({
+          n: e.n,
+          ts: e.ts,
+          kind: "lost",
+          exemptReason: "smoosh-split:declared-peel",
+          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) exempt — smoosh-split's declared peel (${e.smooshSplitStats.peeled} peeled), verified byte-identical in the forwarded array`,
+        });
+      } else {
+        out.push({
+          n: e.n,
+          ts: e.ts,
+          kind: "lost",
+          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) present in CC's request and in no forwarded message`,
+        });
+      }
     }
   }
 
   for (let i = 0; i < outMsgs.length; i++) {
     const msg = outMsgs[i];
     if (isAssistant(msg) || isDeclaredInjection(msg)) continue;
-    const invented = fUnitsByMsg[i].filter((u) => !rHashes.has(u.hash) && !(seen && seen.has(u.hash)));
+    const candidates = fUnitsByMsg[i].filter((u) => !rHashes.has(u.hash) && !(seen && seen.has(u.hash)));
+    const invented = candidates.filter((u) => !smooshExemptFHashes.has(u.hash));
+    const exempt = candidates.length - invented.length;
+    if (exempt > 0) {
+      exemptions.push({
+        n: e.n,
+        ts: e.ts,
+        kind: "invented",
+        exemptReason: "smoosh-split:declared-peel",
+        detail: `out[${i}] (${msg?.role}): ${exempt} of ${fUnitsByMsg[i].length} unit(s) exempt — produced by smoosh-split's declared peel, verified against R`,
+      });
+    }
     if (invented.length) {
       out.push({
         n: e.n,
@@ -1872,7 +1964,7 @@ export function conservationViolations(e, seen) {
   }
 
   if (seen) for (const h of rHashes) seen.add(h);
-  return { violations: out, assistantResidue };
+  return { violations: out, assistantResidue, exemptions };
 }
 
 // Whole-corpus shape, grouped by conversation so `seen` means what the
@@ -2091,6 +2183,7 @@ async function main() {
   const stability = [];
   const safety = [];
   const conservation = [];
+  const conservationExemptions = [];
   // Per-conversation first-seen registry for the conservation gate (see its
   // DEFINITION). Hashes only, keyed by (capture key, conversation), so it is
   // bounded by history size rather than by request count.
@@ -2207,6 +2300,7 @@ async function main() {
       stats: ctx.meta.insertionNormalizeStats ?? null,
       freshSessionSortStats: ctx.meta.freshSessionSortStats ?? null,
       deferredToolRewriteStats: ctx.meta.deferredToolRewriteStats ?? null,
+      smooshSplitStats: ctx.meta.smooshSplitStats ?? null,
     };
     // Safety is a per-request question, so answer it now and keep only the
     // verdict; the messages become garbage as soon as this iteration ends.
@@ -2224,6 +2318,7 @@ async function main() {
         const cv = conservationViolations(full, conservationSeen.get(g));
         conservation.push(...cv.violations);
         conservationResidue += cv.assistantResidue;
+        conservationExemptions.push(...cv.exemptions);
       }
     }
     // Everything else keeps hashes, not bodies — see compactEntry.
@@ -2411,7 +2506,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationResidue, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -2497,6 +2592,15 @@ async function main() {
     process.stdout.write(
       `  not examined: ${conservationResidue} assistant-role block(s) the pipeline rewrote or dropped (tool_use normalization, thinking sanitization — a separately-gated class)\n`,
     );
+    // Exempted, not silently absorbed: same shape as a conservation violation
+    // above, but smoosh-split's own declared-peel telemetry verifies it —
+    // same reporting discipline as the stability exemptions line.
+    process.stdout.write(
+      `\ncontent-conservation exemptions (telemetry-backed, not counted as violations): ${conservationExemptions.length}\n`,
+    );
+    for (const x of conservationExemptions.slice(0, 20)) {
+      process.stdout.write(`  n=${x.n} ts=${x.ts} ${x.kind}: ${x.detail} <- ${x.exemptReason}\n`);
+    }
 
     process.stdout.write(`\nsequence violations (normalize then reset): ${sequence.length}\n`);
     for (const s of sequence.slice(0, 20)) {
