@@ -411,6 +411,27 @@ test("absorbed: real event-log shapes tally into their own classes", async (t) =
   for (const cls of FIRE_CLASSES) assert.equal(gone[cls], null, `${cls} must not read 0 from a directory nobody found`);
 });
 
+test("BITE — relocations counts FRESH recognitions, not the moved sum, with `moved` as the legacy-line fallback " +
+     "(BACKLOG \"split `moved`\", 2026-08-02)", async (t) => {
+  const dir = await snapshotDirWith({
+    "s-a-insertion-events.jsonl": [
+      // A NEW-shape line: moved=1 is entirely a re-fire (movedFresh:0). The
+      // sum would have counted it as one relocation; the split must not.
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", action: "normalized", moved: 1, movedFresh: 0, movedRefires: 1 }),
+      // A NEW-shape line with a genuine fresh recognition: this one counts.
+      JSON.stringify({ ts: "2026-08-02T10:00:01.000Z", action: "normalized", moved: 1, movedFresh: 1, movedRefires: 0 }),
+      // A LEGACY line written before this change — no movedFresh field at
+      // all. It must fall back to `moved`, not read as zero.
+      JSON.stringify({ ts: "2026-08-02T10:00:02.000Z", action: "normalized", moved: 1 }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const a = await collectAbsorbed(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"),
+    { suppressions: false, relocations: true, toolAdditionAnnouncements: false, guardRestores: false });
+  assert.equal(a.relocations, 2, "the re-fire-only line contributes 0, the fresh line contributes 1, the legacy line falls back to its `moved`=1");
+});
+
 test("cc versions: read from the transcript that owns the swept session", async (t) => {
   const root = await mkdtemp(join(tmpdir(), "fire-projects-"));
   t.after(() => rm(root, { recursive: true, force: true }));

@@ -375,6 +375,106 @@ export async function computeTelemetryVerdicts(nowMs = Date.now()) {
   return Promise.all(TELEMETRY_CONSUMERS.map((e) => telemetryConsumerVerdict(e, nowMs)));
 }
 
+// --- moved-fresh alarm (BACKLOG "split `moved`", 2026-08-02) ---
+//
+// The 660k bust (threat matrix row 4) reported `moved: 5` from a request
+// where findJoinMoves recognized ZERO fresh moves — the summed field alone
+// could not distinguish "the mitigation is still absorbing new drops" from
+// "the mitigation is only replaying a move it already recognized earlier".
+// This verdict watches for exactly that shape over a real window: join-move
+// RE-FIRES (the substitution still holding a prior move) while FRESH
+// recognition has gone to zero, which means the class the mitigation exists
+// for may have stopped being caught even though the ledger keeps showing
+// activity.
+//
+// Population is per-request PIN-MODE records only — `movedFresh` is present
+// exactly there (proxy/extensions/insertion-normalization.mjs only emits it
+// under `pin`); plain-mode records and per-suppression detail lines carry
+// neither field and are excluded by the same presence check. Fewer than
+// MOVED_FRESH_MIN_SAMPLE such records is an `ok`-with-caveat, never an
+// alarm — a short window proves nothing either way.
+export const MOVED_FRESH_MIN_SAMPLE = 200;
+
+export function movedFreshVerdict(records) {
+  const name = "moved-fresh";
+  if (records === null) {
+    return {
+      name,
+      level: "warn",
+      message: "moved-fresh: snapshots directory missing or unreadable — not currently watched",
+    };
+  }
+  const sample = records.slice(-MOVED_FRESH_MIN_SAMPLE);
+  if (sample.length < MOVED_FRESH_MIN_SAMPLE) {
+    return {
+      name,
+      level: "ok",
+      message:
+        `moved-fresh: only ${sample.length} of ${MOVED_FRESH_MIN_SAMPLE} needed pin-mode ` +
+        `requests seen — not enough to judge`,
+    };
+  }
+  const anyRefire = sample.some((r) => (r.movedRefires ?? 0) > 0);
+  const allFreshZero = sample.every((r) => (r.movedFresh ?? 0) === 0);
+  if (anyRefire && allFreshZero) {
+    return {
+      name,
+      level: "warn",
+      message:
+        `moved-fresh: join-moves are RE-FIRING while fresh recognition stayed 0 across the ` +
+        `last ${sample.length} pin-mode requests — the mitigation may have stopped catching ` +
+        `new drops`,
+    };
+  }
+  return {
+    name,
+    level: "ok",
+    message: `moved-fresh: fresh recognitions present in the last ${sample.length} pin-mode requests`,
+  };
+}
+
+// Reads every `*-insertion-events.jsonl` file under the snapshots dir (one
+// per session/sub-key, same fan-out bust-triage.mjs's resetEvents globs for
+// a single sid) and returns the pin-mode per-request records — identified
+// by `movedFresh` being present, since that field exists only on the
+// records classifyPinned's two `moved` emission sites produce — sorted
+// oldest-to-newest so `.slice(-N)` reads as "the N most recent". Returns
+// null (never []) for a missing/unreadable directory, distinct from "the
+// directory exists and has produced nothing yet".
+export async function readMovedFreshRecords(dir = snapshotsDir()) {
+  let names;
+  try {
+    names = await readdir(dir);
+  } catch {
+    return null;
+  }
+  const files = names.filter((n) => n.endsWith("-insertion-events.jsonl"));
+  const records = [];
+  for (const name of files) {
+    let text;
+    try {
+      text = await readFile(join(dir, name), "utf-8");
+    } catch {
+      continue; // a file that vanished/became unreadable mid-scan is skipped, not fatal
+    }
+    for (const line of text.split("\n")) {
+      if (!line) continue;
+      let rec;
+      try {
+        rec = JSON.parse(line);
+      } catch {
+        continue; // a torn tail line is not a request record
+      }
+      if (typeof rec.movedFresh !== "number") continue;
+      const t = Date.parse(rec.ts ?? "");
+      if (Number.isNaN(t)) continue;
+      records.push({ ts: t, movedFresh: rec.movedFresh, movedRefires: rec.movedRefires ?? 0 });
+    }
+  }
+  records.sort((a, b) => a.ts - b.ts);
+  return records;
+}
+
 // --- Duplicate-billing alarm (dup-census gap 2, BACKLOG "wire `duplicates`
 // into the daily gate") ---
 //
@@ -568,6 +668,7 @@ export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
     retentionVerdict(committed, current),
     duplicateBillingVerdict(await readGateStatus()),
     fireLedgerVerdict(await readFireLedger()),
+    movedFreshVerdict(await readMovedFreshRecords()),
     ...(await computeTelemetryVerdicts()),
   ];
 }

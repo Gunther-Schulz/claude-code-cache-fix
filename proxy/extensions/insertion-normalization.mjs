@@ -1059,7 +1059,14 @@ export function classifyPinned(messages, priorCanonical) {
         ? { messages: forwarded }
         : {}),
       pinned: applied,
+      // `moved` stays the sum for existing consumers; `movedFresh` /
+      // `movedRefires` split it so a re-fire (the substitution still
+      // holding a prior move) can no longer masquerade as a fresh
+      // recognition (the mitigation just matching new bytes) — see the
+      // BACKLOG "split `moved`" entry, 2026-08-02.
       moved: moves.length + refires.length,
+      movedFresh: moves.length,
+      movedRefires: refires.length,
       suppressed: suppressionsR.length,
       suppressions: suppressionsR,
       reserves: [
@@ -1710,6 +1717,8 @@ export function classifyPinned(messages, priorCanonical) {
     // takes the entry out of `droppedNow`, so recognition fires exactly once
     // per move and every later request is a re-fire.
     moved: joinMoves.length + refires.length,
+    movedFresh: joinMoves.length,
+    movedRefires: refires.length,
     reserves,
   };
 }
@@ -1788,6 +1797,8 @@ export default {
               // indices from the extension's own report rather than
               // re-deriving "this one looks synthetic".
               moved: result.moved ?? 0,
+              movedFresh: result.movedFresh ?? 0,
+              movedRefires: result.movedRefires ?? 0,
               reserves: result.reserves ?? [],
             }
           : {}),
@@ -1803,7 +1814,16 @@ export default {
           action: result.action,
           inserted: result.inserted ?? 0,
           ...(result.resetReason ? { resetReason: result.resetReason } : {}),
-          ...(pin ? { pinned: result.pinned ?? 0, dropped: result.dropped ?? 0, suppressed: result.suppressed ?? 0, moved: result.moved ?? 0 } : {}),
+          ...(pin
+            ? {
+                pinned: result.pinned ?? 0,
+                dropped: result.dropped ?? 0,
+                suppressed: result.suppressed ?? 0,
+                moved: result.moved ?? 0,
+                movedFresh: result.movedFresh ?? 0,
+                movedRefires: result.movedRefires ?? 0,
+              }
+            : {}),
         },
         fs,
       );

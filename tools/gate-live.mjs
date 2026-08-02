@@ -564,11 +564,11 @@ export function reduceFireBytes(rows) {
 // class and the column records null rather than 0.
 //
 // Two known gaps, recorded as null instead of an invented number:
-//   oscillationAbsorptions  insertion-normalization counts a re-fire into
-//     `moved` alongside join-moves and tags its detail line "join-move"
-//     (insertion-normalization.mjs:1007,1062) — nothing separates the two,
-//     so the absorbed leg of the oscillation class is unmeasurable without
-//     an extension-side field.
+//   oscillationAbsorptions  insertion-normalization now emits `movedRefires`
+//     as a separate field (BACKLOG "split `moved`", 2026-08-02), so the
+//     extension-side split this gap named is no longer missing — but wiring
+//     it into this table is a separate, undecided step (not done here);
+//     the column stays null until that decision is made.
 //   blockMigrations, duplicates  no mitigation absorbs these AS a class:
 //     the first is the population suppression/relocation act on, the second
 //     is CC re-sending a request and nothing here de-duplicates it.
@@ -576,7 +576,14 @@ const ABSORBED_SOURCES = [
   { cls: "suppressions", gate: "CACHE_FIX_INSERTION_NORMALIZE", on: "1",
     suffix: "-insertion-events.jsonl", add: (r) => (typeof r.suppressed === "number" ? r.suppressed : 0) },
   { cls: "relocations", gate: "CACHE_FIX_INSERTION_NORMALIZE", on: "1",
-    suffix: "-insertion-events.jsonl", add: (r) => (typeof r.moved === "number" ? r.moved : 0) },
+    // Fresh recognitions only — `movedRefires` is the substitution still
+    // holding a prior move, not new absorbed behavior (BACKLOG "split
+    // `moved`", 2026-08-02). `movedFresh` is missing on ledger lines
+    // written before this change; `moved` is their fallback so a legacy
+    // line does not silently read as zero.
+    suffix: "-insertion-events.jsonl",
+    add: (r) =>
+      typeof r.movedFresh === "number" ? r.movedFresh : typeof r.moved === "number" ? r.moved : 0 },
   { cls: "toolAdditionAnnouncements", gate: "CACHE_FIX_TOOL_REWRITE", on: "1",
     suffix: "-deferred-tool-events.jsonl", add: (r) => (Array.isArray(r.newNames) ? r.newNames.length : 0) },
   { cls: "guardRestores", gate: "CACHE_FIX_OUTPUT_GUARD", on: "1",

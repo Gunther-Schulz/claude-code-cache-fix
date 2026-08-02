@@ -98,19 +98,24 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
   const dir = await mkdtemp(join(tmpdir(), "shape-verdicts-"));
   try {
     const verdicts = await computeVerdicts(join(dir, "no-such-ledger.json"));
-    // 5 standing verdicts (3 ledger-shape + duplicate-billing +
-    // fire-ledger) + the telemetry-consumer table (Q4). The table length is
-    // asserted against the TABLE, not a literal — a row legitimately added
-    // must not redden this test (the hardcoded-count anti-pattern bit
-    // 2026-07-30, again at this line's own former "3" on 2026-08-01, and a
-    // third time at its "4" when the fire ledger landed).
+    // 6 standing verdicts (3 ledger-shape + duplicate-billing + fire-ledger
+    // + moved-fresh) + the telemetry-consumer table (Q4). The table length
+    // is asserted against the TABLE, not a literal — a row legitimately
+    // added must not redden this test (the hardcoded-count anti-pattern bit
+    // 2026-07-30, again at this line's own former "3" on 2026-08-01, a
+    // third time at its "4" when the fire ledger landed, and a fourth at
+    // "5" when moved-fresh landed).
     const { TELEMETRY_CONSUMERS } = await import("../tools/shape-verdicts.mjs");
-    const STANDING = 5;
+    const STANDING = 6;
     assert.equal(verdicts.length, STANDING + TELEMETRY_CONSUMERS.length);
-    // duplicate-billing reads MACHINE state (the gate status file), so its
-    // level legitimately varies here; the ledger-shape claim is about the
-    // ledger verdicts only.
-    assert.ok(verdicts.every((v) => v.level === "warn" || v.name === "baseline" || v.name === "duplicate-billing"));
+    // duplicate-billing and moved-fresh both read MACHINE state (the gate
+    // status file / the snapshots dir), so their level legitimately varies
+    // here; the ledger-shape claim is about the ledger verdicts only.
+    assert.ok(
+      verdicts.every(
+        (v) => v.level === "warn" || v.name === "baseline" || v.name === "duplicate-billing" || v.name === "moved-fresh",
+      ),
+    );
     assert.equal(verdicts[0].level, "warn", "shape-watch cannot read as green without a ledger");
     const telemetryNames = verdicts.slice(STANDING).map((v) => v.name);
     assert.deepEqual(telemetryNames, TELEMETRY_CONSUMERS.map((e) => e.name));
@@ -381,4 +386,91 @@ test("fire-ledger rides computeVerdicts, reading the real ledger path", async ()
   const after = (await computeVerdicts(join(configDir, "ledger.json"))).find((v) => v.name === "fire-ledger");
   assert.equal(after.level, "ok", "a fresh line answers — and a torn line is skipped, not fatal");
   assert.match(after.message, /1 sweep\(s\)/);
+});
+
+// --- moved-fresh (BACKLOG "split `moved`", 2026-08-02) ---
+
+const fullPop = ({ freshAt = [] } = {}) =>
+  // 200 records, all movedRefires:1 (re-firing), except the indices in
+  // `freshAt` which carry a fresh recognition instead — the exact knob the
+  // house rule about a check needing to go GREEN on legitimate traffic
+  // (never alarming without ever clearing) requires.
+  Array.from({ length: 200 }, (_, i) => ({
+    ts: i,
+    movedFresh: freshAt.includes(i) ? 1 : 0,
+    movedRefires: freshAt.includes(i) ? 0 : 1,
+  }));
+
+test("BITE — moved-fresh: re-fires with zero fresh recognition over a full window warns", async () => {
+  const { movedFreshVerdict } = await import("../tools/shape-verdicts.mjs");
+  const v = movedFreshVerdict(fullPop());
+  assert.equal(v.level, "warn");
+  assert.match(v.message, /RE-FIRING/);
+  assert.match(v.message, /200/);
+});
+
+test("BITE — moved-fresh: does NOT alarm once a single fresh recognition appears — the check must clear on legitimate traffic", async () => {
+  const { movedFreshVerdict } = await import("../tools/shape-verdicts.mjs");
+  const v = movedFreshVerdict(fullPop({ freshAt: [199] }));
+  assert.equal(v.level, "ok", "one fresh recognition in the window is the mitigation still catching new drops");
+});
+
+test("moved-fresh: three answers — null (unreadable dir) warns named, a short window is an honest ok, never a bare alarm", async () => {
+  const { movedFreshVerdict, MOVED_FRESH_MIN_SAMPLE } = await import("../tools/shape-verdicts.mjs");
+  assert.equal(MOVED_FRESH_MIN_SAMPLE, 200);
+  const v0 = movedFreshVerdict(null);
+  assert.equal(v0.level, "warn");
+  assert.match(v0.message, /unreadable/);
+
+  const short = fullPop().slice(0, 50); // below MIN_SAMPLE, and it's all re-fires
+  const v1 = movedFreshVerdict(short);
+  assert.equal(v1.level, "ok", "a short window proves nothing either way — never an alarm");
+  assert.match(v1.message, /50 of 200/);
+});
+
+test("readMovedFreshRecords: reads every *-insertion-events.jsonl file, skips torn lines and non-pin records, sorts oldest-first", async () => {
+  const { readMovedFreshRecords } = await import("../tools/shape-verdicts.mjs");
+  const dir = join(configDir, "cache-fix-snapshots");
+  await mkdir(dir, { recursive: true });
+  await writeFile(
+    join(dir, "s-a-insertion-events.jsonl"),
+    [
+      JSON.stringify({ ts: "2026-08-02T10:00:02.000Z", action: "normalized", moved: 1, movedFresh: 0, movedRefires: 1 }),
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", action: "normalized", moved: 1, movedFresh: 1, movedRefires: 0 }),
+      JSON.stringify({ ts: "2026-08-02T10:00:01.000Z", event: "suppressed-duplicate", hash: "abc" }), // no movedFresh — a detail line
+      JSON.stringify({ ts: "2026-08-02T10:00:03.000Z", action: "append-only", inserted: 1 }), // plain mode — no movedFresh
+      "{ torn",
+    ].join("\n") + "\n",
+  );
+  await writeFile(
+    join(dir, "s-b-insertion-events.jsonl"),
+    JSON.stringify({ ts: "2026-08-02T10:00:04.000Z", action: "normalized", moved: 0, movedFresh: 0, movedRefires: 0 }) + "\n",
+  );
+  const records = await readMovedFreshRecords(dir);
+  assert.equal(records.length, 3, "only the three lines carrying movedFresh count — across BOTH files");
+  assert.deepEqual(records.map((r) => r.movedFresh), [1, 0, 0], "sorted oldest-to-newest by ts");
+  assert.deepEqual(records.map((r) => r.movedRefires), [0, 1, 0]);
+});
+
+test("readMovedFreshRecords: a missing snapshots directory is null, not an empty array", async () => {
+  const { readMovedFreshRecords } = await import("../tools/shape-verdicts.mjs");
+  const records = await readMovedFreshRecords(join(configDir, "does-not-exist"));
+  assert.equal(records, null);
+});
+
+test("moved-fresh rides computeVerdicts, reading the real snapshots dir", async () => {
+  const { computeVerdicts } = await import("../tools/shape-verdicts.mjs");
+  const before = (await computeVerdicts(join(configDir, "ledger.json"))).find((v) => v.name === "moved-fresh");
+  assert.ok(before, "the verdict must be in the CLI's output set");
+  assert.equal(before.level, "warn", "no snapshots directory yet in this scratch config dir");
+
+  const dir = join(configDir, "cache-fix-snapshots");
+  await mkdir(dir, { recursive: true });
+  await writeFile(
+    join(dir, "s-c-insertion-events.jsonl"),
+    JSON.stringify({ ts: new Date().toISOString(), action: "normalized", moved: 1, movedFresh: 1, movedRefires: 0 }) + "\n",
+  );
+  const after = (await computeVerdicts(join(configDir, "ledger.json"))).find((v) => v.name === "moved-fresh");
+  assert.equal(after.level, "ok", "1 of 200 needed — an honest ok, not an alarm on a thin window");
+  assert.match(after.message, /1 of 200/);
 });
