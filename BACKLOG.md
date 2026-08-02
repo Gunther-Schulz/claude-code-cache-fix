@@ -1256,6 +1256,58 @@ bullet, evidence pointer included.
   minimal absorb design and its red-first bite; any proxy/** fix is
   deployment-coupled and rides a stated boundary. Cost datum for the
   Mitigation policy: this single instance re-billed 535k tokens.
+  MECHANISM FOUND 2026-08-02 (opus investigation, dispatcher-verified
+  at the cited lines and by running the bite): NOT a definition gap
+  and NOT the wrapper-retention class (that evidence was sent to the
+  investigation and correctly tested-and-set-aside — the un-merge's
+  definition covers this pair byte-exactly). The miss is one level
+  below the definition, in OCCURRENCE-ORDINAL IDENTITY: identityKey
+  is `h|r|o` (insertion-normalization.mjs:381-383, applied
+  :1115-1117), and the 421-byte "task tools haven't been used
+  recently" nudge occurs 28x in the canonical against 27x on the
+  busting wire, so ordinals re-bind — the entry that actually
+  vanished (ci 545) matches the surviving copy at wire 584, leaving
+  `droppedNow = {560}`, the LAST ordinal, whose predecessor pins no
+  reminder, so findJoinMoves takes `continue` at :835 condition (b)
+  and returns []. The file already names this class and declares it
+  out of scope (:1108-1110, verified verbatim: "the general ordinal
+  instability of duplicate copies under middle-copy drops is a
+  pre-existing class and deliberately out of scope here") — THAT
+  SENTENCE IS THE DEFECT. Counterfactual on the real state:
+  attribute the drop to ci 545 and findJoinMoves returns exactly
+  {mergedIndex:569, ci:545, afterIdx:568}, conditions (a)-(f) all
+  holding, with wanted (622 + "\n\n" + 421 = 1045) byte-equal to
+  wire[569]. The reset is a CO-SYMPTOM, not upstream: the single
+  strict-increasing break in `matched` is the same misattribution
+  (ci 545->584 then 546->570). `moved:5` was five re-fires of
+  reserved entries — findJoinMoves minted ZERO fresh recognitions,
+  which is why "the mitigation ran" and "the mitigation matched"
+  came apart. Distinct from the CLOSED EXTENDED-absorb entry: unit 2
+  shipped and works, and the agent's control run shows today's code
+  absorbs the identical shape when the nudge has ONE copy; the
+  never-measured piece is DUPLICATE SIBLINGS.
+  DESIGN (settled, from the investigation): extend the match loop in
+  classifyPinned (:1082-1118) — no new function — so that for a
+  family (h,r) whose live stored count exceeds its wire count by
+  exactly one, attribution is re-derived with the same lo/hi
+  neighbourhood discriminator condition (d) already uses; fail
+  closed otherwise. Probed on the real request: 1 of 534 families
+  triggers and exactly one member qualifies ({ci 545, lo 568,
+  hi 570}). BITE exists and is dispatcher-run: ~40 lines synthetic,
+  no capture bytes — RED today ("a swallowed MIDDLE copy of a
+  recurring standalone is recognized as a join-move": moved 0), and
+  its CONTROL (one nudge copy) GREEN, so the bite isolates the
+  duplicate-sibling case rather than the machinery. Named gaps
+  before shipping: corpus-wide effect across the other captures not
+  measured, and row-3 restart safety not exercised (no state key
+  written, but freeze logic untested). EVIDENCE CORRECTION: the
+  earlier frozen fixture was the WRONG RANGE — `--pin n..m` takes
+  file-wide REQUEST ORDINALS (harvest.mjs:612-648) while
+  bust-triage's "n=591->595" is a MESSAGE COUNT; the busting pair is
+  ordinals 892..894, re-pinned as
+  test/fixtures/harvested/pinned-s-9f12950909ed-892-894.json (46 MB,
+  untracked and locally excluded; needs the fixture-cut floor before
+  it could be committed).
   CLASS COST, measured 2026-08-02 over the whole worktime ledger
   (58 bust events, 6 distinct days): `messages_changed` is the
   LARGEST single cause — 21 events, 5.99M tokens of context
