@@ -453,6 +453,22 @@ export async function triage(bust) {
 
 function fmt(t) { return new Date(t * 1000).toISOString().replace("T", " ").slice(0, 19); }
 
+/**
+ * The form statement `--list` prints above its rows.
+ *
+ * The list is NEWEST FIRST (coldEvents sorts descending) and truncated to a
+ * screenful. Neither fact is visible in the rows themselves, and a reader
+ * cannot check an ordering the instrument never states: a `tail` of this
+ * output returns the OLDEST rows of the slice while reading as "the latest
+ * events" — the shape behind a whole-period absence claim ("no busts today")
+ * built from a list whose today-rows sat at the top, delivered before it was
+ * caught (2026-08-02). Stating the form is what makes a slice of it honest.
+ */
+export function listHeader(events, shown) {
+  return `cold events — NEWEST FIRST, showing ${shown} of ${events.length}` +
+         ` (a tail of these rows is the OLDEST of them)`;
+}
+
 /** `--list` rows: every ❄-visible event, controlled ones labelled as such. */
 export function listRows(events) {
   return events.map((e) => {
@@ -492,7 +508,9 @@ async function main(argv) {
       process.stdout.write("no cold events in the worktime ledger.\n");
       return 0;
     }
-    for (const row of listRows(events.slice(0, 15))) process.stdout.write(row + "\n");
+    const slice = events.slice(0, 15);
+    process.stdout.write(listHeader(events, slice.length) + "\n");
+    for (const row of listRows(slice)) process.stdout.write(row + "\n");
     return 0;
   }
   const note = fallbackNote(events);

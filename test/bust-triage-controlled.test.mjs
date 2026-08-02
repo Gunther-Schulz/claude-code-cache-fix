@@ -19,7 +19,7 @@ import { writeFileSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { coldEvents, busts, listRows, fallbackNote } from "../tools/bust-triage.mjs";
+import { coldEvents, busts, listRows, listHeader, fallbackNote } from "../tools/bust-triage.mjs";
 
 function ledger(records) {
   const d = mkdtempSync(join(tmpdir(), "bt-controlled-"));
@@ -93,4 +93,22 @@ test("retraction and cause-upgrade markers are not themselves events", () => {
   ]));
   assert.equal(events.length, 1, "one surviving event");
   assert.equal(events[0].cause, "tools_changed", "the late-bound cause wins");
+});
+
+// --- the list states its own form ---
+//
+// `--list` is NEWEST FIRST and truncated. An output that does not say so is
+// misread by slicing: a `tail` of it returns the OLDEST rows of the slice
+// while reading as "the latest events", which is how a whole-period absence
+// claim ("none today") got built from a list whose today-rows sat at the top
+// and delivered to the operator (2026-08-02). A reader cannot check an
+// ordering the instrument never states, so the instrument states it.
+test("BITE — --list names its ordering and its truncation", () => {
+  const events = coldEvents(ledger([HIT, COST, RESUME]));
+  const full = listHeader(events, events.length);
+  assert.match(full, /NEWEST FIRST/, `ordering unstated: ${full}`);
+  assert.match(full, /showing 3 of 3/, `counts unstated: ${full}`);
+  // Truncation is the half a reader cannot see from the rows themselves.
+  const cut = listHeader(events, 1);
+  assert.match(cut, /showing 1 of 3/, `truncation hidden: ${cut}`);
 });
