@@ -52,6 +52,33 @@ bullet, evidence pointer included.
   Also live: two worktrees were removed at integration today; if
   `git worktree list` ever shows an `agent-` entry with no running
   agent, it is a leak — remove it.
+  **STANDING GO, carried from the 2026-08-02 session — this is the
+  operator's grant, not an assumption.** Work autonomously by best
+  judgement; dispatch freely without asking per-item; book and
+  persist everything as you go. Two explicit refinements the operator
+  made during that session, both to be continued: (a) do NOT blindly
+  book a request that is mis-scoped — improve it and say why, which
+  the operator called out approvingly twice; (b) do NOT close an
+  investigation on a first negative — the operator had to push for
+  another digging round and was right both times, which is now the
+  Grounding true-basis clause. Gates that still bind: anything
+  published under the operator's accounts (upstream issues, PR
+  comments) is DRAFTED and approved before posting; proxy/** changes
+  are deployment-coupled and ride a stated boundary with a dotfiles
+  pin bump + restart; haiku is barred; the fable consolidation review
+  of the corpus is booked in the dotfiles corpus backlog and must NOT
+  run in a session that authored those mints.
+  **PRIORITY ORDER for the next session**, highest value first:
+  (1) finish the ordinal fix from `stash@{0}` — it is the 535k-token
+  class and the design is settled; (2) the description-absorb build,
+  which now absorbs TWO measured classes (row 23 plus the row-24
+  `/resume` tools layer, the better test case since it recurs on
+  every resume); (3) the row-24 messages layer — investigate at opus,
+  escalate to fable if opus finds no design, explicitly not closable
+  on a cheap negative; (4) the deployment boundary once (1) and (2)
+  land: pin bump + restart carries both, plus the `movedFresh`
+  telemetry split which should ride the same restart rather than
+  spending a second boundary.
 
 - **NEW CLASS 2026-08-02 — description-only tools[] change re-bills
   the whole context; mitigation dispatched.** Live in the
