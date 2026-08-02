@@ -1105,9 +1105,10 @@ export function classifyPinned(messages, priorCanonical) {
     // entry on the existing append/splice path. Its stored key is retained for
     // telemetry and debugging and is no longer load-bearing anywhere.
     //
-    // Non-reserved entries keep absolute (h, r, o) matching byte-for-byte:
-    // the general ordinal instability of duplicate copies under middle-copy
-    // drops is a pre-existing class and deliberately out of scope here.
+    // Non-reserved entries keep absolute (h, r, o) matching here — but the
+    // absolute match is now the FIRST pass, not the last word: the
+    // re-attribution pass below re-derives WHICH member of a duplicate family
+    // dropped whenever the ordinals re-bound. See its comment for the scope.
     if (stored.rs) {
       reserved.push(ci);
       continue;
@@ -1115,6 +1116,144 @@ export function classifyPinned(messages, priorCanonical) {
     const idx = incomingByKey.get(identityKey(stored));
     if (idx === undefined) droppedNow.add(ci);
     else matched.push({ ci, idx });
+  }
+
+  // --- OCCURRENCE-ORDINAL RE-ATTRIBUTION (row 4, measured 2026-08-02) ---
+  //
+  // An ordinal is a position WITHIN A FAMILY of identical (hash, role) copies,
+  // counted over one request's array. When CC swallows a MIDDLE copy of a
+  // recurring text, every later copy shifts down one ordinal, so the absolute
+  // match above binds each survivor to its NEIGHBOUR'S wire slot and reports
+  // the LAST ordinal as the entry that vanished. Both halves are wrong, and
+  // both are load-bearing: the entry that actually left never reaches
+  // findJoinMoves (so no move can be recognized), and the shifted bindings can
+  // invert into `not-subsequence`.
+  //
+  // Measured on the 660k bust of 2026-08-02 (row 4, EXTENDED/MERGED-STANDALONE
+  // at host 568): the 421-byte "task tools haven't been used recently" nudge
+  // stood 28x in the canon and 27x on the wire; the copy at canonical 545 left,
+  // the pass above blamed 560 — whose predecessor pins no reminder, so
+  // findJoinMoves took its condition-(b) `continue` and returned []. Attributing
+  // the drop to 545 instead yields {mergedIndex:569, ci:545, afterIdx:568} with
+  // (a)-(f) holding and the joined bytes equal to wire[569].
+  //
+  // WHICH member left is re-derived with findJoinMoves' own condition-(d)
+  // neighbourhood, applied to the candidate rather than to the merged message:
+  // under the hypothesis "member k left", the members before k keep their wire
+  // slots and those after k shift down one, so every wire copy of the family is
+  // claimed under EVERY hypothesis and the only unclaimed slots in a gap are
+  // genuinely new messages. A candidate qualifies when its gap (lo, hi) — its
+  // nearest live canonical neighbours' wire indices, resolved exactly as
+  // findJoinMoves resolves them — is bounded and holds at least one such slot.
+  //
+  // FAIL CLOSED everywhere else, keeping today's behaviour byte-for-byte: any
+  // delta other than exactly one member, stored ordinals that are not the
+  // contiguous 0..n this reasoning assumes, an unresolvable neighbourhood, and
+  // — the case that matters — zero or MORE THAN ONE qualifying candidate. An
+  // ambiguous family is left to the absolute match; guessing between two
+  // members would re-serve one entry's bytes into another's slot.
+  //
+  // A re-bound member is RE-KEYED from the wire identity it bound to, exactly
+  // as the RECLAIM path below re-keys (`{ ...rest, h, r, o }`): once a binding
+  // is derived from the neighbourhood rather than from the key, the stored
+  // ordinal names a slot the entry no longer occupies. Skipping this was
+  // measured, not reasoned — three corpus captures reported a canonical ORDER
+  // violation (0fbf8674 n=1417 "canon#539 sits at wire 558 after wire 572",
+  // adf6cadb n=595, 6df6b9d2 n=839): the stale ordinals resolved to their
+  // siblings' wire slots. The instrument was reading the drift honestly — the
+  // NEXT request would have re-matched the whole family one slot off and
+  // dropped its last member again, once per request.
+  const reattributed = new Map(); // ci -> the stored entry, ordinal re-keyed
+  if (droppedNow.size > 0) {
+    const wireByFamily = new Map(); // `h|r` -> wire indices in ordinal order
+    for (const e of incoming) {
+      const key = `${e.h}|${e.r}`;
+      if (!wireByFamily.has(key)) wireByFamily.set(key, []);
+      wireByFamily.get(key).push(e.index);
+    }
+    const storedByFamily = new Map(); // `h|r` -> ci list in canonical order
+    for (let ci = 0; ci < priorCanonical.length; ci++) {
+      const s = priorCanonical[ci];
+      if (s.d || s.rs) continue;
+      const key = `${s.h}|${s.r}`;
+      if (!storedByFamily.has(key)) storedByFamily.set(key, []);
+      storedByFamily.get(key).push(ci);
+    }
+    const boundIdx = new Map(matched.map((m) => [m.ci, m.idx]));
+    const claimed = new Set(matched.map((m) => m.idx));
+    const rebind = new Map(); // ci -> the wire index it binds to instead
+    const unbind = new Set(); // ci -> the member re-attributed as dropped
+    for (const [key, members] of storedByFamily) {
+      const wire = wireByFamily.get(key) ?? [];
+      const n = wire.length;
+      if (members.length !== n + 1) continue;
+      if (!members.every((ci, j) => priorCanonical[ci].o === j)) continue;
+
+      const pos = new Map(members.map((ci, j) => [ci, j]));
+      const at = (ci, k) => {
+        const j = pos.get(ci);
+        if (j === undefined) return boundIdx.get(ci);
+        if (j === k) return undefined;
+        return j < k ? wire[j] : wire[j - 1];
+      };
+      const qualifying = [];
+      for (let k = 0; k <= n; k++) {
+        const ci = members[k];
+        let lo = -1;
+        for (let j = ci - 1; j >= 0; j--) {
+          if (priorCanonical[j].d) continue;
+          lo = at(j, k) ?? -1;
+          break;
+        }
+        if (lo < 0) continue;
+        let hi = -1;
+        for (let j = ci + 1; j < priorCanonical.length; j++) {
+          if (priorCanonical[j].d) continue;
+          const b = at(j, k);
+          if (b !== undefined) {
+            hi = b;
+            break;
+          }
+        }
+        if (hi <= lo) continue;
+        for (let idx = lo + 1; idx < hi; idx++) {
+          if (!claimed.has(idx)) {
+            qualifying.push(k);
+            break;
+          }
+        }
+      }
+      if (qualifying.length !== 1) continue;
+      const k = qualifying[0];
+      if (k === n) continue; // already today's attribution: nothing to re-derive
+
+      for (let j = k + 1; j <= n; j++) {
+        rebind.set(members[j], wire[j - 1]);
+        boundIdx.set(members[j], wire[j - 1]);
+        reattributed.set(members[j], { ...priorCanonical[members[j]], o: incoming[wire[j - 1]].o });
+      }
+      unbind.add(members[k]);
+      boundIdx.delete(members[k]);
+      droppedNow.delete(members[n]);
+      droppedNow.add(members[k]);
+    }
+    if (unbind.size > 0) {
+      for (let i = matched.length - 1; i >= 0; i--) {
+        if (unbind.has(matched[i].ci)) {
+          matched.splice(i, 1);
+          continue;
+        }
+        const nb = rebind.get(matched[i].ci);
+        if (nb !== undefined) {
+          matched[i].idx = nb;
+          rebind.delete(matched[i].ci);
+        }
+      }
+      // What is left in `rebind` is the member the absolute match had reported
+      // dropped: it has no row to rewrite, so it enters `matched` here.
+      for (const [ci, idx] of rebind) matched.push({ ci, idx });
+      matched.sort((a, b) => a.ci - b.ci);
+    }
   }
 
   // --- Per-request disposition of the reserved entries ---
@@ -1232,7 +1371,7 @@ export function classifyPinned(messages, priorCanonical) {
   }
   const refireByIdx = new Map(refires.map((r) => [r.index, r]));
   const refiredCi = new Set(refires.map((r) => r.ci));
-  const storedAt = (ci) => reservedOverride.get(ci) ?? priorCanonical[ci];
+  const storedAt = (ci) => reservedOverride.get(ci) ?? reattributed.get(ci) ?? priorCanonical[ci];
 
   // Computed here rather than after the order checks below because
   // resetKeepingPins needs `newEntries` to recognize a move, and both of the
