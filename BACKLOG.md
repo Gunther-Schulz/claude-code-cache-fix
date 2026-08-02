@@ -8,6 +8,60 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **NEW CLASS 2026-08-02 — description-only tools[] change re-bills
+  the whole context; mitigation dispatched.** Live in the
+  dispatcher's own session: bust 15:53:46, 552k re-written,
+  transcript `tools_changed / 484972`, capture pair 15:53:08.789Z ->
+  15:53:26.105Z (ordinals 1200..1202). Measured on the raw bodies:
+  the tool SET is unchanged (13 before, 13 after, no adds, no
+  removes, same order) and exactly ONE tool differs — `Bash`, with
+  `name` identical and `input_schema` BYTE-IDENTICAL, only
+  `description` growing 2907 -> 2984 chars. **77 bytes of tool prose
+  re-billed 484,972 tokens**, because tools precede messages in the
+  cache prefix. The added line is advisory ("Command output is
+  displayed to you, not reliably to the user"), i.e. a client-side
+  text edit, not a capability change. Messages were `append-only`,
+  so nothing mid-history moved — this is purely a tools-block event.
+  deferred-tool-rewrite BEHAVED AS DESIGNED and is not at fault: its
+  telemetry reads `action=reset reason=tool-schema-changed` — it
+  holds tools[] stable for ADDITIONS (announce in-band) and takes the
+  honest reset for any schema change to an existing tool. Nothing
+  covered a description-only delta.
+  MITIGABILITY: YES, and the boundary is what makes it safe —
+  identical `input_schema` guarantees the model cannot emit a call
+  the client is unable to execute, so a stale DESCRIPTION is safe
+  where a stale SCHEMA is not. Design (settled, dispatched to opus
+  in an isolated worktree): on a delta that is description-only,
+  forward the CANONICAL tools block and announce the changed
+  description in-band via the extension's EXISTING announcement
+  machinery, with distinct telemetry; anything touching name,
+  input_schema, set or order keeps today's honest reset. Verifier:
+  red-first bite on a description-only pair plus a CONTROL bite
+  proving an input_schema delta still resets, and a live replay of
+  ordinals 1200..1202 showing the forwarded tools block byte-stable.
+  Deployment-coupled (proxy/**), rides a stated boundary.
+  INSTRUMENT GAP found in the same triage, booked below: bust-triage
+  called this UNCLASSIFIED although it had already read and printed
+  `transcript tools_changed`.
+
+- **READY — bust-triage's verdict must consult the transcript cause,
+  not only the census class.** On the 15:53:46 bust the tool printed
+  `OK transcript tools_changed / 484972` and then `VERDICT:
+  UNCLASSIFIED — census class "append-only" maps to no
+  threat-matrix row`. Both statements are true and the verdict is
+  still wrong: the census classifies the MESSAGE array, so a
+  tools-driven bust whose messages are legitimately append-only is
+  unclassifiable BY CONSTRUCTION on that axis, and the tool already
+  holds the answer one line above. Design: when the census class
+  maps to no row, fall back to the transcript cause (`tools_changed`
+  -> the tools-stability row, `messages_changed` -> row 4, etc.)
+  before returning UNCLASSIFIED; keep UNCLASSIFIED for the genuine
+  case where NEITHER axis maps, since that verdict is this tool's
+  whole payload. Verifier: bite red-first on a synthetic
+  append-only + tools_changed event asserting the row is named, and
+  a control asserting an unmappable pair still returns UNCLASSIFIED.
+  tools/-only, not deployment-coupled.
+
 - **READY — split `moved` into fresh recognitions vs re-fires
   (the instrument change the 660k bust argues for).** Grounding,
   verified at the line: insertion-normalization.mjs:1062 emits
