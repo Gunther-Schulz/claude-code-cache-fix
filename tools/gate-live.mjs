@@ -228,6 +228,7 @@ function summarise(file, bytes, res) {
   // on the row rather than recomputed at sweep level because the replay JSON
   // it is derived from is not retained past this function.
   row.fireRaw = summariseFireRaw(parsed);
+  row.fireBytes = summariseFireBytes(parsed);
   const f = parsed.fidelity;
   if (f) {
     row.fidelityComparable = f.comparable ?? 0;
@@ -376,6 +377,11 @@ export function describeByteGate(g) {
 // nothing. Each column is its own time series, read down the ledger, and
 // the retirement question is asked of RAW alone.
 //
+// The line carries two more objects on the same 7-class key set —
+// `savedBytes` and `leakedBytes`, the cost half of the same question. They
+// are BYTES, so neither is comparable to either count column; the unit rules
+// among all four are spelled out at summariseFireBytes below.
+//
 // `null` is not 0 anywhere here. A class whose source is absent (no census
 // measure, gate off, unreadable log) records null; 0 means the source was
 // read and nothing fired. Collapsing those two is exactly how a mitigation
@@ -461,6 +467,95 @@ export function reduceFireRaw(rows) {
   }, null);
   raw.duplicates = dup;
   return { raw, partial };
+}
+
+// --- SAVED vs LEAKED bytes (BACKLOG "fire-ledger SAVED-vs-LEAKED bytes columns") ---
+//
+// The count columns answer "is this class still happening". These answer what
+// it COST — the proxy's justification number, on the same line and the same
+// cadence as the retirement evidence, so a retirement argument and a
+// keep-it-running argument read off one series.
+//
+// Both objects carry the full 7-class key set, so a reader indexes them
+// exactly like raw/absorbed, and both are drawn from the CENSUS rows the RAW
+// column already draws from — never from the event logs. That is what makes
+// their denominator RAW's (the whole capture corpus this sweep replayed), and
+// it has a consequence worth stating: unlike raw-vs-absorbed, these two ARE
+// comparable to each other, and saved/(saved+leaked) is the one ratio on this
+// line that means something. Neither is comparable to a COUNT column — bytes
+// against occurrences — nor to ABSORBED, which counts a different window.
+//
+// What the census rows actually carry, read off real rows rather than assumed
+// (capture s-66797e31, 34-capture corpus, 2026-08-02):
+//
+//   relocations  findMitigationGaps rows carry `rebilledBytes` — LEAKED, the
+//                input-side re-bill of a passthrough. A mitigated row
+//                contributes 0 by construction (replay.mjs:1044), so the sum
+//                is exactly "passed through", the number replay's own human
+//                output prints as "passed through: ~N MB re-billed"
+//                (replay.mjs:2688).
+//   the other six  no byte field on the source row at all. blockMigrations
+//                rows are {n, prevN, ts, direction, sourceIdx, targetIdx,
+//                hash} (replay.mjs:1285), which leaves suppressions,
+//                oscillationAbsorptions and blockMigrations with no byte
+//                measure; toolsDeltas rows carry tool COUNTS, not sizes
+//                (replay.mjs:780); duplicates comes from the byteGate rollup,
+//                whose duplicate stats are all request/streak counts
+//                (reduceByteGate above); guardRestores has no raw source at
+//                all. Six nulls, six different reasons, none of them zero.
+//
+// SAVED is null in all seven, and the reason is one expression rather than a
+// missing concept: findMitigationGaps computes the pre-mitigation re-bill and
+// then throws it away — `rebilledBytes: mitigated ? 0 : rebilled`
+// (replay.mjs:1044). The size a mitigation ABSORBED is therefore not in the
+// row, and gate-live cannot recover it (the census JSON carries no per-message
+// byte arrays — checked: its top-level keys are report/violations/…/trace, no
+// inBytes). Writing 0 here would report "saved nothing" for the one class that
+// demonstrably saves the most — the null-vs-0 error this whole ledger exists
+// to avoid. Making it real is a replay.mjs change (retain the pre-mitigation
+// number in its own field); until then the column is honestly empty, and the
+// suite pins it so a future invented proxy measure has to argue with a test.
+//
+// `rebilledOutBytes` is deliberately NOT summed into leakedBytes: output
+// tokens price differently from input tokens, so a sum of the two prices
+// nothing. If the output-side leak is wanted it is its own column.
+export function summariseFireBytes(parsed) {
+  const mit = Array.isArray(parsed?.mitigation) ? parsed.mitigation : null;
+  const saved = {};
+  const leaked = {};
+  for (const cls of FIRE_CLASSES) {
+    saved[cls] = null;
+    leaked[cls] = null;
+  }
+  if (mit) {
+    leaked.relocations = mit.reduce(
+      (a, m) => a + (typeof m.rebilledBytes === "number" ? m.rebilledBytes : 0),
+      0,
+    );
+  }
+  return { saved, leaked };
+}
+
+/** Sweep-wide SAVED/LEAKED: the same null-preserving sum reduceFireRaw does.
+ * A class no capture measured stays null; summing nulls as zeros would put a
+ * "0 bytes leaked" into the series for a measure that never ran. */
+export function reduceFireBytes(rows) {
+  const sum = (pick) => {
+    const out = {};
+    for (const cls of FIRE_CLASSES) {
+      let acc = null;
+      for (const r of rows) {
+        const v = pick(r)?.[cls];
+        if (typeof v === "number") acc = (acc ?? 0) + v;
+      }
+      out[cls] = acc;
+    }
+    return out;
+  };
+  return {
+    savedBytes: sum((r) => r.fireBytes?.saved),
+    leakedBytes: sum((r) => r.fireBytes?.leaked),
+  };
 }
 
 // ABSORBED sources. `gate` is the env the WRITER reads: gate off means the
@@ -813,6 +908,7 @@ async function main() {
   const prevTs = await lastFireLedgerTs(args.fireLedger);
   const windowFrom = prevTs ?? new Date(Date.parse(fireTs) - FIRE_FIRST_WINDOW_H * 3600_000).toISOString();
   const { raw: fireRaw, partial } = reduceFireRaw(rows);
+  const { savedBytes, leakedBytes } = reduceFireBytes(rows);
   const measurable = absorbedMeasurable(prodEnv, envSource);
   const fireLine = {
     ts: fireTs,
@@ -825,6 +921,11 @@ async function main() {
     captures: rows.length,
     raw: fireRaw,
     absorbed: await collectAbsorbed(args.snapshots, Date.parse(windowFrom), Date.parse(fireTs), measurable),
+    // Bytes, on RAW's denominator (summariseFireBytes). New fields only —
+    // lines written before this shipped stay parseable, and every consumer
+    // reads by key, so an older line simply has no bytes to report.
+    savedBytes,
+    leakedBytes,
     ...(Object.keys(partial).length ? { rawPartial: partial } : {}),
   };
   try {
@@ -849,11 +950,17 @@ async function main() {
         : "\n"),
     );
     const col = (o) => FIRE_CLASSES.map((c) => `${c}=${o[c] === null ? "n/a" : o[c]}`).join(" ");
+    const kbCol = (o) =>
+      FIRE_CLASSES.map((c) => `${c}=${o[c] === null ? "n/a" : `${(o[c] / 1e3).toFixed(0)}kB`}`).join(" ");
     process.stdout.write(
       `fire-ledger -> ${args.fireLedger}\n` +
       `  cc ${fireLine.ccVersions.join(",") || "unknown"}; absorbed window ${fireLine.windowFrom}${fireLine.windowSeeded ? " (seeded)" : ""}\n` +
       `  raw      ${col(fireLine.raw)}\n` +
-      `  absorbed ${col(fireLine.absorbed)}\n`,
+      `  absorbed ${col(fireLine.absorbed)}\n` +
+      // Bytes, not counts — printed as kB so nobody reads them as a fifth
+      // count row. n/a is a real answer here: see summariseFireBytes.
+      `  saved    ${kbCol(fireLine.savedBytes)}\n` +
+      `  leaked   ${kbCol(fireLine.leakedBytes)}\n`,
     );
   }
   // Non-zero on a failing sweep AND on an empty one: "no captures" means the

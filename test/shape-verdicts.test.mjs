@@ -334,6 +334,39 @@ test("BITE — a frozen series warns: the sweep stopped, the evidence is not acc
   assert.equal(fireLedgerVerdict([fireLine({ ts: "not-a-date" })]).level, "warn");
 });
 
+test("BITE — a MIXED-schema ledger parses and still answers (old lines carry no bytes)", async () => {
+  const { fireLedgerVerdict, readFireLedger } = await import("../tools/shape-verdicts.mjs");
+  // The bytes columns shipped after the counts, so every real ledger on disk
+  // is mixed for the rest of its life. An old line is not a corrupt line: the
+  // verdict reads by key and must neither throw on the missing objects nor
+  // let them change what it says about the counts.
+  const old = fireLine({ ts: "2026-08-01T06:00:00.000Z",
+                         absorbed: { suppressions: 3, guardRestores: 0, duplicates: null } });
+  const fresh = fireLine({
+    ts: "2026-08-02T06:00:00.000Z",
+    absorbed: { suppressions: 0, guardRestores: 0, duplicates: null },
+    savedBytes: { suppressions: null, guardRestores: null, duplicates: null },
+    leakedBytes: { suppressions: null, guardRestores: null, duplicates: 17203 },
+  });
+  const v = fireLedgerVerdict([old, fresh], AT);
+  assert.equal(v.level, "ok");
+  assert.match(v.message, /2 sweep\(s\)/);
+  // The counts answer is byte-blind: identical to the same series without the
+  // bytes fields. Bytes joining the line must not move a retirement reading.
+  const bare = fireLedgerVerdict([old, fireLine({
+    ts: "2026-08-02T06:00:00.000Z",
+    absorbed: { suppressions: 0, guardRestores: 0, duplicates: null },
+  })], AT);
+  assert.equal(v.message, bare.message, "the bytes columns are not part of the counts verdict");
+  // And the reader itself hands both line shapes back intact.
+  const p = join(configDir, "mixed-fire.jsonl");
+  await writeFile(p, JSON.stringify(old) + "\n" + JSON.stringify(fresh) + "\n");
+  const lines = await readFireLedger(p);
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0].leakedBytes, undefined, "an old line gains nothing on read");
+  assert.equal(lines[1].leakedBytes.duplicates, 17203);
+});
+
 test("fire-ledger rides computeVerdicts, reading the real ledger path", async () => {
   const { computeVerdicts, fireLedgerPath } = await import("../tools/shape-verdicts.mjs");
   // configDir is this test's CLAUDE_CONFIG_DIR, so the path resolves inside it.

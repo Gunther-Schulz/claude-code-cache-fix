@@ -25,6 +25,7 @@ import {
   summariseFireRaw, reduceFireRaw, absorbedMeasurable, tallyEventLines,
   collectAbsorbed, collectCcVersions, transcriptVersions, lastFireLedgerTs,
   sidOfCapture, FIRE_CLASSES,
+  summariseFireBytes, reduceFireBytes,
 } from "../tools/gate-live.mjs";
 
 const json = (o) => ({ code: 0, out: JSON.stringify(o), err: "" });
@@ -236,6 +237,85 @@ test("BITE — duplicates come from the census rollup, and absence stays null", 
   assert.equal(noDup.raw.duplicates, null, "a census that could not run measured nothing");
 });
 
+// --- SAVED vs LEAKED bytes ---
+//
+// Same null-vs-0 distinction as the counts, one step nastier: a byte column
+// is a COST claim, so a 0 that should have been null reads as "this class is
+// free" and a retirement gets argued on it.
+
+test("fire-bytes: LEAKED comes off the mitigation rows, everything else is null", () => {
+  const b = summariseFireBytes({
+    mitigation: [
+      { mitigated: false, rebilledBytes: 9913, rebilledOutBytes: 0 },
+      { mitigated: false, rebilledBytes: 7290, rebilledOutBytes: 0 },
+    ],
+    // Populated but byte-less sources: these must NOT produce a 0.
+    blockMigrations: [{ direction: "inline->standalone" }, { direction: "inline->standalone", flap: {} }],
+    toolsDeltas: [{ count: "12->14" }],
+  });
+  assert.equal(b.leaked.relocations, 17203, "the input-side re-bill of the passthroughs");
+  for (const cls of FIRE_CLASSES) {
+    if (cls === "relocations") continue;
+    assert.equal(b.leaked[cls], null, `${cls} source rows carry no byte field — null, not 0`);
+  }
+});
+
+test("fire-bytes: a mitigated row leaks nothing, so LEAKED is 'passed through'", () => {
+  // replay.mjs:1044 writes rebilledBytes 0 on a mitigated row, so a corpus
+  // where every relocation was mitigated is a real, measured zero — the one
+  // case in this block where 0 is the right answer.
+  const b = summariseFireBytes({
+    mitigation: [
+      { mitigated: true, rebilledBytes: 0, rebilledOutBytes: 4096 },
+      { mitigated: false, rebilledBytes: 500, rebilledOutBytes: 0 },
+    ],
+  });
+  assert.equal(b.leaked.relocations, 500, "only the passthrough is a leak");
+  // rebilledOutBytes is NOT folded in: output tokens price differently, so a
+  // sum of the two prices nothing (summariseFireBytes' closing note).
+  assert.notEqual(b.leaked.relocations, 4596);
+});
+
+test("fire-bytes: SAVED has no source anywhere — null on every class, never 0", () => {
+  // The declared gap, asserted so an invented proxy measure has to argue with
+  // a test (the guardRestores precedent above). findMitigationGaps discards
+  // the pre-mitigation size — `rebilledBytes: mitigated ? 0 : rebilled`
+  // (replay.mjs:1044) — so no amount of reading the census recovers it.
+  const b = summariseFireBytes({
+    mitigation: [{ mitigated: true, rebilledBytes: 0, rebilledOutBytes: 4096 }],
+    blockMigrations: [{ direction: "inline->standalone" }],
+    toolsDeltas: [{ count: "12->14" }],
+  });
+  for (const cls of FIRE_CLASSES) {
+    assert.equal(b.saved[cls], null, `saved.${cls} is unmeasured, and unmeasured is not 0 saved`);
+  }
+});
+
+test("BITE — a byte column no capture measured stays null through the sweep rollup", () => {
+  const empty = reduceFireBytes([
+    { fireBytes: summariseFireBytes({}) },
+    { fireBytes: summariseFireBytes({}) },
+  ]);
+  for (const cls of FIRE_CLASSES) {
+    assert.equal(empty.savedBytes[cls], null, `savedBytes.${cls} must not sum nulls into 0`);
+    assert.equal(empty.leakedBytes[cls], null, `leakedBytes.${cls} must not sum nulls into 0`);
+  }
+  // A capture that MEASURED the class contributes; one that could not stays
+  // out of the sum rather than dragging it to 0.
+  const mixed = reduceFireBytes([
+    { fireBytes: summariseFireBytes({ mitigation: [{ rebilledBytes: 100 }] }) },
+    { fireBytes: summariseFireBytes({}) },
+    { fireBytes: summariseFireBytes({ mitigation: [{ rebilledBytes: 250 }] }) },
+  ]);
+  assert.equal(mixed.leakedBytes.relocations, 350);
+  assert.equal(mixed.leakedBytes.suppressions, null, "an unmeasurable class survives the rollup as null");
+  assert.equal(mixed.savedBytes.relocations, null);
+  // A row with no fireBytes at all (a capture the gate could not run) must
+  // not throw and must not count as a zero.
+  const missing = reduceFireBytes([{}, { fireBytes: summariseFireBytes({ mitigation: [] }) }]);
+  assert.equal(missing.leakedBytes.relocations, 0, "an EMPTY measured array is a real zero");
+});
+
 test("BITE — a gate that is OFF makes its absorbed column unmeasurable, not zero", () => {
   const on = absorbedMeasurable(
     ["CACHE_FIX_INSERTION_NORMALIZE=1", "CACHE_FIX_TOOL_REWRITE=1", "CACHE_FIX_OUTPUT_GUARD=1"],
@@ -399,13 +479,19 @@ test("BITE — a real sweep appends exactly one well-formed ledger line", async 
   assert.ok(Array.isArray(rec.ccVersions));
   assert.equal(rec.captures, 1);
   for (const cls of FIRE_CLASSES) {
-    for (const col of ["raw", "absorbed"]) {
+    // The bytes objects carry the SAME key set as the counts — a reader
+    // indexes all four the same way, and a missing key is indistinguishable
+    // from an unmeasured one at read time.
+    for (const col of ["raw", "absorbed", "savedBytes", "leakedBytes"]) {
       assert.ok(cls in rec[col], `${col}.${cls} missing — a class with no column cannot be retired or re-opened`);
       const v = rec[col][cls];
       assert.ok(v === null || typeof v === "number", `${col}.${cls} must be a number or null, got ${JSON.stringify(v)}`);
     }
   }
   assert.equal(rec.raw.guardRestores, null, "the declared raw gap survives a real run");
+  for (const cls of FIRE_CLASSES) {
+    assert.equal(rec.savedBytes[cls], null, "the declared saved gap survives a real run");
+  }
 
   // Append-only, and the second run inherits the first's ts as its window.
   await run();
