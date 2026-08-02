@@ -1837,7 +1837,8 @@ const isDeclaredStrip = (u) => u.text !== null && isClearArtifact(u.text);
 // peel as a lost R-side unit (the whole pre-peel tool_result) plus an
 // invented F-side unit per resulting block (the post-peel tool_result and
 // each peeled reminder) — ten violations, five requests, all at [2], on
-// capture s-00b19d9b-afd8-4476-b177-87f2deca0352.
+// capture s-00b19d9b (short key: full session ids stay out of the public tree,
+// absence-scan's source-UUID guard).
 //
 // Chains the extension's OWN export rather than re-deriving the regex or the
 // peel logic — one definition of "a peel" in the codebase, same discipline

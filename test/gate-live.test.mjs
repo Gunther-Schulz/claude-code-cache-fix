@@ -415,7 +415,7 @@ test("cc versions: read from the transcript that owns the swept session", async 
   const root = await mkdtemp(join(tmpdir(), "fire-projects-"));
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(join(root, "-home-g-dev-x"), { recursive: true });
-  const sid = "73b3ce83-7733-4c9a-a887-edb93fad1f23";
+  const sid = "00000000-0000-4000-8000-c4f1efb22222";
   await writeFile(join(root, "-home-g-dev-x", `${sid}.jsonl`), [
     JSON.stringify({ type: "user", version: "2.1.219", sessionId: sid }),
     JSON.stringify({ type: "assistant", version: "2.1.220", sessionId: sid }),
@@ -423,7 +423,7 @@ test("cc versions: read from the transcript that owns the swept session", async 
     JSON.stringify({ type: "user", message: { content: "the version: 9.9.9" } }),
   ].join("\n") + "\n");
   // A transcript for a session this sweep did NOT touch must not contribute.
-  await writeFile(join(root, "-home-g-dev-x", "00000000-0000-0000-0000-000000000000.jsonl"),
+  await writeFile(join(root, "-home-g-dev-x", "00000000-0000-4000-8000-c4f1efb22223.jsonl"),
     JSON.stringify({ version: "1.0.0" }) + "\n");
 
   assert.equal(sidOfCapture(`s-${sid}-requests.jsonl`), sid);

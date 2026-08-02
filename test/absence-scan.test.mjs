@@ -281,6 +281,8 @@ const SOURCE_UUID_ALLOWLIST = new Set([
   "9d1c250a-e61b-44d9-88ed-5944d1962f5e", // Anthropic's PUBLIC OAuth client_id
   // docs/ synthetics, each a placeholder by construction:
   "00000000-0000-4000-8000-c4f1efb22221", // release-test harness's pinned --session-id, sibling of ...22220
+  "00000000-0000-4000-8000-c4f1efb22222", // gate-live cc-version test's swept session, sibling of ...22220
+  "00000000-0000-4000-8000-c4f1efb22223", // gate-live cc-version test's NOT-swept session, sibling of ...22220
   "abcd1234-5678-90ab-cdef-1234567890ab", // the "e.g." 8-4-4-4-12 format sample in proxy-jsonl-session-mirror.md
 ]);
 

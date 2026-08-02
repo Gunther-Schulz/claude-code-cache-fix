@@ -1501,7 +1501,8 @@ test("conservation: BITE — the strip exemption does NOT cover ordinary content
 
 // --- Clause (d): smoosh-split's declared peel ---
 //
-// The live shape found on capture s-00b19d9b-afd8-4476-b177-87f2deca0352: a
+// The live shape found on capture s-00b19d9b (short key: full session ids stay
+// out of the public tree, absence-scan's source-UUID guard): a
 // tool_result's STRING content ends with a trailing <system-reminder>, and
 // smoosh-split peels it into a standalone text block appended to the SAME
 // message — content redistributed within the message, never removed.
