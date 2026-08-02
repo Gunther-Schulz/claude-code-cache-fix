@@ -421,6 +421,116 @@ export function duplicateBillingVerdict(status) {
   };
 }
 
+// --- Fire-ledger consumer (BACKLOG "mitigation fire-rate ledger") ---
+//
+// gate-live appends one line per sweep with two columns per class: RAW (what
+// CC did, census-measured off the captured bytes — keeps counting with the
+// gate off) and ABSORBED (what the mitigation did about it). This is the
+// reader that turns that series into the one question a retirement asks:
+// which mitigations have gone quiet, and is the behavior they absorb still
+// happening?
+//
+// Deliberately INFORMATIONAL. A quiet mitigation is not a defect and must
+// not fire a warn: retirement takes an upstream ref and an operator ruling
+// (robustness-threat-matrix.md, Retirement policy), so a mechanical alarm
+// here would fire on legitimate work every day until someone learned to
+// ignore it. What DOES warn is the same thing that warns everywhere else in
+// this file: an inability to answer — no ledger, an empty one, or a series
+// that has stopped accumulating.
+export const FIRE_LEDGER_MAX_AGE_H = HARVEST_MAX_AGE_H;
+// How far back "is the raw behavior still happening?" looks. Two weeks of
+// daily sweeps: long enough that a quiet stretch means something, short
+// enough that a class fixed upstream stops reading as active.
+export const FIRE_RECENT_SWEEPS = 14;
+
+export function fireLedgerPath() {
+  return join(claudeHome(), "cache-fix-fire-ledger.jsonl");
+}
+
+const days = (ms) => Math.round(ms / 86_400_000);
+
+export function fireLedgerVerdict(lines, nowMs = Date.now()) {
+  const name = "fire-ledger";
+  if (!Array.isArray(lines) || !lines.length) {
+    return {
+      name,
+      level: "warn",
+      message:
+        "fire-ledger: no ledger lines yet — mitigation fire rates are NOT currently tracked, " +
+        "so no retirement has evidence (gate-live --fire-ledger writes it)",
+    };
+  }
+  const newest = lines[lines.length - 1];
+  const newestMs = Date.parse(newest.ts ?? "");
+  if (Number.isNaN(newestMs)) {
+    return { name, level: "warn", message: "fire-ledger: newest line carries no readable ts — the series cannot be dated" };
+  }
+  const ageH = (nowMs - newestMs) / 3600_000;
+  if (ageH > FIRE_LEDGER_MAX_AGE_H) {
+    return {
+      name,
+      level: "warn",
+      message:
+        `fire-ledger: newest line is ${Math.round(ageH)}h old (sweep is daily) — ` +
+        `the series is frozen, retirement evidence is NOT accumulating`,
+    };
+  }
+  const recent = lines.slice(-FIRE_RECENT_SWEEPS);
+  const classes = Object.keys(newest.raw ?? newest.absorbed ?? {});
+  const firing = [];
+  const quiet = [];
+  const unmeasured = [];
+  for (const cls of classes) {
+    if (typeof newest.absorbed?.[cls] !== "number") {
+      unmeasured.push(cls);
+      continue;
+    }
+    // RAW across the recent window: null everywhere means the behavior is
+    // unmeasured, which is NOT "the behavior stopped" — the distinction the
+    // whole two-column shape exists to keep.
+    let rawSum = null;
+    for (const l of recent) {
+      const v = l.raw?.[cls];
+      if (typeof v === "number") rawSum = (rawSum ?? 0) + v;
+    }
+    const rawText = rawSum === null ? "raw unmeasured" : `raw ${rawSum}`;
+    let lastFire = null;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if ((lines[i].absorbed?.[cls] ?? 0) > 0) { lastFire = lines[i]; break; }
+    }
+    if (lastFire) {
+      firing.push(`${cls} ${days(nowMs - Date.parse(lastFire.ts))}d (${rawText})`);
+    } else {
+      quiet.push(`${cls} never in ${lines.length} sweep(s) (${rawText})`);
+    }
+  }
+  const parts = [
+    `${lines.length} sweep(s), newest ${Math.round(ageH)}h old`,
+    `cc ${(newest.ccVersions ?? []).join(",") || "unknown"}`,
+  ];
+  if (firing.length) parts.push(`last absorbed: ${firing.join("; ")}`);
+  if (quiet.length) parts.push(`QUIET: ${quiet.join("; ")}`);
+  if (unmeasured.length) parts.push(`no absorbed source: ${unmeasured.join(", ")}`);
+  return { name, level: "ok", message: `fire-ledger: ${parts.join("; ")}` };
+}
+
+export async function readFireLedger(path = fireLedgerPath()) {
+  let text;
+  try {
+    text = await readFile(path, "utf-8");
+  } catch {
+    return null;
+  }
+  const out = [];
+  for (const line of text.split("\n")) {
+    if (!line) continue;
+    try {
+      out.push(JSON.parse(line));
+    } catch { /* a torn line is skipped, never treated as a sweep */ }
+  }
+  return out;
+}
+
 // Read the same status file servingGate reads (cache-fix-gate-status.json),
 // async and uncached — computeVerdicts runs once per CLI invocation, so a
 // per-process cache buys nothing here and would only risk staleness if this
@@ -457,6 +567,7 @@ export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
     baselineStepVerdict(committed, current),
     retentionVerdict(committed, current),
     duplicateBillingVerdict(await readGateStatus()),
+    fireLedgerVerdict(await readFireLedger()),
     ...(await computeTelemetryVerdicts()),
   ];
 }

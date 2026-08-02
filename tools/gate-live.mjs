@@ -33,7 +33,7 @@
 // precisely what this is here to report.
 
 import { spawn, spawnSync } from "node:child_process";
-import { readdir, stat, writeFile, mkdir, readFile } from "node:fs/promises";
+import { readdir, stat, writeFile, appendFile, mkdir, readFile, open } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir, hostname } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -45,6 +45,9 @@ const REPLAY = join(__dirname, "replay.mjs");
 const CENSUS = join(__dirname, "reminder-migration-census.mjs");
 const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
 const DEFAULT_STATUS = join(homedir(), ".claude", "cache-fix-gate-status.json");
+const DEFAULT_FIRE_LEDGER = join(homedir(), ".claude", "cache-fix-fire-ledger.jsonl");
+const DEFAULT_SNAPSHOTS = join(homedir(), ".claude", "cache-fix-snapshots");
+const DEFAULT_TRANSCRIPTS = join(homedir(), ".claude", "projects");
 
 // --- Production gate set ---
 //
@@ -221,6 +224,10 @@ function summarise(file, bytes, res) {
   // "9 captures sauber" with three unproving rows was a padded verdict.
   row.pairs = parsed.census?.pairs ?? null;
   row.provesNothing = row.pairs === 0;
+  // The fire ledger's RAW column for this capture (FIRE_CLASSES above). Kept
+  // on the row rather than recomputed at sweep level because the replay JSON
+  // it is derived from is not retained past this function.
+  row.fireRaw = summariseFireRaw(parsed);
   const f = parsed.fidelity;
   if (f) {
     row.fidelityComparable = f.comparable ?? 0;
@@ -340,12 +347,337 @@ export function describeByteGate(g) {
   );
 }
 
+// --- Mitigation fire ledger (BACKLOG "which extensions still earn their keep") ---
+//
+// The status file keeps only the LATEST run, so per-class fire evidence
+// existed with no time series and no retirement consumer. This appends one
+// compact line per sweep, and its shape is the whole point: TWO columns per
+// class.
+//
+//   RAW      what CC DID — measured off the captured request bytes, so it
+//            keeps counting with every gate off. This is the column a
+//            retirement rests on ("0 raw occurrences across N sweeps
+//            spanning cc-versions >= X"), and the column that re-opens one.
+//   ABSORBED what a mitigation DID about it — counted from the extensions'
+//            own event logs.
+//
+// Never the same denominator, and the line says so rather than implying it:
+// RAW covers the whole capture corpus this sweep replayed (a rolling
+// retention set), ABSORBED covers `windowFrom`..`ts` — the interval since
+// the previous ledger line, so the absorbed series is additive and
+// non-overlapping across runs.
+//
+// `null` is not 0 anywhere here. A class whose source is absent (no census
+// measure, gate off, unreadable log) records null; 0 means the source was
+// read and nothing fired. Collapsing those two is exactly how a mitigation
+// gets retired on evidence that was never collected.
+export const FIRE_CLASSES = [
+  "suppressions",
+  "relocations",
+  "toolAdditionAnnouncements",
+  "oscillationAbsorptions",
+  "guardRestores",
+  "blockMigrations",
+  "duplicates",
+];
+
+/** RAW, per capture, from the replay child's --census JSON.
+ *
+ * Each mapping is the census measure of the CC BEHAVIOR the class exists to
+ * absorb, never of our own activity:
+ *   suppressions   blockMigrations rows moving `inline->standalone` — the
+ *                  reminder-swap shape #76606 suppression was built for
+ *                  (insertion-normalization.mjs:639).
+ *   relocations    findMitigationGaps rows — one per MITIGABLE pair
+ *                  (splice/insert-mid, append-after-change, reorder-only:
+ *                  replay.mjs:945), the mid-history insertion class.
+ *   toolAddition…  tools[] deltas whose incoming tool COUNT grew.
+ *   oscillation…   blockMigrations rows markFlaps tagged `.flap` — the
+ *                  DEFINITION of an oscillation (replay.mjs:1434).
+ *   blockMigrations  every migration row, both directions.
+ *   guardRestores  null — an output-guard restore answers OUR pipeline's
+ *                  invalid output, not anything CC did; no census measures
+ *                  it, and a proxy measure would be invented. (gap)
+ *   duplicates     not here: the duplicate scan is the census child's, so
+ *                  it is folded in at sweep level (reduceFireRaw).
+ */
+export function summariseFireRaw(parsed) {
+  const bm = Array.isArray(parsed?.blockMigrations) ? parsed.blockMigrations : null;
+  const td = Array.isArray(parsed?.toolsDeltas) ? parsed.toolsDeltas : null;
+  const mit = Array.isArray(parsed?.mitigation) ? parsed.mitigation : null;
+  return {
+    suppressions: bm ? bm.filter((b) => b.direction === "inline->standalone").length : null,
+    relocations: mit ? mit.length : null,
+    toolAdditionAnnouncements: td ? td.filter(toolsGrew).length : null,
+    oscillationAbsorptions: bm ? bm.filter((b) => b.flap).length : null,
+    guardRestores: null,
+    blockMigrations: bm ? bm.length : null,
+    duplicates: null,
+  };
+}
+
+// findToolsDeltas renders the pair's incoming tool counts as "p->c"
+// (replay.mjs:780). An unparseable field reads as "not an addition" rather
+// than throwing — the row still counts in blockMigrations/relocations.
+function toolsGrew(d) {
+  const m = /^(\d+)->(\d+)$/.exec(d?.count ?? "");
+  return m ? Number(m[2]) > Number(m[1]) : false;
+}
+
+/** Sweep-wide RAW: sum the per-capture columns, and take `duplicates` from
+ * the census rollup (streaks, not pairs — one streak is one duplicated
+ * request run; reduceByteGate above).
+ *
+ * A column every row left null stays null: summing nulls as zeros would
+ * report "0 occurrences" for a measure that never ran, which is the one
+ * reading this ledger must never produce. A column SOME rows measured is
+ * summed over those rows and `partial` names how many contributed. */
+export function reduceFireRaw(rows) {
+  const raw = {};
+  const partial = {};
+  for (const cls of FIRE_CLASSES) {
+    let sum = 0;
+    let seen = 0;
+    for (const r of rows) {
+      const v = r.fireRaw?.[cls];
+      if (typeof v === "number") { sum += v; seen++; }
+    }
+    raw[cls] = seen ? sum : null;
+    if (seen && seen < rows.length) partial[cls] = seen;
+  }
+  const dup = rows.reduce((acc, r) => {
+    const d = r.byteGate?.duplicates;
+    if (!d || typeof d.streaks !== "number") return acc;
+    return acc === null ? d.streaks : acc + d.streaks;
+  }, null);
+  raw.duplicates = dup;
+  return { raw, partial };
+}
+
+// ABSORBED sources. `gate` is the env the WRITER reads: gate off means the
+// log is not being written, so absence of fires proves nothing about the
+// class and the column records null rather than 0.
+//
+// Two known gaps, recorded as null instead of an invented number:
+//   oscillationAbsorptions  insertion-normalization counts a re-fire into
+//     `moved` alongside join-moves and tags its detail line "join-move"
+//     (insertion-normalization.mjs:1007,1062) — nothing separates the two,
+//     so the absorbed leg of the oscillation class is unmeasurable without
+//     an extension-side field.
+//   blockMigrations, duplicates  no mitigation absorbs these AS a class:
+//     the first is the population suppression/relocation act on, the second
+//     is CC re-sending a request and nothing here de-duplicates it.
+const ABSORBED_SOURCES = [
+  { cls: "suppressions", gate: "CACHE_FIX_INSERTION_NORMALIZE", on: "1",
+    suffix: "-insertion-events.jsonl", add: (r) => (typeof r.suppressed === "number" ? r.suppressed : 0) },
+  { cls: "relocations", gate: "CACHE_FIX_INSERTION_NORMALIZE", on: "1",
+    suffix: "-insertion-events.jsonl", add: (r) => (typeof r.moved === "number" ? r.moved : 0) },
+  { cls: "toolAdditionAnnouncements", gate: "CACHE_FIX_TOOL_REWRITE", on: "1",
+    suffix: "-deferred-tool-events.jsonl", add: (r) => (Array.isArray(r.newNames) ? r.newNames.length : 0) },
+  { cls: "guardRestores", gate: "CACHE_FIX_OUTPUT_GUARD", on: "1",
+    suffix: "-guard-events.jsonl", add: () => 1 },
+];
+
+/** Which absorbed columns are measurable this run, from the SERVING gate set
+ * (the same `prodEnv` the replay children were given). An unresolvable gate
+ * set — no unit, empty Environment — makes every column unmeasurable: a
+ * sweep that cannot say what was running cannot say what it absorbed. */
+export function absorbedMeasurable(prodEnv, envSource) {
+  const set = new Map();
+  for (const kv of prodEnv ?? []) {
+    const eq = kv.indexOf("=");
+    if (eq > 0) set.set(kv.slice(0, eq), kv.slice(eq + 1));
+  }
+  const known = envSource === "cache-fix-proxy.service";
+  const out = {};
+  for (const s of ABSORBED_SOURCES) out[s.cls] = known && set.get(s.gate) === s.on;
+  return out;
+}
+
+/** Tally one event log's lines that fall inside [sinceMs, untilMs). */
+export function tallyEventLines(text, sinceMs, untilMs, adders) {
+  const out = {};
+  for (const k of Object.keys(adders)) out[k] = 0;
+  for (const line of text.split("\n")) {
+    if (!line) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue; // a torn tail line is not a fire; the next sweep sees the whole file
+    }
+    const t = Date.parse(rec?.ts ?? "");
+    if (Number.isNaN(t) || t < sinceMs || t >= untilMs) continue;
+    for (const [k, add] of Object.entries(adders)) out[k] += add(rec);
+  }
+  return out;
+}
+
+/** ABSORBED, sweep-wide, over [since, until).
+ *
+ * mtime is a legitimate prefilter and not an optimisation shortcut: these
+ * logs are append-only, so a file last written before `since` cannot carry a
+ * line inside the window. A file that cannot be READ makes its columns null
+ * — the sweep saw a source it could not count, which is not zero. */
+export async function collectAbsorbed(dir, sinceMs, untilMs, measurable) {
+  const absorbed = {};
+  for (const cls of FIRE_CLASSES) absorbed[cls] = null;
+  const bySuffix = new Map();
+  for (const s of ABSORBED_SOURCES) {
+    if (!measurable[s.cls]) continue;
+    if (!bySuffix.has(s.suffix)) bySuffix.set(s.suffix, {});
+    bySuffix.get(s.suffix)[s.cls] = s.add;
+    absorbed[s.cls] = 0;
+  }
+  if (!bySuffix.size) return absorbed;
+
+  let names;
+  try {
+    names = await readdir(dir);
+  } catch (err) {
+    // ENOENT is a real answer (nothing has ever been written) only if the
+    // gates say the writers are on — and they do, or we would not be here.
+    // Any other failure means the source could not be read: back to null.
+    if (err?.code !== "ENOENT") for (const cls of Object.keys(absorbed)) {
+      if (absorbed[cls] === 0) absorbed[cls] = null;
+    }
+    return absorbed;
+  }
+  for (const [suffix, adders] of bySuffix) {
+    for (const name of names.filter((n) => n.endsWith(suffix))) {
+      const full = join(dir, name);
+      try {
+        if ((await stat(full)).mtimeMs < sinceMs) continue;
+        const tallied = tallyEventLines(await readFile(full, "utf-8"), sinceMs, untilMs, adders);
+        for (const [cls, n] of Object.entries(tallied)) absorbed[cls] += n;
+      } catch {
+        for (const cls of Object.keys(adders)) absorbed[cls] = null;
+      }
+    }
+  }
+  return absorbed;
+}
+
+// --- CC version, per sweep ---
+//
+// Operator refinement (1): a retirement's basis is "0 raw occurrences across
+// N sweeps spanning cc-versions >= X, where X ships the fix", so a line
+// without its versions cannot carry a retirement.
+//
+// The captures do NOT carry it. `cc-version-normalize` reads `cc_version`
+// out of the system prompt's x-anthropic-billing-header block, and that
+// block is absent from every capture on this machine (grepped: 0 hits for
+// `cc_version` across the whole 8 GB corpus). The transcripts do: each
+// ~/.claude/projects/<project>/<sessionId>.jsonl line carries a top-level
+// `version`, and a capture file names its session id. So the join is
+// capture -> sid -> transcript.
+//
+// Only the transcript TAIL is read (bounded, below): the question is which
+// build produced the traffic this sweep looked at, the newest lines answer
+// it, and a full read of every transcript would put tens of MB through a
+// sweep that has no other reason to touch them.
+const TRANSCRIPT_TAIL_BYTES = 256 * 1024;
+
+export function sidOfCapture(name) {
+  const m = /^s-(.+)-requests\.jsonl$/.exec(name);
+  return m ? m[1] : null;
+}
+
+/** Distinct top-level `version` values in the last bytes of a transcript.
+ * Parsed per line, never regexed out of the raw text — a `version` field
+ * inside a tool result or a pasted file is not the client's version. */
+export async function transcriptVersions(path, tailBytes = TRANSCRIPT_TAIL_BYTES) {
+  const found = new Set();
+  let fh;
+  try {
+    fh = await open(path, "r");
+    const { size } = await fh.stat();
+    const start = Math.max(0, size - tailBytes);
+    const buf = Buffer.alloc(Math.min(size, tailBytes));
+    await fh.read(buf, 0, buf.length, start);
+    const lines = buf.toString("utf-8").split("\n");
+    // A non-zero start cuts mid-line; that fragment is not JSON and is dropped.
+    if (start > 0) lines.shift();
+    for (const line of lines) {
+      if (!line) continue;
+      try {
+        const v = JSON.parse(line)?.version;
+        if (typeof v === "string" && /^\d+\.\d+/.test(v)) found.add(v);
+      } catch { /* partial or non-object line */ }
+    }
+  } catch {
+    return found; // unreadable transcript contributes nothing, never a wrong version
+  } finally {
+    await fh?.close();
+  }
+  return found;
+}
+
+export async function collectCcVersions(captureNames, transcriptsRoot) {
+  const sids = new Set(captureNames.map(sidOfCapture).filter(Boolean));
+  if (!sids.size) return [];
+  const found = new Set();
+  let projects;
+  try {
+    projects = await readdir(transcriptsRoot, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  for (const p of projects) {
+    if (!p.isDirectory()) continue;
+    let files;
+    try {
+      files = await readdir(join(transcriptsRoot, p.name));
+    } catch {
+      continue;
+    }
+    for (const f of files) {
+      if (!f.endsWith(".jsonl")) continue;
+      if (!sids.has(f.slice(0, -".jsonl".length))) continue;
+      for (const v of await transcriptVersions(join(transcriptsRoot, p.name, f))) found.add(v);
+    }
+  }
+  return [...found].sort();
+}
+
+/** The previous line's `ts` — the start of this run's absorbed window.
+ * A ledger that does not exist yet, or whose tail is unparseable, yields
+ * null and the caller falls back to a stated default window rather than
+ * counting the whole history into the first line. */
+export async function lastFireLedgerTs(path) {
+  try {
+    const lines = (await readFile(path, "utf-8")).split("\n").filter(Boolean);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      try {
+        const ts = JSON.parse(lines[i])?.ts;
+        if (typeof ts === "string" && !Number.isNaN(Date.parse(ts))) return ts;
+      } catch { /* keep walking back */ }
+    }
+  } catch { /* no ledger yet */ }
+  return null;
+}
+
+// First-run window. The ledger's own cadence is one line per daily sweep, so
+// a first line that counted the entire event history would be a spike no
+// later line is comparable to.
+export const FIRE_FIRST_WINDOW_H = 24;
+
 function parseArgs(argv) {
-  const args = { captures: DEFAULT_CAPTURES, status: DEFAULT_STATUS, quiet: false };
+  const args = {
+    captures: DEFAULT_CAPTURES,
+    status: DEFAULT_STATUS,
+    fireLedger: DEFAULT_FIRE_LEDGER,
+    snapshots: DEFAULT_SNAPSHOTS,
+    transcripts: DEFAULT_TRANSCRIPTS,
+    quiet: false,
+  };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--captures") args.captures = argv[++i];
     else if (a === "--status") args.status = argv[++i];
+    else if (a === "--fire-ledger") args.fireLedger = argv[++i];
+    else if (a === "--snapshots") args.snapshots = argv[++i];
+    else if (a === "--transcripts") args.transcripts = argv[++i];
     else if (a === "--quiet") args.quiet = true;
     else {
       process.stderr.write(`unexpected argument: ${a}\n`);
@@ -465,6 +797,35 @@ async function main() {
   await mkdir(dirname(args.status), { recursive: true });
   await writeFile(args.status, JSON.stringify(status, null, 2) + "\n");
 
+  // The fire ledger: one line per sweep, appended (never rewritten) so the
+  // series a retirement rests on cannot be edited by a later run.
+  const fireTs = status.finished;
+  const prevTs = await lastFireLedgerTs(args.fireLedger);
+  const windowFrom = prevTs ?? new Date(Date.parse(fireTs) - FIRE_FIRST_WINDOW_H * 3600_000).toISOString();
+  const { raw: fireRaw, partial } = reduceFireRaw(rows);
+  const measurable = absorbedMeasurable(prodEnv, envSource);
+  const fireLine = {
+    ts: fireTs,
+    windowFrom,
+    // Named per line, not assumed: the first line's window is synthetic
+    // (no predecessor), and a reader summing absorbed counts across lines
+    // must be able to see that.
+    windowSeeded: prevTs === null,
+    ccVersions: await collectCcVersions(files, args.transcripts),
+    captures: rows.length,
+    raw: fireRaw,
+    absorbed: await collectAbsorbed(args.snapshots, Date.parse(windowFrom), Date.parse(fireTs), measurable),
+    ...(Object.keys(partial).length ? { rawPartial: partial } : {}),
+  };
+  try {
+    await mkdir(dirname(args.fireLedger), { recursive: true });
+    await appendFile(args.fireLedger, JSON.stringify(fireLine) + "\n");
+  } catch (e) {
+    // The ledger is evidence for a future decision, never a gate on this
+    // sweep's verdict — a failed append is reported and nothing more.
+    process.stderr.write(`fire-ledger append failed at ${args.fireLedger}: ${e?.message ?? e}\n`);
+  }
+
   if (!args.quiet) {
     process.stdout.write(
       `\n${rows.length} capture(s), ${(status.bytes / 1e6).toFixed(0)} MB, ${failed.length} failing -> ${args.status}\n` +
@@ -476,6 +837,13 @@ async function main() {
       (byteGate.unreadable || byteGate.errors
         ? `\n  COULD NOT VERIFY: ${byteGate.unreadable} unreadable capture(s), ${byteGate.errors} failed run(s)\n`
         : "\n"),
+    );
+    const col = (o) => FIRE_CLASSES.map((c) => `${c}=${o[c] === null ? "n/a" : o[c]}`).join(" ");
+    process.stdout.write(
+      `fire-ledger -> ${args.fireLedger}\n` +
+      `  cc ${fireLine.ccVersions.join(",") || "unknown"}; absorbed window ${fireLine.windowFrom}${fireLine.windowSeeded ? " (seeded)" : ""}\n` +
+      `  raw      ${col(fireLine.raw)}\n` +
+      `  absorbed ${col(fireLine.absorbed)}\n`,
     );
   }
   // Non-zero on a failing sweep AND on an empty one: "no captures" means the

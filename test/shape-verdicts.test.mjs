@@ -98,19 +98,21 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
   const dir = await mkdtemp(join(tmpdir(), "shape-verdicts-"));
   try {
     const verdicts = await computeVerdicts(join(dir, "no-such-ledger.json"));
-    // 4 standing verdicts (3 ledger-shape + duplicate-billing) + the
-    // telemetry-consumer table (Q4). The table length is asserted against
-    // the TABLE, not a literal — a row legitimately added must not redden
-    // this test (the hardcoded-count anti-pattern bit 2026-07-30, and
-    // again at this line's own former "3" on 2026-08-01).
+    // 5 standing verdicts (3 ledger-shape + duplicate-billing +
+    // fire-ledger) + the telemetry-consumer table (Q4). The table length is
+    // asserted against the TABLE, not a literal — a row legitimately added
+    // must not redden this test (the hardcoded-count anti-pattern bit
+    // 2026-07-30, again at this line's own former "3" on 2026-08-01, and a
+    // third time at its "4" when the fire ledger landed).
     const { TELEMETRY_CONSUMERS } = await import("../tools/shape-verdicts.mjs");
-    assert.equal(verdicts.length, 4 + TELEMETRY_CONSUMERS.length);
+    const STANDING = 5;
+    assert.equal(verdicts.length, STANDING + TELEMETRY_CONSUMERS.length);
     // duplicate-billing reads MACHINE state (the gate status file), so its
     // level legitimately varies here; the ledger-shape claim is about the
     // ledger verdicts only.
     assert.ok(verdicts.every((v) => v.level === "warn" || v.name === "baseline" || v.name === "duplicate-billing"));
     assert.equal(verdicts[0].level, "warn", "shape-watch cannot read as green without a ledger");
-    const telemetryNames = verdicts.slice(4).map((v) => v.name);
+    const telemetryNames = verdicts.slice(STANDING).map((v) => v.name);
     assert.deepEqual(telemetryNames, TELEMETRY_CONSUMERS.map((e) => e.name));
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -255,4 +257,95 @@ test("computeTelemetryVerdicts: names and order match the declared table, real w
   );
   // Nothing gated on, nothing written: every entry is could-not-verify (warn).
   assert.ok(verdicts.every((v) => v.level === "warn"));
+});
+
+// --- Fire-ledger verdict (BACKLOG "mitigation fire-rate ledger") ---
+//
+// The series gate-live appends is the only evidence a retirement can rest
+// on, so the failures worth pinning are the ones that would make a
+// mitigation look retirable when nothing established it: a ledger that does
+// not exist, a series that stopped accumulating, and a RAW column nobody
+// measured being read as "the behaviour stopped".
+
+const fireLine = (over = {}) => ({
+  ts: "2026-08-02T06:00:00.000Z",
+  windowFrom: "2026-08-01T06:00:00.000Z",
+  ccVersions: ["2.1.220"],
+  captures: 12,
+  raw: { suppressions: 4, guardRestores: null, duplicates: 3 },
+  absorbed: { suppressions: 2, guardRestores: 0, duplicates: null },
+  ...over,
+});
+const AT = Date.parse("2026-08-02T09:00:00.000Z");
+
+test("fire-ledger: no ledger is a NAMED could-not-verify, never a quiet green", async () => {
+  const { fireLedgerVerdict, readFireLedger } = await import("../tools/shape-verdicts.mjs");
+  for (const empty of [null, [], undefined]) {
+    const v = fireLedgerVerdict(empty);
+    assert.equal(v.level, "warn", "absence of the ledger must not read as absence of fires");
+    assert.match(v.message, /NOT currently tracked/);
+    assert.match(v.message, /no retirement has evidence/);
+  }
+  // The reader itself: a path that does not exist yields null, not [].
+  assert.equal(await readFireLedger(join(configDir, "nope.jsonl")), null);
+});
+
+test("fire-ledger: last-fire ages are reported per class, with RAW beside them", async () => {
+  const { fireLedgerVerdict } = await import("../tools/shape-verdicts.mjs");
+  const v = fireLedgerVerdict([
+    fireLine({ ts: "2026-07-31T06:00:00.000Z", absorbed: { suppressions: 5, guardRestores: 0, duplicates: null } }),
+    fireLine({ ts: "2026-08-01T06:00:00.000Z", absorbed: { suppressions: 0, guardRestores: 0, duplicates: null } }),
+    fireLine({ ts: "2026-08-02T06:00:00.000Z", absorbed: { suppressions: 0, guardRestores: 0, duplicates: null } }),
+  ], AT);
+  assert.equal(v.level, "ok", "a quiet mitigation is not a defect — retirement is an operator ruling");
+  assert.equal(v.name, "fire-ledger");
+  assert.match(v.message, /3 sweep\(s\)/);
+  assert.match(v.message, /cc 2\.1\.220/);
+  // Two days back, not "never": the newest line with a nonzero absorbed count
+  // is what dates a mitigation's last fire.
+  assert.match(v.message, /suppressions 2d \(raw 12\)/);
+  // Measured-but-never-fired is the retirement CANDIDATE shape, and its raw
+  // column has to travel with it: raw still nonzero means not retirable.
+  assert.match(v.message, /QUIET: guardRestores never in 3 sweep\(s\)/);
+  // A class with no absorbed source is neither firing nor quiet — it is
+  // unmeasured, and saying so is the whole three-answer convention.
+  assert.match(v.message, /no absorbed source: duplicates/);
+});
+
+test("BITE — an unmeasured RAW column reads as unmeasured, never as 'the behaviour stopped'", async () => {
+  const { fireLedgerVerdict } = await import("../tools/shape-verdicts.mjs");
+  const v = fireLedgerVerdict([
+    fireLine({ raw: { suppressions: null, guardRestores: null, duplicates: null },
+               absorbed: { suppressions: 0, guardRestores: 0, duplicates: null } }),
+  ], AT);
+  assert.match(v.message, /suppressions never in 1 sweep\(s\) \(raw unmeasured\)/,
+    "null raw must not render as 0 — that reading retires a mitigation on evidence nobody collected");
+  assert.doesNotMatch(v.message, /raw 0/);
+});
+
+test("BITE — a frozen series warns: the sweep stopped, the evidence is not accruing", async () => {
+  const { fireLedgerVerdict, FIRE_LEDGER_MAX_AGE_H } = await import("../tools/shape-verdicts.mjs");
+  const stale = Date.parse("2026-08-02T06:00:00.000Z") + (FIRE_LEDGER_MAX_AGE_H + 4) * 3600_000;
+  const v = fireLedgerVerdict([fireLine()], stale);
+  assert.equal(v.level, "warn");
+  assert.match(v.message, /frozen/);
+  assert.match(v.message, /NOT accumulating/);
+  // Undated lines cannot be aged, and an unaged series is not a green one.
+  assert.equal(fireLedgerVerdict([fireLine({ ts: "not-a-date" })]).level, "warn");
+});
+
+test("fire-ledger rides computeVerdicts, reading the real ledger path", async () => {
+  const { computeVerdicts, fireLedgerPath } = await import("../tools/shape-verdicts.mjs");
+  // configDir is this test's CLAUDE_CONFIG_DIR, so the path resolves inside it.
+  assert.equal(fireLedgerPath(), join(configDir, "cache-fix-fire-ledger.jsonl"));
+  const before = await computeVerdicts(join(configDir, "ledger.json"));
+  const fire = before.find((v) => v.name === "fire-ledger");
+  assert.ok(fire, "the verdict must be in the CLI's output set");
+  assert.equal(fire.level, "warn", "no ledger written yet");
+
+  await writeFile(fireLedgerPath(),
+    JSON.stringify(fireLine({ ts: new Date().toISOString() })) + "\n" + "{ torn\n");
+  const after = (await computeVerdicts(join(configDir, "ledger.json"))).find((v) => v.name === "fire-ledger");
+  assert.equal(after.level, "ok", "a fresh line answers — and a torn line is skipped, not fatal");
+  assert.match(after.message, /1 sweep\(s\)/);
 });
