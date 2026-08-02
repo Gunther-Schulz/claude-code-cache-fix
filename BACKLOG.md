@@ -8,6 +8,40 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **OPEN (2026-08-02, dispatcher-measured) — PREMISE FALSIFIED: the
+  migrated standalone is NOT always wrapper-stripped, so
+  "canonicalize forward to the standalone form" does not cover every
+  instance.** Both homes of the premise say it the same way — this
+  BACKLOG's row-4 entry and threat-matrix row 4: "CC ... emits the
+  same text as ONE standalone `role:"system"` message after the
+  host, wrappers STRIPPED and the blocks JOINED with `\n\n`".
+  Counter-instance, measured: capture s-66797e31, request
+  2026-08-02T08:06:10.259Z (second at 08:24:18.702Z, host=74). The
+  census reports `MISMATCH host=30 blocks=1 recon=327ch actual=0ch`.
+  Raw dump of the request: a standalone counterpart DOES exist at
+  host+1 (index 31, role:"system", content a STRING not a block
+  array), total length 364, `<system-reminder>` WRAPPER RETAINED;
+  stripping the wrapper leaves exactly 327 characters — byte-equal
+  to the census's own reconstruction. So the reconstruction rule is
+  right about the TEXT and wrong about the ENVELOPE for this shape.
+  Consequences, enumerated per the stale-premise rule rather than
+  left to be re-derived: (1) a normalization that canonicalizes
+  forward to the stripped form would MOVE the bust for this shape,
+  not absorb it — which is exactly what the census's own "DO NOT
+  SHIP as-is" verdict on MISMATCH says, and it was right; (2) any
+  matcher keyed on stripped-and-joined text cannot match a
+  wrapper-retaining standalone — a candidate mechanism for the
+  un-merge miss at host 568, sent to that investigation as evidence
+  to test, NOT as its answer; (3) the census's `actual=0ch`
+  diagnostic is misleading here — it reads as "no counterpart found"
+  (the documented tell of a matching bug) while a counterpart exists
+  and merely failed the standalone predicate; the verdict is right,
+  the tell is not. Owed: whether the wrapper-retained form is a
+  distinct CC behaviour or the same one at a different lifecycle
+  point, and whether the corpus's EXACT rows are all stripped-form
+  (i.e. is this rare or merely rarely matched). Do NOT re-grade the
+  row-4 design as settled until that is answered.
+
 - **OPEN (attributed 2026-08-02, fix serialized behind a running
   read-only dispatch) — conservation gate fires on
   fresh-session-sort's declared rewrite: 38 violations, capture
