@@ -537,8 +537,13 @@ test("snapshotPrefix: concurrent invocations both succeed; final snapshot matche
     let results;
     await captureStderr(async () => {
       results = await Promise.all([
-        snapshotPrefix(payloadA, { dir }),
-        snapshotPrefix(payloadB, { dir }),
+        // contentEnabled:true so the written snapshot's shape matches the
+        // buildSnapshot(payloadA/B) comparison calls below, which also
+        // default to content-enabled — otherwise the two shapes diverge
+        // (default mode omits prefixMessages' text) for reasons unrelated
+        // to the concurrency behaviour this test actually checks.
+        snapshotPrefix(payloadA, { dir, contentEnabled: true }),
+        snapshotPrefix(payloadB, { dir, contentEnabled: true }),
       ]);
     });
     // Both same key (same system), so both write to same last.json
@@ -1313,10 +1318,14 @@ test("a mid-history mutation records HOW it changed, not just where", async () =
     return makePayload({ messages: msgs });
   };
   try {
-    await snapshotPrefix(mk("ORIGINAL mid-history content"), { dir, headers });
+    // contentEnabled:true — this test is specifically about the
+    // CACHE_FIX_PREFIXDIFF_CONTENT=1 opt-in surface (prevContent/
+    // nowContent are omitted by default under content minimization,
+    // 2026-08-05).
+    await snapshotPrefix(mk("ORIGINAL mid-history content"), { dir, headers, contentEnabled: true });
     let r;
     await captureStderr(async () => {
-      r = await snapshotPrefix(mk("MUTATED mid-history content"), { dir, headers });
+      r = await snapshotPrefix(mk("MUTATED mid-history content"), { dir, headers, contentEnabled: true });
     });
     assert.ok(r.wroteDiff);
 

@@ -11,6 +11,27 @@
 // No request mutation. Fail-open: any I/O error is swallowed. Set
 // CACHE_FIX_DEBUG=1 to also log swallowed errors.
 //
+// Permissions + retention (2026-08-05, reviewer-requested — the rewrite
+// below persists more than the old diagnostic did, and the persistence
+// story had to catch up):
+//
+//   - All three artifacts, and their rotated forms, are written owner-only
+//     (0600) via write-owner-only.mjs, applied at create time so there is
+//     no window where a file is briefly group- or world-readable.
+//   - CONTENT MINIMIZATION. By default this module persists only hashes,
+//     lengths, and indices — enough to say WHICH block/message/index
+//     changed, never the bytes that changed. Full text (system-block
+//     windows, message previews, event-record previews) is stored only
+//     under CACHE_FIX_PREFIXDIFF_CONTENT=1. Enabling it persists
+//     prompt-derived text to disk; it is an explicit, separate opt-in from
+//     CACHE_FIX_PREFIXDIFF itself.
+//   - CROSS-KEY RETENTION. A sweep runs once per process (the first live
+//     request — there is no dedicated boot hook) deleting artifacts older
+//     than 14 days and, if more than 200 session keys remain, pruning the
+//     oldest keys beyond that cap. This bounds the snapshot directory
+//     across sessions; the pre-existing per-key tenant eviction only
+//     bounded the map inside one key's own file.
+//
 // ---------------------------------------------------------------------
 // Design notes — the four blind spots this version closes (2026-07-27)
 //
@@ -97,15 +118,26 @@ import {
   rename as _rename,
   appendFile as _appendFile,
   stat as _stat,
+  readdir as _readdir,
+  unlink as _unlink,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
+import { writeFileOwnerOnly, appendFileOwnerOnly, ensureOwnerOnly } from "./write-owner-only.mjs";
 
 const ENABLED = process.env.CACHE_FIX_PREFIXDIFF === "1";
 const DEBUG = process.env.CACHE_FIX_DEBUG === "1";
+// Content minimization (2026-08-05, reviewer-requested): by default this
+// module persists only hashes, lengths, and indices — enough to say WHICH
+// block/message/index changed, never the bytes that changed. Full text
+// (system-block windows, message previews, event-record previews) is
+// stored only when this is explicitly opted into. Off by default because
+// the whole point of the default mode is that prompt-derived text never
+// rests on disk.
+const CONTENT_ENABLED = process.env.CACHE_FIX_PREFIXDIFF_CONTENT === "1";
 
 // This extension's pipeline order (dev-loop.md, "Tap points"). A bare index
 // was equated across tap points during the 587k attribution — a raw-capture
@@ -125,6 +157,8 @@ const DEFAULT_FS = {
   rename: _rename,
   appendFile: _appendFile,
   stat: _stat,
+  readdir: _readdir,
+  unlink: _unlink,
 };
 
 // Per-block system text is stored in full so diffs can locate exact bytes.
@@ -143,6 +177,18 @@ const MARKER_PREVIEW_CHARS = 200;
 const MESSAGE_PREVIEW_CHARS = 120;
 // Rotate the append-only ledger past this size so it cannot grow forever.
 const EVENTS_MAX_BYTES = 5 * 1024 * 1024;
+
+// Cross-key retention (2026-08-05, reviewer-requested): the per-tenant
+// eviction above (MAX_TENANTS) only bounds the map INSIDE one session
+// key's file. Every new session key gets its own `-last.json`/`-diff.json`/
+// `-events.jsonl` triple, and nothing bounded the number of keys or their
+// total age — a long-lived proxy could accumulate snapshot files forever.
+// Two independent bounds, both enforced by the boot sweep below: any
+// artifact past this age is deleted regardless of key count, and once
+// fewer than this many keys remain, the oldest keys beyond the cap are
+// deleted regardless of age.
+const SNAPSHOT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const SNAPSHOT_MAX_KEYS = 200;
 
 // Top-level request fields that participate in the cache key. Anything
 // here changing invalidates the prefix, so all of it must be snapshotted.
@@ -304,7 +350,15 @@ function computeSystemHash(system) {
 // A short human label for a system block, so a diff line reads
 // "block 2 (env)" instead of "block 2". Derived from content because
 // the API gives blocks no identity of their own.
-function labelSystemBlock(text) {
+//
+// The fixed categories below are safe to return regardless of
+// `contentEnabled`: each is a constant string naming a recognized shape,
+// never a slice of the block's own bytes. Only the last-resort fallback
+// (an unrecognized block) used to echo the block's own leading text as
+// the label — that is prompt-derived content leaking through a field that
+// looks like metadata, so it is gated the same as everything else content
+// minimization covers.
+function labelSystemBlock(text, contentEnabled = true) {
   if (typeof text !== "string" || text.length === 0) return "empty";
   const head = text.slice(0, 200).replace(/\s+/g, " ").trim();
   if (/^You are Claude Code/i.test(head)) return "cc-identity";
@@ -314,22 +368,30 @@ function labelSystemBlock(text) {
   if (/system-reminder/i.test(head)) return "system-reminder";
   if (/available skills|Skill tool/i.test(head)) return "skills";
   if (/agent types|subagent_type/i.test(head)) return "agents";
+  if (!contentEnabled) return "other";
   return head.slice(0, 40) || "text";
 }
 
 // Store each system block's full text (capped) rather than one opaque
-// hash, so computeDiff can point at the exact bytes that moved.
-function buildSystemSnapshot(system) {
+// hash, so computeDiff can point at the exact bytes that moved — but only
+// when `contentEnabled` (CACHE_FIX_PREFIXDIFF_CONTENT=1). Content
+// minimization (2026-08-05): by default `text` is omitted entirely and
+// only structural metadata (index, type, label, chars, hash,
+// hasCacheControl, truncated) is stored, so a system-prompt byte never
+// rests on disk unless the operator opted into it. `chars`/`hash` still
+// give computeDiff enough to say WHICH block changed and by how much;
+// `text` is what it needs to say HOW.
+function buildSystemSnapshot(system, contentEnabled = true) {
   if (typeof system === "string") {
     return [
       {
         index: 0,
         type: "string",
-        label: labelSystemBlock(system),
+        label: labelSystemBlock(system, contentEnabled),
         chars: system.length,
         hash: sha(system),
-        text: system.slice(0, SYSTEM_TEXT_CAP),
         truncated: system.length > SYSTEM_TEXT_CAP,
+        ...(contentEnabled ? { text: system.slice(0, SYSTEM_TEXT_CAP) } : {}),
       },
     ];
   }
@@ -342,12 +404,12 @@ function buildSystemSnapshot(system) {
     return {
       index: i,
       type: block?.type ?? "unknown",
-      label: labelSystemBlock(text),
+      label: labelSystemBlock(text, contentEnabled),
       chars: text.length,
       hash: sha(JSON.stringify(rest)),
       hasCacheControl: Boolean(cache_control),
-      text: text.slice(0, SYSTEM_TEXT_CAP),
       truncated: text.length > SYSTEM_TEXT_CAP,
+      ...(contentEnabled ? { text: text.slice(0, SYSTEM_TEXT_CAP) } : {}),
     };
   });
 }
@@ -394,11 +456,41 @@ function diffBetaHeader(prevSnap, nowSnap) {
   return { added, removed };
 }
 
-// Project a single message: strip cache_control, truncate text >500 chars
-// with `...[N chars]` marker. Pure: returns a new object, never mutates
-// input. Shared by the head and tail windows so both apply identical
-// truncation rules.
-function truncateOneMessage(msg) {
+// Rough content size, safe to store regardless of `contentEnabled` — a
+// length, never the bytes themselves.
+function charLength(value) {
+  if (typeof value === "string") return value.length;
+  return JSON.stringify(value ?? null).length;
+}
+
+// Project a single message for the head/tail windows.
+//
+// contentEnabled: strip cache_control, truncate text >500 chars with
+// `...[N chars]` marker. Pure: returns a new object, never mutates input.
+// Shared by the head and tail windows so both apply identical truncation
+// rules.
+//
+// !contentEnabled (content minimization, 2026-08-05): a single
+// hash-over-the-whole-message plus a size, and nothing else. This is
+// deliberately NOT a per-block redaction (drop `text`, keep `input`/
+// `content` blocks as-is) — a tool_use block's `input` or a tool_result's
+// `content` can carry arbitrary prompt- or tool-output-derived text just
+// as easily as a `text` block can, and the old per-block truncation only
+// ever capped `.text`. Hashing the whole message (via the same
+// stripCacheControl used for the always-on hash chain) covers every
+// content shape uniformly, so no block type is an accidental content
+// leak. Attribution survives: diffMessageWindow still detects a change at
+// this position via the hash, and messageChain (buildMessageHashes, which
+// covers every index, not just the head/tail windows) already names the
+// exact first divergent index and role.
+function truncateOneMessage(msg, contentEnabled = true) {
+  if (!contentEnabled) {
+    return {
+      role: msg?.role,
+      hash: sha(JSON.stringify(stripCacheControl(msg ?? {})), 12),
+      chars: charLength(msg?.content),
+    };
+  }
   if (!msg || !Array.isArray(msg.content)) {
     return { role: msg?.role, content: msg?.content };
   }
@@ -437,7 +529,14 @@ function stripCacheControl(msg) {
 // entry, so even a 1000-turn session costs ~40KB — cheap enough to make
 // the head/marker/tail windows detail providers rather than the only
 // detection surface.
-function buildMessageHashes(messages) {
+// `p` (the per-message preview) is real prompt content and is stored only
+// under `contentEnabled` (content minimization, 2026-08-05) — omitted
+// entirely otherwise, the same "field absent on an older/degraded
+// snapshot" shape this file already uses everywhere a version boundary
+// needs to degrade instead of throw. `h` (the hash) is unaffected: it is
+// always computed and always stored, because it is what carries the
+// attribution value in default mode.
+function buildMessageHashes(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
   return messages.map((msg, i) => ({
     i,
@@ -451,23 +550,23 @@ function buildMessageHashes(messages) {
     // MESSAGE_PREVIEW_CHARS per message and makes the ledger
     // self-sufficient for exactly the class that previously needed the
     // live request — which by then no longer exists.
-    p: messageTextPreview(msg, MESSAGE_PREVIEW_CHARS),
+    ...(contentEnabled ? { p: messageTextPreview(msg, MESSAGE_PREVIEW_CHARS) } : {}),
   }));
 }
 
 // Project the first 5 messages (the head window): strip cache_control,
 // truncate text >500 chars with `...[N chars]` marker.
-function truncatePrefixMessages(messages) {
+function truncatePrefixMessages(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
-  return messages.slice(0, 5).map(truncateOneMessage);
+  return messages.slice(0, 5).map((m) => truncateOneMessage(m, contentEnabled));
 }
 
 // Project the last 3 messages (the tail window), same truncation rules as
 // the head window. Catches busts near the live edge of long sessions that
 // the head window (fixed at the start of the array) can never see.
-function truncateTailMessages(messages) {
+function truncateTailMessages(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
-  return messages.slice(-3).map(truncateOneMessage);
+  return messages.slice(-3).map((m) => truncateOneMessage(m, contentEnabled));
 }
 
 // True if `msg` carries at least one content block with a cache_control
@@ -526,7 +625,7 @@ function hashMessageContent(msg) {
 // only a hash + short preview, not the full message body — long sessions
 // can accumulate many turns, and this window must stay cheap regardless
 // of session length.
-function buildMarkerSnapshot(messages) {
+function buildMarkerSnapshot(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
   const markers = [];
   for (let i = 0; i < messages.length && markers.length < MARKER_CAP; i++) {
@@ -535,13 +634,15 @@ function buildMarkerSnapshot(messages) {
     markers.push({
       index: i,
       hash: hashMessageContent(msg),
-      textPreview: messageTextPreview(msg),
+      // Real content — same content-minimization gate as everywhere else
+      // (2026-08-05): omitted unless contentEnabled.
+      ...(contentEnabled ? { textPreview: messageTextPreview(msg) } : {}),
     });
   }
   return markers;
 }
 
-function buildSnapshot(payload, headers) {
+function buildSnapshot(payload, headers, contentEnabled = true) {
   if (!payload || !payload.system) return null;
   return {
     timestamp: new Date().toISOString(),
@@ -550,12 +651,19 @@ function buildSnapshot(payload, headers) {
     systemHash: computeSystemHash(payload.system),
     // Coverage added 2026-07-27 — see design notes at the top.
     params: buildParamsSnapshot(payload),
-    systemBlocks: buildSystemSnapshot(payload.system),
+    // Every builder below that can carry raw prompt bytes takes
+    // `contentEnabled` and gates on it (content minimization, 2026-08-05,
+    // CACHE_FIX_PREFIXDIFF_CONTENT=1) — gating once here, at the single
+    // point everything downstream (computeDiff, buildEventRecord) reads
+    // from, means no consumer has to re-check the flag: an omitted field
+    // degrades the same way an old-format snapshot's missing field
+    // already does everywhere else in this file.
+    systemBlocks: buildSystemSnapshot(payload.system, contentEnabled),
     toolsDetail: buildToolsSnapshot(payload.tools),
-    messageHashes: buildMessageHashes(payload.messages),
-    prefixMessages: truncatePrefixMessages(payload.messages),
-    tailMessages: truncateTailMessages(payload.messages),
-    markerMessages: buildMarkerSnapshot(payload.messages),
+    messageHashes: buildMessageHashes(payload.messages, contentEnabled),
+    prefixMessages: truncatePrefixMessages(payload.messages, contentEnabled),
+    tailMessages: truncateTailMessages(payload.messages, contentEnabled),
+    markerMessages: buildMarkerSnapshot(payload.messages, contentEnabled),
     // Blind spot 5 (2026-07-27): the anthropic-beta header lives outside
     // `payload`, so it's threaded in separately rather than read off the
     // body like everything else above. `headers` is optional — direct
@@ -878,7 +986,11 @@ async function atomicWriteJson(finalPath, obj, fs) {
   const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random()
     .toString(36)
     .slice(2, 10)}.tmp`;
-  await fs.writeFile(tmpPath, JSON.stringify(obj, null, 2));
+  // Owner-only: the tmp file is freshly created every call, so the create
+  // mode applies cleanly (no window where it's readable at the ambient
+  // umask), and the rename carries that mode onto the final path — which
+  // also repairs a loose mode on a pre-existing final file for free.
+  await writeFileOwnerOnly(tmpPath, JSON.stringify(obj, null, 2), fs);
   await fs.rename(tmpPath, finalPath);
 }
 
@@ -894,7 +1006,160 @@ async function appendEvent(eventsPath, record, fs) {
   } catch {
     // Rotation is best-effort; never block the append on it.
   }
-  await fs.appendFile(eventsPath, JSON.stringify(record) + "\n");
+  // Owner-only, with lazy repair: appendFileOwnerOnly chmods the path once
+  // per process before appending, so a file created before this mode
+  // existed (or a rotated .1 that somehow lost it) gets fixed on the next
+  // write rather than staying at the ambient umask forever.
+  await appendFileOwnerOnly(eventsPath, JSON.stringify(record) + "\n", fs);
+}
+
+// Matches this module's own artifact filenames — `<key>-last.json`,
+// `<key>-diff.json`, `<key>-events.jsonl`, and its rotated `.1` — and
+// nothing else. Deliberately narrow: the snapshot directory is this
+// extension's alone today, but a narrow match means the sweep can never
+// touch a file some future co-tenant of the directory writes.
+const SNAPSHOT_FILE_RE = /^(.+)-(last\.json|diff\.json|events\.jsonl(?:\.1)?)$/;
+
+// Group a directory listing by session key, ignoring anything that isn't
+// one of this module's own artifact names.
+function groupSnapshotFiles(names) {
+  const byKey = new Map();
+  for (const name of names) {
+    const m = SNAPSHOT_FILE_RE.exec(name);
+    if (!m) continue;
+    const key = m[1];
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(name);
+  }
+  return byKey;
+}
+
+/**
+ * Cross-key retention sweep: delete artifacts older than `maxAgeMs`, then
+ * — if more than `maxKeys` session keys still remain — delete the oldest
+ * keys' artifacts until the cap holds. A key's age is its most recently
+ * touched surviving file, so a key with any recent activity survives the
+ * cap pass even if it also has old rotated files.
+ *
+ * Best-effort throughout: a stat or unlink failure on one file is logged
+ * (CACHE_FIX_DEBUG=1) and skipped, never thrown — a partial sweep is
+ * strictly better than an exception that takes the boot-time caller down
+ * with it.
+ *
+ * @param {string} dir  Snapshot directory.
+ * @param {object} [fs] fs/promises subset: { readdir, stat, unlink, chmod }.
+ *                      Defaults to DEFAULT_FS, same convention as every
+ *                      other I/O entry point in this module.
+ * @param {object} [opts]
+ * @param {number} [opts.now]      Reference time in epoch ms (test seam).
+ * @param {number} [opts.maxAgeMs] Defaults to SNAPSHOT_MAX_AGE_MS.
+ * @param {number} [opts.maxKeys]  Defaults to SNAPSHOT_MAX_KEYS.
+ * @returns {Promise<{ deleted: number, keysRemaining: number }>}
+ */
+async function sweepSnapshotDir(dir, fs = DEFAULT_FS, opts = {}) {
+  const now = opts.now ?? Date.now();
+  const maxAgeMs = opts.maxAgeMs ?? SNAPSHOT_MAX_AGE_MS;
+  const maxKeys = opts.maxKeys ?? SNAPSHOT_MAX_KEYS;
+
+  let names;
+  try {
+    names = await fs.readdir(dir);
+  } catch (err) {
+    // ENOENT — no snapshot dir yet — is the normal case on a fresh
+    // install and not worth logging even under CACHE_FIX_DEBUG.
+    if (err && err.code !== "ENOENT") {
+      debug(`sweep readdir failed for ${dir}: ${err?.message ?? err}`);
+    }
+    return { deleted: 0, keysRemaining: 0 };
+  }
+
+  const byKey = groupSnapshotFiles(names);
+  const mtimes = new Map();
+  for (const fileNames of byKey.values()) {
+    for (const name of fileNames) {
+      try {
+        const st = await fs.stat(join(dir, name));
+        mtimes.set(name, st.mtimeMs);
+      } catch (err) {
+        // Unreadable — e.g. removed between readdir and stat, or a
+        // permissions error. Treat as ancient so the age pass below
+        // takes it, rather than silently keeping a file we can't stat.
+        mtimes.set(name, 0);
+        debug(`sweep stat failed for ${name}: ${err?.message ?? err}`);
+      }
+    }
+  }
+
+  let deleted = 0;
+  async function unlinkOne(name) {
+    try {
+      await fs.unlink(join(dir, name));
+      deleted++;
+    } catch (err) {
+      debug(`sweep unlink failed for ${name}: ${err?.message ?? err}`);
+    }
+  }
+
+  // Age pass: any artifact past its TTL goes regardless of key count, so a
+  // single long-dead session cannot survive by riding under the key cap.
+  // Every surviving file also gets a mode repair here — a rotated `.1`
+  // file inherits whatever mode its pre-rotation path had (rename doesn't
+  // change it), so a file rotated before the 0600 fix shipped could
+  // otherwise sit at a loose mode indefinitely, since rotation is the one
+  // path that never calls appendFileOwnerOnly on the .1 name itself. The
+  // sweep already stats every survivor, so the repair is nearly free.
+  for (const [key, fileNames] of byKey) {
+    const surviving = [];
+    for (const name of fileNames) {
+      const age = now - (mtimes.get(name) ?? 0);
+      if (age > maxAgeMs) {
+        await unlinkOne(name);
+      } else {
+        await ensureOwnerOnly(join(dir, name), fs);
+        surviving.push(name);
+      }
+    }
+    if (surviving.length === 0) byKey.delete(key);
+    else byKey.set(key, surviving);
+  }
+
+  // Key-cap pass: prune the oldest keys — by their newest surviving file's
+  // mtime — beyond maxKeys.
+  if (byKey.size > maxKeys) {
+    const keyActivity = [...byKey.entries()]
+      .map(([key, fileNames]) => ({
+        key,
+        fileNames,
+        last: Math.max(...fileNames.map((n) => mtimes.get(n) ?? 0)),
+      }))
+      .sort((a, b) => a.last - b.last);
+    const toEvict = keyActivity.slice(0, keyActivity.length - maxKeys);
+    for (const { key, fileNames } of toEvict) {
+      for (const name of fileNames) await unlinkOne(name);
+      byKey.delete(key);
+    }
+  }
+
+  return { deleted, keysRemaining: byKey.size };
+}
+
+// Runs the retention sweep once per process, on the first live request —
+// there is no dedicated boot hook in the extension pipeline (loadExtensions
+// only imports the module; see pipeline.mjs), so "on boot" here means "the
+// first time this extension does anything in this process." Fire-and-await
+// rather than fire-and-forget: the cost is one readdir + a stat per file,
+// paid once per process, not once per request, and awaiting it keeps the
+// error handling in one place (onRequest's own try/catch) instead of
+// risking an unhandled rejection from a detached promise.
+let bootSwept = false;
+
+async function ensureBootSweep(dir, fs) {
+  if (bootSwept) return;
+  bootSwept = true;
+  const result = await sweepSnapshotDir(dir, fs);
+  if (result.deleted > 0) {
+    debug(`boot sweep: removed ${result.deleted} artifact(s), ${result.keysRemaining} key(s) remain`);
+  }
 }
 
 /**
@@ -948,7 +1213,11 @@ function withKeyLock(key, fn) {
 
 async function snapshotPrefix(payload, options = {}) {
   const headers = options.headers || null;
-  const current = buildSnapshot(payload, headers);
+  // `contentEnabled` in options lets tests exercise both modes without
+  // mutating process.env; production leaves it unset and gets the real
+  // CACHE_FIX_PREFIXDIFF_CONTENT reading.
+  const contentEnabled = options.contentEnabled ?? CONTENT_ENABLED;
+  const current = buildSnapshot(payload, headers, contentEnabled);
   if (!current) return null;
   const lockKey = resolveSessionKey(headers, payload.system);
   return withKeyLock(lockKey, () => snapshotPrefixLocked(payload, options, current, headers));
@@ -1131,6 +1400,11 @@ export {
   diffBetaHeader,
   TAP_ORDER,
   TAP_VIEW,
+  // Content minimization + retention (2026-08-05) test seams.
+  sweepSnapshotDir,
+  groupSnapshotFiles,
+  SNAPSHOT_MAX_AGE_MS,
+  SNAPSHOT_MAX_KEYS,
 };
 
 export default {
@@ -1152,6 +1426,10 @@ export default {
     if (!ctx || !ctx.body) return;
     // snapshotPrefix never throws; double-belt try/catch is defense in depth.
     try {
+      // Self-guarded (bootSwept): a no-op after the first call in this
+      // process. Same try/catch as everything else here — the sweep is
+      // best-effort and must never block a request.
+      await ensureBootSweep(getSnapshotDir(), DEFAULT_FS);
       await snapshotPrefix(ctx.body, { headers: ctx.headers });
     } catch (err) {
       debug(`onRequest unexpected: ${err?.message ?? err}`);
