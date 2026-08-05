@@ -655,7 +655,7 @@ test("BITE — at the cap there is no truncation marker: the marker's presence M
 // a reader consults first, so it gets the same three answers as the rest.
 const ROW_FIELDS = ["stabilityRows", "stabilityExemptRows", "conservationRows",
                     "conservationExemptRows", "sequenceRows", "orderRows",
-                    "absorptionMissRows"];
+                    "absorptionMissRows", "relocDepartureRows"];
 
 test("BITE — a child that produced no verdict carries an error, never empty row arrays", () => {
   // The three-answer rule at the row level: empty arrays on a run that
@@ -683,6 +683,7 @@ test("BITE — a field the child never emitted is null, an EMPTY array is a meas
   const measured = summarise("c.jsonl", 10, json({
     report: [{ n: 0 }], violations: [], exemptions: [], safety: [], conservation: [],
     conservationExemptions: [], sequence: [], orderViolations: [], absorptionMisses: [],
+    relocDepartures: [],
   }));
   for (const f of ROW_FIELDS) assert.deepEqual(measured[f], [], `${f}: a real zero is []`);
 });

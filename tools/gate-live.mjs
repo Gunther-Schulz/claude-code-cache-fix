@@ -279,6 +279,14 @@ function summarise(file, bytes, res) {
     ["conservationExemptRows", parsed.conservationExemptions],
     ["sequenceRows", parsed.sequence],
     ["orderRows", parsed.orderViolations],
+    // The departure census (threat-matrix row 25) is a REPORT, not a gate, so
+    // its rows are the only record it leaves — and the sweep computed them for
+    // every capture and dropped them on the floor, which is this item's own
+    // defect one layer newer. The rate they answer ("how often does a
+    // relocated block depart, and how often with the prefix above messages
+    // still INTACT") is a corpus question by construction: no single capture
+    // settles it, and the captures that would settle it rotate away first.
+    ["relocDepartureRows", parsed.relocDepartures],
   ]) persistRows(row, field, source);
   row.unparseable = (parsed.report ?? []).filter((r) => r.error).length;
   // Replay fidelity: whether this run reproduced the bytes the proxy really
