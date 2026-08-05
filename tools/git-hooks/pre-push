@@ -3,12 +3,17 @@
 # 2026-08-02 — two pushes landed with the absence-scan guard failing
 # because only targeted suites were run; the red survived a day).
 #
-# Activation is per-machine and tracked in one line:
-#     git config core.hooksPath tools/git-hooks
-# (worktrees share the config, so PR-branch worktrees are covered; a
-# fresh worktree still needs its node_modules symlink — see
+# Activation is per-machine, ONE symlink:
+#     ln -sf ../../tools/git-hooks/pre-push .git/hooks/pre-push
+# NEVER via repo-local `git config core.hooksPath`: on the operator's
+# machine a GLOBAL hooksPath runs the fixture-leak-scan dispatcher
+# (dotfiles git/hooks/pre-push), which after its own scan chains the
+# repo's .git/hooks/pre-push — a repo-local hooksPath would REPLACE the
+# dispatcher and silently disable the leak scan (happened 2026-08-05;
+# the dotfiles doctor now fails on a set repo-local hooksPath). A fresh
+# worktree needs its node_modules symlink — see
 # docs/runbooks/upstream-pr-round.md — and a missing one fails the
-# suite loudly here rather than silently skipping it.)
+# suite loudly here rather than silently skipping it.
 #
 # Deliberate-WIP bypass: `git push --no-verify`, stated in the same
 # turn/message as the push — an unstated bypass is the incident again.

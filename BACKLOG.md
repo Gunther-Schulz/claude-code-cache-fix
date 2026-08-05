@@ -203,18 +203,33 @@ then the queued ones. Work the items in that order.
   #295 pointing at it.
 
 - **SHIPPED fork-side 2026-08-05 (commit ref: the tools/git-hooks
-  commit this entry rides in) — the pre-push full-suite gate.** The
-  named obstacle dissolved: the hook is TRACKED
-  (tools/git-hooks/pre-push) and activated per-machine by one line,
-  `git config core.hooksPath tools/git-hooks` — run on Siren
-  2026-08-05; worktrees share it. Verified red-first: a seeded
-  failing test refused a real `git push --dry-run`; the landing push
-  of this very commit is the green case. Bypass: `--no-verify`,
-  stated in the same message. RESIDUE, dotfiles-side: doctor should
-  check `core.hooksPath` on this repo (machine trip), and the
-  stale-premise question about the "npm test hangs on the production
-  port" warning still travels to the operator (CLAUDE.local edit).
-  Original entry follows for the record.
+  commit this entry rides in; activation corrected same day) — the
+  pre-push full-suite gate.** The named obstacle dissolved: the hook
+  is TRACKED (tools/git-hooks/pre-push); activation is per-machine as
+  a SYMLINK `.git/hooks/pre-push -> ../../tools/git-hooks/pre-push`
+  (done on Siren), which the operator's GLOBAL hook dispatcher chains
+  after its fixture-leak scan. Verified red-first: a seeded failing
+  test refused a real push; the landing pushes are the green cases.
+  Bypass: `--no-verify`, stated in the same message.
+  **INCIDENT, same day, caught by the check's own red-test:** the
+  first activation used repo-local `core.hooksPath`, which silently
+  REPLACED the global leak-scan dispatcher for exactly the repo it
+  protects (one push, 190b395, went out leak-unscanned; its content
+  was clean — hook + backlog text, and npm test's absence-scan ran).
+  Root cause: a config write without the dependents search — one
+  `git config core.hooksPath` read would have shown the global
+  dispatcher. Mechanized: the dotfiles doctor now FAILS on a set
+  repo-local hooksPath in this repo and on a missing/wrong
+  .git/hooks/pre-push symlink (both halves proven red on their
+  defects). The former dotfiles residues are DONE: doctor checks
+  landed, and the stale "npm test hangs on the production port"
+  warning is retired from CLAUDE.local (added 2026-07-29 with no
+  recorded observation; never reproduced; both real hangs were the
+  worktree node_modules artifact). Residue that remains: the
+  suite-gate does NOT run for pushes from WORKTREES (the dispatcher
+  chains the worktree-local hooks dir, which is empty) — worktree
+  pushes get the leak scan only; the runbook's full-suite step covers
+  the gap procedurally. Original entry follows for the record.
 
 - **(superseded, see above) — a full-suite gate before push (the red-main incident,
   2026-08-02 evening).** What happened: the source-UUID guard landed
