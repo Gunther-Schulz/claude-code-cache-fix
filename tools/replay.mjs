@@ -176,7 +176,7 @@ function adjustedInHash(e) {
 // a first-appearance relocation deliberately prepends content to the
 // message at `targetIndex` that CC never had there before — exactly the
 // shape this check flags, by design (module doc at the top of this file,
-// the s-58c979ce n=2024->2025 case). Exempt ONLY when:
+// the n=2024->2025 case named above). Exempt ONLY when:
 //   1. the CURRENT entry (the one whose output changed) carries the
 //      telemetry at all, and
 //   2. its targetIndex equals the violation's outDiv (the change landed
@@ -412,7 +412,7 @@ export function findSequenceViolations(entries) {
         //
         // Same bar the stability gate already uses: `inDiv === null` means CC
         // changed nothing that was already sent. Measured 2026-07-28 on
-        // capture s-538c0aef, request 109: CC replaced message 196 in place
+        // one capture, request 109: CC replaced message 196 in place
         // ("yes lest do it all!" -> "lets do it all 13.x shuodl be ..."), so
         // reset(edit-shaped) was right and the sequence flag was noise. The
         // real cost of that event — our bytes moving at 177 while CC's were
@@ -1096,7 +1096,7 @@ export function findEditPositions(entries) {
 // meaningful.
 //
 // CANDIDACY (2026-07-30, measured on the real flap bytes — capture
-// s-0d6f38ba pair n=102->104, fixture flap-s-0dc8ac87c43d-86.json): the block
+// the flap capture, pair n=102->104, fixture flap-s-0dc8ac87c43d-86.json): the block
 // must appear <system-reminder>-WRAPPED on whichever side it is INLINE.
 // Without that condition the definition above over-reports, because both of
 // its guards can be true of a block that never moved:
@@ -1484,10 +1484,10 @@ export function findSuccessions(entries) {
 // pinnedForwardForm returns the incoming message unchanged unless
 // `stored.r === "user"`. Assistant content is transformed by a different and
 // separately-gated class of extension. That class is not hypothetical —
-// measured over 936 requests of four live captures (s-f3db21fa, s-2cd640f8,
-// s-51c8511a, s-0d6f38ba) the ONLY blocks the pipeline does not conserve
+// measured over 936 requests of four live captures the fixtures derive
+// from, the ONLY blocks the pipeline does not conserve
 // byte-identically are `assistant/tool_use` (rewritten in place by
-// tool-input-normalize: 3,145 lost and 3,145 gained on s-0d6f38ba alone) and
+// tool-input-normalize: 3,145 lost and 3,145 gained on one of them alone) and
 // `assistant/thinking` (dropped by thinking sanitization); non-assistant
 // blocks were conserved in every one of those requests. So the exclusion
 // costs no coverage of THIS class and would otherwise fire on two declared

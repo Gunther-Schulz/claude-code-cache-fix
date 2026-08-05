@@ -139,7 +139,7 @@ test("stability: BITE — when CC ALSO changed the diverging index, say so", () 
 
 // --- fresh-session-sort's telemetry-keyed exemption (2026-07-30) ---
 //
-// The real case (s-58c979ce n=2024->2025): CC's own array first diverges at
+// The real case (one capture, n=2024->2025): CC's own array first diverges at
 // index 1 (a new scattered block appears), our output diverges EARLIER, at
 // index 0 (the relocate branch prepends it to messages[0]) — exactly the
 // stability check's violation shape, but a DELIBERATE one-time relocation
@@ -314,7 +314,7 @@ test("sequence: BITE — normalize then reset is caught", () => {
 // A reset is OUR failure only when CC left the history alone. If CC rewrote
 // it, resetting is correct and flagging it is a check firing on a non-defect —
 // the fault that trains a reader to ignore red. Measured 2026-07-28 on capture
-// s-538c0aef request 109: CC replaced message 196 in place, so
+// That capture's request 109: CC replaced message 196 in place, so
 // reset(edit-shaped) was right; the real cost of that event was our bytes
 // moving at 177, which is the STABILITY gate's job and it caught it.
 test("sequence: a reset AFTER CC rewrote history is honest, not a violation", () => {
@@ -780,7 +780,7 @@ test("flap: fires-on-non-defect guard — opposite directions by DIFFERENT block
 // --- blockMigration candidacy: a message that SHED siblings is not a
 //     standalone emergence ---
 //
-// Measured on the real 2026-07-30 flap bytes (capture s-0d6f38ba, pair
+// Measured on the real 2026-07-30 flap bytes (the flap capture, pair
 // n=102->104; fixture flap-s-0dc8ac87c43d-86.json, harvested by the sibling
 // build). The alignment there is:
 //
@@ -884,7 +884,7 @@ const FLAP_FIXTURE = JSON.parse(
 test("BITE — the real 2026-07-30 flap: one reminder block, three legs, two of them flaps", () => {
   const rows = findBlockMigrations(
     FLAP_FIXTURE.requests.map((r) => ({
-      n: r.n, ts: r.ts, key: "s-0d6f38ba", inMsgs: r.messages, outMsgs: r.messages, inTools: [], outTools: [],
+      n: r.n, ts: r.ts, key: "s-flapcapture", inMsgs: r.messages, outMsgs: r.messages, inTools: [], outTools: [],
     })),
   );
 
