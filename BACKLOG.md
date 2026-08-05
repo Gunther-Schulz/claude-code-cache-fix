@@ -523,6 +523,157 @@ bullet, evidence pointer included.
   than worked around — one asserted that an allowlisted path is "not
   scanned", which was the defect stated as an expectation.
 
+- **FINDING 2026-08-05 (dispatcher-measured) — the absorption check's
+  `ours` flag UNDER-attributes, so "40 of 50 ours" is a floor and the
+  class question must be asked over all 50.** Measured on the
+  known-positive capture, which the sweep scores 2 total / 1 ours.
+  Both rows are class CONTAINER with a 25-byte delta; the second
+  (`n=124->130`, forwarded index 178) is scored NOT ours only because
+  CC's own input diverged earlier — `inputDivergence 28` against
+  `forwardedDivergence 178` — and the flag is
+  `ours = inDiv === null || inDiv > outDiv` (replay.mjs:1228).
+  So the flag answers "is the FIRST forwarded divergence explainable
+  by CC's input?", not "did WE build the bytes at the divergence
+  index?" — and on this row the earlier input divergence is one our
+  own pipeline ABSORBED, i.e. the mitigation working, which then
+  disqualifies the row from the attribution it deserves.
+  THE SHARPER TEST EXISTS AND IS THE MATRIX'S OWN: is
+  `JSON.stringify(forwarded[i])` byte-present in CC's raw `messages`
+  array? Run over both rows (probe: replay `--dump-forwarded
+  124:178,130:178,220:360,221:360`, then a substring test against the
+  raw record):
+      n=124 forwarded[178] string 9002 B — present in CC's raw: YES
+      n=130 forwarded[178] array  9027 B — present in CC's raw: NO — we built it
+      n=220 forwarded[360] string  405 B — present in CC's raw: YES
+      n=221 forwarded[360] array   430 B — present in CC's raw: NO — we built it
+  The text is present in CC's array in all four cases; only the
+  container is ours. So `n=130` is the 349k defect exactly, 96
+  requests earlier in the same capture, and the flag hid it.
+  READY, and it is small: `--dump-forwarded` gains a `builtByUs`
+  boolean computed at dump time (`rec.body.messages` is in hand there,
+  pre-pipeline), and `absorption-classify` carries it as a column
+  beside `ours`. Re-run the corpus after it lands and grade the
+  classes on `builtByUs`, not on `ours`. Verifier, red-first: assert
+  `builtByUs === true` for n=130 and n=221 and `false` for their
+  predecessors — red today, since the field does not exist.
+  RESIDUE, named: this says nothing about the 10 not-ours rows on
+  OTHER captures; they may be genuine CC-side divergences. The
+  re-run is what settles their split, and until it lands the honest
+  statement is "at least 40 of 50, mechanism unconfirmed for the
+  remainder".
+
+- **FINDING 2026-08-05 (measured, mid-dispatch) — the capture corpus
+  is SATURATED, so evidence now expires by mtime within hours, and
+  every corpus-wide number the sweep prints is unreproducible the
+  moment it is printed.** Surfaced by the absorption-classification
+  dispatch: 3 of the 12 captures the 12:20Z sweep measured were GONE
+  from disk when the classifier ran at ~15:30Z, taking 11 of the 50
+  rows (9 of the 40 `ours`) with them. Mechanism, read at the source:
+  `request-capture.mjs:191-219` (`sweepCaptureDir`) deletes
+  OLDEST-mtime-first until the directory is under the ceiling, and
+  the serving ceiling is `CACHE_FIX_CAPTURE_MAX_MB=8192` (read live
+  from `systemctl --user show cache-fix-proxy -p Environment`) against
+  a directory measuring 7.6 GB / 37 files right now — down from 41
+  files at the sweep. At the ceiling every new request evicts an older
+  capture, so eviction is CONTINUOUS, not occasional, and it selects
+  on last-write time rather than on evidentiary value: the quiet
+  session's capture goes first, and a capture is quiet exactly when
+  its conversation has ended, which is when it becomes evidence.
+  THE CONCRETE COST, today, twice over: the capture that carried this
+  morning's 38-row conservation gate-red is one of the three that
+  rotated away. That triage had to REPLAY the capture to get its rows
+  (the status file stores counts only), and it landed hours before the
+  file was deleted. Had it not, the row-level attribution behind
+  "GATE-RED CLOSED" could no longer be produced at all — the fix and
+  its tests would stand, and the evidence for WHY would be gone.
+  NOT A NEW RETENTION POLICY. Raising the ceiling buys hours and
+  changes nothing structural; the corpus is a rolling window by
+  design and should stay one. What must change is that a measurement
+  keeps its own rows at the moment it takes them, which is the READY
+  item below.
+  BRIDGE TAKEN 2026-08-05 (operator GO): ceiling 8192 -> 12288
+  (dotfiles 4c2d0ca, unpushed there — a concurrent writer holds that
+  repo). Restart verified transparent: `proxy_tree 9ef42be576bd`
+  before and after, env-only change, so no forwarded byte differs and
+  no `restart-exposure` run was owed (row 3). The dotfiles comment
+  claiming "8 GB ~= 11 Tage" was falsified by today's measurement and
+  is corrected in the same commit. REVERT TRIGGER: the READY item
+  below plus the pin-at-finding item — once both land, the window
+  carries discovery only and 8192 is enough again.
+  THE SIGNAL FOR THIS EXISTED AND HAD NO READER, which is the part
+  worth keeping. `harvest.mjs:897-901` prints "WARNING: N capture(s)
+  expired before harvest — raise CACHE_FIX_CAPTURE_MAX_MB", and the
+  unit comment names that warning as the designed measurement of
+  whether the cap suffices. It runs twice daily. Nobody has read it:
+  the ledger carries 93 `gone` entries against 7 live. So the cap was
+  instrumented from the start and the instrument reported into a
+  stream with no consumer — the orphan-telemetry class this backlog
+  already tracks (Q4), landing on the one number it was built for.
+  Also, the warning's own wording is wrong in the same way today's
+  byte-length label was: every one of the 93 has a watermark >= 1,
+  i.e. it WAS harvested at least once, so the message fires on
+  "expired after harvest" while saying "before harvest". Fix the
+  string when the reader is built; a warning that misstates its own
+  condition trains the reader who finally arrives to discount it.
+
+- **READY — evidence leaves the rolling window at FINDING time: the
+  sweep pins the request bytes behind each finding row (tools/-only,
+  not deployment-coupled).** This is the permanent answer to the
+  expiry finding above, and the reason no ceiling is the answer:
+  eviction is continuous by construction, so the fix is not to keep
+  captures longer but to stop needing them. Two halves, and the
+  second is this item — the first is the row-persistence item below.
+  Grounding, measured today: a row-scoped pin is KILOBYTES. The
+  builtByUs probe needed exactly `forwarded[i]` for two requests plus
+  the raw `messages` array to test byte-presence; the whole evidence
+  for the 349k bust's row is a few KB against a 316 MB capture. The
+  46 MB fixture problem that blocks `harvest --pin` does NOT apply
+  here, because that tool pins a whole prefix from request 0 while
+  this pins one pair at one index — so this item is NOT blocked on
+  the content-addressed fixture format, and that is the thing to
+  check first if it looks blocked.
+  Design: when a gate records a finding row, write a companion
+  artifact keyed by the row (capture-key hash + n + index) carrying
+  the two forwarded messages at the divergence index, the raw
+  counterpart, and the array lengths. Scrubbed by the existing
+  harvest scrub, absence-scanned like everything else, and small
+  enough to commit — which is the whole point: the finding becomes
+  answerable from git after the capture is gone.
+  Verifier, red-first: delete (or point away from) the capture and
+  require the row's attribution question — "did we build these bytes"
+  — to still be answerable from the pinned artifact alone; red today,
+  since the answer currently requires the capture. Plus a control
+  that a pin whose bytes do not match the row it claims is rejected
+  rather than trusted.
+  WHY THIS IS THE PERMANENT ONE, stated so it is not re-litigated:
+  the window's job becomes DISCOVERY, and archival moves to git where
+  it is diffable, scrubbed and free. The ceiling then only has to
+  outlive the gap between two sweeps, which is hours, not weeks.
+
+- **READY — the daily sweep persists ROWS, not just counts, for every
+  gate that produces them (tools/-only, not deployment-coupled).**
+  Grounding: the finding above, plus the precedent that just shipped —
+  the absorption check's rows are now written to the status file
+  (`gate-live.mjs`, `row.absorptionMissRows`) precisely because their
+  absence forced an 8 GB re-read to answer a question the sweep had
+  already answered once. Every other per-row gate still discards:
+  conservation violations and exemptions, byte-gate MISMATCH rows,
+  order and sequence violations, census findings. Each is a list the
+  sweep computes and throws away, and each is re-derivable only while
+  the capture still exists — which the finding above prices at hours.
+  Design: same shape as `absorptionMissRows`, one field per gate,
+  written from the child's parsed JSON with NO reshaping. Bound it
+  per gate per capture (200 rows is above every count observed; the
+  38-row gate-red is the largest so far) and on truncation write an
+  explicit `truncated: <n>` beside the array — a silently short list
+  is the failure this item exists to prevent, one level up.
+  Verifier, red-first: a bite asserting a sweep row carries the
+  conservation rows for a capture whose replay reports them, red
+  against today's `summarise*` which keep only counts; plus a control
+  asserting the truncation marker appears when the cap is crossed.
+  NOT in scope: changing what any gate COMPUTES, or the sweep's
+  pass/fail. This is persistence only.
+
 - **READY — the canonical re-serve normalizes its CONTAINER to the
   wire's current one (proxy/**, deployment-coupled).** This is the
   349k bust's actual fix and it is narrower than the row-24 message-
@@ -544,12 +695,40 @@ bullet, evidence pointer included.
   case that is measured, and fail closed to today's behaviour on
   anything else — a multi-block message or a container change that
   also changes text is NOT this class.
+  CALL SITES, located 2026-08-05 (read, not yet exercised — the
+  exercise is the bite below): the verbatim re-serve is exactly two
+  lines, `insertion-normalization.mjs:941` (join-moves,
+  `out[mv.mergedIndex] = priorCanonical[mv.ci].m`) and `:942`
+  (re-fires, `out[rf.index] = priorCanonical[rf.ci].m`). The stored
+  `.m` is written by `buildPinEntry` (:620-622) as
+  `stripAllCacheControl(msg)` over CC's RAW first-seen message, so
+  the container stored is whichever one CC happened to use first —
+  the array, in the measured instance, because that is how CC carries
+  a breakpoint.
+  WHY THIS IS A FORWARDING BUG AND NOT AN IDENTITY ONE, and it is the
+  fact that makes the fix small: `canonicalMessageShape` (:370-379)
+  ALREADY treats a bare string and a single text block as the same
+  identity, which is why the entry matched across the flip at all.
+  Identity is container-blind today; only the forwarded bytes are
+  not. And the PIN path already does the right thing — line 925 calls
+  `pinnedForwardForm(stored, messages[e.index])`, i.e. it consults
+  the live wire message before deciding what to send (:633-637).
+  The move/re-fire path at 941-942 is the outlier that consults
+  nothing. State the fix that way when building it: give 941-942 the
+  wire-consulting form the pin path already has.
   SEQUENCING against the narrow container normalisation item further
   down: they are the same mechanism seen from two sides (CC's flip vs
-  our stored flip) and both are proxy/**. Price them together; if the
-  narrow normalisation lands first and normalizes containers BEFORE
-  the canonical is written, this item may dissolve into it — check
-  that before building both.
+  our stored flip) and both are proxy/**. First read of the code says
+  they do NOT dissolve into one another and the sequencing note
+  overstated it — this item fixes what WE re-serve (two lines,
+  container-blind identity already in place), the row-24 item
+  normalizes what CC sends, which rewrites pass-through bytes and is
+  the larger behaviour change. A row-24 normalisation applied to both
+  the stored and the live view would also cover this class as a side
+  effect, so the dissolve direction is one-way and the cheap item is
+  this one. That reading is UNEXERCISED: it rests on the call sites
+  above, not on a replay, and the old-vs-new corpus check below is
+  what settles it.
   Verifier, red-first: a bite that drives the measured sequence —
   first request carries the message as `array[1]` with a
   `cache_control`, later requests as a bare string, then a join-move
@@ -1370,6 +1549,37 @@ then the queued ones. Work the items in that order.
   2026-08-01 ruling that minimization stays a post-step gated by
   tools/fixture-verdict-identity.mjs still holds — this item is the
   post-step being built, not a harvest parameter.
+
+- **CANDIDATE MINT, belongs to the CORPUS layer not this repo — a
+  STOPGAP is never the recommendation on its own (dispatcher defect,
+  2026-08-05).** Evidence: asked how to keep captures alive for a
+  running analysis, I offered three options and recommended raising
+  the retention ceiling — a knob that buys hours and moves the same
+  loss later. The durable design (evidence leaves the window at
+  finding time, kilobytes per row, into git) came only after the
+  operator asked "isn't there a GOOD permanent solution?", and it was
+  ALREADY WRITTEN in this repo's own runbook as closing-gate question
+  2, which I had not re-read.
+  Target entry, by amendment not addition: CLAUDE.md "Recommending &
+  reporting", whose existing rule kills hedging options beside a
+  strong recommendation. The gap is one level down — the
+  recommendation ITSELF can be a stopgap, and a stopgap is defensible
+  only as a bridge. Proposed widening, in that entry's register: a
+  stopgap recommended alone reads as a solution and closes the
+  question; it ships named as a bridge, with the durable fix stated
+  beside it and a revert trigger written where the knob lives, or it
+  is not the recommendation.
+  Why it is corpus-level and not project-level: it fired here on a
+  retention ceiling, but the shape is any knob, timeout, retry,
+  allowlist or cap — every project has them. The project half of
+  today's lesson (a recurring finding-producer has no closing moment)
+  is already minted in `docs/dev-loop.md` question 2, which is where
+  it is true.
+  Not minted from this session on purpose: the global corpus is
+  governed by `CLAUDE-maintenance.md` (amendment-over-addition, the
+  render test, a JOURNAL line in the dotfiles repo), and that repo
+  currently has a concurrent writer holding `claude/`. It is a
+  focused unit, not a fold-in.
 
 - **CANDIDATE MINT, belongs to the CORPUS layer not this repo —
   brief-time path existence check (dispatcher defect, 2026-08-02).**

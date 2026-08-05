@@ -490,6 +490,31 @@ it, acknowledge-by-commit, within the hour).
    it — sanitized, via the harvest path — before closing (precedent: the
    growth-step spec exists because a baseline step's explaining diff dies
    with the capture).
+   **A RECURRING producer of findings has no closing moment, so it
+   satisfies this question in its own machinery or not at all.** The four
+   questions run at work-time, per change — which silently assumes a human
+   is present when the finding appears. A daily gate is not: it produces
+   findings every morning, forever, with nobody closing anything. Shipping
+   one and answering question 2 "yes, harvestable" is answering about the
+   day it shipped, not about the class. Measured cost, 2026-08-05: the
+   absorption check shipped in the morning storing COUNTS only; by
+   afternoon 3 of the 12 captures behind its first 50 rows were evicted,
+   taking 11 rows with them, and the capture carrying that same morning's
+   38-row conservation gate-red was one of them — its row-level
+   attribution had hours of life left when it was produced by hand.
+   So for anything that runs on a schedule, question 2 reads: does the
+   MECHANISM write out what proves its own findings, at the moment it
+   finds them? "A human can re-run it later" is not an answer while the
+   inputs expire — and eviction is oldest-mtime-first, which takes the
+   quiet session first, and a session goes quiet exactly when it stops
+   being traffic and starts being evidence.
+   **Corollary — a retention knob is never the answer here.** Raising
+   `CACHE_FIX_CAPTURE_MAX_MB` buys hours and moves the same loss later;
+   the window is a discovery buffer by design. A stopgap may be TAKEN
+   (2026-08-05: 8192 -> 12288, to keep an analysis alive that was already
+   running), but it ships named as a bridge, with the durable fix stated
+   and a revert trigger written where the knob lives — never as the
+   recommendation on its own.
 3. **Does the census need a new class or annotation?** A class you named
    by hand while investigating is a classification the census should emit
    — otherwise the next instance gets re-derived instead of recognized

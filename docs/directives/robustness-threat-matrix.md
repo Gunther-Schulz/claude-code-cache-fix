@@ -654,12 +654,23 @@ replay report, so the probe measured the same pipeline replay.mjs
 does). First divergence over the FORWARDED arrays is index 360, both
 sides 414 messages:
 
-    n=220 forwarded[360]  {"role":"system","content":"<370-char string>"}       403 bytes
-    n=221 forwarded[360]  {"role":"system","content":[{"type":"text",...}]}     428 bytes
+    n=220 forwarded[360]  {"role":"system","content":"<370-char string>"}       405 bytes
+    n=221 forwarded[360]  {"role":"system","content":[{"type":"text",...}]}     430 bytes
 
 The inner text is BYTE-IDENTICAL. The 25-byte delta is exactly the
 JSON of `[{"type":"text","text":` + `}]` — the container, and nothing
-else. And `forwarded[360]` of n=221 is byte-present nowhere in CC's
+else.
+
+(CORRECTED 2026-08-05: this entry first read 403/428. Those were
+`JSON.stringify(msg).length` — UTF-16 code units, not bytes, under a
+label that said bytes. The message carries exactly one non-ASCII
+character, U+2014 EM DASH at index 208 of the extracted text / byte
+offset 239 of the n=220 stringify, 3 bytes in UTF-8 against 1 code
+unit, present once on each side: +2 and +2. The 25-byte delta is
+unaffected, which is why the conclusion stood while the absolute
+numbers did not. Found by `tools/absorption-classify.mjs`, which
+counts `Buffer.byteLength(..., "utf8")` — the wire's unit — and
+disagreed with this entry rather than being reconciled to it.) And `forwarded[360]` of n=221 is byte-present nowhere in CC's
 raw array: **we built it.**
 
 ATTRIBUTED BY EXERCISING, not by reading — the probe re-ran the
