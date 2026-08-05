@@ -1142,7 +1142,7 @@ test("conservation: BITE — cross-join constituents must be ADJACENT and in wir
 
 test("conservation: fresh-session-sort's declared /clear-artifact strip is exempt", () => {
   // Clause (c) of the definition, and the case that found it: the first sweep
-  // reported 645 `lost` rows on capture s-633915a8, all at message 0, and
+  // reported 645 `lost` rows on capture s-4b6a435234bf, all at message 0, and
   // stage-by-stage replay named fresh-session-sort, which deletes the echo a
   // slash command leaves behind. Declared behaviour, not lost conversation.
   const inM = [

@@ -4,7 +4,7 @@
 // insertion-normalization's own self-report that it re-serialised CC's
 // splice into an append, and prices the miss from CC's own input divergence
 // index. It has no opinion on where the result actually landed once
-// forwarded. Measured 2026-07-29 (capture s-633915a8, pair n=26->28):
+// forwarded. Measured 2026-07-29 (capture s-4b6a435234bf, pair n=26->28):
 // `mitigated: true`, `rebilledBytes: 0` — while the forwarded array kept a
 // byte-stable prefix through index 30 and then SPLICED a standalone system
 // message in at index 31, re-billing everything from there (outcome record:
@@ -92,7 +92,7 @@ test("mitigation output-form: a genuine tail-append reconstruction reports appen
   assert.equal(rows[0].rebilledOutBytes, 0);
 });
 
-// --- (i) the real defect: capture s-633915a8, pair n=26->28 ---
+// --- (i) the real defect: capture s-4b6a435234bf, pair n=26->28 ---
 //
 // Replays the ACTUAL extension pipeline over the ACTUAL capture, from the
 // start of the file through request 28, under the same gate set the
