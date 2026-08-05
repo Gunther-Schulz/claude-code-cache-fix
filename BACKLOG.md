@@ -870,6 +870,73 @@ bullet, evidence pointer included.
   cross-tenant. The relocation memory next door is keyed per conversation
   and is not affected.
 
+- **READY — the `/resume` re-bill (matrix row 24): pick up where the row's
+  named missing evidence stops, and decide a compromise.** Operator ask,
+  2026-08-05. Not a fresh investigation: row 24 already measured the class
+  (~1.19M tokens across one boundary, `cache_read=0` on the first resumed
+  request, TTL expiry ruled out, resuming FASTER cannot help) and graded it
+  OPEN AND PROMISING — 98% of the resumed content is byte-identical to the
+  pre-exit array, and the index-0 divergence is a `<system-reminder>` block
+  carrying the CLAUDE.md corpus snapshot, i.e. the volatile-reminder class rows
+  1 and 23 already mitigate. Still live and current rather than historical:
+  the cold ledger records `2026-08-05 17:22:36Z 408k CONTROLLED(resume)` for
+  the operator's own session today.
+  **The blocker to solve FIRST, and it is new — it comes from building the
+  relocation memory today.** Every stateful extension keys on
+  `conversationSubKey(messages)`, a hash of `messages[0]`. A resume REBUILDS
+  `messages[0]`, so the resumed session is a different conversation to all of
+  them by construction — there is no key under which the pre-exit form could
+  be looked up, which is why "pin messages[0] to its first-seen form" is not
+  yet implementable however desirable it is. So step 1 is the KEY question,
+  not the pinning question: does any identity survive a resume boundary
+  (session-id header + system-prompt sub-key without the conversation
+  sub-key? a content overlap test against recent conversations?), and what
+  does each candidate collide with — the co-tenant traffic that forced the
+  conversation sub-key in the first place is the thing to re-check, since
+  dropping it is what row 14 was about.
+  Step 2 is row 24's own named missing evidence: where the SECOND divergence
+  lands once `messages[0]` is held (the 49 dropped and 18 new messages must be
+  located — tail, scattered, or a compaction boundary), measured with today's
+  instruments, which did not exist when the row was written: the stability
+  violation's `prefixAboveMessages` says whether a message-layer fix would
+  even be billable, and the row's own note that the SYSTEM prompt also
+  changed means the messages half may be worth nothing until the system half
+  is answered too.
+  Step 3 is the compromise itself, and one half of it is an OPERATOR CALL,
+  not a measurement: re-serving a stale corpus snapshot after the operator has
+  deliberately edited the rules mid-session. The in-band announcement pattern
+  (rows 1/23) can carry the delta so the model still reads the newer text —
+  that is the shape of the compromise, and whether it is acceptable for
+  authoritative instruction text is the operator's to settle.
+  Done when: the key question has a measured answer, the second divergence has
+  an index and a re-billed size, and the compromise is either designed or
+  refused with its reason. Evidence pointer, with its expiry: today's capture
+  for session `03d45c17` holds exactly one born-large conversation
+  (`conversationSubKey 9ea7aead0d1a7452`, n=2, 15:33:17Z, 449 messages) — the
+  rebuilt-array signature — while the 17:22:36Z 408k event's own request was
+  NOT located in it, which is itself the first thing to reconcile. Captures
+  rotate oldest-mtime-first; this one is ~320 MB and current.
+
+- **READY — `bust-triage --at <stamp>` substitutes silently when the stamp
+  names a CONTROLLED event (tools/-only).** Found 2026-08-05 by using it: the
+  DEFAULT path prints the note it should — "the newest cold event is
+  2026-08-05 17:22:36Z CONTROLLED(resume), 408k re-written … Cannot triage …
+  Falling back to the newest BUST" — and `--at 2026-08-05T17:22:36Z` prints
+  NOTHING and answers about the 12:20:13Z `messages_changed` bust instead.
+  That is the exact failure `fallbackNote`'s own docstring names ("someone
+  sees a ❄ token, runs the tool, and gets a verdict about a different, older
+  event with nothing marking the substitution") — the guard exists, and the
+  `--at` path routes around it, which is worse than not having it: the reader
+  believes the verdict describes the event they asked about.
+  Design: `--at` resolves against ALL cold events, not just busts; when the
+  resolved event is controlled, emit the same note (naming the requested
+  stamp, not only "the newest") before any fallback, and when there is no
+  bust at or before the stamp say so rather than defaulting to the newest.
+  Verifier, red-first: a bite driving `--at` with a controlled stamp against
+  a synthetic ledger must assert the note's presence and the named stamp —
+  red today, since the path prints nothing; plus a control asserting the
+  default path's note is unchanged.
+
 - **READY — the byte-gate's MISMATCH rows have no way OUT of the census, so
   the sweep cannot persist them (tools/-only).** Surfaced by the row-persistence
   lane as a returned question, not filled by it: the six other per-gate row
