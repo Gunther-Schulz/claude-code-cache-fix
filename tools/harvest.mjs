@@ -141,7 +141,7 @@ const VOLATILE_WRAP = /^<system-reminder>\n([\s\S]*)\n<\/system-reminder>\s*$/;
 // independently, so the two never matched post-scrub and the suppression
 // class became unobservable in any fixture built from it (measured
 // empirically while building the harvest --pin fixture for capture
-// s-633915a8 n=26->28: suppressed count 1->0, outputForm "append"->
+// s-4b6a435234bf n=26->28: suppressed count 1->0, outputForm "append"->
 // "splice@31" under the fixed-constant scrub). Recursing scrubText on the
 // captured inner text keeps both sides deterministic and equal when their
 // real bytes were equal, wrapped or not — the wrapper tags still survive
@@ -709,7 +709,7 @@ async function runPin(args) {
   });
 
   // File name carries the key's sanitized token, never the session UUID — a
-  // filename is as public as the content, and `pinned-s-633915a8-…` named a
+  // filename is as public as the content, and `pinned-s-4b6a435234bf-…` named a
   // real session. Same token as the header and the records, so a reader can
   // still tell which fixtures came from one capture.
   const outName = `pinned-${sidToken(key)}-${n}-${m}.json`;

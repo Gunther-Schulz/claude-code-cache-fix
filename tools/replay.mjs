@@ -554,7 +554,7 @@ export function toolsFingerprints(tools) {
 // content. A pair of forwarded messages that differ ONLY in whether/where a
 // cache_control block is attached carries identical model-visible bytes;
 // counting that as a splice prices a cost nothing actually incurred.
-// Measured (flap-probe, capture s-633915a8-...): CC itself sends an
+// Measured (flap-probe, capture s-4b6a435234bf-...): CC itself sends an
 // identical 32,140-char text as a cache_control-bearing block while it is
 // the tail, then as a bare string once it is not, in its own pre-pipeline
 // bytes (n=678->681 and four siblings: 564->565, 354->356, 267->268,
@@ -868,7 +868,7 @@ const MITIGABLE = new Set(["splice/insert-mid", "append-after-change", "reorder-
 // The API keys its cache on the longest byte-identical PREFIX of the
 // message array, so a mid-array splice moves that boundary earlier and
 // re-bills everything after it — the exact cost `mitigated` claims was
-// avoided. Measured: capture s-633915a8, pair n=26->28 — input-side
+// avoided. Measured: capture s-4b6a435234bf, pair n=26->28 — input-side
 // `mitigated: true`, `rebilledBytes: 0`, while the forwarded array kept a
 // byte-stable prefix through index 30 and then spliced a standalone system
 // message in at index 31, re-billing everything from there (outcome record:
@@ -1069,7 +1069,7 @@ export function findEditPositions(entries) {
 // reminder is pure noise, and exactly what leaves census blind to the case
 // where the same bytes are NOT noise: they leave one message's content array
 // and reappear as a message of their own. That is the reminder-swap shape —
-// measured directly in capture s-633915a8,
+// measured directly in capture s-4b6a435234bf,
 // n=26->28: message[30]'s 5th block, `<system-reminder>\nPreToolUse:Edit
 // hook additional context...\n</system-reminder>`, is gone from message[30]
 // on the n=28 side, and its inner text — wrapper stripped — is the entire
@@ -1547,7 +1547,7 @@ const isAssistant = (m) => m?.role === "assistant";
 // harness quoting its own command back, never conversation content.
 //
 // Found by this gate rather than by reading: the first sweep reported 645
-// violations on capture s-633915a8, ALL of kind `lost`, ALL at message 0, and
+// violations on capture s-4b6a435234bf, ALL of kind `lost`, ALL at message 0, and
 // stage-by-stage replay of request 822 named the extension — RAW 6 units,
 // after fresh-session-sort 3, the three removed being exactly a /compact
 // caveat, its `<command-name>`, and its `<local-command-stdout>`. Left

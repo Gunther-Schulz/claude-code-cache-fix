@@ -3,7 +3,7 @@
 //
 // Motivating instances: test/insertion-suppression.test.mjs and
 // test/mitigation-output-form.test.mjs both replay a specific real capture
-// (s-633915a8, pair n=26->28) and SKIP once that capture rotates out of the
+// (s-4b6a435234bf, pair n=26->28) and SKIP once that capture rotates out of the
 // per-machine retention window (~3 days, docs/dev-loop.md "Corpus
 // hygiene"). `harvest --pin <key> <n..m>` freezes the sanitized range as a
 // committed, rotation-immune fixture; both real-pair tests fall back to it
@@ -229,7 +229,7 @@ test("readPinnedFixture: yields [n, line] tuples whose parsed records match what
 // or at the real committed fixture, and reads their own TAP output — the
 // only way to know the fallback genuinely works end to end rather than
 // merely compiling. Never touches the real capture file
-// (~/.claude/cache-fix-captures/s-633915a8-...), which is read-only
+// (~/.claude/cache-fix-captures/s-4b6a435234bf-...), which is read-only
 // evidence.
 
 const REAL_PAIR_TESTS = [
