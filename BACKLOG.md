@@ -75,6 +75,29 @@ bullet, evidence pointer included.
   docs/audits/upstream-pr-sweep-2026-08-05.md, and every actionable
   item from it is booked in the "Upstream PR round" section below.
 
+- **OPEN INCIDENT 2026-08-05 ~10:51-10:56 — an external writer
+  corrupted this repo's .git/config; repaired, attribution needs the
+  concurrent sessions' transcripts.** Observed: `core.bare=true` +
+  `user.name=t` + `user.email=t@t` written into the LOCAL config
+  (config mtime 10:56:10), breaking all git work-tree operations and
+  mis-authoring one commit as "t" (b81e80a — re-authored to 3261ee3
+  and force-with-lease pushed same hour). Also unexplained:
+  FETCH_HEAD + ORIG_HEAD written 10:51 by a fetch/pull this session
+  never ran. `.git/description` and `HEAD` untouched since July, so
+  no reinit — direct config writes. The t/t@t/bare triple is exactly
+  the scratch-repo fixture convention of BOTH test rigs on this
+  machine. EXONERATED BY EXPERIMENT, both re-run against a config
+  md5 before/after: (1) the fork suite's two t@t-writing test files
+  executed inside the wt-g2 worktree — config byte-identical; (2)
+  the dotfiles pre-push battery executed with cwd in this repo —
+  config byte-identical. Remaining candidates are the concurrent
+  sessions active 10:51-10:56 (the dot session — its tooling pulls
+  this vendor clone — and the clippy session, mid-edit on
+  per-worktree git-config recipes at 10:55); their transcripts
+  settle it. Mechanization candidate once attributed: doctor
+  fail on a local user.name/user.email in this repo (global identity
+  is the convention here; a local one is always leakage).
+
 ## Upstream PR round — booked 2026-08-05, all READY
 
 Procedure for every item: docs/runbooks/upstream-pr-round.md (worktree
