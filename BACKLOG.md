@@ -106,12 +106,19 @@ bullet, evidence pointer included.
   is a departure whose predecessor carries a `relocated` declaration for
   the same type; none has been observed. The bites are still the only
   evidence that the memory does what it says.
-  **DEPLOY IS NOT DONE — and it is the last step.** `proxy/**` changed, so
-  it needs the dotfiles pin bump (`git rev-parse --short HEAD:proxy`) plus
-  `systemctl --user restart cache-fix-proxy`, then one gate run to re-stamp
-  the verdicts against the running build (until then doctor correctly
-  reports a code mismatch: the sweep is stamped with the new tree, /health
-  still answers with the old one).
+  **DEPLOY IS DONE (restarted ~17:55Z, verified content-to-content).**
+  `sourceFingerprint(disk)` == `/health proxy_tree` == `a5ca4c18d185`, and
+  the 17:56->18:13Z sweep is stamped with that same tree, so all three
+  answers agree. Bookkeeping correction (2026-08-05 fresh-context review):
+  this paragraph previously said NOT DONE — commit e57908b's message
+  claimed to amend it and the amendment never landed in the diff, so the
+  label sat stale over a resolved body. Two evidence notes from the same
+  review: the restart's "23 of 23 forwarded bodies byte-identical
+  old-vs-new" A/B exists ONLY in e57908b's commit message, with no run
+  artifact anywhere — treat that half as unverified; the "no cold record
+  after" half IS verified against the worktime ledger (last real cold
+  event 12:20:13Z, controlled resume 17:22:36Z, nothing after the
+  restart).
   Row-3 statement for that restart: fresh-session-sort is now
   stateful-PERSISTED, so the restart is cache-transparent for it — the
   relocation memory is re-read from disk, which is exactly what the
@@ -119,6 +126,43 @@ bullet, evidence pointer included.
   baseline is re-keyed: the state file is new, and its absence is an
   ordinary fail-open read. Price it with `tools/restart-exposure.mjs` like
   any other restart, but this change adds no re-baselining of its own.
+
+- **DONE 2026-08-05 (fresh-context review; ships with this entry's commit) —
+  the post-fix standing red on s-captureAB is explained, verified at the
+  bytes, and converted to a declared exemption.** The sweep kept failing
+  that capture's n=331->336 under the SHIPPED build because the relocation
+  memory is keyed through `systemPromptSubKey`, and CC swapped its first
+  system block in the same request ("You are Claude Code…" 57 chars -> "You
+  are a Claude agent…" 62 chars, sub-key 2719b7a4 -> 0d706285) — the memory
+  sat stranded under the old key, the in-place path forwarded without the
+  block, and the flip is free by construction (the system change re-bills
+  everything after system anyway). No extension change: carrying the memory
+  across rotation would either re-open the sidecar collision the sub-key
+  closes or buy bytes that are already re-billed. The gate instead gains
+  `memoryStrandedByKeyRotationExemption` (replay.mjs): five conditions, all
+  telemetry or imported identity, green on the stranding shape and red on
+  each condition removed singly (replay-gate-selfcheck), demonstrated on the
+  real capture (exit 1 -> exit 0, the row now prints
+  `memory-stranded-by-key-rotation (mcp)` with both sub-keys as basis).
+  Condition 5 (`ourSystemIdentical === false`) is the exemption's own
+  retirement trigger: if anything upstream ever stabilizes the forwarded
+  system prompt, a stranding stops being free and the violation returns by
+  construction. Row 25 carries the same explanation.
+
+- **PARKED — relocation-memory EVICTION stranding: the one route where a
+  stranded memory costs the full array.** The memory and its state files
+  are capped at 256 conversations (LRU + oldest-mtime prune,
+  fresh-session-sort); a conversation quiet long enough to fall past BOTH
+  caps loses its remembered block with the prefix above messages INTACT —
+  the original row-25 full-cost flip, and eviction takes the quiet session
+  first (the dev-loop harvest lesson, applied to state). Key-rotation
+  stranding is exempt and free by coupling (row 25, the entry above);
+  eviction stranding is neither. Missing evidence, named: no instance
+  observed. The census already emits exactly the promotion signal: a costly
+  departure row (`prefixAboveMessages.intact: true`) whose PREDECESSOR
+  carries a `relocated`/`reserved` declaration for the same type, in the
+  daily `relocDepartureRows`. One such row promotes this to work (raise the
+  cap, or exempt-and-declare); until then it parks. 2026-08-05.
 
 - **DONE 2026-08-05 (500f131) — the relocated-block DEPARTURE class is a
   census class, and it found a second instance the hand-read had missed.**

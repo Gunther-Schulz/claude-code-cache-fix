@@ -72,6 +72,7 @@ import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
 import { splitSmooshedReminders } from "../proxy/extensions/smoosh-split.mjs";
 import { rewriteBlockText, getBlockType, isRelocatableBlock } from "../proxy/extensions/fresh-session-sort.mjs";
 import { isContinueTrailerBlock, isBookkeepingReminder } from "../proxy/extensions/content-strip.mjs";
+import { systemPromptSubKey } from "../proxy/extensions/insertion-normalization.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -142,9 +143,9 @@ export function findStabilityViolations(entries) {
 }
 
 // Exempted divergences, annotated with their basis — not silently dropped.
-// Two exemptions are declared: freshSessionSortExemption and
-// resetWipesAdditionsExemption, both below, both keyed on the responsible
-// extension's own telemetry.
+// Three exemptions are declared: freshSessionSortExemption,
+// resetWipesAdditionsExemption and memoryStrandedByKeyRotationExemption,
+// all below, all keyed on the responsible extension's own telemetry.
 export function findStabilityExemptions(entries) {
   return scanAllGroups(entries).exemptions;
 }
@@ -247,6 +248,61 @@ function resetWipesAdditionsExemption(prev, cur, bar, ccSame) {
   return { type: stats.reason, removedInjections: prevInj.size - curInj.size, residualOutDiv: residual };
 }
 
+// fresh-session-sort's relocation memory is keyed by
+// resolveInsertionSessionKey, whose system-prompt sub-key rotates when CC
+// changes its FIRST system block mid-conversation (systemPromptSubKey,
+// imported below into compactEntry — the extension's own keying, never a
+// re-derived variant). The memory cannot follow the rotation — by design:
+// the sub-key exists to keep sidecars sharing the session-id header apart —
+// so the first request under the rotated key finds no memory, takes the
+// in-place path, and forwarded messages[targetIndex] loses the remembered
+// block(s): the stability shape, produced by an identity boundary rather
+// than a defect. Verified at the bytes on s-captureAB n=331->336
+// (2026-08-05: system[0] "You are Claude Code…" 57 chars -> "You are a
+// Claude agent…" 62 chars, sub-key 2719b7a4 -> 0d706285, forwarded
+// messages[0] four blocks -> three).
+//
+// Exempt ONLY when ALL of these hold — telemetry and imported identity,
+// never shape alone:
+//   1. the PREVIOUS entry declared a relocation or re-serve
+//      (freshSessionSortStats) at targetIndex === the violation's outDiv —
+//      the conversation demonstrably held a relocated prefix at exactly the
+//      slot that flipped;
+//   2. the CURRENT entry declares NO relocation and NO re-serve — the
+//      memory really was unreachable, not merely different;
+//   3. CC's own bytes at outDiv are identical across the pair (ccSame) —
+//      the flip is ours by construction, as the stranding shape requires;
+//   4. CC's first system block changed across the pair (inSysSub, the
+//      key input, rotated); and
+//   5. prefixAboveMessages.ourSystemIdentical is FALSE — the rotation
+//      reached the wire, so the prefix above messages re-bills anyway and
+//      this flip costs nothing marginal. This condition is the exemption's
+//      own retirement trigger: if anything upstream ever starts stabilizing
+//      the forwarded system prompt, a stranding stops being free, condition
+//      5 stops holding, and the violation comes back — the gate re-arms
+//      exactly when the freeness coupling breaks, with no separate monitor.
+function memoryStrandedByKeyRotationExemption(prev, cur, outDiv, ccSame, prefix) {
+  const prevStats = prev.freshSessionSortStats;
+  if (!prevStats || prevStats.targetIndex !== outDiv) return null;
+  const held = [
+    ...(prevStats.relocated ?? []).map((r) => r.type),
+    ...(prevStats.reserved ?? []),
+  ];
+  if (!held.length) return null;
+  const curStats = cur.freshSessionSortStats;
+  if (curStats && ((curStats.relocated ?? []).length || (curStats.reserved ?? []).length)) return null;
+  if (ccSame !== true) return null;
+  if (!prev.inSysSub || !cur.inSysSub || prev.inSysSub === cur.inSysSub) return null;
+  if (prefix.ourSystemIdentical !== false) return null;
+  return {
+    type: held[0],
+    held,
+    rotatedFrom: prev.inSysSub,
+    rotatedTo: cur.inSysSub,
+    targetIndex: outDiv,
+  };
+}
+
 // Did anything above `messages` in the cache prefix move across this pair?
 // `sig` is null when a side carries no tools[] at all — null === null is the
 // honest "both requests had none", not an unknown, because the fingerprints
@@ -335,6 +391,9 @@ function scanGroup(entries) {
       };
       const relocation = freshSessionSortExemption(cur, outDiv);
       const resetWipe = relocation ? null : resetWipesAdditionsExemption(prev, cur, bar, ccSame);
+      const stranded = relocation || resetWipe
+        ? null
+        : memoryStrandedByKeyRotationExemption(prev, cur, outDiv, ccSame, record.prefixAboveMessages);
       if (relocation) {
         exemptions.push({
           ...record,
@@ -346,6 +405,12 @@ function scanGroup(entries) {
           ...record,
           exemptReason: "deferred-tool-rewrite:reset-wipes-additions",
           exemptBasis: resetWipe,
+        });
+      } else if (stranded) {
+        exemptions.push({
+          ...record,
+          exemptReason: "fresh-session-sort:memory-stranded-by-key-rotation",
+          exemptBasis: stranded,
         });
       } else {
         violations.push(record);
@@ -797,6 +862,14 @@ export function compactEntry(e) {
     // gate can run on a 1 GB capture at all.
     inSystem: sha(JSON.stringify(e.inSystem ?? null)),
     outSystem: sha(JSON.stringify(e.outSystem ?? null)),
+    // The FIRST system block's sub-key, by the extensions' own keying
+    // (systemPromptSubKey, imported — never restated). This is the component
+    // of resolveInsertionSessionKey that rotates when CC swaps its identity
+    // line mid-conversation, stranding every per-conversation memory filed
+    // under the old key; memoryStrandedByKeyRotationExemption reads it.
+    // Distinct from inSystem above, which hashes the WHOLE system array — a
+    // change in a later block moves inSystem without rotating any key.
+    inSysSub: systemPromptSubKey(e.inSystem),
     action: e.action ?? null,
     resetReason: e.resetReason ?? null,
     stats: e.stats ?? null,

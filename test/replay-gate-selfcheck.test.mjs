@@ -287,6 +287,107 @@ test("stability: BITE — telemetry reporting a recurring (non-first-appearance)
   assert.equal(v.length, 1, "a recurring relocation is not the deliberate one-time bust and must not be exempted");
 });
 
+// --- fresh-session-sort's memory-stranded-by-key-rotation exemption (2026-08-05) ---
+//
+// DEFINITION, written before the assertions: the relocation memory is keyed
+// by resolveInsertionSessionKey, whose system-prompt sub-key rotates when CC
+// changes its FIRST system block mid-conversation. The memory cannot follow
+// (the sub-key exists to keep sidecars apart), so the first request under
+// the rotated key loses the remembered block at the relocation target — a
+// real, ours-by-construction flip that costs nothing marginal, because the
+// system change that caused the rotation already re-bills everything after
+// system. Exempt exactly that shape; every neighbouring shape stays red.
+//
+// The real case (s-captureAB n=331->336, 2026-08-05): system[0] 57 -> 62
+// chars, sub-key rotated, forwarded messages[0] four blocks -> three,
+// outDiv 0 / inDiv 3 / ccIdenticalAtOutDiv true.
+
+// The full stranding shape, one knob per mutation below. prev relocated mcp
+// to messages[0]; cur arrives under a rotated first system block, the
+// extension declares nothing, and the forwarded messages[0] lost the block.
+function strandedPair(mutate = {}) {
+  const mcp = { type: "text", text: "<system-reminder>\n# MCP Server Instructions\n\nstuff\n</system-reminder>" };
+  const m0 = { role: "user", content: [{ type: "text", text: "hello" }] };
+  const m0WithMcp = { role: "user", content: [mcp, { type: "text", text: "hello" }] };
+  const scattered = { role: "user", content: [mcp, { type: "text", text: "turn text" }] };
+  const plainTurn = { role: "user", content: [{ type: "text", text: "turn text" }] };
+
+  const prevIn = [m0, asst("a1"), user("u2"), scattered];
+  const prevOut = [m0WithMcp, asst("a1"), user("u2"), plainTurn];
+  // CC's msgs[0..2] identical; its own edit is at index 3 (mcp gone there).
+  const curIn = [m0, asst("a1"), user("u2"), plainTurn, asst("a4"), user("u5")];
+  const curOut = [m0, asst("a1"), user("u2"), plainTurn, asst("a4"), user("u5")];
+
+  const prevExtra = {
+    freshSessionSortStats: { relocated: [{ type: "mcp", firstAppearance: false }], reserved: [], targetIndex: 0 },
+    inSystem: [{ text: "You are Claude Code." }],
+    outSystem: [{ text: "You are Claude Code." }],
+    ...(mutate.prevExtra ?? {}),
+  };
+  const curExtra = {
+    freshSessionSortStats: null,
+    inSystem: [{ text: "You are a Claude agent." }],
+    outSystem: [{ text: "You are a Claude agent." }],
+    ...(mutate.curExtra ?? {}),
+  };
+  return [entry(0, prevIn, prevOut, prevExtra), entry(1, curIn, curOut, curExtra)];
+}
+
+test("stability: a memory stranding under a rotated key is exempt, with its rotation as basis", () => {
+  const pair = strandedPair();
+  assert.equal(findStabilityViolations(pair).length, 0,
+    "the stranding flip is free by construction and must not count as a violation");
+  const x = findStabilityExemptions(pair);
+  assert.equal(x.length, 1, "the exemption must be annotated, not silently dropped");
+  assert.equal(x[0].exemptReason, "fresh-session-sort:memory-stranded-by-key-rotation");
+  assert.equal(x[0].exemptBasis.type, "mcp");
+  assert.notEqual(x[0].exemptBasis.rotatedFrom, x[0].exemptBasis.rotatedTo);
+});
+
+test("stability: BITE — the same flip WITHOUT a key rotation stays a violation", () => {
+  // Remove exactly condition 4: CC's first system block held, so the memory
+  // was reachable and losing the block is a real defect (the pre-fix bug).
+  const pair = strandedPair({
+    curExtra: { inSystem: [{ text: "You are Claude Code." }], outSystem: [{ text: "You are Claude Code." }] },
+  });
+  assert.equal(findStabilityViolations(pair).length, 1);
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
+test("stability: BITE — a rotation our forwarded system absorbed stays a violation (the retirement trigger)", () => {
+  // Remove exactly condition 5: CC rotated its first system block but OUR
+  // forwarded system is byte-identical across the pair — some upstream
+  // stabilization absorbed it, the prefix above messages is intact, and the
+  // stranding flip re-bills the whole message array. The freeness coupling
+  // is broken and the gate must re-arm.
+  const pair = strandedPair({
+    curExtra: { outSystem: [{ text: "You are Claude Code." }] },
+  });
+  assert.equal(findStabilityViolations(pair).length, 1,
+    "ourSystemIdentical=true means the flip is billable — no exemption");
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
+test("stability: BITE — a stranding claim with no prior relocation telemetry stays a violation", () => {
+  // Remove exactly condition 1: prev never declared holding a relocated
+  // prefix at the flipped slot, so there was no memory to strand.
+  const pair = strandedPair({ prevExtra: { freshSessionSortStats: null } });
+  assert.equal(findStabilityViolations(pair).length, 1);
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
+test("stability: BITE — a rotation where the extension still relocated stays a violation", () => {
+  // Remove exactly condition 2: cur DOES declare a relocation — the memory
+  // was not stranded, so whatever diverged at the target is unexplained.
+  const pair = strandedPair({
+    curExtra: {
+      freshSessionSortStats: { relocated: [{ type: "mcp", firstAppearance: false }], reserved: [], targetIndex: 0 },
+    },
+  });
+  assert.equal(findStabilityViolations(pair).length, 1);
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
 // --- deferred-tool-rewrite's reset-wipes-additions exemption (2026-08-01) ---
 //
 // The real case (s-captureB, pairs n=709->710 outDiv=236 and n=701->718
