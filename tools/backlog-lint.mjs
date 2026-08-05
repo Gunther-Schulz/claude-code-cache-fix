@@ -55,8 +55,12 @@
 //   node tools/backlog-lint.mjs <path>      # lints a specific file
 //   node tools/backlog-lint.mjs -           # lints stdin (for piping
 //                                           # `git show <ref>:BACKLOG.md`)
+//   node tools/backlog-lint.mjs --pointers [<path>|-]
+//                                           # ADDITIONALLY runs the
+//                                           # pointer-liveness lane (below)
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -141,13 +145,233 @@ function formatFinding(f) {
   return `WARN backlog-header line=${f.line} grade=${f.grade} marker=${f.marker.replace(/\s+/g, "_")} header="${f.header}"`;
 }
 
+// ==========================================================================
+// Pointer-liveness lane (--pointers) — REPORT ONLY
+// ==========================================================================
+//
+// Why this exists: on 2026-08-05 the TOP-PRIORITY backlog item pointed at
+// `stash@{0}` for its implementation while `git stash list` was empty and
+// `.git/logs/refs/stash` did not exist — its own recipe (`git stash pop`)
+// would have popped nothing, or worse, a later unrelated stash. The work
+// survived only as an unreachable object. That was found BY HAND; a
+// hand-derivation finds it once, a check finds every one of them forever.
+// The historical file at 6f415e8~1 carries two live `stash@{0}` references
+// and is this lane's red-first fixture (see test/backlog-lint.test.mjs).
+//
+// THE CLOSED TAXONOMY — every finding carries exactly one label:
+//
+//   STASH-REF   any `stash@{N}`. Flagged UNCONDITIONALLY — deliberately NOT
+//               by consulting the stash index. A stash index is not a
+//               durable pointer: entries renumber when anything else is
+//               stashed, and a pop deletes the ref outright. So a LIVE
+//               stash@{0} is no more trustworthy than a dead one, and
+//               checking the index would make this lane report "fine" for a
+//               pointer that is one `git stash push` away from meaning
+//               something else entirely.
+//   PATH-DEAD   a repo-relative path that does not exist in the working tree.
+//   COMMIT-DEAD a short hex token `git cat-file -e <t>^{commit}` rejects.
+//   REF-DEAD    a named branch/tag pattern with no matching ref.
+//   ABS-PATH    an absolute machine path. Report-only and counted
+//               SEPARATELY: these are machine-local by nature, and the
+//               public-repo hygiene rule discourages them in tracked files
+//               regardless of whether they resolve on this machine.
+//
+// THE FALSE-FIRE DISCIPLINE (the hard part — a check that fires on a
+// NON-defect is broken too, and trains its reader to ignore red):
+//
+//   * Tokens are read from INLINE BACKTICK spans only. A path or ref inside
+//     backticks is being CITED as a pointer; the same string in prose is
+//     usually being discussed. STASH-REF is the one exception — it is
+//     matched anywhere in the entry body, because it is unconditional.
+//   * A backtick span is split on whitespace and each token judged alone,
+//     so `node tools/replay.mjs --census` yields the one real path token.
+//   * A token is DISQUALIFIED outright if it contains `*`, `<` or `>`, or
+//     ends with punctuation. That is what keeps `proxy/**` (a glob),
+//     `harvest --pin <key>` (a placeholder) and a sentence-final
+//     `docs/foo.md.` (ambiguous real name) from being flagged.
+//   * COMMIT-DEAD additionally requires the token to contain BOTH a digit
+//     and an a-f letter. Without it, English words that happen to be all
+//     hex ("defaced", "effaced", "acceded") and bare 8-digit dates
+//     ("20260805") are indistinguishable from short SHAs.
+//
+// WHAT THIS DELIBERATELY DOES NOT COVER:
+//   - fenced code blocks (``` … ```), and pointers written without backticks
+//     other than stash refs;
+//   - `bin/`, `hooks/`, `templates/` — real top-level dirs in this repo, but
+//     outside the directory set this lane was scoped to; and `bootstrap/`,
+//     which belongs to the dotfiles repo, not this one;
+//   - an all-digit or all-letter short SHA (excluded by the mixed-token rule
+//     above — a deliberate trade against the word/date false fires);
+//   - whether a LIVE pointer points at what the entry claims. This lane
+//     answers "does this still resolve", never "does it still mean that".
+//
+// It is a REPORT, not a gate: exit code is unchanged (always 0) and the
+// existing invocation is untouched. Many entries are superseded handoffs
+// that legitimately reference things long gone, so the rate on legitimate
+// work must be MEASURED before any of this could block anything.
+
+// This repo's real top-level directories, as scoped for this lane.
+const PATH_ROOTS = ["tools/", "test/", "proxy/", "docs/"];
+const REF_PATTERNS = [/^worktree-agent-/, /^pr\//, /^wip\//, /^feature\//, /^fix\//];
+const STASH_REF = /stash@\{\d+\}/g;
+const INLINE_CODE = /`([^`\n]+)`/g;
+const HEX_TOKEN = /^[0-9a-f]{7,12}$/;
+const ABS_PATH = /^\/(home|tmp)\//;
+const TRAILING_PUNCT = /[,.;:!?)\]}'"]$/;
+// This corpus cites source locations as `path:line`, `path:a-b` and
+// `path:a,b`. The citation suffix is not part of the filename, and leaving
+// it on made three live files read as dead on the first run of this lane.
+const LINE_CITATION = /:\d+(?:[-,]\d+)*$/;
+
+function gitProbe(args) {
+  try {
+    const out = execFileSync("git", args, {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return { ok: true, proof: out.trim() };
+  } catch (e) {
+    const text = `${e.stderr ?? ""}${e.stdout ?? ""}`.trim();
+    return { ok: false, proof: text || `exit ${e.status ?? "?"}, no output` };
+  }
+}
+
+// Default resolvers hit the real filesystem and the real git. They are
+// injectable so synthetic bites can pin the RULE without a fixture repo,
+// and so one named condition can be mutated at a time.
+const REAL_ENV = {
+  pathExists: (p) => existsSync(join(REPO_ROOT, p)),
+  commitProbe: (t) => gitProbe(["cat-file", "-e", `${t}^{commit}`]),
+  // A token that resolves to ANY object is not DEAD, whatever its type.
+  // This corpus records deployment pins as TREE hashes (`proxy_tree
+  // 9ef42be576bd`, `dotfiles pin 8c747aa`), and `^{commit}` rejects a tree
+  // — so the commit probe alone reported four live pins as dead on the
+  // first run. The label claims deadness; resolution is what refutes it.
+  objectProbe: (t) => gitProbe(["cat-file", "-e", t]),
+  refProbe: (r) => gitProbe(["rev-parse", "--verify", "--quiet", r]),
+};
+
+// A token is unambiguous enough to judge. See the discipline comment above.
+function disqualified(token) {
+  return (
+    token.length === 0 ||
+    token.includes("*") ||
+    token.includes("<") ||
+    token.includes(">") ||
+    TRAILING_PUNCT.test(token)
+  );
+}
+
+// Findings carry the line of the OCCURRENCE, not of the entry: one entry
+// can cite the same dead pointer in two places (the 2026-08-02 handoff cites
+// `stash@{0}` twice — once in its state list, once in its priority list),
+// and reporting the entry once would hide the second citation from the
+// person fixing it.
+function lineOf(body, index, startLine) {
+  let line = startLine;
+  for (let i = 0; i < index; i++) if (body[i] === "\n") line++;
+  return line;
+}
+
+function inlineTokens(body) {
+  const tokens = [];
+  INLINE_CODE.lastIndex = 0;
+  let m;
+  while ((m = INLINE_CODE.exec(body))) {
+    const spanStart = m.index + 1;
+    let offset = 0;
+    for (const t of m[1].split(/\s+/)) {
+      const at = m[1].indexOf(t, offset);
+      offset = at + t.length;
+      if (!disqualified(t)) tokens.push({ token: t, index: spanStart + at });
+    }
+  }
+  return tokens;
+}
+
+// Lints pointer liveness; returns an array of finding objects. `env`
+// overrides the resolvers (see REAL_ENV).
+export function lintPointers(text, env = {}) {
+  const { pathExists, commitProbe, objectProbe, refProbe } = { ...REAL_ENV, ...env };
+  const findings = [];
+
+  for (const entry of splitEntries(text)) {
+    const title = entry.header.replace(/^- \*\*/, "").trim().slice(0, 80);
+    const seen = new Set();
+    const add = (label, token, proof, index) => {
+      const line = lineOf(entry.body, index, entry.startLine);
+      const key = `${label}|${token}|${line}`;
+      if (seen.has(key)) return; // collapse only same-token-same-line repeats
+      seen.add(key);
+      findings.push({ line, title, label, token, proof });
+    };
+
+    // STASH-REF: unconditional, and matched anywhere in the body.
+    STASH_REF.lastIndex = 0;
+    let s;
+    while ((s = STASH_REF.exec(entry.body))) {
+      add(
+        "STASH-REF",
+        s[0],
+        "a stash index is not a durable pointer (entries renumber, a pop " +
+          "deletes the ref) — anchor it as a tag or branch instead",
+        s.index,
+      );
+    }
+
+    for (const { token, index } of inlineTokens(entry.body)) {
+      if (ABS_PATH.test(token)) {
+        add("ABS-PATH", token, "absolute machine path — machine-local by nature", index);
+        continue;
+      }
+      if (PATH_ROOTS.some((r) => token.startsWith(r) && token.length > r.length)) {
+        const file = token.replace(LINE_CITATION, "");
+        if (!pathExists(file)) add("PATH-DEAD", file, `test -e ${file} -> absent`, index);
+        continue;
+      }
+      if (HEX_TOKEN.test(token) && /[0-9]/.test(token) && /[a-f]/.test(token)) {
+        // Dead means "resolves to nothing", so a token that names any object
+        // — commit, tree or blob — is alive and is not this lane's business.
+        if (objectProbe(token).ok) continue;
+        const probe = commitProbe(token);
+        if (!probe.ok) {
+          add("COMMIT-DEAD", token, `git cat-file -e ${token}^{commit} -> ${probe.proof}`, index);
+        }
+        continue;
+      }
+      if (REF_PATTERNS.some((re) => re.test(token))) {
+        const probe = refProbe(token);
+        if (!probe.ok) {
+          add("REF-DEAD", token, `git rev-parse --verify ${token} -> ${probe.proof}`, index);
+        }
+      }
+    }
+  }
+  return findings;
+}
+
+export const POINTER_LABELS = [
+  "STASH-REF",
+  "PATH-DEAD",
+  "COMMIT-DEAD",
+  "REF-DEAD",
+  "ABS-PATH",
+];
+
+function formatPointerFinding(f) {
+  return `WARN backlog-pointer line=${f.line} ${f.label} token="${f.token}" entry="${f.title}" proof=${f.proof}`;
+}
+
 function readInput(pathArg) {
   if (pathArg === "-") return readFileSync(0, "utf8");
   return readFileSync(pathArg ?? DEFAULT_BACKLOG, "utf8");
 }
 
 function main(argv) {
-  const pathArg = argv[2];
+  const args = argv.slice(2);
+  const wantPointers = args.includes("--pointers");
+  const pathArg = args.find((a) => a !== "--pointers");
   const text = readInput(pathArg);
   const findings = lintText(text);
   for (const f of findings) {
@@ -158,6 +382,22 @@ function main(argv) {
       ? `backlog-lint: ${findings.length} stale header(s) — WARN only, review BACKLOG.md\n`
       : "backlog-lint: clean\n",
   );
+
+  if (wantPointers) {
+    const pointers = lintPointers(text);
+    for (const f of pointers) {
+      process.stdout.write(`${formatPointerFinding(f)}\n`);
+    }
+    // Per-class counts, zeros stated: a class printed as 0 is a measured
+    // zero, and its absence from the list would be indistinguishable from
+    // a class this lane forgot to look for.
+    const counts = POINTER_LABELS.map(
+      (l) => `${l}=${pointers.filter((f) => f.label === l).length}`,
+    ).join(" ");
+    process.stdout.write(
+      `backlog-pointers: ${pointers.length} finding(s) — REPORT only — ${counts}\n`,
+    );
+  }
   return 0; // WARN-only: never fails the build.
 }
 

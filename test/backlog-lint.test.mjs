@@ -36,11 +36,16 @@ import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { lintText, splitEntries } from "../tools/backlog-lint.mjs";
+import { lintText, lintPointers, splitEntries } from "../tools/backlog-lint.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = join(REPO, "tools/backlog-lint.mjs");
 const HISTORICAL_REF = "40c11b2";
+// The pointer lane's red-first fixture: the state BEFORE the 2026-08-05 fix,
+// where the TOP-PRIORITY item still pointed at `stash@{0}` while
+// `git stash list` was empty. Read via `git show` at test time, per this
+// file's standing idiom — historical prose never gets pasted here.
+const PRE_STASH_FIX_REF = "6f415e8~1";
 
 function runTool(args, input) {
   try {
@@ -227,4 +232,165 @@ test("does NOT fire on an undated DONE — the date is what makes it a grade cla
     "  DONE is the word we use when something finishes.",
   ].join("\n");
   assert.deepEqual(lintText(doc), [], "prose use of the word is not a resolution");
+});
+
+// --- Section 3: the pointer-liveness lane ---------------------------------
+//
+// Definitions these bites are written FROM (not from the implementation):
+//
+//   A pointer in a backlog entry is a promise that something can still be
+//   reached. It is DEAD when following it lands nowhere. STASH-REF is the
+//   one label that does not ask: a stash index is not a durable pointer at
+//   all — entries renumber when anything else is stashed and a pop deletes
+//   the ref — so a live `stash@{0}` is no more trustworthy than a dead one
+//   and the label fires unconditionally.
+//
+// The resolvers are injected so these pin the RULE rather than this
+// machine's filesystem and object store, and so a single named condition
+// can be mutated at a time (see the mutation record in the closing report).
+
+const STUB = {
+  pathExists: (p) => p === "tools/alive.mjs",
+  objectProbe: (t) => ({ ok: t === "abc1234", proof: "" }),
+  commitProbe: (t) => ({ ok: t === "abc1234", proof: "fatal: Not a valid object name" }),
+  refProbe: (r) => ({ ok: r === "pr/alive", proof: "exit 1, no output" }),
+};
+
+const labelsOf = (findings) => findings.map((f) => f.label);
+
+test("STASH-REF fires unconditionally, and once per occurrence", () => {
+  const doc = [
+    "- **READY — a thing whose work is off-git.**",
+    "  The implementation lives in `stash@{0}`; pop it before starting.",
+    "  Priority list: (1) finish the thing from `stash@{0}`.",
+  ].join("\n");
+  const findings = lintPointers(doc, STUB);
+  assert.deepEqual(labelsOf(findings), ["STASH-REF", "STASH-REF"]);
+  // Distinct lines: an entry citing the same dead pointer twice must not
+  // collapse to one finding, or the second citation is invisible to whoever
+  // fixes it.
+  assert.deepEqual(
+    findings.map((f) => f.line),
+    [2, 3],
+  );
+});
+
+test("PATH-DEAD fires on a backticked repo path that does not exist", () => {
+  const doc = ["- **READY — a thing.** See `tools/gone.mjs` for the detail."].join("\n");
+  const findings = lintPointers(doc, STUB);
+  assert.deepEqual(labelsOf(findings), ["PATH-DEAD"]);
+  assert.equal(findings[0].token, "tools/gone.mjs");
+});
+
+test("PATH-DEAD does not fire on a path that exists", () => {
+  const doc = ["- **READY — a thing.** See `tools/alive.mjs`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("COMMIT-DEAD fires on an unresolvable short hex token", () => {
+  const doc = ["- **READY — a thing.** Shipped at `9fe4d21` last week."].join("\n");
+  const findings = lintPointers(doc, STUB);
+  assert.deepEqual(labelsOf(findings), ["COMMIT-DEAD"]);
+  assert.equal(findings[0].token, "9fe4d21");
+});
+
+test("REF-DEAD fires on a branch pattern with no matching ref", () => {
+  const doc = ["- **READY — a thing.** The slice sits on `pr/gone-branch`."].join("\n");
+  const findings = lintPointers(doc, STUB);
+  assert.deepEqual(labelsOf(findings), ["REF-DEAD"]);
+  assert.equal(findings[0].token, "pr/gone-branch");
+});
+
+test("ABS-PATH fires on an absolute machine path and is its own label", () => {
+  const doc = ["- **READY — a thing.** Config at `/home/someone/proj/.git/config`."].join("\n");
+  const findings = lintPointers(doc, STUB);
+  assert.deepEqual(labelsOf(findings), ["ABS-PATH"]);
+});
+
+// --- Section 3b: the false-fire discipline, stated as negatives -----------
+//
+// Required by the design: a check that fires on a NON-defect is broken too.
+// Each of these is a shape the corpus really contains.
+
+test("NEGATIVE: a placeholder inside a command does not flag", () => {
+  // `<key>` is a placeholder, not a pointer; the surrounding command is a
+  // real invocation and must not drag it in.
+  const doc = ["- **READY — a thing.** Run `harvest --pin <key>` first."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("NEGATIVE: a path mentioned in prose, not backticks, does not flag", () => {
+  // Prose discusses; backticks cite. Only the citation is a pointer claim.
+  const doc = [
+    "- **READY — a thing.** The old tools/gone.mjs approach was abandoned",
+    "  and docs/vanished.md was never written.",
+  ].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("NEGATIVE: a glob does not flag as a dead path", () => {
+  // `proxy/**` is a scope marker this corpus writes constantly.
+  const doc = ["- **READY — a thing (`proxy/**`, deployment-coupled).** Body."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("NEGATIVE: a path:line citation of a live file does not flag", () => {
+  // Found on this lane's first real run: three live files read as dead
+  // because the `:60-62` citation suffix was treated as part of the name.
+  const doc = ["- **READY — a thing.** See `tools/alive.mjs:60-62` and `tools/alive.mjs:7,267`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("NEGATIVE: a hex token that resolves to a non-commit object does not flag", () => {
+  // Also from the first real run: this corpus records deployment pins as
+  // TREE hashes, and `^{commit}` rejects a tree. A resolving object is not
+  // a dead pointer, whatever its type.
+  const doc = ["- **READY — a thing.** Deployed tree `abc1234`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("NEGATIVE: an all-letter or all-digit hex-shaped word does not flag", () => {
+  // "defaced" is seven hex characters; "20260805" is eight. Requiring both
+  // a digit and an a-f letter is what separates a short SHA from an
+  // English word and from a bare date.
+  const doc = ["- **READY — a thing.** The record was `defaced` on `20260805`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+// --- Section 3c: red-first against the real pre-fix history ---------------
+
+test("the pre-fix BACKLOG.md carries the dead stash pointer this lane exists for", () => {
+  const historical = gitShow(PRE_STASH_FIX_REF, "BACKLOG.md");
+  const stash = lintPointers(historical).filter((f) => f.label === "STASH-REF");
+  console.log("pre-fix STASH-REF findings:\n" + stash.map((f) => `line=${f.line} ${f.token}`).join("\n"));
+  assert.equal(stash.length, 2, "both citations in the 2026-08-02 handoff must fire");
+  // The stash index was empty when this was found by hand — the pointer was
+  // load-bearing, dead, and invisible to every existing check.
+  const { code, out } = runTool(["--pointers", "-"], historical);
+  assert.equal(code, 0, "REPORT-only: exit is always 0");
+  assert.match(out, /backlog-pointers: \d+ finding\(s\) — REPORT only/);
+  assert.match(out, /STASH-REF=2/);
+});
+
+test("--pointers leaves the existing header lane and exit code untouched", () => {
+  const plain = runTool([join(REPO, "BACKLOG.md")]);
+  const withFlag = runTool(["--pointers", join(REPO, "BACKLOG.md")]);
+  assert.equal(plain.code, 0);
+  assert.equal(withFlag.code, 0);
+  // The header lane's own output is byte-identical with and without the flag.
+  const headerPart = (s) => s.split("backlog-pointers:")[0].split("WARN backlog-pointer")[0];
+  assert.equal(headerPart(withFlag.out), headerPart(plain.out));
+  // And the pointer lane only appears when asked for.
+  assert.ok(!plain.out.includes("backlog-pointer"), "no pointer output without the flag");
+  assert.match(withFlag.out, /backlog-pointers:/);
+});
+
+test("per-class counts are printed with zeros stated", () => {
+  // A class printed as 0 is a measured zero; a class missing from the line
+  // is indistinguishable from one the lane forgot to look for.
+  const { out } = runTool(["--pointers", "-"], "- **READY — nothing to see.** Plain body.\n");
+  const line = out.split("\n").find((l) => l.startsWith("backlog-pointers:"));
+  for (const label of ["STASH-REF", "PATH-DEAD", "COMMIT-DEAD", "REF-DEAD", "ABS-PATH"]) {
+    assert.match(line, new RegExp(`${label}=0`), `${label} must be stated even at zero`);
+  }
 });
