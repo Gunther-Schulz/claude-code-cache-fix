@@ -960,6 +960,31 @@ bullet, evidence pointer included.
   NOT located in it, which is itself the first thing to reconcile. Captures
   rotate oldest-mtime-first; this one is ~320 MB and current.
 
+- **READY (operator-side, dotfiles) — move the leak scan's feedback from PUSH
+  to WRITE.** Grounding, measured 2026-08-05: the same author leaked capture
+  session ids into tracked files TWICE in one session, hours apart, and both
+  times learned at `git push` — after the bytes were in a commit, requiring an
+  amend each time. The scan is correctly placed as the last line before public
+  history and must stay there; what is missing is an earlier, cheaper signal.
+  Root cause is booked in `docs/dev-loop.md` ("The written rule is NARROWER
+  than the enforced one") and its prose half is fixed there; this item is the
+  mechanical half.
+  Design: a PreToolUse hook on Write/Edit that runs `tools/absence-scan.mjs`'s
+  `scope: "any"` classes over the pending CONTENT when the target path is
+  TRACKED in a repo whose tree carries `tools/absence-scan.mjs` — import the
+  classes, never restate the patterns, so the two gates cannot drift. Deny with
+  the class name and the alias convention in the message. Scope keeps the false
+  fires near zero: untracked paths (scratch, `CLAUDE.local.md`, the alias
+  registry) and non-repo paths are exempt by construction, and those are where
+  a session id legitimately gets written.
+  Verifier, red-first: drive the hook with a payload containing a real-shaped
+  capture key destined for a tracked path — must DENY, naming the class; and
+  two negatives that must ALLOW — the same payload to an untracked path, and a
+  tracked path in a repo without the scanner. Done when a write of the shape
+  that leaked today is refused at the Write call.
+  Lives in dotfiles (`claude/hooks/`), not here: the repo owns the classes, the
+  machine owns the hook.
+
 - **PARKED — what the pointer lane does NOT cover, named by its builder rather
   than discovered later.** Shipped 2026-08-05 (ffdf760, `--pointers`,
   report-only, 5 labels after COMMIT-DEAD was dropped). Four declared blind

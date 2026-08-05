@@ -302,6 +302,37 @@ Two blind spots, both found by planting rather than by reading, both closed
   Scoped to the range being pushed — over a whole branch it reports commits
   already public, which is a gate that cannot pass.
 
+### The written rule is NARROWER than the enforced one — this is the gap
+
+The tracked `CLAUDE.md` hygiene section enumerates what must never reach a
+tracked file: origin IPs, SSH targets, internal ports, stack fingerprinting.
+`tools/absence-scan.mjs` enforces those AND `capture-uuid` ("a session UUID is
+a live capture identifier") AND `capture-key-prefix`. **An author who reads the
+written rule, complies with it completely, and names a capture in prose still
+leaks** — and finds out at push, after the bytes are already in a commit.
+
+Measured 2026-08-05, twice in one session by the same author: a capture
+filename written into BACKLOG.md, the matrix, a source comment, a test and a
+commit message; then, hours later and after the first block, capture filenames
+written into a review brief. Both blocked at the boundary, both requiring an
+amend. The scan did its job. The rule someone reads before writing did not
+mention the class.
+
+**So, the authoring rule, stated where the author looks:** a capture is named
+in tracked prose by ALIAS — `s-captureA`, `s-captureB`, … — never by filename
+or session id. That convention was already in use in about thirty places
+across `docs/` and `BACKLOG.md` and was written down in exactly none of them,
+which is why it transmitted by imitation and failed the moment someone wrote
+about a NEW capture.
+
+**Aliases are resolvable, or they are write-only labels.** The mapping lives at
+`~/.claude/cache-fix-capture-aliases.json` — machine-local by nature, mode
+0600, never tracked, because it holds precisely the bytes the convention keeps
+out of git. Assign the next unused alias at the moment you first write it into
+tracked prose and record it there. Entries that cite an alias also quote the
+timestamps and request ordinals they rest on, which is the join of last resort:
+aliases A..AA predate the registry and can no longer be resolved at all.
+
 A fourth, found by asking what the first three did NOT cover: the allowlist
 was PATH-wide. A file named in it was skipped entirely, so an exemption
 written about one class silently excused every class — including ones nobody
