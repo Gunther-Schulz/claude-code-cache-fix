@@ -66,6 +66,7 @@ import { createHash } from "node:crypto";
 
 import { readLines } from "./read-lines.mjs";
 import { hashMessageContent } from "../proxy/extensions/message-hash.mjs";
+import { isDescriptionNotice } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
 import { splitSmooshedReminders } from "../proxy/extensions/smoosh-split.mjs";
 
@@ -325,11 +326,17 @@ function scanGroup(entries) {
 // forbids a designed behaviour trains its reader to ignore it.
 //
 // Narrow on purpose: ONLY a system message whose content is entirely
-// tool_addition blocks. Anything else appearing in messages[] is still a
-// violation.
+// tool_addition blocks, or entirely the description-change notice the same
+// extension announces a description absorb with (recognized by
+// isDescriptionNotice, which lives beside the builder in
+// deferred-tool-rewrite.mjs so template and recognizer cannot drift — the
+// telemetry-keyed alternative fails both consumers: an input-side ECHO of an
+// injection carries no telemetry, and the byte-stability exemption reads
+// positions after the bodies are gone). Anything else appearing in
+// messages[] is still a violation, free-text system messages included.
 function isDeclaredInjection(msg) {
   if (!msg || msg.role !== "system" || !Array.isArray(msg.content) || !msg.content.length) return false;
-  return msg.content.every((b) => b && b.type === "tool_addition");
+  return msg.content.every((b) => b && b.type === "tool_addition") || isDescriptionNotice(msg);
 }
 
 // Per-entry, so it is evaluated as each request is replayed and nothing is
@@ -1728,7 +1735,8 @@ export function findSuccessions(entries) {
 //         checkable property rather than trusted: a re-served byte must be a
 //         byte CC itself once sent here, and one we invented is red, or
 //     (c) a declared injection (isDeclaredInjection — deferred-tool-rewrite's
-//         tool_addition announcement, already exempt in the safety gate), or
+//         tool_addition announcement or its description-change notice, both
+//         already exempt in the safety gate), or
 //     (d) produced by the same DECLARED PEEL verified on the R-side (d) —
 //         the post-peel tool_result and each peeled reminder's standalone
 //         text block are new bytes on the wire by construction (a peel

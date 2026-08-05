@@ -463,16 +463,40 @@ export function buildToolAdditionMessage(toolNames) {
 // tool to reference. The tool is already loaded and its schema is
 // unchanged; the only thing the model is missing is the new prose, so the
 // new prose is what the block carries, verbatim.
+const DESCRIPTION_NOTICE_PREFIX = "The description of the `";
+const DESCRIPTION_NOTICE_MARKER = "` tool has been updated. Its parameters are unchanged";
+
 export function buildDescriptionChangeMessage(changes) {
   return {
     role: "system",
     content: changes.map(({ name, description }) => ({
       type: "text",
       text:
-        `The description of the \`${name}\` tool has been updated. Its parameters are unchanged — ` +
+        `${DESCRIPTION_NOTICE_PREFIX}${name}${DESCRIPTION_NOTICE_MARKER} — ` +
         `call it exactly as before. Its current description is:\n\n${description}`,
     })),
   };
+}
+
+// Recognizer for the message the builder above produces, exported for
+// replay's declared-injection exemption. It lives HERE, sharing the
+// builder's own template constants, so the two cannot drift apart — a
+// recognizer re-stating the prose in tools/ would silently stop matching
+// the day the template changed, and the gate would go red on legitimate
+// work. Shape-based rather than telemetry-keyed on purpose: replay must
+// also strip an input-side ECHO of this message (a chained proxy feeding
+// the pipeline its own output — the case that broke the tool_addition
+// exemption one-sided on 2026-07-29), and an echo carries no telemetry.
+export function isDescriptionNotice(msg) {
+  if (!msg || msg.role !== "system" || !Array.isArray(msg.content) || !msg.content.length) return false;
+  return msg.content.every(
+    (b) =>
+      b &&
+      b.type === "text" &&
+      typeof b.text === "string" &&
+      b.text.startsWith(DESCRIPTION_NOTICE_PREFIX) &&
+      b.text.includes(DESCRIPTION_NOTICE_MARKER),
+  );
 }
 
 // Description notices ride in the SAME persisted `additions` list as
