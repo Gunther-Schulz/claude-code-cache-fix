@@ -1715,6 +1715,22 @@ then did with it, and four of them have since merged.**
 | #278 | REVIEW_REQUIRED, **mergeStateStatus DIRTY** | **US — entry below** |
 | #295 | CLOSED tonight, premise falsified | done |
 
+- **READY (operator-side, dotfiles) — a worktree without `node_modules`
+  should fail loudly at doctor time, not as a 900 s fake hang.** Measured
+  2026-08-05: four of fifteen worktrees (pr2, pr5, pr6, pr7) had no
+  `node_modules`, symlinked the same day. The runbook has said to symlink at
+  setup since 08-02 and the gap still recurred four times, which is the
+  signal that prose is the wrong instrument here — the trigger is a
+  computable predicate with no judgment in it and effectively zero false
+  fires: a worktree of this repo whose `node_modules` does not resolve.
+  Design: a doctor verdict that enumerates `git worktree list --porcelain`
+  for the cache-fix repo and reports any whose `node_modules` is absent,
+  with the symlink command in the message. Verifier, red-first: remove the
+  link from one worktree and require the verdict to go red naming that
+  worktree; control that a fully-linked set reports clean. Done when the
+  check ships with its three-answer case (no worktrees at all is "could not
+  verify", not "clean").
+
 - **READY — #278 (`pr/output-guard`) is CONFLICTING and needs the same
   rebase #272 just had.** Measured 2026-08-05 21:00Z: `mergeStateStatus:
   DIRTY`, last comment ours from 07-30, so nothing is owed in the thread —
@@ -1723,11 +1739,12 @@ then did with it, and four of them have since merged.**
   current-main, never cherry-pick the conflict away, and the runbook's
   rebase-policy step covers it.
   Design, decision-complete: worktree at `/home/g/dev/vendor/cache-fix-pr7`
-  (already provisioned, already on `pr/output-guard` at `e4bd379`) — but
-  `node_modules` is MISSING there, verified 2026-08-05, so symlink it first
-  or the suite dies `ERR_MODULE_NOT_FOUND: hpagent` and two tests look like
-  a 900 s hang (runbook setup step, and both 08-02 "hangs" were exactly
-  this). Then `git rebase upstream/main`, full suite in the worktree, the
+  (already provisioned, already on `pr/output-guard` at `e4bd379`;
+  `node_modules` was missing and was symlinked 2026-08-05 — along with
+  pr2, pr5 and pr6, which had the same gap — so the suite runs there now:
+  `test/output-guard.test.mjs` 15/15, and `hpagent` resolves. That gap is
+  the documented 900 s false hang, and four of fifteen worktrees carried
+  it). Then `git rebase upstream/main`, full suite in the worktree, the
   runbook's
   hygiene greps scoped to THIS round's commits, `git push
   --force-with-lease`, then the push-announcement comment with real test
