@@ -446,6 +446,34 @@ test("a capture-key prefix in a .mjs or .md is caught", () => {
     ["capture-key-prefix"]);
 });
 
+test("a model id whose tail happens to be 8 hex is NOT a capture key", () => {
+  // A REGRESSION GUARD on an exemption that already exists, not a new fix —
+  // and it is only worth its line because deleting `/s-20240229/` from
+  // SHORT_KEY_EXEMPT turns it red (verified by that mutation, 2026-08-05).
+  //
+  // What it pins: `claude-3-opus-20240229` ends in eight characters that are
+  // all hex by coincidence, so SHORT_KEY matches it and the declared exemption
+  // is the only thing between that match and a finding. Harmless while the
+  // class only saw `.json`; not harmless since source files were added,
+  // because model ids live in prose and migration notes, and a hygiene gate
+  // that blocks a docs commit is the override reflex this repo keeps warning
+  // about.
+  //
+  // Recorded because the alternative was proposed and is worse: narrowing
+  // SHORT_KEY's leading boundary to exclude a preceding word character also
+  // fixes this input, and trades sensitivity across the class's whole domain
+  // to solve one named case. The exemption names the case, is greppable, and
+  // fails loudly when it stops being needed. Softening the predicate is what
+  // this repo forbids; the declared exemption is the sanctioned shape.
+  const hit = (t) => scanContent(t, "docs/x.md").findings.map((x) => x.class);
+  assert.deepEqual(hit("migrate from claude-3-opus-20240229 to claude-opus-5"), [],
+    "a retired model id must not read as a capture key");
+  assert.deepEqual(hit(`the capture ${SYNTH_KEY} replayed clean`), ["capture-key-prefix"],
+    "and the real token still fires");
+  assert.deepEqual(hit(`capture-${SYNTH_KEY} and /${SYNTH_KEY}-requests.jsonl`), ["capture-key-prefix"],
+    "hyphen and slash are token boundaries, not word characters");
+});
+
 test("a finding on a source file names the line and never the bytes", () => {
   const [f] = scanContent(`x\nmeasured on ${SYNTH_KEY} today\n`, "tools/x.mjs").findings;
   assert.equal(f.path, "line 2");

@@ -96,10 +96,17 @@ When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
      capture id `s-<8hex>` …", caught at review, reworded before push.
    - **Anchor the `s-<8hex>` pattern on both sides**
      (`(^|[^0-9a-f])…([^0-9a-f]|$)`). Unanchored it matches the
-     12-hex tokenized form — which is the SAFE form — and it matches
-     `claude-3-opus-20240229`, whose `s-20240229` is a coincidence.
-     Both are false fires on the one gate that guards a public
-     boundary.
+     12-hex tokenized form — which is the SAFE form — a false fire on
+     the one gate that guards a public boundary.
+     The anchoring does NOT cover `claude-3-opus-20240229`, whose
+     `s-20240229` is eight hex by coincidence — this line claimed it
+     did, and the claim was wrong (measured 2026-08-05: the anchored
+     pattern still matches that string). What covers it in
+     `absence-scan` is a DECLARED exemption, `SHORT_KEY_EXEMPT`'s
+     `/s-20240229/`, pinned by a bite that goes red when the exemption
+     is deleted. The hand grep here has no such layer, so a model id
+     in the diff will fire it — read the hit, do not widen the
+     pattern.
 
    **Known blind spot, not fixed by these greps:** `absence-scan`'s
    `--git-range` mode filters candidates to `.json`/`.jsonl`
