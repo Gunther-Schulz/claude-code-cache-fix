@@ -171,7 +171,7 @@ current field names).
 | Extension | Verdict | Fix applied |
 |---|---|---|
 | sort-stabilization | deterministic | none needed |
-| fresh-session-sort | deterministic | none needed |
+| fresh-session-sort | **stateful-persisted** ✓ (was deterministic; see the 2026-08-05 amendment) | per-conversation relocation memory, persisted — tmp+rename, owner-only, fail-open reload |
 | tool-input-normalize | deterministic | none needed |
 | identity-normalization | deterministic | none needed |
 | content-strip | deterministic | none needed |
@@ -188,7 +188,7 @@ sticky-rung state persists per session key (atomic write, fail-open
 reload); byte-identical restart test + the empirical probe regression
 are in test/mid-history-breakpoint-ladder.test.mjs.
 
-## Amendment 2026-08-05 — fresh-session-sort moves to stateful-UNPERSISTED
+## Amendment 2026-08-05 — fresh-session-sort moves to stateful-PERSISTED
 
 The audited relocation logic re-derived the relocated set from the CURRENT
 `body.messages` on every request, which is exactly what made it deterministic
