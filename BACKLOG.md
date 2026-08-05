@@ -930,7 +930,26 @@ bullet, evidence pointer included.
   cross-tenant. The relocation memory next door is keyed per conversation
   and is not affected.
 
-- **READY — the `/resume` re-bill (matrix row 24): pick up where the row's
+- **DONE 2026-08-05 (closed on measurement, step 0; ships with this entry's
+  commit) — the `/resume` re-bill (matrix row 24): STEP 0 ANSWERED YES, the
+  system layer usually breaks too, so the messages[0] pin is refused and the
+  item closes without a build.** Measured corpus-wide (probe importing
+  `conversationSubKey`/`systemPromptSubKey`, proven live on this entry's own
+  named known positive — the 449-msg born-large conversation — after a first
+  run returned zero on a reader-shape bug): 28 born-large conversation
+  starts across all captures; at 24 of the 27 with an in-file comparand the
+  SYSTEM layer broke across the boundary (row 24's own boundary among them),
+  and in the cleanest same-thread subset (no first-block rotation, message
+  count within a few percent) still 4 of 7. System renders before messages:
+  at the typical boundary a messages-layer pin buys nothing. The
+  recommendation below (do NOT build) is thereby measured, not argued; the
+  class stays a CONTROLLED cost. Row 24 carries the assessment. Two
+  follow-ons booked separately: the born-large census class, and the
+  rotated-identity born-large population (20 of 28, repeating ~+2,040-char
+  system delta) that is NOT resume-shaped and deserves its own name.
+  Original entry kept below for the record.
+  **(superseded) READY — the `/resume` re-bill (matrix row 24): pick up where
+  the row's
   named missing evidence stops, and decide a compromise.** Operator ask,
   2026-08-05. Not a fresh investigation: row 24 already measured the class
   (~1.19M tokens across one boundary, `cache_read=0` on the first resumed
@@ -1003,6 +1022,37 @@ bullet, evidence pointer included.
   rebuilt-array signature — while the 17:22:36Z 408k event's own request was
   NOT located in it, which is itself the first thing to reconcile. Captures
   rotate oldest-mtime-first; this one is ~320 MB and current.
+
+- **READY — born-large conversation starts become a census class.** The
+  classification has now been hand-derived TWICE (the parked resume-boundary
+  classifier, and the step-0 probe that closed the /resume item) — exactly
+  the closing-gate-Q3 shape where the next instance gets re-derived instead
+  of recognized. Design, decision-complete: a `findBornLargeStarts(entries)`
+  in replay.mjs (extend the existing tool, never a new file), REPORT not
+  gate, one row per first-seen `conversationSubKey` whose first request
+  carries ≥50 messages, with the most recent earlier large request as
+  comparand and three fields the step-0 probe proved informative: whether
+  the full system hash held, whether `systemPromptSubKey` rotated (compact
+  entries already carry `inSysSub`), and the system char delta. Verifier:
+  bites in replay-gate-selfcheck (green on a synthetic born-large pair, red
+  with the grouping key forced constant, control for a conversation born
+  small); plus the live known positive (the 449-msg start). Done when the
+  daily sweep persists the rows like the other eight arrays. ~60 LOC + 3
+  bites; not load-bearing (report-only).
+
+- **PARKED — the rotated-identity born-large population: 20 of 28 born-large
+  starts are NOT resume-shaped.** Signature, measured 2026-08-05: first
+  system block rotates (the agent-SDK identity swap) with a repeating
+  ~+2,040-char total-system delta, new conversation born at 57-244
+  messages, clustered across sessions and days. These are some distinct CC
+  mechanism (teammate/SDK agent boundaries?) — not operator `/resume`, and
+  currently nameless, so any cost they carry is invisible in triage.
+  Missing evidence, named: what CC feature produces them (correlate one
+  boundary's timestamp against the operator's transcript for that session),
+  and whether their first request re-bills (read its outcome record's
+  cache_read). Both are one-capture lookups; either promotes the class to
+  its own matrix row. The born-large census class above will count them
+  from day one via the sub-key-rotated field.
 
 - **READY (operator-side, dotfiles) — move the leak scan's feedback from PUSH
   to WRITE.** Grounding, measured 2026-08-05: the same author leaked capture
