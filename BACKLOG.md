@@ -8,6 +8,73 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **HANDOFF 2026-08-05 LATE — read this first; it supersedes the
+  handoff below on every point they disagree.** Everything is
+  committed and pushed (fork-main and dotfiles both clean, 0 unpushed).
+  Suite 2112/2112. Deployed tree `9ef42be576bd`, /health verified
+  content-to-content against disk, dotfiles pin `5d39423`. Doctor reports
+  ONE fail and it is the gate-red below, not a machine problem —
+  "1 von 41 Captures NICHT sauber". Everything else in doctor is
+  green, including the two new .git/config-signature checks.
+
+  **STATE OF THE GATE: 1 failing capture, down from 3.** The survivor
+  is s-captureD conservation 2 — the row-24 container-flip pair the
+  earlier handoff already attributed as PRE-EXISTING and proven
+  byte-identical under old and new code. The other two are CLOSED (see
+  the GATE-RED CLOSED entry): 38 -> 0 and 2 -> 0.
+
+  **THE BIGGEST OPEN THING, and it is new: the absorption check's
+  first corpus-wide number is 50 misses, 40 of them OURS, across 12
+  captures.** `gate-live` now carries `absorption: {total, ours,
+  captures}` in every sweep. That is 40 cases where a mitigation RAN
+  and did not ABSORB, attributable to us — the class that let a 349k
+  bust replay green on all five gates. It is a REPORT, not a gate, on
+  purpose: the rate was unmeasured when it shipped and now it is not,
+  so the next question is CLASSIFICATION — are the 40 one mechanism or
+  several? Start here; it is the largest measured, unexplained number
+  in the repo.
+
+  **WHAT SHIPPED TODAY** (all pushed, all red-first): the conservation
+  exemptions (fresh-session-sort's rewrite, the smoosh-split/
+  content-strip composition) and the `normalizeSessionStartText`
+  anchoring; `findAbsorptionMisses` in replay + the daily sweep; the
+  UTC round trip (`bust-triage` marks its rows, `dossier` reads a
+  naked stamp as UTC); the absence-scan's three blind spots — object
+  KEY names, commit messages, and every text file type — plus
+  class-scoped exemptions replacing the path-wide allowlist; the
+  harvest ledger's keys hashed (94 session UUIDs gone from a public
+  file); `tools/restart-exposure.mjs`; and the doctor checks for the
+  .git/config corruption signature (dotfiles 443b200).
+
+  **THREE THINGS THE NEXT SESSION SHOULD NOT RE-LEARN.**
+  (1) A restart is transparent unless the NEW CODE forwards different
+  bytes for content live conversations already hold — measured six
+  restarts, one bust, with a comment-only-scrub restart as the clean
+  control. Before any proxy restart whose change alters forwarded
+  bytes, run `node tools/restart-exposure.mjs --match '<class>'`; the
+  cost is live-session tokens, never corpus instances.
+  (2) The gate's conservation units are UNWRAPPED while the
+  extensions' predicates are defined over the WRAPPED
+  `<system-reminder>` form. That one confusion caused three separate
+  bugs in replay.mjs in a single afternoon.
+  (3) A measurement over a working tree another writer holds is quoted
+  with the commit it was taken at, or not quoted — three wrong
+  exposure counts came from unpinned greps while an agent committed.
+
+  **UPSTREAM:** all nine PR-round items are ANSWERED — which is not
+  the same as merged, and the distinction matters for whoever reads
+  this next. Six PRs had their review round answered with a fix
+  pushed and a comment posted (#272, #275, #276, #279, #280, #282) and
+  are still OPEN awaiting upstream; issue #292 is answered and its fix
+  is **PR #307** (`Closes #292`); the absence-scan split is **PR
+  #306**; #295 is DROPPED on a falsified premise (see its entry).
+  Nothing is blocked on us. Do NOT re-do any of the six — check the PR
+  thread first; the next move on all of them is upstream's.
+
+  **OPERATOR DECISION STILL OPEN:** the 8-hex prefix class remains in
+  immutable public history (the working tree is scrubbed, the PR
+  branches' commit MESSAGES are not, and no push can retract those).
+
 - **HANDOFF 2026-08-05 — the 08-02 handoff's G1/G2/G3 are all settled
   and shipped on `wt/description-absorb` (now at 7f6e5a1, pushed);
   read this before the entry below, which it supersedes on those
@@ -793,7 +860,23 @@ then the queued ones. Work the items in that order.
   any artifact (grep the written files for a sentinel string from the
   request); suite green. Done: pushed + PR comment.
 
-- **READY (optional acceleration) — #295: cut the 7-commit slim
+- **DROPPED 2026-08-05 — NOT ACHIEVABLE as scoped; the premise was
+  falsified, not the timing.** The entry assumed the 7 commits were
+  self-contained. They are relative to #276 and are NOT relative to
+  #272: six of the seven MODIFY
+  `proxy/extensions/insertion-normalization.mjs`, none creates it, and
+  `git cat-file -e upstream/main:...insertion-normalization.mjs`
+  fails — that file exists only because of #272. Cherry-picking the
+  first onto a branch cut from upstream/main gives
+  `CONFLICT (modify/delete)`, not a textual conflict, and the only
+  resolution is importing #272's file creation, which recreates the
+  stacked diff the slim branch exists to avoid. Upstream's own stated
+  alternative applies literally: once #272 lands, #295 re-diffs
+  against a main carrying the base file and the problem dissolves.
+  Reported on #295; no branch pushed, no draft PR. Re-open only if
+  #272 stalls AND upstream asks again.
+  (original entry below, for the record)
+- **(DROPPED, see above) READY (optional acceleration) — #295: cut the 7-commit slim
   branch.** Upstream cannot review the stacked diff (69 files of
   inherited parents) and offered the #304-shaped workaround: a branch
   from upstream/main carrying only the 7 #295-specific commits
@@ -1195,7 +1278,9 @@ then the queued ones. Work the items in that order.
   a control asserting an unmappable pair still returns UNCLASSIFIED.
   tools/-only, not deployment-coupled.
 
-- **READY — split `moved` into fresh recognitions vs re-fires
+- **(DONE — shipped 9059d3a; `movedFresh`/`movedRefires` are live in
+  insertion-normalization.mjs and were the telemetry that made the
+  2026-08-05 349k bust readable) READY — split `moved` into fresh recognitions vs re-fires
   (the instrument change the 660k bust argues for).** Grounding,
   verified at the line: insertion-normalization.mjs:1062 emits
   `moved: moves.length + refires.length` — the code holds the two
@@ -1215,7 +1300,8 @@ then the queued ones. Work the items in that order.
   SERIALIZED behind the ordinal fix (same file), and it should ride
   the SAME proxy boundary — one restart carries both.
 
-- **READY — bust-triage prints pin-ready request ordinals.**
+- **(DONE — `bust-triage` now prints `freeze: harvest --pin <key> n..m`
+  on its capture line, verified live 2026-08-05) READY — bust-triage prints pin-ready request ordinals.**
   Grounding: an evidence-freezing error made by the dispatcher
   today. bust-triage's capture line reports `n=591->595`, which is a
   MESSAGE COUNT, while `harvest --pin <key> n..m` takes file-wide

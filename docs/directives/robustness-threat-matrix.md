@@ -788,6 +788,27 @@ concentrated precisely where the work was happening, which is the
 normal case for a change made while using the thing it changes, not a
 coincidence.
 
+THE MEASURED NEGATIVE, without which this datapoint would be
+over-applied. Six restarts on 2026-08-05 across four code trees; ONE
+busted. Boots at 08:03:56, 09:33:39 (tree eec233efa271), 09:57:44
+(e5bb97874a74), 11:30:12 and 11:39:11 (d2dd0ea6f9bc), 12:19:52
+(9ef42be576bd); the only bust within five minutes of any of them is
+the 12:20:13 one above, 21 seconds after the last. The cleanest
+control is the 11:30/11:39 pair: it deployed a COMMENT-ONLY scrub of
+proxy/**, so the tree hash and the source fingerprint both changed and
+the process genuinely restarted — and it cost nothing, because the
+forwarded bytes were byte-identical. That isolates "restart" from
+"changed bytes" as well as a live experiment can. The 09:57 restart is
+a second control: a real behaviour change (the description absorb)
+that no live conversation's existing prefix reached.
+
+Restarts are normally free because the state that matters PERSISTS:
+insertion-normalization writes its canonical to disk and re-reads it
+per request, thinking-block-sanitize re-seeds its v2 state from a
+file. A restart loses module-scope memory and rebuilds it from the
+same durable state, so it forwards what it would have forwarded a
+second earlier.
+
 THE RULE THIS EARNS, and it is narrower and more useful than "restarts
 are cache-transparent unless state keys or freeze logic change": that
 formulation asks about the DIFF. A restart is transparent only if
