@@ -62,12 +62,53 @@ When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
    binds in full. Mechanically:
    ```sh
    node --test test/absence-scan.test.mjs        # where the branch has it
-   git diff upstream/main...HEAD | grep -nE '([0-9]{1,3}\.){3}[0-9]{1,3}|ssh [a-z]+@|s-[0-9a-f]{8}'
+   git diff upstream/main...HEAD | grep -E '^\+' \
+     | grep -nE '([0-9]{1,3}\.){3}[0-9]{1,3}|ssh [a-z]+@|(^|[^0-9a-f])s-[0-9a-f]{8}([^0-9a-f]|$)'
+   git log <branch-base>..HEAD --format='%s%n%b' \
+     | grep -nE '([0-9]{1,3}\.){3}[0-9]{1,3}|ssh [a-z]+@|(^|[^0-9a-f])s-[0-9a-f]{8}([^0-9a-f]|$)'
    ```
-   The grep must return nothing attributable to real infrastructure or
+   `<branch-base>` is the commit the branch was at before THIS round's
+   work — the commits you are about to add, not the whole branch. That
+   scoping is load-bearing and was got wrong first: run over
+   `upstream/main..HEAD` the message grep flags the branch's own
+   historical commits, which are already in upstream's
+   `refs/pull/N/head` and cannot be retracted by any push. Measured
+   2026-08-05 on `pr/verification-tools`: five such lines, all
+   pre-existing, all already public. A gate that cannot pass is the
+   fires-on-a-non-defect shape — it belongs in the BACKLOG entry about
+   historical exposure, not in front of a push it cannot help.
+   Both greps must return nothing attributable to real infrastructure or
    real capture/session identifiers. PR diffs are public the instant
    they open, and objects persist in upstream's `refs/pull/N/head` even
    after close — there is no retraction (confirmed on #294/#296).
+
+   Three refinements, each earned by an occurrence on 2026-08-05:
+
+   - **Filter the diff to ADDED lines** (`grep -E '^\+'`). A scrub's
+     removed lines necessarily show the value being deleted, so an
+     unfiltered grep reports every scrub as a finding and trains its
+     reader to wave the check through.
+   - **Grep the COMMIT MESSAGES too** — the second command above. A
+     scrub commit that names the value in its own subject publishes it
+     exactly as permanently as a file would, and nothing else catches
+     it: `tools/absence-scan.mjs` scans file contents, never messages.
+     Observed live: a dispatched agent's subject read "replace real
+     capture id `s-<8hex>` …", caught at review, reworded before push.
+   - **Anchor the `s-<8hex>` pattern on both sides**
+     (`(^|[^0-9a-f])…([^0-9a-f]|$)`). Unanchored it matches the
+     12-hex tokenized form — which is the SAFE form — and it matches
+     `claude-3-opus-20240229`, whose `s-20240229` is a coincidence.
+     Both are false fires on the one gate that guards a public
+     boundary.
+
+   **Known blind spot, not fixed by these greps:** `absence-scan`'s
+   `--git-range` mode filters candidates to `.json`/`.jsonl`
+   (`SCANNABLE`, tools/absence-scan.mjs:270) before any class is
+   consulted, so a capture identifier in a tracked `.mjs` or `.md`
+   passes the push hook silently — proved with a planted UUID on
+   2026-08-05. Until that is decided (BACKLOG), the greps above are
+   the only thing covering source files, so running them is not
+   optional belt-and-braces; it is the check.
 6. **Push, then comment.** Every push gets a PR comment: what changed
    in response to which finding, real test counts from the run, then
    the footer:

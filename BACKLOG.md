@@ -247,14 +247,32 @@ bullet, evidence pointer included.
   reaches one. So the guard this repo added specifically to stop a
   capture identifier reaching public history does not look at source
   files, which is where the 2026-08-02 red-main incident put one.
-  EXPOSURE, measured on fork-main at 9fe5cf0: `git grep -o "633915a8"
-  | wc -l` = **96**, across 20+ tracked files — `BACKLOG.md`,
-  `proxy/extensions/insertion-normalization.mjs`, six `test/*.mjs`,
-  and a dozen files under `docs/`. That is the raw 8-hex session-id
-  prefix, which this repo's own threat model
+  EXPOSURE — and the first number booked here was WRONG in the
+  instructive way, so both are kept. First measurement:
+  `git grep -o "633915a8" | wc -l` = 96. True, and it answers a
+  NARROWER question than the entry it was written into — it counts
+  ONE capture id, while the exposure is a CLASS. The correct
+  measurement, on fork-main at 10ca3b1, counting bare `s-<8hex>`
+  tokens with a non-hex boundary (so the safe 12-hex tokenized form
+  is excluded by construction) and dropping the `claude-3-opus-
+  20240229` false positive:
+
+      git grep -ohE '(^|[^0-9a-f])s-[0-9a-f]{8}([^0-9a-f]|$)' \
+        | grep -oE 's-[0-9a-f]{8}' | grep -v 's-20240229' | wc -l
+      -> 414
+
+  across **at least 15 distinct real captures** (s-633915a8 71,
+  s-0d6f38ba 57, s-dc3f8071 53, s-58c979ce 20, s-77fe2779 14,
+  s-0edbd11c 14, s-66797e31 13, s-ddd9fd7d 10, s-35d72503 10,
+  s-c7c83ca5 9, s-0fbf8674 9, s-9f9d8a9d 8, s-538c0aef 8,
+  s-f94e53ce 6, s-2cd640f8 5, …). `s-c7c83ca5` is verifiably a live
+  capture — it is the one this session replayed. That is the raw
+  8-hex session-id prefix, which this repo's own threat model
   (tools/absence-scan.mjs:93-97) calls the dangerous form precisely
   because the safe tokenized form is 12 hex and cannot be matched
-  back by prefix. Fork-main is public.
+  back by prefix. Fork-main is public. The 4.3x understatement
+  matters for the decision below: scrubbing 414 occurrences across
+  15 captures is a different-sized commitment from scrubbing 96.
   WHY THIS IS A DECISION AND NOT A TASK, both halves stated: (1) the
   ids are ALREADY in public git history and history cannot be
   scrubbed — the repo's own CLAUDE.md says the remediation for a
@@ -273,6 +291,17 @@ bullet, evidence pointer included.
   since that decides whether the prefix is worth anything to anyone.
   Surfaced to upstream in the #276 comment rather than fixed
   unilaterally.
+  THIRD SURFACE, found by running the corrected runbook grep over a
+  whole branch instead of over one round's commits: the PR branches'
+  own COMMIT MESSAGES carry real capture ids too — five lines on
+  `pr/verification-tools` alone (`git log upstream/main..HEAD
+  --format='%s%n%b'`), all pre-existing, all already in upstream's
+  `refs/pull/276/head`. Nothing to retract there either, and it
+  widens the decision rather than changing it: the class spans the
+  working tree, the fork's history, and the branches' history, and
+  only the first of those is scrubbable at all. The runbook now
+  scopes its message grep to the round's own commits for exactly
+  this reason — a gate that cannot pass is worse than no gate.
 
 - **READY — the canonical re-serve normalizes its CONTAINER to the
   wire's current one (proxy/**, deployment-coupled).** This is the
