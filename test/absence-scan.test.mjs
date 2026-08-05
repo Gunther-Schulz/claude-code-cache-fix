@@ -456,3 +456,60 @@ test("a key-position finding locates without echoing the key", () => {
   assert.ok(!JSON.stringify(hit).includes(FAKE_UUID),
     "a leak reporter that prints the leak has moved it, not found it");
 });
+
+test("the short-key class reaches every text file type, not just .mjs and .md", () => {
+  // Widened 2026-08-05 after counting what the first version still missed:
+  // 30 tracked .sh/.yml/.py/.txt/.bats/.template and extensionless files that
+  // NOTHING scanned. A gate with a file-type blind spot is the defect this
+  // whole class was added to fix, one extension list further out.
+  const key = ["s", "-", "0123", "abcd"].join("");
+  for (const f of ["tools/x.sh", "ci/x.yml", "x.py", "notes.txt", "t.bats",
+                   "x.template", "tools/git-hooks/pre-push"]) {
+    assert.deepEqual(scanContent(`ref ${key} here`, f).findings.map((x) => x.class),
+      ["capture-key-prefix"], `${f} must be scanned`);
+  }
+});
+
+// --- commit messages ---------------------------------------------------------
+//
+// Nothing scanned them until 2026-08-05, and the gap has a signature move: a
+// SCRUB commit that names the value it scrubbed. Observed live and caught by
+// eye. Message bytes are as permanent in a public repo as file bytes, and no
+// file-content scan will ever see them.
+
+test("git-range: a capture id in a COMMIT MESSAGE is caught", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "a.md"), "clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "base");
+    const base = g("rev-parse", "HEAD");
+    writeFileSync(join(dir, "a.md"), "still clean\n");
+    g("add", "-A");
+    // The file is clean; only the MESSAGE carries the identifier.
+    g("commit", "-qm", `scrub: replace real capture id ${["s", "-", "0123", "abcd"].join("")} in 9 files`);
+    // Through the CLI with cwd, like every other git-range test here:
+    // scanGitRange runs git in the process cwd, so calling it directly would
+    // scan THIS repo and report a confident answer about the wrong tree.
+    const r = run(["--git-range", `${base}..HEAD`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING capture-key-prefix {2}commit /,
+      "the finding must say it came from a message, not from a file");
+    assert.ok(!r.stdout.includes("0123abcd"), "and must not echo the identifier");
+  });
+});
+
+test("git-range: a clean message with a clean file reports nothing", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "a.md"), "clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "base");
+    const base = g("rev-parse", "HEAD");
+    writeFileSync(join(dir, "a.md"), "still clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "scrub: replace the residual capture id in 9 files");
+    const r = run(["--git-range", `${base}..HEAD`], dir);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+  });
+});

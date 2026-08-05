@@ -322,7 +322,13 @@ const SCANNABLE = /\.jsonl?$/i;
 // in fixtures — and a guard that fires on legitimate work trains the override
 // reflex that kills it. So source files get the SHORT-PREFIX class alone,
 // whose false-fire rate over this tree was measured at zero after the scrub.
-const SOURCE_SCANNABLE = /\.(mjs|js|md)$/i;
+// Extension list rather than "everything not .json": a binary or a lockfile
+// has no business here, and an over-broad filter is how a scan gets slow and
+// noisy enough to be turned off. Widened 2026-08-05 from (mjs|js|md) after
+// counting what it still missed — 30 tracked .sh/.yml/.py/.txt/.bats/
+// .template and extensionless files that NOTHING scanned. Measured cost of
+// including them: 0 findings.
+const SOURCE_SCANNABLE = /(\.(mjs|cjs|js|md|sh|bash|zsh|ya?ml|py|txt|bats|template|toml|cfg|conf|env)$|^[^.]+$|\/[^./]+$)/i;
 
 // `s-` + exactly 8 hex, bounded on both sides. The 12-hex tokenized form is
 // the SANITIZED shape and must not match — that distinction is the whole
@@ -367,6 +373,28 @@ export function scanSourceText(text, file) {
 
 function git(args) {
   return execFileSync("git", args, { encoding: "utf-8", maxBuffer: 1 << 28 });
+}
+
+/**
+ * The commits being pushed, as {sha, text} with subject and body. EMPTY means
+ * a new branch: `git log <newRef>` alone would walk to the root and report the
+ * whole project's history, so the range is bounded by whatever is already
+ * reachable from any other ref — the commits this push actually adds.
+ */
+function rangeMessages(oldRef, newRef) {
+  const args = oldRef === "EMPTY"
+    ? ["log", "--format=%H%x00%s%n%b%x01", newRef, "--not", "--all", "--not", newRef, "--branches", "--tags", "--remotes"]
+    : ["log", "--format=%H%x00%s%n%b%x01", `${oldRef}..${newRef}`];
+  let out;
+  try {
+    out = git(args);
+  } catch {
+    return [];
+  }
+  return out.split("\x01").map((c) => c.trim()).filter(Boolean).map((c) => {
+    const [sha, text] = c.split("\x00");
+    return { sha: (sha ?? "").slice(0, 12), text: text ?? "" };
+  });
 }
 
 function rangeFiles(oldRef, newRef) {
@@ -417,7 +445,28 @@ export function scanGitRange(oldRef, newRef) {
     if (r.partial) partial++;
     degraded.push(...r.degraded.map((d) => `${file}: ${d}`));
   }
-  return { findings, seen, scanned, degraded, allowlisted, files, partial };
+
+  // COMMIT MESSAGES, scanned with the same class as source files.
+  //
+  // Nothing looked here until 2026-08-05, and the gap has a signature move:
+  // a SCRUB commit that names the value it scrubbed. Observed live — a
+  // dispatched agent's subject read "replace real capture id <id> in 9 source
+  // comments", caught at review by eye. Had it not been, the push would have
+  // put the identifier into upstream's refs/pull/N/head, where a later
+  // "revert" commit removes nothing: message bytes are as permanent as file
+  // bytes and no file-content scan will ever see them.
+  //
+  // Scoped to the range being pushed, never the whole branch. Run over a
+  // branch's full history it reports commits already public, which no push
+  // can retract — a gate that cannot pass, which is worse than no gate.
+  const messages = rangeMessages(from, newRef);
+  for (const { sha: csha, text } of messages) {
+    const r = scanSourceText(text, `commit ${csha}`);
+    findings.push(...r.findings);
+  }
+
+  return { findings, seen, scanned, degraded, allowlisted, files, partial,
+           messages: messages.length };
 }
 
 // --- CLI ---------------------------------------------------------------------

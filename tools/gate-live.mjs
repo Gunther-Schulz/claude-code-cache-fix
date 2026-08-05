@@ -212,6 +212,16 @@ function summarise(file, bytes, res) {
   row.conservationResidue = parsed.conservationResidue ?? 0;
   row.sequence = parsed.sequence?.length ?? 0;
   row.order = parsed.orderViolations?.length ?? 0;
+  // Absorption misses: a mitigation that RAN and did not ABSORB. Carried,
+  // never failed — see `rowIsClean` for why, and replay.mjs's
+  // findAbsorptionMisses for what the numbers mean. Two counts, because they
+  // answer different questions: how many, and how many were OURS (the
+  // forwarded pair diverged at a slot we had just substituted while CC's own
+  // input was identical there). A sweep that reported only the total would
+  // make the attribution invisible again, which is the thing this check
+  // exists to stop.
+  row.absorptionMisses = parsed.absorptionMisses?.length ?? 0;
+  row.absorptionMissesOurs = (parsed.absorptionMisses ?? []).filter((m) => m.ours).length;
   row.unparseable = (parsed.report ?? []).filter((r) => r.error).length;
   // Replay fidelity: whether this run reproduced the bytes the proxy really
   // forwarded. A mismatch means the invariants above were measured on a
@@ -288,6 +298,28 @@ const rowIsClean = (r) =>
   // that fires on a non-defect trains its reader to ignore red.
   !r.byteGate?.error &&
   !r.byteGate?.unreadable;
+
+/** Sweep-wide absorption-miss totals, alongside the byte-gate rollup.
+ *
+ * Deliberately NOT part of `rowIsClean`. The check is new and its corpus-wide
+ * rate is unmeasured; making it fail a sweep before anyone knows how often it
+ * fires on legitimate work is how a guard trains its reader to discount red —
+ * this repo's own recurring defect, and the reason the byte-gate's own
+ * findings are carried rather than failed two functions up. Promote it once
+ * the rate is known and the classes are understood.
+ */
+export function summariseAbsorption(rows) {
+  let total = 0;
+  let ours = 0;
+  let captures = 0;
+  for (const r of rows) {
+    const n = r.absorptionMisses ?? 0;
+    if (n > 0) captures++;
+    total += n;
+    ours += r.absorptionMissesOurs ?? 0;
+  }
+  return { total, ours, captures };
+}
 
 /** Sweep-wide byte-gate totals: what `main` writes into the daily status
  * file's `byteGate` field, extracted so the rollup is testable on its own
@@ -904,6 +936,7 @@ async function main() {
     // single-request captures ran zero cross-request checks.
     ok: failed.length === 0 && proving.length > 0,
     byteGate,
+    absorption: summariseAbsorption(rows),
     backlogLint,
     rows,
   };

@@ -541,3 +541,37 @@ test("BITE — a real sweep appends exactly one well-formed ledger line", async 
   assert.equal(JSON.parse(lines[1]).windowSeeded, false);
   assert.deepEqual(JSON.parse(lines[0]), rec, "an earlier line is never edited by a later run");
 });
+
+// --- absorption misses in the sweep -----------------------------------------
+//
+// findAbsorptionMisses answers the question no gate asked when a 349k bust
+// replayed exit 0 — did a mitigation that RAN also ABSORB. It only helps if
+// the DAILY sweep carries it: a check that runs when someone thinks to invoke
+// replay by hand is not in front of the boundary, which is the same complaint
+// absence-scan's own header makes about its predecessor.
+
+test("the sweep rolls up absorption misses, and keeps the OURS count separate", async () => {
+  const { summariseAbsorption } = await import("../tools/gate-live.mjs");
+  const rows = [
+    { absorptionMisses: 2, absorptionMissesOurs: 1 },
+    { absorptionMisses: 0, absorptionMissesOurs: 0 },
+    { absorptionMisses: 3, absorptionMissesOurs: 3 },
+    {}, // a row from an older status file, or a capture that never ran
+  ];
+  assert.deepEqual(summariseAbsorption(rows), { total: 5, ours: 4, captures: 2 },
+    "total, the attributable subset, and how many captures produced any");
+});
+
+test("a sweep with absorption misses is still CLEAN — the check reports, it does not gate", async () => {
+  // Deliberate, and the reason is this repo's own recurring defect: the
+  // check's corpus-wide rate is unmeasured, and failing a sweep before anyone
+  // knows how often it fires on legitimate work trains the reader to discount
+  // red. Promote it once the rate is known.
+  const { summariseAbsorption } = await import("../tools/gate-live.mjs");
+  const s = summariseAbsorption([{ absorptionMisses: 9, absorptionMissesOurs: 9 }]);
+  assert.equal(s.total, 9, "carried in the status file");
+  // The clean predicate is not exported; assert the intent at the rollup level
+  // by pinning that the summary is a REPORT shape — counts, no verdict field.
+  assert.deepEqual(Object.keys(s).sort(), ["captures", "ours", "total"],
+    "no pass/fail field: a reader decides, the sweep does not");
+});

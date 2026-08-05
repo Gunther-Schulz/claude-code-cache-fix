@@ -238,7 +238,10 @@ very slot it had just substituted — right text, right index, stale container.
 same telemetry, and only a human reading both noticed.
 
 `findAbsorptionMisses` (replay.mjs) now asks it on every run — not behind
-`--census`, because the whole point is that nobody knew to look. It is a
+`--census`, because the whole point is that nobody knew to look — and
+`gate-live` carries `absorption: {total, ours, captures}` in the daily status
+file, because a check that runs only when someone thinks to invoke `replay` by
+hand is not in front of the boundary. It is a
 REPORT, not a gate, until its corpus-wide rate is measured; a check that
 blocks before anyone knows how often it fires on legitimate work is how a
 guard trains its reader to ignore it. Each row carries the three numbers that
@@ -246,6 +249,28 @@ turned this bust from a puzzle into a mechanism: where the absorption claimed
 to act, where the forwarded pair actually diverged, and whether CC's input
 diverged there too — the last is `ours: true/false`, and it is the attribution
 that otherwise costs an afternoon.
+
+## The hygiene gate scans messages and every text type, not just fixtures
+
+Two blind spots, both found by planting rather than by reading, both closed
+2026-08-05:
+
+- **Object KEY NAMES were never scanned.** A map keyed BY the protected thing
+  is an ordinary shape — this repo's own harvest ledger was
+  `{"keys": {"<full session uuid>": …}}` — and the identical UUID reported
+  `capture-uuid` as a value and nothing at all as a key. Key findings are
+  positional (`$.keys[#1]~key`) because the path would otherwise BE the key.
+- **COMMIT MESSAGES were scanned by nothing.** The signature move is a scrub
+  commit that names the value it scrubbed; observed live, caught by eye.
+  Message bytes are as permanent as file bytes and no content scan sees them.
+  Scoped to the range being pushed — over a whole branch it reports commits
+  already public, which is a gate that cannot pass.
+
+The file-type filter was the third: `--git-range` looked only at
+`.json`/`.jsonl`, so an identifier in a `.mjs`, `.md`, `.sh`, `.yml` or `.py`
+sailed through. Source files get the short-key class and only it; pointing the
+UUID and base64 classes at source would fire on dozens of legitimate synthetic
+values. Measured cost of the widening: 0 findings over every tracked file.
 
 ## Timestamps are UTC, at both ends of the chain
 
