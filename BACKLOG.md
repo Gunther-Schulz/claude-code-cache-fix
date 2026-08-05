@@ -210,21 +210,92 @@ bullet, evidence pointer included.
   prefix still diverged at `messages@360(system)` with identical
   leading content. Row 4 therefore does NOT close — its stated
   closing condition is a live non-event and this is a live event.
-  **OPEN, dispatched as a measurement 2026-08-05:** what exactly
-  differs at forwarded index 360. Named candidate, from the replay's
-  own `mutatedBy` delta across the pair — `cache-control-normalize`
-  and `ttl-management` ran on n=221 and not on n=220 — so the
-  residual may be a `cache_control` marker or a container flip that
-  is OURS, at an index where the four gates cannot see it (stability
-  only asks whether we diverged EARLIER than CC). If that is what it
-  is, this bust is a row-24-shaped defect wearing row 4's clothes,
-  and the NARROW container normalisation item further down gets a
-  second measured instance.
+  **ANSWERED same day, measured and attributed** (full record in the
+  matrix datapoint): forwarded[360] carries BYTE-IDENTICAL text in
+  both requests and differs only in its CONTAINER — `content:"T"` at
+  n=220, `content:[{"type":"text","text":"T"}]` at n=221, a 25-byte
+  delta that is exactly the block-array JSON. The array form is
+  byte-present nowhere in CC's raw request: we built it.
+  `insertion-normalization` is the stage (per-extension trace; the
+  `cache-control-normalize`/`ttl-management` lead was WRONG), and the
+  reason is the pin's own contract — it re-serves FIRST-SEEN bytes,
+  and the first time CC sent that message (n=194, 08:56:27.369Z) it
+  was an array carrying `cache_control {"ephemeral","1h"}`. From
+  n=195 it was a bare string for 26 straight requests. **Rows 4 and
+  24 compose:** the un-merge restores the right text at the right
+  index in a container that left the wire 26 requests earlier, and
+  the staleness is dormant until a join-move fires.
   Operator-side, outside this repo: the periodic re-anchor hook's
   ~52KB corpus output is truncated by the harness's persisted-output
   mechanism to a 2,324-char preview plus a file pointer
   (`.../tool-results/hook-…-additionalContext.txt`, 54,266 bytes on
   disk) — the corpus it exists to re-show does not reach the model.
+
+- **READY — the canonical re-serve normalizes its CONTAINER to the
+  wire's current one (proxy/**, deployment-coupled).** This is the
+  349k bust's actual fix and it is narrower than the row-24 message-
+  level pin. Grounding, all measured today (matrix, Row 4 datapoint
+  2026-08-05): `resetKeepingPins`/`findJoinMoves` substitute
+  `priorCanonical[ci].m` verbatim, that stored message is CC's
+  FIRST-SEEN form, and CC's first-seen form for a `role:"system"`
+  harness message is frequently the block-array wrapper it uses to
+  carry a `cache_control` breakpoint — which it then drops. Measured
+  instance: first seen n=194 as `array[1] cc={"ephemeral","1h"}`,
+  bare string from n=195 for 26 requests, re-served as an array at
+  n=221, 349,004 tokens.
+  Design: at substitution time, re-serve the canonical's TEXT in the
+  container the CURRENT wire message uses — string stays string,
+  array stays array — rather than the container that was stored.
+  Text identity is untouched, so the safety argument is unchanged
+  (same bytes, same slot, same count, same roles); only the envelope
+  follows the wire. Scope it to the `role:"system"` single-text-block
+  case that is measured, and fail closed to today's behaviour on
+  anything else — a multi-block message or a container change that
+  also changes text is NOT this class.
+  SEQUENCING against the narrow container normalisation item further
+  down: they are the same mechanism seen from two sides (CC's flip vs
+  our stored flip) and both are proxy/**. Price them together; if the
+  narrow normalisation lands first and normalizes containers BEFORE
+  the canonical is written, this item may dissolve into it — check
+  that before building both.
+  Verifier, red-first: a bite that drives the measured sequence —
+  first request carries the message as `array[1]` with a
+  `cache_control`, later requests as a bare string, then a join-move
+  fires — and asserts the forwarded message is a STRING. Red against
+  today's implementation (it forwards the array). Plus a CONTROL
+  where the wire's current form IS an array, asserting the array is
+  still forwarded. Corpus check: replay s-0600c21f old-vs-new and
+  require the ONLY delta to be at n=221.
+
+- **READY — a gate that asks whether a mitigation ABSORBED, not just
+  whether it ran.** Grounding, and it is the reason the 349k bust
+  reached a human: the capture replays exit 0 on all five gates and
+  every verdict is correct. Stability asks whether OUR output
+  diverged EARLIER than CC's input; CC diverged at the same logical
+  slot, so green is the right answer. Nothing asks the question that
+  mattered — insertion-normalization reported `movedFresh:2`, i.e.
+  it RECOGNIZED both migrations, and the forwarded prefix diverged at
+  the very slot it had just substituted. "The mitigation ran" and
+  "the mitigation absorbed" came apart, which is the same split the
+  `movedFresh`/`movedRefires` work was minted for, one level up.
+  Design: a sixth per-pair check — when an entry reports a fresh
+  absorption (`movedFresh > 0`, or a description absorb, or an
+  oscillation absorption) AND the forwarded pair still diverges at or
+  before the absorbed index, that is an ABSORPTION MISS. Report it
+  with the absorbed index, the forwarded divergence index, and
+  whether the raw pair diverged there too — the three numbers that
+  turned this bust from a puzzle into a mechanism. It is a REPORT
+  first, not a gate: measure its corpus-wide rate before deciding
+  whether it may block, precisely because a check that fires on a
+  non-defect trains the reader to discount red.
+  Verifier, red-first: run it over s-0600c21f and require exactly one
+  absorption-miss row at n=221 (absorbed index 360, forwarded
+  divergence 360) — the current code reports nothing, so the bite is
+  red by construction; plus a CONTROL over a capture where an absorb
+  fires and the prefix holds (the description absorb on s-ddd9fd7d
+  n=1202), asserting zero rows. tools/-only, not deployment-coupled,
+  and it should ride gate-live's daily sweep as a `absorptionMisses`
+  summary alongside `byteGate`.
 
 - **SOLVED INCIDENT 2026-08-05 (root cause found same day, fixed in
   the commit this entry rides in) — the .git/config corruption was

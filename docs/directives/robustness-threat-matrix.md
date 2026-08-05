@@ -645,6 +645,63 @@ reports `action:"reset"`, `resetReason:"not-subsequence"`,
 what `resetKeepingPins` (insertion-normalization.mjs:919) exists for.
 The forwarded message count held at 414 -> 414.
 
+AND THE PREFIX STILL DIVERGED — MEASURED, ATTRIBUTED, AND IT IS
+OURS. Same-day measurement (standalone probe over
+`proxy/pipeline.mjs`, capture replayed from record 0 under
+`--gates-from-capture`, forwarded bodies dumped for both ordinals;
+`outBodySha` 7b6d51c6027e5e2d / 96c35fd312c577d6 agreeing with the
+replay report, so the probe measured the same pipeline replay.mjs
+does). First divergence over the FORWARDED arrays is index 360, both
+sides 414 messages:
+
+    n=220 forwarded[360]  {"role":"system","content":"<370-char string>"}       403 bytes
+    n=221 forwarded[360]  {"role":"system","content":[{"type":"text",...}]}     428 bytes
+
+The inner text is BYTE-IDENTICAL. The 25-byte delta is exactly the
+JSON of `[{"type":"text","text":` + `}]` — the container, and nothing
+else. And `forwarded[360]` of n=221 is byte-present nowhere in CC's
+raw array: **we built it.**
+
+ATTRIBUTED BY EXERCISING, not by reading — the probe re-ran the
+pipeline one extension at a time and printed the message's container
+after each. It enters `insertion-normalization` as CC's merged
+`string(699)` at raw index 370 and leaves it as `array[1] text
+textLen=370` at index 360; every one of the 12 extensions after it
+leaves the container untouched. The named lead in this entry's first
+draft — `cache-control-normalize` / `ttl-management`, from the
+`mutatedBy` delta — was WRONG, and the trace is what says so.
+
+WHY THE CANONICAL HOLDS AN ARRAY. Because that is the form CC first
+sent, and the pin re-serves first-seen bytes. Measured over the
+message's whole life in this capture: at n=194 (08:56:27.369Z, its
+first appearance) it is `array[1]` carrying
+`cache_control {"type":"ephemeral","ttl":"1h"}` — CC had the
+breakpoint on it — and from n=195 onward it is a bare STRING for 26
+consecutive requests. This is row 24's container flip
+(`content:[{type:"text",text:T,cache_control:…}]` -> `content:T`,
+"CC wraps a string-content message in a block array to attach the
+breakpoint, then reverts it once the marker moves on") seen from the
+other side: the flip happened at n=195 and cost nothing, because
+nothing re-served that message until the join-move at n=221 did.
+
+**So rows 4 and 24 COMPOSE into a bust neither predicts alone.** The
+un-merge is right about the text and right about the index and
+re-serves a container that has not been on the wire for 26 requests;
+a wrong container diverges the prefix exactly as much as wrong bytes
+would. It also explains the timing — the stale container is dormant
+until a join-move fires, which is why 26 requests passed clean.
+
+CONSEQUENCE FOR THE READY ITEM: the narrow container normalisation
+(BACKLOG, row-24 messages half) now has a SECOND measured instance
+and a second, independent reason to exist — it is not only about
+absorbing CC's flip, it is about what our own canonical stores. The
+named missing evidence on that item ("the container flip has ONE
+measured instance and its corpus-wide frequency is unmeasured") is
+one instance less missing.
+
+The original live-ledger reading follows, kept because it is what
+pointed at index 360 in the first place.
+
 AND THE PREFIX STILL DIVERGED. The live prefix-diff ledger
 (`s-af2dced50fc1-events.jsonl`, ts 09:09:01.704Z, view
 `forwarded@680`) reports `messages@360(system)` with
@@ -652,23 +709,26 @@ AND THE PREFIX STILL DIVERGED. The live prefix-diff ledger
 ~120 chars — both begin "The user sent a new message while you were
 working:". So the substitution put the canonical text back and the
 two messages still differ somewhere the content preview does not
-reach. NAMED LEAD, dispatched as a measurement and NOT settled here:
-the replay's `mutatedBy` differs across the pair — n=220 is
-`sort-stabilization, tool-input-normalize, insertion-normalization,
-thinking-block-sanitize`; n=221 is those PLUS
-**`cache-control-normalize`** and **`ttl-management`**. If the
-residual at 360 is a `cache_control` marker or a container flip
-introduced by our own pipeline, this bust is OURS at that index and
-not row 4's, and the four gates cannot see it: stability only asks
-whether we diverged EARLIER than CC, and here CC diverged at the same
-logical slot.
+reach. That is what the measurement above then answered.
+
+WHY NO GATE CAUGHT IT, and this is the part worth carrying. The
+capture replays exit 0: stability 0, safety 0, conservation 0,
+sequence 0, order 0. Every one of them is correct. **Stability asks
+whether OUR output diverged EARLIER than CC's input** — here CC
+diverged at raw 369/370 and we diverged at the same logical slot, so
+we did not make it worse and the gate is right to stay green. What
+no gate asks is whether we ABSORBED it. A mitigation that recognizes
+its class, fires, and absorbs nothing is indistinguishable from one
+that was never reached, and today the only thing that separates them
+is a human reading `movedFresh` against a prefix-diff row. That is a
+missing check, booked in BACKLOG.
 
 WHAT THIS DOES NOT SAY. It does not say the un-merge is broken —
-recognition fired and the count held. It says the row's closing
-condition (a live non-event) is NOT met on the deployed build, and
-that the residual has a named, testable candidate which is a
-different row. Until that measurement lands, row 4 stays OPEN with
-this event against it.
+recognition fired, the count held, and the text it restored was
+correct. It says the row's closing condition (a live non-event) is
+NOT met on the deployed build, and that the residual is a
+container flip belonging to row 24. Row 4 stays OPEN with this event
+against it.
 
 REFUTED HYPOTHESIS, recorded because it was the session's entering
 premise and it was wrong in an instructive way: that the divergence
