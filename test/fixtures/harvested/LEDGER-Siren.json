@@ -1,10 +1,10 @@
 {
   "version": 1,
   "keys": {
-    "c-empty": {
-      "requests": 123,
-      "bytes": 25394,
-      "lastHarvest": "2026-08-03T06:34:12.607Z",
+    "k_b1cf7a43eb83ed84": {
+      "requests": 168,
+      "bytes": 34431,
+      "lastHarvest": "2026-08-05T11:45:37.335Z",
       "classes": [],
       "shape": {
         "pairs": 0,
@@ -14,7 +14,7 @@
         "toolsBytes": 0
       }
     },
-    "s-0edbd11c-6337-4257-86d2-ea6025999715": {
+    "k_157bd37224d781f7": {
       "requests": 345,
       "bytes": 188738140,
       "lastHarvest": "2026-07-28T14:58:19.267Z",
@@ -24,7 +24,7 @@
       ],
       "gone": true
     },
-    "s-35d72503-4f99-4ded-b0b0-d96796b9d75e": {
+    "k_628f31b605edbadd": {
       "requests": 603,
       "bytes": 406942258,
       "lastHarvest": "2026-07-28T14:58:22.474Z",
@@ -33,7 +33,7 @@
       ],
       "gone": true
     },
-    "s-58c979ce-10e5-4d4f-b179-ef5efa94efe4": {
+    "k_134de0d105bbd4a5": {
       "requests": 2073,
       "bytes": 2415429975,
       "lastHarvest": "2026-07-29T16:01:15.967Z",
@@ -47,42 +47,42 @@
       },
       "gone": true
     },
-    "s-61976797-899d-4741-aac0-27d39a311e49": {
+    "k_53ff353956ae8a38": {
       "requests": 43,
       "bytes": 6090235,
       "lastHarvest": "2026-07-28T14:58:27.288Z",
       "classes": [],
       "gone": true
     },
-    "s-85111e21-d1e1-4aec-ae61-469a86d8de78": {
+    "k_99a115429d7660f1": {
       "requests": 1,
       "bytes": 676,
       "lastHarvest": "2026-07-28T14:58:27.288Z",
       "classes": [],
       "gone": true
     },
-    "s-9bc0e0a1-d61e-4797-9799-bcb8bf6f3001": {
+    "k_3c30d726b37178c8": {
       "requests": 1,
       "bytes": 676,
       "lastHarvest": "2026-07-28T14:58:27.288Z",
       "classes": [],
       "gone": true
     },
-    "s-f899bb86-2950-4e45-a8dc-698d202e74c4": {
+    "k_9cffe7c8f6e2bc3a": {
       "requests": 5,
       "bytes": 234818,
       "lastHarvest": "2026-07-28T14:58:27.289Z",
       "classes": [],
       "gone": true
     },
-    "s-538c0aef-a0fb-4106-8ebf-1844f410710a": {
+    "k_2696fd497f01348d": {
       "requests": 513,
       "bytes": 403914981,
       "lastHarvest": "2026-07-29T07:40:11.431Z",
       "classes": [],
       "gone": true
     },
-    "s-924f2860-f1d3-44f5-8593-975d381aacd2": {
+    "k_3d3183673f494e8b": {
       "requests": 221,
       "bytes": 95004442,
       "lastHarvest": "2026-07-29T16:01:16.192Z",
@@ -96,7 +96,7 @@
       },
       "gone": true
     },
-    "s-c05a754c-dc7b-46d6-80eb-10333d4c1e7c": {
+    "k_aeaf79f0bb7fab18": {
       "requests": 2,
       "bytes": 162932,
       "lastHarvest": "2026-07-29T10:56:56.681Z",
@@ -110,7 +110,7 @@
       },
       "gone": true
     },
-    "s-c20a44fd-0438-4a95-a372-22500895fa7f": {
+    "k_fbff54ed53c9f913": {
       "requests": 13,
       "bytes": 1146072,
       "lastHarvest": "2026-07-29T10:56:56.686Z",
@@ -124,7 +124,7 @@
       },
       "gone": true
     },
-    "s-e52453a1-f839-4e1a-84b5-3d510eb643b4": {
+    "k_9bab2dab5e1c3e3b": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T10:56:56.686Z",
@@ -138,7 +138,7 @@
       },
       "gone": true
     },
-    "s-1fa6ad76-7a20-4d01-9684-16afcaac0a6c": {
+    "k_ba5531a68038b9d2": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T16:01:06.792Z",
@@ -152,7 +152,7 @@
       },
       "gone": true
     },
-    "s-2a1f68ae-58e6-4f33-a2eb-c29d4d91734f": {
+    "k_54a4fdbc3a89bae3": {
       "requests": 1,
       "bytes": 76634,
       "lastHarvest": "2026-07-29T16:01:06.793Z",
@@ -166,7 +166,7 @@
       },
       "gone": true
     },
-    "s-4b0ddd46-2d2f-467d-860b-259448cbb33c": {
+    "k_3532b0707cf01b37": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T16:01:07.685Z",
@@ -180,7 +180,7 @@
       },
       "gone": true
     },
-    "s-7a35a44b-1334-43d8-bea0-649da9bfe862": {
+    "k_2b1da4d3e73da691": {
       "requests": 13,
       "bytes": 853430,
       "lastHarvest": "2026-07-29T16:01:15.993Z",
@@ -194,7 +194,7 @@
       },
       "gone": true
     },
-    "s-a8db5b5b-c3f1-4ba4-af8d-cf9085af403c": {
+    "k_7dbd8ffd82557b3b": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T16:01:16.192Z",
@@ -208,7 +208,7 @@
       },
       "gone": true
     },
-    "s-b03c51e6-c8e4-474b-a995-36493f984705": {
+    "k_c3dcd7b8e5b0cb74": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T16:01:16.192Z",
@@ -222,7 +222,7 @@
       },
       "gone": true
     },
-    "s-b6a2abb5-8b59-4666-973e-5a7a2193a72b": {
+    "k_8efbe3ea9e001d3d": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T16:01:16.192Z",
@@ -236,7 +236,7 @@
       },
       "gone": true
     },
-    "s-ce840553-de34-4370-8299-17aec24228e2": {
+    "k_33b2a0bfb3922e2c": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T16:01:16.197Z",
@@ -250,7 +250,7 @@
       },
       "gone": true
     },
-    "s-dc3f8071-8555-45d5-907d-5666d46b5d72": {
+    "k_97097e027ac04c7e": {
       "requests": 769,
       "bytes": 472867549,
       "lastHarvest": "2026-07-30T04:02:10.937Z",
@@ -264,7 +264,7 @@
       },
       "gone": true
     },
-    "s-e5b928bc-e018-49b1-b914-52835d4eee18": {
+    "k_0cff8005abfd7f5f": {
       "requests": 1,
       "bytes": 1109,
       "lastHarvest": "2026-07-29T16:01:17.080Z",
@@ -278,7 +278,7 @@
       },
       "gone": true
     },
-    "s-633915a8-dcfd-479a-8ca8-0c4452d5a9b6": {
+    "k_4b6a435234bf5b8e": {
       "requests": 2630,
       "bytes": 2059412108,
       "lastHarvest": "2026-07-30T16:04:14.404Z",
@@ -292,7 +292,7 @@
       },
       "gone": true
     },
-    "s-67e7a16b-08ee-4304-803d-b749058f84a3": {
+    "k_69c2fb59105e1c04": {
       "requests": 7,
       "bytes": 698561,
       "lastHarvest": "2026-07-30T04:02:09.388Z",
@@ -306,7 +306,7 @@
       },
       "gone": true
     },
-    "s-2cd640f8-0062-4d81-9a7e-a8b5b9082d85": {
+    "k_b2d596db197ea211": {
       "requests": 186,
       "bytes": 50844339,
       "lastHarvest": "2026-07-30T17:22:00.525Z",
@@ -320,7 +320,7 @@
       },
       "gone": true
     },
-    "s-51c8511a-8075-42d9-9ea3-1e77a618ce0f": {
+    "k_9e7cc0ea9d4aef0b": {
       "requests": 209,
       "bytes": 93738684,
       "lastHarvest": "2026-07-31T07:52:28.646Z",
@@ -334,7 +334,7 @@
       },
       "gone": true
     },
-    "s-78b3e7fe-3d7f-4edb-b08d-dc8cd3923148": {
+    "k_aadeabf1b1d5e9cd": {
       "requests": 269,
       "bytes": 132537786,
       "lastHarvest": "2026-07-30T16:04:15.142Z",
@@ -348,7 +348,7 @@
       },
       "gone": true
     },
-    "s-f3db21fa-f80e-461d-98a7-4800e12893a3": {
+    "k_b89170481ad9a223": {
       "requests": 68,
       "bytes": 15231957,
       "lastHarvest": "2026-07-30T16:04:16.353Z",
@@ -362,7 +362,7 @@
       },
       "gone": true
     },
-    "s-0d6f38ba-e2a1-41c2-9558-b06bc238c79d": {
+    "k_0dc8ac87c43d9d2a": {
       "requests": 1058,
       "bytes": 734427500,
       "lastHarvest": "2026-07-31T16:02:54.651Z",
@@ -376,7 +376,7 @@
       },
       "gone": true
     },
-    "s-166894ea-b34e-4182-a61c-99bfdca83aec": {
+    "k_57c1606f8d0e1805": {
       "requests": 16,
       "bytes": 1417111,
       "lastHarvest": "2026-07-31T07:52:27.235Z",
@@ -390,7 +390,7 @@
       },
       "gone": true
     },
-    "s-f86c7752-3378-4ee1-97b7-87ad6484465d": {
+    "k_776b6a1ca2867691": {
       "requests": 24,
       "bytes": 2564773,
       "lastHarvest": "2026-07-31T07:52:41.427Z",
@@ -404,7 +404,7 @@
       },
       "gone": true
     },
-    "s-f94e53ce-570c-4ef6-aef0-d00092219d79": {
+    "k_c440f0ef24e11ada": {
       "requests": 1437,
       "bytes": 1006422502,
       "lastHarvest": "2026-07-31T16:03:17.759Z",
@@ -418,7 +418,7 @@
       },
       "gone": true
     },
-    "s-37e1a3fa-8fb9-47fe-b2db-4305d527b066": {
+    "k_44f8d9d3baab26dd": {
       "requests": 35,
       "bytes": 3112066,
       "lastHarvest": "2026-07-31T16:02:54.787Z",
@@ -432,7 +432,7 @@
       },
       "gone": true
     },
-    "s-7749d7fc-fbc1-4dbd-ab13-0821b5c53b9a": {
+    "k_411a74d856a3e91a": {
       "requests": 1869,
       "bytes": 858832863,
       "lastHarvest": "2026-08-01T07:53:54.997Z",
@@ -446,7 +446,7 @@
       },
       "gone": true
     },
-    "s-77fe2779-af11-43c0-b212-d8c67c29eff1": {
+    "k_3b22c084edddeb22": {
       "requests": 461,
       "bytes": 320428004,
       "lastHarvest": "2026-07-31T16:03:07.695Z",
@@ -460,7 +460,7 @@
       },
       "gone": true
     },
-    "s-8f367e49-1def-46f6-bdfc-5913df8dae33": {
+    "k_e71543c294175c38": {
       "requests": 1,
       "bytes": 1145,
       "lastHarvest": "2026-07-31T16:03:07.977Z",
@@ -474,7 +474,7 @@
       },
       "gone": true
     },
-    "s-9f9d8a9d-a3df-4ccc-9823-f490c5058ec5": {
+    "k_990322c1a3786336": {
       "requests": 209,
       "bytes": 184590609,
       "lastHarvest": "2026-07-31T16:03:08.988Z",
@@ -488,7 +488,7 @@
       },
       "gone": true
     },
-    "s-adf6cadb-d98f-49c5-ae2c-578f4596ca9a": {
+    "k_47751846540ce191": {
       "requests": 1624,
       "bytes": 995004562,
       "lastHarvest": "2026-08-01T07:54:01.807Z",
@@ -502,7 +502,7 @@
       },
       "gone": true
     },
-    "s-b6952ffc-1820-4625-a067-44f11eab83e8": {
+    "k_48760cdc9b0abd85": {
       "requests": 209,
       "bytes": 71739889,
       "lastHarvest": "2026-07-31T16:03:10.650Z",
@@ -516,7 +516,7 @@
       },
       "gone": true
     },
-    "s-ca09f676-2213-4523-a682-1308e34154f8": {
+    "k_632376a31193d8ad": {
       "requests": 5,
       "bytes": 149512,
       "lastHarvest": "2026-07-31T16:03:10.654Z",
@@ -530,7 +530,7 @@
       },
       "gone": true
     },
-    "s-cbc27f3c-84c1-4158-91b0-856277d4218e": {
+    "k_679de2dd94822092": {
       "requests": 593,
       "bytes": 485685382,
       "lastHarvest": "2026-08-01T07:54:04.331Z",
@@ -544,7 +544,7 @@
       },
       "gone": true
     },
-    "s-d06b9ff1-a664-4f3b-9d99-382617c4487e": {
+    "k_41a39278acc2c102": {
       "requests": 235,
       "bytes": 46113469,
       "lastHarvest": "2026-08-01T07:54:04.548Z",
@@ -558,7 +558,7 @@
       },
       "gone": true
     },
-    "s-2b846d33-b48c-42e6-bbb5-d3fa91362480": {
+    "k_1910d379810b6756": {
       "requests": 17,
       "bytes": 1518593,
       "lastHarvest": "2026-08-01T07:53:45.110Z",
@@ -572,7 +572,7 @@
       },
       "gone": true
     },
-    "s-0fbf8674-10be-46a4-b50d-d1a28ff5d201": {
+    "k_0cd8e48e9994da9b": {
       "requests": 1429,
       "bytes": 1637056992,
       "lastHarvest": "2026-08-02T07:51:26.042Z",
@@ -586,7 +586,7 @@
       },
       "gone": true
     },
-    "s-1425c9e2-ab22-47fc-a1a8-ba4389233ee7": {
+    "k_f2baf8355fc3c198": {
       "requests": 37,
       "bytes": 7090087,
       "lastHarvest": "2026-08-01T16:03:14.775Z",
@@ -600,7 +600,7 @@
       },
       "gone": true
     },
-    "s-1cd09bde-fee7-4c7c-83de-da7b76ec5848": {
+    "k_75241d42a5510000": {
       "requests": 1,
       "bytes": 1144,
       "lastHarvest": "2026-08-01T16:03:14.781Z",
@@ -614,7 +614,7 @@
       },
       "gone": true
     },
-    "s-24fc5191-2289-49b9-8361-0f434b005735": {
+    "k_2b9dbd65594b36fb": {
       "requests": 23,
       "bytes": 2813034,
       "lastHarvest": "2026-08-01T16:03:14.794Z",
@@ -628,7 +628,7 @@
       },
       "gone": true
     },
-    "s-64802bc6-bcad-40f5-b7f4-23b41feb25aa": {
+    "k_27a4a5d2a004ce1b": {
       "requests": 1141,
       "bytes": 557313758,
       "lastHarvest": "2026-08-01T16:03:18.485Z",
@@ -642,7 +642,7 @@
       },
       "gone": true
     },
-    "s-6db2c173-6262-4c4b-9966-67e7d470a6c3": {
+    "k_d8f0e137885f6c1a": {
       "requests": 48,
       "bytes": 194844303,
       "lastHarvest": "2026-08-01T16:03:19.203Z",
@@ -656,7 +656,7 @@
       },
       "gone": true
     },
-    "s-6df6b9d2-206e-442d-a31f-ea9bf7dbeaf3": {
+    "k_c1727c3163d2334a": {
       "requests": 1483,
       "bytes": 991736446,
       "lastHarvest": "2026-08-01T16:03:25.707Z",
@@ -670,7 +670,7 @@
       },
       "gone": true
     },
-    "s-85caa1e0-9636-4bcd-8678-a0b920b0f3e9": {
+    "k_3e62fb2ac6cf111d": {
       "requests": 338,
       "bytes": 147267878,
       "lastHarvest": "2026-08-01T16:03:30.320Z",
@@ -684,7 +684,7 @@
       },
       "gone": true
     },
-    "s-aa1df41c-751c-4ea9-aa08-26932bd6c497": {
+    "k_251e6d2fc54876da": {
       "requests": 36,
       "bytes": 6380731,
       "lastHarvest": "2026-08-01T16:03:30.834Z",
@@ -698,7 +698,7 @@
       },
       "gone": true
     },
-    "s-c13b79be-ff1a-497a-b166-340b2ae2beb7": {
+    "k_9291af79c91d39cc": {
       "requests": 1,
       "bytes": 1144,
       "lastHarvest": "2026-08-01T16:03:33.729Z",
@@ -712,7 +712,7 @@
       },
       "gone": true
     },
-    "s-e703682f-09d5-495a-b090-ce3481c67e8f": {
+    "k_deaa18cd5f5e9a6c": {
       "requests": 630,
       "bytes": 228092370,
       "lastHarvest": "2026-08-01T16:03:36.386Z",
@@ -726,7 +726,7 @@
       },
       "gone": true
     },
-    "s-fae7e762-63af-44ef-a088-16342ab481cf": {
+    "k_7126caf0e351d823": {
       "requests": 61,
       "bytes": 56799499,
       "lastHarvest": "2026-08-01T16:03:39.405Z",
@@ -740,7 +740,7 @@
       },
       "gone": true
     },
-    "s-0d8b2097-3eb0-4685-89d1-6644fd4318e1": {
+    "k_0ab31e3a652b5043": {
       "requests": 182,
       "bytes": 105142854,
       "lastHarvest": "2026-08-02T07:51:21.034Z",
@@ -751,9 +751,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 36593
-      }
+      },
+      "gone": true
     },
-    "s-4860a970-0af1-47b0-8c74-2f99ae0532f7": {
+    "k_2ca4ca431baa04e2": {
       "requests": 189,
       "bytes": 66700066,
       "lastHarvest": "2026-08-02T07:51:26.460Z",
@@ -764,9 +765,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 41385
-      }
+      },
+      "gone": true
     },
-    "s-68a18be7-17f5-4059-b896-53fc39d15635": {
+    "k_72321f5b87e96854": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-02T07:51:27.729Z",
@@ -777,9 +779,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-00b19d9b-afd8-4476-b177-87f2deca0352": {
+    "k_6edcb8fef9e4a578": {
       "requests": 315,
       "bytes": 174335871,
       "lastHarvest": "2026-08-02T16:03:39.826Z",
@@ -790,9 +793,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 49445,
         "toolsBytes": 41359
-      }
+      },
+      "gone": true
     },
-    "s-029f6c6d-a228-4f44-9e52-ead34192d02c": {
+    "k_054987f77c85a7b8": {
       "requests": 4,
       "bytes": 129219,
       "lastHarvest": "2026-08-02T16:03:39.828Z",
@@ -803,9 +807,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 11172,
         "toolsBytes": 32398
-      }
+      },
+      "gone": true
     },
-    "s-66797e31-a282-4bf8-ab5e-b305cc67a05b": {
+    "k_5632ae8a846688c0": {
       "requests": 76,
       "bytes": 13273189,
       "lastHarvest": "2026-08-02T16:03:46.208Z",
@@ -816,9 +821,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 52831
-      }
+      },
+      "gone": true
     },
-    "s-73b3ce83-7733-4c9a-a887-edb93fad1f23": {
+    "k_c5ace28a76c87ed7": {
       "requests": 336,
       "bytes": 227404516,
       "lastHarvest": "2026-08-02T16:03:50.893Z",
@@ -829,9 +835,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 35216
-      }
+      },
+      "gone": true
     },
-    "s-80c85506-aa11-4bff-961b-a838efbb6ead": {
+    "k_93c39cbcbbb01792": {
       "requests": 367,
       "bytes": 229287595,
       "lastHarvest": "2026-08-02T16:03:54.678Z",
@@ -842,9 +849,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 35216
-      }
+      },
+      "gone": true
     },
-    "s-c7c83ca5-9816-4bb1-9056-d7d22b8e8bfb": {
+    "k_9f12950909ed9310": {
       "requests": 963,
       "bytes": 562822766,
       "lastHarvest": "2026-08-03T06:34:29.561Z",
@@ -855,9 +863,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 45454
-      }
+      },
+      "gone": true
     },
-    "s-ddd9fd7d-c59e-4814-9c79-eb50fa64369a": {
+    "k_d4a7913ba8af3b52": {
       "requests": 1512,
       "bytes": 962905841,
       "lastHarvest": "2026-08-03T06:34:34.104Z",
@@ -868,9 +877,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 42876
-      }
+      },
+      "gone": true
     },
-    "s-fc867039-73b4-41d4-9e85-c80f585238f1": {
+    "k_1a0b50c5e3ead757": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-02T16:04:08.237Z",
@@ -881,9 +891,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-1a8fcbfc-5fc8-4ec9-be67-eefdc1a021f4": {
+    "k_47a89cdf65c50356": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-03T06:34:17.099Z",
@@ -894,9 +905,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-2caae8b5-5e24-46be-803b-187dfeaab4a4": {
+    "k_0f105061444818c2": {
       "requests": 435,
       "bytes": 191732205,
       "lastHarvest": "2026-08-03T06:34:18.247Z",
@@ -907,9 +919,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 56991
-      }
+      },
+      "gone": true
     },
-    "s-3538fb2e-fcb2-4d85-aa5e-eefdb72c3f01": {
+    "k_1d5b5bdf0dcc9239": {
       "requests": 382,
       "bytes": 169059081,
       "lastHarvest": "2026-08-03T06:34:19.254Z",
@@ -920,9 +933,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 41385
-      }
+      },
+      "gone": true
     },
-    "s-4a6699c4-1a89-4387-a4e9-4cc9f7c88cd6": {
+    "k_705b2323f093c7f8": {
       "requests": 90,
       "bytes": 17117402,
       "lastHarvest": "2026-08-03T06:34:19.494Z",
@@ -933,9 +947,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 33429
-      }
+      },
+      "gone": true
     },
-    "s-540aea90-e6d9-4837-81d0-856a2c25dcc9": {
+    "k_97c338e62c0a53c4": {
       "requests": 48,
       "bytes": 8223889,
       "lastHarvest": "2026-08-03T06:34:19.538Z",
@@ -946,9 +961,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 35070
-      }
+      },
+      "gone": true
     },
-    "s-54cff37f-5558-4641-b10c-16a120222303": {
+    "k_69192e6c96200ecd": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-03T06:34:19.539Z",
@@ -959,9 +975,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-5b264fb2-0a34-4e2f-bde5-dae930834f0b": {
+    "k_50ab97b181c44caf": {
       "requests": 52,
       "bytes": 9666645,
       "lastHarvest": "2026-08-03T06:34:19.585Z",
@@ -972,9 +989,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-5bb0222a-5bdd-4fa4-8ec1-9a400f2162dc": {
+    "k_32df0e56fc7f2fe2": {
       "requests": 90,
       "bytes": 17075297,
       "lastHarvest": "2026-08-03T06:34:19.686Z",
@@ -985,9 +1003,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 45478
-      }
+      },
+      "gone": true
     },
-    "s-66930662-f14c-4565-b0bf-999d28656392": {
+    "k_094a9854ebd9a88d": {
       "requests": 15,
       "bytes": 1406678,
       "lastHarvest": "2026-08-03T06:34:21.085Z",
@@ -998,9 +1017,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-9e1c9832-d211-4c4a-8887-912d5b05f08d": {
+    "k_f48920d686f2be20": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-03T06:34:27.301Z",
@@ -1011,9 +1031,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-aeac1df0-3454-4816-9aa6-3ca8ae43b96b": {
+    "k_f92e4810b8b7b3fa": {
       "requests": 39,
       "bytes": 6845916,
       "lastHarvest": "2026-08-03T06:34:27.351Z",
@@ -1024,9 +1045,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-bcb49272-ec5e-4f94-9bf0-8ff03bce4afe": {
+    "k_62b7af41b2678cb6": {
       "requests": 24,
       "bytes": 4330165,
       "lastHarvest": "2026-08-03T06:34:27.372Z",
@@ -1037,9 +1059,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-d07baa65-10ea-42d9-ab55-99ed29dd6413": {
+    "k_e220715336a801ab": {
       "requests": 142,
       "bytes": 25522831,
       "lastHarvest": "2026-08-03T16:02:36.600Z",
@@ -1050,9 +1073,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 34316
-      }
+      },
+      "gone": true
     },
-    "s-3713b744-0860-49b2-b515-46b87be49b98": {
+    "k_7edf62f6b7086df2": {
       "requests": 32,
       "bytes": 4343752,
       "lastHarvest": "2026-08-03T16:02:26.572Z",
@@ -1063,9 +1087,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-621780d0-6caa-4c5f-b296-9906eba8c153": {
+    "k_4b9a90ccd7f123b2": {
       "requests": 797,
       "bytes": 307901766,
       "lastHarvest": "2026-08-04T06:38:24.499Z",
@@ -1076,22 +1101,23 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 50179
-      }
+      },
+      "gone": true
     },
-    "s-84a70d85-f154-4ead-b07a-7259c88b50dc": {
-      "requests": 2487,
-      "bytes": 3490243940,
-      "lastHarvest": "2026-08-05T08:01:49.630Z",
+    "k_c3f380b01da2794a": {
+      "requests": 2584,
+      "bytes": 3519379771,
+      "lastHarvest": "2026-08-05T11:45:53.526Z",
       "classes": [],
       "shape": {
-        "pairs": 1850,
+        "pairs": 1935,
         "thinkingDropPairs": 2,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 53044
       }
     },
-    "s-1ae233ac-4353-4a9d-9821-f68cf962f014": {
+    "k_14598e6d51efa57f": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-04T16:03:54.415Z",
@@ -1102,9 +1128,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-28cf5e60-f58a-4b92-94d8-51e32d149c55": {
+    "k_05a8aea4edba689c": {
       "requests": 4,
       "bytes": 121412,
       "lastHarvest": "2026-08-04T16:03:54.416Z",
@@ -1115,9 +1142,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 9306,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-4651ca12-7bf1-4a85-87fe-274a987cb7dd": {
+    "k_73e0ee93dd90f45c": {
       "requests": 91,
       "bytes": 13975831,
       "lastHarvest": "2026-08-04T16:03:55.322Z",
@@ -1128,9 +1156,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-8f8e7a54-9bcd-45ff-8111-8595b023ef85": {
+    "k_a6b66969eb434930": {
       "requests": 649,
       "bytes": 490215877,
       "lastHarvest": "2026-08-04T16:04:14.300Z",
@@ -1141,9 +1170,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-af165bec-115a-4ecb-bcda-794d415b7ca0": {
+    "k_c1ad39b37cf2af78": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-04T16:04:14.317Z",
@@ -1154,9 +1184,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-b36e78ec-c88c-4d61-b6b1-7286d3d36642": {
+    "k_5fed5e78079ca581": {
       "requests": 7,
       "bytes": 285384,
       "lastHarvest": "2026-08-04T16:04:14.318Z",
@@ -1167,9 +1198,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
-    "s-cd093022-96c9-4136-a448-3c041e5f8ff0": {
+    "k_258c09c3dd906754": {
       "requests": 96,
       "bytes": 40843428,
       "lastHarvest": "2026-08-05T08:01:52.086Z",
@@ -1180,9 +1212,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 66029
-      }
+      },
+      "gone": true
     },
-    "s-d7cf40b2-d13b-4569-8d8b-b730eafe38f3": {
+    "k_27d81a740afee22a": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-04T16:04:15.675Z",
@@ -1193,9 +1226,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-1efe70a3-3591-47ae-bad8-99b387781acc": {
+    "k_bbd7b675fa4366da": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-05T08:01:38.029Z",
@@ -1206,9 +1240,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-640c6573-640d-4247-9edb-5da351d74b79": {
+    "k_9555b93ee41594b6": {
       "requests": 58,
       "bytes": 8070243,
       "lastHarvest": "2026-08-05T08:01:39.836Z",
@@ -1219,9 +1254,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 33362
-      }
+      },
+      "gone": true
     },
-    "s-db5ea590-6449-4eb6-89c0-df87f98cfdf0": {
+    "k_022d620f65d94603": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-05T08:01:52.145Z",
@@ -1232,9 +1268,10 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
-    "s-fc15a177-3d5f-46fe-882f-79e30d07cb3f": {
+    "k_6bb66eff7bbc3a0b": {
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-05T08:01:54.303Z",
@@ -1245,6 +1282,72 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
+      },
+      "gone": true
+    },
+    "k_d57781c016a81a2f": {
+      "requests": 433,
+      "bytes": 293371605,
+      "lastHarvest": "2026-08-05T11:45:39.396Z",
+      "classes": [],
+      "shape": {
+        "pairs": 377,
+        "thinkingDropPairs": 1,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 41670
+      }
+    },
+    "k_a341d1399e7f7e4f": {
+      "requests": 632,
+      "bytes": 440759740,
+      "lastHarvest": "2026-08-05T11:45:42.112Z",
+      "classes": [],
+      "shape": {
+        "pairs": 540,
+        "thinkingDropPairs": 6,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 50306,
+        "toolsBytes": 44089
+      }
+    },
+    "k_41ceabf94d1201c1": {
+      "requests": 2,
+      "bytes": 253033,
+      "lastHarvest": "2026-08-05T11:45:43.809Z",
+      "classes": [],
+      "shape": {
+        "pairs": 1,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15636,
+        "toolsBytes": 35365
+      }
+    },
+    "k_61198a463724deaa": {
+      "requests": 906,
+      "bytes": 687116291,
+      "lastHarvest": "2026-08-05T11:45:59.958Z",
+      "classes": [],
+      "shape": {
+        "pairs": 876,
+        "thinkingDropPairs": 5,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 12317,
+        "toolsBytes": 51752
+      }
+    },
+    "k_2f28383784eb3ec2": {
+      "requests": 121,
+      "bytes": 84928015,
+      "lastHarvest": "2026-08-05T11:46:02.797Z",
+      "classes": [],
+      "shape": {
+        "pairs": 103,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32772
       }
     }
   }

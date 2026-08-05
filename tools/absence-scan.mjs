@@ -40,10 +40,22 @@ import { basename } from "node:path";
 // Lives here rather than in either caller, so the test and the push hook
 // cannot drift apart on what is accepted.
 //
-// LEDGER-*.json is the per-machine harvest watermark ledger: fork-only, never
-// part of an upstream slice, and keyed by raw capture key BY DESIGN. That is a
-// real residual (operator ruling 2026-07-31) and is named rather than left
-// implicit.
+// LEDGER-*.json is the per-machine harvest watermark ledger. The exemption
+// covers ONE class: `live-timestamp`, which fires on its `lastHarvest` fields.
+// Those ARE the file's content — a watermark ledger whose watermarks were
+// scrubbed would not be one.
+//
+// NARROWED 2026-08-05, because the old wording ("keyed by raw capture key BY
+// DESIGN") read as though the exemption also blessed the identifiers, and for
+// months everyone including this comment's author took it that way. It never
+// did — the ids were invisible for an unrelated reason (object KEY names were
+// not scanned at all), so nothing ever tested the assumption. 94 full session
+// identifiers sat in this tracked, public file.
+//
+// Both halves are fixed rather than exempted: keys are hashed at the source
+// (harvest.mjs `ledgerKey`), and key names are now scanned. What remains here
+// is only the timestamps, which is what a residual should look like — one
+// named class, with a reason that survives being read carefully.
 export const ALLOWLIST = [
   /(^|\/)test\/fixtures\/harvested\/LEDGER-[^/]*\.json$/,
 ];
@@ -115,9 +127,22 @@ export const CONTENT_KEYS = new Set(["text", "thinking", "content"]);
 export const wellFormed = (scrubbed) =>
   scrubbed.split("\n\n").every((seg) => seg === "" || TOKEN.test(seg));
 
-// Every string VALUE in a document, with the path that reaches it, plus the
-// object that owns it — the scan has to see structure (`source.data`) as well
-// as bytes.
+// Every string in a document — VALUES and KEY NAMES both — with the path that
+// reaches it and the object that owns it, so the scan sees structure
+// (`source.data`) as well as bytes.
+//
+// KEY NAMES WERE INVISIBLE UNTIL 2026-08-05, and that was not a small gap. A
+// map keyed BY the thing being protected is an ordinary shape — this repo's own
+// harvest watermark ledger is `{"keys": {"<full session uuid>": {...}}}` — so
+// 94 live session identifiers sat in a tracked public file that the UUID class
+// would have caught instantly had they been on the other side of the colon.
+// Measured: the identical UUID reported `capture-uuid` as a value and nothing
+// at all as a key.
+//
+// A key is yielded with `owner: null` and `key: null`: the structural classes
+// (`source.data`) ask about the object that OWNS a value, and a key name has
+// no such owner. Its path ends in `~key` so a finding can say which side of
+// the colon it was on without echoing the bytes.
 export function* strings(node, path = "$") {
   if (typeof node === "string") return yield { path, value: node, owner: null };
   if (Array.isArray(node)) {
@@ -125,7 +150,14 @@ export function* strings(node, path = "$") {
     return;
   }
   if (node && typeof node === "object") {
+    let idx = -1;
     for (const [k, v] of Object.entries(node)) {
+      idx++;
+      // The path must not BE the key: a finding reports where, never what,
+      // and for a key-position string the name is the match. Positional
+      // instead, so `$.keys[#3]~key` locates it in the object's own order
+      // without reproducing the identifier the finding exists to flag.
+      yield { path: `${path}[#${idx}]~key`, value: k, owner: null, key: null };
       if (typeof v === "string") yield { path: `${path}.${k}`, value: v, owner: node, key: k };
       else yield* strings(v, `${path}.${k}`);
     }

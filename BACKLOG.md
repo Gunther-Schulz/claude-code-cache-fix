@@ -290,38 +290,44 @@ bullet, evidence pointer included.
   buys hygiene forward, not retraction — and the PR branches' own
   commit MESSAGES still carry prefixes that no push can retract.
 
-- **OPEN, operator decision — `LEDGER-Siren.json` holds 94 FULL
-  session UUIDs in a public repo, and the 2026-07-31 ruling that
-  allowlists it predates anyone counting them.** Surfaced by the
-  scrub agent, verified: every `keys` entry is a JSON key of the form
-  `"s-<8>-<4>-<4>-<4>-<12>"`, i.e. the complete session id, not the
-  8-hex prefix the rest of this work was about. The ruling's stated
-  basis is that the file is "fork-only, never part of an upstream
-  slice, and keyed by raw capture key BY DESIGN" — which is an
-  argument about harvest's mechanics, not about publication, and the
-  file is tracked in a public repo either way. The question the
-  ruling did not answer: does the watermark need the RAW key, or
-  would a stable hash of it work? If a hash works this is a
-  mechanical fix; if the raw key is load-bearing, the file wants to
-  be untracked and machine-local like the captures themselves.
-  MISSING EVIDENCE NOW ANSWERED, so this is decision-complete rather
-  than parked: the key is a PURE LOOKUP. `harvest.mjs:783` derives it
-  from the capture FILENAME (`file.replace(/-requests\.jsonl$/, "")`),
-  and the only uses are `ledger.keys[key]` read at :786 and written at
-  :841. Nothing matches it against an external value, so a stable hash
-  applied at both ends behaves identically — and the ledger is
-  per-machine and regenerable, so migration is "delete it and let the
-  next harvest rebuild", not a format upgrade.
-  RECOMMENDATION: hash it. The raw key buys nothing that a hash does
-  not, and it is the only thing keeping 94 live session ids in a
-  public tree. The alternative — untracking the file — loses the
-  cross-machine visibility the ruling presumably wanted.
-  Verifier if built: a ledger written by the new code contains no
-  UUID-shaped key (the absence-scan class, run WITHOUT the allowlist
-  entry, goes green); a harvest run against an existing raw-key ledger
-  either migrates or rebuilds without losing a watermark, proven by
-  the request counts surviving; and the allowlist entry is retired in
-  the same commit, since its whole justification disappears.
+- **DONE 2026-08-05 — the ledger's 94 session UUIDs are gone, and the
+  scanner's KEY-POSITION blind spot that hid them is closed.** Operator
+  GO on the recommendation; building it found the larger defect.
+  WHAT WAS ACTUALLY WRONG, two independent things:
+  (1) `harvest` indexed `ledger.keys` BY the capture key, so every
+  entry was a full session id in a tracked public file. (2) The
+  scanner could not see them: `strings()` yielded VALUES only, never
+  object KEY NAMES. Measured — the identical UUID reports
+  `capture-uuid` as a value and NOTHING as a key. A map keyed by the
+  protected thing is an ordinary shape, so this was a general hole,
+  not a quirk of one file.
+  MY RECOMMENDATION WAS PARTLY WRONG and the record says so: I told
+  the operator to retire the allowlist entry in the same commit.
+  Retiring it turns the gate red on 95 `live-timestamp` findings from
+  `lastHarvest`, which is legitimately what a watermark ledger
+  contains. The entry stays; its JUSTIFICATION is narrowed to that one
+  class. The old wording ("keyed by raw capture key BY DESIGN") is
+  what let everyone, including its author, read it as blessing the
+  identifiers.
+  BUILT: `ledgerKey()` hashes to `k_<sha16>`, migrating at LOAD so
+  watermarks survive with nobody running anything. Verified on the
+  live file: 95 keys, all distinct under the map, 94 UUID-shaped -> 0,
+  every watermark >= its previous value. Key findings are positional
+  (`$.keys[#1]~key`) because the path would otherwise BE the key —
+  the finding would have echoed the thing it exists to flag.
+  NEARLY BROKE: `key` also feeds `sidToken()` for harvested FIXTURE
+  FILENAMES. Hashing it there would have renamed every future fixture
+  and silently split them from the existing ones; the raw capture key
+  stays for that path.
+  BLAST RADIUS, checked rather than recalled (operator asked): the
+  ledger reached NO upstream PR. All 14 PRs ever opened list zero
+  LEDGER files; every PR branch diffs zero against upstream/main; the
+  file is absent from upstream/main. The fork-only convention held.
+  The exposure was real but confined to fork-main, which is itself
+  public.
+  Red-first both halves: removing the key-yield turns the two scanner
+  bites red; reverting `ledgerKey` to identity turns the ledger bites
+  red. Suite 2089/2089.
 
 - **READY — the canonical re-serve normalizes its CONTAINER to the
   wire's current one (proxy/**, deployment-coupled).** This is the

@@ -304,12 +304,37 @@ export function scrubRecord(rec) {
 
 // --- Ledger ---
 
-async function loadLedger(path) {
+// The ledger's key is a LOOKUP, not a record — so it does not need to be the
+// capture key, and it should not be.
+//
+// It was, and that put 94 full session identifiers into a tracked file in a
+// public repo. They were invisible to the hygiene scan for a second reason
+// (object KEY names were never scanned until 2026-08-05), so nothing said so.
+// The allowlist entry that covers this file was read as covering the ids too;
+// it never did — it covers the `lastHarvest` timestamps, which ARE this
+// file's content.
+//
+// Hashing is free here because nothing compares a ledger key to anything
+// outside the ledger: it is derived from the capture FILENAME below, used only
+// to index `ledger.keys`, and the cross-machine merge reads `Object.values`
+// and never the keys. The file is also per-machine and regenerable, so the
+// worst case of a bad migration is one redundant harvest pass.
+export const ledgerKey = (k) => (k.startsWith("k_") ? k : `k_${sha(k).slice(0, 16)}`);
+
+// Migrate on LOAD rather than with a one-shot script: the mapping is
+// deterministic, so an old ledger converts on first read and its watermarks
+// (request counts, banked classes) survive. A load-time migration also means
+// no machine needs to run anything to be fixed — the next harvest does it.
+export async function loadLedger(path) {
+  let raw;
   try {
-    return JSON.parse(await readFile(path, "utf-8"));
+    raw = JSON.parse(await readFile(path, "utf-8"));
   } catch {
     return { version: 1, keys: {} };
   }
+  const keys = {};
+  for (const [k, v] of Object.entries(raw.keys ?? {})) keys[ledgerKey(k)] = v;
+  return { ...raw, version: 1, keys };
 }
 
 // --- Harvest ---
@@ -780,7 +805,8 @@ async function main() {
   } catch {}
 
   for (const file of files) {
-    const key = file.replace(/-requests\.jsonl$/, "");
+    const captureKey = file.replace(/-requests\.jsonl$/, "");
+    const key = ledgerKey(captureKey);
     const path = join(args.captures, file);
     const st = await stat(path);
     const prior = ledger.keys[key] ?? { requests: 0, classes: [] };
@@ -797,7 +823,7 @@ async function main() {
       await scanCapture(path, seenClasses, prior.requests);
     report.scanned += count;
     if (count <= prior.requests) {
-      report.skipped.push({ key, requests: count });
+      report.skipped.push({ key: sidToken(captureKey), requests: count });
       continue;
     }
 
@@ -805,9 +831,9 @@ async function main() {
     // while the capture still holds it (see the snapshot helpers' header).
     for (const step of detectGrowthSteps(prior.shape, shape)) {
       const date = new Date().toISOString().slice(0, 10);
-      const name = `growth-${sidToken(key)}-${step.field}-${date}.json`;
+      const name = `growth-${sidToken(captureKey)}-${step.field}-${date}.json`;
       const artifact = {
-        key: sidToken(key),
+        key: sidToken(captureKey),
         ...step,
         // "old" = newest at the previous harvest (last pre-watermark
         // request); "new" = current max-baseline conversation-newest. May
@@ -820,11 +846,11 @@ async function main() {
         await writeFile(join(args.out, name), JSON.stringify(artifact, null, 2) + "\n");
       }
       report.growth = report.growth ?? [];
-      report.growth.push({ key, field: step.field, file: name, oldBytes: step.oldBytes, newBytes: step.newBytes });
+      report.growth.push({ key: sidToken(captureKey), field: step.field, file: name, oldBytes: step.oldBytes, newBytes: step.newBytes });
     }
 
     for (const pick of picks) {
-      const name = `harvested-${pick.kind.replace(/[^a-z]+/gi, "-")}-${sidToken(key)}-${pick.cur}.jsonl`;
+      const name = `harvested-${pick.kind.replace(/[^a-z]+/gi, "-")}-${sidToken(captureKey)}-${pick.cur}.jsonl`;
       // Rebased as ONE unit, so the pair's own inter-request delta — the
       // only timing fact a two-record fixture carries — survives.
       const body =
@@ -835,7 +861,7 @@ async function main() {
         await mkdir(args.out, { recursive: true });
         await writeFile(join(args.out, name), body);
       }
-      report.harvested.push({ key, kind: pick.kind, file: name, at: pick.cur });
+      report.harvested.push({ key: sidToken(captureKey), kind: pick.kind, file: name, at: pick.cur });
     }
 
     ledger.keys[key] = {

@@ -324,6 +324,11 @@ const SOURCE_UUID_ALLOWLIST = new Set([
   // data (2026-08-05 scrub). Deliberately unmistakable: a synthetic that looks
   // like it could be real defeats the purpose of being synthetic.
   "11111111-2222-3333-4444-555555555555",
+  // ledger-key-hash.test.mjs's synthetics: it must feed the hasher things
+  // shaped like real capture keys to prove none survives into the index.
+  "aaaaaaaa-0000-0000-0000-000000000000",
+  "bbbbbbbb-0000-0000-0000-000000000000",
+  "fedcba98-7654-3210-fedc-ba9876543210",
   "00000000-0000-4000-8000-c4f1efb22220", // session-mirror synthetic
   "9d1c250a-e61b-44d9-88ed-5944d1962f5e", // Anthropic's PUBLIC OAuth client_id
   // docs/ synthetics, each a placeholder by construction:
@@ -422,4 +427,32 @@ test("the shapes that are NOT a short key stay silent", () => {
     "the head of a full UUID belongs to the UUID class, not this one");
   assert.deepEqual(hit("pinned-s-4b6a4352-26-28.json"), [],
     "this repo's own synthetic fixture token");
+});
+
+// --- key names ---------------------------------------------------------------
+//
+// Object KEY names were never scanned until 2026-08-05, and the gap was not
+// small: a map keyed BY the protected thing is an ordinary shape, and this
+// repo's own harvest watermark ledger was `{"keys": {"<full session uuid>":
+// …}}`. 94 live identifiers sat in a tracked public file that the UUID class
+// would have caught instantly had they been on the other side of the colon.
+
+test("a capture UUID in a KEY position is caught, not just in a value", () => {
+  const f = `${CORPUS}/x.json`;
+  const inValue = JSON.stringify({ key: FAKE_UUID });
+  const inKey = JSON.stringify({ keys: { [FAKE_UUID]: { requests: 1 } } });
+  assert.deepEqual(scanContent(inValue, f).findings.map((x) => x.class), ["capture-uuid"]);
+  assert.deepEqual(scanContent(inKey, f).findings.map((x) => x.class), ["capture-uuid"],
+    "the same identifier, on the other side of the colon");
+});
+
+test("a key-position finding locates without echoing the key", () => {
+  // The path for a key finding cannot BE the key: for a key-position string
+  // the name IS the match, and this scanner's whole contract is that a finding
+  // never carries the bytes. Positional instead.
+  const doc = JSON.stringify({ keys: { a: {}, [FAKE_UUID]: { requests: 1 } } });
+  const [hit] = scanContent(doc, `${CORPUS}/x.json`).findings;
+  assert.equal(hit.path, "$.keys[#1]~key", "ordinal within the object, not the name");
+  assert.ok(!JSON.stringify(hit).includes(FAKE_UUID),
+    "a leak reporter that prints the leak has moved it, not found it");
 });
