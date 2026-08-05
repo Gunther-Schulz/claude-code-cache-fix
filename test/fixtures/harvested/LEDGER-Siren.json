@@ -2,9 +2,9 @@
   "version": 1,
   "keys": {
     "c-empty": {
-      "requests": 118,
-      "bytes": 24539,
-      "lastHarvest": "2026-08-02T16:03:38.835Z",
+      "requests": 123,
+      "bytes": 25394,
+      "lastHarvest": "2026-08-03T06:34:12.607Z",
       "classes": [],
       "shape": {
         "pairs": 0,
@@ -429,7 +429,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32398
-      }
+      },
+      "gone": true
     },
     "s-7749d7fc-fbc1-4dbd-ab13-0821b5c53b9a": {
       "requests": 1869,
@@ -442,7 +443,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 42852
-      }
+      },
+      "gone": true
     },
     "s-77fe2779-af11-43c0-b212-d8c67c29eff1": {
       "requests": 461,
@@ -497,7 +499,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 35216
-      }
+      },
+      "gone": true
     },
     "s-b6952ffc-1820-4625-a067-44f11eab83e8": {
       "requests": 209,
@@ -538,7 +541,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 12699,
         "toolsBytes": 40056
-      }
+      },
+      "gone": true
     },
     "s-d06b9ff1-a664-4f3b-9d99-382617c4487e": {
       "requests": 235,
@@ -551,7 +555,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 45452
-      }
+      },
+      "gone": true
     },
     "s-2b846d33-b48c-42e6-bbb5-d3fa91362480": {
       "requests": 17,
@@ -564,7 +569,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
     "s-0fbf8674-10be-46a4-b50d-d1a28ff5d201": {
       "requests": 1429,
@@ -577,7 +583,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 37057
-      }
+      },
+      "gone": true
     },
     "s-1425c9e2-ab22-47fc-a1a8-ba4389233ee7": {
       "requests": 37,
@@ -590,7 +597,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
     "s-1cd09bde-fee7-4c7c-83de-da7b76ec5848": {
       "requests": 1,
@@ -603,7 +611,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "s-24fc5191-2289-49b9-8361-0f434b005735": {
       "requests": 23,
@@ -616,7 +625,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 33429
-      }
+      },
+      "gone": true
     },
     "s-64802bc6-bcad-40f5-b7f4-23b41feb25aa": {
       "requests": 1141,
@@ -629,7 +639,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 59557
-      }
+      },
+      "gone": true
     },
     "s-6db2c173-6262-4c4b-9966-67e7d470a6c3": {
       "requests": 48,
@@ -642,7 +653,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
     "s-6df6b9d2-206e-442d-a31f-ea9bf7dbeaf3": {
       "requests": 1483,
@@ -655,7 +667,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 49860
-      }
+      },
+      "gone": true
     },
     "s-85caa1e0-9636-4bcd-8678-a0b920b0f3e9": {
       "requests": 338,
@@ -668,7 +681,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 42852
-      }
+      },
+      "gone": true
     },
     "s-aa1df41c-751c-4ea9-aa08-26932bd6c497": {
       "requests": 36,
@@ -681,7 +695,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32475
-      }
+      },
+      "gone": true
     },
     "s-c13b79be-ff1a-497a-b166-340b2ae2beb7": {
       "requests": 1,
@@ -694,7 +709,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "s-e703682f-09d5-495a-b090-ce3481c67e8f": {
       "requests": 630,
@@ -707,7 +723,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 32398
-      }
+      },
+      "gone": true
     },
     "s-fae7e762-63af-44ef-a088-16342ab481cf": {
       "requests": 61,
@@ -720,7 +737,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 34316
-      }
+      },
+      "gone": true
     },
     "s-0d8b2097-3eb0-4685-89d1-6644fd4318e1": {
       "requests": 182,
@@ -827,12 +845,12 @@
       }
     },
     "s-c7c83ca5-9816-4bb1-9056-d7d22b8e8bfb": {
-      "requests": 960,
-      "bytes": 558928099,
-      "lastHarvest": "2026-08-02T16:04:01.356Z",
+      "requests": 963,
+      "bytes": 562822766,
+      "lastHarvest": "2026-08-03T06:34:29.561Z",
       "classes": [],
       "shape": {
-        "pairs": 883,
+        "pairs": 885,
         "thinkingDropPairs": 4,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
@@ -840,12 +858,12 @@
       }
     },
     "s-ddd9fd7d-c59e-4814-9c79-eb50fa64369a": {
-      "requests": 1327,
-      "bytes": 715059692,
-      "lastHarvest": "2026-08-02T16:04:07.440Z",
+      "requests": 1512,
+      "bytes": 962905841,
+      "lastHarvest": "2026-08-03T06:34:34.104Z",
       "classes": [],
       "shape": {
-        "pairs": 1226,
+        "pairs": 1395,
         "thinkingDropPairs": 6,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
@@ -856,6 +874,370 @@
       "requests": 1,
       "bytes": 1142,
       "lastHarvest": "2026-08-02T16:04:08.237Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-1a8fcbfc-5fc8-4ec9-be67-eefdc1a021f4": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-03T06:34:17.099Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-2caae8b5-5e24-46be-803b-187dfeaab4a4": {
+      "requests": 435,
+      "bytes": 191732205,
+      "lastHarvest": "2026-08-03T06:34:18.247Z",
+      "classes": [],
+      "shape": {
+        "pairs": 417,
+        "thinkingDropPairs": 1,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 56991
+      }
+    },
+    "s-3538fb2e-fcb2-4d85-aa5e-eefdb72c3f01": {
+      "requests": 382,
+      "bytes": 169059081,
+      "lastHarvest": "2026-08-03T06:34:19.254Z",
+      "classes": [],
+      "shape": {
+        "pairs": 344,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 41385
+      }
+    },
+    "s-4a6699c4-1a89-4387-a4e9-4cc9f7c88cd6": {
+      "requests": 90,
+      "bytes": 17117402,
+      "lastHarvest": "2026-08-03T06:34:19.494Z",
+      "classes": [],
+      "shape": {
+        "pairs": 52,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 33429
+      }
+    },
+    "s-540aea90-e6d9-4837-81d0-856a2c25dcc9": {
+      "requests": 48,
+      "bytes": 8223889,
+      "lastHarvest": "2026-08-03T06:34:19.538Z",
+      "classes": [],
+      "shape": {
+        "pairs": 36,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 35070
+      }
+    },
+    "s-54cff37f-5558-4641-b10c-16a120222303": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-03T06:34:19.539Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-5b264fb2-0a34-4e2f-bde5-dae930834f0b": {
+      "requests": 52,
+      "bytes": 9666645,
+      "lastHarvest": "2026-08-03T06:34:19.585Z",
+      "classes": [],
+      "shape": {
+        "pairs": 46,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-5bb0222a-5bdd-4fa4-8ec1-9a400f2162dc": {
+      "requests": 90,
+      "bytes": 17075297,
+      "lastHarvest": "2026-08-03T06:34:19.686Z",
+      "classes": [],
+      "shape": {
+        "pairs": 65,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 45478
+      }
+    },
+    "s-66930662-f14c-4565-b0bf-999d28656392": {
+      "requests": 15,
+      "bytes": 1406678,
+      "lastHarvest": "2026-08-03T06:34:21.085Z",
+      "classes": [],
+      "shape": {
+        "pairs": 10,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-9e1c9832-d211-4c4a-8887-912d5b05f08d": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-03T06:34:27.301Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-aeac1df0-3454-4816-9aa6-3ca8ae43b96b": {
+      "requests": 39,
+      "bytes": 6845916,
+      "lastHarvest": "2026-08-03T06:34:27.351Z",
+      "classes": [],
+      "shape": {
+        "pairs": 33,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-bcb49272-ec5e-4f94-9bf0-8ff03bce4afe": {
+      "requests": 24,
+      "bytes": 4330165,
+      "lastHarvest": "2026-08-03T06:34:27.372Z",
+      "classes": [],
+      "shape": {
+        "pairs": 18,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-d07baa65-10ea-42d9-ab55-99ed29dd6413": {
+      "requests": 142,
+      "bytes": 25522831,
+      "lastHarvest": "2026-08-03T16:02:36.600Z",
+      "classes": [],
+      "shape": {
+        "pairs": 68,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 34316
+      }
+    },
+    "s-3713b744-0860-49b2-b515-46b87be49b98": {
+      "requests": 32,
+      "bytes": 4343752,
+      "lastHarvest": "2026-08-03T16:02:26.572Z",
+      "classes": [],
+      "shape": {
+        "pairs": 25,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-621780d0-6caa-4c5f-b296-9906eba8c153": {
+      "requests": 797,
+      "bytes": 307901766,
+      "lastHarvest": "2026-08-04T06:38:24.499Z",
+      "classes": [],
+      "shape": {
+        "pairs": 394,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 50179
+      }
+    },
+    "s-84a70d85-f154-4ead-b07a-7259c88b50dc": {
+      "requests": 2487,
+      "bytes": 3490243940,
+      "lastHarvest": "2026-08-05T08:01:49.630Z",
+      "classes": [],
+      "shape": {
+        "pairs": 1850,
+        "thinkingDropPairs": 2,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 53044
+      }
+    },
+    "s-1ae233ac-4353-4a9d-9821-f68cf962f014": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-04T16:03:54.415Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-28cf5e60-f58a-4b92-94d8-51e32d149c55": {
+      "requests": 4,
+      "bytes": 121412,
+      "lastHarvest": "2026-08-04T16:03:54.416Z",
+      "classes": [],
+      "shape": {
+        "pairs": 1,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 9306,
+        "toolsBytes": 32475
+      }
+    },
+    "s-4651ca12-7bf1-4a85-87fe-274a987cb7dd": {
+      "requests": 91,
+      "bytes": 13975831,
+      "lastHarvest": "2026-08-04T16:03:55.322Z",
+      "classes": [],
+      "shape": {
+        "pairs": 45,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-8f8e7a54-9bcd-45ff-8111-8595b023ef85": {
+      "requests": 649,
+      "bytes": 490215877,
+      "lastHarvest": "2026-08-04T16:04:14.300Z",
+      "classes": [],
+      "shape": {
+        "pairs": 538,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-af165bec-115a-4ecb-bcda-794d415b7ca0": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-04T16:04:14.317Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-b36e78ec-c88c-4d61-b6b1-7286d3d36642": {
+      "requests": 7,
+      "bytes": 285384,
+      "lastHarvest": "2026-08-04T16:04:14.318Z",
+      "classes": [],
+      "shape": {
+        "pairs": 2,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 32475
+      }
+    },
+    "s-cd093022-96c9-4136-a448-3c041e5f8ff0": {
+      "requests": 96,
+      "bytes": 40843428,
+      "lastHarvest": "2026-08-05T08:01:52.086Z",
+      "classes": [],
+      "shape": {
+        "pairs": 58,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 66029
+      }
+    },
+    "s-d7cf40b2-d13b-4569-8d8b-b730eafe38f3": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-04T16:04:15.675Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-1efe70a3-3591-47ae-bad8-99b387781acc": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-05T08:01:38.029Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-640c6573-640d-4247-9edb-5da351d74b79": {
+      "requests": 58,
+      "bytes": 8070243,
+      "lastHarvest": "2026-08-05T08:01:39.836Z",
+      "classes": [],
+      "shape": {
+        "pairs": 34,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 33362
+      }
+    },
+    "s-db5ea590-6449-4eb6-89c0-df87f98cfdf0": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-05T08:01:52.145Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "s-fc15a177-3d5f-46fe-882f-79e30d07cb3f": {
+      "requests": 1,
+      "bytes": 1142,
+      "lastHarvest": "2026-08-05T08:01:54.303Z",
       "classes": [],
       "shape": {
         "pairs": 0,
