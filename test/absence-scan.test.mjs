@@ -384,18 +384,29 @@ test("source: every UUID in test/, tools/, proxy/ and docs/ is on the synthetic 
 // trains the override reflex that kills it. Measured after the 2026-08-05
 // scrub: zero findings over 545 tracked source files.
 
-test("a real capture-key prefix in a .mjs or .md is caught", () => {
+// The known-positive is ASSEMBLED AT RUNTIME, and the reason is worth the two
+// lines it costs. This bite must feed the class the exact shape it catches —
+// but any such literal sitting in this file is, to the scanner, a capture-key
+// prefix in a tracked source file, which is precisely what the class exists to
+// refuse. The first draft used a REAL prefix and the gate blocked the push;
+// exempting the synthetic that replaced it then broke this test, because the
+// exemption and the assertion wanted the same string to mean opposite things.
+// Building it from fragments ends the circle: no scannable literal exists in
+// the file, and the class still sees the true shape.
+const SYNTH_KEY = ["s", "-", "0123", "abcd"].join("");
+
+test("a capture-key prefix in a .mjs or .md is caught", () => {
   const hit = (t, f) => scanContent(t, f).findings.map((x) => x.class);
-  assert.deepEqual(hit("measured on s-633915a8, 602 requests", "tools/x.mjs"),
+  assert.deepEqual(hit(`measured on ${SYNTH_KEY}, 602 requests`, "tools/x.mjs"),
     ["capture-key-prefix"]);
-  assert.deepEqual(hit("the capture s-633915a8 replayed clean", "docs/x.md"),
+  assert.deepEqual(hit(`the capture ${SYNTH_KEY} replayed clean`, "docs/x.md"),
     ["capture-key-prefix"]);
 });
 
 test("a finding on a source file names the line and never the bytes", () => {
-  const [f] = scanContent("x\nmeasured on s-633915a8 today\n", "tools/x.mjs").findings;
+  const [f] = scanContent(`x\nmeasured on ${SYNTH_KEY} today\n`, "tools/x.mjs").findings;
   assert.equal(f.path, "line 2");
-  assert.ok(!JSON.stringify(f).includes("633915a8"),
+  assert.ok(!JSON.stringify(f).includes("0123abcd"),
     "a leak reporter that prints the leak has moved it, not found it");
 });
 
