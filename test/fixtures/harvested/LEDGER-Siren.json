@@ -2,9 +2,9 @@
   "version": 1,
   "keys": {
     "k_b1cf7a43eb83ed84": {
-      "requests": 168,
-      "bytes": 34431,
-      "lastHarvest": "2026-08-05T11:45:37.335Z",
+      "requests": 187,
+      "bytes": 39026,
+      "lastHarvest": "2026-08-05T16:03:16.796Z",
       "classes": [],
       "shape": {
         "pairs": 0,
@@ -1115,7 +1115,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 53044
-      }
+      },
+      "gone": true
     },
     "k_14598e6d51efa57f": {
       "requests": 1,
@@ -1286,12 +1287,12 @@
       "gone": true
     },
     "k_d57781c016a81a2f": {
-      "requests": 433,
-      "bytes": 293371605,
-      "lastHarvest": "2026-08-05T11:45:39.396Z",
+      "requests": 482,
+      "bytes": 316826267,
+      "lastHarvest": "2026-08-05T16:03:19.413Z",
       "classes": [],
       "shape": {
-        "pairs": 377,
+        "pairs": 415,
         "thinkingDropPairs": 1,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
@@ -1299,13 +1300,13 @@
       }
     },
     "k_a341d1399e7f7e4f": {
-      "requests": 632,
-      "bytes": 440759740,
-      "lastHarvest": "2026-08-05T11:45:42.112Z",
+      "requests": 1322,
+      "bytes": 1036846019,
+      "lastHarvest": "2026-08-05T16:03:24.100Z",
       "classes": [],
       "shape": {
-        "pairs": 540,
-        "thinkingDropPairs": 6,
+        "pairs": 1149,
+        "thinkingDropPairs": 7,
         "thinkingTextCompleted": 0,
         "systemBytes": 50306,
         "toolsBytes": 44089
@@ -1322,32 +1323,98 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15636,
         "toolsBytes": 35365
-      }
+      },
+      "gone": true
     },
     "k_61198a463724deaa": {
-      "requests": 906,
-      "bytes": 687116291,
-      "lastHarvest": "2026-08-05T11:45:59.958Z",
+      "requests": 1069,
+      "bytes": 1043703215,
+      "lastHarvest": "2026-08-05T16:03:41.213Z",
       "classes": [],
       "shape": {
-        "pairs": 876,
-        "thinkingDropPairs": 5,
+        "pairs": 1039,
+        "thinkingDropPairs": 6,
         "thinkingTextCompleted": 0,
         "systemBytes": 12317,
         "toolsBytes": 51752
       }
     },
     "k_2f28383784eb3ec2": {
-      "requests": 121,
-      "bytes": 84928015,
-      "lastHarvest": "2026-08-05T11:46:02.797Z",
+      "requests": 142,
+      "bytes": 105654530,
+      "lastHarvest": "2026-08-05T16:03:43.940Z",
       "classes": [],
       "shape": {
-        "pairs": 103,
-        "thinkingDropPairs": 0,
+        "pairs": 120,
+        "thinkingDropPairs": 1,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
+        "toolsBytes": 45205
+      }
+    },
+    "k_2579e834def585f8": {
+      "requests": 319,
+      "bytes": 216140607,
+      "lastHarvest": "2026-08-05T16:03:18.138Z",
+      "classes": [],
+      "shape": {
+        "pairs": 311,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 12193,
+        "toolsBytes": 50330
+      }
+    },
+    "k_f4fde45eb018de0b": {
+      "requests": 151,
+      "bytes": 85666902,
+      "lastHarvest": "2026-08-05T16:03:18.657Z",
+      "classes": [],
+      "shape": {
+        "pairs": 144,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 10193,
+        "toolsBytes": 40587
+      }
+    },
+    "k_04f649e6ad789a33": {
+      "requests": 383,
+      "bytes": 281072145,
+      "lastHarvest": "2026-08-05T16:03:26.226Z",
+      "classes": [],
+      "shape": {
+        "pairs": 342,
+        "thinkingDropPairs": 6,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 45205
+      }
+    },
+    "k_7ff72ed41ac04c72": {
+      "requests": 60,
+      "bytes": 21774619,
+      "lastHarvest": "2026-08-05T16:03:27.568Z",
+      "classes": [],
+      "shape": {
+        "pairs": 55,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 11244,
         "toolsBytes": 32772
+      }
+    },
+    "k_93a8c9610bc0ed43": {
+      "requests": 184,
+      "bytes": 76967307,
+      "lastHarvest": "2026-08-05T16:03:37.034Z",
+      "classes": [],
+      "shape": {
+        "pairs": 167,
+        "thinkingDropPairs": 1,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 36446
       }
     }
   }
