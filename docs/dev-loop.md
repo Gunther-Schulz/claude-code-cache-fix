@@ -197,6 +197,65 @@ A finding survives this and it is real: at index 4, request 44 carried an
 injected `tool_addition` block that request 47 did not. That is a genuine
 self-inflicted bust, and it was worth being sure before saying so.
 
+**Your own probe is the newest instrument in the room.** Three ways a probe
+lied on 2026-08-05, each of which read as a finding about the system:
+
+- **A needle that matches more than one thing.** A probe searching for the
+  message "The user sent a new message while you were working" used
+  `findIndex` and printed one hit. Several turns share that prefix, so it
+  reported the wrong message and its per-stage trace read as "the container
+  never changes" — the exact opposite of the truth. **Print every match, not
+  the first.** A probe that reports one hit cannot show that it picked the
+  wrong hit.
+- **Two coordinate spaces that look like one.** A raw wire index and a
+  forwarded index differ by however many messages suppression removed
+  (measured: raw 370 forwards as 360). Comparing them directly is silent —
+  both numbers are plausible. Say which space each number is in, at the point
+  where they meet.
+- **A shape check standing in for a content check.** Asserting which fields
+  are set does not establish that prompt text is off disk. Plant a sentinel,
+  run the real thing, grep what was written — **and then run it again with the
+  guard OFF** to prove the grep can see the sentinel at all. A zero from an
+  instrument that never fires is indistinguishable from a zero that means
+  something.
+
+**Never point a destructive repro at a repository that matters.** The
+`GIT_DIR=… node --test` reproduction for the config-corruption incident
+corrupts whatever repo it is aimed at — that is what it is for. Run it inside
+a throwaway clone (`git clone --no-hardlinks <repo> /tmp/probe`), md5 the
+config either side, and delete the clone. Aimed at the working tree it took
+out the main clone and six live worktrees at once, mid-session.
+
+## What no gate asks: did the mitigation ABSORB?
+
+The five gates all answer positional questions about our output versus CC's
+input. None asks whether a mitigation that FIRED actually held the prefix. On
+2026-08-05 a 349k bust replayed exit 0 with every verdict correct:
+`movedFresh: 2` said insertion-normalization had recognized both migrations
+and substituted at their indices, and the forwarded prefix diverged at the
+very slot it had just substituted — right text, right index, stale container.
+"The mitigation ran" and "the mitigation absorbed" sat one line apart in the
+same telemetry, and only a human reading both noticed.
+
+`findAbsorptionMisses` (replay.mjs) now asks it on every run — not behind
+`--census`, because the whole point is that nobody knew to look. It is a
+REPORT, not a gate, until its corpus-wide rate is measured; a check that
+blocks before anyone knows how often it fires on legitimate work is how a
+guard trains its reader to ignore it. Each row carries the three numbers that
+turned this bust from a puzzle into a mechanism: where the absorption claimed
+to act, where the forwarded pair actually diverged, and whether CC's input
+diverged there too — the last is `ours: true/false`, and it is the attribution
+that otherwise costs an afternoon.
+
+## Timestamps are UTC, at both ends of the chain
+
+`bust-triage --list` prints UTC and now marks it; `dossier` reads a stamp with
+no zone designator as UTC. Before both, the documented chain — copy a stamp
+from one into the other — silently shifted the window by the machine's UTC
+offset, and `dossier` answered about the wrong 90 seconds with four plausible
+"ABSENT" lines. `test/stamp-utc.test.mjs` pins the round trip rather than
+either end, because fixing one end while the other drifts reintroduces it.
+
 ## "Streams" is a claim about a mechanism, not an API choice
 
 The capture read was fixed for scale twice and was still O(file) the third

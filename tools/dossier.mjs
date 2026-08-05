@@ -369,6 +369,32 @@ export async function collect(bust, tsEpoch, opts = {}) {
   return { bust, tsEpoch, sid, key, step1, step2, step3, step4, gh, transcriptCause: tc };
 }
 
+// Every timestamp in this system is UTC — the ledger's `t` is epoch seconds,
+// the capture's `ts` is a Z-suffixed ISO string, and this file's own error
+// message below already calls its argument "a UTC timestamp". `Date.parse`
+// does not agree: given a stamp with no timezone designator it applies the
+// LOCAL zone, silently.
+//
+// That is not hypothetical, and the path is the documented one. `bust-triage
+// --list` prints its rows in UTC with no marker, dev-loop.md tells the reader
+// to take a stamp from there to `dossier`, and on this machine (CEST) the
+// round trip landed the window two hours off the event. The dossier came back
+// 1/5 evidence classes PRESENT, with four "ABSENT" lines each stating a
+// plausible, wrong reason — no capture pair, no transcript entry, an empty
+// prefix-diff window. Every one of them was true about the wrong 90 seconds.
+//
+// So: a stamp that names no zone is read as UTC, which is what the caller
+// meant and what the rest of the pipeline stores. An explicit zone is
+// honoured as given.
+export function parseStampUTC(stamp) {
+  const s = String(stamp).trim();
+  const zoned = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(s);
+  // A bare date ("2026-08-05") is already UTC per the ISO spec's date-only
+  // form, and appending "Z" to it would be invalid — leave it alone.
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(s);
+  return Date.parse(zoned || dateOnly ? s : `${s.replace(" ", "T")}Z`);
+}
+
 export async function main(argv) {
   const args = argv.slice(2);
   const outI = args.indexOf("--out");
@@ -397,7 +423,7 @@ export async function main(argv) {
   if (args.includes("--last") && !stampArg) {
     tsEpoch = (events.find((e) => e.cls === "bust") ?? events[0]).t;
   } else {
-    tsEpoch = /^\d+$/.test(stampArg) ? Number(stampArg) : Math.floor(Date.parse(stampArg) / 1000);
+    tsEpoch = /^\d+$/.test(stampArg) ? Number(stampArg) : Math.floor(parseStampUTC(stampArg) / 1000);
     if (!Number.isFinite(tsEpoch)) {
       process.stderr.write(`dossier: cannot parse "${stampArg}" as a UTC timestamp or epoch.\n`);
       return 2;

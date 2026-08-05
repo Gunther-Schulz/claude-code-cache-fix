@@ -515,7 +515,14 @@ export async function triage(bust) {
   };
 }
 
-function fmt(t) { return new Date(t * 1000).toISOString().replace("T", " ").slice(0, 19); }
+// UTC, and it SAYS so. Without the marker these rows read as local time, and
+// the documented next step is to paste one into `dossier`, which used to apply
+// the local zone to a naked stamp — so on any machine west or east of UTC the
+// round trip silently addressed a different 90 seconds than the row named.
+// Measured on this machine (CEST, 2026-08-05): the dossier came back 1/5
+// evidence classes PRESENT with four plausible, wrong "ABSENT" reasons.
+// `dossier` now reads a zone-less stamp as UTC; this end stops producing one.
+function fmt(t) { return `${new Date(t * 1000).toISOString().replace("T", " ").slice(0, 19)}Z`; }
 
 /**
  * The form statement `--list` prints above its rows.
@@ -530,7 +537,8 @@ function fmt(t) { return new Date(t * 1000).toISOString().replace("T", " ").slic
  */
 export function listHeader(events, shown) {
   return `cold events — NEWEST FIRST, showing ${shown} of ${events.length}` +
-         ` (a tail of these rows is the OLDEST of them)`;
+         ` (a tail of these rows is the OLDEST of them). Times are UTC;` +
+         ` paste one straight into \`dossier <stamp>\`.`;
 }
 
 /** `--list` rows: every ❄-visible event, controlled ones labelled as such. */
