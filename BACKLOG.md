@@ -231,77 +231,47 @@ bullet, evidence pointer included.
   (`.../tool-results/hook-…-additionalContext.txt`, 54,266 bytes on
   disk) — the corpus it exists to re-show does not reach the model.
 
-- **OPEN, operator decision — the push gate cannot see a capture id
-  in a `.mjs` or `.md` file at all, and fork-main carries 96 of
-  them.** Found 2026-08-05 by running the instrument against a known
-  positive during the #276 round, which is the only reason it was
-  found: the scan reports clean on the branch, and clean is what it
-  would report either way.
-  MECHANISM, measured with two plants: a real-shaped UUID in a
-  tracked `.json` goes RED (`FINDING capture-uuid … $.key`, exit 2);
-  **the same UUID in a tracked `.mjs` stays GREEN, exit 0.** Cause is
-  `tools/absence-scan.mjs:270` — `const SCANNABLE = /\.jsonl?$/i`,
-  applied at :281 to filter the candidate list BEFORE any scanning,
-  in the `--git-range` path that the pre-push hook actually runs. It
-  is class-agnostic: no class definition is consulted, the file never
-  reaches one. So the guard this repo added specifically to stop a
-  capture identifier reaching public history does not look at source
-  files, which is where the 2026-08-02 red-main incident put one.
-  EXPOSURE — and the first number booked here was WRONG in the
-  instructive way, so both are kept. First measurement:
-  `git grep -o "633915a8" | wc -l` = 96. True, and it answers a
-  NARROWER question than the entry it was written into — it counts
-  ONE capture id, while the exposure is a CLASS. The correct
-  measurement, on fork-main at 10ca3b1, counting bare `s-<8hex>`
-  tokens with a non-hex boundary (so the safe 12-hex tokenized form
-  is excluded by construction) and dropping the `claude-3-opus-
-  20240229` false positive:
-
-      git grep -ohE '(^|[^0-9a-f])s-[0-9a-f]{8}([^0-9a-f]|$)' \
-        | grep -oE 's-[0-9a-f]{8}' | grep -v 's-20240229' | wc -l
-      -> 414
-
-  across **at least 15 distinct real captures** (s-633915a8 71,
-  s-0d6f38ba 57, s-dc3f8071 53, s-58c979ce 20, s-77fe2779 14,
-  s-0edbd11c 14, s-66797e31 13, s-ddd9fd7d 10, s-35d72503 10,
-  s-c7c83ca5 9, s-0fbf8674 9, s-9f9d8a9d 8, s-538c0aef 8,
-  s-f94e53ce 6, s-2cd640f8 5, …). `s-c7c83ca5` is verifiably a live
-  capture — it is the one this session replayed. That is the raw
-  8-hex session-id prefix, which this repo's own threat model
-  (tools/absence-scan.mjs:93-97) calls the dangerous form precisely
-  because the safe tokenized form is 12 hex and cannot be matched
-  back by prefix. Fork-main is public. The 4.3x understatement
-  matters for the decision below: scrubbing 414 occurrences across
-  15 captures is a different-sized commitment from scrubbing 96.
-  WHY THIS IS A DECISION AND NOT A TASK, both halves stated: (1) the
-  ids are ALREADY in public git history and history cannot be
-  scrubbed — the repo's own CLAUDE.md says the remediation for a
-  leaked value is rotating the value, not editing the file — so a
-  working-tree scrub buys hygiene GOING FORWARD, not retraction;
-  (2) widening `SCANNABLE` without scrubbing first makes the gate go
-  red on 96 pre-existing occurrences on every push, which is the
-  fires-on-a-non-defect class this repo treats as its own defect, and
-  it would train the `--no-verify` reflex on the one gate that
-  guards a public boundary. So the two land TOGETHER or neither does.
-  The upstream-facing branches ARE scrubbed (c489f29 on #272,
-  f80501f on #276) because that is what the reviewer is holding
-  review on; fork-main is not, and that asymmetry is deliberate and
-  temporary. Named missing evidence for the operator: whether the
-  captures behind those 96 occurrences still exist / still matter,
-  since that decides whether the prefix is worth anything to anyone.
-  Surfaced to upstream in the #276 comment rather than fixed
-  unilaterally.
-  THIRD SURFACE, found by running the corrected runbook grep over a
-  whole branch instead of over one round's commits: the PR branches'
-  own COMMIT MESSAGES carry real capture ids too — five lines on
-  `pr/verification-tools` alone (`git log upstream/main..HEAD
-  --format='%s%n%b'`), all pre-existing, all already in upstream's
-  `refs/pull/276/head`. Nothing to retract there either, and it
-  widens the decision rather than changing it: the class spans the
-  working tree, the fork's history, and the branches' history, and
-  only the first of those is scrubbable at all. The runbook now
-  scopes its message grep to the round's own commits for exactly
-  this reason — a gate that cannot pass is worse than no gate.
+- **RESOLVED 2026-08-05 — the push gate now sees source files, and the
+  tree it guards is scrubbed. Both halves landed together, which was
+  the whole point.**
+  THE GAP, found by running the instrument against a known positive
+  rather than by reading it: `--git-range` filtered candidates to
+  `.json`/`.jsonl` BEFORE any class ran, so a capture identifier in a
+  tracked `.mjs` or `.md` passed the push hook silently — exactly
+  where the 2026-08-02 red-main incident put one. A planted UUID went
+  RED in a `.json` and GREEN in a `.mjs`. The FILTER was the hole, not
+  the class definitions.
+  THE COUPLING, and why neither half could ship alone: widening the
+  gate over an unscrubbed tree fires it on hundreds of pre-existing
+  non-defects and trains the `--no-verify` reflex on the one boundary
+  that matters; scrubbing without widening leaves the next addition
+  unguarded. So: scrub first (e822458 + this commit), then widen.
+  THE SCRUB. Each distinct real prefix maps to a stable synthetic
+  token (`s-captureA`, `s-captureB`, …) applied everywhere, so two
+  notes about the same capture still visibly refer to the same one. No
+  mapping file — a committed synthetic-to-real table would undo the
+  exercise. 42 files, 288 replacements.
+  DELIBERATELY NOT SCRUBBED, each for a stated reason:
+  `test/fixtures/harvested/LEDGER-*.json` (94 occurrences) is the
+  per-machine harvest watermark, keyed by raw capture key BY DESIGN
+  and allowlisted in the scanner's own code — rewriting it would break
+  harvest's watermarking silently. Two test-data values that are
+  ASSERTED rather than prose were left by the scrub and handled
+  separately: one is this repo's synthetic fixture token, one was
+  replaced with an unmistakable synthetic.
+  THE WIDENING, kept narrow on purpose. Source files get the
+  short-key class and ONLY it. Widening the whole scan across source
+  would drag the UUID and base64 classes over dozens of legitimate
+  synthetic values — the fires-on-a-non-defect trap, one level up from
+  the one being fixed. Measured false-fire rate after the scrub: **0
+  findings over 545 tracked source files**, with the class still red
+  on a real prefix. Two false fires were found and fixed in the
+  predicate rather than papered over in the data: a bare
+  `s-20240229` inside a grep pattern in prose, and the head of a full
+  UUID, which belongs to the UUID class and was double-reporting.
+  RESIDUE, named: the ids remain in immutable public history — this
+  buys hygiene forward, not retraction — and the PR branches' own
+  commit MESSAGES still carry prefixes that no push can retract.
 
 - **READY — the canonical re-serve normalizes its CONTAINER to the
   wire's current one (proxy/**, deployment-coupled).** This is the
@@ -942,8 +912,8 @@ then the queued ones. Work the items in that order.
   commit it alone, that would put a failing test on main. Recipe:
   `git stash pop`, run the bite (RED before / GREEN after was already
   demonstrated by hand), then the four suites named in the design
-  entry, then a corpus check over >=3 captures incl.
-  s-c7c83ca5-9816-4bb1-9056-d7d22b8e8bfb. The design is settled and
+  entry, then a corpus check over >=3 captures incl. the row-4
+  busting one (`s-captureA`). The design is settled and
   written out in the "MECHANISM FOUND" entry below — classifyPinned's
   match loop, family (h,r) whose stored count exceeds wire count by
   exactly one, re-attribute via condition (d)'s lo/hi discriminator,
@@ -986,9 +956,10 @@ then the queued ones. Work the items in that order.
   test/fixtures/harvested/pinned-s-9f12950909ed-892-894.json (46 MB,
   the row-4 busting pair). tools/fixture-cut.mjs now exists (2cd23fa)
   and is the tool that would make it committable — that sweep was
-  never run. If the file is gone, re-pin with
-  `harvest --pin s-c7c83ca5-9816-4bb1-9056-d7d22b8e8bfb 892..894`
-  while that capture survives.
+  never run. If the file is gone, re-pin with `harvest --pin <key>
+  892..894` — resolve `<key>` from `bust-triage --list`, which prints
+  the freeze command with the live key already filled in, rather than
+  from a session id written down here.
   Also live: two worktrees were removed at integration today; if
   `git worktree list` ever shows an `agent-` entry with no running
   agent, it is a leak — remove it.

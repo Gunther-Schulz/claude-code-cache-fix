@@ -236,6 +236,13 @@ export function scanName(file) {
  * raw bytes and named on the returned `degraded` list — never skipped.
  */
 export function scanContent(text, file) {
+  // A source file is not a fixture: it has no document shape, and only the
+  // short-key class applies to it.
+  if (SOURCE_SCANNABLE.test(file) && !SCANNABLE.test(file)) {
+    const r = scanSourceText(text, file);
+    return { findings: [...scanName(file), ...r.findings], seen: zeroSeen(),
+             scanned: 0, degraded: r.degraded, partial: true };
+  }
   const findings = [...scanName(file)];
   const seen = zeroSeen();
   const degraded = [];
@@ -269,6 +276,63 @@ export function scanFile(file) {
 
 const SCANNABLE = /\.jsonl?$/i;
 
+// Source files get scanned too, but for exactly ONE thing.
+//
+// The gap this closes was found by planting a UUID rather than by reading:
+// `--git-range` filtered candidates to .json/.jsonl BEFORE any class ran, so a
+// capture identifier committed into a tracked .mjs or .md passed the push hook
+// silently — which is precisely where the 2026-08-02 red-main incident put
+// one. The filter, not the class definitions, was what let it through.
+//
+// Widening SCANNABLE outright was the obvious fix and is the wrong one: it
+// would drag the UUID and base64 classes across source files that legitimately
+// carry both — dozens of synthetic UUIDs in tests and docs, base64 constants
+// in fixtures — and a guard that fires on legitimate work trains the override
+// reflex that kills it. So source files get the SHORT-PREFIX class alone,
+// whose false-fire rate over this tree was measured at zero after the scrub.
+const SOURCE_SCANNABLE = /\.(mjs|js|md)$/i;
+
+// `s-` + exactly 8 hex, bounded on both sides. The 12-hex tokenized form is
+// the SANITIZED shape and must not match — that distinction is the whole
+// point of the token, and an unanchored version of this pattern corrupts real
+// fixture filenames. `claude-3-opus-20240229` contains a matching substring by
+// coincidence and is excluded by name rather than by weakening the pattern.
+const SHORT_KEY = /(^|[^0-9a-f])s-[0-9a-f]{8}([^0-9a-f]|$)/;
+const SHORT_KEY_EXEMPT = [
+  // A model version string. Measured as a false fire on three files before
+  // this exemption existed, and it appears BARE (inside a grep pattern in
+  // prose) as well as inside the full model name, so the exemption matches the
+  // date-shaped token itself rather than its surroundings.
+  /s-20240229/,
+  // This repo's synthetic fixture token, truncated to 8 in a filename-class
+  // assertion.
+  /s-4b6a4352/,
+];
+
+// The head of a full 8-4-4-4-12 UUID is not a short key — it is a UUID, and
+// the UUID class owns that shape. Without this the two classes double-report
+// the same string, and a synthetic UUID in a test (governed by the source-UUID
+// roster the suite already walks) reads as a capture-key leak. Measured: this
+// was one of exactly two false fires over 545 source files.
+const FULL_UUID_HEAD = /(^|[^0-9a-f])s?-?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+
+/**
+ * The short-key class over a source file's raw bytes. Line-granular so a
+ * finding can name where without echoing what — same discipline as every
+ * other finding here: class, file, position, length, never the match.
+ */
+export function scanSourceText(text, file) {
+  const findings = [];
+  text.split("\n").forEach((line, i) => {
+    if (!SHORT_KEY.test(line)) return;
+    if (SHORT_KEY_EXEMPT.some((re) => re.test(line))) return;
+    if (FULL_UUID_HEAD.test(line)) return;
+    findings.push({ class: "capture-key-prefix", file, path: `line ${i + 1}`,
+                    length: line.length });
+  });
+  return { findings, degraded: [] };
+}
+
 function git(args) {
   return execFileSync("git", args, { encoding: "utf-8", maxBuffer: 1 << 28 });
 }
@@ -278,7 +342,8 @@ function rangeFiles(oldRef, newRef) {
     oldRef === "EMPTY"
       ? git(["ls-tree", "-r", "--name-only", newRef])
       : git(["diff", "--name-only", "--diff-filter=ACMR", oldRef, newRef]);
-  return out.split("\n").map((l) => l.trim()).filter((l) => l && SCANNABLE.test(l));
+  return out.split("\n").map((l) => l.trim())
+    .filter((l) => l && (SCANNABLE.test(l) || SOURCE_SCANNABLE.test(l)));
 }
 
 /**

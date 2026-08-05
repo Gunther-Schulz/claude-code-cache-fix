@@ -320,6 +320,10 @@ test("git-range: an unresolvable base ref degrades to a full scan rather than er
 const SOURCE_UUID_ALLOWLIST = new Set([
   FAKE_UUID,                              // this suite's seeded defect
   "b16c607d-d484-4935-840e-e3f7ee78eb08", // proxy suites' synthetic session id
+  // Replaced the real-looking session id cold-events.test.mjs carried as test
+  // data (2026-08-05 scrub). Deliberately unmistakable: a synthetic that looks
+  // like it could be real defeats the purpose of being synthetic.
+  "11111111-2222-3333-4444-555555555555",
   "00000000-0000-4000-8000-c4f1efb22220", // session-mirror synthetic
   "9d1c250a-e61b-44d9-88ed-5944d1962f5e", // Anthropic's PUBLIC OAuth client_id
   // docs/ synthetics, each a placeholder by construction:
@@ -365,4 +369,46 @@ test("source: every UUID in test/, tools/, proxy/ and docs/ is on the synthetic 
     offenders, [],
     `unlisted UUID(s) in source — a capture identifier in a public tree, or a new synthetic missing from the allowlist:\n${offenders.join("\n")}`,
   );
+});
+
+// --- source files: the gap a planted UUID found ------------------------------
+//
+// `--git-range` filtered candidates to .json/.jsonl BEFORE any class ran, so a
+// capture identifier committed into a tracked .mjs or .md passed the push hook
+// silently — which is where the 2026-08-02 red-main incident put one. The
+// filter, not the class definitions, was what let it through.
+//
+// Source files now get the short-key class, and ONLY that class: widening the
+// whole scan across source would drag the UUID and base64 classes over dozens
+// of legitimate synthetic values, and a guard that fires on legitimate work
+// trains the override reflex that kills it. Measured after the 2026-08-05
+// scrub: zero findings over 545 tracked source files.
+
+test("a real capture-key prefix in a .mjs or .md is caught", () => {
+  const hit = (t, f) => scanContent(t, f).findings.map((x) => x.class);
+  assert.deepEqual(hit("measured on s-633915a8, 602 requests", "tools/x.mjs"),
+    ["capture-key-prefix"]);
+  assert.deepEqual(hit("the capture s-633915a8 replayed clean", "docs/x.md"),
+    ["capture-key-prefix"]);
+});
+
+test("a finding on a source file names the line and never the bytes", () => {
+  const [f] = scanContent("x\nmeasured on s-633915a8 today\n", "tools/x.mjs").findings;
+  assert.equal(f.path, "line 2");
+  assert.ok(!JSON.stringify(f).includes("633915a8"),
+    "a leak reporter that prints the leak has moved it, not found it");
+});
+
+test("the shapes that are NOT a short key stay silent", () => {
+  const hit = (t, f = "tools/x.mjs") => scanContent(t, f).findings.map((x) => x.class);
+  assert.deepEqual(hit("flap-s-0dc8ac87c43d-86.json"), [],
+    "12 hex is the SANITIZED form — matching it would corrupt real fixtures");
+  assert.deepEqual(hit("claude-3-opus-20240229"), [],
+    "a model version string contains the shape by coincidence");
+  assert.deepEqual(hit("grep -oE 's-[0-9a-f]{8}' | grep -v 's-20240229'", "docs/x.md"), [],
+    "and it appears BARE in prose describing the pattern itself");
+  assert.deepEqual(hit('key: "s-11111111-2222-3333-4444-555555555555"'), [],
+    "the head of a full UUID belongs to the UUID class, not this one");
+  assert.deepEqual(hit("pinned-s-4b6a4352-26-28.json"), [],
+    "this repo's own synthetic fixture token");
 });

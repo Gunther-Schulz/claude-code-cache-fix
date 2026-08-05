@@ -153,11 +153,11 @@ test("normalizeRow reads the proxy's outcome record — the response usage alrea
     ts: "2026-08-01T09:19:58.840Z",
     type: "outcome",
     id: "2edf0680-572",
-    key: "s-24fc5191",
+    key: "s-synthkey01",
     model: "claude-haiku-4-5-20251001",
     usage: { cacheRead: 11, cacheCreation: 22, inputTokens: 534, outputTokens: 1 },
   });
-  assert.equal(r.key, "s-24fc5191");
+  assert.equal(r.key, "s-synthkey01");
   assert.equal(r.cc, 22);
   assert.equal(r.cr, 11);
   assert.equal(r.input, 534);
@@ -169,20 +169,20 @@ test("normalizeRow keys a transcript row by CONVERSATION, not by session id", ()
   const sub = normalizeRow({
     timestamp: "2026-07-30T16:51:17.379Z",
     requestId: "req_1",
-    agentId: "afable-verify-retro-2038e0fed16a0285",
-    sessionId: "b16c607d-d484-4935-840e-e3f7ee78eb08",
+    agentId: "afable-synthetic-agent-0001",
+    sessionId: "11111111-2222-3333-4444-555555555555",
     message: { model: "claude-fable-5", usage: { cache_creation_input_tokens: 38589, cache_read_input_tokens: 0, input_tokens: 2 } },
   });
-  assert.equal(sub.key, "a-afable-verify-retro-2038e0fed16a0285");
-  assert.equal(sub.sid, "b16c607d-d484-4935-840e-e3f7ee78eb08");
+  assert.equal(sub.key, "a-afable-synthetic-agent-0001");
+  assert.equal(sub.sid, "11111111-2222-3333-4444-555555555555");
   assert.equal(sub.grain, "conversation");
   const main0 = normalizeRow({
     timestamp: "2026-07-30T16:57:13.833Z",
     requestId: "req_2",
-    sessionId: "b16c607d-d484-4935-840e-e3f7ee78eb08",
+    sessionId: "11111111-2222-3333-4444-555555555555",
     message: { usage: { cache_creation_input_tokens: 1, cache_read_input_tokens: 1, input_tokens: 1 } },
   });
-  assert.equal(main0.key, "s-b16c607d-d484-4935-840e-e3f7ee78eb08");
+  assert.equal(main0.key, "s-11111111-2222-3333-4444-555555555555");
   assert.equal(main0.grain, "session");
 });
 
