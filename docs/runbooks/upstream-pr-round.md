@@ -24,6 +24,18 @@ without it `npm test` dies with `ERR_MODULE_NOT_FOUND: hpagent` and two
 suites appear to hang ~900 s (measured 2026-08-02; it is the missing
 deps, not the documented production-port hazard).
 
+Isolation basis for that symlink (the environment-resolution question,
+2026-08-05): it shares only THIRD-PARTY deps with the main tree. The
+project's own code is imported by relative path everywhere
+(`../proxy/...`, `./read-lines.mjs`), so a suite run in the worktree
+measures the worktree's code, never the main tree's. If a self-import
+via package name is ever introduced, this basis breaks — re-check then.
+
+Pushes from a worktree run the same two gates as main-tree pushes: the
+global dispatcher chains the repo's `.git/hooks/pre-push` via its
+common-dir fallback (dotfiles, 2026-08-05), so the full suite gates
+worktree pushes too.
+
 When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
 
 ## The round

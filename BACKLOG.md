@@ -225,11 +225,13 @@ then the queued ones. Work the items in that order.
   landed, and the stale "npm test hangs on the production port"
   warning is retired from CLAUDE.local (added 2026-07-29 with no
   recorded observation; never reproduced; both real hangs were the
-  worktree node_modules artifact). Residue that remains: the
-  suite-gate does NOT run for pushes from WORKTREES (the dispatcher
-  chains the worktree-local hooks dir, which is empty) — worktree
-  pushes get the leak scan only; the runbook's full-suite step covers
-  the gap procedurally. Original entry follows for the record.
+  worktree node_modules artifact). The worktree gap is CLOSED
+  mechanically (dotfiles b419af0, same day): the dispatcher now falls
+  back to the common git dir's hooks, so `.git/hooks/pre-push`
+  reaches worktree pushes — bite-tested (red against the old
+  dispatcher), and live-verified from the wt-g2 worktree, where the
+  suite gate refused a dry-run push it previously never saw.
+  Original entry follows for the record.
 
 - **(superseded, see above) — a full-suite gate before push (the red-main incident,
   2026-08-02 evening).** What happened: the source-UUID guard landed
