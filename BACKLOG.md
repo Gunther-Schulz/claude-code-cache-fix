@@ -78,7 +78,23 @@ bullet, evidence pointer included.
   (7) `tools/test-config-root.mjs` — the suite had NO default config root,
   so any test driving a stateful extension wrote into the operator's real
   `~/.claude`; this one left 8 files there in a single run (4a61b1c).
-  **WHAT IS NOT ESTABLISHED — read before trusting the fix.** The class's
+  **THE FIX IS PROVEN LIVE — this replaced an "unproven" note held for most
+  of the session.** Corpus-wide rate, from the sweep that now persists
+  departure rows: 3 departures over 42 captures, 2 of them costly (prefix
+  above messages INTACT), both on capture s-captureAC this afternoon. That
+  capture replayed under the PRE-fix build produces exactly two stability
+  violations at those same two pairs (n=120->123, n=254->259; outDiv=0,
+  inDiv=3, ccIdenticalAtOutDiv=true, attributed to fresh-session-sort) and is
+  CLEAN under the shipped build. Same capture, same gates, one variable.
+  Neither was visible to the earlier counterfactual because both postdate the
+  14:51Z pre-fix sweep — which is why the honest answer was "unproven" for
+  hours and is not any more.
+  What it saves, to its reach: CC diverged at index 3 on its own, so the fix
+  prevents the AMPLIFICATION to index 0, recovering messages 0..2 — 19.7% of
+  the array at n=123, 62.4% at n=259, messages[0] alone ~52 KB. The billed-
+  token saving is NOT measured (it depends on breakpoint placement); the
+  claim stops at bytes. Superseded note follows.
+  **WHAT WAS NOT ESTABLISHED, until it was.** The class's
   live rate is now measured (2 departures / 342 same-conversation pairs on
   s-captureAB, 1 of them with an intact prefix), but the fix's live
   ENGAGEMENT is still unproven. The second departure does not prove it:
