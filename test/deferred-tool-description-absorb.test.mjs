@@ -217,12 +217,8 @@ test("CONTROL — an input_schema delta on the same tool still RESETS (stale sch
   }
 });
 
-test("CONTROL — description delta PLUS a tool-set change is a rewrite/reset, never a description absorb", () => {
+test("CONTROL — description delta PLUS a tool-SET change is a rewrite/reset, never a description absorb", () => {
   const prior = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
-
-  // Same names, DIFFERENT order + a description delta → not the absorb class.
-  const reordered = classifyToolChange([tool("Bash", DESC_NEW), tool("Read", "reads a file")], prior);
-  assert.equal(reordered.action, "reset", "order is part of the identity the absorb requires");
 
   // A new tool arriving alongside a description delta → not the absorb class.
   const added = classifyToolChange(
@@ -230,6 +226,43 @@ test("CONTROL — description delta PLUS a tool-set change is a rewrite/reset, n
     prior,
   );
   assert.equal(added.action, "reset");
+
+  // A tool DISAPPEARING alongside a description delta → not the absorb class
+  // either: set identity binds in both directions.
+  const removed = classifyToolChange([tool("Bash", DESC_NEW)], prior);
+  assert.equal(removed.action, "reset");
+});
+
+test("CONTROL — an input_schema delta hidden inside a reorder still RESETS (the schema scan is order-blind)", () => {
+  const prior = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+  const bumpedSchema = {
+    name: "Bash",
+    description: DESC_OLD,
+    input_schema: { type: "object", properties: { command: { type: "string" }, timeout: { type: "number" } } },
+  };
+  const result = classifyToolChange([bumpedSchema, tool("Read", "reads a file")], prior);
+  assert.equal(result.action, "reset", "reordering must never launder a schema change past the safety boundary");
+  assert.equal(result.reason, "tool-schema-changed");
+});
+
+// SET-identity, not ORDER-identity, is the absorb's precondition (decision
+// 2026-08-05, G2 of the fd87e12 handoff). Basis: sort-stabilization (order
+// 200) name-sorts tools[] on EVERY live request, so incoming order is not a
+// property the pipeline preserves — and the absorb forwards the canonical's
+// own first-seen order regardless, so admitting a reordered-but-set-identical
+// array changes zero wire bytes versus the order-identical case. Callability
+// is name + input_schema, and both still bind above.
+test("same names, different order + description delta → description-absorbed, canonical order kept", () => {
+  const prior = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+
+  const result = classifyToolChange([tool("Bash", DESC_NEW), tool("Read", "reads a file")], prior);
+
+  assert.equal(result.action, "description-absorbed");
+  assert.equal(result.knownTools, prior, "the wire still carries the FIRST-SEEN array, unchanged");
+  assert.deepEqual(
+    result.descriptionChanges.map((c) => c.name),
+    ["Bash"],
+  );
 });
 
 test("CONTROL — a model that cannot take the announcement falls back to the honest reset", async () => {

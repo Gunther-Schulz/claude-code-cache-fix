@@ -72,7 +72,10 @@
 // the SAME announcement machinery an addition uses (a mid-conversation
 // system message, beta-gated, anchored, re-injected every request). The
 // absorb requires the tools[] identity to be otherwise untouched — same
-// count, same names, same order, every input_schema byte-identical; any
+// count, same names, every input_schema byte-identical; SET-identity, not
+// order-identity (2026-08-05): sort-stabilization already name-sorts every
+// incoming array, so incoming order is not a preserved property, and the
+// canonical's first-seen order goes on the wire either way. Any
 // other difference keeps today's honest reset. And a model with no
 // announcement channel takes the honest reset too, tagged
 // `descriptionFallback` so the real cause is not buried under
@@ -390,19 +393,27 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
   const newNames = [...incomingByName.keys()].filter((name) => !priorByName.has(name));
 
   const incomingOrderNames = incomingTools.map((t) => t.name);
-  const orderMatches =
+  // Same names in both directions AND same array length — the length guard
+  // keeps a degenerate duplicate-name array out of the set-identical class,
+  // since the by-name maps above collapse duplicates silently.
+  const sameSet =
     heldNames.length === 0 &&
     newNames.length === 0 &&
-    incomingOrderNames.length === priorOrderNames.length &&
-    incomingOrderNames.every((name, i) => name === priorOrderNames[i]);
+    incomingOrderNames.length === priorOrderNames.length;
+  const orderMatches =
+    sameSet && incomingOrderNames.every((name, i) => name === priorOrderNames[i]);
 
-  // The absorb's precondition: tools[] identity otherwise untouched. A
-  // description delta arriving ALONGSIDE an add, a removal or a reorder is
-  // not this class and takes the reset it took before — the safety argument
-  // ("the schema the model calls against is unchanged") covers exactly the
-  // case where nothing but prose moved.
+  // The absorb's precondition is SET-identity, not order-identity (decision
+  // 2026-08-05): sort-stabilization (order 200) name-sorts tools[] on every
+  // request, so incoming order is not a property this pipeline preserves —
+  // and the canonical's own first-seen order goes on the wire either way, so
+  // admitting a reordered-but-set-identical array changes zero wire bytes. A
+  // description delta arriving ALONGSIDE an add or a removal is still not
+  // this class and takes the reset it took before — the safety argument
+  // ("the schema the model calls against is unchanged") needs every name
+  // present with its schema byte-identical, which the scan above enforced.
   if (descriptionChanges.length > 0) {
-    if (!orderMatches) {
+    if (!sameSet) {
       return { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
     }
     return { action: "description-absorbed", knownTools: priorKnownTools, descriptionChanges };
