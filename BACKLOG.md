@@ -328,6 +328,20 @@ bullet, evidence pointer included.
   Red-first both halves: removing the key-yield turns the two scanner
   bites red; reverting `ledgerKey` to identity turns the ledger bites
   red. Suite 2089/2089.
+  **FOLLOW-UP, same day — the residual named in the report is closed
+  too.** The allowlist was PATH-wide: a file named in it was skipped
+  entirely, so an exemption written about one class excused every
+  class. That is how the ledger's identifiers sat behind an exemption
+  whose stated reason was its timestamps — and it meant the one file
+  whose exposure started this was the one file the scanner would not
+  look at. Entries are `{pattern, classes}` now; the file is scanned
+  and only the named classes are dropped. `isAllowlisted` narrowed to
+  mean "exempt from EVERY class" and is consequently false for the
+  ledger. Verified: the real ledger still exits 0 (its timestamps are
+  excused), a UUID planted into it exits 2 with a positional path.
+  Two consumer tests encoded the old semantics and were updated rather
+  than worked around — one asserted that an allowlisted path is "not
+  scanned", which was the defect stated as an expectation.
 
 - **READY — the canonical re-serve normalizes its CONTAINER to the
   wire's current one (proxy/**, deployment-coupled).** This is the

@@ -56,9 +56,30 @@ import { basename } from "node:path";
 // (harvest.mjs `ledgerKey`), and key names are now scanned. What remains here
 // is only the timestamps, which is what a residual should look like — one
 // named class, with a reason that survives being read carefully.
+// Entries are {pattern, classes}: which CLASSES a path is exempt from, never
+// the whole file. A path-wide exemption is a hole with a comment on it — it
+// hides every class, including ones nobody had thought about when the
+// exemption was written, and it is exactly how this file's own ledger kept 94
+// session identifiers out of sight. `classes: "all"` remains expressible but
+// nothing uses it, deliberately.
 export const ALLOWLIST = [
-  /(^|\/)test\/fixtures\/harvested\/LEDGER-[^/]*\.json$/,
+  {
+    pattern: /(^|\/)test\/fixtures\/harvested\/LEDGER-[^/]*\.json$/,
+    classes: ["live-timestamp"],
+  },
 ];
+
+/** The class names a path is exempt from — empty when it is exempt from none. */
+export function exemptClasses(path) {
+  const p = String(path).replace(/\\/g, "/");
+  const out = new Set();
+  for (const e of ALLOWLIST) {
+    if (!e.pattern.test(p)) continue;
+    if (e.classes === "all") return "all";
+    for (const c of e.classes) out.add(c);
+  }
+  return out;
+}
 //
 // RETIRED 2026-08-05: `test/fixtures/cc-transcript-shape-snapshot.json`. The
 // entry existed because that fixture was captured from a real transcript and
@@ -69,9 +90,16 @@ export const ALLOWLIST = [
 // deleted silently: an allowlist that shrinks because the hazard was removed
 // is a different fact from one that shrinks because someone softened it.
 
+/**
+ * True only when a path is exempt from EVERY class — i.e. genuinely skippable.
+ * Narrowed 2026-08-05: it used to mean "appears in the allowlist at all",
+ * which made a one-class exemption skip the whole file. Callers that want to
+ * know what a path is exempt FROM ask `exemptClasses`.
+ */
 export function isAllowlisted(path) {
-  const p = String(path).replace(/\\/g, "/");
-  return ALLOWLIST.some((re) => re.test(p));
+  const e = exemptClasses(path);
+  if (e === "all") return true;
+  return e.size > 0 && CLASS_NAMES.every((n) => e.has(n));
 }
 
 // --- Scope -------------------------------------------------------------------
@@ -439,7 +467,14 @@ export function scanGitRange(oldRef, newRef) {
     }
     const text = git(["show", `${newRef}:${file}`]);
     const r = scanContent(text, file);
-    findings.push(...r.findings);
+    // Class-scoped exemptions: the file is still SCANNED, and only the
+    // findings it is exempt from are dropped. Skipping the file outright —
+    // which this did until 2026-08-05 — hides every class, including the ones
+    // nobody considered when the exemption was written.
+    const exempt = exemptClasses(file);
+    const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
+    if (kept.length < r.findings.length) allowlisted.push(file);
+    findings.push(...kept);
     for (const n of CLASS_NAMES) seen[n] += r.seen[n];
     scanned += r.scanned;
     if (r.partial) partial++;
@@ -523,7 +558,12 @@ function main(argv) {
         continue;
       }
       const r = scanFile(file);
-      findings.push(...r.findings);
+      // Same class-scoped filtering as the git-range path — one meaning of
+      // "exempt" in this file, not two.
+      const exempt = exemptClasses(file);
+      const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
+      if (kept.length < r.findings.length) allowlisted.push(file);
+      findings.push(...kept);
       if (r.partial) partial++;
       degraded.push(...r.degraded.map((d) => `${file}: ${d}`));
     }

@@ -23,7 +23,7 @@ import { tmpdir } from "node:os";
 import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { scanDocument, scanContent, isAllowlisted, CLASSES } from "../tools/absence-scan.mjs";
+import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -120,9 +120,29 @@ test("an unparseable file is scanned as raw bytes and reported degraded, never s
   assert.deepEqual(r.findings.map((f) => f.class), ["capture-uuid"]);
 });
 
-test("the allowlist covers the LEDGER watermark file and nothing else in the corpus", () => {
-  assert.equal(isAllowlisted(`${CORPUS}/LEDGER-Siren.json`), true);
-  assert.equal(isAllowlisted(`${CORPUS}/pinned-s-4b6a435234bf-26-28.json`), false);
+test("the LEDGER is exempt from ONE class, not from the file", () => {
+  // Narrowed 2026-08-05. A path-wide exemption hides every class, including
+  // ones nobody considered when it was written — which is precisely how 94
+  // session identifiers sat inside this very file, invisible, behind an
+  // exemption whose stated reason was about timestamps.
+  const ledger = `${CORPUS}/LEDGER-Siren.json`;
+  const exempt = exemptClasses(ledger);
+  assert.deepEqual([...exempt], ["live-timestamp"],
+    "its lastHarvest fields ARE its content; nothing else about it is excused");
+  assert.equal(isAllowlisted(ledger), false,
+    "isAllowlisted means exempt from EVERY class — the ledger is not");
+  assert.deepEqual([...exemptClasses(`${CORPUS}/pinned-s-4b6a435234bf-26-28.json`)], []);
+});
+
+test("a capture UUID planted into the LEDGER is still caught", () => {
+  // The bite for the narrowing: the class the exemption does NOT cover must
+  // fire on the exempt file.
+  const doc = JSON.stringify({ keys: { [FAKE_UUID]: { lastHarvest: "2026-08-05T00:00:00.000Z" } } });
+  const r = scanContent(doc, `${CORPUS}/LEDGER-Siren.json`);
+  const exempt = exemptClasses(`${CORPUS}/LEDGER-Siren.json`);
+  const kept = r.findings.filter((f) => !exempt.has(f.class));
+  assert.deepEqual(kept.map((x) => x.class), ["capture-uuid"],
+    "the timestamp is excused; the identifier is not");
 });
 
 // The transcript-shape fixture used to be allowlisted because it was captured
@@ -203,13 +223,31 @@ test("CLI: exit 2 on a file carrying a synthetic UUID, exit 0 on a clean one", (
   });
 });
 
-test("CLI: an allowlisted path is reported, not scanned", () => {
+test("CLI: an exempt path is scanned, and only its exempt CLASS is dropped", () => {
+  // This asserted the opposite until 2026-08-05 — that a LEDGER path was
+  // reported and not scanned at all. That is what let a capture identifier
+  // live inside one indefinitely: the exemption's stated reason was its
+  // timestamps, and it silently covered everything.
   withTemp((dir) => {
-    const led = seedCorpusFile(dir, "LEDGER-Testhost.json", SEEDED["capture-uuid"]);
+    // A live wall-clock ts (the exempt class) AND a capture UUID (not exempt).
+    const led = seedCorpusFile(dir, "LEDGER-Testhost.json",
+      { ...SEEDED["capture-uuid"], ts: "2026-08-05T09:10:03.000Z" });
+    const r = run([led], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /^allowlisted: /m, "the file is still named as partly exempt");
+    assert.match(r.stdout, /FINDING capture-uuid/, "the class it is NOT exempt from fires");
+    assert.ok(!r.stdout.includes("FINDING live-timestamp"),
+      "the class it IS exempt from stays quiet — its watermarks are its content");
+  });
+});
+
+test("CLI: an exempt path with only exempt findings still exits 0", () => {
+  withTemp((dir) => {
+    const led = seedCorpusFile(dir, "LEDGER-Testhost.json",
+      { ...CLEAN, ts: "2026-08-05T09:10:03.000Z" });
     const r = run([led], dir);
     assert.equal(r.status, 0, r.stdout + r.stderr);
-    assert.match(r.stdout, /^allowlisted: /m);
-    assert.ok(!r.stdout.includes("FINDING"));
+    assert.ok(!r.stdout.includes("FINDING"), "nothing but the excused class was there");
   });
 });
 

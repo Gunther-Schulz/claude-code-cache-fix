@@ -48,7 +48,7 @@ import { scrubMessage } from "../tools/harvest.mjs";
 // tools/absence-scan.mjs, so the pre-push hook runs the SAME predicates this
 // suite asserts on. The assertions below are unchanged; only their source of
 // the predicates moved.
-import { scanDocument, scanName, isAllowlisted, CLASS_NAMES } from "../tools/absence-scan.mjs";
+import { scanDocument, scanName, isAllowlisted, exemptClasses, CLASS_NAMES } from "../tools/absence-scan.mjs";
 
 const scrub = (text) => scrubMessage({ role: "user", content: text }).content;
 
@@ -321,6 +321,11 @@ function committedFixtures() {
 // DOMAIN size — how many strings it had an opinion about — which is what the
 // vacuity assertions below read: a scan that matched nothing because it looked
 // at nothing must not read as clean.
+// Exemptions are CLASS-SCOPED (absence-scan.mjs ALLOWLIST): a file exempt
+// from one class is still scanned for every other. So a finding is dropped
+// only when its own class is exempt for its own file — not the whole file,
+// which is what this did while a path-wide exemption existed and is how the
+// harvest ledger's identifiers stayed out of view.
 function corpusScan() {
   const findings = [];
   const seen = Object.fromEntries(CLASS_NAMES.map((n) => [n, 0]));
@@ -329,7 +334,8 @@ function corpusScan() {
   for (const { name, docs } of fixtures) {
     docs.forEach((doc, i) => {
       const r = scanDocument(doc, { file: name, path: docs.length > 1 ? `$[${i}]` : "$" });
-      findings.push(...r.findings);
+      const exempt = exemptClasses(corpusPath(name));
+      findings.push(...(exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class))));
       for (const n of CLASS_NAMES) seen[n] += r.seen[n];
       scanned += r.scanned;
     });

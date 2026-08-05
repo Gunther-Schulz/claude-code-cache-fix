@@ -266,6 +266,14 @@ Two blind spots, both found by planting rather than by reading, both closed
   Scoped to the range being pushed — over a whole branch it reports commits
   already public, which is a gate that cannot pass.
 
+A fourth, found by asking what the first three did NOT cover: the allowlist
+was PATH-wide. A file named in it was skipped entirely, so an exemption
+written about one class silently excused every class — including ones nobody
+had thought of when it was written. That is exactly how the harvest ledger's
+94 identifiers sat behind an exemption whose stated reason was its timestamps.
+Exemptions are class-scoped now: `{pattern, classes}`, the file is still
+scanned, and only findings of the named classes are dropped.
+
 The file-type filter was the third: `--git-range` looked only at
 `.json`/`.jsonl`, so an identifier in a `.mjs`, `.md`, `.sh`, `.yml` or `.py`
 sailed through. Source files get the short-key class and only it; pointing the
