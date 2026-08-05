@@ -1,0 +1,33 @@
+#!/bin/sh
+# pre-push: refuse to publish a red tree (the red-main incident,
+# 2026-08-02 — two pushes landed with the absence-scan guard failing
+# because only targeted suites were run; the red survived a day).
+#
+# Activation is per-machine and tracked in one line:
+#     git config core.hooksPath tools/git-hooks
+# (worktrees share the config, so PR-branch worktrees are covered; a
+# fresh worktree still needs its node_modules symlink — see
+# docs/runbooks/upstream-pr-round.md — and a missing one fails the
+# suite loudly here rather than silently skipping it.)
+#
+# Deliberate-WIP bypass: `git push --no-verify`, stated in the same
+# turn/message as the push — an unstated bypass is the incident again.
+#
+# The suite is ~17 s (measured 2026-08-05, 2054 tests); there is no
+# timeout because the known "hang" was a missing-dependency artifact,
+# not the suite (BACKLOG.md stale-premise note).
+
+set -u
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+echo "pre-push: npm test (full suite) ..." >&2
+if ! npm test >/tmp/pre-push-suite.$$.log 2>&1; then
+  echo "pre-push: REFUSED — full suite is red. Tail of the run:" >&2
+  tail -25 "/tmp/pre-push-suite.$$.log" >&2
+  echo "pre-push: full log: /tmp/pre-push-suite.$$.log" >&2
+  echo "pre-push: deliberate WIP push: git push --no-verify (state it)." >&2
+  exit 1
+fi
+rm -f "/tmp/pre-push-suite.$$.log"
+echo "pre-push: suite green, push allowed." >&2
+exit 0

@@ -202,7 +202,21 @@ then the queued ones. Work the items in that order.
   7-commit surface. Done: new draft PR referencing #295, comment on
   #295 pointing at it.
 
-- **READY — a full-suite gate before push (the red-main incident,
+- **SHIPPED fork-side 2026-08-05 (commit ref: the tools/git-hooks
+  commit this entry rides in) — the pre-push full-suite gate.** The
+  named obstacle dissolved: the hook is TRACKED
+  (tools/git-hooks/pre-push) and activated per-machine by one line,
+  `git config core.hooksPath tools/git-hooks` — run on Siren
+  2026-08-05; worktrees share it. Verified red-first: a seeded
+  failing test refused a real `git push --dry-run`; the landing push
+  of this very commit is the green case. Bypass: `--no-verify`,
+  stated in the same message. RESIDUE, dotfiles-side: doctor should
+  check `core.hooksPath` on this repo (machine trip), and the
+  stale-premise question about the "npm test hangs on the production
+  port" warning still travels to the operator (CLAUDE.local edit).
+  Original entry follows for the record.
+
+- **(superseded, see above) — a full-suite gate before push (the red-main incident,
   2026-08-02 evening).** What happened: the source-UUID guard landed
   2026-08-01 (2a8738d); on 2026-08-02 two commits (0def5ca, 3b32e6b)
   each put a REAL capture session id into a tracked `.mjs`, and both
