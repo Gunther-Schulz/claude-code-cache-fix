@@ -29,7 +29,7 @@ Verified against the clauses rather than against the commit subjects:
 - Five flap bites plus two candidacy bites already in
   `test/replay-gate-selfcheck.test.mjs`, including the real-fixture bite.
 - The entry's own verifier, run live against the capture at base commit
-  (`tools/replay.mjs <slice> --census`, capture `s-0d6f38ba`, requests 1–260):
+  (`tools/replay.mjs <slice> --census`, capture `s-captureB`, requests 1–260):
 
   ```
   block migrations (reminder-swap shape): 3, 2 FLAP
@@ -65,8 +65,8 @@ other shape: several reminders leave their host and arrive as a single
 class produced no row at all.
 
 Measured on both committed fixtures (current names — the entry was written
-against the pre-sanitization names `flap-s-0d6f38ba-86.json` and
-`oscillation-s-633915a8-863.json`, both renamed by `687cbc5`):
+against the pre-sanitization names `flap-s-captureB-86.json` and
+`oscillation-s-captureA-863.json`, both renamed by `687cbc5`):
 
 - `flap-s-0dc8ac87c43d-86.json` — of the three standalone messages the
   standalone leg carries, only `msg94` is a lone block. `msg86` is the join of
@@ -123,7 +123,7 @@ definition of "a join" in the file.
 | `oscillation-s-4b6a435234bf-863.json` | 0 rows | 3 rows, 2 flaps, all `in-entry` |
 
 **One census run over a real capture** — `tools/replay.mjs --census` over a
-read-only 260-request slice of `~/.claude/cache-fix-captures/s-0d6f38ba-…`,
+read-only 260-request slice of `~/.claude/cache-fix-captures/s-captureB-…`,
 the same bytes both fixtures were harvested from. The fixture bites' expected
 values are reproduced independently by the live run:
 

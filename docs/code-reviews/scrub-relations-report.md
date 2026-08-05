@@ -123,7 +123,7 @@ Includes `harvest.test.mjs` (the fixed-constant/wrap tests),
     up to date: 26 capture(s)
     
     WARNING: 4 capture(s) expired before harvest — raise CACHE_FIX_CAPTURE_MAX_MB
-      s-35d72503… (last seen at 603 requests)  [+3 more]
+      s-captureH… (last seen at 603 requests)  [+3 more]
 
 Sane: every class in the ledger is already banked, so zero novel picks is
 the expected steady state, and the expiry warning is the pre-existing

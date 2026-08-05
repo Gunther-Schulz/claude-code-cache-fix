@@ -25,7 +25,7 @@ Three sanitization gaps, all confirmed by execution
    blocker 1, upstream reviewer, confirmed): real conversation key in
    the fixture header, per-request `sid`/`key`/wall-clock timestamps,
    and the session UUID in the FILENAME itself.
-3. **flap-s-0d6f38ba-86.json keeps operator hook prose raw** — its
+3. **flap-s-captureB-86.json keeps operator hook prose raw** — its
    raw-retention predates the scrub homomorphism (bffcb05) that was
    built precisely to make raw retention unnecessary.
 
@@ -88,10 +88,10 @@ committed reset-move fixture's raw PNG bytes BEFORE the fix.
 
 - `reset-move-…`: re-scrub in place under (1)+(2) — images tokenized,
   IDs tokenized, renamed.
-- `flap-s-0d6f38ba-86.json`: rebuild through `scrubMessage` with the
+- `flap-s-captureB-86.json`: rebuild through `scrubMessage` with the
   merged message re-joined from sanitized constituents (the reset-move
   fixture's documented method), plus (2); renamed.
-- `pinned-s-633915a8-26-28.json` and every other
+- `pinned-s-captureA-26-28.json` and every other
   `test/fixtures/harvested/*.json` (LEDGER-* excluded, fork-only):
   apply (2) (their prose is already tokenized); sweep result per file
   in the report.

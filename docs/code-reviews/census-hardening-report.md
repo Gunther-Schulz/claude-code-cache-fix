@@ -82,7 +82,7 @@ decreased, importing `firstDivergence` and `isHumanTurn` from `replay.mjs`.
 heap cap and records `byteGate` per row plus a corpus-wide total.
 
 See (d) for the one deviation: the event COUNT reproduces exactly (12 on
-`s-77fe2779`), the pure/interior SPLIT does not, and the disagreement is one
+`s-captureF`), the pure/interior SPLIT does not, and the disagreement is one
 event with byte evidence behind it.
 
 ### 4 — bust-triage sees the whole ❄ population (`6efce90`)
@@ -129,7 +129,7 @@ to fix:
 **Corpus prune distribution (39/39 captures):** 226 drop events — 181
 PURE-TAIL-PRUNE, 45 INTERIOR-DIVERGENT, 0 UNANCHORED.
 
-**`s-77fe2779` (the capture the entry names):**
+**`s-captureF` (the capture the entry names):**
 
     prune events (message count decreased): 12 — 11 PURE-TAIL-PRUNE (prefix intact up to the live turn), 1 INTERIOR-DIVERGENT
       INTERIOR-DIVERGENT 2026-07-31T11:41:05.778Z  n=130->124  breaks at 97 (anchor 123)  re-bills 27 of 124
@@ -143,7 +143,7 @@ was never written):
       / 1 DROPPED / 0 MISMATCH; prunes 181 pure / 46 INTERIOR-DIVERGENT
 
 All 39 rows carry a `byteGate` field; `unreadable: 0`, `errors: 0`. The one
-failing row is `s-0d6f38ba` at `stability=2` — **pre-existing, not from this
+failing row is `s-captureB` at `stability=2` — **pre-existing, not from this
 work**: the deployed `~/.claude/cache-fix-gate-status.json` from that
 morning's scheduled run (started 07:52:23Z, read-only) already carries
 `stability 2` on the same file, and nothing here touches `replay.mjs` or the
@@ -179,11 +179,11 @@ value needs updating, since it now describes neither.
 
 ### c2 — 45 interior prunes corpus-wide, two of them enormous
 
-    INTERIOR 2026-07-31T12:42:11.673Z n=688->675 div=4 anchor=674 rebilled=671  s-f94e53ce
-    INTERIOR 2026-07-31T11:40:24.245Z n=83->81   div=4 anchor=80  rebilled=77   s-b6952ffc
+    INTERIOR 2026-07-31T12:42:11.673Z n=688->675 div=4 anchor=674 rebilled=671  s-captureN
+    INTERIOR 2026-07-31T11:40:24.245Z n=83->81   div=4 anchor=80  rebilled=77   s-captureW
 
 A prune whose prefix breaks at index 4 re-bills essentially the whole
-context. `s-f94e53ce` is one of the four captures that were unreadable until
+context. `s-captureN` is one of the four captures that were unreadable until
 `a77c930`, so this event has never been visible to any verdict. Neither is
 explained here — out of scope for these four items, and the cause is not
 guessable from the drop shape. Worth a triage pass of its own; the tool now

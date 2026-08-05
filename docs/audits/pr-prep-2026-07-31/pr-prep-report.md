@@ -144,7 +144,7 @@ public-repo consequence.** `scrubBlock` redacts `block.data`
 but an Anthropic image block nests its base64 at `block.source.data`, one level
 below where the scrubber looks. So images pass through raw. Confirmed in the
 artifact, not inferred from the source:
-`test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json` carries five
+`test/fixtures/harvested/reset-move-s-captureC-196-197.json` carries five
 identical `image/png` blocks, 13,060 base64 chars each. Decoded: 9,794 bytes,
 951×55, PNG `tEXt` chunks `Creation Time: Mi 29 Jul 2026 16:46:01 CEST` and
 `Software: gnome-screenshot`. I viewed it — a terminal line of the operator's own
@@ -154,7 +154,7 @@ stamp), and the fixture's own `_sanitization` header asserts it "keeps no raw
 text at all", which is false as written. The fix is in `scrubBlock` (recurse into
 `source`) and needs a bite that goes red on this fixture before it counts.
 
-**2. `flap-s-0d6f38ba-86.json` puts operator hook prose in a public repo, against
+**2. `flap-s-captureB-86.json` puts operator hook prose in a public repo, against
 the fork's own later standard.** Its header states the participating reminder
 texts are kept RAW deliberately. Six of the eight raw strings >40 chars are the
 operator's own hook text quoting private files by name (`dispatch-discipline.md
@@ -218,14 +218,14 @@ it instead.
 6d25e43 50e3407 2b91021 71eac66 96938da 1915a79 a0a051f`. Files: `docs/dev-loop.md`,
 `tools/{bust-triage,gate-live,harvest,reminder-migration-census,replay,verdict-ab}.mjs`,
 `test/{bust-triage-controlled,census-byte-gate-sweep,census-extended-subclass,census-prune-classification,census-read-coverage,gate-live,harvest-scrub-relations,replay-gate-selfcheck}.test.mjs`,
-`test/fixtures/harvested/flap-s-0d6f38ba-86.json`.
+`test/fixtures/harvested/flap-s-captureB-86.json`.
 
 `/home/g/dev/vendor/cache-fix-pr12` on `pr/insertion-join-moves` (new),
 `b713b2f` → `fbec02f`: `4b00ac6` (merge of `a0a051f`), `3cc44fe 8808bf7 50ba316
 2ae96d7 dff93fc f9b0ae9 fbec02f`. Files beyond the merge:
 `proxy/extensions/insertion-normalization.mjs`,
 `test/{extended-absorb,insertion-join-move,insertion-suppression-on-reset}.test.mjs`,
-`test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json`.
+`test/fixtures/harvested/reset-move-s-captureC-196-197.json`.
 
 Drafts: `pr-prep-body-join-moves.md`, `pr-prep-comment-276.md`,
 `pr-prep-actions.md`, `pr-prep-report.md`, plus `pr-prep-fixture-image.png`

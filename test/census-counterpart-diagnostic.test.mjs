@@ -3,7 +3,7 @@
 //
 // Grounding, measured 2026-08-02 (BACKLOG "READY — census must distinguish
 // 'no counterpart' from 'counterpart present but unmatched'"): on capture
-// s-66797e31 (host=30 and host=74) the census printed
+// s-captureG (host=30 and host=74) the census printed
 // `MISMATCH ... recon=327ch actual=0ch`, and its own comment at the time
 // documented `actual=0ch` as "the tell that no counterpart was found at
 // all". That reading was WRONG for these rows: a standalone counterpart DID
@@ -49,7 +49,7 @@ const hostEcho = () => ({
 });
 
 test("RED-FIRST — a rejected (wrapper-retaining) candidate standalone is reported by length, not folded into a bare 0", () => {
-  // The s-66797e31 shape: a standalone role:"system" message sits right
+  // The s-captureG shape: a standalone role:"system" message sits right
   // after the host, STRING content, wrapper RETAINED. classify() rejects it
   // (MISMATCH) inside the sysAfter scan, so `best` never gets set and the
   // no-counterpart branch runs.

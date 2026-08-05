@@ -486,7 +486,7 @@ export function reduceFireRaw(rows) {
 // against occurrences — nor to ABSORBED, which counts a different window.
 //
 // What the census rows actually carry, read off real rows rather than assumed
-// (capture s-66797e31, 34-capture corpus, 2026-08-02):
+// (capture s-captureG, 34-capture corpus, 2026-08-02):
 //
 //   relocations  findMitigationGaps rows carry `rebilledBytes` — LEAKED, the
 //                input-side re-bill of a passthrough. A mitigated row

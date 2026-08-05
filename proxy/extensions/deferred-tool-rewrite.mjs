@@ -250,7 +250,7 @@ async function appendTelemetry(dir, sessionKey, record, fs) {
 // reads as "a known tool's schema changed" and takes the honest-reset path,
 // re-baselining against whichever tenant spoke last.
 //
-// Measured before this fix (2026-07-28, capture s-35d72503, 602 requests):
+// Measured before this fix (2026-07-28, capture s-captureH, 602 requests):
 // SIX distinct (tools, system-prompt) combinations shared a single baseline,
 // and enabling the rewrite RAISED main-conversation tools[] churn from 1 to 2
 // — the extension built to hold tools[] byte-stable was destabilising it.
@@ -264,7 +264,7 @@ async function appendTelemetry(dir, sessionKey, record, fs) {
 // announcement is anchored to a MESSAGE IDENTITY, so under a shared key the
 // stored anchor belongs to a different conversation's history, fails to
 // match, and injectAdditions falls back to "after the last user message" — a
-// different index on every request. Measured on corpus s-0edbd11c: our output
+// different index on every request. Measured on corpus s-captureE: our output
 // diverged at index 4 while CC's own history was byte-identical through index
 // 23, twice, re-billing 19 messages that never changed.
 //
@@ -558,7 +558,7 @@ export function anchorHash(msg) {
 // on every iteration (the search excludes role==="system", so
 // already-injected additions were invisible to it) and always landed the
 // newest addition closest to the anchor: a LIFO stack that reordered the
-// already-forwarded prefix on every new addition (probe s-dc3f8071,
+// already-forwarded prefix on every new addition (probe s-captureC,
 // n=372-397, 25 stability violations during an MCP discovery cascade).
 export function injectAdditions(messages, additions) {
   if (!Array.isArray(additions) || additions.length === 0) {

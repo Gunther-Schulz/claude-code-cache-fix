@@ -40,15 +40,15 @@ fixtures. Old → new, with what changed:
 
 | old | new | change |
 |---|---|---|
-| `flap-s-0d6f38ba-86.json` | `flap-s-0dc8ac87c43d-86.json` | FULL rebuild from the live capture through `scrubMessage`; merged msgs 86/91/94 re-joined from sanitized constituents; ts rebased |
-| `oscillation-s-633915a8-863.json` | `oscillation-s-4b6a435234bf-863.json` | FULL re-scrub (was raw end to end); merged msg864 re-joined from sanitized constituents; ts rebased |
-| `reset-move-s-dc3f8071-196-197.json` | `reset-move-s-97097e027ac0-196-197.json` | 5 nested PNG payloads tokenized; ts rebased; text was already clean |
-| `pinned-s-633915a8-26-28.json` | `pinned-s-4b6a435234bf-26-28.json` | header key + record `k_`/`sid_` tokens → `s-<sha12>`; 55 ts rebased; header `sanitizer` rewritten |
-| `growth-s-2cd640f8-…` | `growth-s-b2d596db197e-…` | `key` → token |
-| `growth-s-633915a8-…` | `growth-s-4b6a435234bf-…` | `key` → token |
-| `harvested-append-after-change-s-35d72503-323.jsonl` | `…-s-628f31b605ed-323.jsonl` | `key`/`sid` → tokens; ts rebased as one unit (the pair's delta survives) |
-| `harvested-replace-edit-s-0edbd11c-20.jsonl` | `…-s-157bd37224d7-20.jsonl` | same |
-| `harvested-splice-insert-mid-s-0edbd11c-19.jsonl` | `…-s-157bd37224d7-19.jsonl` | same |
+| `flap-s-captureB-86.json` | `flap-s-0dc8ac87c43d-86.json` | FULL rebuild from the live capture through `scrubMessage`; merged msgs 86/91/94 re-joined from sanitized constituents; ts rebased |
+| `oscillation-s-captureA-863.json` | `oscillation-s-4b6a435234bf-863.json` | FULL re-scrub (was raw end to end); merged msg864 re-joined from sanitized constituents; ts rebased |
+| `reset-move-s-captureC-196-197.json` | `reset-move-s-97097e027ac0-196-197.json` | 5 nested PNG payloads tokenized; ts rebased; text was already clean |
+| `pinned-s-captureA-26-28.json` | `pinned-s-4b6a435234bf-26-28.json` | header key + record `k_`/`sid_` tokens → `s-<sha12>`; 55 ts rebased; header `sanitizer` rewritten |
+| `growth-s-captureO-…` | `growth-s-b2d596db197e-…` | `key` → token |
+| `growth-s-captureA-…` | `growth-s-4b6a435234bf-…` | `key` → token |
+| `harvested-append-after-change-s-captureH-323.jsonl` | `…-s-628f31b605ed-323.jsonl` | `key`/`sid` → tokens; ts rebased as one unit (the pair's delta survives) |
+| `harvested-replace-edit-s-captureE-20.jsonl` | `…-s-157bd37224d7-20.jsonl` | same |
+| `harvested-splice-insert-mid-s-captureE-19.jsonl` | `…-s-157bd37224d7-19.jsonl` | same |
 
 Each file keeps the indentation it was committed with (1 space for the three
 hand-built fixtures, 2 for the tool-written ones), so the diff shows what
@@ -56,7 +56,7 @@ changed rather than a reflow.
 
 Two recovery facts worth recording, both **verified rather than assumed**:
 
-- The `flap` capture (`s-0d6f38ba-…`, 734 MB) is still on disk, so the rebuild
+- The `flap` capture (`s-captureB-…`, 734 MB) is still on disk, so the rebuild
   is from the ORIGINAL bytes, not a patch of the committed ones. Alignment
   checked before rebuilding: requests 102/104/105/108 of the capture match the
   fixture's `n`, `ts` and `msgCount` exactly (97/99/99/101).
@@ -126,12 +126,12 @@ fixtures BEFORE the fix and the rebuilds
 The named hits, i.e. what the bites actually found:
 
 ```
-(a)  oscillation-s-633915a8-863.json $.requests_864[0].msg864.content[0].signature (1170 chars)
-     oscillation-s-633915a8-863.json $.requests_864[0].msg864.content[1].signature (531 chars)
-     oscillation-s-633915a8-863.json $.requests_864[2].msg864.content[0].signature (1170 chars)
-     oscillation-s-633915a8-863.json $.requests_864[2].msg864.content[1].signature (531 chars)
-     reset-move-s-dc3f8071-196-197.json $.requests[0..4].messages[210].content[2].source.data (13059 chars each)
-(b)  reset-move-s-dc3f8071-196-197.json $.requests[0..4].messages[210].content[2].source.data (13060 chars each)
+(a)  oscillation-s-captureA-863.json $.requests_864[0].msg864.content[0].signature (1170 chars)
+     oscillation-s-captureA-863.json $.requests_864[0].msg864.content[1].signature (531 chars)
+     oscillation-s-captureA-863.json $.requests_864[2].msg864.content[0].signature (1170 chars)
+     oscillation-s-captureA-863.json $.requests_864[2].msg864.content[1].signature (531 chars)
+     reset-move-s-captureC-196-197.json $.requests[0..4].messages[210].content[2].source.data (13059 chars each)
+(b)  reset-move-s-captureC-196-197.json $.requests[0..4].messages[210].content[2].source.data (13060 chars each)
 (c)  83 live wall-clock instants — pinned 55, oscillation 13, reset-move 5,
      flap 4, the three .jsonl pairs 2 each
      (e.g. pinned $.records[53].ts = 2026-07-29T16:52:11.526Z)
@@ -277,10 +277,10 @@ files** (count excludes this report, which cites the old names deliberately):
 also name the OLD fixture filenames in comments and are now stale references:
 
 ```
-proxy/extensions/insertion-normalization.mjs:737   // flap-s-0d6f38ba-86.json, request n=104):
-proxy/extensions/insertion-normalization.mjs:1093  // …Frozen in reset-move-s-dc3f8071-196-197.json.
-tools/replay.mjs:1099                              // …fixture flap-s-0d6f38ba-86.json): the block
-tools/replay.mjs:1521                              // (fixture flap-s-0d6f38ba-86.json, request n=104…
+proxy/extensions/insertion-normalization.mjs:737   // flap-s-captureB-86.json, request n=104):
+proxy/extensions/insertion-normalization.mjs:1093  // …Frozen in reset-move-s-captureC-196-197.json.
+tools/replay.mjs:1099                              // …fixture flap-s-captureB-86.json): the block
+tools/replay.mjs:1521                              // (fixture flap-s-captureB-86.json, request n=104…
 ```
 
 `proxy/**` and `tools/` other than `harvest.mjs` are outside my write boundary,
@@ -304,7 +304,7 @@ prose.
 - **The oscillation fixture needed a FULL rebuild, not the `(2)`-only treatment
   the directive's §3 third bullet assumes.** That bullet says of the remaining
   fixtures "their prose is already tokenized". Measured, it is not: a corpus
-  sweep found `oscillation-s-633915a8-863.json` raw end to end — its own header
+  sweep found `oscillation-s-captureA-863.json` raw end to end — its own header
   says "RAW bytes" — carrying operator hook prose, an agent `tool_result`
   naming a sub-agent and its session, and two thinking signatures of 1170 and
   531 base64 chars. The directive's own threat model ("no raw content bytes")

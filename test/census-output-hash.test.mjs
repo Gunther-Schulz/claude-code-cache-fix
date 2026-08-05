@@ -57,7 +57,7 @@ test("census output-hash: a cache_control-only relocation is not a splice (prese
   // tail in prevOut; curOut carries the SAME text at the same position
   // with no cache_control (the breakpoint moved off because the
   // conversation grew past it — the flap-probe's measured shape,
-  // capture s-633915a8, n=678->681: identical 32,140-char text sent with
+  // capture s-captureA, n=678->681: identical 32,140-char text sent with
   // a cache_control block while tail, then as a bare string once it
   // wasn't) and one genuinely new message appended at the tail.
   const withMarker = {

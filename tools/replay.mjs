@@ -180,7 +180,7 @@ function adjustedInHash(e) {
 // a first-appearance relocation deliberately prepends content to the
 // message at `targetIndex` that CC never had there before — exactly the
 // shape this check flags, by design (module doc at the top of this file,
-// the s-58c979ce n=2024->2025 case). Exempt ONLY when:
+// the s-captureD n=2024->2025 case). Exempt ONLY when:
 //   1. the CURRENT entry (the one whose output changed) carries the
 //      telemetry at all, and
 //   2. its targetIndex equals the violation's outDiv (the change landed
@@ -209,7 +209,7 @@ function freshSessionSortExemption(cur, outDiv) {
 // therefore diverges one slot EARLIER than CC's: the stability check's
 // violation shape, produced by a declared branch.
 //
-// Attributed on the real corpus (s-0d6f38ba, n=709->710 outDiv=236 and
+// Attributed on the real corpus (s-captureB, n=709->710 outDiv=236 and
 // n=701->718 outDiv=82) by this file's own bisection, and classified
 // zero-marginal-cost: the schema change that triggers the reset invalidates
 // the tools-block prefix anyway, since tools[] renders before messages.
@@ -474,7 +474,7 @@ export function findSequenceViolations(entries) {
         //
         // Same bar the stability gate already uses: `inDiv === null` means CC
         // changed nothing that was already sent. Measured 2026-07-28 on
-        // capture s-538c0aef, request 109: CC replaced message 196 in place
+        // capture s-captureL, request 109: CC replaced message 196 in place
         // ("yes lest do it all!" -> "lets do it all 13.x shuodl be ..."), so
         // reset(edit-shaped) was right and the sequence flag was noise. The
         // real cost of that event — our bytes moving at 177 while CC's were
@@ -616,7 +616,7 @@ export function toolsFingerprints(tools) {
 // content. A pair of forwarded messages that differ ONLY in whether/where a
 // cache_control block is attached carries identical model-visible bytes;
 // counting that as a splice prices a cost nothing actually incurred.
-// Measured (flap-probe, capture s-633915a8-...): CC itself sends an
+// Measured (flap-probe, capture s-captureA-...): CC itself sends an
 // identical 32,140-char text as a cache_control-bearing block while it is
 // the tail, then as a bare string once it is not, in its own pre-pipeline
 // bytes (n=678->681 and four siblings: 564->565, 354->356, 267->268,
@@ -969,7 +969,7 @@ const MITIGABLE = new Set(["splice/insert-mid", "append-after-change", "reorder-
 // The API keys its cache on the longest byte-identical PREFIX of the
 // message array, so a mid-array splice moves that boundary earlier and
 // re-bills everything after it — the exact cost `mitigated` claims was
-// avoided. Measured: capture s-633915a8, pair n=26->28 — input-side
+// avoided. Measured: capture s-captureA, pair n=26->28 — input-side
 // `mitigated: true`, `rebilledBytes: 0`, while the forwarded array kept a
 // byte-stable prefix through index 30 and then spliced a standalone system
 // message in at index 31, re-billing everything from there (outcome record:
@@ -1203,7 +1203,7 @@ export function findEditPositions(entries) {
 // meaningful.
 //
 // CANDIDACY (2026-07-30, measured on the real flap bytes — capture
-// s-0d6f38ba pair n=102->104, fixture flap-s-0dc8ac87c43d-86.json (capture s-0d6f38ba)): the block
+// s-captureB pair n=102->104, fixture flap-s-0dc8ac87c43d-86.json (capture s-captureB)): the block
 // must appear <system-reminder>-WRAPPED on whichever side it is INLINE.
 // Without that condition the definition above over-reports, because both of
 // its guards can be true of a block that never moved:
@@ -1323,7 +1323,7 @@ function scanBlockMigrations(prev, cur) {
 // message, "\n\n"-joined. No unit hash equals that message's hash, so the
 // whole class produces no row at all — measured on both committed fixtures:
 //
-//   flap-s-0dc8ac87c43d-86.json (capture s-0d6f38ba, the 2026-07-30 221k
+//   flap-s-0dc8ac87c43d-86.json (capture s-captureB, the 2026-07-30 221k
 //   event): of the three standalone messages the standalone leg carries, only
 //   msg94 is a lone block. msg86 is the join of msg85's four wrapped
 //   reminders; msg91 is msg89's reminder joined with the WHOLE of the
@@ -1750,10 +1750,10 @@ export function findSuccessions(entries) {
 // pinnedForwardForm returns the incoming message unchanged unless
 // `stored.r === "user"`. Assistant content is transformed by a different and
 // separately-gated class of extension. That class is not hypothetical —
-// measured over 936 requests of four live captures (s-f3db21fa, s-2cd640f8,
-// s-51c8511a, s-0d6f38ba) the ONLY blocks the pipeline does not conserve
+// measured over 936 requests of four live captures (s-captureAA, s-captureO,
+// s-captureY, s-captureB) the ONLY blocks the pipeline does not conserve
 // byte-identically are `assistant/tool_use` (rewritten in place by
-// tool-input-normalize: 3,145 lost and 3,145 gained on s-0d6f38ba alone) and
+// tool-input-normalize: 3,145 lost and 3,145 gained on s-captureB alone) and
 // `assistant/thinking` (dropped by thinking sanitization); non-assistant
 // blocks were conserved in every one of those requests. So the exclusion
 // costs no coverage of THIS class and would otherwise fire on two declared
@@ -1790,7 +1790,7 @@ function joinUnitHash(units) {
 
 // The CROSS-MESSAGE join — the definition's "including as a join constituent"
 // clause, and the shape the single-message join above cannot express. Measured
-// (fixture flap-s-0dc8ac87c43d-86.json (capture s-0d6f38ba), request n=104, message 91): CC merged one
+// (fixture flap-s-0dc8ac87c43d-86.json (capture s-captureB), request n=104, message 91): CC merged one
 // message's reminder with the WHOLE of the standalone message that followed
 // it, "\n\n"-joined, and sent the two as a single message. A copy of that
 // message on the wire is therefore split across two forwarded messages, and is
@@ -1819,7 +1819,7 @@ const isAssistant = (m) => m?.role === "assistant";
 // harness quoting its own command back, never conversation content.
 //
 // Found by this gate rather than by reading: the first sweep reported 645
-// violations on capture s-633915a8, ALL of kind `lost`, ALL at message 0, and
+// violations on capture s-captureA, ALL of kind `lost`, ALL at message 0, and
 // stage-by-stage replay of request 822 named the extension — RAW 6 units,
 // after fresh-session-sort 3, the three removed being exactly a /compact
 // caveat, its `<command-name>`, and its `<local-command-stdout>`. Left
@@ -1845,7 +1845,7 @@ const isDeclaredStrip = (u) => u.text !== null && isClearArtifact(u.text);
 // peel as a lost R-side unit (the whole pre-peel tool_result) plus an
 // invented F-side unit per resulting block (the post-peel tool_result and
 // each peeled reminder) — ten violations, five requests, all at [2], on
-// capture s-00b19d9b (short key: full session ids stay out of the public tree,
+// capture s-captureP (short key: full session ids stay out of the public tree,
 // absence-scan's source-UUID guard).
 //
 // Chains the extension's OWN export rather than re-deriving the regex or the

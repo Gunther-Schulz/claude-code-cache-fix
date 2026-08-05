@@ -1,7 +1,7 @@
 // DESCRIPTION-ONLY tools[] delta — absorbed, not reset.
 //
 // Motivating live bust (transcript 2026-08-02T15:53:46, `tools_changed /
-// 484972`; capture s-ddd9fd7d, replay request ordinals 1201 -> 1203, ts
+// 484972`; capture s-captureJ, replay request ordinals 1201 -> 1203, ts
 // 15:53:08.789Z -> 15:53:26.105Z). Re-measured here off the raw captured
 // bodies rather than carried over: the tool SET is unchanged (13 before, 13
 // after, same order) and exactly ONE field anywhere in the array differs —

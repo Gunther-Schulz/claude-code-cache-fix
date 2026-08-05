@@ -146,7 +146,7 @@ test("the real flap passes all five gates", () => {
   for (const r of FLAP.requests) {
     const res = classifyPinned(r.messages, canon);
     entries.push({
-      n: r.n, ts: r.ts, key: "s-0d6f38ba",
+      n: r.n, ts: r.ts, key: "s-captureB",
       inMsgs: r.messages, outMsgs: res.messages ?? r.messages,
       inTools: [], outTools: [],
       action: res.action, resetReason: res.resetReason ?? null, stats: res,
@@ -328,7 +328,7 @@ test("BITE — a move stays safe when a LATER extension injects into the forward
   // avoid. deferred-tool-rewrite (order 425) inserts its tool_addition
   // announcement after insertion-normalization (order 395) has finished, so
   // any outgoing index this extension reports is stale by the time a gate
-  // reads the final array. Measured on capture s-0d6f38ba n=104: a recorded
+  // reads the final array. Measured on capture s-captureB n=104: a recorded
   // outIndex of 89 addressed the re-served system message here and a
   // `user [tool_result, tool_result, text]` in the final array — 98 safety
   // violations, every one of them the instrument.
@@ -372,7 +372,7 @@ test("BITE — a move stays safe when a LATER extension injects into the forward
 // the merged message's slot carries the absorbed entry's first-seen bytes,
 // one message in and one message out. So the same rule binds it.
 //
-// Measured cost of getting it wrong, capture s-dc3f8071 (commit 0ebbd8a's
+// Measured cost of getting it wrong, capture s-captureC (commit 0ebbd8a's
 // KNOWN DEFECT note): three otherwise-clean captures reported byte-stability
 // violations, all attributed to insertion-normalization and all carrying
 // `[CC bytes at outDiv IDENTICAL -> ours]`. Fixture
@@ -414,7 +414,7 @@ test("the n=197 leg: one MORE copy of the reserved text neither re-binds nor res
   // re-served first-seen form back to CC's raw merge, one violation at
   // inDiv=233 / outDiv=223 — an output divergence ten messages earlier than
   // CC's own.
-  const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
+  const entries = replayFixture(RESET_MOVE, "s-captureC");
   const at = (n) => entries.find((e) => e.n === n);
 
   // The control: the requests before recognize the move, or the assertions
@@ -446,7 +446,7 @@ test("the canonical describes the wire we forwarded, so n=198 still sees the mov
   // built from the merge. Get this half wrong and the substitution survives
   // exactly one request: the merge becomes canonical, the absorbed entry is
   // gone for good, and the flip lands one request later.
-  const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
+  const entries = replayFixture(RESET_MOVE, "s-captureC");
   const at = (n) => entries.find((e) => e.n === n);
   assert.equal(at(198).stats.moved, 1, "the move is still live on the request after");
   assert.deepEqual(
@@ -457,7 +457,7 @@ test("the canonical describes the wire we forwarded, so n=198 still sees the mov
 });
 
 test("the n=197 leg passes all five gates", () => {
-  const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
+  const entries = replayFixture(RESET_MOVE, "s-captureC");
   assert.deepEqual(findStabilityViolations(entries), []);
   assert.deepEqual(findSafetyViolations(entries), []);
   assert.deepEqual(findConservationViolations(entries), []);
@@ -470,7 +470,7 @@ test("the n=197 leg corrupts nothing — safety, conservation, sequence and cano
   // asserted independently of it: whatever stability costs in cache, the
   // conversation itself must stay intact and every byte CC sent must stay
   // accounted for. This half of the fixture's verdict must never regress.
-  const entries = replayFixture(RESET_MOVE, "s-dc3f8071");
+  const entries = replayFixture(RESET_MOVE, "s-captureC");
   assert.deepEqual(findSafetyViolations(entries), []);
   assert.deepEqual(findConservationViolations(entries), []);
   assert.deepEqual(findSequenceViolations(entries), []);

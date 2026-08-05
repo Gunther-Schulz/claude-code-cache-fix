@@ -41,9 +41,9 @@ AssertionError [ERR_ASSERTION]: the skipped list must name exactly the
 fixtures carrying no message array
 + actual - expected
 + []
-- [ 'growth-s-2cd640f8-toolsBytes-2026-07-30.json',
--   'growth-s-633915a8-toolsBytes-2026-07-30.json',
--   'oscillation-s-633915a8-863.json' ]
+- [ 'growth-s-captureO-toolsBytes-2026-07-30.json',
+-   'growth-s-captureA-toolsBytes-2026-07-30.json',
+-   'oscillation-s-captureA-863.json' ]
 ```
 
 Note what mutant (b) shows: the narrowed reader does not merely mis-skip, it
@@ -127,7 +127,7 @@ bust-triage — 2026-07-31 11:41:26  123k re-written  session 77fe2779
 See gap 1. The census over the same capture, for grounding:
 
 ```
-$ node tools/reminder-migration-census.mjs ~/.claude/cache-fix-captures/s-77fe2779*-requests.jsonl
+$ node tools/reminder-migration-census.mjs ~/.claude/cache-fix-captures/s-captureF*-requests.jsonl
   EXACT 1, EXTENDED 1, DROPPED 0, MISMATCH 0; MERGED-STANDALONE 1, NEW-TEXT 0
   non-EXACT occurrences:
     EXTENDED 2026-07-31T11:41:05.778Z  host=99 blocks=1 recon=293ch actual=716ch  MERGED-STANDALONE
@@ -168,7 +168,7 @@ Error: Cannot create a string longer than 0x1fffffe8 characters
 
 `lines()` slurps the whole capture with `readFileSync`. Four of the fourteen
 captures on this machine are over the cap (2.06 GB, 1.01 GB, 752 MB, 734 MB),
-and 752 MB is `s-adf6cadb`, the session behind the newest ledger bust
+and 752 MB is `s-captureS`, the session behind the newest ledger bust
 (2026-07-31 19:22:40). This is the same RangeError class
 `reminder-migration-census.mjs` was fixed for on 2026-07-31 — its own header
 documents it — re-committed in a newer tool that has `read-lines.mjs` sitting

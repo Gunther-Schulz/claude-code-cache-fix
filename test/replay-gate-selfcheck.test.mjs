@@ -140,7 +140,7 @@ test("stability: BITE — when CC ALSO changed the diverging index, say so", () 
 
 // --- fresh-session-sort's telemetry-keyed exemption (2026-07-30) ---
 //
-// The real case (s-58c979ce n=2024->2025): CC's own array first diverges at
+// The real case (s-captureD n=2024->2025): CC's own array first diverges at
 // index 1 (a new scattered block appears), our output diverges EARLIER, at
 // index 0 (the relocate branch prepends it to messages[0]) — exactly the
 // stability check's violation shape, but a DELIBERATE one-time relocation
@@ -207,7 +207,7 @@ test("stability: BITE — telemetry reporting a recurring (non-first-appearance)
 
 // --- deferred-tool-rewrite's reset-wipes-additions exemption (2026-08-01) ---
 //
-// The real case (s-0d6f38ba, pairs n=709->710 outDiv=236 and n=701->718
+// The real case (s-captureB, pairs n=709->710 outDiv=236 and n=701->718
 // outDiv=82, both attributed to deferred-tool-rewrite by replay's own
 // bisection): a known tool's schema changed, so the extension takes its one
 // designed "honest reset" branch — CC's tools[] pass through untouched and
@@ -459,7 +459,7 @@ test("sequence: BITE — normalize then reset is caught", () => {
 // A reset is OUR failure only when CC left the history alone. If CC rewrote
 // it, resetting is correct and flagging it is a check firing on a non-defect —
 // the fault that trains a reader to ignore red. Measured 2026-07-28 on capture
-// s-538c0aef request 109: CC replaced message 196 in place, so
+// s-captureL request 109: CC replaced message 196 in place, so
 // reset(edit-shaped) was right; the real cost of that event was our bytes
 // moving at 177, which is the STABILITY gate's job and it caught it.
 test("sequence: a reset AFTER CC rewrote history is honest, not a violation", () => {
@@ -925,7 +925,7 @@ test("flap: fires-on-non-defect guard — opposite directions by DIFFERENT block
 // --- blockMigration candidacy: a message that SHED siblings is not a
 //     standalone emergence ---
 //
-// Measured on the real 2026-07-30 flap bytes (capture s-0d6f38ba, pair
+// Measured on the real 2026-07-30 flap bytes (capture s-captureB, pair
 // n=102->104; fixture flap-s-0dc8ac87c43d-86.json, harvested by the sibling
 // build). The alignment there is:
 //
@@ -1044,7 +1044,7 @@ const rowLine = (r) => `n=${r.prevN}->${r.n} ${r.join ?? "block"} ${r.direction}
 test("BITE — the real 2026-07-30 flap: three relocated hosts, three legs, six flaps", () => {
   const rows = findBlockMigrations(
     FLAP_FIXTURE.requests.map((r) => ({
-      n: r.n, ts: r.ts, key: "s-0d6f38ba", inMsgs: r.messages, outMsgs: r.messages, inTools: [], outTools: [],
+      n: r.n, ts: r.ts, key: "s-captureB", inMsgs: r.messages, outMsgs: r.messages, inTools: [], outTools: [],
     })),
   );
 
@@ -1492,7 +1492,7 @@ test("conservation: BITE — cross-join constituents must be ADJACENT and in wir
 
 test("conservation: fresh-session-sort's declared /clear-artifact strip is exempt", () => {
   // Clause (c) of the definition, and the case that found it: the first sweep
-  // reported 645 `lost` rows on capture s-633915a8, all at message 0, and
+  // reported 645 `lost` rows on capture s-captureA, all at message 0, and
   // stage-by-stage replay named fresh-session-sort, which deletes the echo a
   // slash command leaves behind. Declared behaviour, not lost conversation.
   const inM = [
@@ -1529,7 +1529,7 @@ test("conservation: BITE — the strip exemption does NOT cover ordinary content
 
 // --- Clause (d): smoosh-split's declared peel ---
 //
-// The live shape found on capture s-00b19d9b (short key: full session ids stay
+// The live shape found on capture s-captureP (short key: full session ids stay
 // out of the public tree, absence-scan's source-UUID guard): a
 // tool_result's STRING content ends with a trailing <system-reminder>, and
 // smoosh-split peels it into a standalone text block appended to the SAME

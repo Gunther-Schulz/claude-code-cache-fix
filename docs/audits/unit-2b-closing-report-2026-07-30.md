@@ -26,8 +26,8 @@ pair is refuted by execution: the reset is a symptom, not the cause.**
 4. **`newEntries` hoisted above the order checks** so both early reset call
    sites can see it (as commit 0ebbd8a's note anticipated). Nothing hoisted
    depends on the order model; verified inert by the corpus A/B in (b).
-5. **New fixture** `test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json`
-   — capture s-dc3f8071 requests 187/195/196/197/198 of one conversation,
+5. **New fixture** `test/fixtures/harvested/reset-move-s-captureC-196-197.json`
+   — capture s-captureC requests 187/195/196/197/198 of one conversation,
    sanitized, 484 KB.
 6. **Ten new tests** in `test/insertion-join-move.test.mjs` section (d).
    Seven pass, three are TODO (see (c)).
@@ -72,12 +72,12 @@ no file was swapped under the working tree. Both runs `--gates-from-capture`.
 
 | capture | PRE-2b stability violations | POST-2b |
 |---|---|---|
-| s-dc3f8071 | 2 — n=196→197, n=399→400 | 2 — **identical pairs** |
-| s-633915a8 | 3 — n=207→209, n=2204→2205, n=2275→2276 | 2 — n=217→218, n=2275→2276 |
-| s-58c979ce | 2 (+1 fresh-session-sort exemption row) | **identical** |
+| s-captureC | 2 — n=196→197, n=399→400 | 2 — **identical pairs** |
+| s-captureA | 3 — n=207→209, n=2204→2205, n=2275→2276 | 2 — n=217→218, n=2275→2276 |
+| s-captureD | 2 (+1 fresh-session-sort exemption row) | **identical** |
 
 Net across the three: 7 → 6. **The directive's criterion (all three at zero)
-is NOT met.** On s-633915a8 the change is real and measurable — two pairs
+is NOT met.** On s-captureA the change is real and measurable — two pairs
 cured, one new pair surfaced at n=217→218 — and since the two trees differ
 only by this diff, that delta is attributable to unit 2b. Safety,
 conservation, sequence and canonical-order gates: 0 on every capture, both
@@ -116,10 +116,10 @@ dropped, forwarded length) dumped for every committed fixture corpus in both
 trees and diffed:
 
     IDENTICAL across 40 verdict lines
-    corpora: flap-s-0d6f38ba-86, harvested-append-after-change-s-35d72503-323,
-             harvested-replace-edit-s-0edbd11c-20,
-             harvested-splice-insert-mid-s-0edbd11c-19,
-             pinned-s-633915a8-26-28  (oscillation-s-633915a8-863 is not a
+    corpora: flap-s-captureB-86, harvested-append-after-change-s-captureH-323,
+             harvested-replace-edit-s-captureE-20,
+             harvested-splice-insert-mid-s-captureE-19,
+             pinned-s-captureA-26-28  (oscillation-s-captureA-863 is not a
              message-array corpus; its verdicts are asserted by
              test/insertion-merge-suppression.test.mjs — 8/8 pass)
 
@@ -147,7 +147,7 @@ run with exactly those two excluded, both trees:
 The 16 are all port/network-binding files (proxy-server*, proxy-upstream*,
 oauth-refresher, forward-ca, SIGTERM exit code).
 
-### Census over s-0d6f38ba (live capture, under its own boot gates)
+### Census over s-captureB (live capture, under its own boot gates)
 
 Stability: 2 violations, both attributed to **deferred-tool-rewrite**, none
 to insertion-normalization. The three flap pairs still appear in the
@@ -171,7 +171,7 @@ directive's "input-mitigated" wording is not expressible today.
    positional/sticky; or recognize the move before the identity match
    rather than after.
 2. **The directive's census criterion is not expressible.** "Census over
-   s-0d6f38ba shows the three flap pairs input-mitigated" — `mitigated` is
+   s-captureB shows the three flap pairs input-mitigated" — `mitigated` is
    defined only for `MITIGABLE = {splice/insert-mid, append-after-change,
    reorder-only}` (tools/replay.mjs:854) and a flap pair classifies as
    `replace/edit`, so it never enters that counter. The `mitigation: 1/3`
@@ -179,8 +179,8 @@ directive's "input-mitigated" wording is not expressible today.
    or the census needs restating; not done here (tools/ is outside the
    write boundary).
 3. **Fixture naming was not assigned.** The brief named no filename. I
-   followed the closest precedent (`pinned-s-633915a8-26-28.json`, a
-   request-range fixture) → `reset-move-s-dc3f8071-196-197.json`. Rename
+   followed the closest precedent (`pinned-s-captureA-26-28.json`, a
+   request-range fixture) → `reset-move-s-captureC-196-197.json`. Rename
    freely.
 4. **No harvest mode for this fixture shape.** Both this fixture and the
    flap one were built by a throwaway script: `harvest.mjs --pin` writes the
@@ -268,17 +268,17 @@ SERVING code, not this worktree):
       CACHE_FIX_UPSTREAM_DETECTION=1 CACHE_FIX_UPSTREAM_ERROR_LOG=on
       CACHE_FIX_CAPTURE_MAX_MB=8192 CACHE_FIX_OUTPUT_GUARD=1
 
-    s-0d6f38ba (629.7 MB, 891 req):  stability=2 safety=0 conservation=0 sequence=0 order=0
-    s-58c979ce (2415.4 MB, 2073 req): stability=2 safety=0 conservation=0 sequence=0 order=0
-    s-633915a8 (2059.4 MB, 2630 req): stability=2 safety=0 conservation=0 sequence=0 order=0
-    s-dc3f8071 (472.9 MB, 769 req):   stability=2 safety=0 conservation=0 sequence=0 order=0
+    s-captureB (629.7 MB, 891 req):  stability=2 safety=0 conservation=0 sequence=0 order=0
+    s-captureD (2415.4 MB, 2073 req): stability=2 safety=0 conservation=0 sequence=0 order=0
+    s-captureA (2059.4 MB, 2630 req): stability=2 safety=0 conservation=0 sequence=0 order=0
+    s-captureC (472.9 MB, 769 req):   stability=2 safety=0 conservation=0 sequence=0 order=0
     28 other captures: clean
     32 capture(s), 7072 MB, 4 failing
 
 **Safety, conservation, sequence and canonical order are at ZERO across the
 entire 7 GB live corpus.** Stability is not: 8 violations, 6 of them
 insertion-normalization (the ordinal collision above) and 2
-deferred-tool-rewrite on s-0d6f38ba. The directive's 0/0/0/0/0 is therefore
+deferred-tool-rewrite on s-captureB. The directive's 0/0/0/0/0 is therefore
 four-fifths met; the fifth is the open question in (c).
 
 ## (f) Files touched + commit
@@ -289,7 +289,7 @@ Staged with targeted `git add`, never `-A`; trailer
 
 - `proxy/extensions/insertion-normalization.mjs` (+56 −5)
 - `test/insertion-join-move.test.mjs` (+301)
-- `test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json` (new, 484 KB)
+- `test/fixtures/harvested/reset-move-s-captureC-196-197.json` (new, 484 KB)
 
 Working tree clean; nothing else touched. **Note for integration:** `main`
 advanced during this work, 209684f → 1dfd8c9 (`backlog: dedup-correct the
@@ -299,7 +299,7 @@ escape — but the branch is now one commit behind main again.
 
 ## (g) What was NOT verified
 
-- **Which specific requests in s-633915a8 hit the new reset-path
+- **Which specific requests in s-captureA hit the new reset-path
   substitution.** The 3→2 delta is attributable to this diff (the two trees
   differ by nothing else), but the individual pairs n=207→209, n=2204→2205
   and the newly-surfaced n=217→218 were not traced to their per-request
@@ -307,7 +307,7 @@ escape — but the branch is now one commit behind main again.
 - **`dropped-majority`'s precedence relative to move recognition** — named
   as unmeasured in the directive, still unmeasured. That call site now
   applies moves like the others; no corpus instance exercises it.
-- **The two `deferred-tool-rewrite` stability violations on s-0d6f38ba** —
+- **The two `deferred-tool-rewrite` stability violations on s-captureB** —
   another extension, and that capture is the live session's own file (still
   growing), so a strict A/B on it is not possible. Not attributable to 2b;
   worth a separate look.
@@ -328,8 +328,8 @@ escape — but the branch is now one commit behind main again.
   `resetKeepingPins` and its full comment block, `findJoinMoves` and its
   definition block, `classifyPinned`, the telemetry tail.
 - Commit `0ebbd8a`'s full message including the KNOWN DEFECT note.
-- The regression capture `s-dc3f8071-…-requests.jsonl` (read-only); also
-  `s-633915a8`, `s-58c979ce`, `s-0d6f38ba` for the sweeps.
+- The regression capture `s-captureC-…-requests.jsonl` (read-only); also
+  `s-captureA`, `s-captureD`, `s-captureB` for the sweeps.
 - `~/.claude/dispatch-discipline.md` §1 (worktree recipe, followed including
   per-remote pushurl denial — probe-verified: the worktree push is refused).
 - Additionally, not named in the brief but load-bearing for the work:

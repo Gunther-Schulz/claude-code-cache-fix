@@ -177,7 +177,7 @@ deliberate call the reviewer actually asked for.
 
 3. **The fold-in re-links sanitized fixture names to their capture keys.**
    As instructed, the corrected comments keep the old capture names beside
-   the new ones ("captured as s-0d6f38ba" / "captured as s-dc3f8071"). Both
+   the new ones ("captured as s-captureB" / "captured as s-captureC"). Both
    prefixes were already in this file before the change, so exposure is
    unchanged — but the pairing now provides a *mapping* from the sha-derived
    fixture token back to the real capture prefix, which is a partial undo of

@@ -734,7 +734,7 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     // COLLISION SHAPE (dispatcher decision, superseding a first "newest-of-
     // matches" attempt): a candidate merely being newer must NOT beat one
     // that is a closer telemetry match. Real numbers off the live 19:22:40
-    // capture (s-adf6cadb) — the CORRECT candidate (19:22:22.252Z) sits 5ms
+    // capture (s-captureS) — the CORRECT candidate (19:22:22.252Z) sits 5ms
     // from its own reset event (19:22:22.257Z, resetReason=not-subsequence,
     // the actual bust-causing reset); the WRONGLY-selected candidate
     // (19:22:38.008Z) ALSO falls inside the ±3s window of a second, unrelated
@@ -791,7 +791,7 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     // event are BOTH within the window — and the normalized one is
     // CLOSER (4ms vs 5ms), so even with nearest-wins the wrong candidate
     // won under the originally-shipped "any non-append action" rule. Real
-    // numbers off the live 19:13:48 companion capture (s-7749d7fc): the
+    // numbers off the live 19:13:48 companion capture (s-captureV): the
     // genuine reset request sits at 19:13:31.253Z (resetReason=
     // not-subsequence, matches BACKLOG's byte attribution), its own event
     // 5ms away; the wrongly-favored next-turn request sits at

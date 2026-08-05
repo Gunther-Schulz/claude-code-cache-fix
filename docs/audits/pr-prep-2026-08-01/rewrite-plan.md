@@ -12,13 +12,13 @@ inline; this file is the resume point if the session dies mid-surgery.
 
 | dirty (pre-687cbc5) | clean |
 |---|---|
-| flap-s-0d6f38ba-86.json | flap-s-0dc8ac87c43d-86.json |
-| oscillation-s-633915a8-863.json | oscillation-s-4b6a435234bf-863.json |
-| pinned-s-633915a8-26-28.json | pinned-s-4b6a435234bf-26-28.json |
-| reset-move-s-dc3f8071-196-197.json | reset-move-s-97097e027ac0-196-197.json |
-| harvested-append-after-change-s-35d72503-323.jsonl | …-s-628f31b605ed-323.jsonl |
-| harvested-replace-edit-s-0edbd11c-20.jsonl | …-s-157bd37224d7-20.jsonl |
-| harvested-splice-insert-mid-s-0edbd11c-19.jsonl | …-s-157bd37224d7-19.jsonl |
+| flap-s-captureB-86.json | flap-s-0dc8ac87c43d-86.json |
+| oscillation-s-captureA-863.json | oscillation-s-4b6a435234bf-863.json |
+| pinned-s-captureA-26-28.json | pinned-s-4b6a435234bf-26-28.json |
+| reset-move-s-captureC-196-197.json | reset-move-s-97097e027ac0-196-197.json |
+| harvested-append-after-change-s-captureH-323.jsonl | …-s-628f31b605ed-323.jsonl |
+| harvested-replace-edit-s-captureE-20.jsonl | …-s-157bd37224d7-20.jsonl |
+| harvested-splice-insert-mid-s-captureE-19.jsonl | …-s-157bd37224d7-19.jsonl |
 
 (growth-* dirty names never reached any PR branch.)
 

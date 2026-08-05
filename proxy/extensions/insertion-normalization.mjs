@@ -217,7 +217,7 @@ export function systemPromptSubKey(system) {
 // the individual conversations WITHIN a class: every subagent this session
 // dispatches runs the same agent system prompt, so they all landed in one
 // bucket and overwrote each other's canonical. Measured on real traffic
-// (capture s-35d72503, 602 requests): one system-prompt bucket held 39
+// (capture s-captureH, 602 requests): one system-prompt bucket held 39
 // distinct conversations, another 12 — and the correlation with resets was
 // total.
 //
@@ -640,7 +640,7 @@ function pinnedForwardForm(stored, incomingMsg) {
 //
 // CC sometimes migrates a hook reminder OUT of the user message that
 // carries it and INTO a standalone message of its own — measured directly
-// (capture s-633915a8, n=26->28): message[30]'s <system-reminder>-wrapped
+// (capture s-captureA, n=26->28): message[30]'s <system-reminder>-wrapped
 // block is gone from message[30] and its inner text, wrapper stripped,
 // is the entire content of a new message[31] (role system). Pinning above
 // restores message[30]'s first-seen bytes, reminder included; treating the
@@ -683,7 +683,7 @@ function pinnedBlockHashes(priorCanonical) {
   return hashes;
 }
 
-// The merged-standalone shape (measured 2026-07-30, capture s-633915a8,
+// The merged-standalone shape (measured 2026-07-30, capture s-captureA,
 // msg864, the 587k window): CC sometimes migrates ALL of a message's
 // volatile blocks out TOGETHER, joined into one standalone message,
 // rather than one standalone per block. pinnedBlockHashes above can never
@@ -740,7 +740,7 @@ export { pinnedBlockHashes, pinnedJoinHashes };
 // --- Cross-message join MOVE (threat-matrix row 4, the 2026-07-30 flap) ---
 //
 // The leg no hash set could match, measured on the real bytes (fixture
-// flap-s-0dc8ac87c43d-86.json, captured as s-0d6f38ba, request n=104):
+// flap-s-0dc8ac87c43d-86.json, captured as s-captureB, request n=104):
 //
 //   INLINE      msg89 user [tool_result, tool_result, <system-reminder>683]
 //               msg90 system "The task tools haven't been used…"  (421 chars)
@@ -873,7 +873,7 @@ export function classifyPinned(messages, priorCanonical) {
 
   // A reset abandons the ORDER model. It must NOT abandon the PINS, and
   // conflating the two cost real cache — threat-matrix row 22, measured
-  // 2026-07-28 on capture s-538c0aef:
+  // 2026-07-28 on capture s-captureL:
   //
   //   CC honestly replaced message 196, so reset(edit-shaped) was the right
   //   verdict and the cost belonged to 196+. But every reset returns without
@@ -893,7 +893,7 @@ export function classifyPinned(messages, priorCanonical) {
   // the raw array.
   //
   // The SAME argument, one mechanism over: a reset must not abandon a
-  // recognized MOVE either. Measured 2026-07-30 on capture s-dc3f8071
+  // recognized MOVE either. Measured 2026-07-30 on capture s-captureC
   // (n=196->197): the move was recognized on 196 and the absorbed entry's
   // first-seen bytes served at wire index 223; on 197 the subsequence match
   // failed, this path ran without move recognition, and the merged message
@@ -945,7 +945,7 @@ export function classifyPinned(messages, priorCanonical) {
     // invariant the success path states. Building it from `messages` while
     // sending `out` makes the two disagree, and the next request then
     // diverges against a baseline that was never on the wire. Measured: that
-    // mistake turned 0 violations into 3 on capture s-0edbd11c before the
+    // mistake turned 0 violations into 3 on capture s-captureE before the
     // canonical was switched to the pinned array.
     //
     // A moved slot therefore files the ABSORBED entry, not a fresh identity
@@ -984,7 +984,7 @@ export function classifyPinned(messages, priorCanonical) {
     // them out of the input side before comparing lengths, and
     // conservationViolations() accepts a missing unit only when it is part of a
     // declared suppression. Reporting the COUNT alone left both gates blind on
-    // this path: replaying capture s-77fe2779 (conversation e7394e05, request
+    // this path: replaying capture s-captureF (conversation e7394e05, request
     // 11:41:05.778Z) with the serving gates reported one safety violation
     // (`length: 124 -> 123`) and one conservation violation (`lost: in[98]`)
     // for a suppression that was working exactly as designed — a check firing
@@ -1100,11 +1100,11 @@ export function classifyPinned(messages, priorCanonical) {
     // MORE copy of the same recurring text: the copy takes the ordinal, the
     // entry binds to it at an unrelated position, and two things break at
     // once — the entry leaves droppedNow so no move recognition can fire, and
-    // the inverted pair trips not-subsequence. Measured on capture s-dc3f8071
+    // the inverted pair trips not-subsequence. Measured on capture s-captureC
     // at n=196->197 (an eighth copy of a tail reminder took o=7 and bound the
     // entry 13 slots away) and again, same shape and same merged-content hash,
     // at n=399->400. Frozen in reset-move-s-97097e027ac0-196-197.json
-    // (captured as s-dc3f8071).
+    // (captured as s-captureC).
     //
     // So a reserved entry does not participate in wire matching AT ALL: not
     // looked up, not counted as dropped. A fresh copy of its text takes the
@@ -1412,7 +1412,7 @@ export function classifyPinned(messages, priorCanonical) {
   //
   // But "a drop and a splice occurred in the same request" is too coarse a
   // test for it, because the two can be unrelated: measured 2026-07-28
-  // (capture s-35d72503, request 09:47:31) a tail message was pruned by an
+  // (capture s-captureH, request 09:47:31) a tail message was pruned by an
   // operator interrupt while a hook reminder migrated mid-history 24 indices
   // away — one prune plus one insertion, neither an edit, reset anyway. That
   // single false positive was the last real reset in the corpus.
@@ -1527,7 +1527,7 @@ export function classifyPinned(messages, priorCanonical) {
   // and that index is measured at THIS extension's tap point (order 395).
   // deferred-tool-rewrite inserts its tool_addition announcement at order
   // 425, so by the time the safety gate reads the forwarded array the number
-  // points at a different message: measured on capture s-0d6f38ba n=104, the
+  // points at a different message: measured on capture s-captureB n=104, the
   // recorded outIndex 89 held the re-served system message here and a
   // `user [tool_result, tool_result, text]` in the final array, where the
   // re-serve had shifted to 90 — 98 safety violations across the capture,
@@ -1586,7 +1586,7 @@ export function classifyPinned(messages, priorCanonical) {
   // disagreed permanently, and the next request touching that region failed
   // the strictly-increasing check with `not-subsequence`.
   //
-  // Measured before this fix (capture s-35d72503): an inversion at canonical
+  // Measured before this fix (capture s-captureH): an inversion at canonical
   // position 81 for an entry that sits at wire index 79, and every remaining
   // real reset in both corpora traced to exactly this.
   //

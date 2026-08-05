@@ -53,7 +53,7 @@ Verification, in order:
    check neutralized).
 2. THE REAL RED: a throwaway probe variant implementing naive
    merged-standalone suppression (suppress the cur91-class message,
-   no re-serve) over fixture test/fixtures/harvested/flap-s-0d6f38ba-86.json
+   no re-serve) over fixture test/fixtures/harvested/flap-s-captureB-86.json
    must go RED — msg90's bytes unaccounted. This red is the evidentiary
    answer to parked design question 1 and is quoted in the closing
    report. The probe variant is then discarded; it never lands.
@@ -88,10 +88,10 @@ cache-transparent; this statement is the pre-restart declaration).
 Verification: all five gates (stability, safety, sequence,
 canonical-order, fidelity) at zero violations on both corpora and the
 live captures under the SERVING gate set; census over
-s-0d6f38ba-…-requests.jsonl shows the three flap pairs input-mitigated;
+s-captureB-…-requests.jsonl shows the three flap pairs input-mitigated;
 suppressed-counts on unaffected corpora unchanged; bites red-first from
 the committed flap fixture; oscillation fixture
-oscillation-s-633915a8-863.json verdicts unchanged (its class is the
+oscillation-s-captureA-863.json verdicts unchanged (its class is the
 separate joined-standalone BACKLOG item, not this directive).
 
 ## Out of scope
@@ -167,7 +167,7 @@ findJoinMoves on the same inputs and apply move substitutions into
 `out`; return `moved: N` beside `pinned`. No other path changes.
 
 VERIFY: red-first bite from the measured regression pair
-(s-dc3f8071 n=196->197, inDiv 233 / outDiv 225 — fixture via the
+(s-captureC n=196->197, inDiv 233 / outDiv 225 — fixture via the
 harvest sanitizer); the three regression captures return to 0
 stability violations; full five-gate sweep 0/0/0/0/0 on all corpora
 + live captures under serving gates; census flap pairs
@@ -185,7 +185,7 @@ occurrence-ordinal); a re-served entry stays alive in our canonical
 while CC stops sending it, so when CC sends ANOTHER copy of the same
 recurring nudge text, the entry binds to that unrelated copy at an
 inverted position — the not-subsequence reset is the SYMPTOM. Frozen
-in fixture reset-move-s-dc3f8071-196-197.json (_mechanism note);
+in fixture reset-move-s-captureC-196-197.json (_mechanism note);
 full evidence: docs/audits/unit-2b-closing-report-2026-07-30.md.
 
 Measured effect of 2b as built: real but partial — A/B 7->6 stability

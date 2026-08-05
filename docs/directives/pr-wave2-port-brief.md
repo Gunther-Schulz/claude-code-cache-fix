@@ -12,7 +12,7 @@ a gap to report, never a decision to make.
 - **Size/complexity budget**: no new code — cherry-picks and path-scoped
   splits of existing fork commits; ~10 commits across 5 worktrees.
 - **Threat model**: public repo. The one new fixture
-  (`test/fixtures/harvested/pinned-s-633915a8-26-28.json`) is
+  (`test/fixtures/harvested/pinned-s-captureA-26-28.json`) is
   harvest-sanitized and already public on fork origin; before each
   commit, grep staged content for literal IPv4/IPv6 — a hit is a HALT
   and a report, not a scrub-and-continue.
@@ -54,14 +54,14 @@ history before 9876fff (already in the slice from wave 1).
 1. `git cherry-pick -n 2dfe0f0`; reset `test/harvest-pin.test.mjs` and
    `test/mitigation-output-form.test.mjs` back to HEAD (they belong to
    #276); commit what remains (`test/insertion-suppression.test.mjs` +
-   `test/fixtures/harvested/pinned-s-633915a8-26-28.json`) as:
+   `test/fixtures/harvested/pinned-s-captureA-26-28.json`) as:
    `test(insertion-suppression): real-pair check falls back to pinned fixture (slice of fork 2dfe0f0)`
 2. `git cherry-pick -x 78940a0`
 3. `git cherry-pick -n e0f8fcb`; reset
    `proxy/extensions/output-guard.mjs` and `test/output-guard.test.mjs`
    to HEAD (they belong to #278); commit the rest as:
    `insertion-normalization: never strip the tail — a final-message duplicate is payload (insertion slice of fork e0f8fcb)`
-4. Acceptance: `git diff e0f8fcb --stat -- proxy/extensions/insertion-normalization.mjs test/insertion-suppression.test.mjs test/insertion-merge-suppression.test.mjs test/fixtures/harvested/pinned-s-633915a8-26-28.json`
+4. Acceptance: `git diff e0f8fcb --stat -- proxy/extensions/insertion-normalization.mjs test/insertion-suppression.test.mjs test/insertion-merge-suppression.test.mjs test/fixtures/harvested/pinned-s-captureA-26-28.json`
    must be EMPTY.
 5. Tests: `node --test test/insertion-normalization.test.mjs test/insertion-suppression.test.mjs test/insertion-merge-suppression.test.mjs`
 
@@ -79,7 +79,7 @@ history before 9876fff (already in the slice from wave 1).
 8. Sync commit: `git checkout e0f8fcb -- proxy/extensions/insertion-normalization.mjs test/insertion-suppression.test.mjs`
    then commit as:
    `sync(insertion-normalization): match #272 tip — join-hash + tail guard`
-9. Acceptance: `git diff e0f8fcb --stat -- tools/ proxy/extensions/insertion-normalization.mjs proxy/extensions/fresh-session-sort.mjs test/harvest-pin.test.mjs test/mitigation-output-form.test.mjs test/insertion-suppression.test.mjs test/replay-gate-selfcheck.test.mjs test/shape-verdicts.test.mjs test/proxy-fresh-session-sort.test.mjs test/fixtures/harvested/pinned-s-633915a8-26-28.json`
+9. Acceptance: `git diff e0f8fcb --stat -- tools/ proxy/extensions/insertion-normalization.mjs proxy/extensions/fresh-session-sort.mjs test/harvest-pin.test.mjs test/mitigation-output-form.test.mjs test/insertion-suppression.test.mjs test/replay-gate-selfcheck.test.mjs test/shape-verdicts.test.mjs test/proxy-fresh-session-sort.test.mjs test/fixtures/harvested/pinned-s-captureA-26-28.json`
    must be EMPTY.
 10. Tests: `node --test test/harvest.test.mjs test/harvest-pin.test.mjs test/mitigation-output-form.test.mjs test/insertion-suppression.test.mjs test/replay-gate-selfcheck.test.mjs test/replay-gate-warning.test.mjs test/shape-verdicts.test.mjs test/proxy-fresh-session-sort.test.mjs test/replay-class-matrix.test.mjs test/replay-fidelity.test.mjs test/gate-live.test.mjs`
 

@@ -32,7 +32,7 @@ was fixed and shipped.
 ### b1 — what the EXTENDED class actually is
 
 Motivating pair located by `conversationOf` (imported from the census,
-never by capture adjacency): capture `s-77fe2779`, conversation
+never by capture adjacency): capture `s-captureF`, conversation
 `e7394e052ea78bbc`, capture request indices **100 -> 101**
 (`11:40:45.196Z` -> `11:41:05.778Z`, 130 -> 124 messages).
 
@@ -152,8 +152,8 @@ production port).
 `cache-fix-proxy.service`, one child per capture under the 2 GB heap cap):
 
     39 capture(s), 8366 MB, 1 failing
-    s-0d6f38ba-…: stability=2 safety=0 conservation=0 sequence=0 order=0
-    every other capture: clean   (s-77fe2779, the motivating one: clean)
+    s-captureB-…: stability=2 safety=0 conservation=0 sequence=0 order=0
+    every other capture: clean   (s-captureF, the motivating one: clean)
 
 Exit 1, and **the exit is pre-existing**: the last live sweep before this
 dispatch (`~/.claude/cache-fix-gate-status.json`, 07:52Z, 33 captures,
@@ -235,10 +235,10 @@ pass before it ships". Its `census()` swallows a read failure
 (`catch { continue; }`) and reports only the captures it DID read.
 Measured by replicating its own `readCapture` per file:
 
-    SKIP-UNREADABLE   734 MB  s-0d6f38ba-…  :: Cannot create a string longer than 0x1fffffe8 characters
-    SKIP-UNREADABLE  2415 MB  s-58c979ce-…  :: Cannot create a string longer than 0x1fffffe8 characters
-    SKIP-UNREADABLE  2059 MB  s-633915a8-…  :: Cannot create a string longer than 0x1fffffe8 characters
-    SKIP-UNREADABLE  1006 MB  s-f94e53ce-…  :: Cannot create a string longer than 0x1fffffe8 characters
+    SKIP-UNREADABLE   734 MB  s-captureB-…  :: Cannot create a string longer than 0x1fffffe8 characters
+    SKIP-UNREADABLE  2415 MB  s-captureD-…  :: Cannot create a string longer than 0x1fffffe8 characters
+    SKIP-UNREADABLE  2059 MB  s-captureA-…  :: Cannot create a string longer than 0x1fffffe8 characters
+    SKIP-UNREADABLE  1006 MB  s-captureN-…  :: Cannot create a string longer than 0x1fffffe8 characters
 
     39 capture file(s): 25 read, 10 skipped as too short, 4 SKIPPED UNREADABLE
 

@@ -87,8 +87,8 @@
 // capture carrying the 07-30 streaks had already aged out): 71 duplicate
 // pairs of 10,454 same-conversation pairs, in 67 streaks, longest run 4, 61
 // billed requests over 32 streaks — and 29 streaks DOUBLE-billed. Verified by
-// hand on two of them: s-0fbf8674 lines 3/5, identical 2384-byte haiku bodies
-// 14 ms apart, 587 input tokens charged on each; s-cbc27f3c lines 654/656,
+// hand on two of them: s-captureK lines 3/5, identical 2384-byte haiku bodies
+// 14 ms apart, 587 input tokens charged on each; s-captureT lines 654/656,
 // identical 1.84 MB fable bodies 11 s apart, both answered (outputTokens 2
 // and 1, the second reading 360,598 cached tokens). Duplicate SENDS cost
 // nothing; duplicate ANSWERS do.
@@ -263,7 +263,7 @@ export function analysePair(before, after) {
   // messages that merely moved. (That bug scored 99.3% MISMATCH with
   // actual=0ch on every row — the tell, BACK THEN, that no counterpart was
   // found at all, rather than a rule that failed. That reading stopped being
-  // safe once a real corpus produced a counter-instance: capture s-66797e31,
+  // safe once a real corpus produced a counter-instance: capture s-captureG,
   // host=30/74, where a candidate standalone DID exist at the expected
   // position — role:"system", string content, wrapper retained — and was
   // REJECTED by the classify() loop below (MISMATCH, since the wrapped bytes

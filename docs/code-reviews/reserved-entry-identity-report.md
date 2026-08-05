@@ -10,8 +10,8 @@ only by this diff, over the whole 8.5 GB live corpus under the serving gate
 set: stability violations **10 → 2**, and the 2 that remain are attributed by
 the gate itself to a DIFFERENT extension (`deferred-tool-rewrite`) and are
 identical in both trees. **Zero insertion-normalization stability violations
-remain anywhere.** The directive's named target, s-dc3f8071, goes 2 → 0; so do
-s-58c979ce, s-633915a8 and s-9f9d8a9d, which the unit-2b build could not close
+remain anywhere.** The directive's named target, s-captureC, goes 2 → 0; so do
+s-captureD, s-captureA and s-captureM, which the unit-2b build could not close
 and which turn out to have been the same ordinal collision on three more
 captures. Safety, conservation, sequence and canonical order are 0 everywhere
 in both trees. Two of unit 2b's three TODO tests flip to passing unedited; the
@@ -132,7 +132,7 @@ TODO 16 ("the reset's canonical describes the wire it forwarded, so the NEXT
 request still sees a move") and TODO 17 ("the real reset leg passes all five
 gates") now report as PASSING todos, unedited. TODO 15 does not — see (c).
 
-### Verifier 3 — s-dc3f8071 under `--gates-from-capture`, measured A/B
+### Verifier 3 — s-captureC under `--gates-from-capture`, measured A/B
 
 Two detached worktrees in the scratchpad, differing only by this diff; the
 instrument (`tools/replay.mjs`) is byte-identical in both.
@@ -162,15 +162,15 @@ one — i.e. exactly the restart case: rs-free state on disk, new code taking th
 next decision.
 
     A: b70c88b   B: 71a482e   mode: seed-from-A (old-canon compatibility)
-      skipped growth-s-2cd640f8-toolsBytes-2026-07-30.json: no request carries a messages array
-      skipped growth-s-633915a8-toolsBytes-2026-07-30.json: no request carries a messages array
-      skipped oscillation-s-633915a8-863.json: no request carries a messages array
-      flap-s-0d6f38ba-86: 4 request(s), 1 conversation(s)
-      harvested-append-after-change-s-35d72503-323: 2 request(s), 1 conversation(s)
-      harvested-replace-edit-s-0edbd11c-20: 2 request(s), 1 conversation(s)
-      harvested-splice-insert-mid-s-0edbd11c-19: 2 request(s), 1 conversation(s)
-      pinned-s-633915a8-26-28: 29 request(s), 6 conversation(s)
-      reset-move-s-dc3f8071-196-197: 5 request(s), 1 conversation(s)
+      skipped growth-s-captureO-toolsBytes-2026-07-30.json: no request carries a messages array
+      skipped growth-s-captureA-toolsBytes-2026-07-30.json: no request carries a messages array
+      skipped oscillation-s-captureA-863.json: no request carries a messages array
+      flap-s-captureB-86: 4 request(s), 1 conversation(s)
+      harvested-append-after-change-s-captureH-323: 2 request(s), 1 conversation(s)
+      harvested-replace-edit-s-captureE-20: 2 request(s), 1 conversation(s)
+      harvested-splice-insert-mid-s-captureE-19: 2 request(s), 1 conversation(s)
+      pinned-s-captureA-26-28: 29 request(s), 6 conversation(s)
+      reset-move-s-captureC-196-197: 5 request(s), 1 conversation(s)
     IDENTICAL across 44 verdict lines, 6 corpora
     exit=0
 
@@ -179,10 +179,10 @@ This is the directive's row-3 restart declaration, measured rather than argued.
 The steady-state A/B (independent chains) shows the change and only the change:
 
     DIFFERS on 2 of 44 verdict lines:
-      - A reset-move-s-dc3f8071-196-197 n=197 action=reset reset=not-subsequence pinned=1 suppressed=0 moved=0 dropped=0 out=237
-      + B reset-move-s-dc3f8071-196-197 n=197 action=normalized reset=-               pinned=1 suppressed=1 moved=1 dropped=3 out=237
-      - A reset-move-s-dc3f8071-196-197 n=198 action=normalized reset=- pinned=1 suppressed=0 moved=0 dropped=4 out=239
-      + B reset-move-s-dc3f8071-196-197 n=198 action=normalized reset=- pinned=1 suppressed=1 moved=1 dropped=4 out=239
+      - A reset-move-s-captureC-196-197 n=197 action=reset reset=not-subsequence pinned=1 suppressed=0 moved=0 dropped=0 out=237
+      + B reset-move-s-captureC-196-197 n=197 action=normalized reset=-               pinned=1 suppressed=1 moved=1 dropped=3 out=237
+      - A reset-move-s-captureC-196-197 n=198 action=normalized reset=- pinned=1 suppressed=0 moved=0 dropped=4 out=239
+      + B reset-move-s-captureC-196-197 n=198 action=normalized reset=- pinned=1 suppressed=1 moved=1 dropped=4 out=239
 
 The whole `rs` lifecycle on real (harvested, sanitized) capture bytes,
 `--verbose`, five requests of one conversation:
@@ -231,24 +231,24 @@ reads 0 on all five gates in both trees:
 
 | capture | PRE stability | POST stability | requests (PRE = POST) |
 |---|---|---|---|
-| s-dc3f8071 | 2 | **0** | 769 |
-| s-58c979ce | 2 | **0** | 2073 |
-| s-633915a8 | 2 | **0** | 2630 |
-| s-9f9d8a9d | 1 | **0** | 209 |
-| s-0d6f38ba | 3 | **2** | 1058 |
+| s-captureC | 2 | **0** | 769 |
+| s-captureD | 2 | **0** | 2073 |
+| s-captureA | 2 | **0** | 2630 |
+| s-captureM | 1 | **0** | 209 |
+| s-captureB | 3 | **2** | 1058 |
 | corpus total | **10** | **2** | |
 
 **Safety, conservation, sequence and canonical order are 0 on every capture in
 BOTH trees** — 8.5 GB, ~10 000 requests. Stability goes 10 → 2.
 
-The directive asked specifically for s-633915a8 and s-58c979ce to be measured
+The directive asked specifically for s-captureA and s-captureD to be measured
 and attributed per pair: both are at **zero**, so there is no pair left to
 attribute on either. That is a stronger result than unit 2b reached (it left
-s-633915a8 at 2 and s-58c979ce at 2) and it closes the family the unit-2b
+s-captureA at 2 and s-captureD at 2) and it closes the family the unit-2b
 report could not: the same ordinal collision was producing violations on three
 captures, not one.
 
-The 2 that remain are both on **s-0d6f38ba**, whose PRE count was 3 — so this
+The 2 that remain are both on **s-captureB**, whose PRE count was 3 — so this
 build closed one there too. Their attribution is below rather than asserted.
 
 Two honesty notes about the sweep as an A/B. First, the capture COUNT differs
@@ -259,7 +259,7 @@ confounded in principle — but the per-capture REQUEST COUNTS are identical for
 every capture in the table above, so for the captures the comparison is about,
 both trees replayed exactly the same input.
 
-Attribution of s-0d6f38ba's violations, from the gate's own attribution line
+Attribution of s-captureB's violations, from the gate's own attribution line
 (the line exists precisely so this is not hand-derived — dev-loop, "rule out
 the instrument", step 3):
 
@@ -313,7 +313,7 @@ Unchanged by this build and correctly so: that bust is the row-4 container
 migration (EXTENDED), a different class with its own open item. The verdict
 line is recorded here so the next reader does not re-derive it.
 
-Census sweep over s-dc3f8071 under `--gates-from-capture`, both trees, so the
+Census sweep over s-captureC under `--gates-from-capture`, both trees, so the
 census's own counters are A/B'd rather than reported one-sided:
 
     PRE  (b70c88b)   cross-request byte-stability violations: 2
@@ -461,7 +461,7 @@ backlog item.
 
 | commit | what |
 |---|---|
-| `b70c88b` | cherry-picks aef760b + dc8c475, reconciled with 5c4d70a — `proxy/extensions/insertion-normalization.mjs`, `test/insertion-join-move.test.mjs`, `test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json` (new), `tools/replay.mjs` |
+| `b70c88b` | cherry-picks aef760b + dc8c475, reconciled with 5c4d70a — `proxy/extensions/insertion-normalization.mjs`, `test/insertion-join-move.test.mjs`, `test/fixtures/harvested/reset-move-s-captureC-196-197.json` (new), `tools/replay.mjs` |
 | `71a482e` | the build — `proxy/extensions/insertion-normalization.mjs` (+270 −20), `test/insertion-join-move.test.mjs` (+224) |
 | `1493892` | `tools/verdict-ab.mjs` (new) |
 | `a6ccc2d` | self-caught O(n²) on the reset path's reclaim lookup — a map, not a `matched.find` per kept entry. Proven decision-neutral by `verdict-ab 71a482e a6ccc2d` (IDENTICAL, 44 lines) and all ten mutations re-run |
@@ -482,13 +482,13 @@ gate-live status file went to the scratchpad
   proxy work.
 - **`proxy-integration` and `proxy-wrapper`** — excluded, as on this machine
   they hang against the production port.
-- **The reclaim path on the s-dc3f8071 capture specifically.** It is exercised
+- **The reclaim path on the s-captureC capture specifically.** It is exercised
   by the flap fixture's real bytes and by the synthetic bites; which requests
   of the live captures take it was not traced.
-- **Which requests of s-58c979ce, s-633915a8 and s-9f9d8a9d were cured.** The
+- **Which requests of s-captureD, s-captureA and s-captureM were cured.** The
   counts go 2/2/1 → 0/0/0 and the two trees differ by nothing else, so the
   delta is attributable to this diff; the individual pairs were not traced to
-  their per-request telemetry the way s-dc3f8071's and s-0d6f38ba's were. That
+  their per-request telemetry the way s-captureC's and s-captureB's were. That
   three otherwise-unrelated captures cleared at once is itself evidence the
   cured mechanism is the ordinal collision and not something capture-specific,
   but it is inference, not measurement.
@@ -530,7 +530,7 @@ gate-live status file went to the scratchpad
    script is now `tools/verdict-ab.mjs` — including its `--seed-from-a` mode,
    which converts the row-3 restart-transparency argument into a measurement.
 2. **Evidence harvestable?** Already harvested: the whole regression rests on
-   `reset-move-s-dc3f8071-196-197.json`, committed, with the mechanism frozen
+   `reset-move-s-captureC-196-197.json`, committed, with the mechanism frozen
    in its `_mechanism` note. Nothing here depends on a capture surviving.
 3. **Census class?** No new class. The `rs` lifecycle is state, not a traffic
    shape, and the traffic shape it serves (the cross-message join) already has

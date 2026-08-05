@@ -4,7 +4,7 @@
 // The defect this closes: insertion-normalization's positional rebuild
 // restores a pinned message's first-seen bytes (reminder included) AND
 // forwards CC's migrated standalone duplicate of that same reminder as a
-// new entry — measured directly on capture s-633915a8, pair n=26->28:
+// new entry — measured directly on capture s-captureA, pair n=26->28:
 // message[30]'s <system-reminder>-wrapped block, absent from CC's own
 // message[30] on the n=28 side, reappears wrapper-stripped as the entire
 // content of CC's new message[31] (role system). The pin restores it
@@ -264,7 +264,7 @@ test("classifyPinned: an assistant-role standalone entry is never suppressed, ev
 });
 
 // =====================================================================
-// (i) RED-GREEN on the real pair — capture s-633915a8, n=26->28
+// (i) RED-GREEN on the real pair — capture s-captureA, n=26->28
 // =====================================================================
 //
 // Mirrors test/mitigation-output-form.test.mjs's real-capture harness

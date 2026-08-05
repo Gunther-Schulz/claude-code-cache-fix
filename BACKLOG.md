@@ -48,12 +48,12 @@ bullet, evidence pointer included.
   6b69e87 (dotfiles d2c9874).
   **ROW 4 IS NOT CLOSED — the gate ran RED, on OTHER classes.** First
   gate run over the 40-capture/6.7GB corpus (10:02-10:14): failing 3,
-  byte-gate MISMATCH 3. Attributed: s-ddd9fd7d conservation 2 = the
+  byte-gate MISMATCH 3. Attributed: s-captureJ conservation 2 = the
   row-24 container-flip pair at n=1400 (in[937]/out[937], role
   system, 938-msg thread) — PRE-EXISTING, proven byte-identical under
   old and new code. UNATTRIBUTED, next session's triage:
-  **s-c7c83ca5 conservation 38** (the big one), s-2caae8b5
-  conservation 2, byte-gate MISMATCH s-66797e31 x2 + s-ddd9fd7d x1.
+  **s-captureI conservation 38** (the big one), s-captureU
+  conservation 2, byte-gate MISMATCH s-captureG x2 + s-captureJ x1.
   Row 4's own signal was not read out of the gate rows before this
   handoff — read it there before booking anything about row 4.
   **BRANCH DEPLOY still gated on:** (1) full suite on the branch —
@@ -76,7 +76,7 @@ bullet, evidence pointer included.
   item from it is booked in the "Upstream PR round" section below.
 
 - **GATE-RED TRIAGED 2026-08-05 — all 38 conservation rows on
-  s-c7c83ca5 attributed to TWO declared behaviours; neither is a
+  s-captureI attributed to TWO declared behaviours; neither is a
   corruption, and the gate is right by its own definition.** Method:
   the capture replayed under `--gates-from-capture` (exit 1,
   reproducing the sweep: conservation 38 = 19 lost + 19 invented,
@@ -119,7 +119,7 @@ bullet, evidence pointer included.
   legitimate work, which trains the reader to discount red. Repair is
   the declared-exemption shape this file already uses, never a
   softened predicate. Two READY items below.
-  **(C) s-2caae8b5's 2 rows, same sweep, attributed the same way and
+  **(C) s-captureU's 2 rows, same sweep, attributed the same way and
   it is the one with a real fidelity residue.** Replayed under its own
   gates (exit 1, conservation 2, everything else 0): request 292
   (2026-08-02T17:20:02.283Z), `in[278]` lost / `out[272]` invented, a
@@ -133,11 +133,11 @@ bullet, evidence pointer included.
   cannot tell a live marker from a mention of one. Booked as its own
   READY item below; the conservation exemption for it is the same
   declare-and-verify shape as (A).
-  With (A), (B), (C) and the already-attributed s-ddd9fd7d 2 (row-24
+  With (A), (B), (C) and the already-attributed s-captureJ 2 (row-24
   container flip, 08-05 handoff), every conservation row of the
   10:02-10:14 sweep is now accounted for. Byte-gate MISMATCH x3 stays
-  as the handoff left it: s-66797e31 x2 is the PREMISE FALSIFIED entry
-  further down (wrapper-retaining standalone), s-ddd9fd7d x1 the same
+  as the handoff left it: s-captureG x2 is the PREMISE FALSIFIED entry
+  further down (wrapper-retaining standalone), s-captureJ x1 the same
   row-24 pair.
 
 - **READY — anchor `normalizeSessionStartText` to a block that IS a
@@ -172,7 +172,7 @@ bullet, evidence pointer included.
   Restricted to blocks the extension actually touches
   (`isRelocatableBlock`); a rewrite of anything else stays a
   violation. Verifier, red-first: the bite asserts the 11 rows of
-  s-c7c83ca5 (requests 168,169,175,177,180,181,182,186,187,189,191)
+  s-captureI (requests 168,169,175,177,180,181,182,186,187,189,191)
   go from `lost`/`invented` to `conservationExemptions` — red against
   today's replay.mjs — plus a CONTROL asserting that a rewrite whose
   re-run does NOT reproduce the forwarded bytes still reports a
@@ -193,12 +193,12 @@ bullet, evidence pointer included.
   i.e. the two exemptions compose, and the bite must cover the
   composed case, which is the ONLY case measured so far (8 of the 8
   rows). Verifier, red-first: the bite asserts the 8 rows at msg[6]
-  of s-c7c83ca5 become exemptions — red today — plus a CONTROL that a
+  of s-captureI become exemptions — red today — plus a CONTROL that a
   removed block matching NEITHER predicate still reports `lost`.
   tools/-only, not deployment-coupled. SEQUENCE: this one after the
   fresh-session-sort exemption, since both touch the same R-side loop.
 
-- **BUST TRIAGED 2026-08-05 — the 349k s-0600c21f event is row 4,
+- **BUST TRIAGED 2026-08-05 — the 349k s-captureQ event is row 4,
   post-deploy, and the operator's re-anchor hypothesis is REFUTED.**
   Full record: the new "Row 4 datapoint — 2026-08-05" section of
   `docs/directives/robustness-threat-matrix.md`. Headline: the two
@@ -336,7 +336,7 @@ bullet, evidence pointer included.
   fires — and asserts the forwarded message is a STRING. Red against
   today's implementation (it forwards the array). Plus a CONTROL
   where the wire's current form IS an array, asserting the array is
-  still forwarded. Corpus check: replay s-0600c21f old-vs-new and
+  still forwarded. Corpus check: replay s-captureQ old-vs-new and
   require the ONLY delta to be at n=221.
 
 - **READY — a gate that asks whether a mitigation ABSORBED, not just
@@ -360,11 +360,11 @@ bullet, evidence pointer included.
   first, not a gate: measure its corpus-wide rate before deciding
   whether it may block, precisely because a check that fires on a
   non-defect trains the reader to discount red.
-  Verifier, red-first: run it over s-0600c21f and require exactly one
+  Verifier, red-first: run it over s-captureQ and require exactly one
   absorption-miss row at n=221 (absorbed index 360, forwarded
   divergence 360) — the current code reports nothing, so the bite is
   red by construction; plus a CONTROL over a capture where an absorb
-  fires and the prefix holds (the description absorb on s-ddd9fd7d
+  fires and the prefix holds (the description absorb on s-captureJ
   n=1202), asserting zero rows. tools/-only, not deployment-coupled,
   and it should ride gate-live's daily sweep as a `absorptionMisses`
   summary alongside `byteGate`.
@@ -1168,7 +1168,7 @@ then the queued ones. Work the items in that order.
   "Row 24 — messages layer". Verifier for either: the simulation the
   investigation already ran — `firstDivergence(A, forwarded) === null`
   plus `validateToolAdjacency(forwarded)` on the real 16:06:39 /
-  16:12:42 pair of s-ddd9fd7d — as a red-first bite, since neither
+  16:12:42 pair of s-captureJ — as a red-first bite, since neither
   holds today.
   NAMED MISSING EVIDENCE, and it gates nothing but should ride along:
   the container flip has ONE measured instance and its corpus-wide
@@ -1217,7 +1217,7 @@ then the queued ones. Work the items in that order.
   cost the dispatcher several investigation steps today. On a
   MISMATCH the census prints `actual=0ch`, and its own comment
   (:264) documents that as "the tell that no counterpart was found
-  at all, rather than a rule that failed". For the s-66797e31 rows
+  at all, rather than a rule that failed". For the s-captureG rows
   that tell was WRONG: a counterpart existed at host+1 and merely
   failed the standalone predicate (it was wrapper-retaining), so the
   number said "absent" about something present. Design: when the
@@ -1226,7 +1226,7 @@ then the queued ones. Work the items in that order.
   third state alongside the DROPPED/MISMATCH split that already
   lives there (:300-316), with the rejected candidate's length so
   `recon` and it can be compared at a glance. Verifier: bite
-  red-first on the s-66797e31 shape (a wrapper-retaining standalone
+  red-first on the s-captureG shape (a wrapper-retaining standalone
   at host+1) asserting the row does NOT read 0ch.
 
 - **Candidate — census `--json` carries no finding rows.** Surfaced
@@ -1270,7 +1270,7 @@ then the queued ones. Work the items in that order.
   BACKLOG's row-4 entry and threat-matrix row 4: "CC ... emits the
   same text as ONE standalone `role:"system"` message after the
   host, wrappers STRIPPED and the blocks JOINED with `\n\n`".
-  Counter-instance, measured: capture s-66797e31, request
+  Counter-instance, measured: capture s-captureG, request
   2026-08-02T08:06:10.259Z (second at 08:24:18.702Z, host=74). The
   census reports `MISMATCH host=30 blocks=1 recon=327ch actual=0ch`.
   Raw dump of the request: a standalone counterpart DOES exist at
@@ -1314,7 +1314,7 @@ then the queued ones. Work the items in that order.
   wrapper appearing mid-text after an escaped `"` would be missed;
   the wholly-wrapped shape this entry describes is what the strict
   pattern catches, and that is 0. Net: the falsification STANDS
-  (the premise is not universal; s-66797e31 is a real
+  (the premise is not universal; s-captureG is a real
   counter-instance and surfaces as MISMATCH, a different verdict
   from that pair's clean EXTENDED), but the form is RARE rather
   than merely rarely matched, it did NOT cause the host-568 miss
@@ -1326,7 +1326,7 @@ then the queued ones. Work the items in that order.
 - **OPEN (attributed 2026-08-02, fix serialized behind a running
   read-only dispatch) — conservation gate fires on
   fresh-session-sort's declared rewrite: 38 violations, capture
-  s-c7c83ca5, the sole red row in the 15:05 sweep (29 captures,
+  s-captureI, the sole red row in the 15:05 sweep (29 captures,
   ok=false failing=1).** NOT a defect and NOT the smoosh class (that
   exemption stands; conservation exemptions on this capture = 0).
   Attribution, dispatcher-run: every failing request is the FIRST
@@ -1480,7 +1480,7 @@ then the queued ones. Work the items in that order.
   (1) THE PREMISE IS WRONG. The EXTENDED remainder is not "new reminder
   text that did not exist yet" — it is a standalone system message the
   PREDECESSOR request already carried, swallowed into the migrated
-  reminder. Measured on the motivating pair (capture s-77fe2779,
+  reminder. Measured on the motivating pair (capture s-captureF,
   conversation e7394e05, requests 100->101): before[99] user + one
   330ch wrapped reminder, before[100] system 421ch, after[101] system
   716ch = 293 + "\n\n" + 421, the 421 byte-identical to before[100].
@@ -1598,9 +1598,9 @@ then the queued ones. Work the items in that order.
   s-<8hex> tokens here are raw UUID prefixes, not sidToken hashes
   (bust-triage.mjs:461 — brief premise corrected).
   Original entry: `12:42:11.673Z n=688->675 div=4 anchor=674
-  rebilled=671` (s-f94e53ce — invisible to every verdict until
+  rebilled=671` (s-captureN — invisible to every verdict until
   a77c930) and `11:40:24.245Z n=83->81 div=4 anchor=80 rebilled=77`
-  (s-b6952ffc); the census prune rows surface any recurrence
+  (s-captureW); the census prune rows surface any recurrence
   without a hand-run.
 
 - **Candidate — capturePair floored-timestamp mis-selection
@@ -1618,7 +1618,7 @@ then the queued ones. Work the items in that order.
   cited lines) — placement multiplicity is interleaving depth, and
   nothing rests on a fixed offset.** The finder (chained from
   census()'s own exports, 30 live captures, 0 unreadable) found the
-  corpus rotated to ONE host+4 occurrence (s-0fbf8674, host@128 ->
+  corpus rotated to ONE host+4 occurrence (s-captureK, host@128 ->
   standalone@132, EXACT, 327B): a leftover EXTENDED standalone at
   +1, a real tool round-trip at +2/+3, the migrated standalone at
   +4 — interleaving, not a new migration shape. The consumer
@@ -1695,7 +1695,7 @@ then the queued ones. Work the items in that order.
   **RESOLVED 404d5fc, with the verifier's SPLIT disputed — decision open.**
   `classifyPrune` imports `firstDivergence` + `isHumanTurn`; `gate-live`
   carries `prunes` per row and corpus-wide. Event COUNT reproduces exactly
-  (12 on s-77fe2779) and 11:41:05 is INTERIOR-DIVERGENT (breaks at 97,
+  (12 on s-captureF) and 11:41:05 is INTERIOR-DIVERGENT (breaks at 97,
   anchor 123, re-bills 27 of 124). 11:31:58 does NOT reproduce as
   interior: at the bytes it is the same phenomenon as the ten pure ones —
   a `[SUGGESTION MODE: …]` block pruned, the user's real turn landing at
@@ -1973,7 +1973,7 @@ then the queued ones. Work the items in that order.
   "the data already exists per mitigation row" was REFUTED in the
   artifact: only relocations carries byte fields; leakedBytes is
   1-of-7 live and PROVEN to move when the mitigation fires (A/B
-  replay on s-66797e31: gate OFF 23865, serving 13952 — the 9913
+  replay on s-captureG: gate OFF 23865, serving 13952 — the 9913
   delta is the absorbed re-bill). savedBytes is 7/7 null under both
   readings (census AND event logs carry no byte field anywhere) —
   the one blocking expression is replay.mjs:1044
@@ -2021,7 +2021,7 @@ then the queued ones. Work the items in that order.
 - **RESOLVED 2026-08-02 (3b32e6b, sonnet dispatch,
   dispatcher-verified: five replay suites green, live replay of the
   capture 10 violations -> 0 with 10 visible same-class exemptions,
-  exit 0) — new live conservation failure: s-00b19d9b,
+  exit 0) — new live conservation failure: s-captureP,
   conservation=10, gate exit 1 (found 2026-08-02 by the fire-ledger
   dispatch's full-corpus run — 34 captures vs the 07:51 production
   sweep's 28; NOT caused by the fire-ledger work, which touches no
@@ -2256,7 +2256,7 @@ then the queued ones. Work the items in that order.
   Live non-event on the next MCP-heavy session boot closes it. Original entry follows for the record.**
   Mechanism found by probe 2026-07-30, dispatcher-verified at the
   code. The gate-red investigation
-  (s-dc3f8071, 25 violations, burst n=372-397) resolved: a session-
+  (s-captureC, 25 violations, burst n=372-397) resolved: a session-
   boot MCP discovery cascade grows tools[] 0->11->428->singles while
   the conversation stays 1 message; `injectAdditions`
   (deferred-tool-rewrite.mjs:408-440) splices EVERY addition at its
@@ -2280,7 +2280,7 @@ then the queued ones. Work the items in that order.
   probe report booked here is the durable record. Related, same
   probe, SEPARATE items: (i) torn capture lines, (ii) census
   output-hash blind spot — both below. The second
-  red capture is a DIFFERENT class: s-58c979ce n=2024->2025
+  red capture is a DIFFERENT class: s-captureD n=2024->2025
   (12:31:18Z, pre-deploy traffic), 1 violation, `inDiv=1 outDiv=0
   [CC bytes IDENTICAL -> ours] <- fresh-session-sort` — CC's input
   changed at index 1, our output byte-flapped at index 0; not
@@ -2307,7 +2307,7 @@ then the queued ones. Work the items in that order.
   replay's stability check gains a telemetry-keyed
   exemption mirroring suppressedIndices ("never a re-derived
   guess") for first-appearance relocations at the reported index.
-  Verifier: red-green on the real pair (s-58c979ce n=2024->2025
+  Verifier: red-green on the real pair (s-captureD n=2024->2025
   flips to exempt-with-basis, gate fully green) + unit bite both
   ways (relocation without telemetry stays RED — the exemption
   must not fire on shape alone). SERIALIZED behind the row6-dup
@@ -2329,7 +2329,7 @@ then the queued ones. Work the items in that order.
   error-log gate flip (one boundary, one statement).
   Original entry: (settled
   2026-07-30; evidence: flap probe fact 4 — 5 pairs of torn ~1MB
-  lines in s-dc3f8071, appendFile interleave; mechanism: node
+  lines in s-captureC, appendFile interleave; mechanism: node
   splits large buffers across write() syscalls, concurrent async
   appends to one path interleave mid-line). Design: a per-path
   promise-chain append queue (a small shared util; request-capture's
@@ -2349,7 +2349,7 @@ then the queued ones. Work the items in that order.
   that file; lesson booked: grep test/ for assertions on a field
   before changing what it returns). Ported to upstream PR #276
   (16a3ca3, commented; extensions synced to the #272/#273 tips). Original entry:** The five "unclassified output-spliced
-  pairs" in s-633915a8 are RESOLVED as instrument artifact: CC
+  pairs" in s-captureA are RESOLVED as instrument artifact: CC
   itself sends the same 32,140-char text as a cache_control-bearing
   block while it is the tail, then as a bare string later — its own
   shape choice, pre-pipeline (probe-verified on n=678->681 raw
@@ -2370,7 +2370,7 @@ then the queued ones. Work the items in that order.
   fda83cc + 2dfe0f0, sonnet in isolated worktree, cherry-picked +
   pushed after dispatcher verification: 40/40 combined incl. both
   real-pair suites from live capture AND from the committed pinned
-  fixture; first pin landed: pinned-s-633915a8-26-28.json, 431 kB).
+  fixture; first pin landed: pinned-s-captureA-26-28.json, 431 kB).
   Load-bearing deviation REVIEWED AND APPROVED (fda83cc, own
   commit): the shared scrubber's fixed "REDACTED" for wrapped
   reminders broke wrap/unwrap identity — a fixture replayed to the
@@ -2435,7 +2435,7 @@ then the queued ones. Work the items in that order.
   acceptance was on file since 2026-07-30); doctor: pin OK, running
   process = disk tree OK, all gates classified+accepted; fresh gate
   stamp 20:18:58Z describes the SERVING tree — byteGate 0 MISMATCH
-  / 0 unreadable, sole failing capture s-0d6f38ba (the two
+  / 0 unreadable, sole failing capture s-captureB (the two
   pre-existing deferred-tool-rewrite pairs, own OPEN item below).
   Telemetry "needs a look" warns both walked to controlled causes
   (this session's tool-schema flips; model:"test" 401s from today's
@@ -2444,8 +2444,8 @@ then the queued ones. Work the items in that order.
   consumer yet — the fields are in the status file, doctor ignores
   them silently (alarm-without-reader class).
 
-- **OPEN — twin busts 2026-07-31 19:13:48 (152k, s-7749d7fc) and
-  19:22:40 (190k, s-adf6cadb): KNOWN FAMILY suspected (row-4
+- **OPEN — twin busts 2026-07-31 19:13:48 (152k, s-captureV) and
+  19:22:40 (190k, s-captureS): KNOWN FAMILY suspected (row-4
   mid-history mutation), plugin-update trigger hypothesis
   unverified.** Evidence gathered at triage time: BOTH sessions'
   telemetry shows a `not-subsequence` reset seconds before the ❄
@@ -2656,7 +2656,7 @@ then the queued ones. Work the items in that order.
   marker set (9d20b7d follow-up), i.e. the guard was blind to this
   corpus's most-used grade word — the corpus's entire remaining
   stability debt: two
-  deferred-tool-rewrite pairs on s-0d6f38ba** (n=709→710 outDiv=236,
+  deferred-tool-rewrite pairs on s-captureB** (n=709→710 outDiv=236,
   n=701→718 outDiv=82, gate attribution line, byte-identical across
   the identity-build A/B — pre-existing, not insertion-normalization;
   named "worth a separate look" in the unit-2b report (g) and now
@@ -2726,7 +2726,7 @@ then the queued ones. Work the items in that order.
   announcement; held/shared tools byte-identical on every checked
   repeat pair; first-event hypothesis measured out (3/25, 3/37).
   DONE 2026-07-30 (813edc8, sonnet, pushed after dispatcher
-  verification: selfcheck exit 0; real capture s-dc3f8071 measures
+  verification: selfcheck exit 0; real capture s-captureC measures
   heldStable 37/37 against forwardedStable 1/37 — 100%, no
   counterexamples, stronger than the probe's hedge; deviation
   accepted: missing outTools data -> heldStable false, mirroring
@@ -2743,7 +2743,7 @@ then the queued ones. Work the items in that order.
   "ABSENT ON THIS SETUP" likely measured global file adjacency, so
   interleaved sessions broke adjacency — definition mismatch
   hypothesis, unverified). One streak matches the known MCP cascade;
-  21 streaks in s-633915a8 (13+ repeats, 3-min spans) unexplained.
+  21 streaks in s-captureA (13+ repeats, 3-min spans) unexplained.
   RESOLVED 2026-07-30 (probe): definition-mismatch FALSIFIED by
   measurement (global vs per-conversation differs marginally); the
   growth is corpus content, and the streaks are retry-shaped —
@@ -2762,7 +2762,7 @@ then the queued ones. Work the items in that order.
 - **OPEN (attributed 2026-08-02: CC-defect-resend lean, upstream
   filing is the next step and needs operator GO) — double-billed
   duplicate pairs, now 33 streaks.** Sonnet discovery
-  (dispatcher-spot-checked: the hand-verified s-0fbf8674 streak's
+  (dispatcher-spot-checked: the hand-verified s-captureK streak's
   two outcomes read identical outSha 610e911e / outBytes 2406 under
   my own probe): 33/33 double-billed streaks have byte-IDENTICAL
   response content between both billed answers — retry-refuting
@@ -2773,7 +2773,7 @@ then the queued ones. Work the items in that order.
   The entry's earlier degenerate-lean was the wrong lens: the
   content-class split (24 deg/deg, 4 deg/sub, 2 sub/deg, 3 sub/sub)
   is superseded by the hash identity. Residues, named: one
-  outputTokens-vs-outSha accounting anomaly (s-cbc27f3c 654/656:
+  outputTokens-vs-outSha accounting anomaly (s-captureT 654/656:
   same bytes, tokens 2 vs 1); the 7 mid-session streaks' trigger
   uncharacterized. Evidence: the discovery report in the
   dispatching session's scratchpad; re-derivable from the census
@@ -2808,7 +2808,7 @@ then the queued ones. Work the items in that order.
   UPSTREAM FILING BLOCKED 2026-08-02 by its own refutation probe
   (dispatcher, run BEFORE drafting): the report's open item 3 — "is
   CC actually sending two physically distinct HTTP requests, or is
-  one proxy-side" — probed on the hand-verified s-0fbf8674 pair.
+  one proxy-side" — probed on the hand-verified s-captureK pair.
   Half-answered, and it reframes the finding. Both answers carry
   DISTINCT server-assigned request-ids (req_011Cdbpbge…,
   req_011Cdbpbgi…), so two real API calls were made and billed, and
@@ -2824,7 +2824,7 @@ then the queued ones. Work the items in that order.
   majority, which looks like the background sidecar double-firing —
   and session start is where 26/33 streaks sit by construction.
   SPLIT DONE 2026-08-02 (sonnet discovery, dispatcher-verified on
-  s-0fbf8674 751/754 with my own probe): of 31 double-billed
+  s-captureK 751/754 with my own probe): of 31 double-billed
   streaks, 24 are HAIKU SIDECAR calls (nMsg=1, max_tokens=32000) and
   7 are MAIN-THREAD shaped (fable-5/opus-5, nMsg>1,
   max_tokens=64000) — clean split, zero ambiguous. The entry's
@@ -2833,7 +2833,7 @@ then the queued ones. Work the items in that order.
   from the build: system-prompt presence does NOT separate the
   classes (every request carries one, sidecars included) — message
   count + model does. TRANSCRIPT ASYMMETRY, the finding that makes
-  the main-thread subset reportable: on s-0fbf8674 751/754 (two
+  the main-thread subset reportable: on s-captureK 751/754 (two
   fable-5 requests, 152 messages each, responses byte-identical at
   outSha 62baa3a1 / 3,043,768 B) CC's own transcript records the
   SECOND request-id three times and the FIRST zero times — so CC
@@ -2849,9 +2849,9 @@ then the queued ones. Work the items in that order.
   before posting.
   Original entry: **double-billed duplicate pairs: 29 streaks live
   (dup-census first run, 2026-08-01), hand-verified at the
-  altitude.** Two examples records-read-directly: s-0fbf8674 lines
+  altitude.** Two examples records-read-directly: s-captureK lines
   3/5 (identical 2384-char haiku bodies, 14 ms apart, BOTH answered,
-  587 input tokens charged EACH) and s-cbc27f3c lines 654/656
+  587 input tokens charged EACH) and s-captureT lines 654/656
   (identical 1.84 MB fable bodies 11 s apart, both answered;
   outputTokens 2 and 1 — the first answers look degenerate; second
   read 360k cached). Corpus rollup: 71 pairs / 67 streaks / 32
@@ -2897,7 +2897,7 @@ then the queued ones. Work the items in that order.
   warns), not a mechanical port. Effort M.
 - **Harvest pins instances, not only classes (Q2).** Fixtures bank one
   exemplar per CLASS; the evidence behind specific verdicts (row 4's
-  distribution on s-58c979ce, acceptance strings citing s-538c0aef)
+  distribution on s-captureD, acceptance strings citing s-captureL)
   still rots with rotation. Spec sketch: `harvest --pin <key> <n..m>`
   freezes a sanitized range as a named fixture; matrix rows and
   acceptance strings then cite fixtures, not capture keys. Effort M.
@@ -2937,7 +2937,7 @@ then the queued ones. Work the items in that order.
   opener pricing; interleaves structurally suppressed (never-returns +
   first-appearance conditions — the one-shot-sidecar phantom was caught
   by the class's own bite). Validated pair-for-pair against the hand
-  probe on s-0edbd11c (9de68b3).
+  probe on s-captureE (9de68b3).
 
 - **Census system-delta class — candidate, not built** (2026-07-29).
   Within-session inflation instruments: tools[] churn is classified
@@ -3002,7 +3002,7 @@ then the queued ones. Work the items in that order.
   agent's premise check, git log on the target file, before any
   build — its lesson (i)). Entry left by those refs; joined-standalone
   below resolved by 9ff79f7 the same night (dispatcher-verified:
-  selfcheck 66/66, full suite 1848/1848/0; live slice of s-0d6f38ba:
+  selfcheck 66/66, full suite 1848/1848/0; live slice of s-captureB:
   "10, 6 FLAP, 7 JOIN (3 cross-message)" vs "3, 2 FLAP" at base).
   CORRECTION riding this (agent gap 2, matrix updated): the
   addendum's "the real flap is the single 92→94 pair" is REFUTED by
@@ -3028,14 +3028,14 @@ then the queued ones. Work the items in that order.
   text retained, dead blockUnits removed).** Original: blockUnits
   hashes blocks individually, so a standalone that is a JOIN produces
   no migration row — two of the three standalone legs in fixture
-  flap-s-0d6f38ba-86.json are joins the detector cannot see, and the
-  s-633915a8 oscillation (fixture oscillation-s-633915a8-863.json)
+  flap-s-captureB-86.json are joins the detector cannot see, and the
+  s-captureA oscillation (fixture oscillation-s-captureA-863.json)
   shows a whole flap class invisible for the same reason. Design:
   register joined-block hashes as migration-candidate targets —
   in-entry joins per 78940a0's "\n\n" rule; cross-message joins
   tagged as their own kind (they are the parked design item's
   subject, and the tag is what will count them). Verifier: red-first
-  on oscillation-s-633915a8-863.json — a migration row appears for
+  on oscillation-s-captureA-863.json — a migration row appears for
   the merged standalone where none does today; existing corpora
   verdicts unchanged. Done-criterion: census on that fixture shows
   the join-standalone row; selfcheck mutation test added per
@@ -3101,7 +3101,7 @@ then the queued ones. Work the items in that order.
   G2/G3).** Nothing invokes cold-events yet (DEFAULT_LEDGER_PATH
   exported for whoever wires it), and the grain decision gates the
   wiring: capture outcome records are SESSION-grained (the Messages
-  API has no agentId slot), and a real run over s-24fc5191 MEASURED
+  API has no agentId slot), and a real run over s-captureR MEASURED
   a false event (cause=model, prevCtx=1k — a haiku background call
   and the main conversation diffing against each other; exactly the
   co-tenant artifact prefix-diff's tenantId exists to remove).
@@ -3123,11 +3123,11 @@ then the queued ones. Work the items in that order.
 - **RESOLVED 2026-07-31 — reserved-entry identity built, criterion
   met and exceeded (a1170a7 integration, fad6f6b build, da8b837
   verdict-ab, 0cc05c7 perf, 9983a1b docs; opus dispatch,
-  dispatcher-verified: suites 253/0 and 1826/0 re-run, s-dc3f8071
+  dispatcher-verified: suites 253/0 and 1826/0 re-run, s-captureC
   five gates 0/0/0/0/0 re-run, verdict-ab --seed-from-a IDENTICAL/44
   re-run).** Was READY with the directive as brief. Corpus-wide:
   stability 10 → 2, both survivors deferred-tool-rewrite on
-  s-0d6f38ba, ZERO insertion-normalization violations left; the
+  s-captureB, ZERO insertion-normalization violations left; the
   ordinal collision turned out to be firing on four captures, not
   one. All three unit-2b TODO tests now pass — TODO 15's control was
   symptom-parented and was rewritten by the dispatcher to assert the
@@ -3249,7 +3249,7 @@ then the queued ones. Work the items in that order.
   file sets free (the fixture-sanitize lane closing is the trigger
   for the test-file overlaps). The same standing GO covers the
   design-tier openers (blocker-2 measurement+directive, enormous
-  prunes, placement re-check, and the s-0d6f38ba
+  prunes, placement re-check, and the s-captureB
   deferred-tool-rewrite pairs' ATTRIBUTE step — telemetry pull +
   three-way classification per its OPEN item) at next session
   start.
@@ -3318,7 +3318,7 @@ then the queued ones. Work the items in that order.
   allowlisted — the extension IS the done-criterion.
 
 - **PARKED — bare s-<8hex> short forms in fork docs prose
-  (ready-bundle residual c2: s-58c979ce, s-9f9d8a9d, s-77fe2779 in
+  (ready-bundle residual c2: s-captureD, s-captureM, s-captureF in
   the threat matrix; BACKLOG prose carries many more).** Ruling
   2026-08-01, consistent with the 07-31 association-on-fork ruling:
   ACCEPTED residual on this fork — the short forms carry

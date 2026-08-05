@@ -316,13 +316,13 @@ Measured on the worktree `/home/g/dev/vendor/cache-fix-pr1` (branch
 
 ```
 $ node tools/absence-scan.mjs --git-range origin/main..HEAD
-     55 live-timestamp        test/fixtures/harvested/pinned-s-633915a8-26-28.json
-     21 raw-content           test/fixtures/harvested/oscillation-s-633915a8-863.json
-     13 live-timestamp        test/fixtures/harvested/oscillation-s-633915a8-863.json
-      4 b64-run               test/fixtures/harvested/oscillation-s-633915a8-863.json
-      1 capture-uuid          test/fixtures/harvested/pinned-s-633915a8-26-28.json
-      1 capture-uuid-filename test/fixtures/harvested/pinned-s-633915a8-26-28.json
-      1 capture-uuid-filename test/fixtures/harvested/oscillation-s-633915a8-863.json
+     55 live-timestamp        test/fixtures/harvested/pinned-s-captureA-26-28.json
+     21 raw-content           test/fixtures/harvested/oscillation-s-captureA-863.json
+     13 live-timestamp        test/fixtures/harvested/oscillation-s-captureA-863.json
+      4 b64-run               test/fixtures/harvested/oscillation-s-captureA-863.json
+      1 capture-uuid          test/fixtures/harvested/pinned-s-captureA-26-28.json
+      1 capture-uuid-filename test/fixtures/harvested/pinned-s-captureA-26-28.json
+      1 capture-uuid-filename test/fixtures/harvested/oscillation-s-captureA-863.json
 ```
 
 Both files predate the 2026-07-31 sanitizer work and were harvested under the
@@ -336,7 +336,7 @@ old scrub:
 - **A raw session key** at `$.header.key` of the pinned fixture (38 chars,
   matching the UUID shape — `sidToken` was not applied).
 - **68 live wall-clock instants** — `rebaseTimestamps` was not applied.
-- **Both filenames carry `s-633915a8`, an 8-hex session prefix** — exactly the
+- **Both filenames carry `s-captureA`, an 8-hex session prefix** — exactly the
   name shape `tools/harvest.mjs` names in its own comment as the reason the
   filename convention moved to `s-<sha12>`.
 

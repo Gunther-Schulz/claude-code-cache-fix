@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 
 const capture = process.argv[2];
 const snapDir = join(homedir(), ".claude", "cache-fix-snapshots");
-const keyPrefix = process.argv[3]; // e.g. s-ddd9fd7d
+const keyPrefix = process.argv[3]; // e.g. s-captureJ
 
 // 1. Injection-active windows per sid, from the extension's own telemetry.
 const firstInjected = new Map(); // sid -> earliest ts with injected>0

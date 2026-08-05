@@ -61,11 +61,11 @@ real capture (36 captures, ~10 000 requests) under the serving gate set:
 
 | capture | before | after | requests (identical both runs) |
 |---|---|---|---|
-| s-dc3f8071 | 2 | **0** | 769 |
-| s-58c979ce | 2 | **0** | 2073 |
-| s-633915a8 | 2 | **0** | 2630 |
-| s-9f9d8a9d | 1 | **0** | 209 |
-| s-0d6f38ba | 3 | **2** | 1058 |
+| s-captureC | 2 | **0** | 769 |
+| s-captureD | 2 | **0** | 2073 |
+| s-captureA | 2 | **0** | 2630 |
+| s-captureM | 1 | **0** | 209 |
+| s-captureB | 3 | **2** | 1058 |
 | **corpus total** | **10** | **2** | |
 
 Cross-request byte-stability violations go **10 → 2**, and the two survivors
@@ -131,8 +131,8 @@ cache-transparent for every existing conversation.
   deliberate fix #272's review asked for (move the order, or update the
   assertion) rather than patched in a stacked PR.
 - **Fixture sanitization is an open question, not a settled one.** This branch
-  carries `test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json` (the
-  reset leg) and, via the #276 merge, `flap-s-0d6f38ba-86.json` (the
+  carries `test/fixtures/harvested/reset-move-s-captureC-196-197.json` (the
+  reset leg) and, via the #276 merge, `flap-s-captureB-86.json` (the
   oscillation leg). #272's review flagged the harvested-fixture class as a
   blocker and asked us to agree a path before pushing changes. Neither fixture
   should be treated as reviewed on that axis by this PR.

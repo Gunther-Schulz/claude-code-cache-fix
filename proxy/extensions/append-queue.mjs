@@ -4,7 +4,7 @@
 // large buffers it splits the write into multiple write() syscalls, so two
 // concurrent appends to the same path can interleave mid-buffer and land as
 // a torn, unparseable line in an NDJSON file (flap probe fact 4: 5 pairs of
-// torn ~1MB lines in s-dc3f8071). This queues appends per absolute path so
+// torn ~1MB lines in s-captureC). This queues appends per absolute path so
 // each path's writes execute strictly one after another; different paths
 // are never serialized against each other.
 //

@@ -1,5 +1,5 @@
 // insertion-merge-suppression — the merged-standalone shape (587k window,
-// capture s-633915a8, msg864). Sibling to insertion-suppression.test.mjs's
+// capture s-captureA, msg864). Sibling to insertion-suppression.test.mjs's
 // single-block case, but here CC migrates ALL of a message's volatile
 // blocks out TOGETHER, joined into one standalone message, rather than one
 // standalone per block. The single-block pinnedHashes set can never match

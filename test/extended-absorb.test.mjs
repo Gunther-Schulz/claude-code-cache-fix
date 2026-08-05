@@ -1,7 +1,7 @@
 // extended-absorb — what the EXTENDED sub-class of the row-4 container
 // migration actually IS, and the declaration the absorption rides on.
 //
-// Grounding, measured 2026-07-31 on capture s-77fe2779 (request index 101,
+// Grounding, measured 2026-07-31 on capture s-captureF (request index 101,
 // ts 11:41:05.778Z, and its same-conversation predecessor at index 100 —
 // paired by `conversationOf`, never by capture adjacency):
 //
@@ -84,7 +84,7 @@ test("a suppression on the RESET path is DECLARED, not only counted", () => {
   // corruption — the check-fires-on-a-non-defect failure that trains a reader
   // to ignore red.
   //
-  // Measured red before the fix, replaying capture s-77fe2779 requests 0..101
+  // Measured red before the fix, replaying capture s-captureF requests 0..101
   // of conversation e7394e05 with the SERVING gate set:
   //   safety violations: 1  — n=73 length: 124 -> 123
   //   conservation:      1  — n=73 lost: in[98] (system)

@@ -161,7 +161,7 @@ already own — post only after operator GO per thread (today's precedent:
   MERGE variant (two reminders wrapper-stripped, "\n\n"-joined into one
   standalone; the 587k event), oscillation between already-seen forms,
   and that content-identity suppression + join-hash absorbs all of it.
-  Evidence: fixture test/fixtures/harvested/oscillation-s-633915a8-863.json,
+  Evidence: fixture test/fixtures/harvested/oscillation-s-captureA-863.json,
   commits 78940a0/e0f8fcb, census clean after.
 - #81967 (tools-list): tonight's toolsBytes growth step from deferred
   tool loads (harvest snapshot b3ba6fd) if it adds measurement value.

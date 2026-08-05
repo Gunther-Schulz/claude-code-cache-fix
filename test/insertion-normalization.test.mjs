@@ -935,7 +935,7 @@ test("pin: flag off -> classifyPinned never runs, phase-2 byte-identical behavio
 
 // --- Pins survive a reset (threat-matrix row 22) ---
 //
-// Measured 2026-07-28, capture s-538c0aef: CC honestly replaced message 196,
+// Measured 2026-07-28, capture s-captureL: CC honestly replaced message 196,
 // so reset(edit-shaped) was right and the cost belonged to 196+. But every
 // reset returned without a `messages` field, so the caller forwarded the raw
 // array and message 177 lost the first-seen <system-reminder> this extension

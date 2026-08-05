@@ -8,9 +8,9 @@ Measured A/B between two detached worktrees differing only by this
 diff, whole live corpus (8.5 GB, 36 captures, serving gate set):
 stability 10 → 2, and the 2 survivors are attributed by the gate to
 deferred-tool-rewrite and are identical in both trees — ZERO
-insertion-normalization stability violations remain. s-dc3f8071 goes
-2 → 0 (n=196→197, n=399→400), and so do s-58c979ce, s-633915a8 and
-s-9f9d8a9d, which unit 2b could not close: the same ordinal collision
+insertion-normalization stability violations remain. s-captureC goes
+2 → 0 (n=196→197, n=399→400), and so do s-captureD, s-captureA and
+s-captureM, which unit 2b could not close: the same ordinal collision
 was firing on four captures, not one. Safety, conservation, sequence
 and canonical order are 0 everywhere in both trees. The
 old-canon compatibility probe (`tools/verdict-ab.mjs --seed-from-a`,
@@ -59,7 +59,7 @@ n=197's fresh tail reminder took o=7), D binds to that unrelated copy at
 an inverted position, which (1) removes D from `droppedNow` so no move
 recognition can fire and (2) trips `not-subsequence` — the merged
 message goes out raw and our bytes flip where CC's were identical.
-Frozen in fixture `test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json`
+Frozen in fixture `test/fixtures/harvested/reset-move-s-captureC-196-197.json`
 (`_mechanism` note); same shape and hash at n=399→400.
 
 The report named three candidate directions and chose none. This pass
@@ -219,7 +219,7 @@ requires.
    bite that names it — including the (f) role constraint and the
    fail-closed bounds.
 2. The three existing TODO tests report as passing todos.
-3. `s-dc3f8071` stability violations 2 → 0 (both measured pairs are
+3. `s-captureC` stability violations 2 → 0 (both measured pairs are
    this shape/hash) under `--gates-from-capture`.
 4. Old-canon compatibility probe: decisions over every committed
    fixture corpus with `rs`-free canon files, pre-tree vs post-tree —
@@ -227,7 +227,7 @@ requires.
    an empty corpus, keep that).
 5. Full five-gate sweep, serving gate set, all corpora + live captures:
    safety/conservation/sequence/order stay 0 everywhere; stability on
-   `s-633915a8` and `s-58c979ce` measured and ATTRIBUTED per pair, not
+   `s-captureA` and `s-captureD` measured and ATTRIBUTED per pair, not
    promised — any pair this design does not close gets its mechanism
    stated (the unit-2b report's A/B discipline).
 6. `npm test` full suite (known port-bound exclusions per

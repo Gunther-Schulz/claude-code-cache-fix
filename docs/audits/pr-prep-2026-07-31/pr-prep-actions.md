@@ -25,7 +25,7 @@ extends the exposure into `cnighswonger`'s repo while that blocker is unresolved
 and #272's reviewer explicitly asked us not to move on fixture sanitization
 before agreeing a path.
 
-1. **`test/fixtures/harvested/reset-move-s-dc3f8071-196-197.json` embeds a real
+1. **`test/fixtures/harvested/reset-move-s-captureC-196-197.json` embeds a real
    screenshot, five times.** Five identical `image/png` blocks, 13,060 base64
    chars each (~9.8 kB decoded, 951×55), PNG `tEXt` chunks reading
    `Creation Time: Mi 29 Jul 2026 16:46:01 CEST` and `Software: gnome-screenshot`.
@@ -42,7 +42,7 @@ before agreeing a path.
    (recurse into `source`), and it needs a bite that goes red on this fixture
    first.
 
-2. **`test/fixtures/harvested/flap-s-0d6f38ba-86.json` retains raw operator hook
+2. **`test/fixtures/harvested/flap-s-captureB-86.json` retains raw operator hook
    prose.** Its `_sanitization` header says the participating reminder texts are
    kept RAW on purpose. Six of the eight raw strings are the operator's own hook
    text, quoting private files by name — `dispatch-discipline.md §1`,
