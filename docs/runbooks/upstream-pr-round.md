@@ -1,0 +1,90 @@
+# Runbook: answering a review round on an upstream-facing PR branch
+
+Standing procedure, written for a fresh context. Consumer: any dev
+session (typically the Opus dev session) executing PR-round items from
+BACKLOG.md. Companion facts: `docs/audits/upstream-pr-sweep-2026-08-05.md`
+(per-PR state as of that date), upstream issue #284 (upstream's own
+landing order), `CLAUDE.local.md` (identity + what upstream's tracked
+CLAUDE.md does and does not bind here).
+
+## Setup (once per branch)
+
+Never check a PR branch out in the main working tree — that tree IS the
+serving config of the production proxy (systemd runs
+`proxy/server.mjs` from it; /health fingerprints it). Use a worktree:
+
+```sh
+git fetch upstream && git fetch origin
+git worktree add /tmp/wt-<branch-slug> <branch>
+ln -s /home/g/dev/vendor/claude-code-cache-fix/node_modules /tmp/wt-<branch-slug>/node_modules
+```
+
+The symlink is mandatory: a fresh worktree has no `node_modules`, and
+without it `npm test` dies with `ERR_MODULE_NOT_FOUND: hpagent` and two
+suites appear to hang ~900 s (measured 2026-08-02; it is the missing
+deps, not the documented production-port hazard).
+
+When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
+
+## The round
+
+1. **Read before acting.** `gh pr view <n> --repo
+   cnighswonger/claude-code-cache-fix --json reviews,comments` and read
+   the FULL latest review + all comments since our last push. Never work
+   from a remembered or summarized finding when the thread is one read
+   away — and never assume the previously seen diff is current
+   (fetch the PR head first).
+2. **Fix on the branch.** The backlog entry carries the settled design;
+   a gap in it is surfaced in the PR-round report, never bridged with a
+   guess.
+3. **Rebase policy.** Upstream requires contributors to rebase against
+   current `upstream/main` before requesting review — rebase when the
+   PR is CONFLICTING or when the reviewer asks; use
+   `git push --force-with-lease` afterwards (established precedent on
+   #281). Never resolve by cherry-picking the conflict away.
+4. **Verify.** Targeted suites for the touched area, then the FULL
+   `npm test` in the worktree (fast: ~17 s for ~2050 tests). Any red
+   that is not the documented branch-base artifact blocks the push.
+5. **Hygiene gate — before every push, non-negotiable (public repo).**
+   The Public-Repo Information Hygiene section of the tracked CLAUDE.md
+   binds in full. Mechanically:
+   ```sh
+   node --test test/absence-scan.test.mjs        # where the branch has it
+   git diff upstream/main...HEAD | grep -nE '([0-9]{1,3}\.){3}[0-9]{1,3}|ssh [a-z]+@|s-[0-9a-f]{8}'
+   ```
+   The grep must return nothing attributable to real infrastructure or
+   real capture/session identifiers. PR diffs are public the instant
+   they open, and objects persist in upstream's `refs/pull/N/head` even
+   after close — there is no retraction (confirmed on #294/#296).
+6. **Push, then comment.** Every push gets a PR comment: what changed
+   in response to which finding, real test counts from the run, then
+   the footer:
+   ```
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+   <session link>
+   ```
+   That footer IS the AI attribution — never dropped.
+
+## Limits (the box)
+
+- Plain `gh` under the operator's own identity. The bot-token
+  machinery described in the tracked CLAUDE.md does not exist on this
+  machine (verified 2026-07-30, `CLAUDE.local.md`); any instruction to
+  run `generate-token.sh` is a transcription bug — stop and surface it.
+- No pushes to any `main` (fork-main is production; upstream-main is
+  not ours). PR branches only.
+- No label changes, ever — upstream's review/approval label state
+  machine is theirs alone.
+- No new issues, discussions, or posts beyond the established
+  push-announcement comment pattern without an operator GO.
+- A finding that needs a DESIGN decision not already settled in the
+  backlog entry returns as a question in the report — it is not decided
+  at execution time.
+
+## Report
+
+Close the round with the dispatch-discipline §2 report form (items
+completed with evidence, checks run with real output, gaps, deviations,
+lessons, files+commits, what was NOT verified) — in the session's final
+message if working directly for the operator.

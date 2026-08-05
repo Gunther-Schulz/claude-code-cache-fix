@@ -71,8 +71,136 @@ bullet, evidence pointer included.
   header-forwarding and supervised-stop fixes to server.mjs, launcher
   ca-trust changes, RFC 7230 absolute-form fix. PR-thread sweep
   (10 fork PRs; 5 CHANGES_REQUESTED, #275 CONFLICTING) dispatched to
-  a sonnet agent 08-05; if its report is not in this session's
-  record, the sweep repeats cheaply.
+  a sonnet agent 08-05; report delivered — persisted (id-masked) at
+  docs/audits/upstream-pr-sweep-2026-08-05.md, and every actionable
+  item from it is booked in the "Upstream PR round" section below.
+
+## Upstream PR round — booked 2026-08-05, all READY
+
+Procedure for every item: docs/runbooks/upstream-pr-round.md (worktree
+setup, hygiene gate, comment form, the box). Per-PR state and full
+review gists: docs/audits/upstream-pr-sweep-2026-08-05.md. Upstream's
+own landing order is in issue #284 (2026-08-04 comment): #272 first
+("highest-leverage thing on your side of the board"), then the
+absence-scan split (unblocks their #302), then #279/#282/#275/#280,
+then the queued ones. Work the items in that order.
+
+- **READY — #272: scrub the 5 residual capture-id comment strings.**
+  On branch `pr/insertion-normalization`: the reviewer's 08-01 comment
+  names 5 comment-only occurrences of the real capture session id —
+  `insertion-normalization.mjs:616,659`,
+  `test/insertion-merge-suppression.test.mjs:2`,
+  `test/insertion-suppression.test.mjs:7,267` (line numbers as of
+  head `720ecb46`; re-locate by grep, not by line). Replace each with
+  the synthetic token the branch already uses (`s-4b6a435234bf`).
+  Verifier: grep for the real id over the whole branch returns zero;
+  full suite green in the worktree. Done: pushed + PR comment;
+  reviewer restarts full review from top per their comment.
+
+- **READY — #292: synthesize cc-transcript-shape-snapshot.json.**
+  The tracked fixture carries 6 real UUIDs, a 448-char thinking
+  signature, a `$.source` path, and 2,305 chars of verbatim
+  third-party GitHub comments with 3 real logins (confirmed by
+  upstream 08-03), plus a `_note` falsely claiming it is redacted.
+  Rebuild it structure-preserving with every value from known-safe
+  generators (the redaction-by-scrub vs build-from-safe-parts
+  asymmetry: build, don't scrub), drop the false `_note`, remove the
+  fixture's allowlist entry in the absence-scan, and reply on #292.
+  Verifier: fork-main's content-scanning absence-scan green WITHOUT
+  the allowlist entry; every test consuming the fixture's shape still
+  green. Sequenced BEFORE the split item below so the standalone scan
+  ships without the entry.
+
+- **READY — absence-scan split: standalone PR (unblocks upstream
+  #302; asked twice, #284 + #292).** New branch from `upstream/main`
+  carrying only `tools/absence-scan.mjs` + its test, in the
+  content-scanning form fork-main ships (post-770e915), with the two
+  boundary conditions fixed exactly as upstream named them: (1)
+  `CORPUS_SCOPE` — upstream has no `test/fixtures/harvested/`; the
+  scan must treat that scope as empty-and-passing when the directory
+  is absent, with a test pinning it; (2) no
+  cc-transcript-shape-snapshot.json allowlist entry (see the #292
+  item's sequencing). Verifier: the scan's own suite green on the cut
+  branch against upstream/main; a planted violation goes red
+  (instrument known-positive). Done: PR opened as the standalone,
+  `Ref #302` + `Ref #292` in the body, generated-with footer.
+
+- **READY — #276: widen the branch's absence-scan + clean the 9
+  files.** `pr/verification-tools` still carries the filename-only
+  scan; the reviewer holds review on #276 AND #272 until it scans
+  tracked-file CONTENTS and is re-run. Port fork-main's
+  content-scanning version (and its 770e915-class scrubs) onto the
+  branch; the reviewer's 08-01 comment lists 9 branch files carrying
+  the real id in comments. Verifier: the widened scan green on the
+  branch; grep for the real id returns zero. Done: pushed + PR
+  comment answering the hold.
+
+- **READY — #279: split the sanitize planner by mode.** Design
+  settled from the review (full text on the PR, round 1, 07-31): the
+  by-shape protection of answered tool-continuations applies to the
+  v1 omitted-thinking path ONLY; the `v2StripSigned` path keeps its
+  directive contract — strip signed thinking from ALL prior assistant
+  turns, preserve only the latest active continuation
+  (proxy-thinking-block-sanitize-v2.md:58-67,153-159). Verifier: the
+  reviewer's own repro flips — `planSanitize([answered continuation,
+  later assistant], {v2StripSigned:true})` strips the prior signed
+  block (droppedV2:1, matching main) — while the PR's new v1
+  byte-stability regression test stays green; both suites green.
+  Done: pushed + PR comment. #284 calls this one of the two "closest
+  to landing."
+
+- **READY — #282: alarm predicate suppresses only count-only
+  INCREASES.** `upstream-change-detection.mjs:469` (head `de9ab87e`)
+  currently suppresses every count-only diff; a DECREASE
+  (compaction/truncation/upstream rewrite) must still alarm. Add the
+  increase-only condition plus a regression test for the decrease
+  case. Verifier: new test red against the branch head, green after;
+  suite green. Done: pushed + PR comment. The other "closest to
+  landing" per #284.
+
+- **READY — #275: capture-file hardening + /health env allowlist +
+  rebase.** Three parts, one branch (`pr/request-capture`, the only
+  CONFLICTING one): (1) capture dir 0700, capture files 0600 via the
+  repo's own write-owner-only helpers, applied BEFORE first byte is
+  written (pre-write, per the review); (2) /health and boot records
+  stop dumping the whole `CACHE_FIX_*` env — emit a declared
+  allowlist of known gate keys; an unknown `CACHE_FIX_*` key appears
+  by NAME only, never value, with a test pinning that; (3) rebase
+  onto current upstream/main (the conflict is real; conflict files
+  not enumerable via API — surfaces during rebase),
+  `--force-with-lease`. Verifier: mode-bit assertions in tests; the
+  allowlist test; suite green post-rebase. Done: pushed + PR comment.
+  Note for the report: upstream marks this load-bearing (their
+  human's review follows — not ours to chase).
+
+- **READY — #280: prefix-diff persistence gets a permissions +
+  retention story.** Design settled: (1) every prefix-diff artifact
+  goes through write-owner-only (0600) — snapshots, diffs, events,
+  rotations; (2) content minimization by default: system-block
+  windows (up to 20k chars/block), message previews, and event-record
+  previews are stored ONLY under a new opt-in
+  `CACHE_FIX_PREFIXDIFF_CONTENT=1`; default persists hashes + lengths
+  + indices (attribution stays readable, prompt text does not rest on
+  disk); (3) cross-key retention: a sweep on boot deleting prefix-diff
+  artifacts older than 14 days and pruning oldest beyond 200 session
+  keys — the reviewer's exact gap was "no cross-key GC, TTL, cap, or
+  sweep". Document in the PR body that the CONTENT flag persists
+  prompt-derived text. Verifier: mode-bit test; a seeded-old-files
+  sweep test; default-mode test asserting no raw prompt text lands in
+  any artifact (grep the written files for a sentinel string from the
+  request); suite green. Done: pushed + PR comment.
+
+- **READY (optional acceleration) — #295: cut the 7-commit slim
+  branch.** Upstream cannot review the stacked diff (69 files of
+  inherited parents) and offered the #304-shaped workaround: a branch
+  from upstream/main carrying only the 7 #295-specific commits
+  (enumerate: commits on `pr/insertion-join-moves` not on its stack
+  parents). Cherry-pick onto `pr/insertion-join-moves-slim`; if a
+  pick depends materially on #272/#276 content, STOP and report —
+  upstream's stated alternative is waiting for the parents to land.
+  Verifier: suite green on the slim branch; diff shows only the
+  7-commit surface. Done: new draft PR referencing #295, comment on
+  #295 pointing at it.
 
 - **READY — a full-suite gate before push (the red-main incident,
   2026-08-02 evening).** What happened: the source-UUID guard landed
