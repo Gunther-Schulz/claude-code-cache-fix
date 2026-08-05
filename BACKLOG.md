@@ -295,7 +295,7 @@ bullet, evidence pointer included.
   further down (wrapper-retaining standalone), s-captureJ x1 the same
   row-24 pair.
 
-- **(DONE 2026-08-05) READY — anchor `normalizeSessionStartText` to a block that IS a
+- **(DONE 2026-08-05) — anchor `normalizeSessionStartText` to a block that IS a
   SessionStart hook output.** Grounding, measured (entry (C) above):
   the normalizer rewrote a quoted marker inside a teammate message's
   prose, silently altering conversation content CC sent. Impact here
@@ -382,7 +382,7 @@ bullet, evidence pointer included.
   declaration yields `null` from `freshSessionSortExemption`, so no
   stability exemption is widened.
 
-- **(DONE 2026-08-05) READY — conservation gate: declared exemption for
+- **(DONE 2026-08-05) — conservation gate: declared exemption for
   `fresh-session-sort`'s block rewrite.** Design settled by the
   triage above. Shape mirrors the existing clause-(d) peel exemption
   exactly (replay.mjs:1853 `smooshSplitPeelUnits` / :1927): the
@@ -402,7 +402,7 @@ bullet, evidence pointer included.
   violation (tamper one forwarded block in the fixture). tools/-only,
   not deployment-coupled.
 
-- **(DONE 2026-08-05, as the peel/strip COMPOSITION) READY — conservation gate: declared exemption for
+- **(DONE 2026-08-05, as the peel/strip COMPOSITION) — conservation gate: declared exemption for
   `content-strip`.** Same shape, clause (c) widened. content-strip
   (order-wise ahead of the gate's view) declares the blocks it
   removed; the gate re-runs content-strip's OWN predicates
@@ -828,7 +828,7 @@ bullet, evidence pointer included.
   require the ONLY delta to be at n=221.
 
 - **(DONE 2026-08-05 — shipped 12d7dd6, then CLASSIFIED 383d8a5, and the
-  class it found is FIXED at 04ed3c9) READY — a gate that asks whether a
+  class it found is FIXED at 04ed3c9) — a gate that asks whether a
   mitigation ABSORBED, not just whether it ran.**
   WHAT THE FIRST CORPUS-WIDE MEASUREMENT SAID, and it is a
   single-class population: **41 of 41 absorption-miss rows are
@@ -889,7 +889,7 @@ bullet, evidence pointer included.
   its own request number, and growth shows up as `new`), which is why
   the join is the evidence here and the totals are not.
 
-- **(DONE, see above) READY — a gate that asks whether a mitigation ABSORBED, not just
+- **(DONE, see above) — a gate that asks whether a mitigation ABSORBED, not just
   whether it ran.** Grounding, and it is the reason the 349k bust
   reached a human: the capture replays exit 0 on all five gates and
   every verdict is correct. Stability asks whether OUR output
@@ -1121,7 +1121,7 @@ then the queued ones. Work the items in that order.
   data cannot be adopted, and softening it to pass is worse than
   removing it.
 
-- **(DONE, see above) READY — #272: scrub the 5 residual capture-id comment strings.**
+- **(DONE, see above) — #272: scrub the 5 residual capture-id comment strings.**
   On branch `pr/insertion-normalization`: the reviewer's 08-01 comment
   names 5 comment-only occurrences of the real capture session id —
   `insertion-normalization.mjs:616,659`,
@@ -1133,7 +1133,7 @@ then the queued ones. Work the items in that order.
   full suite green in the worktree. Done: pushed + PR comment;
   reviewer restarts full review from top per their comment.
 
-- **(DONE 2026-08-05, d667df9 + issue comment) READY — #292: synthesize cc-transcript-shape-snapshot.json.**
+- **(DONE 2026-08-05, d667df9 + issue comment) — #292: synthesize cc-transcript-shape-snapshot.json.**
   The tracked fixture carries 6 real UUIDs, a 448-char thinking
   signature, a `$.source` path, and 2,305 chars of verbatim
   third-party GitHub comments with 3 real logins (confirmed by
@@ -1147,7 +1147,7 @@ then the queued ones. Work the items in that order.
   green. Sequenced BEFORE the split item below so the standalone scan
   ships without the entry.
 
-- **(DONE 2026-08-05 — PR #306 opened) READY — absence-scan split: standalone PR (unblocks upstream
+- **(DONE 2026-08-05 — PR #306 opened) — absence-scan split: standalone PR (unblocks upstream
   #302; asked twice, #284 + #292).** New branch from `upstream/main`
   carrying only `tools/absence-scan.mjs` + its test, in the
   content-scanning form fork-main ships (post-770e915), with the two
@@ -1170,7 +1170,7 @@ then the queued ones. Work the items in that order.
   byte-identical. Done: PR opened as the standalone,
   `Ref #302` + `Ref #292` in the body, generated-with footer.
 
-- **(DONE 2026-08-05, 1ccd191 + f80501f) READY — #276: widen the branch's absence-scan + clean the 9
+- **(DONE 2026-08-05, 1ccd191 + f80501f) — #276: widen the branch's absence-scan + clean the 9
   files.** `pr/verification-tools` still carries the filename-only
   scan; the reviewer holds review on #276 AND #272 until it scans
   tracked-file CONTENTS and is re-run. Port fork-main's
@@ -1180,7 +1180,7 @@ then the queued ones. Work the items in that order.
   branch; grep for the real id returns zero. Done: pushed + PR
   comment answering the hold.
 
-- **(DONE 2026-08-05, 0b67dbf pushed + commented) READY — #279: split the sanitize planner by mode.** Design
+- **(DONE 2026-08-05, 0b67dbf pushed + commented) — #279: split the sanitize planner by mode.** Design
   settled from the review (full text on the PR, round 1, 07-31): the
   by-shape protection of answered tool-continuations applies to the
   v1 omitted-thinking path ONLY; the `v2StripSigned` path keeps its
@@ -1194,7 +1194,7 @@ then the queued ones. Work the items in that order.
   Done: pushed + PR comment. #284 calls this one of the two "closest
   to landing."
 
-- **(DONE 2026-08-05, 9474a39) READY — #282: alarm predicate suppresses only count-only
+- **(DONE 2026-08-05, 9474a39) — #282: alarm predicate suppresses only count-only
   INCREASES.** `upstream-change-detection.mjs:469` (head `de9ab87e`)
   currently suppresses every count-only diff; a DECREASE
   (compaction/truncation/upstream rewrite) must still alarm. Add the
@@ -1203,7 +1203,7 @@ then the queued ones. Work the items in that order.
   suite green. Done: pushed + PR comment. The other "closest to
   landing" per #284.
 
-- **(DONE 2026-08-05, 8a47da4 force-pushed + commented) READY — #275: capture-file hardening + /health env allowlist +
+- **(DONE 2026-08-05, 8a47da4 force-pushed + commented) — #275: capture-file hardening + /health env allowlist +
   rebase.** Three parts, one branch (`pr/request-capture`, the only
   CONFLICTING one): (1) capture dir 0700, capture files 0600 via the
   repo's own write-owner-only helpers, applied BEFORE first byte is
@@ -1218,7 +1218,7 @@ then the queued ones. Work the items in that order.
   Note for the report: upstream marks this load-bearing (their
   human's review follows — not ours to chase).
 
-- **(DONE 2026-08-05, 2f96c88 pushed + commented) READY — #280: prefix-diff persistence gets a permissions +
+- **(DONE 2026-08-05, 2f96c88 pushed + commented) — #280: prefix-diff persistence gets a permissions +
   retention story.** Design settled: (1) every prefix-diff artifact
   goes through write-owner-only (0600) — snapshots, diffs, events,
   rotations; (2) content minimization by default: system-block
@@ -1655,7 +1655,7 @@ then the queued ones. Work the items in that order.
 
 - **(DONE — shipped 9059d3a; `movedFresh`/`movedRefires` are live in
   insertion-normalization.mjs and were the telemetry that made the
-  2026-08-05 349k bust readable) READY — split `moved` into fresh recognitions vs re-fires
+  2026-08-05 349k bust readable) — split `moved` into fresh recognitions vs re-fires
   (the instrument change the 660k bust argues for).** Grounding,
   verified at the line: insertion-normalization.mjs:1062 emits
   `moved: moves.length + refires.length` — the code holds the two
@@ -1676,7 +1676,7 @@ then the queued ones. Work the items in that order.
   the SAME proxy boundary — one restart carries both.
 
 - **(DONE — `bust-triage` now prints `freeze: harvest --pin <key> n..m`
-  on its capture line, verified live 2026-08-05) READY — bust-triage prints pin-ready request ordinals.**
+  on its capture line, verified live 2026-08-05) — bust-triage prints pin-ready request ordinals.**
   Grounding: an evidence-freezing error made by the dispatcher
   today. bust-triage's capture line reports `n=591->595`, which is a
   MESSAGE COUNT, while `harvest --pin <key> n..m` takes file-wide
