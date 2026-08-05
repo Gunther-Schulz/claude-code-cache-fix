@@ -571,3 +571,38 @@ test("17. count change RIDING a real structural change still alarms, count in th
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("18. a messages.count-only DECREASE still alarms — compaction/truncation is not silent growth", async () => {
+  const dir = await newTmp();
+  process.env.CACHE_FIX_UPSTREAM_DETECTION = "1";
+  process.env.CACHE_FIX_UPSTREAM_DIR = dir;
+  try {
+    const ext = await freshExt();
+    await ext.default.onRequest({
+      body: makeBody({
+        messages: [
+          { role: "user", content: [{ type: "text", text: "hello" }] },
+          { role: "assistant", content: [{ type: "text", text: "hi" }] },
+          { role: "user", content: [{ type: "text", text: "more" }] },
+        ],
+      }),
+    });
+    // Same shape, fewer messages — compaction/truncation, not growth.
+    await ext.default.onRequest({
+      body: makeBody({
+        messages: [
+          { role: "user", content: [{ type: "text", text: "hello" }] },
+        ],
+      }),
+    });
+    const text = await readFile(join(dir, "upstream-changes.jsonl"), "utf8");
+    const parsed = text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+    const change = parsed.find((e) => e.event === "structural_change");
+    assert.ok(change, "a count-only decrease must still alarm");
+    assert.ok(change.diff.some((d) => d.path === "messages.count"), "the count delta rides in the diff");
+  } finally {
+    delete process.env.CACHE_FIX_UPSTREAM_DETECTION;
+    delete process.env.CACHE_FIX_UPSTREAM_DIR;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
