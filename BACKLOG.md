@@ -71,9 +71,8 @@ bullet, evidence pointer included.
   Nothing is blocked on us. Do NOT re-do any of the six — check the PR
   thread first; the next move on all of them is upstream's.
 
-  **OPERATOR DECISION STILL OPEN:** the 8-hex prefix class remains in
-  immutable public history (the working tree is scrubbed, the PR
-  branches' commit MESSAGES are not, and no push can retract those).
+  **THE 8-HEX PREFIX IN HISTORY: DECIDED — ACCEPTED, 2026-08-05.** See
+  the dedicated entry below for the measurements and the basis.
 
 - **HANDOFF 2026-08-05 — the 08-02 handoff's G1/G2/G3 are all settled
   and shipped on `wt/description-absorb` (now at 7f6e5a1, pushed);
@@ -365,6 +364,52 @@ bullet, evidence pointer included.
   mechanism to a 2,324-char preview plus a file pointer
   (`.../tool-results/hook-…-additionalContext.txt`, 54,266 bytes on
   disk) — the corpus it exists to re-show does not reach the model.
+
+- **ACCEPTED 2026-08-05 (operator decision, measured) — the 8-hex
+  capture-key prefix already in published git history stays there. No
+  history rewrite.**
+  WHAT IS ACTUALLY EXPOSED, measured rather than estimated:
+  - fork-main's WORKING TREE: **clean**. `absence-scan` over all 605
+    tracked files reports clean; the raw-grep hits that remain are the
+    synthetics the scanner knows (the fixture token, the test
+    fixtures, the exemption regex itself).
+  - fork-main's own COMMIT HISTORY: 21 distinct prefixes across the
+    messages. Public, immutable.
+  - the OPEN PR branches' commit messages, which live in upstream's
+    `refs/pull/N/head`: **31 occurrences**, concentrated in three
+    branches (pr/insertion-join-moves 15, pr/verification-tools 11,
+    pr/insertion-normalization 5). The other four are clean.
+  - upstream's `main`: **NOT exposed.** Both merged PRs (#274, #277)
+    carry none of the class in message or added diff — checked, not
+    assumed, and this was the fact that decided it.
+  WHY ACCEPT RATHER THAN REMEDIATE, and the first reason alone is
+  sufficient:
+  (1) **Remediation is not available.** GitHub retains
+    `refs/pull/N/head` objects after a force-push and after a PR
+    closes — precedent already recorded in this repo (#294/#296). A
+    fork-history rewrite would break every PR branch and every
+    upstream ref while retracting nothing that has been fetched.
+    There is no action whose outcome is "the bytes are gone".
+  (2) **The residual value of the leaked bytes is near zero.** An
+    8-hex prefix of a session UUID identifies a LOCAL Claude Code
+    conversation on one machine. It is not a credential, it addresses
+    no remote resource, and it authenticates nothing. It has worth
+    only to someone who ALSO holds the corresponding capture — and
+    captures are never published, which is the rule the whole
+    hygiene apparatus exists to keep. Contrast the origin-IP
+    precedent this repo's CLAUDE.md cites, where the leaked value WAS
+    the attack surface and remediation meant rotating the host: here
+    there is nothing to rotate and nothing the value unlocks.
+  (3) The forward boundary is closed and measured: the scan now reads
+    file CONTENTS across every text type, object KEY names, and
+    COMMIT MESSAGES scoped to the range being pushed — 0 findings
+    over 605 files, still red on an unseen real prefix.
+  WHAT WOULD RE-OPEN THIS: a capture file becoming public (the prefix
+  then links a comment to real prompt bytes), or upstream asking for
+  the branches to be rewritten. Neither is true today.
+  NOT DONE, deliberately: rewriting the three branches' commit
+  messages. It would cost a force-push on each, break the review
+  threads' commit links, and — per (1) — not retract anything.
 
 - **RESOLVED 2026-08-05 — the push gate now sees source files, and the
   tree it guards is scrubbed. Both halves landed together, which was

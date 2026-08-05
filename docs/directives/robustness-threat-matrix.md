@@ -971,6 +971,30 @@ the session transcript's own `cache_miss_reason` diagnostics):
   late-bind retracts via k:"hit-retract" (readers drop retracted
   hits); the live false hit and the session's ❄ state retro-corrected.
 
+## Hygiene residual — ACCEPTED 2026-08-05: the 8-hex capture-key
+## prefix in published history
+
+Full measurements and basis: BACKLOG.md, "ACCEPTED 2026-08-05 … the
+8-hex capture-key prefix". Summary for this matrix: the working tree
+is clean and the forward gate is closed (contents across every text
+type, object key names, and commit messages); what remains is 21
+distinct prefixes in fork-main's own commit history and 31
+occurrences in three open PR branches' messages, held in upstream's
+`refs/pull/N/head`. Upstream's `main` is NOT exposed — both merged
+PRs were checked and carry none of the class.
+
+Accepted rather than remediated because remediation does not exist:
+GitHub retains `refs/pull/N/head` after force-push and after close
+(#294/#296 precedent), so no action produces "the bytes are gone".
+And the value is near zero — an 8-hex prefix of a session UUID names a
+LOCAL conversation, authenticates nothing, and is worth something only
+to a holder of the corresponding capture, which is never published.
+That is the opposite of the origin-IP precedent, where the leaked
+value WAS the attack surface and remediation meant rotating the host.
+
+Re-opens if a capture becomes public, or if upstream asks for the
+branches to be rewritten.
+
 ## External issue sweep vs. this stack — coverage matrix (2026-07-29)
 
 A sweep of anthropics/claude-code issues (33 included, 25 read in full;
