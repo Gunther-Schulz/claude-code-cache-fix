@@ -462,6 +462,7 @@ Mechanised on the dotfiles side: `bootstrap/doctor.py` enumerates its own
 test, so a new verdict cannot be added without its could-not-verify case being
 exercised.
 
+<!-- required-reading-extract-start -->
 ## The closing gate: four questions before any proxy work is done
 
 MANDATE (operator, 2026-07-29). Every piece of work here — a fix, an
@@ -535,6 +536,7 @@ it, acknowledge-by-commit, within the hour).
    ran eleven gates). New state, new record fields, new gates — each lands
    with its replay handling, its ledger declaration, and its three-answer
    doctor verdict in the same change.
+<!-- required-reading-extract-end -->
 
 ### Cadence: the gate guards the flow, the sweep re-checks the stock
 
