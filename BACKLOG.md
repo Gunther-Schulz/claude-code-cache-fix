@@ -1698,7 +1698,45 @@ bullet, evidence pointer included.
   repo (global identity is the convention here; a local one is
   always leakage).
 
-## Upstream PR round — booked 2026-08-05, all READY
+## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
+## current state is the first entry
+
+**STATE AS OF 2026-08-05 21:00Z, read from the API rather than from this
+file's history — the entries below record what WE did, not what upstream
+then did with it, and four of them have since merged.**
+
+| PR | state | ball |
+|---|---|---|
+| #275 #279 #280 #282 | **MERGED** 15:11–15:31Z | done |
+| #272 | **APPROVED, mergeStateStatus CLEAN**, rebased onto `39570db` tonight | upstream |
+| #276 | answered tonight; upstream replied accepting both points | upstream |
+| #306 #307 | open, no comments, REVIEW_REQUIRED | upstream |
+| #273 #281 | REVIEW_REQUIRED, BLOCKED behind #272 | upstream |
+| #278 | REVIEW_REQUIRED, **mergeStateStatus DIRTY** | **US — entry below** |
+| #295 | CLOSED tonight, premise falsified | done |
+
+- **READY — #278 (`pr/output-guard`) is CONFLICTING and needs the same
+  rebase #272 just had.** Measured 2026-08-05 21:00Z: `mergeStateStatus:
+  DIRTY`, last comment ours from 07-30, so nothing is owed in the thread —
+  only the merge state blocks it. Upstream's contributor rule (their tracked
+  CLAUDE.md, which binds on upstream-facing branches) is rebase-against-
+  current-main, never cherry-pick the conflict away, and the runbook's
+  rebase-policy step covers it.
+  Design, decision-complete: worktree at `/home/g/dev/vendor/cache-fix-pr7`
+  (already provisioned, already on `pr/output-guard` at `e4bd379`) — but
+  `node_modules` is MISSING there, verified 2026-08-05, so symlink it first
+  or the suite dies `ERR_MODULE_NOT_FOUND: hpagent` and two tests look like
+  a 900 s hang (runbook setup step, and both 08-02 "hangs" were exactly
+  this). Then `git rebase upstream/main`, full suite in the worktree, the
+  runbook's
+  hygiene greps scoped to THIS round's commits, `git push
+  --force-with-lease`, then the push-announcement comment with real test
+  counts and the attribution footer.
+  Known in advance, so it does not surprise the next session: the push-side
+  leak scan will block the force-push by re-flagging already-public commit
+  messages — that is the separate READY item above, and the check is
+  patch-id equivalence against the pre-rebase commits before overriding.
+  Done when #278 reports CLEAN and the comment is posted.
 
 Procedure for every item: docs/runbooks/upstream-pr-round.md (worktree
 setup, hygiene gate, comment form, the box). Per-PR state and full
