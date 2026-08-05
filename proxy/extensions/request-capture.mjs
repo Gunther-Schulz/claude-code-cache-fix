@@ -24,14 +24,24 @@
 // SWEEP_EVERY appends per process; oldest capture files deleted first
 // until under the cap. The sweep is best-effort and fail-open.
 
-import { appendFile, mkdir, readdir, stat, unlink } from "node:fs/promises";
+import { appendFile, chmod, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { claudeHome } from "../claude-home.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { createHash } from "node:crypto";
+import { appendFileOwnerOnly } from "./write-owner-only.mjs";
+import { publishableGates } from "../gate-allowlist.mjs";
 
-const DEFAULT_FS = { appendFile, mkdir, readdir, stat, unlink };
+// The capture directory holds whole request and response bodies — the most
+// sensitive thing this proxy writes anywhere. 0700 so the directory listing
+// itself, which leaks session keys through filenames, is owner-only too;
+// the files inside are 0600 via appendFileOwnerOnly. Both are applied at
+// CREATE rather than chmod'ed afterwards, so there is no window in which a
+// capture file exists at the ambient umask.
+const CAPTURE_DIR_MODE = 0o700;
+
+const DEFAULT_FS = { appendFile, chmod, mkdir, readdir, stat, unlink };
 const SWEEP_EVERY = 50;
 
 let _appendsSinceSweep = 0;
@@ -222,10 +232,12 @@ export async function sweepCaptureDir(dir, maxBytes, fs = DEFAULT_FS) {
 //   class as the gate runner replaying extension DEFAULTS while production ran
 //   eleven gates: a verdict over the wrong configuration.
 export function buildBootRecord(now = new Date(), env = process.env, tree = null) {
-  const gates = {};
-  for (const [k, v] of Object.entries(env)) {
-    if (k.startsWith("CACHE_FIX_") && k !== "CACHE_FIX_PROXY_TREE") gates[k] = v;
-  }
+  // Allowlisted gate VALUES only; every other CACHE_FIX_* key is present by
+  // NAME with its value redacted. A capture file is the artifact most likely
+  // to be attached to a bug report or replayed elsewhere, and the environment
+  // holds credentials and machine paths beside the switches. PROXY_TREE is
+  // skipped because it is already a field of this record.
+  const gates = publishableGates(env, { skip: ["CACHE_FIX_PROXY_TREE"] });
   return {
     ts: now.toISOString(),
     type: "boot",
@@ -264,16 +276,18 @@ export default {
       // configuration, so the corpus carries its own provenance.
       if (!_bootWrittenFor.has(record.key)) {
         _bootWrittenFor.add(record.key);
-        await DEFAULT_FS.mkdir(dir, { recursive: true });
-        await DEFAULT_FS.appendFile(
+        await DEFAULT_FS.mkdir(dir, { recursive: true, mode: CAPTURE_DIR_MODE });
+        await appendFileOwnerOnly(
           join(dir, `${record.key}-requests.jsonl`),
           JSON.stringify(buildBootRecord(new Date(), process.env, proxyTree())) + "\n",
+          DEFAULT_FS,
         );
       }
-      await DEFAULT_FS.mkdir(dir, { recursive: true });
-      await DEFAULT_FS.appendFile(
+      await DEFAULT_FS.mkdir(dir, { recursive: true, mode: CAPTURE_DIR_MODE });
+      await appendFileOwnerOnly(
         join(dir, `${record.key}-requests.jsonl`),
         JSON.stringify(record) + "\n",
+        DEFAULT_FS,
       );
       if (++_appendsSinceSweep >= SWEEP_EVERY) {
         _appendsSinceSweep = 0;
@@ -308,9 +322,10 @@ export default {
         const record = buildOutcomeRecord(ctx, id, key);
       if (!record) return;
       ctx.meta._captureOutcomeWritten = true;
-      await DEFAULT_FS.appendFile(
+      await appendFileOwnerOnly(
         join(getCaptureDir(), `${key}-requests.jsonl`),
         JSON.stringify(record) + "\n",
+        DEFAULT_FS,
       );
     } catch (err) {
       debug(`outcome capture failed: ${err?.message ?? err}`);

@@ -9,6 +9,7 @@ import { startWatcher } from "./watcher.mjs";
 import { startOAuthRefresher, stopOAuthRefresher } from "./oauth/refresher.mjs";
 import { attachForwardProxy, handleDownloadsAbsolute } from "./forward-proxy.mjs";
 import { sourceFingerprint, PROXY_ROOT } from "./source-fingerprint.mjs";
+import { publishableGates } from "./gate-allowlist.mjs";
 
 // Debug logging — writes to ~/.claude/cache-fix-debug.log (override path with
 // CACHE_FIX_DEBUG_LOG). Self-gated on CACHE_FIX_DEBUG=1; a no-op otherwise.
@@ -597,11 +598,11 @@ export async function startProxy(options = {}) {
   // failure to read our own source must not take the proxy down — an unknown
   // fingerprint reports as null, which a checker can distinguish from a
   // mismatch.
-  _gates = Object.fromEntries(
-    Object.entries(process.env)
-      .filter(([k]) => k.startsWith("CACHE_FIX_"))
-      .sort(([a], [b]) => a.localeCompare(b)),
-  );
+  // Allowlisted gate VALUES, every other CACHE_FIX_* key by name only. /health
+  // is served to anything that can reach the port, and the environment holds an
+  // OAuth client id, a token endpoint and a dozen machine paths alongside the
+  // switches. See proxy/gate-allowlist.mjs for why the default is name-only.
+  _gates = publishableGates(process.env);
   try {
     _sourceTree = await sourceFingerprint(PROXY_ROOT);
     // Publish via the environment, NOT via a module export. loadExtensions
