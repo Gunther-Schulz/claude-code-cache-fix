@@ -75,6 +75,157 @@ bullet, evidence pointer included.
   docs/audits/upstream-pr-sweep-2026-08-05.md, and every actionable
   item from it is booked in the "Upstream PR round" section below.
 
+- **GATE-RED TRIAGED 2026-08-05 — all 38 conservation rows on
+  s-c7c83ca5 attributed to TWO declared behaviours; neither is a
+  corruption, and the gate is right by its own definition.** Method:
+  the capture replayed under `--gates-from-capture` (exit 1,
+  reproducing the sweep: conservation 38 = 19 lost + 19 invented,
+  everything else 0), then each row attributed by RUNNING the
+  suspected extension's own exported transform over the real raw
+  bytes — not by reading it. Evidence file:
+  `scratchpad/replay-c7c83ca5.json` (session-local).
+  **(A) 11 lost + 11 invented — `fresh-session-sort`'s block
+  rewrite.** The skills `<system-reminder>` block is re-sorted by
+  `sortSkillsBlock` and whitespace-normalized by `pinBlockContent`
+  (fresh-session-sort.mjs:37-70): 8080 -> 8079 chars, unit hash
+  `0a3d686e8066b1e2` -> `85efde987a484e9d`, first difference at
+  offset 85 (the entry order). `hashMessageContent` excludes only
+  `cache_control`, so a text rewrite is one lost unit plus one
+  invented unit, per request, exactly the observed 1:1. Measured on
+  requests 168/169/175 (block at msg 0) and 191 (msg 14, relocated to
+  out[0] — which is why the lost and invented rows sit at different
+  message indices). The deferred-tools block's sort is a NO-OP on
+  this corpus (CC already emits it sorted), which is why one unit
+  moves and not two.
+  **(B) 8 lost + 8 invented — `smoosh-split` COMPOSED with
+  `content-strip`, at msg[6] of requests 177/180/181/182/186/187/
+  189/191.** msg[6] block[3] is a `tool_result` whose STRING content
+  carries a `<system-reminder>` smooshed onto its end ("The task
+  tools haven't been used recently."). `splitSmooshedReminders`
+  returns `{peeled:1}` on it (measured), splitting 4 blocks into 5;
+  `content-strip` then removes the peeled standalone because that
+  text matches its own BOOKKEEPING_PATTERNS (content-strip.mjs:4-12).
+  The conservation gate's clause-(d) peel exemption requires
+  `peeled.every(u => fHashes.has(u.hash))` (replay.mjs:1927) and that
+  `.every` correctly fails — the peeled unit really is off the wire.
+  So the exemption machinery is working; what is missing is a
+  declared exemption for content-strip AT ALL: clause (c)
+  (`isDeclaredStrip`) covers only fresh-session-sort's
+  `isClearArtifact`, never content-strip's bookkeeping patterns.
+  **Consequence: this is the repo's own "a check that fires on a
+  NON-defect is failing too" class, twice.** No content the model
+  needs is lost — (A) reorders a list, (B) drops a rotating
+  bookkeeping nudge on purpose — but the daily gate goes RED on
+  legitimate work, which trains the reader to discount red. Repair is
+  the declared-exemption shape this file already uses, never a
+  softened predicate. Two READY items below.
+  **(C) s-2caae8b5's 2 rows, same sweep, attributed the same way and
+  it is the one with a real fidelity residue.** Replayed under its own
+  gates (exit 1, conservation 2, everything else 0): request 292
+  (2026-08-02T17:20:02.283Z), `in[278]` lost / `out[272]` invented, a
+  single-unit 5,438-char user text block. Attribution by exercising
+  the extension's own export: `normalizeSessionStartText`
+  (identity-normalization.mjs:36-56) rewrites `SessionStart:resume
+  hook success:` -> `SessionStart:startup hook success:` at offset
+  1379 — and at that offset the marker is being QUOTED inside a
+  `<teammate-message>` as prose, not emitted as a hook. The predicate
+  is an unanchored substring replace over any text block, so it
+  cannot tell a live marker from a mention of one. Booked as its own
+  READY item below; the conservation exemption for it is the same
+  declare-and-verify shape as (A).
+  With (A), (B), (C) and the already-attributed s-ddd9fd7d 2 (row-24
+  container flip, 08-05 handoff), every conservation row of the
+  10:02-10:14 sweep is now accounted for. Byte-gate MISMATCH x3 stays
+  as the handoff left it: s-66797e31 x2 is the PREMISE FALSIFIED entry
+  further down (wrapper-retaining standalone), s-ddd9fd7d x1 the same
+  row-24 pair.
+
+- **READY — anchor `normalizeSessionStartText` to a block that IS a
+  SessionStart hook output.** Grounding, measured (entry (C) above):
+  the normalizer rewrote a quoted marker inside a teammate message's
+  prose, silently altering conversation content CC sent. Impact here
+  is cosmetic (one word inside a quotation) and the class is not:
+  any text mentioning `SessionStart:resume hook success:` gets
+  rewritten wherever it appears, including a user's own words.
+  Design: require the block to BE the hook output — the marker at
+  text start, or at the start of the `<system-reminder>` wrapper's
+  inner text — rather than matching anywhere in it; the two other
+  substitutions (`SESSION_START_ID_TAG`,
+  `SESSION_START_LAST_ACTIVE_LINE`) get the same anchoring review in
+  the same pass. Verifier, red-first: a bite with two blocks — a real
+  SessionStart hook block (still normalized) and a prose block
+  quoting the marker mid-sentence (must pass through untouched) —
+  red against today's implementation on the second. proxy/** so it is
+  deployment-coupled; row 3 answer expected NO state key and no freeze
+  change, to be stated by the implementation.
+
+- **READY — conservation gate: declared exemption for
+  `fresh-session-sort`'s block rewrite.** Design settled by the
+  triage above. Shape mirrors the existing clause-(d) peel exemption
+  exactly (replay.mjs:1853 `smooshSplitPeelUnits` / :1927): the
+  extension DECLARES its rewrites (`ctx.meta.freshSessionSortStats`
+  with the count, same wiring as `smooshSplitStats` at
+  replay.mjs:2310), and the gate VERIFIES the declaration by
+  re-running fresh-session-sort's OWN exported `fixBlockText(
+  getBlockType(t), t)` on the raw block and requiring the result
+  present in F byte-identically — declaration alone never exempts.
+  Restricted to blocks the extension actually touches
+  (`isRelocatableBlock`); a rewrite of anything else stays a
+  violation. Verifier, red-first: the bite asserts the 11 rows of
+  s-c7c83ca5 (requests 168,169,175,177,180,181,182,186,187,189,191)
+  go from `lost`/`invented` to `conservationExemptions` — red against
+  today's replay.mjs — plus a CONTROL asserting that a rewrite whose
+  re-run does NOT reproduce the forwarded bytes still reports a
+  violation (tamper one forwarded block in the fixture). tools/-only,
+  not deployment-coupled.
+
+- **READY — conservation gate: declared exemption for
+  `content-strip`.** Same shape, clause (c) widened. content-strip
+  (order-wise ahead of the gate's view) declares the blocks it
+  removed; the gate re-runs content-strip's OWN predicates
+  (`isContinueTrailerBlock` / `isBookkeepingReminder`, which must be
+  EXPORTED — they are module-private today, content-strip.mjs:14-31)
+  against the raw unit and exempts only a unit those predicates
+  accept. Note the composition the triage found: the unit reaching
+  content-strip may be a smoosh-split PEEL product rather than a
+  block CC sent, so the clause-(d) peel verification must treat a
+  peeled unit that content-strip legitimately strips as accounted —
+  i.e. the two exemptions compose, and the bite must cover the
+  composed case, which is the ONLY case measured so far (8 of the 8
+  rows). Verifier, red-first: the bite asserts the 8 rows at msg[6]
+  of s-c7c83ca5 become exemptions — red today — plus a CONTROL that a
+  removed block matching NEITHER predicate still reports `lost`.
+  tools/-only, not deployment-coupled. SEQUENCE: this one after the
+  fresh-session-sort exemption, since both touch the same R-side loop.
+
+- **BUST TRIAGED 2026-08-05 — the 349k s-0600c21f event is row 4,
+  post-deploy, and the operator's re-anchor hypothesis is REFUTED.**
+  Full record: the new "Row 4 datapoint — 2026-08-05" section of
+  `docs/directives/robustness-threat-matrix.md`. Headline: the two
+  09:09:41Z / 09:10:03Z ledger rows are ONE event double-recorded
+  (the earlier raced and never upgraded off `cause=other`);
+  `cacheRead` 15,583 against `ctx` 364,589 means only tools+system
+  survived. The mitigation RECOGNIZED the migration (`movedFresh:2`,
+  join-moves at 370 and 402, count held 414 -> 414) and the forwarded
+  prefix still diverged at `messages@360(system)` with identical
+  leading content. Row 4 therefore does NOT close — its stated
+  closing condition is a live non-event and this is a live event.
+  **OPEN, dispatched as a measurement 2026-08-05:** what exactly
+  differs at forwarded index 360. Named candidate, from the replay's
+  own `mutatedBy` delta across the pair — `cache-control-normalize`
+  and `ttl-management` ran on n=221 and not on n=220 — so the
+  residual may be a `cache_control` marker or a container flip that
+  is OURS, at an index where the four gates cannot see it (stability
+  only asks whether we diverged EARLIER than CC). If that is what it
+  is, this bust is a row-24-shaped defect wearing row 4's clothes,
+  and the NARROW container normalisation item further down gets a
+  second measured instance.
+  Operator-side, outside this repo: the periodic re-anchor hook's
+  ~52KB corpus output is truncated by the harness's persisted-output
+  mechanism to a 2,324-char preview plus a file pointer
+  (`.../tool-results/hook-…-additionalContext.txt`, 54,266 bytes on
+  disk) — the corpus it exists to re-show does not reach the model.
+
 - **SOLVED INCIDENT 2026-08-05 (root cause found same day, fixed in
   the commit this entry rides in) — the .git/config corruption was
   the suite hook running under git's HOOK ENVIRONMENT from a

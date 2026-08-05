@@ -601,6 +601,97 @@ the time of writing: rides one boundary with the row-23 absorb and the
 proxy shows the class as a live non-event — a shipped extension is not
 a closed row, per this matrix's own rule.
 
+### Row 4 datapoint — 2026-08-05: the first POST-DEPLOY instance, and
+### it is a live EVENT, not the non-event the row waits for (349k)
+
+The two entries above both close with "the row stays OPEN until the
+deployed proxy shows the class as a live non-event". The deploy
+happened (2026-08-05 boot, proxy_tree `eec233efa271`, systemd
+`ExecMainStartTimestamp` 09:59:00 CEST = 07:59Z) and the class fired
+70 minutes later. This datapoint records the event and what the
+mitigation did, measured — the attribution of the residual is a
+separate, open question stated at the end.
+
+THE BUST. Session s-0600c21f, 2026-08-05T09:09:41Z / 09:10:03Z (one
+event, double-recorded: the 09:09:41 ledger row raced and never
+upgraded off `cause=other`, the 09:10:03 row carries
+`messages_changed`; `bust-triage --at` on the earlier one prints
+`WARN reconcile`). 349,004 tokens re-billed against `ctx` 364,589,
+`cacheRead` 15,583 — i.e. the surviving hit is tools+system ONLY and
+the whole messages array was re-billed, the row-4 economics exactly
+(the mid-history mutation invalidates every message-level breakpoint,
+all of which sit at the tail).
+
+THE SHAPE, read off the raw pre-pipeline capture (ordinals 220 ->
+221, ts 09:07:57.554Z -> 09:09:01.686Z, 424 -> 428 messages;
+`system` and `tools` byte-identical). Raw index 369 is `role:user`
+`[tool_result, text(364ch)]` where the text block is a
+`<system-reminder>` wrapping a 327-char PreToolUse:Bash hook context;
+at 221 that message is `[tool_result]` alone. Raw index 370 is
+`role:system`, a 370-char string at 220 and a 699-char string at 221
+— exactly `hookText(327) + "\n\n" + userMsg(370)`, the cross-message
+join this row already names. The SAME shape recurs at 378/379, where
+the migrated reminder INSERTS a new standalone instead of merging
+into an existing one, shifting the tail; that is why the pair is
++4 messages and why 48 indices of the common prefix diverge while
+only two of them are the migration itself.
+
+WHAT THE MITIGATION DID (replay of the whole capture under
+`--gates-from-capture`, exit 0: 0 stability / 0 safety / 0
+conservation / 0 sequence / 0 order). At n=221 insertion-normalization
+reports `action:"reset"`, `resetReason:"not-subsequence"`,
+**`movedFresh:2`** with join-move suppressions at indices 370 and 402
+— the un-merge RECOGNIZED both migrations, on the reset path, which is
+what `resetKeepingPins` (insertion-normalization.mjs:919) exists for.
+The forwarded message count held at 414 -> 414.
+
+AND THE PREFIX STILL DIVERGED. The live prefix-diff ledger
+(`s-af2dced50fc1-events.jsonl`, ts 09:09:01.704Z, view
+`forwarded@680`) reports `messages@360(system)` with
+`chain.prevContent` and `chain.nowContent` IDENTICAL over their first
+~120 chars — both begin "The user sent a new message while you were
+working:". So the substitution put the canonical text back and the
+two messages still differ somewhere the content preview does not
+reach. NAMED LEAD, dispatched as a measurement and NOT settled here:
+the replay's `mutatedBy` differs across the pair — n=220 is
+`sort-stabilization, tool-input-normalize, insertion-normalization,
+thinking-block-sanitize`; n=221 is those PLUS
+**`cache-control-normalize`** and **`ttl-management`**. If the
+residual at 360 is a `cache_control` marker or a container flip
+introduced by our own pipeline, this bust is OURS at that index and
+not row 4's, and the four gates cannot see it: stability only asks
+whether we diverged EARLIER than CC, and here CC diverged at the same
+logical slot.
+
+WHAT THIS DOES NOT SAY. It does not say the un-merge is broken —
+recognition fired and the count held. It says the row's closing
+condition (a live non-event) is NOT met on the deployed build, and
+that the residual has a named, testable candidate which is a
+different row. Until that measurement lands, row 4 stays OPEN with
+this event against it.
+
+REFUTED HYPOTHESIS, recorded because it was the session's entering
+premise and it was wrong in an instructive way: that the divergence
+was a periodic re-anchor hook injecting a ~52KB CLAUDE.md corpus
+block at the 300k/400k token thresholds. Three independent
+measurements kill it. (1) The 52,883-char corpus block is real but
+sits at `messages[0]` — the SessionStart `claudeMd` context, present
+from the session's first request and byte-identical across the pair,
+368 indices before the first divergence. (2) The re-anchor hook DID
+fire (crossing 300,000, at `messages[347]`) and its injection is
+**2,324 chars, not 52KB**: the harness's persisted-output mechanism
+truncated it to a 2KB preview plus a file pointer
+(`.../tool-results/hook-…-additionalContext.txt`, 54,266 bytes on
+disk). It too is byte-identical across the pair and sits 22 indices
+before the divergence. (3) The divergence is 327 bytes of hook prose
+changing container. The probe carried its own known-positive — the
+corpus needles ("Grounding — evidence", "Insurance mechanisms",
+"Model routing for dispatches") MATCHED at `messages[0]`, so the
+absence at the divergence is a measured absence, not a dead
+predicate. Operator-side consequence, outside this repo: the
+re-anchor mechanism is not delivering the corpus it was built to
+re-show — only its first 2KB reaches the model.
+
 ## Row 24 — messages layer: DESIGN, not a negative (2026-08-02,
 ## opus investigation, dispatcher-verified independently)
 
