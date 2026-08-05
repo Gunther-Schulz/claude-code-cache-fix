@@ -144,22 +144,33 @@ test("the transcript-shape fixture stands on its own bytes — no exemption, no 
 
 // --- CLI ---------------------------------------------------------------------
 
-// Git exports GIT_DIR (and, from a worktree, an ABSOLUTE one) into pre-push
-// hooks; if this suite ever runs from inside one, the scratch-repo helpers
-// below spawn git with cwd=tempdir but an INHERITED env, and every
-// `git init`/`git config`/`git add` then resolves to the caller's REAL git
-// dir instead of the tempdir's — writing core.bare=true and this suite's
-// t/t@t fixture identity into a consumer's actual repo. Reproduced, not
-// theoretical: `GIT_DIR=$(git rev-parse --absolute-git-dir) node --test
-// test/absence-scan.test.mjs` from a worktree corrupts the enclosing repo's
-// config without this scrub. Every spawn below gets this env instead of the
-// bare inherited one.
-const SPAWN_ENV = { ...process.env };
-delete SPAWN_ENV.GIT_DIR;
-delete SPAWN_ENV.GIT_WORK_TREE;
-delete SPAWN_ENV.GIT_INDEX_FILE;
+// Git's own env overrides cwd, so a scratch repo built with `cwd: dir` and an
+// INHERITED environment is not scratch at all: under an exported GIT_DIR every
+// `git init` / `git config` below resolves to whatever repo the runner was
+// pointed at. Git exports exactly that into hooks — relative `.git` for a
+// main-tree push, ABSOLUTE for a worktree push — so this file, run from a
+// pre-push hook, wrote `user.name=t` / `user.email=t@t` into the REAL config,
+// and `git init` on a git-dir not named `.git` guesses bare-ness and added
+// `core.bare=true` on top. That is the 2026-08-05 incident, and it recurred
+// the same day from a plain `GIT_DIR=… node --test` invocation, which is the
+// evidence that hardening the pre-push hook alone was not the fix: the hazard
+// belongs to any runner with these set, so the scrub belongs HERE, at the
+// spawn, where no caller can forget it.
+//
+// Undefined, not empty string: `GIT_DIR=""` is still "set" to git.
+const SCRUBBED_GIT_ENV = {
+  ...process.env,
+  GIT_DIR: undefined,
+  GIT_WORK_TREE: undefined,
+  GIT_INDEX_FILE: undefined,
+  GIT_COMMON_DIR: undefined,
+  GIT_OBJECT_DIRECTORY: undefined,
+  GIT_ALTERNATE_OBJECT_DIRECTORIES: undefined,
+  GIT_CEILING_DIRECTORIES: undefined,
+};
 
-const run = (args, cwd) => spawnSync(process.execPath, [TOOL, ...args], { cwd, encoding: "utf-8", env: SPAWN_ENV });
+const run = (args, cwd) =>
+  spawnSync(process.execPath, [TOOL, ...args], { cwd, encoding: "utf-8", env: SCRUBBED_GIT_ENV });
 
 function withTemp(fn) {
   const dir = mkdtempSync(join(tmpdir(), "absence-scan-"));
@@ -211,7 +222,7 @@ test("CLI: no arguments is an internal-error exit, not a silent pass", () => {
 
 function gitRepo(dir) {
   const g = (...args) => {
-    const r = spawnSync("git", args, { cwd: dir, encoding: "utf-8", env: SPAWN_ENV });
+    const r = spawnSync("git", args, { cwd: dir, encoding: "utf-8", env: SCRUBBED_GIT_ENV });
     assert.equal(r.status, 0, `git ${args.join(" ")}: ${r.stderr}`);
     return r.stdout.trim();
   };
