@@ -280,6 +280,30 @@ sailed through. Source files get the short-key class and only it; pointing the
 UUID and base64 classes at source would fire on dozens of legitimate synthetic
 values. Measured cost of the widening: 0 findings over every tracked file.
 
+## Before a restart: price it against LIVE sessions, not the corpus
+
+The threat matrix's row-3 rule ("cache-transparent unless the change touches
+state KEYS or freeze logic") asks about the DIFF, and a restart on 2026-08-05
+satisfied it while costing 655,021 tokens. The row-3 statement written
+beforehand named the affected class correctly — messages quoting a marker in
+prose — and then sized it "one measured instance corpus-wide, so cheap". That
+is the wrong denominator. The corpus is historical captures; the bill is paid
+by conversations running right now.
+
+The affected session was the one the change was being written in, which is the
+NORMAL case rather than bad luck: a change made while using the thing it
+changes concentrates its blast radius exactly where the work is happening.
+
+```sh
+node tools/restart-exposure.mjs --window-min 60                 # worst case
+node tools/restart-exposure.mjs --match '<your affected class>' # the real number
+```
+
+Without `--match` it lists every live session; with a predicate for your change
+it lists the ones that will actually re-baseline. On the restart above it
+reports ~581k tokens against the single matching session — the number that was
+missing from the decision.
+
 ## Timestamps are UTC, at both ends of the chain
 
 `bust-triage --list` prints UTC and now marks it; `dossier` reads a stamp with

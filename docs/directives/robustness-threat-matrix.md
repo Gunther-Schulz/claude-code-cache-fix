@@ -752,6 +752,52 @@ predicate. Operator-side consequence, outside this repo: the
 re-anchor mechanism is not delivering the corpus it was built to
 re-show — only its first 2KB reaches the model.
 
+### Row 3 datapoint — 2026-08-05: a restart cost 655,021 tokens, and the
+### row-3 statement that preceded it PREDICTED the class and mis-sized it
+
+The restart at 14:19:51 CEST landed BETWEEN the two requests of a
+busting pair (14:19:40 -> 14:19:58), on the machine's longest-running
+conversation. `bust-triage`: 786k re-written, transcript
+`messages_changed / 655021`, census **append-only** — CC moved nothing
+mid-history. The forwarded view diverged at `messages@1180(assistant)`
+with `system: match`, `tools: match`, so the change was OURS.
+
+MECHANISM, each link measured rather than inferred:
+`identity-normalization`'s message loop runs over EVERY message,
+assistant turns included, and applied `normalizeSessionStartText` to
+any text block containing the marker ANYWHERE. The anchoring fix
+shipped minutes earlier restricts it to blocks that ARE the hook's
+output. The diverging message is raw index 1216 — an assistant turn
+of this very session — and it contains
+`SessionStart:resume hook success:` quoted in prose, in a paragraph
+reporting the anchoring fix. Old build rewrote it; new build does not;
+the restart swapped builds mid-conversation; the message changed
+mid-history; the whole prefix after it was re-billed. It settled after
+one re-baseline, as a one-time cost should.
+
+WHAT THE ROW-3 STATEMENT GOT RIGHT AND WRONG. It named the class
+exactly: "the forwarded bytes change for a narrow class — messages
+quoting the marker in prose — so running conversations with such
+content pay a one-time re-baseline." That prediction was correct. The
+sizing was not: it closed with "one measured instance corpus-wide, so
+cheap and right", and that is the wrong denominator. The corpus is
+historical captures; the bill is paid by conversations RUNNING NOW.
+The one live session that contained the affected prose was the 800k
+session in which the change was being written — the blast radius was
+concentrated precisely where the work was happening, which is the
+normal case for a change made while using the thing it changes, not a
+coincidence.
+
+THE RULE THIS EARNS, and it is narrower and more useful than "restarts
+are cache-transparent unless state keys or freeze logic change": that
+formulation asks about the DIFF. A restart is transparent only if
+nothing an extension does to forwarded bytes changes across it, and
+the cost is measured in the TOKENS OF LIVE SESSIONS, not in corpus
+instances. Before a restart whose change alters forwarded bytes for a
+named class, ask which running conversations contain that class and
+how large they are. `tools/restart-exposure.mjs` answers the
+size half mechanically.
+
 ## Row 24 — messages layer: DESIGN, not a negative (2026-08-02,
 ## opus investigation, dispatcher-verified independently)
 

@@ -159,6 +159,37 @@ bullet, evidence pointer included.
   deployment-coupled; row 3 answer expected NO state key and no freeze
   change, to be stated by the implementation.
 
+- **BUST 2026-08-05 12:20Z — 786k, 655,021 tokens re-billed, and it was
+  MY RESTART. Investigated, mechanism closed, lesson mechanized.**
+  Full record: matrix "Row 3 datapoint — 2026-08-05".
+  Chain, each link measured: the restart landed at 14:19:51 CEST,
+  BETWEEN the busting pair's two requests (14:19:40 -> 14:19:58).
+  Census says **append-only** — CC moved nothing mid-history — while
+  the forwarded view diverged at `messages@1180(assistant)` with
+  system and tools matching, so the change was ours.
+  `identity-normalization`'s message loop runs over EVERY message,
+  assistant turns included; the anchoring fix shipped minutes earlier
+  narrowed what it rewrites. The diverging message is raw index 1216,
+  an assistant turn OF THIS SESSION, containing
+  `SessionStart:resume hook success:` quoted in prose — in the
+  paragraph reporting the anchoring fix. Old build rewrote it, new
+  build does not, restart swapped builds mid-conversation. Settled
+  after one re-baseline, as a one-time cost should.
+  THE ROW-3 STATEMENT PREDICTED THE CLASS AND MIS-SIZED IT. It said
+  running conversations quoting the marker pay a one-time re-baseline
+  — correct — and closed "one measured instance corpus-wide, so cheap
+  and right", which is the wrong denominator. The corpus is history;
+  the bill is live sessions. The affected session was the one the
+  change was written in, which is the normal case for a change made
+  while using the thing it changes, not bad luck.
+  MECHANIZED: `tools/restart-exposure.mjs` prices a restart against
+  LIVE sessions, optionally filtered by a predicate for the change's
+  affected class. On today's predicate it reports ~581k tokens against
+  the single matching session — the number missing from the decision.
+  Its own first live run understated that session as `~0k` because it
+  took the last record of ANY kind and the tail ended on an outcome
+  record; fixed, and that defect is what its bite pins hardest.
+
 - **GATE-RED CLOSED 2026-08-05 — all 40 conservation rows are now
   either exempt-with-verification or fixed at the source.** Measured
   on the two captures, replayed under their own gates:
