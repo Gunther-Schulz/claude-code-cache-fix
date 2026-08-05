@@ -8,6 +8,83 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **DONE 2026-08-05 (ships with this entry's commit) — CACHE-CONTROL and
+  TEXT are ONE mechanism, it is ours, and it re-bills nothing: 26 of the
+  34 absorption misses are a moved cache_control BREAKPOINT.** The queue's
+  top item asked whether the remaining misses are one mechanism or
+  several. Measured over every row the sweep persisted, not over a sample:
+  each row's forwarded pair dumped at its own divergence index
+  (`--dump-forwarded` built from the persisted rows, one replay pass per
+  capture) and compared after a container-preserving cache_control strip.
+  **26 CACHE-CONTROL / 7 TEXT / 1 CONTAINER**, and the ladder class agrees
+  with the strip test on all 34 rows — two independent computations, zero
+  disagreements.
+  **THE MECHANISM IS OUR OWN `cache-control-normalize` (order 400,
+  enabled).** It strips every user-message marker and places one canonical
+  `{"type":"ephemeral"}` on the last block of the last user message, so on
+  the NEXT request the message at the old position has lost its marker and
+  `findAbsorptionMisses` — which hashes raw bytes, deliberately — calls
+  that a miss. The signature is a 48-byte delta, exactly
+  `,"cache_control":{"type":"ephemeral","ttl":"1h"}`.
+  **AND IT IS FREE, measured rather than argued.** The API keys its cache
+  on content and reads a marker as the designation of a write point; the
+  documented multi-turn pattern is to move the breakpoint to the newest
+  turn every request and keep reading the prefix. Live check: 32 of 34 rows
+  have NO cold event in the same session within +/-180 s, over all 83
+  worktime-ledger events. The instrument is shown live on a known positive
+  in the same query — the one genuinely-stale row lands on both 349k events
+  — and the other hit is a `tools_changed` bust, a cause above the messages
+  layer entirely.
+  **"TEXT 15" WAS NEVER A TEXT CLASS.** `extractText` stringifies every
+  non-text block, cache_control included, so a marker on a `tool_result`
+  read as a text difference and the TEXT check ran first. The evening
+  handoff's split was measured through that ladder. Fixed: the strip test
+  now runs directly after ROLE, where it can steal no row from a real class
+  (a pair equal after stripping differs in nothing else by construction).
+  Red-first on the real shape; the CONTAINER and TEXT order controls stay
+  green.
+  **WHAT SHIPPED, tools/-only, no deployment coupling:** (1) the ladder
+  reorder plus its bite; (2) `stripCacheControlDeep` in replay.mjs,
+  exported and imported by absorption-classify so the two cannot drift;
+  (3) `outHashNoCC` in `compactEntry` — container-PRESERVING, deliberately
+  not `outHashSem`, which folds string into one-block array and would have
+  exempted the row-4 container flip this check exists for; (4)
+  `cacheControlOnly` on every absorption row, `null` (never `false`) when
+  the entry predates the field; (5) the sweep's `absorption` summary gains
+  `cacheControlOnly` + `cacheControlUnknown`. Suite 2182/2182.
+  **THE RESIDUAL, named: 8 rows that are real, and neither is new work
+  today.** One is the row-4 residual the evening handoff already booked
+  (CC's own input diverged first). One is the surviving CONTAINER row. The
+  other six are a CC-side variant fork on one capture, entry below.
+
+- **READY — the suggestion-mode variant fork is a census class: CC issues
+  two variants of one conversation that differ at a mid-history index, and
+  every consecutive-pair check compares across them.** Found 2026-08-05
+  while classifying the absorption misses; 6 of the 34 rows are this, all
+  on one capture. Shape, read off the raw pre-pipeline records: at the same
+  array index CC sends either the real user turn or a 1,377-byte
+  `[SUGGESTION MODE: Suggest what the user might naturally type next into
+  Claude Code.]` instruction, alternating between requests, with identical
+  `messages[0]`, system prompt, tool count and model — so `conversationOf`
+  groups them and the pair (suggestion-variant, real-variant) reads as a
+  prefix divergence. Nothing our mitigations could absorb: the bytes on
+  both sides are CC's own, and neither variant is the other's predecessor.
+  Cost, as far as it is measured: no cold event within +/-180 s of any of
+  the six.
+  Design, decision-complete: a `suggestionVariant` boolean on the
+  absorption row, from a marker predicate over the pre-pipeline message at
+  the divergence index (the instruction's leading bracket line is a
+  constant CC emits verbatim) — extend `findAbsorptionMisses`, never a new
+  file. Verifier, red-first: a synthetic pair whose divergence is the
+  suggestion prompt asserts the flag, plus a control that an ordinary user
+  turn at the same index does not set it. Done when the daily sweep counts
+  the class beside `cacheControlOnly`, so the residual population is what
+  is left after BOTH free classes are named.
+  Named residue: the class is measured on ONE capture and one CC version;
+  whether the marker text is stable across CC releases is unverified, and
+  a predicate keyed to prose decays — `cc-version-normalize`'s own version
+  telemetry is the join if it ever needs one.
+
 - **HANDOFF 2026-08-05 NIGHT — read this first; it supersedes the
   EVENING handoff's "START HERE" section and nothing else.**
   **THE INDEX-0 VIOLATION IS ANSWERED, MITIGATED — AND IT COST NOTHING.**

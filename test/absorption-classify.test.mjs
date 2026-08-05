@@ -53,6 +53,26 @@ test("text and kind equal, JSON differs only inside cache_control -> CACHE-CONTR
   assert.equal(cls, "CACHE-CONTROL");
 });
 
+test("cache_control inside a NON-text block -> CACHE-CONTROL, not TEXT", () => {
+  // DEFINITION, written before the assertion: CACHE-CONTROL is the class for a
+  // pair that is identical once every cache_control key is dropped — the
+  // breakpoint moved, no content changed. Nothing about that definition
+  // mentions where the marker sits, so a marker on a tool_result belongs to
+  // the same class as one on a text block.
+  //
+  // The live shape this pins (2026-08-05, 5 of the 7 absorption-miss rows
+  // classified by hand that day): cache-control-normalize places one canonical
+  // marker on the last block of the last user message, so on the NEXT request
+  // the message at the old position has lost it. `extractText` stringifies
+  // every non-text block, cache_control included, so the TEXT check upstream
+  // used to swallow these — the corpus reported "TEXT 15" for a population
+  // that carried no text difference at all.
+  const a = { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "ok", cache_control: { type: "ephemeral", ttl: "1h" } }] };
+  const b = { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "ok" }] };
+  const { class: cls } = classifyDelta(a, b);
+  assert.equal(cls, "CACHE-CONTROL");
+});
+
 test("text and kind equal, block count differs (an added empty-text block) -> BLOCKS", () => {
   // An empty text block contributes "" to extracted text, so extractText
   // stays equal across the pair while the block array's length does not.

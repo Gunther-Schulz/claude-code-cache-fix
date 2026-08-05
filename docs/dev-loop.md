@@ -253,6 +253,15 @@ lied on 2026-08-05, each of which read as a finding about the system:
   (measured: raw 370 forwards as 360). Comparing them directly is silent —
   both numbers are plausible. Say which space each number is in, at the point
   where they meet.
+  Same family, one axis over and cheaper to hit: a probe that re-derives a
+  tool's OWN ordinal. `replay.mjs` counts request records only (skipping
+  outcome and boot records) and starts at `n=0` — a probe that numbered
+  capture LINES from 1 printed a neighbouring request, and the neighbour was
+  a haiku sidecar and an agent-SDK subagent, from which a whole wrong
+  mechanism was nearly derived on 2026-08-05 before the timestamps were
+  checked against the row. The record a probe prints is identified by
+  matching a field the row already carries — the timestamp — not by trusting
+  that two counters agree.
 - **A shape check standing in for a content check.** Asserting which fields
   are set does not establish that prompt text is off disk. Plant a sentinel,
   run the real thing, grep what was written — **and then run it again with the

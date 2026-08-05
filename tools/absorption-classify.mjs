@@ -73,12 +73,17 @@ function runChild(args) {
 
 // Content is a string -> that string; content is an array -> the
 // concatenation of `.text` for text blocks and, for every non-text block,
-// its whole JSON.stringify. This is deliberately not "smart" about
-// cache_control living inside a non-text block: such a block's JSON changes
-// with its cache_control, which means classifyDelta sees it as a TEXT
-// difference rather than CACHE-CONTROL. That is the ladder's literal
-// definition (matrix.md's row 4 case is a text-only block, where this
-// distinction does not arise), not an oversight to "fix" here.
+// its whole JSON.stringify — cache_control included, because the block's JSON
+// carries it.
+//
+// That last part used to decide the ladder: a marker on a tool_result read as
+// a TEXT difference, and this comment declared it deliberate. It was wrong,
+// and the corpus said so — 5 of the 7 rows hand-classified on 2026-08-05 were
+// "TEXT" pairs carrying no text difference at all. The ladder answers to
+// CACHE-CONTROL's DEFINITION (identical once every cache_control key is
+// dropped), which says nothing about where the marker sits, so the fix is in
+// classifyDelta's order, not here: the strip test now runs before this
+// function's output is consulted.
 export function extractText(msg) {
   const c = msg?.content;
   if (typeof c === "string") return c;
@@ -137,6 +142,15 @@ export function classifyDelta(a, b) {
   if (a.role !== b.role) {
     return { class: "ROLE", detail: null };
   }
+  // Before TEXT, not after CONTAINER: a pair that is equal once cache_control
+  // is dropped differs in nothing else BY CONSTRUCTION — not text, not
+  // container, not block structure — so promoting this test steals no row from
+  // a real class, and leaving it below TEXT hid every marker that sat inside a
+  // non-text block (see extractText's note). The classes below still see every
+  // pair that carries a real difference alongside a moved marker.
+  if (JSON.stringify(stripCacheControl(a)) === JSON.stringify(stripCacheControl(b))) {
+    return { class: "CACHE-CONTROL", detail: null };
+  }
   if (extractText(a) !== extractText(b)) {
     return { class: "TEXT", detail: null };
   }
@@ -144,9 +158,6 @@ export function classifyDelta(a, b) {
   const kindB = containerKind(b);
   if (kindA !== kindB) {
     return { class: "CONTAINER", detail: null };
-  }
-  if (JSON.stringify(stripCacheControl(a)) === JSON.stringify(stripCacheControl(b))) {
-    return { class: "CACHE-CONTROL", detail: null };
   }
   if (kindA === "array") {
     const seqA = blockTypeSeq(a);

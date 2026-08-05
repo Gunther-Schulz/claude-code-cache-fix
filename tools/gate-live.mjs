@@ -378,13 +378,32 @@ export function summariseAbsorption(rows) {
   let total = 0;
   let ours = 0;
   let captures = 0;
+  // The third count, and it is what keeps the other two honest: how many of
+  // the misses were a moved cache_control BREAKPOINT rather than a stale
+  // message (replay.mjs's `cacheControlOnly`). Measured 2026-08-05, first
+  // corpus-wide classification: 26 of 34. A summary that reported only
+  // total/ours would keep describing a population three quarters of which
+  // re-bills nothing — and this check's whole reason for being a REPORT is
+  // that its rate was unknown, so the rate has to be reported honestly before
+  // anyone decides whether it can block.
+  //
+  // Counted from the persisted ROWS, not from a per-capture tally, so a row
+  // that predates the field contributes to neither count — `null` is not
+  // `false`, and a sweep run against an older replay must not read as "none of
+  // them were breakpoint moves".
+  let cacheControlOnly = 0;
+  let cacheControlUnknown = 0;
   for (const r of rows) {
     const n = r.absorptionMisses ?? 0;
     if (n > 0) captures++;
     total += n;
     ours += r.absorptionMissesOurs ?? 0;
+    for (const row of r.absorptionMissRows ?? []) {
+      if (row?.cacheControlOnly === true) cacheControlOnly++;
+      else if (row?.cacheControlOnly !== false) cacheControlUnknown++;
+    }
   }
-  return { total, ours, captures };
+  return { total, ours, captures, cacheControlOnly, cacheControlUnknown };
 }
 
 /** Sweep-wide byte-gate totals: what `main` writes into the daily status

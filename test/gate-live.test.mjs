@@ -558,8 +558,42 @@ test("the sweep rolls up absorption misses, and keeps the OURS count separate", 
     { absorptionMisses: 3, absorptionMissesOurs: 3 },
     {}, // a row from an older status file, or a capture that never ran
   ];
-  assert.deepEqual(summariseAbsorption(rows), { total: 5, ours: 4, captures: 2 },
+  assert.deepEqual(summariseAbsorption(rows),
+    { total: 5, ours: 4, captures: 2, cacheControlOnly: 0, cacheControlUnknown: 0 },
     "total, the attributable subset, and how many captures produced any");
+});
+
+test("the rollup separates moved BREAKPOINTS from stale content", async () => {
+  // DEFINITION (replay.mjs's `cacheControlOnly`): a miss whose forwarded pair
+  // is identical once every cache_control key is dropped is a breakpoint that
+  // moved, not a message that went stale — the API keys its cache on content.
+  // First corpus-wide classification, 2026-08-05: 26 of 34 rows. A summary
+  // that reports only total/ours describes that population as if all of it
+  // re-billed, which is the "a check that fires on a non-defect is failing
+  // too" shape at the reporting layer.
+  const { summariseAbsorption } = await import("../tools/gate-live.mjs");
+  const rows = [
+    { absorptionMisses: 3, absorptionMissesOurs: 2, absorptionMissRows: [
+      { cacheControlOnly: true }, { cacheControlOnly: true }, { cacheControlOnly: false },
+    ] },
+    { absorptionMisses: 1, absorptionMissesOurs: 1, absorptionMissRows: [{ cacheControlOnly: true }] },
+  ];
+  const s = summariseAbsorption(rows);
+  assert.equal(s.cacheControlOnly, 3);
+  assert.equal(s.cacheControlUnknown, 0);
+  assert.equal(s.total, 4, "the total is untouched — the rows are annotated, never dropped");
+});
+
+test("a row from a replay that predates the field counts as UNKNOWN, never as content", async () => {
+  // The three-answer rule at the rollup: a sweep run against an older replay
+  // must not read as "none of these were breakpoint moves". Same failure the
+  // `?? []` on absorptionMissRows was fixed for one layer down.
+  const { summariseAbsorption } = await import("../tools/gate-live.mjs");
+  const s = summariseAbsorption([
+    { absorptionMisses: 2, absorptionMissesOurs: 1, absorptionMissRows: [{ ours: true }, { ours: false }] },
+  ]);
+  assert.equal(s.cacheControlOnly, 0);
+  assert.equal(s.cacheControlUnknown, 2);
 });
 
 test("BITE — summarise carries the absorption-miss ROWS, not just their count", () => {
@@ -698,6 +732,7 @@ test("a sweep with absorption misses is still CLEAN — the check reports, it do
   assert.equal(s.total, 9, "carried in the status file");
   // The clean predicate is not exported; assert the intent at the rollup level
   // by pinning that the summary is a REPORT shape — counts, no verdict field.
-  assert.deepEqual(Object.keys(s).sort(), ["captures", "ours", "total"],
+  assert.deepEqual(Object.keys(s).sort(),
+    ["cacheControlOnly", "cacheControlUnknown", "captures", "ours", "total"],
     "no pass/fail field: a reader decides, the sweep does not");
 });

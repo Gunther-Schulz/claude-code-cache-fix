@@ -757,6 +757,31 @@ function outputContentHash(m) {
   return sha(JSON.stringify([m?.role ?? null, hashMessageContent({ content })]));
 }
 
+// Every `cache_control` key dropped, at any depth, and NOTHING else changed —
+// the container, the block order, the block types and every other field survive
+// byte-for-byte. Exported because `absorption-classify` needs the identical
+// notion one process boundary away, and two hand-rolled strips would drift
+// (dev-loop.md, "never hand-roll identity in a probe").
+//
+// The narrowness is the point, and it is what separates this from
+// `outputContentHash` above: that one ALSO folds bare-string content into a
+// one-block text array, so a row-4 container flip hashes equal under it. A
+// cache_control annotation computed from that hash would exempt the very
+// defect `findAbsorptionMisses` was built for — the parentage error, one field
+// over. Container-preserving, or the annotation is worse than none.
+export function stripCacheControlDeep(x) {
+  if (Array.isArray(x)) return x.map(stripCacheControlDeep);
+  if (x && typeof x === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(x)) {
+      if (k === "cache_control") continue;
+      out[k] = stripCacheControlDeep(v);
+    }
+    return out;
+  }
+  return x;
+}
+
 // The relocation ORDER fresh-session-sort prepends in, reused here only to
 // make `inReloc` deterministic across runs (a Map's insertion order would
 // otherwise depend on where in the array each type happened to sit).
@@ -833,6 +858,14 @@ export function compactEntry(e) {
     // outputForm ONLY (see outputContentHash above) — never read by the
     // stability check.
     outHashSem: outMsgs.map(outputContentHash),
+    // The OTHER cache_control-stripped twin, and the two are not
+    // interchangeable: this one preserves the container (stripCacheControlDeep
+    // above), so a moved breakpoint hashes equal here while a row-4 container
+    // flip does not. Read by findAbsorptionMisses' `cacheControlOnly` and by
+    // nothing else. One hash string per message, the same order of retention
+    // as the three arrays above it — no bodies, so the 2 GB child cap is
+    // unaffected.
+    outHashNoCC: outMsgs.map((m) => sha(JSON.stringify(stripCacheControlDeep(m)))),
     // Byte length per FORWARDED message, the output-side twin of inBytes —
     // what lets rebilledOutBytes be priced without retaining a message body.
     outBytes: outMsgs.map((m) => JSON.stringify(m).length),
@@ -1390,6 +1423,37 @@ export function findAbsorptionMisses(entries) {
       if (outDiv > Math.max(...fresh)) continue;   // diverged past the absorption
 
       const inDiv = firstDivergence(prev.inHash, cur.inHash);
+      // Did the divergence survive dropping every cache_control marker?
+      //
+      // A pair identical at outDiv once the markers are gone carries the same
+      // model-visible bytes: the API keys its cache on content and reads a
+      // cache_control marker as the designation of a write point, so the
+      // marker moving down the array as the conversation grows re-bills
+      // nothing. Measured 2026-08-05 across the corpus: our own
+      // cache-control-normalize (order 400) re-places one canonical marker on
+      // the last block of the last user message every request, so the message
+      // at the OLD position loses it and this raw-byte check calls it a miss —
+      // 26 of the 34 rows in the corpus, and 32 of 34 rows have no cold event
+      // in the same session within +/-180 s over all 83 worktime-ledger
+      // events — while that same query lands both 349k events on the one row
+      // that was real, which is what makes the zeros mean anything.
+      //
+      // Annotated rather than dropped, and detection stays on raw `outHash`:
+      // the raw bytes are what the row-4 container flip diverges in, and a
+      // check that normalises away the shape it exists to catch is worthless.
+      // The repair for a check that fires on a non-defect is a declared
+      // exemption the guard itself verifies — this field is that declaration,
+      // computed from telemetry the entry already carries.
+      //
+      // `null`, never `false`, when the entry predates the field: "the producer
+      // never emitted this" is not "measured, and it is content".
+      const noCCPrev = prev.outHashNoCC;
+      const noCCCur = cur.outHashNoCC;
+      let cacheControlOnly = null;
+      if (Array.isArray(noCCPrev) && Array.isArray(noCCCur)) {
+        const ccDiv = firstDivergence(noCCPrev, noCCCur);
+        cacheControlOnly = ccDiv === null || ccDiv > outDiv;
+      }
       rows.push({
         n: cur.n,
         prevN: prev.n,
@@ -1397,6 +1461,7 @@ export function findAbsorptionMisses(entries) {
         absorbedFreshAt: fresh.slice().sort((a, b) => a - b),
         forwardedDivergence: outDiv,
         inputDivergence: inDiv,
+        cacheControlOnly,
         // The attribution, stated rather than left to the reader: if CC's own
         // arrays are identical at the index where ours diverge, nothing
         // upstream changed there and the divergence is ours.

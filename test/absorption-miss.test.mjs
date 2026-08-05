@@ -10,14 +10,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { findAbsorptionMisses } from "../tools/replay.mjs";
+import { findAbsorptionMisses, compactEntry } from "../tools/replay.mjs";
 
 // Entries in the compact shape findAbsorptionMisses consumes. `inHash[0]` is
 // the conversation identity, so both entries must share it to be paired.
 const CONV = "conv0";
-const entry = ({ n, inHash, outHash, joinMoves, movedFresh = 0, action = "normalized" }) => ({
+const entry = ({ n, inHash, outHash, outHashNoCC, joinMoves, movedFresh = 0, action = "normalized" }) => ({
   n, ts: `2026-08-05T00:00:0${n}.000Z`, key: "k",
   inHash, outHash,
+  // Omitted by default on purpose: an entry that never carried the field is
+  // the "could not verify" case, and the bite below pins that it reads as
+  // null rather than as a measured false.
+  ...(outHashNoCC === undefined ? {} : { outHashNoCC }),
   action,
   stats: {
     movedFresh,
@@ -89,6 +93,89 @@ test("the row carries prevN — which predecessor the divergence was measured ag
   // findEditPositions already carries prevN for the same reason.
   const [row] = findAbsorptionMisses(REFIRE_SHAPE());
   assert.equal(row.prevN, 1, "cur is n:2, its predecessor in the group is n:1");
+});
+
+// --- cacheControlOnly: is the divergence a moved BREAKPOINT or real content?
+//
+// DEFINITION, written before the assertions: a forwarded pair that is
+// identical once every cache_control key is dropped carries the same
+// model-visible bytes; the API keys its cache on content and treats a
+// cache_control marker as the designation of a write point, so a pair
+// differing only there re-bills nothing. Measured 2026-08-05: 12 of the first
+// 13 rows classified by hand were exactly that shape — our own
+// cache-control-normalize (order 400) moving its one canonical marker to the
+// new last user message — and the worktime ledger records no cold event
+// within +/-180 s of any of them, over all 83 events, while the same query
+// lands both 349k events on the one row that was real.
+//
+// The hash this reads is deliberately NOT outHashSem: that one also folds a
+// bare string into a one-block array, so it would report the row-4 CONTAINER
+// flip as "cache_control only" — exempting the very defect the check exists
+// for. Container-preserving strip, or nothing.
+const CC_SHAPE = () => {
+  const inPrev = [CONV, "a", "b", "c", "d", "e", "f", "g", "h"];
+  const inCur  = [CONV, "a", "b", "c", "d", "e", "f", "G", "h"];
+  const outPrev = [CONV, "a", "b", "c", "d", "e", "f", "g", "h"];
+  const outCur  = [CONV, "a", "b", "c", "d", "e", "X", "g", "h"]; // marker left index 6
+  // Same two messages with cache_control stripped: index 6 is the SAME message.
+  const noCC = [CONV, "a", "b", "c", "d", "e", "f", "g", "h"];
+  return [
+    entry({ n: 1, inHash: inPrev, outHash: outPrev, outHashNoCC: noCC, joinMoves: [2] }),
+    entry({ n: 2, inHash: inCur, outHash: outCur, outHashNoCC: noCC, joinMoves: [2, 7], movedFresh: 1 }),
+  ];
+};
+
+test("a divergence that vanishes once cache_control is stripped -> cacheControlOnly", () => {
+  const [row] = findAbsorptionMisses(CC_SHAPE());
+  assert.equal(row.forwardedDivergence, 6, "the raw-byte divergence is still reported");
+  assert.equal(row.cacheControlOnly, true,
+    "the pair is identical at 6 once the marker is dropped — a moved breakpoint, not a stale message");
+});
+
+test("CONTROL: a real content divergence is NOT cacheControlOnly — the row-4 shape", () => {
+  // The discriminator that keeps this annotation from swallowing the defect
+  // the check was built for: a container flip survives the strip, so its
+  // stripped hashes still differ at the divergence index.
+  const inPrev = [CONV, "a", "b", "c", "d", "e", "f", "g", "h"];
+  const inCur  = [CONV, "a", "b", "c", "d", "e", "f", "G", "h"];
+  const outPrev = [CONV, "a", "b", "c", "d", "e", "f", "g", "h"];
+  const outCur  = [CONV, "a", "b", "c", "d", "e", "X", "g", "h"];
+  const noCCPrev = [CONV, "a", "b", "c", "d", "e", "f", "g", "h"];
+  const noCCCur  = [CONV, "a", "b", "c", "d", "e", "X", "g", "h"]; // still differs at 6
+  const [row] = findAbsorptionMisses([
+    entry({ n: 1, inHash: inPrev, outHash: outPrev, outHashNoCC: noCCPrev, joinMoves: [2] }),
+    entry({ n: 2, inHash: inCur, outHash: outCur, outHashNoCC: noCCCur, joinMoves: [2, 7], movedFresh: 1 }),
+  ]);
+  assert.equal(row.cacheControlOnly, false, "content changed, not just the marker");
+});
+
+test("an entry with no outHashNoCC reports cacheControlOnly null, never false", () => {
+  // The three-answer rule at field level: "the producer never emitted this"
+  // and "measured, and it is not cache_control only" are different statements,
+  // and collapsing them is how absence of evidence wears a verdict's clothes.
+  const [row] = findAbsorptionMisses(REFIRE_SHAPE());
+  assert.equal(row.cacheControlOnly, null);
+});
+
+test("compactEntry's outHashNoCC actually strips — and does NOT fold the container", () => {
+  // The PRODUCER side. The three bites above feed outHashNoCC as a fixture, so
+  // they say nothing about whether compactEntry computes it; disabling the
+  // strip leaves all three green. This one is red under that mutation.
+  //
+  // Both halves are load-bearing and they pull opposite ways: the marker case
+  // must hash EQUAL (else the annotation never fires) and the row-4 container
+  // flip must hash DIFFERENT (else the annotation exempts the defect).
+  const withMarker = { role: "user", content: [{ type: "text", text: "same", cache_control: { type: "ephemeral", ttl: "1h" } }] };
+  const without = { role: "user", content: [{ type: "text", text: "same" }] };
+  const asString = { role: "user", content: "same" };
+
+  const e = compactEntry({ n: 1, ts: "t", key: "k", inMsgs: [], outMsgs: [withMarker, without, asString] });
+  assert.equal(e.outHashNoCC[0], e.outHashNoCC[1],
+    "a marker on an otherwise identical message must vanish from the hash");
+  assert.notEqual(e.outHash[0], e.outHash[1],
+    "raw outHash still sees it — detection stays byte-exact");
+  assert.notEqual(e.outHashNoCC[1], e.outHashNoCC[2],
+    "string content vs a one-block text array is a CONTAINER difference and must survive the strip");
 });
 
 test("no fresh absorption means no row, however badly the prefix diverged", () => {
