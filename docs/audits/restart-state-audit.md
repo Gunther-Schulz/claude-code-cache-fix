@@ -11,14 +11,15 @@ cross-request state, but the state survives a restart via disk) |
 **stateful-UNPERSISTED** (keeps cross-request state that a restart drops,
 changing output for a session already in flight).
 
-> **AMENDMENT 2026-08-05 — `fresh-session-sort` is now stateful-UNPERSISTED.**
+> **AMENDMENT 2026-08-05 — `fresh-session-sort` is now stateful-PERSISTED.**
 > The verdict below is correct for the code it audited and no longer describes
-> the extension: it now keeps a per-conversation memory of the block types it
-> has relocated (`_relocatedByConversation`, in-process, LRU-capped), so the
-> relocated prefix survives CC dropping the source block — the n=331->336
-> index-0 divergence on capture s-captureAB. See "Amendment 2026-08-05" at the
-> foot of this file for what a restart now costs, and why it is not a
-> regression against the audited behaviour.
+> the extension: it keeps a per-conversation memory of the block types it has
+> relocated, so the relocated prefix survives CC dropping the source block —
+> the n=331->336 index-0 divergence on capture s-captureAB. The memory is
+> written to the snapshots dir (tmp+rename, owner-only, fail-open reload), so
+> a restart reproduces the same forwarded `messages[0]`. See "Amendment
+> 2026-08-05" at the foot of this file, and the acceptance test in
+> `test/proxy-restart-transparent.test.mjs`.
 
 ## Directive's named 5 — sort-stabilization / fresh-session-sort / tool-input-normalize / identity-normalization / content-strip
 
@@ -207,25 +208,45 @@ re-derived) and serves a remembered block whenever CC sends no instance of
 that type. CC's newer bytes always win, so a genuine content change still
 resets; the memory covers ABSENCE only.
 
-**What a restart costs now, stated rather than assumed.** The memory is
-in-process, so a restart drops it: a conversation whose source block CC has
-already stopped sending re-derives an empty relocated set and its
-`messages[0]` flips — the full-prefix re-bill this fix exists to prevent.
-That is a real cost and it belongs in the row-3 statement before any restart.
-It is NOT a regression against the audited behaviour: pre-fix, that same
-conversation paid the identical flip at the moment CC dropped the block,
-restart or no restart. The fix moves the cost from "every departure" to "a
-departure followed by a restart in the same conversation", and post-restart
-output is byte-identical to what the audited code produced. Priced with
-`tools/restart-exposure.mjs` like any other restart.
+**What a restart costs: nothing, and that is checked rather than asserted.**
+An in-process-only memory would have re-inflicted the divergence at every
+restart — a conversation whose block CC had already stopped sending would
+re-derive an empty relocated set and flip `messages[0]`, which is precisely
+the full-prefix re-bill the memory exists to prevent. So the memory is
+PERSISTED, in the shape insertion-normalization and the ladder already use:
+one file per conversation key under `cache-fix-snapshots`
+(`<key>-fresh-sort-relocated.json`), written tmp+rename so the replacement is
+atomic and born 0600, read fail-open.
 
-The durable answer is persistence (the pattern insertion-normalization and the
-ladder already use: atomic owner-only write per conversation key, fail-open
-reload). Booked in `BACKLOG.md` rather than built here, because the in-memory
-form already removes the class in steady-state operation and persistence is a
-separate change with its own state-key question (row 3's own amendment: a new
-state KEY invalidates every baseline that key addressed).
+Four properties, each pinned by a bite rather than argued:
 
-`test/proxy-restart-transparent.test.mjs`'s fresh-session-sort case still
-passes and still means what it says — its body takes the in-place path, where
-no memory is created and the extension remains a pure function of the request.
+- **Restart transparency.** `test/proxy-restart-transparent.test.mjs`, "a
+  relocated block survives a restart after CC stops sending it": a fresh
+  module import against the same config dir forwards byte-identical
+  `messages[0]`. Red before the persistence landed; red again when
+  `persistMemory` is mutated to a no-op, which is what says the bite tests the
+  disk path and not the in-memory one.
+- **Fail-open.** Same file, the CONTROL case: an empty config dir yields
+  today's behaviour, never a failed request. A state read that throws costs
+  the divergence the memory would have absorbed — a cache cost, never a
+  correctness one.
+- **Owner-only.** `test/write-owner-only.test.mjs` extends its existing
+  definition to this file: it holds first-seen `<system-reminder>` bytes of a
+  live conversation, which is the same reason the canonical file is 0600. Both
+  the fresh write and the replacement of a group-readable predecessor are
+  pinned.
+- **Bounded on disk, not only in memory.** The same cap governs both: the
+  newest `CACHE_FIX_FRESH_SORT_MAX_CONVERSATIONS` (default 256) state files
+  survive, pruned every 64th write. Only files carrying this extension's own
+  suffix are ever removed — another writer's state in that directory is not
+  this extension's to delete.
+
+State-KEY question (row 3's own amendment: a new state key invalidates every
+baseline that key addressed): this key is `resolveInsertionSessionKey`, the
+one insertion-normalization already uses. No existing baseline is re-keyed by
+this change — the file is new, and its absence is a normal fail-open read.
+
+Note for a future reader of the snapshots dir: it held ~9,800 files / 181 MB
+from five writers when this landed, with nothing pruning it. This extension
+prunes its OWN class; the directory-wide growth is pre-existing and booked
+separately in `BACKLOG.md`.

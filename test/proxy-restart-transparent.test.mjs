@@ -260,3 +260,116 @@ test("byte-identical restart: insertion-normalization — canonical state reload
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// =============================================================================
+// fresh-session-sort — stateful-PERSISTED as of 2026-08-05. It keeps a
+// per-conversation memory of the block types it has relocated to
+// messages[firstUserIdx], so the relocated prefix survives CC dropping the
+// source block (threat-matrix row 25). That memory has to survive a restart
+// too, or the restart re-inflicts exactly the divergence the memory prevents.
+//
+// DEFINITION, written before the assertions: for a conversation whose
+// relocatable block CC has stopped sending, a restarted process must forward
+// the SAME messages[firstUserIdx] bytes as the process that relocated the
+// block would have forwarded. "Restart" is a fresh module import (empty
+// module-scope state) against the same CLAUDE_CONFIG_DIR — the same
+// simulation the insertion-normalization case above uses, and the same one
+// the directive's acceptance criterion names.
+//
+// The live shape it comes from (capture s-captureAB, pair n=331 -> n=336):
+// the mcp block sat at raw msg[3] through n=331 and was gone at n=336; CC's
+// own messages[0] was byte-identical across the pair.
+// =============================================================================
+
+const MCP_BLOCK =
+  "<system-reminder>\n# MCP Server Instructions\n\nserver instructions\n</system-reminder>";
+
+test("byte-identical restart: fresh-session-sort — a relocated block survives a restart after CC stops sending it", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "restart-transparent-fresh-sort" };
+  const first = () => userMsg("RESTART-DEPART first prompt");
+  try {
+    await withEnvAsync({ CLAUDE_CONFIG_DIR: dir }, async () => {
+      // Turn 1 — CC scatters the mcp block; the extension relocates it and
+      // must persist that fact.
+      const modA = await freshImport("fresh-session-sort.mjs");
+      const ctx1 = {
+        body: {
+          messages: [
+            first(),
+            assistantMsg("reply"),
+            { role: "user", content: [{ type: "text", text: MCP_BLOCK }, { type: "text", text: "second prompt" }] },
+          ],
+        },
+        headers,
+        meta: {},
+      };
+      await modA.default.onRequest(ctx1);
+      const relocatedForm = JSON.stringify(ctx1.body.messages[0].content);
+      assert.ok(
+        ctx1.body.messages[0].content.some((b) => b.text === MCP_BLOCK),
+        "arrange: turn 1 must actually relocate the block, or the test proves nothing",
+      );
+
+      // Turn 2 — CC no longer sends the block, and the process has restarted:
+      // fresh module state, same config dir, so the memory must come off disk.
+      const modB = await freshImport("fresh-session-sort.mjs");
+      const ctx2 = {
+        body: {
+          messages: [
+            first(),
+            assistantMsg("reply"),
+            { role: "user", content: [{ type: "text", text: "second prompt" }] },
+            assistantMsg("reply 2"),
+            userMsg("third prompt"),
+          ],
+        },
+        headers,
+        meta: {},
+      };
+      await modB.default.onRequest(ctx2);
+
+      assert.equal(
+        JSON.stringify(ctx2.body.messages[0].content),
+        relocatedForm,
+        "a restart must reload the relocation memory from disk — otherwise it re-inflicts the index-0 divergence",
+      );
+      assert.deepEqual(ctx2.meta.freshSessionSortStats.reserved, ["mcp"],
+        "and it must declare the re-serve, which is what the conservation gate keys its exemption on");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CONTROL: fresh-session-sort — with no persisted state, a restart falls back to today's behaviour rather than failing", async () => {
+  // Fail-open is the contract for a state read: an absent or unreadable file
+  // means "no memory", never a broken request. The cost is the divergence the
+  // memory would have prevented — a cache cost, never a correctness one.
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "restart-transparent-fresh-sort-empty" };
+  try {
+    await withEnvAsync({ CLAUDE_CONFIG_DIR: dir }, async () => {
+      const mod = await freshImport("fresh-session-sort.mjs");
+      const ctx = {
+        body: {
+          messages: [
+            userMsg("EMPTY-STATE first prompt"),
+            assistantMsg("reply"),
+            { role: "user", content: [{ type: "text", text: "second prompt" }] },
+          ],
+        },
+        headers,
+        meta: {},
+      };
+      await mod.default.onRequest(ctx);
+      assert.deepEqual(
+        ctx.body.messages[0].content.map((b) => b.text),
+        ["EMPTY-STATE first prompt"],
+        "nothing was ever relocated for this conversation, so nothing is served",
+      );
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

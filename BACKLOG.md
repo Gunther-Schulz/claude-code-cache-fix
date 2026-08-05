@@ -846,6 +846,14 @@ bullet, evidence pointer included.
 
 - **READY — the daily sweep persists ROWS, not just counts, for every
   gate that produces them (tools/-only, not deployment-coupled).**
+  AMENDED 2026-08-05 night: STABILITY rows belong in the list too — the
+  original enumeration named conservation, byte-gate, order, sequence and
+  census and skipped them, and they now carry the field that says what a
+  violation COST (`prefixAboveMessages`, row 25). Today that field exists
+  only in the replay JSON the sweep throws away, so the status file still
+  shows `stability: 1` and the next reader re-derives the cost by hand
+  over a multi-hundred-MB capture — which is the exact loss this item
+  exists to stop, and it has now happened twice.
   Grounding: the finding above, plus the precedent that just shipped —
   the absorption check's rows are now written to the status file
   (`gate-live.mjs`, `row.absorptionMissRows`) precisely because their

@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
+import { mkdir, readFile, readdir, rename, stat, unlink } from "node:fs/promises";
+import { join } from "node:path";
 
+import { claudeHome } from "../claude-home.mjs";
 import { resolveInsertionSessionKey } from "./insertion-normalization.mjs";
+import { writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 const SR = "<system-reminder>\n";
 
@@ -111,17 +115,48 @@ function pinBlockContent(blockType, text) {
 // session — or by block type alone, as `_pinnedBlocks` above is — would serve
 // one tenant's block into another's messages[0], inventing bytes CC never sent
 // there.
+// The memory is PERSISTED, because an in-process one re-inflicts at every
+// restart exactly the divergence it exists to prevent: a conversation whose
+// block CC has already stopped sending would re-derive an empty relocated set
+// from the array and flip messages[0]. Same shape as insertion-normalization's
+// canonical (tmp+rename, owner-only, fail-open reload) — that file holds
+// first-seen message bytes for the same reason this one does: replaying the
+// bytes IS the mechanism, so a hash cannot stand in for them, and bytes of a
+// live conversation under ~/.claude are owner-only (test/write-owner-only).
 const DEFAULT_MAX_CONVERSATIONS = 256;
+const STATE_VERSION = 1;
+const STATE_SUFFIX = "-fresh-sort-relocated.json";
+// Prepend order, and the only block types this extension will ever hold. Used
+// twice: to lay out messages[firstUserIdx], and to bound what a state file may
+// deserialize into.
+const ORDER = ["deferred", "mcp", "skills", "hooks"];
+
+function isDebug(env = process.env) {
+  return env.CACHE_FIX_DEBUG === "1";
+}
+
+function debug(msg) {
+  if (isDebug()) process.stderr.write(`[fresh-session-sort] DEBUG: ${msg}\n`);
+}
 
 function maxConversations() {
   const raw = parseInt(process.env.CACHE_FIX_FRESH_SORT_MAX_CONVERSATIONS, 10);
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_CONVERSATIONS;
 }
 
-// conversationKey -> Map<blockType, block>. Insertion order is LRU (same idiom
-// as jsonl-session-mirror's session cap): re-inserted on access, oldest evicted
-// past the cap. An evicted conversation loses the memory and behaves as it did
-// before this mechanism existed — one relocation re-derived from the array.
+function stateDir() {
+  return join(claudeHome(), "cache-fix-snapshots");
+}
+
+function statePath(key) {
+  return join(stateDir(), `${key}${STATE_SUFFIX}`);
+}
+
+// conversationKey -> { blocks: Map<blockType, block>, saved: string|null }.
+// Insertion order is LRU (same idiom as jsonl-session-mirror's session cap):
+// re-inserted on access, oldest evicted past the cap. `saved` is the last
+// payload written to disk, so the write happens on CHANGE rather than on every
+// request of every relocating conversation.
 const _relocatedByConversation = new Map();
 
 // Test seam. Live traffic never needs it; the module-state tests do.
@@ -129,14 +164,114 @@ export function _resetRelocationMemory() {
   _relocatedByConversation.clear();
 }
 
-function relocationMemory(key) {
-  let entry = _relocatedByConversation.get(key);
-  if (entry) {
-    _relocatedByConversation.delete(key);
-    _relocatedByConversation.set(key, entry);
-    return entry;
+// Deterministic by construction — ORDER, not Map insertion order — so that
+// comparing two payloads answers "did the memory change", never "did the
+// blocks arrive in a different sequence".
+function serializeMemory(blocks) {
+  const out = {};
+  for (const t of ORDER) if (blocks.has(t)) out[t] = blocks.get(t);
+  return JSON.stringify({ version: STATE_VERSION, blocks: out });
+}
+
+// Fail-open in every branch: a state file that is missing, truncated, from a
+// future version, or hand-edited yields NO memory, never a broken request.
+// What that costs is the divergence the memory would have absorbed — a cache
+// cost. What the alternative costs is the conversation.
+//
+// Each block is re-classified through `getBlockType` rather than trusted from
+// the key it was filed under: the type is a property of the TEXT (the
+// definition), and a file whose "skills" slot holds something else is a file
+// this extension never wrote.
+async function readMemory(key) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await readFile(statePath(key), "utf-8"));
+  } catch (err) {
+    if (err && err.code !== "ENOENT") debug(`state read failed: ${err?.message ?? err}`);
+    return null;
   }
-  entry = new Map();
+  if (parsed?.version !== STATE_VERSION || !parsed.blocks || typeof parsed.blocks !== "object") return null;
+  const blocks = new Map();
+  for (const t of ORDER) {
+    const block = parsed.blocks[t];
+    if (!block || typeof block.text !== "string") continue;
+    if (getBlockType(block.text) !== t) continue;
+    blocks.set(t, block);
+  }
+  return blocks.size ? blocks : null;
+}
+
+async function writeMemory(key, blocks) {
+  try {
+    await mkdir(stateDir(), { recursive: true });
+    const finalPath = statePath(key);
+    const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+    // tmp+rename: the tmp file is created fresh every time, so it is born 0600
+    // and the rename carries that mode onto the final path — which is also how
+    // a pre-existing loose mode gets repaired without a chmod call.
+    await writeFileOwnerOnly(tmpPath, serializeMemory(blocks));
+    await rename(tmpPath, finalPath);
+  } catch (err) {
+    debug(`state write failed: ${err?.message ?? err}`);
+  }
+}
+
+// Disk is bounded the same way memory is, and by the same number — otherwise a
+// long-lived proxy accumulates one file per conversation forever (the shared
+// snapshots dir already holds ~9,800 files from five other writers, with
+// nothing pruning it; that is a separate, pre-existing item).
+//
+// ONLY files carrying this extension's own suffix are ever removed. Another
+// writer's state in the same directory is not this extension's to delete —
+// insertion-normalization's canonical is load-bearing for ITS correctness.
+let _writesSincePrune = 0;
+const PRUNE_EVERY = 64;
+
+async function pruneState() {
+  try {
+    const dir = stateDir();
+    const names = (await readdir(dir)).filter((n) => n.endsWith(STATE_SUFFIX));
+    const cap = maxConversations();
+    if (names.length <= cap) return;
+    const timed = await Promise.all(
+      names.map(async (n) => {
+        try {
+          return { n, mtimeMs: (await stat(join(dir, n))).mtimeMs };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    const live = timed.filter(Boolean).sort((a, b) => b.mtimeMs - a.mtimeMs);
+    for (const { n } of live.slice(cap)) {
+      try {
+        await unlink(join(dir, n));
+      } catch (err) {
+        debug(`state prune failed for ${n}: ${err?.message ?? err}`);
+      }
+    }
+  } catch (err) {
+    debug(`state prune failed: ${err?.message ?? err}`);
+  }
+}
+
+// The memory for one conversation, from RAM or — once a process, per key —
+// from disk. Returns null when this conversation has nothing remembered, and
+// deliberately allocates nothing in that case: an LRU slot spent on a
+// conversation that never relocates is a slot taken from one that did.
+async function recallMemory(key) {
+  const hit = _relocatedByConversation.get(key);
+  if (hit) {
+    _relocatedByConversation.delete(key);
+    _relocatedByConversation.set(key, hit);
+    return hit;
+  }
+  const blocks = await readMemory(key);
+  if (!blocks) return null;
+  return trackMemory(key, { blocks, saved: serializeMemory(blocks) });
+}
+
+function trackMemory(key, entry) {
   _relocatedByConversation.set(key, entry);
   while (_relocatedByConversation.size > maxConversations()) {
     const oldest = _relocatedByConversation.keys().next().value;
@@ -144,6 +279,20 @@ function relocationMemory(key) {
     _relocatedByConversation.delete(oldest);
   }
   return entry;
+}
+
+// Called after the memory has been folded with this request's findings. Writes
+// only when the payload actually changed, so a conversation that keeps sending
+// the same block costs no I/O at all.
+async function persistMemory(key, entry) {
+  const payload = serializeMemory(entry.blocks);
+  if (payload === entry.saved) return;
+  entry.saved = payload;
+  await writeMemory(key, entry.blocks);
+  if (++_writesSincePrune >= PRUNE_EVERY) {
+    _writesSincePrune = 0;
+    await pruneState();
+  }
 }
 
 function getBlockType(text) {
@@ -218,9 +367,9 @@ export default {
     // would hoist an in-place block to the front of messages[0] and flip
     // index 0 for no reason.
     const convKey = resolveInsertionSessionKey(ctx.headers, body.messages, body.system);
-    const remembered = _relocatedByConversation.get(convKey);
+    const remembered = await recallMemory(convKey);
 
-    if (!hasScatteredBlocks && !(remembered && remembered.size)) {
+    if (!hasScatteredBlocks && !remembered) {
       // Still sort and pin blocks in-place for deterministic first-call baseline
       let modified = false;
       const rewroteTypes = [];
@@ -253,6 +402,10 @@ export default {
         ctx.meta.freshSessionSortStats = {
           ...(ctx.meta.freshSessionSortStats ?? {}),
           relocated: ctx.meta.freshSessionSortStats?.relocated ?? [],
+          // Stated, not omitted: every record this extension emits carries the
+          // same three lists, so a consumer reads `reserved.length` rather than
+          // discovering that one branch leaves the field undefined.
+          reserved: [],
           rewrote: rewroteTypes,
           targetIndex: firstUserIdx,
         };
@@ -290,7 +443,7 @@ export default {
       }
     }
 
-    if (found.size === 0 && !(remembered && remembered.size)) return;
+    if (found.size === 0 && !remembered) return;
 
     // Fold this request's findings into the conversation's memory. CC's bytes
     // always win where CC sent any — the memory covers ABSENCE, never
@@ -298,7 +451,8 @@ export default {
     // objects go onto the wire, where later extensions (cache-control-normalize
     // among them) mutate them in place, and a shared reference would let that
     // rewrite the memory.
-    const memory = relocationMemory(convKey);
+    const entry = remembered ?? trackMemory(convKey, { blocks: new Map(), saved: null });
+    const memory = entry.blocks;
     for (const [blockType, block] of found) memory.set(blockType, { ...block });
 
     // Remove all relocatable blocks from all user messages
@@ -315,7 +469,6 @@ export default {
     // The emitted set is the MEMORY, not this request's findings: that is the
     // whole fix — the forwarded prefix is a function of the conversation, not
     // of which blocks CC happened to include this time.
-    const ORDER = ["deferred", "mcp", "skills", "hooks"];
     const relocatedTypes = ORDER.filter((t) => found.has(t));
     const emittedTypes = ORDER.filter((t) => memory.has(t));
     const toRelocate = emittedTypes.map((t) => ({ ...memory.get(t) }));
@@ -346,5 +499,10 @@ export default {
       rewrote: relocatedTypes,
       targetIndex: firstUserIdx,
     };
+
+    // Last, and after the body is already correct: the persist is what makes
+    // the next PROCESS behave like this one, and it must never be able to
+    // change what this request forwards.
+    await persistMemory(convKey, entry);
   },
 };

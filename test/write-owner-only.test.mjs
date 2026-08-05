@@ -203,3 +203,75 @@ test("BITE — a pre-existing group-readable canon file is replaced at 0600 by t
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// --- fresh-session-sort's relocation memory (2026-08-05) --------------
+//
+// The same invariant, on a second conversation-derived state file: it holds
+// the BYTES of a `<system-reminder>` block CC sent in this conversation (MCP
+// server instructions, the skills list, SessionStart hook output), keyed by
+// the conversation identity. Replaying those bytes is the whole mechanism, so
+// a hash cannot stand in for them — which is exactly the reason the canon
+// file above must not be readable by group or other.
+
+// `convSeed` fixes the CONVERSATION identity (it rides messages[0]);
+// `blockSeed` fixes the block CONTENT. They are separate parameters because
+// the memory is written only when it CHANGES, so a second write to the same
+// conversation needs different block bytes — the same conversation with the
+// same block is a no-op by design, and a test that did not separate the two
+// would be asserting on a write that never happened.
+async function driveFreshSort(dir, convSeed, headers, blockSeed = convSeed) {
+  const mcp = "<system-reminder>\n# MCP Server Instructions\n\n" + blockSeed + "\n</system-reminder>";
+  const messages = [
+    userMsg(`${convSeed}-first prompt`),
+    assistantMsg("reply"),
+    { role: "user", content: [{ type: "text", text: mcp }] },
+  ];
+  const body = { model: "claude-opus-4-7", messages };
+  const key = resolveInsertionSessionKey(headers, messages, body.system);
+  await silenced(() =>
+    withEnvAsync({ CLAUDE_CONFIG_DIR: dir }, async () => {
+      const mod = await import(
+        "../proxy/extensions/fresh-session-sort.mjs?owner-only-probe=" + encodeURIComponent(convSeed + ":" + blockSeed)
+      );
+      await mod.default.onRequest({ body, headers, meta: {} });
+    }),
+  );
+  return join(dir, "cache-fix-snapshots", `${key}-fresh-sort-relocated.json`);
+}
+
+test("BITE — the relocation-memory file lands 0600, not at the ambient umask", async () => {
+  const dir = await newTmp();
+  try {
+    const state = await driveFreshSort(dir, "fresh-sort-mode", {
+      "x-claude-code-session-id": "sess-fresh-sort-mode",
+    });
+    assert.equal(
+      await modeOf(state),
+      OWNER_ONLY,
+      "the relocation memory holds first-seen reminder bytes and must be owner-only",
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("BITE — a pre-existing group-readable relocation-memory file is replaced at 0600 by the atomic write", async () => {
+  const dir = await newTmp();
+  try {
+    const headers = { "x-claude-code-session-id": "sess-fresh-sort-repair" };
+    const first = await driveFreshSort(dir, "fresh-sort-repair", headers, "v1");
+    await chmod(first, 0o664);
+    assert.equal(await modeOf(first), 0o664, "arrange: the file is group-readable before the next write");
+    // A second request with DIFFERENT block content updates the memory, so the
+    // extension writes again — through tmp+rename, which replaces the inode.
+    const again = await driveFreshSort(dir, "fresh-sort-repair", headers, "v2");
+    assert.equal(again, first, "arrange: same conversation, same state path");
+    assert.equal(
+      await modeOf(first),
+      OWNER_ONLY,
+      "the atomic write must land the replacement owner-only, whatever mode the old file had",
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
