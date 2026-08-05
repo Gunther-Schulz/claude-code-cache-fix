@@ -3439,3 +3439,21 @@ then the queued ones. Work the items in that order.
   days after their sessions ended (verified clean ancestors,
   removed 2026-08-01); the discipline edit's carrier is ~/.claude
   (operator corpus, GO owed).
+
+- PARKED 2026-08-05 — READINESS residue for this repo, awaiting the
+  executor-skill + §6 reshape (dotfiles backlog e519b8c). Under the
+  reshaped design this repo keeps NO detailed certification ledger —
+  certification is class-level and global; the per-repo file holds
+  only exclusions and deviations. Pre-drafted for when it lands:
+  exclusions — deploy/restart of the serving proxy (silent failure
+  mode + production-facing; never delegable down, §6 exclusion
+  class); anything touching state KEYS or freeze logic (threat
+  matrix row 3 — session-boundary statement required, judgment
+  stays top-tier). Convention already in force regardless of the
+  park: the Opus dev session's FIRST run of each procedure class
+  here (PR round, bust triage, gate-red triage) gets its output
+  graded by a top-tier session — that grading doubles as the
+  class-certification probe once §6 lands. Missing piece that
+  unparks this: the executor skill shipped + §6 amended (named
+  trigger). Consumer: the session instantiating READINESS.json
+  here, and the grading session booking probe evidence.
