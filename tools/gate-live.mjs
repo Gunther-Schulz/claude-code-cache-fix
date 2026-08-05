@@ -250,7 +250,13 @@ function summarise(file, bytes, res) {
   // compute these and discard them, so re-classifying a day's captures meant
   // re-reading ~8 GB of live capture twice. Tiny and naturally bounded by
   // absorption count, so no cap or truncation.
-  row.absorptionMissRows = parsed.absorptionMisses ?? [];
+  //
+  // Through the same recorder as the six fields below, for the three-answer
+  // reason they were built with: this line used to read `?? []`, which turns
+  // "the child never emitted this field" into "the child measured zero" —
+  // absence of evidence wearing a verdict's clothes, in the one row a reader
+  // consults to decide whether a class is live.
+  persistRows(row, "absorptionMissRows", parsed.absorptionMisses);
   // Every OTHER per-row gate, same reason generalised (BACKLOG "the daily
   // sweep persists ROWS, not just counts, for every gate that produces
   // them"). The sweep computed these lists and discarded all but their

@@ -707,11 +707,22 @@ const RELOC_TYPES = ["deferred", "mcp", "skills", "hooks"];
 // Membership and typing are IMPORTED (`isRelocatableBlock` / `getBlockType`),
 // never restated — a checker that re-derives the predicate it checks drifts
 // from the code silently, and both predicates already live one import away.
+// POPULATION, decided rather than defaulted: the same one the extension scans
+// — user-role messages from the first user message onward
+// (fresh-session-sort.mjs `onRequest`). A relocatable block anywhere else is
+// invisible to the extension, so counting its disappearance as a departure
+// would report a class the mitigation was never in a position to hold. The two
+// populations coincide on real traffic (all four predicates require a leading
+// `<system-reminder>`, which CC injects only into user messages), which is
+// exactly why the narrower one costs nothing and the wider one could drift
+// without anyone noticing.
 function lastRelocByType(msgs) {
   const last = new Map();
-  for (let i = 0; i < msgs.length; i++) {
+  const firstUserIdx = msgs.findIndex((m) => m?.role === "user");
+  if (firstUserIdx === -1) return [];
+  for (let i = firstUserIdx; i < msgs.length; i++) {
     const content = msgs[i]?.content;
-    if (!Array.isArray(content)) continue;
+    if (msgs[i]?.role !== "user" || !Array.isArray(content)) continue;
     for (const b of content) {
       const text = b?.text ?? "";
       if (!isRelocatableBlock(text)) continue;

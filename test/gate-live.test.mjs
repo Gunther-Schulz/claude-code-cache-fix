@@ -649,8 +649,13 @@ test("BITE — at the cap there is no truncation marker: the marker's presence M
     "a marker on a complete list would train its reader to ignore the marker");
 });
 
+// `absorptionMissRows` is in the list because it shipped BEFORE the rule the
+// other six were built with, and it shipped with `?? []` — the exact
+// absent-reads-as-measured-zero defect. It is the oldest row field and the one
+// a reader consults first, so it gets the same three answers as the rest.
 const ROW_FIELDS = ["stabilityRows", "stabilityExemptRows", "conservationRows",
-                    "conservationExemptRows", "sequenceRows", "orderRows"];
+                    "conservationExemptRows", "sequenceRows", "orderRows",
+                    "absorptionMissRows"];
 
 test("BITE — a child that produced no verdict carries an error, never empty row arrays", () => {
   // The three-answer rule at the row level: empty arrays on a run that
@@ -677,7 +682,7 @@ test("BITE — a field the child never emitted is null, an EMPTY array is a meas
   for (const f of ROW_FIELDS) assert.equal(old[f], null, `${f}: unmeasured is not "none found"`);
   const measured = summarise("c.jsonl", 10, json({
     report: [{ n: 0 }], violations: [], exemptions: [], safety: [], conservation: [],
-    conservationExemptions: [], sequence: [], orderViolations: [],
+    conservationExemptions: [], sequence: [], orderViolations: [], absorptionMisses: [],
   }));
   for (const f of ROW_FIELDS) assert.deepEqual(measured[f], [], `${f}: a real zero is []`);
 });
