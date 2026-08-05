@@ -524,7 +524,25 @@ then the queued ones. Work the items in that order.
   this repo builds — and passes 11/11 with them cleared; fork-main's
   copy of that test is no longer env-sensitive, so porting the fix
   onto the branch is a candidate if the reviewer trips on it.
-  REMAINING five: the absence-scan split, #279, #275, #280, #295.
+  **#275 also DONE (8a47da4), inline rather than dispatched — the only
+  CONFLICTING one, and a rebase with real conflicts is not work for a
+  cheaper tier.** Three notes from it: (1) the rebase DROPPED the
+  header-forwarding commit as already-applied upstream, so that stack
+  is gone and the branch is one commit on upstream/main — the
+  "CONFLICTING" state was mostly staleness, not divergence; (2) the
+  /health finding is worse than the review framed it — of ~117
+  `CACHE_FIX_*` names the code reads, several carry an OAuth client
+  id, a token endpoint, a credentials path and the operator's
+  filesystem layout, so the fix is an allowlist of value-bearing
+  GATES with NAME-ONLY as the default, which makes a variable added
+  tomorrow safe without anyone remembering the file exists; measured
+  cost zero, all eleven production gates keep their values; (3) the
+  red-first arrangement had a weaker variant available that would
+  have read identically in a report — helper-level assertions pass
+  with the call sites reverted — so the suite drives `ext.onRequest`
+  end to end and stats the disk.
+  REMAINING four, all dispatched 2026-08-05: the absence-scan split,
+  #279, #280, #295.
 
 - **(DONE, see above) READY — #272: scrub the 5 residual capture-id comment strings.**
   On branch `pr/insertion-normalization`: the reviewer's 08-01 comment
@@ -608,7 +626,7 @@ then the queued ones. Work the items in that order.
   suite green. Done: pushed + PR comment. The other "closest to
   landing" per #284.
 
-- **READY — #275: capture-file hardening + /health env allowlist +
+- **(DONE 2026-08-05, 8a47da4 force-pushed + commented) READY — #275: capture-file hardening + /health env allowlist +
   rebase.** Three parts, one branch (`pr/request-capture`, the only
   CONFLICTING one): (1) capture dir 0700, capture files 0600 via the
   repo's own write-owner-only helpers, applied BEFORE first byte is
