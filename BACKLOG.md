@@ -541,8 +541,25 @@ then the queued ones. Work the items in that order.
   have read identically in a report — helper-level assertions pass
   with the call sites reverted — so the suite drives `ext.onRequest`
   end to end and stats the disk.
-  REMAINING four, all dispatched 2026-08-05: the absence-scan split,
-  #279, #280, #295.
+  **ROUND CLOSED 2026-08-05 except #280.** Landed: #272, #276, #282,
+  #292, #275, #279, and the absence-scan split as **PR #306**. #295 is
+  DROPPED (premise falsified — see its entry). #280 was dispatched and
+  had not reported when this was written; it is the only item left.
+  TWO THINGS THE ROUND TURNED UP THAT OUTLIVE IT:
+  (1) **Upstream's own tree still carries the real capture content** in
+  `test/fixtures/cc-transcript-shape-snapshot.json` — measured, not
+  inferred: the scanner returns 10 findings / exit 2 against their
+  current main. Reported on #292 with the count, and the standing offer
+  to send our rebuilt fixture as its own PR is theirs to accept.
+  (2) **A tool's suite must not assert things about its HOST repo's
+  content.** Fork-main's absence-scan suite carries two such guards
+  (the transcript fixture is clean; every source-tree UUID is on a
+  roster). Ported verbatim into the standalone cut they went red on
+  upstream's data — correctly, but unlandably. Dropped from the port
+  with the reason written in the file. The general shape: a bite goes
+  red on the TOOL's defects; a bite that also goes red on its host's
+  data cannot be adopted, and softening it to pass is worse than
+  removing it.
 
 - **(DONE, see above) READY — #272: scrub the 5 residual capture-id comment strings.**
   On branch `pr/insertion-normalization`: the reviewer's 08-01 comment
@@ -570,7 +587,7 @@ then the queued ones. Work the items in that order.
   green. Sequenced BEFORE the split item below so the standalone scan
   ships without the entry.
 
-- **READY — absence-scan split: standalone PR (unblocks upstream
+- **(DONE 2026-08-05 — PR #306 opened) READY — absence-scan split: standalone PR (unblocks upstream
   #302; asked twice, #284 + #292).** New branch from `upstream/main`
   carrying only `tools/absence-scan.mjs` + its test, in the
   content-scanning form fork-main ships (post-770e915), with the two
@@ -603,7 +620,7 @@ then the queued ones. Work the items in that order.
   branch; grep for the real id returns zero. Done: pushed + PR
   comment answering the hold.
 
-- **READY — #279: split the sanitize planner by mode.** Design
+- **(DONE 2026-08-05, 0b67dbf pushed + commented) READY — #279: split the sanitize planner by mode.** Design
   settled from the review (full text on the PR, round 1, 07-31): the
   by-shape protection of answered tool-continuations applies to the
   v1 omitted-thinking path ONLY; the `v2StripSigned` path keeps its
