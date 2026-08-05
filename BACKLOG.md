@@ -8,6 +8,72 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **HANDOFF 2026-08-05 — the 08-02 handoff's G1/G2/G3 are all settled
+  and shipped on `wt/description-absorb` (now at 7f6e5a1, pushed);
+  read this before the entry below, which it supersedes on those
+  points.**
+  **G2 DECIDED: SET-identity.** Basis: sort-stabilization (order 200,
+  `proxy/extensions/sort-stabilization.mjs:60-62`) name-sorts
+  `body.tools` on EVERY live request, so incoming order is not a
+  property the pipeline preserves — and the absorb forwards the
+  canonical's first-seen order regardless, so the relax changes zero
+  wire bytes versus the order-identical case. Bite re-specified FIRST
+  (commit 1a60631), red-first at both levels (new bite vs fd87e12:
+  exactly the reorder expectation red; new self-check vs old replay:
+  exactly the exemption test red). Corpus: the absorb now FIRES on
+  request 1202 — the 484,972-token bust — and old-vs-new replay of
+  the whole 1512-request capture differs ONLY in the 52 declared
+  announcements.
+  **G1 SHIPPED (da4e8e1)** — with a deliberate deviation from the
+  entry below: the exemption is SHAPE-based (isDescriptionNotice,
+  living beside the builder, shared template constants), NOT keyed on
+  `descriptionChangedNames` telemetry as sketched, because both
+  consumers rule telemetry out: input-side ECHOES of injections carry
+  no telemetry (the 2026-07-29 one-sided-filter incident), and the
+  byte-stability exemption reads positions after bodies are gone
+  (tools/replay.mjs:712-716).
+  **G3 SETTLED by wire evidence, not a probe**
+  (tools/scan-description-carrier-evidence.mjs, 7f6e5a1): 837 live
+  streamed-200 requests on claude-opus-5 AND claude-fable-5 carried
+  an active tool_addition injection (beta on the wire) alongside CC's
+  own role:system TEXT messages — the notice's exact carrier shape,
+  at population scale. Residue: proves the carrier, not the specific
+  notice bytes; the extension header's gate-3 live acceptance (one
+  absorbed request observed on production capture) remains owed at
+  flag-flip.
+  **DEPLOYMENT of the two landed changes: DONE, by the 08-05 boot.**
+  The machine rebooted 09:59; systemd started the proxy from the repo
+  tree at 9059d3a, and /health's fingerprint matches disk exactly
+  (eec233efa271) — no restart owed. Dotfiles pin bumped ad4ff80 ->
+  6b69e87 (dotfiles d2c9874).
+  **ROW 4 IS NOT CLOSED — the gate ran RED, on OTHER classes.** First
+  gate run over the 40-capture/6.7GB corpus (10:02-10:14): failing 3,
+  byte-gate MISMATCH 3. Attributed: s-ddd9fd7d conservation 2 = the
+  row-24 container-flip pair at n=1400 (in[937]/out[937], role
+  system, 938-msg thread) — PRE-EXISTING, proven byte-identical under
+  old and new code. UNATTRIBUTED, next session's triage:
+  **s-c7c83ca5 conservation 38** (the big one), s-2caae8b5
+  conservation 2, byte-gate MISMATCH s-66797e31 x2 + s-ddd9fd7d x1.
+  Row 4's own signal was not read out of the gate rows before this
+  handoff — read it there before booking anything about row 4.
+  **BRANCH DEPLOY still gated on:** (1) full suite on the branch —
+  known sole failure is the absence-scan guard at the branch's
+  pre-770e915 base (session ids main already scrubbed;
+  gate-live.test.mjs, replay-gate-selfcheck.test.mjs, replay.mjs) —
+  merge into current main and re-run rather than fixing on-branch;
+  (2) the merge itself; (3) restart with row-3 stated: fd87e12+ is
+  FORWARD-COMPATIBLE ONLY (rollback after deploy is not clean — old
+  build mis-marks defer_loading on new-format state).
+  **UPSTREAM (operator asked 08-05):** fork is 14 behind
+  upstream/main; `git merge-tree` shows REAL conflicts in
+  proxy/server.mjs and test/proxy-wrapper.test.mjs — the pull is its
+  own deployment-coupled work unit, not a casual merge. Among the 14:
+  header-forwarding and supervised-stop fixes to server.mjs, launcher
+  ca-trust changes, RFC 7230 absolute-form fix. PR-thread sweep
+  (10 fork PRs; 5 CHANGES_REQUESTED, #275 CONFLICTING) dispatched to
+  a sonnet agent 08-05; if its report is not in this session's
+  record, the sweep repeats cheaply.
+
 - **READY — a full-suite gate before push (the red-main incident,
   2026-08-02 evening).** What happened: the source-UUID guard landed
   2026-08-01 (2a8738d); on 2026-08-02 two commits (0def5ca, 3b32e6b)
