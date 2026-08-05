@@ -853,6 +853,23 @@ bullet, evidence pointer included.
   it is diffable, scrubbed and free. The ceiling then only has to
   outlive the gap between two sweeps, which is hours, not weeks.
 
+- **PARKED — `_pinnedBlocks` in fresh-session-sort (and its twin in
+  identity-normalization) is keyed by BLOCK TYPE alone, across every
+  conversation on the machine.** Noticed while building the relocation memory
+  beside it, and deliberately not touched: it is the repo's own
+  identity-computed-too-cheaply shape ("Identity is where the bugs live"),
+  and two live conversations with different skills blocks do flip the pin
+  every request. It costs nothing TODAY, and the reason is worth writing
+  down: on a hash mismatch the function returns `normalized`, a pure
+  function of the current call's own argument, so a collision evicts a cache
+  entry and never returns another tenant's bytes — the pin is a
+  reference-identity micro-cache, exactly as the restart-state audit
+  established. Named missing evidence before it becomes work: a use that
+  reads `pinned.text` for anything other than returning it, or a second
+  writer of `_pinnedBlocks` — either turns the collision from free into
+  cross-tenant. The relocation memory next door is keyed per conversation
+  and is not affected.
+
 - **READY — the byte-gate's MISMATCH rows have no way OUT of the census, so
   the sweep cannot persist them (tools/-only).** Surfaced by the row-persistence
   lane as a returned question, not filled by it: the six other per-gate row
