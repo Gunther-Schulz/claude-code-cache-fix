@@ -75,7 +75,35 @@ bullet, evidence pointer included.
   docs/audits/upstream-pr-sweep-2026-08-05.md, and every actionable
   item from it is booked in the "Upstream PR round" section below.
 
-- **OPEN INCIDENT 2026-08-05 ~10:51-10:56 — an external writer
+- **SOLVED INCIDENT 2026-08-05 (root cause found same day, fixed in
+  the commit this entry rides in) — the .git/config corruption was
+  the suite hook running under git's HOOK ENVIRONMENT from a
+  worktree.** Mechanism, fully reproduced: git exports GIT_DIR into
+  pre-push hooks — RELATIVE ".git" for main-tree pushes, ABSOLUTE
+  for worktree pushes. The suite's scratch-repo test helpers spawn
+  git with cwd=tempdir but inherited env, so under the worktree
+  hook every `git init`/`git config` in them resolved to the REAL
+  shared git dir: `git init` on a git-dir not named ".git" writes
+  core.bare=true (bare-ness is guessed from the dir name), and the
+  fixture identity writes followed. Main-tree pushes were immune
+  because the relative GIT_DIR re-resolves inside each test's temp
+  cwd — which is why the corruption appeared only after the
+  dispatcher's worktree-reach fix made the suite run on a worktree
+  push at all (my own dry-run at 10:56:09; config mtime 10:56:10).
+  Repro: `GIT_DIR=$(git rev-parse --absolute-git-dir) node --test
+  test/absence-scan.test.mjs` from a worktree — corrupts; measured.
+  Fix: tools/git-hooks/pre-push unsets `git rev-parse
+  --local-env-vars` before npm test — same repro against the fixed
+  hook leaves the config byte-identical; measured. The 10:51
+  FETCH_HEAD/ORIG_HEAD was dot apply's own refresh pull, benign and
+  unrelated. Standing lesson for ANY runner of this suite from a git
+  hook: sanitize the hook env first — and the absence-scan split
+  entry below now carries the test-layer hardening so upstream
+  consumers are safe regardless of their hook context.
+  Original investigation record follows.
+
+- **(superseded by the SOLVED entry above) OPEN INCIDENT 2026-08-05
+  ~10:51-10:56 — an external writer
   corrupted this repo's .git/config; repaired, attribution needs the
   concurrent sessions' transcripts.** Observed: `core.bare=true` +
   `user.name=t` + `user.email=t@t` written into the LOCAL config
@@ -155,9 +183,18 @@ then the queued ones. Work the items in that order.
   scan must treat that scope as empty-and-passing when the directory
   is absent, with a test pinning it; (2) no
   cc-transcript-shape-snapshot.json allowlist entry (see the #292
-  item's sequencing). Verifier: the scan's own suite green on the cut
+  item's sequencing); (3) the test file's scratch-repo helpers
+  scrub git's hook environment in their spawn env
+  (`GIT_DIR`/`GIT_WORK_TREE`/`GIT_INDEX_FILE` undefined) — an
+  upstream consumer running this suite from a git hook otherwise
+  corrupts their real repo (the SOLVED incident above; reproduced,
+  not theoretical). Same hardening goes to fork-main's own copies of
+  absence-scan.test.mjs and hook-worktree-edit-guard.test.mjs when
+  this ships. Verifier: the scan's own suite green on the cut
   branch against upstream/main; a planted violation goes red
-  (instrument known-positive). Done: PR opened as the standalone,
+  (instrument known-positive); the incident's GIT_DIR repro run
+  against the hardened tests leaves the enclosing repo's config
+  byte-identical. Done: PR opened as the standalone,
   `Ref #302` + `Ref #292` in the body, generated-with footer.
 
 - **READY — #276: widen the branch's absence-scan + clean the 9

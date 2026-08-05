@@ -25,6 +25,18 @@
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
+# Git exports its hook environment (GIT_DIR and friends) into this
+# process, and npm test spawns tests that build SCRATCH git repos via
+# cwd-based discovery. An inherited ABSOLUTE GIT_DIR overrides that
+# discovery and redirects every scratch-repo git call into the REAL
+# repo — measured 2026-08-05: a worktree push's suite run wrote
+# core.bare=true plus the t/t@t fixture identity into the shared
+# .git/config and mis-authored a real pushed commit. Main-tree pushes
+# were immune only because their GIT_DIR is the RELATIVE ".git", which
+# re-resolves inside each test's temp cwd. Unset the whole family
+# (after the cd above, which legitimately needs the hook context).
+unset $(git rev-parse --local-env-vars) 2>/dev/null || true
+
 echo "pre-push: npm test (full suite) ..." >&2
 if ! npm test >/tmp/pre-push-suite.$$.log 2>&1; then
   echo "pre-push: REFUSED — full suite is red. Tail of the run:" >&2
