@@ -1,0 +1,167 @@
+// The conservation gate's declared exemptions for fresh-session-sort and
+// content-strip, and the anchoring fix for identity-normalization.
+//
+// All three come from one triage (2026-08-05): 40 conservation rows across
+// three captures, every one of them a DECLARED, intentional behaviour and none
+// a corruption. A gate that fires on legitimate work trains its reader to
+// discount red, which this repo treats as its own defect — so the repair is a
+// declared exemption the gate VERIFIES, never a softened predicate.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+
+import { conservationViolations } from "../tools/replay.mjs";
+import { rewriteBlockText, normalizeBlockText } from "../proxy/extensions/fresh-session-sort.mjs";
+import { normalizeSessionStartText, isSessionStartBlock } from "../proxy/extensions/identity-normalization.mjs";
+
+const SKILLS = (order) =>
+  `<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n${
+    order.map((n) => `- ${n}: does ${n}`).join("\n")}\n</system-reminder>\n`;
+
+const NUDGE = "<system-reminder>\nThe task tools haven't been used recently. Only a gentle reminder.\n</system-reminder>";
+
+const entry = ({ inMsgs, outMsgs, ...rest }) => ({
+  n: 1, ts: "2026-08-05T00:00:00.000Z", inMsgs, outMsgs, stats: null, ...rest,
+});
+
+// --- fresh-session-sort's rewrite -------------------------------------------
+
+test("a declared block rewrite is exempt once its result is verified in F", () => {
+  const before = SKILLS(["zeta", "alpha"]);
+  const after = rewriteBlockText("skills", before);
+  assert.notEqual(after, before, "arrange: the extension really does rewrite this block");
+
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: before }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }] }],
+    freshSessionSortStats: { relocated: [{ type: "skills" }], targetIndex: 0 },
+  }), new Set());
+
+  assert.deepEqual(r.violations, [], "the rewritten block is on the wire, byte-identical");
+  // Two exemptions, one per side: the pre-rewrite unit is gone from F (lost)
+  // and the post-rewrite unit is new to it (invented). Both must name the
+  // mechanism that accounted for them — an exemption ledger that mislabels
+  // WHY bytes were excused is barely better than a silent exemption.
+  assert.deepEqual(r.exemptions.map((x) => x.kind).sort(), ["invented", "lost"]);
+  for (const x of r.exemptions) {
+    assert.match(x.exemptReason, /fresh-session-sort:rewrite/,
+      `the ${x.kind} side must credit the rewrite, not another mechanism`);
+  }
+});
+
+test("CONTROL — a declared rewrite whose result is NOT in F stays a violation", () => {
+  // The whole point of verifying rather than trusting: a declaration cannot
+  // excuse bytes that never reached the wire.
+  const before = SKILLS(["zeta", "alpha"]);
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: before }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: "something else entirely" }] }],
+    freshSessionSortStats: { relocated: [{ type: "skills" }], targetIndex: 0 },
+  }), new Set());
+  assert.ok(r.violations.some((v) => v.kind === "lost"),
+    "declared, but the rewritten block is nowhere in the forwarded array");
+});
+
+test("CONTROL — no declaration means no exemption attempt at all", () => {
+  const before = SKILLS(["zeta", "alpha"]);
+  const after = rewriteBlockText("skills", before);
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: before }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }] }],
+  }), new Set());
+  assert.ok(r.violations.some((v) => v.kind === "lost"),
+    "a gate that re-derives a rewrite nobody claimed is inventing the exemption");
+});
+
+test("the gate re-derives with the PURE transform, leaving the extension's pin untouched", () => {
+  // rewriteBlockText is the half of fixBlockText without pinBlockContent. A
+  // checker that ran the stateful half would edit the state of the thing it
+  // is checking, mid-run.
+  const t = SKILLS(["zeta", "alpha"]);
+  assert.equal(rewriteBlockText("skills", t), rewriteBlockText("skills", t), "pure");
+  assert.equal(normalizeBlockText("x  \n</system-reminder>  "), "x\n</system-reminder>");
+});
+
+// --- content-strip's declared removal ---------------------------------------
+
+test("a bookkeeping reminder content-strip declares removing is exempt", () => {
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: NUDGE }] }],
+    outMsgs: [{ role: "user", content: [] }],
+    contentStripStats: { trailerCount: 0, reminderCount: 1 },
+  }), new Set());
+  assert.deepEqual(r.violations, [], "these bytes leave the wire deliberately");
+  assert.match(r.exemptions[0].exemptReason, /content-strip:declared-strip/);
+});
+
+test("CONTROL — a removed block neither predicate accepts still reports lost", () => {
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: "<system-reminder>\nreal content CC sent\n</system-reminder>" }] }],
+    outMsgs: [{ role: "user", content: [] }],
+    contentStripStats: { trailerCount: 0, reminderCount: 1 },
+  }), new Set());
+  assert.ok(r.violations.some((v) => v.kind === "lost"),
+    "a declaration does not cover a block content-strip would never have stripped");
+});
+
+// --- identity-normalization's anchoring -------------------------------------
+
+test("the SessionStart rewrite fires on the hook's own block, wrapped or bare", () => {
+  for (const t of ["SessionStart:resume hook success: x",
+                   "<system-reminder>\nSessionStart:resume hook success: x\n</system-reminder>"]) {
+    assert.ok(isSessionStartBlock(t));
+    const [out, n] = normalizeSessionStartText(t);
+    assert.equal(n, 1);
+    assert.ok(out.includes("SessionStart:startup hook success:"));
+  }
+});
+
+test("PROSE that merely quotes the marker is left alone", () => {
+  // Measured on a live capture: a teammate message quoting the marker as an
+  // example had its quotation silently rewritten mid-sentence. That is CC's
+  // conversation content, and this extension has no business editing it.
+  const prose = "Index 41 is role:\"system\", plain string `SessionStart:resume hook success: …`.";
+  assert.equal(isSessionStartBlock(prose), false);
+  const [out, n] = normalizeSessionStartText(prose);
+  assert.equal(n, 0);
+  assert.equal(out, prose, "byte-identical");
+});
+
+test("the COMPOSED case: a peeled reminder that content-strip then removes is accounted", () => {
+  // smoosh-split lifts a bookkeeping reminder out of a tool_result; content-strip
+  // deletes the peeled block. Each mitigation is declared and correct, and the
+  // peel's own check fails on its own terms because its product is gone. Between
+  // them every byte is accounted for — this is 8 of the 8 rows measured at
+  // msg[6] of the triaged capture, and the only shape of the composition seen.
+  const inner = "The task tools haven't been used recently. Only a gentle reminder.";
+  const smooshed = { type: "tool_result", tool_use_id: "t1",
+                     content: `done\n\n<system-reminder>\n${inner}\n</system-reminder>` };
+  const peeledResult = { type: "tool_result", tool_use_id: "t1", content: "done" };
+
+  const r = conservationViolations({
+    n: 1, ts: "t", stats: null,
+    inMsgs: [{ role: "user", content: [smooshed] }],
+    // content-strip removed the peeled reminder block; only the tool_result remains.
+    outMsgs: [{ role: "user", content: [peeledResult] }],
+    smooshSplitStats: { peeled: 1 },
+    contentStripStats: { trailerCount: 0, reminderCount: 1 },
+  }, new Set());
+
+  assert.deepEqual(r.violations, [],
+    "two declared mitigations composing must not read as a dropped byte");
+  assert.ok(r.exemptions.some((x) => /smoosh-split/.test(x.exemptReason)));
+});
+
+test("CONTROL — a peel product that simply vanishes, with no strip declared, still violates", () => {
+  const inner = "The task tools haven't been used recently. Only a gentle reminder.";
+  const smooshed = { type: "tool_result", tool_use_id: "t1",
+                     content: `done\n\n<system-reminder>\n${inner}\n</system-reminder>` };
+  const r = conservationViolations({
+    n: 1, ts: "t", stats: null,
+    inMsgs: [{ role: "user", content: [smooshed] }],
+    outMsgs: [{ role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "done" }] }],
+    smooshSplitStats: { peeled: 1 },
+  }, new Set());
+  assert.ok(r.violations.some((v) => v.kind === "lost"),
+    "without content-strip's declaration the missing peel product is a real loss");
+});

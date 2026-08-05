@@ -69,6 +69,8 @@ import { hashMessageContent } from "../proxy/extensions/message-hash.mjs";
 import { isDescriptionNotice } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
 import { splitSmooshedReminders } from "../proxy/extensions/smoosh-split.mjs";
+import { rewriteBlockText, getBlockType, isRelocatableBlock } from "../proxy/extensions/fresh-session-sort.mjs";
+import { isContinueTrailerBlock, isBookkeepingReminder } from "../proxy/extensions/content-strip.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -701,6 +703,7 @@ export function compactEntry(e) {
     // exemption for the stability check below) — never re-derived from
     // outHash shape, same discipline as `stats.suppressions`.
     freshSessionSortStats: e.freshSessionSortStats ?? null,
+    contentStripStats: e.contentStripStats ?? null,
     // deferred-tool-rewrite's own report (action/reason), the key for
     // resetWipesAdditionsExemption. Retained for the same reason
     // freshSessionSortStats is: an exemption keyed on shape is an exemption
@@ -1965,10 +1968,97 @@ const isDeclaredStrip = (u) => u.text !== null && isClearArtifact(u.text);
 // forward, or bytes the peel didn't actually reach) returns null and the
 // caller leaves the violation standing — the exemption verifies the
 // declaration, it never trusts it.
+// (f) A declared REWRITE by fresh-session-sort: it re-sorts the skills and
+//     deferred-tool listings and normalizes a block's trailing whitespace, so
+//     the unit CC sent is genuinely not on the wire and a byte-identical
+//     replacement is. Verified, never trusted: the gate re-derives the rewrite
+//     with the extension's OWN `rewriteBlockText` and requires the result
+//     present in F.
+//
+//     `rewriteBlockText`, not `fixBlockText`: the latter ends in
+//     `pinBlockContent`, which MUTATES the extension's module-level pin map. A
+//     checker that re-runs it would edit the state of the thing it is
+//     checking, mid-run. The pure half was extracted for exactly this call,
+//     which is also why this is a chain of the extension's own logic rather
+//     than a second implementation of the sort.
+//
+//     Restricted to blocks the extension actually touches
+//     (`isRelocatableBlock`): a rewrite of anything else is not this
+//     extension's and stays a violation.
+function freshSessionSortRewriteHashes(msg) {
+  const c = msg?.content;
+  const blocks = typeof c === "string" ? [{ type: "text", text: c }] : Array.isArray(c) ? c : [];
+  const out = new Set();
+  for (const b of blocks) {
+    if (b?.type !== "text" || typeof b.text !== "string") continue;
+    if (!isRelocatableBlock(b.text)) continue;
+    const after = rewriteBlockText(getBlockType(b.text), b.text);
+    if (after === b.text) continue;
+    // Through the gate's OWN unit function, so the hash is computed exactly as
+    // the F-side computed it — units are UNWRAPPED (blockUnitsFull strips the
+    // <system-reminder> envelope), and hashing the wrapped text here would
+    // silently never match. Two hashing definitions for one comparison is the
+    // shape that makes an exemption quietly dead.
+    for (const u of blockUnitsFull({ content: [{ type: "text", text: after }] })) out.add(u.hash);
+  }
+  return out;
+}
+
+// (g) A declared STRIP by content-strip: it removes the continue-trailer and
+//     bookkeeping reminders from user messages. Those bytes really do leave
+//     the wire and are meant to. Verified by re-running content-strip's OWN
+//     predicates against the unit — a unit neither predicate accepts is not
+//     content-strip's doing and stays a violation.
+//
+//     The unit reaching it may be a smoosh-split PEEL PRODUCT rather than a
+//     block CC sent, which is why this is checked against the peeled form too:
+//     the two mitigations compose, and the composed case is the only one
+//     measured (8 of 8 rows on the triaged capture).
+// Takes the RAW block, not the gate's unit: content-strip's predicates are
+// defined over the wrapped `<system-reminder>` form, while a unit's `text` has
+// already been unwrapped. Feeding it the unwrapped text makes the predicate
+// return false on every real case.
+const isDeclaredContentStripBlock = (b) =>
+  !!b && b.type === "text" && typeof b.text === "string" &&
+  (isBookkeepingReminder(b.text) || isContinueTrailerBlock(b));
+
+/** Unit hashes of the raw blocks content-strip's own predicates accept. */
+function contentStripUnitHashes(msg) {
+  const c = msg?.content;
+  const blocks = typeof c === "string" ? [{ type: "text", text: c }] : Array.isArray(c) ? c : [];
+  const out = new Set();
+  for (const b of blocks) {
+    if (!isDeclaredContentStripBlock(b)) continue;
+    for (const u of blockUnitsFull({ content: [b] })) out.add(u.hash);
+  }
+  return out;
+}
+
 function smooshSplitPeelUnits(msg) {
   const { messages, stats } = splitSmooshedReminders([msg]);
   if (!stats || !(stats.peeled > 0)) return null;
   return conservationUnits(messages[0]);
+}
+
+/**
+ * The peel's product BLOCKS, keyed by the unit hash each yields.
+ *
+ * A unit's `text` is UNWRAPPED — blockUnitsFull strips the
+ * `<system-reminder>` envelope — while content-strip's predicates are defined
+ * over the wrapped form. Handing a unit's text to those predicates returns
+ * false on every real case, silently. That confusion has now cost three
+ * separate bugs in this file, so the block is carried alongside the hash
+ * rather than reconstructed from it.
+ */
+function smooshSplitPeelBlocks(msg) {
+  const { messages, stats } = splitSmooshedReminders([msg]);
+  if (!stats || !(stats.peeled > 0)) return new Map();
+  const out = new Map();
+  const c = messages[0]?.content;
+  for (const b of Array.isArray(c) ? c : []) {
+    for (const u of blockUnitsFull({ content: [b] })) out.set(u.hash, b);
+  }
+  return out;
 }
 
 // Per-request verdict, `seen` being the per-conversation set of unit hashes CC
@@ -1988,6 +2078,17 @@ export function conservationViolations(e, seen) {
   // check below is skipped entirely rather than run and found null every
   // time, same short-circuit isDeclaredStrip's caller already relies on.
   const smooshDeclared = (e.smooshSplitStats?.peeled ?? 0) > 0;
+  // Same short-circuit discipline as the peel: no declaration on the entry, no
+  // exemption attempt. A gate that re-derives a rewrite nobody claimed would
+  // be inventing the exemption rather than verifying one.
+  const fssDeclared = (e.freshSessionSortStats?.rewrote?.length ?? 0) > 0
+    || (e.freshSessionSortStats?.relocated?.length ?? 0) > 0;
+  const stripDeclared = ((e.contentStripStats?.trailerCount ?? 0)
+    + (e.contentStripStats?.reminderCount ?? 0)) > 0;
+  // F-side hashes a verified rewrite introduced, filled on the R-side and read
+  // by the F-side loop — the post-rewrite block is new bytes on the wire by
+  // construction and would otherwise read as invented.
+  const fssExemptFHashes = new Set();
   // Hashes a verified peel introduced — filled during the R-side loop
   // below, read by the F-side loop after it, so a peeled unit's F-side
   // "invented" candidacy is judged only once the R-side has verified it.
@@ -2039,15 +2140,53 @@ export function conservationViolations(e, seen) {
       // `.every` and the violation stands undiminished; smoosh-split never
       // touches non-tool_result blocks, so a clean peel result covering
       // every unit is exactly the byte-verification the definition requires.
+      // Clause (g): content-strip's declared removals, checked against its own
+      // predicates. Applied FIRST because it can account for units the other
+      // clauses would otherwise have to explain — including a peel product.
+      const strippable = stripDeclared ? contentStripUnitHashes(msg) : new Set();
+      const stripExempt = strippable.size ? lost.filter((u) => strippable.has(u.hash)) : [];
+      // Clause (f): fresh-session-sort's declared rewrites, re-derived here.
+      const rewritten = fssDeclared ? freshSessionSortRewriteHashes(msg) : new Set();
+      const rewriteExempt = rewritten.size
+        ? lost.filter((u) => !stripExempt.includes(u) && [...rewritten].some((h) => fHashes.has(h)))
+        : [];
+      for (const h of rewritten) if (fHashes.has(h)) fssExemptFHashes.add(h);
+      const declaredExempt = [...stripExempt, ...rewriteExempt];
+      if (declaredExempt.length === lost.length && lost.length > 0) {
+        exemptions.push({
+          n: e.n,
+          ts: e.ts,
+          kind: "lost",
+          exemptReason: rewriteExempt.length && stripExempt.length
+            ? "fresh-session-sort:rewrite + content-strip:declared-strip"
+            : rewriteExempt.length ? "fresh-session-sort:rewrite" : "content-strip:declared-strip",
+          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) exempt — `
+            + `${rewriteExempt.length} re-derived from fresh-session-sort's own rewrite and verified in F, `
+            + `${stripExempt.length} accepted by content-strip's own predicates`,
+        });
+        continue;
+      }
+      // The COMPOSED case, and it is the only one measured: smoosh-split
+      // peels a bookkeeping reminder out of a tool_result, and content-strip
+      // then legitimately deletes that peeled block. The peel's own
+      // verification requires every peeled unit present in F, so the strip
+      // makes it fail — correctly, on its own terms, and wrongly overall,
+      // because between them the two declared mitigations account for every
+      // byte. A peeled unit content-strip's OWN predicates accept is therefore
+      // accounted, not missing.
       const peeled = smooshDeclared ? smooshSplitPeelUnits(msg) : null;
-      if (peeled && peeled.every((u) => fHashes.has(u.hash))) {
+      const peelBlocks = smooshDeclared ? smooshSplitPeelBlocks(msg) : new Map();
+      const peelAccounted = (u) =>
+        fHashes.has(u.hash)
+        || (stripDeclared && isDeclaredContentStripBlock(peelBlocks.get(u.hash)));
+      if (peeled && peeled.every(peelAccounted)) {
         for (const u of peeled) smooshExemptFHashes.add(u.hash);
         exemptions.push({
           n: e.n,
           ts: e.ts,
           kind: "lost",
           exemptReason: "smoosh-split:declared-peel",
-          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) exempt — smoosh-split's declared peel (${e.smooshSplitStats.peeled} peeled), verified byte-identical in the forwarded array`,
+          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) exempt — smoosh-split's declared peel (${e.smooshSplitStats.peeled} peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates`,
         });
       } else {
         out.push({
@@ -2064,15 +2203,28 @@ export function conservationViolations(e, seen) {
     const msg = outMsgs[i];
     if (isAssistant(msg) || isDeclaredInjection(msg)) continue;
     const candidates = fUnitsByMsg[i].filter((u) => !rHashes.has(u.hash) && !(seen && seen.has(u.hash)));
-    const invented = candidates.filter((u) => !smooshExemptFHashes.has(u.hash));
-    const exempt = candidates.length - invented.length;
-    if (exempt > 0) {
+    const invented = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
+      && !fssExemptFHashes.has(u.hash));
+    // Which mechanism accounted for it, counted separately. Reporting a
+    // fresh-session-sort rewrite as "smoosh-split:declared-peel" — which this
+    // did when the second exemption was first wired — makes the exemption
+    // ledger lie about WHY bytes were excused, and that ledger is the only
+    // thing standing between a declared exemption and a silent one.
+    const byPeel = candidates.filter((u) => smooshExemptFHashes.has(u.hash)).length;
+    const byRewrite = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
+      && fssExemptFHashes.has(u.hash)).length;
+    if (byPeel + byRewrite > 0) {
+      const reasons = [];
+      if (byPeel) reasons.push("smoosh-split:declared-peel");
+      if (byRewrite) reasons.push("fresh-session-sort:rewrite");
       exemptions.push({
         n: e.n,
         ts: e.ts,
         kind: "invented",
-        exemptReason: "smoosh-split:declared-peel",
-        detail: `out[${i}] (${msg?.role}): ${exempt} of ${fUnitsByMsg[i].length} unit(s) exempt — produced by smoosh-split's declared peel, verified against R`,
+        exemptReason: reasons.join(" + "),
+        detail: `out[${i}] (${msg?.role}): ${byPeel + byRewrite} of ${fUnitsByMsg[i].length} unit(s) exempt — `
+          + `${byPeel} produced by smoosh-split's declared peel, `
+          + `${byRewrite} by fresh-session-sort's verified rewrite`,
       });
     }
     if (invented.length) {
@@ -2421,6 +2573,7 @@ async function main() {
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
       stats: ctx.meta.insertionNormalizeStats ?? null,
       freshSessionSortStats: ctx.meta.freshSessionSortStats ?? null,
+      contentStripStats: ctx.meta.contentStripStats ?? null,
       deferredToolRewriteStats: ctx.meta.deferredToolRewriteStats ?? null,
       smooshSplitStats: ctx.meta.smooshSplitStats ?? null,
     };

@@ -140,7 +140,7 @@ bullet, evidence pointer included.
   further down (wrapper-retaining standalone), s-captureJ x1 the same
   row-24 pair.
 
-- **READY — anchor `normalizeSessionStartText` to a block that IS a
+- **(DONE 2026-08-05) READY — anchor `normalizeSessionStartText` to a block that IS a
   SessionStart hook output.** Grounding, measured (entry (C) above):
   the normalizer rewrote a quoted marker inside a teammate message's
   prose, silently altering conversation content CC sent. Impact here
@@ -159,7 +159,44 @@ bullet, evidence pointer included.
   deployment-coupled; row 3 answer expected NO state key and no freeze
   change, to be stated by the implementation.
 
-- **READY — conservation gate: declared exemption for
+- **GATE-RED CLOSED 2026-08-05 — all 40 conservation rows are now
+  either exempt-with-verification or fixed at the source.** Measured
+  on the two captures, replayed under their own gates:
+  s-captureI **38 -> 0** violations, 38 exemptions
+  (`fresh-session-sort:rewrite` 22 + `smoosh-split:declared-peel` 16),
+  matching the triage's 22/16 split exactly. s-captureL **2 -> 0**
+  with ZERO exemptions — the better outcome: anchoring
+  `normalizeSessionStartText` stops the rewrite happening on quoted
+  prose at all, so nothing needed excusing. An exemption there would
+  have papered over a real fidelity bug.
+  FOUR OF MY OWN DEFECTS, all silent (the code ran and returned
+  plausible output), all found by measuring rather than reading:
+  (1) the gate's units are UNWRAPPED while both extensions' predicates
+  are defined over the WRAPPED `<system-reminder>` form — three
+  separate bugs from this one confusion, now handled by carrying the
+  peel's BLOCKS beside their hashes with the reason at the call site;
+  (2) the F-side credited a fresh-session-sort rewrite to
+  `smoosh-split:declared-peel` — an exemption ledger that mislabels
+  WHY bytes were excused is barely better than a silent exemption;
+  (3) `fresh-session-sort` declared stats only on the RELOCATION path,
+  so the in-place sort branch rewrote blocks and declared nothing —
+  18 of the 38 rows were that branch;
+  (4) the composed peel/strip case needed the peel's verification to
+  accept a product content-strip legitimately removed.
+  DEVIATION from the booked design, with its reason: the entry said
+  re-run `fixBlockText`, but that ends in `pinBlockContent`, which
+  MUTATES the extension's module-level pin map — a checker must not
+  edit the state of the thing it checks, mid-run. The pure half
+  (`rewriteBlockText`) was extracted for the gate, so it still chains
+  the extension's own logic rather than re-implementing the sort.
+  ONE PRE-EXISTING TEST updated rather than worked around: it asserted
+  the in-place branch emits NO stats, which was stricter than its own
+  stated reason (no RELOCATE telemetry, since a relocation record buys
+  a stability exemption). Verified directly that a rewrite-only
+  declaration yields `null` from `freshSessionSortExemption`, so no
+  stability exemption is widened.
+
+- **(DONE 2026-08-05) READY — conservation gate: declared exemption for
   `fresh-session-sort`'s block rewrite.** Design settled by the
   triage above. Shape mirrors the existing clause-(d) peel exemption
   exactly (replay.mjs:1853 `smooshSplitPeelUnits` / :1927): the
@@ -179,7 +216,7 @@ bullet, evidence pointer included.
   violation (tamper one forwarded block in the fixture). tools/-only,
   not deployment-coupled.
 
-- **READY — conservation gate: declared exemption for
+- **(DONE 2026-08-05, as the peel/strip COMPOSITION) READY — conservation gate: declared exemption for
   `content-strip`.** Same shape, clause (c) widened. content-strip
   (order-wise ahead of the gate's view) declares the blocks it
   removed; the gate re-runs content-strip's OWN predicates

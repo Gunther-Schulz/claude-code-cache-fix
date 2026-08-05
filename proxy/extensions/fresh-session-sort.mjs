@@ -61,8 +61,18 @@ function stripSessionKnowledge(text) {
 
 const _pinnedBlocks = new Map();
 
+// The pure half of pinBlockContent, extracted so a CHECKER can re-derive what
+// this extension does to a block without touching `_pinnedBlocks`. The
+// conservation gate needs exactly that: it must chain this extension's own
+// logic rather than re-implement it (an expectation with the same parentage as
+// the code pins the bug it should catch), and it must not mutate live
+// extension state while doing so.
+export function normalizeBlockText(text) {
+  return text.replace(/\s+(<\/system-reminder>)\s*$/, "\n$1");
+}
+
 function pinBlockContent(blockType, text) {
-  const normalized = text.replace(/\s+(<\/system-reminder>)\s*$/, "\n$1");
+  const normalized = normalizeBlockText(text);
   const hash = createHash("sha256").update(normalized).digest("hex").slice(0, 16);
   const pinned = _pinnedBlocks.get(blockType);
   if (pinned && pinned.hash === hash) return pinned.text;
@@ -79,11 +89,21 @@ function getBlockType(text) {
 }
 
 function fixBlockText(blockType, text) {
+  return pinBlockContent(blockType, rewriteBlockText(blockType, text));
+}
+
+/**
+ * What this extension turns a block's text into, as a PURE function — the
+ * transform without the pin. `fixBlockText` is this plus the stateful pin, and
+ * on a first sighting the two agree by construction. Exported for the
+ * conservation gate, which verifies a declared rewrite by re-deriving it.
+ */
+export function rewriteBlockText(blockType, text) {
   let fixed = text;
   if (blockType === "skills") fixed = sortSkillsBlock(fixed);
   else if (blockType === "deferred") fixed = sortDeferredToolsBlock(fixed);
   else if (blockType === "hooks") fixed = stripSessionKnowledge(fixed);
-  return pinBlockContent(blockType, fixed);
+  return normalizeBlockText(fixed);
 }
 
 export { isSystemReminder, isHooksBlock, isSkillsBlock, isDeferredToolsBlock, isMcpBlock, isRelocatableBlock, isClearArtifact, sortSkillsBlock, sortDeferredToolsBlock, stripSessionKnowledge, pinBlockContent, getBlockType, fixBlockText };
@@ -129,6 +149,7 @@ export default {
     if (!hasScatteredBlocks) {
       // Still sort and pin blocks in-place for deterministic first-call baseline
       let modified = false;
+      const rewroteTypes = [];
       const newContent = firstMsg.content.map((block) => {
         const text = block.text || "";
         const blockType = getBlockType(text);
@@ -137,6 +158,7 @@ export default {
         const fixedText = fixBlockText(blockType, text);
         if (fixedText !== text) {
           modified = true;
+          rewroteTypes.push(blockType);
           const { cache_control, ...rest } = block;
           return { ...rest, text: fixedText };
         }
@@ -145,6 +167,21 @@ export default {
 
       if (modified || firstMsg.content.length !== beforeLen) {
         body.messages[firstUserIdx] = { ...firstMsg, content: newContent };
+      }
+      // DECLARE the rewrite, on this path too. It went undeclared until
+      // 2026-08-05, which is not a cosmetic gap: the conservation gate exempts
+      // a rewritten block only when the extension SAYS it rewrote one, so an
+      // undeclared rewrite reads as a byte CC sent and we dropped. Measured —
+      // 18 of 38 rows on one capture were this path, where nothing is
+      // scattered and the extension only sorts in place.
+      if (rewroteTypes.length) {
+        ctx.meta = ctx.meta || {};
+        ctx.meta.freshSessionSortStats = {
+          ...(ctx.meta.freshSessionSortStats ?? {}),
+          relocated: ctx.meta.freshSessionSortStats?.relocated ?? [],
+          rewrote: rewroteTypes,
+          targetIndex: firstUserIdx,
+        };
       }
       return;
     }
@@ -210,6 +247,7 @@ export default {
     ctx.meta = ctx.meta || {};
     ctx.meta.freshSessionSortStats = {
       relocated: relocatedTypes.map((t) => ({ type: t, firstAppearance: occurrences.get(t) === 1 })),
+      rewrote: relocatedTypes,
       targetIndex: firstUserIdx,
     };
   },

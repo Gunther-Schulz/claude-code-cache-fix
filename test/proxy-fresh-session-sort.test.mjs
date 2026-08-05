@@ -299,7 +299,7 @@ test("onRequest: freshSessionSortStats reports firstAppearance:false when the ty
   assert.equal(byType.skills, false, "skills appeared twice (messages[0] and scattered) — not a first appearance");
 });
 
-test("onRequest: no freshSessionSortStats when the in-place branch runs (nothing scattered)", async () => {
+test("onRequest: the in-place branch declares its REWRITE but no relocation", async () => {
   const skillsText = SR + "The following skills are available\n\n- zephyr: z\n- alpha: a\n</system-reminder>";
   const ctx = {
     body: {
@@ -313,7 +313,22 @@ test("onRequest: no freshSessionSortStats when the in-place branch runs (nothing
 
   await ext.onRequest(ctx);
 
-  assert.equal(ctx.meta.freshSessionSortStats, undefined, "in-place branch must not emit relocate telemetry");
+  // The assertion used to be `stats === undefined`, which was stricter than
+  // its own stated reason. The reason is that this branch must not emit
+  // RELOCATE telemetry — a relocation record with `firstAppearance` is what
+  // buys a stability exemption (replay.mjs freshSessionSortExemption), and
+  // this branch relocates nothing, so claiming one would excuse a real
+  // divergence.
+  //
+  // It must still DECLARE the rewrite, though, and the blanket assertion
+  // prevented that: the conservation gate exempts a rewritten block only when
+  // the extension says it rewrote one, so an undeclared rewrite reads as a
+  // byte CC sent and we dropped. Measured 2026-08-05 — 18 of 38 conservation
+  // rows on one capture were this exact branch.
+  const stats = ctx.meta.freshSessionSortStats;
+  assert.ok(stats, "the rewrite must be declared — the conservation gate keys on it");
+  assert.deepEqual(stats.relocated, [], "but NOTHING was relocated, and the record must say so");
+  assert.deepEqual(stats.rewrote, ["skills"], "the type it actually rewrote");
 });
 
 test("onRequest: no-op when no user messages", async () => {

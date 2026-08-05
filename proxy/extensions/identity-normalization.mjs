@@ -34,8 +34,25 @@ function stripSessionKnowledge(text) {
   );
 }
 
+// ANCHORED, and the anchoring is the point. These substitutions used to run
+// over any text containing the marker ANYWHERE, which rewrote prose that merely
+// MENTIONS it — measured 2026-08-05 on a live capture, where a teammate
+// message quoting `SessionStart:resume hook success:` as an example had the
+// quotation silently altered mid-sentence. That is CC's conversation content,
+// and this extension has no business editing it.
+//
+// A block that IS the hook's output starts with the marker — either at the
+// very beginning of the text, or at the start of a `<system-reminder>`
+// wrapper's inner text, which is the two shapes CC actually emits. Anything
+// else mentions it, and a mention is prose.
+const SESSION_START_ANCHOR = /^(?:<system-reminder>\n)?SessionStart:/;
+
+export function isSessionStartBlock(text) {
+  return typeof text === "string" && SESSION_START_ANCHOR.test(text);
+}
+
 function normalizeSessionStartText(text) {
-  if (typeof text !== "string" || !text.includes("SessionStart:")) return [text, 0];
+  if (!isSessionStartBlock(text)) return [text, 0];
   let count = 0;
   let out = text;
   if (SESSION_START_RESUME_MARKER.test(out)) {
