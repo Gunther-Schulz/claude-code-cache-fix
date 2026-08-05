@@ -250,15 +250,32 @@ bullet, evidence pointer included.
   token (`s-captureA`, `s-captureB`, …) applied everywhere, so two
   notes about the same capture still visibly refer to the same one. No
   mapping file — a committed synthetic-to-real table would undo the
-  exercise. 42 files, 288 replacements.
+  exercise. 42 files, 314 occurrences replaced.
+  THE MEASUREMENT, pinned to refs because it was got wrong three times
+  otherwise (see the correction note below):
+  pre-scrub `b6017b8` = **430 matches across 49 files**, 97 distinct
+  prefixes; post-scrub `e822458` = 116 across 8 files, all in the
+  excluded set below.
   DELIBERATELY NOT SCRUBBED, each for a stated reason:
-  `test/fixtures/harvested/LEDGER-*.json` (94 occurrences) is the
-  per-machine harvest watermark, keyed by raw capture key BY DESIGN
-  and allowlisted in the scanner's own code — rewriting it would break
-  harvest's watermarking silently. Two test-data values that are
-  ASSERTED rather than prose were left by the scrub and handled
-  separately: one is this repo's synthetic fixture token, one was
-  replaced with an unmistakable synthetic.
+  `test/fixtures/harvested/LEDGER-*.json` (94) is the per-machine
+  harvest watermark, allowlisted in the scanner's own code by operator
+  ruling 2026-07-31 — and its entries are NOT bare prefixes at all:
+  every one is a JSON key holding a FULL UUID, which the 8-hex pattern
+  matches only by its head. Substituting the head alone would have
+  left the real 28-hex tail in place beside a synthetic prefix — worse
+  than a no-op. Two full-UUID citations in this file's own prose, and
+  two ASSERTED test values, were handled individually.
+  **CORRECTION, recorded because the shape repeats.** This entry
+  carried three wrong exposure numbers in succession: 96 (one id
+  counted, framed as the class), then 414 (an unanchored count that
+  also matched the SAFE 12-hex form), then "four files / ~116" — the
+  last measured against a tree a dispatched agent was committing to,
+  WITHOUT PINNING A REF, so pre- and post-scrub numbers were compared
+  as if they were the same tree. The agent pinned its refs and was
+  right throughout; the dispatcher's corrections were the unreliable
+  part. Rule earned: a measurement over a working tree another writer
+  holds is quoted with the commit it was taken at, or it is not
+  quoted.
   THE WIDENING, kept narrow on purpose. Source files get the
   short-key class and ONLY it. Widening the whole scan across source
   would drag the UUID and base64 classes over dozens of legitimate
@@ -272,6 +289,39 @@ bullet, evidence pointer included.
   RESIDUE, named: the ids remain in immutable public history — this
   buys hygiene forward, not retraction — and the PR branches' own
   commit MESSAGES still carry prefixes that no push can retract.
+
+- **OPEN, operator decision — `LEDGER-Siren.json` holds 94 FULL
+  session UUIDs in a public repo, and the 2026-07-31 ruling that
+  allowlists it predates anyone counting them.** Surfaced by the
+  scrub agent, verified: every `keys` entry is a JSON key of the form
+  `"s-<8>-<4>-<4>-<4>-<12>"`, i.e. the complete session id, not the
+  8-hex prefix the rest of this work was about. The ruling's stated
+  basis is that the file is "fork-only, never part of an upstream
+  slice, and keyed by raw capture key BY DESIGN" — which is an
+  argument about harvest's mechanics, not about publication, and the
+  file is tracked in a public repo either way. The question the
+  ruling did not answer: does the watermark need the RAW key, or
+  would a stable hash of it work? If a hash works this is a
+  mechanical fix; if the raw key is load-bearing, the file wants to
+  be untracked and machine-local like the captures themselves.
+  MISSING EVIDENCE NOW ANSWERED, so this is decision-complete rather
+  than parked: the key is a PURE LOOKUP. `harvest.mjs:783` derives it
+  from the capture FILENAME (`file.replace(/-requests\.jsonl$/, "")`),
+  and the only uses are `ledger.keys[key]` read at :786 and written at
+  :841. Nothing matches it against an external value, so a stable hash
+  applied at both ends behaves identically — and the ledger is
+  per-machine and regenerable, so migration is "delete it and let the
+  next harvest rebuild", not a format upgrade.
+  RECOMMENDATION: hash it. The raw key buys nothing that a hash does
+  not, and it is the only thing keeping 94 live session ids in a
+  public tree. The alternative — untracking the file — loses the
+  cross-machine visibility the ruling presumably wanted.
+  Verifier if built: a ledger written by the new code contains no
+  UUID-shaped key (the absence-scan class, run WITHOUT the allowlist
+  entry, goes green); a harvest run against an existing raw-key ledger
+  either migrates or rebuilds without losing a watermark, proven by
+  the request counts surviving; and the allowlist entry is retired in
+  the same commit, since its whole justification disappears.
 
 - **READY — the canonical re-serve normalizes its CONTAINER to the
   wire's current one (proxy/**, deployment-coupled).** This is the
