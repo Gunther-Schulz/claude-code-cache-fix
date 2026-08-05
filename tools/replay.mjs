@@ -1124,6 +1124,113 @@ export function isHumanTurn(m) {
   });
 }
 
+// --- Absorption misses: did a mitigation that RAN actually ABSORB? ---
+//
+// WHY THIS EXISTS, and it is the most expensive gap this file has had. On
+// 2026-08-05 a 349,004-token bust replayed EXIT 0 — stability 0, safety 0,
+// conservation 0, sequence 0, canonical order 0 — and every one of those
+// verdicts was correct. Stability asks whether OUR output diverged EARLIER
+// than CC's input; CC diverged at the same logical slot, so we did not make
+// it worse and green was the honest answer. Nothing asked the question that
+// mattered.
+//
+// insertion-normalization reported `movedFresh: 2` on that request: it
+// RECOGNIZED both container migrations and substituted at their indices. The
+// forwarded prefix then diverged at the very slot it had just substituted,
+// because the canonical held the message in the container CC used FIRST (a
+// block array carrying a cache_control breakpoint) while the wire had been a
+// bare string for 26 requests. Right text, right index, stale envelope — and
+// a wrong container diverges a prefix exactly as much as wrong bytes.
+//
+// "The mitigation ran" and "the mitigation absorbed" came apart, one line
+// from each other in the same telemetry, and only a human reading both
+// noticed. That is the same split `movedFresh`/`movedRefires` was minted for,
+// one level up: there it separated a fresh recognition from a re-fire, here it
+// separates a recognition from an effect.
+//
+// A REPORT, NOT A GATE, deliberately. Its corpus-wide rate is unmeasured, and
+// a check that blocks before anyone knows how often it fires on legitimate
+// work is how a guard trains the reader to discount it — this file's own
+// repeated lesson. Measure first, promote later if the rate justifies it.
+//
+// THE THREE NUMBERS are what turned this bust from a puzzle into a mechanism,
+// so each row carries all three: where the absorption claimed to act, where
+// the forwarded pair actually diverged, and whether CC's own input diverged
+// there too. The third is what says whose defect it is — a miss with CC's
+// input identical at that index is OURS by construction.
+//
+// Raw `outHash`, not `outHashSem`: the semantic hash strips cache_control,
+// and the measured defect was a container flip that rides alongside exactly
+// that field. A check that normalises away the shape it exists to catch is
+// the same parentage error this file warns about elsewhere.
+export function findAbsorptionMisses(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const cur = group[i];
+      const st = cur.stats ?? {};
+      // Every shape of "we claimed to absorb something on THIS request".
+      // Re-fires are excluded on purpose: a re-fire re-serves an entry that
+      // was already being substituted, so its slot diverging says nothing new.
+      const joinMoves = (x) => new Set(
+        (x.stats?.suppressions ?? [])
+          .filter((s) => s && s.kind === "join-move" && Number.isInteger(s.index))
+          .map((s) => s.index));
+      // FRESH = substituted here and not on the predecessor. The suppressions
+      // array does not distinguish a fresh recognition from a re-fire, and the
+      // difference decides the whole check: on the measured bust the re-fires
+      // sat at 180/221 and the fresh ones at 370/402, so taking the list at
+      // face value compared the divergence against an index absorbed a request
+      // earlier and skipped the very row this exists to print.
+      const prevMoves = joinMoves(prev);
+      const fresh = [...joinMoves(cur)].filter((i) => !prevMoves.has(i));
+      const claims = (st.movedFresh ?? 0) > 0
+        || (st.descriptionAbsorbed ?? 0) > 0
+        || (st.oscillationAbsorptions ?? 0) > 0;
+      if (!claims || !fresh.length) continue;
+
+      const outDiv = firstDivergence(prev.outHash, cur.outHash);
+      if (outDiv === null) continue;            // absorbed and the prefix held
+      // The two indices live in DIFFERENT COORDINATE SPACES: `fresh` are raw
+      // wire positions, `outDiv` is a position in the forwarded array, which
+      // is shorter because suppression removed messages before it (measured:
+      // raw 370 forwards as 360). The mapping is not a simple count — other
+      // stages move entries too — so rather than reconstruct it and be subtly
+      // wrong, compare against the HIGHEST fresh index. Raw >= forwarded
+      // always, so this cannot miss a real miss; the cost is that a divergence
+      // in the gap between the two spaces reads as a hit, which for a REPORT
+      // is the right direction to be wrong in.
+      if (outDiv > Math.max(...fresh)) continue;   // diverged past the absorption
+
+      const inDiv = firstDivergence(prev.inHash, cur.inHash);
+      rows.push({
+        n: cur.n,
+        ts: cur.ts,
+        absorbedFreshAt: fresh.slice().sort((a, b) => a - b),
+        forwardedDivergence: outDiv,
+        inputDivergence: inDiv,
+        // The attribution, stated rather than left to the reader: if CC's own
+        // arrays are identical at the index where ours diverge, nothing
+        // upstream changed there and the divergence is ours.
+        ours: inDiv === null || inDiv > outDiv,
+        movedFresh: st.movedFresh ?? 0,
+        action: cur.action ?? null,
+      });
+    }
+  }
+  return rows;
+}
+
 export function findEditPositions(entries) {
   const groups = new Map();
   for (const raw of entries) {
@@ -2413,6 +2520,10 @@ async function main() {
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
+  // Always computed, not census-gated: this is the check whose absence let a
+  // 349k bust replay green, so it must be in every run's output rather than
+  // behind a flag someone has to remember.
+  const absorptionMisses = findAbsorptionMisses(stability);
   const blockMigrations = args.census ? findBlockMigrations(stability) : null;
   const successions = args.census ? findSuccessions(stability) : null;
   const duplicateRequests = args.census ? findDuplicateRequests(stability) : null;
@@ -2521,7 +2632,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
