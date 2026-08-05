@@ -619,6 +619,10 @@ function buildPinEntry(identity, msg) {
     entry.m = stripAllCacheControl(msg);
   } else if (isStandaloneCarrier(msg)) {
     entry.m = stripAllCacheControl(msg);
+    // The container this message was last seen in. Stored beside the bytes
+    // because a re-serve must emit the form the wire is carrying now, not the
+    // one it happened to be created in — see reserveForward.
+    entry.lc = containerKindOf(msg);
   }
   return entry;
 }
@@ -634,6 +638,81 @@ function pinnedForwardForm(stored, incomingMsg) {
   if (stored.r !== "user") return incomingMsg;
   if (hasCacheControl(incomingMsg)) return incomingMsg;
   return stored.m ?? stripVolatileBlocks(incomingMsg);
+}
+
+// The single text a standalone-carrier message carries, or null if the message
+// is not that shape. Same tolerance as canonicalMessageShape (:370): a bare
+// string, or exactly one text block whose only extra key may be cache_control.
+function singleTextOf(msg) {
+  const c = msg?.content;
+  if (typeof c === "string") return c;
+  if (!Array.isArray(c) || c.length !== 1) return null;
+  const b = c[0];
+  if (!b || typeof b !== "object" || b.type !== "text" || typeof b.text !== "string") return null;
+  const extra = Object.keys(b).filter((k) => k !== "type" && k !== "text" && k !== "cache_control");
+  return extra.length ? null : b.text;
+}
+
+// A re-serve emits the canonical's TEXT in the container the WIRE is currently
+// using — not the container that happened to be stored.
+//
+// Measured, threat-matrix "Row 4 datapoint — 2026-08-05" (349k re-billed): CC
+// first sent a `role:"system"` harness message as a one-block array carrying a
+// `cache_control` breakpoint, then as a bare string for 26 straight requests.
+// `buildPinEntry` stores FIRST-SEEN bytes (:620), so the canonical held the
+// array; when a join-move fired at n=221 the re-serve put that array back into
+// a slot the wire had been sending as a string, and the forwarded prefix
+// diverged there. The inner text was byte-identical — the whole 25-byte delta
+// was `[{"type":"text","text":` + `}]`. A wrong container diverges a cache
+// prefix exactly as much as wrong bytes do.
+//
+// Why this is a forwarding fix and not an identity one: identity is ALREADY
+// container-blind — canonicalMessageShape (:370) treats a bare string and a
+// single text block as the same message, which is why the entry matched across
+// the flip at all. Only the bytes we emitted did not follow.
+//
+// FAILS CLOSED to the stored form on anything outside the measured class: a
+// user/assistant turn, a multi-block message, or an entry with no recorded
+// container. The text is never touched, so count, roles, slot and
+// bytes-the-model-sees are all unchanged — the re-serve's safety argument is
+// untouched, only its envelope follows.
+//
+// THE TARGET IS THE ENTRY'S LAST-SEEN CONTAINER (`lc`), NOT THE CONTAINER AT
+// THE SLOT, and the difference is not academic — it was caught by this
+// change's own control test. At a join-move the message occupying the slot is
+// the MERGED one, i.e. the HOST's container, which is a different message that
+// happens to sit there. Following it re-serves an array as a string whenever
+// the host is a string, and in the array-stays-array case that manufactures
+// exactly the divergence this fix exists to remove. What the cache holds is
+// the form WE FORWARDED for this entry last time, which is the form the wire
+// last carried it in — `lc`, recorded at every match.
+//
+// `lc` absent means the entry has been seen exactly once, so its stored form
+// IS its last-seen form and the fallback is today's behaviour. That also makes
+// the change safe against state written by an older build in both directions:
+// an old build ignores the field, a new build reading an old entry falls back.
+//
+// A `cache_control` on the merged message is not carried over — it was already
+// dropped today, since the whole message is replaced by the stored form, so
+// this changes nothing about marker handling.
+function containerKindOf(msg) {
+  const c = msg?.content;
+  if (typeof c === "string") return "s";
+  if (Array.isArray(c)) return "a";
+  return null;
+}
+
+function reserveForward(entry) {
+  const storedMsg = entry?.m;
+  if (!storedMsg) return storedMsg;
+  if (storedMsg.role === "user" || storedMsg.role === "assistant") return storedMsg;
+  const want = entry.lc ?? containerKindOf(storedMsg);
+  if (want === null || want === containerKindOf(storedMsg)) return storedMsg;
+  const text = singleTextOf(storedMsg);
+  if (text === null) return storedMsg;
+  return want === "s"
+    ? { ...storedMsg, content: text }
+    : { ...storedMsg, content: [{ type: "text", text }] };
 }
 
 // --- Reminder-swap suppression (#76606, decision B) ---
@@ -938,8 +1017,12 @@ export function classifyPinned(messages, priorCanonical) {
     // lets move recognition run on this path at all.
     const moves = findJoinMoves({ messages, priorCanonical, matched, droppedNow, newEntries: moveCandidates });
     const movedByMergedIdx = new Map(moves.map((m) => [m.mergedIndex, m]));
-    for (const mv of moves) out[mv.mergedIndex] = priorCanonical[mv.ci].m;
-    for (const rf of refires) out[rf.index] = priorCanonical[rf.ci].m;
+    for (const mv of moves) {
+      out[mv.mergedIndex] = reserveForward(priorCanonical[mv.ci]);
+    }
+    for (const rf of refires) {
+      out[rf.index] = reserveForward(priorCanonical[rf.ci]);
+    }
 
     // The canonical must describe the wire we JUST FORWARDED — the same
     // invariant the success path states. Building it from `messages` while
@@ -1549,13 +1632,13 @@ export function classifyPinned(messages, priorCanonical) {
       const mv = movedByMergedIdx.get(e.index);
       if (mv) {
         reserves.push({ index: mv.mergedIndex, hash: mv.hash });
-        finalMessages.push(priorCanonical[mv.ci].m);
+        finalMessages.push(reserveForward(priorCanonical[mv.ci]));
         continue;
       }
       const rf = refireByIdx.get(e.index);
       if (rf) {
         reserves.push({ index: rf.index, hash: rf.hash });
-        finalMessages.push(priorCanonical[rf.ci].m);
+        finalMessages.push(reserveForward(priorCanonical[rf.ci]));
         continue;
       }
       continue; // an ordinary duplicate: the pinned inline form already carries these bytes
@@ -1595,7 +1678,15 @@ export function classifyPinned(messages, priorCanonical) {
   // that preceded them — keeping them adjacent to their original neighbours
   // so a later un-prune still matches in order.
   const canonByIdx = new Map();
-  for (const { ci, idx } of matched) canonByIdx.set(idx, storedAt(ci));
+  for (const { ci, idx } of matched) {
+    const stored = storedAt(ci);
+    // Refresh the last-seen container on every match. Identity is
+    // container-blind (canonicalMessageShape), so an entry goes on matching
+    // across a flip while the form on the wire changes underneath it — and
+    // that form is what a later re-serve has to reproduce. Only entries that
+    // carry stored bytes need it; nothing else is ever re-served.
+    canonByIdx.set(idx, stored?.m ? { ...stored, lc: containerKindOf(messages[idx]) ?? stored.lc } : stored);
+  }
   const newByIdx = new Map(newEntries.map((e) => [e.index, buildPinEntry(e, messages[e.index])]));
   const droppedAfter = new Map(); // incoming index -> canonical entries to trail it
   {
