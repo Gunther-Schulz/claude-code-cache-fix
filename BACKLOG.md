@@ -369,7 +369,71 @@ bullet, evidence pointer included.
   and it should ride gate-live's daily sweep as a `absorptionMisses`
   summary alongside `byteGate`.
 
-- **SOLVED INCIDENT 2026-08-05 (root cause found same day, fixed in
+- **INCIDENT RECURRED 2026-08-05 12:35 — the entry below was booked
+  SOLVED and was not; the fix covered the pre-push PATH, not the
+  hazard. Now closed at the spawn, red-first, measured.**
+  WHAT HAPPENED: the same corruption, same signature — `core.bare =
+  true`, `user.name = t`, `user.email = t@t` written into the SHARED
+  `/home/g/dev/vendor/claude-code-cache-fix/.git/config`, breaking
+  the work tree for the main repo and all six live worktrees at once.
+  Repaired by unsetting the three keys; nothing else in the config was
+  touched, no commits lost, every worktree healthy afterwards
+  (checked, not assumed).
+  ATTRIBUTION, immediate and mine: a dispatch brief I wrote listed the
+  incident repro itself as a verifier — `GIT_DIR=$(git rev-parse
+  --absolute-git-dir) node --test test/absence-scan.test.mjs` — WITHOUT
+  sequencing it after the hardening it was meant to verify. Run against
+  the un-hardened file, that command does exactly what the un-hardened
+  file does. The agent executed the brief correctly.
+  WHY THE EARLIER "SOLUTION" DID NOT HOLD, and this is the part worth
+  keeping: it hardened `tools/git-hooks/pre-push` (sanitize the hook
+  env before `npm test`). That closes ONE CALLER. The hazard lives in
+  the test helpers, which spawn git with `cwd: tempdir` and an
+  inherited env, so ANY runner with `GIT_DIR` set reproduces it — a
+  hook, a hand-typed command, another repo's tooling, an agent. The
+  entry below even names the remaining work ("Same hardening goes to
+  fork-main's own copies … when this ships") and defers it to a PR
+  that has not landed; that deferral is what left the hole open for
+  seven hours. A fix at the caller is not a fix at the hazard.
+  FIXED at the spawn, in both files, red-first on a THROWAWAY CLONE so
+  the proof itself risked nothing: un-hardened, the repro moves the
+  config md5 `58de0dd7…` -> `81d02943…` and injects `user.name=t` /
+  `user.email=t@t`; hardened, 36/36 tests pass and the md5 is
+  BYTE-IDENTICAL before and after. `SCRUBBED_GIT_ENV` sets `GIT_DIR`,
+  `GIT_WORK_TREE`, `GIT_INDEX_FILE`, `GIT_COMMON_DIR`,
+  `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`,
+  `GIT_CEILING_DIRECTORIES` to undefined (not `""` — an empty string
+  is still "set" to git), inlined in each test file rather than shared,
+  so `absence-scan.test.mjs` stays standalone-portable for the split PR.
+  **MECHANIZATION, now doubly earned and still not built** — the
+  entry below already named it: doctor FAILS on a local
+  `user.name`/`user.email` in this repo (the convention here is the
+  global identity, so a local one is always leakage) and on
+  `core.bare` being set in a non-bare repo. Both are computable
+  predicates with near-zero false fires, and both would have caught
+  this within seconds instead of at the next `git rebase`. It is a
+  dotfiles-repo change; surfaced to the operator rather than made from
+  a fork session.
+
+- **NEW FINDING 2026-08-05, from the same event — `hooks/examples/
+  worktree-edit-guard.py` is GIT_DIR-sensitive.** Measured, not
+  argued: with an absolute `GIT_DIR` exported, all eight "block"
+  assertions in `test/hook-worktree-edit-guard.test.mjs` fail — the
+  guard resolves the exported git dir instead of the worktree it was
+  asked about, so it stops blocking out-of-worktree edits. Its real
+  deployment is a Claude Code PreToolUse hook, where no `GIT_DIR` is
+  exported, so this is not a live hole today; the test now spawns it
+  with the same scrub for exactly that reason (it should measure the
+  guard, not the harness's environment). Open question, not decided
+  here: should the guard scrub its own environment before resolving
+  paths, so that a future caller which DOES export `GIT_DIR` cannot
+  silently disarm it? Fail-closed is this guard's whole design, and
+  "silently stops blocking under an inherited env" is the opposite.
+  Verifier if built: the same eight assertions, run under an exported
+  absolute `GIT_DIR`, must still block — red today by measurement.
+
+- **(SUPERSEDED by the recurrence entry above — its fix was
+  incomplete) SOLVED INCIDENT 2026-08-05 (root cause found same day, fixed in
   the commit this entry rides in) — the .git/config corruption was
   the suite hook running under git's HOOK ENVIRONMENT from a
   worktree.** Mechanism, fully reproduced: git exports GIT_DIR into

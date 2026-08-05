@@ -8,15 +8,40 @@ import { fileURLToPath } from "node:url";
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), "..", "hooks", "examples", "worktree-edit-guard.py");
 
+// See the same block in test/absence-scan.test.mjs for the measured incident.
+// Short form: git's env beats cwd, so a scratch repo spawned with an inherited
+// GIT_DIR is not scratch — every `git init`/`git config` here lands in the
+// runner's real repo. Scrubbed at the spawn, where no caller can forget it.
+// Undefined, not empty string: `GIT_DIR=""` is still "set" to git.
+const SCRUBBED_GIT_ENV = {
+  ...process.env,
+  GIT_DIR: undefined,
+  GIT_WORK_TREE: undefined,
+  GIT_INDEX_FILE: undefined,
+  GIT_COMMON_DIR: undefined,
+  GIT_OBJECT_DIRECTORY: undefined,
+  GIT_ALTERNATE_OBJECT_DIRECTORIES: undefined,
+  GIT_CEILING_DIRECTORIES: undefined,
+};
+
 function git(cwd, ...args) {
-  const r = spawnSync("git", args, { cwd, encoding: "utf8" });
+  const r = spawnSync("git", args, { cwd, encoding: "utf8", env: SCRUBBED_GIT_ENV });
   if (r.status !== 0) throw new Error(`git ${args.join(" ")} in ${cwd}: ${r.stderr}`);
   return r.stdout.trim();
 }
 
+// The guard is spawned with the SAME scrub, because that is how it actually
+// runs: Claude Code invokes it as a PreToolUse hook, not git as a pre-push
+// hook, so no GIT_DIR is exported to it in its real deployment. Without the
+// scrub the test would instead be measuring the harness's ambient environment
+// — under an exported absolute GIT_DIR all eight "block" assertions here fail,
+// because the guard resolves that git dir instead of the worktree it was asked
+// about. That sensitivity is real and is booked as its own finding (BACKLOG);
+// it is not what these tests are for, and letting it leak in here would make
+// them fail for a reason none of them names.
 function runHook({ toolName, toolInput, cwd }) {
   const payload = JSON.stringify({ tool_name: toolName, tool_input: toolInput, cwd });
-  const r = spawnSync(SCRIPT, [], { input: payload, encoding: "utf8" });
+  const r = spawnSync(SCRIPT, [], { input: payload, encoding: "utf8", env: SCRUBBED_GIT_ENV });
   return { code: r.status, stderr: r.stderr };
 }
 
@@ -196,7 +221,7 @@ test("`git` subprocess times out → exit 0 (fail-open environmental, determinis
     const payload = JSON.stringify({ tool_name: "Edit", tool_input: { file_path: join(wt, "x") }, cwd: wt });
     const r = spawnSync(SCRIPT, [], {
       input: payload, encoding: "utf8",
-      env: { ...process.env, PATH: `${shimDir}:${process.env.PATH}` },
+      env: { ...SCRUBBED_GIT_ENV, PATH: `${shimDir}:${process.env.PATH}` },
     });
     assert.equal(r.status, 0);
   } finally {
