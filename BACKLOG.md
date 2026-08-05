@@ -897,6 +897,33 @@ bullet, evidence pointer included.
   1 and 23 already mitigate. Still live and current rather than historical:
   the cold ledger records `2026-08-05 17:22:36Z 408k CONTROLLED(resume)` for
   the operator's own session today.
+  **STEP 0, ADDED 2026-08-05 night, and it may close this item without any
+  build: does the SYSTEM layer break on a resume too?** On the one boundary
+  row 24 measured in depth, all three cache layers had changed — system prompt
+  11,102 -> 10,090 chars (a whole `# Communicating with the user` section
+  absent), `messages[0]`, and the message count 966 -> 938. System renders
+  BEFORE messages, so on that boundary a messages-layer pin buys exactly
+  NOTHING. Whether that is typical is unmeasured, and it is cheap to measure:
+  compare system-prompt hashes across resume boundaries in the existing
+  captures (a rebuilt array's signature is a conversation whose FIRST request
+  is already large — `conversationSubKey`, imported, never re-derived). If the
+  system layer usually breaks too, this item closes on measurement.
+  RECOMMENDATION as of tonight, stated so the next session does not re-derive
+  it: do NOT build the messages[0] pin. Three reasons beyond step 0. The
+  announcement cannot actually supersede — the stale block's bytes ARE the
+  cache key, so it cannot be deleted and the model sees both copies, leaving a
+  prose marker as the only lever, and prose is what the re-anchor hook exists
+  because it decays. The corpus is authoritative INSTRUCTION text, so a rule
+  edited to stop a behaviour still says do it in the stale copy: a correctness
+  cost paid for a cache cost, against this repo's own ordering. And a resume is
+  a CONTROLLED cost — `bust-triage` classifies it that way deliberately — so
+  the machinery it needs (a key surviving a rebuilt messages[0], persisted
+  state, a delta computation) ranks below the preventable classes still open.
+  An earlier version of this entry recommended the compromise; that
+  recommendation underweighted the system layer, which is the same error as
+  reading an index-0 divergence without checking whether tools had already
+  changed.
+
   **The blocker to solve FIRST, and it is new — it comes from building the
   relocation memory today.** Every stateful extension keys on
   `conversationSubKey(messages)`, a hash of `messages[0]`. A resume REBUILDS
@@ -932,6 +959,21 @@ bullet, evidence pointer included.
   rebuilt-array signature — while the 17:22:36Z 408k event's own request was
   NOT located in it, which is itself the first thing to reconcile. Captures
   rotate oldest-mtime-first; this one is ~320 MB and current.
+
+- **PARKED — what the pointer lane does NOT cover, named by its builder rather
+  than discovered later.** Shipped 2026-08-05 (ffdf760, `--pointers`,
+  report-only, 5 labels after COMMIT-DEAD was dropped). Four declared blind
+  spots, each with the evidence that would promote it to work: (1) the
+  false-fire rate is measured on ONE file at ONE commit — future entries may
+  cite shapes never seen, and that rate is the input to any decision to make
+  the lane BLOCKING; (2) ABS-PATH and REF-DEAD rest on n=1 each; (3) the lane
+  answers "does this pointer resolve", never "does it still MEAN what its entry
+  claims" — a live path whose contents moved reads clean; (4) `bin/`, `hooks/`
+  and `templates/` are real top-level dirs here but sit outside the scoped
+  four-dir set, so a dead path under them is invisible. (4) is a one-line
+  widening whenever someone wants it; the others need accumulated runs, which
+  is the trigger: revisit after the lane has been run on a materially changed
+  BACKLOG.md a few times.
 
 - **READY — `bust-triage --at <stamp>` substitutes silently when the stamp
   names a CONTROLLED event (tools/-only).** Found 2026-08-05 by using it: the
