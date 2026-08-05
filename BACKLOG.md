@@ -541,10 +541,20 @@ then the queued ones. Work the items in that order.
   have read identically in a report — helper-level assertions pass
   with the call sites reverted — so the suite drives `ext.onRequest`
   end to end and stats the disk.
-  **ROUND CLOSED 2026-08-05 except #280.** Landed: #272, #276, #282,
-  #292, #275, #279, and the absence-scan split as **PR #306**. #295 is
-  DROPPED (premise falsified — see its entry). #280 was dispatched and
-  had not reported when this was written; it is the only item left.
+  **ROUND CLOSED 2026-08-05 — all nine items resolved.** Landed:
+  #272, #276, #282, #292, #275, #279, #280, and the absence-scan split
+  as **PR #306**. #295 is DROPPED (premise falsified — see its entry).
+  #280 note worth keeping: the content-minimization went WIDER than
+  its three named categories, because the head-5/tail-3 message
+  windows stored real message bytes and the old truncation capped only
+  `.text` — `tool_use.input` and `tool_result.content` went to disk
+  uncapped on every changed request. The design's three categories
+  would have left "prompt text does not rest on disk" false by
+  construction. Verified by planting a sentinel in four places at once
+  and grepping every written file: 0 hits in default mode, 25 with
+  `CACHE_FIX_PREFIXDIFF_CONTENT=1` — the second number is what makes
+  the first mean anything, and both were re-measured by the dispatcher
+  independently of the shipped test.
   TWO THINGS THE ROUND TURNED UP THAT OUTLIVE IT:
   (1) **Upstream's own tree still carries the real capture content** in
   `test/fixtures/cc-transcript-shape-snapshot.json` — measured, not
@@ -658,7 +668,7 @@ then the queued ones. Work the items in that order.
   Note for the report: upstream marks this load-bearing (their
   human's review follows — not ours to chase).
 
-- **READY — #280: prefix-diff persistence gets a permissions +
+- **(DONE 2026-08-05, 2f96c88 pushed + commented) READY — #280: prefix-diff persistence gets a permissions +
   retention story.** Design settled: (1) every prefix-diff artifact
   goes through write-owner-only (0600) — snapshots, diffs, events,
   rotations; (2) content minimization by default: system-block
