@@ -216,7 +216,7 @@ export function systemPromptSubKey(system) {
 // the individual conversations WITHIN a class: every subagent this session
 // dispatches runs the same agent system prompt, so they all landed in one
 // bucket and overwrote each other's canonical. Measured on real traffic
-// (capture s-35d72503, 602 requests): one system-prompt bucket held 39
+// (602 requests): one system-prompt bucket held 39
 // distinct conversations, another 12 — and the correlation with resets was
 // total.
 //
@@ -613,7 +613,7 @@ function pinnedForwardForm(stored, incomingMsg) {
 //
 // CC sometimes migrates a hook reminder OUT of the user message that
 // carries it and INTO a standalone message of its own — measured directly
-// (capture s-633915a8, n=26->28): message[30]'s <system-reminder>-wrapped
+// (capture s-4b6a435234bf, n=26->28): message[30]'s <system-reminder>-wrapped
 // block is gone from message[30] and its inner text, wrapper stripped,
 // is the entire content of a new message[31] (role system). Pinning above
 // restores message[30]'s first-seen bytes, reminder included; treating the
@@ -656,7 +656,7 @@ function pinnedBlockHashes(priorCanonical) {
   return hashes;
 }
 
-// The merged-standalone shape (measured 2026-07-30, capture s-633915a8,
+// The merged-standalone shape (measured 2026-07-30, capture s-4b6a435234bf,
 // msg864, the 587k window): CC sometimes migrates ALL of a message's
 // volatile blocks out TOGETHER, joined into one standalone message,
 // rather than one standalone per block. pinnedBlockHashes above can never
@@ -718,7 +718,7 @@ export function classifyPinned(messages, priorCanonical) {
 
   // A reset abandons the ORDER model. It must NOT abandon the PINS, and
   // conflating the two cost real cache — threat-matrix row 22, measured
-  // 2026-07-28 on capture s-538c0aef:
+  // 2026-07-28:
   //
   //   CC honestly replaced message 196, so reset(edit-shaped) was the right
   //   verdict and the cost belonged to 196+. But every reset returns without
@@ -755,7 +755,7 @@ export function classifyPinned(messages, priorCanonical) {
     // invariant the success path states. Building it from `messages` while
     // sending `out` makes the two disagree, and the next request then
     // diverges against a baseline that was never on the wire. Measured: that
-    // mistake turned 0 violations into 3 on capture s-0edbd11c before the
+    // mistake turned 0 violations into 3 before the
     // canonical was switched to the pinned array.
     return {
       action: "reset",
@@ -805,7 +805,7 @@ export function classifyPinned(messages, priorCanonical) {
   //
   // But "a drop and a splice occurred in the same request" is too coarse a
   // test for it, because the two can be unrelated: measured 2026-07-28
-  // (capture s-35d72503, request 09:47:31) a tail message was pruned by an
+  // (request 09:47:31) a tail message was pruned by an
   // operator interrupt while a hook reminder migrated mid-history 24 indices
   // away — one prune plus one insertion, neither an edit, reset anyway. That
   // single false positive was the last real reset in the corpus.
@@ -912,7 +912,7 @@ export function classifyPinned(messages, priorCanonical) {
   // disagreed permanently, and the next request touching that region failed
   // the strictly-increasing check with `not-subsequence`.
   //
-  // Measured before this fix (capture s-35d72503): an inversion at canonical
+  // Measured before this fix: an inversion at canonical
   // position 81 for an entry that sits at wire index 79, and every remaining
   // real reset in both corpora traced to exactly this.
   //
