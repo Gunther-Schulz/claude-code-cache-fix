@@ -952,6 +952,59 @@ binding constraint on the resume's FIRST request — not the messages
 half.** Session profile for scale: 20 busts over 100k in this session,
 4,566,292 tokens re-billed; the resume pair is 1,192,198 of that, 26%.
 
+### Row 24 datapoint — 2026-08-05 evening: the breakpoint's OWN departure
+### re-bills the array (610k), and it falsifies a same-day "free" finding
+
+The row already names CC's habit of wrapping a string message in a block
+array to attach a breakpoint and reverting it once the marker moves on.
+This is that habit costing the whole array, measured end to end, and it
+is recorded here because a finding made the same afternoon says it
+should have been free.
+
+THE EVENT. Session s-captureAD, 2026-08-05T20:52:03Z, 610k re-written,
+`messages_changed / 529627`. Capture pair: requests 218 -> 219,
+20:50:40.217Z -> 20:51:02.935Z, 456 -> 458 messages. Frozen before
+rotation as `pinned-s-6052bdc81b48-218-219` (431 records, full prefix
+from 0), so this datapoint outlives its capture.
+
+THE SHAPE, read PRE-pipeline. `tools` byte-identical, `system`
+byte-identical, and the first divergence over the raw arrays is at index
+**455 — the last message of the 456** — where the two differ by exactly
+48 bytes: `,"cache_control":{"type":"ephemeral","ttl":"1h"}`. Verified
+mechanically, not by eye: the pair is identical once every
+`cache_control` key is dropped. One differing index in the entire common
+prefix.
+
+WHY IT COSTS, and this is the part worth keeping. CC carries exactly ONE
+message-array breakpoint and walks it forward every turn: request 218
+has it at `455:block[1]`, request 219 at `456:block[0]`. Both also carry
+`system[1]` and `system[2]`. So the entry request 218 wrote ends AT
+message 455 — the message that then changed — and the only breakpoints
+that survive the change unaltered cover tools+system alone. The
+all-or-nothing billing this matrix already states then applies to the
+whole array.
+
+WHAT IT FALSIFIES. The same day's absorption classification found 26 of
+34 misses to be cache_control-only and inferred that a moved marker is
+free, on the basis that 32 of 34 rows had no cold event within +/-180 s.
+The COUNTING stands (the daily sweep now emits `cacheControlOnly` and
+reproduces it). The INFERENCE does not: absence of a bust at those rows
+is equally consistent with an older cache entry — written when the
+changed message was not yet the tail — still being readable. This event
+is the case where no such entry survives. A moved marker is free WHEN an
+entry ending below the change is still readable, which is a narrower
+claim than the one that was made, and was published to
+anthropics/claude-code#81967 before the narrowing and withdrawn there.
+
+NAMED MISSING EVIDENCE, and the reason no fix is proposed: the split
+between "read an older entry" and "read nothing below system" is
+per-request `cache_read_input_tokens` vs `cache_creation_input_tokens`,
+and no capture on this machine carried outcome usage records. `usage-log`
+was enabled the same night (ccff048 lineage, proxy tree f024b0a) and now
+writes them, so the next instance of this shape is measurable rather
+than arguable. Nothing here is demonstrably ours: the divergence is
+present in CC's own bytes before any extension runs.
+
 ## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
 ## CONTROLLED-CAUSE (instrument false positive, no bust)
 

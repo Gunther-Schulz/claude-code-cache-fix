@@ -8,6 +8,47 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **HANDOFF 2026-08-05 LATE NIGHT — read this first. It supersedes the NIGHT
+  handoff's queue section and nothing else.**
+  **STATE: everything committed and pushed, both repos.** Fork main at the
+  commit carrying this entry; dotfiles at the pin `f024b0a`. Suite 2184/2184.
+  Proxy restarted TWICE tonight and verified content-to-content both times
+  (`/health` == `sourceFingerprint(disk)` == `3162447a7a61`, dotfiles pin ==
+  `git rev-parse --short HEAD:proxy` == `f024b0a`). A gate re-stamp for that
+  tree was running when this was written — CHECK IT FIRST
+  (`jq -c '{finished,code,failing}' ~/.claude/cache-fix-gate-status.json`);
+  the previous sweep was 63 captures, 1 failing, and the one failure is the
+  long-standing row-24 conservation pair, not a regression.
+  **THE QUEUE'S TOP ITEM IS DONE, with its mechanism.** CACHE-CONTROL and
+  TEXT were one class: 26 of 34 absorption misses are a moved cache_control
+  breakpoint. The ladder mislabelled them (TEXT ran before the strip test),
+  `cacheControlOnly` now rides every absorption row from a
+  container-preserving stripped hash, and the sweep summary carries
+  `cacheControlOnly` + `cacheControlUnknown`. The sweep's own number
+  reproduced the hand classification exactly, 26/34 with zero unknowns.
+  **AND THE FINDING IT PRODUCED IS PARTLY IN DOUBT — start here.** A 610k
+  bust at 20:52Z is a marker leaving the last message and nothing else. The
+  counting stands; the inference "therefore free" does not. Its entry below
+  carries the measurement, the frozen fixture, and the one number that
+  settles it. That number now exists going forward: `usage-log` was enabled
+  tonight and writes per-request `cache_read` / `cache_creation`.
+  **DO NOT DISPATCH `builtByUs` AS WRITTEN.** Its named known positives are
+  gone from the corpus — one row no longer exists, the other moved index —
+  and three spot-checked rows were all byte-present in CC's raw array. Its
+  entry says what to re-ground first.
+  **UPSTREAM MOVED TODAY, and the previous handoff's "nothing is blocked on
+  us" is stale.** Four PRs merged (#275, #279, #280, #282). #272 is rebased,
+  APPROVED and CLEAN — ball with upstream, and #273/#278/#281 unblock behind
+  it. #276 answered. #295 closed as dropped. #278 shows `mergeStateStatus:
+  DIRTY` and will need the same rebase treatment #272 got — that is the next
+  upstream item, and the runbook covers it.
+  **TWO PUBLIC CLAIMS WERE CORRECTED TONIGHT**, both because a check was made
+  at the wrong layer: a scanner "false positive" that was really a declared
+  exemption doing its job, and the marker-is-free note above. Both edited in
+  place, reasons stated. The lesson is already in dev-loop; the pattern was
+  testing a part (an exported regex, a corpus count) and claiming a property
+  of the whole (the scanner, the cost).
+
 - **BUST 2026-08-05 20:52Z — 610k, `messages_changed`, and its only
   pre-pipeline difference is a cache_control marker leaving the last message.
   This CONTRADICTS the same day's "a moved breakpoint is free" finding and
