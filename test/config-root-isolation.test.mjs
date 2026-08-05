@@ -19,6 +19,12 @@
 // --experimental-default-config-file` is accepted, plain `node` ignores the
 // file). An unknown that fails loudly catches what a silent bypass hides.
 //
+// SCOPE, honestly: this test fires only when it is IN the run set — a whole-
+// suite bypass. A bare single-file run of some OTHER test file never loads
+// this file; that route is closed one level down, by claudeHome() itself
+// (proxy/claude-home.mjs), which under NODE_TEST_CONTEXT refuses to resolve
+// to the operator's live ~/.claude at all.
+//
 // The predicate is the HARNESS's presence, not a path value: under isolation
 // `os.homedir()` already IS the temp root, so comparing it against "the real
 // home" would compare the fake to itself. The marker is set by the module and

@@ -141,7 +141,12 @@ presence, counts vs rows) — and for each, does the guard reach it. Where it
 does not and cannot cheaply, the repair is to make the UNGUARDED route fail
 loudly rather than to hope it is not taken: `test/config-root-isolation.
 test.mjs` is that shape, red on exactly the invocation that bypasses the
-harness and green under it.
+harness and green under it — and its own scope had the same hole one level
+down (it fires only when it is IN the run set, so a bare single-file
+`node --test test/<other>.mjs` bypassed it too, reproduced at 7 leaked
+files in one run), closed 2026-08-05 by a `NODE_TEST_CONTEXT` tripwire in
+`claudeHome()` itself: the choke point every stateful extension passes
+through, where the leak dies for every invocation shape.
 
 **A liveness or resolution check asks "does this resolve", never "does this
 resolve AS THE TYPE I expected."** Both defects the pointer lane hit on its
