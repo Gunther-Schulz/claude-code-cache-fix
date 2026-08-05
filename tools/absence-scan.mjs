@@ -136,7 +136,7 @@ export const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 // (d) …and a filename is as public as the content it names. The capture-derived
 //     name carries `s-<sha12>`: 12 hex, never 8, so a name can never be matched
 //     back to a session by prefix.
-export const NAME_UUID_PREFIX = /(^|[^0-9a-f])s-[0-9a-f]{8}(?![0-9a-f])/;
+export const NAME_UUID_PREFIX = /(^|[^0-9a-zA-Z])s-[0-9a-f]{8}(?![0-9a-f])/;
 // (c) A whole-string ISO-8601 instant. Deliberately whole-string: a date inside
 //     authored prose (a fixture's own "measured on …" provenance note, a growth
 //     artifact's filename) is documentation the artifact exists to carry.
@@ -363,12 +363,19 @@ const SOURCE_SCANNABLE = /(\.(mjs|cjs|js|md|sh|bash|zsh|ya?ml|py|txt|bats|templa
 // point of the token, and an unanchored version of this pattern corrupts real
 // fixture filenames. `claude-3-opus-20240229` contains a matching substring by
 // coincidence and is excluded by name rather than by weakening the pattern.
-const SHORT_KEY = /(^|[^0-9a-f])s-[0-9a-f]{8}([^0-9a-f]|$)/;
+const SHORT_KEY = /(^|[^0-9a-zA-Z])s-[0-9a-f]{8}([^0-9a-f]|$)/;
 const SHORT_KEY_EXEMPT = [
   // A model version string. Measured as a false fire on three files before
   // this exemption existed, and it appears BARE (inside a grep pattern in
   // prose) as well as inside the full model name, so the exemption matches the
   // date-shaped token itself rather than its surroundings.
+  //
+  // Narrower job since the leading boundary was fixed (2026-08-05): inside the
+  // full name, `opus-20240229` no longer matches at all, because the `s` is a
+  // word tail. What still needs this line is the BARE form — a grep pattern
+  // quoted in prose, which `docs/runbooks/upstream-pr-round.md` contains.
+  // Verified by removing this entry with the new boundary in place: the bare
+  // form fires, the model name stays clean.
   /s-20240229/,
   // This repo's synthetic fixture token, truncated to 8 in a filename-class
   // assertion.

@@ -446,6 +446,43 @@ test("a capture-key prefix in a .mjs or .md is caught", () => {
     ["capture-key-prefix"]);
 });
 
+// Built from fragments for the same reason SYNTH_KEY is: a literal of this
+// shape in a tracked file IS what the class refuses, so the assertions would
+// block their own push.
+const WORD_TAIL = (word, hex) => [word, "-", hex.slice(0, 4), hex.slice(4)].join("");
+
+test("a word ending in s, followed by 8 hex, is not a capture key", () => {
+  // DEFINITION, before the assertions: the class protects a capture-id TOKEN —
+  // `s-` + 8 hex — and a token cannot begin in the middle of a word. The
+  // leading guard was `[^0-9a-f]`, which admits every letter except a–f, so
+  // the final `s` of any English word qualified: `business-`, `news-`,
+  // `plus-`, `process-`, `status-`. Measured on the scanner (not the regex)
+  // 2026-08-05: all five fire.
+  //
+  // Latent rather than observed — the tree carries no such string today, which
+  // is why the false-fire rate measured zero. It stops being latent as the
+  // class covers source files and prose, where words ending in s live. The
+  // single declared exemption this repo carried, `/s-20240229/`, covered one
+  // literal of an open-ended class; an exemption list cannot enumerate English.
+  //
+  // The repair is the leading boundary, and it costs nothing on the protected
+  // shape: a real key starts its token at a line start, whitespace, or
+  // punctuation — including the `capture-s-<key>` and `s-<key>-requests.jsonl`
+  // forms, both asserted below. Upstream reached the same fix independently
+  // (cnighswonger/claude-code-cache-fix#276) with a wider case table.
+  const hit = (t) => scanContent(t, "docs/x.md").findings.map((x) => x.class);
+  for (const w of ["busines" + "s", "new" + "s", "plu" + "s", "proces" + "s", "statu" + "s"]) {
+    assert.deepEqual(hit(`the ${WORD_TAIL(w, "12345678")} ran`), [],
+      `${w}- must not read as a capture key`);
+  }
+  assert.deepEqual(hit(`the capture ${SYNTH_KEY} replayed clean`), ["capture-key-prefix"],
+    "and the real token still fires");
+  assert.deepEqual(hit(`capture-${SYNTH_KEY} and /${SYNTH_KEY}-requests.jsonl`), ["capture-key-prefix"],
+    "hyphen and slash are token boundaries, not word characters");
+  assert.deepEqual(hit(`(${SYNTH_KEY})`), ["capture-key-prefix"],
+    "parenthesised prose form");
+});
+
 test("a model id whose tail happens to be 8 hex is NOT a capture key", () => {
   // A REGRESSION GUARD on an exemption that already exists, not a new fix —
   // and it is only worth its line because deleting `/s-20240229/` from

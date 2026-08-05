@@ -8,6 +8,53 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **BUST 2026-08-05 20:52Z — 610k, `messages_changed`, and its only
+  pre-pipeline difference is a cache_control marker leaving the last message.
+  This CONTRADICTS the same day's "a moved breakpoint is free" finding and
+  the finding is the thing in doubt, not the bust.** Fresh, measured at the
+  raw bytes, evidence frozen before rotation: `pinned-s-6052bdc81b48-218-219`
+  (431 records, full prefix from 0). Session s-captureAD, requests 218 -> 219,
+  20:50:40.217Z -> 20:51:02.935Z, 456 -> 458 messages.
+  THE PAIR, read pre-pipeline (request-capture, order 60): `tools` identical,
+  `system` identical, and the first raw divergence is at index **455 — the
+  LAST message of the 456**, where the two differ by 48 bytes that are
+  exactly `,"cache_control":{"type":"ephemeral","ttl":"1h"}`. Verified
+  mechanically: identical once every cache_control key is dropped. One
+  differing index out of the whole common prefix.
+  THE BREAKPOINT LAYOUT is what makes it cost. CC carries exactly ONE
+  message-array breakpoint and moves it forward every turn: at 218 it sits on
+  `455:block[1]`, at 219 on `456:block[0]`. Both requests also carry
+  `system[1]`/`system[2]`. So the entry request 218 wrote ends AT message 455
+  — the message that then changed — and the only breakpoints that survive
+  unchanged cover tools+system alone. `messages_changed / 529627`.
+  WHY THIS IS NOT A CONTRADICTION OF THE MEASUREMENT, BUT OF ITS
+  GENERALISATION: the 34-row corpus classification stands as counting (26 of
+  34 rows are marker-only, mechanically confirmed by the sweep's own
+  `cacheControlOnly`). What does NOT stand is the inference that marker-only
+  therefore means free. The cold-ledger check behind it asked "is there a bust
+  within +/-180 s", and 32 of 34 said no — but ABSENCE of a bust at those rows
+  is consistent with an older cache entry, written when the changed message
+  was not yet the tail, still being readable. This bust is the case where no
+  such entry survives, and there the marker's own bytes are inside the only
+  prefix on offer. A moved marker is free WHEN an entry ending below the
+  change is still readable, and that is a different claim from the one made.
+  NAMED MISSING EVIDENCE, and it is what a future session should get first:
+  per-request `cache_read_input_tokens` / `cache_creation_input_tokens` for
+  the pair. The capture carries NO outcome records with usage on this session
+  (measured: 0 of them), so the split between "read an older entry" and "read
+  nothing below system" is currently unmeasured — and that split is the whole
+  question. `usage-log` exists and is DISABLED in `proxy/extensions.json`;
+  enabling it is the cheapest route to the number, and is a serving change, so
+  it is an operator call rather than something to switch on unasked.
+  ALSO NOT DONE: no fix. Nothing here is obviously ours — the marker placement
+  is CC's, our `cache-control-normalize` acts at order 400 on the FORWARDED
+  body and this divergence is already present pre-pipeline. Whether our
+  canonical placement helps, hurts, or is neutral against CC's single moving
+  breakpoint is exactly the unmeasured question above.
+  CONSEQUENCE ALREADY TAKEN: the public comment on anthropics/claude-code#81967
+  carried the un-narrowed "moving a marker costs nothing" note as an aside; it
+  has been withdrawn in place, with the reason stated, rather than defended.
+
 - **READY — the push-side leak scan re-flags already-public history on every
   rebase of an open PR branch, and the only exit is `--no-verify`.** Measured
   2026-08-05 while rebasing `pr/insertion-normalization` onto upstream's
