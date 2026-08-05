@@ -578,6 +578,24 @@ Two rules, both learned the expensive way:
    *different* bug, already fixed. Re-derive which change produced an
    observation before building on it.
 
+   **A known positive NAMED IN A BRIEF is a claim, not a fixture.** The
+   dispatcher hands the builder "here is a real instance your check must
+   flag" — and that sentence carries the dispatcher's reading, not the
+   file's bytes. Measured 2026-08-05: a lane was briefed to flag a backlog
+   entry "whose own body cites the commit that fixed it". The entry's body
+   cites no commit at all; the ref sat on the first line of the NEXT entry
+   and had been attributed across the boundary — the same-entry limit
+   `tools/backlog-lint.mjs` documents as deliberate, walked into while
+   reading. The builder ran the entry's real line range through one grep,
+   got nothing, and HALTED — rather than widening the entry boundary until
+   the designated case fired, which is what tuning an instrument to ratify
+   its own premise looks like from the inside. Two rules from it: a briefed
+   known-positive earns the same disproving probe as any other load-bearing
+   claim, and the probe is cheap (here, entry-boundary arithmetic); and a
+   check whose motivating case dissolves does not get a substitute case
+   found for it — it does not ship, because it would ship having never gone
+   red on a real defect.
+
    **A mutation must remove the exact condition the bite names** — two
    bites in one build passed for the WRONG reason and survived their
    mutations, because the mutation deleted adjacent machinery rather
