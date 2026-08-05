@@ -901,6 +901,22 @@ bullet, evidence pointer included.
   re-run is what settles their split, and until it lands the honest
   statement is "at least 40 of 50, mechanism unconfirmed for the
   remainder".
+  **RE-GROUND BEFORE DISPATCHING THIS, 2026-08-05 evening: the named known
+  positives are not reproducible on the current corpus.** `n=124->130` is
+  gone from the sweep entirely, and `n=220->221` now diverges at forwarded
+  373 rather than 360 — the container fix (04ed3c9) moved it, exactly as
+  the evening handoff recorded. Spot-checked with this entry's own sharper
+  test (is `JSON.stringify(forwarded[i])` byte-present in CC's raw
+  `messages`?) on three rows of today's 34, one per shape: the row-4
+  residual (i=373), the surviving CONTAINER row (i=346 — CC sends both the
+  array and the bare-string form itself, row 24's flip seen from the other
+  side), and a cache_control-only row (i=414). All six reads byte-present,
+  so no live "we built it" instance turned up among them — three rows of
+  34, a spot check and not the population.
+  A briefed known positive is a claim, not a fixture (dev-loop, "Adding a
+  check"), and a check whose motivating case dissolves does not get a
+  substitute hunted for it. The next move here is a live known positive or
+  a re-grade, not a build.
 
 - **FINDING 2026-08-05 (measured, mid-dispatch) — the capture corpus
   is SATURATED, so evidence now expires by mtime within hours, and
