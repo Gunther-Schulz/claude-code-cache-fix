@@ -967,8 +967,24 @@ bullet, evidence pointer included.
   state on a guess. The deployment side (a timer, if it lands) belongs in
   dotfiles, not here.
 
-- **READY — the daily sweep persists ROWS, not just counts, for every
-  gate that produces them (tools/-only, not deployment-coupled).**
+- **DONE 2026-08-05 (c6a6e31, c0a525c, b9c5a28) — the daily sweep persists
+  ROWS, not just counts.** Eight fields, taken verbatim from the child's
+  parsed JSON with no reshaping: stability, stability-exempt, conservation,
+  conservation-exempt, sequence, order, absorption-miss and
+  reloc-departure. Capped at 200/field/capture with an explicit
+  `<field>Truncated: <total>` beside it, and all eight go through one
+  recorder that keeps the three answers — absent is `null`, empty is a
+  measured zero. `absorptionMissRows` moved onto it too: it shipped first
+  and shipped with `?? []`, so an absent field read as a measured zero in
+  the one row a reader consults to decide whether a class is live.
+  VERIFIED against a real sweep, not only synthetics (17:34Z run, 42
+  captures): every row carries the arrays, none null, and the live
+  stability row carries `prefixAboveMessages` — which also closed the
+  "field names read, not exercised" residue the building lane reported.
+  Measured growth: ~113 KB against 104 KB, ~8%. RESIDUAL, split off into
+  its own entry above: byte-gate MISMATCH rows, which no child exposes as
+  a copyable array.
+  Original text follows for the evidence trail.
   AMENDED 2026-08-05 night: STABILITY rows belong in the list too — the
   original enumeration named conservation, byte-gate, order, sequence and
   census and skipped them, and they now carry the field that says what a
@@ -999,8 +1015,14 @@ bullet, evidence pointer included.
   NOT in scope: changing what any gate COMPUTES, or the sweep's
   pass/fail. This is persistence only.
 
-- **READY — the canonical re-serve normalizes its CONTAINER to the
-  wire's current one (proxy/**, deployment-coupled).** This is the
+- **DONE 2026-08-05 (04ed3c9) — the canonical re-serve normalizes its
+  CONTAINER to the wire's current one (proxy/**, deployed).** Closed
+  2026-08-05 night on a read of its own body, which had cited the fixing
+  commit while the header still read READY — the grade said dispatchable,
+  the body said shipped, and `backlog-lint` was clean on it because its
+  rule needs a marker word near a date and this entry recorded its landing
+  with a bare ref. That gap is now a lint lane (`GRADE-VS-COMMIT`).
+  The design below is what shipped; it is kept for the evidence trail.** This is the
   349k bust's actual fix and it is narrower than the row-24 message-
   level pin. Grounding, all measured today (matrix, Row 4 datapoint
   2026-08-05): `resetKeepingPins`/`findJoinMoves` substitute
