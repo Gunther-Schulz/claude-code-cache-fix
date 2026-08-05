@@ -710,6 +710,16 @@ Two rules, both learned the expensive way:
    that touches how the tools READ or RETAIN a capture; the fixtures will not
    tell you.
 
+   **Never `Read` that status file whole — query it with `jq`.** It carries
+   one fully-detailed row per capture (~33 fields), so it sits at roughly
+   200 KB / ~60k tokens and stays there: rows track the capture count, and
+   captures rotate, so this is a steady state rather than growth something
+   will eventually prune. That is ~2.4x the Read tool's 25k-token cap, so a
+   whole-file Read spends 25k tokens to deliver a third of the file plus a
+   paging notice. Two sessions have each paid that before switching to `jq`.
+   `jq -r '.ok, .failing, (.rows[]|select(.exit!=0)|.file)'` answers the
+   usual question for a few hundred bytes.
+
 Every new gate gets a mutation test in `test/replay-gate-selfcheck.test.mjs`.
 A gate that is confidently wrong is worse than no gate: it converts
 "unverified" into "verified" and nobody notices.
