@@ -562,6 +562,27 @@ test("the sweep rolls up absorption misses, and keeps the OURS count separate", 
     "total, the attributable subset, and how many captures produced any");
 });
 
+test("BITE — summarise carries the absorption-miss ROWS, not just their count", () => {
+  // Before this field the sweep computed the rows and threw them away — a
+  // corpus-wide classification meant re-reading every live capture (~8 GB)
+  // a second time. Pinned so a future refactor cannot silently drop it back
+  // to counts-only.
+  const misses = [{ n: 5, prevN: 4, forwardedDivergence: 3, ours: true }];
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], violations: [], safety: [], sequence: [], orderViolations: [],
+    absorptionMisses: misses,
+  }));
+  assert.deepEqual(row.absorptionMissRows, misses);
+});
+
+test("a run with no absorption misses carries an empty row array, not undefined", () => {
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], violations: [], safety: [], sequence: [], orderViolations: [],
+    absorptionMisses: [],
+  }));
+  assert.deepEqual(row.absorptionMissRows, []);
+});
+
 test("a sweep with absorption misses is still CLEAN — the check reports, it does not gate", async () => {
   // Deliberate, and the reason is this repo's own recurring defect: the
   // check's corpus-wide rate is unmeasured, and failing a sweep before anyone

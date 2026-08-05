@@ -59,6 +59,7 @@
 // is skipped rather than reported as churn (runbook's known artifact).
 
 import { mkdtemp, rm } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -1218,6 +1219,7 @@ export function findAbsorptionMisses(entries) {
       const inDiv = firstDivergence(prev.inHash, cur.inHash);
       rows.push({
         n: cur.n,
+        prevN: prev.n,
         ts: cur.ts,
         absorbedFreshAt: fresh.slice().sort((a, b) => a - b),
         forwardedDivergence: outDiv,
@@ -1663,6 +1665,26 @@ export function runCensus(entries) {
   return { pairs, conversations: groups.size, tally, examples };
 }
 
+// --dump-forwarded's spec: comma-separated N:I pairs naming a forwarded
+// message position to dump for a given request index. Parsed into a
+// Map<n, i[]> (preserving spec order and duplicates) so the read loop does a
+// single lookup per request instead of re-parsing or scanning per line.
+function parseDumpSpec(spec) {
+  const map = new Map();
+  for (const part of spec.split(",")) {
+    const [nStr, iStr] = part.split(":");
+    const n = parseInt(nStr, 10);
+    const i = parseInt(iStr, 10);
+    if (!Number.isFinite(n) || !Number.isFinite(i)) {
+      process.stderr.write(`bad --dump-forwarded entry: ${part} (want N:I)\n`);
+      process.exit(2);
+    }
+    if (!map.has(n)) map.set(n, []);
+    map.get(n).push(i);
+  }
+  return map;
+}
+
 function parseArgs(argv) {
   const args = {
     file: null,
@@ -1673,6 +1695,8 @@ function parseArgs(argv) {
     wipeStateAt: null,
     trace: false,
     gatesFromCapture: false,
+    dumpForwarded: null,
+    dumpOut: null,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -1700,6 +1724,10 @@ function parseArgs(argv) {
       }
       if (a === "--restart-at") args.restartAt = v;
       else args.wipeStateAt = v;
+    } else if (a === "--dump-forwarded") {
+      args.dumpForwarded = parseDumpSpec(argv[++i] ?? "");
+    } else if (a === "--dump-out") {
+      args.dumpOut = argv[++i] ?? null;
     } else if (!args.file) {
       args.file = a;
     } else {
@@ -1709,8 +1737,12 @@ function parseArgs(argv) {
   }
   if (!args.file) {
     process.stderr.write(
-      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--json]\n",
+      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--dump-forwarded N:I,...] [--dump-out path] [--json]\n",
     );
+    process.exit(2);
+  }
+  if (args.dumpForwarded && !args.dumpOut) {
+    process.stderr.write("--dump-forwarded requires --dump-out (pass both --dump-forwarded and --dump-out)\n");
     process.exit(2);
   }
   return args;
@@ -2466,6 +2498,11 @@ async function main() {
   const outcomes = new Map();
   const boots = [];
 
+  // --dump-forwarded: opened once, "w" truncates at start — never accumulated
+  // in memory across the run. Absent the flag this is null and the dump write
+  // below is skipped entirely, so behaviour is unchanged without it.
+  const dumpStream = args.dumpForwarded ? createWriteStream(args.dumpOut, { flags: "w" }) : null;
+
   // `n` counts REQUEST records only. Outcome records (what the API charged)
   // share the file but carry no body, and letting them consume an index would
   // shift every request number — so --restart-at N and every violation report
@@ -2543,14 +2580,16 @@ async function main() {
       prevHash = h;
     }
 
+    // Hash of the body THIS replay produced, in the same form the proxy
+    // hashes what it forwards (JSON.stringify of the mutated body). Shared
+    // with the --dump-forwarded write below so both name the same body.
+    const outBodySha = createHash("sha256").update(JSON.stringify(ctx.body)).digest("hex").slice(0, 16);
     report.push({
       n,
       ts: rec.ts,
       key: rec.key,
       captureId: rec.id ?? null,
-      // Hash of the body THIS replay produced, in the same form the proxy
-      // hashes what it forwards (JSON.stringify of the mutated body).
-      outBodySha: createHash("sha256").update(JSON.stringify(ctx.body)).digest("hex").slice(0, 16),
+      outBodySha,
       msgs: Array.isArray(rec.body?.messages) ? rec.body.messages.length : 0,
       mutatedBy,
       insertion: ctx.meta.insertionNormalizeStats ?? null,
@@ -2594,6 +2633,18 @@ async function main() {
         conservation.push(...cv.violations);
         conservationResidue += cv.assistantResidue;
         conservationExemptions.push(...cv.exemptions);
+      }
+    }
+    // --dump-forwarded: the forwarded bodies still exist at this point in the
+    // loop, one line above where compactEntry throws them away for good (heap
+    // discipline — see the file header). An `i` beyond the array yields
+    // `msg: null`, which is data (the message was suppressed/absent), not an
+    // error.
+    if (dumpStream && args.dumpForwarded.has(n)) {
+      for (const i of args.dumpForwarded.get(n)) {
+        dumpStream.write(
+          JSON.stringify({ n, i, outBodySha, msgsLen: full.outMsgs.length, msg: full.outMsgs[i] ?? null }) + "\n",
+        );
       }
     }
     // Everything else keeps hashes, not bodies — see compactEntry.
@@ -3136,6 +3187,12 @@ async function main() {
     }
   }
 
+  // Flush and close before exit — process.exitCode (not process.exit) is used
+  // below, but closing explicitly rather than relying on process teardown
+  // keeps the file's completeness independent of that choice.
+  if (dumpStream) {
+    await new Promise((resolve, reject) => dumpStream.end((err) => (err ? reject(err) : resolve())));
+  }
   await rm(scratch, { recursive: true, force: true });
   // Exit non-zero on any violation so this is a gate, not just a report.
   // Safety first in the message ordering because a corrupted conversation is

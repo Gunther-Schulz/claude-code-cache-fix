@@ -222,6 +222,11 @@ function summarise(file, bytes, res) {
   // exists to stop.
   row.absorptionMisses = parsed.absorptionMisses?.length ?? 0;
   row.absorptionMissesOurs = (parsed.absorptionMisses ?? []).filter((m) => m.ours).length;
+  // The rows themselves, not just their counts — the daily sweep used to
+  // compute these and discard them, so re-classifying a day's captures meant
+  // re-reading ~8 GB of live capture twice. Tiny and naturally bounded by
+  // absorption count, so no cap or truncation.
+  row.absorptionMissRows = parsed.absorptionMisses ?? [];
   row.unparseable = (parsed.report ?? []).filter((r) => r.error).length;
   // Replay fidelity: whether this run reproduced the bytes the proxy really
   // forwarded. A mismatch means the invariants above were measured on a

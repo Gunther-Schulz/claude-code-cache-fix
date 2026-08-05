@@ -83,6 +83,14 @@ test("an absorption whose prefix survives byte-identically reports nothing", () 
   assert.deepEqual(rows, [], "identical forwarded arrays are the success case");
 });
 
+test("the row carries prevN — which predecessor the divergence was measured against", () => {
+  // The row already names WHERE the divergence was measured (n) but not
+  // against WHICH predecessor, and every consumer has to re-derive it.
+  // findEditPositions already carries prevN for the same reason.
+  const [row] = findAbsorptionMisses(REFIRE_SHAPE());
+  assert.equal(row.prevN, 1, "cur is n:2, its predecessor in the group is n:1");
+});
+
 test("no fresh absorption means no row, however badly the prefix diverged", () => {
   // Scope discipline: this check answers "did an absorption that RAN also
   // ABSORB". A divergence with no absorption claimed is some other check's
