@@ -8,6 +8,35 @@ bullet, evidence pointer included.
 
 ## Open
 
+- **READY — the push-side leak scan re-flags already-public history on every
+  rebase of an open PR branch, and the only exit is `--no-verify`.** Measured
+  2026-08-05 while rebasing `pr/insertion-normalization` onto upstream's
+  current main (upstream asked for it, to pick up their #310): the scan ranges
+  over the REF UPDATE (`old..new`), so a force-push after a rebase presents
+  eight re-parented commits as new and re-reports the `capture-key-prefix`
+  findings in two of their messages. Those messages are byte-identical to
+  commits already on the remote — verified by `git patch-id --stable` on all
+  eight and by md5 of the two flagged messages — so they are already in
+  `refs/pull/272/head`, which no push can retract and no block can help.
+  The push went out with `--no-verify`, stated in the same message, after the
+  full suite ran green in the worktree (1708/1709, 1 skipped).
+  This is the fires-on-a-non-defect shape on the one gate guarding a public
+  boundary, and the override habit it trains is the failure mode — the
+  runbook already says as much about the HAND grep and scopes it to the
+  round's own commits; the hook has no such scoping.
+  Design, decision-complete: scope the scan's commit-message pass to content
+  the REMOTE does not already have — for a force-push that is
+  `new_sha ^{/}` minus the set of messages reachable from the old remote tip,
+  computed from the pre-push stdin's `<old> <new>` pair rather than from the
+  range alone. A message already published is out of scope by construction,
+  not by allowlist. Verifier, red-first: drive the hook with a simulated
+  force-push whose new commits are patch-identical re-parents of the old ones
+  and assert it does NOT block; plus the control that a genuinely new commit
+  carrying a capture key in its message still does. Done when a rebase
+  force-push of an open PR branch passes the gate without `--no-verify`.
+  Lives in dotfiles (the global pre-push dispatcher owns the leak scan), so
+  this is an operator-side item like the Write-time hook entry below.
+
 - **DONE 2026-08-05 (ships with this entry's commit) — CACHE-CONTROL and
   TEXT are ONE mechanism, it is ours, and it re-bills nothing: 26 of the
   34 absorption misses are a moved cache_control BREAKPOINT.** The queue's
