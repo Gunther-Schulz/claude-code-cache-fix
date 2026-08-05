@@ -738,7 +738,69 @@ bullet, evidence pointer included.
   still forwarded. Corpus check: replay s-captureQ old-vs-new and
   require the ONLY delta to be at n=221.
 
-- **READY — a gate that asks whether a mitigation ABSORBED, not just
+- **(DONE 2026-08-05 — shipped 12d7dd6, then CLASSIFIED 383d8a5, and the
+  class it found is FIXED at 04ed3c9) READY — a gate that asks whether a
+  mitigation ABSORBED, not just whether it ran.**
+  WHAT THE FIRST CORPUS-WIDE MEASUREMENT SAID, and it is a
+  single-class population: **41 of 41 absorption-miss rows are
+  CONTAINER** — a stale block-array-vs-string wrapper — across 9
+  captures, with every other class of the 8-way ladder at ZERO
+  (ABSENT, IDENTICAL, ROLE, TEXT, CACHE-CONTROL, BLOCKS, OTHER all 0).
+  The `ours` subset, 33 rows, has the identical shape. So the answer
+  to "are the 40 one mechanism or several?" is ONE mechanism, and it
+  is the one the 349k bust named.
+  `IDENTICAL: 0` is the instrument's own self-check: not one reported
+  divergence turned out to be a false alarm at the index it named.
+  COVERAGE, stated rather than summed: 41/50 rows overall and 33/40
+  `ours`, because 3 captures rotated off disk between the 12:20Z sweep
+  and the run. The measured total EXCEEDS the 39/31 ceiling that
+  arithmetic predicted, and the excess is isolated rather than waved
+  at: 8 of 9 captures match their sweep counts exactly and one grew
+  from 9 to 11 rows (both new rows CONTAINER, both ours) because
+  captures are live. +2/+2 accounts for the whole delta.
+  THE FIX FOLLOWED THE MEASUREMENT, same day: 04ed3c9 makes the
+  re-serve emit the container the entry was LAST SEEN in. Post-fix
+  re-run of the same corpus is the after-half of the comparison; on
+  the known-positive capture it is already CONTAINER 2 -> 0, with one
+  row reclassifying to TEXT thirteen messages later and attributed to
+  CC's own input (`inDiv` 369 < `fwdDiv` 373).
+  RESIDUE, named: single-class at n=41 is established FOR THIS
+  CORPUS, not as a universal — whether other classes exist elsewhere
+  is the next corpus's question, and the per-capita RATE is still
+  unmeasured. And the `ours` split is a floor, not a count (see the
+  under-attribution finding above).
+  **THE AFTER-HALF, measured over the same 9 captures under 04ed3c9,
+  and the row-level join is what makes it a verdict rather than a
+  tally.** Totals 41 -> 30 rows, 33 -> 24 ours, CONTAINER 41 -> 1.
+  Joining pre to post by request number: **15 rows GONE, 26 MOVED TO A
+  LATER INDEX, 0 reclassified AT THE SAME INDEX**, plus 4 new rows on
+  the one capture that grew between the two runs. The zero is the
+  finding: not one slot came back as "right container, still wrong
+  bytes at that index", which is the shape a half-fix would have. The
+  fix repaired every instance it touched.
+  IT DID NOT REMOVE THE MISSES, AND THAT IS THE HONEST HEADLINE: 30
+  remain, 24 of them ours, now classifying as TEXT 15 and
+  CACHE-CONTROL 14 — two classes that scored ZERO before, because the
+  container divergence was the FIRST one and masked everything behind
+  it. Every "moved later" row is a prefix that now survives further
+  and then diverges for a different reason. So the corpus has not got
+  better by 11 rows; it has become legible for the first time, and
+  the next layer is a marker-placement class (CACHE-CONTROL) that no
+  one has looked at yet.
+  ONE CONTAINER ROW SURVIVES (n=334 of the 597 MB capture,
+  CONTAINER@342 -> CONTAINER@346): a SECOND container divergence
+  sitting behind the first, at a different index, so it is not the
+  fixed one reappearing. It is presumably one of the shapes
+  `reserveForward` fails closed on — multi-block, or a role outside
+  the carrier class. Named, not chased.
+  METHOD CAVEAT, stated because it bounds the comparison: captures
+  are live and one of the nine grew between the before and after
+  runs, so the two populations are not measured over byte-identical
+  inputs. The per-request join is immune to that (a row is matched by
+  its own request number, and growth shows up as `new`), which is why
+  the join is the evidence here and the totals are not.
+
+- **(DONE, see above) READY — a gate that asks whether a mitigation ABSORBED, not just
   whether it ran.** Grounding, and it is the reason the 349k bust
   reached a human: the capture replays exit 0 on all five gates and
   every verdict is correct. Stability asks whether OUR output

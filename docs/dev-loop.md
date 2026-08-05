@@ -732,6 +732,25 @@ paid for on 2026-07-30 (587k event: journal said index 867, raw said
   points differ by the pipeline's insertions and must not be equated;
   matching them without the offset check is the hand-rolled-identity
   error at the index level.
+- **A number names its UNIT at definition time, and "bytes" is the one
+  that lies.** Same failure one axis over: not where it was measured,
+  but in what. `JSON.stringify(x).length` counts UTF-16 code units and
+  reads as a byte count everywhere it is written down — the two agree
+  on ASCII and part company at the first non-ASCII character, which in
+  this corpus means the first em-dash in a reminder. Measured
+  2026-08-05: the row-4 datapoint's forwarded messages were recorded as
+  403/428 bytes and are 405/430; one U+2014 at index 208, 3 bytes
+  against 1 code unit, +2 on each side. The DELTA survived, which is
+  why the conclusion stood and the numbers were still wrong — a
+  difference of two lengths cancels the error whenever the multi-byte
+  text is common to both. So it hid until a tool that counts
+  `Buffer.byteLength(…, "utf8")` disagreed with a hand-derivation.
+  Rule: a field called bytes IS `Buffer.byteLength`, a field counting
+  code units says so in its name, and a check that compares one to the
+  other is comparing two namespaces (the identity error again, at the
+  unit level). The same tool's disagreement with a written record is
+  the record's problem until the instrument is shown wrong — it is not
+  reconciled by adjusting the instrument.
 
 ## Rule out ourselves — attribution starts at our own event logs
 
