@@ -33,13 +33,50 @@ bullet, evidence pointer included.
   40 ours, unexplained" is one mechanism: 41 of 41 rows CONTAINER,
   every other class zero. The fix removed it — 15 rows gone, 26 moved
   to a later index, 0 reclassified at the same index.
-  **THE NEXT NUMBER, and it is the successor: CACHE-CONTROL 14** (plus
+  **START HERE INSTEAD — a LIVE stability violation at forwarded index
+  0, ours by construction, found by the post-fix gate run.** Capture
+  the 83 MB capture of the session that was carrying ~413k tokens,
+  n=336 / prevN=331, ts 2026-08-05T13:50:48Z:
+  `outDiv: 0` against `inDiv: 3`, with `ccIdenticalAtOutDiv: true` —
+  CC's own message 0 was IDENTICAL across the pair and ours was not.
+  The gate attributes it to **`fresh-session-sort`** by its own
+  bisection. Three sibling events on the same capture (n=180, 185,
+  325) ARE exempted; this one is not.
+  WHY IT OUTRANKS THE CACHE-CONTROL LAYER: a divergence at forwarded
+  `messages[0]` invalidates the entire messages array — the cache
+  prefix is [tools][system][messages], so everything after index 0
+  re-bills. That session was carrying ~413k tokens. One occurrence of
+  this costs more than the whole remaining absorption-miss population.
+  NOT MINE, and checked rather than assumed: replayed under
+  `04ed3c9~1` and under `04ed3c9` in a frozen worktree, the violation
+  is BYTE-IDENTICAL — same n, same prevN, same indices, same
+  attribution. It surfaced now because the capture GREW (the request
+  postdates the 12:20Z sweep), not because the container fix changed
+  anything.
+  WHERE TO START: this morning's triage established that
+  `fresh-session-sort` rewrites the skills `<system-reminder>` block —
+  `sortSkillsBlock` + `pinBlockContent`, 8080 -> 8079 chars — and
+  booked that as a CONSERVATION matter with declared exemptions. This
+  is the STABILITY face of the same extension and the exemptions do
+  not cover it. The question to answer first is why the pin did not
+  hold: `pinBlockContent` exists to make that block byte-stable across
+  requests, and between n=331 and n=336 it did not.
+  **THEN the next number: CACHE-CONTROL 14** (plus
   TEXT 15), out of 30 remaining misses, 24 ours. Both classes scored
   ZERO before the fix because the container divergence masked them.
   This is the same shape as the morning's 40, one layer down, and
   today's two busts (349k, 786k) are what an unabsorbed miss costs.
-  **RECOMMENDED ORDER for the next session**, and the first item is
-  the instrument for the second:
+  **GATE STATE after the fix, stamped against the new build
+  (`proxyTree 3c14d4fd3446`, 14:51-15:06Z): 39 captures, 2 failing,
+  BOTH ATTRIBUTED and neither caused by this session's change.**
+  ONE capture stability 1 — the index-0 finding above, proven
+  byte-identical old-vs-new. A SECOND capture conservation 2 — the
+  pre-existing row-24 container-flip pair the earlier handoffs already
+  attributed. Sweep-wide absorption after the fix: 31 total / 25 ours
+  over 7 captures.
+  **RECOMMENDED ORDER for the next session** — the index-0 violation
+  first (it is the only item here with a full-context re-bill behind
+  it), then:
   (1) `builtByUs` + pin-at-finding as ONE dispatch — both `tools/`,
   both touch replay.mjs/gate-live.mjs, so one lane and sequential.
   `builtByUs` turns the `ours` split from a floor into a count (a row
