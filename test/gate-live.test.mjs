@@ -583,6 +583,105 @@ test("a run with no absorption misses carries an empty row array, not undefined"
   assert.deepEqual(row.absorptionMissRows, []);
 });
 
+// --- per-gate finding ROWS in the sweep --------------------------------------
+//
+// DEFINITION (BACKLOG "the daily sweep persists ROWS, not just counts, for
+// every gate that produces them"), written before the assertions so the
+// expectations come from the invariant rather than from the code:
+//
+//   For every gate that computes per-row findings, the sweep row carries
+//   those rows VERBATIM as the child reported them, bounded at 200 per gate
+//   per capture, and says so when the bound truncated.
+//
+// Why verbatim and why at find-time: the capture behind a row is evicted
+// within hours (oldest-mtime-first, and a session goes quiet exactly when it
+// stops being traffic and starts being evidence), so a row not written when
+// it is found is unanswerable afterwards, not merely inconvenient. Counts
+// survive eviction and answer nothing — `stability: 1` in the status file is
+// what forced one violation's real cost to be hand-derived from a 281 MB
+// capture, and the absorption rows' absence cost an ~8 GB re-read before
+// `absorptionMissRows` shipped.
+
+test("BITE — summarise carries the stability and conservation ROWS, not just their counts", () => {
+  const violations = [{ n: 47, prevN: 44, outDiv: 4, prefixAboveMessages: { messages: 12, bytes: 3400 } }];
+  const exemptions = [{ n: 51, prevN: 47, reason: "reset-wipes" }];
+  const conservation = [{ n: 12, index: 3, kind: "unforwarded" }, { n: 14, index: 9, kind: "unforwarded" }];
+  const conservationExemptions = [{ n: 13, index: 4, reason: "assistant-role" }];
+  const sequence = [{ n: 20, prevN: 18 }];
+  const orderViolations = [{ n: 30, ci: 5, wire: 2 }];
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], safety: [],
+    violations, exemptions, conservation, conservationExemptions, sequence, orderViolations,
+  }));
+  assert.deepEqual(row.stabilityRows, violations, "a violation's prefixAboveMessages is the answer to what it COST");
+  assert.deepEqual(row.stabilityExemptRows, exemptions);
+  assert.deepEqual(row.conservationRows, conservation);
+  assert.deepEqual(row.conservationExemptRows, conservationExemptions);
+  assert.deepEqual(row.sequenceRows, sequence);
+  assert.deepEqual(row.orderRows, orderViolations);
+  // Persistence only: the counts and the clean verdict are untouched.
+  assert.equal(row.stability, 1);
+  assert.equal(row.conservation, 2);
+  assert.equal(rowIsClean(row), false, "rows are recorded; what fails a row does not change");
+});
+
+test("BITE — a persisted row array is capped at 200 and states its pre-truncation total", () => {
+  const many = Array.from({ length: 250 }, (_, n) => ({ n, index: n }));
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], violations: [], safety: [], sequence: [], orderViolations: [],
+    conservation: many,
+  }));
+  assert.equal(row.conservationRows.length, 200, "the bound holds");
+  assert.deepEqual(row.conservationRows, many.slice(0, 200), "the kept rows are the first 200, verbatim");
+  assert.equal(row.conservationRowsTruncated, 250,
+    "a silently short list is the failure this exists to prevent, one level up");
+  assert.equal(row.conservation, 250, "the count is the full population, not the persisted slice");
+});
+
+test("BITE — at the cap there is no truncation marker: the marker's presence MEANS rows were dropped", () => {
+  const exactly = Array.from({ length: 200 }, (_, n) => ({ n }));
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], violations: [], safety: [], sequence: [], orderViolations: [],
+    conservation: exactly,
+  }));
+  assert.equal(row.conservationRows.length, 200);
+  assert.ok(!("conservationRowsTruncated" in row),
+    "a marker on a complete list would train its reader to ignore the marker");
+});
+
+const ROW_FIELDS = ["stabilityRows", "stabilityExemptRows", "conservationRows",
+                    "conservationExemptRows", "sequenceRows", "orderRows"];
+
+test("BITE — a child that produced no verdict carries an error, never empty row arrays", () => {
+  // The three-answer rule at the row level: empty arrays on a run that
+  // checked NOTHING read exactly like "checked and clean". This is the same
+  // false green the RangeError lived behind.
+  const died = summarise("big.jsonl", 955_000_000, {
+    code: 1, out: "", err: "replay failed: RangeError: Invalid string length",
+  });
+  assert.match(died.error, /RangeError/);
+  for (const f of ROW_FIELDS) {
+    assert.ok(!(f in died), `${f} must be absent on a run that produced no verdict, not []`);
+  }
+  const spawnFailed = summarise("c.jsonl", 10, { code: -1, out: "", err: "spawn ENOENT" });
+  for (const f of ROW_FIELDS) {
+    assert.ok(!(f in spawnFailed), `${f} must be absent when the child never ran, not []`);
+  }
+});
+
+test("BITE — a field the child never emitted is null, an EMPTY array is a measured zero", () => {
+  // Same null-vs-0 distinction the fire ledger keeps, one level up: an older
+  // replay schema (or a gate that did not run) measured nothing, and `[]`
+  // there is a claim of cleanliness nobody made.
+  const old = summarise("c.jsonl", 10, json({ report: [{ n: 0 }] }));
+  for (const f of ROW_FIELDS) assert.equal(old[f], null, `${f}: unmeasured is not "none found"`);
+  const measured = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], violations: [], exemptions: [], safety: [], conservation: [],
+    conservationExemptions: [], sequence: [], orderViolations: [],
+  }));
+  for (const f of ROW_FIELDS) assert.deepEqual(measured[f], [], `${f}: a real zero is []`);
+});
+
 test("a sweep with absorption misses is still CLEAN — the check reports, it does not gate", async () => {
   // Deliberate, and the reason is this repo's own recurring defect: the
   // check's corpus-wide rate is unmeasured, and failing a sweep before anyone

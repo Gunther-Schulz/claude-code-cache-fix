@@ -178,6 +178,30 @@ function runChild(args) {
 const runReplay = (file, env) => runChild(replayArgs(file, env));
 const runCensus = (file) => runChild(censusArgs(file));
 
+// Per-gate finding rows are bounded per gate per capture: 200 is above every
+// count observed (the largest so far is a 38-row conservation gate-red), and
+// the bound exists so one pathological capture cannot make the status file
+// the next thing that breaks. Truncating SILENTLY would recreate this item's
+// own defect one level up — a short list reads as a complete one — so the
+// pre-truncation total is written beside the array, and the marker's
+// PRESENCE is what means rows were dropped: at or below the cap there is no
+// key at all.
+const ROW_CAP = 200;
+
+function persistRows(row, field, source) {
+  // Three answers, not two. A field the child never emitted (an older replay
+  // schema, a gate that did not run) measured NOTHING and is `null`; an empty
+  // array is a measured zero. `[]` for an absent field is an absence of
+  // evidence wearing a verdict's clothes — the failure this file's own header
+  // is about.
+  if (!Array.isArray(source)) {
+    row[field] = null;
+    return;
+  }
+  row[field] = source.slice(0, ROW_CAP);
+  if (source.length > ROW_CAP) row[`${field}Truncated`] = source.length;
+}
+
 function summarise(file, bytes, res) {
   const row = { file, bytes, exit: res.code };
   if (res.code === -1) {
@@ -227,6 +251,29 @@ function summarise(file, bytes, res) {
   // re-reading ~8 GB of live capture twice. Tiny and naturally bounded by
   // absorption count, so no cap or truncation.
   row.absorptionMissRows = parsed.absorptionMisses ?? [];
+  // Every OTHER per-row gate, same reason generalised (BACKLOG "the daily
+  // sweep persists ROWS, not just counts, for every gate that produces
+  // them"). The sweep computed these lists and discarded all but their
+  // counts, and a count does not survive the question anyone actually asks
+  // of it: `stability: 1` in the status file made one violation's real cost
+  // a hand-derivation from a 281 MB capture, hours after the sweep had the
+  // answer in memory. The window is the constraint — captures rotate on a
+  // quadratic clock, eviction is oldest-mtime-first, and a session goes
+  // quiet exactly when it stops being traffic and starts being evidence —
+  // so the recurring producer writes out what proves its findings AT THE
+  // MOMENT it finds them, or the proof is gone before a reader arrives.
+  //
+  // Verbatim from the child's parsed JSON, no reshaping: the sweep is a
+  // recorder here, not an interpreter, and a summary of a row cannot answer
+  // the question the row was kept for.
+  for (const [field, source] of [
+    ["stabilityRows", parsed.violations],
+    ["stabilityExemptRows", parsed.exemptions],
+    ["conservationRows", parsed.conservation],
+    ["conservationExemptRows", parsed.conservationExemptions],
+    ["sequenceRows", parsed.sequence],
+    ["orderRows", parsed.orderViolations],
+  ]) persistRows(row, field, source);
   row.unparseable = (parsed.report ?? []).filter((r) => r.error).length;
   // Replay fidelity: whether this run reproduced the bytes the proxy really
   // forwarded. A mismatch means the invariants above were measured on a
