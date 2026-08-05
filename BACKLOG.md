@@ -90,13 +90,25 @@ bullet, evidence pointer included.
   md5 before/after: (1) the fork suite's two t@t-writing test files
   executed inside the wt-g2 worktree — config byte-identical; (2)
   the dotfiles pre-push battery executed with cwd in this repo —
-  config byte-identical. Remaining candidates are the concurrent
-  sessions active 10:51-10:56 (the dot session — its tooling pulls
-  this vendor clone — and the clippy session, mid-edit on
-  per-worktree git-config recipes at 10:55); their transcripts
-  settle it. Mechanization candidate once attributed: doctor
-  fail on a local user.name/user.email in this repo (global identity
-  is the convention here; a local one is always leakage).
+  config byte-identical.
+  UPDATE, same day: the 10:51 half is SOLVED — the operator ran
+  `./dot apply`, whose refresh step runs `git -C <this repo> pull
+  --ff-only` by design (dot: step_refresh_verified_clones), exactly
+  the FETCH_HEAD/ORIG_HEAD fingerprint. Benign. The 10:56 config
+  write stays open, with the exoneration list now exhaustive for
+  locally executable mechanisms: fork suite files (read + measured,
+  helpers temp-bound), dotfiles pre-push battery (measured, twice,
+  both cwds), and doctor's FULL 18-hook bite-test loop replicated
+  with cwd in this repo (all CLEAN against a config md5) — so `dot
+  apply`'s doctor pass does not reproduce it either, on current
+  code. Unexecutable-from-here candidates remain: the clippy
+  session's live worktree-config probes (mid-edit on exactly that
+  recipe at 10:55), and manual shell commands. Next diagnostics, in
+  order: the operator's fish `history --show-time` for 10:51-10:56,
+  and the clippy session's transcript. Mechanization candidate once
+  attributed: doctor fail on a local user.name/user.email in this
+  repo (global identity is the convention here; a local one is
+  always leakage).
 
 ## Upstream PR round — booked 2026-08-05, all READY
 
