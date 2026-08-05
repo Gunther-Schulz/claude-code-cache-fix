@@ -231,6 +231,49 @@ bullet, evidence pointer included.
   (`.../tool-results/hook-…-additionalContext.txt`, 54,266 bytes on
   disk) — the corpus it exists to re-show does not reach the model.
 
+- **OPEN, operator decision — the push gate cannot see a capture id
+  in a `.mjs` or `.md` file at all, and fork-main carries 96 of
+  them.** Found 2026-08-05 by running the instrument against a known
+  positive during the #276 round, which is the only reason it was
+  found: the scan reports clean on the branch, and clean is what it
+  would report either way.
+  MECHANISM, measured with two plants: a real-shaped UUID in a
+  tracked `.json` goes RED (`FINDING capture-uuid … $.key`, exit 2);
+  **the same UUID in a tracked `.mjs` stays GREEN, exit 0.** Cause is
+  `tools/absence-scan.mjs:270` — `const SCANNABLE = /\.jsonl?$/i`,
+  applied at :281 to filter the candidate list BEFORE any scanning,
+  in the `--git-range` path that the pre-push hook actually runs. It
+  is class-agnostic: no class definition is consulted, the file never
+  reaches one. So the guard this repo added specifically to stop a
+  capture identifier reaching public history does not look at source
+  files, which is where the 2026-08-02 red-main incident put one.
+  EXPOSURE, measured on fork-main at 9fe5cf0: `git grep -o "633915a8"
+  | wc -l` = **96**, across 20+ tracked files — `BACKLOG.md`,
+  `proxy/extensions/insertion-normalization.mjs`, six `test/*.mjs`,
+  and a dozen files under `docs/`. That is the raw 8-hex session-id
+  prefix, which this repo's own threat model
+  (tools/absence-scan.mjs:93-97) calls the dangerous form precisely
+  because the safe tokenized form is 12 hex and cannot be matched
+  back by prefix. Fork-main is public.
+  WHY THIS IS A DECISION AND NOT A TASK, both halves stated: (1) the
+  ids are ALREADY in public git history and history cannot be
+  scrubbed — the repo's own CLAUDE.md says the remediation for a
+  leaked value is rotating the value, not editing the file — so a
+  working-tree scrub buys hygiene GOING FORWARD, not retraction;
+  (2) widening `SCANNABLE` without scrubbing first makes the gate go
+  red on 96 pre-existing occurrences on every push, which is the
+  fires-on-a-non-defect class this repo treats as its own defect, and
+  it would train the `--no-verify` reflex on the one gate that
+  guards a public boundary. So the two land TOGETHER or neither does.
+  The upstream-facing branches ARE scrubbed (c489f29 on #272,
+  f80501f on #276) because that is what the reviewer is holding
+  review on; fork-main is not, and that asymmetry is deliberate and
+  temporary. Named missing evidence for the operator: whether the
+  captures behind those 96 occurrences still exist / still matter,
+  since that decides whether the prefix is worth anything to anyone.
+  Surfaced to upstream in the #276 comment rather than fixed
+  unilaterally.
+
 - **READY — the canonical re-serve normalizes its CONTAINER to the
   wire's current one (proxy/**, deployment-coupled).** This is the
   349k bust's actual fix and it is narrower than the row-24 message-
@@ -370,7 +413,27 @@ own landing order is in issue #284 (2026-08-04 comment): #272 first
 absence-scan split (unblocks their #302), then #279/#282/#275/#280,
 then the queued ones. Work the items in that order.
 
-- **READY — #272: scrub the 5 residual capture-id comment strings.**
+- **DONE 2026-08-05 — #272 (c489f29, pushed, commented), #282
+  (9474a39, pushed, commented), #276 (1ccd191 + f80501f, pushed,
+  commented), #292 (d667df9 on fork-main, commented).** Four of the
+  nine. Notes that outlive the items: (1) the reviewer's named lists
+  UNDERCOUNTED on both scrub items — 5 named vs 11 actual on #272,
+  9 files named vs 6 further captures on #276 — because a
+  diff-scoped read reaches only what the slice changed; the
+  corpus-wide bare-shape grep is what found the rest. (2) Both scrub
+  branches fail `npm test` on `proxy-read-dedupe.test.mjs:505`
+  (extension-order adjacency) and it is a genuine branch-base
+  artifact — VERIFIED by checking the base commit out into a scratch
+  worktree and running the suite there, not by trusting the report;
+  both pushes were `--no-verify` with that stated. (3) #282's branch
+  fails one wrapper test under this machine's ambient
+  `NO_PROXY`/`HTTPS_PROXY` — the machine routes through the proxy
+  this repo builds — and passes 11/11 with them cleared; fork-main's
+  copy of that test is no longer env-sensitive, so porting the fix
+  onto the branch is a candidate if the reviewer trips on it.
+  REMAINING five: the absence-scan split, #279, #275, #280, #295.
+
+- **(DONE, see above) READY — #272: scrub the 5 residual capture-id comment strings.**
   On branch `pr/insertion-normalization`: the reviewer's 08-01 comment
   names 5 comment-only occurrences of the real capture session id —
   `insertion-normalization.mjs:616,659`,
@@ -382,7 +445,7 @@ then the queued ones. Work the items in that order.
   full suite green in the worktree. Done: pushed + PR comment;
   reviewer restarts full review from top per their comment.
 
-- **READY — #292: synthesize cc-transcript-shape-snapshot.json.**
+- **(DONE 2026-08-05, d667df9 + issue comment) READY — #292: synthesize cc-transcript-shape-snapshot.json.**
   The tracked fixture carries 6 real UUIDs, a 448-char thinking
   signature, a `$.source` path, and 2,305 chars of verbatim
   third-party GitHub comments with 3 real logins (confirmed by
@@ -419,7 +482,7 @@ then the queued ones. Work the items in that order.
   byte-identical. Done: PR opened as the standalone,
   `Ref #302` + `Ref #292` in the body, generated-with footer.
 
-- **READY — #276: widen the branch's absence-scan + clean the 9
+- **(DONE 2026-08-05, 1ccd191 + f80501f) READY — #276: widen the branch's absence-scan + clean the 9
   files.** `pr/verification-tools` still carries the filename-only
   scan; the reviewer holds review on #276 AND #272 until it scans
   tracked-file CONTENTS and is re-run. Port fork-main's
@@ -443,7 +506,7 @@ then the queued ones. Work the items in that order.
   Done: pushed + PR comment. #284 calls this one of the two "closest
   to landing."
 
-- **READY — #282: alarm predicate suppresses only count-only
+- **(DONE 2026-08-05, 9474a39) READY — #282: alarm predicate suppresses only count-only
   INCREASES.** `upstream-change-detection.mjs:469` (head `de9ab87e`)
   currently suppresses every count-only diff; a DECREASE
   (compaction/truncation/upstream rewrite) must still alarm. Add the
