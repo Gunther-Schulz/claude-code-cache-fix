@@ -50,68 +50,77 @@ bullet, evidence pointer included.
   `n=331->336 … outDiv=0 [CC bytes at outDiv IDENTICAL -> ours]
   [prefix ALREADY broken above messages: tools+system changed -> no
   marginal cost] <- fresh-session-sort`.
-  **WHAT SHIPPED:** (1) `_relocatedByConversation` in fresh-session-sort
-  — a per-conversation memory of relocated types, keyed by
-  `resolveInsertionSessionKey` (imported, never re-derived), LRU-capped
-  at 256 (`CACHE_FIX_FRESH_SORT_MAX_CONVERSATIONS`), serving a
-  remembered block only when CC sends no instance of that type; CC's
-  newer bytes always win. (2) `reserved` on `freshSessionSortStats`, and
-  conservation F-side clause (e) verifying it against rewrites the gate
-  itself saw on the wire earlier in the same conversation. (3) the cost
-  annotation above. Suite 2139/2139; the capture replays old-vs-new with
-  an IDENTICAL verdict (see the next bullet for why that is expected).
+  **WHAT SHIPPED, all of it pushed and suite-green (2154/2154):**
+  (1) `_relocatedByConversation` in fresh-session-sort — a per-conversation
+  memory of relocated types, keyed by `resolveInsertionSessionKey`
+  (imported, never re-derived), LRU-capped at 256
+  (`CACHE_FIX_FRESH_SORT_MAX_CONVERSATIONS`), serving a remembered block
+  only when CC sends no instance of that type; CC's newer bytes always
+  win, so a genuine content change still resets (65d0455).
+  (2) That memory PERSISTED — one file per conversation key under
+  `cache-fix-snapshots`, tmp+rename, owner-only, fail-open read, written
+  only on change, disk bounded by the same cap (4a61b1c). Without it every
+  restart re-inflicted the very divergence the memory prevents.
+  (3) `reserved` telemetry plus conservation F-side clause (e), which
+  verifies a re-serve against rewrites the gate itself saw on the wire
+  earlier in the same conversation (65d0455).
+  (4) `prefixAboveMessages` on every stability violation, and the human
+  line that reads it (65d0455) — the cost annotation above.
+  (5) A departure CENSUS class, `findRelocDepartures`, always on, REPORT
+  not gate (500f131).
+  (6) The daily sweep now persists per-gate ROWS, not just counts —
+  stability, stability-exempt, conservation, conservation-exempt,
+  sequence, order — capped at 200/field/capture with an explicit
+  `<field>Truncated` marker, and `absorptionMissRows` moved onto the same
+  recorder so an absent field reads as `null` rather than as a measured
+  zero (c6a6e31, c0a525c). Measured growth on today's corpus: ~113 KB
+  against 104 KB, ~8%.
+  (7) `tools/test-config-root.mjs` — the suite had NO default config root,
+  so any test driving a stateful extension wrote into the operator's real
+  `~/.claude`; this one left 8 files there in a single run (4a61b1c).
   **WHAT IS NOT ESTABLISHED — read before trusting the fix.** The class's
-  live RATE is unmeasured, and the fix engages on no measured live pair:
-  the only departure in this corpus is n=336 itself, whose conversation
-  key changed (the system-prompt sub-key moved), so the memory was
-  correctly dropped there. That is by design — the key drops the memory
-  exactly when a prefix break above messages has already happened, i.e.
-  only where dropping is free — but it means the live evidence for the
-  fix is its bites, not a corpus row. Sizing is the READY item below.
-  **DEPLOY IS NOT DONE.** `proxy/**` changed, so this needs the dotfiles
-  pin bump (`git rev-parse --short HEAD:proxy`) + `systemctl --user
-  restart cache-fix-proxy`. Row-3 statement for that restart:
-  fresh-session-sort is now stateful-UNPERSISTED (audit amended), so a
-  conversation that has already passed a departure re-baselines its
-  `messages[0]` at the restart — the same flip it paid at departure time
-  before this change, so no regression, but price it with
-  `tools/restart-exposure.mjs` like any other.
+  live rate is now measured (2 departures / 342 same-conversation pairs on
+  s-captureAB, 1 of them with an intact prefix), but the fix's live
+  ENGAGEMENT is still unproven. The second departure does not prove it:
+  neither sweep reports a stability violation at n=48->49 — not the
+  post-fix one (16:00Z, `e20ece6439f4`) nor the pre-fix one (14:51Z,
+  `3c14d4fd3446`), and the second is the counterfactual, so under the old
+  code that departure cost nothing either. The extension had simply never
+  relocated that type for that conversation. What would prove engagement
+  is a departure whose predecessor carries a `relocated` declaration for
+  the same type; none has been observed. The bites are still the only
+  evidence that the memory does what it says.
+  **DEPLOY IS NOT DONE — and it is the last step.** `proxy/**` changed, so
+  it needs the dotfiles pin bump (`git rev-parse --short HEAD:proxy`) plus
+  `systemctl --user restart cache-fix-proxy`, then one gate run to re-stamp
+  the verdicts against the running build (until then doctor correctly
+  reports a code mismatch: the sweep is stamped with the new tree, /health
+  still answers with the old one).
+  Row-3 statement for that restart: fresh-session-sort is now
+  stateful-PERSISTED, so the restart is cache-transparent for it — the
+  relocation memory is re-read from disk, which is exactly what the
+  byte-identical-restart bite pins. No state KEY changed and no existing
+  baseline is re-keyed: the state file is new, and its absence is an
+  ordinary fail-open read. Price it with `tools/restart-exposure.mjs` like
+  any other restart, but this change adds no re-baselining of its own.
 
-- **READY — size the relocated-block DEPARTURE class corpus-wide, as a
-  census class rather than a probe (tools/-only).** Grounding: row 25 is
-  mitigated on one hand-read pair and the rate is unknown; the fix's
-  live engagement is therefore unproven. Design: a census class in
-  `tools/replay.mjs` that, per conversation pair, reports a relocatable
-  type present in the predecessor and absent in the successor, with the
-  type, the raw index it departed from, and the pair's
-  `prefixAboveMessages` — the last is what separates a costly departure
-  from a free one, and it already exists as a field. Import
-  `isRelocatableBlock`/`getBlockType` from the extension; group by
-  `conversationOf` (never by capture adjacency). Verifier, red-first: a
-  bite feeding a synthetic pair whose successor drops a relocatable block
-  must report one departure row with `intact: true`, red against today's
-  census which has no such class; control — the same pair with the block
-  still present reports none. Done when a corpus sweep prints the count
-  of departures with `intact: true`, which is the number that says
-  whether row 25's mitigation was worth shipping.
+- **DONE 2026-08-05 (500f131) — the relocated-block DEPARTURE class is a
+  census class, and it found a second instance the hand-read had missed.**
+  `findRelocDepartures` (replay.mjs), always on, REPORT not gate, one row per
+  type present in a pair's predecessor and absent in its successor, each
+  carrying `prefixAboveMessages` so a costly departure is separable from a
+  free one at a glance. First corpus reading on s-captureAB: 2 departures /
+  342 pairs, 1 with an intact prefix. Row 25 amended; the sentence it
+  replaced ("exactly one departure") was a hand-read and was wrong.
 
-- **READY — persist the relocation memory, so a restart stops costing the
-  flip it was built to prevent (proxy/, deployment-coupled).**
-  Grounding: `_relocatedByConversation` is in-process; a restart drops it
-  and a conversation already past a departure re-baselines `messages[0]`.
-  Design decided: the pattern insertion-normalization and the ladder
-  already use — one file per conversation key under the snapshots dir,
-  atomic tmp+rename, `writeFileOwnerOnly` (the file holds first-seen
-  message bytes), fail-open reload per request; replay already points
-  state-writing extensions at a scratch `CLAUDE_CONFIG_DIR`, so no
-  instrument change is needed for the offline gate. Verifier, red-first:
-  the byte-identical-restart case in
-  `test/proxy-restart-transparent.test.mjs`, extended to the departure
-  shape (relocate, restart via fresh `import()`, replay a request whose
-  block is gone) — red today because the memory is module-scope; plus
-  `--restart-at N` on a capture carrying a departure once the census
-  class above can find one. Done when the audit's fresh-session-sort row
-  moves back from stateful-UNPERSISTED to stateful-persisted.
+- **DONE 2026-08-05 (4a61b1c) — the relocation memory persists, so a
+  restart no longer re-inflicts the divergence it prevents.** One file per
+  conversation key under `cache-fix-snapshots`, tmp+rename, owner-only,
+  fail-open read, written only on change, disk bounded by the same cap as
+  memory (newest 256, pruned every 64th write, own suffix only). Pinned by a
+  byte-identical-restart bite plus a fail-open control plus both halves of
+  the 0600 invariant; mutating `persistMemory` to a no-op turns all three
+  red. Audit moved back to stateful-PERSISTED.
 
 - **HANDOFF 2026-08-05 EVENING — superseded on its "START HERE" section
   by the night handoff above; the rest still stands.** Written at ~274k tokens on the depth rule, with
@@ -843,6 +852,36 @@ bullet, evidence pointer included.
   the window's job becomes DISCOVERY, and archival moves to git where
   it is diffable, scrubbed and free. The ceiling then only has to
   outlive the gap between two sweeps, which is hours, not weeks.
+
+- **READY — the byte-gate's MISMATCH rows have no way OUT of the census, so
+  the sweep cannot persist them (tools/-only).** Surfaced by the row-persistence
+  lane as a returned question, not filled by it: the six other per-gate row
+  arrays now ride the status file, but the byte gate is a SECOND child
+  (`reminder-migration-census.mjs`) whose `--json` emit never includes the
+  per-row `details` array it builds internally — `--verbose` adds
+  volatileRows/duplicateRows, neither of which is the MISMATCH set. Its emit
+  carries an "ADDITIVE ONLY" comment written for gate-live's benefit, and its
+  richest row set never entered that contract: orphan telemetry one layer in.
+  Decision, so this is dispatchable as written: expose a MISMATCH-FILTERED
+  slice (never raw `details`, which is unbounded and includes EXACT rows),
+  cap it CENSUS-side at 200 with an explicit `detailsTruncated: <total>`
+  beside it — the producer owns its own bound — and have `summarise()` copy
+  it verbatim into `byteGateMismatchRows` through the existing `persistRows`,
+  which already gives it the three answers. Verifier, red-first: a census bite
+  asserting a MISMATCH corpus emits the slice (red today — no such key), plus
+  the truncation control, plus a gate-live bite that the field lands on the row.
+
+- **PARKED — `~/.claude/cache-fix-snapshots` grows without bound: ~9,800 files
+  / 181 MB, five writers, no pruner anywhere (measured 2026-08-05).**
+  fresh-session-sort's new state files prune their OWN class (newest 256), and
+  that is deliberately all they touch: another extension's canonical is
+  load-bearing for ITS correctness, so a directory-wide sweep is not a
+  tools/-side decision. Named missing evidence: which of the five classes are
+  still READ after their session ends (insertion canon and ladder rungs are,
+  by design; `-last.json`/`-diff.json` may not be), and what the retention
+  window should be for each. Until that is answered a pruner would be deleting
+  state on a guess. The deployment side (a timer, if it lands) belongs in
+  dotfiles, not here.
 
 - **READY — the daily sweep persists ROWS, not just counts, for every
   gate that produces them (tools/-only, not deployment-coupled).**

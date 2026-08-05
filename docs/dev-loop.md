@@ -558,6 +558,21 @@ Two rules, both learned the expensive way:
    the bite test revealed it: a canonical-size drift signal flagged nothing on
    the bug it was designed for, because a split adds one entry AND one message
    so the counts stay equal while the ORDER diverges.
+
+   **A red that is a MODULE-LOAD failure proves the check is new, never that
+   it discriminates.** For a brand-new checker there is nothing to run the new
+   expectations against: the red reads `does not provide an export named …`,
+   which is satisfied by any implementation whatsoever, including one that
+   returns a constant. Two independent builds hit this on 2026-08-05 and both
+   reached the same repair — after the checker exists, remove ONE named
+   condition at a time and watch the specific bite go red (the grouping key
+   forced to a constant; the presence test disabled; the recorder never
+   recording). Same medicine for a bite that asserts an ABSENCE — "no row
+   arrays on an errored run" passes vacuously while the field does not exist,
+   so its red arrangement is a mutation that CREATES the defect rather than a
+   revert to before the fix. Where the expectations can run against the old
+   implementation, that is still the stronger arrangement and stays the
+   default; this is the case where they cannot.
 2. **Automate the mechanism, not the symptom you remember.** That drift check
    was built from a remembered number ("canon 92, live 84") that came from a
    *different* bug, already fixed. Re-derive which change produced an
