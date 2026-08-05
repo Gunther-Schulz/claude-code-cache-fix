@@ -82,6 +82,104 @@ test("the gate re-derives with the PURE transform, leaving the extension's pin u
   assert.equal(normalizeBlockText("x  \n</system-reminder>  "), "x\n</system-reminder>");
 });
 
+// --- fresh-session-sort's RE-SERVE after CC stops sending the block ---------
+//
+// DEFINITION (F-side clause (e)), written before the assertions: a forwarded
+// unit CC did not send in THIS request is accounted for when the extension
+// declares a re-serve AND the unit is one this gate itself verified earlier in
+// the same conversation as the result of the extension's own rewrite. The
+// verification is what makes it a re-serve rather than an invention — the
+// bytes descend from bytes CC sent here, through a transform the gate
+// re-derived and saw on the wire.
+//
+// Why the clause is needed at all: the relocated prefix is now held stable
+// across a request in which CC sends no instance of the type (the n=331->336
+// index-0 divergence). Where the block's rewrite is the identity — the mcp
+// block, and the measured live case — the re-served bytes are CC's own and
+// `seen` already covers them. Where it is not (skills and deferred are
+// SORTED, hooks is stripped), the re-served bytes are the extension's, and
+// without this clause a correct re-serve reports as invented.
+
+test("a declared re-serve of a block verified EARLIER in the conversation is exempt", () => {
+  const before = SKILLS(["zeta", "alpha"]);
+  const after = rewriteBlockText("skills", before);
+  const seen = new Set();
+  const seenRewrites = new Set();
+
+  // Request 1 — CC sends the block, the extension rewrites and relocates it.
+  const first = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: before }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }] }],
+    freshSessionSortStats: { relocated: [{ type: "skills" }], reserved: [], targetIndex: 0 },
+  }), seen, seenRewrites);
+  assert.deepEqual(first.violations, [], "arrange: request 1 is the already-covered rewrite case");
+
+  // Request 2 — CC sends no skills block at all; the extension serves the
+  // block it relocated, so the forwarded prefix does not move.
+  const second = conservationViolations(entry({
+    n: 2,
+    inMsgs: [{ role: "user", content: [{ type: "text", text: "just a prompt" }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }, { type: "text", text: "just a prompt" }] }],
+    freshSessionSortStats: { relocated: [], reserved: ["skills"], targetIndex: 0 },
+  }), seen, seenRewrites);
+
+  assert.deepEqual(second.violations, [], "the re-served block descends from bytes CC sent in this conversation");
+  assert.ok(second.exemptions.some((x) => /fresh-session-sort:reserved/.test(x.exemptReason)),
+    "and the ledger must name the re-serve, not the rewrite that happened in another request");
+});
+
+test("CONTROL — a re-serve with no earlier verified rewrite in this conversation is invented", () => {
+  const after = rewriteBlockText("skills", SKILLS(["zeta", "alpha"]));
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: "just a prompt" }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }, { type: "text", text: "just a prompt" }] }],
+    freshSessionSortStats: { relocated: [], reserved: ["skills"], targetIndex: 0 },
+  }), new Set(), new Set());
+  assert.ok(r.violations.some((v) => v.kind === "invented"),
+    "a declaration cannot excuse bytes this conversation never carried");
+});
+
+test("CONTROL — bytes verified in another conversation do not travel", () => {
+  // The registry is per conversation for the same reason the extension's
+  // memory is: one session-id header carries the main thread, its subagents
+  // and CC's sidecars.
+  const after = rewriteBlockText("skills", SKILLS(["zeta", "alpha"]));
+  const otherConversation = new Set();
+  conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: SKILLS(["zeta", "alpha"]) }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }] }],
+    freshSessionSortStats: { relocated: [{ type: "skills" }], reserved: [], targetIndex: 0 },
+  }), new Set(), otherConversation);
+
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: "just a prompt" }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }, { type: "text", text: "just a prompt" }] }],
+    freshSessionSortStats: { relocated: [], reserved: ["skills"], targetIndex: 0 },
+  }), new Set(), new Set());
+  assert.ok(r.violations.some((v) => v.kind === "invented"),
+    "this conversation's registry is empty; the other one's verification is not its evidence");
+});
+
+test("CONTROL — an undeclared re-serve is invented, however plausible the bytes", () => {
+  const before = SKILLS(["zeta", "alpha"]);
+  const after = rewriteBlockText("skills", before);
+  const seen = new Set();
+  const seenRewrites = new Set();
+  conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: before }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }] }],
+    freshSessionSortStats: { relocated: [{ type: "skills" }], reserved: [], targetIndex: 0 },
+  }), seen, seenRewrites);
+
+  const r = conservationViolations(entry({
+    inMsgs: [{ role: "user", content: [{ type: "text", text: "just a prompt" }] }],
+    outMsgs: [{ role: "user", content: [{ type: "text", text: after }, { type: "text", text: "just a prompt" }] }],
+    freshSessionSortStats: { relocated: [], reserved: [], targetIndex: 0 },
+  }), seen, seenRewrites);
+  assert.ok(r.violations.some((v) => v.kind === "invented"),
+    "no declaration, no exemption attempt — the same discipline the rewrite clause already keeps");
+});
+
 // --- content-strip's declared removal ---------------------------------------
 
 test("a bookkeeping reminder content-strip declares removing is exempt", () => {

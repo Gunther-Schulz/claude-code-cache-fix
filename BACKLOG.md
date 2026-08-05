@@ -8,8 +8,113 @@ bullet, evidence pointer included.
 
 ## Open
 
-- **HANDOFF 2026-08-05 EVENING — read this first; it supersedes both
-  handoffs below.** Written at ~274k tokens on the depth rule, with
+- **HANDOFF 2026-08-05 NIGHT — read this first; it supersedes the
+  EVENING handoff's "START HERE" section and nothing else.**
+  **THE INDEX-0 VIOLATION IS ANSWERED, MITIGATED — AND IT COST NOTHING.**
+  Mechanism, verified at the forwarded bodies rather than reasoned from
+  the source: `fresh-session-sort` re-derived its relocated set from the
+  CURRENT array on every request, so what we forwarded at `messages[0]`
+  tracked the PRESENCE of the source block. (s-captureAB is the ~281 MB
+  capture whose pair sits at 2026-08-05T13:49:31Z -> 13:50:48Z; the real
+  filename is local-only — join by timestamp against
+  `~/.claude/cache-fix-gate-status.json`, never by writing the session id
+  into this public tree.) On it the mcp
+  `<system-reminder>` sat at raw msg[3] from n=325 through n=331 and was
+  gone at n=336; with nothing to relocate, our forwarded `messages[0]`
+  went from four blocks to three (`--dump-forwarded 331:0,336:0`) while
+  CC's own `messages[0]` was byte-identical on both sides.
+  **THE PIN WAS THE WRONG QUESTION.** `pinBlockContent` holds a block's
+  BYTES stable while it is present; across that pair the block was
+  ABSENT, so nothing consulted it. Presence was the unheld axis. Anyone
+  re-opening this: do not go looking for a pin bug, there isn't one.
+  **THE COST WAS ZERO ON THAT OCCURRENCE, and this is the correction
+  that matters.** CC changed `tools[]` from 11 entries to 9 and its first
+  system block from 57 to 62 chars in the same request. The cache prefix
+  is `[tools][system][messages]`, so it was already broken two levels
+  above messages and our index-0 flip added nothing. The EVENING
+  handoff's ranking — "one occurrence costs more than the whole
+  remaining absorption-miss population" — rested on `outDiv 0` alone and
+  does not survive. **So CACHE-CONTROL 14 / TEXT 15 is once again the
+  top of the queue**, and the `builtByUs` + pin-at-finding dispatch after
+  it, exactly as the evening handoff ordered them below the index-0 item.
+  **THE READING IS NOW A FIELD, not a paragraph.** Every stability
+  violation carries `prefixAboveMessages {ourToolsIdentical,
+  ourSystemIdentical, ccToolsIdentical, ccSystemIdentical, intact}` and
+  the human line prints `[prefix ALREADY broken above messages:
+  tools+system changed -> no marginal cost]` or `[prefix above messages
+  INTACT -> the whole message array re-bills]`. `intact` is the OURS side
+  because ours is what bills; the cc* pair answers the different question
+  of whose change it was, and the two come apart precisely where
+  deferred-tool-rewrite is doing its job. Demonstrated on the real row,
+  not just on bites: the live line reads
+  `n=331->336 … outDiv=0 [CC bytes at outDiv IDENTICAL -> ours]
+  [prefix ALREADY broken above messages: tools+system changed -> no
+  marginal cost] <- fresh-session-sort`.
+  **WHAT SHIPPED:** (1) `_relocatedByConversation` in fresh-session-sort
+  — a per-conversation memory of relocated types, keyed by
+  `resolveInsertionSessionKey` (imported, never re-derived), LRU-capped
+  at 256 (`CACHE_FIX_FRESH_SORT_MAX_CONVERSATIONS`), serving a
+  remembered block only when CC sends no instance of that type; CC's
+  newer bytes always win. (2) `reserved` on `freshSessionSortStats`, and
+  conservation F-side clause (e) verifying it against rewrites the gate
+  itself saw on the wire earlier in the same conversation. (3) the cost
+  annotation above. Suite 2139/2139; the capture replays old-vs-new with
+  an IDENTICAL verdict (see the next bullet for why that is expected).
+  **WHAT IS NOT ESTABLISHED — read before trusting the fix.** The class's
+  live RATE is unmeasured, and the fix engages on no measured live pair:
+  the only departure in this corpus is n=336 itself, whose conversation
+  key changed (the system-prompt sub-key moved), so the memory was
+  correctly dropped there. That is by design — the key drops the memory
+  exactly when a prefix break above messages has already happened, i.e.
+  only where dropping is free — but it means the live evidence for the
+  fix is its bites, not a corpus row. Sizing is the READY item below.
+  **DEPLOY IS NOT DONE.** `proxy/**` changed, so this needs the dotfiles
+  pin bump (`git rev-parse --short HEAD:proxy`) + `systemctl --user
+  restart cache-fix-proxy`. Row-3 statement for that restart:
+  fresh-session-sort is now stateful-UNPERSISTED (audit amended), so a
+  conversation that has already passed a departure re-baselines its
+  `messages[0]` at the restart — the same flip it paid at departure time
+  before this change, so no regression, but price it with
+  `tools/restart-exposure.mjs` like any other.
+
+- **READY — size the relocated-block DEPARTURE class corpus-wide, as a
+  census class rather than a probe (tools/-only).** Grounding: row 25 is
+  mitigated on one hand-read pair and the rate is unknown; the fix's
+  live engagement is therefore unproven. Design: a census class in
+  `tools/replay.mjs` that, per conversation pair, reports a relocatable
+  type present in the predecessor and absent in the successor, with the
+  type, the raw index it departed from, and the pair's
+  `prefixAboveMessages` — the last is what separates a costly departure
+  from a free one, and it already exists as a field. Import
+  `isRelocatableBlock`/`getBlockType` from the extension; group by
+  `conversationOf` (never by capture adjacency). Verifier, red-first: a
+  bite feeding a synthetic pair whose successor drops a relocatable block
+  must report one departure row with `intact: true`, red against today's
+  census which has no such class; control — the same pair with the block
+  still present reports none. Done when a corpus sweep prints the count
+  of departures with `intact: true`, which is the number that says
+  whether row 25's mitigation was worth shipping.
+
+- **READY — persist the relocation memory, so a restart stops costing the
+  flip it was built to prevent (proxy/, deployment-coupled).**
+  Grounding: `_relocatedByConversation` is in-process; a restart drops it
+  and a conversation already past a departure re-baselines `messages[0]`.
+  Design decided: the pattern insertion-normalization and the ladder
+  already use — one file per conversation key under the snapshots dir,
+  atomic tmp+rename, `writeFileOwnerOnly` (the file holds first-seen
+  message bytes), fail-open reload per request; replay already points
+  state-writing extensions at a scratch `CLAUDE_CONFIG_DIR`, so no
+  instrument change is needed for the offline gate. Verifier, red-first:
+  the byte-identical-restart case in
+  `test/proxy-restart-transparent.test.mjs`, extended to the departure
+  shape (relocate, restart via fresh `import()`, replay a request whose
+  block is gone) — red today because the memory is module-scope; plus
+  `--restart-at N` on a capture carrying a departure once the census
+  class above can find one. Done when the audit's fresh-session-sort row
+  moves back from stateful-UNPERSISTED to stateful-persisted.
+
+- **HANDOFF 2026-08-05 EVENING — superseded on its "START HERE" section
+  by the night handoff above; the rest still stands.** Written at ~274k tokens on the depth rule, with
   work remaining and no blocker — the restart is the recommendation,
   not an exhaustion.
   **READ `docs/dev-loop.md` BEFORE THE FIRST CHANGE.** Not the pointer

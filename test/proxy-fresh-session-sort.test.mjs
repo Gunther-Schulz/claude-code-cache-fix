@@ -331,6 +331,186 @@ test("onRequest: the in-place branch declares its REWRITE but no relocation", as
   assert.deepEqual(stats.rewrote, ["skills"], "the type it actually rewrote");
 });
 
+// --- The relocated prefix must survive CC dropping its source block --------
+//
+// DEFINITION, written before any assertion (dev-loop "Adding a check"):
+// within ONE conversation, the content this extension forwards at
+// messages[firstUserIdx] must not change merely because CC STOPPED sending an
+// instance of a block type the extension had already relocated there. CC's own
+// removal sits at the index it removed from; re-deriving the relocated set from
+// the CURRENT array turns that into a change at index 0, and the cache prefix
+// is [tools][system][messages] — an index-0 change re-bills the whole
+// conversation.
+//
+// The expectation comes from that definition, not from the implementation.
+// The live pair it was written against (capture s-captureAB, 2026-08-05,
+// n=331 -> n=336): the mcp block sat at raw msg[3] from n=325 through n=331
+// and was absent from n=336 on. CC's own messages[0] was byte-identical across
+// the pair (three blocks, same hashes); our FORWARDED messages[0] carried four
+// blocks at n=331 and three at n=336. The gate reported outDiv 0 / inDiv 3 /
+// ccIdenticalAtOutDiv true, attributed to fresh-session-sort by its own
+// bisection.
+//
+// Each test below builds its own messages[0] text, so each is its own
+// conversation and no state seam is needed to isolate them.
+
+const MCP = SR + "# MCP Server Instructions\n\nserver instructions\n</system-reminder>";
+const assistantTurn = (t) => ({ role: "assistant", content: [{ type: "text", text: t }] });
+
+test("onRequest: a relocated block stays at messages[0] after CC stops sending it", async () => {
+  const first = { role: "user", content: [{ type: "text", text: "STICKY-DEPART first prompt" }] };
+  const headers = { "x-session-id": "sticky-depart" };
+
+  // Request A — CC scatters the mcp block at msg[2]; the extension relocates it.
+  const a = {
+    body: {
+      messages: [
+        structuredClone(first),
+        assistantTurn("reply"),
+        { role: "user", content: [{ type: "text", text: MCP }, { type: "text", text: "second prompt" }] },
+      ],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(a);
+  const forwardedA = a.body.messages[0].content.map((b) => b.text);
+  assert.ok(forwardedA.some((t) => isMcpBlock(t)), "precondition: request A relocates the mcp block to messages[0]");
+
+  // Request B — same conversation (messages[0] byte-identical, as in the live
+  // pair), two turns appended, and CC no longer sends the mcp block anywhere.
+  const b = {
+    body: {
+      messages: [
+        structuredClone(first),
+        assistantTurn("reply"),
+        { role: "user", content: [{ type: "text", text: "second prompt" }] },
+        assistantTurn("reply 2"),
+        { role: "user", content: [{ type: "text", text: "third prompt" }] },
+      ],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(b);
+
+  assert.deepEqual(
+    b.body.messages[0].content.map((x) => x.text),
+    forwardedA,
+    "forwarded messages[0] must be byte-identical to the previous request's — CC removing a block at index 2 is not a reason to change index 0",
+  );
+});
+
+test("onRequest: a re-served block is declared as RESERVED, not as a relocation", async () => {
+  // The conservation gate keys its F-side exemption on this declaration, and
+  // the stability gate's exemption keys on `relocated[].firstAppearance` — a
+  // re-serve must therefore never present as a relocation, or it would buy an
+  // exemption for a divergence nobody relocated.
+  const first = { role: "user", content: [{ type: "text", text: "STICKY-DECLARE first prompt" }] };
+  const headers = { "x-session-id": "sticky-declare" };
+  const a = {
+    body: {
+      messages: [
+        structuredClone(first),
+        assistantTurn("reply"),
+        { role: "user", content: [{ type: "text", text: MCP }] },
+      ],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(a);
+
+  const b = {
+    body: {
+      messages: [
+        structuredClone(first),
+        assistantTurn("reply"),
+        { role: "user", content: [{ type: "text", text: "no reminder here" }] },
+      ],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(b);
+
+  const stats = b.meta.freshSessionSortStats;
+  assert.ok(stats, "a re-serve is a mutation and must be declared");
+  assert.deepEqual(stats.reserved, ["mcp"], "the type served from memory because CC sent none");
+  assert.deepEqual(stats.relocated, [], "nothing was relocated out of this array");
+  assert.equal(stats.targetIndex, 0);
+});
+
+test("onRequest: a CHANGED block from CC replaces the memorized one — no stale content", async () => {
+  // The other half of the volatile-content rule (dev-loop, "Volatile content
+  // vs. real change"): forward the pinned bytes while CC keeps sending the same
+  // thing, and let a GENUINE change through. Serving the memorized copy over a
+  // block CC has actually rewritten would be serving a stale message.
+  const first = { role: "user", content: [{ type: "text", text: "STICKY-CHANGE first prompt" }] };
+  const headers = { "x-session-id": "sticky-change" };
+  const changed = SR + "# MCP Server Instructions\n\nserver instructions v2\n</system-reminder>";
+
+  const a = {
+    body: {
+      messages: [structuredClone(first), assistantTurn("reply"), { role: "user", content: [{ type: "text", text: MCP }] }],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(a);
+
+  const b = {
+    body: {
+      messages: [structuredClone(first), assistantTurn("reply"), { role: "user", content: [{ type: "text", text: changed }] }],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(b);
+
+  const relocatedText = b.body.messages[0].content.map((x) => x.text).find(isMcpBlock);
+  assert.ok(relocatedText.includes("v2"), "CC's newer bytes must win over the memorized ones");
+});
+
+test("onRequest: the memory is per CONVERSATION — a second conversation inherits nothing", async () => {
+  // Identity is where the bugs live: a memory keyed more cheaply than the thing
+  // it identifies (by block type alone, or by session-id alone) would inject
+  // one conversation's mcp block into a co-tenant's messages[0] — inventing
+  // bytes CC never sent there.
+  const headers = { "x-session-id": "sticky-tenants" };
+  const a = {
+    body: {
+      messages: [
+        { role: "user", content: [{ type: "text", text: "TENANT-A first prompt" }] },
+        assistantTurn("reply"),
+        { role: "user", content: [{ type: "text", text: MCP }] },
+      ],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(a);
+
+  // Same session-id header, different first message: a subagent / sidecar.
+  const b = {
+    body: {
+      messages: [
+        { role: "user", content: [{ type: "text", text: "TENANT-B first prompt" }] },
+        assistantTurn("reply"),
+        { role: "user", content: [{ type: "text", text: "plain second prompt" }] },
+      ],
+    },
+    headers,
+    meta: {},
+  };
+  await ext.onRequest(b);
+
+  assert.ok(
+    !b.body.messages[0].content.some((x) => isMcpBlock(x.text)),
+    "conversation B never carried an mcp block; nothing may serve it one",
+  );
+});
+
 test("onRequest: no-op when no user messages", async () => {
   const ctx = {
     body: { messages: [{ role: "assistant", content: [{ type: "text", text: "hi" }] }] },

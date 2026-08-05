@@ -138,6 +138,88 @@ test("stability: BITE — when CC ALSO changed the diverging index, say so", () 
   assert.equal(v2[0].ccIdenticalAtOutDiv, true, "CC's bytes at index 1 were identical");
 });
 
+// --- Was the flip actually billable? (2026-08-05) ---
+//
+// DEFINITION, written before the assertions: the API bills on the longest
+// byte-identical PREFIX, and the prefix is [tools][system][messages]. A
+// stability violation says our forwarded messages diverged EARLIER than CC's
+// own input did — which costs marginal tokens only when everything ABOVE
+// messages was byte-identical across the pair. If our forwarded tools[] or
+// system changed too, everything after them re-bills regardless and the
+// message-level flip is free.
+//
+// Why it is a field and not a paragraph: capture s-captureAB's n=331->336 was
+// carried into a handoff as the most expensive open item in the repo — an
+// index-0 divergence on a ~413k-token session — and answering "what did it
+// actually cost" took a hand-written probe over an 83 MB capture. CC had
+// changed its tools[] from 11 entries to 9 and its first system block from 57
+// to 62 chars in the same request, so the prefix was already broken two levels
+// above messages. The gate had both hashes in hand and printed neither.
+// The throwaway probe is the tell that a check is missing.
+
+test("stability: BITE — a violation reports whether the forwarded prefix above messages was intact", () => {
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const bIn = [user("u0"), asst("a1"), user("CC-EDITED-u2")];
+  const bOut = [user("u0"), asst("MANGLED-BY-US"), user("CC-EDITED-u2")];
+  const tools = [{ name: "Read" }, { name: "Write" }];
+
+  // Case 1 — our forwarded tools[] changed across the pair. The prefix broke
+  // above messages; the message-level divergence adds nothing to the bill.
+  const churned = findStabilityViolations([
+    entry(0, a, a, { inTools: tools, outTools: tools, inSystem: "S", outSystem: "S" }),
+    entry(1, bIn, bOut, { inTools: [{ name: "Read" }], outTools: [{ name: "Read" }], inSystem: "S", outSystem: "S" }),
+  ]);
+  assert.equal(churned.length, 1);
+  assert.equal(churned[0].prefixAboveMessages.intact, false,
+    "forwarded tools[] differ across the pair — everything after tools re-bills anyway");
+  assert.equal(churned[0].prefixAboveMessages.ourToolsIdentical, false);
+  assert.equal(churned[0].prefixAboveMessages.ourSystemIdentical, true);
+
+  // Case 2 — tools and system byte-identical: the flip IS the bill.
+  const clean = findStabilityViolations([
+    entry(0, a, a, { inTools: tools, outTools: tools, inSystem: "S", outSystem: "S" }),
+    entry(1, bIn, bOut, { inTools: tools, outTools: tools, inSystem: "S", outSystem: "S" }),
+  ]);
+  assert.equal(clean.length, 1);
+  assert.equal(clean[0].prefixAboveMessages.intact, true,
+    "nothing above messages moved — this divergence re-bills the whole message array");
+});
+
+test("stability: BITE — a forwarded SYSTEM change breaks the prefix too, and is reported separately", () => {
+  // system renders after tools and before messages: a change there re-bills
+  // the messages array on its own, whatever tools did.
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const bIn = [user("u0"), asst("a1"), user("CC-EDITED-u2")];
+  const bOut = [user("u0"), asst("MANGLED-BY-US"), user("CC-EDITED-u2")];
+  const tools = [{ name: "Read" }];
+  const v = findStabilityViolations([
+    entry(0, a, a, { inTools: tools, outTools: tools, inSystem: "S", outSystem: "S" }),
+    entry(1, bIn, bOut, { inTools: tools, outTools: tools, inSystem: "S", outSystem: "S-CHANGED" }),
+  ]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].prefixAboveMessages.ourToolsIdentical, true);
+  assert.equal(v[0].prefixAboveMessages.ourSystemIdentical, false);
+  assert.equal(v[0].prefixAboveMessages.intact, false);
+});
+
+test("stability: the CC-side prefix is reported too — attribution, not cost", () => {
+  // OURS is what bills; CC's is what says whose change it was. The pair that
+  // motivated the field had both broken, and conflating the two questions is
+  // how a free row gets ranked as the most expensive item open.
+  const a = [user("u0"), asst("a1"), user("u2")];
+  const bIn = [user("u0"), asst("a1"), user("CC-EDITED-u2")];
+  const bOut = [user("u0"), asst("MANGLED-BY-US"), user("CC-EDITED-u2")];
+  const v = findStabilityViolations([
+    entry(0, a, a, { inTools: [{ name: "Read" }, { name: "Write" }], outTools: [{ name: "Read" }], inSystem: "S", outSystem: "F" }),
+    entry(1, bIn, bOut, { inTools: [{ name: "Read" }], outTools: [{ name: "Read" }], inSystem: "S", outSystem: "F" }),
+  ]);
+  assert.equal(v.length, 1);
+  assert.equal(v[0].prefixAboveMessages.ccToolsIdentical, false, "CC dropped a tool across the pair");
+  assert.equal(v[0].prefixAboveMessages.ccSystemIdentical, true);
+  assert.equal(v[0].prefixAboveMessages.intact, true,
+    "OUR forwarded prefix held — the deferred-tool mitigation absorbing CC's churn is exactly the case where the flip still costs");
+});
+
 // --- fresh-session-sort's telemetry-keyed exemption (2026-07-30) ---
 //
 // The real case (s-captureD n=2024->2025): CC's own array first diverges at

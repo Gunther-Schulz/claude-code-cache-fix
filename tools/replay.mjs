@@ -247,6 +247,22 @@ function resetWipesAdditionsExemption(prev, cur, bar, ccSame) {
   return { type: stats.reason, removedInjections: prevInj.size - curInj.size, residualOutDiv: residual };
 }
 
+// Did anything above `messages` in the cache prefix move across this pair?
+// `sig` is null when a side carries no tools[] at all — null === null is the
+// honest "both requests had none", not an unknown, because the fingerprints
+// are computed from the bodies this run actually forwarded.
+function prefixAboveMessages(prev, cur) {
+  const ourToolsIdentical = prev.outTools.sig === cur.outTools.sig;
+  const ourSystemIdentical = prev.outSystem === cur.outSystem;
+  return {
+    ourToolsIdentical,
+    ourSystemIdentical,
+    ccToolsIdentical: prev.inTools.sig === cur.inTools.sig,
+    ccSystemIdentical: prev.inSystem === cur.inSystem,
+    intact: ourToolsIdentical && ourSystemIdentical,
+  };
+}
+
 function scanGroup(entries) {
   const violations = [];
   const exemptions = [];
@@ -285,6 +301,19 @@ function scanGroup(entries) {
         // true  => CC sent the same bytes there; the change is OURS.
         // false => CC also changed that message; ours may be amplification.
         ccIdenticalAtOutDiv: ccSame,
+        // What the divergence COSTS, which `outDiv` alone cannot say. The API
+        // bills the longest byte-identical prefix and the prefix is
+        // [tools][system][messages]: a message-level flip re-bills only what
+        // survived above it, so when OUR forwarded tools[] or system changed
+        // across the same pair, the flip is free. `intact` is the OURS side
+        // because ours is what goes on the wire; the cc* fields answer the
+        // different question of whose change it was — the two came apart on
+        // the row this field was built for (s-captureAB n=331->336: CC churned
+        // tools 11->9 and its first system block 57->62 chars in the same
+        // request, so an index-0 divergence on a ~413k-token session cost
+        // nothing extra, after being carried into a handoff as the most
+        // expensive item open).
+        prefixAboveMessages: prefixAboveMessages(prev, cur),
       };
       const relocation = freshSessionSortExemption(cur, outDiv);
       const resetWipe = relocation ? null : resetWipesAdditionsExemption(prev, cur, bar, ccSame);
@@ -697,6 +726,13 @@ export function compactEntry(e) {
     msgs: inMsgs.length,
     inTools: toolsFingerprints(e.inTools),
     outTools: toolsFingerprints(e.outTools),
+    // The rest of the cache prefix. tools[] and system render BEFORE messages,
+    // so whether either moved decides what a message-level divergence actually
+    // COSTS (scanGroup's prefixAboveMessages). Hashes, not bodies — the system
+    // prompt is up to tens of KB and this file's heap discipline is why the
+    // gate can run on a 1 GB capture at all.
+    inSystem: sha(JSON.stringify(e.inSystem ?? null)),
+    outSystem: sha(JSON.stringify(e.outSystem ?? null)),
     action: e.action ?? null,
     resetReason: e.resetReason ?? null,
     stats: e.stats ?? null,
@@ -1883,7 +1919,20 @@ export function findSuccessions(entries) {
 //         the post-peel tool_result and each peeled reminder's standalone
 //         text block are new bytes on the wire by construction (a peel
 //         REDISTRIBUTES within a message; it never equals any single
-//         pre-peel unit), so without this clause they read as invented.
+//         pre-peel unit), so without this clause they read as invented, or
+//     (e) a DECLARED RE-SERVE (fresh-session-sort's own report,
+//         freshSessionSortStats.reserved — never a re-derived "this looks
+//         re-served" guess) of a unit THIS GATE verified earlier in the same
+//         conversation as the result of the extension's own rewrite. The
+//         extension holds its relocated prefix stable across a request in
+//         which CC sends no instance of the type (the n=331->336 index-0
+//         divergence, 2026-08-05); where the rewrite is the identity the
+//         re-served bytes are CC's own and clause (b) already covers them,
+//         and where it is not (skills and deferred are SORTED, hooks is
+//         stripped) the bytes descend from CC's through a transform this gate
+//         re-derived and saw on the wire. That descent is the evidence — a
+//         declaration alone excuses nothing, per the controls in
+//         test/conservation-exemptions.test.mjs.
 //
 // POPULATION — non-assistant messages, and the reason is definitional rather
 // than convenient. Every mechanism that can delete or re-serve content in
@@ -2100,7 +2149,13 @@ function smooshSplitPeelBlocks(msg) {
 // conversation's own history (each request re-sends all of it, so the union
 // converges on the largest request's block set) rather than by request count —
 // the distinction that keeps this off the O(file) retention path.
-export function conservationViolations(e, seen) {
+// `seenRewrites` is the conversation's registry of rewrite results this gate
+// has VERIFIED on the wire — the evidence behind F-side clause (e), kept
+// separate from `seen` because `seen` means "bytes CC itself sent here" and
+// conflating the two would let the gate's own derivation pass as CC's input.
+// A caller that omits it turns clause (e) off, which reports a legitimate
+// re-serve as invented — noisy, never silent.
+export function conservationViolations(e, seen, seenRewrites) {
   const out = [];
   const exemptions = [];
   const inMsgs = e.inMsgs ?? [];
@@ -2115,6 +2170,10 @@ export function conservationViolations(e, seen) {
   // be inventing the exemption rather than verifying one.
   const fssDeclared = (e.freshSessionSortStats?.rewrote?.length ?? 0) > 0
     || (e.freshSessionSortStats?.relocated?.length ?? 0) > 0;
+  // Separate declaration, separate clause: a request can re-serve without
+  // rewriting anything (CC sent no instance of the type at all), which is
+  // exactly the shape clause (e) exists for.
+  const fssReserved = (e.freshSessionSortStats?.reserved?.length ?? 0) > 0;
   const stripDeclared = ((e.contentStripStats?.trailerCount ?? 0)
     + (e.contentStripStats?.reminderCount ?? 0)) > 0;
   // F-side hashes a verified rewrite introduced, filled on the R-side and read
@@ -2182,7 +2241,14 @@ export function conservationViolations(e, seen) {
       const rewriteExempt = rewritten.size
         ? lost.filter((u) => !stripExempt.includes(u) && [...rewritten].some((h) => fHashes.has(h)))
         : [];
-      for (const h of rewritten) if (fHashes.has(h)) fssExemptFHashes.add(h);
+      for (const h of rewritten) {
+        if (!fHashes.has(h)) continue;
+        fssExemptFHashes.add(h);
+        // Verified HERE, on this request: the transform re-derived from CC's
+        // own block and found on the wire. That is what a later request's
+        // declared re-serve of the same bytes gets to point at (clause (e)).
+        if (seenRewrites) seenRewrites.add(h);
+      }
       const declaredExempt = [...stripExempt, ...rewriteExempt];
       if (declaredExempt.length === lost.length && lost.length > 0) {
         exemptions.push({
@@ -2235,8 +2301,11 @@ export function conservationViolations(e, seen) {
     const msg = outMsgs[i];
     if (isAssistant(msg) || isDeclaredInjection(msg)) continue;
     const candidates = fUnitsByMsg[i].filter((u) => !rHashes.has(u.hash) && !(seen && seen.has(u.hash)));
+    // Clause (e): only when the extension DECLARES a re-serve, and only for
+    // bytes this gate verified earlier in this conversation.
+    const reserveExempt = (u) => fssReserved && seenRewrites && seenRewrites.has(u.hash);
     const invented = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
-      && !fssExemptFHashes.has(u.hash));
+      && !fssExemptFHashes.has(u.hash) && !reserveExempt(u));
     // Which mechanism accounted for it, counted separately. Reporting a
     // fresh-session-sort rewrite as "smoosh-split:declared-peel" — which this
     // did when the second exemption was first wired — makes the exemption
@@ -2245,18 +2314,22 @@ export function conservationViolations(e, seen) {
     const byPeel = candidates.filter((u) => smooshExemptFHashes.has(u.hash)).length;
     const byRewrite = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
       && fssExemptFHashes.has(u.hash)).length;
-    if (byPeel + byRewrite > 0) {
+    const byReserve = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
+      && !fssExemptFHashes.has(u.hash) && reserveExempt(u)).length;
+    if (byPeel + byRewrite + byReserve > 0) {
       const reasons = [];
       if (byPeel) reasons.push("smoosh-split:declared-peel");
       if (byRewrite) reasons.push("fresh-session-sort:rewrite");
+      if (byReserve) reasons.push("fresh-session-sort:reserved");
       exemptions.push({
         n: e.n,
         ts: e.ts,
         kind: "invented",
         exemptReason: reasons.join(" + "),
-        detail: `out[${i}] (${msg?.role}): ${byPeel + byRewrite} of ${fUnitsByMsg[i].length} unit(s) exempt — `
+        detail: `out[${i}] (${msg?.role}): ${byPeel + byRewrite + byReserve} of ${fUnitsByMsg[i].length} unit(s) exempt — `
           + `${byPeel} produced by smoosh-split's declared peel, `
-          + `${byRewrite} by fresh-session-sort's verified rewrite`,
+          + `${byRewrite} by fresh-session-sort's verified rewrite, `
+          + `${byReserve} re-served by fresh-session-sort from an earlier verified rewrite in this conversation`,
       });
     }
     if (invented.length) {
@@ -2279,6 +2352,7 @@ export function conservationViolations(e, seen) {
 // verdict at a time), rather than a tested one and a shipped one.
 export function findConservationViolations(entries) {
   const seenByGroup = new Map();
+  const rewritesByGroup = new Map();
   const out = [];
   for (const raw of entries) {
     const inMsgs = raw.inMsgs ?? [];
@@ -2286,7 +2360,8 @@ export function findConservationViolations(entries) {
     if (cid === null) continue;
     const g = `${raw.key}|${cid}`;
     if (!seenByGroup.has(g)) seenByGroup.set(g, new Set());
-    out.push(...conservationViolations(raw, seenByGroup.get(g)).violations);
+    if (!rewritesByGroup.has(g)) rewritesByGroup.set(g, new Set());
+    out.push(...conservationViolations(raw, seenByGroup.get(g), rewritesByGroup.get(g)).violations);
   }
   return out.sort((a, b) => a.n - b.n);
 }
@@ -2494,6 +2569,9 @@ async function main() {
   // DEFINITION). Hashes only, keyed by (capture key, conversation), so it is
   // bounded by history size rather than by request count.
   const conservationSeen = new Map();
+  // Same keying, different meaning: rewrite results this gate has verified on
+  // the wire, which is what a declared re-serve points at (F-side clause (e)).
+  const conservationRewrites = new Map();
   let conservationResidue = 0;
   const outcomes = new Map();
   const boots = [];
@@ -2608,6 +2686,11 @@ async function main() {
       // is to make the second stable while the first moves (row 6).
       inTools: rec.body?.tools,
       outTools: ctx.body?.tools,
+      // Same pair of questions for the system block — it renders between
+      // tools[] and messages, so it is the other half of "was the prefix above
+      // messages intact" (compactEntry hashes both; the bodies stop here).
+      inSystem: rec.body?.system,
+      outSystem: ctx.body?.system,
       action: ctx.meta.insertionNormalizeStats?.action ?? null,
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
       stats: ctx.meta.insertionNormalizeStats ?? null,
@@ -2629,7 +2712,8 @@ async function main() {
       if (cid !== null) {
         const g = `${full.key}|${cid}`;
         if (!conservationSeen.has(g)) conservationSeen.set(g, new Set());
-        const cv = conservationViolations(full, conservationSeen.get(g));
+        if (!conservationRewrites.has(g)) conservationRewrites.set(g, new Set());
+        const cv = conservationViolations(full, conservationSeen.get(g), conservationRewrites.get(g));
         conservation.push(...cv.violations);
         conservationResidue += cv.assistantResidue;
         conservationExemptions.push(...cv.exemptions);
@@ -2881,6 +2965,16 @@ async function main() {
         // JSON carried prevN the whole time; the human line did not.
         `  n=${v.prevN}->${v.n} ts=${v.ts} inDiv=${v.inDiv ?? "append-only"} outDiv=${v.outDiv}` +
           `${v.ccIdenticalAtOutDiv ? " [CC bytes at outDiv IDENTICAL -> ours]" : " [CC also changed outDiv]"}` +
+          // What it cost, on the same line as what it was: a divergence inside
+          // messages re-bills nothing extra when our own tools[] or system
+          // moved across the same pair, and reading outDiv without this is how
+          // a free row gets ranked as an expensive one.
+          `${v.prefixAboveMessages?.intact === false
+            ? ` [prefix ALREADY broken above messages: ${[
+              v.prefixAboveMessages.ourToolsIdentical ? null : "tools",
+              v.prefixAboveMessages.ourSystemIdentical ? null : "system",
+            ].filter(Boolean).join("+")} changed -> no marginal cost]`
+            : " [prefix above messages INTACT -> the whole message array re-bills]"}` +
           ` <- ${who}\n`,
       );
     }

@@ -11,6 +11,15 @@ cross-request state, but the state survives a restart via disk) |
 **stateful-UNPERSISTED** (keeps cross-request state that a restart drops,
 changing output for a session already in flight).
 
+> **AMENDMENT 2026-08-05 — `fresh-session-sort` is now stateful-UNPERSISTED.**
+> The verdict below is correct for the code it audited and no longer describes
+> the extension: it now keeps a per-conversation memory of the block types it
+> has relocated (`_relocatedByConversation`, in-process, LRU-capped), so the
+> relocated prefix survives CC dropping the source block — the n=331->336
+> index-0 divergence on capture s-captureAB. See "Amendment 2026-08-05" at the
+> foot of this file for what a restart now costs, and why it is not a
+> regression against the audited behaviour.
+
 ## Directive's named 5 — sort-stabilization / fresh-session-sort / tool-input-normalize / identity-normalization / content-strip
 
 | Extension | Verdict | Evidence |
@@ -177,3 +186,46 @@ UPDATE: the ladder gap flagged above is FIXED in 7ed1886 —
 sticky-rung state persists per session key (atomic write, fail-open
 reload); byte-identical restart test + the empirical probe regression
 are in test/mid-history-breakpoint-ladder.test.mjs.
+
+## Amendment 2026-08-05 — fresh-session-sort moves to stateful-UNPERSISTED
+
+The audited relocation logic re-derived the relocated set from the CURRENT
+`body.messages` on every request, which is exactly what made it deterministic
+— and exactly what cost a full-prefix re-bill on capture s-captureAB
+(pair n=331 -> n=336, a session carrying ~413k tokens). CC sent the mcp
+`<system-reminder>` at msg[3] from n=325 through n=331 and stopped at n=336;
+with nothing to relocate, our forwarded `messages[0]` lost its first block.
+CC's own divergence sat at index 3, ours at index 0, and the cache prefix is
+`[tools][system][messages]`. Verified at the forwarded bodies, not inferred:
+`--dump-forwarded 331:0,336:0` shows four blocks then three, while CC's raw
+`messages[0]` is byte-identical across the pair (three blocks, same hashes).
+
+The fix keeps a per-conversation memory of the types it has relocated
+(`_relocatedByConversation`, keyed by `resolveInsertionSessionKey` — the same
+conversation identity insertion-normalization uses, imported rather than
+re-derived) and serves a remembered block whenever CC sends no instance of
+that type. CC's newer bytes always win, so a genuine content change still
+resets; the memory covers ABSENCE only.
+
+**What a restart costs now, stated rather than assumed.** The memory is
+in-process, so a restart drops it: a conversation whose source block CC has
+already stopped sending re-derives an empty relocated set and its
+`messages[0]` flips — the full-prefix re-bill this fix exists to prevent.
+That is a real cost and it belongs in the row-3 statement before any restart.
+It is NOT a regression against the audited behaviour: pre-fix, that same
+conversation paid the identical flip at the moment CC dropped the block,
+restart or no restart. The fix moves the cost from "every departure" to "a
+departure followed by a restart in the same conversation", and post-restart
+output is byte-identical to what the audited code produced. Priced with
+`tools/restart-exposure.mjs` like any other restart.
+
+The durable answer is persistence (the pattern insertion-normalization and the
+ladder already use: atomic owner-only write per conversation key, fail-open
+reload). Booked in `BACKLOG.md` rather than built here, because the in-memory
+form already removes the class in steady-state operation and persistence is a
+separate change with its own state-key question (row 3's own amendment: a new
+state KEY invalidates every baseline that key addressed).
+
+`test/proxy-restart-transparent.test.mjs`'s fresh-session-sort case still
+passes and still means what it says — its body takes the in-place path, where
+no memory is created and the extension remains a pure function of the request.

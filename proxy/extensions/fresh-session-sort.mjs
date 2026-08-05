@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { resolveInsertionSessionKey } from "./insertion-normalization.mjs";
+
 const SR = "<system-reminder>\n";
 
 function isSystemReminder(text) {
@@ -80,6 +82,70 @@ function pinBlockContent(blockType, text) {
   return normalized;
 }
 
+// --- Sticky relocation memory, per conversation -----------------------------
+//
+// WHY, measured (capture s-captureAB, 2026-08-05, pair n=331 -> n=336, the
+// session carrying ~413k tokens): the relocated set used to be re-derived from
+// the CURRENT array on every request, so what we forwarded at messages[0]
+// tracked the PRESENCE of the source block. CC sent the mcp block at msg[3]
+// from n=325 through n=331 and stopped at n=336; the extension then had
+// nothing to relocate and our messages[0] silently lost its first block. CC's
+// own divergence was at index 3, ours at index 0 — and the cache prefix is
+// [tools][system][messages], so an index-0 change re-bills everything. The
+// gate flagged it outDiv 0 / inDiv 3 / ccIdenticalAtOutDiv true and attributed
+// it here by bisection.
+//
+// `pinBlockContent` cannot cover this and never could: it holds a block's
+// BYTES stable while the block is present, and between those two requests the
+// block was absent, so nothing consulted it. Presence is the axis that was
+// unheld.
+//
+// So: once a conversation has had a type relocated, that type is served from
+// memory whenever CC sends no instance of it. CC's own newer bytes always win
+// (dev-loop, "Volatile content vs. real change" — a genuine change still
+// resets); the memory only covers ABSENCE.
+//
+// Keyed by the repo's conversation identity, imported rather than re-derived
+// (dev-loop, "Never hand-roll identity"): one session-id header carries the
+// main thread, every subagent and CC's sidecar calls, and a memory keyed by
+// session — or by block type alone, as `_pinnedBlocks` above is — would serve
+// one tenant's block into another's messages[0], inventing bytes CC never sent
+// there.
+const DEFAULT_MAX_CONVERSATIONS = 256;
+
+function maxConversations() {
+  const raw = parseInt(process.env.CACHE_FIX_FRESH_SORT_MAX_CONVERSATIONS, 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_CONVERSATIONS;
+}
+
+// conversationKey -> Map<blockType, block>. Insertion order is LRU (same idiom
+// as jsonl-session-mirror's session cap): re-inserted on access, oldest evicted
+// past the cap. An evicted conversation loses the memory and behaves as it did
+// before this mechanism existed — one relocation re-derived from the array.
+const _relocatedByConversation = new Map();
+
+// Test seam. Live traffic never needs it; the module-state tests do.
+export function _resetRelocationMemory() {
+  _relocatedByConversation.clear();
+}
+
+function relocationMemory(key) {
+  let entry = _relocatedByConversation.get(key);
+  if (entry) {
+    _relocatedByConversation.delete(key);
+    _relocatedByConversation.set(key, entry);
+    return entry;
+  }
+  entry = new Map();
+  _relocatedByConversation.set(key, entry);
+  while (_relocatedByConversation.size > maxConversations()) {
+    const oldest = _relocatedByConversation.keys().next().value;
+    if (oldest === undefined) break;
+    _relocatedByConversation.delete(oldest);
+  }
+  return entry;
+}
+
 function getBlockType(text) {
   if (isSkillsBlock(text)) return "skills";
   if (isDeferredToolsBlock(text)) return "deferred";
@@ -146,7 +212,15 @@ export default {
       }
     }
 
-    if (!hasScatteredBlocks) {
+    // The memory is READ before the branch and only CREATED on the relocate
+    // path: a conversation that has never had anything relocated must keep
+    // taking the in-place path, or its first request under this mechanism
+    // would hoist an in-place block to the front of messages[0] and flip
+    // index 0 for no reason.
+    const convKey = resolveInsertionSessionKey(ctx.headers, body.messages, body.system);
+    const remembered = _relocatedByConversation.get(convKey);
+
+    if (!hasScatteredBlocks && !(remembered && remembered.size)) {
       // Still sort and pin blocks in-place for deterministic first-call baseline
       let modified = false;
       const rewroteTypes = [];
@@ -216,7 +290,16 @@ export default {
       }
     }
 
-    if (found.size === 0) return;
+    if (found.size === 0 && !(remembered && remembered.size)) return;
+
+    // Fold this request's findings into the conversation's memory. CC's bytes
+    // always win where CC sent any — the memory covers ABSENCE, never
+    // staleness. Stored as a COPY, and emitted as a copy below: the block
+    // objects go onto the wire, where later extensions (cache-control-normalize
+    // among them) mutate them in place, and a shared reference would let that
+    // rewrite the memory.
+    const memory = relocationMemory(convKey);
+    for (const [blockType, block] of found) memory.set(blockType, { ...block });
 
     // Remove all relocatable blocks from all user messages
     for (let i = 0; i < body.messages.length; i++) {
@@ -228,10 +311,14 @@ export default {
       }
     }
 
-    // Prepend in deterministic order: deferred → mcp → skills → hooks
+    // Prepend in deterministic order: deferred → mcp → skills → hooks.
+    // The emitted set is the MEMORY, not this request's findings: that is the
+    // whole fix — the forwarded prefix is a function of the conversation, not
+    // of which blocks CC happened to include this time.
     const ORDER = ["deferred", "mcp", "skills", "hooks"];
     const relocatedTypes = ORDER.filter((t) => found.has(t));
-    const toRelocate = relocatedTypes.map((t) => found.get(t));
+    const emittedTypes = ORDER.filter((t) => memory.has(t));
+    const toRelocate = emittedTypes.map((t) => ({ ...memory.get(t) }));
 
     body.messages[firstUserIdx] = {
       ...body.messages[firstUserIdx],
@@ -244,9 +331,18 @@ export default {
     // cross-request stability check flags as a self-inflicted byte flip
     // (module doc, top). Telemetry lets that check tell the deliberate
     // one-time bust apart from a genuine repeat/thrash at the same index.
+    //
+    // `reserved` is its own field, never folded into `relocated`: a re-serve
+    // relocates nothing, and `relocated[].firstAppearance` is what buys a
+    // stability exemption — reporting one here would excuse a divergence
+    // nobody relocated. The conservation gate reads `reserved` for the
+    // opposite reason: a re-served block CC did not send in THIS request is a
+    // byte on the wire with no R-side counterpart, and the gate must be able
+    // to tell a declared re-serve from an invented one.
     ctx.meta = ctx.meta || {};
     ctx.meta.freshSessionSortStats = {
       relocated: relocatedTypes.map((t) => ({ type: t, firstAppearance: occurrences.get(t) === 1 })),
+      reserved: emittedTypes.filter((t) => !found.has(t)),
       rewrote: relocatedTypes,
       targetIndex: firstUserIdx,
     };
