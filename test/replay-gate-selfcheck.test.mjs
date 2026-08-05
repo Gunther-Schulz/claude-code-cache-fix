@@ -1685,3 +1685,112 @@ test("conservation: BITE — declared smoosh-split stats do not survive a tamper
   ]);
   assert.equal(v.length, 2, "a declared but unverifiable peel is not exempt");
 });
+
+// --- Threat-matrix row 25: relocated-block DEPARTURES (2026-08-05) ---
+//
+// DEFINITION, written before the assertions: a DEPARTURE is a consecutive
+// SAME-CONVERSATION pair (prev, cur) in which a relocatable
+// <system-reminder> type is PRESENT somewhere in prev's pre-pipeline message
+// array and ABSENT everywhere in cur's. Presence is the whole axis — the
+// type's index may move and its bytes may change without being a departure
+// (the relocation is index-independent, and CC's newer bytes simply win),
+// while a type CC stops sending is the case `fresh-session-sort`'s
+// per-conversation memory exists for: before 65d0455 the extension re-derived
+// its relocated set from the CURRENT array, so our forwarded messages[0] lost
+// the block and CC's edit at index k became OUR edit at index 0.
+//
+// What a row must carry beyond "it happened": `prefixAboveMessages`, the
+// pair's COST reading. The occurrence that opened row 25 (s-captureAB
+// n=331->336) cost nothing — CC churned tools 11->9 and its first system
+// block in the same request, so the prefix was already broken two levels
+// above messages. `intact: true` is therefore the sub-count that says whether
+// the mitigation was worth shipping, and it is the reason a bare total is not
+// an answer.
+import { findRelocDepartures } from "../tools/replay.mjs";
+
+const MCP_BLOCK = "<system-reminder>\n# MCP Server Instructions\n\nqgis: use the tools.\n</system-reminder>";
+const SKILLS_BLOCK = "<system-reminder>\nThe following skills are available for use:\n\n- one: a skill\n</system-reminder>";
+const reloc = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
+const RELOC_TOOLS = [{ name: "Read" }, { name: "Write" }];
+// Every entry in these bites carries tools/system on BOTH sides, so `intact`
+// is a measured true/false rather than the degenerate null===null case.
+const withPrefix = (extra = {}) => ({
+  inTools: RELOC_TOOLS, outTools: RELOC_TOOLS, inSystem: "S", outSystem: "S", ...extra,
+});
+
+test("relocDepartures: a successor that drops a relocated block is one row, typed and priced", () => {
+  const prevIn = [user("u0"), asst("a1"), user("u2"), reloc(MCP_BLOCK)];
+  const curIn = [user("u0"), asst("a1"), user("u2"), user("u3-no-mcp")];
+  const rows = findRelocDepartures([
+    entry(0, prevIn, prevIn, withPrefix()),
+    entry(1, curIn, curIn, withPrefix()),
+  ]);
+  assert.equal(rows.length, 1, "exactly one departure — one type left the array");
+  assert.equal(rows[0].type, "mcp");
+  assert.equal(rows[0].prevMsgIdx, 3, "the raw index the departing instance sat at");
+  assert.equal(rows[0].n, 1);
+  assert.equal(rows[0].prevN, 0, "the pair is named by both ends, never by n-1");
+  assert.equal(rows[0].prefixAboveMessages.intact, true,
+    "tools[] and system held across the pair — this departure re-bills the whole message array");
+});
+
+test("relocDepartures: control — the block still present is NOT a departure", () => {
+  // Present at a DIFFERENT index, with DIFFERENT bytes: neither is the class.
+  // Only absence is.
+  const prevIn = [user("u0"), asst("a1"), reloc(MCP_BLOCK), user("u3")];
+  const curIn = [user("u0"), asst("a1"), user("u2-edited"), reloc(MCP_BLOCK + "\n")];
+  const rows = findRelocDepartures([
+    entry(0, prevIn, prevIn, withPrefix()),
+    entry(1, curIn, curIn, withPrefix()),
+  ]);
+  assert.deepEqual(rows, [], "a moved or re-written block is not a departure");
+});
+
+test("relocDepartures: control — two DIFFERENT conversations are never paired", () => {
+  // The hand-rolled-identity trap this repo has paid for repeatedly: these two
+  // requests sit adjacent on the wire and the second lacks the block, but they
+  // are different conversations (different messages[0]) and must not be
+  // compared at all.
+  const convA = [user("convA-root"), reloc(MCP_BLOCK)];
+  const convB = [user("convB-root-different"), user("no-mcp-here")];
+  const rows = findRelocDepartures([
+    entry(0, convA, convA, withPrefix()),
+    entry(1, convB, convB, withPrefix()),
+  ]);
+  assert.deepEqual(rows, [], "no cross-conversation pairing");
+});
+
+test("relocDepartures: a departure whose forwarded tools also moved is priced as FREE", () => {
+  // The row-25 occurrence's own shape: the prefix broke above messages in the
+  // same request, so the message-level flip adds nothing to the bill. Folding
+  // this into the total is how a free row gets carried as the most expensive
+  // item open.
+  const prevIn = [user("u0"), reloc(SKILLS_BLOCK)];
+  const curIn = [user("u0"), user("u1-no-skills")];
+  const rows = findRelocDepartures([
+    entry(0, prevIn, prevIn, withPrefix()),
+    entry(1, curIn, curIn, withPrefix({ inTools: [{ name: "Read" }], outTools: [{ name: "Read" }] })),
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].type, "skills");
+  assert.equal(rows[0].prefixAboveMessages.intact, false,
+    "our forwarded tools[] changed across the pair — no marginal cost");
+});
+
+// The three-answer rule (dev-loop.md, "A checker has THREE answers") applied
+// to the stability line's cost tag. DEFINITION: `prefixAboveMessages` absent
+// from a record means the measurement was never taken — which is neither
+// "intact" nor "already broken", and printing it as INTACT reports the most
+// expensive verdict on no evidence. Absent is its own answer.
+import { prefixCostTag } from "../tools/replay.mjs";
+
+test("prefixCostTag: BITE — an ABSENT measurement is NOT reported as intact", () => {
+  assert.match(prefixCostTag(undefined), /NOT MEASURED/);
+  assert.match(prefixCostTag(null), /NOT MEASURED/);
+  assert.doesNotMatch(prefixCostTag(undefined), /INTACT/);
+  assert.match(prefixCostTag({ intact: true }), /INTACT/);
+  assert.match(
+    prefixCostTag({ intact: false, ourToolsIdentical: false, ourSystemIdentical: true }),
+    /ALREADY broken above messages: tools changed/,
+  );
+});

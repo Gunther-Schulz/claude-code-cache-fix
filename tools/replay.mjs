@@ -263,6 +263,24 @@ function prefixAboveMessages(prev, cur) {
   };
 }
 
+// The three answers of `prefixAboveMessages`, rendered once for every line
+// that prints it (the stability violations above, the relocated-block
+// departures below). ABSENT is its own answer and not a synonym for intact:
+// a record with no tools/system hashes was never measured, and printing that
+// as "INTACT -> the whole message array re-bills" reports the most expensive
+// verdict on no evidence — dev-loop.md's "A checker has THREE answers",
+// which this file has paid for three times.
+export function prefixCostTag(p) {
+  if (!p) return " [prefix above messages NOT MEASURED — record carries no tools/system hashes]";
+  if (p.intact === false) {
+    const what = [p.ourToolsIdentical ? null : "tools", p.ourSystemIdentical ? null : "system"]
+      .filter(Boolean)
+      .join("+");
+    return ` [prefix ALREADY broken above messages: ${what} changed -> no marginal cost]`;
+  }
+  return " [prefix above messages INTACT -> the whole message array re-bills]";
+}
+
 function scanGroup(entries) {
   const violations = [];
   const exemptions = [];
@@ -674,6 +692,36 @@ function outputContentHash(m) {
   return sha(JSON.stringify([m?.role ?? null, hashMessageContent({ content })]));
 }
 
+// The relocation ORDER fresh-session-sort prepends in, reused here only to
+// make `inReloc` deterministic across runs (a Map's insertion order would
+// otherwise depend on where in the array each type happened to sit).
+const RELOC_TYPES = ["deferred", "mcp", "skills", "hooks"];
+
+// The LAST instance of each relocatable <system-reminder> type in a message
+// array, as {type, msgIdx} — at most four entries, indices only, no bodies
+// (the heap discipline that lets this gate run on a 1 GB capture).
+//
+// "Last" mirrors the extension, which scans BACKWARDS and keeps the newest
+// instance of each type; `findRelocDepartures` reads only PRESENCE, so the
+// index is context for the reader rather than part of the comparison.
+// Membership and typing are IMPORTED (`isRelocatableBlock` / `getBlockType`),
+// never restated — a checker that re-derives the predicate it checks drifts
+// from the code silently, and both predicates already live one import away.
+function lastRelocByType(msgs) {
+  const last = new Map();
+  for (let i = 0; i < msgs.length; i++) {
+    const content = msgs[i]?.content;
+    if (!Array.isArray(content)) continue;
+    for (const b of content) {
+      const text = b?.text ?? "";
+      if (!isRelocatableBlock(text)) continue;
+      const type = getBlockType(text);
+      if (type !== null) last.set(type, i);
+    }
+  }
+  return RELOC_TYPES.filter((t) => last.has(t)).map((t) => ({ type: t, msgIdx: last.get(t) }));
+}
+
 export function compactEntry(e) {
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
@@ -713,6 +761,11 @@ export function compactEntry(e) {
     // what lets rebilledOutBytes be priced without retaining a message body.
     outBytes: outMsgs.map((m) => JSON.stringify(m).length),
     inSem: semanticIds(inMsgs),
+    // Which relocatable block types CC sent in THIS (pre-pipeline) request,
+    // and where the last instance of each sat. The PRESENCE axis threat-matrix
+    // row 25 turns on — `findRelocDepartures` is the consumer, and it is the
+    // only thing that survives here: hashes and indices, never a block body.
+    inReloc: lastRelocByType(inMsgs),
     inBlocks: inUnits.map((us) => us.map(({ hash, wrapped, standalone }) => ({ hash, wrapped, standalone }))),
     // The two join hashes of message i, by the SAME "\n\n" rule the extension
     // and the conservation gate use (joinUnitHash / crossJoinUnitHash — one
@@ -1270,6 +1323,72 @@ export function findAbsorptionMisses(entries) {
     }
   }
   return rows;
+}
+
+// Threat-matrix row 25, asked of the whole corpus instead of of one hand-read
+// pair. The mitigation (65d0455, fresh-session-sort's per-conversation
+// relocation memory) shipped on a single measured occurrence; what nobody
+// knows is the class's RATE, and that is what this counts.
+//
+// DEFINITION, written before the code: a relocated-block DEPARTURE is a
+// consecutive SAME-CONVERSATION pair (prev, cur) in which a relocatable
+// <system-reminder> type is PRESENT somewhere in prev's pre-pipeline message
+// array and ABSENT everywhere in cur's. Presence is the entire axis. A type
+// that MOVED to another index has not departed (the relocation is
+// index-independent), and a type whose BYTES changed has not departed either
+// (CC's newer bytes simply win) — only a type CC stops sending is the case
+// the memory exists to cover, because before the fix the extension re-derived
+// its relocated set from the CURRENT array and our forwarded messages[0] lost
+// the block while CC's own messages[0] was byte-identical: CC's edit at index
+// k became OUR edit at index 0. One row per departing TYPE, so a pair that
+// drops two types yields two rows.
+//
+// `prefixAboveMessages` is what separates a costly departure from a free one,
+// and it is why a bare total answers nothing: row 25's own occurrence
+// (s-captureAB n=331->336) had CC churning tools[] 11->9 and its first system
+// block in the SAME request, so the prefix was already broken two levels above
+// messages and an index-0 divergence on a ~413k-token session cost nothing.
+// `intact: true` is the sub-count that says whether the mitigation was worth
+// shipping, and the summary prints it separately for that reason.
+//
+// A REPORT, never a gate: it touches no exit code and no verdict. Always on
+// rather than behind --census, for `findAbsorptionMisses`' reason — the whole
+// point of the class is that nobody knows to look for it.
+export function findRelocDepartures(entries) {
+  const groups = new Map();
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    const g = `${e.key}|${cid}`;
+    if (!groups.has(g)) groups.set(g, []);
+    groups.get(g).push(e);
+  }
+  const rows = [];
+  for (const group of groups.values()) {
+    for (let i = 1; i < group.length; i++) {
+      const prev = group[i - 1];
+      const cur = group[i];
+      const present = new Set((cur.inReloc ?? []).map((r) => r.type));
+      for (const { type, msgIdx } of prev.inReloc ?? []) {
+        if (present.has(type)) continue;
+        rows.push({
+          n: cur.n,
+          prevN: prev.n,
+          ts: cur.ts,
+          key: cur.key,
+          type,
+          // Raw WIRE index, in CC's pre-pipeline array — not a forwarded one.
+          // The two coordinate spaces differ by whatever the pipeline removed
+          // (measured elsewhere in this file: raw 370 forwards as 360), so the
+          // name says which space it is in.
+          prevMsgIdx: msgIdx,
+          prefixAboveMessages: prefixAboveMessages(prev, cur),
+        });
+      }
+    }
+  }
+  return rows.sort((a, b) => a.n - b.n);
 }
 
 export function findEditPositions(entries) {
@@ -2812,6 +2931,10 @@ async function main() {
   // 349k bust replay green, so it must be in every run's output rather than
   // behind a flag someone has to remember.
   const absorptionMisses = findAbsorptionMisses(stability);
+  // Also always on, and for the same reason: row 25's class was found by
+  // reading one pair by hand, so a flag someone has to remember would leave
+  // the rate unmeasured exactly as it is now. A REPORT — no exit code moves.
+  const relocDepartures = findRelocDepartures(stability);
   const blockMigrations = args.census ? findBlockMigrations(stability) : null;
   const successions = args.census ? findSuccessions(stability) : null;
   const duplicateRequests = args.census ? findDuplicateRequests(stability) : null;
@@ -2920,7 +3043,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -2968,13 +3091,11 @@ async function main() {
           // What it cost, on the same line as what it was: a divergence inside
           // messages re-bills nothing extra when our own tools[] or system
           // moved across the same pair, and reading outDiv without this is how
-          // a free row gets ranked as an expensive one.
-          `${v.prefixAboveMessages?.intact === false
-            ? ` [prefix ALREADY broken above messages: ${[
-              v.prefixAboveMessages.ourToolsIdentical ? null : "tools",
-              v.prefixAboveMessages.ourSystemIdentical ? null : "system",
-            ].filter(Boolean).join("+")} changed -> no marginal cost]`
-            : " [prefix above messages INTACT -> the whole message array re-bills]"}` +
+          // a free row gets ranked as an expensive one. Three-valued via
+          // prefixCostTag — an ABSENT measurement used to fall through to the
+          // INTACT branch, i.e. a missing measurement printed as the most
+          // expensive verdict.
+          prefixCostTag(v.prefixAboveMessages) +
           ` <- ${who}\n`,
       );
     }
@@ -2990,6 +3111,26 @@ async function main() {
         `  n=${x.prevN}->${x.n} ts=${x.ts} inDiv=${x.inDiv ?? "append-only"} outDiv=${x.outDiv}` +
           ` <- ${x.exemptReason} (${x.exemptBasis.type})\n`,
       );
+    }
+
+    // Threat-matrix row 25, sized rather than asserted. The two numbers are
+    // stated SEPARATELY on purpose: the total says how often CC stops sending
+    // a relocated block, and the intact sub-count says how many of those cost
+    // anything at all — folding the second into the first is exactly how this
+    // row's single occurrence was carried into a handoff as the most expensive
+    // item in the repo when it had cost nothing.
+    {
+      const costly = relocDepartures.filter((r) => r.prefixAboveMessages?.intact === true).length;
+      process.stdout.write(
+        `\nrelocated-block departures (row 25 — REPORT, not a gate): ${relocDepartures.length} total,` +
+          ` ${costly} with the forwarded prefix above messages INTACT (those are the ones that cost)\n`,
+      );
+      for (const r of relocDepartures.slice(0, 20)) {
+        process.stdout.write(
+          `  n=${r.prevN}->${r.n} ts=${r.ts} type=${r.type} departed from raw msg[${r.prevMsgIdx}]` +
+            prefixCostTag(r.prefixAboveMessages) + "\n",
+        );
+      }
     }
 
     process.stdout.write(`\ncanonical order violations (state model vs wire): ${orderViolations.length}\n`);
