@@ -8,7 +8,59 @@ bullet, evidence pointer included.
 
 ## Open
 
-- **HANDOFF 2026-08-05 LATE — read this first; it supersedes the
+- **HANDOFF 2026-08-05 EVENING — read this first; it supersedes both
+  handoffs below.** Written at ~274k tokens on the depth rule, with
+  work remaining and no blocker — the restart is the recommendation,
+  not an exhaustion.
+  **READ `docs/dev-loop.md` BEFORE THE FIRST CHANGE.** Not the pointer
+  to it, the file. This session spent an afternoon re-deriving a design
+  that closing-gate question 2 already stated in full, because the
+  overlay carried a shorthand of the four questions good enough to feel
+  sufficient. The shorthand is gone now (dotfiles f1eefc3) and question
+  2 is widened for recurring producers (2fa2807). Do not re-add a
+  summary anywhere.
+  **STATE: everything committed and pushed, both repos.** Fork main at
+  2fa2807; dotfiles at a8c506e. Proxy deployed and verified
+  content-to-content (`sourceFingerprint(disk)` == `/health proxy_tree`
+  == `3c14d4fd3446`), dotfiles pin `8c747aa`. Suite 2128/2128.
+  **WHAT SHIPPED:** the absorption-miss classifier (`tools/
+  absorption-classify.mjs`, 8-class ladder, two-pass with a mandatory
+  cross-check), `--dump-forwarded`/`--dump-out` on replay, `prevN` on
+  absorption rows, `absorptionMissRows` persisted by the sweep, and
+  the container fix itself (04ed3c9) — the re-serve now emits the
+  container the entry was LAST SEEN in, at all four re-serve sites.
+  **THE NUMBER THAT MATTERED IS ANSWERED.** The morning's "50 misses,
+  40 ours, unexplained" is one mechanism: 41 of 41 rows CONTAINER,
+  every other class zero. The fix removed it — 15 rows gone, 26 moved
+  to a later index, 0 reclassified at the same index.
+  **THE NEXT NUMBER, and it is the successor: CACHE-CONTROL 14** (plus
+  TEXT 15), out of 30 remaining misses, 24 ours. Both classes scored
+  ZERO before the fix because the container divergence masked them.
+  This is the same shape as the morning's 40, one layer down, and
+  today's two busts (349k, 786k) are what an unabsorbed miss costs.
+  **RECOMMENDED ORDER for the next session**, and the first item is
+  the instrument for the second:
+  (1) `builtByUs` + pin-at-finding as ONE dispatch — both `tools/`,
+  both touch replay.mjs/gate-live.mjs, so one lane and sequential.
+  `builtByUs` turns the `ours` split from a floor into a count (a row
+  whose bytes were provably ours was scored not-ours today);
+  pin-at-finding makes the evidence outlive the corpus and is the
+  written revert trigger for the retention bridge.
+  (2) Classify the CACHE-CONTROL layer.
+  NOT worth the next session: the single surviving CONTAINER row
+  (n=334 of the 597 MB capture) — one instance behind a deliberate
+  fail-closed boundary, against fourteen in the next class.
+  **ROW 4 IS NOT CLOSED.** The container fix is necessary and not
+  sufficient for the 349k bust: on its own capture the divergence
+  moved from index 360 to 373 and reclassified to TEXT, attributed to
+  CC's own input (`inDiv` 369).
+  **THE BRIDGE THAT MUST BE RETIRED:** capture retention is at 12288,
+  raised from 8192 because the corpus was evicting captures an
+  analysis still needed. Revert when pin-at-finding lands; the trigger
+  is written in the dotfiles unit file where the knob lives.
+
+- **HANDOFF 2026-08-05 LATE — superseded by the evening handoff above;
+  its UPSTREAM section is still current.** It supersedes the
   handoff below on every point they disagree.** Everything is
   committed and pushed (fork-main and dotfiles both clean, 0 unpushed).
   Suite 2112/2112. Deployed tree `9ef42be576bd`, /health verified
