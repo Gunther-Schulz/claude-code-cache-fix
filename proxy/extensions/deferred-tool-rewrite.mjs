@@ -46,12 +46,40 @@
 //     incoming array's order;
 //   - present but fingerprint-changed → the one honest case: passthrough
 //     + full reset (the directive's "never paper over a real edit" — and
-//     specifically never serve a stale schema for a name that changed).
+//     specifically never serve a stale schema for a name that changed) —
+//     EXCEPT where the whole difference is DESCRIPTION prose (below).
 // A new name (not in the known set) is additively marked
 // defer_loading:true and announced via one appended tool_addition system
 // block, exactly as before. Any combination of held + new in the same
 // request composes (both are additive from the wire's perspective; only
 // a fingerprint change is destructive).
+//
+// DESCRIPTION-ONLY delta (threat-matrix rows 23 and 24, 2026-08-02) — the
+// fourth outcome, `description-absorbed`. Live bust 15:53:46: 13 tools
+// before, 13 after, same order, exactly one field in the whole array
+// different — Bash.description, one added advisory line — with
+// input_schema BYTE-IDENTICAL, and 484,972 tokens of context re-written
+// for it, because tools[] renders before system and messages so no
+// breakpoint survives a tools delta. Row 24's /resume case is the same
+// shape by construction: CC embeds the session id in the Bash
+// description, so every /resume changes tools[].
+//
+// Why this is safe where a schema change is not: identical input_schema
+// guarantees the model cannot emit a call the client is unable to
+// execute. A stale DESCRIPTION costs the model current prose; a stale
+// SCHEMA costs the client a call it cannot run. So the canonical array is
+// forwarded byte-identically and the NEW prose is delivered in-band on
+// the SAME announcement machinery an addition uses (a mid-conversation
+// system message, beta-gated, anchored, re-injected every request). The
+// absorb requires the tools[] identity to be otherwise untouched — same
+// count, same names, every input_schema byte-identical; SET-identity, not
+// order-identity (2026-08-05): sort-stabilization already name-sorts every
+// incoming array, so incoming order is not a preserved property, and the
+// canonical's first-seen order goes on the wire either way. Any
+// other difference keeps today's honest reset. And a model with no
+// announcement channel takes the honest reset too, tagged
+// `descriptionFallback` so the real cause is not buried under
+// "tool-schema-changed": a stale description is never served silently.
 //
 // Phase B stops at: documented shapes + persistent re-injection,
 // validated by unit tests and replay A/B (directive addendum's gates 1-2).
@@ -303,6 +331,16 @@ export function stripVolatileDescription(desc) {
   return out.replace(/\n{2,}/g, "\n").trim();
 }
 
+// The safety boundary of the description absorb, isolated so the predicate
+// that decides "stale is safe here" is one readable expression: two tools
+// carry the same CALLABLE contract when their input_schema is identical
+// under the same canonicalization the fingerprint uses. Everything the model
+// could get WRONG from a stale description is prose; everything it could get
+// wrong from a stale schema is a call the client cannot execute.
+function schemaIdentity(tool) {
+  return JSON.stringify(canonicalize(tool?.input_schema ?? null));
+}
+
 export function toolFingerprint(tool) {
   if (!tool || typeof tool !== "object" || typeof tool.name !== "string") return null;
   return JSON.stringify(
@@ -321,6 +359,7 @@ export function toolFingerprint(tool) {
 //   { action: "unchanged", knownTools }                                               — incoming === known set, same order; forward unchanged
 //   { action: "reset", knownTools, reason }                                           — a known tool's schema changed; forward unchanged, re-baseline
 //   { action: "rewrite", tools, newNames, heldNames, knownTools }                      — held removal and/or reorder and/or pure addition; onRequest forwards forwardedTools(knownTools, additions) and injects the addition message
+//   { action: "description-absorbed", knownTools, descriptionChanges }                 — DESCRIPTION prose only, identical schemas/names/order; knownTools is the FIRST-SEEN array unchanged, and descriptionChanges carries the NEW prose for the in-band announcement
 export function classifyToolChange(incomingTools, priorKnownTools) {
   if (!Array.isArray(priorKnownTools)) {
     return { action: "no-baseline", knownTools: incomingTools };
@@ -332,11 +371,21 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
   // Schema-change scan runs over every name present in BOTH sets — absence
   // is handled separately below (held, not reset) — so a removal elsewhere
   // in the array never short-circuits this check.
+  //
+  // A fingerprint difference splits in two, and only the split is new: an
+  // input_schema difference is the destructive case and returns immediately,
+  // as it always did; a difference confined to the DESCRIPTION is collected
+  // and decided after the set/order checks below, because the absorb it
+  // enables is only legal when nothing ELSE about tools[] moved.
+  const descriptionChanges = [];
   for (const [name, priorTool] of priorByName) {
     const incomingTool = incomingByName.get(name);
-    if (incomingTool && toolFingerprint(incomingTool) !== toolFingerprint(priorTool)) {
+    if (!incomingTool) continue;
+    if (toolFingerprint(incomingTool) === toolFingerprint(priorTool)) continue;
+    if (schemaIdentity(incomingTool) !== schemaIdentity(priorTool)) {
       return { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
     }
+    descriptionChanges.push({ name, description: incomingTool.description });
   }
 
   const priorOrderNames = [...priorByName.keys()];
@@ -344,11 +393,31 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
   const newNames = [...incomingByName.keys()].filter((name) => !priorByName.has(name));
 
   const incomingOrderNames = incomingTools.map((t) => t.name);
-  const orderMatches =
+  // Same names in both directions AND same array length — the length guard
+  // keeps a degenerate duplicate-name array out of the set-identical class,
+  // since the by-name maps above collapse duplicates silently.
+  const sameSet =
     heldNames.length === 0 &&
     newNames.length === 0 &&
-    incomingOrderNames.length === priorOrderNames.length &&
-    incomingOrderNames.every((name, i) => name === priorOrderNames[i]);
+    incomingOrderNames.length === priorOrderNames.length;
+  const orderMatches =
+    sameSet && incomingOrderNames.every((name, i) => name === priorOrderNames[i]);
+
+  // The absorb's precondition is SET-identity, not order-identity (decision
+  // 2026-08-05): sort-stabilization (order 200) name-sorts tools[] on every
+  // request, so incoming order is not a property this pipeline preserves —
+  // and the canonical's own first-seen order goes on the wire either way, so
+  // admitting a reordered-but-set-identical array changes zero wire bytes. A
+  // description delta arriving ALONGSIDE an add or a removal is still not
+  // this class and takes the reset it took before — the safety argument
+  // ("the schema the model calls against is unchanged") needs every name
+  // present with its schema byte-identical, which the scan above enforced.
+  if (descriptionChanges.length > 0) {
+    if (!sameSet) {
+      return { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
+    }
+    return { action: "description-absorbed", knownTools: priorKnownTools, descriptionChanges };
+  }
 
   if (orderMatches) {
     return { action: "unchanged", knownTools: priorKnownTools };
@@ -385,6 +454,80 @@ export function buildToolAdditionMessage(toolNames) {
       tool: { type: "tool_reference", name },
     })),
   };
+}
+
+// The description announcement. Same carrier as tool_addition — one
+// system-ROLE message in messages[], legalised by the same beta and
+// re-injected by the same anchor machinery — but TEXT blocks, not
+// tool_addition blocks: nothing is being added to tools[], so there is no
+// tool to reference. The tool is already loaded and its schema is
+// unchanged; the only thing the model is missing is the new prose, so the
+// new prose is what the block carries, verbatim.
+const DESCRIPTION_NOTICE_PREFIX = "The description of the `";
+const DESCRIPTION_NOTICE_MARKER = "` tool has been updated. Its parameters are unchanged";
+
+export function buildDescriptionChangeMessage(changes) {
+  return {
+    role: "system",
+    content: changes.map(({ name, description }) => ({
+      type: "text",
+      text:
+        `${DESCRIPTION_NOTICE_PREFIX}${name}${DESCRIPTION_NOTICE_MARKER} — ` +
+        `call it exactly as before. Its current description is:\n\n${description}`,
+    })),
+  };
+}
+
+// Recognizer for the message the builder above produces, exported for
+// replay's declared-injection exemption. It lives HERE, sharing the
+// builder's own template constants, so the two cannot drift apart — a
+// recognizer re-stating the prose in tools/ would silently stop matching
+// the day the template changed, and the gate would go red on legitimate
+// work. Shape-based rather than telemetry-keyed on purpose: replay must
+// also strip an input-side ECHO of this message (a chained proxy feeding
+// the pipeline its own output — the case that broke the tool_addition
+// exemption one-sided on 2026-07-29), and an echo carries no telemetry.
+export function isDescriptionNotice(msg) {
+  if (!msg || msg.role !== "system" || !Array.isArray(msg.content) || !msg.content.length) return false;
+  return msg.content.every(
+    (b) =>
+      b &&
+      b.type === "text" &&
+      typeof b.text === "string" &&
+      b.text.startsWith(DESCRIPTION_NOTICE_PREFIX) &&
+      b.text.includes(DESCRIPTION_NOTICE_MARKER),
+  );
+}
+
+// Description notices ride in the SAME persisted `additions` list as
+// tool_addition announcements (one injection mechanism, one anchor
+// mechanism, one beta token) and are told apart by `kind` — entries
+// written before this existed have none, which reads correctly as
+// "addition" everywhere it is checked.
+const DESCRIPTION_KIND = "description";
+
+// Dedupe, and it is the difference between a steady state of one
+// announcement and one per request: the canonical never absorbs the new
+// prose, so the delta is re-detected on EVERY subsequent request. At most
+// one description notice exists at a time; an unchanged signature leaves
+// the persisted entry — and therefore the forwarded bytes — untouched, and
+// a changed one replaces it in place, keeping the established anchor so the
+// announcement does not also move.
+export function upsertDescriptionNotice(additions, changes, anchorMsg) {
+  const sig = JSON.stringify(changes);
+  const existing = additions.find((a) => a.kind === DESCRIPTION_KIND);
+  if (existing && existing.sig === sig) return additions;
+  return additions
+    .filter((a) => a.kind !== DESCRIPTION_KIND)
+    .concat([
+      {
+        kind: DESCRIPTION_KIND,
+        sig,
+        names: changes.map((c) => c.name),
+        anchorHash: existing?.anchorHash ?? anchorHash(anchorMsg),
+        message: buildDescriptionChangeMessage(changes),
+      },
+    ]);
 }
 
 // Identity hash for an anchor message. hashMessageContent covers
@@ -441,13 +584,16 @@ export function injectAdditions(messages, additions) {
     if (idx < 0) {
       if (lastUserIdx >= 0) {
         landingIdx = lastUserIdx;
-        reanchored.push({ names: add.names, anchorHash: anchorHash(messages[lastUserIdx]) });
+        // `kind` rides along only when set: the caller matches the report
+        // back to its entry by (names, kind), and a description notice can
+        // legitimately carry the same names as an addition for the same tool.
+        reanchored.push({ names: add.names, anchorHash: anchorHash(messages[lastUserIdx]), ...(add.kind ? { kind: add.kind } : {}) });
       } else {
         // No user message at all — cannot satisfy the placement
         // constraint; skip this injection (the tool stays deferred and
         // unloaded this request; honest degradation, not a malformed
         // request).
-        reanchored.push({ names: add.names, anchorHash: null });
+        reanchored.push({ names: add.names, anchorHash: null, ...(add.kind ? { kind: add.kind } : {}) });
         continue;
       }
     }
@@ -469,8 +615,12 @@ export function injectAdditions(messages, additions) {
 // with every name covered by an addition marked defer_loading — the
 // classifier's knownTools stores UNMARKED objects (fingerprints must
 // match CC's raw array), so the marker is applied at forward time.
+//
+// Description notices are excluded from that name set: the tool they name
+// is already loaded and stays loaded, and marking it defer_loading would
+// both be a lie and change the very bytes the absorb exists to hold still.
 export function forwardedTools(knownTools, additions) {
-  const deferredNames = new Set(additions.flatMap((a) => a.names));
+  const deferredNames = new Set(additions.filter((a) => a.kind !== DESCRIPTION_KIND).flatMap((a) => a.names));
   return knownTools.map((t) => (deferredNames.has(t.name) ? { ...t, defer_loading: true } : t));
 }
 
@@ -532,8 +682,25 @@ export default {
     const sessionKey = resolveToolRewriteSessionKey(headers, body);
 
     try {
+      const incomingTools = body.tools;
       const prior = await loadState(dir, sessionKey, fs);
-      const result = classifyToolChange(body.tools, prior?.tools ?? null);
+      let result = classifyToolChange(incomingTools, prior?.tools ?? null);
+
+      const announceOk = supportsToolAddition(body?.model);
+
+      // FALLBACK, and it is load-bearing: absorbing a description delta is
+      // only honest because the model is TOLD the new prose in-band. Where
+      // there is no channel to tell it on — an un-allowlisted model, or no
+      // message to anchor to — the absorb is not available and the honest
+      // reset stands. `descriptionFallback` keeps the real cause visible;
+      // without it this reset is indistinguishable in telemetry from a
+      // genuine schema change, which is the class it exists to separate.
+      const canAnnounce = announceOk && Array.isArray(body.messages) && body.messages.length > 0;
+      let descriptionFallback = null;
+      if (result.action === "description-absorbed" && !canAnnounce) {
+        descriptionFallback = result.descriptionChanges.map((c) => c.name);
+        result = { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
+      }
 
       // Carry prior additions forward except on reset (a schema change
       // re-baselines everything — the harness's own tools[] becomes truth
@@ -547,7 +714,6 @@ export default {
       // persisted before this gate existed (a session that accumulated
       // additions under the old build must not keep replaying them into a
       // model that 400s on them).
-      const announceOk = supportsToolAddition(body?.model);
       if (!announceOk) additions = [];
 
       // A suppressed announcement is a real cost and must not be silent: the
@@ -593,6 +759,19 @@ export default {
         ]);
       }
 
+      // The description absorb's other half: the canonical tools[] goes on
+      // the wire unchanged (below), so the new prose has to reach the model
+      // here or not at all. Anchored after the current last message like an
+      // addition, and upserted rather than appended — see the dedupe note on
+      // upsertDescriptionNotice.
+      if (result.action === "description-absorbed") {
+        additions = upsertDescriptionNotice(
+          additions,
+          result.descriptionChanges,
+          body.messages[body.messages.length - 1],
+        );
+      }
+
       // Forward the frozen array whenever we hold state: rewrite uses the
       // classifier's held order; "unchanged" ALSO re-forwards it when
       // additions exist, because CC's incoming array never carries our
@@ -600,7 +779,7 @@ export default {
       // every added tool. no-baseline and reset pass through untouched.
       if (result.action === "rewrite") {
         body.tools = forwardedTools(result.knownTools, additions);
-      } else if (result.action === "unchanged") {
+      } else if (result.action === "unchanged" || result.action === "description-absorbed") {
         // ALWAYS re-forward the frozen array here, not only when additions
         // exist. Two reasons, and the second was measured the hard way:
         //   - CC's incoming array never carries our defer_loading markers, so
@@ -611,7 +790,13 @@ export default {
         //     the flip straight back on the wire and invalidate tools[] —
         //     making the identity fix pointless. The frozen array is the
         //     first-seen form, so the wire stays byte-stable.
-        body.tools = forwardedTools(prior.tools, additions);
+        // "description-absorbed" shares this branch because it wants exactly
+        // the same thing, for a third variant of the same reason: its
+        // knownTools IS the frozen first-seen array (the classifier returns
+        // the prior one untouched), and forwarding CC's array instead would
+        // put the description delta on the wire — the whole bust the absorb
+        // exists to prevent.
+        body.tools = forwardedTools(result.knownTools, additions);
       }
 
       let reanchored = [];
@@ -621,7 +806,9 @@ export default {
         reanchored = injected.reanchored;
         if (reanchored.length > 0) {
           additions = additions.map((a) => {
-            const r = reanchored.find((x) => x.names.join() === a.names.join());
+            const r = reanchored.find(
+              (x) => x.names.join() === a.names.join() && (x.kind ?? null) === (a.kind ?? null),
+            );
             return r && r.anchorHash ? { ...a, anchorHash: r.anchorHash } : a;
           });
         }
@@ -640,6 +827,10 @@ export default {
         reason: result.reason ?? null,
         injected: additions.length,
         reanchored: reanchored.filter((r) => r.anchorHash).length,
+        ...(result.descriptionChanges
+          ? { descriptionChangedNames: result.descriptionChanges.map((c) => c.name) }
+          : {}),
+        ...(descriptionFallback ? { descriptionFallback } : {}),
       };
 
       await appendTelemetry(
@@ -653,6 +844,10 @@ export default {
           newNames: result.newNames ?? [],
           heldNames: result.heldNames ?? [],
           injected: additions.length,
+          ...(result.descriptionChanges
+            ? { descriptionChangedNames: result.descriptionChanges.map((c) => c.name) }
+            : {}),
+          ...(descriptionFallback ? { descriptionFallback } : {}),
           ...(suppressed ? { suppressed: true, model: body?.model } : {}),
           ...(reanchored.length > 0 ? { reanchored } : {}),
           ...(result.reason ? { reason: result.reason } : {}),
@@ -665,6 +860,8 @@ export default {
           `[deferred-tool-rewrite] action=${result.action}` +
             (result.newNames ? ` new=${result.newNames.join(",")}` : "") +
             (result.heldNames && result.heldNames.length ? ` held=${result.heldNames.join(",")}` : "") +
+            (result.descriptionChanges ? ` desc=${result.descriptionChanges.map((c) => c.name).join(",")}` : "") +
+            (descriptionFallback ? ` descFallback=${descriptionFallback.join(",")}` : "") +
             (result.reason ? ` reason=${result.reason}` : "") +
             "\n",
         );

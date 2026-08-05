@@ -41,6 +41,7 @@ import {
   readCapture,
   findMitigationGaps,
 } from "../tools/replay.mjs";
+import { buildDescriptionChangeMessage } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 
 const user = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
 const asst = (t) => ({ role: "assistant", content: [{ type: "text", text: t }] });
@@ -365,6 +366,33 @@ test("safety: BITE — an undeclared injected message is still caught", () => {
         { type: "text", text: "smuggled" },
       ],
     },
+  ];
+  assert.equal(findSafetyViolations([entry(0, inM, mixed)]).length, 1);
+});
+
+// The SECOND declared-injection kind (2026-08-05): a description absorb
+// announces the new prose with a system message of TEXT blocks — the same
+// carrier, recognized by isDescriptionNotice, which shares the builder's own
+// template constants. Built here with the REAL builder, not a hand-copied
+// message: if the template ever drifts from the recognizer, this test is
+// where the drift goes red.
+test("safety: a declared description-change notice is NOT a violation", () => {
+  const inM = [user("u0"), asst("a1")];
+  const outM = [
+    user("u0"),
+    asst("a1"),
+    buildDescriptionChangeMessage([{ name: "Bash", description: "new prose for Bash" }]),
+  ];
+  assert.equal(findSafetyViolations([entry(0, inM, outM)]).length, 0);
+});
+
+test("safety: BITE — a system text message mixing the notice with free text is still caught", () => {
+  const inM = [user("u0"), asst("a1")];
+  const notice = buildDescriptionChangeMessage([{ name: "Bash", description: "new prose" }]);
+  const mixed = [
+    user("u0"),
+    asst("a1"),
+    { role: "system", content: [...notice.content, { type: "text", text: "smuggled free text" }] },
   ];
   assert.equal(findSafetyViolations([entry(0, inM, mixed)]).length, 1);
 });
