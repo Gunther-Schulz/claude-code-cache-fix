@@ -169,7 +169,6 @@ function formatFinding(f) {
 //               pointer that is one `git stash push` away from meaning
 //               something else entirely.
 //   PATH-DEAD   a repo-relative path that does not exist in the working tree.
-//   COMMIT-DEAD a short hex token `git cat-file -e <t>^{commit}` rejects.
 //   REF-DEAD    a named branch/tag pattern with no matching ref.
 //   ABS-PATH    an absolute machine path. Report-only and counted
 //               SEPARATELY: these are machine-local by nature, and the
@@ -189,10 +188,6 @@ function formatFinding(f) {
 //     ends with punctuation. That is what keeps `proxy/**` (a glob),
 //     `harvest --pin <key>` (a placeholder) and a sentence-final
 //     `docs/foo.md.` (ambiguous real name) from being flagged.
-//   * COMMIT-DEAD additionally requires the token to contain BOTH a digit
-//     and an a-f letter. Without it, English words that happen to be all
-//     hex ("defaced", "effaced", "acceded") and bare 8-digit dates
-//     ("20260805") are indistinguishable from short SHAs.
 //
 // WHAT THIS DELIBERATELY DOES NOT COVER:
 //   - fenced code blocks (``` … ```), and pointers written without backticks
@@ -330,16 +325,18 @@ export function lintPointers(text, env = {}) {
         if (!pathExists(file)) add("PATH-DEAD", file, `test -e ${file} -> absent`, index);
         continue;
       }
-      if (HEX_TOKEN.test(token) && /[0-9]/.test(token) && /[a-f]/.test(token)) {
-        // Dead means "resolves to nothing", so a token that names any object
-        // — commit, tree or blob — is alive and is not this lane's business.
-        if (objectProbe(token).ok) continue;
-        const probe = commitProbe(token);
-        if (!probe.ok) {
-          add("COMMIT-DEAD", token, `git cat-file -e ${token}^{commit} -> ${probe.proof}`, index);
-        }
-        continue;
-      }
+      // NO COMMIT-DEAD LANE, and this comment is the reason so nobody adds
+      // one back. It existed for one run and scored 0 for 8: every hex token
+      // it flagged belonged to a DIFFERENT namespace — a capture id, a
+      // proxy-source fingerprint, a session id — none of which is a git
+      // object and all of which fail resolution exactly the way a genuinely
+      // dead commit ref does. Nothing in a token's SHAPE separates them; only
+      // the surrounding prose does, and a context heuristic drifts. Residual
+      // risk, named rather than checked: a commit cited BEFORE integration
+      // (an agent's pre-cherry-pick hash) becomes unreachable and can be
+      // collected, so entries cite the INTEGRATED hash. That convention is
+      // the mitigation; this lane is not.
+      if (HEX_TOKEN.test(token) && /[0-9]/.test(token) && /[a-f]/.test(token)) continue;
       if (REF_PATTERNS.some((re) => re.test(token))) {
         const probe = refProbe(token);
         if (!probe.ok) {
@@ -354,7 +351,6 @@ export function lintPointers(text, env = {}) {
 export const POINTER_LABELS = [
   "STASH-REF",
   "PATH-DEAD",
-  "COMMIT-DEAD",
   "REF-DEAD",
   "ABS-PATH",
 ];

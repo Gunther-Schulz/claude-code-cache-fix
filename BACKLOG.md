@@ -1205,7 +1205,7 @@ bullet, evidence pointer included.
   hazard. Now closed at the spawn, red-first, measured.**
   WHAT HAPPENED: the same corruption, same signature — `core.bare =
   true`, `user.name = t`, `user.email = t@t` written into the SHARED
-  `/home/g/dev/vendor/claude-code-cache-fix/.git/config`, breaking
+  `<repo>/.git/config` (this clone), breaking
   the work tree for the main repo and all six live worktrees at once.
   Repaired by unsetting the three keys; nothing else in the config was
   touched, no commits lost, every worktree healthy afterwards
@@ -1537,7 +1537,8 @@ then the queued ones. Work the items in that order.
   inherited parents) and offered the #304-shaped workaround: a branch
   from upstream/main carrying only the 7 #295-specific commits
   (enumerate: commits on `pr/insertion-join-moves` not on its stack
-  parents). Cherry-pick onto `pr/insertion-join-moves-slim`; if a
+  parents). Cherry-pick onto the slim branch (deleted since; the entry is
+  DROPPED, so the name is history, not a pointer); if a
   pick depends materially on #272/#276 content, STOP and report —
   upstream's stated alternative is waiting for the parents to land.
   Verifier: suite green on the slim branch; diff shows only the
@@ -1719,7 +1720,7 @@ then the queued ones. Work the items in that order.
   proxy-* suite and two tests then appear to HANG for ~899 s. Both
   agents hit it and one of them misread it as CLAUDE.local's
   documented production-port hazard. Fix when creating a worktree:
-  `ln -s /home/g/dev/vendor/claude-code-cache-fix/node_modules
+  `ln -s <repo>/node_modules
   <worktree>/node_modules` (5 packages, that is all this repo
   needs). COROLLARY, and it corrects an earlier claim in this file:
   the "npm test can hang on the production port" warning is
@@ -1799,7 +1800,9 @@ then the queued ones. Work the items in that order.
   (test/insertion-ordinal-reattribution.test.mjs, 4,256 bytes).
   Original text follows, with the stale recipe kept only so the pointer's
   history is legible: implementation
-  lived in `stash@{0}`, "WIP on main: 1ea9804", 143 insertions / 4 deletions
+  lived in a stash that no longer exists — recovered and anchored as tag
+  `wip/ordinal-fix-2026-08-02`, see the correction at the head of this entry;
+  "WIP on main: 1ea9804", 143 insertions / 4 deletions
   in proxy/extensions/insertion-normalization.mjs. Its red-first bite
   is on disk UNTRACKED at test/insertion-ordinal-reattribution.test
   .mjs (88 lines) and is EXPECTED TO FAIL without the stash — do not
@@ -1874,7 +1877,8 @@ then the queued ones. Work the items in that order.
   of the corpus is booked in the dotfiles corpus backlog and must NOT
   run in a session that authored those mints.
   **PRIORITY ORDER for the next session**, highest value first:
-  (1) finish the ordinal fix from `stash@{0}` — it is the 535k-token
+  (1) finish the ordinal fix from tag `wip/ordinal-fix-2026-08-02`
+  (`git stash apply` it; the stash index it once lived at is gone) — it is the 535k-token
   class and the design is settled; (2) the description-absorb build,
   which now absorbs TWO measured classes (row 23 plus the row-24
   `/resume` tools layer, the better test case since it recurs on

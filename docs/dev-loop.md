@@ -118,6 +118,42 @@ reaches; the rest becomes a matrix row, never a TODO in the code. Doing this
 once immediately connected the new description-only row to row 6, which had
 sat at "OBSERVED, CAUSE NOT ISOLATED".
 
+**And the same enumeration along the ENTRY-PATH axis: a mechanism that
+guards one route is not a guard.** Four instances in one day (2026-08-05),
+each correct in itself and each with a silent bypass:
+
+| the guard | the route it held | the route it did not |
+|---|---|---|
+| `pinBlockContent` | a block's BYTES while present | its PRESENCE (row 25's index-0 flip) |
+| the daily sweep | the COUNT per gate | the ROWS behind it |
+| the suite's config-root isolation | `npm test` | a bare `node --test` |
+| `bust-triage`'s substitution note | the default path | `--at <stamp>` |
+
+The shape is one: the protected thing is reachable by a second route, the
+second route is silent, and every instance reads as working because the
+route someone happened to take was the guarded one. Two of these were found
+by counting files afterwards rather than by any check firing.
+
+So the sibling enumeration at ship time asks the entry-path question too —
+what are the OTHER ways in? Another invocation (`npm test` vs `node --test`),
+another flag, another caller, another AXIS of the same object (bytes vs
+presence, counts vs rows) — and for each, does the guard reach it. Where it
+does not and cannot cheaply, the repair is to make the UNGUARDED route fail
+loudly rather than to hope it is not taken: `test/config-root-isolation.
+test.mjs` is that shape, red on exactly the invocation that bypasses the
+harness and green under it.
+
+**A liveness or resolution check asks "does this resolve", never "does this
+resolve AS THE TYPE I expected."** Both defects the pointer lane hit on its
+first real run are that error: a trailing `path:line` citation made three
+live files read as dead, and `git cat-file -e <t>^{commit}` rejects a TREE,
+so four live deployment pins (recorded here as tree hashes) reported dead.
+Corollary, from dropping that lane's COMMIT-DEAD label after it scored 0 for
+8: when a token's SHAPE cannot separate the namespace you mean from the
+namespaces you do not — commit vs capture id vs content fingerprint vs
+session id, all short hex — the check does not get a context heuristic bolted
+on to rescue it. It goes, and the residual risk is named instead.
+
 The rule is ENUMERATION, not maximal width. Widening past where the safety
 argument reaches is how a mitigation MOVES a bust instead of absorbing it:
 the byte-match census answers `MISMATCH — DO NOT SHIP as-is` for exactly that

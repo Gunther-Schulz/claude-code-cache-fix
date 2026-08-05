@@ -287,11 +287,14 @@ test("PATH-DEAD does not fire on a path that exists", () => {
   assert.deepEqual(lintPointers(doc, STUB), []);
 });
 
-test("COMMIT-DEAD fires on an unresolvable short hex token", () => {
-  const doc = ["- **READY — a thing.** Shipped at `9fe4d21` last week."].join("\n");
-  const findings = lintPointers(doc, STUB);
-  assert.deepEqual(labelsOf(findings), ["COMMIT-DEAD"]);
-  assert.equal(findings[0].token, "9fe4d21");
+// The COMMIT-DEAD lane was REMOVED after one real run (0 true positives, 8
+// false ones — capture ids, source fingerprints and session ids, all short
+// hex, none of them git objects). This bite pins the removal so it is not
+// quietly re-added: an unresolvable hex token is NOT a finding, because the
+// token's shape cannot say which namespace it belongs to.
+test("an unresolvable short hex token is NOT flagged — namespace is not decidable from shape", () => {
+  const doc = ["- **READY — a thing.** Shipped at `9fe4d21`, tree `3c14d4fd3446`, session `03d45c17`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
 });
 
 test("REF-DEAD fires on a branch pattern with no matching ref", () => {
@@ -390,7 +393,7 @@ test("per-class counts are printed with zeros stated", () => {
   // is indistinguishable from one the lane forgot to look for.
   const { out } = runTool(["--pointers", "-"], "- **READY — nothing to see.** Plain body.\n");
   const line = out.split("\n").find((l) => l.startsWith("backlog-pointers:"));
-  for (const label of ["STASH-REF", "PATH-DEAD", "COMMIT-DEAD", "REF-DEAD", "ABS-PATH"]) {
+  for (const label of ["STASH-REF", "PATH-DEAD", "REF-DEAD", "ABS-PATH"]) {
     assert.match(line, new RegExp(`${label}=0`), `${label} must be stated even at zero`);
   }
 });
