@@ -1736,8 +1736,25 @@ then the queued ones. Work the items in that order.
   from the file. Row-4 datapoint written to the threat matrix. What
   remains is DEPLOYMENT only, on the shared boundary. Original entry
   follows for the record.
-  **(1-orig) Ordinal fix (row-4, the 535k class) — implementation
-  lived in `stash@{0}`**, "WIP on main: 1ea9804", 143 insertions / 4 deletions
+  **(1-orig) Ordinal fix (row-4, the 535k class) — THE STASH IS GONE;
+  the work is not. Recovery, 2026-08-05:** `git stash list` is EMPTY and
+  `.git/logs/refs/stash` does not exist, so the `git stash pop` recipe below
+  no longer works — it would pop nothing, or someone else's later stash. The
+  commit itself survived as an UNREACHABLE object and is now anchored by a
+  tag so gc cannot take it: **`wip/ordinal-fix-2026-08-02` = 692abc0**,
+  verified to be exactly this entry's description (143 insertions / 4
+  deletions in proxy/extensions/insertion-normalization.mjs, base 1ea9804).
+  Use `git stash apply wip/ordinal-fix-2026-08-02` — apply, not pop, and it
+  three-way merges onto a main that has moved since 2026-08-02. Attribution,
+  since a stash push+pop happened in this repo on 2026-08-05: the drop
+  PREDATES it — `git stash list` printed exactly one entry (that session's
+  own) while its stash was live, and `git stash push` never removes existing
+  entries. When it was dropped is not recoverable; the stash reflog goes with
+  the ref. The untracked red-first bite is still on disk
+  (test/insertion-ordinal-reattribution.test.mjs, 4,256 bytes).
+  Original text follows, with the stale recipe kept only so the pointer's
+  history is legible: implementation
+  lived in `stash@{0}`, "WIP on main: 1ea9804", 143 insertions / 4 deletions
   in proxy/extensions/insertion-normalization.mjs. Its red-first bite
   is on disk UNTRACKED at test/insertion-ordinal-reattribution.test
   .mjs (88 lines) and is EXPECTED TO FAIL without the stash — do not
