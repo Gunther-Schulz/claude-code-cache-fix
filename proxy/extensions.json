@@ -118,5 +118,9 @@
   "usage-log": {
     "enabled": true,
     "order": 650
+  },
+  "rate-limit-log": {
+    "enabled": true,
+    "order": 640
   }
 }
