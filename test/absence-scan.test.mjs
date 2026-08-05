@@ -125,6 +125,23 @@ test("the allowlist covers the LEDGER watermark file and nothing else in the cor
   assert.equal(isAllowlisted(`${CORPUS}/pinned-s-4b6a435234bf-26-28.json`), false);
 });
 
+// The transcript-shape fixture used to be allowlisted because it was captured
+// from a real transcript and carried its identifiers. It was rebuilt from
+// known-safe parts on 2026-08-05 and the exemption retired, so two things are
+// now true and neither may quietly stop being true: the file is NOT exempt,
+// and it passes the classes on its own bytes. Asserted here rather than left
+// to the pre-push hook because the failure mode is silent — an edit that
+// pastes a real identifier back in would otherwise reach a push before
+// anything said so, and a re-added exemption would hide it permanently.
+test("the transcript-shape fixture stands on its own bytes — no exemption, no findings", () => {
+  const rel = "test/fixtures/cc-transcript-shape-snapshot.json";
+  assert.equal(isAllowlisted(rel), false, "the retired exemption must not come back");
+  const abs = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "cc-transcript-shape-snapshot.json");
+  const r = scanContent(readFileSync(abs, "utf8"), rel);
+  assert.deepEqual(r.findings, [], "a real identifier was pasted back into the shape fixture");
+  assert.deepEqual(r.degraded, [], "the fixture must still parse");
+});
+
 // --- CLI ---------------------------------------------------------------------
 
 const run = (args, cwd) => spawnSync(process.execPath, [TOOL, ...args], { cwd, encoding: "utf-8" });

@@ -46,14 +46,16 @@ import { basename } from "node:path";
 // implicit.
 export const ALLOWLIST = [
   /(^|\/)test\/fixtures\/harvested\/LEDGER-[^/]*\.json$/,
-  // Upstream's own transcript-shape fixture: committed upstream with that
-  // machine's identifiers, public in the upstream tree before this scan
-  // existed. A NEW-branch push scans EMPTY..tip and would go red forever on
-  // content this repo cannot change — so the pre-existing third-party file
-  // is a declared exemption here (the pre-push guard's documented remedy),
-  // never a softened predicate.
-  /(^|\/)test\/fixtures\/cc-transcript-shape-snapshot\.json$/,
 ];
+//
+// RETIRED 2026-08-05: `test/fixtures/cc-transcript-shape-snapshot.json`. The
+// entry existed because that fixture was captured from a real transcript and
+// carried its identifiers — an exemption for content the fork could not
+// change. The fixture has since been REBUILT from known-safe parts (synthetic
+// identifiers, no UUID-shaped values, no base64 run), so it now passes the
+// classes on their merits and needs no exemption. Recorded rather than
+// deleted silently: an allowlist that shrinks because the hazard was removed
+// is a different fact from one that shrinks because someone softened it.
 
 export function isAllowlisted(path) {
   const p = String(path).replace(/\\/g, "/");
