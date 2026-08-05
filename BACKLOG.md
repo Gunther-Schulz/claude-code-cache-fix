@@ -1017,11 +1017,18 @@ bullet, evidence pointer included.
 
 - **DONE 2026-08-05 (04ed3c9) — the canonical re-serve normalizes its
   CONTAINER to the wire's current one (proxy/**, deployed).** Closed
-  2026-08-05 night on a read of its own body, which had cited the fixing
-  commit while the header still read READY — the grade said dispatchable,
-  the body said shipped, and `backlog-lint` was clean on it because its
-  rule needs a marker word near a date and this entry recorded its landing
-  with a bare ref. That gap is now a lint lane (`GRADE-VS-COMMIT`).
+  2026-08-05 night. The closure is right — the work shipped as 04ed3c9 —
+  but the ROUTE to it, as first written here, was not, and the correction
+  matters more than the closure: this entry's own body cites NO commit ref.
+  `04ed3c9` appears at the first line of the NEXT entry, which was already
+  graded DONE, and the first version of this note attributed it across that
+  boundary — the same-entry/cross-entry limit `tools/backlog-lint.mjs`
+  documents as deliberate, walked into while reading. The lint was clean on
+  this entry for a simpler reason than the one first recorded: it carries no
+  resolution marker of any kind. Caught by the dispatched lane, which
+  refused to build a check on the premise and halted instead of widening the
+  entry boundary to make its known-positive fire — the right call, and the
+  reason no `GRADE-VS-COMMIT` lane exists.
   The design below is what shipped; it is kept for the evidence trail.** This is the
   349k bust's actual fix and it is narrower than the row-24 message-
   level pin. Grounding, all measured today (matrix, Row 4 datapoint
