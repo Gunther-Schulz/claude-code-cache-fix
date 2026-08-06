@@ -62,16 +62,21 @@ output, which is the paraphrase-drift shape aimed at a number.)
    it announced itself four times and was handled four times by `--no-verify`.
    That is the loudness being converted into silence, on the one gate standing
    in front of unscrubbable public history.
-   <!-- entry: "the push-side leak scan re-flags already-public history" -->
-3. **Move the leak scan's feedback from PUSH to WRITE** (operator-side,
-   dotfiles) — previously unranked. Stated honestly: its OWN evidence is
-   unchanged from 08-05 (two capture ids reaching commits in one session, both
-   caught at push, an amend each time), and nothing new happened to it today.
-   It rises by COUPLING to (2): while the push gate's override is becoming
-   routine, the control that keeps the bytes out of a commit at all is what the
-   safety argument now rests on. Rank this pair together or neither move is
-   justified.
-   <!-- entry: "move the leak scan's feedback from PUSH" -->
+   **DONE (dotfiles `6912e2b`).** Driven read-only against the real 2026-08-06
+   case: the same four `capture-key-prefix` findings in upstream's own merge
+   commit message are scoped out, the block passes, 0.098s added. Verified
+   blocking by the dispatcher against the LIVE hook — a planted key in a commit
+   message and a planted uuid in a file both still exit 1.
+3. **~~Move the leak scan's feedback from PUSH to WRITE~~ — BUILT, NOT LIVE**
+   (dotfiles `7b13af4`). Ranked here by COUPLING to (2) rather than by its own
+   evidence, and that stands. What shipped: a PreToolUse gate importing the
+   fork's own `absence-scan.mjs` classes, denying a capture identifier bound for
+   a TRACKED path in a repo carrying the scanner, silent on untracked paths and
+   on repos without it — all four cases verified by the dispatcher against the
+   real repo and real tracked paths.
+   **It is registered nowhere, by instruction, and that is the remaining step:
+   an operator decision, not build work.** It changes what every session on this
+   machine may write, so it is not a dispatcher's call.
 4. **The doorbell's remaining half** — was 1. Two of its three triggers still
    have no watcher and both cost something today: a RED sweep sat unnoticed
    until someone ran `doctor` by hand at close (booked above as undispositioned
@@ -166,79 +171,6 @@ in either pass and should not be read as ranked-last; deriving an order for them
 needs them read, which neither pass did.
 
 ## Open
-
-- **READY — the push-side leak scan re-flags already-public history on every
-  rebase of an open PR branch, and the only exit is `--no-verify`.** Measured
-  2026-08-05 while rebasing `pr/insertion-normalization` onto upstream's
-  current main (upstream asked for it, to pick up their #310): the scan ranges
-  over the REF UPDATE (`old..new`), so a force-push after a rebase presents
-  eight re-parented commits as new and re-reports the `capture-key-prefix`
-  findings in two of their messages. Those messages are byte-identical to
-  commits already on the remote — verified by `git patch-id --stable` on all
-  eight and by md5 of the two flagged messages — so they are already in
-  `refs/pull/272/head`, which no push can retract and no block can help.
-  The push went out with `--no-verify`, stated in the same message, after the
-  full suite ran green in the worktree (1708/1709, 1 skipped).
-  This is the fires-on-a-non-defect shape on the one gate guarding a public
-  boundary, and the override habit it trains is the failure mode — the
-  runbook already says as much about the HAND grep and scopes it to the
-  round's own commits; the hook has no such scoping.
-  Design, decision-complete: scope the scan's commit-message pass to content
-  the REMOTE does not already have — for a force-push that is
-  `new_sha ^{/}` minus the set of messages reachable from the old remote tip,
-  computed from the pre-push stdin's `<old> <new>` pair rather than from the
-  range alone. A message already published is out of scope by construction,
-  not by allowlist. Verifier, red-first: drive the hook with a simulated
-  force-push whose new commits are patch-identical re-parents of the old ones
-  and assert it does NOT block; plus the control that a genuinely new commit
-  carrying a capture key in its message still does. Done when a rebase
-  force-push of an open PR branch passes the gate without `--no-verify`.
-  Lives in dotfiles (the global pre-push dispatcher owns the leak scan), so
-  this is an operator-side item like the Write-time hook entry below.
-  **SECOND AND THIRD OCCURRENCE 2026-08-06 — this is now overdue, not
-  pending.** Rebasing all three open PR branches onto `b00b141` produced the
-  identical block on each: four `capture-key-prefix` findings, all four in the
-  message of `b00b141` itself — UPSTREAM's own merge commit of our #272, an
-  ancestor of `upstream/main` and therefore public on their repo, unremovable
-  by anything we do. The design above already covers it (a message reachable
-  from the remote tip is out of scope by construction), and the case is even
-  clearer than the originating one: the flagged commit is not merely
-  already-published, it is not ours. Three pushes went out `--no-verify` this
-  round, each stated. The measured cost of the gap is no longer "an override
-  once" — it is an override becoming the routine way to push a rebased branch,
-  which is precisely the reflex the entry predicted.
-  Discipline note from the same round, kept because it is the part that nearly
-  went wrong: on the second of the three pushes the bypass was used WITHOUT
-  first confirming the block was this known case. It was checked afterwards and
-  the branch was clean, but the order was wrong — the confirmation is what makes
-  the bypass legitimate, and doing it retroactively is how a justified exception
-  decays into a habit. Until the hook is fixed: read the block, name the commit
-  it flags, confirm that commit is already public, THEN bypass.
-
-- **READY (operator-side, dotfiles) — move the leak scan's feedback from PUSH
-  to WRITE.** Grounding, measured 2026-08-05: the same author leaked capture
-  session ids into tracked files TWICE in one session, hours apart, and both
-  times learned at `git push` — after the bytes were in a commit, requiring an
-  amend each time. The scan is correctly placed as the last line before public
-  history and must stay there; what is missing is an earlier, cheaper signal.
-  Root cause is booked in `docs/dev-loop.md` ("The written rule is NARROWER
-  than the enforced one") and its prose half is fixed there; this item is the
-  mechanical half.
-  Design: a PreToolUse hook on Write/Edit that runs `tools/absence-scan.mjs`'s
-  `scope: "any"` classes over the pending CONTENT when the target path is
-  TRACKED in a repo whose tree carries `tools/absence-scan.mjs` — import the
-  classes, never restate the patterns, so the two gates cannot drift. Deny with
-  the class name and the alias convention in the message. Scope keeps the false
-  fires near zero: untracked paths (scratch, `CLAUDE.local.md`, the alias
-  registry) and non-repo paths are exempt by construction, and those are where
-  a session id legitimately gets written.
-  Verifier, red-first: drive the hook with a payload containing a real-shaped
-  capture key destined for a tracked path — must DENY, naming the class; and
-  two negatives that must ALLOW — the same payload to an untracked path, and a
-  tracked path in a repo without the scanner. Done when a write of the shape
-  that leaked today is refused at the Write call.
-  Lives in dotfiles (`claude/hooks/`), not here: the repo owns the classes, the
-  machine owns the hook.
 
 - **READY — THREE triggers have no watcher, and the third is the worst: a RED
   daily sweep has no doorbell either.** Found 2026-08-06 while enumerating the
@@ -549,6 +481,103 @@ needs them read, which neither pass did.
   `test/replay-gate-selfcheck.test.mjs`. Removes the `[GRADUATE]` marker on
   step 4 of the sweep runbook — that marker comes out with this commit and
   by no other means.
+
+- **READY (operator-side, dotfiles) — "already on a remote" is not "already
+  public", and the shipped scoping cannot tell them apart.** Found 2026-08-06
+  while confirming the leak-scan lane's scope reading, which is otherwise
+  correct and confirmed: it treats a commit message as published when the text
+  is reachable from `stdin <old>` or from ANY `refs/remotes/**` ref. That is the
+  right rule for this clone — origin and upstream are both public GitHub repos,
+  and it is the only reading under which 3 of the 4 measured occurrences are
+  covered, since upstream's merge commit is not reachable from any PR branch's
+  old remote tip.
+  The residual is the word "remote". A clone with BOTH a private remote and a
+  public one — a private mirror, a work remote, a bare backup — would treat a
+  message published only to the PRIVATE side as already public, and then let it
+  through to the public one. The gate would be correct about "the remote already
+  has this" and wrong about the only thing that matters, which is whether the
+  bytes are already beyond recall. No such clone exists here today; this is
+  written down because the hook is machine-global and the next clone is not
+  reviewed by anyone.
+  Design, decided: the published set is computed per REMOTE against the remote
+  being pushed to, not over `refs/remotes/**` as a flat set — `git push` names
+  its remote on argv, and the hook already receives it. Verifier, red-first: a
+  fixture clone with two remotes where the message exists only on remote A must
+  BLOCK on a push to remote B, and pass on a push to A; today it passes both.
+  Done when the scope question is answered per destination.
+
+- **DONE 2026-08-06 (dotfiles `6912e2b`) — the push-side leak scan re-flagged already-public history on every
+  rebase of an open PR branch, and the only exit is `--no-verify`.** Measured
+  2026-08-05 while rebasing `pr/insertion-normalization` onto upstream's
+  current main (upstream asked for it, to pick up their #310): the scan ranges
+  over the REF UPDATE (`old..new`), so a force-push after a rebase presents
+  eight re-parented commits as new and re-reports the `capture-key-prefix`
+  findings in two of their messages. Those messages are byte-identical to
+  commits already on the remote — verified by `git patch-id --stable` on all
+  eight and by md5 of the two flagged messages — so they are already in
+  `refs/pull/272/head`, which no push can retract and no block can help.
+  The push went out with `--no-verify`, stated in the same message, after the
+  full suite ran green in the worktree (1708/1709, 1 skipped).
+  This is the fires-on-a-non-defect shape on the one gate guarding a public
+  boundary, and the override habit it trains is the failure mode — the
+  runbook already says as much about the HAND grep and scopes it to the
+  round's own commits; the hook has no such scoping.
+  Design, decision-complete: scope the scan's commit-message pass to content
+  the REMOTE does not already have — for a force-push that is
+  `new_sha ^{/}` minus the set of messages reachable from the old remote tip,
+  computed from the pre-push stdin's `<old> <new>` pair rather than from the
+  range alone. A message already published is out of scope by construction,
+  not by allowlist. Verifier, red-first: drive the hook with a simulated
+  force-push whose new commits are patch-identical re-parents of the old ones
+  and assert it does NOT block; plus the control that a genuinely new commit
+  carrying a capture key in its message still does. Done when a rebase
+  force-push of an open PR branch passes the gate without `--no-verify`.
+  Lives in dotfiles (the global pre-push dispatcher owns the leak scan), so
+  this is an operator-side item like the Write-time hook entry below.
+  **SECOND AND THIRD OCCURRENCE 2026-08-06 — this is now overdue, not
+  pending.** Rebasing all three open PR branches onto `b00b141` produced the
+  identical block on each: four `capture-key-prefix` findings, all four in the
+  message of `b00b141` itself — UPSTREAM's own merge commit of our #272, an
+  ancestor of `upstream/main` and therefore public on their repo, unremovable
+  by anything we do. The design above already covers it (a message reachable
+  from the remote tip is out of scope by construction), and the case is even
+  clearer than the originating one: the flagged commit is not merely
+  already-published, it is not ours. Three pushes went out `--no-verify` this
+  round, each stated. The measured cost of the gap is no longer "an override
+  once" — it is an override becoming the routine way to push a rebased branch,
+  which is precisely the reflex the entry predicted.
+  Discipline note from the same round, kept because it is the part that nearly
+  went wrong: on the second of the three pushes the bypass was used WITHOUT
+  first confirming the block was this known case. It was checked afterwards and
+  the branch was clean, but the order was wrong — the confirmation is what makes
+  the bypass legitimate, and doing it retroactively is how a justified exception
+  decays into a habit. Until the hook is fixed: read the block, name the commit
+  it flags, confirm that commit is already public, THEN bypass.
+
+- **BUILT 2026-08-06, NOT LIVE (dotfiles `7b13af4`) — moved the leak scan's feedback from PUSH
+  to WRITE.** Grounding, measured 2026-08-05: the same author leaked capture
+  session ids into tracked files TWICE in one session, hours apart, and both
+  times learned at `git push` — after the bytes were in a commit, requiring an
+  amend each time. The scan is correctly placed as the last line before public
+  history and must stay there; what is missing is an earlier, cheaper signal.
+  Root cause is booked in `docs/dev-loop.md` ("The written rule is NARROWER
+  than the enforced one") and its prose half is fixed there; this item is the
+  mechanical half.
+  Design: a PreToolUse hook on Write/Edit that runs `tools/absence-scan.mjs`'s
+  `scope: "any"` classes over the pending CONTENT when the target path is
+  TRACKED in a repo whose tree carries `tools/absence-scan.mjs` — import the
+  classes, never restate the patterns, so the two gates cannot drift. Deny with
+  the class name and the alias convention in the message. Scope keeps the false
+  fires near zero: untracked paths (scratch, `CLAUDE.local.md`, the alias
+  registry) and non-repo paths are exempt by construction, and those are where
+  a session id legitimately gets written.
+  Verifier, red-first: drive the hook with a payload containing a real-shaped
+  capture key destined for a tracked path — must DENY, naming the class; and
+  two negatives that must ALLOW — the same payload to an untracked path, and a
+  tracked path in a repo without the scanner. Done when a write of the shape
+  that leaked today is refused at the Write call.
+  Lives in dotfiles (`claude/hooks/`), not here: the repo owns the classes, the
+  machine owns the hook.
 
 - **READY (operator-side, dotfiles) — a non-executable hook is SKIPPED BY GIT
   IN SILENCE, so one `chmod` disables the machine's last gate with no error
