@@ -155,6 +155,33 @@ them read, which this pass did not do.
   carried the un-narrowed "moving a marker costs nothing" note as an aside; it
   has been withdrawn in place, with the reason stated, rather than defended.
 
+- **UNDISPOSITIONED SWEEP FINDINGS 2026-08-06 — two, both surfaced at session
+  close by running doctor, neither walked. The sweep lane's first real
+  input.** Recorded with what is measured so the walk starts from evidence
+  rather than from scratch; NOT classified, because guessing a terminal state
+  is the thing that lane exists to prevent.
+  (1) **Gate red, conservation.** The single failing row in
+  `~/.claude/cache-fix-gate-status.json` reads `exit=1, pairs=1395,
+  stability=0, safety=0, conservation=2` — one of 66 captures. Candidate class
+  is the declared-behaviour conservation shape triaged 2026-08-05 (that entry
+  attributed 38 rows on a different capture to `fresh-session-sort` and
+  `smoosh-split`+`content-strip`), but two rows on a different capture is a
+  CANDIDATE, not a match: the 2026-08-05 attribution was made by running each
+  suspected extension's own exported transform over the real bytes, and
+  nothing of the sort has been done here. Next step is exactly that.
+  (2) **The byte-gate's two readers disagree.** `doctor` reports
+  `MISMATCH=2` with tally `{EXACT: 543, EXTENDED: 84, DROPPED: 4, MISMATCH: 2}`
+  while `jq '.byteGate.mismatch'` on the same status file returns **null**.
+  Null is "nobody measured", not 0 — so either doctor computes the tally from
+  a source the status file does not carry, or the field is not being written.
+  Until that is settled, neither number can be cited: this is the
+  instrument-defect branch of the sweep lane, and the first move is finding
+  which producer doctor actually reads.
+  Both are pre-existing, neither is caused by 2026-08-06's changes, and both
+  were named in conversation before being written down — the named-and-unbooked
+  shape, caught by the close-out enumeration on the same day the rule for it
+  was minted.
+
 - **READY — READY has no expiry, so nothing ever forces the build-or-drop
   decision, and the queue is now growing faster than it drains.** Measured
   2026-08-06 from git history, counting `^- \*\*READY` per day: **8 (07-30),
