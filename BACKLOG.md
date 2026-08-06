@@ -152,6 +152,57 @@ bullet, evidence pointer included.
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
 
+- **READY — `/health`'s `gates` is a pure `CACHE_FIX_*` env filter, so any
+  extension gated by `enabled:` in `extensions.json` is INVISIBLE to the
+  DECLARED/RUNNING/VERIFIED check that every runbook leans on.** Found
+  2026-08-06 by the dispatched agent writing the runtime-anomaly runbook, and
+  verified here: `proxy/server.mjs:577-581` builds `_gates` as
+  `Object.entries(process.env).filter(([k]) => k.startsWith("CACHE_FIX_"))`.
+  `rate-limit-log` is gated by `enabled: false` in its own default export plus
+  a row in `extensions.json` (`rate-limit-log.mjs:215`) — no env var — so it
+  cannot appear in `/health`, cannot appear in the sweep's `gates`, and the
+  three-way agreement dev-loop calls load-bearing silently answers about a
+  SUBSET of the pipeline while reading as if it covered all of it. That is the
+  "absence of evidence wearing a verdict's clothes" shape aimed at the one
+  check that decides whether a gate run means anything for production. The
+  same day, the dispatcher looked at `/health`, did not see `usage-log` or
+  `rate-limit-log`, and had to go read `extensions.json` to find them enabled —
+  the confusion this causes is measured, not hypothetical.
+  Design, decided: `/health` reports the RESOLVED extension set — every
+  extension with its enabled state and the SOURCE that decided it (`env` /
+  `extensions.json` / `default`) — and the sweep records that same resolved set
+  as its third answer, so all three compare like with like. The env list stays
+  as-is beside it; this adds an answer rather than changing one. Verifier,
+  red-first: with `rate-limit-log` enabled in `extensions.json` and no env var,
+  today's `/health` omits it and the new one must name it with
+  `source: extensions.json`; flipping it to disabled must flip the report.
+  Done-criterion: both, plus `doctor`'s three-way comparison reading the
+  resolved set — a fix that leaves doctor comparing env lists has moved the
+  blind spot, not closed it.
+
+- **OPEN-BOOKED 2026-08-06 — a recurring `401` with `requested_model: "test"`
+  and no session id, unexplained, still firing.** The runtime-anomaly runbook's
+  own worked example, and the reason that terminal state exists. Measured:
+  `~/.claude/usage-log/upstream-errors.jsonl` holds 194 lines of which 170 are
+  this shape — `response_status: 401`, `requested_model: "test"`,
+  `session_id: null`, `request_path: /v1/messages`, `x_should_retry: false` —
+  distributed 1 (07-30), 22 (07-31), 7 (08-01), 7 (08-02), 121 (08-05), 12+
+  (08-06, still growing during the investigation, last seen 12:44:01Z).
+  **Why this is not already closed:** an earlier entry in this file attributes
+  the shape to "today's test runs" on 07-31 (grep `model:"test" 401s`). That
+  explanation was written about one day's occurrences and cannot carry 08-05's
+  121 — a premise that was true when written, re-used past its evidence, which
+  is the stale-premise class the corpus names under Fixing. The dispatched
+  agent caught this unprompted and correctly refused to close on the old note.
+  **Named missing evidence:** the sender. No repo tool sends `requested_model:
+  "test"` (grepped across `tools/*.sh`, `tools/*.mjs`), and `session_id: null`
+  rules out a Claude Code session. Next probe, cheapest first: correlate the
+  timestamps against `~/.claude/cache-fix-captures/` (a capture exists → it
+  came through the normal path) and against the dotfiles doctor/bootstrap run
+  times, since an unauthenticated probe on a schedule is the shape that fits.
+  Until the sender is named this stays OPEN-BOOKED — real, reproducible,
+  cause not established — and NOT closed as controlled-cause on a guess.
+
 - **READY — `tools/lane-sweep.mjs`: make the lane enumeration repeatable, because
   the hand pass found three gaps and will not survive this session.** Done by
   hand 2026-08-06 (operator-prompted): walk every event class and check it has
