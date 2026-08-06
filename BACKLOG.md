@@ -409,6 +409,25 @@ bullet, evidence pointer included.
   force-push of an open PR branch passes the gate without `--no-verify`.
   Lives in dotfiles (the global pre-push dispatcher owns the leak scan), so
   this is an operator-side item like the Write-time hook entry below.
+  **SECOND AND THIRD OCCURRENCE 2026-08-06 — this is now overdue, not
+  pending.** Rebasing all three open PR branches onto `b00b141` produced the
+  identical block on each: four `capture-key-prefix` findings, all four in the
+  message of `b00b141` itself — UPSTREAM's own merge commit of our #272, an
+  ancestor of `upstream/main` and therefore public on their repo, unremovable
+  by anything we do. The design above already covers it (a message reachable
+  from the remote tip is out of scope by construction), and the case is even
+  clearer than the originating one: the flagged commit is not merely
+  already-published, it is not ours. Three pushes went out `--no-verify` this
+  round, each stated. The measured cost of the gap is no longer "an override
+  once" — it is an override becoming the routine way to push a rebased branch,
+  which is precisely the reflex the entry predicted.
+  Discipline note from the same round, kept because it is the part that nearly
+  went wrong: on the second of the three pushes the bypass was used WITHOUT
+  first confirming the block was this known case. It was checked afterwards and
+  the branch was clean, but the order was wrong — the confirmation is what makes
+  the bypass legitimate, and doing it retroactively is how a justified exception
+  decays into a habit. Until the hook is fixed: read the block, name the commit
+  it flags, confirm that commit is already public, THEN bypass.
 
 - **DONE 2026-08-05 (ships with this entry's commit) — CACHE-CONTROL and
   TEXT are ONE mechanism, it is ours, and it re-bills nothing: 26 of the
