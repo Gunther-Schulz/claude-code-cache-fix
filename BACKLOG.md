@@ -152,6 +152,58 @@ bullet, evidence pointer included.
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
 
+- **READY — `tools/lane-sweep.mjs`: make the lane enumeration repeatable, because
+  the hand pass found three gaps and will not survive this session.** Done by
+  hand 2026-08-06 (operator-prompted): walk every event class and check it has
+  a trigger, a line, a terminal state, and a durable disposition. It found the
+  sweep runbook's missing doorbell, the two upstream triggers, and a whole
+  unrouted event class (the proxy's own runtime detector logs). The reasoning
+  that produced it is exactly what does not survive into the next session —
+  dev-loop's own "the manual pass finds the defect once, the mechanism finds it
+  forever."
+  **The mechanical half, which is the whole of this item.** Three cross-checks,
+  each a set difference over things that exist on disk:
+  (1) PRODUCERS vs LANES — enumerate every path an extension writes under
+  `claudeHome()` (14 extensions do today, via `appendFileOwnerOnly`/
+  `writeFileOwnerOnly`) plus every `cache-fix-*.timer`; for each, require
+  EITHER a named reader (some `tools/*.mjs` opens it) OR a lane (a runbook or
+  the dev-loop index names it). Neither → **UNROUTED**, which is the alarm. This
+  is the check that would have named the runtime-detector class instead of
+  waiting for someone to notice `upstream-errors.jsonl` at 79 KB.
+  (2) INDEX vs FILES, both directions — every dev-loop index row resolves to a
+  runbook that exists; every `docs/runbooks/*.md` appears in the index. Catches
+  the orphan and the dead pointer, which is how the CLAUDE.local.md runbook
+  list went stale within hours of the second runbook landing.
+  (3) MARKERS — every `[GRADUATE -> …]` either names a BACKLOG item whose text
+  is present, or says "not yet booked" AND names its trigger. A marker pointing
+  at a booked item that has since shipped is stale and must fail.
+  **Schema change this needs, and it is small:** the dev-loop index table gains
+  a TRIGGER column naming the mechanism (`statusline ❄`, `SessionStart line`,
+  `operator decision`). Check (1) then verifies a named trigger RESOLVES — a
+  hook file that exists, or the literal `operator decision`, which is a valid
+  answer and not a hole. Without that column the doorbell gap is invisible to
+  any check, which is precisely how it shipped.
+  **The one open decision, surfaced not filled:** state-only writers (canon
+  files, watermarks) are not finding producers and would otherwise all report
+  UNROUTED. Recommendation: an explicit `writesState` declaration in the
+  extension's own export, so the exemption is data the check reads and goes red
+  when a state file quietly starts carrying findings — never a filename
+  allowlist in the checker, which is the softened-predicate shape.
+  **Verifier, red-first, and the arrangement is available today:** run it at
+  `217b61c^` — it must report the runtime-detector producers UNROUTED and the
+  sweep lane's trigger missing; at `217b61c` the trigger row is still missing
+  (that fix is the booked doorbell item), so the bite to pin is the UNROUTED
+  set shrinking by exactly the producers the doorbell item routes. Done-criterion:
+  that, plus the run printing what it EXAMINED — producer count, lane count,
+  marker count — because a sweep that reports "no gaps" over an empty
+  enumeration is this repo's most-repeated failure.
+  **NOT in scope, and it is the judgment half:** whether the event-class list is
+  COMPLETE. No check knows what events the world produces; today's runtime-detector
+  class was found by asking, not by enumerating. That stays a prose ritual with
+  dev-loop's existing stock-sweep cadence and its retirement signal (two
+  consecutive sweeps returning only minor findings, then it stops until the next
+  burst) — reused, not re-invented.
+
 - **READY — THREE triggers have no watcher, and the third is the worst: a RED
   daily sweep has no doorbell either.** Found 2026-08-06 while enumerating the
   lanes: `session-scan.py` surfaces BACKLOG only, and NO SessionStart hook reads
