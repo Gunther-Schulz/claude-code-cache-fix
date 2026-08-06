@@ -13,10 +13,15 @@ Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
 this date. **Re-derive rather than edit** — patching this list re-creates the
 stored-priority problem one level up.
 
-The day's cost, which is what most of this ranks against: four busts,
-**1,124,000 tokens re-billed** — 908k across three row-4 instances (242k, 225k,
-441k) and 216k from row 26, ours. Row 4 is the most expensive open class by a
-factor of four; row 26 is the most expensive class we CAUSED.
+The day's cost, which is what most of this ranks against: **five busts,
+1,200,000 tokens re-billed** — 984k across four row-4 instances (242k, 225k,
+441k, 76k) and 216k from row 26, ours. Row 4 is the most expensive open class by
+a factor of four; row 26 is the most expensive class we CAUSED.
+(Corrected at session close: an earlier version of this block said four busts /
+1,124,000, omitting the 76k at 11:07Z. `bust-triage --list` had surfaced it —
+the inventory step worked — and it was then read past while the reported bust
+was worked. The count came from what was ATTENDED to, not from the tool's own
+output, which is the paraphrase-drift shape aimed at a number.)
 
 1. **The doorbell** (three triggers, one SessionStart carrier). Silent, cheap,
    and it gates noticing everything else. Measured cost of its absence on one
@@ -149,6 +154,33 @@ them read, which this pass did not do.
   CONSEQUENCE ALREADY TAKEN: the public comment on anthropics/claude-code#81967
   carried the un-narrowed "moving a marker costs nothing" note as an aside; it
   has been withdrawn in place, with the reason stated, rather than defended.
+
+- **READY (operator-side, corpus — NOT this repo) — two corpus edits agreed
+  2026-08-06 and handed to another session; booked here because chat is not a
+  carrier.** Both come from one measured failure: a dispatch brief written from
+  a settled six-decision round dropped decision 5 (the cross-repo boundary),
+  which surfaced only because the dispatcher re-read its own decisions after
+  spawning. Same shape the §2 report tail already fixed one level down — free
+  composition drops invariant clauses — but for the design's OWN decisions
+  rather than the boilerplate.
+  (1) **dispatch skill §1 brief skeleton gains a slot**:
+  `## Decisions this dispatch must honor`, enumerated from the round, `n/a` for
+  the ones that do not apply. Satisfied by construction for anyone pasting the
+  skeleton, which is how the tail already works. Deliberately NOT a hook lane:
+  the condition ("an operator decision round preceded this dispatch") is
+  invisible to the hook, so a lane would demand an `n/a` line on every brief and
+  train the override reflex — the computable slice precipitates, this part does
+  not.
+  (2) **CLAUDE.md model-routing: sharpen the existing already-written-brief
+  clause**, not a new entry. It names the three shapes and says "the settled
+  design is the brief's core already written" — and never says what to DO with
+  it. The gap is exactly there: that reads as "the thinking is done" when it
+  should read "carry it across verbatim — an enumerated design is QUOTED into
+  the brief, not restated from memory." Widening beats adding; the generic
+  paraphrase-drift rule above it is already correct and already present.
+  Both files are operational corpus: `CLAUDE-maintenance.md` governs the edit
+  and each lands with a JOURNAL line in dotfiles. Not done here because the
+  operator routed it to a separate session.
 
 - **PARKED — do the three runbooks actually get FOLLOWED, and did folding the
   two sub-classes in rather than splitting them out hold?** The
