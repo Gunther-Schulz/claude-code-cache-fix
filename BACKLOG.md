@@ -155,6 +155,49 @@ them read, which this pass did not do.
   carried the un-narrowed "moving a marker costs nothing" note as an aside; it
   has been withdrawn in place, with the reason stated, rather than defended.
 
+- **READY — `docs/runbooks/session-close.md`, the fifth lane: the operator
+  signals a session is ending.** Operator-proposed 2026-08-06 at the moment it
+  paid for itself. Asked "all threads done or booked?" at close, the
+  enumeration found two that were not, and BOTH were invisible to every
+  existing check: a bust `bust-triage --list` had surfaced hours earlier and
+  nobody walked, and two agreed corpus edits that existed only in chat. Neither
+  is a defect in any tool. They are the class that dies with the context, and
+  session close is the only moment they can be caught — which is exactly why it
+  needs a line and did not have one.
+  **What makes this lane different from the closing gate it sits beside:** the
+  four questions in dev-loop run per CHANGE and ask whether the WORK is
+  finished. This runs once per SESSION and asks a different question — is every
+  fact that currently lives only in context now on disk? A session can close
+  with every piece of work correctly finished and still lose a decision nobody
+  wrote down. Framed the way the next session experiences it: the job is
+  converting context-resident state into disk-resident state, and everything
+  not converted is gone, silently, with no artifact recording that it existed.
+  **Computable half — build this as the check; each item is a set difference,
+  none needs judgment:** cold events since session start that have no recorded
+  disposition (`bust-triage --list` against the matrix and backlog); background
+  agents not closed; a `ScheduleWakeup` still armed; worktrees carrying
+  dangling rebase state (`.git/rebase-merge` / `rebase-apply`); uncommitted
+  tracked files. **NOT unpushed commits** — the dotfiles `unpushed-reminder`
+  Stop hook already owns that and calls itself the session-cut check; adding a
+  second reader is the duplicate-guard shape.
+  **Judgment half — stays prose, and is where today's two actually lived:**
+  decisions or designs settled in conversation with no carrier (the tell is a
+  sentence like "we agreed X" with no commit, backlog entry, or file behind
+  it); numbers or claims committed earlier in the session that later evidence
+  revised — today's build-order block said four busts and 1,124k when the truth
+  was five and 1,200k, and nothing but re-reading catches that; and the three
+  closing questions from the operator corpus (missing / learned / routed).
+  **Terminal state, one only:** CLOSED — every context-resident fact is on disk
+  or explicitly named as deliberately dropped. "I think that's everything" is
+  not it.
+  Verifier, red-first and available: run the computable half against this
+  session's own state as of 11:07Z, when the 76k bust had been listed and not
+  yet dispositioned — it must name that event. Against the state after
+  `42b9ad7` it must be silent. Done-criterion: both, plus the run printing what
+  it examined (events considered, agents, worktrees), since a close-out
+  reporting "nothing outstanding" over an empty enumeration is the failure this
+  repo has hit most often.
+
 - **READY (operator-side, corpus — NOT this repo) — two corpus edits agreed
   2026-08-06 and handed to another session; booked here because chat is not a
   carrier.** Both come from one measured failure: a dispatch brief written from
@@ -178,6 +221,31 @@ them read, which this pass did not do.
   should read "carry it across verbatim — an enumerated design is QUOTED into
   the brief, not restated from memory." Widening beats adding; the generic
   paraphrase-drift rule above it is already correct and already present.
+  (3) **CLAUDE.md Fixing — widen the own-past-output clause from ASSERTION to
+  any direction and any quantity.** Operator's correction, 2026-08-06: a
+  recurring error named as "conduct I'll carry forward" has no carrier and dies
+  at session end — the same argument this entry makes about chat-only
+  decisions, which the session then violated in the same message. So it is a
+  rule or it is nothing.
+  The clause today reads: asserting "I already answered/sent/delivered X" is a
+  claim about the transcript, checked there before it is asserted. Correct, and
+  it fired on none of the day's three instances because each ran a different
+  direction: (i) asserting a NON-delivery — a subagent's report demanded as
+  missing when it had arrived, been read, and been acted on, costing the agent
+  three resends and a diagnosis of a delivery fault that did not exist;
+  (ii) asserting a CLASSIFICATION before reading it — a leak gate bypassed on
+  "this is the known already-public false fire", confirmed only afterwards
+  (it was, but the confirmation is what makes the bypass legitimate);
+  (iii) asserting a COUNT from attention — "four busts, 1,124,000 tokens"
+  committed into a ranked artifact while `bust-triage --list` had printed five,
+  the fifth read past hours earlier.
+  Widening, not a new entry: the invariant is that a claim about the RECORD —
+  what was delivered, what a gate said, how many there were — is checked
+  against the record whenever the check is cheap, regardless of whether the
+  claim is positive, negative, or numeric. The tell is uniform and worth
+  keeping: the sentence is about something the session witnessed, and the
+  witness is memory of ATTENTION rather than the artifact. Three instances in
+  one day argues the direction-specific phrasing is what let it through.
   Both files are operational corpus: `CLAUDE-maintenance.md` governs the edit
   and each lands with a JOURNAL line in dotfiles. Not done here because the
   operator routed it to a separate session.
