@@ -155,6 +155,28 @@ them read, which this pass did not do.
   carried the un-narrowed "moving a marker costs nothing" note as an aside; it
   has been withdrawn in place, with the reason stated, rather than defended.
 
+- **READY — the derived build order does not reach a fresh session, so the
+  ranking is invisible exactly where it is meant to act.** Found 2026-08-06 by
+  running the SessionStart hook against this repo instead of assuming what it
+  emits: `session-scan.py` reads the `## Open` section only, and the
+  `## Build order` block sits above it. A starting session is therefore handed
+  eight READY headers in FILE order — the first being an 08-05 bust entry —
+  and never sees which of the twenty-seven to build first. The doorbell and
+  the ranking were built the same day and do not meet.
+  Two candidate fixes, and the second is preferred. (a) Teach the hook to
+  surface a named ranking section — but `session-scan.py` is generic and shared
+  by every repo, and hard-coding one repo's heading into it is the wrong
+  placement. (b) **Make file order BE the derived order**: re-ordering the
+  `## Open` section to match the ranking whenever it is re-derived makes the
+  injected head the ranked head for free, with no hook change and no second
+  place for the order to live. That is consistent with the rubric rather than
+  in tension with it — the rule is "re-derive rather than edit", and a
+  re-derivation that also reorders the file is still one derivation with one
+  carrier. Verifier: after a re-derive, the hook's first injected READY line
+  is the ranking's item 1. Done-criterion: that, plus the `## Build order`
+  block naming file order as its own carrier so the next session does not
+  reintroduce a second copy.
+
 - **UNDISPOSITIONED SWEEP FINDINGS 2026-08-06 — two, both surfaced at session
   close by running doctor, neither walked. The sweep lane's first real
   input.** Recorded with what is measured so the walk starts from evidence
