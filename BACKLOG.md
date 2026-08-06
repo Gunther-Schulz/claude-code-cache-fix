@@ -155,6 +155,40 @@ them read, which this pass did not do.
   carried the un-narrowed "moving a marker costs nothing" note as an aside; it
   has been withdrawn in place, with the reason stated, rather than defended.
 
+- **READY — READY has no expiry, so nothing ever forces the build-or-drop
+  decision, and the queue is now growing faster than it drains.** Measured
+  2026-08-06 from git history, counting `^- \*\*READY` per day: **8 (07-30),
+  7 (08-02), 13 (08-05), 25 (08-06)** — flat through 08-02, when items were
+  being built, then roughly doubling today alone. PARKED over the same span:
+  2 → 16. Today produced twelve new READY entries and one line of executable
+  change.
+  **Why this is the self-improvement loop's own failure mode rather than a
+  tidiness complaint.** Every mechanism this repo added today makes FINDING
+  gaps cheaper and converting them into decision-complete entries frictionless
+  — the standing question, the named-and-unbooked check, the lane sweep. None
+  makes BUILDING cheaper. A system that optimises the cheap half of a pipeline
+  and not the expensive half accumulates at the junction, and the accumulation
+  reads as health: every finding is "booked", the backlog is rich, and the
+  machinery is unchanged. The corpus rule that should prevent it —
+  "items leave by commit ref or are dropped with a one-line reason" — has no
+  TRIGGER, so nothing ever asks, and an entry booked in good faith on 07-30 is
+  indistinguishable at a glance from one booked this morning.
+  Design, decided: entry age is computable (`git log -S` on the entry's header
+  line gives its first appearance), so the count and the OLDEST READY age ride
+  the same SessionStart carrier as the three doorbells — one line, silent below
+  a threshold. And the re-grade rule: a READY item that survives **three
+  sessions** without being built gets one of two dispositions, never a third —
+  re-affirmed with a sentence saying what evidence still makes it worth
+  building, or DROPPED with its one-line reason. "Still relevant" is not a
+  disposition. The point is not to shrink the list; it is that an item nobody
+  will build is information about priorities, and leaving it silently ranked
+  hides that information.
+  Verifier: against 2026-08-06's state it must report 25 READY with the oldest
+  dating to 07-30 or earlier; against a synthetic backlog of three fresh
+  entries it must be silent. Done-criterion: both, plus the age derived from
+  git rather than from a date written in the entry — a hand-written date is a
+  label over its own body and will drift from the commit that added it.
+
 - **READY — `docs/runbooks/session-close.md`, the fifth lane: the operator
   signals a session is ending.** Operator-proposed 2026-08-06 at the moment it
   paid for itself. Asked "all threads done or booked?" at close, the
