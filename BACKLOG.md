@@ -6,12 +6,27 @@ SYSTEM items — code, PRs, investigations, upstream threads — live here.
 Fork-only file, excluded from PR slices like FORK-NOTES.md. One item per
 bullet, evidence pointer included.
 
-## Build order — DERIVED 2026-08-06, re-derive before building
+## Build order — DERIVED 2026-08-06 SECOND PASS (evening), re-derive before building
 
 Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
 ("Build order is DERIVED at build time"). It ranks on evidence current as of
 this date. **Re-derive rather than edit** — patching this list re-creates the
 stored-priority problem one level up.
+
+This pass SUPERSEDES the 15:19 derivation of the same day (`18a9dee`, annotated
+at close in `6000c04`). Three inputs moved it, and each item below says what
+moved: (i) the rubric gained an irreversibility partition (dev-loop, same
+commit as this block) — without it the leak-gate items rank last and correctly
+so, which is what the first pass found; (ii) two of the three triggers behind
+the first pass's own item 1 shipped hours after it was written; (iii) the
+close-out walk booked four
+entries the first pass never saw, one of which is satisfiable only AT a
+re-derivation, i.e. now.
+
+**Carrier, stated because it is item 1 and is not yet true:** the `## Open`
+section below is still in FILE order, so a starting session is handed this
+ranking only if it reads this block. Making file order BE this order is the
+first item, and once done, this block stops being the only carrier.
 
 The day's cost, which is what most of this ranks against: **five busts,
 1,200,000 tokens re-billed** — 984k across four row-4 instances (242k, 225k,
@@ -23,42 +38,90 @@ the inventory step worked — and it was then read past while the reported bust
 was worked. The count came from what was ATTENDED to, not from the tool's own
 output, which is the paraphrase-drift shape aimed at a number.)
 
-1. **The doorbell** (three triggers, one SessionStart carrier). Silent, cheap,
-   and it gates noticing everything else. Measured cost of its absence on one
-   day: three review rounds sat unseen with a reviewer waiting, `main` sat 24
-   commits behind, and a runbook shipped whose entry condition did not exist.
-   Nothing else on this list changes what a session LEARNS at 9am.
-   **PARTLY BUILT the same day (dotfiles `69be84a`)**: `session-scan.py` now
-   emits `attention: N behind upstream (as of last fetch) | N READY, oldest Nd`.
-   Still missing, and still ranked here: gate-red and PR-rounds-waiting, which
-   need the fork's status file and the network respectively — so they belong to
-   the scheduled sweep, which then writes a local file the hook can read. Do not
-   re-build the two that shipped.
-2. **The first-appearance-relocation exemption must assert forwarded `tools[]`
-   held.** Ranked here only by the hard constraint: it must be demonstrated RED
-   against the current build, and the row-26 fix below removes the defect it
-   would go red on. Build it second or it ships having never caught anything.
-3. **Row 26 — the relocation-induced key rotation.** 216k in one measured event,
+1. **Make file order BE the derived order** (entry: "the derived build order
+   does not reach a fresh session"). Booked at 16:25 today, after the first
+   pass. Its verifier — "after a re-derive, the hook's first injected READY
+   line is the ranking's item 1" — is satisfiable only DURING a re-derivation,
+   which is why it leads: skip it now and the next chance is the next
+   derivation, with every session in between getting file order. Confirmed
+   live rather than assumed, from this session's own SessionStart injection:
+   the eight READY headers arrive in file order — their bullet line numbers
+   ascend monotonically (117, 164, 235, 269, 344, 441, 471, 522 as this pass
+   found them), first among them an 08-05 BUST entry. Silent (nothing
+   reports that the ranking went unread) and near-free at this moment,
+   expensive as a standalone pass.
+2. **Leak-scan scoping** (operator-side, dotfiles) — was 10. Moves on the
+   irreversibility partition, not on new cost: 1 occurrence 08-05 plus 3 in
+   one round on 08-06, and on the second of those three the bypass was taken
+   BEFORE confirming the block was the known case. Signal 3 discounts a loud
+   failure because "it announces itself and gets handled on its own" — measured,
+   it announced itself four times and was handled four times by `--no-verify`.
+   That is the loudness being converted into silence, on the one gate standing
+   in front of unscrubbable public history.
+3. **Move the leak scan's feedback from PUSH to WRITE** (operator-side,
+   dotfiles) — previously unranked. Stated honestly: its OWN evidence is
+   unchanged from 08-05 (two capture ids reaching commits in one session, both
+   caught at push, an amend each time), and nothing new happened to it today.
+   It rises by COUPLING to (2): while the push gate's override is becoming
+   routine, the control that keeps the bytes out of a commit at all is what the
+   safety argument now rests on. Rank this pair together or neither move is
+   justified.
+4. **The doorbell's remaining half** — was 1. Two of its three triggers still
+   have no watcher and both cost something today: a RED sweep sat unnoticed
+   until someone ran `doctor` by hand at close (booked above as undispositioned
+   sweep finding 1), and PR rounds are still network-dependent. What shipped
+   the same day (dotfiles `69be84a`) covers behind-upstream and READY pressure
+   — verified live in this session's attention line, `25 behind` on a fetch
+   just now. Do not re-build those two. The remainder needs the scheduled sweep
+   to write a local file the hook can read, so it is no longer the cheap item
+   the first pass ranked first.
+5. **The first-appearance-relocation exemption must assert forwarded `tools[]`
+   held.** Unchanged and still a hard constraint, not a judgment: it must be
+   demonstrated RED against the current build, and (6) removes the defect it
+   would go red on. Build it before (6) or it ships having never caught
+   anything.
+6. **Row 26 — the relocation-induced key rotation.** 216k in one measured event,
    ours, and it re-fires on every first relocation of a block type. Blocked by
-   (2). Ships with a row-3 declaration and live pricing, not corpus pricing.
-4. **`harvest --pin` verifies its own pin.** Silent, and it corrupts the
+   (5). Ships with a row-3 declaration and live pricing, not corpus pricing.
+7. **`harvest --pin` verifies its own pin.** Silent, and it corrupts the
    evidence base for everything else on this list — a frozen fixture that
    proves nothing looks exactly like one that does. Cheap.
-5. **`bust-triage`'s two-value verdict collapse.** 7 of 25 rows mis-map to
+8. **`bust-triage`'s two-value verdict collapse.** 7 of 25 rows mis-map to
    MITIGATED, including rows reading "OBSERVED, CAUSE NOT ISOLATED". It
    actively misleads the first step of the most-used lane. Cheap.
-6. **`tools/lane-sweep.mjs`.** Finds the next generation of these gaps
-   mechanically instead of waiting for someone to ask. Ranked below 4 and 5
-   because both of those corrupt evidence it would consume.
-7. **`/health` reports the resolved extension set.** The DECLARED/RUNNING/VERIFIED
-   comparison currently answers about a subset while reading as if it covered
-   the pipeline. Silent, medium cost.
-8. **Bisection extended to conservation rows.** Mechanizes a hand step run three
-   times in one sitting; the machinery exists and is pointed at one list.
-9. **`fixture-verdict-identity` mutation-tests only `FIXTURES[0]`.** Narrow,
-   cheap, and its blast radius is bounded by the corpus size.
-10. **Leak-scan scoping** (operator-side, dotfiles). Three overrides in one
-    round on 2026-08-06 — the reflex it trains is the cost, not the friction.
+9. **The session-close lane's computable half, named-and-unbooked check
+   first** — previously unranked (the runbook shipped at 16:33, the check did
+   not). Measured today: four findings named in prose and left there until the
+   operator converted them, plus two more caught by the first hand run of the
+   lane. Silent by construction — naming a gap feels like delivering it — and
+   its red-first arrangement exists in today's own transcript.
+10. **Row-scoped evidence pinning at FINDING time.** The permanent answer to
+    capture expiry; 11 attribution rows died with three evictions on 08-05
+    while the retention knob only moved the loss later. Silent, and it corrupts
+    the same evidence base as (7).
+11. **`tools/lane-sweep.mjs`.** Finds the next generation of these gaps
+    mechanically instead of waiting for someone to ask. Still ranked below (7)
+    and (8) because both corrupt evidence it would consume.
+12. **`/health` reports the resolved extension set.** The DECLARED/RUNNING/VERIFIED
+    comparison currently answers about a subset while reading as if it covered
+    the pipeline. Silent, medium cost.
+13. **Bisection extended to conservation rows.** Mechanizes a hand step run three
+    times in one sitting; the machinery exists and is pointed at one list.
+14. **`fixture-verdict-identity` mutation-tests only `FIXTURES[0]`.** Narrow,
+    cheap, and its blast radius is bounded by the corpus size.
+
+**RE-GRADED by this pass, not ranked:** the READY-expiry entry ("READY has no
+expiry, so nothing ever forces the build-or-drop decision"). Its MECHANISM half
+shipped 15 minutes after it was booked — `session-scan.py:170-189` emits the
+count and the oldest age on the same carrier the entry specifies. Two residuals,
+both real: the entry's verifier expects "25 READY, oldest 07-30 or earlier"
+while the live line reads `28 READY, oldest 1d`, because the shipped
+implementation dates entries by `git blame` and deliberately reverted a
+first-appearance implementation (`session-scan.py:142-151` names the residual) —
+so the booked verifier and the shipped mechanism disagree about what "oldest"
+means, and neither number can be cited until that is settled; and the re-grade
+RULE (three sessions unbuilt → re-affirm with evidence or drop with a reason)
+is prose with no trigger yet.
 
 **NOT ranked, and this is a finding rather than an omission:** row 4's own
 absorption. It is the most expensive open class measured today by a wide margin,
@@ -67,9 +130,15 @@ cross-message join variant has no design that survives the byte-match census, so
 there is nothing to rank. The rubric's own rule applies: an item nobody can rank
 is a finding about the item. Row 4's next move is design work, not build work.
 
-Roughly twenty older entries below carry no rank. They were not assessed in this
-pass and should not be read as ranked-last; deriving an order for them needs
-them read, which this pass did not do.
+**Outside this ranking, deliberately:** upstream PR work. Today's three rebases
+went out (12:46–12:58Z on #273/#276/#278) and #273 reads APPROVED, so the ball
+is with upstream; `main` is 25 behind as of a fetch during this pass. The #278
+entry below predates those pushes and should be re-read against the PR before
+being treated as open work.
+
+Roughly twenty older entries below still carry no rank. They were not assessed
+in either pass and should not be read as ranked-last; deriving an order for them
+needs them read, which neither pass did.
 
 ## Open
 

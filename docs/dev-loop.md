@@ -151,6 +151,33 @@ over evidence:
    and a cheap item at the top of a list is usually there because ranking it
    honestly was harder than building it.
 
+**A SECOND PARTITION, alongside signal 1: an irreversible failure mode ranks
+above the cost ordering, not inside it.** Added 2026-08-06 (second derivation
+pass) because the first pass had ranked the leak-gate items last and the
+rubric as written was right to. Signals 2–4 measure what an item can prove
+today, and a gate that has never yet let a leak through proves a small
+number: four overrides in two days, zero realized loss. A latency-class item
+— findings sitting unseen, review rounds waiting — outranks it on every one
+of the three, and keeps outranking it right up to the occurrence that cannot
+be undone. Everything else on this list is recoverable by doing the work
+later; a capture id or an origin IP in public git history is not (this repo's
+CLAUDE.md carries the precedent: the remediation was destroying and
+recreating the host). The rest of the repo already treats irreversible
+boundaries as a different kind of thing — the hygiene scan sits before push
+because that is where history stops being editable, and the corpus skip gauge
+carries blast radius as its own axis. The ranking rubric was the one place it
+was missing, and the omission is only visible when an irreversible-class item
+competes against a cheaper-to-prove one, which is exactly the comparison that
+surfaced it.
+
+Two guards, without which this partition swallows the list. It applies only
+where the failure mode is genuinely UNDOABLE — public history, deleted
+evidence, an external system's state — never to "expensive" or "hard to fix
+later"; and only with a MEASURED trigger rate, because a hazard nobody is
+approaching is a matrix row, not a build item. A partition that fires on
+everything is the check-that-fires-on-a-non-defect shape one level up: it
+would train its reader to ignore the word.
+
 Two rules that keep this from rotting. **An item nobody can rank is a finding
 about the item** — if its evidence does not support any of signals 2–4, it is
 not decision-complete and the gap is in the entry, not in the rubric. And
