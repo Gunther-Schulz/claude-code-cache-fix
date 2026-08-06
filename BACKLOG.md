@@ -603,6 +603,49 @@ needs them read, which neither pass did.
   print how many fixtures it exercised. Done-criterion: both, and the count
   printed — a run over one fixture and a run over five must not look alike.
 
+- **READY — the threat matrix's status cell is split on `|`, so a row whose
+  prose CONTAINS a pipe hands the reader a mid-cell fragment.** Surfaced
+  2026-08-06 by the dispatched status-enum work, correctly returned as a gap
+  rather than fixed inside a boundary that did not cover it. Row 3's status
+  contains an inline `` `header:anthropic-beta[-mid-conversation-tool-changes]` ``
+  in running text; `matrixRow`'s `line.split("|")` therefore yields a fragment
+  starting mid-sentence, and the `DOCUMENTED` the row LEADS with is never seen
+  by anything. The shipped status enum makes this land on STATUS-UNREADABLE,
+  which is the safe direction and is not a fix: the tool still cannot read a row
+  it is supposed to read.
+  Two candidate fixes and the second is preferred: (a) escape the pipe in the
+  matrix cell — one row today, and the next author re-introduces it; (b) parse
+  the row by markdown table semantics (a cell boundary is an UNESCAPED pipe
+  outside inline code), which fixes the class. Verifier, red-first: row 3 must
+  parse to kind DOCUMENTED after the change and to STATUS-UNREADABLE before it;
+  control, a row with no pipe in its prose is unaffected. Done when no matrix
+  row reads as UNREADABLE for a reason that is the parser's rather than the
+  row's.
+  **Why it is worth more than one row:** the same split is how the other matrix
+  readers reach their cells. A parser that silently truncates at the first pipe
+  is the "partial view read as its whole body" shape aimed at a table.
+
+- **READY — the synthetic-HOME pattern is the only way to drive this repo's
+  CLIs, and it is currently re-invented per test.** Credited to the dispatched
+  status-enum work's candidate lesson, generalised one step: every tool here
+  that matters reads `~/.claude` — the worktime ledger, the gate status file,
+  the capture directory, the alias registry — and each has a CLI on top whose
+  WIRING is where the defects have actually lived. Measured the same day: the
+  `--at` silent substitution lived entirely in `main()`, so a resolver unit test
+  passes straight over it; pointing HOME at a synthetic ledger and spawning the
+  real binary is what caught it, and it also produced the strongest red
+  arrangement available — new expectations against the old implementation, with
+  no module-load red to mistake for discrimination.
+  Design, decided: a shared test helper that builds a synthetic `~/.claude`
+  (ledger, gate status, captures, aliases — each optional), yields its path, and
+  tears it down; every new CLI bite drives the real binary through it instead of
+  importing internals. Verifier, red-first: re-point the two existing CLI bites
+  at the helper and show they still go red under their own mutations; a helper
+  that silently produces an EMPTY home must fail loudly rather than yield a
+  passing test over nothing — that is the "0/0 reads like clean" shape this repo
+  has hit three times.
+  Not blocking anything; ranked at the next derivation.
+
 - **BUST 2026-08-06 15:02:33Z — 48k, cause `other`, PARKED with its named
   missing evidence.** Walked the bust-appears line rather than improvised.
   Inventory (`--list`): this is the newest cold event and the only one after
