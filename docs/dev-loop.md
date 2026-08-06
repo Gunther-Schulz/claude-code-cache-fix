@@ -19,6 +19,7 @@ behind any step.
 | the daily sweep reports a finding, nobody present | `runbooks/sweep-finding.md` | regression / known-open / non-defect / instrument-defect / new-class / could-not-verify |
 | the proxy's own detectors log an anomaly (429, 5xx, auth, retry storm) | `runbooks/runtime-anomaly.md` | the sweep's six, plus open-booked |
 | an upstream PR gets a review round | `runbooks/upstream-pr-round.md` | round answered, pushed, comment posted |
+| the operator signals the session is ending | `runbooks/session-close.md` | closed — every context-resident fact on disk, or named as dropped |
 
 Why these exist at all (operator, 2026-08-06): the method and the closing gate
 were both written down, and how completely an event got handled still depended
@@ -73,6 +74,21 @@ used for. So it has two halves, in order:
    one, because "I'll write it later" names no missing evidence. If the session
    is genuinely too deep to make a two-line edit safely, it is too deep to be
    trusted with the judgment that the edit is optional.
+   **Deciding not to do it is a legitimate call; not BOOKING it never is.**
+   The branch is binary — done, or booked — and there is no third exit,
+   including the one that arrives dressed as a considered decision. "I am
+   deliberately not writing this now" loses the finding exactly as completely
+   as forgetting it, and is harder to catch because it sounds like judgment
+   rather than drift: the costume rule from the grounding corpus, where a
+   rationalization presents as prudence.
+   **The one-question test, decisive for small items: booking costs about what
+   doing it costs.** Any reason that would justify not making a two-line fix
+   therefore fails, by the same arithmetic, to justify not booking it — the
+   deferral refutes itself, and no appeal to time, depth or focus survives the
+   comparison. Where the fix is genuinely large the two costs diverge and the
+   choice becomes real; that divergence is what booking exists for. Ask it
+   before postponing anything: what does booking this cost, against doing it?
+   "About the same" means the postponement was never a decision.
 
 Measured on one day, 2026-08-06, all five found while doing something else:
 `harvest --pin` reports success on a fixture that reproduces nothing;

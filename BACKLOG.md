@@ -238,7 +238,8 @@ them read, which this pass did not do.
   git rather than from a date written in the entry — a hand-written date is a
   label over its own body and will drift from the commit that added it.
 
-- **READY — `docs/runbooks/session-close.md`, the fifth lane: the operator
+- **PARTLY DONE — `docs/runbooks/session-close.md` SHIPPED 2026-08-06; the
+  computable half of it is still READY. The fifth lane: the operator
   signals a session is ending.** Operator-proposed 2026-08-06 at the moment it
   paid for itself. Asked "all threads done or booked?" at close, the
   enumeration found two that were not, and BOTH were invisible to every
@@ -360,6 +361,25 @@ them read, which this pass did not do.
   keeping: the sentence is about something the session witnessed, and the
   witness is memory of ATTENTION rather than the artifact. Three instances in
   one day argues the direction-specific phrasing is what let it through.
+  (4) **CLAUDE.md Per-project accretion — widen the do-it-now-or-book-it
+  bullet to cover the DELIBERATE postponement.** It currently reads: a deferred
+  change stated only in chat has no carrier and evaporates — do it now or book
+  it; "I'll fold it in later" is the tell. Correct, and it did not bind on
+  2026-08-06, because the tell it names is a passive one. What actually
+  happened was an ACTIVE, reasoned-sounding decision — "I am deliberately not
+  writing this now, at this depth" — which loses the finding just as
+  completely while presenting as prudence rather than as drift. That is the
+  costume rule from Grounding, and the two bullets should meet: the branch is
+  binary, done or booked, with no third exit however well argued.
+  Carry the falsifier with it, since it is what makes the rule self-enforcing:
+  **booking costs about what doing it costs, for anything small.** So any
+  reason that would justify not making a two-line fix fails by the same
+  arithmetic to justify not booking it. Where the fix is genuinely large the
+  costs diverge and the choice is real — which is precisely the case booking
+  exists for. One question before any postponement: what does booking this
+  cost, against doing it? "About the same" means it was never a decision.
+  Operator's framing, 2026-08-06, worth keeping verbatim in whatever wording
+  lands: things cannot get lost, ever.
   Both files are operational corpus: `CLAUDE-maintenance.md` governs the edit
   and each lands with a JOURNAL line in dotfiles. Not done here because the
   operator routed it to a separate session.
