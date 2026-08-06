@@ -1,0 +1,130 @@
+{
+  "key": "s-93a8c9610bc0",
+  "field": "systemBytes",
+  "oldBytes": 17679,
+  "newBytes": 54585,
+  "watermark": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_2719b7a469d9_57",
+        "bytes": 82
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_f9de624097de_668",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h",
+          "scope": "global"
+        },
+        "bytes": 1310
+      },
+      {
+        "type": "text",
+        "text": "t_272bf1da6183_29\n\nt_eabb83031eda_460\n\nt_8d59922ad673_394\n\nt_37629f6c3817_255\n\nt_3072ae95e201_613\n\nt_541e51846e6d_309\n\nt_90bcac0f38d8_358\n\nt_3fcd2b200896_357\n\nt_0242e9fadb0c_633\n\nt_757fbee12d5b_694\n\nt_5db7179f598c_921\n\nt_bf11e9e17e18_977\n\nt_29fce5f8c810_22\n\nt_67ed3cf47cc3_222\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_d747a9419e26_133\n\nt_9856a95edb9c_280\n\nt_4e4e48fb23ce_277\n\nt_ae18cc765b0a_435\n\nt_04b8c6d76d03_231\n\nt_247e6c6fb3cf_455\n\nt_5a50e97610ac_227\n\nt_46a24a6f7d26_231\n\nt_e6e02b2c94e7_157\n\nt_96b5a06eb124_20\n\nt_afd105088016_53\n\nt_5aa6d37c7ef2_24\n\nt_69124d8b98fe_30\n\nt_00da9f9c53b6_521",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        "bytes": 9919
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 3484
+      },
+      {
+        "name": "Artifact",
+        "bytes": 10821
+      },
+      {
+        "name": "Bash",
+        "bytes": 2972
+      },
+      {
+        "name": "Edit",
+        "bytes": 993
+      },
+      {
+        "name": "Read",
+        "bytes": 1617
+      },
+      {
+        "name": "ReportFindings",
+        "bytes": 2206
+      },
+      {
+        "name": "ScheduleWakeup",
+        "bytes": 3839
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 2817
+      },
+      {
+        "name": "SendUserFile",
+        "bytes": 2654
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "TaskStop",
+        "bytes": 855
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 668
+      }
+    ]
+  },
+  "newest": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_2719b7a469d9_57",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 119
+      },
+      {
+        "type": "text",
+        "text": "t_861de6f771ce_191\n\nt_b4cc52c7f4ae_38\n\nt_5bf05575ac0e_154\n\nt_e624e36c4236_823\n\nt_7e620cd53b97_1312\n\nt_634a9050d2e2_513\n\nt_498445143857_26\n\nt_74167aa24ee4_448\n\nt_eadd799862fa_844\n\nt_61a47c58c044_1054\n\nt_132dab5fdd64_402\n\nt_b67974cfa8b6_451\n\nt_0c37feb05dfa_885\n\nt_f3f026656dc2_211\n\nt_cb3f91d54eee_3\n\nt_f62ac5993a4e_30\n\nt_2d7af5adedf6_61\n\nt_e3d8d60edc79_24085\n\nt_2e0654131812_312\n\nt_cf036b47f148_315\n\nt_23599af8b0fb_297\n\nt_abac952af573_614\n\nt_57f52d5b8f10_341\n\nt_a9e2dc22e530_273\n\nt_298cb70adc5b_584\n\nt_d73f13a727ea_338\n\nt_979c5f8736eb_264\n\nt_139ab003d636_592\n\nt_075f2a8b14e8_126\n\nt_37325bd53ea5_13846\n\nt_8d9d19cc10f2_442\n\nt_1b2a58d80486_104\n\nt_79ef93928642_336\n\nt_5145202c6f78_895\n\nt_30edb89b9546_327\n\nt_e1a96fc4aa3f_44\n\nt_29fce5f8c810_22\n\nt_67ed3cf47cc3_222\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_d747a9419e26_133\n\nt_e6e02b2c94e7_157\n\nt_96b5a06eb124_20\n\nt_afd105088016_53\n\nt_5aa6d37c7ef2_24\n\nt_69124d8b98fe_30\n\nt_00da9f9c53b6_521",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 54463
+      }
+    ],
+    "tools": [
+      {
+        "name": "Bash",
+        "bytes": 11890
+      },
+      {
+        "name": "Read",
+        "bytes": 2615
+      },
+      {
+        "name": "WebFetch",
+        "bytes": 1894
+      },
+      {
+        "name": "WebSearch",
+        "bytes": 1901
+      }
+    ]
+  }
+}
