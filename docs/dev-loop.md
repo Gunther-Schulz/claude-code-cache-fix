@@ -52,6 +52,28 @@ proposed to "carry forward" instead of writing down. Each became an entry only
 because the operator asked. A scope that names tools and docs reads as
 exhaustive to a session holding a rule-shaped finding, which is how the
 narrower wording survived its own first day.)
+
+**And the widening did NOT hold on its own first evening — so here is the
+sharper form. A finding stated as "X cannot reach Y" names only the READER.
+Every reach failure also has a WRITER: something put Y where X does not
+look, and that something is still running.** Measured 2026-08-06, hours
+after the paragraph above was written: `bust-triage` returned UNCLASSIFIED
+for a cause the threat matrix had already dispositioned, because the
+disposition lived in a `## Event walk` section and `causeToRow` indexes
+numbered rows only. The session identified that correctly, wrote
+"**the finding is the tool, not the bust**" into the matrix, and was about
+to book a reader fix — the machinery half, alone. The other half (nothing
+requires a CONTROLLED-CAUSE walk to become a row, so the next walk lands
+in prose too) surfaced only because the operator asked four words: "gap in
+machinery or process?". Fixing the reader and leaving the writer is the
+symptom-site fix from the corpus, one level up: the amplifier goes quiet
+and the generator keeps producing.
+So the question has a second half, asked in the same breath: **what put it
+out of reach, and is that still happening?** A finding with a reader fix
+and no answer to that is half-booked. The trigger is judgment-shaped — no
+predicate distinguishes a genuine one-sided finding from an under-classified
+one — so this stays prose with the operator as backstop, and the honest
+record is that the backstop is what caught it this time.
 This is the one that compounds, and it is deliberately NOT a closing question.
 The other four run when work finishes; this one runs the moment an instrument
 surprises you, because by then it has already contaminated whatever it was

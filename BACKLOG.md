@@ -516,6 +516,85 @@ the first entry below.
   step 4 of the sweep runbook — that marker comes out with this commit and
   by no other means.
 
+- **READY — the close-out lane inventories EVENTS and not SIGNALS, so a
+  doorbell that fires on every single turn can go a whole session
+  undispositioned.** Found 2026-08-06 by asking "what else did we miss?"
+  after the lane had already reported CLOSED. Measured on this session:
+  `attention: 25 behind upstream (as of last fetch) | 33 READY, oldest 1d`
+  was injected at session start and re-rendered every turn for ~8 hours.
+  Nobody merged, nobody decided not to merge, and no entry records either.
+  The lane's step 2 walks cold EVENTS to a disposition and its step 3 reads
+  git state — neither asks what the standing signals were saying, so the
+  one signal that was on the whole time was the one thing not walked.
+  **Why this is worse than an ordinary miss: the doorbell was built this
+  morning to stop exactly this, and it worked.** It fired, correctly, on
+  every turn. What failed is the layer above — a signal with no
+  disposition step becomes wallpaper, and a doorbell that is never
+  answered trains the reader to stop hearing it, which is this repo's
+  own check-that-fires-on-a-non-defect shape aimed at a check that is
+  firing CORRECTLY. Habituation is the failure mode of a working alarm.
+  Design, decided: close-out gains a step between 2 and 3 — **re-run the
+  SessionStart scan and require every non-silent part of the attention
+  line to resolve** to (a) an action taken this session, (b) a booked
+  entry, or (c) an explicit "not this session, because —". The line is
+  silent when clean by construction, so the step is a no-op on a healthy
+  repo and costs one command otherwise. Computable: the parts are already
+  structured (`N behind upstream`, `N READY, oldest Nd`, and gate-red once
+  it ships), so the check is a parse plus a set difference against the
+  session's own commits — no judgment beyond option (c)'s reason.
+  Verifier, red-first and available: run it against this session before
+  this entry existed — it must flag `25 behind upstream` as undispositioned;
+  against the state after, it must pass on (b). Done when a standing
+  signal cannot stay on for a whole session without someone saying why.
+  **Immediate disposition of the instance, so this entry is not itself the
+  miss it describes:** `main` is 25 behind `upstream/main`, deliberately
+  NOT merged this session — merging upstream into deployed fork-main is a
+  restart-and-repin operation (FORK-NOTES' update procedure), which is a
+  poor fit for a session that spent its budget elsewhere and is closing.
+  It is the first thing the next session should weigh against build order
+  item 4.
+
+- **READY — findings get classified ONE-SIDEDLY and the operator is the
+  only thing that catches it. Twice on 2026-08-06, which is a rate, not an
+  anecdote.** This is the gap behind the two entries below, booked
+  separately because fixing either of them leaves this one intact.
+  **Instance 1 (morning):** four findings were tool-shaped in the telling
+  and procedure- or rule-shaped in fact; each became an entry only when the
+  operator asked. The response was to widen dev-loop rule three from
+  "tooling and docs" to "tooling, docs, PROCEDURES, RULES".
+  **Instance 2 (same evening, after that widening):** a reach failure —
+  `bust-triage` cannot see a disposition the matrix records — was written
+  up as "**the finding is the tool, not the bust**", with a reader fix
+  about to be booked alone. The writer half (nothing requires a
+  CONTROLLED-CAUSE walk to become a row, so the next one lands in prose
+  too) surfaced only when the operator asked four words. Verified against
+  artifacts, not memory: the matrix addendum written BEFORE the question
+  contains zero process-half language; the entry written after contains
+  both.
+  **So the widened rule did not hold on its own first evening, and that is
+  the finding.** A rule that names four categories still gets answered with
+  one, because the session states the category in the same breath as the
+  defect and never re-asks. Widening the vocabulary again would repeat the
+  morning's fix and get the morning's result.
+  **Computable slice, and it rides a check already booked** — the
+  named-and-unbooked scanner (session-close entry below) already scans the
+  session's own output for gap-language and reports unresolved hits. Add
+  one pattern class to its spec: REACH-FAILURE language — "cannot reach",
+  "invisible to", "only indexes", "does not see", "not covered by" — and
+  require the entry that resolves it to contain a writer clause (what put
+  the target out of reach, and whether that is still happening). It
+  REPORTS, never blocks, exactly as that check's design already specifies.
+  **Red-first arrangement, available now and unusually clean:** run it over
+  this session. The matrix addendum must be flagged (reach-failure language,
+  no writer clause); the backlog entry written twenty minutes later must
+  not (both halves present). Two texts, one session, opposite verdicts, no
+  synthetic fixture needed.
+  **Judgment remainder, stated so nobody mechanizes it:** whether a
+  one-sided finding is genuinely one-sided (some reach failures have no
+  live writer) is not computable. The check surfaces candidates; the
+  operator stays the backstop, and the honest record is that the backstop
+  is what worked both times.
+
 - **READY — the widened mutation test WENT RED on the first new real pin,
   and which side is wrong is NOT established.** Found 2026-08-06 at
   session close, by the push gate, on the first fixture added after the
@@ -572,7 +651,17 @@ the first entry below.
   sections by the cause they name, so a documented disposition is reachable
   from the cause; (2) add a lint asserting the set difference is empty, so
   the process half enforces itself instead of relying on the next author
-  remembering. Verifier, red-first and available now: the lint must go red
+  remembering; (3) the same lint asserts every `## Event walk` section
+  either names a numbered row or carries an explicit no-row declaration —
+  that is the generator, and it is a grep, not a judgment.
+  **Recorded because the rule change rests on it:** this session found (1)
+  on its own, wrote "the finding is the tool, not the bust" into the matrix,
+  and was about to book the reader fix ALONE. The process half exists only
+  because the operator asked "machinery or process?" — verified against the
+  artifacts rather than recalled: the matrix addendum, written before the
+  question, contains zero process-half language; the entry you are reading,
+  written after, contains both. `docs/dev-loop.md` rule three now carries
+  the sharpened form (every reach failure has a writer, still running). Verifier, red-first and available now: the lint must go red
   on today's state (`previous_message_not_found` dispositioned, unreachable)
   and green after (1); `--at 2026-08-06T16:35:15Z` must stop saying
   UNCLASSIFIED and name the walk. Done when a cause the matrix has
