@@ -96,28 +96,31 @@ bullet, evidence pointer included.
   carried the un-narrowed "moving a marker costs nothing" note as an aside; it
   has been withdrawn in place, with the reason stated, rather than defended.
 
-- **OPERATOR SESSION WANTED (raised 2026-08-06, mid-investigation) — there is
-  no written LINE OF ACTION per event type; every event class is currently
-  re-improvised from the four questions.** The trigger was a live one: a bust
-  investigation produced a frozen fixture that proved nothing, and the only
-  reason it was caught is that someone happened to replay it. dev-loop
-  describes METHOD (how to attribute, how to check an instrument) and the
-  closing gate describes CLOSING, but nothing describes the SEQUENCE for a
-  given event — so the completeness of any given response depends on what the
-  session remembers to do. Event classes to cover, each with its ordered
-  actions and its terminal state: (1) a threshold BUST appears (triage ->
-  attribute ours/CC's -> freeze evidence, with the pin-reproduces check ->
-  matrix row -> disposition); (2) the daily SWEEP reports a finding with no
-  human present (the recurring-producer problem the closing gate's question 2
-  already names — who reads it, when, and what makes it survive rotation);
-  (3) an UPSTREAM PR round (a runbook exists, `docs/runbooks/
-  upstream-pr-round.md` — check whether it is the model for the others);
-  (4) an instrument going red vs an instrument found lying — different lines;
-  (5) a gate-red that triages to a NON-defect (the declared-exemption path,
-  which has bitten repeatedly). Not a dispatch: this is process design over
-  the operator's own working conventions, and the fork's method file is the
-  artifact it changes. Bring the 2026-08-06 session's three events as the
-  worked examples — they exercise (1), (4) and (5).
+- **PARKED — do the three runbooks actually get FOLLOWED, and did folding the
+  two sub-classes in rather than splitting them out hold?** The
+  per-event-line work is DONE (operator session 2026-08-06, `0868657` +
+  the sweep-runbook commit): `docs/runbooks/bust-appears.md`,
+  `sweep-finding.md`, `upstream-pr-round.md`, indexed in dev-loop's "Which
+  line are you on", each ending in a named terminal state. Decisions taken,
+  recorded here because nothing else carries them: THREE lines, not the five
+  originally listed — an instrument going red and a gate-red that triages to
+  a non-defect are decision POINTS INSIDE the other lines, not event classes
+  with their own sequence, and splitting them out would have produced files
+  duplicating context that nobody opens. Terminal states are REUSED, never
+  invented (the bust line takes FORK-NOTES' four; the sweep line got its own
+  six, settled by the dispatcher before briefing so a cheaper tier could not
+  design them silently). Runbooks are staging areas: a hand-run step carries
+  `[GRADUATE -> where it belongs]` and the marker is removed only by the
+  commit that mechanizes it.
+  **Named missing evidence for un-parking:** two occurrences of each event
+  class handled BY the runbook, after which the questions are answerable and
+  not before — (a) did the folded-in sub-classes get reached, or did a
+  session hit an instrument-lying case and fail to find the branch because
+  it was not a file? (b) which `[GRADUATE]` markers survived two occurrences
+  and are therefore overdue? (c) did any session route a finding to "seems
+  fine", i.e. off the terminal-state list entirely? None of these is
+  answerable from the documents themselves — only from watching them get
+  used, which is why this is parked rather than ready.
 
 - **READY — kill the relocation-induced conversation-key rotation (threat
   matrix row 26): resolve the conversation sub-key ONCE from the RAW body and
@@ -148,6 +151,36 @@ bullet, evidence pointer included.
   every live conversation re-baselines. Price it with
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
+
+- **READY — extend `replay.mjs`'s extension bisection to CONSERVATION rows;
+  today it attributes stability violations only, and conservation rows are
+  attributed by hand.** The graduation trigger fired long ago and was only
+  noticed when `docs/runbooks/sweep-finding.md` had to teach the hand method
+  as a step: dev-loop's rule is "whenever a step of this list gets answered by
+  hand twice, move it into the tool" (dev-loop.md:269), and the 2026-08-05
+  gate-red triage ran this exact hand method — the suspected extension's own
+  exported transform over the real raw bytes — on THREE extensions in one
+  sitting (`fresh-session-sort`'s `sortSkillsBlock`/`pinBlockContent`,
+  `smoosh-split` composed with `content-strip`, and
+  `identity-normalization`'s `normalizeSessionStartText`). Not a new tool:
+  the machinery exists and is good (`replay.mjs:3169` — one bisection over
+  the union of rows rather than one per row, results cached by cut, 58s
+  linear -> ~11s bisected). It is pointed at `violations` and never at the
+  conservation list. Design, decided: build the bisection's input as the
+  UNION of stability violations and conservation rows, and give each
+  conservation row the same `attributedTo` field a stability violation
+  already gets — same cut-cache, so the added cost is the extra rows'
+  probes, not a second bisection pass. Verifier, red-first: the 38-row
+  gate-red capture is the known positive — every row must come back
+  attributed to one of the three extensions named above, and the run must
+  report rows it could NOT attribute as their own count rather than folding
+  them into the attributed ones (an attribution that cannot say "I don't
+  know" is the could-not-verify hole in a third clothing). Done-criterion:
+  that capture's rows attributed with the counts matching the hand triage
+  recorded in the "GATE-RED TRIAGED 2026-08-05" entry, plus a bite in
+  `test/replay-gate-selfcheck.test.mjs`. Removes the `[GRADUATE]` marker on
+  step 4 of the sweep runbook — that marker comes out with this commit and
+  by no other means.
 
 - **READY — `bust-triage` reports a STATE-KEY CHANGE across the busting pair
   as its own line.** This is the hand-step that found row 26, and it is
