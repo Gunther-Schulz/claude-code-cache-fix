@@ -647,16 +647,22 @@ needs them read, which neither pass did.
   oldest date ... Re-open with a measured case: two runs of this hook
   straddling a backlog reorder where the reported age drops."
   This is that reorder, and it is not a one-off: the carrier design makes a
-  whole-section reorder the NORMAL consequence of every future re-derivation,
-  so under blame dating the age signal reads ~0d after every one of them — a
-  number that exists, looks fine, and means nothing. That is worse than the
-  signal being absent, and it is the shape this repo keeps re-finding: an
-  instrument reporting a value nobody can distinguish from a true one.
-  Measured, both runs of the hook against this repo straddling the reorder
-  commit: **before `28 READY, oldest 1d` — after, PENDING the commit**, filled
-  in below by re-running
-  `echo '{"cwd":"<repo>","hook_event_name":"SessionStart"}' | python3
-  ~/dev/.../claude/hooks/session-scan.py`.
+  whole-section reorder the NORMAL consequence of every future re-derivation.
+  **MEASURED, and the prediction written here first was WRONG — kept, because
+  the correction is the useful part.** The predicted symptom was the attention
+  line collapsing to ~0d. It did not: `28 READY, oldest 1d` before the reorder
+  commit, `29 READY, oldest 1d` after. The aggregate is a MIN over every READY
+  bullet, only the 13 ranked ones moved, and an unmoved 08-05 entry still holds
+  the minimum — so the line looked fine and proved nothing either way. What
+  actually died is per-entry, confirmed by reading blame rather than by
+  reasoning about it: two moved headers now date to today 16:59 (the reorder
+  commit), two unmoved ones still date to 08-05 21:48 and 22:25.
+  So the damage is narrower than predicted and lands worse: the entries that
+  lose their age are exactly the RANKED ones — the head of the list, the items
+  most likely to reach the three-session re-grade — while the aggregate signal
+  that would have shown it stays healthy-looking. It also degrades with use:
+  every future re-derivation moves more entries, and the min creeps toward
+  today one reorder at a time.
   Design, decided: restore the first-appearance implementation (it exists in
   dotfiles history) and date an entry by the commit that first introduced its
   header line, not by the last commit that touched it. Verifier, red-first and
