@@ -10,3 +10,10 @@ __pycache__/
 !.claude/github-app
 .possibilities/
 package-lock.json
+
+# tools/dossier.mjs writes its bust dossiers into the repo root. They hold live
+# session ids, transcript paths and capture filenames — the exact classes the
+# hygiene rules keep out of this public tree — and the tool's own header says
+# "not committed". Nothing enforced that until this line: the push-side absence
+# scan is a backstop at the boundary, not a guard in the working tree.
+dossier-*.md

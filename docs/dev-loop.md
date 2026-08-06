@@ -797,6 +797,73 @@ at test time, run again by the dotfiles pre-push guard at the boundary where
 git history becomes unscrubbable. A new identifier class discovered later is
 added to the scanner first (red on the live instance), then scrubbed.
 
+### The scrub destroys CONTENT PREDICATES — a pin is evidence only once replayed
+
+The curation-axis rule below ("Adding a check", point 3) says a corpus is blind
+to whatever it was not curated for, and its worked example is SCALE. There is a
+second axis, measured 2026-08-06, and it silently disables whole extensions:
+**the sanitizer replaces text with hash tokens, so any extension gated on a
+literal text prefix can never fire on a harvested fixture.** All four of
+`fresh-session-sort`'s relocatable-block predicates are exactly that shape
+(`isSkillsBlock`, `isHooksBlock`, `isDeferredToolsBlock`, `isMcpBlock`,
+`fresh-session-sort.mjs:17-32`). Measured on a pin taken that morning to freeze
+a live 216k bust: "The following skills are available", "hook success",
+"MCP Server Instructions" and "The following deferred tools" each score **0
+hits in the pinned fixture against 107–170 in the live capture** — the live
+side is the positive control, without which a zero proves nothing. So the
+committed corpus, and `npm test` with it, is blind to that extension's entire
+behaviour; only `gate-live` over live captures reaches it, and only while the
+capture lives.
+
+The trap is not the blindness, it is that **the pin reports success**:
+`harvest --pin` printed `pinned 327 record(s), range 166..167` for a fixture
+that replays with **0 stability exemptions across 136 compared pairs**, where
+the live capture over the same range yields
+`first-appearance-relocation (skills)`. Nothing in the tool compares the two.
+That fixture was about to be committed as the frozen evidence for a
+threat-matrix row — the harvest-side instance of "an absence of evidence
+wearing a verdict's clothes".
+
+**One guard did fire, and its reach is the lesson.** `npm test` went red on
+that pin: `fixture-verdict-identity.test.mjs` refuses to run its mutation when
+the subject fixture carries no full `<system-reminder>` block, because the
+mutation would be a no-op — the suite's own vacuous-pass guard, working
+exactly as designed. But it examines `FIXTURES[0]`, the **alphabetically
+first** pin, and the red happened only because `468…` sorts ahead of `4b6…`.
+Probed rather than assumed: the identical defective pin renamed to sort LAST
+gives **2184/2184 green**. So the corpus is guarded at one entry — whichever
+fixture happens to sort first — and silent on every other, the same
+one-route shape this file's guard table already collects. A pin landing
+anywhere but position 0 is unchecked by anything.
+
+**And the verification itself has a silent wrong way, walked into while finding
+this.** A pin is `{header, records}` JSON, not JSONL, so
+`replay.mjs <pin>.json` does not read it as a capture: it reports
+`census: 0 same-conversation pairs`, `gates: no gates declared in capture`, and
+exits **clean**. Every violation and exemption count is 0 because nothing was
+compared — the same zero the real finding produces, from an instrument that
+never ran. Replay a pin by feeding `.records` out as JSONL and confirming the
+pair count is in the same range as the live capture's; a pin check that does not
+report how many pairs it compared has not checked anything. This is the third
+recorded instance of the shape in this file, and the first where it bit the
+check built to catch the second.
+
+**The split is predictable, so use it when deciding what to pin.** Two pins
+taken the same morning, checked the same way: the row-4 pair reproduces
+EXACTLY — `n=69->71 edit@32 of 87` with all three cross-message joins — while
+the row-26 pair reproduces nothing. Structural classes survive the scrub
+(indices, ordinals, hashes, migration shapes are what the sanitizer preserves
+by design); classes whose detection reads literal TEXT do not. Before pinning,
+ask which of the two the finding rests on. Only the first is worth the
+megabytes.
+
+So, until `harvest --pin` verifies itself (BACKLOG, ready): **a pin is a claim
+until you replay it and see the event you pinned it for.** One command, and it
+is the same command that produced the finding. Where the class cannot survive
+the scrub at all, the durable evidence is a SYNTHETIC fixture — which the rule
+two paragraphs up already makes the default for anything bound for a public
+tree, and this is the case where it is not merely preferred but the only option.
+
 The gate reads captures **line by line**, so pointing it at a live
 multi-hundred-megabyte capture is the intended use, not an abuse. It slurped
 them until 2026-07-28, when a 955 MB capture produced `RangeError: Invalid

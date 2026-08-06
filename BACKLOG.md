@@ -96,6 +96,120 @@ bullet, evidence pointer included.
   carried the un-narrowed "moving a marker costs nothing" note as an aside; it
   has been withdrawn in place, with the reason stated, rather than defended.
 
+- **OPERATOR SESSION WANTED (raised 2026-08-06, mid-investigation) — there is
+  no written LINE OF ACTION per event type; every event class is currently
+  re-improvised from the four questions.** The trigger was a live one: a bust
+  investigation produced a frozen fixture that proved nothing, and the only
+  reason it was caught is that someone happened to replay it. dev-loop
+  describes METHOD (how to attribute, how to check an instrument) and the
+  closing gate describes CLOSING, but nothing describes the SEQUENCE for a
+  given event — so the completeness of any given response depends on what the
+  session remembers to do. Event classes to cover, each with its ordered
+  actions and its terminal state: (1) a threshold BUST appears (triage ->
+  attribute ours/CC's -> freeze evidence, with the pin-reproduces check ->
+  matrix row -> disposition); (2) the daily SWEEP reports a finding with no
+  human present (the recurring-producer problem the closing gate's question 2
+  already names — who reads it, when, and what makes it survive rotation);
+  (3) an UPSTREAM PR round (a runbook exists, `docs/runbooks/
+  upstream-pr-round.md` — check whether it is the model for the others);
+  (4) an instrument going red vs an instrument found lying — different lines;
+  (5) a gate-red that triages to a NON-defect (the declared-exemption path,
+  which has bitten repeatedly). Not a dispatch: this is process design over
+  the operator's own working conventions, and the fork's method file is the
+  artifact it changes. Bring the 2026-08-06 session's three events as the
+  worked examples — they exercise (1), (4) and (5).
+
+- **READY — kill the relocation-induced conversation-key rotation (threat
+  matrix row 26): resolve the conversation sub-key ONCE from the RAW body and
+  have both stateful extensions read it.** Mechanism fully isolated 2026-08-06,
+  216,060 tokens on one request; the row carries the four measured links and the
+  falsification probe with its control, so nothing here needs re-deriving.
+  Design, decided: `conversationSubKey` is a property of CC's conversation, so
+  it is computed early (before order 250 mutates `messages[0]`) into `ctx.meta`
+  and both `insertion-normalization` (395) and `deferred-tool-rewrite` (425)
+  read it from there instead of each re-deriving it from whatever body reaches
+  them — the repo's own "never hand-roll identity" rule, applied to the case
+  where the second derivation is over OUR bytes. `fresh-session-sort` (250)
+  already keys on the raw body and needs no change; that asymmetry is the bug's
+  signature and its state files are the proof (its memory sits under the raw
+  key while the downstream two sit under the rotated one).
+  Verifier, named: a SYNTHETIC fixture — mandatory, not preferred, because the
+  scrub destroys all four relocatable-block predicates (dev-loop, "The scrub
+  destroys CONTENT PREDICATES"), so no harvested pin can ever carry this class.
+  Red-first arrangement, stated so it cannot pass vacuously: the fixture's two
+  requests differ only by the first appearance of a skills block; against the
+  CURRENT implementation the assertion "the sub-key deferred-tool-rewrite keys
+  on is identical across the pair" must FAIL, and the failure must name the two
+  keys. Done-criterion: that assertion green, `deferred-tool-rewrite` reporting
+  `rewrite`/`unchanged` rather than `no-baseline` on the second request, and
+  the forwarded `tools[]` byte-identical across the pair.
+  **Row-3 declaration, required before the restart, not after:** this CHANGES
+  STATE KEYS for two extensions — the restart is NOT cache-transparent and
+  every live conversation re-baselines. Price it with
+  `tools/restart-exposure.mjs --match` against live sessions before shipping,
+  per dev-loop's "price it against LIVE sessions, not the corpus".
+
+- **READY — `harvest --pin` must verify the pin reproduces what it was taken
+  for; today it reports success on a fixture that proves nothing.** Measured
+  2026-08-06: a pin taken to freeze the row-26 evidence printed
+  `pinned 327 record(s), range 166..167` and replays with 0 exemptions where
+  the live range yields `first-appearance-relocation (skills)`. The scrub had
+  removed the literal prefixes the extension keys on; the tool had no way to
+  notice and no obligation to look. Design, decided: after writing the fixture,
+  `--pin` replays BOTH the pinned file and the same range of the source capture
+  under the same gates, and compares the verdict-bearing rows (exit code,
+  stability violations, exemptions, census classes) — feeding `.records` out as
+  JSONL, never pointing `replay.mjs` at the `.json` pin, which reads 0 pairs and
+  exits clean. The comparison therefore asserts the PAIR COUNT first: two runs
+  that compared nothing agree perfectly and mean nothing. Divergence prints as a
+  named WARNING on the pin — `pinned, but does NOT reproduce: <what differs>` —
+  never as silent success; a pin that reproduces nothing is still worth keeping
+  as raw structure, so this warns rather than refuses. Verifier: run it on
+  `pinned-s-468303a4d2d0-166-167.json`, which is the known positive — it must
+  warn. Then run it on a pin whose class survives the scrub, which must not.
+  Done-criterion: both, plus the warning text naming the missing rows.
+
+- **READY — `fixture-verdict-identity.test.mjs` mutation-tests `FIXTURES[0]`,
+  so which artifact the whole file exercises is decided by SORT ORDER, and
+  adding a pin silently re-aims it.** Found 2026-08-06 by adding one: the new
+  pin sorted first (`468…` before `4b6…`), became the mutation subject, and the
+  file went red on its own vacuous-pass guard ("carries no `<system-reminder>`
+  block — the mutation would be a no-op"). The guard is right and the aiming is
+  not. Probed: the identical fixture renamed to sort last gives 2184/2184
+  green, so every pin except position 0 is mutation-tested by nothing — the
+  entry-path shape, in the corpus this time. Design, decided: run the three
+  mutants over EVERY replayable fixture (they are a handful, and the run is
+  seconds), with the no-op precondition reported per fixture as a named SKIP
+  carrying the reason rather than an assertion failure — a fixture that cannot
+  host the mutation is a fact about the fixture, not a broken test, and today
+  it reads as the latter. Verifier: with a known-defective pin present at any
+  position the run must name it; with only sound pins it must be green and must
+  print how many fixtures it exercised. Done-criterion: both, and the count
+  printed — a run over one fixture and a run over five must not look alike.
+
+- **READY — `bust-triage`'s verdict is a two-value collapse over a seven-value
+  status vocabulary, and the default is the reassuring one.** Measured
+  2026-08-06: `--at 2026-08-06T09:59:58Z` returned **MITIGATED** for a bust
+  whose class nobody has mitigated, citing row 6 — whose status is literally
+  "OBSERVED, CAUSE NOT ISOLATED". Cause: `bust-triage.mjs:397` computes
+  `open: /\bOPEN\b|RE-OPENED/.test(status)` over a 260-char slice and
+  `:513` maps `row.open ? "KNOWN-OPEN" : "MITIGATED"`, so every status that is
+  neither OPEN nor RE-OPENED lands on MITIGATED. Swept over the matrix: **7 of
+  25 rows mis-map** — 3 (DOCUMENTED), 5 (PARTIAL), 6 (OBSERVED, CAUSE NOT
+  ISOLATED), 13 (BUILT), 14 (BUILT, remedy proved insufficient), 16 (COVERED
+  operator-side), 17 (N/A note only). The same stamp's `dossier` said "no row
+  matches — UNCLASSIFIED, treat as a new class" and was right; the tool a
+  reader acts on was the one that was wrong. This is dev-loop's "A checker has
+  THREE answers, not two" broken inside the repo's own front-line triage: the
+  third answer (status recognized by no rule) is folded into pass. Design,
+  decided: parse the status to an explicit enum with a MANDATORY unmatched case
+  that surfaces as its own verdict — `STATUS-UNREADABLE`, grouped with
+  UNCLASSIFIED as a stop-here, never with MITIGATED. Verifier: red-first
+  against the current implementation using row 6's real status string, which
+  must return MITIGATED today and must not after; plus a case per mis-mapping
+  row above. Done-criterion: all 7 stop being MITIGATED, and a row whose status
+  genuinely reads MITIGATED still does.
+
 - **READY — the push-side leak scan re-flags already-public history on every
   rebase of an open PR branch, and the only exit is `--no-verify`.** Measured
   2026-08-05 while rebasing `pr/insertion-normalization` onto upstream's
