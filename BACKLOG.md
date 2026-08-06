@@ -92,14 +92,18 @@ output, which is the paraphrase-drift shape aimed at a number.)
    ours, and it re-fires on every first relocation of a block type. Blocked by
    (5). Ships with a row-3 declaration and live pricing, not corpus pricing.
    <!-- entry: "kill the relocation-induced conversation-key rotation" -->
-7. **`harvest --pin` verifies its own pin.** Silent, and it corrupts the
-   evidence base for everything else on this list — a frozen fixture that
-   proves nothing looks exactly like one that does. Cheap.
-   <!-- entry: "`harvest --pin` must verify the pin reproduces" -->
-8. **`bust-triage`'s two-value verdict collapse.** 7 of 25 rows mis-map to
-   MITIGATED, including rows reading "OBSERVED, CAUSE NOT ISOLATED". It
-   actively misleads the first step of the most-used lane. Cheap.
-   <!-- entry: "verdict is a two-value collapse over a seven-value" -->
+7. **~~`harvest --pin` verifies its own pin~~ — DONE (`c003759`).** Shipped
+   with the finding it produced: the exit code does NOT discriminate on the
+   designated known-positive (both sides exit 1 from pre-existing conservation
+   rows), so the obvious check would have shipped green on the very case it was
+   built for. The exemptions row is what fires.
+8. **~~`bust-triage`'s two-value verdict collapse~~ — DONE (`70ffcb4` +
+   `142e6b1`).** The entry's "7 of 25" was a hand sweep and was low: measured
+   before the fix, **17 of 26** rows read as MITIGATED; after, **7 of 26**. Two
+   causes the sweep could not see — a row whose lead token it did not check, and
+   an `open` flag computed over the UNTRUNCATED cell while the status shown was
+   truncated at 260 chars, so a verdict's stated basis was absent from the text
+   printed under it.
 9. **The session-close lane's computable half, named-and-unbooked check
    first** — previously unranked (the runbook shipped at 16:33, the check did
    not). Measured today: four findings named in prose and left there until the
@@ -123,9 +127,13 @@ output, which is the paraphrase-drift shape aimed at a number.)
 13. **Bisection extended to conservation rows.** Mechanizes a hand step run three
     times in one sitting; the machinery exists and is pointed at one list.
    <!-- entry: "extend `replay.mjs`'s extension bisection to CONSERVATION rows" -->
-14. **`fixture-verdict-identity` mutation-tests only `FIXTURES[0]`.** Narrow,
-    cheap, and its blast radius is bounded by the corpus size.
-   <!-- entry: "`fixture-verdict-identity.test.mjs` mutation-tests `FIXTURES[0]`" -->
+14. **~~`fixture-verdict-identity` mutation-tests only `FIXTURES[0]`~~ — DONE
+    (`4168add`).** Ranked as narrow with a blast radius "bounded by the corpus
+    size", and that was the wrong axis: widening it exposed that the population
+    comes from the fixtures DIRECTORY rather than from git, so the suite covers
+    a different corpus on every machine. The successor entry is in `## Open`;
+    the lesson for ranking is that a bound stated in terms of corpus SIZE said
+    nothing about corpus IDENTITY.
 
 **RE-GRADED by this pass, not ranked:** the READY-expiry entry ("READY has no
 expiry, so nothing ever forces the build-or-drop decision"). Its MECHANISM half
@@ -322,49 +330,6 @@ needs them read, which neither pass did.
   every live conversation re-baselines. Price it with
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
-
-- **READY — `harvest --pin` must verify the pin reproduces what it was taken
-  for; today it reports success on a fixture that proves nothing.** Measured
-  2026-08-06: a pin taken to freeze the row-26 evidence printed
-  `pinned 327 record(s), range 166..167` and replays with 0 exemptions where
-  the live range yields `first-appearance-relocation (skills)`. The scrub had
-  removed the literal prefixes the extension keys on; the tool had no way to
-  notice and no obligation to look. Design, decided: after writing the fixture,
-  `--pin` replays BOTH the pinned file and the same range of the source capture
-  under the same gates, and compares the verdict-bearing rows (exit code,
-  stability violations, exemptions, census classes) — feeding `.records` out as
-  JSONL, never pointing `replay.mjs` at the `.json` pin, which reads 0 pairs and
-  exits clean. The comparison therefore asserts the PAIR COUNT first: two runs
-  that compared nothing agree perfectly and mean nothing. Divergence prints as a
-  named WARNING on the pin — `pinned, but does NOT reproduce: <what differs>` —
-  never as silent success; a pin that reproduces nothing is still worth keeping
-  as raw structure, so this warns rather than refuses. Verifier: run it on
-  `pinned-s-468303a4d2d0-166-167.json`, which is the known positive — it must
-  warn. Then run it on a pin whose class survives the scrub, which must not.
-  Done-criterion: both, plus the warning text naming the missing rows.
-
-- **READY — `bust-triage`'s verdict is a two-value collapse over a seven-value
-  status vocabulary, and the default is the reassuring one.** Measured
-  2026-08-06: `--at 2026-08-06T09:59:58Z` returned **MITIGATED** for a bust
-  whose class nobody has mitigated, citing row 6 — whose status is literally
-  "OBSERVED, CAUSE NOT ISOLATED". Cause: `bust-triage.mjs:397` computes
-  `open: /\bOPEN\b|RE-OPENED/.test(status)` over a 260-char slice and
-  `:513` maps `row.open ? "KNOWN-OPEN" : "MITIGATED"`, so every status that is
-  neither OPEN nor RE-OPENED lands on MITIGATED. Swept over the matrix: **7 of
-  25 rows mis-map** — 3 (DOCUMENTED), 5 (PARTIAL), 6 (OBSERVED, CAUSE NOT
-  ISOLATED), 13 (BUILT), 14 (BUILT, remedy proved insufficient), 16 (COVERED
-  operator-side), 17 (N/A note only). The same stamp's `dossier` said "no row
-  matches — UNCLASSIFIED, treat as a new class" and was right; the tool a
-  reader acts on was the one that was wrong. This is dev-loop's "A checker has
-  THREE answers, not two" broken inside the repo's own front-line triage: the
-  third answer (status recognized by no rule) is folded into pass. Design,
-  decided: parse the status to an explicit enum with a MANDATORY unmatched case
-  that surfaces as its own verdict — `STATUS-UNREADABLE`, grouped with
-  UNCLASSIFIED as a stop-here, never with MITIGATED. Verifier: red-first
-  against the current implementation using row 6's real status string, which
-  must return MITIGATED today and must not after; plus a case per mis-mapping
-  row above. Done-criterion: all 7 stop being MITIGATED, and a row whose status
-  genuinely reads MITIGATED still does.
 
 - **PARTLY DONE — `docs/runbooks/session-close.md` SHIPPED 2026-08-06; the
   computable half of it is still READY. The fifth lane: the operator
@@ -585,7 +550,50 @@ needs them read, which neither pass did.
   step 4 of the sweep runbook — that marker comes out with this commit and
   by no other means.
 
-- **READY — `fixture-verdict-identity.test.mjs` mutation-tests `FIXTURES[0]`,
+- **DONE 2026-08-06 (c003759) — `harvest --pin` now verifies the pin reproduces what it was taken
+  for; today it reports success on a fixture that proves nothing.** Measured
+  2026-08-06: a pin taken to freeze the row-26 evidence printed
+  `pinned 327 record(s), range 166..167` and replays with 0 exemptions where
+  the live range yields `first-appearance-relocation (skills)`. The scrub had
+  removed the literal prefixes the extension keys on; the tool had no way to
+  notice and no obligation to look. Design, decided: after writing the fixture,
+  `--pin` replays BOTH the pinned file and the same range of the source capture
+  under the same gates, and compares the verdict-bearing rows (exit code,
+  stability violations, exemptions, census classes) — feeding `.records` out as
+  JSONL, never pointing `replay.mjs` at the `.json` pin, which reads 0 pairs and
+  exits clean. The comparison therefore asserts the PAIR COUNT first: two runs
+  that compared nothing agree perfectly and mean nothing. Divergence prints as a
+  named WARNING on the pin — `pinned, but does NOT reproduce: <what differs>` —
+  never as silent success; a pin that reproduces nothing is still worth keeping
+  as raw structure, so this warns rather than refuses. Verifier: run it on
+  `pinned-s-468303a4d2d0-166-167.json`, which is the known positive — it must
+  warn. Then run it on a pin whose class survives the scrub, which must not.
+  Done-criterion: both, plus the warning text naming the missing rows.
+
+- **DONE 2026-08-06 (70ffcb4 + 142e6b1) — `bust-triage`'s verdict was a two-value collapse over a seven-value
+  status vocabulary, and the default is the reassuring one.** Measured
+  2026-08-06: `--at 2026-08-06T09:59:58Z` returned **MITIGATED** for a bust
+  whose class nobody has mitigated, citing row 6 — whose status is literally
+  "OBSERVED, CAUSE NOT ISOLATED". Cause: `bust-triage.mjs:397` computes
+  `open: /\bOPEN\b|RE-OPENED/.test(status)` over a 260-char slice and
+  `:513` maps `row.open ? "KNOWN-OPEN" : "MITIGATED"`, so every status that is
+  neither OPEN nor RE-OPENED lands on MITIGATED. Swept over the matrix: **7 of
+  25 rows mis-map** — 3 (DOCUMENTED), 5 (PARTIAL), 6 (OBSERVED, CAUSE NOT
+  ISOLATED), 13 (BUILT), 14 (BUILT, remedy proved insufficient), 16 (COVERED
+  operator-side), 17 (N/A note only). The same stamp's `dossier` said "no row
+  matches — UNCLASSIFIED, treat as a new class" and was right; the tool a
+  reader acts on was the one that was wrong. This is dev-loop's "A checker has
+  THREE answers, not two" broken inside the repo's own front-line triage: the
+  third answer (status recognized by no rule) is folded into pass. Design,
+  decided: parse the status to an explicit enum with a MANDATORY unmatched case
+  that surfaces as its own verdict — `STATUS-UNREADABLE`, grouped with
+  UNCLASSIFIED as a stop-here, never with MITIGATED. Verifier: red-first
+  against the current implementation using row 6's real status string, which
+  must return MITIGATED today and must not after; plus a case per mis-mapping
+  row above. Done-criterion: all 7 stop being MITIGATED, and a row whose status
+  genuinely reads MITIGATED still does.
+
+- **DONE 2026-08-06 (4168add) — `fixture-verdict-identity.test.mjs` mutation-tested `FIXTURES[0]`,
   so which artifact the whole file exercises is decided by SORT ORDER, and
   adding a pin silently re-aims it.** Found 2026-08-06 by adding one: the new
   pin sorted first (`468…` before `4b6…`), became the mutation subject, and the
@@ -2324,7 +2332,7 @@ needs them read, which neither pass did.
   is the trigger: revisit after the lane has been run on a materially changed
   BACKLOG.md a few times.
 
-- **READY — `bust-triage --at <stamp>` substitutes silently when the stamp
+- **DONE 2026-08-06 (c53bbae) — `bust-triage --at <stamp>` substituted silently when the stamp
   names a CONTROLLED event (tools/-only).** Found 2026-08-05 by using it: the
   DEFAULT path prints the note it should — "the newest cold event is
   2026-08-05 17:22:36Z CONTROLLED(resume), 408k re-written … Cannot triage …

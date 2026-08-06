@@ -50,21 +50,36 @@ already carries — never by trusting that two counters agree.
 2. **Triage each one, and read the ROW, not just the verdict.**
    `node tools/bust-triage.mjs --at <stamp>` chains the six-step hand
    walk into one verdict. Its verdicts are MITIGATED / KNOWN-OPEN /
-   **UNCLASSIFIED** / UNVERIFIABLE, and UNCLASSIFIED is the one to
-   stop on — it means the shape maps to no matrix row.
+   **UNCLASSIFIED** / **STATUS-UNREADABLE** / UNVERIFIABLE. Two are
+   stop-heres, and for the same reason: UNCLASSIFIED means the shape
+   maps to no matrix row, STATUS-UNREADABLE means the row's status is
+   in no state the tool recognises. Neither is a pass.
 
-   **The verdict is currently known-wrong in one direction.** Its
-   open-test is a two-token regex over a 260-char status slice
-   (`bust-triage.mjs:397`, `:513`), so every status that is neither
-   OPEN nor RE-OPENED lands on MITIGATED — **7 of 25 rows mis-map**
-   (BACKLOG carries the ready item). Measured 2026-08-06: it returned
-   MITIGATED for a bust whose cited row reads "OBSERVED, CAUSE NOT
-   ISOLATED", i.e. a class nobody has ever mitigated. Read the row's
-   own status text before believing the label.
+   **FIXED 2026-08-06 — what this step used to warn about is gone, and
+   the shape of the fix is worth knowing.** The verdict was a two-value
+   collapse: an open-test over a truncated status slice, so every status
+   that was neither OPEN nor RE-OPENED landed on MITIGATED. Measured
+   before the fix: **17 of 26 rows** read as MITIGATED, including one
+   whose cell says "OBSERVED, CAUSE NOT ISOLATED" — a class nobody has
+   ever mitigated. After: **7 of 26** (rows 1, 7, 8, 9, 15, 18, 25), and
+   the status parses to an anchored enum with a mandatory unmatched
+   case. Two details that outlive the fix:
+   an ACCEPT row is **not** a mitigation — it maps to KNOWN-OPEN,
+   because MITIGATED's definition (Terminal states, below) requires a
+   shipped extension demonstrated on the instance, which an accepted
+   class has never had; and the old flag was computed over the
+   UNTRUNCATED cell while the status printed beside it was truncated at
+   260 chars, so two rows carried a verdict whose stated basis was
+   absent from the text under it. **Read the row's own status text
+   before believing any label** — that part of the old warning stands
+   on its own merits, not on the defect that prompted it.
 
 3. **When two instruments disagree, the narrower basis loses.**
    `[GRADUATE -> bust-triage and dossier share one row reader, so they
-   cannot disagree; BACKLOG carries the status-mapping fix]` On
+   cannot disagree. The status-mapping half SHIPPED 2026-08-06; what
+   remains is the shared reader — dossier still reads the row through
+   its own path, and that it agrees today was established by reading
+   the code, not by running both]` On
    the same stamp, `dossier` said "no row matches — UNCLASSIFIED,
    treat as a new class" while `bust-triage` said MITIGATED. The
    dossier had read the row; the triage had read a regex. Disagreement
