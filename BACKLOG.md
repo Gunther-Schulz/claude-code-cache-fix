@@ -550,10 +550,44 @@ needs them read, which neither pass did.
   step 4 of the sweep runbook — that marker comes out with this commit and
   by no other means.
 
-- **OPEN VERIFICATION 2026-08-06 — the machine's push gate was rewritten while
-  live, and NOBODY HAS CONFIRMED IT STILL BLOCKS.** Booked because it currently
-  exists only as an intention in one session's chat, and the thing it guards is
-  irreversible. State: global `core.hooksPath` resolves to the dotfiles
+- **READY (operator-side, dotfiles) — a non-executable hook is SKIPPED BY GIT
+  IN SILENCE, so one `chmod` disables the machine's last gate with no error
+  anywhere.** Found 2026-08-06 by the leak-gate lane, against itself, and it is
+  the more valuable half of that work: a neutralised copy of the push hook was
+  written by python's `open()` at mode 644, git skipped it entirely, and the
+  test run's failure landed on a PRE-EXISTING case — which read as the intended
+  red. Nothing ran, and the run looked like evidence.
+  Two distinct consequences, and the second is why this is not a testing note:
+  the instrument shape (a red that is really a non-event, the family this repo
+  has hit three times) and the STANDING exposure — the leak scan, the suite
+  gate, and every other hook are single `chmod` away from silently not
+  existing, in a repo where the thing they guard is unscrubbable public history.
+  Verified present today (`-rwxr-xr-x` on the dotfiles dispatcher), which is the
+  point: nothing checks it, so it is true until it is not.
+  Design, decided: a doctor verdict over every registered hook path — file
+  exists, is executable by the invoking user, and (for symlinked repo hooks)
+  its TARGET is too, since `.git/hooks/pre-push` here is a symlink and the mode
+  that matters is the target's. Computable, zero-judgment, near-zero false
+  fires — the precipitation criterion the corpus names. Verifier, red-first:
+  `chmod -x` a hook in a throwaway clone and require the verdict to go red;
+  control, the current state must be green. Done when a hook that git would
+  skip cannot pass doctor.
+
+- **CLOSED 2026-08-06 — VERIFIED BLOCKING, by an executed run against the LIVE
+  hook.** The dispatcher ran the lane's own force-push repro
+  (`repro-item1.sh`, two real bare remotes and a real fetch) pointed at
+  `~/dev/Gunther-Schulz/dotfiles/git/hooks/pre-push`, the file global
+  `core.hooksPath` actually resolves: CTRL 1 (new commit, capture key in the
+  MESSAGE) `git push exit=1`; CTRL 2 (new commit, capture UUID in a FILE)
+  `git push exit=1`; CASE A (force-push of re-parented commits) and CASE B
+  (rebase onto upstream's public commit) both `exit=0` with the already-public
+  findings named as skipped rather than silently dropped. So the gate blocks
+  what it must, passes what it should, and says which it did. The entry stays
+  in place rather than being deleted because the STATE it describes recurs:
+  every future edit to that file is live on write, and this run is the shape
+  that re-closes it.
+  Original entry, kept for the trigger it names:
+  State: global `core.hooksPath` resolves to the dotfiles
   `git/hooks/` directory, so `git/hooks/pre-push` is the active gate for every
   push on this machine and went live the moment it was WRITTEN — no commit, no
   deploy. A dispatched lane rewrote it (270 lines, already on the dotfiles
