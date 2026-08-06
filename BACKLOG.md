@@ -6,6 +6,60 @@ SYSTEM items — code, PRs, investigations, upstream threads — live here.
 Fork-only file, excluded from PR slices like FORK-NOTES.md. One item per
 bullet, evidence pointer included.
 
+## Build order — DERIVED 2026-08-06, re-derive before building
+
+Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
+("Build order is DERIVED at build time"). It ranks on evidence current as of
+this date. **Re-derive rather than edit** — patching this list re-creates the
+stored-priority problem one level up.
+
+The day's cost, which is what most of this ranks against: four busts,
+**1,124,000 tokens re-billed** — 908k across three row-4 instances (242k, 225k,
+441k) and 216k from row 26, ours. Row 4 is the most expensive open class by a
+factor of four; row 26 is the most expensive class we CAUSED.
+
+1. **The doorbell** (three triggers, one SessionStart carrier). Silent, cheap,
+   and it gates noticing everything else. Measured cost of its absence on one
+   day: three review rounds sat unseen with a reviewer waiting, `main` sat 24
+   commits behind, and a runbook shipped whose entry condition did not exist.
+   Nothing else on this list changes what a session LEARNS at 9am.
+2. **The first-appearance-relocation exemption must assert forwarded `tools[]`
+   held.** Ranked here only by the hard constraint: it must be demonstrated RED
+   against the current build, and the row-26 fix below removes the defect it
+   would go red on. Build it second or it ships having never caught anything.
+3. **Row 26 — the relocation-induced key rotation.** 216k in one measured event,
+   ours, and it re-fires on every first relocation of a block type. Blocked by
+   (2). Ships with a row-3 declaration and live pricing, not corpus pricing.
+4. **`harvest --pin` verifies its own pin.** Silent, and it corrupts the
+   evidence base for everything else on this list — a frozen fixture that
+   proves nothing looks exactly like one that does. Cheap.
+5. **`bust-triage`'s two-value verdict collapse.** 7 of 25 rows mis-map to
+   MITIGATED, including rows reading "OBSERVED, CAUSE NOT ISOLATED". It
+   actively misleads the first step of the most-used lane. Cheap.
+6. **`tools/lane-sweep.mjs`.** Finds the next generation of these gaps
+   mechanically instead of waiting for someone to ask. Ranked below 4 and 5
+   because both of those corrupt evidence it would consume.
+7. **`/health` reports the resolved extension set.** The DECLARED/RUNNING/VERIFIED
+   comparison currently answers about a subset while reading as if it covered
+   the pipeline. Silent, medium cost.
+8. **Bisection extended to conservation rows.** Mechanizes a hand step run three
+   times in one sitting; the machinery exists and is pointed at one list.
+9. **`fixture-verdict-identity` mutation-tests only `FIXTURES[0]`.** Narrow,
+   cheap, and its blast radius is bounded by the corpus size.
+10. **Leak-scan scoping** (operator-side, dotfiles). Three overrides in one
+    round on 2026-08-06 — the reflex it trains is the cost, not the friction.
+
+**NOT ranked, and this is a finding rather than an omission:** row 4's own
+absorption. It is the most expensive open class measured today by a wide margin,
+and it does not appear above because no entry for it is decision-complete — the
+cross-message join variant has no design that survives the byte-match census, so
+there is nothing to rank. The rubric's own rule applies: an item nobody can rank
+is a finding about the item. Row 4's next move is design work, not build work.
+
+Roughly twenty older entries below carry no rank. They were not assessed in this
+pass and should not be read as ranked-last; deriving an order for them needs
+them read, which this pass did not do.
+
 ## Open
 
 - **HANDOFF 2026-08-05 LATE NIGHT — read this first. It supersedes the NIGHT

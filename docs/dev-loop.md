@@ -75,6 +75,44 @@ former hand-steps this way. A step that has carried the marker across two
 occurrences of its event is overdue, not pending — and the marker is removed
 by the commit that mechanizes it, never by deciding the step is fine as it is.
 
+### Build order is DERIVED at build time, never stored as a priority field
+
+A priority number written into an entry is a label over its own body: assigned
+once against one day's evidence, never revisited, and silently wrong the moment
+the evidence moves — the drift class this file's own grounding rules name. So
+BACKLOG.md carries no priority field. Instead the order is recomputed from what
+the entries already prove, and the derived list is written down WITH ITS DATE so
+a stale one is visibly stale rather than quietly authoritative.
+
+Four signals, in descending authority. The first is fact; the rest are judgment
+over evidence:
+
+1. **Hard ordering constraints.** Some items must precede others or their
+   motivating case dissolves — a check that only goes red against the current
+   defect has to be demonstrated red BEFORE the fix that removes the defect
+   ships, or it ships having never gone red on anything. These are recorded in
+   the entries themselves and are not re-litigated at ranking time; they
+   partition the list before any judgment is applied.
+2. **Measured cost, with its date.** Tokens re-billed, occurrences counted,
+   evidence lost. An item ranks on what it can prove TODAY: a cost measured
+   once, months ago, ranks as an old measurement, not as a current one.
+3. **Silence.** A gap that fails silently outranks a loud one of equal cost.
+   A loud failure announces itself and gets handled on its own; a silent one
+   compounds, and every day it survives is a day of decisions made on an
+   answer nobody knew was wrong. Both of 2026-08-06's worst findings — a
+   runbook whose trigger did not exist, a freeze that proved nothing — were
+   silent, and both were found by accident.
+4. **Cheapness.** A tiebreaker between items the first three rank equally,
+   never a reason on its own. "Small" is not a case for building something,
+   and a cheap item at the top of a list is usually there because ranking it
+   honestly was harder than building it.
+
+Two rules that keep this from rotting. **An item nobody can rank is a finding
+about the item** — if its evidence does not support any of signals 2–4, it is
+not decision-complete and the gap is in the entry, not in the rubric. And
+**the derived order is re-derived, not edited**: patching yesterday's list
+re-creates the stored-priority problem one level up.
+
 ## The four commands
 
 ```sh
