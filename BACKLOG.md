@@ -550,6 +550,47 @@ needs them read, which neither pass did.
   step 4 of the sweep runbook — that marker comes out with this commit and
   by no other means.
 
+- **OPEN VERIFICATION 2026-08-06 — the machine's push gate was rewritten while
+  live, and NOBODY HAS CONFIRMED IT STILL BLOCKS.** Booked because it currently
+  exists only as an intention in one session's chat, and the thing it guards is
+  irreversible. State: global `core.hooksPath` resolves to the dotfiles
+  `git/hooks/` directory, so `git/hooks/pre-push` is the active gate for every
+  push on this machine and went live the moment it was WRITTEN — no commit, no
+  deploy. A dispatched lane rewrote it (270 lines, already on the dotfiles
+  remote via a peer session's push).
+  What IS established: the modified hook let a legitimate 8-commit push through
+  with the leak scan running (fork `main` -> `75d9a0e`), so it is not
+  fail-closed and not hanging on the normal path.
+  What is NOT established, and is the entire point of the gate: that it still
+  BLOCKS a real leak. One attempt was made and proves nothing — a throwaway repo
+  driven with a synthetic pre-push stdin pair hung for two minutes and was
+  killed; the invocation was artificial (no reachable remote), so the hang is
+  evidence about the probe, not about the hook.
+  Verifier: plant a capture-key-shaped identifier in a commit MESSAGE in a
+  throwaway clone with a reachable local bare remote, push, and require a block
+  naming the class; control, a clean commit must push. Until that passes, treat
+  every push from this machine as unscanned and read the block output rather
+  than trusting silence. Done when the control has gone red on a planted leak
+  since the rewrite.
+
+- **READY — the new verdict kinds have no live path, so most of the enum has
+  never been produced by a real bust.** Honest residue from the status-enum
+  lane's slot (g), booked rather than left in its report: `classToRow` and
+  `causeToRow` only ever produce rows 1, 4, 6 and 23, so the kinds ACCEPTED,
+  PARTIAL, BUILT, DOCUMENTED, COVERED and NOT-APPLICABLE are exercised by bites
+  against the real status strings and by nothing else. STATUS-UNREADABLE reached
+  its output path only under a temporary mutation that forced row 3.
+  Why it is worth an entry rather than a shrug: the mapping was just corrected
+  in the direction of "stop reassuring the reader", and the rows that benefit
+  most from that correction are precisely the ones no live classification can
+  reach. A verdict nobody can trigger is a verdict nobody will notice is wrong.
+  Named missing evidence: whether the gap is in the CLASSIFIER (a real bust
+  whose shape maps to an ACCEPT row exists and is being sent to row 1/4/6/23
+  instead) or in the MATRIX (no bust class legitimately lands on those rows).
+  Those need opposite fixes, and the census's own class distribution over the
+  live corpus answers which — one query, not a design. Do that before designing
+  anything.
+
 - **DONE 2026-08-06 (c003759) — `harvest --pin` now verifies the pin reproduces what it was taken
   for; today it reports success on a fixture that proves nothing.** Measured
   2026-08-06: a pin taken to freeze the row-26 evidence printed
