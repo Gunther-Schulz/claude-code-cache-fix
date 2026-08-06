@@ -180,7 +180,26 @@ them read, which this pass did not do.
   tracked files. **NOT unpushed commits** — the dotfiles `unpushed-reminder`
   Stop hook already owns that and calls itself the session-cut check; adding a
   second reader is the duplicate-guard shape.
-  **Judgment half — stays prose, and is where today's two actually lived:**
+  **The NAMED-AND-UNBOOKED check — computable after all, and the highest-value
+  item in this entry.** Operator, 2026-08-06: "you named a gap to me but didn't
+  take the next steps." Four times that day a finding was correctly spotted,
+  described in prose, and left there until the operator converted it — a
+  prioritisation method, this very lane, the per-event lines, and a recurring
+  own-conduct error the session proposed to "carry forward" rather than write
+  down. Not one was missed; every one was named and unbooked, because naming a
+  gap feels like delivering it. The tell is therefore textual and diffable, not
+  a matter of self-assessment: scan the session's own assistant output for
+  gap-language — "we should", "worth booking", "the gap is", "I'd carry
+  forward", "worth watching", "not yet booked" — and require each hit to
+  resolve to a commit, a BACKLOG entry, or a file change made in the same
+  session. Unresolved hits are the report. Expect false fires (the phrasing is
+  common in ordinary explanation), so this REPORTS and never blocks — its value
+  is a list to walk at close, and a check that blocked on prose would be
+  softened within a day. Red-first arrangement, available from this session's
+  own transcript: run it over 2026-08-06 before `fc4b7aa` and it must surface
+  the "conduct, not rules" sentence; run it after and that hit must resolve to
+  `fc4b7aa`.
+  **Judgment half — stays prose, and is where today's other two lived:**
   decisions or designs settled in conversation with no carrier (the tell is a
   sentence like "we agreed X" with no commit, backlog entry, or file behind
   it); numbers or claims committed earlier in the session that later evidence

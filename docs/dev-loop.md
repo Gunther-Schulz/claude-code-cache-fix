@@ -40,7 +40,17 @@ investigation is unfinished while the check that would have produced its
 finding does not exist (the closing gate, question 1).
 
 **Three — the standing question, asked continuously and answered ASAP: what
-did this just prove wrong or missing about the tooling and the docs?**
+did this just prove wrong or missing about the tooling, the docs, the
+PROCEDURES, or the RULES?**
+(The last two were added 2026-08-06 after the first version, written that
+morning, said only "tooling and docs" — and then let four findings through in
+one afternoon, every one of them a procedure or a rule rather than a tool: a
+missing prioritisation method, a missing session-close line, a missing
+per-event line of action, and a recurring own-conduct error the session
+proposed to "carry forward" instead of writing down. Each became an entry only
+because the operator asked. A scope that names tools and docs reads as
+exhaustive to a session holding a rule-shaped finding, which is how the
+narrower wording survived its own first day.)
 This is the one that compounds, and it is deliberately NOT a closing question.
 The other four run when work finishes; this one runs the moment an instrument
 surprises you, because by then it has already contaminated whatever it was
@@ -65,8 +75,16 @@ that and a commit. Two were fixed the same hour, three were booked. None was
 the task anyone sat down to do — which is the point: the instruments get
 tested by the work, and only if the work is watching.
 
-The tell that this question was skipped: the session's own report names a
-tool that surprised it, and no commit touched that tool.
+The tell that this question was skipped is computable, and it is the same
+shape whichever of the four the finding is about: **the session's own output
+NAMES a gap — a tool that surprised it, a procedure that would have helped, a
+rule it says it will carry forward — and no commit, backlog entry or file
+change in that session references it.** Named-and-unbooked is the failure
+mode, not unnoticed: every one of 2026-08-06's four was correctly spotted and
+described in prose, and stalled there until the operator asked. Naming a gap
+feels like delivering it, which is exactly why the check cannot be
+self-administered by feel — it belongs in the session-close lane (BACKLOG),
+where the language tell can be diffed against the session's own commits.
 
 **A runbook is a staging area, not a permanent home.** Steps a human runs by
 hand carry `[GRADUATE -> <where it belongs>]`, which makes the file's own
