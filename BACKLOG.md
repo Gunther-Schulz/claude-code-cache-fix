@@ -603,6 +603,135 @@ needs them read, which neither pass did.
   print how many fixtures it exercised. Done-criterion: both, and the count
   printed — a run over one fixture and a run over five must not look alike.
 
+- **BUST 2026-08-06 15:02:33Z — 48k, cause `other`, PARKED with its named
+  missing evidence.** Walked the bust-appears line rather than improvised.
+  Inventory (`--list`): this is the newest cold event and the only one after
+  the 14:46:32Z CONTROLLED(compact); the operator reported both and neither
+  was a second instance of the other.
+  `other` is the DEGRADED cause — `claude-worktime.sh` sets it as a default and
+  overwrites it only when `cache_miss_reason` reads, so it means "no cause
+  available", never "causes tested and rejected".
+  MEASURED, replay under the SERVING configuration (10 of 10 declared gates,
+  resolved from `/health`, capture `s-captureAG`): **4 same-conversation pairs
+  across 4 conversations, 0 stability / 0 safety / 0 sequence / 0 conservation
+  violations**; the pairs are 3 append-only + 1 identical. So nothing of ours
+  diverged in that session's traffic, and by the pre-pipeline rule there is no
+  divergence to attribute in either direction.
+  **Named missing evidence, which is the whole reason this is parked and not
+  closed:** the per-request `cache_read_input_tokens` for that session in the
+  15:01–15:04Z window. That number separates "fresh conversation start, cold by
+  construction" from "a real re-bill", and it is currently unreachable — see
+  the usage-join entry below, which is the mechanism this park is waiting on.
+  Promotion trigger: that join existing, or a second instance of the same
+  48k-shaped `other` event in a session whose usage rows can be reached.
+
+- **READY — `bust-triage`'s UNVERIFIABLE branch prints a FALSE disjunction, and
+  the reason text is what a reader acts on.** Found 2026-08-06 by using it on
+  the event above: it answered `UNVERIFIABLE — no capture pair (capture off, or
+  rotated)`, and both disjuncts were false. The capture for that session existed
+  at the time of the run, covered the window (its last write is one minute AFTER
+  the busting timestamp), and a replay over it found 4 same-conversation pairs.
+  So the tool's stated reason named two causes, neither of which held, for a
+  state it has no word for: capture PRESENT, pairs PRESENT, and its own pairing
+  step nonetheless returning nothing.
+  This is the same defect family as the two-value verdict collapse already
+  ranked — dev-loop's "a checker has THREE answers, not two", one level in: the
+  third answer is present but its EXPLANATION is a guess, and a guessed reason
+  reads exactly like a measured one.
+  Design, decided: the UNVERIFIABLE reason is computed, never asserted — check
+  in order and report which check failed: capture file for the session absent /
+  present-but-window-not-covered / present-and-covered-but-no-pair-found. The
+  third is its own reason string and names the pairing input it had.
+  Verifier, red-first: drive it on the event above; today it must print the
+  false disjunction and after the change it must print the
+  present-and-covered-but-no-pair case. Control: a genuinely absent capture must
+  still report absent. Done when no UNVERIFIABLE row states a cause the tool did
+  not test.
+
+- **READY — the usage log has no CC-session key by design, so the number that
+  settles a re-bill question cannot be reached from a bust.** Grounding,
+  measured 2026-08-06 while parking the 48k above: `~/.claude/usage.jsonl`
+  carries 3001 rows and exactly **2 distinct `sid` values** over eighteen hours
+  in which the proxy captured 83 sessions. That is not a coverage gap — the
+  definition says so at `proxy/extensions/usage-log.mjs:10`: `sid` is the
+  **proxy session, sticky for proxy lifetime**, and the two values are one
+  restart apart. The header states the intended join at :40-49: `request_id`
+  from the upstream response header, joined against CC's own per-session
+  transcripts, "recovers per-CC-session attribution that `sid` alone cannot
+  provide" — documented, and implemented by nothing.
+  **Why this ranks as more than a convenience:** the 610k entry's remedy is
+  exactly this number ("`usage-log` was enabled tonight and writes per-request
+  `cache_read` / `cache_creation`"). That claim is true per REQUEST and does not
+  reach a SESSION without the join, so the entry's stated way out is a step
+  nobody has built — and the 48k above is the first bust to stall on it.
+  Design, decided: a `--usage` mode on `bust-triage` that, for the pair it has
+  already identified, reads the CC transcript for the session, collects the
+  `requestId`s in the busting window, joins them against `usage.jsonl`, and
+  prints `cache_read` / `cache_creation` per request beside the pair. Same tool,
+  because the pair identification and the window are already there — a new file
+  would re-earn the conversation-grouping and UTC lessons from zero.
+  Verifier, red-first: the 48k event above must go from "cannot be answered" to
+  a printed pair of numbers; control, a stamp whose window has no matching
+  `requestId` must say so rather than print zeros. Done when the park above can
+  be closed by running one command.
+  **Probe lesson from finding it, kept because it is the same error one level
+  out:** the first probe filtered `usage.jsonl` by CC session id and returned 0
+  rows, which read as "the instrument does not cover this session". It was a
+  namespace mismatch — the field is a proxy id — and the definition at
+  `usage-log.mjs:10` said so at reading distance. Reading the source is what
+  corrected it; more probing would not have.
+
+- **READY — the required-reading INJECTION carries the closing gate and not the
+  recognition device, so a fresh session gets the questions and never sees the
+  event→lane table.** Reported by a peer session and CONFIRMED here at the
+  bytes: the extract markers in `docs/dev-loop.md` sit at lines 728 and 802 and
+  wrap the closing gate alone; "Which line are you on" — the table that maps an
+  EVENT to its runbook — is at line 7, far outside. `.claude/required-reading.json`
+  lists the two files, and the gate still forces the full read at the session's
+  first Write, so the precise claim is narrower than "a fresh session never sees
+  it": a session that WRITES gets the table, a session that only reads or
+  reviews never does, and the injection's usefulness is what makes the absence
+  invisible.
+  **HARD ORDERING CONSTRAINT — do not fix this before the index check below.**
+  This state is a live red for that check's fourth condition. Fix it first and
+  the check ships having never gone red on anything, which is the failure
+  `docs/dev-loop.md` documents under "Adding a check".
+  Same constraint, same reason, for its sibling: `CLAUDE.local.md` lists 3 of
+  the 5 runbooks on disk (`bust-appears`, `sweep-finding`, `upstream-pr-round`;
+  `runtime-anomaly` and `session-close` are missing), one line after the text
+  that predicts its own staleness — the fix there is DELETION of the list, not
+  an update, since the file already points at dev-loop's table as the index.
+  That file is deployed from dotfiles `cache-fix/CLAUDE.local.md` and is edited
+  THERE, never in this repo.
+
+- **READY — an index check for the runbook lane system, and it must be built
+  BEFORE the two reds above.** Peer session's design, adopted: build it split,
+  with checks 2 and 3 domain-free so they are not this repo's private tooling,
+  plus a fourth condition — **every index row names a detection channel**, i.e.
+  how the event announces itself, which is what makes a lane's trigger
+  falsifiable instead of aspirational.
+  Red-first arrangement, available RIGHT NOW and destroyed by fixing either red:
+  check (2) goes red on `CLAUDE.local.md`'s 3-of-5 list; check (4) goes red on
+  the injection gap above (rows exist whose detection channel is a hook that
+  does not carry them). Build, demonstrate both reds, then fix the reds.
+  Done-criterion: both reds demonstrated on the real files, then green after the
+  two fixes land, and a synthetic index missing a detection channel still red.
+
+- **PARKED — nothing anywhere says when a LANE is born.** Peer session's
+  finding, and it is rule-shaped, which is the class dev-loop's rule three was
+  widened to catch. Five lanes have been minted (bust, sweep, runtime-anomaly,
+  upstream-PR-round, session-close), each on somebody noticing an event class
+  had no written procedure, and the trigger for minting the next one exists
+  nowhere. Named missing evidence: what distinguishes an event class that
+  DESERVES a lane from one that a rule or a tool should absorb — the five
+  existing lanes are the only data, and all five were minted the same week under
+  operator prompting, so they cannot yet separate the two. Promotion trigger: a
+  sixth lane proposed, or one of the five going unused for a month.
+  **Input for the next re-derivation, not an edit to the current list:**
+  `tools/lane-sweep.mjs` was ranked on a premise that has since moved — its
+  value was scored as fork-only, and the index check above makes two of its
+  conditions domain-free. Re-score it when the order is next derived.
+
 - **DONE 2026-08-06 (ships with this entry's commit, `tools/backlog-order.mjs`)
   — the derived build order did not reach a fresh session, so the
   ranking was invisible exactly where it is meant to act.** Found 2026-08-06 by
