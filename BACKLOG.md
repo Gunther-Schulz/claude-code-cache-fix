@@ -149,6 +149,31 @@ bullet, evidence pointer included.
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
 
+- **READY — `bust-triage` reports a STATE-KEY CHANGE across the busting pair
+  as its own line.** This is the hand-step that found row 26, and it is
+  invisible to every diff of the request bodies: the extension event logs
+  carry the key each request was handled under, and a key that changes between
+  two requests of one conversation is a total state loss reported as
+  `no-baseline`/`reset` rather than as an error. Measured 2026-08-06:
+  `deferred-tool-rewrite` logged `rewrite` under one key and `no-baseline`
+  under another nine seconds later, same conversation — that flip WAS the
+  216,060-token bust, and nothing in either request's bytes said so. Closing
+  gate question 3 answers YES by existing: the classification was made by hand,
+  so the tool should emit it. Design, decided: for the pair it already
+  identifies, `bust-triage` greps
+  `~/.claude/cache-fix-snapshots/*-{insertion,deferred-tool}-events.jsonl` at
+  both timestamps, extracts the key each request was handled under, and prints
+  a `state-key` step — OK when both requests share a key, and a named finding
+  when they differ, quoting both keys and both `action` values. It is a STEP in
+  the existing chain, not a new tool (dev-loop: extend an existing tool before
+  writing a new one; reuse inherits the interleaving and pairing lessons a
+  fresh file re-earns from zero). Verifier, red-first: run it at
+  `--at 2026-08-06T09:59:58Z`, which must report the flip
+  `7741083f1d475059 -> 0adfdad6b91abb0e` with `rewrite -> no-baseline`; and at
+  a stamp whose pair shares one key, which must report OK. Done-criterion:
+  both, plus the step appearing in the OK case too — a check that prints only
+  on findings cannot be distinguished from one that did not run.
+
 - **READY — the stability exemption for a first-appearance relocation must
   assert what it does NOT currently cover: that the forwarded `tools[]` held
   across the relocation.** This is the instrument that would have caught row 26

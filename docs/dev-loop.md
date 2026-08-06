@@ -4,6 +4,41 @@ Read this before changing anything under `proxy/`. It is the procedure that
 found six self-inflicted defects in one day (2026-07-28) after months in which
 every one of them was live and invisible.
 
+## Which line are you on
+
+This file is the METHOD — how to attribute, how to check an instrument, what
+must be true before work is done. It is not a SEQUENCE. For the recurring
+events, the sequence lives in `docs/runbooks/`, one file per event class,
+each written for a fresh context and each ending in a named terminal state.
+Open the runbook for the event you have; come back here for the reasoning
+behind any step.
+
+| the event | the line | ends at |
+|---|---|---|
+| a threshold bust appears (❄, operator, or `bust-triage --list`) | `runbooks/bust-appears.md` | mitigated / parked with its named missing piece / controlled-cause / upstream-filed |
+| the daily sweep reports a finding, nobody present | `runbooks/sweep-finding.md` | regression / known-open / non-defect / instrument-defect / new-class / could-not-verify |
+| an upstream PR gets a review round | `runbooks/upstream-pr-round.md` | round answered, pushed, comment posted |
+
+Why these exist at all (operator, 2026-08-06): the method and the closing gate
+were both written down, and how completely an event got handled still depended
+on what the session happened to remember. A bust investigation that same
+morning froze its evidence into a fixture that proved nothing, and the only
+reason it was caught is that someone happened to replay it. Two of the four
+gaps that day were missing STEPS, not missing knowledge.
+
+Two rules that bind every line, so no runbook has to restate them: an event
+that maps to no existing threat-matrix row is UNCLASSIFIED — stop and mint the
+row, because that is the alarm the matrix's convergence note relies on; and a
+manual investigation is unfinished while the check that would have produced
+its finding does not exist (the closing gate, question 1).
+
+**A runbook is a staging area, not a permanent home.** Steps a human runs by
+hand carry `[GRADUATE -> <where it belongs>]`, which makes the file's own
+backlog visible while doing the work: `bust-triage` already absorbed six
+former hand-steps this way. A step that has carried the marker across two
+occurrences of its event is overdue, not pending — and the marker is removed
+by the commit that mechanizes it, never by deciding the step is fine as it is.
+
 ## The four commands
 
 ```sh
