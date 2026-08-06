@@ -20,7 +20,9 @@
 //
 // Usage:
 //   node tools/bust-triage.mjs                  # newest bust in the ledger
-//   node tools/bust-triage.mjs --at 1785498086  # a specific one (epoch or ISO)
+//   node tools/bust-triage.mjs --at 1785498086  # the cold event at that stamp
+//                                               # (epoch or ISO); a CONTROLLED
+//                                               # one is named, never skipped
 //   node tools/bust-triage.mjs --list           # recent ❄ events, newest first
 //                                               # (busts AND controlled costs)
 //   ... --json
@@ -644,6 +646,12 @@ export function listRows(events) {
   });
 }
 
+// One sentence, two callers: the default path and the --at path must not
+// drift into two different explanations of the same non-verdict.
+const CANNOT_TRIAGE =
+  "        Cannot triage: a controlled cause (compact/resume) is a cost you\n" +
+  "        caused, not a bust — there is no prevented-loss verdict to give.";
+
 /**
  * What the default (no-args) run must say when the NEWEST cold event is not
  * the one it is about to triage. Silence here is the defect: the operator sees
@@ -657,11 +665,54 @@ export function fallbackNote(events) {
   const head =
     `  NOTE  the newest cold event is ${fmt(newest.t)} ` +
     `CONTROLLED(${newest.cause ?? "-"}), ${Math.round((newest.cc ?? 0) / 1000)}k re-written.\n` +
-    "        Cannot triage: a controlled cause (compact/resume) is a cost you\n" +
-    "        caused, not a bust — there is no prevented-loss verdict to give.";
+    CANNOT_TRIAGE;
   return [head, bust
     ? `        Falling back to the newest BUST: ${fmt(bust.t)} (${(bust.cause ?? "-")}).`
     : "        No bust in the ledger to fall back to."];
+}
+
+/**
+ * `--at <stamp>` resolution, against ALL cold events rather than only busts.
+ *
+ * The defect this replaces (found 2026-08-05 by using it): `--at` picked the
+ * nearest BUST and never saw the controlled events at all, so a stamp naming
+ * a CONTROLLED event — copied straight out of `--list`, which is what the
+ * runbook tells the reader to do — answered about an older, unrelated bust
+ * with nothing marking the substitution. The default path already printed
+ * `fallbackNote` for exactly that situation; `--at` routed around the guard,
+ * which is worse than not having one: the reader believes the verdict
+ * describes the event they asked about. Measured on the motivating ledger:
+ * `--at 2026-08-05T17:22:36Z` (a CONTROLLED(resume), 408k) printed NOTHING
+ * and returned a verdict about the 12:20:13Z messages_changed bust.
+ *
+ * ONE rule, covering the entry's three clauses: the stamp resolves against
+ * every ❄-visible event (so a controlled one can be NAMED instead of silently
+ * skipped), the bust triaged is always the newest AT OR BEFORE the stamp
+ * (never "the newest" — an event after the stamp cannot be the one the reader
+ * was looking at), and the note fires whenever those two are not the same
+ * event. When there is no bust at or before the stamp, that IS the answer.
+ * Relies on `coldEvents`'s newest-first order for "the newest at or before".
+ */
+export function resolveAt(events, wantSec) {
+  if (!events.length) return { requested: null, bust: null, note: [] };
+  const requested = events.reduce((best, e) =>
+    Math.abs(e.t - wantSec) < Math.abs(best.t - wantSec) ? e : best, events[0]);
+  const bust = events.find((e) => e.cls === "bust" && e.t <= wantSec) ?? null;
+  if (bust && requested.cls === "bust" && requested.t === bust.t) {
+    return { requested, bust, note: [] };
+  }
+  const why = requested.cls === "controlled"
+    ? `        CONTROLLED(${requested.cause ?? "-"}), ` +
+      `${Math.round((requested.cc ?? 0) / 1000)}k re-written.\n` + CANNOT_TRIAGE
+    : `        a BUST (${requested.cause ?? "-"}), ` +
+      `${Math.round((requested.cc ?? 0) / 1000)}k re-written — but LATER than the\n` +
+      "        stamp you asked about, so it is not the event you were looking at.";
+  const head =
+    `  NOTE  --at ${fmt(wantSec)} resolves to the cold event at ${fmt(requested.t)},\n${why}`;
+  return { requested, bust, note: [head, bust
+    ? `        Falling back to the newest BUST at or before ${fmt(wantSec)}: ` +
+      `${fmt(bust.t)} (${bust.cause ?? "-"}).`
+    : `        No bust at or before ${fmt(wantSec)} to fall back to.`] };
 }
 
 async function main(argv) {
@@ -679,33 +730,47 @@ async function main(argv) {
     for (const row of listRows(slice)) process.stdout.write(row + "\n");
     return 0;
   }
-  const note = fallbackNote(events);
-  if (!all.length) {
+  const atI = args.indexOf("--at");
+  const explicit = atI >= 0;
+  let bust = all[0];
+  let note = fallbackNote(events);
+  let requested = null;
+  if (explicit) {
+    const raw = args[atI + 1] ?? "";
+    const want = /^\d+$/.test(raw) ? Number(raw) : Math.floor(Date.parse(raw) / 1000);
+    if (!Number.isFinite(want)) {
+      // An unparseable stamp used to fall through the nearest-match reduce
+      // (every comparison against NaN is false) and triage the newest bust,
+      // which is the same silent substitution one level up.
+      process.stdout.write(
+        `--at: "${raw}" is neither an epoch nor a parseable stamp — nothing triaged.\n`);
+      return 2;
+    }
+    ({ requested, bust, note } = resolveAt(events, want));
+    if (!bust) {
+      for (const line of note) process.stdout.write(line + "\n");
+      process.stdout.write(`no cold-cache BUST at or before ${fmt(want)} to triage.\n`);
+      return 0;
+    }
+  } else if (!all.length) {
     // "no busts" and "nothing happened" are different statements, and the
     // controlled events are exactly what distinguishes them.
     for (const line of note) process.stdout.write(line + "\n");
     process.stdout.write("no cold-cache BUSTS in the worktime ledger.\n");
     return 0;
   }
-  const atI = args.indexOf("--at");
-  const explicit = atI >= 0;
-  let bust = all[0];
-  if (explicit) {
-    const raw = args[atI + 1] ?? "";
-    const want = /^\d+$/.test(raw) ? Number(raw) : Math.floor(Date.parse(raw) / 1000);
-    bust = all.reduce((best, b) =>
-      Math.abs(b.t - want) < Math.abs(best.t - want) ? b : best, all[0]);
-  }
   const r = await triage(bust);
   if (json) {
-    // `newest` rides the JSON so a consumer can see the substitution too — the
-    // whole failure was that it happened invisibly.
+    // `newest` and `requested` ride the JSON so a consumer can see the
+    // substitution too — the whole failure was that it happened invisibly.
+    // `fellBack` covers BOTH paths now: it used to be `!explicit && …`, which
+    // reported false on the one path that substituted without saying so.
     process.stdout.write(JSON.stringify(
-      { ...r, newest: events[0] ?? null, fellBack: !explicit && note.length > 0 }, null, 2) + "\n");
+      { ...r, newest: events[0] ?? null, requested, fellBack: note.length > 0 }, null, 2) + "\n");
     return 0;
   }
 
-  if (!explicit && note.length) process.stdout.write("\n" + note.join("\n") + "\n");
+  if (note.length) process.stdout.write("\n" + note.join("\n") + "\n");
   process.stdout.write(`\nbust-triage — ${fmt(bust.t)}  ${Math.round(bust.cc / 1000)}k re-written  session ${bust.s.slice(0, 8)}\n\n`);
   for (const s of r.steps) {
     process.stdout.write(`  ${s.ok ? "OK  " : "WARN"}  ${s.step.padEnd(11)} ${s.detail}\n`);
