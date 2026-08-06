@@ -206,6 +206,32 @@ the first entry below.
 
 ## Open
 
+- **READY (small) — `backlog-lint` calls its own header findings advisory and
+  the suite treats them as blocking, so the CLI trains its reader to walk into
+  a push gate.** Measured 2026-08-06, on me: the tool printed
+  `1 stale header(s) — WARN only, review BACKLOG.md` and exited **0**, I read
+  "WARN only" as advisory and committed, and `test/backlog-lint.test.mjs`
+  ("CLI: zero false fires on the current BACKLOG.md") failed the pre-push
+  suite on the identical line. Two instruments, one predicate, opposite
+  severities — and the one a human reads while writing is the lenient one.
+  The trigger was a grade-claim marker (the past-tense form of "verify", in
+  capitals) inside a `READY` entry's BODY, under a non-matching header —
+  exactly what the lane is for, so this was a real fire and not a false one.
+  Written around rather than quoted, because writing the token here fires the
+  lane a second time: this entry tripped it on its own first draft. That
+  self-reference is itself the missing piece — a lane with no way to talk
+  about its own trigger has no exemption path, which is the declared-exemption
+  shape `docs/dev-loop.md` prescribes and this lane lacks.
+  Design decision belongs with the operator and is stated here rather than
+  taken: either the CLI exits non-zero on a header finding (making the two
+  agree, at the cost of a stricter local loop), or the WARN line names the
+  consequence — "blocks the pre-push suite" — instead of the word "only".
+  Recommendation: the second. It costs one string, keeps the local loop
+  non-blocking for genuinely advisory classes, and the failure it prevents is
+  a reader believing a severity the pipeline does not honour.
+  Verifier: with a planted marker, the CLI's own output must name the gate it
+  will fail, and the assertion must quote that phrase so the two cannot drift.
+
 - **READY — every OTHER row family in `replay.mjs` still carries only report
   ordinals, so the next consumer that goes back to the capture repeats the bug
   just fixed.** Found 2026-08-06 walking s-captureAM: the far-from-anchor
