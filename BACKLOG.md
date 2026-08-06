@@ -655,6 +655,140 @@ the first entry below.
   absence-wearing-a-verdict's-clothes shape aimed at the one signal that has now
   measurably gone unanswered twice).
 
+- **READY — `bust-triage` cannot reach threat-matrix row 24 by ANY of its three
+  routes, so the whole resume / born-large class triages as UNVERIFIABLE or
+  UNCLASSIFIED forever.** Measured 2026-08-06 on capture s-captureAL (the
+  204,513-token `system_changed` event, walked to CONTROLLED-CAUSE in row 24).
+  Three independent misses, each at file:line:
+  (i) **Pair selection.** `capturePair` pairs on byte-identical `messages[0]`
+  (`bust-triage.mjs:334-347`), so a bust whose defining feature IS a
+  `messages[0]` change can never be represented. Worse, it is steered there:
+  `preferTelemetryConfirmed` (`:313-332`) prefers the RESET-carrying request,
+  and at a resume boundary that request is BY CONSTRUCTION its conversation's
+  first — a guaranteed null. The heuristic is correct and puts the class out of
+  reach anyway.
+  (ii) **Census class.** The counterfactual pair (91→92) was built and run
+  through the tool's own steps: `censusPair` = append-only, `migrationVerdict` =
+  null, `classToRow` → null.
+  (iii) **Cause map.** `causeToRow` (`:524-538`) maps `messages_changed`→4 and
+  `tools_changed`→6/23 and nothing else. **`system_changed` — one of the three
+  causes CC emits, and the one this whole class books under — maps to no row.**
+  Good news, and it is why this is READY rather than urgent: both reachable
+  routes fail LOUDLY (UNVERIFIABLE / UNCLASSIFIED). There is no silent-wrong-row
+  path. Positive control that the tool is not simply broken:
+  `--at 2026-08-06T12:54:49Z` returns a pair and grades KNOWN-OPEN row 4.
+  Design, DECIDED (dispatcher), in two separable halves so they can ship apart:
+  **the cause map first** — `system_changed` → row 24, three lines, and it
+  converts the loudest hole into an answer; **then the pair mode** — when no
+  same-`messages[0]` predecessor exists, fall back to the nearest earlier
+  same-session request with ≥2 messages and LABEL the pair
+  `cross-conversation (born-large)`, so nothing downstream mistakes it for a
+  normal pair. Verifier, red-first and already in hand: `--at 1786038016` must
+  go from UNVERIFIABLE to a row-24 verdict, and the 12:54:49Z control must be
+  unchanged.
+
+- **READY — `identity-normalization` rewrites ONE of the two containers CC emits
+  for the same message, so its own normalization is half-applied.** Measured
+  2026-08-06, s-captureAL, same message and same conversation 52 s apart:
+  `identity-normalization.mjs:126` reads `if (!Array.isArray(msg.content))
+  continue;`, so the block-array form at n=91 is rewritten
+  (`SessionStart:resume` → `startup`, verified byte-identical to the extension's
+  own exported `normalizeSessionStartText` over the raw bytes) while the BARE
+  STRING form at n=92 passes through untouched — though the same transform
+  returns `substitutions=1` on it. This is the repo's own entry-path rule ("a
+  mechanism that guards one route is not a guard") landing inside an extension
+  rather than on a gate. Cost UNMEASURED, and that is the honest state: the
+  point is that a normalization which fires on one container and not the other
+  can leave the prefix divergent exactly where it meant to hold it.
+  Verifier: this is a NORMALIZATION, so it does not ship without
+  `tools/reminder-migration-census.mjs` green across the corpus (content AND
+  placement, any MISMATCH blocking) — that gate is not optional and is named
+  here so it cannot be skipped. Red-first: n=92 of s-captureAL forwards the
+  un-normalized bare string today; after the fix it must forward the substituted
+  text, same input, one variable. Durable evidence must be SYNTHETIC — the
+  predicate is literal text, which the scrub destroys.
+
+- **READY — the conservation gate has no declared-exemption clause for
+  `identity-normalization`, so EVERY capture containing a resume fails the gate
+  on declared behaviour.** Found 2026-08-06 while walking s-captureAL: clauses
+  exist for `smoosh-split`, `fresh-session-sort` and `content-strip`
+  (`replay.mjs:2426-2455`) and not for this one, so its documented
+  resume→startup substitution reports as `lost` + `invented` on the system unit
+  every time. That is the fires-on-a-non-defect class on a BLOCKING gate, and it
+  trains its reader to discount conservation red.
+  **CONCRETE NEXT STEP FOR UNDISPOSITIONED SWEEP FINDING 1, which this makes
+  cheap:** that finding's single failing row reads `in[937] (system): 1 of 1
+  unit lost` + `invented` — the same shape one index-space over. Its own entry
+  named the method and left it unwalked; the method is now demonstrated. Run
+  `normalizeSessionStartText` over that capture's raw `n=1400 msg[937]` and
+  compare to the forwarded bytes. If they match, the standing gate red is this
+  same declared behaviour and the sweep finding closes as non-defect with the
+  exemption as its fix. **Not claimed here — different capture, and a candidate
+  is not a match.**
+  Verifier for the exemption itself: it must be telemetry-backed and narrow
+  enough that a REAL conservation violation in the same message still fires —
+  demonstrated by mutating the substitution to change extra bytes and watching
+  the gate go red through the exemption.
+
+- **READY (operator-side, claude-worktime) — one bust is booked THREE times, so
+  every cost total derived from the ledger is inflated by an unknown factor.**
+  Measured 2026-08-06: the 204,513-token event appears as three `k:"hit"` rows
+  (17:39:59Z, 17:40:08Z, 17:40:16Z), and the transcript's three rows with
+  `cc=204513` all carry the SAME `msgId` and `reqId` — one assistant message
+  split across three transcript rows, booked once per row, none retracted.
+  Total is 204,513, not 613k.
+  **Why this outranks its size: the ledger is where this repo's cost numbers
+  come from.** The build-order block above opens with "five busts, 1,200,000
+  tokens re-billed" and ranks the queue partly on it. That figure is not
+  re-derived here on one instance — but it now rests on a counter with a known
+  duplication mode, which is a premise with a crack in it rather than a fact.
+  Design: dedupe on (`msgId`, `reqId`) before booking a hit; the join key is
+  already present in both sources. Verifier: this event must count once, and
+  `--list` must lose exactly these two duplicate rows while every genuinely
+  distinct bust survives.
+
+- **READY (small) — `capturePair`'s comment describes a size floor the code does
+  not implement.** `bust-triage.mjs:275-277` says the busting request must carry
+  "a body at least as large as the ledger's own ctx figure allows, floored at 2
+  messages"; the code implements only `messages.length >= 2`. Doc-over-body
+  drift in a function whose selection rule is load-bearing for every triage.
+  Either implement the ctx floor or delete the clause — deciding which needs one
+  measurement: whether any real bust would be selected differently. Verifier:
+  the 12:54:49Z control and the s-captureAL case must both be unchanged by
+  whichever way it resolves.
+
+- **IN FLIGHT (operator-side, dotfiles; dispatched 2026-08-06 evening) — the
+  push scan's already-published filter covers COMMIT MESSAGES only, and the FILE
+  half fired on the identical class the same week.** The 2026-08-06 fix
+  (dotfiles `6912e2b`) discards message findings whose text the other side
+  already has, and says so in its own docstring, which ends
+  `Datei-Befunde bleiben unangetastet`. That was a declared scope, not an
+  oversight — which is exactly why this entry exists: the ARGUMENT the fix
+  records ("was oeffentlich ist, ist per Konstruktion ausserhalb dessen, was ein
+  Block noch verhindern koennte") is about publication, not about which FIELD
+  carries the bytes, so it reached message bytes and stopped at file bytes for no
+  stated reason. A rule's basis outliving its stated scope is the reach-test
+  shape from the grounding corpus, here written down by the author of the
+  narrower half.
+  **The occurrence, measured:** a force-push of `pr/output-guard` rebased onto
+  `upstream/main` (`e3149ae`) was blocked by 5 `capture-key-prefix` findings in
+  `proxy/extensions/deferred-tool-rewrite.mjs` (224/238/417) and
+  `test/deferred-tool-rewrite.test.mjs` (258/517). Confirmed before any
+  bypass was considered: all five lines are byte-identical to `upstream/main`'s
+  same lines, and neither file is in the branch's own 13-file diff. The bytes are
+  a source comment naming a capture, already public in upstream's repo via our
+  own merged #273 — unretractable by any block. **No `--no-verify` was taken**;
+  the fork's rule limits it to deliberate WIP pushes, and the corpus rule is that
+  a guard firing on legitimate work earns a declared exemption the guard itself
+  verifies, never an override habit. The push is held until the gate is fixed.
+  Design dispatched: discard a FILE finding only when the blob at the pushed tip
+  is byte-identical to the same path's blob at a published tip (same
+  `veroeffentlichte_tips` source as the message filter). A file our own commits
+  touched is fully scanned, always — conservative on purpose, since a file
+  carrying both public and new bytes must never ride through on its public half.
+  Red-first: tonight's block reproduced, then green, and a capture id planted in
+  a file the branch DOES touch must still block.
+
 - **READY (operator-side, dotfiles) — one status file now has TWO definitions of
   "how old is the sweep", and they can disagree by design.** Surfaced 2026-08-06
   by the agent that built the gate-red doorbell, as a returned gap rather than a
@@ -722,6 +856,38 @@ the first entry below.
   now, and the runbook's own setup writes to the shared `.git` — one writer per
   repository. If this entry is still here when the fork lane has reported, that
   is the next thing to run.
+  **RUN 2026-08-06 evening — REBASED AND VERIFIED, PUSH HELD.** Clean rebase onto
+  `upstream/main` = `e3149ae` (not the `48e9673` upstream's comment names — it had
+  moved again), zero conflicts, nothing left mid-rebase. `git range-diff` shows
+  both commits `=`: content and message identical to what is already public in
+  `refs/pull/278/head`, which is what makes the message-grep vacuous BY PROOF
+  rather than by assertion. Suite in the worktree 1767/1768 (the count grew from
+  1724 because the new base carries #273/#317). Both diff forms now agree at 13
+  files / +543 / **0 deletions**; upstream's phantom `-2125` is gone. The push is
+  blocked by the leak-gate scope gap booked above and waits on that fix — NOT on
+  an override.
+  **CI, and upstream's account is right but incomplete IN OUR FAVOUR.** Run
+  31102727767 on the pre-rebase head: `test (18)` and `test (22)` each have
+  exactly one step, `Set up job`, dead at *Failed to resolve action download
+  info — Service Unavailable* (15:38–15:41Z), never reaching `Run tests` — so
+  upstream's transient claim is corroborated verbatim. What their comment omits:
+  **`test (20)` succeeded, all nine steps green including `Run tests`.** The
+  suite did execute on `3c4ecfa` and passed; only two legs died at setup.
+  **SURFACED, NOT RAISED — an operator decision, because it exceeds the
+  push-announcement pattern the runbook authorises.** Post-rebase
+  `proxy/extensions.json` registers `output-guard` at order **690, the same slot
+  as the pre-existing `session-budget-breaker`**, while `request-log` already
+  sits at **700** (`enabled: false`). This is unchanged branch content, not a
+  rebase artifact, and it bears directly on the structural premise upstream's
+  review raised (that nothing registers above 690 — a disabled 700 entry already
+  exists). Their load-bearing review pass will reach it. Raising it needs a GO;
+  the runbook's box permits the push announcement and nothing beyond it.
+  **Instrument note, third instance tonight of one shape:** the round's first
+  check grepped the test output for `output-guard` and got zero — a pattern that
+  could never have matched, since no test title in that file carries the string.
+  Same family as this evening's `jq '.byteGate.mismatch'` null: a self-composed
+  pattern or path IS the instrument, and its reach is the claim's basis. Both
+  were caught by their own authors; neither was caught by a mechanism.
 
 - **READY — the close-out lane inventories EVENTS and not SIGNALS, so a
   doorbell that fires on every single turn can go a whole session
