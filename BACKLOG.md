@@ -266,6 +266,51 @@ the first entry below.
   having never gone red on a real defect. Done-criterion: the red demonstrated
   and quoted, plus a bite in `test/replay-gate-selfcheck.test.mjs` per the
   every-new-gate rule.
+  **STAGE-2b RESULT 2026-08-06 evening, and the ROUTE DECIDED (dispatcher). NOT
+  BUILT: zero of the 12 surviving positives would fire it.** The named live pair
+  was evicted, so every first-appearance-relocation exemption still on disk was
+  enumerated at HEAD's build over the serving gate set — 12 pairs, 5 captures,
+  all `mcp`, all `prefixAboveMessages` fully INTACT. Full table and the
+  presence-probe behind it: threat matrix row 26, addendum of the same evening
+  (`8c3404e`). The condition would have shipped changing nothing, and tomorrow's
+  sweep would be byte-identical — which is the finding, not a disappointment.
+  **The class is live and only the COST is intermittent.** Row 26's link (c) —
+  `deferred-tool-rewrite` logging `no-baseline` under the post-relocation key —
+  is present at all twelve relocating requests' own millisecond. The rotation
+  always fires. What the twelve never met is the SECOND condition: a frozen tools
+  order held under the PRE-rotation key that disagrees with CC's passthrough
+  array. That difference is the whole gap between one 216,060-token event and
+  twelve free ones.
+  **ROUTE: synthetic red-first, merged with the fixture row 26 already mandates.
+  Decided rather than left open, with its basis.** The dev-loop rule forbidding a
+  substitute case was minted about a briefed known-positive that never existed —
+  an entry whose body cited no commit, i.e. an attribution error. This case
+  existed, was measured to the token, and had its mechanism isolated with a
+  falsification probe AND a control. The rule's purpose is to stop an instrument
+  being tuned to ratify its own premise; that purpose is not engaged where the
+  premise was established independently by measurement. So the fixture is not
+  "a case constructed to make the check fire" — it is the durable form of a
+  defect the corpus can no longer hold, and it was independently required
+  already.
+  **AND THE FIXTURE SPEC IS WRONG AS WRITTEN — this is the correction, and
+  skipping it produces a vacuous green.** The row-26 entry specifies two requests
+  "differing only by the first appearance of a skills block". That fixture
+  reproduces the ROTATION and nothing else — which is exactly the state all
+  twelve survivors are in, and they demonstrate that rotation alone leaves the
+  forwarded `tools[]` intact. A check for the tools condition demonstrated
+  against a two-request fixture would therefore pass while asserting nothing, the
+  same shape as every other vacuous green this repo has collected. The merged
+  fixture needs THREE or more requests: enough leading traffic for
+  `deferred-tool-rewrite` to FREEZE a tools order under the pre-rotation key that
+  differs from CC's passthrough array, and only then the relocating request. One
+  fixture then makes both assertions red against the current build — row 26's
+  (the sub-key is identical across the pair) and this one's (the exemption is
+  denied when the forwarded `tools[]` flips).
+  The ordering constraint stands and is now cheap to honour: demonstrate this red
+  before the row-26 fix ships. It is no longer ABSOLUTE, because a committed
+  synthetic fixture can be replayed against the pre-fix extension by the existing
+  bisection — but relying on that is archaeology, and doing it in the right order
+  costs nothing.
 
 - **READY — kill the relocation-induced conversation-key rotation (threat
   matrix row 26): resolve the conversation sub-key ONCE from the RAW body and
@@ -296,6 +341,18 @@ the first entry below.
   every live conversation re-baselines. Price it with
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
+  **FIXTURE SPEC CORRECTED 2026-08-06 evening (dispatcher), and the correction is
+  load-bearing for the entry ranked before this one.** The two-request shape
+  above — "differ only by the first appearance of a skills block" — is sufficient
+  for THIS entry's assertion (the sub-key must not rotate) and INSUFFICIENT for
+  the tools-condition check that must ship first: it reproduces the rotation
+  only, and 12 surviving pairs measured the same evening prove rotation alone
+  leaves the forwarded `tools[]` intact. Build the fixture at three-or-more
+  requests — leading traffic that makes `deferred-tool-rewrite` freeze a tools
+  order under the pre-rotation key differing from CC's passthrough array, then
+  the relocating request — and ONE fixture serves both verifiers. Building the
+  two-request version first would satisfy this entry and silently hand the other
+  a check that passes while asserting nothing.
 
 - **PARTLY DONE — `docs/runbooks/session-close.md` SHIPPED 2026-08-06; the
   computable half of it is still READY. The fifth lane: the operator
@@ -405,6 +462,26 @@ the first entry below.
   the window's job becomes DISCOVERY, and archival moves to git where
   it is diffable, scrubbed and free. The ceiling then only has to
   outlive the gap between two sweeps, which is hours, not weeks.
+  **NEW COST, measured 2026-08-06 evening, and it is a different KIND
+  from the earlier ones: eviction took out a READY item's named
+  verifier, not just an explanation.** Row 26's pair `n=166->167` was
+  measured at 09:59Z; by ~19:25Z the capture holding it was gone from
+  `~/.claude/cache-fix-captures/` (checked by filename, no match), so
+  the ranked-5th item on the forwarded-`tools[]` condition for that
+  exemption — booked the same day, and stating "red-first against the
+  live pair: the current build must exempt `n=166->167`" — had its
+  designated known-positive dissolve inside ten hours. The pin taken for
+  that row cannot stand in: the scrub destroys all four relocatable-block
+  predicates, which the row itself records. Every earlier datapoint for
+  this item was about losing an EXPLANATION after the fact; this one is
+  about a check that cannot be built red-first at all, which is the
+  point where the loss stops being retrospective and starts blocking
+  work. What survives is what the sweep already wrote down: 12
+  `first-appearance-relocation` exemption rows across 5 still-present
+  captures in the 07:55Z status file — i.e. the status file's own
+  row-level record is currently the ONLY thing standing between this
+  class and unbuildability, which is exactly the artifact this item
+  proposes to make durable.
 
 - **READY — `tools/lane-sweep.mjs`: make the lane enumeration repeatable, because
   the hand pass found three gaps and will not survive this session.** Done by
@@ -515,6 +592,136 @@ the first entry below.
   `test/replay-gate-selfcheck.test.mjs`. Removes the `[GRADUATE]` marker on
   step 4 of the sweep runbook — that marker comes out with this commit and
   by no other means.
+
+- **READY (small, and it sharpens the rate question) — why did twelve
+  first-appearance relocations rotate the key for free while the thirteenth cost
+  216k? The type is the obvious suspect and probably the wrong one.** All 12
+  survivors are `mcp`; the costly one was `skills` (14,593 chars). Correlation
+  noted, mechanism not — and the mechanism already has a better candidate: the
+  flip needs `deferred-tool-rewrite` to be HOLDING a frozen tools order under the
+  pre-rotation key, which depends on whether CC had already reordered its tools
+  array earlier in that conversation, i.e. on WHEN in the session the relocation
+  lands, not on which block type moved. Cheap to settle from evidence already on
+  disk: for each of the 12, read the PRE-rotation key's state in
+  `*-deferred-tool-events.jsonl` (the enumeration read the post-rotation key
+  only) and record whether a baseline was held. Done-criterion: a held/not-held
+  column beside the 12, and a one-line verdict on which of the two hypotheses the
+  data supports — with "neither, n is too small" as an acceptable answer, since
+  12 free instances and one costly one is not a rate. Ranks below the fixture
+  work: it explains the cost distribution, it does not block the mitigation.
+
+- **READY — the PR-ROUNDS trigger, split out of the entry above with its WRITER
+  named, because it is the one part that cannot ride the SessionStart hook
+  directly.** The gate-red part reads a local file and is dispatched; this part
+  needs `gh`, i.e. the network, and a session-start hook is the one place a
+  network call must not go — it sits on the critical path of every session and
+  fails in ways nobody sees. So the design splits in two, and only the writer is
+  new work: a scheduled WRITER (user timer, hourly) runs `gh pr list --repo
+  cnighswonger/claude-code-cache-fix --author @me --json
+  number,reviewDecision,updatedAt,headRefName` plus per-PR last-comment time,
+  compares each against our last push on that branch, and writes
+  `~/.claude/cache-fix-pr-rounds.json` as `{finished, rounds:[{n, since}]}`; the
+  READER is the attention line, under the same three states the gate-red part
+  uses — count when >0, silent at zero, `stale` when `finished` is older than
+  ~3 h, silent when the file is absent (a machine with no fork checkout must not
+  grow a permanent line).
+  **The live positive exists and it is today's, which is why this is READY and
+  not parked.** Measured 2026-08-06 ~19:30 local by a hand `gh pr list` run
+  purely to write this entry: #273 MERGED at 16:19:46Z, and at 16:28:44Z
+  upstream posted a round on **#278** asking for a second rebase (`#273` and
+  `#317` merged since our `3c4ecfa` push; current upstream main `48e9673`;
+  "nothing to fix in your code"), plus the finding that both CI failures are the
+  same transient 503 at *Prepare all required actions*, not our code. That round
+  sat **three hours** with nothing announcing it.
+  **The sharper cost, and it is the one worth quoting at the next
+  re-derivation:** the previous session's own handoff — written at 19:01, i.e.
+  after both events — records "Today's three rebases went out … and #273 reads
+  APPROVED, so the ball is with upstream." #273 had been MERGED for 42 minutes
+  and #278 had been waiting for 33 when that sentence was written. The handoff
+  was not careless; it was working from the last state anyone had LOOKED at,
+  which is precisely what a doorbell replaces. A missing watcher does not only
+  delay a response — it writes stale premises into the artifact the next session
+  starts from.
+  Verifier, three parts: (a) WRITER — its output for today must contain #278
+  with `since = 2026-08-06T16:28:44Z`, checked against the `gh` output by hand
+  once; (b) READER red-first — against that file the attention line prints the
+  rounds part, against a synthetic `{rounds: []}` it prints nothing, against a
+  `finished` 6 h old it prints stale; (c) the zero case proven silent on the
+  same invocation that fires on the real file, so a zero from an instrument that
+  never ran is excluded. Done-criterion: all three, plus the writer's failure
+  mode named — `gh` unauthenticated or offline must leave the previous file
+  intact and let staleness speak, never write an empty `rounds` (an empty list
+  from a failed call is indistinguishable from peace, and would be the
+  absence-wearing-a-verdict's-clothes shape aimed at the one signal that has now
+  measurably gone unanswered twice).
+
+- **READY (operator-side, dotfiles) — one status file now has TWO definitions of
+  "how old is the sweep", and they can disagree by design.** Surfaced 2026-08-06
+  by the agent that built the gate-red doorbell, as a returned gap rather than a
+  silent choice — the good outcome, and worth noting as such. The hook
+  (`claude/hooks/session-scan.py`) measures age from the payload's `.finished`
+  with a 26 h bound; doctor (`gate_status_verdict`, `bootstrap/doctor.py:458-479`)
+  measures it from the file's **mtime** with a 36 h bound. Both read
+  `~/.claude/cache-fix-gate-status.json`. A file that is copied, restored from a
+  backup, or rewritten without a fresh sweep has a new mtime and an old
+  `.finished`: the hook says stale, doctor says fine, and each is internally
+  consistent — the classic two-namespaces-that-look-like-one shape (dev-loop,
+  "Two coordinate spaces that look like one"), here at the level of a unit
+  rather than an index.
+  Design, decided: `.finished` wins — it answers "last SWEPT", mtime answers
+  "last WRITTEN", and the question both readers are asking is the first. Doctor
+  converges onto `.finished`, and the bound becomes ONE constant with one name,
+  read by both (a second copy of "26" is the thing that rots). The hook's
+  behaviour does not change.
+  Verifier, red-first and cheap to stage: a status file with `finished` 30 h ago
+  and mtime NOW — today doctor passes it and the hook flags it; after the change
+  both flag it. Plus the control that a genuinely fresh sweep still passes both.
+  Done-criterion: the disagreement demonstrated before and gone after, one
+  constant with both consumers citing it, and doctor's own bite battery green.
+  NOT this repo's file — this is a dotfiles change, booked here only because it
+  was found here and the fork backlog already carries operator-side entries.
+
+- **READY — `backlog-order.mjs`'s anchor namespace is the whole BULLET BODY, so
+  an entry that QUOTES another entry's title breaks the ranking tool.** Hit
+  2026-08-06 evening, first use after the tool shipped, by ordinary work: an
+  addendum written into the row-scoped-pinning entry cited the ranked-5th item
+  by its title, and `--check` died with `anchor matches 2 bullets`. Reproduction
+  is one line — put any ranked anchor's text inside a second bullet.
+  The tool behaved CORRECTLY (`reorder`, tools/backlog-order.mjs:79-91: zero or
+  multiple hits throw, nothing is written — a partially-applied order is worse
+  than none), so this is not a silent defect and the loudness is the design
+  working. It is the fires-on-legitimate-work shape instead: citing one entry
+  from another is normal prose, and the current repair is to reword the citation,
+  which trains the writer to avoid naming entries rather than to name them.
+  Design, decided, and derived from the DEFINITION rather than from the current
+  behaviour: an anchor identifies an entry by its TITLE, and a title is the bold
+  lead of the bullet — so the match is scoped to the bullet's first line
+  (`b.split("\n")[0].includes(a)`), never its body. That is a narrowing to what
+  the anchor always meant, not a softened predicate: a genuine duplicate TITLE
+  still throws, which is the case the guard exists for.
+  Verifier, red-first and already in hand: a bite over a synthetic two-bullet
+  document where bullet B's BODY quotes bullet A's title verbatim — against
+  today's implementation `reorder` throws `anchor matches 2 bullets`, against the
+  fix it ranks A and leaves B below; plus the preserved-guard control, two
+  bullets with the same TITLE, which must still throw under both. Done-criterion:
+  both bites, and `node tools/backlog-order.mjs --check` green on the real file
+  with the citation restored to the wording that failed — which is NOT in git
+  history (it was reworded before the commit, so no diff carries it) and is
+  therefore quoted here as the reproduction input: a bullet body containing the
+  string `the stability exemption for a first-appearance` + ` relocation`, split
+  across two literals in this entry for exactly the reason the entry exists.
+
+- **QUEUED THIS SESSION (2026-08-06 evening) — #278's second rebase round,
+  serialized behind the running fork-repo lane, not dropped.** The round is read
+  and understood (previous entry carries its content); the work is the runbook
+  `docs/runbooks/upstream-pr-round.md` end to end — worktree + `node_modules`
+  symlink, rebase onto current `upstream/main`, full `npm test` in the worktree,
+  the hygiene greps scoped to THIS round's commits, then push and the
+  push-announcement comment. It is not running yet for one reason, stated so it
+  is not re-litigated: another agent owns this repository's working copy right
+  now, and the runbook's own setup writes to the shared `.git` — one writer per
+  repository. If this entry is still here when the fork lane has reported, that
+  is the next thing to run.
 
 - **READY — the close-out lane inventories EVENTS and not SIGNALS, so a
   doorbell that fires on every single turn can go a whole session
@@ -1317,6 +1524,35 @@ the first entry below.
   Until that is settled, neither number can be cited: this is the
   instrument-defect branch of the sweep lane, and the first move is finding
   which producer doctor actually reads.
+  **DISPOSITIONED 2026-08-06 evening — INSTRUMENT-DEFECT, and the instrument is
+  the HAND QUERY, not the producer.** The two readers never disagreed. The
+  producer writes a top-level `byteGate` carrying
+  `tally: {EXACT:543, EXTENDED:84, DROPPED:4, MISMATCH:2}`; summing the same
+  four fields across `.rows[].byteGate.tally` independently gives exactly
+  `{543, 84, 4, 2}`; and doctor reads that same object (`bytegate_verdict`,
+  dotfiles `bootstrap/doctor.py:530-544`). There is no key named `mismatch` at
+  any level — the field is `tally.MISMATCH` — so `jq '.byteGate.mismatch'`
+  returned null because the PATH does not exist, not because nothing was
+  measured. **MISMATCH=2 is citable**, and the two rows behind it are named in
+  the status file (`byteGate.tally.MISMATCH == 1` on each of two captures, 1670
+  and 1395 pairs).
+  **The transferable half, and it is why this entry stays rather than being
+  deleted:** a `jq` null is ambiguous in exactly the way this repo's three-answer
+  rule is about — "absent because unmeasured" and "absent because you asked for
+  the wrong key" are byte-identical answers, and the first reads as a finding
+  about the system while the second is a finding about the reader. A
+  self-composed query path is the instrument, so its own form is the claim's
+  basis (grounding corpus, the self-built view). Cheap discipline, first use
+  here: before reading a null as a measurement, print the object's KEYS
+  (`jq -r 'keys|join(", ")'`, or `[.rows[].byteGate|keys?]|add|unique`) and show
+  the path exists. Not mechanized deliberately — the trigger is judgment-shaped
+  (every legitimate null would fire it) and this is the first recorded
+  occurrence; if a second hand-cited null is ever mis-read, the probe has been
+  used twice and graduates to `tools/` under the standing rule.
+  **This closes finding (2) of this entry. Finding (1) — the gate-red
+  conservation row — remains OPEN and unwalked**; its next step is still the one
+  written above: run each suspected extension's own exported transform over the
+  real bytes rather than pattern-matching it to the 2026-08-05 attribution.
   Both are pre-existing, neither is caused by 2026-08-06's changes, and both
   were named in conversation before being written down — the named-and-unbooked
   shape, caught by the close-out enumeration on the same day the rule for it
