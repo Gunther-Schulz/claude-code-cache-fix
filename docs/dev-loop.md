@@ -153,7 +153,9 @@ over evidence:
 
 **A SECOND PARTITION, alongside signal 1: an irreversible failure mode ranks
 above the cost ordering, not inside it.** Added 2026-08-06 (second derivation
-pass) because the first pass had ranked the leak-gate items last and the
+pass, operator GO the same day, after the alternative — leaving the rubric
+alone and letting the leak items stay last — was put beside it) because the
+first pass had ranked the leak-gate items last and the
 rubric as written was right to. Signals 2–4 measure what an item can prove
 today, and a gate that has never yet let a leak through proves a small
 number: four overrides in two days, zero realized loss. A latency-class item
