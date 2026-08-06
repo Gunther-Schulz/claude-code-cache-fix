@@ -148,8 +148,16 @@ intervention — never restart to investigate.
     # keys or freeze logic, which states its declaration first.
     # (The old "busts live sessions" caution predated the freeze
     # logic and was removed on operator ruling 2026-07-31.)
-    git fetch origin
-    git merge origin/main            # on main (merge, not rebase —
+    # CORRECTED 2026-08-06. This block read `git fetch origin` /
+    # `git merge origin/main` / `git push fork main` — all three wrong
+    # since the remotes were renamed: origin IS our fork, so the merge
+    # was a no-op against ourselves and the push named a remote that
+    # does not exist. Verified with `git remote -v`, which is what the
+    # warning three paragraphs above this one already told the reader
+    # to trust over the prose — and the prose it was warning about was
+    # this block. A caution about a class does not repair an instance.
+    git fetch upstream
+    git merge upstream/main          # on main (merge, not rebase —
                                      # fork main is deployed state,
                                      # published; never rewrite it)
     npm test                         # all green (1496 as of 2026-07-27).
@@ -160,7 +168,7 @@ intervention — never restart to investigate.
                                      # set, fixed 2026-07-27 (2a1585a) —
                                      # a failure here is now real.
     systemctl --user restart cache-fix-proxy && curl -s 127.0.0.1:9801/health
-    git push fork main
+    git push origin main             # origin IS the fork — see above
     # then, ONLY if proxy/ changed:
     #   git rev-parse --short HEAD:proxy → CACHE_FIX_PROXY_TREE_PIN
     #   in dotfiles bootstrap/manifest.py, commit dotfiles.

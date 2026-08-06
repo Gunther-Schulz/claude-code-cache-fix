@@ -152,6 +152,46 @@ bullet, evidence pointer included.
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
 
+- **READY — THREE triggers have no watcher, and the third is the worst: a RED
+  daily sweep has no doorbell either.** Found 2026-08-06 while enumerating the
+  lanes: `session-scan.py` surfaces BACKLOG only, and NO SessionStart hook reads
+  `~/.claude/cache-fix-gate-status.json`. The dotfiles doctor reads it, but
+  doctor is a command someone runs, not something that greets them. So
+  `docs/runbooks/sweep-finding.md` — written that same morning — has a trigger
+  of "you happened to look." The runbook was authored, reviewed and committed
+  without anyone noticing its entry condition did not exist, which is the
+  clearest possible case for the standing instrument question (dev-loop, rule
+  three): the gap was in the thing being built, not in something old.
+  All three conditions are computable, share one carrier, and ship together:
+  gate red (`.ok == false` or `.failing > 0` in the status file, plus its
+  `finished` age so a stale sweep reads as stale rather than clean), commits
+  behind (`git log main..upstream/main --oneline | wc -l`), and review rounds
+  waiting (`gh pr list --author @me` with activity newer than our last push).
+  Silent at zero, all three.
+  Measured 2026-08-06, by looking rather than by anything reporting: fork `main`
+  is **24 commits behind `upstream/main`**, and **three open PRs (#273, #276,
+  #278) carry a reviewer comment from that same day**, all three `CONFLICTING`,
+  all three at `REVIEW_REQUIRED`, all three asking for the same rebase. The
+  runbook for answering a round exists and is good; nothing tells anyone a
+  round is waiting. A well-written line with no doorbell.
+  Both conditions are computable with near-zero false fires, which is the test
+  a mechanism has to pass here — no judgment, no semantics, two counts:
+  `git log main..upstream/main --oneline | wc -l`, and `gh pr list --author @me
+  --json number,reviewDecision,updatedAt` filtered to rounds newer than our last
+  push on that branch. Design, decided: both land as counts on the SessionStart
+  line beside the backlog count that already appears there — same carrier,
+  because that line is demonstrably on the read path and a new one would not
+  be. Silent at zero; a count only when there is something. Verifier: with the
+  state as of 2026-08-06 it must print both (24 behind, 3 rounds waiting);
+  against a synthetic in-sync state it must print nothing. Done-criterion:
+  both, plus the zero case proven silent — a trigger that always prints is a
+  trigger nobody reads.
+  NOT covered here, because it is not computable and should not be faked: WHEN
+  a fork mitigation becomes an upstream slice. FORK-NOTES says "when ready",
+  which is an unstated trigger and therefore drift. That one is an operator
+  decision and stays prose — but it stays prose ON PURPOSE and says so, rather
+  than by omission.
+
 - **READY — extend `replay.mjs`'s extension bisection to CONSERVATION rows;
   today it attributes stability violations only, and conservation rows are
   attributed by hand.** The graduation trigger fired long ago and was only

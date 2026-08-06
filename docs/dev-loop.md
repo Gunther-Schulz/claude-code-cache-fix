@@ -26,11 +26,46 @@ morning froze its evidence into a fixture that proved nothing, and the only
 reason it was caught is that someone happened to replay it. Two of the four
 gaps that day were missing STEPS, not missing knowledge.
 
-Two rules that bind every line, so no runbook has to restate them: an event
-that maps to no existing threat-matrix row is UNCLASSIFIED — stop and mint the
-row, because that is the alarm the matrix's convergence note relies on; and a
-manual investigation is unfinished while the check that would have produced
-its finding does not exist (the closing gate, question 1).
+Three rules bind every line, so no runbook has to restate them.
+
+**One — an event that maps to no existing threat-matrix row is UNCLASSIFIED.**
+Stop and mint the row; that is the alarm the matrix's convergence note relies
+on.
+
+**Two — every event ends in something DURABLE.** A commit, a booked entry, a
+matrix row, a PR — or several. "Handled it" and "noted in the report" are not
+dispositions: they leave nothing a later session can find. A manual
+investigation is unfinished while the check that would have produced its
+finding does not exist (the closing gate, question 1).
+
+**Three — the standing question, asked continuously and answered ASAP: what
+did this just prove wrong or missing about the tooling and the docs?**
+This is the one that compounds, and it is deliberately NOT a closing question.
+The other four run when work finishes; this one runs the moment an instrument
+surprises you, because by then it has already contaminated whatever it was
+used for. So it has two halves, in order:
+
+1. **Re-check what rested on it.** A tool found lying mid-investigation
+   invalidates the conclusions drawn through it — not the ones you remember
+   drawing, the ones you actually drew. Enumerate them before continuing.
+2. **Fix it now if small; book it with a red-first arrangement if not.** What
+   is never allowed is the third option: leaving it as an observation in a
+   reply. A finding about an instrument that ends as prose in a chat message
+   has no carrier and evaporates — and the next session re-earns it.
+
+Measured on one day, 2026-08-06, all five found while doing something else:
+`harvest --pin` reports success on a fixture that reproduces nothing;
+`replay.mjs` pointed at a `.json` pin reads 0 pairs and exits clean;
+`bust-triage` answers MITIGATED for 7 of 25 matrix rows including ones
+reading "OBSERVED, CAUSE NOT ISOLATED"; `fixture-verdict-identity`
+mutation-tests only whichever fixture sorts first; and `dossier` wrote live
+session ids into a public repo's root with nothing but the push scan between
+that and a commit. Two were fixed the same hour, three were booked. None was
+the task anyone sat down to do — which is the point: the instruments get
+tested by the work, and only if the work is watching.
+
+The tell that this question was skipped: the session's own report names a
+tool that surprised it, and no commit touched that tool.
 
 **A runbook is a staging area, not a permanent home.** Steps a human runs by
 hand carry `[GRADUATE -> <where it belongs>]`, which makes the file's own
