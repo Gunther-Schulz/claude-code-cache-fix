@@ -839,6 +839,9 @@ export function compactEntry(e) {
   return {
     n: e.n,
     ts: e.ts,
+    // Retained for the same reason `full` carries it: the only join back to
+    // the capture file that survives the line-vs-request namespace split.
+    id: e.id ?? null,
     key: e.key,
     inHash: inMsgs.map((m) => sha(JSON.stringify(m))),
     // Byte length per message. Numbers, not content — this is what lets a
@@ -1318,6 +1321,66 @@ export function excerptMessage(msg, cap = 180) {
   return `${msg.role ?? "?"}: ${flat.length > cap ? flat.slice(0, cap) + "…" : flat || "(no text)"}`;
 }
 
+// Fetch the excerpted messages a report asks for, joining each ask to its
+// capture record by the record's OWN id.
+//
+// Why an id and not an ordinal (measured 2026-08-06, capture s-captureAM):
+// this pass used to key its asks by the census ordinal `n` and match them
+// against `readCapture`'s index, which numbers every non-blank LINE. The two
+// namespaces differ by every outcome and boot record — main()'s read loop
+// documents exactly that hazard 500 lines further down and this pass walked
+// into it. Live: 5 of 6 asks printed "(missing)" (the ask hit an outcome
+// record, which carries no body) and the sixth printed a request from eleven
+// minutes earlier as though it were the bytes at the divergence.
+//
+// Three answers, not two (docs/dev-loop.md): a record that has no message at
+// the asked index says "(missing)", and an ask whose record was never found
+// says so in its own words — the two are different findings and collapsing
+// them is how an absence wears a verdict's clothes.
+//
+// asks: [{ id, at, label }]. Returns them in the order given, each with an
+// `excerpt` string. Streams the capture once; stops as soon as every ask is
+// answered.
+export async function excerptsForAsks(file, asks) {
+  const want = new Map();
+  for (const a of asks) {
+    if (a.id === null || a.id === undefined) continue;
+    if (!want.has(a.id)) want.set(a.id, []);
+    want.get(a.id).push(a);
+  }
+  const found = new Map();
+  if (want.size) {
+    for await (const [, line] of readCapture(file)) {
+      let rec;
+      try {
+        rec = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      // Outcome records share the request's id and carry no body; a boot
+      // record has neither. Skipping them by TYPE rather than by "no body"
+      // keeps a malformed request record reporting as an unanswered ask
+      // instead of silently reading as a body-less outcome.
+      if (rec.type === "outcome" || rec.type === "boot") continue;
+      const here = want.get(rec.id);
+      if (!here) continue;
+      for (const a of here) {
+        found.set(a, excerptMessage(rec.body?.messages?.[a.at]));
+      }
+      want.delete(rec.id);
+      if (want.size === 0) break;
+    }
+  }
+  return asks.map((a) => ({
+    ...a,
+    excerpt:
+      found.get(a) ??
+      (a.id === null || a.id === undefined
+        ? "(row carries no capture id — nothing to join on)"
+        : `(no request record with id ${a.id} in this capture)`),
+  }));
+}
+
 // A message the human actually typed: user role carrying at least one text
 // block that is neither a tool_result nor a tagged injection (reminders,
 // notifications, caveats all start with "<"). Computed at compaction time
@@ -1567,6 +1630,12 @@ export function findEditPositions(entries) {
         n: cur.n,
         prevN: prev.n,
         ts: cur.ts,
+        // Both sides' capture-record ids and the predecessor's timestamp. A
+        // consumer that goes back to the file for bytes joins on these; `n`
+        // and `prevN` are report ordinals and join to nothing on disk.
+        id: cur.id ?? null,
+        prevId: prev.id ?? null,
+        prevTs: prev.ts,
         at,
         lastIdx,
         tail: at >= lastIdx,
@@ -2947,6 +3016,13 @@ async function main() {
     const full = {
       n,
       ts: rec.ts,
+      // The capture record's OWN identifier, carried so anything that has to
+      // go back to the file for bytes can join on it. `n` cannot do that job:
+      // it counts request records while the file is read by LINE, and the two
+      // diverge by every outcome and boot record in between (the read loop's
+      // comment above says so; the excerpt pass below walked into it anyway —
+      // test/replay-excerpt-record-identity.test.mjs).
+      id: rec.id ?? null,
       key: rec.key,
       inMsgs: Array.isArray(rec.body?.messages) ? rec.body.messages : [],
       outMsgs: Array.isArray(ctx.body?.messages) ? ctx.body.messages : [],
@@ -3421,27 +3497,15 @@ async function main() {
           process.stdout.write(
             `  ${far.length} edit(s) >30 from the human anchor — NOT the known reminder-anchoring class:\n`,
           );
-          const want = new Map(); // request index -> [{at, side, rowKey}]
+          // Asks join to the capture by the record's own id, never by an
+          // ordinal — see excerptsForAsks for the namespace this used to mix.
+          const asks = [];
           for (const e of far.slice(0, 3)) {
-            if (!want.has(e.prevN)) want.set(e.prevN, []);
-            if (!want.has(e.n)) want.set(e.n, []);
-            want.get(e.prevN).push({ at: e.at, label: `n=${e.prevN} (before)` });
-            want.get(e.n).push({ at: e.at, label: `n=${e.n} (after)` });
+            asks.push({ id: e.prevId, at: e.at, label: `n=${e.prevN} (before)` });
+            asks.push({ id: e.id, at: e.at, label: `n=${e.n} (after)` });
           }
-          for await (const [idx, line] of readCapture(args.file)) {
-            const asks = want.get(idx);
-            if (!asks) continue;
-            let body;
-            try {
-              body = JSON.parse(line).body;
-            } catch {
-              continue;
-            }
-            for (const a of asks) {
-              process.stdout.write(`    @${a.at} ${a.label}  ${excerptMessage(body?.messages?.[a.at])}\n`);
-            }
-            want.delete(idx);
-            if (want.size === 0) break;
+          for (const a of await excerptsForAsks(args.file, asks)) {
+            process.stdout.write(`    @${a.at} ${a.label}  ${a.excerpt}\n`);
           }
         }
       }

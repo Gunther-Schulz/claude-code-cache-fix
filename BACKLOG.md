@@ -206,6 +206,63 @@ the first entry below.
 
 ## Open
 
+- **READY — every OTHER row family in `replay.mjs` still carries only report
+  ordinals, so the next consumer that goes back to the capture repeats the bug
+  just fixed.** Found 2026-08-06 walking s-captureAM: the far-from-anchor
+  excerpt pass keyed its asks by the census `n` and matched them against
+  `readCapture`'s LINE index — 5 of 6 asks printed `(missing)`, the 6th printed
+  a request 11 minutes away. Fixed for `edits` rows by carrying `id`/`prevId`
+  from the capture record (`test/replay-excerpt-record-identity.test.mjs`, red
+  on the shipped code). **The WRITER half is untouched**: `violations`,
+  `exemptions`, `absorptionMisses`, `blockMigrations`, `relocDepartures`,
+  `successions` and `mitigation` rows all still carry `n`/`prevN` and nothing
+  else that joins to disk, and nothing marks them as non-joinable — so the
+  hazard is intact for every future reader, which is exactly the "fix the
+  reader, leave the generator" shape `docs/dev-loop.md` warns about.
+  Design: `compactEntry` already retains `id` as of this commit; add
+  `id`/`prevId` to each row family at construction, one line each.
+  Verifier, and it must be the generic one rather than a second copy of the
+  excerpt test: a test that asserts EVERY row family emitted by a `--json` run
+  over a fixture with interleaved outcome records carries a non-null `id` for
+  each ordinal it carries — red today on six of the seven families.
+
+- **READY — `findAbsorptionMisses` runs on every replay and prints on none.**
+  `docs/dev-loop.md` says it "now asks it on every run — not behind
+  `--census`, because the whole point is that nobody knew to look". True of the
+  COMPUTATION (`replay.mjs:3082`); the rows reach a human only via `--json`
+  (`replay.mjs:3195`) or `gate-live`'s status file. The text report — the
+  route `docs/runbooks/bust-appears.md` step 4 tells a human to run during a
+  bust walk — has no absorption section at all, not even a zero line. Measured
+  2026-08-06 on s-captureAM: 1 miss existed and the text run never mentioned
+  it; it surfaced only because `relocDepartures` happened to name the same
+  pair by a different check. One-route guard shape, and the doc claims a reach
+  the code does not have.
+  Design: print the section unconditionally with its count (zero included, per
+  the three-answer rule), each row carrying the three numbers the check exists
+  for — absorbed-at, forwarded divergence, `ours`. Verifier: a fixture with a
+  known miss must show the row in plain `--census` output, and a fixture with
+  none must print an explicit `0`.
+  While there: the dev-loop sentence gets corrected in the same commit — it is
+  the sentence that made the gap invisible.
+
+- **READY — `bust-triage` maps `replace/edit` -> row 4 flatly
+  (`bust-triage.mjs:501`), so the census annotations that distinguish this
+  row's sub-mechanisms never reach the operator at the runbook's designated
+  entry point.** Measured 2026-08-06: the 301k s-captureAM bust is a 20-leg
+  FLAP at one index with `anchorDelta` -45/-48 — i.e. the census's own
+  far-from-anchor tripwire fires and says "NOT the known reminder-anchoring
+  class" — and `bust-triage`'s verdict block shows `census replace/edit` and
+  nothing else. `anchorDelta` exists nowhere outside `replay.mjs`: zero hits in
+  `bust-triage.mjs` and zero in the threat matrix. A walker who runs only the
+  triage (which is what step 2 of `runbooks/bust-appears.md` prescribes) cannot
+  tell an anchored ±2 re-stamp from a deep oscillation, and the two have
+  different mitigation stories inside one row.
+  Design: `bust-triage` already imports `censusPair` from `replay.mjs`; have it
+  also report the pair's `anchorDelta` and any `blockMigration`/FLAP rows on
+  the same pair, and print the far-from-anchor callout verbatim when it fires.
+  Verifier: run against this capture's stamp — the row must name FLAP and the
+  anchor distance; run against a ±2 anchored instance and it must not.
+
 - **READY — THREE triggers have no watcher, and the third is the worst: a RED
   daily sweep has no doorbell either.** Found 2026-08-06 while enumerating the
   lanes: `session-scan.py` surfaces BACKLOG only, and NO SessionStart hook reads

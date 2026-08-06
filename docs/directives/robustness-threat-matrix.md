@@ -766,6 +766,93 @@ predicate. Operator-side consequence, outside this repo: the
 re-anchor mechanism is not delivering the corpus it was built to
 re-show — only its first 2KB reaches the model.
 
+### Row 4 datapoint — 2026-08-06 18:08:32Z: a 20-leg OSCILLATION at one
+### index, 300,597 tokens, and the instrument that should have shown the
+### bytes was printing another request's
+
+THE BUST. Capture s-captureAM, 2026-08-06T18:08:32Z, `cc` 300,597
+against `ctx` 315,821 with `cacheRead` **15,222** — the surviving hit
+is tools+system only and the whole messages array re-billed, this
+row's economics exactly (the mid-history mutation invalidates every
+message-level breakpoint, all of which sit at the tail). Transcript
+cause `messages_changed / 267780`. `bust-triage`: KNOWN-OPEN, row 4.
+
+THE SHAPE, off the raw pre-pipeline capture (replay under the SERVING
+gate set, 10 of 10 declared, exit 0). Eight mid-history edits inside
+27 seconds, **five of them at the same raw index 235**, each
+re-billing 105–128 kB:
+
+    n=257->259  edit@235 of 283  [anchor-48]  18:07:57.714Z
+    n=259->260  edit@235 of 282  [anchor-45]  18:07:59.753Z
+    n=262->263  edit@235 of 285  [anchor-48]  18:08:11.130Z
+    n=264->265  edit@235 of 287  [anchor-45]  18:08:23.483Z
+    n=265->266  edit@235 of 290  [anchor-48]  18:08:24.985Z   <- the bust
+
+Block migrations over the capture: **32, 20 FLAP, 16 JOIN (13
+cross-message)** — the same three blocks (raw 237/238, 256/258,
+276/279) plus two cross-message joins (234+235<->235, 249+250<->251)
+reversing direction on four consecutive requests. This row's own
+census callout predicted the outcome verbatim: a pin that classifies
+one of the two shapes absorbs one leg, so an oscillation busts on
+every second flip at best.
+
+WHAT THE MITIGATION DID. `insertion-normalization` recognized the
+migration on three of the requests (`movedFresh: 2` at 18:07:57.724Z
+and 18:08:11.139Z, `movedFresh: 1` on the `reset/not-subsequence` at
+18:08:24.994Z — the busting request), with `join-move` at indices 235
+and 251 each time. The gates are clean: 0 stability / 0 safety / 0
+sequence / 0 order / 0 conservation over 256 same-conversation pairs,
+2 stability exemptions (both elsewhere, 17:39Z and 17:48Z), and
+`findAbsorptionMisses` returns one row for the whole capture — pair
+n=84->222, `ours: false`. So the absorption fired and the prefix broke
+anyway, and **nothing we run says whose the residual is**: the miss
+check only examines pairs where an absorption both claimed AND had a
+fresh index at or above the forwarded divergence, which excludes all
+five of these.
+
+ATTRIBUTION: **CC's**, by construction. The edits are in the RAW
+capture (request-capture, order 60, ahead of every mutating
+extension), so the divergence exists before we touch the body; the
+stability gate — which compares our divergence index against CC's on
+the same pairs, with the same primitives — reports 0 violations, i.e.
+we never diverged earlier than CC did. Disposition: another INSTANCE
+of this row, not a new class.
+
+THE BYTES, and the instrument correction that produced them. The
+`anchorDelta` of -45/-48 puts every one of these outside the known
+reminder-ANCHORING class (CC#78660, edits within ±2 of the last human
+turn), which is what the far-from-anchor tripwire exists to say. It
+fired — and its excerpt pass printed `(missing)` for five of six asks
+and, for the sixth, a request from **eleven minutes earlier**. Cause:
+the asks were keyed by the census ordinal `n` and matched against
+`readCapture`'s LINE index, which counts outcome and boot records too;
+main()'s own read loop documents that hazard 500 lines above the pass
+that walked into it. Fixed the same session, red-first
+(`test/replay-excerpt-record-identity.test.mjs`, RED on the shipped
+code with the decoy request's bytes in the assertion diff). With the
+join on the record's own id, index 235 reads:
+
+    n=264 (before)  system: PreToolUse:Edit hook additional context: Writer-claims note (§4 mirror duty)…
+    n=265 (after)   system: The user sent a new message while you were working: …
+
+i.e. the slot's occupant changes because the block at 235 merged into
+234 and the tail shifted up — the cross-message join this row already
+names, now with its bytes rather than by inference. The forwarded side
+agrees in its own coordinate space: prefix-diff on the busting request
+records `messages@248(system)`, `systemMatch: true`, `toolsMatch:
+true`, 286->286, prev "The task tools haven't been used recently…" ->
+now "PostToolUse:Edit hook blocking error…". Raw 235 and forwarded 248
+are NOT equated here; each is quoted from the instrument that
+produced it.
+
+NOT PINNED. The class is structural (indices, ordinals, migration
+shapes — what the sanitizer preserves), so a pin WOULD reproduce it,
+unlike s-captureAL's. It is not taken because this row already carries
+two pinned fixtures for the same shape (s-captureAE, s-captureAF) and
+a third buys no class the corpus lacks. The durable evidence here is
+this entry plus the excerpt-pass regression test, which is the piece
+that did not exist before.
+
 ### Row 3 datapoint — 2026-08-05: a restart cost 655,021 tokens, and the
 ### row-3 statement that preceded it PREDICTED the class and mis-sized it
 
