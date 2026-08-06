@@ -86,11 +86,13 @@
 // traffic): token lengths, paragraph structure, intra-fixture timing deltas,
 // and equality relations. See the audience caveat on scrubText below.
 
-import { readdir, readFile, writeFile, stat, mkdir } from "node:fs/promises";
+import { readdir, readFile, writeFile, stat, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
-import { homedir, hostname } from "node:os";
+import { homedir, hostname, tmpdir } from "node:os";
 
 import { censusPair } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
@@ -672,6 +674,209 @@ export async function pinRange(capturePath, m) {
   return records;
 }
 
+// --- pin self-verification: a pin is a claim until it is replayed ---
+//
+// docs/dev-loop.md, "The scrub destroys CONTENT PREDICATES — a pin is
+// evidence only once replayed": the sanitizer replaces text with hash
+// tokens, so any extension gated on a literal text prefix cannot fire on a
+// harvested fixture. Measured 2026-08-06: this tool printed
+// `pinned 327 record(s), range 166..167` for a fixture that replays with 0
+// stability exemptions where the same range of the live capture yields
+// `first-appearance-relocation (skills)`. Nothing compared the two, so a
+// fixture that proves nothing looked exactly like one that does.
+//
+// So --pin now replays BOTH sides itself, under the same gates, and reports
+// what differs. Two constraints the design is built around, both from
+// walking into them:
+//
+//   * A pin is `{header, records}` JSON, not JSONL. `replay.mjs <pin>.json`
+//     reads no capture out of it: it reports `census: 0 same-conversation
+//     pairs`, `no gates declared in capture`, and exits CLEAN — the same
+//     zeros a real finding produces, from an instrument that never ran. So
+//     the pin side is fed as `.records` written out as JSONL, never as the
+//     .json file.
+//   * The comparison asserts the PAIR COUNT first, and requires it non-zero
+//     on both sides. Two runs that compared nothing agree perfectly and mean
+//     nothing.
+//
+// The live side is the SAME prefix (0..m) of the source capture, not the
+// whole file: the pin holds records 0..m, and comparing it against a replay
+// of a longer capture would diverge on records the pin never claimed to
+// hold. Gates come from the capture's own boot records on both sides
+// (`--gates-from-capture`), which the scrub preserves verbatim — replaying
+// under default gates is testing fiction (dev-loop, "Replay the
+// configuration that is SERVING").
+//
+// A divergence WARNS and does not refuse: a pin that reproduces nothing is
+// still worth keeping as raw structure. What it must never do is read as
+// success.
+
+const REPLAY = join(__dirname, "replay.mjs");
+
+// Raw prefix of a capture through request ordinal m, same counting rule as
+// pinRange (boot/outcome records do not consume an index) — so the two
+// sides hold the same records, one scrubbed and one not.
+export async function writeCapturePrefix(capturePath, m, outPath) {
+  const ws = createWriteStream(outPath, { flags: "w" });
+  let count = 0;
+  let reached = false;
+  for await (const line of readLines(capturePath)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    ws.write(line + "\n");
+    if (rec.type === "boot" || rec.type === "outcome") continue;
+    if (count++ === m) {
+      reached = true;
+      break;
+    }
+  }
+  await new Promise((resolve) => ws.end(resolve));
+  return { requests: count, reached };
+}
+
+// Timestamps are REBASED by the scrub onto a fixed epoch, so they differ
+// between the two sides by design and say nothing about reproduction.
+// Everything else on a violation/exemption line is an ordinal or a reason
+// and does compare.
+const stripTs = (s) => s.replace(/\bts=\S+\s*/g, "");
+
+/**
+ * The verdict-bearing rows of one replay, read off its own output.
+ *
+ * `ok` is false when an anchor line is missing — the output is then not a
+ * verdict at all, and the caller must say so rather than compare absences:
+ * a parse that finds nothing produces exactly the same shape as two
+ * agreeing empty runs.
+ */
+export function parseReplayVerdicts(stdout, exitCode) {
+  const out = { ok: true, missing: [], exitCode, pairs: null, conversations: null, classes: {}, violations: null, violationLines: [], exemptions: null, exemptionLines: [] };
+
+  const block = (headRe, into, countKey, linesKey) => {
+    const lines = stdout.split("\n");
+    const i = lines.findIndex((l) => headRe.test(l));
+    if (i === -1) {
+      into.ok = false;
+      into.missing.push(headRe.source);
+      return;
+    }
+    into[countKey] = Number(headRe.exec(lines[i])[1]);
+    for (let j = i + 1; j < lines.length && lines[j].startsWith("  "); j++) {
+      into[linesKey].push(stripTs(lines[j].trim()));
+    }
+  };
+
+  block(/^cross-request byte-stability violations \(self-inflicted busts\): (\d+)$/, out, "violations", "violationLines");
+  block(/^stability exemptions \(telemetry-backed, not counted as violations\): (\d+)$/, out, "exemptions", "exemptionLines");
+
+  const lines = stdout.split("\n");
+  const ci = lines.findIndex((l) => /^census: \d+ same-conversation pairs across \d+ conversations$/.test(l));
+  if (ci === -1) {
+    out.ok = false;
+    out.missing.push("census");
+  } else {
+    const cm = /^census: (\d+) same-conversation pairs across (\d+) conversations$/.exec(lines[ci]);
+    out.pairs = Number(cm[1]);
+    out.conversations = Number(cm[2]);
+    for (let j = ci + 1; j < lines.length && lines[j].startsWith("  "); j++) {
+      // `      7    5.1%  replace/edit   e.g. n=60->62` — the count and the
+      // class name; the percentage is derived from the count and the example
+      // ordinal is not a verdict.
+      const km = /^\s+(\d+)\s+[\d.]+%\s+(.+?)(?:\s{2,}e\.g\..*)?$/.exec(lines[j]);
+      if (km) out.classes[km[2].trim()] = Number(km[1]);
+    }
+  }
+  return out;
+}
+
+/**
+ * What differs between the live replay and the pin's replay, as a list of
+ * human-readable clauses. Empty means the pin reproduces the live verdicts
+ * over the range it was taken for.
+ *
+ * PAIR COUNT FIRST, and non-zero required on both sides — a comparison over
+ * zero pairs is the failure this whole check exists to catch, not a pass.
+ */
+export function compareReplayVerdicts(live, pin) {
+  const diffs = [];
+  if (!live.ok || !pin.ok) {
+    const who = [!live.ok && `live(${live.missing.join(",")})`, !pin.ok && `pin(${pin.missing.join(",")})`].filter(Boolean).join(" ");
+    return { diffs: [`replay output unreadable — no verdict block found: ${who}`], unreadable: true };
+  }
+  if (live.pairs === 0 || pin.pairs === 0) {
+    diffs.push(`compared nothing — same-conversation pairs live=${live.pairs} pin=${pin.pairs}; a replay over zero pairs proves nothing`);
+    return { diffs, unreadable: false };
+  }
+  if (live.pairs !== pin.pairs) {
+    diffs.push(`same-conversation pairs live=${live.pairs} pin=${pin.pairs}`);
+  }
+  if (live.exitCode !== pin.exitCode) {
+    diffs.push(`gate exit code live=${live.exitCode} pin=${pin.exitCode}`);
+  }
+  if (live.violations !== pin.violations) {
+    diffs.push(`stability violations live=${live.violations} pin=${pin.violations}`);
+  } else if (JSON.stringify(live.violationLines) !== JSON.stringify(pin.violationLines)) {
+    diffs.push(`stability violations differ in detail (live=${JSON.stringify(live.violationLines)} pin=${JSON.stringify(pin.violationLines)})`);
+  }
+  if (live.exemptions !== pin.exemptions) {
+    const lost = live.exemptionLines.filter((l) => !pin.exemptionLines.includes(l));
+    diffs.push(
+      `stability exemptions live=${live.exemptions} pin=${pin.exemptions}` +
+        (lost.length ? ` — missing from the pin: ${lost.join(" | ")}` : ""),
+    );
+  } else if (JSON.stringify(live.exemptionLines) !== JSON.stringify(pin.exemptionLines)) {
+    diffs.push(`stability exemptions differ in detail (live=${JSON.stringify(live.exemptionLines)} pin=${JSON.stringify(pin.exemptionLines)})`);
+  }
+  const kinds = [...new Set([...Object.keys(live.classes), ...Object.keys(pin.classes)])].sort();
+  const classDiffs = kinds
+    .filter((k) => (live.classes[k] ?? 0) !== (pin.classes[k] ?? 0))
+    .map((k) => `${k} live=${live.classes[k] ?? 0} pin=${pin.classes[k] ?? 0}`);
+  if (classDiffs.length) diffs.push(`census classes: ${classDiffs.join(", ")}`);
+  return { diffs, unreadable: false };
+}
+
+// One replay, run as a child process because the pipeline keeps
+// per-conversation canonical state in module scope — two replays in one
+// process would compare a cold run against a warm one.
+function runReplay(jsonlPath) {
+  const argv = [REPLAY, jsonlPath, "--census", "--gates-from-capture"];
+  try {
+    const stdout = execFileSync(process.execPath, argv, {
+      encoding: "utf-8",
+      maxBuffer: 256 * 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    return parseReplayVerdicts(stdout, 0);
+  } catch (e) {
+    return parseReplayVerdicts(`${e.stdout ?? ""}`, e.status ?? -1);
+  }
+}
+
+/**
+ * Replay the written pin and the same prefix of its source capture, and
+ * report what the pin fails to reproduce. Returns the clause list plus the
+ * numbers a reader needs to see that something WAS compared.
+ */
+export async function verifyPin(capturePath, pinPath, m) {
+  const scratch = await mkdtemp(join(tmpdir(), "cache-fix-pin-verify-"));
+  try {
+    const liveJsonl = join(scratch, "live.jsonl");
+    const pinJsonl = join(scratch, "pin.jsonl");
+    await writeCapturePrefix(capturePath, m, liveJsonl);
+    const { records } = JSON.parse(await readFile(pinPath, "utf-8"));
+    await writeFile(pinJsonl, records.map((r) => JSON.stringify(r)).join("\n") + "\n");
+    const live = runReplay(liveJsonl);
+    const pin = runReplay(pinJsonl);
+    return { live, pin, ...compareReplayVerdicts(live, pin) };
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
 async function runPin(args) {
   let n, m;
   try {
@@ -746,6 +951,28 @@ async function runPin(args) {
   process.stdout.write(
     `pinned ${records.length} record(s), range ${n}..${m} (full prefix from 0), to ${outPath}` +
       `${args.dryRun ? " (dry run)" : ""}\n`,
+  );
+
+  // The pin is a claim until it is replayed. --dry-run wrote no file, so
+  // there is nothing to replay; say that rather than staying silent, because
+  // silence here is what the whole check exists to remove.
+  if (args.dryRun) {
+    process.stdout.write("pin verification skipped: --dry-run wrote no fixture to replay\n");
+    return;
+  }
+  const v = await verifyPin(capturePath, outPath, m);
+  if (v.diffs.length) {
+    process.stdout.write(
+      `pinned, but does NOT reproduce: ${v.diffs.join("; ")}\n` +
+        `  compared ${v.live.pairs ?? "?"} live vs ${v.pin.pairs ?? "?"} pinned same-conversation pair(s) over records 0..${m}, gates from the capture's boot record(s)\n` +
+        `  the fixture is kept — it is still raw structure — but it is NOT evidence for what it was pinned for\n`,
+    );
+    return;
+  }
+  process.stdout.write(
+    `pin verified: reproduces the live verdicts over records 0..${m} — ` +
+      `${v.pin.pairs} same-conversation pair(s), ${v.pin.violations} stability violation(s), ` +
+      `${v.pin.exemptions} exemption(s), ${Object.keys(v.pin.classes).length} census class(es), exit ${v.pin.exitCode}\n`,
   );
 }
 
