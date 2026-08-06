@@ -28,6 +28,12 @@ output, which is the paraphrase-drift shape aimed at a number.)
    day: three review rounds sat unseen with a reviewer waiting, `main` sat 24
    commits behind, and a runbook shipped whose entry condition did not exist.
    Nothing else on this list changes what a session LEARNS at 9am.
+   **PARTLY BUILT the same day (dotfiles `69be84a`)**: `session-scan.py` now
+   emits `attention: N behind upstream (as of last fetch) | N READY, oldest Nd`.
+   Still missing, and still ranked here: gate-red and PR-rounds-waiting, which
+   need the fork's status file and the network respectively — so they belong to
+   the scheduled sweep, which then writes a local file the hook can read. Do not
+   re-build the two that shipped.
 2. **The first-appearance-relocation exemption must assert forwarded `tools[]`
    held.** Ranked here only by the hard constraint: it must be demonstrated RED
    against the current build, and the row-26 fix below removes the defect it
@@ -176,6 +182,28 @@ them read, which this pass did not do.
   is the ranking's item 1. Done-criterion: that, plus the `## Build order`
   block naming file order as its own carrier so the next session does not
   reintroduce a second copy.
+
+- **PARKED — the rules corpus has no fire-rate, so prose accumulates with no
+  retirement signal.** Named in conversation 2026-08-06 and initially NOT
+  booked, on the reasoning that a check I could not specify is not
+  decision-complete. That was the third exit the rule forbids: not-decision-
+  complete is what PARKED is for, and leaving it in chat would have lost it.
+  The concern, measured: `docs/dev-loop.md` grew by roughly 150 lines in one
+  day, and rule three's scope was wrong within hours of being written — caught
+  only because the operator asked, not because anything re-read it. Mitigations
+  have a retirement policy (the fire-ledger, RAW vs ABSORBED) and skill-craft
+  has a consolidation rule; dev-loop prose has neither, so a rule that never
+  fires is indistinguishable from one that fires constantly, and unread rules
+  dilute the ones that work.
+  **Named missing evidence, which is why this is parked and not ready:** what
+  "a rule fired" even means operationally. A count of sessions that cited it is
+  not it (citation is not application), and a judgment poll wearing a number is
+  worse than nothing. The nearest candidate worth exploring is the incident
+  trail the rules already carry — most dev-loop rules name a dated occurrence,
+  so a rule whose newest occurrence is old is a candidate for consolidation
+  rather than for deletion. Promotion trigger: a second consecutive session
+  where a dev-loop rule is found to be wrong or too narrow, which would make
+  this a pattern rather than one bad afternoon.
 
 - **UNDISPOSITIONED SWEEP FINDINGS 2026-08-06 — two, both surfaced at session
   close by running doctor, neither walked. The sweep lane's first real
