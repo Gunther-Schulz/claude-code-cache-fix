@@ -1006,6 +1006,39 @@ writes them, so the next instance of this shape is measurable rather
 than arguable. Nothing here is demonstrably ours: the divergence is
 present in CC's own bytes before any extension runs.
 
+### SECOND INSTANCE 2026-08-06 16:35:15Z — same class, 308k, and the tool
+### could not reach this walk
+
+Found at session close by the close-out lane's step 2, not by anyone
+looking for it. `bust-triage --at 2026-08-06T16:35:15Z` over capture
+`s-captureAH`: transcript cause `previous_message_not_found`, census
+`append-only`, pair n=54->57, **308k re-billed** — six times the 51k of
+the walk below, because the rebuilt prefix was that much larger. A
+`CONTROLLED(resume)` of identical size sits three seconds later on the
+same session, which is the same event seen from the other side.
+**Disposition: CONTROLLED-CAUSE**, by the walk below — the inherent
+first write of a rebuilt prefix, no mitigation target. Evidence frozen
+and VERIFIED: `pinned-s-48bf252a4e02-101-122.json`, 231 records, and
+`harvest --pin`'s new self-verification replayed it green (103
+same-conversation pairs, 0 violations) rather than reporting a success
+it had not checked.
+
+**The finding is the tool, not the bust.** `bust-triage` returned
+**UNCLASSIFIED** — "a class nothing currently covers" — for a class this
+matrix walked five days earlier. The walk is PROSE under a `## Event
+walk` heading, and `causeToRow` only reaches numbered rows, so a
+documented, dispositioned class is invisible to the front-line triage
+that exists to find it. That is the repo's own entry-path rule aimed at
+the matrix itself: the knowledge is recorded on a route the reader takes
+and absent from the route the TOOL takes. Booked in BACKLOG.
+
+**Second, smaller, and stated as unverified:** the ledger's cause was
+still `other` while the transcript held `previous_message_not_found` —
+the raced-read defect the walk below records as FIXED the same day
+(claude-worktime `62420da`). Whether that fix does not cover this path,
+or this is a different manifestation, is NOT established here; it is a
+claude-worktime question and is named rather than diagnosed.
+
 ## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
 ## CONTROLLED-CAUSE (instrument false positive, no bust)
 

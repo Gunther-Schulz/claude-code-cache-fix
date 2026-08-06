@@ -170,6 +170,40 @@ Roughly twenty older entries below still carry no rank. They were not assessed
 in either pass and should not be read as ranked-last; deriving an order for them
 needs them read, which neither pass did.
 
+## Handoff — 2026-08-06 evening. Read this before the build order below.
+
+**State: everything on disk and pushed.** Fork `main` clean, 0 outgoing.
+Suite 2216/2213 pass. Three dispatched lanes closed and integrated today
+(push-scan scoping + write-time gate in dotfiles; `harvest --pin`
+self-verification + `fixture-verdict-identity` widening; `bust-triage`
+status enum + `--at` substitution). The capture-leak gate is REGISTERED
+and LIVE globally, proven by refusing a planted write at the tool call.
+**Dotfiles has 9 outgoing commits and they are NOT all mine** — a peer
+session's Session-A work is interleaved; the push is deliberately held so
+its author claims it. Do not push that repo without reading the log.
+
+**What to build next: the build order below, starting at its item 4.**
+Items 1-3 and 7, 8, 14 are DONE today. Item 4 is the doorbell's remaining
+half (gate-red + PR-rounds-waiting); item 5 is the first-appearance
+relocation exemption, which MUST ship before item 6 (row 26) or it goes
+red on nothing.
+
+**The one live question, and it is the most interesting thing here:** the
+`## Handoff` section you are reading sits ABOVE `## Open` because
+`tools/backlog-order.mjs` reorders bullets INSIDE `## Open` and would
+otherwise push a handoff below the ranked head. That is a real tension
+between two things built the same day — the ranked-file carrier and the
+handoff convention — and it is resolved here by placement, not by design.
+If a future re-derivation wants handoffs ranked, that is a decision, not
+a bug fix.
+
+**Today's own close-out found one thing, and it was found by the lane
+rather than by anyone looking:** a 308k `previous_message_not_found`
+event at 16:35:15Z that `bust-triage` called UNCLASSIFIED, for a class
+the threat matrix had already walked on 2026-07-31. Dispositioned
+CONTROLLED-CAUSE, evidence pinned and verified, and the gap it exposed is
+the first entry below.
+
 ## Open
 
 - **READY — THREE triggers have no watcher, and the third is the worst: a RED
@@ -481,6 +515,68 @@ needs them read, which neither pass did.
   `test/replay-gate-selfcheck.test.mjs`. Removes the `[GRADUATE]` marker on
   step 4 of the sweep runbook — that marker comes out with this commit and
   by no other means.
+
+- **READY — the widened mutation test WENT RED on the first new real pin,
+  and which side is wrong is NOT established.** Found 2026-08-06 at
+  session close, by the push gate, on the first fixture added after the
+  widening shipped two hours earlier. That is the widening working: under
+  the old `FIXTURES[0]` behaviour this pin would have been invisible.
+  The failure, verbatim: mutant (1) — "a prefix of boot+outcome records
+  (verdicts never depend on either) gets fully dropped, identity holds" —
+  `AssertionError: every prefix record here is inert, so the cut must drop
+  all 191, not 12`.
+  **Two hypotheses, and picking one without evidence is the whole trap:**
+  either the cut under-drops on this shape (a real defect, assertion
+  right), or the assertion encodes a property true only of the three
+  fixtures it was written against — "widening a population re-grades
+  assertions written for a population of one", the lane's own candidate
+  lesson, landing on the very next fixture.
+  **Reproduction, one move:** put
+  `test/fixtures/pending-review/pinned-s-48bf252a4e02-101-122.json` back
+  into `test/fixtures/harvested/` and run `npm test`. It is parked outside
+  the scanned corpus so `main` stays green and the evidence survives — and
+  because the directory-derived-population defect booked below means any
+  file left there changes what the suite proves.
+  **Do NOT resolve it by softening the assertion** (dev-loop's box: a
+  guard that fires is repaired by a declared exemption the guard itself
+  verifies, never a loosened predicate). Verifier: whichever hypothesis
+  wins is demonstrated on the real fixture — if the cut is wrong, a bite
+  red on the current implementation; if the assertion is wrong, its
+  replacement still goes red on a planted under-drop.
+  The pin is verified evidence for the matrix's `previous_message_not_found`
+  second instance (231 records, replays green over 103 pairs), so it is
+  worth keeping either way.
+
+- **READY — a matrix walk that dispositions a CAUSE is invisible to the
+  tool that triages that cause, and both halves of the gap are real.**
+  Found 2026-08-06 at session close. `bust-triage --at` returned
+  **UNCLASSIFIED** — "a class nothing currently covers" — for
+  `previous_message_not_found`, which this repo walked to CONTROLLED-CAUSE
+  on 2026-07-31 and wrote up under a `## Event walk` heading in the threat
+  matrix. `causeToRow` reaches numbered rows only, so the walk is
+  unreachable by construction.
+  **Machinery half:** the matrix has two containers for a disposition —
+  numbered rows and `## Event walk` prose — and the tool indexes one. A
+  reader following the documented route finds the answer; the tool
+  following its route reports a new class. That is the entry-path rule
+  (dev-loop) aimed at the matrix itself.
+  **Process half, which is the generator:** nothing requires a walk ending
+  in CONTROLLED-CAUSE to become a numbered row, or to state why it
+  deliberately is not. The 2026-07-31 walk was prose because the moment
+  called for prose; the next one will be too.
+  **The seam between them is COMPUTABLE, which is what makes this a check
+  rather than a rule.** "A cause token dispositioned anywhere in the matrix
+  that `causeToRow` cannot resolve" is a set difference over two lists, no
+  judgment involved — the precipitation criterion the corpus names.
+  Design, decided: (1) extend the matrix reader to index `## Event walk`
+  sections by the cause they name, so a documented disposition is reachable
+  from the cause; (2) add a lint asserting the set difference is empty, so
+  the process half enforces itself instead of relying on the next author
+  remembering. Verifier, red-first and available now: the lint must go red
+  on today's state (`previous_message_not_found` dispositioned, unreachable)
+  and green after (1); `--at 2026-08-06T16:35:15Z` must stop saying
+  UNCLASSIFIED and name the walk. Done when a cause the matrix has
+  dispositioned cannot read as UNCLASSIFIED.
 
 - **READY (operator-side, dotfiles) — "already on a remote" is not "already
   public", and the shipped scoping cannot tell them apart.** Found 2026-08-06
