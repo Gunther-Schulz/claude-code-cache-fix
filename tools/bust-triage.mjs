@@ -31,6 +31,10 @@
 //   UNCLASSIFIED  no matrix row matches. THE payload of this tool: an
 //                 unrecognised class is the one thing no existing check
 //                 reports, and it is how a whole bust class stayed invisible.
+//   UNVERIFIABLE  the steps could not run (no capture pair to classify).
+//   STATUS-UNREADABLE  a row matched, but its status is in no state the
+//                 vocabulary below knows. Stop-here, with UNCLASSIFIED —
+//                 never folded into MITIGATED (see statusKind).
 // A step that cannot run says so and does not fold into a pass.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
@@ -386,15 +390,96 @@ export function migrationVerdict(pair) {
   return best;
 }
 
-/** Matrix rows whose status line we can quote, keyed by the classes we map to. */
+/**
+ * The matrix's status vocabulary as an EXPLICIT enum, with a mandatory
+ * unmatched case. Returns null for "no state this knows", which the caller
+ * must surface as STATUS-UNREADABLE — never as a verdict.
+ *
+ * What this replaces, and why (measured 2026-08-06): the status was tested by
+ * `/\bOPEN\b|RE-OPENED/` and the verdict was `open ? KNOWN-OPEN : MITIGATED`,
+ * so every status that is neither word landed on MITIGATED — 17 of 26 rows,
+ * including row 6, whose status reads literally "OBSERVED, CAUSE NOT
+ * ISOLATED". A live run returned MITIGATED for a bust of a class nobody has
+ * mitigated, while `dossier` on the same stamp said UNCLASSIFIED and was
+ * right. That is dev-loop's "A checker has THREE answers, not two" broken
+ * inside this repo's own front-line triage: the third answer — a status no
+ * rule recognises — was folded into the reassuring one.
+ *
+ * Two properties are deliberate:
+ *  - ANCHORED at the start of the status cell, because the matrix's own
+ *    convention is that a status LEADS with its state token. An unanchored
+ *    test reads prose: row 4's cell leads "OPEN — RE-OPENED" and quotes a
+ *    superseded "**CLOSED" later in the same cell.
+ *  - The vocabulary is exactly what the matrix currently uses. A state that
+ *    is not here is not guessed at — it stops the reader, which is the whole
+ *    point. Adding a new status to the matrix means adding it here, and the
+ *    STATUS-UNREADABLE verdict is what says so out loud.
+ */
+const STATUS_RULES = [
+  [/^(?:OPEN|RE-OPENED)\b/, "OPEN"],
+  [/^(?:MITIGATED|CLOSED)\b/, "MITIGATED"],
+  [/^ACCEPT(?:ED)?\b/, "ACCEPTED"],
+  [/^PARTIAL\b/, "PARTIAL"],
+  [/^OBSERVED\b/, "OBSERVED"],
+  [/^BUILT\b/, "BUILT"],
+  [/^DOCUMENTED\b/, "DOCUMENTED"],
+  [/^COVERED\b/, "COVERED"],
+  [/^N\/A\b/, "NOT-APPLICABLE"],
+];
+
+export function statusKind(status) {
+  const s = String(status ?? "").replace(/^[\s*_]+/, "");
+  for (const [re, kind] of STATUS_RULES) if (re.test(s)) return kind;
+  return null;
+}
+
+/**
+ * Enum state -> the reader's verdict. Everything that is not a shipped
+ * mitigation or a decided accept is KNOWN-OPEN, which PRINTS THE STATUS —
+ * so PARTIAL, OBSERVED, BUILT-but-insufficient, DOCUMENTED, COVERED and the
+ * N/A note row all reach the reader as their own words instead of as a
+ * false all-clear.
+ *
+ * ACCEPTED maps to MITIGATED deliberately: an accepted class is a decided
+ * disposition with no action left for the reader, which is what MITIGATED
+ * means to someone holding a bust. It is also the reading the BACKLOG
+ * entry's own sweep took — it examined rows 10/11/20 (ACCEPT*) and did not
+ * list them among the mis-mapping rows.
+ */
+export const VERDICT_BY_KIND = {
+  OPEN: "KNOWN-OPEN",
+  MITIGATED: "MITIGATED",
+  ACCEPTED: "MITIGATED",
+  PARTIAL: "KNOWN-OPEN",
+  OBSERVED: "KNOWN-OPEN",
+  BUILT: "KNOWN-OPEN",
+  DOCUMENTED: "KNOWN-OPEN",
+  COVERED: "KNOWN-OPEN",
+  "NOT-APPLICABLE": "KNOWN-OPEN",
+};
+
+/** A status cell -> the verdict a reader acts on. The unmatched case is a
+ * verdict of its own and is grouped with UNCLASSIFIED as a stop-here. */
+export function statusVerdict(status) {
+  const kind = statusKind(status);
+  return kind === null ? "STATUS-UNREADABLE" : VERDICT_BY_KIND[kind];
+}
+
+/** Matrix rows whose status line we can quote, keyed by the classes we map to.
+ * `open` is now the ANCHORED enum test, not a substring scan: the old flag was
+ * computed over the UNTRUNCATED cell while `status` is truncated to 260 chars,
+ * so rows 15 and 21 reported open=true on evidence the reader could not see
+ * (their only "OPEN" sits past char 260). `dossier.mjs` reads this field for
+ * its "(OPEN)" label; both rows are unreachable from its `classToRow`. */
 export function matrixRow(n) {
   if (!existsSync(MATRIX)) return null;
   for (const line of lines(MATRIX)) {
     const m = /^\|\s*(\d+)\s*\|/.exec(line);
     if (m && Number(m[1]) === n) {
       const cells = line.split("|");
-      const status = (cells[cells.length - 2] ?? "").trim();
-      return { n, status: status.slice(0, 260), open: /\bOPEN\b|RE-OPENED/.test(status) };
+      const status = (cells[cells.length - 2] ?? "").trim().slice(0, 260);
+      const kind = statusKind(status);
+      return { n, status, kind, open: kind === "OPEN" };
     }
   }
   return null;
@@ -508,10 +593,19 @@ export async function triage(bust) {
     return { bust, steps, verdict: "UNCLASSIFIED",
              why: `mapped to matrix row ${rowN}, but that row could not be read` };
   }
+  if (row.kind === null) {
+    // The third answer, at the status level: a row matched, but its state is
+    // in no vocabulary this tool knows. Folding it into MITIGATED is what
+    // produced a false all-clear on a row reading "OBSERVED, CAUSE NOT
+    // ISOLATED"; it stops the reader instead.
+    return { bust, steps, verdict: "STATUS-UNREADABLE",
+             why: `matrix row ${rowN}'s status is in no state this tool recognises — ` +
+                  `read the row: ${row.status}` };
+  }
   return {
     bust, steps,
-    verdict: row.open ? "KNOWN-OPEN" : "MITIGATED",
-    why: `matrix row ${rowN}: ${row.status}`,
+    verdict: VERDICT_BY_KIND[row.kind],
+    why: `matrix row ${rowN} (${row.kind}): ${row.status}`,
   };
 }
 
@@ -622,6 +716,13 @@ async function main(argv) {
       "\n  An unclassified bust is a NEW CLASS until shown otherwise. Book it as a\n" +
       "  threat-matrix row before it is explained away — the matrix records, the\n" +
       "  gate enforces, and a class with no row is a class nothing watches.\n");
+  }
+  if (r.verdict === "STATUS-UNREADABLE") {
+    process.stdout.write(
+      "\n  STOP, as with UNCLASSIFIED: the row exists but its status is in no state\n" +
+      "  this tool knows, so no verdict follows from it. Read the row yourself, then\n" +
+      "  either fix the status line or add the state to STATUS_RULES. A status\n" +
+      "  nothing recognises must never reach a reader as MITIGATED.\n");
   }
   process.stdout.write("\n");
   return 0;
