@@ -69,6 +69,30 @@ test("BITE — every non-mitigation status stops reading as MITIGATED", () => {
   }
 });
 
+// An ACCEPT row is a decided disposition, not an absorbed one. The expectation
+// comes from MITIGATED's DEFINITION, which lives in bust-appears.md's terminal
+// states — "a shipped extension absorbs the class, demonstrated on this
+// instance" — and not from this tool's mapping table: an ACCEPT row has no
+// shipped extension by construction, so MITIGATED is false of it. KNOWN-OPEN
+// overstates it in the other direction, which is the deliberate choice
+// (dispatcher, 2026-08-06): the status text prints either way, so where the
+// verdict must be wrong it is wrong in the direction that makes someone look
+// rather than the direction that says "nothing for you to do".
+test("BITE — a decided ACCEPT is not a shipped mitigation", () => {
+  const accepts = {
+    10: "ACCEPTED-honest-bust (operator practice: /rc from se",
+    11: "ACCEPTED (rare, deliberate). Watch: if fast-mode/fall",
+    20: "ACCEPT + DOCUMENT (token-cost-model.md): start fresh s",
+    21: "ACCEPT, DO NOT ATTRIBUTE: no local attribution is poss",
+  };
+  for (const [n, cell] of Object.entries(accepts)) {
+    assert.equal(statusKind(cell), "ACCEPTED", `row ${n}`);
+    assert.notEqual(statusVerdict(cell), "MITIGATED",
+      `row ${n} has no shipped extension, so it cannot read as one: ${cell}`);
+    assert.equal(statusVerdict(cell), "KNOWN-OPEN", `row ${n}`);
+  }
+});
+
 // The control the entry names: the fix must not simply stop saying MITIGATED.
 test("CONTROL — a row whose status genuinely reads MITIGATED still does", () => {
   assert.equal(statusKind(CELL[25]), "MITIGATED");
@@ -104,7 +128,7 @@ test("BITE — no live matrix row reaches MITIGATED without saying so", () => {
     if (!row) continue;
     rows++;
     if (statusVerdict(row.status) !== "MITIGATED") continue;
-    assert.match(row.status.replace(/^[\s*_]+/, ""), /^(MITIGATED|CLOSED|ACCEPT)/,
+    assert.match(row.status.replace(/^[\s*_]+/, ""), /^(MITIGATED|CLOSED)/,
       `row ${n} reads as MITIGATED on a status that does not say so: ${row.status}`);
   }
   assert.ok(rows >= 25, `only ${rows} matrix rows read — the parser, not the matrix, is the suspect`);

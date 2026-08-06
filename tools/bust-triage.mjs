@@ -437,21 +437,25 @@ export function statusKind(status) {
 
 /**
  * Enum state -> the reader's verdict. Everything that is not a shipped
- * mitigation or a decided accept is KNOWN-OPEN, which PRINTS THE STATUS —
- * so PARTIAL, OBSERVED, BUILT-but-insufficient, DOCUMENTED, COVERED and the
- * N/A note row all reach the reader as their own words instead of as a
- * false all-clear.
+ * mitigation is KNOWN-OPEN, which PRINTS THE STATUS — so ACCEPTED, PARTIAL,
+ * OBSERVED, BUILT-but-insufficient, DOCUMENTED, COVERED and the N/A note row
+ * all reach the reader as their own words instead of as a false all-clear.
  *
- * ACCEPTED maps to MITIGATED deliberately: an accepted class is a decided
- * disposition with no action left for the reader, which is what MITIGATED
- * means to someone holding a bust. It is also the reading the BACKLOG
- * entry's own sweep took — it examined rows 10/11/20 (ACCEPT*) and did not
- * list them among the mis-mapping rows.
+ * ACCEPTED is the one that had to be argued (dispatcher decision,
+ * 2026-08-06). MITIGATED's definition is not this table's to make: it comes
+ * from `docs/runbooks/bust-appears.md`'s terminal states — "a shipped
+ * extension absorbs the class, demonstrated on this instance". An ACCEPT row
+ * has no shipped extension by construction, so MITIGATED is false of it.
+ * KNOWN-OPEN overstates it in the other direction and is chosen anyway:
+ * where the verdict must be wrong, it is wrong in the direction that makes
+ * someone read the row rather than the direction that says "nothing for you
+ * to do". (Rejected: a fifth verdict value for this — the vocabulary has
+ * consumers outside this file, so widening it is a routed change.)
  */
 export const VERDICT_BY_KIND = {
   OPEN: "KNOWN-OPEN",
   MITIGATED: "MITIGATED",
-  ACCEPTED: "MITIGATED",
+  ACCEPTED: "KNOWN-OPEN",
   PARTIAL: "KNOWN-OPEN",
   OBSERVED: "KNOWN-OPEN",
   BUILT: "KNOWN-OPEN",
