@@ -1020,9 +1020,17 @@ anywhere but position 0 is unchecked by anything.
 
 **And the verification itself has a silent wrong way, walked into while finding
 this.** A pin is `{header, records}` JSON, not JSONL, so
-`replay.mjs <pin>.json` does not read it as a capture: it reports
+`replay.mjs <pin>.json` does not read it as a capture. CORRECTED 2026-08-06,
+because the sentence that stood here was narrower than it read and named only
+the dangerous half: there are TWO shapes. One pin reports
 `census: 0 same-conversation pairs`, `gates: no gates declared in capture`, and
-exits **clean**. Every violation and exemption count is 0 because nothing was
+exits **clean** — that is the silent one. Another throws
+`TypeError [ERR_INVALID_ARG_TYPE]` at `tools/replay.mjs:82` and exits 1, which
+is loud and harmless. Measured on the two committed pins, one of each. A reader
+who had seen only the throwing shape would conclude the wrong way is
+self-announcing; a reader who had seen only the clean shape would conclude it
+always is silent. Both are wrong, which is why the rule below is stated in terms
+of the PAIR COUNT rather than the exit code. Every violation and exemption count is 0 because nothing was
 compared — the same zero the real finding produces, from an instrument that
 never ran. Replay a pin by feeding `.records` out as JSONL and confirming the
 pair count is in the same range as the live capture's; a pin check that does not

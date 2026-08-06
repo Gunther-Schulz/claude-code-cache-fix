@@ -603,6 +603,50 @@ needs them read, which neither pass did.
   print how many fixtures it exercised. Done-criterion: both, and the count
   printed — a run over one fixture and a run over five must not look alike.
 
+- **READY — the fixture-verdict mutation population is DIRECTORY-derived, so
+  the suite covers a different corpus on every machine.** Found 2026-08-06
+  immediately after integrating the widening, by an unexplained test-count
+  delta: the dispatched lane measured 2200 tests in its worktree and the same
+  code measured 2203 here. The difference is exactly one fixture × three
+  mutants. This clone's `test/fixtures/harvested/` holds FOUR pins; git tracks
+  three. The fourth is a 46 MB pin excluded in `.git/info/exclude` — deliberately
+  machine-local, and picked up anyway because the test enumerates the DIRECTORY.
+  So the coverage line reads `walked 4 replayable fixture(s)` here and
+  `walked 3` in any other checkout, CI included, with nothing saying so.
+  The widening did not introduce this — the old test took the alphabetically
+  first entry of the same directory listing, which is the same defect with a
+  population of one. Widening made it visible and multiplied it by the corpus
+  size, which is the honest way round.
+  Design, decided: the population comes from `git ls-files`, not from `readdir`
+  — a tracked-file question answered by the tracking system. An untracked or
+  excluded pin present in the directory is REPORTED by the coverage line
+  ("3 tracked, 1 untracked ignored: <name>") rather than silently walked, so a
+  local experiment cannot change what the suite proves.
+  Verifier, red-first and available on this machine right now: with the 46 MB
+  pin present, the current test walks 4 and must walk 3 after the change while
+  naming the skipped one; on a clean checkout both walk 3. Done when the
+  coverage count is a function of the repository rather than of the machine.
+
+- **READY — `replay.mjs --json` drops the census entirely, so every consumer
+  has to parse its TEXT output.** Returned as a gap by the pin-verification
+  lane, which hit it while building: `census.tally` and `census.examples` are
+  `Map`s, and `JSON.stringify` renders a Map as `{}`. Measured:
+  `node tools/replay.mjs <capture> --census --json` yields
+  `{"pairs":1,"conv":2,"tally":{},"examples":{}}` — the two fields carrying the
+  actual classification are empty objects, and nothing errors.
+  Consequence, already paid: `verifyPin` parses replay's human-readable output
+  and guards itself with an anchor check that sets `ok:false` on unreadable
+  input. That guard is correct and the parsing should not have been necessary.
+  Design, decided: serialize both Maps as plain objects in the `--json` path.
+  **Dependents search first, and stated in the same change** — `--json` is a
+  contract, and a consumer keying on the current empty `{}` (or on its absence)
+  would break silently; the change lands with `grep -rn "\-\-json" tools/ test/`
+  and the hits enumerated. Verifier, red-first: the command above must print
+  populated `tally`/`examples`; control, a run with no census requested must be
+  byte-identical to today. Done when `verifyPin` can drop its text parser — and
+  the parser's removal is the done-criterion, not an optional follow-up, since a
+  second reader of the same data is how the two drift.
+
 - **READY — the threat matrix's status cell is split on `|`, so a row whose
   prose CONTAINS a pipe hands the reader a mid-cell fragment.** Surfaced
   2026-08-06 by the dispatched status-enum work, correctly returned as a gap
