@@ -219,6 +219,13 @@ the first entry below.
   else that joins to disk, and nothing marks them as non-joinable — so the
   hazard is intact for every future reader, which is exactly the "fix the
   reader, leave the generator" shape `docs/dev-loop.md` warns about.
+  Measured rather than asserted, by dumping one key per family from a
+  `--json` run over s-captureAM: `exemptions`, `absorptionMisses`, `relocDepartures`,
+  `toolsDeltas`, `mitigation`, `blockMigrations`, `successions` and
+  `duplicateRequests` all carry `n`/`prevN` and no id — nine families, two
+  more than the first draft of this entry named. `violations` was empty on
+  that capture and is unverified. And the precedent already existed and did
+  not travel: the `report` family has carried `captureId` all along.
   Design: `compactEntry` already retains `id` as of this commit; add
   `id`/`prevId` to each row family at construction, one line each.
   Verifier, and it must be the generic one rather than a second copy of the
