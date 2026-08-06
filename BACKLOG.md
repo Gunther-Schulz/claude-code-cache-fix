@@ -149,6 +149,27 @@ bullet, evidence pointer included.
   `tools/restart-exposure.mjs --match` against live sessions before shipping,
   per dev-loop's "price it against LIVE sessions, not the corpus".
 
+- **READY — the stability exemption for a first-appearance relocation must
+  assert what it does NOT currently cover: that the forwarded `tools[]` held
+  across the relocation.** This is the instrument that would have caught row 26
+  on the morning it fired, and its absence is why every gate was green while
+  216k tokens burned. Today the exemption is granted on
+  `relocated[].firstAppearance` alone (replay.mjs), which is a true statement
+  about the deliberate `messages[0]` cost and says nothing about the prefix
+  level ABOVE messages, where this one actually landed. Design, decided: the
+  exemption gains a condition — forwarded `tools[]` byte-identical across the
+  pair — and a first-appearance relocation that also flips tools is NOT
+  exempt, it is a violation naming both facts. Row 25 already built
+  `prefixAboveMessages` for this exact distinction; consult it rather than
+  re-derive. Verifier: red-first against the live pair — the current build must
+  exempt `n=166->167` and the new build must fail it, on the same input, one
+  variable. Note the ordering constraint with the row-26 fix: once the key
+  rotation is fixed the tools stop flipping, so this check must be demonstrated
+  red BEFORE that ships, or its motivating case dissolves and it would ship
+  having never gone red on a real defect. Done-criterion: the red demonstrated
+  and quoted, plus a bite in `test/replay-gate-selfcheck.test.mjs` per the
+  every-new-gate rule.
+
 - **READY — `harvest --pin` must verify the pin reproduces what it was taken
   for; today it reports success on a fixture that proves nothing.** Measured
   2026-08-06: a pin taken to freeze the row-26 evidence printed
