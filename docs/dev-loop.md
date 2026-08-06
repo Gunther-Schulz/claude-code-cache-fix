@@ -63,6 +63,16 @@ used for. So it has two halves, in order:
    is never allowed is the third option: leaving it as an observation in a
    reply. A finding about an instrument that ends as prose in a chat message
    has no carrier and evaporates — and the next session re-earns it.
+   **The now-or-book call is made on the FIX's size, never on the session's
+   state.** Measured 2026-08-06: a two-line doc change was deferred on "not at
+   500k tokens with a re-anchor fired" — which sounds like discipline and is
+   the rationalization the grounding rules describe, since a basis that
+   collapses under one question was never the reason. Depth is a real cost and
+   it argues for restarting the session, never for carrying a small fix out of
+   it: the fix leaves with the context, and the deferral is not even a named
+   one, because "I'll write it later" names no missing evidence. If the session
+   is genuinely too deep to make a two-line edit safely, it is too deep to be
+   trusted with the judgment that the edit is optional.
 
 Measured on one day, 2026-08-06, all five found while doing something else:
 `harvest --pin` reports success on a fixture that reproduces nothing;

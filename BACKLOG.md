@@ -282,6 +282,18 @@ them read, which this pass did not do.
   own transcript: run it over 2026-08-06 before `fc4b7aa` and it must surface
   the "conduct, not rules" sentence; run it after and that hit must resolve to
   `fc4b7aa`.
+  **The step that must lead the line — RUN the mechanism, do not describe it.**
+  Every close-out claim about what some machinery will do is checked by
+  executing that machinery, not by reasoning about it, and the checks are
+  seconds each. Measured twice in the last ten minutes of 2026-08-06, both
+  times the description was wrong: "the next session picks this up
+  automatically" — running `session-scan.py` showed it hands over eight READY
+  headers in FILE order with the ranking invisible; and "everything is booked"
+  — running the enumeration found two findings named in conversation and never
+  written down. Same shape as the corpus rule about reconstructing behaviour
+  from source rather than exercising it, pointed at OUR OWN machinery, which is
+  where it is least suspected because we wrote it. So the lane opens by running
+  what it is about to report on.
   **Judgment half — stays prose, and is where today's other two lived:**
   decisions or designs settled in conversation with no carrier (the tell is a
   sentence like "we agreed X" with no commit, backlog entry, or file behind
