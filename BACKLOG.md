@@ -170,26 +170,58 @@ Roughly twenty older entries below still carry no rank. They were not assessed
 in either pass and should not be read as ranked-last; deriving an order for them
 needs them read, which neither pass did.
 
-## Handoff — 2026-08-06 evening. Read this before the build order below.
+## Handoff — 2026-08-07 early. Read this before the build order below.
 
-**State: everything on disk and pushed.** Fork `main` clean, 0 outgoing.
-Suite 2216/2213 pass. Three dispatched lanes closed and integrated today
-(push-scan scoping + write-time gate in dotfiles; `harvest --pin`
-self-verification + `fixture-verdict-identity` widening; `bust-triage`
-status enum + `--at` substitution). The capture-leak gate is REGISTERED
-and LIVE globally, proven by refusing a planted write at the tool call.
-**Dotfiles has 9 outgoing commits and they are NOT all mine** — a peer
-session's Session-A work is interleaved; the push is deliberately held so
-its author claims it. Do not push that repo without reading the log.
+**State: everything on disk and pushed, three repos.** Fork `main` clean, 0
+outgoing, suite green at the tip. dotfiles clean (`qgis/QGIS3.ini` is QGIS
+writing its own config, not ours). claude-worktime clean. The previous
+handoff's warning about 9 unclaimed dotfiles commits is DISCHARGED — they were
+already on the remote before tonight; the one commit pushed from here
+(`302fe01`) was verified sole and ours by `git log 141b391..302fe01` before
+pushing.
 
-**What to build next: the build order below, starting at its item 4.**
-Items 1-3 and 7, 8, 14 are DONE today. Item 4 is the doorbell's remaining
-half (gate-red + PR-rounds-waiting); item 5 is the first-appearance
-relocation exemption, which MUST ship before item 6 (row 26) or it goes
-red on nothing.
+**What to build next: everything under `## Open` that is graded READY.** Ten of
+them, and they are decision-complete by construction — design decided,
+verifier named. Re-derive the build ORDER (this file's rubric says derived at
+build time, never stored); what follows is only what a derivation cannot
+recover on its own.
 
-**The one live question, and it is the most interesting thing here:** the
-`## Handoff` section you are reading sits ABOVE `## Open` because
+**The route, because the write-sets are a fact and not a judgement.** Two
+disjoint groups, so the default is two PARALLEL dispatches rather than a queue:
+
+  group A — `tools/replay.mjs`, `tools/backlog-lint.mjs`, `docs/dev-loop.md`
+  group B — `tools/bust-triage.mjs`, `docs/runbooks/bust-appears.md`,
+            `docs/directives/robustness-threat-matrix.md`
+
+  `BACKLOG.md` belongs to NEITHER — it is the dispatcher's integration point,
+  and two agents booking departures into one file is the overlap that forces
+  serialization for no gain.
+
+**Two hard orderings, both stated inside their own entries — this is a pointer,
+not the source.** The verdict-enum entry must precede the idle/TTL guard (row
+27's cell flips, so a test written first pins the workaround). The conservation
+exemption is the one item where something is currently BROKEN rather than
+blind: `~/.claude/cache-fix-gate-status.json` has been red since 2026-08-06
+07:35Z. Read it before anything else.
+
+**Three entries are NOT dispatchable and are flagged as such**, found by
+hand-running session-close step 8: an unsettled operator decision sits inside
+a READY body in three places (write-registration ~line 78, upstream order-690
+~line 1108, upstream-error-log gate ~line 6195). Each either moves into
+`## Parked decisions` or gets settled. Put them to the operator; do not answer
+them. The lane that will find these mechanically is itself booked.
+
+**Work booked in OTHER repos, with pointers here** (the carrier rule: body
+where the work happens, pointer where the finder sits): two claude-worktime
+items (`0f03e4b`) and the leak-gate reach in dotfiles (`302fe01`).
+
+**The standing question this session added, and it now binds every close:** the
+backlog closes DISPATCHABLE — every open entry executable by someone who is not
+you, in the repo where the work happens, without asking a question
+(`docs/runbooks/session-close.md` step 8). Park on missing EVIDENCE, never on a
+missing DECISION.
+
+## Open` because
 `tools/backlog-order.mjs` reorders bullets INSIDE `## Open` and would
 otherwise push a handoff below the ranked head. That is a real tension
 between two things built the same day — the ranked-file carrier and the
@@ -330,6 +362,12 @@ the first entry below.
   Verifier, red-first: this stamp must return row 27, and the 2026-08-06
   18:08:32Z stamp (`mtok` 267,780, sub-minute gap) must still return row 4 —
   a guard that reclassifies both is worse than none.
+  **ORDERING — do the verdict-enum entry FIRST.** Row 27's status cell leads
+  with `ACCEPT` today purely to stay readable, so this guard's row-27 hit
+  currently prints verdict KNOWN-OPEN. After the enum entry lands it prints
+  CONTROLLED-CAUSE. Assert the POST-enum value: written against today's value
+  the test pins the workaround and goes red the moment the enum ships, which
+  is the same-parentage error one step over.
 
 - **READY — the verdict enum has no value for CONTROLLED-CAUSE, so a row whose
   honest status is a controlled cause must be written as `ACCEPT` to stay
