@@ -228,7 +228,7 @@ you, in the repo where the work happens, without asking a question
 (`docs/runbooks/session-close.md` step 8). Park on missing EVIDENCE, never on a
 missing DECISION.
 
-## Open` because
+**This handoff sits ABOVE `## Open` because**
 `tools/backlog-order.mjs` reorders bullets INSIDE `## Open` and would
 otherwise push a handoff below the ranked head. That is a real tension
 between two things built the same day — the ranked-file carrier and the
