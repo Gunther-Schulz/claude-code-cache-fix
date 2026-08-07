@@ -2011,10 +2011,13 @@ test("conservation: BITE — a REAL loss in the same message as a legitimate sub
   assert.deepEqual(cv.exemptions.filter((x) => x.kind === "lost"), [],
     "a partially-explained message is not a partially-excused one");
 
-  // NAMED RESIDUE, still open at this commit: the row's own count reads
-  // `2 of 2`, naming a unit that has a declared, byte-verified explanation as
-  // missing. Shared with clauses (f) and (g); closed by the count narrowing
-  // that follows this commit.
+  // The count names ONLY the genuinely missing unit. This bite carried the
+  // opposite as a NAMED RESIDUE when the clause first shipped — the row read
+  // `2 of 2`, naming a unit that had a declared, byte-verified explanation as
+  // missing — and the count narrowing is what closes it, which is why this is
+  // an assertion now rather than a comment saying it cannot be one.
+  assert.match(cv.violations[0].detail, /1 of 2 unit/,
+    "one unit is unaccounted for; the substituted one is not");
 });
 
 test("conservation: BITE — prose that merely QUOTES the marker is not covered", () => {
@@ -2238,8 +2241,59 @@ test("conservation: BITE — the exempt unit is the one that was REWRITTEN, not 
 
   assert.equal(cv.violations.length, 1);
   assert.equal(cv.violations[0].kind, "lost");
-  assert.match(cv.violations[0].detail, /of 2 unit/,
+  assert.match(cv.violations[0].detail, /1 of 2 unit/,
     "one of the message's two units is unaccounted for");
+});
+
+// =====================================================================
+// The violation row's COUNT names the UNACCOUNTED units
+// =====================================================================
+//
+// DEFINITION, from what the row's own sentence claims: `N of M unit(s) present
+// in CC's request and in no forwarded message` asserts that N units are
+// unexplained. When a message's lost list is only PARTIALLY accounted for, N
+// was the WHOLE lost list — so a unit with a declared, byte-verified
+// explanation was counted and named as missing, in the same row that correctly
+// reported its neighbour.
+//
+// Strictly a no-op wherever nothing is exempt (the exempt set is empty, so the
+// two counts coincide), which is why it needs a bite that CONSTRUCTS the
+// partial case rather than trusting the corpus to contain one. The other two
+// violation kinds already did this: `suppressed-without-copy` counts its
+// `unaccounted` list, and the F-side `invented` count is computed after the
+// exemptions are subtracted. This is the R-side `lost` branch catching up.
+
+test("conservation: the lost row counts UNACCOUNTED units, not the whole lost list", () => {
+  const before = skillsInOrder(["zeta", "alpha"]);
+  const after = rewriteBlockText("skills", before);
+  const inM = [{
+    role: "user",
+    content: [txt(before), txt("<system-reminder>\nreal content CC sent\n</system-reminder>")],
+  }];
+  const outM = [{ role: "user", content: [txt(after)] }];
+  const cv = conservationViolations(entry(0, inM, outM, fss()), new Set(), new Set());
+
+  assert.equal(cv.violations.length, 1);
+  assert.match(cv.violations[0].detail, /1 of 2 unit\(s\) present in CC's request/,
+    "the declared rewrite is explained; only the dropped block is counted");
+});
+
+test("conservation: BITE — with NOTHING exempt the count is unchanged, so the narrowing cannot hide a loss", () => {
+  // The other half, and the one that makes the narrowing safe: where no clause
+  // accounts for anything, unaccounted === lost and the row reads exactly as
+  // it always did. A narrowing that quietly shrank an unexplained count would
+  // be the softened predicate this repo's box forbids.
+  const inM = [{
+    role: "user",
+    content: [txt("<system-reminder>\nfirst block\n</system-reminder>"),
+              txt("<system-reminder>\nsecond block\n</system-reminder>")],
+  }];
+  const outM = [{ role: "user", content: [] }];
+  const cv = conservationViolations(entry(0, inM, outM, fss()), new Set(), new Set());
+
+  assert.equal(cv.violations.length, 1);
+  assert.match(cv.violations[0].detail, /2 of 2 unit\(s\) present in CC's request/,
+    "nothing was accounted for, so nothing is subtracted");
 });
 
 test("conservation: BITE — an EXEMPTION never carries the flag, because it had a declaration by construction", () => {

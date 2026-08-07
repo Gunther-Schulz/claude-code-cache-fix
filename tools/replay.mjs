@@ -3104,6 +3104,20 @@ export function conservationViolations(e, seen, seenRewrites) {
           detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) exempt — smoosh-split's declared peel (${e.smooshSplitStats.peeled} peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates`,
         });
       } else {
+        // The count names the UNACCOUNTED units, not the whole lost list. The
+        // row's sentence asserts that N units are unexplained, and where the
+        // lost list was only PARTIALLY accounted for it used to count units
+        // that had a declared, byte-verified explanation — naming them as
+        // missing in the same row that correctly reported their neighbour.
+        //
+        // A no-op wherever nothing is exempt: `declaredExempt` is empty there
+        // and the two counts coincide, which is why this needs a bite that
+        // CONSTRUCTS the partial case rather than trusting the corpus to
+        // contain one. The other two violation kinds already did it this way —
+        // `suppressed-without-copy` counts its own `unaccounted` list, and the
+        // F-side `invented` count is computed after the exemptions are
+        // subtracted. This is the R-side `lost` branch catching up.
+        const unaccounted = lost.filter((u) => !declaredExempt.includes(u));
         out.push({
           n: e.n,
           ts: e.ts,
@@ -3111,7 +3125,7 @@ export function conservationViolations(e, seen, seenRewrites) {
           at: i,
           side: "in",
           declarationsUnavailable,
-          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) present in CC's request and in no forwarded message${unavailableNote}`,
+          detail: `in[${i}] (${msg?.role}): ${unaccounted.length} of ${units.length} unit(s) present in CC's request and in no forwarded message${unavailableNote}`,
         });
       }
     }
