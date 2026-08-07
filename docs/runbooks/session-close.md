@@ -137,6 +137,44 @@ continue-or-restart decision at depth. It is not "the work looks done"
    Ask it as a round, not one at a time: every decision whose
    prerequisites are settled, numbered, each with a recommendation and
    the facts already gathered. Facts are gathered, never asked.
+
+   **And the same property at the SET grain, which is the acceptance
+   test for this whole step: `continue from backlog` must suffice as
+   the next session's entire instruction.** Per-entry executability is
+   not enough on its own — the set needs an entry point that is present
+   and CURRENT, and nothing load-bearing may live only in a chat
+   message. Session end is the DEADLINE for this, not the moment to
+   start: the property is maintained as work lands, and the close only
+   verifies it.
+
+   **The pasted brief is the tell, and it is a reliable one.** If
+   closing means writing a long handover into chat, everything in that
+   brief which is not derivable from the file is precisely the material
+   that has no carrier — and chat is the one carrier the next session
+   cannot load. So the brief is DERIVED from the backlog, never a
+   supplement to it. Measured 2026-08-06/07: three briefs were written
+   across one session; the third was diffed against the entries on the
+   operator's question rather than trusted, and the diff found a real
+   defect — an ordering constraint that existed only in the brief,
+   whose absence would have had the next session write a test pinning a
+   workaround (it asserted a verdict value that changes when the
+   sibling entry lands). Two briefs had already shipped without it.
+
+   The mechanical form: before closing, ask what you would put in a
+   brief, then put each item in the FILE instead — an entry if it is
+   about one item, the handoff section if it is about the set. Then the
+   brief is one line. What genuinely belongs at set level is small and
+   knowable: the current state, the disjoint write-sets (a fact about
+   the files, not a judgement), pointers to cross-entry orderings that
+   are stated in their own entries, what is actually BROKEN rather than
+   merely unbuilt, and work booked in other repos. Build ORDER is not
+   on that list — this repo derives it at build time and storing it
+   re-creates the stale-priority defect the rubric exists to prevent.
+
+   **A stale handoff is worse than no handoff**, because it reads as
+   authoritative: the one replaced on 2026-08-07 was twelve hours old
+   and still warned against pushing a sibling repo whose commits had
+   long since been claimed. Rewrite it, never append to it.
    `[GRADUATE -> a backlog-lint lane over READY bodies: decision-language
    ("operator decision", "stated rather than taken", "bring to the
    operator", "decide whether") and cross-repo path tells. The language
@@ -153,9 +191,10 @@ continue-or-restart decision at depth. It is not "the work looks done"
 ## Terminal state
 
 One, and there is no second: **CLOSED — every context-resident fact is
-on disk, in the carrier its consumer reads, and every open backlog
-entry is executable without asking anyone a question; or the exception
-is explicitly named as deliberately dropped.** "I think that's
+on disk, in the carrier its consumer reads; every open backlog entry is
+executable without asking anyone a question; and `continue from
+backlog` would suffice as the next session's entire instruction; or
+each exception is explicitly named as deliberately dropped.** "I think that's
 everything" is not it, and neither is a clean `git status`: the losses
 this lane exists for are invisible to git by construction. A backlog
 full of well-written entries that a dispatch cannot execute is the
@@ -196,3 +235,12 @@ most-repeated failure; anything found and where it landed; and the three
 closing questions with their bases. If a finding was surfaced but not
 walked, say so plainly and name what is measured about it — that is a
 complete answer, and pretending otherwise is what this lane prevents.
+
+**The close-out is a REPORT, not a handover.** Its reader is the
+operator, who was present; the next session's reader is the file. So it
+never carries an instruction the backlog lacks — if something needs
+saying to the successor, it goes in the file and the close-out says
+where. The handover itself is one line: `continue from backlog`. A
+close-out that grows a "here is what to do next" section has found a
+gap in the backlog and is papering over it in the one place the
+successor cannot read.
