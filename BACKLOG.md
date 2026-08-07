@@ -245,6 +245,35 @@ the first entry below.
 
 ## Open
 
+- **READY — the operator's view and `bust-triage --list` share NO identifying
+  field, so neither side can name an event the other can find.** Operator,
+  2026-08-07: "I feel like there must be some gaps here as well in our tooling
+  that we can't properly match my reporting and what you are able to easily
+  investigate and match." Correct, and it is computable.
+  What each side actually sees. The ❄ token renders **ordinal (`#2`), size,
+  cause, AGE (`17m`)** and the operator knows the **project** they are sitting
+  in; it shows no session id and no timestamp. `--list` renders
+  (`bust-triage.mjs:648-649`) **UTC stamp, size, cause, 8-char sid**; it shows
+  no project, no age, no ordinal. **The only overlap is size+cause.** That is
+  why an entire exchange ran on "203k / 230k / 419k" as the sole handles, and
+  why "the largest" and "the latest" collided into a phantom disagreement — with
+  the zone mismatch (its own entry, above) sitting on top.
+  Design: `--list` gains the three fields the operator can read off their
+  screen — the per-session ORDINAL that worktime displays, the PROJECT
+  directory the session belongs to, and the AGE — beside the existing UTC
+  stamp and sid. The ordinal is the load-bearing one: worktime already computes
+  it (`cold_count`, `claude-worktime.sh:1371`), the operator sees it, and
+  "#2 in statiker" is unambiguous where "230k" is not. Project comes from the
+  transcript path under `~/.claude/projects/`; age is `now - t`, rendered like
+  the token's.
+  Verifier, red-first against today's own confusion: given only what the
+  operator can see — "statiker, #2, 230k, messages_changed, 17m" — one
+  `--list` invocation must identify exactly one row, and the same three inputs
+  against the OTHER session's 419k event must identify a different single row.
+  Today neither is possible, which is the red. Negative control: a session with
+  one bust must render no ordinal, matching the token's own omit-at-N=1 rule,
+  so the two displays cannot disagree about the ordinal itself.
+
 - **READY — every human-facing stamp emits BOTH zones, because ten tools emit
   UTC and none emits local.** Measured 2026-08-07: `grep -l 'toISOString\|UTC'
   tools/*.mjs` returns ten tools; `grep -rn 'toLocaleTimeString\|local)'`
