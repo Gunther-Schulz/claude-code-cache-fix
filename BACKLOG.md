@@ -148,8 +148,9 @@ These pass a broken mitigation, and only matter once the class above is right.
 The head of this tier moved twice: the sweep was RED on 4 captures (35+31+2+1
 rows, all conservation); the identity-normalization exemption (f2ab6d0) took
 one green, so it reads RED on **3** — 35 + 31 + 1 rows, kinds `invented` and
-`suppressed-without-copy`, NOT the exempted class. Per-row attribution of the
-residue is in flight (read-only lane, dispatched 2026-08-07).
+`suppressed-without-copy`, NOT the exempted class. Per-row attribution LANDED
+2026-08-07: one REAL loss (the HOT insertion-normalization entry, unranked
+region), 66 checker-reach rows (three OPEN entries beside it).
 
 14. **The stability exemption for a first-appearance relocation must assert
     forwarded `tools[]`.** The instrument that would have caught row 26 the
@@ -1199,6 +1200,68 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   multi-match errors in `backlog-order.mjs` still have no bites — the
   completed-entry clause shipped with the tool's first and only 9 tests.
   Cheap: same suite, two synthetic fixtures.
+
+- **HOT — insertion-normalization suppressed a system message WITHOUT emitting a
+  copy: the one REAL content loss in the 67-row conservation residue, and the
+  mechanism is live.** Attributed 2026-08-07 by the read-only attribution lane:
+  on s-captureAE n=62, raw[8] — a 1473-byte "CLAUDE.md was modified" system
+  message carrying the operator's own edit diff — is absent from the forwarded
+  array three ways (as a unit under the gate's own hashing, as a substring, and
+  line-by-line, 0 of 18 substantial lines), while the SAME request's other
+  suppression (raw[13]) correctly reappears wrapped — per-instance failure,
+  not wholesale, which is what makes it credible. Differential-confirmed
+  (INSERTION_NORMALIZE=0 removes the row). Extension unchanged since 04ed3c9
+  (2026-08-05), so current traffic is exposed. NOT attributed: WHICH branch
+  drops it — needs a step-through against the preserved input. Next step,
+  decision-shaped and cheap: trace the branch on the preserved arms, then fix
+  red-first (the preserved capture replays the row). Evidence bundle +
+  all three captures preserved against rotation at
+  `~/.local/share/cache-fix/attribution-2026-08-07/` (machine-local;
+  ATTRIBUTION-TABLE.tsv, differential arms, probes importing replay.mjs's own
+  identity functions, run.sh).
+
+- **OPEN — the conservation checker's fresh-session-sort exemptions (clauses
+  e/f) are reachable ONLY through the `lost` branch, so CC duplicating the
+  pre-image elsewhere in the request defeats both: 34 false `invented` rows on
+  one capture.** Attribution lane, 2026-08-07, s-captureAE n=167..203: the
+  relocated skills block is a pure line permutation (same multiset, same
+  length), but CC also sends the list a second time unwrapped, so `lost` is
+  empty, the clause-(f) rewrite logic (tools/replay.mjs:3012 gate, :3029-3046)
+  is skipped, fssExemptFHashes never learns the post-image — and seenRewrites
+  (:3045) is fed in the same skipped branch, so clause (e) can never fire for
+  these bytes either (confirmed at the class tail: n=203 re-serves the stale
+  sorted block while CC's live list moved on). Two-arm disproving probe
+  (duplicate present/removed) flips 1 violation/0 exemptions to 0/2. The
+  checker is implicated, not the extension. Repair design is desk work: the
+  exemption must learn the post-image without the `lost` precondition, WITHOUT
+  softening real-invention detection — the two-arm probe is the red-first
+  arrangement either way. Same evidence bundle as the HOT entry.
+
+- **OPEN — clause (b)'s three join forms cannot express a conserved THREE-WAY
+  split, so 31 fully-conserved suppressions report as
+  `suppressed-without-copy`.** Attribution lane, 2026-08-07, s-captureAH
+  n=201..237: raw[57] byte-exactly equals unwrap(FWD[55].b[9]) + "\n\n" +
+  unwrap(FWD[55].b[10]) + "\n\n" + FWD[57] (shown at both ends of the class);
+  the same request's single-message joins reconstruct fine (positive control).
+  joinUnitHash/crossJoinUnitHash (tools/replay.mjs:2641-2666) accept whole-unit
+  copy, single-message volatile join, adjacent cross-join — nothing spanning
+  three messages. Flagged in the same request, unexplained and NOT assumed
+  benign: FWD[56] (1488 b, a deferred-tool-rewrite description notice) exists
+  in neither raw[57] nor anywhere in CC's raw array; it produced no violation.
+  Same evidence bundle.
+
+- **OPEN — a smoosh-split peel product re-served in a LATER request has no
+  exemption clause: clause (d) covers a peel verified in THIS request, clause
+  (e) covers fresh-session-sort re-serves, and nothing covers the pair.**
+  Attribution lane, 2026-08-07, s-captureAO n=288: the 446-byte MCP-
+  instructions block only ever existed embedded inside a tool_result — CC
+  never sent it as a unit, so `seen` has no entry — and splitSmooshedReminders
+  on the conversation's own earlier raw m2 reproduces the forwarded block
+  byte-exactly (peeled block[2] equalsForwardedBlock=TRUE). Stale re-serve of
+  own content, not invention, not cross-conversation (the lane's first
+  cross-conversation probe read b.text where tool_result carries content; the
+  corrected probe was proven live on a known positive first and the leak claim
+  withdrawn). Same evidence bundle.
 
 - **(DONE — this commit, 2026-08-07)
   a COMPLETED entry can hold a rank anchor, so the '## Build order' block
