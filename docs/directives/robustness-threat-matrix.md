@@ -1209,6 +1209,120 @@ fourth walk section is the writer-side repair for this instance:
 reader is the route from `previous_message_not_found` / a
 TTL-exceeding `gap` TO row 27, and that is booked.
 
+## Event walk 2026-08-07 09:52:42Z — ❄ 212k `other`: CONTROLLED-CAUSE.
+## A 4-hour idle expired the entry; the LABEL was the only surprise.
+
+Operator report (11:52 local / 09:52:42Z): "I just resumed, so I expected
+`idle` — I see `other`." The expectation was right and the label was the
+instrument. Disposition: **CONTROLLED-CAUSE** — nothing to mitigate.
+
+THE MEASUREMENT, from the session's own transcript:
+
+    09:52:46.277Z  cc=211,558  cr=15,240   <- the event
+    diagnostics    cache_miss_reason: previous_message_not_found
+
+The surviving read is 15,240 — system+tools and nothing else, the same
+signature the day's other real busts carry. The capture pair is
+`05:44:02.327Z -> 09:51:59.999Z`: a **4 h 07 m 57 s gap** against the
+session's own `"ttl":"1h"`, so the cached entry had expired hours before
+the request existed. Census `append-only`, no reminder container
+migration — nothing of ours is in this pair, and there is no prefix left
+to have protected.
+
+WHY THE LABEL SAID `other`. The ledger's cause is the DEGRADED DEFAULT
+(`claude-worktime.sh:1662` sets `other` and overwrites it only if the
+diagnostic is read successfully); this read raced and never upgraded.
+`other` means "no cause available", never "causes tested and rejected" —
+FORK-NOTES has said so since 2026-07-27, and this is the shape a reader
+hits when the two instruments are read as if they were one vocabulary.
+
+INSTRUMENT NOTE 1, and it is a first fire rather than a defect: the
+reconcile check shipped 30 minutes earlier (`fb20f3d`) printed
+`ledger still "other" while transcript has "previous_message_not_found" —
+raced read never upgraded`. Built against a 2026-08-05 known positive,
+it fired unprompted on a NEW event the same morning and named exactly
+what the operator was asking about.
+
+INSTRUMENT NOTE 2, a KNOWN reader gap, not a new class: the verdict reads
+**UNCLASSIFIED**, because `causeToRow` still cannot reach the
+`previous_message_not_found` disposition that lives in the 2026-07-31
+`## Event walk` prose. That is the ranked-5th BACKLOG entry, unbuilt as of
+this walk. Read this UNCLASSIFIED as the booked gap firing, and do not
+mint a row for it — the disposition already exists, one section down.
+
+## Event walk 2026-08-07 05:24:37Z — ❄ 134k `messages_changed`: NOT OURS.
+## Row 4 class again, and the third statiker bust of the day (567k total).
+
+Operator-reported (07:24 local), session in project `statiker`, model
+`claude-fable-5` throughout; capture `s-captureAN`. A DIFFERENT session
+from the 04:08/04:17 pair below — same project, same class, same day.
+
+NOT GROWTH, checked with the discriminator the 01:00:55Z walk minted:
+
+    05:24:31.780Z  cc=997      cr=148,349   <- healthy, reads climbing
+    05:24:36.282Z  cc=134,114  cr=15,704    <- the event
+    diagnostics    messages_changed / cache_missed_input_tokens: 123,507
+
+The surviving read is 15,704 against a predecessor write of 997 and a
+predecessor read of 148,349 — the prefix was lost, not grown into. And
+15,7xx is the same system+tools remainder the 04:08/04:17 pair read back
+(`cr=15,702`, twice), in a different session four hours earlier.
+
+NOT OURS — replayed under the SERVING gate set (`/health` gates,
+`--max-old-space-size=2048`):
+
+    cross-request byte-stability violations (self-inflicted busts): 0
+    stability exemptions:                                           0
+    safety violations:                                              0
+    content-conservation violations:                                0
+    canonical order violations:                                     0
+    absorption misses (via --json):                                 []
+
+Zero violations AND zero exemptions, so this is not the "green gate with
+an exemption on the busting pair" case the runbook warns about.
+
+THE CLASS — row 4, on the cross-message-join leg:
+
+    n=77->80  edit@45 of 73 [anchor-28] ~199 kB  2026-08-07T05:24:32.488Z
+              [blockMigration inline->standalone 65->66]
+              [blockMigration join:cross-message inline->standalone 45+46->46]
+
+`anchor-28` is inside the census's own far-from-anchor threshold (>30), so
+no new mechanism is indicated. OUR side at that instant, from the
+insertion event log: `action=reset resetReason=not-subsequence pinned=3
+suppressed=3 moved=0 movedFresh=0` — the join-move unit is deployed (the
+running process emits `movedFresh`) and moved nothing here, and the census
+scored the pair `mitigation: 0/0 mitigable`, i.e. the shape never entered
+the mitigable denominator at all. The census's own text says why: "a
+cross-message join spans two messages, so no hash set in the extension
+matches it". Against this row's 2026-07-31 datapoint — "the
+flap/cross-message-join mitigation is BUILT and corpus-clean, pending
+deployment" — that is a tension worth a measurement rather than a
+paragraph, and it is BOOKED: does `movedFresh` ever fire on a pair the
+census labels `join:cross-message`, corpus-wide.
+
+CROSS-CHECK, two independently built instruments agreeing: the hand walk
+above (replay census) and `bust-triage --at` (rebuilt this morning) reach
+the same pair and the same verdict — `census replace/edit`, `migration
+row-4 container migration at host 45 (EXTENDED/MERGED-STANDALONE)`,
+`VERDICT: KNOWN-OPEN / matrix row 4`. Note the two print DIFFERENT
+ordinals for one pair (`n=70->74` capture lines vs `n=77->80` request
+records); that is the documented namespace difference, joined by the
+timestamp, not a disagreement.
+
+EVIDENCE, and why no pin was taken: the structural evidence for this class
+is already frozen and verified — `pinned-s-86a4ec44206b-69-71.json`
+reproduces `edit@32 of 87` with all three cross-message joins. What this
+instance adds is a COUNT and a COST, both quoted above from the
+transcript, which does not rotate with the capture window.
+
+INSTRUMENT NOTE, third live instance: `bust-triage --at` answered
+`UNVERIFIABLE — no capture pair (capture off, or rotated)` on this event
+at 07:41 local while the capture sat on disk at 35 MB. Same false
+disjunction as the 01:00:55Z and 2026-08-06 walks. Fixed the same
+morning (`93a8414`, `22b8c05`); the verdict quoted above is the post-fix
+run.
+
 ## Event walk 2026-08-07 04:08:35Z + 04:17:25Z — two ❄ `messages_changed`
 ## (203k + 230k, 433k total): NOT OURS. Row 4 class. Operator hypothesis refuted.
 

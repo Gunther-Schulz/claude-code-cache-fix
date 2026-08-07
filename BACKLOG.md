@@ -8,6 +8,17 @@ bullet, evidence pointer included.
 
 ## Build order — DERIVED 2026-08-07 (early morning), re-derive before building
 
+**STALE AS OF 2026-08-07 morning: ranks 1, 2, 3, 6 and 9 are DISCHARGED**
+(commits `e787960`+`a5912ad`, `93a8414`, `22b8c05`, `b2459a3`, `fb20f3d`) —
+recorded here rather than patched out, because a finished item must not hold a
+rank AND the rubric says re-derive rather than edit. The next build re-derives;
+what follows is the list as it was derived, with five of its members done.
+One ordering defect this pass exposed, for the re-derivation to fix: rank 4
+(the idle/TTL guard) states a HARD ordering dependency on the verdict-enum
+entry, which the same pass left unranked in the cost-ordered remainder —
+signal 1 partitions the list BEFORE judgment, so a prerequisite of a ranked
+item cannot sit below it.
+
 Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
 ("Build order is DERIVED at build time"). It ranks on evidence current as of
 this date. **Re-derive rather than edit** — patching this list re-creates the
@@ -285,9 +296,22 @@ the first entry below.
 
 ## Open
 
-- **READY — evidence leaves the rolling window at FINDING time: the
+- **(DONE — e787960 + a5912ad, 2026-08-07)
+  evidence leaves the rolling window at FINDING time: the
   sweep pins the request bytes behind each finding row (tools/-only,
-  not deployment-coupled).** This is the permanent answer to the
+  not deployment-coupled).** SHIPPED: `replay.mjs --pin-rows` (all 8
+  persisted row families, each with its own index, coordinate SPACE and
+  owner), `gate-live --rowpins` writing scrubbed pins to
+  `test/fixtures/harvested/rowpins/`, idempotent by (keyToken, n, index,
+  space, family), rejecting `bytesMatchRow:false` without writing. Pin
+  size measured against the entry's kilobytes claim: 11,711 B committed,
+  mean 4,618 B over 21 pins on a 255 MB capture, pin pass +5.7% wall.
+  Red-first arrangement executed: capture removed, old path
+  `ENOENT`, pin alone still answers "did we build these bytes"
+  (`forwardedPresentInRawAt=null -> OURS`). Two residues, both booked
+  below: the doctor's three-answer verdict for the new `rowPins` fields
+  (dotfiles), and `harvest-scrub-relations` not recursing into the new
+  subdirectory. Original entry follows. This is the permanent answer to the
   expiry finding above, and the reason no ceiling is the answer:
   eviction is continuous by construction, so the fix is not to keep
   captures longer but to stop needing them. Two halves, and the
@@ -339,8 +363,14 @@ the first entry below.
   class and unbuildability, which is exactly the artifact this item
   proposes to make durable.
 
-- **READY — `bust-triage`'s UNVERIFIABLE branch prints a FALSE disjunction, and
-  the reason text is what a reader acts on.** Found 2026-08-06 by using it on
+- **(DONE — 93a8414, 2026-08-07) `bust-triage`'s UNVERIFIABLE branch prints a FALSE disjunction, and
+  the reason text is what a reader acts on.** SHIPPED: the reason is computed
+  from the walk that failed — capture absent / present-but-window-not-covered /
+  present-and-covered-but-no-pair — on the transcript step as well as the
+  capture step (the done-criterion covers both, and both disjuncts were false
+  on the motivating event). A THIRD live instance was measured the same
+  morning, on the 05:24:37Z statiker bust, before the fix landed. Original
+  entry follows. Found 2026-08-06 by using it on
   the event above: it answered `UNVERIFIABLE — no capture pair (capture off, or
   rotated)`, and both disjuncts were false. The capture for that session existed
   at the time of the run, covered the window (its last write is one minute AFTER
@@ -362,9 +392,26 @@ the first entry below.
   still report absent. Done when no UNVERIFIABLE row states a cause the tool did
   not test.
 
-- **READY — `bust-triage` picks the busting request by TIME ALONE, so a haiku
+- **(DONE — 22b8c05, 2026-08-07) `bust-triage` picks the busting request by TIME ALONE, so a haiku
   sidecar was named as the cause of a 336k opus event — and the tool then
-  reported the evidence missing while it sat on disk.** Measured 2026-08-07
+  reported the evidence missing while it sat on disk.** (Title kept verbatim as
+  the record of the drift the next paragraph corrects; the shipped rule selects
+  by whether a candidate could CARRY the event, not by clock position.)
+  **THIS ENTRY'S NARRATIVE WAS WRONG AND THE CORRECTION IS THE LESSON.** The
+  defect, the design and the verifier were all sound — the fix ships and the
+  entry's verifier passes verbatim — but the MECHANISM this entry named is not
+  the one in the code, measured by a probe printing every candidate plus a
+  stage trace of the real function: the 01:00:54.702Z sidecar has `n=1` and was
+  already excluded by the pre-existing `plausible` predicate, so it never
+  entered the candidate set and cannot have won on recency; the recency rule
+  picked the CORRECT request; what displaced it is `preferTelemetryConfirmed`,
+  where a different sidecar's reset event sits 5 ms from an earlier opus
+  request. The quoted "2,368 bytes" and "01:00:54.702Z" belong to different
+  records. WHAT WROTE IT OUT OF REACH: the entry was assembled by reading a
+  candidate LIST instead of tracing the selection FUNCTION, and nothing stops
+  the next entry being written the same way — the generalized rule is now in
+  `docs/dev-loop.md` ("A booked entry's MECHANISM claim"). Original entry
+  follows, kept unedited as the record of the drift. Measured 2026-08-07
   01:00:55Z (matrix event walk of that date). The rule is "the newest request
   at or before the ledger stamp", and the ledger stamp is when the RESPONSE
   was booked, not when the request was sent. A `claude-haiku-4-5` sidecar at
@@ -472,8 +519,13 @@ the first entry below.
   UNCLASSIFIED and name the walk. Done when a cause the matrix has
   dispositioned cannot read as UNCLASSIFIED.
 
-- **READY — the threat matrix's status cell is split on `|`, so a row whose
-  prose CONTAINS a pipe hands the reader a mid-cell fragment.** Surfaced
+- **(DONE — b2459a3, 2026-08-07) the threat matrix's status cell is split on `|`, so a row whose
+  prose CONTAINS a pipe hands the reader a mid-cell fragment.** SHIPPED as
+  candidate (b), markdown-table semantics (a cell boundary is an UNESCAPED pipe
+  outside inline code). Done-criterion met and measured: STATUS-UNREADABLE rows
+  across the live matrix now 0 (was row 3 alone); the MITIGATED set is unchanged
+  at rows 1, 7, 8, 9, 15, 18, 25, so `docs/runbooks/bust-appears.md`'s recorded
+  figure did not go stale. Original entry follows. Surfaced
   2026-08-06 by the dispatched status-enum work, correctly returned as a gap
   rather than fixed inside a boundary that did not cover it. Row 3's status
   contains an inline `` `header:anthropic-beta[-mid-conversation-tool-changes]` ``
@@ -609,7 +661,13 @@ the first entry below.
   that is the case the current model gets right and a fix that moves it is
   overshooting.
 
-- **READY (small) — the reconcile check fires when the two instruments AGREE.**
+- **(DONE — fb20f3d, 2026-08-07) the reconcile check fires when the two instruments AGREE.** SHIPPED as a
+  cause-equivalence table; the raced-read known positive (s-captureQ,
+  2026-08-05T09:09:41Z) must and does still WARN. First live fire on a NEW
+  event the same morning: the 09:52:42Z bust in the dev session, where the
+  ledger's `other` and the transcript's `previous_message_not_found` are the
+  raced read, and the check named it unprompted — that walk is in the matrix.
+  `tools/dossier.mjs:286` carries the identical predicate and is booked below.
   `bust-triage` warned "LEDGER says idle, TRANSCRIPT says
   previous_message_not_found — instrument disagreement" on 2026-08-06 23:59:10Z.
   They name one eviction: `idle` is the ledger's gap-derived cause, the other is
@@ -4325,6 +4383,129 @@ the first entry below.
   attributed: doctor fail on a local user.name/user.email in this
   repo (global identity is the convention here; a local one is
   always leakage).
+
+- **READY — the lanes backfill: the five runbooks gain `Trigger:` lines and
+  dev-loop's router table gains kind/channels, per the dotfiles lanes-format
+  contract.** Booked 2026-08-07 on operator instruction; this is the scope
+  dotfiles Session C could not deliver because a session held this working
+  copy. **Authority: `/home/g/dev/Gunther-Schulz/dotfiles/docs/directives/lanes-format-contract.md`,
+  settled by operator GO 2026-08-07 — its decisions are NOT re-openable at
+  execution; a contradiction between it and the ground here returns to the
+  operator with evidence, never a local redesign.** Read first: its sections
+  "The file format", "Backfill for the five existing files", "The router — one
+  per repo, DECLARED, never assumed", "The other validator (boundary declared
+  in data)".
+  Items, all additive: (1) add the five `Trigger:` lines to
+  `docs/runbooks/*.md` exactly as the backfill section renders them — no other
+  text, heading or line change to those five files; (2) extend
+  `docs/dev-loop.md`'s router table ("Which line are you on") with `kind` and
+  `channels` columns per the router section — dev-loop REMAINS the router and
+  no `INDEX.md` is created (operator GO, option 2: a second router is the
+  duplicate-head defect this file already books); (3) declare the router in
+  `.claude/required-reading.json` — `"lanes": {"dir": "docs/runbooks", "router":
+  "docs/dev-loop.md"}` beside `"required"`; (4) file three entries HERE, decided
+  in this repo: `check_devbook_form.py` fails `runtime-anomaly` (missing stop),
+  `session-close` (missing verify) and `sweep-finding` (missing stop) — the
+  contract's validator boundary makes these non-binding for lanes, so satisfy
+  or exempt is this repo's domain judgment; (5) reconcile the READY
+  `tools/lane-sweep.mjs` entry, whose "TRIGGER column" schema clause predates
+  the contract — amend it to key on the kind/channels columns landing here, so
+  two schemas do not get built.
+  **PLACEMENT GAP, found at booking and NOT bridged (item 3):**
+  `.claude/required-reading.json` is UNTRACKED in this repo — `git ls-files
+  .claude/` returns only `agent-name` and `github-app`. The live file is
+  deployed from dotfiles `cache-fix/required-reading.json` (present there,
+  52 bytes), and CLAUDE.local.md's standing rule for deployed artifacts is
+  edit THERE, never here. So item 3's write lands in the dotfiles source and
+  arrives here by deployment; an edit made in this tree would be overwritten
+  and would not be tracked. Stated rather than resolved: whether the contract
+  intends the dotfiles-side write is the operator's to confirm, and it changes
+  which repo the commit lands in, not what is written.
+  Verifier: `/home/g/dev/Gunther-Schulz/dotfiles/tools/lane-check.py` — red
+  already attested at 7 violations over the un-backfilled lanes here; after the
+  backfill it must run green over this repo, real output pasted. This repo's
+  own battery green before push. Write boundaries: the five lane files
+  (`Trigger:` lines only), `docs/dev-loop.md` (table only),
+  `.claude/required-reading.json` (see the placement gap), `BACKLOG.md`.
+
+- **READY (small) — `tools/dossier.mjs` carries the reconcile
+  vocabulary-collision that `bust-triage` just shed.** Found 2026-08-07 while
+  fixing the bust-triage half (`fb20f3d`): `dossier.mjs:286` does
+  `if (d.transcriptCause && r.cause && r.cause !== d.transcriptCause.type)` ->
+  "instrument disagreement", i.e. the same string-inequality test over two
+  different vocabularies that warned on AGREEMENT. `sameEvent` and
+  `CAUSE_EQUIVALENCE` are already exported from `bust-triage.mjs` for exactly
+  this, so the change is one import and one call. Verifier, red-first: drive
+  `dossier` on 2026-08-06T23:59:10Z (ledger `idle`, transcript
+  `previous_message_not_found`) — today it must warn, after the change it must
+  not; control, the raced-read positive (s-captureQ, 2026-08-05T09:09:41Z,
+  ledger `other` vs transcript `messages_changed`) must still warn. Recorded
+  honestly: identified by READING dossier, not by running it — the
+  reproduction is the first step, not a formality.
+
+- **READY — `test/harvest-scrub-relations.test.mjs` reads
+  `test/fixtures/harvested` NON-recursively, so the standing corpus check
+  cannot see `rowpins/`.** Found 2026-08-07 by the lane that created the
+  subdirectory (`e787960`). Reader half: recurse — a one-line change, and the
+  new pins are already covered by their own test, so this closes the general
+  route rather than a live leak. **Writer half, which is the one that
+  compounds:** a sweep that creates subdirectories under
+  `test/fixtures/harvested/` is still running, so the NEXT subdirectory is
+  invisible to the corpus check again. The computable seam: assert that every
+  file under `test/fixtures/harvested/**` is reached by the scan's own file
+  list — a set difference, no judgment. Verifier, red-first: plant a sentinel
+  identifier in a file inside `rowpins/`, run the suite, and require red;
+  today it passes green, which is the defect.
+
+- **READY (operator-side, dotfiles — POINTER; body belongs in that repo) — the
+  doctor has no three-answer verdict for the sweep's new `rowPins` fields.**
+  Booked 2026-08-07 with `e787960`, which added per-row `rowPins` plus a sweep
+  rollup `{captures, written, unchanged, rejected, unverifiable, conflicts,
+  errors}` to `~/.claude/cache-fix-gate-status.json`. Nothing reads them. The
+  closing gate's question 4 (instruments ride along) is therefore answered
+  PARTLY for that change, and this entry is the named remainder. Design
+  question for the dotfiles side, stated so it is not re-derived: `rejected > 0`
+  or `conflicts > 0` means a pin's bytes did not match the row it claims —
+  loud, not advisory; `unverifiable` is the third answer and must not fold into
+  either. Consumer: `bootstrap/doctor.py`, which enumerates its own `*_verdict`
+  functions and fails its self-check if one lacks a test.
+
+- **READY — does `movedFresh` EVER fire on a pair the census labels
+  `join:cross-message`? The matrix and the tool disagree and nobody has
+  measured it.** Booked 2026-08-07 from the 05:24:37Z statiker walk. Row 4's
+  2026-07-31 datapoint says the flap/cross-message-join mitigation is "BUILT
+  and corpus-clean, pending deployment"; `replay.mjs`'s own census text says "a
+  cross-message join spans two messages, so no hash set in the extension
+  matches it"; and on that live 134k bust the deployed extension logged
+  `moved=0 movedFresh=0` while the census scored the pair `mitigation: 0/0
+  mitigable` — the shape never entered the mitigable denominator at all. One of
+  those two statements is about a shape the other does not name, which is the
+  one-phenomenon-two-names trap this repo already books elsewhere. This is a
+  MEASUREMENT, not a design: over the corpus the daily sweep already reads,
+  count pairs the census labels `join:cross-message` and, for each, whether the
+  insertion event log records a `movedFresh > 0` at that request. Done when the
+  two claims are reconciled in the matrix, or the divergence is minted as its
+  own row. Discriminator stated so the result cannot be read both ways: a
+  non-zero rate means the mitigation reaches the class and the 05:24 instance
+  is a miss to attribute; a zero rate means the built mitigation and the census
+  label name different shapes, and row 4's "pending deployment" line is
+  describing something that is not this.
+
+- **READY — the 2026-08-07 01:00:55Z 336k event reads UNCLASSIFIED, and its
+  transcript diagnostic does not join to the ledger record.** Surfaced
+  2026-08-07 by `22b8c05`, which turned a non-answer into a finding: with the
+  request selection fixed, the walk reaches a real pair (`n=2->4`) and the
+  census says `append-only`, which maps to no matrix row — the tool's own
+  stop-here. Second half, and it may explain the first: the session transcript
+  holds 328 records with 5 `cache_miss_reason` diagnostics and NONE reports
+  `cache_creation 335933` (they report 339, 339, 427535, 427535, 427535), so
+  the ledger event and the transcript cannot be joined at that stamp. Until
+  that join is explained the UNCLASSIFIED cannot be graded — an append-only
+  pair carrying a 336k re-bill is either a new class or an instrument artifact,
+  and the two are distinguished by which record the 335,933 belongs to. Do the
+  join first; mint the row only if the event survives it. Note the earlier walk
+  for this same stamp dispositioned it NON-DEFECT/GROWTH on the transcript's
+  own numbers — that walk and this verdict must be reconciled, not stacked.
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry

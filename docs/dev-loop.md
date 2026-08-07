@@ -964,6 +964,35 @@ Two rules, both learned the expensive way:
    found for it — it does not ship, because it would ship having never gone
    red on a real defect.
 
+   **A booked entry's MECHANISM claim earns the same disproving probe as
+   any other load-bearing claim, BEFORE building against it** — and it is
+   the same rule as the briefed-known-positive one above, aimed at a
+   narrative rather than a fixture. Measured 2026-08-07: the entry for
+   `bust-triage`'s request selection was titled "picks by TIME ALONE" and
+   named a haiku sidecar that had won on recency. Every part of that story
+   is false — the sidecar carries one message and the pre-existing
+   `plausible` predicate had already excluded it; the recency rule picked
+   the CORRECT request; what displaced it was `preferTelemetryConfirmed`,
+   a later stage matching a different sidecar's reset event 5 ms away —
+   and the entry's quoted byte figure and timestamp belong to two
+   different records. The DESIGN was right and shipped unchanged, which
+   is exactly why this survives: a wrong story attached to a working fix
+   points the next reader at the wrong code path, and nothing executes a
+   story. What wrote it out of reach: the entry was assembled by reading
+   a candidate LIST rather than by tracing the selection FUNCTION. The
+   probe that dissolved it is cheap and is now the standard: print EVERY
+   candidate plus a stage-by-stage trace of the real function, before the
+   entry is written.
+
+   **A tool's "could not verify" REASON is a claim, and it is computed or
+   it is a guess.** Same day, same tool: `UNVERIFIABLE — no capture pair
+   (capture off, or rotated)` named two causes on an event where the
+   capture was present, covered the window, and yielded pairs on replay.
+   A verdict assembled from guesses is caught because something later
+   trips over it; a REASON assembled from guesses is executed by nothing
+   and reads exactly like a measured one. Check in order, report which
+   check failed, and give the state that has no word yet its own string.
+
    **A mutation must remove the exact condition the bite names** — two
    bites in one build passed for the WRONG reason and survived their
    mutations, because the mutation deleted adjacent machinery rather
