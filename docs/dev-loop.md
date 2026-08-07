@@ -311,6 +311,64 @@ not decision-complete and the gap is in the entry, not in the rubric. And
 **the derived order is re-derived, not edited**: patching yesterday's list
 re-creates the stored-priority problem one level up.
 
+### Once the order is derived, run it in PARALLEL — the width is evaluated, never guessed
+
+Standing operating procedure (operator, 2026-08-07): **as much parallelisation
+as sensibly possible, after evaluating that the lanes cannot step on each
+other.** The default for independent ranked items is concurrent dispatches, not
+a queue — a queue buys only waiting, since token spend is identical either way
+and elapsed time is not. What stays sequential is the DISPATCHER's own work:
+integration, verification in the artifact, booking, and pushing.
+
+The evaluation is not a vibe and it is not "do these feel related". It is a
+write-set disjointness check, and this repo's collision surfaces are FACTS
+someone already paid for — reading them off this list is cheaper than
+rediscovering any of them:
+
+- **Per FILE, resolved to the file that REALIZES the change.** Two entries
+  whose designs never mention the same file still collide if both land in
+  `bust-triage.mjs`. Resolve at brief time; an overlap found then is serialized
+  or carved out, never left to surface as a mid-dispatch halt.
+- **Concurrent lanes in this repo need WORKTREES, not just disjoint files.**
+  `npm test` shells out to `git`, so two agents committing in one clone block
+  on `index.lock` — once observed as a 600-second hang that read as a hung
+  test. Disjoint files do not save you from a shared index.
+- **A fresh worktree needs `ln -s <repo>/node_modules <worktree>/node_modules`
+  before any test run**, or every proxy suite dies `ERR_MODULE_NOT_FOUND:
+  hpagent` and two tests appear to hang ~900 s. Both recorded "hangs" in this
+  repo were exactly this artifact; it belongs in every worktree brief.
+- **Sibling-repo lanes run WITHOUT worktree isolation.** Isolation cuts the
+  SESSION's repo regardless of what the brief names, and the unused worktree
+  can be reclaimed mid-run, killing the agent's shell. Provision the sibling
+  working copy and name its path instead.
+- **One writer per REPO where a lane plants data in it**, not merely one writer
+  per file. A lane that clones a repo to plant test identifiers owns that repo
+  for its duration, even though it edits nothing there.
+- **Read-or-execute counts as overlap.** An agent running a tool a co-writer is
+  editing measures with an unstable instrument and inherits its half-written
+  state. Either freeze the reader in a worktree or serialize.
+- **Shared machine-local mutable files are write-sets too**, and they are the
+  ones a file-level check misses: the capture-alias registry
+  (`~/.claude/cache-fix-capture-aliases.json` — assign each lane its own
+  alias IN THE BRIEF, or two lanes claim the same next-unused one), and the
+  live gate-status file (lanes write scratch `--status` paths, never the real
+  one).
+- **`BACKLOG.md` belongs to the dispatcher, always.** It is where every lane's
+  result gets booked, so it is never in an agent's write set — two agents
+  booking departures into one file is the overlap that forces serialization
+  for no gain.
+
+**What does not parallelize is judgment.** The build-order derivation, grading
+a lane's report, and deciding a disposition stay at the desk — a brief for them
+would have to contain the answer. The rule is parallel EXECUTION under
+sequential judgment, not delegation of the judgment.
+
+**And width is bounded by what the dispatcher can verify.** Every returning
+lane's claims get checked in the artifact before its commits are pushed; a
+fourth lane that lands while three reports are unverified has bought nothing
+and added a queue at the integration point instead. If the lanes cannot be
+verified as fast as they return, that is the real width limit.
+
 ## The four commands
 
 ```sh
