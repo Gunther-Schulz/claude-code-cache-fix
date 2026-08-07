@@ -349,8 +349,9 @@ rediscovering any of them:
   state. Either freeze the reader in a worktree or serialize.
 - **Shared machine-local mutable files are write-sets too**, and they are the
   ones a file-level check misses: the capture-alias registry
-  (`~/.claude/cache-fix-capture-aliases.json` — assign each lane its own
-  alias IN THE BRIEF, or two lanes claim the same next-unused one), and the
+  (`~/.local/share/cache-fix/capture-aliases.json` — claimed through
+  `tools/alias-claim.mjs`, which is exclusive; before it existed, two lanes
+  claimed the same next-unused alias on the first day of parallel work), and the
   live gate-status file (lanes write scratch `--status` paths, never the real
   one).
 - **`BACKLOG.md` belongs to the dispatcher, always.** It is where every lane's
@@ -705,9 +706,13 @@ which is why it transmitted by imitation and failed the moment someone wrote
 about a NEW capture.
 
 **Aliases are resolvable, or they are write-only labels.** The mapping lives at
-`~/.claude/cache-fix-capture-aliases.json` — machine-local by nature, mode
+`~/.local/share/cache-fix/capture-aliases.json` — machine-local by nature, mode
 0600, never tracked, because it holds precisely the bytes the convention keeps
-out of git. **Claim it with `node tools/alias-claim.mjs <capture> --note "…"`,
+out of git. (It sat under `~/.claude/` until 2026-08-07, where the harness's
+sensitive-path protection — which keys on the directory's SHAPE, not on what
+the file is — raised a permission prompt on every read and write, for every
+session and every agent. Tool DATA does not belong in a config directory; the
+move removed the prompt without touching a security control.) **Claim it with `node tools/alias-claim.mjs <capture> --note "…"`,
 not by hand** — "take the next unused alias" is a read-modify-write, and it
 collided the first day three lanes ran in parallel (two briefs, one alias, one
 registered): an alias resolving to two captures is wrong in a way no reader can

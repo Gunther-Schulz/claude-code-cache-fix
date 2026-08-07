@@ -234,8 +234,10 @@ already carries — never by trusting that two counters agree.
 
     This repo is public. A capture is named by ALIAS (`s-captureA`,
     `s-captureB`, …), never by filename or session id; the mapping
-    lives in `~/.claude/cache-fix-capture-aliases.json` (mode 0600,
-    never tracked). Skipping it is caught at push, after the bytes are
+    lives in `~/.local/share/cache-fix/capture-aliases.json` (mode 0600,
+    never tracked; moved out of `~/.claude/` on 2026-08-07 because a
+    config directory is not a data directory and the harness prompts
+    on the shape). Skipping it is caught at push, after the bytes are
     already in a commit, and costs an amend.
     The tool replaced the hand-run "take the next unused alias" on
     2026-08-07, and the reason is worth knowing rather than trusting:

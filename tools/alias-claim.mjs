@@ -24,18 +24,30 @@
 //   node tools/alias-claim.mjs --show <capture-file|session-id>
 //
 // The registry is machine-local by nature (mode 0600, never tracked): it holds
-// precisely the bytes the convention keeps out of git.
+// precisely the bytes the convention keeps out of git. It lives under XDG data
+// (`~/.local/share/cache-fix/capture-aliases.json`), NOT under `~/.claude/`.
 
-import { readFileSync, writeFileSync, openSync, closeSync, unlinkSync, statSync, chmodSync } from "node:fs";
-import { basename } from "node:path";
+import { readFileSync, writeFileSync, mkdirSync, openSync, closeSync, unlinkSync, statSync, chmodSync } from "node:fs";
+import { basename, dirname } from "node:path";
 import { homedir } from "node:os";
 
+// HOME IS XDG DATA, NOT `~/.claude/`. The registry is machine-local data
+// belonging to this repo's tooling; it is not Claude Code configuration and only
+// lived under `~/.claude/` by habit. The harness protects that directory by PATH
+// SHAPE, so every read and write of the registry — by a session or by an agent —
+// raised a sensitive-file prompt. Moving the data out removes the prompt for
+// good without touching a security control, which is the repair the box demands:
+// a guard firing on legitimate work gets the work moved or a declared exemption,
+// never a loosened predicate.
+//
 // Resolved per call, not at module load: a caller that points
 // CACHE_FIX_ALIAS_REGISTRY at a scratch file AFTER importing this module must
 // be obeyed, and a constant captured at import silently ignores it — which is
 // a test that certifies nothing while writing to the real registry.
+const dataHome = () => process.env.XDG_DATA_HOME || `${homedir()}/.local/share`;
+const LEGACY_REGISTRY = () => `${homedir()}/.claude/cache-fix-capture-aliases.json`;
 const registryPath = () =>
-  process.env.CACHE_FIX_ALIAS_REGISTRY ?? `${homedir()}/.claude/cache-fix-capture-aliases.json`;
+  process.env.CACHE_FIX_ALIAS_REGISTRY ?? `${dataHome()}/cache-fix/capture-aliases.json`;
 const lockPath = () => `${registryPath()}.lock`;
 
 // A lock older than this is presumed abandoned (a killed agent, a crashed run).
@@ -126,9 +138,33 @@ async function withLock(fn) {
 }
 
 function readRegistry() {
-  try {
-    const doc = JSON.parse(readFileSync(registryPath(), "utf-8"));
+  const read = (path) => {
+    const doc = JSON.parse(readFileSync(path, "utf-8"));
     doc.aliases ??= {};
+    return doc;
+  };
+  try {
+    return read(registryPath());
+  } catch (e) {
+    if (e.code !== "ENOENT") throw e;
+  }
+  // ONLY when the path was DEFAULTED. A caller that named its registry
+  // explicitly — a test pointing at scratch, a probe — must get exactly that
+  // file or nothing; falling back would silently read (and reason about) the
+  // real registry while the caller believed it was isolated. Caught by the
+  // suite the moment the fallback was added, which is the whole reason the
+  // scratch-registry tests exist.
+  if (process.env.CACHE_FIX_ALIAS_REGISTRY) return { aliases: {} };
+  // Migration read, and it is deliberately NOT silent: a registry found at the
+  // old path is used so nothing breaks mid-move, and says so, because an
+  // allocator quietly reading one file while writing another is how two
+  // registries diverge — the same one-name-two-bodies failure the burned list
+  // exists to prevent.
+  try {
+    const doc = read(LEGACY_REGISTRY());
+    process.stderr.write(
+      `alias-claim: read the LEGACY registry at ${LEGACY_REGISTRY()} — move it to ${registryPath()}\n`,
+    );
     return doc;
   } catch (e) {
     if (e.code === "ENOENT") return { aliases: {} };
@@ -162,6 +198,7 @@ export async function claim(capture, note) {
       ...(note ? { note } : {}),
     };
     const path = registryPath();
+    mkdirSync(dirname(path), { recursive: true });
     writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`, { mode: 0o600 });
     try {
       chmodSync(path, 0o600);
