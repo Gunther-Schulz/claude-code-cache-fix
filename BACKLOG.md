@@ -4689,8 +4689,23 @@ the first entry below.
   reads STATUS-UNREADABLE — a stop-here on a walk that needs no stopping, which
   is the exact defect the CONTROLLED-CAUSE entry just closed one token over.
 
-- **READY (small) — `lines()` drops blank lines, so every POSITION derived from
-  it is short by the blank count, and the sweep was never done.** Found
+- **(DONE by enumeration — 2026-08-07, no further defect found) `lines()` drops
+  blank lines, so every POSITION derived from
+  it is short by the blank count, and the sweep was never done.**
+  **THE SWEEP, run and recorded rather than left as a verdict:** every consumer
+  of the helper, in both files that define one. `tools/bust-triage.mjs` — line
+  109 (`coldEvents`, JSONL records), 134 and 183 (transcript JSONL), 254 (event
+  logs), 737 (`matrixRow`, which matches a row by its own text and returns the
+  ROW, never an index); `tools/dossier.mjs` — 116 and 188, both JSONL. **Not one
+  of them derives a position**: they read records or match content, where
+  dropping blank lines is harmless and for JSONL is required. The single site
+  that did derive one — `eventWalks` — was fixed at build time and reads the
+  file whole. So the class is one instance, and the entry closes with the
+  enumeration as its basis rather than with a fix. What DID ship is the missing
+  contract: both helper definitions now carry it, with the measured symptom
+  (line 1045 reported for a heading at 1212, both numbers plausible), because
+  the next author's defence is the comment at the definition, not this entry.
+  Original entry follows. Found
   2026-08-07 mid-build: the matrix lint first reported line 1045 for a heading
   that sits at 1212, and both numbers are plausible — the tell is only that one
   of them is wrong. Fixed in `eventWalks` by reading the file whole. **The

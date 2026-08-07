@@ -65,6 +65,13 @@ export const KEYMAP = join(homedir(), ".claude/cache-fix-keymap.jsonl");
 export const WINDOW_SEC = 90;
 
 const j = (line) => { try { return JSON.parse(line); } catch { return null; } };
+// CONTENT ONLY — this drops blank lines, so an index into what it returns is
+// NOT a line number in the file. Every caller here reads JSONL records or
+// matches a row by its own text, where dropping blanks is right (and for
+// JSONL, required). A caller that needs a POSITION reads the file whole and
+// says so: measured 2026-08-07, a lint built on this helper reported line
+// 1045 for a heading sitting at 1212, and both numbers are plausible — the
+// only tell is that one of them is wrong.
 const lines = (p) => (existsSync(p) ? readFileSync(p, "utf8").split("\n").filter(Boolean) : []);
 const iso = (epoch) => new Date(epoch * 1000).toISOString();
 
