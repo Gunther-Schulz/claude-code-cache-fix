@@ -266,13 +266,37 @@ the first entry below.
   "#2 in statiker" is unambiguous where "230k" is not. Project comes from the
   transcript path under `~/.claude/projects/`; age is `now - t`, rendered like
   the token's.
+  **Operator addition, 2026-08-07, and it improves the design:** a WINDOW and
+  SESSION GROUPING, not just extra columns. Today `--list` shows "15 of 112" —
+  a count, not a period — while the question actually asked is "what happened
+  in the last day, and in which sessions". So: `--since <dur>` (default 24h)
+  and rows grouped under their session, each group headed by project and
+  session, e.g. `statiker c08e2235: #1 203k messages_changed 06:08 local /
+  #2 230k messages_changed 06:17 local`. Grouping is what makes the ordinal
+  meaningful, since the ordinal is per-session by construction.
+  Extend `--list`; do NOT add a tool. `bust-triage` already carries the
+  conversation-grouping, the ledger/transcript reconcile, and the
+  three-answer discipline, and a fresh file re-earns all of it from zero.
+  **SEQUENCING, and this is the part that must not be skipped: the overview
+  inherits the ledger's three known duplication modes** — one event booked
+  three times (17:39:59/17:40:08/17:40:16Z), two events booked under
+  contradictory classes (23:59, 03:32), and a pair with no retraction. Built
+  today, a 24-hour overview would render phantom rows with an authoritative
+  face, which is strictly worse than the current friction: the operator would
+  stop trusting it after the first phantom, and a display nobody trusts is the
+  guard-trains-its-reader-to-ignore-it shape. So this ships AFTER, or
+  simultaneously with, the claude-worktime dedupe (that repo's entry (B)), or
+  it ships with a stated caveat line naming the duplication modes in its own
+  output — never silently.
   Verifier, red-first against today's own confusion: given only what the
   operator can see — "statiker, #2, 230k, messages_changed, 17m" — one
   `--list` invocation must identify exactly one row, and the same three inputs
   against the OTHER session's 419k event must identify a different single row.
   Today neither is possible, which is the red. Negative control: a session with
   one bust must render no ordinal, matching the token's own omit-at-N=1 rule,
-  so the two displays cannot disagree about the ordinal itself.
+  so the two displays cannot disagree about the ordinal itself. Plus a
+  duplication control: the 17:40 triple must appear as ONE row (or as one row
+  flagged as a known duplicate set), never as three.
 
 - **READY — every human-facing stamp emits BOTH zones, because ten tools emit
   UTC and none emits local.** Measured 2026-08-07: `grep -l 'toISOString\|UTC'
