@@ -206,6 +206,26 @@ the first entry below.
 
 ## Open
 
+- **POINTER — the push-side leak scan reaches ONE repo; body and design live in
+  `~/dev/Gunther-Schulz/dotfiles/BACKLOG.md` (booked 2026-08-06).** The
+  machine-wide `git/hooks/pre-push` dispatcher activates on one substring
+  (`MARKER = "claude-code-cache-fix"`, `is_active = any(MARKER in u)`), so
+  every other repo gets a silent exit 0 — including `claude-worktime`, which
+  is PUBLIC, handles session ids and capture keys by its nature, and as of
+  2026-08-06 carries this repo's operator-side bust items. One
+  `capture-key-prefix` finding already sits in its published history,
+  unremediable.
+  **Why a pointer HERE when the code is there** (operator, 2026-08-06): the
+  two repos are operationally linked, and the session likely to do this work
+  is a cache-fix bust session — the scanner it would extend is
+  `tools/absence-scan.mjs` in this tree, and the hazard is discovered here.
+  The carrier rule wants the body where the work happens and a pointer on the
+  reader's path; this is the pointer. It is deliberately NOT a copy — the
+  design (including the `MARKER`-has-two-jobs trap) is stated once, there.
+  Do not execute from this entry; open that one.
+  Same shape, mirrored, as the two claude-worktime pointers above: body in the
+  executing repo, pointer where the finder sits.
+
 - **READY (small; same file as the backlog-lint WARN item, dispatch them
   together) — a `backlog-lint` lane for the two ways a booked entry is not
   DISPATCHABLE.** Standing rule persisted 2026-08-06 (operator, session-close
