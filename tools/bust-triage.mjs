@@ -471,18 +471,81 @@ export function statusVerdict(status) {
   return kind === null ? "STATUS-UNREADABLE" : VERDICT_BY_KIND[kind];
 }
 
+/**
+ * Split a markdown table row into its cells by TABLE semantics, not by
+ * `String.split("|")`.
+ *
+ * The defect this replaces (measured 2026-08-06, BACKLOG): a cell boundary is
+ * an UNESCAPED pipe OUTSIDE inline code, and `split("|")` knows neither
+ * exception. Row 3's status carries an inline
+ * `` `… | header:anthropic-beta[…]` `` in running text, so the naive split
+ * produced one extra field and `cells[length - 2]` handed back a fragment
+ * starting mid-sentence — the `DOCUMENTED` the row LEADS with was never seen
+ * by anything, and the row read as STATUS-UNREADABLE for a reason that was
+ * the parser's rather than the row's.
+ *
+ * Fix (b) of the entry's two candidates, and the preferred one: escaping the
+ * pipe in the matrix cell fixes one row, and the next author re-introduces
+ * it. Parsing the class fixes it for every reader.
+ *
+ * Two rules, both from GFM's table grammar:
+ *  - a backslash-escaped `\|` is content, and renders as a bare `|`;
+ *  - a backtick run of length N opens a code span closed by the next run of
+ *    EXACTLY N, and pipes inside it are content. An UNMATCHED run is literal
+ *    text (CommonMark), so it must not swallow the rest of the row — a row
+ *    with one stray backtick would otherwise lose every later cell.
+ *
+ * Shape is deliberately identical to `split("|")`'s for a row whose prose
+ * holds no pipe — leading and trailing empties included — so the callers'
+ * `cells[length - 2]` indexing is unchanged and rows that parse correctly
+ * today keep parsing exactly as they did.
+ */
+export function splitRowCells(line) {
+  const cells = [];
+  let cur = "";
+  let i = 0;
+  while (i < line.length) {
+    const ch = line[i];
+    if (ch === "\\" && line[i + 1] === "|") { cur += "|"; i += 2; continue; }
+    if (ch === "\\" && i + 1 < line.length) { cur += ch + line[i + 1]; i += 2; continue; }
+    if (ch === "`") {
+      let n = 0;
+      while (line[i + n] === "`") n++;
+      let k = i + n;
+      let close = -1;
+      while (k < line.length) {
+        if (line[k] !== "`") { k++; continue; }
+        let m = 0;
+        while (line[k + m] === "`") m++;
+        if (m === n) { close = k; break; }
+        k += m;
+      }
+      if (close === -1) { cur += line.slice(i, i + n); i += n; continue; }
+      cur += line.slice(i, close + n);
+      i = close + n;
+      continue;
+    }
+    if (ch === "|") { cells.push(cur); cur = ""; i++; continue; }
+    cur += ch;
+    i++;
+  }
+  cells.push(cur);
+  return cells;
+}
+
 /** Matrix rows whose status line we can quote, keyed by the classes we map to.
  * `open` is now the ANCHORED enum test, not a substring scan: the old flag was
  * computed over the UNTRUNCATED cell while `status` is truncated to 260 chars,
  * so rows 15 and 21 reported open=true on evidence the reader could not see
  * (their only "OPEN" sits past char 260). `dossier.mjs` reads this field for
- * its "(OPEN)" label; both rows are unreachable from its `classToRow`. */
+ * its "(OPEN)" label; both rows are unreachable from its `classToRow`.
+ * Cells come from `splitRowCells`, never `split("|")` — see its docstring. */
 export function matrixRow(n) {
   if (!existsSync(MATRIX)) return null;
   for (const line of lines(MATRIX)) {
     const m = /^\|\s*(\d+)\s*\|/.exec(line);
     if (m && Number(m[1]) === n) {
-      const cells = line.split("|");
+      const cells = splitRowCells(line);
       const status = (cells[cells.length - 2] ?? "").trim().slice(0, 260);
       const kind = statusKind(status);
       return { n, status, kind, open: kind === "OPEN" };

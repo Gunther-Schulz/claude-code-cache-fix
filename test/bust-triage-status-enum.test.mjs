@@ -27,7 +27,12 @@ import { statusKind, statusVerdict, matrixRow } from "../tools/bust-triage.mjs";
 // edit must not silently retune the bite that the matrix edit is exactly what
 // could break. The live-matrix property test at the bottom covers drift.
 const CELL = {
-  3: "header:anthropic-beta[-mid-conversation-tool-changes]` ",   // cell split by a `|` inside the prose
+  // The fragment the OLD `split("|")` parser handed back for row 3. Kept as a
+  // pinned literal — a mid-sentence fragment is still in no known state, and
+  // that property is what this file asserts. It is no longer what row 3
+  // yields: `splitRowCells` reads the cell whole and row 3 now parses to
+  // DOCUMENTED (test/bust-triage-matrix-cells.test.mjs owns that assertion).
+  3: "header:anthropic-beta[-mid-conversation-tool-changes]` ",
   5: "PARTIAL: fingerprint-strip + identity-normalization + c",
   6: "**OBSERVED, CAUSE NOT ISOLATED** (2026-07-27 12:47:56, ",
   13: "**BUILT — `deferred-tool-rewrite.mjs`, gate `CACHE_FIX_",
@@ -54,7 +59,7 @@ test("BITE — row 6's real status is not a mitigation, and must not read as one
 // which is the mechanism finding what the manual pass found once).
 test("BITE — every non-mitigation status stops reading as MITIGATED", () => {
   const expected = {
-    3: "STATUS-UNREADABLE",   // not a status at all: the cell split on an inline `|`
+    3: "STATUS-UNREADABLE",   // the old parser's fragment: not a status at all
     5: "KNOWN-OPEN",          // PARTIAL
     6: "KNOWN-OPEN",          // OBSERVED
     13: "KNOWN-OPEN",         // BUILT
