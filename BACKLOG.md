@@ -344,24 +344,86 @@ the first entry below.
   that is the case the current model gets right and a fix that moves it is
   overshooting.
 
+- **READY — `bust-triage` picks the busting request by TIME ALONE, so a haiku
+  sidecar was named as the cause of a 336k opus event — and the tool then
+  reported the evidence missing while it sat on disk.** Measured 2026-08-07
+  01:00:55Z (matrix event walk of that date). The rule is "the newest request
+  at or before the ledger stamp", and the ledger stamp is when the RESPONSE
+  was booked, not when the request was sent. A `claude-haiku-4-5` sidecar at
+  01:00:54.702Z (1 message, 2,368 bytes, no tools) beat the real request at
+  01:00:27.553Z (opus-5, 4 messages, 977 kB) by 27 seconds. The sidecar has no
+  predecessor in its own conversation, so the walk cascaded to
+  `no capture pair (capture off, or rotated)` / `no diagnostic found (older CC,
+  or transcript rotated)` and UNVERIFIABLE — with the capture present at 6.6 MB
+  and the transcript at 55 lines. **Both disjunctions false.** This is the
+  co-tenant interleaving trap `replay.mjs` documents at its grouping comment,
+  inside the tool built to end the hand walk; it is also a second live
+  instance for the booked false-disjunction entry, which should be fixed in
+  the same pass.
+  Design: select among requests whose response could plausibly be the booked
+  event, not by raw recency — filter to the conversation that CARRIES the
+  bust. Two signals are already on the records: the ledger's `ctx` against the
+  candidate's own token size (a 2 kB sidecar cannot produce a 375k-token
+  event), and the model (a bust booked for an opus response did not come from
+  a haiku request). Prefer the size test as primary; it needs no model list to
+  go stale.
+  Verifier, red-first and both sides: this stamp must select the 01:00:27.553Z
+  opus request and reach a real verdict, and the 2026-08-06 18:08:32Z stamp
+  (no interleaved sidecar) must select exactly what it selects today — a
+  selection change on the uncontaminated case is a regression, not a fix.
+  While there: when no candidate survives, the WARN must say which reason
+  actually applies rather than printing a disjunction of two it did not test.
+
+- **READY (operator-side, claude-worktime — POINTER; body belongs in that
+  repo's BACKLOG) — the ❄ detector fires on `cc` alone, so GROWTH is booked as
+  LOSS.** Measured 2026-08-07 01:00:55Z: `cc` 335,933 with `cr` **39,711 =
+  exactly the predecessor's `cc`**, i.e. every cached token reused and the
+  written portion entirely new content (a 907 kB `tool_result` from the
+  session's first tool call). No `cache_miss_reason` exists anywhere in that
+  transcript. A ❄ fired anyway, and the event entered the ledger as
+  `k:"hit"` — a preventable-loss class.
+  Discriminator, computable from fields the record already carries:
+  `ctx` - `cc` is the surviving read, and comparing it against the
+  predecessor's write separates the three live cases cleanly where a `cc`
+  threshold does not — 39,713 (growth) / 2 (TTL loss) / 15,224 (real bust).
+  **Not written into claude-worktime's backlog by this session** because the
+  fix interacts with the two entries already moved there (the idle-cause
+  hit-booking route and the contradictory-class dedupe) and all three want
+  designing together. That is a NAMED next step, not a deferral: whoever picks
+  up those two adds this as the third, or books it there first.
+
 - **READY — `bust-triage` has no idle/TTL guard, so a 216k eviction answered
   KNOWN-OPEN row 4.** Measured 2026-08-06 23:59:10Z (s-captureAL, matrix row 27,
   minted by that walk): `gap` 22,702 s against `"ttl":"1h"` on the session's own
-  wire, `mtok` 0, transcript `previous_message_not_found` — the cached entry
+  wire, transcript `previous_message_not_found`, and a surviving read of 2 tokens
+  (`ctx` 215,875 - `cc` 215,873) — the cached entry
   expired five hours before the request existed, and the pair's real container
   migration at host 104 is a true statement that is not the cause. `classToRow`
   saw census `replace/edit`, returned 4, and the verdict inflated row 4's
   evidence with an instance row 4 did not produce.
-  **Both discriminators are already in the ledger record `bust-triage` reads**
-  (`gap`, `mtok`) and neither is consulted — this is a mechanization, not a
+  **The discriminators are computable from the ledger record `bust-triage`
+  already reads** and none is consulted — this is a mechanization, not a
   research task.
+  **CORRECTED 2026-08-07, before this shipped:** the design below first named
+  `mtok === 0` as one of two discriminators. `mtok` is the missed portion as
+  read from the transcript diagnostic and DEFAULTS TO 0 when that diagnostic
+  was never read — the same degraded default `cause: other` carries. The
+  2026-08-06 17:39-17:40 event is booked three times with `mtok` 0, 0 and
+  182,728: one event, three values. A check keyed on it would have fired on
+  every unresolved row. Use the surviving read instead — `ctx` - `cc`, both
+  present on the record, no default to be fooled by.
   Design: before any `classToRow` call, test `gap` against the TTL in force and
-  `mtok === 0`; on a hit, return row 27 and stop. The TTL is read from the
+  a surviving read (`ctx` - `cc`) at or near zero; on a hit, return row 27 and
+  stop. The TTL is read from the
   capture's own wire, never assumed — a hardcoded 3600 is the remembered-number
   error the dev-loop names.
   Verifier, red-first: this stamp must return row 27, and the 2026-08-06
-  18:08:32Z stamp (`mtok` 267,780, sub-minute gap) must still return row 4 —
-  a guard that reclassifies both is worse than none.
+  18:08:32Z stamp (surviving read 15,224 of `ctx` 315,821, sub-minute gap)
+  must still return row 4 — a guard that reclassifies both is worse than none.
+  Third side, added by the 2026-08-07 01:00:55Z walk: the 336k event there had
+  a surviving read of 39,713 that exactly equalled its predecessor's write, and
+  must classify as GROWTH rather than as either row — a guard that folds it in
+  with the idle case has learned "large `cc`" instead of "prefix lost".
   **ORDERING — do the verdict-enum entry FIRST.** Row 27's status cell leads
   with `ACCEPT` today purely to stay readable, so this guard's row-27 hit
   currently prints verdict KNOWN-OPEN. After the enum entry lands it prints
