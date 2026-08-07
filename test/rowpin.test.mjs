@@ -27,7 +27,19 @@ import { promisify } from "node:util";
 
 import { pinAsks, buildRowPins, PIN_CAP, PIN_FAMILIES } from "../tools/replay.mjs";
 import { writeRowPins, buildRowPinDocument, rowPinName, reduceRowPins } from "../tools/gate-live.mjs";
-import { scanDocument, scanName, CLASSES } from "../tools/absence-scan.mjs";
+import { scanDocument, scanName, CLASSES, exemptClasses } from "../tools/absence-scan.mjs";
+
+// What the PUSH SCAN sees, not what `scanDocument` sees. The scanner's own
+// walker drops findings of a class the path is exempt from; a test calling
+// scanDocument bare takes a second route to the verdict and grades a pin more
+// harshly than the boundary does — the entry-path shape this repo collects.
+// The subtraction is class-scoped, so a non-exempt class still fails here.
+function walkerFindings(doc, file) {
+  const exempt = exemptClasses(file);
+  const findings = scanDocument(doc, { file, classes: CLASSES }).findings;
+  if (exempt === "all") return [];
+  return findings.filter((f) => !exempt.has(f.class));
+}
 
 const run = promisify(execFile);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -232,6 +244,39 @@ test("the writer scrubs — proven on a planted sentinel, with the scrub OFF as 
   }
 });
 
+// The instant a pin carries is the join to the bust ledger, so it is written
+// at full precision and the `live-timestamp` class is exempted for this
+// directory ALONE — the same standing LEDGER-*.json's `lastHarvest` fields
+// have, and for the same reason: the timestamps ARE the artifact's content.
+// It exposes nothing new — the threat matrix quotes live instants like
+// "05:24:31.780Z" in tracked prose on every event walk.
+//
+// Booked and built 2026-08-07 on an operator correction, and the correction is
+// the point: this session put the choice up as "leave it until a join actually
+// needs the hour", which is the deferral that costs about what doing it costs.
+// The exemption is CLASS-scoped, so the two bites below are one rule with its
+// own limit — the exempted class stops firing here, and every other class
+// still does.
+test("BITE — the rowpins exemption covers live-timestamp and NOTHING else", () => {
+  const exempt = exemptClasses("test/fixtures/harvested/rowpins/rowpin-s-abc-1-0-forwarded-stability.json");
+  assert.notEqual(exempt, "all", "a path-wide exemption is a hole with a comment on it");
+  assert.equal(exempt.has("live-timestamp"), true, "the instant is the artifact's content here");
+  for (const c of ["capture-uuid", "capture-key-prefix", "raw-content"]) {
+    assert.equal(exempt.has(c), false, `${c} must still fire inside rowpins/`);
+  }
+});
+
+test("BITE — the exemption does not leak outside the rowpins directory", () => {
+  for (const p of [
+    "test/fixtures/harvested/rowpin-s-abc-1-0-forwarded-stability.json",
+    "test/fixtures/harvested/pinned-s-abc-1-2.json",
+    "docs/directives/robustness-threat-matrix.md",
+  ]) {
+    const exempt = exemptClasses(p);
+    assert.equal(exempt === "all" ? true : exempt.has("live-timestamp"), false, `${p} keeps live-timestamp`);
+  }
+});
+
 test("BITE — a live capture key or instant never reaches the pin", async () => {
   const dir = await mkdtemp(join(tmpdir(), "rowpin-ids-"));
   try {
@@ -239,14 +284,16 @@ test("BITE — a live capture key or instant never reaches the pin", async () =>
     const body = await readFile(join(dir, res.files[0]), "utf-8");
     assert.equal(body.includes("s-live-key"), false, "the capture key rides as a token, never verbatim");
     assert.equal(body.includes("rec-id"), false, "so does the capture record id");
-    assert.equal(body.includes("2026-08-06T09:59:00.000Z"), false, "no live wall-clock instant");
     const doc = JSON.parse(body);
-    assert.equal(doc.dayUtc, "2026-08-06", "day precision survives as provenance");
+    assert.equal(doc.instantUtc, "2026-08-06T09:59:00.000Z", "the instant is the join key to the bust ledger");
     assert.equal(doc.key, doc.sides.cur.keyToken);
     // The hygiene classes themselves, run over the document as the push scan
     // would: a claim of sanitization counts only as its checker's output.
-    const scan = scanDocument(doc, { file: "test/fixtures/harvested/rowpins/x.json", classes: CLASSES });
-    assert.deepEqual(scan.findings, [], "absence classes green on the written pin");
+    assert.deepEqual(
+      walkerFindings(doc, "test/fixtures/harvested/rowpins/x.json"),
+      [],
+      "absence classes green on the written pin, as the push scan reads it",
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -422,7 +469,7 @@ test("END TO END — a departure row on a synthetic capture pins the bytes behin
     assert.equal(body.includes(SENTINEL), false, "the scrub is live on the real path");
     const doc = JSON.parse(body);
     assert.deepEqual(
-      scanDocument(doc, { file: "test/fixtures/harvested/rowpins/x.json", classes: CLASSES }).findings,
+      walkerFindings(doc, "test/fixtures/harvested/rowpins/x.json"),
       [],
       "a pin produced by the real path passes the hygiene classes",
     );
@@ -463,7 +510,7 @@ test("the committed row pin is well formed and self-describing", async () => {
     assert.ok(Object.keys(PIN_FAMILIES).includes(doc.family), `${name}: family`);
     assert.notEqual(doc.checks.bytesMatchRow, false, `${name}: a rejected pin must never have been committed`);
     assert.deepEqual(
-      scanDocument(doc, { file: `test/fixtures/harvested/rowpins/${name}`, classes: CLASSES }).findings,
+      walkerFindings(doc, `test/fixtures/harvested/rowpins/${name}`),
       [],
       `${name}: hygiene classes`,
     );

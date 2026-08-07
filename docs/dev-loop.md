@@ -28,7 +28,42 @@ morning froze its evidence into a fixture that proved nothing, and the only
 reason it was caught is that someone happened to replay it. Two of the four
 gaps that day were missing STEPS, not missing knowledge.
 
-Three rules bind every line, so no runbook has to restate them.
+Four rules bind every line, so no runbook has to restate them.
+
+**Zero — the first instinct on any finding is to IMPROVE THE TOOLING, now.**
+Standing operating procedure (operator, 2026-08-07), stated first because it
+governs what happens to every other rule's output. A finding is not a thing to
+weigh; it is a thing to fix. The default is to build it in this session, in the
+same breath as noticing it. "Later", "when it matters", "if we ever need it"
+are not decisions — they are the shape a finding takes on its way to being
+forgotten, and the operator's words for why: *later we may forget and this
+never surfaces and we never fix it.*
+
+The measured instance is this file's own author, hours before the rule existed.
+The row-pin machinery shipped at DAY precision because the absence scan's
+`live-timestamp` class fires on a full instant; the residual was correctly
+NAMED, which satisfies the deferral convention — and the session then
+recommended *"leave it until a join actually needs the hour"*. That
+recommendation fails the arithmetic rule three already contains: the fix was a
+class-scoped exemption plus one field, so booking it cost what building it
+cost. Corrected the same hour (`instantUtc`, plus two bites asserting the
+exemption covers `live-timestamp` and nothing else) — and the correction came
+from the operator, not from the session that wrote the residual, which is the
+recorded miss shape.
+
+Three things make this operational rather than a slogan:
+
+- **The deferral wears prudence.** "Not needed yet", "leave it until it bites"
+  read as judgment; that is the costume the grounding rules name. The test is
+  the one-question one below — what does BOOKING this cost, against DOING it?
+  "About the same" means the postponement was never a decision.
+- **Deciding not to build is still legitimate** where the fix is genuinely
+  large and the two costs diverge. What is never legitimate is the third exit:
+  an observation in a reply, with no commit and no entry.
+- **A finding put to the operator as a DECISION carries the BUILD as its
+  default recommendation.** Surfacing a real decision is right; recommending
+  the deferral is the failure. Say what you would build and why — not what you
+  would skip.
 
 **One — an event that maps to no existing threat-matrix row is UNCLASSIFIED.**
 Stop and mint the row; that is the alarm the matrix's convergence note relies

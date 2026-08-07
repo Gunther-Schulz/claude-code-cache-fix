@@ -251,15 +251,24 @@ export function rowPinName(keyToken, pin) {
   return `rowpin-${keyToken}-${pin.n}-${pin.index}-${pin.indexSpace}-${pin.family}.json`;
 }
 
-// Live wall-clock instants do not survive into the harvested corpus — the
-// `live-timestamp` absence class is defined over exactly this directory, and
-// the corpus convention is that a date rides as documentation (the growth
-// artifacts carry theirs in the filename) while the instant does not. So the
-// pin keeps DAY precision and joins to its row by (key token, n, prevN,
-// index), which identifies the pair inside the capture exactly. What it does
-// NOT support is an hour-precision join to a bust ledger; that residual is
-// named rather than fixed by softening the class.
-const dayOf = (ts) => (typeof ts === "string" && /^\d{4}-\d{2}-\d{2}T/.test(ts) ? ts.slice(0, 10) : null);
+// The pin carries its FULL instant, because that instant is the join to the
+// bust ledger — the one identifier a reader needs to ask "which event was
+// this". (key token, n, prevN, index) identifies the pair inside its capture
+// exactly and says nothing about which bust it belongs to.
+//
+// The `live-timestamp` absence class is exempted for this directory alone,
+// class-scoped, the same standing LEDGER-*.json's `lastHarvest` fields have:
+// the timestamps ARE the artifact's content. It exposes nothing the repo does
+// not already publish — the threat matrix quotes live instants in tracked
+// prose on every event walk.
+//
+// CORRECTED 2026-08-07, hours after this shipped at DAY precision with the
+// residual "named rather than fixed by softening the class". Naming it was
+// right and stopping there was not: the exemption is not a softening, and the
+// session that wrote the residual then recommended leaving it "until a join
+// actually needs the hour" — a deferral costing exactly what doing it costs,
+// which is the standing rule in docs/dev-loop.md this instance produced.
+const instantOf = (ts) => (typeof ts === "string" && /^\d{4}-\d{2}-\d{2}T/.test(ts) ? ts : null);
 
 /** Everything a pin carries that is an identifier or an instant, replaced.
  *
@@ -309,7 +318,7 @@ export function buildRowPinDocument(pin) {
     // forwards as 360).
     indexSpace: pin.indexSpace,
     indexOwner: pin.indexOwner,
-    dayUtc: dayOf(ts) ?? dayOf(pin.sides?.cur?.ts) ?? null,
+    instantUtc: instantOf(ts) ?? instantOf(pin.sides?.cur?.ts) ?? null,
     // The row VERBATIM apart from its identifiers, because a summary of a row
     // cannot answer the question the row was kept for.
     row: keyToken ? { ...row, keyToken } : row,

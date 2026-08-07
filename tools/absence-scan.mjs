@@ -62,9 +62,27 @@ import { basename } from "node:path";
 // exemption was written, and it is exactly how this file's own ledger kept 94
 // session identifiers out of sight. `classes: "all"` remains expressible but
 // nothing uses it, deliberately.
+//
+// rowpins/ — the daily sweep's row evidence pins (gate-live.mjs). Same ONE
+// class and the same reason as the ledger above: the instant a pin carries is
+// its join to the bust ledger, i.e. the artifact's content rather than a
+// residue of one. Scoped to the DIRECTORY, so a pin that ever carried a
+// session id, a capture key or unscrubbed text still fires — the pins' own
+// suite asserts both halves, that live-timestamp is exempt here and that
+// nothing else is.
+//
+// Added 2026-08-07 on an operator correction. It shipped hours earlier at day
+// precision with the hour-join written down as a named residual, and this
+// session then recommended leaving it "until a join actually needs the hour" —
+// which is the deferral the dev-loop's standing tooling rule now forbids by
+// name, since booking it cost what building it cost.
 export const ALLOWLIST = [
   {
     pattern: /(^|\/)test\/fixtures\/harvested\/LEDGER-[^/]*\.json$/,
+    classes: ["live-timestamp"],
+  },
+  {
+    pattern: /(^|\/)test\/fixtures\/harvested\/rowpins\/[^/]*\.json$/,
     classes: ["live-timestamp"],
   },
 ];

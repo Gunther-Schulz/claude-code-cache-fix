@@ -311,7 +311,13 @@ the first entry below.
   (`forwardedPresentInRawAt=null -> OURS`). Two residues, both booked
   below: the doctor's three-answer verdict for the new `rowPins` fields
   (dotfiles), and `harvest-scrub-relations` not recursing into the new
-  subdirectory. Original entry follows. This is the permanent answer to the
+  subdirectory. A THIRD residue was closed the same day rather than
+  booked (`instantUtc`, and the class-scoped `live-timestamp` exemption
+  for `rowpins/`): the pin shipped at day precision with the hour-join
+  named as a residual, and this session put it to the operator
+  recommending deferral — the operator's correction is now rule ZERO in
+  `docs/dev-loop.md`, and it is the reason that residue is a commit and
+  not a bullet. Original entry follows. This is the permanent answer to the
   expiry finding above, and the reason no ceiling is the answer:
   eviction is continuous by construction, so the fix is not to keep
   captures longer but to stop needing them. Two halves, and the
