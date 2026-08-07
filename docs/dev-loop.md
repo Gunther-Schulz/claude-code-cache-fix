@@ -230,6 +230,46 @@ named-and-unbooked check stayed in the cost ordering, because each is a gap
 rather than a lie. A partition that admitted all five would have been the
 land-grab the other two partitions warn about.
 
+**Inside the partition, order by REACH — how much downstream evidence the lie
+corrupts.** Added 2026-08-07, at the first derivation that applied this
+partition to the WHOLE list rather than to the five items that happened to be
+in front of it. Measured over all 57 READY entries, the admission test above
+admits **twenty**. That is not a loose reading — each of the twenty is a
+measured wrong verdict with a consumer, and the seven candidates that failed
+the test were dropped (gaps, and human misreads of correct output). The
+population really is that shape, because the two preceding days were spent
+finding instrument defects. But a partition holding a third of the list has
+stopped ordering anything, which is precisely the land-grab the guards were
+written to prevent — arriving through the front door rather than through a
+sloppy predicate, which is why the guards did not catch it.
+
+Tightening admission was the wrong repair and was tried first: any predicate
+narrow enough to cut twenty down to five excludes true members arbitrarily,
+i.e. it would rank a genuinely lying instrument below a cheap one for no
+stated reason. The discriminator was already in the partition's own
+justification — "an instrument that lies corrupts the evidence every other
+signal reads" — and had simply never been used to ORDER. So rank by what the
+corrupted output feeds, nearest-to-the-decision first:
+
+1. **Instruments feeding EVENT DISPOSITION** — which class an event belongs
+   to, which row it maps to, what it cost. A lie here mis-files the class, and
+   every mitigation designed afterwards is designed against the wrong
+   evidence. Nothing downstream can recover it, because the downstream checks
+   all assume the class is right.
+2. **Instruments feeding the GATES** — whether a shipped mitigation holds. A
+   lie here passes a broken mitigation, which is expensive and loud, and it
+   only matters once the class above is correct.
+3. **Instruments feeding the BACKLOG and the process** — ordering, counts,
+   staleness. A lie here mis-orders work and is recovered at the next
+   derivation.
+
+The tier is read off the item's CONSUMER, which is a fact the entry already
+states, not a fresh judgment at ranking time — the same property signal 1 has.
+Two items in the same tier fall back to signals 2–4 as usual. And the guard
+that keeps this honest is the one the partition already carries: an instrument
+whose output nothing booked consumes is not in the partition at all, so
+"tier 3" is never a parking space — it is a claim that something reads it.
+
 Two rules that keep this from rotting. **An item nobody can rank is a finding
 about the item** — if its evidence does not support any of signals 2–4, it is
 not decision-complete and the gap is in the entry, not in the rubric. And
