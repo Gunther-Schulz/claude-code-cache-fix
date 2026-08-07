@@ -245,6 +245,67 @@ the first entry below.
 
 ## Open
 
+- **READY — a TRANSCRIPT query instrument. It is the least-tooled data
+  source we own, measured, and it is where every cache investigation
+  actually lives.** Two enumerations run 2026-08-07:
+  an instrument inventory across the three repos (100 instruments) and
+  a probe census over readable session history since 2026-07-28
+  (1,258 ad-hoc analysis commands matching a closed five-pattern set).
+  Cross-read, `transcripts` is served by **exactly one** instrument, a
+  QUERY — no GATE, no REPORT, no DOCTOR — while **36 hand-written
+  probes** went at transcripts directly. By contrast `live_captures`
+  has 9 instruments across all four labels.
+  Both numbers are FLOORS, not estimates: the census found no session
+  data at all before 2026-07-28, `claude-worktime` has no readable
+  main transcript, and 15 of 39 session identities survive only as
+  orphaned subagent fragments. The true hand-probe count is higher.
+  The recurring shape is stable across the 36 and is what makes this
+  designable rather than vague: open `~/.claude/projects/**/<sid>.jsonl`,
+  walk it line by line, pull `message.usage` and
+  `message.diagnostics.cache_miss_reason` per entry, join to a
+  timestamp or an ordinal. Tonight's whole investigation was that
+  query, run four times by hand.
+  Design: extend `tools/cold-events.mjs` rather than add a file — it
+  already reads transcripts, already dedupes rows into API CALLS by
+  `requestId` (the property every hand probe got wrong or omitted),
+  and already carries the conversation-grouping discipline. Add a
+  `--rows` mode emitting one record per API call: timestamp, `sid`,
+  `requestId`, `messageId`, `cache_creation`, `cache_read`,
+  `input_tokens`, `ctx`, `cache_miss_reason.{type,cache_missed_input_tokens}`,
+  and `stop_reason` — as JSONL, filterable by time window. The
+  extend-don't-add rule applies with force here: a fresh file re-earns
+  the requestId dedupe from zero, and that is exactly the property
+  whose absence produced the 2026-08-07 false ❄.
+  Verifier, red-first: over the frozen transcript archive at
+  `~/.claude/cold-design-evidence-2026-08-07/`, `--rows` reports the
+  01:00 session's two API calls (cc 39,711 / cc 335,933) as TWO rows
+  where the raw transcript carries more, and names the dropped
+  duplicate count; and it reproduces, in one command, the
+  `previous_message_not_found` diagnostics at 03:31:59Z and 03:32:01Z
+  that took a hand probe to find.
+
+- **READY (small) — the own-event-log timestamp correlator: a RULE
+  stated in three places with no tool behind it.** `docs/dev-loop.md`
+  ("Rule out ourselves — attribution starts at our own event logs")
+  makes this mandatory before any external attribution, and the
+  hand-step census of 2026-08-07 found it hand-applied identically in
+  the runbooks with `tool=grep` and no wrapper — one of 14 RECURRING
+  un-mechanized steps found across runbooks, dev-loop and the matrix.
+  The rule already carries its own precedent for why it matters: three
+  "400 must end with a user message" failures were verbally booked as
+  harness noise twice, and our own suppression log had preceded all
+  three by ~1 second.
+  Design: `tools/own-logs-at.mjs <epoch|ISO> [--window-sec N]` — greps
+  every `~/.claude/cache-fix-snapshots/*-events.jsonl` and the
+  extension event logs for entries inside the window, printing them
+  time-ordered with their source file, and exiting 0 with an explicit
+  "no entries in window" line rather than silence (the three-answer
+  rule: an empty window is a stated result, never a blank).
+  Verifier, red-first: run at the 2026-07-30 suppression incident's
+  stamp and the suppressed-duplicate entries must appear; run at a
+  quiet stamp and the output must say so in words. A run that prints
+  nothing at all is a failing run.
+
 - **READY — `docs/dev-loop.md`: a FIELD can be a default rather than a
   measurement, and 0 is where the two are indistinguishable. FIVE instances in
   one session.** The file already teaches that a number names its tap point and
@@ -564,11 +625,34 @@ the first entry below.
   CONSEQUENCE of the false fire, not independent evidence for it. FORK-NOTES
   already says `other` means "no cause available"; what is new is that it is
   also what a non-event looks like.
-  **Not written into claude-worktime's backlog by this session** because the
-  fix interacts with the two entries already moved there (the idle-cause
-  hit-booking route and the contradictory-class dedupe) and all three want
-  designing together. That is a NAMED next step, not a deferral: whoever picks
-  up those two adds this as the third, or books it there first.
+  **DESIGNED AND MOVED 2026-08-07 — the body now lives in
+  `~/dev/Gunther-Schulz/claude-worktime/BACKLOG.md`; do not execute from
+  here.** Designing the three together showed one root cause (the detector
+  has no notion of an API CALL) and three dependency-ordered layers, and the
+  pass falsified two claims stated above, both by reading rather than
+  reasoning:
+  - **"the predicate is applied per TRANSCRIPT ROW" is true of OUR scanner,
+    not of worktime's live path.** `claude-worktime.sh:1259-1279` takes its
+    usage from the statusline stdin payload
+    (`.context_window.current_usage.*`), so the predicate runs per statusline
+    RENDER. Sixteen fields are extracted and none is an identifier, so a
+    `requestId` dedupe — which is what `tools/cold-events.mjs` does and why it
+    is right — is not available at that tap without reading the transcript.
+    The conclusion (poisoned baseline, not a bad threshold) survives intact;
+    the mechanism sentence did not.
+  - **worktime already HAS a dedupe guard, and its holes are the defect.**
+    `claude-worktime.sh:1640-1652` skips the block when `(cr,cc)` matches the
+    previous pair — but the file is `${LOGDIR}/.token_prev`, ONE file for every
+    session (verified on disk beside the per-session `.cold_<sid>` files). A
+    concurrent session's write between two renders of one call lets the
+    duplicate through. So the repair is a per-session identity guard, not a
+    new mechanism.
+  Also found while measuring: the contradictory-class pair RECURRED at
+  2026-08-07 03:32:02Z (427,535 booked twice, `hit`/`idle` then
+  `cost`/`resume`) with **no retraction at all**, where the 23:59 instance got
+  one. Live and growing, not historical. Two further entries were booked there
+  from this pass (the 45 unreadable ledger lines' writer; the missing ledger
+  query surface).
 
 - **READY — `bust-triage` has no idle/TTL guard, so a 216k eviction answered
   KNOWN-OPEN row 4.** Measured 2026-08-06 23:59:10Z (s-captureAL, matrix row 27,
