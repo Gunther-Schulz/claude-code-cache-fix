@@ -219,16 +219,29 @@ already carries — never by trusting that two counters agree.
     the megabytes; text-predicate classes do not, and their durable
     evidence is a SYNTHETIC fixture.
 
-12. **Assign the alias before writing the capture into tracked
-    prose.** `[GRADUATE -> the push-side scan blocks LATE; a pre-write
-    check or an alias-assigning helper would block EARLY. Not yet
-    booked — the trigger condition is a second occurrence of the
-    amend cost, which has now happened twice]` This repo is public. A capture is named by ALIAS
-    (`s-captureA`, `s-captureB`, …), never by filename or session id,
-    and the mapping goes in `~/.claude/cache-fix-capture-aliases.json`
-    (mode 0600, never tracked) at the moment you first write it down.
-    Skipping this is caught at push, after the bytes are already in a
-    commit, and costs an amend.
+12. **Claim the alias before writing the capture into tracked prose,
+    and claim it with the tool:**
+
+    ```sh
+    node tools/alias-claim.mjs <capture-file|session-id> --note "<why>"
+    node tools/alias-claim.mjs --show <capture-file|session-id>
+    ```
+
+    This repo is public. A capture is named by ALIAS (`s-captureA`,
+    `s-captureB`, …), never by filename or session id; the mapping
+    lives in `~/.claude/cache-fix-capture-aliases.json` (mode 0600,
+    never tracked). Skipping it is caught at push, after the bytes are
+    already in a commit, and costs an amend.
+    The tool replaced the hand-run "take the next unused alias" on
+    2026-08-07, and the reason is worth knowing rather than trusting:
+    that instruction is a read-modify-write, sound for one writer and
+    unsound the moment lanes run in parallel. Three were live that day;
+    two briefs handed out the same next-unused alias and one lane
+    registered it. An alias resolving to two captures is not stale, it
+    is wrong in a way no reader can detect. Claiming is exclusive and
+    idempotent per capture, so a retry returns the same alias rather
+    than burning one — and `--show` answers UNCLAIMED rather than
+    printing nothing.
 
 13. **Reach a terminal state and record it** (next section). Then run
     the four closing questions from `docs/dev-loop.md` — in

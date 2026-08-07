@@ -707,7 +707,11 @@ about a NEW capture.
 **Aliases are resolvable, or they are write-only labels.** The mapping lives at
 `~/.claude/cache-fix-capture-aliases.json` — machine-local by nature, mode
 0600, never tracked, because it holds precisely the bytes the convention keeps
-out of git. Assign the next unused alias at the moment you first write it into
+out of git. **Claim it with `node tools/alias-claim.mjs <capture> --note "…"`,
+not by hand** — "take the next unused alias" is a read-modify-write, and it
+collided the first day three lanes ran in parallel (two briefs, one alias, one
+registered): an alias resolving to two captures is wrong in a way no reader can
+detect. The tool is exclusive and idempotent per capture. Claim it at the moment you first write it into
 tracked prose and record it there. Entries that cite an alias also quote the
 timestamps and request ordinals they rest on, which is the join of last resort:
 aliases A..AA predate the registry and can no longer be resolved at all.
