@@ -79,6 +79,16 @@ continue-or-restart decision at depth. It is not "the work looks done"
    booking", "the gap is", "I'd carry forward", "worth watching" — and
    require each to resolve to a commit, a backlog entry, or a file
    change made in this session.
+   **Two known holes in this step, both measured 2026-08-07 and both now
+   covered elsewhere — read them as limits on what step 5 proves, not as
+   work to redo here.** It scans REPLIES only, so a gap named inside a
+   backlog entry's own prose is invisible to it by construction (observed:
+   an entry ending "that is a separate item, not this one", which booked
+   nothing and surfaced only when the operator asked). And it runs at
+   CLOSE, so a gap named hours earlier stays unbooked until then and is
+   lost outright if the session dies first. The reply half is booked as a
+   Stop hook in the dotfiles backlog; the file-prose half belongs to the
+   `backlog-lint` lane in this repo's own backlog.
    `[GRADUATE -> the named-and-unbooked check; BACKLOG ready]`
 
 6. **Re-read numbers this session committed into durable artifacts.**
