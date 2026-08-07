@@ -206,6 +206,82 @@ the first entry below.
 
 ## Open
 
+- **READY — `bust-triage` has no idle/TTL guard, so a 216k eviction answered
+  KNOWN-OPEN row 4.** Measured 2026-08-06 23:59:10Z (s-captureAL, matrix row 27,
+  minted by that walk): `gap` 22,702 s against `"ttl":"1h"` on the session's own
+  wire, `mtok` 0, transcript `previous_message_not_found` — the cached entry
+  expired five hours before the request existed, and the pair's real container
+  migration at host 104 is a true statement that is not the cause. `classToRow`
+  saw census `replace/edit`, returned 4, and the verdict inflated row 4's
+  evidence with an instance row 4 did not produce.
+  **Both discriminators are already in the ledger record `bust-triage` reads**
+  (`gap`, `mtok`) and neither is consulted — this is a mechanization, not a
+  research task.
+  Design: before any `classToRow` call, test `gap` against the TTL in force and
+  `mtok === 0`; on a hit, return row 27 and stop. The TTL is read from the
+  capture's own wire, never assumed — a hardcoded 3600 is the remembered-number
+  error the dev-loop names.
+  Verifier, red-first: this stamp must return row 27, and the 2026-08-06
+  18:08:32Z stamp (`mtok` 267,780, sub-minute gap) must still return row 4 —
+  a guard that reclassifies both is worse than none.
+
+- **READY — the verdict enum has no value for CONTROLLED-CAUSE, so a row whose
+  honest status is a controlled cause must be written as `ACCEPT` to stay
+  readable.** Found 2026-08-06 minting row 27: `statusKind` returned null for
+  "CONTROLLED-CAUSE …", which makes the row STATUS-UNREADABLE — a documented
+  stop-here — on a row that needs no stopping. Worked around by leading the
+  cell with `ACCEPT` (row 21's precedent for "no local mitigation possible"),
+  with the reason written into the cell so the next author does not re-derive
+  it. `VERDICT_BY_KIND`'s own comment declines to widen the vocabulary
+  unilaterally because it has consumers outside that file — which is exactly
+  why this is an entry and not a patch.
+  **This is an operator decision, stated rather than taken:** add a fifth
+  verdict value (CONTROLLED) and update every consumer, or keep four and make
+  the ACCEPT-with-explanation form the written convention. Recommendation: the
+  first — `runbooks/bust-appears.md` already lists CONTROLLED-CAUSE as one of
+  four terminal dispositions, so the enum is the thing that is short, and the
+  workaround makes a controlled cause read as an open one on every future walk.
+  Consumers to enumerate before either: `grep -rn VERDICT_BY_KIND\\\|statusKind`.
+
+- **READY (operator-side, claude-worktime) — `previous_message_not_found` booked
+  a hit, which the 2026-07-31 fix's contract says never happens.** Measured
+  2026-08-06 23:59:10Z. That walk (matrix, "Event walk 2026-07-31") states the
+  resume-split as: `previous_message_not_found` never books a hit. Today the
+  same diagnostic booked `k:"hit"` cause `idle`. The fix held on the route it
+  was built for — the late-bind `other`-cause duplicate at 23:59:15Z WAS
+  retracted by a `hit-retract` — and missed the `idle` route entirely. One
+  guard, two routes, the shape `docs/dev-loop.md` tabulates.
+  **AMENDS the booked triple-booking entry above**, which is about duplicate
+  COUNTS: here the duplicates carry contradictory CLASSES — `k:"hit"` (bust,
+  a prevention target) and `k:"cost"`/`resume` (controlled, explicitly not
+  triageable), both `cc` 215,873. A dedupe on (msgId, reqId) as that entry
+  designs must therefore also decide WHICH CLASS WINS, and picking silently is
+  how a real bust gets exempted or a controlled cost becomes a prevention
+  target. Verifier: this event must survive as exactly one row, classified
+  controlled, and the 23:59:15Z retraction must still apply.
+
+- **READY (small) — the reconcile check fires when the two instruments AGREE.**
+  `bust-triage` warned "LEDGER says idle, TRANSCRIPT says
+  previous_message_not_found — instrument disagreement" on 2026-08-06 23:59:10Z.
+  They name one eviction: `idle` is the ledger's gap-derived cause, the other is
+  the API's diagnostic. The check compares two fields from different vocabularies
+  as though they were one. Design: an equivalence table for the pairs that mean
+  the same event (`idle`/`previous_message_not_found` is the first entry), and
+  the warning fires only outside it. Verifier: red on this stamp today, and it
+  must STILL fire on the genuine disagreement the check was built for — the
+  raced `other` read that never upgraded (matrix row 4's 2026-08-05 datapoint
+  names an instance), which is the known positive it must not lose.
+
+- **CORROBORATION 2026-08-06 for the conservation-exemption entry below — a
+  SECOND capture, same shape.** That entry closes "Not claimed here — different
+  capture, and a candidate is not a match." Gating s-captureAL under the serving
+  config exits 123 with `n=91 lost: in[96] (system): 1 of 1 unit` +
+  `invented: out[96] (system)` — the identical lost+invented system-unit pair on
+  a capture whose resume was walked independently (matrix row 24, 17:40:16Z).
+  Two captures, one shape, both containing a resume. Still NOT the byte-level
+  proof: that remains the `normalizeSessionStartText` comparison the entry
+  names. What this changes is the odds, not the evidence class.
+
 - **READY (small) — `backlog-lint` calls its own header findings advisory and
   the suite treats them as blocking, so the CLI trains its reader to walk into
   a push gate.** Measured 2026-08-06, on me: the tool printed
