@@ -22,6 +22,15 @@
 // is an error and nothing is written — a partially-applied order is worse than none,
 // and a silently-skipped anchor is a ranked item that quietly stopped being ranked.
 //
+// AND an anchor resolving to a COMPLETED entry is the same class, found 2026-08-07
+// by a dispatch that was cut from a ranked head whose own body read
+// `(DONE — f2ab6d0, 2026-08-07)`. The anchor still matched its bullet, so neither
+// this tool nor `backlog-lint` said anything: the zero/multi checks below ask
+// WHETHER the anchor resolves, never WHAT it resolves to, and backlog-lint skips
+// any entry whose header carries no live grade — which a correctly re-graded DONE
+// header does not. Four of thirty-three anchors were in that state, and the list
+// they sit in is what a dispatcher reads to pick the next piece of work.
+//
 // Usage:
 //   node tools/backlog-order.mjs            # rewrite BACKLOG.md in ranked order
 //   node tools/backlog-order.mjs --check    # exit 1 if not already in ranked order
@@ -73,8 +82,47 @@ export function splitOpen(text) {
   return { lines, head, tail, pre, bullets: bullets.map((b) => b.join("\n")) };
 }
 
+// DEFINITION, written before the assertion that uses it. A bullet's GRADE is the
+// marker word that OPENS its header line, immediately after `- **` and an optional
+// `(`. An entry is RESOLVED when that word is one of the four resolution markers
+// `tools/backlog-lint.mjs` already defines (RES_WORD and DONE_LINE there) — the
+// repo's own vocabulary, imported as a definition rather than re-derived from what
+// today's file happens to contain. Resolved work is not build work, so it cannot
+// hold a rank.
+//
+// HEADER ONLY, deliberately: backlog-lint matches its markers anywhere in a body,
+// which is right for "this header contradicts its own body" and wrong here — the
+// corpus writes qualified sub-steps ("ATTRIBUTE DONE <date>") inside entries that
+// are correctly still open, and a body-wide match would fire on those. A guard
+// that fires on legitimate work trains the override reflex that kills it.
+const RESOLVED_GRADE = /^- \*\*\(?(DONE|RESOLVED|FIXED|BUILT)\b/;
+
+/** The resolution marker opening this bullet's header, or null if it is live work. */
+export function resolvedGrade(bullet) {
+  const m = RESOLVED_GRADE.exec(bullet.split("\n", 1)[0]);
+  return m ? m[1] : null;
+}
+
 /** Ranked bullets first (anchor order), then the rest in their existing order. */
 export function reorder(bullets, anchors) {
+  // Reported together rather than one throw per anchor: the list is read and
+  // repaired as a whole, and a first-one-only error costs a run per stale anchor.
+  const completed = [];
+  for (const a of anchors) {
+    const hits = bullets.filter((b) => b.includes(a));
+    if (hits.length !== 1) continue; // zero/multi is the existing errors' business
+    const grade = resolvedGrade(hits[0]);
+    if (grade) completed.push(`${grade}: ${a}`);
+  }
+  if (completed.length) {
+    throw new Error(
+      `${completed.length} rank anchor(s) resolve to a COMPLETED entry — resolved work is not `
+        + `build work and cannot hold a rank. Remove the anchor from the '## Build order' block; `
+        + `removal only, re-derive to re-rank. Resolution grades checked: DONE, RESOLVED, FIXED, `
+        + `BUILT.\n${completed.map((c) => `  ${c}`).join("\n")}`,
+    );
+  }
+
   const taken = new Set();
   const ranked = anchors.map((a) => {
     const hits = bullets
