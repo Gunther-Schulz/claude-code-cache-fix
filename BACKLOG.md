@@ -382,10 +382,42 @@ the first entry below.
   session's first tool call). No `cache_miss_reason` exists anywhere in that
   transcript. A ❄ fired anyway, and the event entered the ledger as
   `k:"hit"` — a preventable-loss class.
-  Discriminator, computable from fields the record already carries:
-  `ctx` - `cc` is the surviving read, and comparing it against the
-  predecessor's write separates the three live cases cleanly where a `cc`
-  threshold does not — 39,713 (growth) / 2 (TTL loss) / 15,224 (real bust).
+  **ROOT CAUSE FOUND 2026-08-07, and it is not the threshold — it is the
+  BASELINE.** The predicate (`cc >= 0.6 x prev_ctx` AND `cr <= prev_ctx / 5`,
+  `claude-worktime.sh:1694`) is applied per TRANSCRIPT ROW, and one assistant
+  message is written across several rows carrying identical usage. Row 2 is
+  therefore compared against row 1 OF THE SAME MESSAGE, whose `ctx` already
+  contains the big write. Measured: state file reads
+  `count=1 … lastcc=335933 lasthit_t=1786064455 lastcause=other`, `gap` 15 s,
+  so the baseline turn was 01:00:40 — and the 01:00:40 and 01:00:54 transcript
+  rows both read `cc` 335,933 / `cr` 39,711. Baseline `prev_ctx` becomes
+  375,646 instead of 39,713, so identical numbers read as "re-wrote 89% of a
+  375k context, read back 10%" and both tests pass by wide margins.
+  **This unifies two entries.** The same duplicate-row shape explains the
+  triple-booking already moved to that repo (three rows, one `msgId`, three
+  hits) AND this false fire (two rows, one message, poisoned baseline). One
+  root cause: rows are not API calls.
+  **The fix already exists in a sibling implementation, which is how this was
+  confirmed rather than argued.** `tools/cold-events.mjs` in THIS repo
+  re-implements the identical predicate (`r.cr <= Math.floor(prevCtx / 5)`,
+  line 184) and dedupes by `requestId` first, with its own comment recording
+  why ("38 rows for 12 API calls… requestId is the API call"). Run against the
+  same transcript it returns **`events: 0`** over 13 calls — zero cold
+  rewrites where worktime booked a 336k hit. Two independent measurements of
+  one quantity diverging is the cheap reach detector, and here it names the
+  defect and the remedy in one step.
+  Secondary, and still worth having once the baseline is right: `ctx` - `cc`
+  is the surviving read, and comparing it against the predecessor's write
+  separates the three live cases where a `cc` threshold cannot — 39,713
+  (growth) / 2 (TTL loss) / 15,224 (real bust).
+  **And the cause ladder has no branch for "the cache was fine."** It runs
+  idle -> model -> residual, assuming a cold rewrite happened and only asking
+  why; the residual names a real cause only if `cache_miss_reason` is
+  readable, and here the transcript contains none because there was no miss.
+  So a false fire can only ever be labelled `other` — the label is a
+  CONSEQUENCE of the false fire, not independent evidence for it. FORK-NOTES
+  already says `other` means "no cause available"; what is new is that it is
+  also what a non-event looks like.
   **Not written into claude-worktime's backlog by this session** because the
   fix interacts with the two entries already moved there (the idle-cause
   hit-booking route and the contradictory-class dedupe) and all three want
