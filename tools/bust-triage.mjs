@@ -30,6 +30,10 @@
 // THREE answers, never two (dev-loop.md, "A checker has THREE answers"):
 //   MITIGATED     known class, shipped extension, absorbed as designed
 //   KNOWN-OPEN    known class, matrix row N, still open — prints the status
+//   CONTROLLED-CAUSE  known class with no mitigation to build: the cost is
+//                 the operator's own (an idle gap past the TTL, a resume).
+//                 A terminal disposition in runbooks/bust-appears.md, not a
+//                 softer KNOWN-OPEN — see VERDICT_BY_KIND.
 //   UNCLASSIFIED  no matrix row matches. THE payload of this tool: an
 //                 unrecognised class is the one thing no existing check
 //                 reports, and it is how a whole bust class stayed invisible.
@@ -572,6 +576,14 @@ export function migrationVerdict(pair) {
  */
 const STATUS_RULES = [
   [/^(?:OPEN|RE-OPENED)\b/, "OPEN"],
+  // NAME COLLISION, carried here deliberately rather than resolved by
+  // renaming: `CONTROLLED = new Set(["cost","resume"])` above classifies
+  // LEDGER EVENTS by their `k` — a cost the operator caused. THIS token is a
+  // row STATUS on the other axis: the CLASS has no mitigation to build. Row
+  // 27 (idle-gap TTL expiry) fires on an event the ledger classified `bust`,
+  // so the two are independent and both words stay. Read the axis, not the
+  // word.
+  [/^CONTROLLED(?:-CAUSE)?\b/, "CONTROLLED"],
   [/^(?:MITIGATED|CLOSED)\b/, "MITIGATED"],
   [/^ACCEPT(?:ED)?\b/, "ACCEPTED"],
   [/^PARTIAL\b/, "PARTIAL"],
@@ -602,12 +614,29 @@ export function statusKind(status) {
  * KNOWN-OPEN overstates it in the other direction and is chosen anyway:
  * where the verdict must be wrong, it is wrong in the direction that makes
  * someone read the row rather than the direction that says "nothing for you
- * to do". (Rejected: a fifth verdict value for this — the vocabulary has
- * consumers outside this file, so widening it is a routed change.)
+ * to do".
+ *
+ * CONTROLLED is the FIFTH value, added 2026-08-07 (operator decision
+ * 2026-08-06, BACKLOG). The comment that stood here rejected it on "the
+ * vocabulary has consumers outside this file", and that worry was MEASURED
+ * before the widening rather than trusted: `grep -rn 'VERDICT_BY_KIND|
+ * statusKind|statusVerdict'` over this repo returns this file, three
+ * `test/bust-triage-*.test.mjs`, the matrix and BACKLOG prose; the only
+ * verdict-list consumer outside the repo is the operator's own
+ * `dotfiles/cache-fix/CLAUDE.local.md` (prose, not code). `dossier.mjs`
+ * imports from this file but its only `verdict` reference is
+ * `s.migration.verdict` — the byte-match census's EXACT/EXTENDED
+ * vocabulary, a different axis. No `--json` consumer exists outside this
+ * repo.
+ * WHY it had to exist rather than staying an ACCEPT: `bust-appears.md`'s
+ * terminal states already list CONTROLLED-CAUSE beside MITIGATED, so the
+ * enum was the short thing; and writing a controlled cause as ACCEPT makes
+ * it read as OPEN work on every future walk.
  */
 export const VERDICT_BY_KIND = {
   OPEN: "KNOWN-OPEN",
   MITIGATED: "MITIGATED",
+  CONTROLLED: "CONTROLLED-CAUSE",
   ACCEPTED: "KNOWN-OPEN",
   PARTIAL: "KNOWN-OPEN",
   OBSERVED: "KNOWN-OPEN",
