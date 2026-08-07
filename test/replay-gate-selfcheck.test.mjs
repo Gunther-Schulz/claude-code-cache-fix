@@ -2011,13 +2011,10 @@ test("conservation: BITE — a REAL loss in the same message as a legitimate sub
   assert.deepEqual(cv.exemptions.filter((x) => x.kind === "lost"), [],
     "a partially-explained message is not a partially-excused one");
 
-  // NAMED RESIDUE, reported rather than silently accepted: the row's own count
-  // reads `2 of 2`, not `1 of 2` — the violation branch prints the whole lost
-  // list, so a reader sees both units named as missing when one of them has a
-  // declared, byte-verified explanation. That is pre-existing behaviour shared
-  // with clauses (f) and (g) and is NOT changed here: narrowing it edits the
-  // rows those two clauses emit as well, which is outside this clause's
-  // settled design. Surfaced to the dispatcher as its own item.
+  // NAMED RESIDUE, still open at this commit: the row's own count reads
+  // `2 of 2`, naming a unit that has a declared, byte-verified explanation as
+  // missing. Shared with clauses (f) and (g); closed by the count narrowing
+  // that follows this commit.
 });
 
 test("conservation: BITE — prose that merely QUOTES the marker is not covered", () => {
@@ -2151,6 +2148,98 @@ test("conservation: the flag rides EVERY violation kind, not just `lost`", () =>
   assert.equal(sup.violations[0].kind, "suppressed-without-copy");
   assert.equal(sup.violations[0].declarationsUnavailable, true);
   assert.match(sup.violations[0].detail, /declarations unavailable/);
+});
+
+// =====================================================================
+// Clause (f) narrowed to PER UNIT
+// =====================================================================
+//
+// DEFINITION, from the gate's own clause (f) text, which already claimed this
+// and did not do it: a lost unit is accounted for by a declared
+// fresh-session-sort rewrite when THAT unit's own pre-image maps, through the
+// extension's `rewriteBlockText`, to a post-image present in F. One pre-image
+// to one post-image, exactly as clauses (d) and (h) work.
+//
+// What it did instead: `[...rewritten].some((h) => fHashes.has(h))` — a
+// predicate that never looks at `u`. One verified rewrite anywhere in the
+// message therefore exempted EVERY other lost unit of that message, including
+// bytes no transform ever touched. An over-firing exemption is a gate that
+// under-fires, and this one sits on the safety side of "safety outranks
+// cache": a genuinely dropped message block rode out next to a legitimate
+// relocation and reported clean.
+//
+// Found by mutation M3 while building clause (h): installing exactly this
+// any-of shape in the new clause turned its own narrowness bite red, which is
+// what pointed at the old one.
+import { rewriteBlockText } from "../proxy/extensions/fresh-session-sort.mjs";
+
+// `SKILLS_BLOCK` above is a fixed string for the relocation tests; this clause
+// needs blocks whose SORT ORDER differs, so the rewrite is a real one.
+const skillsInOrder = (order) =>
+  `<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n${
+    order.map((n) => `- ${n}: does ${n}`).join("\n")}\n</system-reminder>\n`;
+
+const fss = (extra = {}) => ({
+  freshSessionSortStats: { relocated: [{ type: "skills" }], reserved: [], targetIndex: 0 },
+  ...extra,
+});
+
+test("conservation: BITE — a real loss beside a declared fresh-session-sort rewrite still fires", () => {
+  const before = skillsInOrder(["zeta", "alpha"]);
+  const after = rewriteBlockText("skills", before);
+  assert.notEqual(after, before, "arrange: the extension really does rewrite this block");
+
+  // Two lost units: the rewritten block's pre-image (accounted) and an
+  // ordinary reminder CC sent that simply never reached the wire (not).
+  const inM = [{
+    role: "user",
+    content: [txt(before), txt("<system-reminder>\nreal content CC sent\n</system-reminder>")],
+  }];
+  const outM = [{ role: "user", content: [txt(after)] }];
+  const cv = conservationViolations(entry(0, inM, outM, fss()), new Set(), new Set());
+
+  assert.equal(cv.violations.length, 1, "the rewrite is accounted; the dropped block is not");
+  assert.equal(cv.violations[0].kind, "lost");
+  assert.deepEqual(cv.exemptions.filter((x) => x.kind === "lost"), [],
+    "a partially-explained message is not a partially-excused one");
+});
+
+test("conservation: a declared rewrite with NOTHING else lost is still exempt on both sides", () => {
+  // The narrowing must not break the case clause (f) exists for. Same fixture,
+  // minus the real loss.
+  const before = skillsInOrder(["zeta", "alpha"]);
+  const after = rewriteBlockText("skills", before);
+  const cv = conservationViolations(entry(0,
+    [{ role: "user", content: [txt(before)] }],
+    [{ role: "user", content: [txt(after)] }],
+    fss()), new Set(), new Set());
+
+  assert.deepEqual(cv.violations, []);
+  assert.deepEqual(cv.exemptions.map((x) => x.kind).sort(), ["invented", "lost"]);
+  for (const x of cv.exemptions) assert.match(x.exemptReason, /fresh-session-sort:rewrite/);
+});
+
+test("conservation: BITE — the exempt unit is the one that was REWRITTEN, not merely a neighbour", () => {
+  // The sharpest form: the message carries TWO relocatable blocks, and only one
+  // of them reaches the wire. Under the any-of shape both were excused because
+  // one post-image was present. Per-unit, the one whose own post-image is
+  // missing stays a violation — which is what makes the exemption a
+  // verification rather than a message-wide amnesty.
+  const skillsBefore = skillsInOrder(["zeta", "alpha"]);
+  const skillsAfter = rewriteBlockText("skills", skillsBefore);
+  const otherBefore = skillsInOrder(["yankee", "bravo"]);
+  const otherAfter = rewriteBlockText("skills", otherBefore);
+  assert.notEqual(otherAfter, otherBefore, "arrange: the second block is rewritten too");
+  assert.notEqual(skillsAfter, otherAfter, "arrange: the two post-images are distinct");
+
+  const inM = [{ role: "user", content: [txt(skillsBefore), txt(otherBefore)] }];
+  const outM = [{ role: "user", content: [txt(skillsAfter)] }]; // otherAfter never forwarded
+  const cv = conservationViolations(entry(0, inM, outM, fss()), new Set(), new Set());
+
+  assert.equal(cv.violations.length, 1);
+  assert.equal(cv.violations[0].kind, "lost");
+  assert.match(cv.violations[0].detail, /of 2 unit/,
+    "one of the message's two units is unaccounted for");
 });
 
 test("conservation: BITE — an EXEMPTION never carries the flag, because it had a declaration by construction", () => {

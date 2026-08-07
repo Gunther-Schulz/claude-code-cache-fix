@@ -2731,21 +2731,34 @@ const isDeclaredStrip = (u) => u.text !== null && isClearArtifact(u.text);
 //     Restricted to blocks the extension actually touches
 //     (`isRelocatableBlock`): a rewrite of anything else is not this
 //     extension's and stays a violation.
-function freshSessionSortRewriteHashes(msg) {
+//
+//     PER BLOCK, pre-image hash -> post-image hash. It returned a bare SET of
+//     post-images until 2026-08-07, and the caller's predicate then never
+//     looked at the unit it was excusing: one verified rewrite anywhere in the
+//     message exempted EVERY other lost unit of that message, bytes no
+//     transform had touched included. An over-firing exemption is a gate that
+//     under-fires, and this one sat on the safety side of "safety outranks
+//     cache". The mapping is what makes the narrowing expressible at all —
+//     the same shape clauses (d) and (h) already had.
+function freshSessionSortRewritePairs(msg) {
   const c = msg?.content;
   const blocks = typeof c === "string" ? [{ type: "text", text: c }] : Array.isArray(c) ? c : [];
-  const out = new Set();
+  const out = new Map();
   for (const b of blocks) {
     if (b?.type !== "text" || typeof b.text !== "string") continue;
     if (!isRelocatableBlock(b.text)) continue;
     const after = rewriteBlockText(getBlockType(b.text), b.text);
     if (after === b.text) continue;
-    // Through the gate's OWN unit function, so the hash is computed exactly as
-    // the F-side computed it — units are UNWRAPPED (blockUnitsFull strips the
-    // <system-reminder> envelope), and hashing the wrapped text here would
-    // silently never match. Two hashing definitions for one comparison is the
-    // shape that makes an exemption quietly dead.
-    for (const u of blockUnitsFull({ content: [{ type: "text", text: after }] })) out.add(u.hash);
+    // Through the gate's OWN unit function on BOTH sides, so the hashes are
+    // computed exactly as the R- and F-side loops compute them — units are
+    // UNWRAPPED (blockUnitsFull strips the <system-reminder> envelope), and
+    // hashing the wrapped text here would silently never match. Two hashing
+    // definitions for one comparison is the shape that makes an exemption
+    // quietly dead.
+    const before = blockUnitsFull({ content: [b] });
+    const afterUnits = blockUnitsFull({ content: [{ type: "text", text: after }] });
+    if (before.length !== 1 || afterUnits.length !== 1) continue;
+    out.set(before[0].hash, afterUnits[0].hash);
   }
   return out;
 }
@@ -2833,7 +2846,7 @@ function identityNormalizationSubstitutionPairs(msg) {
     // post-image are hashed exactly as the R- and F-side loops hash them —
     // units are UNWRAPPED (blockUnitsFull strips the <system-reminder>
     // envelope) and hashing the wrapped text on one side would make the
-    // exemption quietly dead. Same trap freshSessionSortRewriteHashes
+    // exemption quietly dead. Same trap freshSessionSortRewritePairs
     // documents one function up.
     const before = blockUnitsFull({ content: [b] });
     const afterUnits = blockUnitsFull({ content: [{ ...b, text: after }] });
@@ -3010,11 +3023,20 @@ export function conservationViolations(e, seen, seenRewrites) {
       const strippable = stripDeclared ? contentStripUnitHashes(msg) : new Set();
       const stripExempt = strippable.size ? lost.filter((u) => strippable.has(u.hash)) : [];
       // Clause (f): fresh-session-sort's declared rewrites, re-derived here.
-      const rewritten = fssDeclared ? freshSessionSortRewriteHashes(msg) : new Set();
+      // Per UNIT: a lost unit is excused only when ITS OWN pre-image maps to a
+      // post-image that is on the wire — never because some other block of the
+      // same message was rewritten successfully.
+      const rewritten = fssDeclared ? freshSessionSortRewritePairs(msg) : new Map();
       const rewriteExempt = rewritten.size
-        ? lost.filter((u) => !stripExempt.includes(u) && [...rewritten].some((h) => fHashes.has(h)))
+        ? lost.filter((u) => !stripExempt.includes(u)
+            && rewritten.has(u.hash) && fHashes.has(rewritten.get(u.hash)))
         : [];
-      for (const h of rewritten) {
+      // The F-side registry and clause (e)'s cross-request one keep taking
+      // EVERY verified rewrite, not just the exempted ones: a post-image that
+      // descends from CC's own bytes through a transform this gate re-derived
+      // and saw on the wire is not invented, whatever else happened to the
+      // message it came from. Only the R-side selection narrows here.
+      for (const h of rewritten.values()) {
         if (!fHashes.has(h)) continue;
         fssExemptFHashes.add(h);
         // Verified HERE, on this request: the transform re-derived from CC's
