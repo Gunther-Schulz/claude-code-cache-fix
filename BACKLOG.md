@@ -179,14 +179,39 @@ CORROBORATED the same day by a SECOND, independently briefed enumeration
 67 violation + 107 exemption — over the three captures and reproduced the
 sweep's counts from the live serving gates: 107 DECLARED, 66
 UNDECLARED-RECONSTRUCTIBLE, **1 REAL-LOSS, 0 UNREADABLE**, and it resolved the
-66 into the same three mechanisms already booked beside this line. This is the
-cheap reach detector the corpus names: two independently built measurements of
-one quantity agreeing, where a lone instrument's green is indistinguishable
-from its blind spot. Two controls make the REAL-LOSS count a bound rather
-than a reading — the coverage scan was proven on a known positive (the same
-bytes ARE found in the neighbouring requests), and replay's `outBodySha`
-equals the proxy's own recorded `outSha` for that request, 51/51 across every
-pinned row, so the drop was on the real wire and not a replay artifact.
+66 into the same three mechanisms already booked beside this line.
+
+**The independence is PARTIAL, and the split is the whole value of the line.**
+Corrected 2026-08-07 within the hour, on the enumerating lane's own report
+against its own result — the first version of this paragraph called it "two
+independently built measurements of one quantity agreeing" and cited the
+corpus's reach detector. That claims more than the basis carries. Every
+presence decision in the enumeration went through the SAME exported
+`conservationViolations`, and every transform through the same extension
+exports (`rewriteBlockText`, `getBlockType`, `normalizeBlockText`,
+`normalizeSessionStartText`, `isClearArtifact`). Two readings of ONE gate
+agreeing is not two instruments agreeing; a shared reach limit is invisible to
+both by construction. So:
+
+  - INDEPENDENT of the gate, and therefore load-bearing: the coverage walk and
+    the `outBodySha` == the proxy's own recorded `outSha` check (51/51 across
+    every pinned row, which is what rules out a replay artifact rather than a
+    live drop). Neither shares parentage with `conservationViolations`. The
+    REAL-LOSS row rests on these.
+  - NOT independent, and therefore corroboration only in the weak sense: the
+    three mechanism identifications. They are a second reading of one gate.
+
+**And the REAL-LOSS count is a FLOOR, not a bound** — the opposite of what the
+first version of this line said. The reason is the enumerating lane's own
+discarded probe: it labelled all 31 clause-(b) rows REAL-LOSS, returned a
+definite verdict with a TRUE stated basis, and read as clean — it had simply
+never looked inside list-content `tool_result` blocks, so bytes that were on
+the wire scanned as absent. A reach limit of that shape cannot be seen from
+inside the probe, and cannot be seen by a second instrument that shares it.
+Any attribution resolving "is this content on the wire" by scanning
+`block.text` and string `block.content` only carries the same defect. Until a
+walk that does not share that reach has been run over every row, "1 REAL-LOSS"
+is the number the reaching instruments could find, not the number that exists.
 Worth keeping from its method: its FIRST probe labelled all 31 of the
 clause-(b) rows REAL-LOSS, because a substring check could not see bytes
 inside list-content `tool_results`. A coverage walk replaced it and the 31
@@ -326,33 +351,6 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
 (dispatch-guards `dev-notes/`, already written there).
 
 ## Open
-
-- **READY — `restart-exposure --match` takes a TEXT predicate, and an
-  extension-behaviour change's affected class is usually STRUCTURAL, so the
-  rule that says "price it against live sessions, not the corpus" has no
-  instrument for the commonest case.** Found 2026-08-07 while shipping the
-  suppression fix (403dde9, matrix row 28). That change's affected class is
-  "a conversation where a suppression is firing with nothing restoring the
-  block" — a predicate over canonical state and forwarded bytes, not over
-  text. Without `--match` the tool answers ~815k across all seven live
-  sessions, which is the worst case and is not the number the decision
-  needs; the real number came from the morning sweep's conservation rows
-  (zero live sessions in the class), which is a DIFFERENT instrument
-  answering a NEIGHBOURING question — it reports on the last sweep's
-  snapshot, not on the sessions live at restart time, and a session that
-  entered the class since 11:50Z is invisible to it. Two sessions have now
-  reached for a text predicate and settled for a proxy.
-  Design, decided: `--match` keeps its text form and gains a
-  `--match-class <name>` that runs the named replay predicate over each live
-  session's own capture tail — the classes are the conservation kinds the
-  gate already emits (`suppressed-without-copy`, `invented`, `lost`), so the
-  vocabulary is `replay.mjs`'s, not a new one. Verifier, red-first: point it
-  at capture s-captureAE (which carries the row) and at s-captureAO (which
-  does not) and require the two to separate; the arrangement exists today
-  because both captures are preserved at
-  `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
-  decision for a structural class can quote a per-session number with the
-  class named.
 
 - **READY — the SIXTEEN cache-fix-owned paths leave `~/.claude/`; the
   registry was one of seventeen.** Operator-ranked FIRST, 2026-08-07.
@@ -1278,6 +1276,72 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   list — a set difference, no judgment. Verifier, red-first: plant a sentinel
   identifier in a file inside `rowpins/`, run the suite, and require red;
   today it passes green, which is the defect.
+
+- **READY — graduate the coverage walk into `tools/`: "is this content on the
+  wire" must not be answered by a substring scan, and today every such answer
+  is one.** Found 2026-08-07 by the conservation enumeration lane, reported
+  against its own delivered result after its lane had closed.
+  **The measured defect, in a probe that read as CLEAN.** Its first R-side
+  probe labelled all 31 clause-(b) rows REAL-LOSS. It returned a definite
+  verdict for every row with a stated basis, and the basis was TRUE — it had
+  simply never looked inside list-content `tool_result` blocks, so bytes that
+  were on the wire scanned as absent. A coverage walk replaced it and all 31
+  flipped to fully covered. Thirty-one phantom content losses, one instrument
+  away from being reported as a mitigation defect.
+  **Why this is a tooling item and not a war story.** The failure is invisible
+  from inside the probe — its output is a definite label, not an error — and
+  invisible to a second instrument that shares the reach limit, so the usual
+  cross-check does not reach it. Any attribution resolving presence by scanning
+  `block.text` and string `block.content` only carries the same defect, in the
+  direction that OVER-reports loss. That is the shape of the hand-rolled
+  presence probes written here so far, and the walk that survives contact
+  exists only as `cover-rows.py` in a session scratchpad, perishable by
+  construction.
+  **Design, decided.** Graduate it to `tools/`, extending an existing tool
+  rather than adding a file if one fits — `bust-triage` and `replay` both
+  already own capture+dump plumbing. Interface, from the working probe: given a
+  capture, a `replay.mjs --dump-forwarded` dump and a rows JSON, report per-row
+  coverage percent plus the uncovered remainder VERBATIM — the remainder is
+  what turns "X% covered" into an attribution. It walks every container the
+  wire can carry, list-content `tool_result` blocks included; the enumeration
+  of container shapes is the thing being graduated, since that is exactly what
+  the substring scan got wrong.
+  **Verifier, red-first, and the known positive is real and in hand:** the 31
+  clause-(b) rows. The graduated walk must report them fully covered, and a
+  mutation removing list-content descent must send them back to REAL-LOSS.
+  That mutation is the bite, and it removes the exact condition the check
+  names rather than adjacent machinery.
+  **Then re-run it over the rows already attributed.** The Tier B corroboration
+  line now says "1 REAL-LOSS" is a FLOOR rather than a bound; this is the
+  instrument that converts it back into a bound. That re-run is the entry's
+  done-criterion, not an optional follow-up.
+
+- **READY — `restart-exposure --match` takes a TEXT predicate, and an
+  extension-behaviour change's affected class is usually STRUCTURAL, so the
+  rule that says "price it against live sessions, not the corpus" has no
+  instrument for the commonest case.** Found 2026-08-07 while shipping the
+  suppression fix (403dde9, matrix row 28). That change's affected class is
+  "a conversation where a suppression is firing with nothing restoring the
+  block" — a predicate over canonical state and forwarded bytes, not over
+  text. Without `--match` the tool answers ~815k across all seven live
+  sessions, which is the worst case and is not the number the decision
+  needs; the real number came from the morning sweep's conservation rows
+  (zero live sessions in the class), which is a DIFFERENT instrument
+  answering a NEIGHBOURING question — it reports on the last sweep's
+  snapshot, not on the sessions live at restart time, and a session that
+  entered the class since 11:50Z is invisible to it. Two sessions have now
+  reached for a text predicate and settled for a proxy.
+  Design, decided: `--match` keeps its text form and gains a
+  `--match-class <name>` that runs the named replay predicate over each live
+  session's own capture tail — the classes are the conservation kinds the
+  gate already emits (`suppressed-without-copy`, `invented`, `lost`), so the
+  vocabulary is `replay.mjs`'s, not a new one. Verifier, red-first: point it
+  at capture s-captureAE (which carries the row) and at s-captureAO (which
+  does not) and require the two to separate; the arrangement exists today
+  because both captures are preserved at
+  `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
+  decision for a structural class can quote a per-session number with the
+  class named.
 
 - **READY — the byte-gate's `anyPresent` probe can never return false for a
   RECURRING reminder text, so a pruned host is reported MISMATCH instead of
