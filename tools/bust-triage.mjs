@@ -748,6 +748,129 @@ export function classToRow(censusClass, migration) {
 }
 
 /**
+ * Thousands separators without a locale. `toLocaleString` reads
+ * `LC_NUMERIC`, which on this machine is `de_DE` while `LANG` is `en_US`, so
+ * the same call prints `22.702` here and `22,702` elsewhere — a number a
+ * check greps for must not depend on the shell that started the process.
+ */
+const num = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+/**
+ * A `cache_control.ttl` string as seconds, or null for anything this does not
+ * recognise. Null is an answer: a TTL that cannot be read must not fall back
+ * to 3600 — the remembered-number error the dev-loop names, and the whole
+ * point of reading the wire.
+ */
+export function ttlSeconds(v) {
+  const m = /^(\d+)([smh])$/.exec(String(v ?? ""));
+  if (!m) return null;
+  const n = Number(m[1]);
+  return m[2] === "h" ? n * 3600 : m[2] === "m" ? n * 60 : n;
+}
+
+/**
+ * The longest cache TTL declared on this pair's OWN wire, or null when none
+ * is. Both requests are walked because a breakpoint moves between them, and
+ * `cache_control` sits in two places — on a `system` block and on message
+ * content (measured on three live captures, 2026-08-07: three sites each,
+ * `{"type":"ephemeral","ttl":"1h"}`).
+ *
+ * LONGEST rather than shortest, deliberately: the claim being made downstream
+ * is that the entry EXPIRED, and that claim is only safe against the most
+ * generous TTL on the wire. Taking the shortest would over-fire on a session
+ * carrying a 5m breakpoint beside a 1h one.
+ */
+export function wireTtlSeconds(pair) {
+  let best = null;
+  const walk = (v) => {
+    if (v === null || typeof v !== "object") return;
+    if (Array.isArray(v)) { for (const x of v) walk(x); return; }
+    for (const [k, x] of Object.entries(v)) {
+      if (k !== "cache_control") { walk(x); continue; }
+      const s = ttlSeconds(x?.ttl);
+      if (s !== null && (best === null || s > best)) best = s;
+    }
+  };
+  walk(pair?.before?.body);
+  walk(pair?.after?.body);
+  return best;
+}
+
+// A TTL expiry removes the cached entry WHOLE, so the surviving read
+// (`ctx` - `cc`) is zero up to the API's own accounting rounding. "At or near
+// zero" needs a bound, and both edges of it are measured rather than picked:
+//   * the rounding on a true expiry is 2 tokens of `ctx` 215,875 = 0.001%
+//     (2026-08-06 23:59:10Z, matrix row 27's own datapoint);
+//   * the smallest REAL remainder in the same window is a system+tools read of
+//     12,366 of `ctx` 320,567 = 3.86% (2026-08-06 16:35:15Z); the other two
+//     events that week read 4.82% and 10.57%.
+// Three orders of magnitude separate the two populations, and the bound sits
+// between them rather than at either measured edge. The absolute floor is for
+// a small context, where a fraction of `ctx` would be under the rounding.
+export const EXPIRY_READ_FLOOR_TOKENS = 100;
+export const EXPIRY_READ_FRACTION = 0.001;
+
+/**
+ * Did this bust's cached entry die of OLD AGE rather than of a prefix change?
+ *
+ * The defect (BACKLOG, measured 2026-08-06 23:59:10Z): a 216k eviction after a
+ * 22,702 s gap against the session's own `"ttl":"1h"` answered KNOWN-OPEN
+ * **row 4**, because `classToRow` saw census `replace/edit` and nothing asked
+ * whether there had been a cached entry left to bust. The pair's real
+ * container migration at host 104 is a true statement that is not the cause,
+ * and the verdict inflated row 4's evidence with an instance row 4 did not
+ * produce.
+ *
+ * Two conditions, both from matrix row 27's own definition and both
+ * load-bearing (each is exercised by a bite that removes the other):
+ *   * `gap` exceeds the TTL IN FORCE, read off the pair's own wire;
+ *   * the surviving read is at or near zero — an expiry leaves nothing.
+ * `mtok` is deliberately NOT one of them: it defaults to 0 whenever the
+ * transcript diagnostic was not read, so a check keyed on it fires on every
+ * unresolved row (the 2026-08-06 17:39 event is booked three times with
+ * `mtok` 0, 0 and 182,728 — one event, three values).
+ *
+ * Returns a CODE rather than a boolean, so a guard that could not run says
+ * which input it lacked instead of quietly declining to fire — the third
+ * answer at the guard's own level, and the shape `pairFailure` and
+ * `transcriptMiss` already use in this file.
+ */
+export function idleExpiry(bust, pair) {
+  const gap = bust?.gap, ctx = bust?.ctx, cc = bust?.cc;
+  if (!Number.isFinite(gap)) {
+    return { code: "no-gap", row: null,
+             detail: "cannot test idle expiry: this ledger record carries no `gap`" };
+  }
+  if (!Number.isFinite(ctx) || !Number.isFinite(cc)) {
+    return { code: "no-tokens", row: null,
+             detail: `cannot test idle expiry: the ledger record carries no ctx/cc pair ` +
+                     `(ctx ${ctx ?? "-"}, cc ${cc ?? "-"}), so the surviving read is unknown` };
+  }
+  const ttl = wireTtlSeconds(pair);
+  if (ttl === null) {
+    return { code: "no-ttl", row: null,
+             detail: `cannot test idle expiry: no cache_control ttl on this pair's own wire ` +
+                     `(gap was ${num(gap)} s) — the TTL is never assumed` };
+  }
+  const read = ctx - cc;
+  const limit = Math.max(EXPIRY_READ_FLOOR_TOKENS, Math.round(ctx * EXPIRY_READ_FRACTION));
+  if (gap <= ttl) {
+    return { code: "not-idle", row: null, ttl, gap, read,
+             detail: `gap ${num(gap)} s is inside the wire's ttl ${ttl} s — the entry was still there` };
+  }
+  if (read > limit) {
+    return { code: "read-survived", row: null, ttl, gap, read,
+             detail: `gap ${num(gap)} s exceeds the wire's ttl ${ttl} s, but ${num(read)} tokens ` +
+                     `survived (ctx ${num(ctx)} - cc ${num(cc)}, limit ${num(limit)}) — the entry ` +
+                     `was there and something else lost it` };
+  }
+  return { code: "fired", row: 27, ttl, gap, read,
+           detail: `gap ${num(gap)} s > ttl ${ttl} s (read off this pair's own cache_control) and ` +
+                   `only ${num(read)} token(s) survived (ctx ${num(ctx)} - cc ${num(cc)}, ` +
+                   `limit ${num(limit)}) — the cached entry expired before the request existed` };
+}
+
+/**
  * The SECOND classification axis: the transcript's own cause.
  *
  * The census classifies the MESSAGE array, so a tools-driven bust — whose
@@ -885,10 +1008,30 @@ export async function triage(bust) {
                 `(${mig.verdict}${mig.sub ? `/${mig.sub}` : ""})` }
     : { step: "migration", ok: true, detail: "no reminder container migration in this pair" });
 
+  // The idle/TTL guard runs BEFORE any classToRow call (BACKLOG item T,
+  // matrix row 27). Order is the whole point: `classToRow` answers "what
+  // changed in this pair", which is a real question with a true answer even
+  // when there was no cached entry left to change. Asked second it would have
+  // already filed the event against row 4 — which is exactly what happened on
+  // 2026-08-06 23:59:10Z. The census and migration STEPS above still print,
+  // because "the pair carries a container migration" stays true and the
+  // reader should see both facts side by side.
+  const idle = idleExpiry(bust, pair);
+  if (idle.code === "fired") {
+    steps.push({ step: "idle-ttl", ok: true, detail: idle.detail });
+  } else if (idle.code === "no-gap" || idle.code === "no-tokens" || idle.code === "no-ttl") {
+    // A guard that could not run says so. Silence here would be a check that
+    // reports clean by never firing — the vacuous pass this repo keeps
+    // finding. It stays quiet on `not-idle`/`read-survived`, which are
+    // DECISIONS rather than absences: a note on every run is a note nobody
+    // reads.
+    steps.push({ step: "idle-ttl", ok: false, detail: idle.detail });
+  }
+
   // Two axes, in order: the message census first (it is the more specific
   // statement), then the transcript's own cause. UNCLASSIFIED requires BOTH
   // to miss — see causeToRow's docstring for why the second axis exists.
-  let rowN = classToRow(cls, mig);
+  let rowN = idle.code === "fired" ? idle.row : classToRow(cls, mig);
   if (rowN === null) rowN = causeToRow(tc?.type, pair);
   if (rowN === null) {
     return { bust, steps, verdict: "UNCLASSIFIED",
