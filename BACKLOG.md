@@ -262,30 +262,52 @@ the first entry below.
   it. `VERDICT_BY_KIND`'s own comment declines to widen the vocabulary
   unilaterally because it has consumers outside that file — which is exactly
   why this is an entry and not a patch.
-  **This is an operator decision, stated rather than taken:** add a fifth
-  verdict value (CONTROLLED) and update every consumer, or keep four and make
-  the ACCEPT-with-explanation form the written convention. Recommendation: the
-  first — `runbooks/bust-appears.md` already lists CONTROLLED-CAUSE as one of
-  four terminal dispositions, so the enum is the thing that is short, and the
-  workaround makes a controlled cause read as an open one on every future walk.
-  Consumers to enumerate before either: `grep -rn VERDICT_BY_KIND\\\|statusKind`.
+  **DECIDED (operator, 2026-08-06): add the fifth verdict value.** The
+  alternative — keep four and make the ACCEPT-with-explanation form the written
+  convention — was put beside it and declined, because
+  `runbooks/bust-appears.md` already lists CONTROLLED-CAUSE as one of four
+  terminal dispositions, so the enum is the short thing, and the workaround
+  makes a controlled cause read as an open one on every future walk.
+  The comment's stated worry ("consumers outside this file") was MEASURED
+  before deciding rather than trusted: `grep -rn 'VERDICT_BY_KIND\|statusKind'`
+  over this repo and dotfiles returns `tools/bust-triage.mjs` (definition,
+  `statusVerdict`, `triage()`, the printer's STATUS-UNREADABLE case, and the
+  header comment at lines 37-39), `test/bust-triage-status-enum.test.mjs`, and
+  the verdict list in `runbooks/bust-appears.md` step 2. `tools/dossier.mjs`
+  imports from bust-triage but its only `verdict` reference is
+  `s.migration.verdict` — the byte-match census's EXACT/EXTENDED vocabulary, a
+  different axis. Nothing in dotfiles calls bust-triage; no `--json` consumer
+  exists outside this repo. Reach: one code file, one test, one runbook line.
+  Design: `STATUS_RULES` gains `[/^CONTROLLED(?:-CAUSE)?\b/, "CONTROLLED"]`,
+  `VERDICT_BY_KIND.CONTROLLED = "CONTROLLED-CAUSE"`, and the runbook's verdict
+  list gains it. Name collision to carry in the comment, NOT to resolve by
+  renaming: `bust-triage` already has `CONTROLLED = new Set(["cost","resume"])`
+  which classifies LEDGER EVENTS by their `k`. A row STATUS of CONTROLLED-CAUSE
+  is a different axis — the CLASS has no mitigation — and row 27 fires on an
+  event the ledger classified `bust`. Two axes, one word; the comment says so
+  where both are read.
+  **HARD ORDERING CONSTRAINT, and it is why this cannot be split:** matrix row
+  27's status cell currently leads with `ACCEPT` solely to stay readable. The
+  cell flips to `CONTROLLED-CAUSE` in the SAME commit as the enum change —
+  flipped earlier the row reads STATUS-UNREADABLE, flipped later the enum ships
+  with no row exercising it.
+  Verifier, red-first and three-sided: `matrixRow(27)` must return kind
+  CONTROLLED and verdict CONTROLLED-CAUSE after; the existing enum test's
+  assertions for all nine current kinds must still pass unchanged (a widening
+  that perturbs an existing mapping is a different change); and a junk status
+  must still return STATUS-UNREADABLE, since the mandatory-unmatched-case
+  property is the thing the whole enum was rebuilt for on 2026-08-06.
 
-- **READY (operator-side, claude-worktime) — `previous_message_not_found` booked
-  a hit, which the 2026-07-31 fix's contract says never happens.** Measured
-  2026-08-06 23:59:10Z. That walk (matrix, "Event walk 2026-07-31") states the
-  resume-split as: `previous_message_not_found` never books a hit. Today the
-  same diagnostic booked `k:"hit"` cause `idle`. The fix held on the route it
-  was built for — the late-bind `other`-cause duplicate at 23:59:15Z WAS
-  retracted by a `hit-retract` — and missed the `idle` route entirely. One
-  guard, two routes, the shape `docs/dev-loop.md` tabulates.
-  **AMENDS the booked triple-booking entry above**, which is about duplicate
-  COUNTS: here the duplicates carry contradictory CLASSES — `k:"hit"` (bust,
-  a prevention target) and `k:"cost"`/`resume` (controlled, explicitly not
-  triageable), both `cc` 215,873. A dedupe on (msgId, reqId) as that entry
-  designs must therefore also decide WHICH CLASS WINS, and picking silently is
-  how a real bust gets exempted or a controlled cost becomes a prevention
-  target. Verifier: this event must survive as exactly one row, classified
-  controlled, and the 23:59:15Z retraction must still apply.
+- **MOVED 2026-08-06 to `~/dev/Gunther-Schulz/claude-worktime/BACKLOG.md` —
+  `previous_message_not_found` booked a hit, against the 2026-07-31 fix's own
+  contract.** Not dropped and not done: the work is in claude-worktime and a
+  session there reads that file, not this one. Body lives there; it is not
+  restated here, because a copy drifts from its original and a survey built
+  from copies inherits the drift. Evidence for it stays here where it was
+  measured — matrix row 27's datapoint, 2026-08-06 23:59:10Z.
+  First instance of this repo's "the backlog closes dispatchable" rule
+  (`runbooks/session-close.md` step 8) catching a wrong carrier: that file
+  read "Ready: (empty)" while two of its items sat in this one.
 
 - **READY (small) — the reconcile check fires when the two instruments AGREE.**
   `bust-triage` warned "LEDGER says idle, TRANSCRIPT says
@@ -923,22 +945,19 @@ the first entry below.
   demonstrated by mutating the substitution to change extra bytes and watching
   the gate go red through the exemption.
 
-- **READY (operator-side, claude-worktime) — one bust is booked THREE times, so
-  every cost total derived from the ledger is inflated by an unknown factor.**
-  Measured 2026-08-06: the 204,513-token event appears as three `k:"hit"` rows
-  (17:39:59Z, 17:40:08Z, 17:40:16Z), and the transcript's three rows with
-  `cc=204513` all carry the SAME `msgId` and `reqId` — one assistant message
-  split across three transcript rows, booked once per row, none retracted.
-  Total is 204,513, not 613k.
-  **Why this outranks its size: the ledger is where this repo's cost numbers
-  come from.** The build-order block above opens with "five busts, 1,200,000
-  tokens re-billed" and ranks the queue partly on it. That figure is not
-  re-derived here on one instance — but it now rests on a counter with a known
-  duplication mode, which is a premise with a crack in it rather than a fact.
-  Design: dedupe on (`msgId`, `reqId`) before booking a hit; the join key is
-  already present in both sources. Verifier: this event must count once, and
-  `--list` must lose exactly these two duplicate rows while every genuinely
-  distinct bust survives.
+- **MOVED 2026-08-06 to `~/dev/Gunther-Schulz/claude-worktime/BACKLOG.md` — one
+  event is booked twice or three times, so every cost total derived from that
+  ledger is inflated by an unknown factor.** Merged there with the
+  contradictory-CLASS instance found the same day, and the class question is
+  now DECIDED (operator: neither class wins — dedupe the cost, keep both
+  classifications, render the disagreement as its own state). Body lives there,
+  deliberately not restated here.
+  **What stays this repo's problem, and it is the reason to care:** the
+  build-order block above opens with "five busts, 1,200,000 tokens re-billed"
+  and ranks the queue partly on it. That figure rests on a counter with two
+  known duplication modes. It is not re-derived here on one instance — but it
+  is a premise with a crack in it rather than a fact, and the next build-order
+  derivation says so or repeats it.
 
 - **READY (small) — `capturePair`'s comment describes a size floor the code does
   not implement.** `bust-triage.mjs:275-277` says the busting request must carry
