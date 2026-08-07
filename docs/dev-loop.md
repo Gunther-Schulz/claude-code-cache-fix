@@ -628,6 +628,24 @@ lied on 2026-08-05, each of which read as a finding about the system:
   checked against the row. The record a probe prints is identified by
   matching a field the row already carries — the timestamp — not by trusting
   that two counters agree.
+  **And the section heading is too narrow — this is not a PROBE rule.** Widened
+  2026-08-07 after the class fired three times in one session, in three places
+  none of which was a probe: a test needle written as a raw string and searched
+  in a `JSON.stringify` dump (`"\n"` can never match `\\n`, so the assertion
+  could only ever have been vacuous — it was caught only because it happened to
+  be a PRESENCE assertion that failed, and the same mistake inside an absence
+  assertion is a permanent silent green); `/health`'s `proxy_tree`, which is a
+  sha256 SOURCE FINGERPRINT and was about to be read as a non-match against the
+  git tree hash the deployment pin stores, i.e. "the restart did not take" from
+  two hashes that were never the same kind (resolved by reading
+  `proxy/source-fingerprint.mjs`, which says so in its first line); and
+  `git status` reporting ` M BACKLOG.md`, read as "my edit" in a working copy a
+  second session was also writing — the line proves modification and says
+  nothing about authorship, and the diff did (a co-writer had two uncommitted
+  entries in it). The rule is: whenever two values meet — compared, matched,
+  or one attributed to the other — name the SPACE each is in first. Escaped vs
+  raw, content-hash vs git hash, mine vs anyone's. All three were free to check
+  and each was one step from a confident wrong claim.
 - **A shape check standing in for a content check.** Asserting which fields
   are set does not establish that prompt text is off disk. Plant a sentinel,
   run the real thing, grep what was written — **and then run it again with the
