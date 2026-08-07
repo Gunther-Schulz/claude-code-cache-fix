@@ -145,8 +145,11 @@ its date, and the date is today.
 ### Instruments that lied — Tier B: feeds the GATES
 
 These pass a broken mitigation, and only matter once the class above is right.
-The head of this tier moved: the daily sweep is RED on **4** captures today
-against 1 yesterday, all conservation, 35 + 31 + 2 + 1 rows.
+The head of this tier moved twice: the sweep was RED on 4 captures (35+31+2+1
+rows, all conservation); the identity-normalization exemption (f2ab6d0) took
+one green, so it reads RED on **3** — 35 + 31 + 1 rows, kinds `invented` and
+`suppressed-without-copy`, NOT the exempted class. Per-row attribution of the
+residue is in flight (read-only lane, dispatched 2026-08-07).
 
 14. **The stability exemption for a first-appearance relocation must assert
     forwarded `tools[]`.** The instrument that would have caught row 26 the
