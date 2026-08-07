@@ -279,23 +279,24 @@ the first entry below.
   - the 336k above (01:00:55Z) — a FALSE alarm, nothing lost, an instrument
     bug;
   - the 205k at 2026-08-06 17:40:16Z (`system_changed`, matrix row 24) — a
-    REAL cost with a genuine cause: the global rules file was edited while
-    sessions were running. Claude Code re-reads that file into the very first
-    message of every live conversation, so editing it moves byte one, and
-    everything after byte one has to be paid for again. In plain terms:
-    changing the global rules mid-session bills every session that is open.
-  That second one is the operator-facing fact row 24 had never stated, and it
-  is the one worth remembering — the first is a bug in a meter.
-  **8. And name the live instance, because it is this session's own.** At
-  2026-08-07 01:37:48Z this session edited the global corpus with six sessions
-  live; `restart-exposure --window-min 60` prices the worst case at ~965k
-  tokens across them. Whether it was realized is NOT established — no cold
-  event had appeared seven minutes later, and nobody has checked since. First
-  action of the next session, before the explanation: run
-  `bust-triage --list` and see whether anything landed after 01:37:48Z. If it
-  did, that is a second row-24 instance and walks the bust runbook; if it did
-  not, say so plainly — a non-event measured is worth more than one assumed,
-  and row 24's cost model gets that datapoint either way.
+    REAL cost, and the cause is a RESUME, not an edit. Restarting a
+    conversation makes Claude Code rebuild its opening from whatever is on
+    disk at that moment, and it pays for the whole rebuilt opening. If the
+    rules file changed while the session was away, the new text shows up in
+    that rebuild — visible at the boundary, but it is the rebuild being paid
+    for, not the edit.
+  The plain-language version of the rule, which is the useful part: **editing
+  the rules while a session is running costs that session nothing — it already
+  holds its copy. The next resume pays.**
+  **8. And say what was checked, including the correction.** This session
+  edited the global rules at 2026-08-07 01:37:48Z with six sessions live, then
+  measured its own: the opening message was 64,006 bytes before the edit and
+  64,006 after, unchanged. Nothing was re-read, nothing was re-billed. That
+  matters because a claim written into the threat matrix hours earlier said the
+  opposite — and the matrix had ALREADY recorded the correct, measured version
+  months of requests earlier, in the same cell. Both are now reconciled, with
+  the wrong one struck. Tell the operator that part too: they asked the
+  question that surfaced it.
   **Rules for the delivery, and they are the point of this entry:** short
   sentences, no field names in the first pass, no timestamps unless asked, and
   no "findings/booked/verifier" vocabulary. Offer the detail afterwards; do not
