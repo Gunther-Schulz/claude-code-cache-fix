@@ -4623,8 +4623,19 @@ the first entry below.
   the fixture under the test. Move the body there when that lane returns — one
   writer per repo, which is the rule this repo just wrote down.
 
-- **READY (in flight 2026-08-07 on the clause-(h) lane) — three defects the
-  conservation clause work surfaced in the gate it extended.** All three are in
+- **(DONE — 5ecba0b + 0d0d2b6 + 3d98c09, 2026-08-07) three defects the
+  conservation clause work surfaced in the gate it extended.** All three
+  shipped. Verified here rather than on the report, and the verification that
+  mattered is the POSITIVE CONTROL, because zero rows moved on the live corpus
+  and "nothing moved" reads identically to "the clause is dead": after the
+  per-unit narrowing, s-captureAO still grants **44** `fresh-session-sort:rewrite`
+  exemptions alongside 50 peel and 13 strip, conservation unchanged at 1 — a
+  broken pre-image/post-image mapping would have collapsed those 44 to zero and
+  produced 44 new violations. s-captureAL still reads conservation 0 with its
+  two clause-(h) exemptions. **Named residue, carried forward:** both narrowings
+  are unproven ON LIVE DATA — no message in the four swept captures carries a
+  partial exemption, so the constructed bites are the entire evidence, and the
+  other 81 captures were not swept for one. Original entry follows. All three are in
   `tools/replay.mjs`, all three were recommended-to-build by the lane that found
   them, and all three are being built on the extended grant; this entry is the
   record, and if the lane returns without them it is the spec.
