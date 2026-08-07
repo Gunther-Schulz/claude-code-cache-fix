@@ -180,7 +180,14 @@ already on the remote before tonight; the one commit pushed from here
 (`302fe01`) was verified sole and ours by `git log 141b391..302fe01` before
 pushing.
 
-**What to build next: everything under `## Open` that is graded READY.** Ten of
+**FIRST THING, BEFORE ANY BUILD WORK: the operator asked for a plain-language
+explanation of the 2026-08-07 01:00:55Z false ❄, and asked at the end of a long
+night rather than getting one then.** It is the first entry under `## Open`.
+Deliver that explanation as your opening message — conversationally, no jargon,
+no commit-message register — and wait for their response before starting
+anything else. Do not lead with a status report.
+
+**What to build next, after that: everything under `## Open` that is graded READY.** Ten of
 them, and they are decision-complete by construction — design decided,
 verifier named. Re-derive the build ORDER (this file's rubric says derived at
 build time, never stored); what follows is only what a derivation cannot
@@ -237,6 +244,42 @@ CONTROLLED-CAUSE, evidence pinned and verified, and the gap it exposed is
 the first entry below.
 
 ## Open
+
+- **READY — FIRST THING NEXT SESSION: explain the 2026-08-07 01:00:55Z false ❄
+  to the operator in plain language, before any build work.** They asked for
+  this explicitly, tired, at the end of a long session, after an explanation
+  written in commit-message register did not land. Deliver it as the opening
+  message of the session and wait for their reply.
+  **What to explain, in this order** (the material is all on disk — matrix
+  "Event walk 2026-08-07 01:00:55Z" and the detector entry below; nothing needs
+  re-deriving):
+  1. Nothing broke. The cache did its job perfectly. The ❄ was wrong.
+  2. What the ❄ actually watches: two numbers per turn — how much was newly
+     written, and how much was re-read from cache. It cries wolf when the write
+     is big AND the read is small, both measured against the previous turn.
+  3. What really happened: the session's first tool call returned a 907 kB
+     result. That is genuinely new text, so of course it had to be written to
+     the cache once. Everything from before it was re-read intact — the read
+     equals the previous write to the token.
+  4. Why the alarm fired anyway: Claude Code writes one reply into the
+     transcript as SEVERAL rows carrying the same numbers. The alarm compared
+     one of those rows against another row of the SAME reply. That inflated
+     "the previous turn" from 40k to 375k, and against a made-up 375k baseline
+     the perfectly normal numbers look alarming.
+  5. Why it said `other`: the alarm's list of causes is idle / model-changed /
+     everything-else. There is no entry for "nothing was wrong", so a false
+     alarm can only ever come out as `other`. The word is a symptom of the bug,
+     not a clue about it.
+  6. How we know rather than think: the fork has its own copy of the same
+     alarm, which throws away duplicate rows first. Run on the same transcript
+     it reports zero events, where the other reported a 336k disaster.
+  **Rules for the delivery, and they are the point of this entry:** short
+  sentences, no field names in the first pass, no timestamps unless asked, and
+  no "findings/booked/verifier" vocabulary. Offer the detail afterwards; do not
+  open with it. If it cannot be said without jargon, it is not understood well
+  enough yet.
+  Done when: the operator says it landed, or asks a follow-up that shows it
+  did. Not when the message is sent.
 
 - **POINTER — the push-side leak scan reaches ONE repo; body and design live in
   `~/dev/Gunther-Schulz/dotfiles/BACKLOG.md` (booked 2026-08-06).** The
