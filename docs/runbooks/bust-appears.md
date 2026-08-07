@@ -89,7 +89,12 @@ already carries — never by trusting that two counters agree.
 2. **Triage each one, and read the ROW, not just the verdict.**
    `node tools/bust-triage.mjs --at <stamp>` chains the six-step hand
    walk into one verdict. Its verdicts are MITIGATED / KNOWN-OPEN /
-   **UNCLASSIFIED** / **STATUS-UNREADABLE** / UNVERIFIABLE. Two are
+   CONTROLLED-CAUSE / **UNCLASSIFIED** / **STATUS-UNREADABLE** /
+   UNVERIFIABLE. CONTROLLED-CAUSE arrived 2026-08-07: before it, a row
+   whose honest status was a controlled cause had to be written as
+   `ACCEPT` to stay readable, because the enum had no state for it and
+   the truthful wording read STATUS-UNREADABLE — a stop-here on a row
+   that needs no stopping. Two are
    stop-heres, and for the same reason: UNCLASSIFIED means the shape
    maps to no matrix row, STATUS-UNREADABLE means the row's status is
    in no state the tool recognises. Neither is a pass.

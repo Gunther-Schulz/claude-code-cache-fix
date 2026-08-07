@@ -359,8 +359,46 @@ the first entry below.
   Do not execute from this entry; open that one.
   Same shape, mirrored, as the two claude-worktime pointers above: body in the
   executing repo, pointer where the finder sits.
+  **BUILT 2026-08-07, UNPUSHED (dotfiles `ca46be4`).** `MARKER`'s two jobs are
+  split exactly as the design says — `SCANNER_REPO` keeps the fallback scanner
+  path, a separate `GUARDED` tuple drives activation, and activation stayed a
+  LIST. Verified here rather than on the report: reverting `GUARDED` to its old
+  single-entry value reddens exactly the claude-worktime assertion and
+  restoring it greens the whole battery. The lane also graduated its end-to-end
+  probe into the battery as a permanent case, so activation is no longer proven
+  only by a bare predicate assertion.
+  **The push is BLOCKED and not by this work:** two peer-session commits
+  (`b795abf`, `8942ec5`, both operator-GO corpus/gate work) sit in the same
+  outgoing set, so pushing would publish another session's work. Halted as a
+  question rather than pushed — an unexpected commit in the push set is
+  answered, never resolved by a live push.
+  **EVIDENCE CORRECTION, measured by the lane and stronger than what the
+  dotfiles entry states:** that entry cites ONE `capture-key-prefix` finding in
+  claude-worktime's `BACKLOG.md`. Measured over the whole history: **four**
+  findings, and **none of them in `BACKLOG.md`** — two in `claude-worktime.sh`,
+  one in `docs/cachebust-runbook.md`, one in `tests/replay-cold-detect.sh`,
+  plus one in a commit message. All are ancestors of `origin/main`, published
+  and unremediable. This strengthens the entry's own trigger-rate argument, and
+  the dotfiles-side body still carries the stale number — correct it there when
+  that repo is next written.
+  **ENTRY TWO ("already on a remote" is not "already public") is HALTED at a
+  design contradiction, and the decision is the operator's** — the entry's
+  design (scope the published set to the DESTINATION remote) was implemented
+  and measured, and it regresses the two 2026-08-06 cases: this clone has
+  `origin` and `upstream` both public, so destination-only scoping stops
+  counting upstream as published and re-blocks every push to origin. The entry
+  itself concedes the premise ("origin and upstream are both public GitHub
+  repos") and specifies only what to do about a PRIVATE remote. The options are
+  (A) destination-only, measured and rejected; (B) destination plus an
+  explicitly DECLARED-PUBLIC remote list — fail-closed, keeps the measured
+  cases green, and note that matching by repo NAME does not work because a
+  private mirror carries the same name; (C) park with the residual named, since
+  no clone here has a private+public pair today. Nothing is committed for entry
+  TWO; the measured implementation is preserved as a patch in the lane's
+  scratch.
 
-- **READY — a matrix walk that dispositions a CAUSE is invisible to the
+- **(DONE — 9da34df, 2026-08-07)
+  a matrix walk that dispositions a CAUSE is invisible to the
   tool that triages that cause, and both halves of the gap are real.**
   Found 2026-08-06 at session close. `bust-triage --at` returned
   **UNCLASSIFIED** — "a class nothing currently covers" — for
@@ -401,7 +439,8 @@ the first entry below.
   UNCLASSIFIED and name the walk. Done when a cause the matrix has
   dispositioned cannot read as UNCLASSIFIED.
 
-- **READY — the verdict enum has no value for CONTROLLED-CAUSE, so a row whose
+- **(DONE — 52796ea, 2026-08-07)
+  the verdict enum has no value for CONTROLLED-CAUSE, so a row whose
   honest status is a controlled cause must be written as `ACCEPT` to stay
   readable.** Found 2026-08-06 minting row 27: `statusKind` returned null for
   "CONTROLLED-CAUSE …", which makes the row STATUS-UNREADABLE — a documented
@@ -447,7 +486,8 @@ the first entry below.
   must still return STATUS-UNREADABLE, since the mandatory-unmatched-case
   property is the thing the whole enum was rebuilt for on 2026-08-06.
 
-- **READY — `bust-triage` has no idle/TTL guard, so a 216k eviction answered
+- **(DONE — d520ec0, 2026-08-07)
+  `bust-triage` has no idle/TTL guard, so a 216k eviction answered
   KNOWN-OPEN row 4.** Measured 2026-08-06 23:59:10Z (s-captureAL, matrix row 27,
   minted by that walk): `gap` 22,702 s against `"ttl":"1h"` on the session's own
   wire, transcript `previous_message_not_found`, and a surviving read of 2 tokens
@@ -4627,6 +4667,48 @@ the first entry below.
   harness-measured effect is strictly harder evidence and avoids making a
   checker-side repair deployment-coupled. Done when both sentences are in the
   method file where an entry author reads before writing.
+
+- **READY (small) — the matrix lint is blocked at SUITE time, one step after the
+  prose is written.** Booked 2026-08-07 by the lane that built
+  `--lint-matrix`, as its own named residual. The writer half now exists — an
+  undeclared `## Event walk` is refused — but the refusal arrives at the next
+  `npm test`, not at the edit, so a walk can be written, committed and read by a
+  human before anything objects. Design: call `--lint-matrix` from `gate-live`'s
+  sweep and give it a doctor verdict beside `backlogLint`, which is the same
+  shape that file already carries for the backlog. Verifier, red-first: plant an
+  undeclared walk, run the sweep, require the status file to carry the finding —
+  today it carries nothing, because nothing asks.
+
+- **READY (small) — a walk whose disposition is NOT-OURS or NON-DEFECT with
+  `row=none` would read STATUS-UNREADABLE.** Named 2026-08-07 by the enum lane
+  and deliberately not built, because widening the enum a second time was
+  outside its decided scope. Neither token is in `STATUS_RULES`; no walk is in
+  that state today (both such walks carry `row=4` or `cause=none`), so this is a
+  latent case rather than a live one. Verifier, red-first: a fixture walk
+  declaring `disposition=NOT-OURS row=none` must reach a real verdict, and today
+  reads STATUS-UNREADABLE — a stop-here on a walk that needs no stopping, which
+  is the exact defect the CONTROLLED-CAUSE entry just closed one token over.
+
+- **READY (small) — `lines()` drops blank lines, so every POSITION derived from
+  it is short by the blank count, and the sweep was never done.** Found
+  2026-08-07 mid-build: the matrix lint first reported line 1045 for a heading
+  that sits at 1212, and both numbers are plausible — the tell is only that one
+  of them is wrong. Fixed in `eventWalks` by reading the file whole. **The
+  finding is the SWEEP that did not happen:** the lane fixed its own call site
+  and stated plainly that other tools deriving positions from the same helper
+  have the same defect and were not checked. Design: grep every consumer of
+  `lines()` in `tools/`, and for each, decide whether it derives a POSITION
+  (defect) or only content (fine); the ones that do get the whole-file read.
+  Done when the enumeration exists with a verdict per call site — an unswept
+  helper defect is the paraphrase-drift shape at the line-number level.
+
+- **READY (small, operator-side, dotfiles) — `cache-fix/CLAUDE.local.md:91`
+  lists FOUR verdicts and there are now six.** Found 2026-08-07 by the enum
+  lane's dependents search, which is the reason that search is a convention: a
+  value-set change breaks its documented consumers silently. The file is
+  deployed from dotfiles and must be edited THERE, never in this tree. Also
+  update the runbook's list if it drifts again — this repo's copy was corrected
+  in the same commit as this booking.
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
