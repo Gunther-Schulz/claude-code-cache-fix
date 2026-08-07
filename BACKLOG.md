@@ -4250,6 +4250,42 @@ the first entry below.
   repo (global identity is the convention here; a local one is
   always leakage).
 
+- **READY 2026-08-07 — the READY count every session reads at startup is 66
+  where 57 exist, and 6 further READY items sit outside the ranking carrier
+  entirely.** Two halves of one reach failure — the reader and the writer, per
+  dev-loop's standing question.
+  **Reader.** `session-scan.py:29` (dotfiles) defines a bullet as READY "when
+  the literal 'READY' appears anywhere in the bullet's own text". Measured
+  2026-08-07 over this file: 114 top-level bullets under `## Open`, **66** match
+  the hook's rule, **57** begin `- **READY`. The nine extras are two bullets
+  marked **DONE**, plus PARTLY DONE, BUST, HANDOFF, GATE-RED and two FINDING
+  bullets — each merely mentions READY in its body. So the startup line a fresh
+  context reads over-reports the unbuilt-actionable queue by 16%, and the
+  `## Build order` block's own rule ("a finished item must not hold a rank") is
+  broken by the COUNTER rather than by the list. Not a hidden bug: the docstring
+  states the rule as intended, which is why it survived — a definition that
+  over-fires reads as deliberate.
+  **Writer.** Six `- **READY` bullets sit BELOW `## Open`'s end (line 4253),
+  under `## Upstream PR round`. File order is the ranking carrier
+  (`tools/backlog-order.mjs`) and the hook reads `## Open` only, so those six
+  are unrankable and invisible by construction — and nothing stops the next one
+  from landing there. Fixing only the predicate leaves the generator running.
+  **Why this ranks as an instrument defect, not a gap:** the count is consumed
+  at every session start, and it is an input to the build-order derivation
+  itself — the ranking reads a population that includes finished work.
+  Design, both halves. *Reader* (dotfiles repo; booked there too — this entry is
+  the fork-side record): the predicate becomes a HEADER test, the bullet's first
+  line matching `^- \*\*READY\b`, which is the grade-marker convention the file
+  actually uses. *Writer* (here): the six are moved into `## Open` or re-graded,
+  and `tools/backlog-lint.mjs` gains a check that no `- **READY` or
+  `- **PARKED` bullet exists outside `## Open`.
+  Verifier, red-first, two bites: the lint bite fails on the file as it stands
+  (6 offenders) and passes after the move; and `session-scan.py --test` gains a
+  fixture bullet reading `- **DONE 2026-08-06 … supersedes the READY entry
+  above`, which must NOT be counted — today it is, and that is the red.
+  Done when: both bites go red first and green after, and the injected startup
+  count equals `grep -c '^- \*\*READY' BACKLOG.md`.
+
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
 
