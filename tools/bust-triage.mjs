@@ -753,6 +753,39 @@ export function causeToRow(cause, pair) {
   return descOnly ? 23 : 6;
 }
 
+/**
+ * Ledger cause <-> transcript diagnostic pairs that NAME THE SAME EVENT.
+ *
+ * The defect (BACKLOG, measured 2026-08-06T23:59:10Z): the reconcile step
+ * warned `LEDGER says "idle", TRANSCRIPT says "previous_message_not_found" —
+ * instrument disagreement` about one eviction that both instruments got
+ * right. `idle` is claude-worktime's gap-derived cause; the other is the
+ * API's own diagnostic for the same expiry. The check compared two fields
+ * from DIFFERENT VOCABULARIES as though they were one, so agreement in
+ * substance read as disagreement in words — and a reconcile warning that
+ * fires on a non-defect trains its reader to discount the one that matters.
+ *
+ * This is a table of equivalences, not a normalization: the two vocabularies
+ * stay distinct and both are printed, because which instrument said what is
+ * the information the step exists to carry. A pair earns an entry only when
+ * the two terms denote the same underlying event — never when one is merely
+ * the usual consequence of the other.
+ */
+export const CAUSE_EQUIVALENCE = [
+  // A cached entry that expired before the request arrived. The ledger derives
+  // it from the inter-request gap against the entry's TTL; the API reports the
+  // resulting lookup failure. Same eviction, two vantage points.
+  ["idle", "previous_message_not_found"],
+];
+
+/** Do a ledger cause and a transcript diagnostic name the same event? */
+export function sameEvent(ledgerCause, transcriptType) {
+  if (ledgerCause === transcriptType) return true;
+  return CAUSE_EQUIVALENCE.some(
+    ([a, b]) => (ledgerCause === a && transcriptType === b) ||
+                (ledgerCause === b && transcriptType === a));
+}
+
 export async function triage(bust) {
   const steps = [];
   const tc = transcriptCause(bust.s, bust.cc);
@@ -767,12 +800,19 @@ export async function triage(bust) {
   // Reconciliation: the ledger and the transcript must agree. They disagreed
   // live on 2026-07-31 (display upgraded, record left "other") and the
   // divergence was invisible until compared.
-  if (tc && bust.cause && bust.cause !== "other" && bust.cause !== tc.type) {
+  if (tc && bust.cause && bust.cause !== "other" && !sameEvent(bust.cause, tc.type)) {
     steps.push({ step: "reconcile", ok: false,
                  detail: `LEDGER says "${bust.cause}", TRANSCRIPT says "${tc.type}" — instrument disagreement` });
   } else if (tc && bust.cause === "other") {
     steps.push({ step: "reconcile", ok: false,
                  detail: `ledger still "other" while transcript has "${tc.type}" — raced read never upgraded` });
+  } else if (tc && bust.cause && bust.cause !== tc.type) {
+    // Agreement across two vocabularies. Both terms are printed rather than
+    // collapsed: which instrument said what is the information this step
+    // exists to carry, and a reader who sees only one of them cannot tell
+    // this case from a genuine match.
+    steps.push({ step: "reconcile", ok: true,
+                 detail: `ledger "${bust.cause}" and transcript "${tc.type}" name the same event` });
   } else if (tc) {
     steps.push({ step: "reconcile", ok: true, detail: "ledger and transcript agree" });
   }
