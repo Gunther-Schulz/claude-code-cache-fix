@@ -1,0 +1,152 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-14e92c3635fb",
+  "n": 173,
+  "prevN": 171,
+  "index": 226,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-06T17:51:20.772Z",
+  "row": {
+    "n": 173,
+    "prevN": 171,
+    "absorbedFreshAt": [
+      242
+    ],
+    "forwardedDivergence": 226,
+    "inputDivergence": 235,
+    "cacheControlOnly": true,
+    "ours": true,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-14e92c3635fb"
+  },
+  "sides": {
+    "cur": {
+      "n": 173,
+      "rawLen": 247,
+      "forwardedLen": 228,
+      "outBodySha": "d9799e50a4386f8b",
+      "forwardedSha": "25e54e4d6701",
+      "rawSha": "666cf456cb4a",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "25e54e4d6701",
+      "firstPassRawSha": "666cf456cb4a",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-14e92c3635fb",
+      "idToken": "s-bfd0ebd32da9",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_3053c1054b44_119"
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_1b14c27ebd"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_5474a95719"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_016YthSy82MghMKULSajw2bf",
+            "name": "Agent",
+            "input": {
+              "description": "REDACTED",
+              "prompt": "REDACTED",
+              "subagent_type": "REDACTED",
+              "model": "REDACTED",
+              "name": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 171,
+      "rawLen": 246,
+      "forwardedLen": 228,
+      "outBodySha": "2edc1db66d8d5db5",
+      "forwardedSha": "32df76286034",
+      "rawSha": "666cf456cb4a",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "32df76286034",
+      "firstPassRawSha": "666cf456cb4a",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-14e92c3635fb",
+      "idToken": "s-5bfd80305a01",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_3053c1054b44_119",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_1b14c27ebd"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_5474a95719"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_016YthSy82MghMKULSajw2bf",
+            "name": "Agent",
+            "input": {
+              "description": "REDACTED",
+              "prompt": "REDACTED",
+              "subagent_type": "REDACTED",
+              "model": "REDACTED",
+              "name": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

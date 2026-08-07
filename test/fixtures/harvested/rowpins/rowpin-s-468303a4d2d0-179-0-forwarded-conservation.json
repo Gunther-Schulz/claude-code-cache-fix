@@ -1,0 +1,80 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservation",
+  "key": "s-468303a4d2d0",
+  "n": 179,
+  "prevN": null,
+  "index": 0,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-06T10:05:47.065Z",
+  "row": {
+    "n": 179,
+    "kind": "invented",
+    "at": 0,
+    "side": "out",
+    "declarationsUnavailable": false,
+    "detail": "out[0] (user): 1 of 3 unit(s) CC never sent in this conversation",
+    "keyToken": "s-468303a4d2d0"
+  },
+  "sides": {
+    "cur": {
+      "n": 179,
+      "rawLen": 190,
+      "forwardedLen": 190,
+      "outBodySha": "d477fc69fe96a000",
+      "forwardedSha": "7e79c05b622d",
+      "rawSha": "f95eb35d5716",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [
+        "skills"
+      ],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "7e79c05b622d",
+      "firstPassRawSha": "f95eb35d5716",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-468303a4d2d0",
+      "idToken": "s-56e7824ad1ec",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_eb456467931b_63\n\nt_82e58eaced71_14491\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_834a2f8cee71_216\n\nt_20cf2d0f2c93_23\n\nt_2ca4dd0b7e9b_4025\n\nt_7028959dca36_20\n\nt_5d3d46b3f04a_171\n\nt_7c849cdfcdc5_10272\n\nt_cf50ce91b07e_26\n\nt_918cc825a43e_3043\n\nt_4e25972b40f2_57\n\nt_6f686f3dbcbe_3901\n\nt_50d60bd45af2_52\n\nt_164d11558de8_1599\n\nt_1949f3f992ff_37\n\nt_f330d49f89f5_3218\n\nt_3e7364b7823b_31\n\nt_306d6f8b9134_855\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_b4d2232a6a59_5661\n\nt_5b10facf0583_325\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_67c495e98732_1505\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_c2165da00421_122"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_834a2f8cee71_216\n\nt_20cf2d0f2c93_23\n\nt_2ca4dd0b7e9b_4025\n\nt_7028959dca36_20\n\nt_5d3d46b3f04a_171\n\nt_7c849cdfcdc5_10272\n\nt_cf50ce91b07e_26\n\nt_918cc825a43e_3043\n\nt_4e25972b40f2_57\n\nt_6f686f3dbcbe_3901\n\nt_50d60bd45af2_52\n\nt_164d11558de8_1599\n\nt_1949f3f992ff_37\n\nt_f330d49f89f5_3218\n\nt_3e7364b7823b_31\n\nt_306d6f8b9134_855\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_b4d2232a6a59_5661\n\nt_5b10facf0583_325\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_67c495e98732_1505\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_c2165da00421_122"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-473e705e483a",
+  "n": 91,
+  "prevN": null,
+  "index": 96,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-06T17:39:23.557Z",
+  "row": {
+    "n": 91,
+    "kind": "lost",
+    "at": 96,
+    "side": "in",
+    "exemptReason": "identity-normalization:session-start-substitution",
+    "detail": "in[96] (system): 1 of 1 unit(s) exempt — 0 re-derived from fresh-session-sort's own rewrite and verified in F, 0 accepted by content-strip's own predicates, 1 re-derived from identity-normalization's own SessionStart substitution and verified in F",
+    "keyToken": "s-473e705e483a"
+  },
+  "sides": {
+    "cur": {
+      "n": 91,
+      "rawLen": 97,
+      "forwardedLen": 97,
+      "outBodySha": "bb615de6dbebff9f",
+      "forwardedSha": "d7d7ce85393a",
+      "rawSha": "eb7b272203b7",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "d7d7ce85393a",
+      "firstPassRawSha": "eb7b272203b7",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-473e705e483a",
+      "idToken": "s-042851c63857",
+      "forwarded": {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_7ea802902885_1035\n\nt_eb456467931b_63\n\nt_76550b0293ce_14506",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_27e1e41cb120_1034\n\nt_eb456467931b_63\n\nt_76550b0293ce_14506",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

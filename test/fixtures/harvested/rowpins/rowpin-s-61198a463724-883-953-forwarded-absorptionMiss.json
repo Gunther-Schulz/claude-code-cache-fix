@@ -1,0 +1,156 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-61198a463724",
+  "n": 883,
+  "prevN": 880,
+  "index": 953,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-05T11:29:09.287Z",
+  "row": {
+    "n": 883,
+    "prevN": 880,
+    "absorbedFreshAt": [
+      984
+    ],
+    "forwardedDivergence": 953,
+    "inputDivergence": 983,
+    "cacheControlOnly": true,
+    "ours": true,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-61198a463724"
+  },
+  "sides": {
+    "cur": {
+      "n": 883,
+      "rawLen": 989,
+      "forwardedLen": 956,
+      "outBodySha": "11b5abe1c6bf665c",
+      "forwardedSha": "be059bf71954",
+      "rawSha": "c6bccf4bcb2c",
+      "forwardedPresentInRawAt": 986,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "be059bf71954",
+      "firstPassRawSha": "c6bccf4bcb2c",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-61198a463724",
+      "idToken": "s-744ea8131402",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_013Dztpsa6F8ZFxY2RbhLmmk",
+            "type": "tool_result",
+            "content": [
+              {
+                "type": "text",
+                "text": "t_c79dde1bd123_336"
+              }
+            ]
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_00a910a185"
+          },
+          {
+            "type": "text",
+            "text": "t_5af4b91db6e5_169"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01Jmin4stKFNy3BTi4mATAox",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 880,
+      "rawLen": 987,
+      "forwardedLen": 954,
+      "outBodySha": "969f2d1d039e1034",
+      "forwardedSha": "5e561d545327",
+      "rawSha": "c6bccf4bcb2c",
+      "forwardedPresentInRawAt": 986,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "5e561d545327",
+      "firstPassRawSha": "c6bccf4bcb2c",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-61198a463724",
+      "idToken": "s-8e80e50c601f",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_013Dztpsa6F8ZFxY2RbhLmmk",
+            "type": "tool_result",
+            "content": [
+              {
+                "type": "text",
+                "text": "t_c79dde1bd123_336"
+              }
+            ],
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_00a910a185"
+          },
+          {
+            "type": "text",
+            "text": "t_5af4b91db6e5_169"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01Jmin4stKFNy3BTi4mATAox",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

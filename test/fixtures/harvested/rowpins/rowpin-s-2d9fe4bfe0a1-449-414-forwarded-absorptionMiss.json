@@ -1,0 +1,164 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-2d9fe4bfe0a1",
+  "n": 449,
+  "prevN": 448,
+  "index": 414,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-07T04:59:37.774Z",
+  "row": {
+    "n": 449,
+    "prevN": 448,
+    "absorbedFreshAt": [
+      424
+    ],
+    "forwardedDivergence": 414,
+    "inputDivergence": 423,
+    "cacheControlOnly": false,
+    "ours": true,
+    "movedFresh": 1,
+    "action": "reset",
+    "keyToken": "s-2d9fe4bfe0a1"
+  },
+  "sides": {
+    "cur": {
+      "n": 449,
+      "rawLen": 431,
+      "forwardedLen": 417,
+      "outBodySha": "e4aad88030fa4d47",
+      "forwardedSha": "a6303cf57bf2",
+      "rawSha": "8b5fdca0e5d8",
+      "forwardedPresentInRawAt": 428,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "a6303cf57bf2",
+      "firstPassRawSha": "8b5fdca0e5d8",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-2d9fe4bfe0a1",
+      "idToken": "s-f1fd708fa6ea",
+      "forwarded": {
+        "role": "user",
+        "content": "t_266bb81e4cc0_310\n\nt_13f1ea4702b0_541"
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_53071f3e21"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_3cd72e3510"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_011LseJjGE3pvTQ2H2Ux17vj",
+            "name": "Edit",
+            "input": {
+              "replace_all": "REDACTED",
+              "file_path": "REDACTED",
+              "old_string": "REDACTED",
+              "new_string": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01LSDJ9MggYQSHkdoDPbtcaD",
+            "name": "Edit",
+            "input": {
+              "replace_all": "REDACTED",
+              "file_path": "REDACTED",
+              "old_string": "REDACTED",
+              "new_string": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 448,
+      "rawLen": 431,
+      "forwardedLen": 417,
+      "outBodySha": "7d7ba756e510cd00",
+      "forwardedSha": "5e2d57a2c9c9",
+      "rawSha": "8b5fdca0e5d8",
+      "forwardedPresentInRawAt": 428,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "5e2d57a2c9c9",
+      "firstPassRawSha": "8b5fdca0e5d8",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-2d9fe4bfe0a1",
+      "idToken": "s-5fe69107f262",
+      "forwarded": {
+        "role": "user",
+        "content": "t_35ec771ebb62_84\n\nt_1a2b04f55038_63\n\nt_354b3c9f0b65_80\n\nt_3b33fed42578_59\n\nt_66caf34e1904_380\n\nt_07f763581c7d_46\n\nt_517fc456d053_191\n\nt_33cc7ec96e48_67\n\nt_9223c53eb349_261\n\nt_eb6825aa0917_55\n\nt_6d560b43382d_57"
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_53071f3e21"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_3cd72e3510"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_011LseJjGE3pvTQ2H2Ux17vj",
+            "name": "Edit",
+            "input": {
+              "replace_all": "REDACTED",
+              "file_path": "REDACTED",
+              "old_string": "REDACTED",
+              "new_string": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01LSDJ9MggYQSHkdoDPbtcaD",
+            "name": "Edit",
+            "input": {
+              "replace_all": "REDACTED",
+              "file_path": "REDACTED",
+              "old_string": "REDACTED",
+              "new_string": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

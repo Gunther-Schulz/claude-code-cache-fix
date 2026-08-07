@@ -1,0 +1,149 @@
+{
+  "schema": "rowpin/1",
+  "family": "stabilityExempt",
+  "key": "s-48bf252a4e02",
+  "n": 137,
+  "prevN": 133,
+  "index": 39,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-06T16:38:09.287Z",
+  "row": {
+    "n": 137,
+    "prevN": 133,
+    "inDiv": 88,
+    "outDiv": 39,
+    "ccIdenticalAtOutDiv": true,
+    "prefixAboveMessages": {
+      "ourToolsIdentical": false,
+      "ourSystemIdentical": true,
+      "ccToolsIdentical": false,
+      "ccSystemIdentical": true,
+      "intact": false
+    },
+    "exemptReason": "deferred-tool-rewrite:reset-wipes-additions",
+    "exemptBasis": {
+      "type": "tool-schema-changed",
+      "removedInjections": 1,
+      "residualOutDiv": 88
+    },
+    "keyToken": "s-48bf252a4e02"
+  },
+  "sides": {
+    "cur": {
+      "n": 137,
+      "rawLen": 92,
+      "forwardedLen": 92,
+      "outBodySha": "4722b2213f3f5d22",
+      "forwardedSha": "1fc573b4a68c",
+      "rawSha": "1fc573b4a68c",
+      "forwardedPresentInRawAt": 39,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "1fc573b4a68c",
+      "firstPassRawSha": "1fc573b4a68c",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-48bf252a4e02",
+      "idToken": "s-619803995dcc",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_471c7f215f"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_013ontgRiugndJJPoKwYyg3M",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_471c7f215f"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_013ontgRiugndJJPoKwYyg3M",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 133,
+      "rawLen": 89,
+      "forwardedLen": 90,
+      "outBodySha": "c8a7ce2d02e61435",
+      "forwardedSha": "ffe4f0566837",
+      "rawSha": "1fc573b4a68c",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "ffe4f0566837",
+      "firstPassRawSha": "1fc573b4a68c",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-48bf252a4e02",
+      "idToken": "s-3ab0b7dc2c75",
+      "forwarded": {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_a3379f2058c5_139\n\nt_233f92b53fe6_124\n\nt_225bee34a28d_83\n\nt_6a01dbf63538_142\n\nt_d57fe8233a0b_14\n\nt_bd67e6c88599_408\n\nt_61c50a010090_566"
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_471c7f215f"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_013ontgRiugndJJPoKwYyg3M",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

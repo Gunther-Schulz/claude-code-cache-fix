@@ -1,0 +1,144 @@
+{
+  "schema": "rowpin/1",
+  "family": "relocDeparture",
+  "key": "s-d8d76f4b6923",
+  "n": 283,
+  "prevN": 252,
+  "index": 3,
+  "indexSpace": "raw",
+  "indexOwner": "prev",
+  "instantUtc": "2026-08-07T05:34:41.657Z",
+  "row": {
+    "n": 283,
+    "prevN": 252,
+    "type": "mcp",
+    "prevMsgIdx": 3,
+    "prefixAboveMessages": {
+      "ourToolsIdentical": true,
+      "ourSystemIdentical": true,
+      "ccToolsIdentical": true,
+      "ccSystemIdentical": true,
+      "intact": true
+    },
+    "keyToken": "s-d8d76f4b6923"
+  },
+  "sides": {
+    "cur": {
+      "n": 283,
+      "rawLen": 120,
+      "forwardedLen": 119,
+      "outBodySha": "99b967650be65d5f",
+      "forwardedSha": "51bea499c39a",
+      "rawSha": "51bea499c39a",
+      "forwardedPresentInRawAt": 3,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "51bea499c39a",
+      "firstPassRawSha": "51bea499c39a",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-d8d76f4b6923",
+      "idToken": "s-40bdefa837f4",
+      "forwarded": {
+        "role": "system",
+        "content": "t_bf5acc3ab398_461\n\nt_315a69e50c76_128\n\nt_f18d84b69dd9_2674\n\nt_4965b25f1f82_133\n\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n\nt_452989d4ef8d_19\n\nt_65f8e48b5e00_48\n\nt_f05704be2263_44\n\nt_2bb2a97c8987_138\n\nt_a48140d21fe8_104\n\nt_999781b4ea20_170\n\nt_a61b43ded97e_269\n\nt_ee514317b91b_109\n\nt_315a69e50c76_128\n\nt_f18d84b69dd9_2674\n\nt_4965b25f1f82_133\n\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136"
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_bf5acc3ab398_461\n\nt_315a69e50c76_128\n\nt_f18d84b69dd9_2674\n\nt_4965b25f1f82_133\n\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n\nt_452989d4ef8d_19\n\nt_65f8e48b5e00_48\n\nt_f05704be2263_44\n\nt_2bb2a97c8987_138\n\nt_a48140d21fe8_104\n\nt_999781b4ea20_170\n\nt_a61b43ded97e_269\n\nt_ee514317b91b_109\n\nt_315a69e50c76_128\n\nt_f18d84b69dd9_2674\n\nt_4965b25f1f82_133\n\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136"
+      }
+    },
+    "prev": {
+      "n": 252,
+      "rawLen": 116,
+      "forwardedLen": 117,
+      "outBodySha": "e772c6ebfe797e07",
+      "forwardedSha": "002a91ca71a6",
+      "rawSha": "fb5f3170731a",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [
+        "mcp"
+      ],
+      "firstPassForwardedSha": "002a91ca71a6",
+      "firstPassRawSha": "fb5f3170731a",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-d8d76f4b6923",
+      "idToken": "s-10234f0a0b41",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01PczVQtYuM1e9R7L9rwWGMN",
+            "content": "t_94ea2b79e486_41"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_bf5acc3ab398_461\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_488770d3ed7b_126\n\nt_bece8f76a9d3_69\n\nt_b9da52742da0_228\n\nt_493c10114732_315\n\nt_243a973c3bea_674\n\nt_5f5a883f8d54_26\n\nt_fd49bcba697e_114\n\nt_4e51d6ddc732_2477\n\nt_5bb065b9bc8f_65\n\nt_2ac09a117e73_508\n\nt_38296186880b_316\n\nt_248a92cbf615_59\n\nt_afa464632483_304\n\nt_fbd1a011a42c_669\n\nt_96f79655efdd_372\n\nt_0d59096d4cf0_26\n\nt_5de1dc8b9fb3_424\n\nt_f0d815b96408_28\n\nt_5d65939d6a4b_318\n\nt_9a59d8e86055_258\n\n"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_315a69e50c76_128\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_f18d84b69dd9_2674\n\nt_4965b25f1f82_133\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_452989d4ef8d_19\n\nt_65f8e48b5e00_48\n\nt_f05704be2263_44\n\nt_2bb2a97c8987_138\n\nt_a48140d21fe8_104\n\nt_999781b4ea20_170\n\nt_a61b43ded97e_269\n\nt_ee514317b91b_109\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01PczVQtYuM1e9R7L9rwWGMN",
+            "content": "t_94ea2b79e486_41"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_bf5acc3ab398_461\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_488770d3ed7b_126\n\nt_bece8f76a9d3_69\n\nt_b9da52742da0_228\n\nt_493c10114732_315\n\nt_243a973c3bea_674\n\nt_5f5a883f8d54_26\n\nt_fd49bcba697e_114\n\nt_4e51d6ddc732_2477\n\nt_5bb065b9bc8f_65\n\nt_2ac09a117e73_508\n\nt_38296186880b_316\n\nt_248a92cbf615_59\n\nt_afa464632483_304\n\nt_fbd1a011a42c_669\n\nt_96f79655efdd_372\n\nt_0d59096d4cf0_26\n\nt_5de1dc8b9fb3_424\n\nt_f0d815b96408_28\n\nt_5d65939d6a4b_318\n\nt_9a59d8e86055_258\n\n"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_315a69e50c76_128\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_f18d84b69dd9_2674\n\nt_4965b25f1f82_133\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_452989d4ef8d_19\n\nt_65f8e48b5e00_48\n\nt_f05704be2263_44\n\nt_2bb2a97c8987_138\n\nt_a48140d21fe8_104\n\nt_999781b4ea20_170\n\nt_a61b43ded97e_269\n\nt_ee514317b91b_109\n</system-reminder>"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

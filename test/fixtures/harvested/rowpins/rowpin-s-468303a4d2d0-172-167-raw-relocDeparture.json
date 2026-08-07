@@ -1,0 +1,148 @@
+{
+  "schema": "rowpin/1",
+  "family": "relocDeparture",
+  "key": "s-468303a4d2d0",
+  "n": 172,
+  "prevN": 170,
+  "index": 167,
+  "indexSpace": "raw",
+  "indexOwner": "prev",
+  "instantUtc": "2026-08-06T10:02:45.821Z",
+  "row": {
+    "n": 172,
+    "prevN": 170,
+    "type": "skills",
+    "prevMsgIdx": 167,
+    "prefixAboveMessages": {
+      "ourToolsIdentical": true,
+      "ourSystemIdentical": true,
+      "ccToolsIdentical": true,
+      "ccSystemIdentical": true,
+      "intact": true
+    },
+    "keyToken": "s-468303a4d2d0"
+  },
+  "sides": {
+    "cur": {
+      "n": 172,
+      "rawLen": 174,
+      "forwardedLen": 174,
+      "outBodySha": "bf991ed99a44d185",
+      "forwardedSha": "86d7e5892904",
+      "rawSha": "86d7e5892904",
+      "forwardedPresentInRawAt": 167,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "86d7e5892904",
+      "firstPassRawSha": "86d7e5892904",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-468303a4d2d0",
+      "idToken": "s-7d5e76652ea2",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_018nC8qGPinhFJUGe2LLWb4W",
+            "content": "t_3bac0884961f_41"
+          },
+          {
+            "type": "text",
+            "text": "t_28307af05023_141"
+          },
+          {
+            "type": "text",
+            "text": "t_fe43e97ae50d_126\n\nt_2d96a44b7d5a_76\n\nt_62e77521305c_310\n\nt_8fb7c4b6f63d_629\n\nt_6a8be43f8e86_323\n\nt_d1935506c91d_62\n\nt_4791c7e9744f_291\n\nt_9543fd051313_453\n\nt_9ea3a60b84dd_54\n\nt_7a821ecf11b9_154\n\nt_adb49961e555_294\n\nt_cf618a3ba7d5_507\n\nt_870f3705b0e9_35\n\nt_282ba0eeaaf8_8899\n\nt_bd9be1bd25e4_409\n\nt_a7f16f0f631b_133\n\nt_6836796eb1e1_207\n\nt_260ca6b4ba98_114\n\nt_7688ea9143ec_129\n\nt_569396021c9b_124\n\nt_bc86b32a4e71_156\n\nt_6fe08e2cba2e_61\n\nt_6377c2c611e6_128\n\nt_c0830a479548_53\n\nt_b0dfcc99f2f1_3069\n\nt_1c8180b04aab_76\n\nt_7bdad581dc07_821\n\nt_fc8623256dde_57\n\nt_a9f410f0d616_288\n\nt_9de2388a6328_536\n\nt_62a218e96944_1151\n\nt_53d6e9bad475_221\n\nt_e63bb0cfe9cf_861\n\nt_49e8726d391a_217\n\nt_71001863bc0f_383"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_018nC8qGPinhFJUGe2LLWb4W",
+            "content": "t_3bac0884961f_41"
+          },
+          {
+            "type": "text",
+            "text": "t_28307af05023_141"
+          },
+          {
+            "type": "text",
+            "text": "t_fe43e97ae50d_126\n\nt_2d96a44b7d5a_76\n\nt_62e77521305c_310\n\nt_8fb7c4b6f63d_629\n\nt_6a8be43f8e86_323\n\nt_d1935506c91d_62\n\nt_4791c7e9744f_291\n\nt_9543fd051313_453\n\nt_9ea3a60b84dd_54\n\nt_7a821ecf11b9_154\n\nt_adb49961e555_294\n\nt_cf618a3ba7d5_507\n\nt_870f3705b0e9_35\n\nt_282ba0eeaaf8_8899\n\nt_bd9be1bd25e4_409\n\nt_a7f16f0f631b_133\n\nt_6836796eb1e1_207\n\nt_260ca6b4ba98_114\n\nt_7688ea9143ec_129\n\nt_569396021c9b_124\n\nt_bc86b32a4e71_156\n\nt_6fe08e2cba2e_61\n\nt_6377c2c611e6_128\n\nt_c0830a479548_53\n\nt_b0dfcc99f2f1_3069\n\nt_1c8180b04aab_76\n\nt_7bdad581dc07_821\n\nt_fc8623256dde_57\n\nt_a9f410f0d616_288\n\nt_9de2388a6328_536\n\nt_62a218e96944_1151\n\nt_53d6e9bad475_221\n\nt_e63bb0cfe9cf_861\n\nt_49e8726d391a_217\n\nt_71001863bc0f_383"
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 170,
+      "rawLen": 171,
+      "forwardedLen": 171,
+      "outBodySha": "06b45a6be364a7b5",
+      "forwardedSha": "bcdebd59d586",
+      "rawSha": "4500a0b30ed3",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [
+        "skills"
+      ],
+      "firstPassForwardedSha": "bcdebd59d586",
+      "firstPassRawSha": "4500a0b30ed3",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-468303a4d2d0",
+      "idToken": "s-11a72fe1c29b",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_018nC8qGPinhFJUGe2LLWb4W",
+            "content": "t_3bac0884961f_41"
+          },
+          {
+            "type": "text",
+            "text": "t_28307af05023_141"
+          },
+          {
+            "type": "text",
+            "text": "t_fe43e97ae50d_126\n\nt_2d96a44b7d5a_76\n\nt_62e77521305c_310\n\nt_8fb7c4b6f63d_629\n\nt_6a8be43f8e86_323\n\nt_d1935506c91d_62\n\nt_4791c7e9744f_291\n\nt_9543fd051313_453\n\nt_9ea3a60b84dd_54\n\nt_7a821ecf11b9_154\n\nt_adb49961e555_294\n\nt_cf618a3ba7d5_507\n\nt_870f3705b0e9_35\n\nt_282ba0eeaaf8_8899\n\nt_bd9be1bd25e4_409\n\nt_a7f16f0f631b_133\n\nt_6836796eb1e1_207\n\nt_260ca6b4ba98_114\n\nt_7688ea9143ec_129\n\nt_569396021c9b_124\n\nt_bc86b32a4e71_156\n\nt_6fe08e2cba2e_61\n\nt_6377c2c611e6_128\n\nt_c0830a479548_53\n\nt_b0dfcc99f2f1_3069\n\nt_1c8180b04aab_76\n\nt_7bdad581dc07_821\n\nt_fc8623256dde_57\n\nt_a9f410f0d616_288\n\nt_9de2388a6328_536\n\nt_62a218e96944_1151\n\nt_53d6e9bad475_221\n\nt_e63bb0cfe9cf_861\n\nt_49e8726d391a_217\n\nt_e6e81f87fac2_382\n\n"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_018nC8qGPinhFJUGe2LLWb4W",
+            "content": "t_3bac0884961f_41"
+          },
+          {
+            "type": "text",
+            "text": "t_28307af05023_141"
+          },
+          {
+            "type": "text",
+            "text": "t_fe43e97ae50d_126\n\nt_2d96a44b7d5a_76\n\nt_62e77521305c_310\n\nt_8fb7c4b6f63d_629\n\nt_6a8be43f8e86_323\n\nt_d1935506c91d_62\n\nt_4791c7e9744f_291\n\nt_9543fd051313_453\n\nt_9ea3a60b84dd_54\n\nt_7a821ecf11b9_154\n\nt_adb49961e555_294\n\nt_cf618a3ba7d5_507\n\nt_870f3705b0e9_35\n\nt_282ba0eeaaf8_8899\n\nt_bd9be1bd25e4_409\n\nt_a7f16f0f631b_133\n\nt_6836796eb1e1_207\n\nt_260ca6b4ba98_114\n\nt_7688ea9143ec_129\n\nt_569396021c9b_124\n\nt_bc86b32a4e71_156\n\nt_6fe08e2cba2e_61\n\nt_6377c2c611e6_128\n\nt_c0830a479548_53\n\nt_b0dfcc99f2f1_3069\n\nt_1c8180b04aab_76\n\nt_7bdad581dc07_821\n\nt_fc8623256dde_57\n\nt_a9f410f0d616_288\n\nt_9de2388a6328_536\n\nt_62a218e96944_1151\n\nt_53d6e9bad475_221\n\nt_e63bb0cfe9cf_861\n\nt_49e8726d391a_217\n\nt_e6e81f87fac2_382\n\n"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_eb456467931b_63\n\nt_12ea9c7da938_14491\n</system-reminder>"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

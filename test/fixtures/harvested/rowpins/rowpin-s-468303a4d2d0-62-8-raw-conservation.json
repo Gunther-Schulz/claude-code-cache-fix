@@ -1,0 +1,78 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservation",
+  "key": "s-468303a4d2d0",
+  "n": 62,
+  "prevN": null,
+  "index": 8,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-06T09:36:31.212Z",
+  "row": {
+    "n": 62,
+    "kind": "suppressed-without-copy",
+    "at": 8,
+    "side": "in",
+    "declarationsUnavailable": false,
+    "detail": "in[8] (system): 1 of 1 unit(s) reconstructible from neither a forwarded block nor a forwarded join",
+    "keyToken": "s-468303a4d2d0"
+  },
+  "sides": {
+    "cur": {
+      "n": 62,
+      "rawLen": 20,
+      "forwardedLen": 18,
+      "outBodySha": "65f615b047a94a89",
+      "forwardedSha": "ca7ede7669dc",
+      "rawSha": "f655c35cf3b5",
+      "forwardedPresentInRawAt": 9,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "ca7ede7669dc",
+      "firstPassRawSha": "f655c35cf3b5",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-468303a4d2d0",
+      "idToken": "s-38f2fa678cdc",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_1c90af4f0f"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_e74a20651a"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01MFtDrFGNuuVQjz4ENdKGGX",
+            "name": "Read",
+            "input": {
+              "file_path": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_fe463f36a790_1473"
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
