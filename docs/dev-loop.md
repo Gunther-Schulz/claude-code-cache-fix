@@ -646,6 +646,22 @@ lied on 2026-08-05, each of which read as a finding about the system:
   or one attributed to the other — name the SPACE each is in first. Escaped vs
   raw, content-hash vs git hash, mine vs anyone's. All three were free to check
   and each was one step from a confident wrong claim.
+- **An instrument that never reached the system under test.** `node`'s global
+  `fetch` does NOT honour `HTTPS_PROXY`/`https_proxy` — undici needs an explicit
+  `ProxyAgent`/`EnvHttpProxyAgent` dispatcher. So a node one-liner written to
+  test THIS PROXY connects straight to the origin, gets the real certificate,
+  and returns a clean status whatever the proxy or the CA is doing. Measured
+  2026-08-07, and it produced a confident wrong claim to the operator: three
+  arms (dead CA path / correct CA path / no CA at all) all returned `HTTP 401`,
+  which was read as "the CA is not the cause" and reported as a refutation of a
+  hypothesis that was in fact CORRECT. The same three arms under `curl --proxy`
+  separate immediately — exit 60 without the CA, 401 with it. The tell was
+  available and unread: three arms agreeing IS the finding, because a
+  discriminating instrument has to disagree somewhere. The one-command probe
+  that settles it costs nothing — point the client at a DEAD proxy port
+  (`HTTPS_PROXY=http://127.0.0.1:9`): anything that still succeeds was never
+  going through the proxy. Run that before believing any proxy-path result, and
+  prefer `curl --proxy`, which fails loudly when the proxy is absent.
 - **A shape check standing in for a content check.** Asserting which fields
   are set does not establish that prompt text is off disk. Plant a sentinel,
   run the real thing, grep what was written — **and then run it again with the
