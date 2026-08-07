@@ -62,12 +62,33 @@ Not derived: the operator set this rank after the alias-registry move measured
 the class at ten paths and fixed one. Recorded as an operator decision with its
 date, so a later derivation can see it is not a rubric output.
 
-1. **The remaining nine `cache-fix-*` paths leave `~/.claude/`.** Every read and
-   write of them raises a permission prompt keyed on the directory's shape, for
-   every session and every agent; one such prompt was denied mid-task today and
-   cost the work in flight. Tools half ships alone; proxy half is
-   deployment-coupled and rides a restart already planned.
-   <!-- entry: "the remaining NINE `cache-fix-*` paths leave" -->
+1. **The remaining SIXTEEN cache-fix-owned paths leave `~/.claude/`.** Every
+   read and write of them raises a permission prompt keyed on the directory's
+   shape, for every session and every agent; one such prompt was denied mid-task
+   today and cost the work in flight.
+   **Corrected 2026-08-07 (dispatch prep), twice, both by measurement against
+   the live directory rather than against any document.** The count was NINE
+   here and the search that produced it was `ls ~/.claude/cache-fix*` — a glob
+   over the NAME, which is not the class. The class is "paths this project
+   owns", and seven of its members do not carry the prefix: `quota-status/`,
+   `session-mirrors/`, `upstream-baseline.json`, `upstream-changes.jsonl`,
+   `usage.jsonl`, `usage-log/`, `workflow-derivation-events.jsonl`. The
+   dotfiles-side guard, which enumerates by ALLOW-SET rather than by prefix,
+   reports 18 findings of which 16 are ours — it could see them because it
+   asks the right question. A self-chosen search term is the instrument, and
+   its reach was the claim's basis: this one could never have matched the
+   seven, so its zero meant nothing.
+   And the SPLIT stated here was wrong in the same direction. "Tools half
+   ships alone" rested on which tool READS a path; what decides deployment
+   coupling is which one WRITES it. Grepping the writers: only
+   `cache-fix-gate-status.json` and `cache-fix-fire-ledger.jsonl` are
+   tools-written. `cache-fix-captures/` is written by
+   `proxy/extensions/request-capture.mjs` and `cache-fix-snapshots/` by five
+   proxy extensions — so the 12 GB corpus, the single largest prompt source,
+   rides the restart rather than shipping alone. Two of sixteen ship alone,
+   which is not a split worth building, so it is dropped: one
+   deployment-coupled change, one restart.
+   <!-- entry: "the SIXTEEN cache-fix-owned paths leave" -->
 
 ### Irreversible — evidence or history that cannot be undone
 
@@ -284,42 +305,66 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
 
 ## Open
 
-- **READY — the remaining NINE `cache-fix-*` paths leave `~/.claude/`; the
-  registry was one of ten.** Operator-ranked FIRST, 2026-08-07, on the
-  measurement that the alias move fixed one prompt source out of ten. `~/.claude/`
-  holds `cache-fix-captures/`, `cache-fix-snapshots/`, `cache-fix-state/`,
-  `cache-fix-gate-status.json`, `cache-fix-fire-ledger.jsonl`,
-  `cache-fix-keymap.jsonl`, `cache-fix-bootstrap-log.jsonl`,
-  `cache-fix-debug.log` and `cache-fix-ca/` — all tool DATA in a config
-  directory, all raising the harness's shape-keyed permission prompt on every
-  read and write, for every session and every agent.
-  **The split that decides the work, and it is a fact not a judgment:** five
+- **READY — the SIXTEEN cache-fix-owned paths leave `~/.claude/`; the
+  registry was one of seventeen.** Operator-ranked FIRST, 2026-08-07.
+  `~/.claude/` holds `cache-fix-captures/`, `cache-fix-snapshots/`,
+  `cache-fix-state/`, `cache-fix-gate-status.json`,
+  `cache-fix-fire-ledger.jsonl`, `cache-fix-keymap.jsonl`,
+  `cache-fix-bootstrap-log.jsonl`, `cache-fix-debug.log`, `cache-fix-ca/`,
+  `quota-status/`, `session-mirrors/`, `upstream-baseline.json`,
+  `upstream-changes.jsonl`, `usage.jsonl`, `usage-log/` and
+  `workflow-derivation-events.jsonl` — all tool DATA in a config directory, all
+  raising the harness's shape-keyed permission prompt on every read and write,
+  for every session and every agent.
+  **Two corrections, 2026-08-07, both measured against the live directory
+  rather than against this entry.** (1) The count was NINE and the seven
+  non-prefixed members were missing, because the enumerating search was
+  `ls ~/.claude/cache-fix*` — a glob over the NAME standing in for the class
+  "paths this project owns". It could never have matched `quota-status/` or
+  `usage.jsonl`, so its result carried no information about them; the
+  dotfiles guard, enumerating by allow-set instead, sees all sixteen.
+  (2) The split below was stated as "a fact not a judgment" and was neither.
+  It is retained verbatim because the correction is legible only against it:
+  the sentence names six PROXY extensions as the writers and then concludes a
+  `tools/`-only half in the next clause — the contradiction sat inside one
+  paragraph, unread, because the reader who wrote it was counting READERS.
+  Grepping writers: `cache-fix-gate-status.json` and
+  `cache-fix-fire-ledger.jsonl` are the only two written from `tools/`.
+  `cache-fix-captures/` — 12 GB, the largest single prompt source — is written
+  by `proxy/extensions/request-capture.mjs`. Two of sixteen is not a split
+  worth building, so it is DROPPED: one deployment-coupled change, one restart.
+  ~~The split that decides the work, and it is a fact not a judgment: five
   tools READ these (`bust-triage`, `dossier`, `gate-live`, `harvest`,
-  `cold-events`) and **six proxy extensions WRITE them**
-  (`request-capture`, `prefix-diff`, `insertion-normalization`,
-  `fresh-session-sort`, `deferred-tool-rewrite`, `output-guard`). The tools half
-  is `tools/`-only and ships today; the proxy half is deployment-coupled — pin
-  bump plus `systemctl --user restart cache-fix-proxy` — and rides a restart the
-  operator is already taking, never its own.
-  Design, decided: `$XDG_DATA_HOME`/`~/.local/share/cache-fix/` for data
-  (captures, snapshots, aliases, state), `$XDG_STATE_HOME`/`~/.local/state/cache-fix/`
-  for logs and ledgers. Every path resolves through an env override with an XDG
-  default, exactly as `CACHE_FIX_ALIAS_REGISTRY` now does, and each reader keeps
-  a LOUD legacy fallback for one transition — silent fallback is how two stores
-  diverge.
-  **Restart accounting is part of this entry, not an afterthought:** the proxy
-  half changes where captures and state KEYS are written, so the row-3 rule
-  applies and the restart is priced against LIVE sessions
+  `cold-events`) and six proxy extensions WRITE them (`request-capture`,
+  `prefix-diff`, `insertion-normalization`, `fresh-session-sort`,
+  `deferred-tool-rewrite`, `output-guard`). The tools half is `tools/`-only and
+  ships today.~~
+  Design, decided: `$XDG_DATA_HOME`/`~/.local/share/cache-fix/` for DATA —
+  the rule is "unrecoverable if lost", which admits `captures/` and `ca/` and
+  nothing else — and `$XDG_STATE_HOME`/`~/.local/state/cache-fix/` for the
+  other fourteen (regenerable, or merely expensive to lose). Every path
+  resolves through an env override with an XDG default, exactly as
+  `CACHE_FIX_ALIAS_REGISTRY` now does, through ONE resolver at
+  `proxy/xdg-dirs.mjs` — not one per side: seven files under `tools/` already
+  import from `../proxy/`, and a second copy is a path resolver that can
+  diverge from the one production uses. Each reader keeps a LOUD legacy
+  fallback for one transition; silent fallback is how two stores diverge.
+  **Restart accounting is part of this entry, not an afterthought:** the change
+  moves where captures and state KEYS are written, so the row-3 rule applies
+  and the restart is priced against LIVE sessions
   (`tools/restart-exposure.mjs --match …`) before it is taken, not against the
   corpus.
-  Verifier, red-first: `ls ~/.claude/cache-fix*` lists nine entries today — that
-  is the red; after the tools half it lists only the proxy-written ones, and
-  after the proxy half it lists none. Plus, per path moved, one executed read
-  through the tool that owns it, because a moved file nothing can find is a
-  worse failure than a prompt. The machine-wide guard that keeps the class from
-  returning is a SEPARATE dispatch, briefed at
+  Verifier, red-first: the dotfiles guard
+  (`bootstrap/doctor.py`, `claude_dir_entries_verdict`) names all sixteen
+  today — that is the red, and it is the right instrument because it
+  enumerates by allow-set. Done is those sixteen NAMES gone from its output,
+  never a finding COUNT: the count is live mutating state and has already been
+  quoted at three different values (22, 19, 18) in one day. Plus, per path
+  moved, one executed read through the tool that owns it, because a moved file
+  nothing can find is a worse failure than a prompt. The machine-wide guard
+  that keeps the class from returning is a SEPARATE dispatch, briefed at
   `docs/directives/xdg-data-and-config-dir-guard.md`.
-  <!-- entry: "the remaining NINE `cache-fix-*` paths leave" -->
+  <!-- entry: "the SIXTEEN cache-fix-owned paths leave" -->
 
 - **READY (operator-side, dotfiles) — "already on a remote" is not "already
   public", and the shipped scoping cannot tell them apart.** Found 2026-08-06
