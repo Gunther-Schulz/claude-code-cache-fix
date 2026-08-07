@@ -313,7 +313,7 @@ export function preferTelemetryConfirmed(candidates, events, windowMs = TELEMETR
  * died at >512 MB (ERR_STRING_TOO_LONG, live 2026-07-31) — the same class
  * a77c930 fixed in the census. Two passes, retaining only the two records
  * that matter. */
-export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
+export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES, ctx = null) {
   const f = join(capturesDir, `s-${sid}-requests.jsonl`);
   // CHECK 1 of 3 (see `triage`): the capture file itself.
   if (!existsSync(f)) {
@@ -337,7 +337,31 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
   // as large as the ledger's own ctx figure allows, floored at 2 messages
   // since a single-message request has no prefix to bust.
   const cutoff = tsEpoch * 1000;
-  const plausible = (r) => (r.body.messages?.length ?? 0) >= 2;
+  // A candidate must be big enough to BE the booked event (BACKLOG item B).
+  //
+  // The defect: selection was "the newest plausible request at or before the
+  // ledger stamp", with plausible meaning only "has >= 2 messages" — a size
+  // floor so low that a 2 kB sidecar clears it. Live 2026-08-07T01:00:55Z, a
+  // 375,646-token event: the co-tenant traffic around the bust put a 111 kB
+  // 2-message request in the candidate set, the telemetry preference picked
+  // it (a sidecar's own reset event landed 5 ms from it), it was the FIRST
+  // request of its conversation, and the walk cascaded to UNVERIFIABLE with
+  // the real 1.0 MB opus request sitting four records away.
+  //
+  // The test is the ledger's own `ctx` against the candidate's byte size, and
+  // it is DEFINITIONAL rather than tuned: no tokenizer emits a token from
+  // fewer than one byte, so a request that carried `ctx` tokens occupies at
+  // least `ctx` bytes. A record smaller than `ctx` therefore CANNOT be the
+  // busting request — a proof, not a heuristic, and one that errs only toward
+  // keeping candidates (the record line is larger than the body it holds, and
+  // real text runs 2-4 bytes per token, so the floor is far below the true
+  // size). Size is primary over the model for the reason the entry gives: a
+  // model list goes stale, a byte count does not.
+  //
+  // `ctx` null (an older ledger record, or a caller that has none) disables
+  // the test and leaves the pre-existing rule exactly as it was.
+  const bigEnough = (line) => ctx == null || Buffer.byteLength(line) >= ctx;
+  const plausible = (r, line) => (r.body.messages?.length ?? 0) >= 2 && bigEnough(line);
   // Telemetry preference (BACKLOG TOOL GAP, 2026-07-31): computed BEFORE the
   // scan so a missing/unreadable events file costs nothing extra — the
   // `candidates` accumulation below only happens when `events` is truthy,
@@ -355,6 +379,10 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
   // every number a reason string quotes is accumulated by the SAME walk that
   // failed, never re-derived by a second pass that could disagree with it.
   let firstTs = null, lastTs = null, atOrBefore = 0;
+  // How many otherwise-plausible candidates the `ctx` size test ruled out, so
+  // the no-candidate reason can name the test that emptied the set rather
+  // than leaving the reader to guess at it.
+  let tooSmall = 0, largestDropped = 0;
   // File-wide REQUEST ORDINAL, counted by HARVEST's rule so the number this
   // tool prints is the number `harvest --pin <key> n..m` takes: non-boot and
   // non-outcome records only, zero-based (harvest.mjs pinRange). It is NOT the
@@ -372,7 +400,11 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
     if (firstTs === null || t < firstTs) firstTs = t;
     if (lastTs === null || t > lastTs) lastTs = t;
     if (t <= cutoff) atOrBefore++;
-    if (t <= cutoff && plausible(r)) {
+    if (t <= cutoff && (r.body.messages?.length ?? 0) >= 2 && !bigEnough(line)) {
+      tooSmall++;
+      largestDropped = Math.max(largestDropped, Buffer.byteLength(line));
+    }
+    if (t <= cutoff && plausible(r, line)) {
       if (!after || t > Date.parse(after.ts)) after = r;
       if (events) candidates.push({ ts: t });
     }
@@ -397,7 +429,12 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
   if (!after) {
     return { ok: false, code: "no-candidate",
              detail: `capture covers the stamp (${seen} requests, ${span}; ${atOrBefore} at or before it) ` +
-                     `but none of them could carry this bust — every candidate was ruled out` };
+                     `but none could carry this bust` +
+                     (tooSmall
+                       ? ` — ${tooSmall} request(s) had >=2 messages but were smaller than the ` +
+                         `ledger's ctx of ${ctx} tokens (largest ${largestDropped} bytes), so none ` +
+                         `of them can be the busting request`
+                       : ` — no request at or before the stamp carried 2 or more messages`) };
   }
 
   if (events && events.length) {
@@ -416,7 +453,7 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
         if (r && r.type !== "boot" && r.type !== "outcome") o2++;
         if (!r?.body?.messages || !r?.ts) continue;
         r.ord = o2;
-        if (plausible(r) && Date.parse(r.ts) === chosen.ts) { after = r; break; }
+        if (plausible(r, line) && Date.parse(r.ts) === chosen.ts) { after = r; break; }
       }
     }
   }
@@ -459,8 +496,8 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
  * shape widened. The reason lives on the result form, which `triage` uses;
  * a caller that only needs the pair keeps the contract it was written to.
  */
-export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
-  const r = await capturePairResult(sid, tsEpoch, capturesDir);
+export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES, ctx = null) {
+  const r = await capturePairResult(sid, tsEpoch, capturesDir, ctx);
   return r.ok ? { before: r.before, after: r.after } : null;
 }
 
@@ -740,7 +777,11 @@ export async function triage(bust) {
     steps.push({ step: "reconcile", ok: true, detail: "ledger and transcript agree" });
   }
 
-  const res = await capturePairResult(bust.s, bust.t);
+  // `bust.ctx` is the ledger's own context-token figure for this event, and it
+  // is what stops a co-tenant request too small to BE the event from being
+  // selected (BACKLOG item B). Older ledger records carry no `ctx`; the null
+  // then disables the size test rather than excluding everything.
+  const res = await capturePairResult(bust.s, bust.t, CAPTURES, bust.ctx ?? null);
   if (!res.ok) {
     // Three ordered checks, each one TESTED before it is reported
     // (BACKLOG item A): capture-absent / window-not-covered / no-candidate /
