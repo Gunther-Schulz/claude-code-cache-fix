@@ -202,6 +202,34 @@ approaching is a matrix row, not a build item. A partition that fires on
 everything is the check-that-fires-on-a-non-defect shape one level up: it
 would train its reader to ignore the word.
 
+**A THIRD PARTITION, added 2026-08-07 on operator observation ("these tooling
+improvements that are already booked but not executed keep biting us"): an
+instrument that has produced a MEASURED FALSE VERDICT ranks above the cost
+ordering.** The reason is not that instruments are special — it is that
+signals 2–4 measure an item's OWN cost, and an instrument's own bite is
+always small. `bust-triage` answering UNVERIFIABLE costs a few minutes. What
+it actually costs is the wrongness it injects into everything downstream: on
+2026-08-07 it returned UNVERIFIABLE on a real bust while the capture sat on
+disk at 91 MB, for the second time in one day, and a walk that stopped there
+would have ended with no disposition. The ranking is itself downstream — the
+1,200,000-token figure this list opens with is derived from a ledger counter
+with three known duplication modes. An instrument that lies corrupts the
+evidence every other signal reads, including the evidence used to rank the
+instrument.
+
+Two guards, the same shape as the irreversibility partition's. It applies
+only where a WRONG VERDICT has been measured — not to a missing feature, not
+to an instrument that is merely absent or awkward, which rank normally on
+cost; and only where a booked item CONSUMES that instrument's output, so a
+lying tool nobody reads stays where cost puts it. Applied honestly on the day
+it was written, the partition admitted two items and declined three: the
+`bust-triage` capture-pair defect (two false UNVERIFIABLE verdicts) and the
+worktime ledger's duplicate bookings (the cost figures rest on them) went in;
+the missing ledger query surface, the missing transcript instrument, and the
+named-and-unbooked check stayed in the cost ordering, because each is a gap
+rather than a lie. A partition that admitted all five would have been the
+land-grab the other two partitions warn about.
+
 Two rules that keep this from rotting. **An item nobody can rank is a finding
 about the item** — if its evidence does not support any of signals 2–4, it is
 not decision-complete and the gap is in the entry, not in the rubric. And
@@ -590,6 +618,21 @@ reports ~581k tokens against the single matching session — the number that was
 missing from the decision.
 
 ## Timestamps are UTC, at both ends of the chain
+
+**And the chain has a THIRD end: the operator, who reads a wall clock.**
+Added 2026-08-07 after the class cost several turns of a phantom
+disagreement. Tools print UTC and are right to. A REPLY that quotes a bare
+UTC stamp hands the operator a number that is not the one on their screen —
+here, `04:08:35Z` and `04:17:25Z` were 06:08 and 06:17 locally, and the
+operator reasonably read "04:08" as 4am. They then correctly objected that
+the 4am bust could not be in their fresh session — and they were right,
+because a real, DIFFERENT bust existed at 03:49 local (01:49:59Z, 419k,
+an earlier session). Two people were each right about a different event
+while appearing to contradict each other, and only converting both stamps
+into both zones separated them.
+Convention: an operator-facing stamp carries local time, or both
+(`04:08:35Z (06:08 local)`). The tools stay UTC — this binds the prose
+around them, which is where the zone is silently re-interpreted.
 
 `bust-triage --list` prints UTC and now marks it; `dossier` reads a stamp with
 no zone designator as UTC. Before both, the documented chain — copy a stamp
