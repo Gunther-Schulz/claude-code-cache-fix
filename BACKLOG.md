@@ -245,6 +245,85 @@ the first entry below.
 
 ## Open
 
+- **READY — `docs/dev-loop.md`: a FIELD can be a default rather than a
+  measurement, and 0 is where the two are indistinguishable. FIVE instances in
+  one session.** The file already teaches that a number names its tap point and
+  its unit; it does not teach that a number may not be a number at all. Each of
+  these was used according to the field's NAME before its definition was read,
+  and each produced a confident wrong statement:
+  `mtok` — read as "no prefix matched"; it is the missed portion AS READ from
+  the transcript diagnostic and defaults to 0 when that read never happened.
+  Disproof was in the ledger: one event booked three times reads `mtok` 0, 0,
+  182,728.
+  `pinned` — read as the size of the pin store, so a 9->4 transition looked
+  like state loss; it is a per-request count of pins APPLIED
+  (`insertion-normalization.mjs`, `pinned: applied`), which alternates with
+  CC's own oscillation and means nothing about retention.
+  `rebilledBytes` — read as the cost; it prices from the divergence index while
+  the wire prices from the last written breakpoint (its own entry, above).
+  `readCapture`'s index — read as the request ordinal; it counts every
+  non-blank LINE, and `main()` documents that hazard 500 lines above the pass
+  that walked into it.
+  `cause: other` — the one case already documented in FORK-NOTES as a degraded
+  default, which is what makes the class visible: the SAME shape was
+  undocumented on every sibling field.
+  Design: one section, sited beside "Tap points — every number names where it
+  was measured", stating the class — a field's value is a measurement only
+  where the writer wrote one; the zero of an unwritten field and the zero of a
+  measured absence are the same bytes, and only the writer distinguishes them.
+  This is the three-answer rule (verified clean / verified broken / COULD NOT
+  VERIFY) one level down: it already governs CHECKERS and not the FIELDS they
+  read. Widening the existing section beats a new one.
+  Verifier: the section names the five fields above with, for each, what its
+  zero means; and `cause: other`'s FORK-NOTES paragraph gains a pointer to it,
+  since that paragraph is where a reader currently learns the class from a
+  single instance.
+
+- **READY — the threat matrix has a datapoint-section form and yesterday's
+  addendum was appended INTO the table cell instead, which is how a cell came
+  to contradict itself.** Row 24's cell carries a 2026-08-02 measurement
+  ("mid-session corpus edits are FREE, only the resume pays", 246 requests) and,
+  a few hundred words later, a 2026-08-06 addendum asserting the opposite as
+  "the operator-facing half this row had not stated". Retracted 2026-08-07 on
+  re-measurement. The mechanism is structural, not carelessness: the cell is
+  thousands of words in ONE table cell, so an author appending to it does not
+  read it first, and `matrixRow` truncates the status at 260 chars, so no
+  reader sees the conflict either.
+  **The form already exists and was not used.** Rows 3, 4 and 24 all carry
+  `### Row N datapoint — <date>: <finding>` sections BELOW the table, which are
+  readable, diffable, and where every other walk this week landed. The
+  2026-08-06 addendum is the one that went into the cell.
+  Design: state the convention in the matrix header — a walk's findings land as
+  a dated datapoint section; the CELL carries only the row's current status and
+  disposition — and add a `tools/` check for the computable half: a table cell
+  over N chars, or one containing a date-stamped addendum, is a finding.
+  Verifier, red-first: red on row 24 at the commit before the retraction (the
+  cell then held a dated addendum contradicting its own body), and SILENT on
+  rows whose walks live in datapoint sections — which is most of them, and is
+  what keeps the check from firing on the whole table.
+
+- **READY (small) — `docs/dev-loop.md`: when an instrument surprises you, run
+  the SIBLING implementation before reasoning about the defect.** The corpus
+  carries this as principle ("divergence between two independently built
+  measurements of the same quantity is the cheap reach detector"); the dev-loop
+  has the whole "rule out the instrument" ladder and does not mention it,
+  though this repo is unusually rich in sibling implementations.
+  Measured 2026-08-07: a 336k ❄ was diagnosed by running `tools/cold-events.mjs`
+  — the fork's own re-implementation of worktime's cold-event predicate — over
+  the same transcript. It returned `events: 0` against worktime's one 336k hit,
+  and the difference between them (a `requestId` dedup one has and the other
+  lacks) WAS the defect and its remedy, in a single step. Reasoning had already
+  produced two wrong mechanisms before that command ran.
+  Design: one step in the "Rule out the instrument" ladder, above "look at the
+  bytes" — name the known sibling pairs so the step is executable rather than
+  aspirational (`cold-events.mjs` vs claude-worktime's detector;
+  `replay.mjs --census` vs `reminder-migration-census.mjs` on container
+  migrations; `bust-triage` vs `dossier` on row lookup, which the runbook
+  already treats as a disagreement source).
+  Verifier: the step, run against the 2026-08-07 01:00:55Z stamp, reaches the
+  same verdict the hand-walk reached — and the ladder's existing steps stay in
+  their current order, since this adds a rung rather than re-ranking them.
+
 - **READY — FIRST THING NEXT SESSION: explain the 2026-08-07 01:00:55Z false ❄
   to the operator in plain language, before any build work.** They asked for
   this explicitly, tired, at the end of a long session, after an explanation
