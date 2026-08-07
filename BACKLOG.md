@@ -47,6 +47,19 @@ the ledger it is read from has three known duplication modes.
 irreversibility first, then the false-verdict partition, then cost. If that is
 wrong it is a decision to revisit, not a bug.
 
+### Operator-ranked, 2026-08-07 — ahead of the partitions by directive
+
+Not derived: the operator set this rank after the alias-registry move measured
+the class at ten paths and fixed one. Recorded as an operator decision with its
+date, so a later derivation can see it is not a rubric output.
+
+1. **The remaining nine `cache-fix-*` paths leave `~/.claude/`.** Every read and
+   write of them raises a permission prompt keyed on the directory's shape, for
+   every session and every agent; one such prompt was denied mid-task today and
+   cost the work in flight. Tools half ships alone; proxy half is
+   deployment-coupled and rides a restart already planned.
+   <!-- entry: "the remaining NINE `cache-fix-*` paths leave" -->
+
 ### Irreversible — evidence or history that cannot be undone
 
 The fork-side member of this partition SHIPPED this morning (row-scoped evidence
@@ -315,6 +328,43 @@ CONTROLLED-CAUSE, evidence pinned and verified, and the gap it exposed is
 the first entry below.
 
 ## Open
+
+- **READY — the remaining NINE `cache-fix-*` paths leave `~/.claude/`; the
+  registry was one of ten.** Operator-ranked FIRST, 2026-08-07, on the
+  measurement that the alias move fixed one prompt source out of ten. `~/.claude/`
+  holds `cache-fix-captures/`, `cache-fix-snapshots/`, `cache-fix-state/`,
+  `cache-fix-gate-status.json`, `cache-fix-fire-ledger.jsonl`,
+  `cache-fix-keymap.jsonl`, `cache-fix-bootstrap-log.jsonl`,
+  `cache-fix-debug.log` and `cache-fix-ca/` — all tool DATA in a config
+  directory, all raising the harness's shape-keyed permission prompt on every
+  read and write, for every session and every agent.
+  **The split that decides the work, and it is a fact not a judgment:** five
+  tools READ these (`bust-triage`, `dossier`, `gate-live`, `harvest`,
+  `cold-events`) and **six proxy extensions WRITE them**
+  (`request-capture`, `prefix-diff`, `insertion-normalization`,
+  `fresh-session-sort`, `deferred-tool-rewrite`, `output-guard`). The tools half
+  is `tools/`-only and ships today; the proxy half is deployment-coupled — pin
+  bump plus `systemctl --user restart cache-fix-proxy` — and rides a restart the
+  operator is already taking, never its own.
+  Design, decided: `$XDG_DATA_HOME`/`~/.local/share/cache-fix/` for data
+  (captures, snapshots, aliases, state), `$XDG_STATE_HOME`/`~/.local/state/cache-fix/`
+  for logs and ledgers. Every path resolves through an env override with an XDG
+  default, exactly as `CACHE_FIX_ALIAS_REGISTRY` now does, and each reader keeps
+  a LOUD legacy fallback for one transition — silent fallback is how two stores
+  diverge.
+  **Restart accounting is part of this entry, not an afterthought:** the proxy
+  half changes where captures and state KEYS are written, so the row-3 rule
+  applies and the restart is priced against LIVE sessions
+  (`tools/restart-exposure.mjs --match …`) before it is taken, not against the
+  corpus.
+  Verifier, red-first: `ls ~/.claude/cache-fix*` lists nine entries today — that
+  is the red; after the tools half it lists only the proxy-written ones, and
+  after the proxy half it lists none. Plus, per path moved, one executed read
+  through the tool that owns it, because a moved file nothing can find is a
+  worse failure than a prompt. The machine-wide guard that keeps the class from
+  returning is a SEPARATE dispatch, briefed at
+  `docs/directives/xdg-data-and-config-dir-guard.md`.
+  <!-- entry: "the remaining NINE `cache-fix-*` paths leave" -->
 
 - **READY (operator-side, dotfiles) — "already on a remote" is not "already
   public", and the shipped scoping cannot tell them apart.** Found 2026-08-06
