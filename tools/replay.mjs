@@ -2908,6 +2908,34 @@ export function conservationViolations(e, seen, seenRewrites) {
   // publishes none — see the clause comment for why `mutatedBy` stands in its
   // place and why that is the harder evidence, not the softer.
   const idnormDeclared = (e.mutatedBy ?? []).includes("identity-normalization");
+  // THE THIRD ANSWER (dev-loop, "A checker has THREE answers, not two"), applied
+  // to this gate's own inputs rather than to an empty corpus.
+  //
+  // Every clause above short-circuits on a missing declaration, which is right
+  // — but it makes two different situations produce byte-identical rows: the
+  // gate consulted its declarations and the content really is unaccounted for
+  // (verified broken), versus the gate had nothing to consult (could not
+  // verify). Before this flag the second wore the first's clothes, and a reader
+  // could not tell them apart from the row or from its `detail` line.
+  //
+  // TRUE only when NONE of the four surfaces is present. Present-but-inert is a
+  // CHECKED answer: the run loop writes `…Stats: … ?? null` and always builds
+  // `mutatedBy`, so a request where every extension did nothing has all four
+  // and reports an ordinary violation. That is what keeps this off the daily
+  // sweep entirely — it can fire only on entries built by hand, which is
+  // exactly the population that could not previously say which answer it meant.
+  // A predicate of "any of the four missing" would fire on almost every
+  // hand-built entry and train its reader to ignore the word.
+  const declarationsUnavailable = e.smooshSplitStats === undefined
+    && e.freshSessionSortStats === undefined
+    && e.contentStripStats === undefined
+    && e.mutatedBy === undefined;
+  // The human-facing half. A flag in the JSON beside a `detail` line that still
+  // reads as a plain violation leaves the sweep reader and the row pin exactly
+  // where they were, so the line carries it too.
+  const unavailableNote = declarationsUnavailable
+    ? " [declarations unavailable — this entry carries none of the gate's four declaration surfaces, so no exemption clause could be checked: COULD NOT VERIFY, not verified broken]"
+    : "";
   // F-side hashes a verified rewrite introduced, filled on the R-side and read
   // by the F-side loop — the post-rewrite block is new bytes on the wire by
   // construction and would otherwise read as invented.
@@ -2961,7 +2989,8 @@ export function conservationViolations(e, seen, seenRewrites) {
           // this file pays for whenever it is left implicit.
           at: i,
           side: "in",
-          detail: `in[${i}] (${msg?.role}): ${unaccounted.length} of ${units.length} unit(s) reconstructible from neither a forwarded block nor a forwarded join`,
+          declarationsUnavailable,
+          detail: `in[${i}] (${msg?.role}): ${unaccounted.length} of ${units.length} unit(s) reconstructible from neither a forwarded block nor a forwarded join${unavailableNote}`,
         });
       }
       continue;
@@ -3059,7 +3088,8 @@ export function conservationViolations(e, seen, seenRewrites) {
           kind: "lost",
           at: i,
           side: "in",
-          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) present in CC's request and in no forwarded message`,
+          declarationsUnavailable,
+          detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) present in CC's request and in no forwarded message${unavailableNote}`,
         });
       }
     }
@@ -3114,7 +3144,8 @@ export function conservationViolations(e, seen, seenRewrites) {
         kind: "invented",
         at: i,
         side: "out",
-        detail: `out[${i}] (${msg?.role}): ${invented.length} of ${fUnitsByMsg[i].length} unit(s) CC never sent in this conversation`,
+        declarationsUnavailable,
+        detail: `out[${i}] (${msg?.role}): ${invented.length} of ${fUnitsByMsg[i].length} unit(s) CC never sent in this conversation${unavailableNote}`,
       });
     }
   }

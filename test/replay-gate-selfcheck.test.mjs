@@ -2047,3 +2047,119 @@ test("conservation: BITE — prose that merely QUOTES the marker is not covered"
     "an edit the extension's own anchor refuses is a corrupted message, not a declared behaviour");
   assert.deepEqual(cv.exemptions, []);
 });
+
+// =====================================================================
+// The third answer: `declarationsUnavailable`
+// =====================================================================
+//
+// DEFINITION, written before the assertions. This gate reads FOUR declaration
+// surfaces off the entry — `smooshSplitStats`, `freshSessionSortStats`,
+// `contentStripStats` and `mutatedBy`. A row is `declarationsUnavailable` when
+// the entry carries NONE of them, i.e. every one is `undefined`. It separates
+// the two answers that were byte-identical before it existed:
+//
+//   verified broken  — the gate consulted its declarations and this content
+//                      really is unaccounted for.
+//   COULD NOT VERIFY — the gate had nothing to consult, so "unaccounted for"
+//                      is an absence of evidence wearing a verdict's clothes.
+//
+// PRESENCE WITH AN INERT VALUE IS A CHECKED ANSWER, not an unavailable one:
+// the run loop writes `smooshSplitStats: … ?? null` and always builds
+// `mutatedBy`, so a request where every extension simply did nothing has all
+// four surfaces present and reports an ordinary violation. That is what keeps
+// this off the daily sweep — the flag can only fire on a caller that builds
+// entries by hand (`findConservationViolations`, the tests here), which is
+// precisely the population that could not previously say which answer it meant.
+//
+// The FLAG ALONE is not the repair. The human-facing `detail` line is what a
+// sweep reader and a row pin actually carry, so it says so too — a flag in
+// JSON beside a line that still reads as a plain violation leaves the reader
+// exactly where they were.
+
+const noDecl = (inM, outM) => conservationViolations(entry(0, inM, outM), new Set(), new Set());
+
+test("conservation: a violation on an entry with NO declaration surfaces says COULD NOT VERIFY", () => {
+  const inM = [{ role: "user", content: [txt("real content CC sent")] }];
+  const outM = [{ role: "user", content: [] }];
+  const cv = noDecl(inM, outM);
+
+  assert.equal(cv.violations.length, 1);
+  assert.equal(cv.violations[0].kind, "lost");
+  assert.equal(cv.violations[0].declarationsUnavailable, true,
+    "no surface was present, so the gate cannot claim it checked one");
+  assert.match(cv.violations[0].detail, /declarations unavailable/,
+    "and the human-facing line says so — the flag alone leaves the reader where they were");
+});
+
+test("conservation: BITE — a violation on an entry that DOES carry surfaces is a plain fail", () => {
+  // The discriminator. Same missing bytes, but the entry carries the surfaces
+  // the run loop always writes: the gate consulted them, they declared
+  // nothing, and the content really is unaccounted for. Reporting this one as
+  // could-not-verify would make the third answer fire on a real defect, which
+  // is the fires-on-a-non-defect failure pointed the other way.
+  const inM = [{ role: "user", content: [txt("real content CC sent")] }];
+  const outM = [{ role: "user", content: [] }];
+  const cv = conservationViolations(
+    entry(0, inM, outM, { smooshSplitStats: null, freshSessionSortStats: null, contentStripStats: null, mutatedBy: [] }),
+    new Set(), new Set(),
+  );
+
+  assert.equal(cv.violations.length, 1);
+  assert.equal(cv.violations[0].declarationsUnavailable, false,
+    "present-but-inert is a checked answer, not a missing one");
+  assert.doesNotMatch(cv.violations[0].detail, /declarations unavailable/);
+});
+
+test("conservation: BITE — ONE surface present is enough to make the verdict a real one", () => {
+  // "None of the four" is the condition, deliberately: a caller that carries
+  // even one surface has given the gate something to consult, and the clauses
+  // it could not consult are off for a stated reason rather than an unknown
+  // one. A predicate of "any of the four missing" would fire on every
+  // hand-built entry in this file and train its reader to ignore the word.
+  const inM = [{ role: "user", content: [txt("real content CC sent")] }];
+  const outM = [{ role: "user", content: [] }];
+  const cv = conservationViolations(entry(0, inM, outM, { mutatedBy: [] }), new Set(), new Set());
+  assert.equal(cv.violations[0].declarationsUnavailable, false);
+});
+
+test("conservation: the flag rides EVERY violation kind, not just `lost`", () => {
+  // suppressed-without-copy, lost and invented are all violation rows and all
+  // three are equally unable to say which answer they mean without it.
+  const inM = [{ role: "user", content: [txt("real content CC sent")] }];
+  const outM = [{ role: "user", content: [txt("bytes CC never sent")] }];
+  const cv = noDecl(inM, outM);
+  assert.deepEqual(cv.violations.map((v) => v.kind).sort(), ["invented", "lost"]);
+  for (const v of cv.violations) {
+    assert.equal(v.declarationsUnavailable, true, `${v.kind} must carry it too`);
+    assert.match(v.detail, /declarations unavailable/);
+  }
+
+  // `suppressions[].index` is the field `suppressedIndices` reads. Getting
+  // this wrong once in this very test is the hand-rolled-fixture trap: a
+  // `wireIdx` key produced a `lost` row instead, i.e. a fixture that silently
+  // exercised a different branch than the one the bite names.
+  //
+  // `stats` is insertion-normalization's telemetry and is NOT one of the four
+  // declaration surfaces, so this entry is still declaration-less.
+  const sup = conservationViolations({
+    n: 0, ts: "t",
+    inMsgs: [{ role: "user", content: [txt("<system-reminder>\nsuppressed body\n</system-reminder>")] }],
+    outMsgs: [],
+    stats: { suppressions: [{ index: 0, hash: "h" }] },
+  }, new Set(), new Set());
+  assert.equal(sup.violations.length, 1);
+  assert.equal(sup.violations[0].kind, "suppressed-without-copy");
+  assert.equal(sup.violations[0].declarationsUnavailable, true);
+  assert.match(sup.violations[0].detail, /declarations unavailable/);
+});
+
+test("conservation: BITE — an EXEMPTION never carries the flag, because it had a declaration by construction", () => {
+  const inM = [{ role: "system", content: [txt(SESSION_START_RESUME)] }];
+  const outM = [{ role: "system", content: [txt(sessionStartForwarded())] }];
+  const cv = conservationViolations(entry(0, inM, outM, idnorm()), new Set(), new Set());
+  assert.equal(cv.violations.length, 0);
+  for (const x of cv.exemptions) {
+    assert.equal(x.declarationsUnavailable, undefined,
+      "an exemption is granted BY a declaration; flagging it would be incoherent");
+  }
+});
