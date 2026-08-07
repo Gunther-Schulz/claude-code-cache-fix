@@ -39,6 +39,11 @@ import { homedir, hostname } from "node:os";
 import { fileURLToPath } from "node:url";
 
 import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
+// The scrub is IMPORTED, never re-derived. A second sanitizer is a second
+// definition of what a fixture may carry, and the one that drifts is always
+// the copy — the same reason every checker in this tree imports its identity
+// rather than restating it (docs/dev-loop.md, "Never hand-roll identity").
+import { scrubMessage, sidToken } from "./harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
@@ -110,7 +115,11 @@ export function replayArgs(file, env) {
   // anchorDelta, tools deltas, mitigation pricing) were built as census-only
   // and a sweep without them re-derives nothing daily — the classifications
   // exist precisely so the next instance is recognized, not re-derived.
-  const args = [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, REPLAY, file, "--json", "--census"];
+  // --pin-rows rides every sweep for the reason --census does, one step
+  // further along: the classifications exist so the next instance is
+  // recognized rather than re-derived, and the BYTES exist so the next
+  // instance can still be re-derived at all after the capture rotates.
+  const args = [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, REPLAY, file, "--json", "--census", "--pin-rows"];
   for (const kv of env) args.push("--env", kv);
   return args;
 }
@@ -202,6 +211,172 @@ function persistRows(row, field, source) {
   if (source.length > ROW_CAP) row[`${field}Truncated`] = source.length;
 }
 
+// --- Row evidence pins ---
+//
+// The sweep is a RECURRING producer of findings, so it has no closing moment
+// at which a human snapshots what proves them (docs/dev-loop.md, closing gate
+// question 2): it either writes the evidence out at the moment it finds a row
+// or the evidence is gone. Captures rotate oldest-mtime-first on a quadratic
+// clock and eviction takes the QUIET session first — a session goes quiet
+// exactly when it stops being traffic and starts being evidence. Measured
+// 2026-08-06: a row measured at 09:59Z had its capture gone by ~19:25Z, which
+// took with it the known positive a booked item named as its red-first
+// arrangement, i.e. the loss stopped being retrospective and started blocking
+// work.
+//
+// replay.mjs produces the bytes (its `--pin-rows` pass, with its own
+// cross-pass check that they belong to the row); this side does three things
+// and none of them is interpretation: it SCRUBS through harvest's own
+// sanitizer, it REJECTS a pin whose bytes the child could not match to its
+// row, and it WRITES — never commits. Committing is a human act here exactly
+// as it is for harvest's fixtures and its ledger.
+const DEFAULT_ROWPINS = join(__dirname, "..", "test", "fixtures", "harvested", "rowpins");
+
+/** The pin's stable identity: capture key, request, index, INDEX SPACE, family.
+ *
+ * `sidToken` (harvest's, imported) is what keeps a live capture key out of a
+ * tracked filename — the class the push scan blocks and the authoring rule in
+ * docs/dev-loop.md states. Filenames are as public as content.
+ *
+ * The SPACE is in the name because without it the identity collides, and an
+ * identity computed more cheaply than the thing it identifies always does.
+ * Measured 2026-08-07 on a 255 MB capture: the conservation gate reports a
+ * `lost` row at raw index i and an `invented` row at forwarded index i for
+ * the same request — two different messages, one filename. 10 of that
+ * capture's 21 pins collided, and only the conflict guard (which refuses to
+ * overwrite) kept the first ten from being silently replaced by the second
+ * ten.
+ */
+export function rowPinName(keyToken, pin) {
+  return `rowpin-${keyToken}-${pin.n}-${pin.index}-${pin.indexSpace}-${pin.family}.json`;
+}
+
+// Live wall-clock instants do not survive into the harvested corpus — the
+// `live-timestamp` absence class is defined over exactly this directory, and
+// the corpus convention is that a date rides as documentation (the growth
+// artifacts carry theirs in the filename) while the instant does not. So the
+// pin keeps DAY precision and joins to its row by (key token, n, prevN,
+// index), which identifies the pair inside the capture exactly. What it does
+// NOT support is an hour-precision join to a bust ledger; that residual is
+// named rather than fixed by softening the class.
+const dayOf = (ts) => (typeof ts === "string" && /^\d{4}-\d{2}-\d{2}T/.test(ts) ? ts.slice(0, 10) : null);
+
+/** Everything a pin carries that is an identifier or an instant, replaced.
+ *
+ * Deliberately NOT a generic deep walk: a walker that hunts for "things that
+ * look like identifiers" re-derives the scrub, and a field added upstream
+ * would ride through it silently. The fields are named, and an unrecognised
+ * one keeps its value — which the absence scan then has an opinion about.
+ */
+function scrubSide(side) {
+  if (!side || typeof side !== "object") return side;
+  const { ts, key, id, forwarded, raw, ...rest } = side;
+  return {
+    ...rest,
+    keyToken: key ? sidToken(key) : null,
+    // The capture RECORD id, tokenized for the same reason the key is: it is
+    // a live identifier, and its only job here is to say "these two sides came
+    // from different records".
+    idToken: id ? sidToken(id) : null,
+    forwarded: forwarded === null || forwarded === undefined ? null : scrubMessage(forwarded),
+    raw: raw === null || raw === undefined ? null : scrubMessage(raw),
+  };
+}
+
+export function buildRowPinDocument(pin) {
+  const { ts, key, ...row } = pin.row ?? {};
+  // NOT `row.key` alone. Only the pair families (stability, its exemptions,
+  // relocDeparture) carry a capture key on the row; the per-request families
+  // — conservation, its exemptions, sequence, order — never have, so reading
+  // the key off the row skipped every one of their pins while reporting them
+  // as built. Measured 2026-08-07 on a 255 MB capture: 21 pins asked, 21
+  // built, 0 written. The side carries the key the pin pass read off the
+  // capture record itself, which is the same value and exists for every
+  // family.
+  const rawKey = key ?? pin.sides?.cur?.key ?? pin.sides?.prev?.key ?? null;
+  const keyToken = rawKey ? sidToken(rawKey) : null;
+  const sides = {};
+  for (const [label, side] of Object.entries(pin.sides ?? {})) sides[label] = scrubSide(side);
+  return {
+    schema: "rowpin/1",
+    family: pin.family,
+    key: keyToken,
+    n: pin.n,
+    prevN: pin.prevN,
+    index: pin.index,
+    // Which array the index indexes, and whose. Left implicit, these two are
+    // the coordinate-space error this repo has paid for twice (raw 370
+    // forwards as 360).
+    indexSpace: pin.indexSpace,
+    indexOwner: pin.indexOwner,
+    dayUtc: dayOf(ts) ?? dayOf(pin.sides?.cur?.ts) ?? null,
+    // The row VERBATIM apart from its identifiers, because a summary of a row
+    // cannot answer the question the row was kept for.
+    row: keyToken ? { ...row, keyToken } : row,
+    sides,
+    checks: pin.checks,
+    // What a reader must know to trust or distrust this artifact, stated in
+    // the artifact: the bytes are a second pipeline run's, checked against the
+    // first run's per-message hashes, and the text is tokenized per "\n\n"
+    // segment — so CONTENT predicates (a literal-prefix test) can never fire
+    // on it, while structural ones (indices, lengths, equality, presence)
+    // survive by construction. docs/dev-loop.md, "The scrub destroys CONTENT
+    // PREDICATES". The presence answer this pin needs was therefore computed
+    // on the real bytes, before the scrub, and is recorded as a value.
+    provenance: {
+      producer: "tools/gate-live.mjs (replay.mjs --pin-rows)",
+      scrub: "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+      bytesFrom: "a second pipeline pass over the same capture, hash-checked against the first",
+    },
+  };
+}
+
+/** Write the pins a sweep produced. Idempotent, rejecting, never committing.
+ *
+ * Four outcomes, counted apart rather than folded into "written": a pin whose
+ * bytes the child could not match to its row is REJECTED (a control that
+ * cannot fail is not a control); one already on disk with identical content is
+ * UNCHANGED (the watermark property harvest already has); one on disk with
+ * DIFFERENT content is a CONFLICT and is not overwritten, because overwriting
+ * would destroy the earlier evidence to make room for a claim about the same
+ * row; everything else is written.
+ */
+export async function writeRowPins(pins, dir) {
+  const out = { written: 0, unchanged: 0, rejected: 0, unverifiable: 0, conflicts: [], skipped: [], files: [] };
+  if (!Array.isArray(pins) || pins.length === 0) return out;
+  await mkdir(dir, { recursive: true });
+  for (const pin of pins) {
+    if (pin?.checks?.bytesMatchRow === false) {
+      out.rejected++;
+      continue;
+    }
+    // Unverifiable is not rejected: the pin says so in its own `checks`, and
+    // dropping it would lose the only copy of bytes that are about to rotate.
+    if (pin?.checks?.bytesMatchRow === null) out.unverifiable++;
+    const doc = buildRowPinDocument(pin);
+    if (!doc.key) {
+      out.skipped.push({ family: pin.family, n: pin.n, reason: "row carries no capture key to name the pin by" });
+      continue;
+    }
+    const name = rowPinName(doc.key, pin);
+    const path = join(dir, name);
+    const body = JSON.stringify(doc, null, 2) + "\n";
+    let existing = null;
+    try {
+      existing = await readFile(path, "utf-8");
+    } catch { /* not pinned yet */ }
+    if (existing !== null) {
+      if (existing === body) out.unchanged++;
+      else out.conflicts.push(name);
+      continue;
+    }
+    await writeFile(path, body);
+    out.written++;
+    out.files.push(name);
+  }
+  return out;
+}
+
 function summarise(file, bytes, res) {
   const row = { file, bytes, exit: res.code };
   if (res.code === -1) {
@@ -288,6 +463,13 @@ function summarise(file, bytes, res) {
     // settles it, and the captures that would settle it rotate away first.
     ["relocDepartureRows", parsed.relocDepartures],
   ]) persistRows(row, field, source);
+  // The pin BODIES ride out of this function on the row and are removed by
+  // main() the moment they have been written — they are message bytes, and
+  // the status file is neither their home nor scrubbed. What stays on the row
+  // is the count summary. Named `pinsPending` rather than `pins` so a reader
+  // of the persisted row cannot mistake a leftover for a record.
+  row.pinsPending = Array.isArray(parsed.pins) ? parsed.pins : null;
+  row.pinSummary = parsed.pinSummary ?? null;
   row.unparseable = (parsed.report ?? []).filter((r) => r.error).length;
   // Replay fidelity: whether this run reproduced the bytes the proxy really
   // forwarded. A mismatch means the invariants above were measured on a
@@ -404,6 +586,28 @@ export function summariseAbsorption(rows) {
     }
   }
   return { total, ours, captures, cacheControlOnly, cacheControlUnknown };
+}
+
+/** Sweep-wide row-pin totals, for the same reason the absorption rollup
+ * exists: the per-capture rows carry the detail, and the sweep-level number
+ * is what a reader (or a doctor verdict) checks. `captures` counts the rows
+ * that had a pin writer run at all — a row whose child emitted no pins array
+ * contributes to NEITHER a zero nor a total, because `null` is not `0`.
+ */
+export function reduceRowPins(rows) {
+  const acc = { captures: 0, written: 0, unchanged: 0, rejected: 0, unverifiable: 0, conflicts: 0, errors: 0 };
+  for (const r of rows) {
+    const p = r.rowPins;
+    if (!p) continue;
+    acc.captures++;
+    if (p.error) { acc.errors++; continue; }
+    acc.written += p.written ?? 0;
+    acc.unchanged += p.unchanged ?? 0;
+    acc.rejected += p.rejected ?? 0;
+    acc.unverifiable += p.unverifiable ?? 0;
+    acc.conflicts += (p.conflicts ?? []).length;
+  }
+  return acc;
 }
 
 /** Sweep-wide byte-gate totals: what `main` writes into the daily status
@@ -899,6 +1103,7 @@ function parseArgs(argv) {
     fireLedger: DEFAULT_FIRE_LEDGER,
     snapshots: DEFAULT_SNAPSHOTS,
     transcripts: DEFAULT_TRANSCRIPTS,
+    rowpins: DEFAULT_ROWPINS,
     quiet: false,
   };
   for (let i = 2; i < argv.length; i++) {
@@ -908,6 +1113,7 @@ function parseArgs(argv) {
     else if (a === "--fire-ledger") args.fireLedger = argv[++i];
     else if (a === "--snapshots") args.snapshots = argv[++i];
     else if (a === "--transcripts") args.transcripts = argv[++i];
+    else if (a === "--rowpins") args.rowpins = argv[++i];
     else if (a === "--quiet") args.quiet = true;
     else {
       process.stderr.write(`unexpected argument: ${a}\n`);
@@ -952,6 +1158,24 @@ async function main() {
     const res = await runReplay(full, prodEnv);
     const row = summarise(f, bytes, res);
     row.byteGate = summariseCensus(await runCensus(full));
+    // Write the evidence before anything else can go wrong with this sweep,
+    // and drop the bodies off the row immediately afterwards: the status file
+    // is machine-local, unscrubbed and read by tools that expect counts.
+    // A write failure is recorded on the row rather than ending the sweep —
+    // the same stance the fire ledger takes — because a lost pin is a lost
+    // artifact, while an aborted sweep is a lost verdict for 66 captures.
+    if (row.pinsPending) {
+      try {
+        row.rowPins = await writeRowPins(row.pinsPending, args.rowpins);
+      } catch (e) {
+        row.rowPins = { error: String(e?.message ?? e) };
+      }
+    } else {
+      // Three answers: the child emitted no pins array at all (an older
+      // replay, a run that could not parse) — that is not a measured zero.
+      row.rowPins = null;
+    }
+    delete row.pinsPending;
     rows.push(row);
     if (!args.quiet) {
       const verdict = row.error
@@ -964,6 +1188,18 @@ async function main() {
             (row.byteGate?.error ? " BYTE-GATE-ERROR" : "");
       process.stdout.write(`${f} (${(bytes / 1e6).toFixed(1)} MB, ${row.requests ?? "?"} req): ${verdict}\n`);
       process.stdout.write(`  byte-gate: ${describeByteGate(row.byteGate)}\n`);
+      if (row.rowPins) {
+        const p = row.rowPins;
+        process.stdout.write(
+          p.error
+            ? `  row pins: COULD NOT WRITE — ${p.error}\n`
+            : `  row pins: ${p.written} written, ${p.unchanged} already pinned` +
+              (p.rejected ? `, ${p.rejected} REJECTED (bytes do not match the row)` : "") +
+              (p.unverifiable ? `, ${p.unverifiable} unverifiable` : "") +
+              (p.conflicts.length ? `, ${p.conflicts.length} CONFLICT (same row, different bytes — not overwritten)` : "") +
+              "\n",
+        );
+      }
     }
   }
 
@@ -1022,6 +1258,7 @@ async function main() {
     ok: failed.length === 0 && proving.length > 0,
     byteGate,
     absorption: summariseAbsorption(rows),
+    rowPins: reduceRowPins(rows),
     backlogLint,
     rows,
   };

@@ -2038,6 +2038,317 @@ export function runCensus(entries) {
   return { pairs, conversations: groups.size, tally, examples };
 }
 
+// --- Row evidence pins (--pin-rows) ---
+//
+// WHY THIS EXISTS (BACKLOG, "evidence leaves the rolling window at FINDING
+// time"). Every row the daily sweep persists names a pair and an index inside
+// a CAPTURE, and captures rotate oldest-mtime-first on a quadratic clock —
+// eviction takes the quiet session first, and a session goes quiet exactly
+// when it stops being traffic and starts being evidence. Measured
+// 2026-08-06: a stability EXEMPTION row measured at 09:59Z had its capture
+// gone by ~19:25Z, which took with it the known positive a booked,
+// decision-complete item had named as its red-first arrangement. The row
+// survived. The bytes behind it did not, and the item became unbuildable.
+//
+// So the recurring producer writes out what proves its own findings at the
+// moment it finds them (docs/dev-loop.md, closing gate question 2): per
+// finding row, the message at the row's index on both sides of the pair, on
+// both the forwarded and the raw side, with the array lengths and the
+// byte-presence answer attribution actually asks ("is what we forwarded a
+// message CC ever sent in this request, and at which index"). Kilobytes per
+// row against a capture measured in hundreds of megabytes.
+//
+// WHY A SECOND PASS, and why that is not a retention regression in disguise.
+// The forwarded bodies exist only inside the read loop — `compactEntry`
+// discards them one line later, which is the discipline this file has paid
+// for three times (3.27 GB peak, 2026-07-29). The index a pin needs is not
+// known until every pair has been compared, i.e. after that loop has ended.
+// Retaining bodies against a divergence index nobody knows yet is precisely
+// the regression the child heap cap exists to catch. So the pin pass re-runs
+// the pipeline over the same capture with a fresh state directory and freshly
+// loaded extension modules — the arrangement `replayThrough` (attribution,
+// below) already uses for the same reason — and keeps only the asked
+// messages.
+//
+// AND BECAUSE IT IS A SECOND RUN, ITS BYTES ARE A CLAIM. `bytesMatchRow`
+// re-hashes what the second pass produced and compares it against the FIRST
+// pass's per-message hashes for the same request and index (compactEntry's
+// `outHash`/`inHash`, computed while the row was being derived). A pin that
+// fails that check does not belong to the row it names — a nondeterministic
+// stage, a drifted second loop — and it is emitted with the flag false so the
+// writer rejects it rather than committing evidence for a row it does not
+// describe. Three answers, not two: `null` where the first pass kept no hash
+// to compare against.
+export const PIN_CAP = 20;
+
+// Which index each row family names, and in WHICH COORDINATE SPACE it names
+// it — the distinction this file has already paid for twice (raw 370 forwards
+// as 360). `owner` says whose array the index is an index INTO: a relocated
+// block's departure is recorded at its position in the PREDECESSOR's raw
+// array, everything else at the successor's. A family whose rows carry no
+// index at all yields no ask and says so, rather than pinning index 0.
+export const PIN_FAMILIES = {
+  stability: { pair: true, owner: "cur", space: "forwarded", index: (r) => r.outDiv },
+  stabilityExempt: { pair: true, owner: "cur", space: "forwarded", index: (r) => r.outDiv },
+  // `at`/`side` are the conservation gate's own structured index (its `detail`
+  // string has always printed `in[i]`/`out[i]`; parsing prose back out of a
+  // report is the hand-rolled-identity error one level down).
+  conservation: { pair: false, owner: "cur", space: (r) => (r.side === "out" ? "forwarded" : "raw"), index: (r) => r.at },
+  conservationExempt: { pair: false, owner: "cur", space: (r) => (r.side === "out" ? "forwarded" : "raw"), index: (r) => r.at },
+  sequence: { pair: false, owner: "cur", space: "forwarded", index: (r) => r.normalizedAt },
+  // insertion-normalization's own telemetry: `wireIdx` is a position in the
+  // incoming (raw) array, `at` is an ordinal within the canonical list and is
+  // NOT a message index — pinning `at` would pin an unrelated message.
+  order: { pair: false, owner: "cur", space: "raw", index: (r) => r.wireIdx },
+  absorptionMiss: { pair: true, owner: "cur", space: "forwarded", index: (r) => r.forwardedDivergence },
+  relocDeparture: { pair: true, owner: "prev", space: "raw", index: (r) => r.prevMsgIdx },
+};
+
+/** The pin asks a run's rows generate, capped per family.
+ *
+ * The cap carries a PRESENCE marker rather than truncating silently, the same
+ * convention gate-live's ROW_CAP uses: at or below the cap there is no entry
+ * in `truncated` at all; above it, the pre-truncation total sits beside the
+ * family name. A short list that reads as a complete one is this item's own
+ * defect one level up.
+ */
+export function pinAsks(sources, cap = PIN_CAP) {
+  const asks = [];
+  const truncated = {};
+  const skipped = [];
+  for (const [family, spec] of Object.entries(PIN_FAMILIES)) {
+    const rows = sources[family];
+    // Three answers: a family the run never produced (an older schema, a
+    // census-gated report that did not run) measured nothing and is not a
+    // measured zero.
+    if (!Array.isArray(rows) || rows.length === 0) continue;
+    let taken = 0;
+    for (const row of rows) {
+      const index = spec.index(row);
+      if (!Number.isInteger(index) || index < 0) {
+        skipped.push({ family, n: row.n ?? null, reason: "row carries no message index" });
+        continue;
+      }
+      if (taken >= cap) continue;
+      taken++;
+      asks.push({
+        family,
+        n: row.n,
+        prevN: spec.pair ? (row.prevN ?? null) : null,
+        index,
+        indexSpace: typeof spec.space === "function" ? spec.space(row) : spec.space,
+        indexOwner: spec.owner,
+        row,
+      });
+    }
+    if (taken >= cap && rows.length > cap) truncated[family] = rows.length;
+  }
+  return { asks, truncated, skipped };
+}
+
+/** Re-run the pipeline over `file` and keep only the asked messages.
+ *
+ * Fresh state directory AND freshly loaded extension modules, because pass 1
+ * started from both: an extension carrying module-scope memory from the first
+ * run would forward different bytes here, and the pin would then describe a
+ * request nobody made. `loadExtensions` cache-busts its imports per call
+ * (pipeline.mjs `_loadCounter`), so re-calling it gives genuinely fresh module
+ * scope — the same thing a new process gets.
+ */
+async function collectPinEvidence(file, asks, loadExtensions, runOnRequest) {
+  const wanted = new Map(); // request ordinal -> Set of indices
+  for (const a of asks) {
+    for (const n of [a.n, a.prevN]) {
+      if (!Number.isInteger(n)) continue;
+      if (!wanted.has(n)) wanted.set(n, new Set());
+      wanted.get(n).add(a.index);
+    }
+  }
+  const out = new Map();
+  if (!wanted.size) return out;
+  const scratch = await mkdtemp(join(tmpdir(), "cache-fix-pin-"));
+  const saved = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = scratch;
+  try {
+    const exts = await loadExtensions(EXT_DIR, EXT_CONFIG);
+    let reqN = -1;
+    for await (const [, line] of readCapture(file)) {
+      let rec;
+      try {
+        rec = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      // The same numbering rule as the main loop and as replayThrough: a pin
+      // that landed on a different ordinal would carry a neighbouring
+      // request's bytes, which is the namespace split this file documents at
+      // `excerptsForAsks`.
+      if (rec.type === "outcome" || rec.type === "boot") continue;
+      const n = ++reqN;
+      const ctx = {
+        body: structuredClone(rec.body),
+        headers: {
+          "anthropic-beta": rec.headers?.["anthropic-beta"] ?? undefined,
+          "x-session-id": rec.headers?.["session-id"] ?? rec.sid ?? undefined,
+        },
+        meta: { route: "messages" },
+      };
+      // Every request must run — the stateful extensions' behaviour at n
+      // depends on every request before it — but only the asked ones are kept.
+      await runOnRequest(ctx, exts);
+      const indices = wanted.get(n);
+      if (!indices) continue;
+      const rawMsgs = Array.isArray(rec.body?.messages) ? rec.body.messages : [];
+      const fwdMsgs = Array.isArray(ctx.body?.messages) ? ctx.body.messages : [];
+      const rawHashes = rawMsgs.map((m) => sha(JSON.stringify(m)));
+      // The CONTENT PREDICATES, answered here and recorded as data.
+      //
+      // Measured 2026-08-06 and the reason a pin was said not to be able to
+      // stand in for a capture at all: the sanitizer replaces text with hash
+      // tokens, so every extension gated on a literal text prefix — all four
+      // of fresh-session-sort's relocatable-block predicates — scores zero
+      // hits on any scrubbed artifact. A pin that carried only bytes would
+      // therefore lose exactly the class this whole item was motivated by (a
+      // first-appearance-relocation exemption). So the predicates run on the
+      // REAL bytes, before anything is scrubbed, through the extension's own
+      // functions rather than a restatement of them, and their answers ride
+      // in the pin. Structural facts survive the scrub; this is how a content
+      // fact survives it too.
+      const relocTypesOf = (msg) => {
+        if (!msg || !Array.isArray(msg.content)) return [];
+        const out = [];
+        for (const b of msg.content) {
+          const text = b?.text ?? "";
+          if (!isRelocatableBlock(text)) continue;
+          const t = getBlockType(text);
+          if (t !== null) out.push(t);
+        }
+        return out;
+      };
+      const at = new Map();
+      for (const i of indices) {
+        // An index past the end is DATA (the array is shorter on this side),
+        // never an error: `null` here means "this side had no message there".
+        const forwarded = i < fwdMsgs.length ? fwdMsgs[i] : null;
+        const raw = i < rawMsgs.length ? rawMsgs[i] : null;
+        const forwardedSha = forwarded === null ? null : sha(JSON.stringify(forwarded));
+        at.set(i, {
+          forwarded,
+          raw,
+          forwardedSha,
+          rawSha: raw === null ? null : sha(JSON.stringify(raw)),
+          // The attribution question, answered here on the REAL bytes because
+          // the scrub destroys content predicates downstream (docs/dev-loop.md,
+          // "The scrub destroys CONTENT PREDICATES"): at which index of CC's
+          // own array does what we forwarded appear, if anywhere. `null` is
+          // "nowhere" — i.e. we built these bytes; a number is CC's own.
+          forwardedPresentInRawAt:
+            forwardedSha === null ? null : (rawHashes.indexOf(forwardedSha) === -1 ? null : rawHashes.indexOf(forwardedSha)),
+          // `null` (not `[]`) where there was no message to ask about: an
+          // absent message did not answer "no relocatable blocks".
+          forwardedRelocTypes: forwarded === null ? null : relocTypesOf(forwarded),
+          rawRelocTypes: raw === null ? null : relocTypesOf(raw),
+        });
+      }
+      out.set(n, {
+        outBodySha: createHash("sha256").update(JSON.stringify(ctx.body)).digest("hex").slice(0, 16),
+        rawLen: rawMsgs.length,
+        forwardedLen: fwdMsgs.length,
+        ts: rec.ts ?? null,
+        key: rec.key ?? null,
+        id: rec.id ?? null,
+        at,
+      });
+      wanted.delete(n);
+      if (wanted.size === 0) break;
+    }
+  } finally {
+    if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = saved;
+    await rm(scratch, { recursive: true, force: true });
+  }
+  return out;
+}
+
+/** One pin per ask, with the cross-pass check that makes it evidence.
+ *
+ * `byN` maps a request ordinal to the FIRST pass's compact entry, whose
+ * per-message hashes were computed while the row itself was being derived.
+ * Comparing the second pass's bytes against them is what separates "the bytes
+ * behind this row" from "some bytes from a second run of the same file".
+ */
+export function buildRowPins(asks, evidence, byN) {
+  const pins = [];
+  for (const a of asks) {
+    const sides = {};
+    let matched = true;
+    let compared = 0;
+    for (const [label, n] of [["cur", a.n], ["prev", a.prevN]]) {
+      if (!Number.isInteger(n)) continue;
+      const ev = evidence.get(n);
+      if (!ev) {
+        sides[label] = { n, missing: "no request record with this ordinal in the pin pass" };
+        matched = false;
+        continue;
+      }
+      const cell = ev.at.get(a.index) ?? null;
+      const entry = byN.get(n) ?? null;
+      // The cross-pass check, per side and per array. `null` where pass 1 kept
+      // no hash at that index (the array was shorter): not a match and not a
+      // mismatch — nothing to compare.
+      const expectFwd = entry && Array.isArray(entry.outHash) ? (entry.outHash[a.index] ?? null) : null;
+      const expectRaw = entry && Array.isArray(entry.inHash) ? (entry.inHash[a.index] ?? null) : null;
+      const fwdOk = expectFwd === null ? null : expectFwd === (cell?.forwardedSha ?? null);
+      const rawOk = expectRaw === null ? null : expectRaw === (cell?.rawSha ?? null);
+      for (const v of [fwdOk, rawOk]) {
+        if (v === null) continue;
+        compared++;
+        if (v === false) matched = false;
+      }
+      sides[label] = {
+        n,
+        ts: ev.ts,
+        key: ev.key,
+        id: ev.id,
+        rawLen: ev.rawLen,
+        forwardedLen: ev.forwardedLen,
+        outBodySha: ev.outBodySha,
+        forwarded: cell?.forwarded ?? null,
+        raw: cell?.raw ?? null,
+        forwardedSha: cell?.forwardedSha ?? null,
+        rawSha: cell?.rawSha ?? null,
+        forwardedPresentInRawAt: cell?.forwardedPresentInRawAt ?? null,
+        // The content predicates, computed pre-scrub (collectPinEvidence).
+        forwardedRelocTypes: cell?.forwardedRelocTypes ?? null,
+        rawRelocTypes: cell?.rawRelocTypes ?? null,
+        firstPassForwardedSha: expectFwd,
+        firstPassRawSha: expectRaw,
+        forwardedMatchesFirstPass: fwdOk,
+        rawMatchesFirstPass: rawOk,
+      };
+    }
+    pins.push({
+      family: a.family,
+      n: a.n,
+      prevN: a.prevN,
+      index: a.index,
+      indexSpace: a.indexSpace,
+      indexOwner: a.indexOwner,
+      row: a.row,
+      sides,
+      checks: {
+        // COMPARED, then matched. A pin nothing could be compared against is
+        // not a passing pin — it is an unverifiable one, and collapsing the
+        // two is the absence-wearing-a-verdict's-clothes shape this repo has
+        // paid for three times.
+        comparisons: compared,
+        bytesMatchRow: compared === 0 ? null : matched,
+      },
+    });
+  }
+  return pins;
+}
+
 // --dump-forwarded's spec: comma-separated N:I pairs naming a forwarded
 // message position to dump for a given request index. Parsed into a
 // Map<n, i[]> (preserving spec order and duplicates) so the read loop does a
@@ -2070,6 +2381,7 @@ function parseArgs(argv) {
     gatesFromCapture: false,
     dumpForwarded: null,
     dumpOut: null,
+    pinRows: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -2097,6 +2409,8 @@ function parseArgs(argv) {
       }
       if (a === "--restart-at") args.restartAt = v;
       else args.wipeStateAt = v;
+    } else if (a === "--pin-rows") {
+      args.pinRows = true;
     } else if (a === "--dump-forwarded") {
       args.dumpForwarded = parseDumpSpec(argv[++i] ?? "");
     } else if (a === "--dump-out") {
@@ -2110,7 +2424,7 @@ function parseArgs(argv) {
   }
   if (!args.file) {
     process.stderr.write(
-      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--dump-forwarded N:I,...] [--dump-out path] [--json]\n",
+      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--dump-forwarded N:I,...] [--dump-out path] [--pin-rows] [--json]\n",
     );
     process.exit(2);
   }
@@ -2554,6 +2868,13 @@ export function conservationViolations(e, seen, seenRewrites) {
           n: e.n,
           ts: e.ts,
           kind: "suppressed-without-copy",
+          // The index the `detail` string has always printed, as data. A
+          // consumer that needs it (the row-evidence pin pass) parsing it back
+          // out of prose is the hand-rolled-identity error one level down —
+          // and `side` says which coordinate space it is in, the distinction
+          // this file pays for whenever it is left implicit.
+          at: i,
+          side: "in",
           detail: `in[${i}] (${msg?.role}): ${unaccounted.length} of ${units.length} unit(s) reconstructible from neither a forwarded block nor a forwarded join`,
         });
       }
@@ -2592,6 +2913,8 @@ export function conservationViolations(e, seen, seenRewrites) {
           n: e.n,
           ts: e.ts,
           kind: "lost",
+          at: i,
+          side: "in",
           exemptReason: rewriteExempt.length && stripExempt.length
             ? "fresh-session-sort:rewrite + content-strip:declared-strip"
             : rewriteExempt.length ? "fresh-session-sort:rewrite" : "content-strip:declared-strip",
@@ -2620,6 +2943,8 @@ export function conservationViolations(e, seen, seenRewrites) {
           n: e.n,
           ts: e.ts,
           kind: "lost",
+          at: i,
+          side: "in",
           exemptReason: "smoosh-split:declared-peel",
           detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) exempt — smoosh-split's declared peel (${e.smooshSplitStats.peeled} peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates`,
         });
@@ -2628,6 +2953,8 @@ export function conservationViolations(e, seen, seenRewrites) {
           n: e.n,
           ts: e.ts,
           kind: "lost",
+          at: i,
+          side: "in",
           detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) present in CC's request and in no forwarded message`,
         });
       }
@@ -2662,6 +2989,8 @@ export function conservationViolations(e, seen, seenRewrites) {
         n: e.n,
         ts: e.ts,
         kind: "invented",
+        at: i,
+        side: "out",
         exemptReason: reasons.join(" + "),
         detail: `out[${i}] (${msg?.role}): ${byPeel + byRewrite + byReserve} of ${fUnitsByMsg[i].length} unit(s) exempt — `
           + `${byPeel} produced by smoosh-split's declared peel, `
@@ -2674,6 +3003,8 @@ export function conservationViolations(e, seen, seenRewrites) {
         n: e.n,
         ts: e.ts,
         kind: "invented",
+        at: i,
+        side: "out",
         detail: `out[${i}] (${msg?.role}): ${invented.length} of ${fUnitsByMsg[i].length} unit(s) CC never sent in this conversation`,
       });
     }
@@ -3267,8 +3598,50 @@ async function main() {
     }
   }
 
+  // --- Row evidence pins ---
+  //
+  // Off unless asked for, because it costs a second pipeline pass over the
+  // capture; `gate-live` asks for it on every sweep, which is the only caller
+  // that has to survive the rotation window. `null` (not `[]`) when the flag
+  // is absent: a run that never pinned did not measure zero pins.
+  let pins = null;
+  let pinSummary = null;
+  if (args.pinRows) {
+    const { asks, truncated, skipped } = pinAsks({
+      stability: violations,
+      stabilityExempt: exemptions,
+      conservation,
+      conservationExempt: conservationExemptions,
+      sequence,
+      order: orderViolations,
+      absorptionMiss: absorptionMisses,
+      relocDeparture: relocDepartures,
+    });
+    // A restart or state-wipe simulation makes the pin pass a different run
+    // from the one that produced the rows, and the bytes-match check would
+    // then reject every pin for the wrong reason. Named rather than silently
+    // producing rejections.
+    const blocked = args.restartAt !== null || args.wipeStateAt !== null
+      ? "--restart-at/--wipe-state-at: the pin pass cannot reproduce a simulated restart"
+      : null;
+    const byN = new Map(stability.map((e) => [e.n, e]));
+    const evidence = blocked || !asks.length
+      ? new Map()
+      : await collectPinEvidence(args.file, asks, loadExtensions, runOnRequest);
+    pins = blocked ? [] : buildRowPins(asks, evidence, byN);
+    pinSummary = {
+      asked: asks.length,
+      built: pins.length,
+      rejected: pins.filter((p) => p.checks.bytesMatchRow === false).length,
+      unverifiable: pins.filter((p) => p.checks.bytesMatchRow === null).length,
+      truncated,
+      skipped,
+      blocked,
+    };
+  }
+
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -3631,6 +4004,23 @@ async function main() {
       process.stdout.write(`\nduplicate-request pairs (adjacent, byte-identical): ${duplicateRequests.length}\n`);
       for (const d of duplicateRequests.slice(0, 8)) {
         process.stdout.write(`    n=${d.prevN}->${d.n} msgs=${d.msgs} ${d.ts}\n`);
+      }
+    }
+    if (pinSummary) {
+      // Every number stated, including the ones that are not "written": a pin
+      // pass that asked for 12 and built 12 of which 3 could be compared
+      // against nothing has proved 9 things, not 12.
+      process.stdout.write(
+        `\nrow evidence pins: asked ${pinSummary.asked}, built ${pinSummary.built}, ` +
+          `rejected (bytes do not match the row) ${pinSummary.rejected}, ` +
+          `unverifiable (nothing to compare) ${pinSummary.unverifiable}\n`,
+      );
+      if (pinSummary.blocked) process.stdout.write(`  NOT RUN — ${pinSummary.blocked}\n`);
+      for (const [fam, total] of Object.entries(pinSummary.truncated)) {
+        process.stdout.write(`  ${fam}: capped at ${PIN_CAP} of ${total} row(s)\n`);
+      }
+      for (const s of pinSummary.skipped.slice(0, 8)) {
+        process.stdout.write(`  skipped ${s.family} n=${s.n}: ${s.reason}\n`);
       }
     }
   }
