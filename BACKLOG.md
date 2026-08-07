@@ -4639,9 +4639,31 @@ the first entry below.
   (`Trigger:` lines only), `docs/dev-loop.md` (table only),
   `.claude/required-reading.json` (see the placement gap), `BACKLOG.md`.
 
-- **READY (operator-side, claude-worktime — POINTER; body moves to that repo's
-  BACKLOG when it is free) — `PROJECT_GIT_ANCHOR` does not reach a WORKTREE, so
-  agent lanes book their time as separate projects.** Found 2026-08-07 by the
+- **(DONE — claude-worktime `0527e88`, 2026-08-07; PUSH BLOCKED, see below)
+  `PROJECT_GIT_ANCHOR` does not reach a WORKTREE, so
+  agent lanes book their time as separate projects.** Fixed as designed:
+  `--git-common-dir` with the old `--show-toplevel` kept as the fallback for
+  git < 2.31 and non-standard layouts. `tests/label-git-anchor.sh` pins it with
+  its controls — a subdirectory and the repo root must not regress, a non-git
+  path must still fall back, and with the anchor OFF everything is unchanged,
+  which is what stops a fix that anchors unconditionally from passing. Red-first
+  recorded: reverting the one changed question reds the two worktree cases and
+  leaves the subdirectory control green. All six suites pass; installed to
+  `~/.local/bin/claude-worktime` (install.sh COPIES, so a reinstall was
+  required).
+  **THE PUSH IS BLOCKED, and the blocker is the guard widened hours earlier in
+  the same session** — its first real push on the repo it was widened to cover.
+  `absence-scan` flags `capture-key-prefix` at `claude-worktime.sh:1664` and
+  `:1933`, and both lines are **byte-identical to lines already in
+  `origin/main`** (checked with `git grep -F` against that ref). So the
+  already-published discard did not apply, and the mechanism is that the
+  discard is BLOB-granular: editing a file that carries a pre-existing finding
+  mints a new blob, so the finding reads as new forever. Consequence, and it is
+  the shape the lane's own brief warned about: `claude-worktime.sh` is now
+  permanently unpushable without `--no-verify` — a gate that cannot pass, which
+  trains the override habit its header exists to prevent. Booked as its own
+  entry below. Not overridden: the operator's gate, on a publish action.
+  Original entry follows. Found 2026-08-07 by the
   operator reading their own statusline: the label had changed to
   `worktrees/agent-<id> (worktree-agent-<id> ✗?)` with its own `total 16m`,
   while `PROJECT_GIT_ANCHOR=true` was already set in their config (line 245).
@@ -4785,6 +4807,39 @@ the first entry below.
   deployed from dotfiles and must be edited THERE, never in this tree. Also
   update the runbook's list if it drifts again — this repo's copy was corrected
   in the same commit as this booking.
+
+- **READY (operator-side, dotfiles) — the leak scan's already-published discard
+  is BLOB-granular, so any edit to a file carrying a pre-existing finding is
+  blocked forever.** Measured 2026-08-07, on the guard's FIRST real push after
+  being widened to `claude-worktime`: a one-function fix to
+  `claude-worktime.sh` was blocked by two `capture-key-prefix` findings at lines
+  1664 and 1933, both **byte-identical to lines already in `origin/main`**
+  (`git grep -F "<line>" origin/main` → present). The bytes are months public
+  and unremediable; blocking the push does not unpublish them, it only stops all
+  future work on that file.
+  **Mechanism:** the discard asks whether the BLOB is already published. Editing
+  the file mints a new blob, so a pre-existing finding inside it reads as new on
+  every subsequent push. The commit-MESSAGE half of the same discard works
+  correctly and is what the widening lane demonstrated end-to-end — which is why
+  this passed its verifier and still failed in production: the lane's E2E case
+  planted its identifier in a NEW file, so no already-published blob was ever
+  edited.
+  **This is a gate that cannot pass**, the shape `docs/dev-loop.md` already names
+  for `--git-range` over a whole branch, and it trains exactly the `--no-verify`
+  habit the hook's own header was rewritten to prevent. It is live right now.
+  Design, decided: make the discard FINDING-granular — a finding whose matched
+  bytes already appear at the same path in the published history is discarded,
+  regardless of which blob currently carries them. The path qualifier keeps it
+  narrow: the same bytes appearing in a NEW file are still a finding.
+  Verifier, red-first and available immediately: `git push` in the
+  `claude-worktime` clone with commit `0527e88` present must go from BLOCKED to
+  allowed, while a planted NEW identifier in the same file must still BLOCK —
+  both halves required, since a discard that swallows the new one has traded a
+  gate that cannot pass for a gate that does not fire.
+  **Do not "fix" this with an allowlist entry:** the allowlist is class-scoped
+  per path, so exempting `claude-worktime.sh` from `capture-key-prefix` would
+  hide every FUTURE capture key in the file that matters most.
+  <!-- entry: "the leak scan's already-published discard" -->
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
