@@ -34,7 +34,7 @@ import { statSync, renameSync, mkdirSync, readFileSync } from "node:fs";
 import { appendFileSyncOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { buildSkipResult } from "../synth-response.mjs";
 
@@ -197,9 +197,15 @@ function q5hContribution(e, now) {
 
 // --- Event log (fires only; PII-safe: no bodies/creds) ---
 
-function eventLogPath() {
-  return process.env.CACHE_FIX_SESSION_BUDGET_EVENT_LOG ||
-    join(claudeHome(), "session-budget-events.jsonl");
+// XDG STATE. This extension is enabled and has simply never fired, so the file
+// does not exist yet — which is exactly why it was missed by an enumeration of
+// what EXISTS rather than of what the code WRITES. Left under ~/.claude it
+// would have re-created the class on first fire.
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function eventLogPath() {
+  return process.env.CACHE_FIX_SESSION_BUDGET_EVENT_LOG
+    || statePath("session-budget-events.jsonl");
 }
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 function rotateIfNeeded(path) {

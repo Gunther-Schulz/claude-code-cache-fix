@@ -16,7 +16,7 @@ function setupTmpHome() {
   const dir = mkdtempSync(join(tmpdir(), "ctmd-"));
   const oldHome = process.env.HOME;
   process.env.HOME = dir;
-  mkdirSync(join(dir, ".claude", "quota-status", "sessions"), { recursive: true });
+  mkdirSync(join(dir, ".local", "state", "cache-fix", "quota-status", "sessions"), { recursive: true });
   ext.__resetForTests();
   return {
     home: dir,
@@ -200,7 +200,7 @@ test("pair isolation: divergent at opus, matched at haiku (background utility), 
 test("restart rehydration: persisted sticky + matching requested_model → next turn rehydrates sticky", () => {
   const { cleanup, home } = setupTmpHome();
   try {
-    const sessionsDir = join(home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(home, ".local", "state", "cache-fix", "quota-status", "sessions");
     writeFileSync(
       join(sessionsDir, `${SID}.json`),
       JSON.stringify({
@@ -226,7 +226,7 @@ test("restart rehydration: persisted sticky + matching requested_model → next 
 test("restart + /model change rehydration guard: persisted requested_model ≠ current → fresh pair, no inherited sticky (Codex r1 B1)", () => {
   const { cleanup, home } = setupTmpHome();
   try {
-    const sessionsDir = join(home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(home, ".local", "state", "cache-fix", "quota-status", "sessions");
     writeFileSync(
       join(sessionsDir, `${SID}.json`),
       JSON.stringify({
@@ -266,7 +266,7 @@ test("rehydration disk-read failure (file missing) is non-fatal — fresh entry"
 test("rehydration disk-read failure (corrupt JSON) is non-fatal — fresh entry", () => {
   const { cleanup, home } = setupTmpHome();
   try {
-    const sessionsDir = join(home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(home, ".local", "state", "cache-fix", "quota-status", "sessions");
     writeFileSync(join(sessionsDir, `${SID}.json`), "{not valid json");
     const res = runDivergenceDetector(SID, "claude-opus-4-7", "claude-opus-4-8", NOW);
     assert.equal(res.model_divergence_recent, true);

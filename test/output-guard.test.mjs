@@ -49,8 +49,20 @@ async function silenced(fn) {
 
 async function withGuardEnv(fn) {
   const dir = await mkdtemp(join(tmpdir(), "output-guard-test-"));
-  const saved = { CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR, CACHE_FIX_OUTPUT_GUARD: process.env.CACHE_FIX_OUTPUT_GUARD };
+  const saved = {
+    CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
+    XDG_STATE_HOME: process.env.XDG_STATE_HOME,
+    XDG_DATA_HOME: process.env.XDG_DATA_HOME,
+    CACHE_FIX_OUTPUT_GUARD: process.env.CACHE_FIX_OUTPUT_GUARD,
+  };
+  // CLAUDE_CONFIG_DIR alone no longer isolates this extension's state: since
+  // the XDG migration its paths resolve from XDG_STATE_HOME / XDG_DATA_HOME
+  // (proxy/xdg-dirs.mjs), not from the Claude config root. Pointing all three
+  // at one temp dir keeps the helper's contract — everything this case writes
+  // lands under `dir` — and puts our artifacts at `dir/cache-fix/...`.
   process.env.CLAUDE_CONFIG_DIR = dir;
+  process.env.XDG_STATE_HOME = dir;
+  process.env.XDG_DATA_HOME = dir;
   process.env.CACHE_FIX_OUTPUT_GUARD = "1";
   try {
     return await silenced(() => fn(dir));
@@ -149,7 +161,7 @@ test("gate 2 (assistant-terminal): a mutator that strips the trailing message is
     assert.match(ctx.meta.outputGuardStats.violation, /assistant-terminal/);
     assert.equal(sha(ctx.body), originalHash, "forwarded body is byte-identical to the pre-pipeline original");
 
-    const events = await readFile(join(dir, "cache-fix-snapshots", "s-tail-strip-test-guard-events.jsonl"), "utf-8");
+    const events = await readFile(join(dir, "cache-fix", "snapshots", "s-tail-strip-test-guard-events.jsonl"), "utf-8");
     assert.match(events, /assistant-terminal/, "telemetry record names the violated invariant");
   });
 });
@@ -232,7 +244,7 @@ for (const [label, mutator, pattern] of [
       assert.equal(sha(ctx.body), originalHash, "forwarded body is byte-identical to the pre-pipeline original");
 
       const events = await readFile(
-        join(dir, "cache-fix-snapshots", "s-inject-test-guard-events.jsonl"),
+        join(dir, "cache-fix", "snapshots", "s-inject-test-guard-events.jsonl"),
         "utf-8",
       );
       assert.match(events, pattern, "telemetry record names the violated invariant");

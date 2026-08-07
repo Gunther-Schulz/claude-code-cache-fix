@@ -271,17 +271,17 @@ import rateLimitLog from "../proxy/extensions/rate-limit-log.mjs";
 
 function setupHome() {
   const home = mkdtempSync(join(tmpdir(), "rll-home-"));
-  mkdirSync(join(home, ".claude", "quota-status", "sessions"), { recursive: true });
+  mkdirSync(join(home, ".local", "state", "cache-fix", "quota-status", "sessions"), { recursive: true });
   // Seed account.json so q5h_pct_at_event has a concrete value to assert on.
   writeFileSync(
-    join(home, ".claude", "quota-status", "account.json"),
+    join(home, ".local", "state", "cache-fix", "quota-status", "account.json"),
     JSON.stringify({ five_hour: { pct: 17 } }),
   );
   const oldHome = process.env.HOME;
   process.env.HOME = home;
   return {
     home,
-    logPath: join(home, ".claude", "usage-log", "rate-limit-events.jsonl"),
+    logPath: join(home, ".local", "state", "cache-fix", "usage-log", "rate-limit-events.jsonl"),
     cleanup: () => {
       process.env.HOME = oldHome;
       rmSync(home, { recursive: true, force: true });

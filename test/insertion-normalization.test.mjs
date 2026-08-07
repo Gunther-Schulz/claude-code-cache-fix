@@ -89,7 +89,16 @@ async function silenced(fn) {
 
 async function runExt(body, { headers, dir } = {}) {
   const savedHome = process.env.CLAUDE_CONFIG_DIR;
-  if (dir) process.env.CLAUDE_CONFIG_DIR = dir;
+  const savedState = process.env.XDG_STATE_HOME;
+  // CLAUDE_CONFIG_DIR alone no longer isolates this extension's state: since
+  // the XDG migration its paths resolve from XDG_STATE_HOME / XDG_DATA_HOME
+  // (proxy/xdg-dirs.mjs), not from the Claude config root. Pointing all three
+  // at one temp dir keeps the helper's contract — everything this case writes
+  // lands under `dir` — and puts our artifacts at `dir/cache-fix/...`.
+  if (dir) {
+    process.env.CLAUDE_CONFIG_DIR = dir;
+    process.env.XDG_STATE_HOME = dir;
+  }
   try {
     const ctx = { body, meta: {}, headers: headers || {} };
     await ext.onRequest(ctx);
@@ -98,6 +107,8 @@ async function runExt(body, { headers, dir } = {}) {
     if (dir) {
       if (savedHome === undefined) delete process.env.CLAUDE_CONFIG_DIR;
       else process.env.CLAUDE_CONFIG_DIR = savedHome;
+      if (savedState === undefined) delete process.env.XDG_STATE_HOME;
+      else process.env.XDG_STATE_HOME = savedState;
     }
   }
 }
@@ -312,7 +323,7 @@ test("canonical persistence round-trip: write, reload, continue (append-only acr
     // spelled out: it carries a conversation sub-key now, and hardcoding the
     // format made this test fail on a keying change that broke nothing.
     const key = resolveInsertionSessionKey(headers, body3.messages, body3.system);
-    const telemetryFile = join(dir, "cache-fix-snapshots", `${key}-insertion-events.jsonl`);
+    const telemetryFile = join(dir, "cache-fix", "snapshots", `${key}-insertion-events.jsonl`);
     const lines = (await readFile(telemetryFile, "utf-8")).trim().split("\n");
     assert.equal(lines.length, 3);
     const actions = lines.map((l) => JSON.parse(l).action);
@@ -499,7 +510,7 @@ test("old-format (pre-sub-key) state file is ignored gracefully -> treated as no
     // system sub-key suffix) — the new code never reads this path, so it
     // must be silently abandoned rather than erroring.
     const { mkdir: mkdirP, writeFile: writeFileP } = await import("node:fs/promises");
-    const snapshotDir = join(dir, "cache-fix-snapshots");
+    const snapshotDir = join(dir, "cache-fix", "snapshots");
     await mkdirP(snapshotDir, { recursive: true });
     await writeFileP(
       join(snapshotDir, "s-sess-oldformat-insertion-canon.json"),

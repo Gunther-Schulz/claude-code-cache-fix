@@ -53,15 +53,14 @@
 
 import { mkdir } from "node:fs/promises";
 import { appendFileOwnerOnly } from "./write-owner-only.mjs";
-import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath, xdgState } from "../xdg-dirs.mjs";
 
-// Resolve live per call so CACHE_FIX_USAGE_LOG and CLAUDE_CONFIG_DIR (via
-// claudeHome()) are honored at write time, not frozen at import. Matches the
+// Resolve live per call so CACHE_FIX_USAGE_LOG and the XDG roots (via
+// statePath()) are honored at write time, not frozen at import. Matches the
 // paths() / logPath() shape in the sibling log extensions.
 function logPath() {
-  return process.env.CACHE_FIX_USAGE_LOG || join(claudeHome(), "usage.jsonl");
+  return process.env.CACHE_FIX_USAGE_LOG || statePath("usage.jsonl");
 }
 
 // --- Module-scope state ---
@@ -277,7 +276,7 @@ export function assembleRecord({ start, delta, quota, requestedModel, sid, prevQ
 // --- I/O ---
 
 async function appendJsonl(record, path = logPath()) {
-  await mkdir(claudeHome(), { recursive: true });
+  await mkdir(xdgState(), { recursive: true });
   await appendFileOwnerOnly(path, JSON.stringify(record) + "\n");
 }
 

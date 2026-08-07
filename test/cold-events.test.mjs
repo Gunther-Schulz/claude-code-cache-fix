@@ -236,7 +236,9 @@ test("--out writes the ledger it is given, and the live ledger path is never a d
     assert.equal(written.filter((r) => r.type === "cold-totals").length, 1);
     // The assignment exists so live wiring has one path; a test run must not
     // be able to reach it.
-    assert.match(DEFAULT_LEDGER_PATH, /cache-fix-cold-events\.jsonl$/);
+    // `cache-fix-cold-events.jsonl` -> `cache-fix/cold-events.jsonl` with the
+    // XDG migration: the directory names the tool, so the file no longer does.
+    assert.match(DEFAULT_LEDGER_PATH, /cache-fix\/cold-events\.jsonl$/);
     assert.notEqual(out, DEFAULT_LEDGER_PATH);
   } finally {
     await rm(dir, { recursive: true, force: true });

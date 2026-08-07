@@ -94,14 +94,16 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, statSync, watch } from 'node:fs';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { statePath, legacyReadPath } from '../proxy/xdg-dirs.mjs';
 
 // ─── CLI parsing ────────────────────────────────────────────────────────────
 
 function parseArgs() {
   const args = process.argv.slice(2);
   const opts = {
-    input: join(homedir(), '.claude', 'usage.jsonl'),
-    outputDir: process.env.ANTHROPIC_PROXY_LOG_DIR || join(homedir(), '.claude', 'anthropic-proxy-logs'),
+    input: process.env.CACHE_FIX_USAGE_LOG
+      || legacyReadPath(statePath('usage.jsonl'), 'usage.jsonl'),
+    outputDir: process.env.ANTHROPIC_PROXY_LOG_DIR || statePath('anthropic-proxy-logs'),
     stdout: false,
     follow: false,
     help: false,

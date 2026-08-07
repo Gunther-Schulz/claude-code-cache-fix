@@ -1,9 +1,14 @@
-// Tests for config.mjs path resolution that honors CLAUDE_CONFIG_DIR.
+// Tests for config.mjs path resolution.
 //
-// The forward-proxy CA dir is on-disk proxy state, so it defaults under the
-// Claude config root and follows CLAUDE_CONFIG_DIR when the config dir is
-// relocated (same resolution the claudeHome() helper uses), with
-// CACHE_FIX_CA_DIR as an explicit override.
+// CONVENTION REVERSED BY THE XDG MIGRATION. The forward-proxy CA dir used to
+// default under the Claude config root and follow CLAUDE_CONFIG_DIR. It is now
+// XDG DATA — `$XDG_DATA_HOME/cache-fix/ca`, default `~/.local/share/cache-fix/ca`
+// — because the CA is this repo's own artifact, not Claude Code configuration,
+// and private keys are the clearest case of "unrecoverable if lost".
+// CACHE_FIX_CA_DIR remains the explicit override and still wins over both.
+//
+// `fish/config.fish` in the dotfiles repo reads ca.pem from this directory for
+// NODE_EXTRA_CA_CERTS, so the default here and that line move together.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -12,7 +17,7 @@ import { join } from "node:path";
 
 import config from "../proxy/config.mjs";
 
-const KEYS = ["CACHE_FIX_CA_DIR", "CLAUDE_CONFIG_DIR"];
+const KEYS = ["CACHE_FIX_CA_DIR", "CLAUDE_CONFIG_DIR", "XDG_DATA_HOME"];
 
 function withEnv(overrides, fn) {
   const saved = {};
@@ -29,20 +34,28 @@ function withEnv(overrides, fn) {
   }
 }
 
-test("config.caDir: honors CLAUDE_CONFIG_DIR so the CA follows the config root", () => {
-  withEnv({ CLAUDE_CONFIG_DIR: "/tmp/relocated-cfg" }, () => {
-    assert.equal(config.caDir, join("/tmp/relocated-cfg", "cache-fix-ca"));
+test("config.caDir: honors XDG_DATA_HOME so the CA follows the data root", () => {
+  withEnv({ XDG_DATA_HOME: "/tmp/relocated-data" }, () => {
+    assert.equal(config.caDir, join("/tmp/relocated-data", "cache-fix", "ca"));
   });
 });
 
-test("config.caDir: falls back to ~/.claude when CLAUDE_CONFIG_DIR is unset", () => {
+test("config.caDir: falls back to ~/.local/share/cache-fix when XDG_DATA_HOME is unset", () => {
   withEnv({}, () => {
-    assert.equal(config.caDir, join(homedir(), ".claude", "cache-fix-ca"));
+    assert.equal(config.caDir, join(homedir(), ".local", "share", "cache-fix", "ca"));
   });
 });
 
-test("config.caDir: CACHE_FIX_CA_DIR override wins over CLAUDE_CONFIG_DIR", () => {
-  withEnv({ CACHE_FIX_CA_DIR: "/pinned/ca", CLAUDE_CONFIG_DIR: "/tmp/relocated-cfg" }, () => {
+// CLAUDE_CONFIG_DIR must no longer reach this path at all — that is the whole
+// point of the move, and a silent re-coupling is exactly what would go unseen.
+test("config.caDir: CLAUDE_CONFIG_DIR does NOT move the CA any more", () => {
+  withEnv({ CLAUDE_CONFIG_DIR: "/tmp/relocated-cfg" }, () => {
+    assert.equal(config.caDir, join(homedir(), ".local", "share", "cache-fix", "ca"));
+  });
+});
+
+test("config.caDir: CACHE_FIX_CA_DIR override wins over XDG_DATA_HOME", () => {
+  withEnv({ CACHE_FIX_CA_DIR: "/pinned/ca", XDG_DATA_HOME: "/tmp/relocated-data" }, () => {
     assert.equal(config.caDir, "/pinned/ca");
   });
 });

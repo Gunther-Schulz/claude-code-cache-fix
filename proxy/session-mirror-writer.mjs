@@ -1,7 +1,7 @@
 import { appendFileSync, statSync, mkdirSync, readdirSync, unlinkSync, rmdirSync, renameSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { sessionFilename } from "./extensions/cache-telemetry.mjs";
-import { claudeHome } from "./claude-home.mjs";
+import { statePath } from "./xdg-dirs.mjs";
 
 // Directive: docs/directives/proxy-jsonl-session-mirror.md
 // Storage root: ~/.claude/session-mirrors/<sessionFilename(sessionId)>/<timestamp>.jsonl
@@ -13,9 +13,10 @@ const DEFAULT_RETENTION_DAYS = 30;
 const EVENT_LOG_ROTATE_BYTES = 5 * 1024 * 1024;
 const SWEEP_THROTTLE_MS = 60_000;
 
-function mirrorRoot() {
-  return process.env.CACHE_FIX_SESSION_MIRROR_DIR ||
-    join(claudeHome(), "session-mirrors");
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function mirrorRoot() {
+  return process.env.CACHE_FIX_SESSION_MIRROR_DIR || statePath("session-mirrors");
 }
 
 function eventLogPath() {

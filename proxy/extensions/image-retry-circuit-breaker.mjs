@@ -4,7 +4,7 @@ import { join, dirname } from "node:path";
 import { createHash } from "node:crypto";
 import { imageHashesFromBody } from "../image-hash.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 
 // Directive: docs/directives/proxy-image-retry-circuit-breaker.md (merged at d12cc05)
 // Upstream: anthropics/claude-code#66815
@@ -38,9 +38,12 @@ function maxEntries() {
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_ENTRIES;
 }
 
-function logPath() {
-  return process.env.CACHE_FIX_IMAGE_RETRY_LOG_PATH ||
-    join(claudeHome(), "image-retry-events.jsonl");
+// XDG STATE. Enabled but not yet fired — see session-budget-breaker's note.
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function logPath() {
+  return process.env.CACHE_FIX_IMAGE_RETRY_LOG_PATH
+    || statePath("image-retry-events.jsonl");
 }
 
 // Single-tier rotation matching bootstrap-defense's rotateIfNeeded — any

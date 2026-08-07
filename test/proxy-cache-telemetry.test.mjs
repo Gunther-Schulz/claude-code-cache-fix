@@ -253,8 +253,8 @@ test("0a. session-id captured from REQUEST headers, not response (regression for
       requestHeaders: { "x-claude-code-session-id": "real-session-from-request" },
       responseHeaders: QUOTA_HEADERS, // no session-id headers on the response side
     });
-    const sessFile = join(env.home, ".claude", "quota-status", "sessions", "real-session-from-request.json");
-    const unknownFile = join(env.home, ".claude", "quota-status", "sessions", "unknown.json");
+    const sessFile = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "real-session-from-request.json");
+    const unknownFile = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "unknown.json");
     assert.ok(existsSync(sessFile), "per-session file must use the id from REQUEST headers");
     assert.ok(!existsSync(unknownFile), "must NOT fall through to unknown.json when request has the id");
     const sess = JSON.parse(readFileSync(sessFile, "utf8"));
@@ -271,7 +271,7 @@ test("0b. session-id absent on request → falls back to unknown (sanity for the
       requestHeaders: {}, // no session-id headers
       responseHeaders: QUOTA_HEADERS,
     });
-    assert.ok(existsSync(join(env.home, ".claude", "quota-status", "sessions", "unknown.json")));
+    assert.ok(existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "unknown.json")));
   } finally {
     env.cleanup();
   }
@@ -281,8 +281,8 @@ test("1. happy path: real session_id writes account + sessions/<uuid>.json", asy
   const env = setupTmpHome();
   try {
     await driveResponse({ headers: { "x-claude-code-session-id": "b16c607d-d484-4935-840e-e3f7ee78eb08" } });
-    const accountPath = join(env.home, ".claude", "quota-status", "account.json");
-    const sessPath = join(env.home, ".claude", "quota-status", "sessions", "b16c607d-d484-4935-840e-e3f7ee78eb08.json");
+    const accountPath = join(env.home, ".local", "state", "cache-fix", "quota-status", "account.json");
+    const sessPath = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "b16c607d-d484-4935-840e-e3f7ee78eb08.json");
     assert.ok(existsSync(accountPath), "account.json must exist");
     assert.ok(existsSync(sessPath), "session file must exist");
     const account = JSON.parse(readFileSync(accountPath, "utf8"));
@@ -301,7 +301,7 @@ test("2. fallback to x-session-id", async () => {
   const env = setupTmpHome();
   try {
     await driveResponse({ headers: { "x-session-id": "legacy-uuid-1234" } });
-    assert.ok(existsSync(join(env.home, ".claude", "quota-status", "sessions", "legacy-uuid-1234.json")));
+    assert.ok(existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "legacy-uuid-1234.json")));
   } finally {
     env.cleanup();
   }
@@ -311,7 +311,7 @@ test("3. fallback to x-anthropic-session-id", async () => {
   const env = setupTmpHome();
   try {
     await driveResponse({ headers: { "x-anthropic-session-id": "anthropic-uuid-5678" } });
-    assert.ok(existsSync(join(env.home, ".claude", "quota-status", "sessions", "anthropic-uuid-5678.json")));
+    assert.ok(existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "anthropic-uuid-5678.json")));
   } finally {
     env.cleanup();
   }
@@ -321,8 +321,8 @@ test("4. all three session headers missing → 'unknown' filename", async () => 
   const env = setupTmpHome();
   try {
     await driveResponse({});
-    assert.ok(existsSync(join(env.home, ".claude", "quota-status", "sessions", "unknown.json")));
-    assert.ok(existsSync(join(env.home, ".claude", "quota-status", "account.json")));
+    assert.ok(existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "unknown.json")));
+    assert.ok(existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "account.json")));
   } finally {
     env.cleanup();
   }
@@ -333,14 +333,14 @@ test("5. two responses, different sessions: per-session files distinct, account 
   try {
     await driveResponse({ headers: { "x-claude-code-session-id": "session-a" }, cacheRead: 200, cacheCreation: 0 });
     await driveResponse({ headers: { "x-claude-code-session-id": "session-b" }, cacheRead: 0, cacheCreation: 500 });
-    const sessA = JSON.parse(readFileSync(join(env.home, ".claude", "quota-status", "sessions", "session-a.json"), "utf8"));
-    const sessB = JSON.parse(readFileSync(join(env.home, ".claude", "quota-status", "sessions", "session-b.json"), "utf8"));
+    const sessA = JSON.parse(readFileSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "session-a.json"), "utf8"));
+    const sessB = JSON.parse(readFileSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "session-b.json"), "utf8"));
     assert.equal(sessA.cache.cache_read, 200);
     assert.equal(sessA.cache.cache_creation, 0);
     assert.equal(sessB.cache.cache_read, 0);
     assert.equal(sessB.cache.cache_creation, 500);
     // account.json reflects whichever was written last (both responses use same QUOTA_HEADERS)
-    const account = JSON.parse(readFileSync(join(env.home, ".claude", "quota-status", "account.json"), "utf8"));
+    const account = JSON.parse(readFileSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "account.json"), "utf8"));
     assert.equal(account.five_hour.pct, 42);
   } finally {
     env.cleanup();
@@ -356,7 +356,7 @@ test("6. quota-only write skipped when no quota headers", async () => {
     await ext.onResponseStart({ headers: { "x-claude-code-session-id": "any" }, meta });
     await ext.onStreamEvent({ event: { type: "message_start", message: { usage: { cache_creation_input_tokens: 100 } } }, telemetry, meta });
     await ext.onStreamEvent({ event: { type: "message_delta", usage: { output_tokens: 10 } }, telemetry, meta });
-    assert.ok(!existsSync(join(env.home, ".claude", "quota-status")), "no files when no quota headers");
+    assert.ok(!existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status")), "no files when no quota headers");
   } finally {
     env.cleanup();
   }
@@ -383,8 +383,8 @@ test("6a. overage-billing account: writes files when only unified/overage-reset 
       cacheRead: 500,
       cacheCreation: 100,
     });
-    const accountPath = join(env.home, ".claude", "quota-status", "account.json");
-    const sessPath = join(env.home, ".claude", "quota-status", "sessions", "overage-sess.json");
+    const accountPath = join(env.home, ".local", "state", "cache-fix", "quota-status", "account.json");
+    const sessPath = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions", "overage-sess.json");
     assert.ok(existsSync(accountPath), "account.json written for overage-billing account");
     assert.ok(existsSync(sessPath), "session file written for overage-billing account");
     const acc = JSON.parse(readFileSync(accountPath, "utf8"));
@@ -404,7 +404,7 @@ test("7. atomic write: tmp file gone after rename, final exists", async () => {
   const env = setupTmpHome();
   try {
     await driveResponse({ headers: { "x-claude-code-session-id": "atomic-test" } });
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     const entries = readdirSync(sessionsDir);
     // Must NOT have any *.tmp.* leftovers
     for (const e of entries) {
@@ -444,7 +444,7 @@ test("7b. legacy cleanup absence is silent", async () => {
     assert.ok(!existsSync(join(env.home, ".claude", "quota-status.json")));
     await driveResponse({ headers: { "x-claude-code-session-id": "no-legacy" } });
     // Response writes complete normally
-    assert.ok(existsSync(join(env.home, ".claude", "quota-status", "account.json")));
+    assert.ok(existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "account.json")));
   } finally {
     env.cleanup();
   }
@@ -460,7 +460,7 @@ function setOldMtime(path, daysAgo) {
 test("8. sweep deletes stale per-session files; account.json untouched", async () => {
   const env = setupTmpHome();
   try {
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     mkdirSync(sessionsDir, { recursive: true });
     const oldFile = join(sessionsDir, "old.json");
     const recentFile = join(sessionsDir, "recent.json");
@@ -469,7 +469,7 @@ test("8. sweep deletes stale per-session files; account.json untouched", async (
     setOldMtime(oldFile, 8);
     setOldMtime(recentFile, 1);
     // Pre-create account.json with old mtime — sweep MUST NOT delete it.
-    const accountPath = join(env.home, ".claude", "quota-status", "account.json");
+    const accountPath = join(env.home, ".local", "state", "cache-fix", "quota-status", "account.json");
     writeFileSync(accountPath, "{}");
     setOldMtime(accountPath, 30);
 
@@ -486,7 +486,7 @@ test("8. sweep deletes stale per-session files; account.json untouched", async (
 test("9. sweep throttled to 60s within same process", async () => {
   const env = setupTmpHome();
   try {
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     mkdirSync(sessionsDir, { recursive: true });
     const stale = join(sessionsDir, "stale.json");
     writeFileSync(stale, "{}");
@@ -509,7 +509,7 @@ test("9. sweep throttled to 60s within same process", async () => {
 test("10. CACHE_FIX_QUOTA_STATUS_TTL_DAYS=0 expires every per-session file", async () => {
   const env = setupTmpHome();
   try {
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     mkdirSync(sessionsDir, { recursive: true });
     const stub = join(sessionsDir, "thirty-sec-old.json");
     writeFileSync(stub, "{}");
@@ -524,7 +524,7 @@ test("10. CACHE_FIX_QUOTA_STATUS_TTL_DAYS=0 expires every per-session file", asy
 
     assert.ok(!existsSync(stub), "30s-old stub should be swept with TTL=0");
     // account.json untouched even with TTL=0
-    assert.ok(existsSync(join(env.home, ".claude", "quota-status", "account.json")));
+    assert.ok(existsSync(join(env.home, ".local", "state", "cache-fix", "quota-status", "account.json")));
   } finally {
     env.cleanup();
   }
@@ -535,7 +535,7 @@ test("10. CACHE_FIX_QUOTA_STATUS_TTL_DAYS=0 expires every per-session file", asy
 test("12. divergence: requested ≠ served on message_start → per-session JSON carries _modelDivergence spread", async () => {
   const env = setupTmpHome();
   try {
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     const meta = {};
     const telemetry = { requestedModel: "claude-opus-4-7" };
     const reqH = { "x-claude-code-session-id": "div" };
@@ -573,7 +573,7 @@ test("12. divergence: requested ≠ served on message_start → per-session JSON
 test("13. divergence: matched request/served model → no spread fields in per-session JSON", async () => {
   const env = setupTmpHome();
   try {
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     const meta = {};
     const telemetry = { requestedModel: "claude-opus-4-7" };
     const reqH = { "x-claude-code-session-id": "matched" };
@@ -614,7 +614,7 @@ test("14b. divergence: multiple message_delta events in one response only count 
   // should latch.
   const env = setupTmpHome();
   try {
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     const meta = {};
     const telemetry = { requestedModel: "claude-opus-4-7" };
     const reqH = { "x-claude-code-session-id": "multi-delta" };
@@ -671,7 +671,7 @@ test("11. sweep failure isolation: response completes even if a deletion would f
   // throw" guarantee in spirit.
   const env = setupTmpHome();
   try {
-    const sessionsDir = join(env.home, ".claude", "quota-status", "sessions");
+    const sessionsDir = join(env.home, ".local", "state", "cache-fix", "quota-status", "sessions");
     mkdirSync(sessionsDir, { recursive: true });
     const stale1 = join(sessionsDir, "stale1.json");
     const stale2 = join(sessionsDir, "stale2.json");
@@ -717,7 +717,7 @@ async function driveWithSplit({ sid, cacheRead, ephemeral1h, ephemeral5m }) {
 }
 
 function readSession(home, sid) {
-  return JSON.parse(readFileSync(join(home, ".claude", "quota-status", "sessions", `${sid}.json`), "utf8"));
+  return JSON.parse(readFileSync(join(home, ".local", "state", "cache-fix", "quota-status", "sessions", `${sid}.json`), "utf8"));
 }
 
 test("#247: 1h-dominant split with cache_read=0 labels ttl_tier 1h (was mislabeled 5m)", async () => {

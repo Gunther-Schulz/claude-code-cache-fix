@@ -27,7 +27,7 @@
 import { appendFile, chmod, mkdir, readdir, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { claudeHome } from "../claude-home.mjs";
+import { dataPath } from "../xdg-dirs.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { createHash } from "node:crypto";
 import { queuedAppend } from "./append-queue.mjs";
@@ -67,8 +67,10 @@ function debug(msg) {
   if (isDebug()) process.stderr.write(`[request-capture] DEBUG: ${msg}\n`);
 }
 
-function getCaptureDir() {
-  return join(claudeHome(), "cache-fix-captures");
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function getCaptureDir() {
+  return process.env.CACHE_FIX_CAPTURE_DIR || dataPath("captures");
 }
 
 function getMaxBytes(env = process.env) {

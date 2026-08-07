@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
-import { claudeHome } from "./claude-home.mjs";
+import { dataPath } from "./xdg-dirs.mjs";
 
 function envInt(name, fallback) {
   const raw = process.env[name];
@@ -52,11 +52,19 @@ const config = {
   // so clients point HTTPS_PROXY (not ANTHROPIC_BASE_URL) at it and keep Remote
   // Control. See proxy/forward-proxy.mjs.
   get forwardProxy() { return process.env.CACHE_FIX_FORWARD_PROXY === "on"; },
-  // Directory holding the forward-proxy's generated CA + leaf certs. Defaults
-  // under the Claude config root (claudeHome() honors CLAUDE_CONFIG_DIR), like
-  // the rest of the proxy's on-disk state, so relocating the config dir moves
-  // the CA with it. Override with CACHE_FIX_CA_DIR to pin a fixed location.
-  get caDir() { return process.env.CACHE_FIX_CA_DIR || join(claudeHome(), "cache-fix-ca"); },
+  // Directory holding the forward-proxy's generated CA + leaf certs. XDG DATA,
+  // not state: these are private keys, and losing them re-issues a CA every
+  // client must re-trust. Directory mode stays 0700. Override with
+  // CACHE_FIX_CA_DIR to pin a fixed location. `fish/config.fish` in the
+  // dotfiles repo reads ca.pem from here for NODE_EXTRA_CA_CERTS, so this
+  // default and that line move together.
+  //
+  // NO LEGACY FALLBACK HERE, deliberately. This directory's reader IS its
+  // writer — the forward proxy generates the CA when the directory is empty —
+  // so a fallback would make a WRITER resolve to the legacy location, which is
+  // the one thing the fallback rule forbids. The transition is covered instead
+  // by tools/xdg-migrate.mjs moving the directory before the proxy restarts.
+  get caDir() { return process.env.CACHE_FIX_CA_DIR || dataPath("ca"); },
   // How long a starter waits on a peer's CA-generation lock (.gen.lock) before
   // deciding it is wedged/stale. Generation itself takes well under a second;
   // the generous default absorbs a slow first run on a loaded machine. Mostly

@@ -101,7 +101,7 @@ done
 Q5H=$(python3 -c "
 import json
 try:
-    q = json.load(open('$HOME/.claude/quota-status/account.json'))
+    q = json.load(open('${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/quota-status/account.json'))
     print(q['five_hour']['pct'])
 except Exception:
     print(0)
@@ -116,7 +116,7 @@ echo "Preflight OK: Q5h at ${Q5H}%, 4 versions installed, launcher present." | t
 echo "" | tee -a "$SUMMARY"
 
 # Snapshot quota state at start
-cp "$HOME/.claude/quota-status/account.json" "$OUTPUT_DIR/raw-quota-status-start.json" 2>/dev/null || true
+cp "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/quota-status/account.json" "$OUTPUT_DIR/raw-quota-status-start.json" 2>/dev/null || true
 
 # ─── Phase A: steady-state per version ─────────────────────────────────────
 
@@ -131,15 +131,15 @@ for v in "${VERSIONS[@]}"; do
     : > "$OUTFILE"
 
     for i in $(seq 1 "$STEADY_STATE_TURNS"); do
-        USAGE_LINES_BEFORE=$(wc -l < "$HOME/.claude/usage.jsonl" 2>/dev/null || echo 0)
+        USAGE_LINES_BEFORE=$(wc -l < "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" 2>/dev/null || echo 0)
         echo "$SEED_PROMPT" | "$HOME/bin/cc-version" "$v" -p --model "$MODEL" > /dev/null 2>&1 || {
             echo "WARNING: v$v turn $i failed" | tee -a "$SUMMARY"
             continue
         }
-        USAGE_LINES_AFTER=$(wc -l < "$HOME/.claude/usage.jsonl" 2>/dev/null || echo 0)
+        USAGE_LINES_AFTER=$(wc -l < "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" 2>/dev/null || echo 0)
         if [[ "$USAGE_LINES_AFTER" -gt "$USAGE_LINES_BEFORE" ]]; then
             # Capture the newly-added usage.jsonl line(s) for this version
-            tail -n "$((USAGE_LINES_AFTER - USAGE_LINES_BEFORE))" "$HOME/.claude/usage.jsonl" >> "$OUTFILE"
+            tail -n "$((USAGE_LINES_AFTER - USAGE_LINES_BEFORE))" "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" >> "$OUTFILE"
         fi
         # Tiny sleep to let the interceptor finish writing the telemetry
         sleep 0.5
@@ -165,22 +165,22 @@ if [[ "$INCLUDE_IDLE" -eq 1 ]]; then
         : > "$OUTFILE"
 
         # Turn 1
-        USAGE_LINES_BEFORE=$(wc -l < "$HOME/.claude/usage.jsonl" 2>/dev/null || echo 0)
+        USAGE_LINES_BEFORE=$(wc -l < "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" 2>/dev/null || echo 0)
         echo "$SEED_PROMPT" | "$HOME/bin/cc-version" "$v" -p --model "$MODEL" > /dev/null 2>&1 || true
-        USAGE_LINES_AFTER=$(wc -l < "$HOME/.claude/usage.jsonl" 2>/dev/null || echo 0)
+        USAGE_LINES_AFTER=$(wc -l < "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" 2>/dev/null || echo 0)
         if [[ "$USAGE_LINES_AFTER" -gt "$USAGE_LINES_BEFORE" ]]; then
-            tail -n "$((USAGE_LINES_AFTER - USAGE_LINES_BEFORE))" "$HOME/.claude/usage.jsonl" >> "$OUTFILE"
+            tail -n "$((USAGE_LINES_AFTER - USAGE_LINES_BEFORE))" "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" >> "$OUTFILE"
         fi
         echo "  v$v: turn 1 done, waiting ${IDLE_GAP_SECONDS}s..."
 
         sleep "$IDLE_GAP_SECONDS"
 
         # Turn 2
-        USAGE_LINES_BEFORE=$(wc -l < "$HOME/.claude/usage.jsonl" 2>/dev/null || echo 0)
+        USAGE_LINES_BEFORE=$(wc -l < "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" 2>/dev/null || echo 0)
         echo "$SEED_PROMPT" | "$HOME/bin/cc-version" "$v" -p --model "$MODEL" > /dev/null 2>&1 || true
-        USAGE_LINES_AFTER=$(wc -l < "$HOME/.claude/usage.jsonl" 2>/dev/null || echo 0)
+        USAGE_LINES_AFTER=$(wc -l < "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" 2>/dev/null || echo 0)
         if [[ "$USAGE_LINES_AFTER" -gt "$USAGE_LINES_BEFORE" ]]; then
-            tail -n "$((USAGE_LINES_AFTER - USAGE_LINES_BEFORE))" "$HOME/.claude/usage.jsonl" >> "$OUTFILE"
+            tail -n "$((USAGE_LINES_AFTER - USAGE_LINES_BEFORE))" "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl" >> "$OUTFILE"
         fi
         echo "  v$v: turn 2 done"
     done
@@ -189,7 +189,7 @@ if [[ "$INCLUDE_IDLE" -eq 1 ]]; then
 fi
 
 # Snapshot quota state at end
-cp "$HOME/.claude/quota-status/account.json" "$OUTPUT_DIR/raw-quota-status-end.json" 2>/dev/null || true
+cp "${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/quota-status/account.json" "$OUTPUT_DIR/raw-quota-status-end.json" 2>/dev/null || true
 
 # ─── Analysis ──────────────────────────────────────────────────────────────
 
@@ -295,7 +295,7 @@ if [[ "$Q5H" -lt 50 ]]; then
     NEW_Q5H=$(python3 -c "
 import json
 try:
-    print(json.load(open('$HOME/.claude/quota-status/account.json'))['five_hour']['pct'])
+    print(json.load(open('${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/quota-status/account.json'))['five_hour']['pct'])
 except Exception:
     print('?')
 " 2>/dev/null)

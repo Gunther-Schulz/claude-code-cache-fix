@@ -65,7 +65,16 @@ async function withEnvAsync(overrides, fn) {
 // supported model; the tests that care about the gate set `model` explicitly.
 async function runExt(body, { headers, dir } = {}) {
   const savedHome = process.env.CLAUDE_CONFIG_DIR;
-  if (dir) process.env.CLAUDE_CONFIG_DIR = dir;
+  const savedState = process.env.XDG_STATE_HOME;
+  // CLAUDE_CONFIG_DIR alone no longer isolates this extension's state: since
+  // the XDG migration its paths resolve from XDG_STATE_HOME / XDG_DATA_HOME
+  // (proxy/xdg-dirs.mjs), not from the Claude config root. Pointing all three
+  // at one temp dir keeps the helper's contract — everything this case writes
+  // lands under `dir` — and puts our artifacts at `dir/cache-fix/...`.
+  if (dir) {
+    process.env.CLAUDE_CONFIG_DIR = dir;
+    process.env.XDG_STATE_HOME = dir;
+  }
   try {
     const withModel = body && body.model === undefined ? { ...body, model: "claude-opus-5" } : body;
     const ctx = { body: withModel, meta: {}, headers: headers || {} };
@@ -75,6 +84,8 @@ async function runExt(body, { headers, dir } = {}) {
     if (dir) {
       if (savedHome === undefined) delete process.env.CLAUDE_CONFIG_DIR;
       else process.env.CLAUDE_CONFIG_DIR = savedHome;
+      if (savedState === undefined) delete process.env.XDG_STATE_HOME;
+      else process.env.XDG_STATE_HOME = savedState;
     }
   }
 }
@@ -621,7 +632,9 @@ test("onRequest: state persists across a simulated restart (fresh dynamic import
       const reloaded = await import(pathToFileURL(modPath).href + "?restart-probe=" + Date.now());
 
       const savedHome = process.env.CLAUDE_CONFIG_DIR;
+      const savedState = process.env.XDG_STATE_HOME;
       process.env.CLAUDE_CONFIG_DIR = dir;
+      process.env.XDG_STATE_HOME = dir;
       try {
         const body2 = {
           tools: [tool("Read"), tool("Bash"), tool("SendMessage")],
@@ -635,6 +648,8 @@ test("onRequest: state persists across a simulated restart (fresh dynamic import
       } finally {
         if (savedHome === undefined) delete process.env.CLAUDE_CONFIG_DIR;
         else process.env.CLAUDE_CONFIG_DIR = savedHome;
+        if (savedState === undefined) delete process.env.XDG_STATE_HOME;
+        else process.env.XDG_STATE_HOME = savedState;
       }
     });
   } finally {
@@ -912,7 +927,7 @@ test("a suppressed announcement is LOUD: stderr once per model, telemetry every 
       );
       assert.equal(warnings.length, 1, "once per model per process");
       const { readdir: rd, readFile: rf } = await import("node:fs/promises");
-      const snapDir = join(dir, "cache-fix-snapshots");
+      const snapDir = join(dir, "cache-fix", "snapshots");
       const evFile = (await rd(snapDir)).find((f) => f.endsWith("-deferred-tool-events.jsonl"));
       assert.ok(evFile, "telemetry file must exist");
       const events = (await rf(join(snapDir, evFile), "utf-8")).trim().split("\n").map(JSON.parse);

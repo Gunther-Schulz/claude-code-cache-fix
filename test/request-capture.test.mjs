@@ -31,8 +31,15 @@ function makeCtx(overrides = {}) {
 test("request-capture: disabled by default (no env flag) — onRequest is a no-op", async () => {
   const dir = await mkdtemp(join(tmpdir(), "capture-test-"));
   const prevConfig = process.env.CLAUDE_CONFIG_DIR;
+  const prevData = process.env.XDG_DATA_HOME;
   const prevFlag = process.env.CACHE_FIX_REQUEST_CAPTURE;
+  // CLAUDE_CONFIG_DIR alone no longer isolates this extension's state: since
+  // the XDG migration its paths resolve from XDG_STATE_HOME / XDG_DATA_HOME
+  // (proxy/xdg-dirs.mjs), not from the Claude config root. Pointing all three
+  // at one temp dir keeps the helper's contract — everything this case writes
+  // lands under `dir` — and puts our artifacts at `dir/cache-fix/...`.
   process.env.CLAUDE_CONFIG_DIR = dir;
+  process.env.XDG_DATA_HOME = dir;
   delete process.env.CACHE_FIX_REQUEST_CAPTURE;
   try {
     await ext.onRequest(makeCtx());
@@ -41,6 +48,8 @@ test("request-capture: disabled by default (no env flag) — onRequest is a no-o
   } finally {
     if (prevConfig === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = prevConfig;
+    if (prevData === undefined) delete process.env.XDG_DATA_HOME;
+    else process.env.XDG_DATA_HOME = prevData;
     if (prevFlag !== undefined) process.env.CACHE_FIX_REQUEST_CAPTURE = prevFlag;
     await rm(dir, { recursive: true, force: true });
   }
@@ -49,14 +58,21 @@ test("request-capture: disabled by default (no env flag) — onRequest is a no-o
 test("request-capture: enabled — appends one full-body NDJSON record per request", async () => {
   const dir = await mkdtemp(join(tmpdir(), "capture-test-"));
   const prevConfig = process.env.CLAUDE_CONFIG_DIR;
+  const prevData = process.env.XDG_DATA_HOME;
   const prevFlag = process.env.CACHE_FIX_REQUEST_CAPTURE;
+  // CLAUDE_CONFIG_DIR alone no longer isolates this extension's state: since
+  // the XDG migration its paths resolve from XDG_STATE_HOME / XDG_DATA_HOME
+  // (proxy/xdg-dirs.mjs), not from the Claude config root. Pointing all three
+  // at one temp dir keeps the helper's contract — everything this case writes
+  // lands under `dir` — and puts our artifacts at `dir/cache-fix/...`.
   process.env.CLAUDE_CONFIG_DIR = dir;
+  process.env.XDG_DATA_HOME = dir;
   process.env.CACHE_FIX_REQUEST_CAPTURE = "1";
   try {
     const ctx = makeCtx();
     await ext.onRequest(ctx);
     await ext.onRequest(ctx);
-    const captureDir = join(dir, "cache-fix-captures");
+    const captureDir = join(dir, "cache-fix", "captures");
     const files = await readdir(captureDir);
     assert.equal(files.length, 1);
     assert.match(files[0], /^s-abc-123-requests\.jsonl$/);
@@ -80,6 +96,8 @@ test("request-capture: enabled — appends one full-body NDJSON record per reque
   } finally {
     if (prevConfig === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = prevConfig;
+    if (prevData === undefined) delete process.env.XDG_DATA_HOME;
+    else process.env.XDG_DATA_HOME = prevData;
     if (prevFlag === undefined) delete process.env.CACHE_FIX_REQUEST_CAPTURE;
     else process.env.CACHE_FIX_REQUEST_CAPTURE = prevFlag;
     await rm(dir, { recursive: true, force: true });

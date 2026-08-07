@@ -45,10 +45,10 @@
  */
 
 import { readFileSync, existsSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { statePath, legacyReadPath } from '../proxy/xdg-dirs.mjs';
 
-const DEFAULT_USAGE_LOG = join(homedir(), '.claude', 'usage.jsonl');
+const DEFAULT_USAGE_LOG = process.env.CACHE_FIX_USAGE_LOG
+  || legacyReadPath(statePath('usage.jsonl'), 'usage.jsonl');
 
 // Token-equivalent weights for the H_zero counting model.
 // (cache_read weight is the variable being tested.)

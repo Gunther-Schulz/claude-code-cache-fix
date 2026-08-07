@@ -1,6 +1,11 @@
 // Smoke tests for tools/quota-statusline.sh — T1-T5 from the per-session
 // quota-status directive. Runs the shell script as a subprocess under a
-// tmpdir-rooted HOME so we don't touch the developer's real ~/.claude/.
+// tmpdir-rooted HOME so we don't touch the developer's real state.
+//
+// The quota files moved to $XDG_STATE_HOME/cache-fix/ with the XDG migration;
+// with XDG_STATE_HOME unset the script derives them from HOME, which is what
+// this harness overrides and what production actually does (the systemd unit
+// sets neither XDG variable).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -15,11 +20,11 @@ const SCRIPT = resolve(fileURLToPath(import.meta.url), "..", "..", "tools", "quo
 
 function setupHome() {
   const home = mkdtempSync(join(tmpdir(), "qsl-"));
-  mkdirSync(join(home, ".claude", "quota-status", "sessions"), { recursive: true });
+  mkdirSync(join(home, ".local", "state", "cache-fix", "quota-status", "sessions"), { recursive: true });
   return {
     home,
-    account: join(home, ".claude", "quota-status", "account.json"),
-    sessionsDir: join(home, ".claude", "quota-status", "sessions"),
+    account: join(home, ".local", "state", "cache-fix", "quota-status", "account.json"),
+    sessionsDir: join(home, ".local", "state", "cache-fix", "quota-status", "sessions"),
     cleanup: () => rmSync(home, { recursive: true, force: true }),
   };
 }
@@ -50,7 +55,7 @@ const SESSION_JSON = JSON.stringify({
 function runScript(home, stdin) {
   return spawnSync("bash", [SCRIPT], {
     input: stdin,
-    env: { ...process.env, HOME: home },
+    env: { ...process.env, HOME: home, XDG_STATE_HOME: undefined },
     encoding: "utf8",
   });
 }

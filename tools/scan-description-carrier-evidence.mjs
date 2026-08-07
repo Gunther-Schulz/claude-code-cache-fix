@@ -7,10 +7,11 @@
 import { createReadStream, readdirSync, readFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
 const capture = process.argv[2];
-const snapDir = join(homedir(), ".claude", "cache-fix-snapshots");
+const snapDir = process.env.CACHE_FIX_SNAPSHOT_DIR
+  || legacyReadPath(statePath("snapshots"), "cache-fix-snapshots");
 const keyPrefix = process.argv[3]; // e.g. s-captureJ
 
 // 1. Injection-active windows per sid, from the extension's own telemetry.

@@ -98,7 +98,9 @@
 
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { claudeHome } from "../claude-home.mjs";
+// Aliased: this module already has its own local `statePath()` (a per-session
+// filename builder). The XDG root resolver is a different thing entirely.
+import { statePath as xdgStatePath } from "../xdg-dirs.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
 import { systemPromptSubKey } from "./insertion-normalization.mjs";
@@ -194,8 +196,10 @@ function debug(msg) {
 
 // --- Storage (snapshots-dir idiom, mirrors insertion-normalization) ---
 
+// XDG STATE: regenerable snapshot/telemetry state, not Claude Code config.
+// Writer path — no legacy fallback (proxy/xdg-dirs.mjs states why).
 function getSnapshotDir() {
-  return join(claudeHome(), "cache-fix-snapshots");
+  return process.env.CACHE_FIX_SNAPSHOT_DIR || xdgStatePath("snapshots");
 }
 
 function statePath(dir, sessionKey) {

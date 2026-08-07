@@ -30,7 +30,7 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { detectGrowthSteps, DEFAULT_LEDGER } from "./harvest.mjs";
-import { claudeHome } from "../proxy/claude-home.mjs";
+import { statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -207,7 +207,8 @@ export function retentionVerdict(committed, current) {
 // this module for "how long before telemetry is stale enough to say so".
 
 function snapshotsDir() {
-  return join(claudeHome(), "cache-fix-snapshots");
+  return process.env.CACHE_FIX_SNAPSHOT_DIR
+    || legacyReadPath(statePath("snapshots"), "cache-fix-snapshots");
 }
 
 // Serving-gate fallback: the last sweep's recorded gate set. Cached per
@@ -219,7 +220,7 @@ export function servingGate(name) {
     _servingGates = {};
     try {
       const status = JSON.parse(
-        readFileSync(join(claudeHome(), "cache-fix-gate-status.json"), "utf-8"),
+        readFileSync(gateStatusPath(), "utf-8"),
       );
       for (const g of status.gates ?? []) {
         const eq = g.indexOf("=");
@@ -252,7 +253,9 @@ export const TELEMETRY_CONSUMERS = [
     kind: "alarm",
     maxAgeH: HARVEST_MAX_AGE_H,
     gate: () => gateResolves("CACHE_FIX_UPSTREAM_DETECTION", "1"),
-    file: () => join(process.env.CACHE_FIX_UPSTREAM_DIR || claudeHome(), "upstream-changes.jsonl"),
+    file: () => process.env.CACHE_FIX_UPSTREAM_DIR
+      ? join(process.env.CACHE_FIX_UPSTREAM_DIR, "upstream-changes.jsonl")
+      : legacyReadPath(statePath("upstream-changes.jsonl"), "upstream-changes.jsonl"),
   },
   {
     name: "telemetry-insertion-events",
@@ -277,7 +280,11 @@ export const TELEMETRY_CONSUMERS = [
     gate: () => gateResolves("CACHE_FIX_SESSION_MIRROR", "on"),
     file: () =>
       process.env.CACHE_FIX_SESSION_MIRROR_EVENT_LOG ||
-      join(claudeHome(), "session-mirrors", "session-mirror-events.jsonl"),
+      join(
+        process.env.CACHE_FIX_SESSION_MIRROR_DIR
+          || legacyReadPath(statePath("session-mirrors"), "session-mirrors"),
+        "session-mirror-events.jsonl",
+      ),
   },
   {
     // Born WITH its reader: this row landed before the gate's first flip
@@ -289,7 +296,11 @@ export const TELEMETRY_CONSUMERS = [
     gate: () => gateResolves("CACHE_FIX_UPSTREAM_ERROR_LOG", "on"),
     file: () =>
       process.env.CACHE_FIX_UPSTREAM_ERROR_LOG_PATH ||
-      join(claudeHome(), "usage-log", "upstream-errors.jsonl"),
+      join(
+        process.env.CACHE_FIX_USAGE_LOG_DIR
+          || legacyReadPath(statePath("usage-log"), "usage-log"),
+        "upstream-errors.jsonl",
+      ),
   },
 ];
 
@@ -544,7 +555,14 @@ export const FIRE_LEDGER_MAX_AGE_H = HARVEST_MAX_AGE_H;
 export const FIRE_RECENT_SWEEPS = 14;
 
 export function fireLedgerPath() {
-  return join(claudeHome(), "cache-fix-fire-ledger.jsonl");
+  return process.env.CACHE_FIX_FIRE_LEDGER
+    || legacyReadPath(statePath("fire-ledger.jsonl"), "cache-fix-fire-ledger.jsonl");
+}
+
+// The sweep's status file. Read-only from here — tools/gate-live.mjs writes it.
+function gateStatusPath() {
+  return process.env.CACHE_FIX_GATE_STATUS
+    || legacyReadPath(statePath("gate-status.json"), "cache-fix-gate-status.json");
 }
 
 const days = (ms) => Math.round(ms / 86_400_000);
@@ -639,7 +657,7 @@ export async function readFireLedger(path = fireLedgerPath()) {
 // this is called once).
 async function readGateStatus() {
   try {
-    return JSON.parse(await readFile(join(claudeHome(), "cache-fix-gate-status.json"), "utf-8"));
+    return JSON.parse(await readFile(gateStatusPath(), "utf-8"));
   } catch {
     return null;
   }

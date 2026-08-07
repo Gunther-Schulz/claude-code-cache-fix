@@ -9,8 +9,13 @@
 // Loads the extension pipeline exactly as server.mjs does (same loader,
 // same extensions.json ordering), sets the given env flags, and feeds
 // each captured body through runOnRequest in file order. State-writing
-// extensions are pointed at a scratch CLAUDE_CONFIG_DIR so the live
-// ~/.claude/cache-fix-snapshots is never touched.
+// extensions are pointed at a scratch root so the live snapshot store is
+// never touched — and since the XDG migration that means XDG_STATE_HOME and
+// XDG_DATA_HOME, not CLAUDE_CONFIG_DIR alone. Setting only the latter left
+// every replay run sharing ONE snapshot directory, which made a fixture
+// diverge from itself; fixture-cut and fixture-verdict-identity both caught
+// it. All three are set together so the isolation holds whichever root a
+// given extension reads.
 //
 // Per request it reports which extensions changed the body (measured by
 // hashing the body between every pipeline stage — not by trusting
@@ -2169,7 +2174,11 @@ async function collectPinEvidence(file, asks, loadExtensions, runOnRequest) {
   if (!wanted.size) return out;
   const scratch = await mkdtemp(join(tmpdir(), "cache-fix-pin-"));
   const saved = process.env.CLAUDE_CONFIG_DIR;
+  const savedState = process.env.XDG_STATE_HOME;
+  const savedData = process.env.XDG_DATA_HOME;
   process.env.CLAUDE_CONFIG_DIR = scratch;
+  process.env.XDG_STATE_HOME = scratch;
+  process.env.XDG_DATA_HOME = scratch;
   try {
     const exts = await loadExtensions(EXT_DIR, EXT_CONFIG);
     let reqN = -1;
@@ -2266,6 +2275,10 @@ async function collectPinEvidence(file, asks, loadExtensions, runOnRequest) {
   } finally {
     if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = saved;
+    if (savedState === undefined) delete process.env.XDG_STATE_HOME;
+    else process.env.XDG_STATE_HOME = savedState;
+    if (savedData === undefined) delete process.env.XDG_DATA_HOME;
+    else process.env.XDG_DATA_HOME = savedData;
     await rm(scratch, { recursive: true, force: true });
   }
   return out;
@@ -3388,6 +3401,8 @@ async function main() {
   // load-order surprise can leak a write to the live ~/.claude.
   const scratch = await mkdtemp(join(tmpdir(), "cache-fix-replay-"));
   process.env.CLAUDE_CONFIG_DIR = scratch;
+  process.env.XDG_STATE_HOME = scratch;
+  process.env.XDG_DATA_HOME = scratch;
   // --gates-from-capture: resolve the capture's own ALL-BOOTS gate union
   // (values, later boots winning) via a pre-pass BEFORE extensions load —
   // the same merge point --env alone used, now with the capture as the
@@ -3715,7 +3730,11 @@ async function main() {
       const prefix = mutators.slice(0, cut);
       const scratch2 = await mkdtemp(join(tmpdir(), "cache-fix-attr-"));
       const savedHome = process.env.CLAUDE_CONFIG_DIR;
+      const savedState2 = process.env.XDG_STATE_HOME;
+      const savedData2 = process.env.XDG_DATA_HOME;
       process.env.CLAUDE_CONFIG_DIR = scratch2;
+      process.env.XDG_STATE_HOME = scratch2;
+      process.env.XDG_DATA_HOME = scratch2;
       const outs = new Map();
       const needed = new Set(violations.flatMap((v) => [v.prevN, v.n]));
       let bReqN = -1;
@@ -3744,6 +3763,8 @@ async function main() {
         if (needed.has(n)) outs.set(n, ctx.body.messages ?? []);
       }
       process.env.CLAUDE_CONFIG_DIR = savedHome;
+      process.env.XDG_STATE_HOME = savedState2;
+      process.env.XDG_DATA_HOME = savedData2;
       await rm(scratch2, { recursive: true, force: true });
       const hit = new Map();
       for (const v of violations) {

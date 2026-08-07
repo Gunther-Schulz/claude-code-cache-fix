@@ -40,6 +40,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
+import { statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 
@@ -56,10 +57,12 @@ import { resolveSessionKey } from "../proxy/extensions/prefix-diff.mjs";
 
 const execFileP = promisify(execFile);
 
-export const SNAPSHOTS = join(homedir(), ".claude/cache-fix-snapshots");
+// All read-only here, hence the legacy fallback on each. PROJECTS stays under
+// the Claude config root — those transcripts are Claude Code's own, not ours.
+export const SNAPSHOTS = legacyReadPath(statePath("snapshots"), "cache-fix-snapshots");
 export const PROJECTS = join(homedir(), ".claude/projects");
-export const MIRRORS = join(homedir(), ".claude/session-mirrors");
-export const KEYMAP = join(homedir(), ".claude/cache-fix-keymap.jsonl");
+export const MIRRORS = legacyReadPath(statePath("session-mirrors"), "session-mirrors");
+export const KEYMAP = legacyReadPath(statePath("keymap.jsonl"), "cache-fix-keymap.jsonl");
 // Seconds either side of the bust stamp that count as "the window". Wide
 // enough that a ledger written after the response still lands inside it.
 export const WINDOW_SEC = 90;

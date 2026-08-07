@@ -29,7 +29,7 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
-import { claudeHome } from "../claude-home.mjs";
+import { xdgState } from "../xdg-dirs.mjs";
 import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 // --- Allowlists ---
@@ -110,8 +110,10 @@ export function _resetForTest() {
   _baselineLoadedFrom = null;
 }
 
-function getOutputDir() {
-  return process.env.CACHE_FIX_UPSTREAM_DIR || claudeHome();
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function getOutputDir() {
+  return process.env.CACHE_FIX_UPSTREAM_DIR || xdgState();
 }
 
 function getBaselinePath(dir) {

@@ -35,15 +35,18 @@ import { mkdir } from "node:fs/promises";
 import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 import { readdirSync, statSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 
-// Paths resolved per call so tests can swap CLAUDE_CONFIG_DIR / $HOME between
-// cases; claudeHome() reads the env live.
+// Paths resolved per call so tests can swap $HOME between cases; statePath()
+// reads the env live. `quota-status/` is shared with cache-telemetry, which
+// writes these two files — this extension only reads them, so both resolve
+// through the same override.
 function paths() {
+  const quotaDir = process.env.CACHE_FIX_QUOTA_STATUS_DIR || statePath("quota-status");
   return {
-    logPath: join(claudeHome(), "usage-log", "rate-limit-events.jsonl"),
-    accountPath: join(claudeHome(), "quota-status", "account.json"),
-    sessionsDir: join(claudeHome(), "quota-status", "sessions"),
+    logPath: join(process.env.CACHE_FIX_USAGE_LOG_DIR || statePath("usage-log"), "rate-limit-events.jsonl"),
+    accountPath: join(quotaDir, "account.json"),
+    sessionsDir: join(quotaDir, "sessions"),
   };
 }
 

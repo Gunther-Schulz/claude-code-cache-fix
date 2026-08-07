@@ -59,6 +59,19 @@ if (!process.env.CLAUDE_CONFIG_DIR) {
   process.env.HOME = root;
   // Windows' equivalent, for the same reason — `os.homedir()` reads it there.
   process.env.USERPROFILE = root;
+  // The XDG roots (proxy/xdg-dirs.mjs) default to `$HOME/.local/...`, so the
+  // redirected HOME above already isolates them — but ONLY while the ambient
+  // XDG_DATA_HOME / XDG_STATE_HOME are absent, because those take precedence
+  // over HOME and would point straight back at the operator's live data. They
+  // are DELETED rather than pointed into the temp root on purpose: setting
+  // them would take precedence over the per-case `env.HOME` overrides that
+  // eight test files use, which is the same shape that made a global
+  // CLAUDE_CONFIG_DIR here produce 75 failures. Deleting them composes — a
+  // file that overrides HOME moves the XDG roots with it, exactly as it moves
+  // claudeHome(). A test that wants explicit XDG roots sets them itself and
+  // announces it with CACHE_FIX_TEST_XDG.
+  delete process.env.XDG_DATA_HOME;
+  delete process.env.XDG_STATE_HOME;
   if (!inherited) {
     // Best-effort cleanup, by the creator only. `exit` is synchronous-only,
     // hence the sync remover; a leftover directory under the OS temp root is a

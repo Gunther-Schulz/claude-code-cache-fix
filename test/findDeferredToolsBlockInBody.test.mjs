@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import {
   findDeferredToolsBlockInBody,
   deferredToolsSnapshotPath,
@@ -144,7 +145,10 @@ test("deferredToolsSnapshotPath: different keys yield different paths", () => {
 
 test("deferredToolsSnapshotPath: path contains the fixed prefix/suffix", () => {
   const p = deferredToolsSnapshotPath("whatever");
-  assert.ok(p.includes("cache-fix-state"));
+  // `cache-fix-state` -> `cache-fix/state` with the XDG migration: the store is
+  // under the tool's own state root now, so the tool name is the directory and
+  // the file name no longer repeats it.
+  assert.ok(p.includes(join("cache-fix", "state")));
   assert.ok(p.includes("deferred-tools-"));
   assert.ok(p.endsWith(".txt"));
 });

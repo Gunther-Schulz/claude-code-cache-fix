@@ -401,7 +401,7 @@ test(
 
     const scratch = await mkdtemp(join(tmpdir(), "insertion-suppression-"));
     const saved = {};
-    const overrides = { CLAUDE_CONFIG_DIR: scratch, ...GATES };
+    const overrides = { CLAUDE_CONFIG_DIR: scratch, XDG_STATE_HOME: scratch, ...GATES };
     for (const k of Object.keys(overrides)) {
       saved[k] = process.env[k];
       process.env[k] = overrides[k];

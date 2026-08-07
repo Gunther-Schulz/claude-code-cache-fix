@@ -19,11 +19,11 @@ set -euo pipefail
 
 CLAUDE_CLI="$HOME/.npm-global/lib/node_modules/@anthropic-ai/claude-code/cli.js"
 PRELOAD="$HOME/.claude/cache-fix-preload.mjs"
-QUOTA_DIR="$HOME/.claude/quota-status"
+QUOTA_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/quota-status"
 ACCOUNT_FILE="$QUOTA_DIR/account.json"
 SESSIONS_DIR="$QUOTA_DIR/sessions"
-USAGE_LOG="$HOME/.claude/usage.jsonl"
-DEBUG_LOG="$HOME/.claude/cache-fix-debug.log"
+USAGE_LOG="${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/usage.jsonl"
+DEBUG_LOG="${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/debug.log"
 REPORT_DIR="/tmp/cache-test-$(date +%Y%m%d_%H%M%S)"
 SKIP_RESUME=false
 

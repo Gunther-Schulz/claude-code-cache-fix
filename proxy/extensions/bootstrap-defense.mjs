@@ -1,8 +1,8 @@
 import { statSync, renameSync, mkdirSync } from "node:fs";
 import { appendFileSyncOwnerOnly } from "./write-owner-only.mjs";
-import { join, dirname } from "node:path";
+import { dirname } from "node:path";
 import { createHash } from "node:crypto";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 
 const LOG_ROTATE_BYTES = 5 * 1024 * 1024;
 const SCHEMA_VERSION = 2;
@@ -10,8 +10,10 @@ const EXTENSION_VERSION = "v3.7.1";
 
 const LEGACY_PROMPT_KEY = "tengu_heron_brook";
 
-function logPath() {
-  return process.env.CACHE_FIX_BOOTSTRAP_LOG_PATH || join(claudeHome(), "cache-fix-bootstrap-log.jsonl");
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function logPath() {
+  return process.env.CACHE_FIX_BOOTSTRAP_LOG_PATH || statePath("bootstrap-log.jsonl");
 }
 
 // Single-tier rotation by design: any previous .1 gets overwritten. The audit

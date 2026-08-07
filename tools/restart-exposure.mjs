@@ -34,10 +34,10 @@
 
 import { readdirSync, statSync, openSync, readSync, closeSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
+import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
 const CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
-  || join(homedir(), ".claude", "cache-fix-captures");
+  || legacyReadPath(dataPath("captures"), "cache-fix-captures");
 
 // Read the last `bytes` of a file. A capture's newest request carries the
 // largest message array, which is what a restart re-bills — so the tail is
