@@ -108,7 +108,10 @@ date, so a later derivation can see it is not a rubric output.
    rides the restart rather than shipping alone. Two of sixteen ship alone,
    which is not a split worth building, so it is dropped: one
    deployment-coupled change, one restart.
-   <!-- entry: "the SIXTEEN cache-fix-owned paths leave" -->
+   **SHIPPED 2026-08-07 (`7b804fe` + `c50f183`); rank anchor REMOVED, not
+   re-pointed** — the DONE-anchor guard refuses a rank on resolved work, and
+   its instruction is removal only, re-derive to re-rank. The operator-ranked
+   partition is therefore EMPTY as of this edit.
 
 ### Irreversible — evidence or history that cannot be undone
 
@@ -403,8 +406,23 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   moved but is missing still aborts.
 
 
-- **READY — the SIXTEEN cache-fix-owned paths leave `~/.claude/`; the
-  registry was one of seventeen.** Operator-ranked FIRST, 2026-08-07.
+- **(DONE — 2026-08-07, `7b804fe` merge + `c50f183`; dotfiles pin `a5c7263` ->
+  `b1d070f`) the SIXTEEN cache-fix-owned paths leave `~/.claude/`; the
+  registry was one of seventeen.** EXECUTED: `xdg-migrate --apply` moved 16 of
+  16 live paths (COULD-NOT: 0), proxy restarted 19:28Z on the new code,
+  `~/.claude/` verified free of every `cache-fix*` entry, doctor 20 FAIL -> 3.
+  The count in the body below is SIXTEEN and the executed scope was 24 — the
+  extra eight were latent writers a live-directory `ls` could not see, which is
+  the entry's own recorded lesson and is left standing rather than edited.
+  Two things the run itself produced, both booked separately: `--verify` calls
+  a never-written path an abort condition (`c50f183`), and the CA moved while
+  running shells held the old path in `NODE_EXTRA_CA_CERTS`, breaking every new
+  CC session until a fresh shell (dotfiles LEDGER 2026-08-07). Re-graded at
+  session close because the injected SessionStart head lists READY headers in
+  file order, so a shipped entry left at READY offers finished work to the next
+  session — the DONE-anchor defect this file already carries an entry for.
+  Original body follows.
+  Operator-ranked FIRST, 2026-08-07.
   `~/.claude/` holds `cache-fix-captures/`, `cache-fix-snapshots/`,
   `cache-fix-state/`, `cache-fix-gate-status.json`,
   `cache-fix-fire-ledger.jsonl`, `cache-fix-keymap.jsonl`,
