@@ -856,9 +856,25 @@ the first entry below.
   for this same stamp dispositioned it NON-DEFECT/GROWTH on the transcript's
   own numbers — that walk and this verdict must be reconciled, not stacked.
 
-- **READY — the conservation gate has no declared-exemption clause for
+- **(DONE — f2ab6d0, 2026-08-07)
+  the conservation gate has no declared-exemption clause for
   `identity-normalization`, so EVERY capture containing a resume fails the gate
-  on declared behaviour.** Found 2026-08-06 while walking s-captureAL: clauses
+  on declared behaviour.** SHIPPED as clause (h), byte-verified by chaining the
+  extension's own `normalizeSessionStartText` per block. Verified by the
+  dispatcher in the artifact, not on the report: s-captureAL replayed under the
+  serving gate set reads conservation 0 (was 2) with both rows carrying
+  `exemptReason: identity-normalization:session-start-substitution` on the
+  `lost` and `invented` sides. Of the four live reds, one flips green and 66
+  rows remain across the other three — measured as NOT this class (zero `lost`
+  rows survive anywhere), and deliberately not widened to. **The design
+  deviation, accepted:** the extension publishes no `ctx.meta` telemetry, so the
+  declaration is the replay's own staged per-extension measurement (`mutatedBy`)
+  rather than a self-report — an observed effect, and it avoids making a
+  checker-side repair deployment-coupled. Item 2 of the entry (the `in[937]`
+  sweep finding) returns COULD NOT VERIFY: that capture has rotated, shown
+  against a known positive rather than asserted. Three gaps it surfaced are
+  booked below and their build is in flight on the same lane. Original entry
+  follows. Found 2026-08-06 while walking s-captureAL: clauses
   exist for `smoosh-split`, `fresh-session-sort` and `content-strip`
   (`replay.mjs:2426-2455`) and not for this one, so its documented
   resume→startup substitution reports as `lost` + `invented` on the system unit
@@ -4566,6 +4582,51 @@ the first entry below.
   pre-existing finding in ITS `BACKLOG.md`; editing that file mid-run changes
   the fixture under the test. Move the body there when that lane returns — one
   writer per repo, which is the rule this repo just wrote down.
+
+- **READY (in flight 2026-08-07 on the clause-(h) lane) — three defects the
+  conservation clause work surfaced in the gate it extended.** All three are in
+  `tools/replay.mjs`, all three were recommended-to-build by the lane that found
+  them, and all three are being built on the extended grant; this entry is the
+  record, and if the lane returns without them it is the spec.
+  (1) **The three-answer gap.** With no declaration surface on the entry, the
+  clause is off and the row reads as an ordinary violation — a could-not-verify
+  wearing a fail's clothes, which is the failure this repo has now hit four
+  times. Not new with clause (h): `fssDeclared`, `stripDeclared` and
+  `smooshDeclared` all behave identically. Fix: a `declarationsUnavailable`
+  flag, additive to the row schema, and the row's TEXT must say so too — a flag
+  alone leaves the human-facing line unchanged. Red-first: a hand-built entry
+  with no stats. Bounded: the SHIPPED path is immune (`conservationViolations`
+  is called from one place, with an entry whose `mutatedBy` is always an array),
+  so the reachable route is `findConservationViolations` and hand-built entries.
+  (2) **Clause (f) exempts per MESSAGE where it claims per unit.**
+  `rewriteExempt`'s predicate never references the unit beyond the strip check,
+  so one verified rewrite exempts every other lost unit of that message — an
+  over-firing exemption, i.e. a gate that UNDER-fires, on the side where safety
+  outranks cache. Red-first arrangement already demonstrated: mutation M3 of the
+  clause-(h) battery installed exactly that shape and the "a REAL loss in the
+  same message" bite went red. This one changes live verdicts, so the four
+  currently-red captures are re-run and any row whose verdict MOVES is reported.
+  (3) **The violation row's COUNT is not narrowed by partial exemptions** — 2
+  lost of which 1 is declared-and-verified still reads `2 of 2`. Pre-existing,
+  shared with clauses (f) and (g); a no-op except in the partial case, which is
+  what its bite must construct.
+
+- **READY (small) — an entry proposing a DECLARED EXEMPTION states the
+  `ctx.meta` key it will read, or states that there is none.** Booked 2026-08-07
+  from the clause-(h) lane's standing question, and it is a writer-side repair
+  rather than a reader-side one. That entry's own verifier required the
+  exemption to be "telemetry-backed"; the extension it named publishes no
+  telemetry at all (`ctx.meta` in `identity-normalization.mjs`: 0 hits), so the
+  dispatched lane had to make a design decision the entry had implicitly
+  foreclosed. **What wrote it out of reach:** the clause form was read off the
+  three existing INSTANCES rather than off each extension's actual surface, and
+  that generator is still running — the next declared-exemption entry inherits
+  the same assumption. The fix is one line at intake, in
+  `docs/dev-loop.md` beside the conservation discussion, plus the corollary the
+  lane proved: a declaration need not be an extension's SELF-REPORT, since a
+  harness-measured effect is strictly harder evidence and avoids making a
+  checker-side repair deployment-coupled. Done when both sentences are in the
+  method file where an entry author reads before writing.
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
