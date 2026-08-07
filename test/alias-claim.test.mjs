@@ -38,8 +38,18 @@ const withRegistry = async (fn) => {
   }
 };
 
-test("nextAlias walks A..Z then AA.., skipping what is taken", () => {
-  assert.equal(nextAlias(new Set()), "s-captureA");
+// THIS TEST USED TO RATIFY THE DEFECT. Its first line asserted that an empty
+// registry yields `s-captureA` — which is true of the KEYS and false of the
+// world: A..AA were assigned before the registry existed, are cited ~185 times
+// in tracked prose, and their sessions are gone. The allocator re-issued
+// `s-captureA` on its first live run, and every one of those citations began
+// resolving to a capture it is not about. A test written from the
+// implementation's own model pins the bug it should catch; this one is now
+// written from the definition — a retired name is not a free name.
+test("nextAlias skips BURNED aliases, not merely taken ones", () => {
+  const burned = new Set(["s-captureA", "s-captureB"]);
+  assert.equal(nextAlias(new Set(), burned), "s-captureC");
+  assert.equal(nextAlias(new Set(), new Set()), "s-captureA", "with nothing burned, A is free");
   const throughZ = new Set([..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map((c) => `s-capture${c}`));
   assert.equal(nextAlias(throughZ), "s-captureAA");
   throughZ.add("s-captureAA");
@@ -49,6 +59,36 @@ test("nextAlias walks A..Z then AA.., skipping what is taken", () => {
   // not "highest plus one", and a retired entry's letter is reusable.
   const holed = new Set(["s-captureA", "s-captureC"]);
   assert.equal(nextAlias(holed), "s-captureB");
+});
+
+// The live registry's own burned list is the one that matters, so it is read
+// here rather than assumed: a burned list that stopped being loaded would let
+// the same 185 citations rot again, silently.
+test("BITE — the shipped registry burns A..AA, and a claim against it skips them", async () => {
+  await withRegistry(async (reg) => {
+    await writeFile(
+      reg,
+      JSON.stringify({ _burned: { aliases: ["s-captureA", "s-captureB", "s-captureC"] }, aliases: {} }, null, 2),
+      { mode: 0o600 },
+    );
+    process.env.CACHE_FIX_ALIAS_REGISTRY = reg;
+    const { alias } = await claim("s-zzzzburn-wxyz-wxyz-wxyz-synthetictest-requests.jsonl");
+    assert.equal(alias, "s-captureD", "a burned alias is never re-issued");
+    delete process.env.CACHE_FIX_ALIAS_REGISTRY;
+  });
+});
+
+// A FLAG IS NOT A CAPTURE. `--help` claimed a real alias for a capture named
+// "--help" on this tool's first day, and there is no unclaim path.
+test("BITE — a flag is refused, never claimed", async () => {
+  await withRegistry(async (reg) => {
+    process.env.CACHE_FIX_ALIAS_REGISTRY = reg;
+    await assert.rejects(() => claim("--help"), /not a capture/);
+    await assert.rejects(() => claim("--note"), /not a capture/);
+    const doc = JSON.parse(await readFile(reg, "utf-8").catch(() => "{}"));
+    assert.equal(Object.keys(doc.aliases ?? {}).length, 0, "a refused claim writes nothing");
+    delete process.env.CACHE_FIX_ALIAS_REGISTRY;
+  });
 });
 
 // Synthetic ids here are deliberately NON-HEX: the repo's hygiene class matches

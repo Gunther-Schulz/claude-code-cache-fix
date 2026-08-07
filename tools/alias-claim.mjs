@@ -54,6 +54,10 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  */
 export function captureKeyOf(arg) {
   const s = String(arg).trim();
+  // A FLAG IS NOT A CAPTURE. `--help` claimed a real alias for a capture named
+  // "--help", and any `--note` typo burns one the same way — there is no
+  // unclaim path, so the refusal belongs at the door.
+  if (s.startsWith("-")) throw new Error(`not a capture: ${s} — that is a flag, and an alias claimed for one cannot be given back`);
   const name = basename(s);
   if (/-requests\.jsonl$/.test(name)) return name;
   const sid = name.replace(/^s-/, "").replace(/\.jsonl$/, "");
@@ -62,9 +66,21 @@ export function captureKeyOf(arg) {
 
 const ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-/** The alias after `s-capture<X>`, in the convention's own order: A..Z, then AA, AB, … */
-export function nextAlias(taken) {
-  const has = (a) => taken.has(`s-capture${a}`);
+/** The alias after `s-capture<X>`, in the convention's own order: A..Z, then AA, AB, …
+ *
+ * TAKEN IS NOT THE SAME AS PRESENT, and the first build of this tool got that
+ * wrong in the most expensive direction. Aliases A..AA were assigned before
+ * this registry existed; their sessions are gone, so they were never entered as
+ * KEYS — while ~185 citations of them stand in tracked prose. Reading "next
+ * unused" off the keys present therefore re-issued `s-captureA`, and every one
+ * of those citations silently began resolving, through the only resolver there
+ * is, to a capture it is not about. A retired name is not a free name: the
+ * registry's `_burned.aliases` is read here and skipped, and it is a HARD input
+ * — an unreadable or missing burned list is a reason to refuse, not to proceed
+ * cheerfully into the same hole.
+ */
+export function nextAlias(taken, burned = new Set()) {
+  const has = (a) => taken.has(`s-capture${a}`) || burned.has(`s-capture${a}`);
   for (const c of ALPHA) if (!has(c)) return `s-capture${c}`;
   for (const a of ALPHA) for (const b of ALPHA) if (!has(a + b)) return `s-capture${a}${b}`;
   throw new Error("alias space exhausted (A..ZZ) — the convention needs a third letter");
@@ -139,7 +155,7 @@ export async function claim(capture, note) {
     // Idempotent by capture: a re-run returns what is already held. Without
     // this, a retried command burns an alias and leaves an orphan entry.
     if (existing) return { alias: existing, claimed: false };
-    const alias = nextAlias(new Set(Object.keys(doc.aliases)));
+    const alias = nextAlias(new Set(Object.keys(doc.aliases)), new Set(doc._burned?.aliases ?? []));
     doc.aliases[alias] = {
       file: key,
       assigned: new Date().toISOString().slice(0, 10),
