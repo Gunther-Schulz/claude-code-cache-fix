@@ -278,13 +278,13 @@ entry carries the design and a red-first verifier available immediately.
 Second: the daily sweep is red (conservation) on three captures; the fourth
 flipped green today. Both are entries, not lore.
 
-**A full `gate-live` sweep was running at close** — started ~11:22Z in the main
-clone by a session other than this one — and it writes row pins into
-`test/fixtures/harvested/rowpins/` as it goes. Those pins are UNTRACKED and are
-meant to be committed: they are the evidence that outlives capture rotation, and
-the sweep deliberately never commits. Whoever arrives next: `git status` there,
-run `node tools/absence-scan.mjs test/fixtures/harvested/rowpins/*.json`, and
-commit them. This is the machinery's designed flow, not an incident.
+**The first full sweep WITH row pins has run and its pins are committed**
+(`b86a96d`): 90 captures, 194 pins written, 0 rejected, 0 conflicts, 1.3 MB,
+absence-scan clean. That is the human half of the design — the sweep writes,
+never commits — so expect an untracked `test/fixtures/harvested/rowpins/` after
+every sweep from now on, and commit it the same way harvest's fixtures are
+committed. The gate is red on THREE captures, all conservation, down from four:
+the identity-normalization clause landed today and took the fourth green.
 
 **Disjoint write-sets, a fact about the files rather than a judgement** — for
 anyone dispatching the ranked head in parallel:
