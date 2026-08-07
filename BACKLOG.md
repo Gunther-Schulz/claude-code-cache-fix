@@ -352,6 +352,37 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
 
 ## Open
 
+- **READY 2026-08-07 — `xdg-migrate.mjs --verify` exits 1 on a NON-defect:
+  it reports NOT-ARRIVED for paths that were never written, and calls that
+  the abort condition.** Found by running the real migration on the desktop
+  (dotfiles booked it; fork main `7b804fe`). Measured: `--apply` moved 16 of
+  16 live paths, `COULD-NOT: 0`, and classified the other 8 as
+  `ALREADY-DONE … (neither present — nothing was ever written here)`.
+  `--verify` then re-read the same 24 and printed `arrived: 16
+  NOT-ARRIVED: 6 COULD-NOT-VERIFY: 2`, exit code **1**, under the banner
+  *"NOT-ARRIVED is the ABORT condition for the restart, not a warning: an
+  extension whose store did not arrive starts empty, which costs a
+  guaranteed re-baseline on every live conversation."* Independently
+  checked from the dotfiles side: all six are absent at the LEGACY path
+  too, so nothing was left behind and nothing can re-baseline — a store
+  that never existed has nothing to lose. The two halves of one tool
+  disagree: `--apply` distinguishes "never written" from "moved", `--verify`
+  does not, so it folds a never-fired extension into the same bucket as a
+  real transfer failure. THE DEFECT IS THE CHECK, NOT THE MIGRATION — and it
+  is the shape this repo's own dev-loop names: a check that fires on a
+  non-defect trains its reader to discount the red that will one day be
+  real, and this one fires on the FIRST and only run of a gate designed to
+  be run once. Design decided: `--verify`'s three answers become arrived /
+  NOT-ARRIVED (present at neither location AND recorded as moved by apply —
+  the real abort) / NEVER-WRITTEN (absent at both, apply said ALREADY-DONE
+  — reported, not aborting), with `COULD-NOT-VERIFY` untouched. Verifier:
+  re-run `--verify` on this now-migrated machine and it exits 0 with
+  `arrived: 16  never-written: 6  COULD-NOT-VERIFY: 2`; red-first by
+  asserting the current exit 1 before the change. Done when the exit code
+  distinguishes the two, and a synthetic case where a path IS recorded as
+  moved but is missing still aborts.
+
+
 - **READY — the SIXTEEN cache-fix-owned paths leave `~/.claude/`; the
   registry was one of seventeen.** Operator-ranked FIRST, 2026-08-07.
   `~/.claude/` holds `cache-fix-captures/`, `cache-fix-snapshots/`,
