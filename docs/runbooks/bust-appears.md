@@ -39,6 +39,45 @@ already carries — never by trusting that two counters agree.
 
 ## The line
 
+0. **RESOLVE THE REPORT TO EXACTLY ONE EVENT before investigating
+   anything.** Added 2026-08-07, operator: "the lane of me reporting a
+   bust must be robust and be able to match cleanly and accurately."
+   This step did not exist; the line opened at step 1, which silently
+   assumes the event is already identified. It usually is — when the
+   session found the bust itself. It is NOT when a human reports one,
+   and that is the entry path this lane is named after.
+   The two views share almost nothing. The ❄ token shows **ordinal,
+   size, cause, age** and the reporter knows their **project**; it
+   shows no session id and no timestamp. `bust-triage --list` shows
+   **UTC stamp, size, cause, 8-char sid**; no project, no age, no
+   ordinal. **The only overlap is size+cause** — so a report of "230k
+   messages_changed" is ambiguous the moment two sessions have one.
+   Do this, in order: (a) ask for the PROJECT if it was not given;
+   (b) convert every stamp into BOTH zones before saying it aloud —
+   the Setup note above states the hazard and was not enough, because
+   a caution is not a step; (c) name the session span
+   (`head -1`/`tail -1` on the transcript) and confirm the event falls
+   inside it; (d) restate the resolved event back to the reporter in
+   THEIR terms — project, ordinal, size, local time — and get
+   agreement before step 1.
+   **Terminal state: exactly one ledger event, agreed. A report that
+   cannot be resolved to one event is itself the finding** — it means
+   the instruments cannot describe what the operator can see, and that
+   is booked before the bust walk continues, not after.
+   Measured cost of not having this step, 2026-08-07: three statiker
+   busts existed (03:49 local 419k in one session; 06:08 and 06:17
+   local, 203k and 230k, in another). The session reported UTC stamps
+   to an operator reading a wall clock, the operator correctly objected
+   that the "4am" bust could not be in their fresh session, and both
+   parties were right about different events for several turns. A
+   second collision rode along: "largest" was read as "latest", because
+   size was the only shared handle.
+   `[GRADUATE -> `bust-triage --list` carries project, ordinal, age and
+   local time, and gains `--since`; BACKLOG ready. That entry also
+   carries the reason this step must stay by hand until then: the
+   ledger has three known duplication modes, so a grouped overview
+   would render phantom rows today.]`
+
 1. **Inventory; do not trust the count you were given.** Run
    `node tools/bust-triage.mjs --list` before anything else. Measured
    2026-08-06: the operator reported two busts, `--list` showed
