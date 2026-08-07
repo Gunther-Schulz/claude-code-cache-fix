@@ -4533,6 +4533,40 @@ the first entry below.
   (`Trigger:` lines only), `docs/dev-loop.md` (table only),
   `.claude/required-reading.json` (see the placement gap), `BACKLOG.md`.
 
+- **READY (operator-side, claude-worktime — POINTER; body moves to that repo's
+  BACKLOG when it is free) — `PROJECT_GIT_ANCHOR` does not reach a WORKTREE, so
+  agent lanes book their time as separate projects.** Found 2026-08-07 by the
+  operator reading their own statusline: the label had changed to
+  `worktrees/agent-<id> (worktree-agent-<id> ✗?)` with its own `total 16m`,
+  while `PROJECT_GIT_ANCHOR=true` was already set in their config (line 245).
+  **The mechanism, executed rather than reasoned:** `_project_label_v`
+  (`claude-worktime.sh:~726`) anchors with
+  `git -C "$path" rev-parse --show-toplevel`, and inside a worktree that
+  returns THE WORKTREE'S OWN ROOT —
+  measured: `--show-toplevel` -> `<repo>/.claude/worktrees/agent-<id>` while
+  `--git-common-dir` -> `<repo>/.git`. So the option's own comment ("anchor to
+  the git repo root, so subdirs and worktrees show the repo") is true for
+  subdirs and false for worktrees, which is why it reads as working.
+  Design: anchor via the common dir — `git -C "$path" rev-parse
+  --path-format=absolute --git-common-dir`, then strip the trailing `/.git`
+  (and handle a bare `.git` file/dir alike). Verifier, red-first: the label for
+  a path inside a worktree must render as the REPO today and does not; control,
+  a plain subdirectory of the main clone must render exactly as it does now,
+  and a non-git path must still fall back to the short-path label.
+  **Why it is worth more than cosmetics:** per-project totals are the operator's
+  own measurement surface, and this repo's build-order rubric ranks on measured
+  cost. Every agent lane silently forks a new "project" whose time is not
+  counted against the repo it was spent on — and the harness places agent
+  worktrees INSIDE the repo (`.claude/worktrees/`), so the fork rate is one per
+  dispatched lane, three today alone. Candidate for the false-verdict partition
+  at the next derivation (consumer: the worktime ledger, i.e. process/backlog
+  tier); not placed by this session, which had already derived its order.
+  **Why the body is not in claude-worktime yet, with its trigger:** a lane is
+  live right now whose verifier clones that repo and asserts against a
+  pre-existing finding in ITS `BACKLOG.md`; editing that file mid-run changes
+  the fixture under the test. Move the body there when that lane returns — one
+  writer per repo, which is the rule this repo just wrote down.
+
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
 
