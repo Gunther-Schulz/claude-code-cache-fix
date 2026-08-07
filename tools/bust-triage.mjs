@@ -25,6 +25,11 @@
 //                                               # one is named, never skipped
 //   node tools/bust-triage.mjs --list           # recent ❄ events, newest first
 //                                               # (busts AND controlled costs)
+//   node tools/bust-triage.mjs --lint-matrix    # the WRITER half: every
+//                                               # `## Event walk` declares its
+//                                               # cause/disposition/row, and
+//                                               # every cause it names is
+//                                               # reachable. Exit 1 on a finding.
 //   ... --json
 //
 // THREE answers, never two (dev-loop.md, "A checker has THREE answers"):
@@ -722,9 +727,14 @@ export function splitRowCells(line) {
  * (their only "OPEN" sits past char 260). `dossier.mjs` reads this field for
  * its "(OPEN)" label; both rows are unreachable from its `classToRow`.
  * Cells come from `splitRowCells`, never `split("|")` — see its docstring. */
-export function matrixRow(n) {
-  if (!existsSync(MATRIX)) return null;
-  for (const line of lines(MATRIX)) {
+export function matrixRow(n, matrixPath = MATRIX) {
+  // The path is a parameter because `lintMatrix` can be pointed at a COPY (a
+  // planted-defect fixture, or a candidate edit), and a row-readability check
+  // that silently read the default file while the walks came from the copy
+  // would be two files read as one — the coordinate-space error, at the file
+  // level. Default unchanged, so every existing caller is untouched.
+  if (!existsSync(matrixPath)) return null;
+  for (const line of lines(matrixPath)) {
     const m = /^\|\s*(\d+)\s*\|/.exec(line);
     if (m && Number(m[1]) === n) {
       const cells = splitRowCells(line);
@@ -905,6 +915,180 @@ export function causeToRow(cause, pair) {
   return descOnly ? 23 : 6;
 }
 
+// --- The matrix's SECOND container for a disposition: `## Event walk` prose ---
+//
+// The defect (BACKLOG, found 2026-08-06 at session close, fired live again
+// 2026-08-07 09:52:42Z): `bust-triage --at` returned UNCLASSIFIED — "a class
+// nothing currently covers" — for `previous_message_not_found`, which this
+// repo walked to CONTROLLED-CAUSE on 2026-07-31 and wrote up under an
+// `## Event walk` heading. `causeToRow` reaches NUMBERED ROWS only, so the
+// walk was unreachable by construction: a reader following the documented
+// route finds the answer, the tool following its route reports a new class.
+//
+// Both halves of that gap are real, and this file carries both:
+//   READER — `causeToWalk` indexes the walk sections by the cause they name;
+//   WRITER — `lintMatrix` (`--lint-matrix`) refuses a walk that does not
+//     declare its cause, its disposition and its row-or-no-row. Fixing the
+//     reader alone is the symptom-site fix one level up: the amplifier goes
+//     quiet and the generator keeps producing prose nothing can index.
+
+/**
+ * `other` and `unavailable` are claude-worktime's DEGRADED DEFAULT — set when
+ * `cache_miss_reason` could not be read at all — so they name the ABSENCE of
+ * a cause, never a cause. Matrix row 21 says so in the same words ("`other`
+ * is NOT evidence for this row … it means 'no cause available'"), and
+ * `triage`'s reconcile step already special-cases `other`. They are excluded
+ * from the lint's cause population definitionally, not as a tuning: a rule
+ * that mapped them to a disposition would pick one hypothesis out of several
+ * unruled-out ones.
+ */
+export const NON_CAUSES = new Set(["other", "unavailable"]);
+
+// The machine-readable line every `## Event walk` section carries. It exists
+// because the prose CANNOT be parsed for this safely: the 2026-08-07
+// 01:00:55Z walk is a NON-DEFECT with no row of its own and its body quotes
+// "row 27" inside a comparison table, so a `\brow \d+\b` scan would read it
+// as row-27's walk — the "needle that matches more than one thing" shape this
+// repo keeps paying for. A declaration is one line, and it is what makes the
+// seam computable rather than judged.
+const WALK_DECL =
+  /^WALK-INDEX:\s+cause=(\S+)\s+disposition=(\S+)\s+row=(\d+|none)\s*(?:[—-]\s*(.+))?$/;
+
+// The ❄ token as the headings render it, which is the statusline's own form:
+// `❄ 212k \`other\`` or `two ❄ \`messages_changed\`` or `❄ 51k
+// previous_message_not_found`. Read INDEPENDENTLY of the declaration above,
+// on purpose: the lint's cause population comes from the heading and the
+// index comes from the declaration, so a declaration that disagrees with the
+// heading it sits under is a red rather than a silent agreement with itself.
+// A single-source check here would be the predicate no input can falsify.
+const HEADING_CAUSE = /❄\s*(?:[\d.,]+k\s+)?`?([a-z][a-z_]*)`?/g;
+
+/**
+ * Every `## Event walk` section in the matrix, parsed.
+ *
+ * `{ title, headingCauses[], cause, disposition, row, reason, declared }` —
+ * `cause`/`disposition`/`row` come from the WALK-INDEX line and are null when
+ * there is none, which is itself a lint finding rather than something to
+ * guess at.
+ */
+export function eventWalks(matrixPath = MATRIX) {
+  // NOT `lines()`: that helper drops blank lines, so every line number it
+  // yields is short by however many blanks precede it — measured here, 1045
+  // for a heading that sits on 1212. A finding that sends its reader to the
+  // wrong line is the "two coordinate spaces that look like one" shape, and
+  // both numbers are plausible.
+  const src = existsSync(matrixPath) ? readFileSync(matrixPath, "utf8").split("\n") : [];
+  const walks = [];
+  for (let i = 0; i < src.length; i++) {
+    if (!/^## Event walk\b/.test(src[i])) continue;
+    // A walk's heading is its `## Event walk` line plus any immediately
+    // following `## ` continuation lines (four of the five wrap onto two).
+    const heading = [src[i]];
+    let k = i + 1;
+    while (k < src.length && /^## /.test(src[k]) && !/^## Event walk\b/.test(src[k])) {
+      heading.push(src[k++]);
+    }
+    const body = [];
+    while (k < src.length && !/^## /.test(src[k])) body.push(src[k++]);
+    const headingCauses = [];
+    for (const line of heading) {
+      for (const m of line.matchAll(HEADING_CAUSE)) headingCauses.push(m[1]);
+    }
+    let decl = null;
+    for (const line of body) {
+      const m = WALK_DECL.exec(line.trim());
+      if (m) { decl = m; break; }
+    }
+    walks.push({
+      title: heading[0].replace(/^##\s*/, "").trim(),
+      line: i + 1,
+      headingCauses,
+      declared: decl !== null,
+      cause: decl && decl[1] !== "none" ? decl[1] : null,
+      disposition: decl ? decl[2] : null,
+      row: decl && decl[3] !== "none" ? Number(decl[3]) : null,
+      rowDeclaredNone: decl ? decl[3] === "none" : false,
+      reason: decl ? (decl[4] ?? null) : null,
+    });
+    i = k - 1;
+  }
+  return walks;
+}
+
+/** The walk that dispositions this cause, or null. Newest-first (file order). */
+export function causeToWalk(cause, matrixPath = MATRIX) {
+  if (!cause || NON_CAUSES.has(cause)) return null;
+  return eventWalks(matrixPath).find((w) => w.cause === cause) ?? null;
+}
+
+/** Can this tool reach a disposition for this cause AT ALL — row or walk? */
+export function causeIsReachable(cause, matrixPath = MATRIX) {
+  return causeToRow(cause, null) !== null || causeToWalk(cause, matrixPath) !== null;
+}
+
+/**
+ * The WRITER half, as a check rather than as a rule someone has to remember.
+ *
+ * Three assertions, all mechanical:
+ *  1. every `## Event walk` section carries a WALK-INDEX declaration;
+ *  2. its `row=` either names a matrix row this tool can read, or is `none`
+ *     WITH a stated reason;
+ *  3. the set difference is empty — every cause token a walk HEADING names
+ *     (minus the degraded defaults) is one this tool can resolve to a
+ *     disposition, by numbered row or by walk.
+ * Plus: two walks declaring one cause must agree on its disposition.
+ *
+ * Assertion 3 is sourced from the HEADINGS while the index it tests is built
+ * from the DECLARATIONS, so it is not the vacuous "the map contains what I
+ * put in it". Assertion 1 is what stops a new walk from being invisible to
+ * assertion 3 by simply not declaring anything.
+ */
+export function lintMatrix(matrixPath = MATRIX) {
+  const walks = eventWalks(matrixPath);
+  const findings = [];
+  const seen = new Map();
+  for (const w of walks) {
+    const at = `line ${w.line}: ${w.title.slice(0, 60)}`;
+    if (!w.declared) {
+      findings.push(`${at}\n    no WALK-INDEX line — a walk nothing can index is a disposition ` +
+                    `only a human reading prose will ever find`);
+      continue;
+    }
+    if (!w.headingCauses.length) {
+      findings.push(`${at}\n    the heading names no ❄ cause token, so assertion 3 has nothing ` +
+                    `to check this walk against`);
+    }
+    if (w.row !== null && matrixRow(w.row, matrixPath) === null) {
+      findings.push(`${at}\n    declares row=${w.row}, which is not a readable matrix row`);
+    }
+    if (w.rowDeclaredNone && !w.reason) {
+      findings.push(`${at}\n    declares row=none with no stated reason — "deliberately no row" ` +
+                    `and "nobody minted one" must not read alike`);
+    }
+    if (w.cause) {
+      const prior = seen.get(w.cause);
+      if (prior && prior !== w.disposition) {
+        findings.push(`${at}\n    declares cause=${w.cause} disposition=${w.disposition}, but an ` +
+                      `earlier walk dispositions the same cause as ${prior}`);
+      } else if (!prior) seen.set(w.cause, w.disposition);
+    }
+  }
+  // Assertion 3, over every cause any walk heading names.
+  const population = [];
+  for (const w of walks) {
+    for (const c of w.headingCauses) {
+      if (NON_CAUSES.has(c) || population.includes(c)) continue;
+      population.push(c);
+    }
+  }
+  for (const c of population) {
+    if (causeIsReachable(c, matrixPath)) continue;
+    findings.push(`cause "${c}" is dispositioned in the matrix but this tool cannot resolve it — ` +
+                  `it reads as UNCLASSIFIED, i.e. as a class nothing covers`);
+  }
+  return { walks, population, findings };
+}
+
 /**
  * Ledger cause <-> transcript diagnostic pairs that NAME THE SAME EVENT.
  *
@@ -1033,10 +1217,37 @@ export async function triage(bust) {
   // to miss — see causeToRow's docstring for why the second axis exists.
   let rowN = idle.code === "fired" ? idle.row : classToRow(cls, mig);
   if (rowN === null) rowN = causeToRow(tc?.type, pair);
+  // THIRD axis: the matrix's other container for a disposition. A cause the
+  // repo has already walked to a verdict must not read as "a class nothing
+  // currently covers" merely because the verdict was written as prose rather
+  // than as a numbered row — see the eventWalks block above.
+  const walk = rowN === null ? causeToWalk(tc?.type) : null;
+  if (walk) {
+    steps.push({ step: "matrix-walk", ok: true,
+                 detail: `"${walk.title}" dispositions "${walk.cause}" as ${walk.disposition}` });
+    if (walk.row !== null) {
+      rowN = walk.row;
+    } else {
+      const kind = statusKind(walk.disposition);
+      if (kind === null) {
+        // The third answer again: the walk exists and its disposition is in
+        // no state this tool knows. Stopping is right — adding the state is a
+        // deliberate act, not something a reader should have inferred.
+        return { bust, steps, verdict: "STATUS-UNREADABLE",
+                 why: `the matrix walk "${walk.title}" dispositions this cause as ` +
+                      `"${walk.disposition}", which is in no state this tool recognises — ` +
+                      `read the walk, then add the state to STATUS_RULES` };
+      }
+      return { bust, steps, verdict: VERDICT_BY_KIND[kind],
+               why: `matrix event walk "${walk.title}" (${kind}): ` +
+                    `${walk.reason ?? walk.disposition}` };
+    }
+  }
   if (rowN === null) {
     return { bust, steps, verdict: "UNCLASSIFIED",
              why: `census class "${cls}" maps to no threat-matrix row, and the transcript cause ` +
-                  `${tc?.type ? `"${tc.type}" ` : "is absent, so it "}adds none — a class nothing currently covers` };
+                  `${tc?.type ? `"${tc.type}" ` : "is absent, so it "}adds none — and no matrix ` +
+                  `event walk dispositions it either — a class nothing currently covers` };
   }
   const row = matrixRow(rowN);
   if (!row) {
@@ -1177,6 +1388,37 @@ async function main(argv) {
     process.stdout.write(listHeader(events, slice.length) + "\n");
     for (const row of listRows(slice)) process.stdout.write(row + "\n");
     return 0;
+  }
+  if (args.includes("--lint-matrix")) {
+    const { walks, population, findings } = lintMatrix();
+    // Coverage first, because a lint that read nothing reports clean — the
+    // "0/0 reads like checked and clean" shape this repo has hit three times.
+    process.stdout.write(
+      `matrix walk lint — ${walks.length} \`## Event walk\` section(s), ` +
+      `${population.length} cause token(s) checked\n`);
+    for (const w of walks) {
+      process.stdout.write(
+        `  ${w.declared ? "OK  " : "MISS"}  line ${String(w.line).padStart(4)}  ` +
+        `cause=${w.cause ?? "-"} disposition=${w.disposition ?? "-"} ` +
+        `row=${w.row ?? (w.rowDeclaredNone ? "none" : "-")}  ` +
+        `heading=[${w.headingCauses.join(", ")}]\n`);
+    }
+    if (!walks.length) {
+      process.stdout.write(
+        "\nFAIL: no walk sections found at all — the READER is the suspect, not the matrix.\n");
+      return 1;
+    }
+    if (!findings.length) {
+      process.stdout.write("\nOK: every walk declares itself, and every cause it names is reachable.\n");
+      return 0;
+    }
+    process.stdout.write(`\n${findings.length} finding(s):\n`);
+    for (const f of findings) process.stdout.write(`  - ${f}\n`);
+    process.stdout.write(
+      "\nA walk that dispositions a cause the tool cannot reach makes `bust-triage`\n" +
+      "answer UNCLASSIFIED — 'a class nothing covers' — about a class this repo has\n" +
+      "already walked to a verdict. Declare the walk, or map the cause.\n");
+    return 1;
   }
   const atI = args.indexOf("--at");
   const explicit = atI >= 0;

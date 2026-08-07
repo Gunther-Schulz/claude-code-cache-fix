@@ -1212,6 +1212,8 @@ TTL-exceeding `gap` TO row 27, and that is booked.
 ## Event walk 2026-08-07 09:52:42Z — ❄ 212k `other`: CONTROLLED-CAUSE.
 ## A 4-hour idle expired the entry; the LABEL was the only surprise.
 
+WALK-INDEX: cause=previous_message_not_found disposition=CONTROLLED-CAUSE row=none — the entry expired before the request was composed; nothing the proxy forwards can change that, and the 2026-07-31 walk below already holds the disposition.
+
 Operator report (11:52 local / 09:52:42Z): "I just resumed, so I expected
 `idle` — I see `other`." The expectation was right and the label was the
 instrument. Disposition: **CONTROLLED-CAUSE** — nothing to mitigate.
@@ -1252,6 +1254,8 @@ mint a row for it — the disposition already exists, one section down.
 
 ## Event walk 2026-08-07 05:24:37Z — ❄ 134k `messages_changed`: NOT OURS.
 ## Row 4 class again, and the third statiker bust of the day (567k total).
+
+WALK-INDEX: cause=messages_changed disposition=NOT-OURS row=4
 
 Operator-reported (07:24 local), session in project `statiker`, model
 `claude-fable-5` throughout; capture `s-captureAN`. A DIFFERENT session
@@ -1326,6 +1330,8 @@ run.
 ## Event walk 2026-08-07 04:08:35Z + 04:17:25Z — two ❄ `messages_changed`
 ## (203k + 230k, 433k total): NOT OURS. Row 4 class. Operator hypothesis refuted.
 
+WALK-INDEX: cause=messages_changed disposition=NOT-OURS row=4
+
 Session in project `statiker`, model `claude-fable-5` throughout.
 Operator asked whether enabling `/keep-warm` moments earlier caused it.
 
@@ -1385,6 +1391,8 @@ BACKLOG entry should say so.
 ## Event walk 2026-08-07 01:00:55Z — ❄ 336k `other`: NON-DEFECT.
 ## The cache worked perfectly; GROWTH was booked as LOSS
 
+WALK-INDEX: cause=none disposition=NON-DEFECT row=none — there is no cache_miss_reason anywhere in this session's transcript, so there is no cause token to index and no loss to mitigate; the two findings are both in instruments and both booked.
+
 Statusline: `❄ 336k other (1m)`, session 06636dd1 (a sibling session,
 project `~/dev/Gunther-Schulz`). `--list` confirmed one event, not
 several. Disposition: **NON-DEFECT — no cache was lost.** Nothing to
@@ -1435,6 +1443,8 @@ hand walk.
 
 ## Event walk 2026-07-31 — ❄ 51k previous_message_not_found:
 ## CONTROLLED-CAUSE (instrument false positive, no bust)
+
+WALK-INDEX: cause=previous_message_not_found disposition=CONTROLLED-CAUSE row=none — the API's own diagnostic for a cached entry that is simply gone (expired, or replaced by a compaction the operator asked for); no prevention target exists proxy-side, so there is nothing for a numbered row to watch.
 
 Statusline showed `❄ 51k previous_message_not_found (12m)` on session
 s-captureN. Walked to disposition (basis: worktime activity ledger +
