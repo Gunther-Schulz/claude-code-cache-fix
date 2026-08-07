@@ -1246,9 +1246,37 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   completed-entry clause shipped with the tool's first and only 9 tests.
   Cheap: same suite, two synthetic fixtures.
 
-- **HOT — insertion-normalization suppressed a system message WITHOUT emitting a
+- **(DONE — this commit, 2026-08-07; threat-matrix row 28)
+  insertion-normalization suppressed a system message WITHOUT emitting a
   copy: the one REAL content loss in the 67-row conservation residue, and the
-  mechanism is live.** Attributed 2026-08-07 by the read-only attribution lane:
+  mechanism was live.**
+  **BRANCH NAMED, then fixed.** The step-through this entry asked for was run
+  under instrumented replay of the preserved capture (a truncated 63-request
+  slice reproduces the row, so the loop is seconds rather than minutes):
+  `[DBG reset-suppress] idx=8 hash=b6e8e363… ci=7 onWire=false pinApplied=false`
+  against `idx=13 hash=45e20a0c… ci=11 onWire=true pinApplied=true`. The branch
+  is `resetKeepingPins`' duplicate-suppression loop, and the defect is its
+  PRECONDITION rather than the loop: `pinnedBlockHashes(priorCanonical)` answers
+  "is this block in a live canonical entry", where the suppression's safety
+  argument needs "is a copy on the wire we are sending". CC had edited the
+  carrier (skill body 21476 -> 21475 chars), so its identity changed, so the pin
+  could not apply — and the reminder's hash was still in the set from an entry
+  nothing was serving.
+  **The same hole had a SECOND entry path, found by the sibling enumeration and
+  not by the instance:** on the success path a carrier arriving with a
+  `cache_control` breakpoint still MATCHES (identity is volatile-blind) while
+  `pinnedForwardForm` (:637-641) forwards CC's message untouched. Matched is not
+  restored. Both call sites now read their hash sets off the bytes the request
+  actually forwards (`restoringHashes`), which also covers the pruned-carrier
+  and merged-join siblings by construction.
+  **Red-first, stated:** the four new bites in
+  `test/insertion-suppression-copy-present.test.mjs` were run against the OLD
+  implementation in a worktree at the pre-fix HEAD — all four red, both controls
+  green — then against the fix, all six green. The preserved capture goes
+  exit 1 -> exit 0 with the row gone; the other two preserved captures' rows are
+  unchanged (34 / 31 / 1), which is what shows the fix is targeted rather than a
+  softened predicate. npm test 2327/2327.
+  Original attribution, kept for the record — 2026-08-07 by the read-only lane:
   on s-captureAE n=62, raw[8] — a 1473-byte "CLAUDE.md was modified" system
   message carrying the operator's own edit diff — is absent from the forwarded
   array three ways (as a unit under the gate's own hashing, as a substring, and

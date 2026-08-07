@@ -794,6 +794,47 @@ function pinnedJoinHashes(priorCanonical) {
   return hashes;
 }
 
+// The suppression's precondition, computed from the bytes THIS REQUEST is
+// actually forwarding rather than from the canonical.
+//
+// Both hash builders above answer "is this block in a live canonical entry".
+// The suppression's safety argument needs a different question — "is a copy of
+// this block on the wire we are about to send" — and the two part company the
+// moment the carrier is not being restored on this request. Feeding them the
+// canonical was the whole defect (measured 2026-08-07, capture s-captureAE
+// n=62, one of the four conservation reds in that morning's sweep, attributed
+// by the read-only lane and then branch-traced under instrumented replay):
+//
+//   prior canonical ci=7  user [tool_result, skill body 21476, <reminder>1510]
+//   incoming    wire 7    user [tool_result, skill body 21475, —]  <- CC edited it
+//   incoming    wire 8    system 1473 bytes                        <- migrated out
+//
+// One character of the carrier's ordinary text changed, so its identity
+// changed, so the pin could not apply — and the hash of the reminder it used
+// to hold was still in the set, from an entry nothing was serving. The
+// standalone matched it and was deleted: 1473 bytes of the operator's own
+// CLAUDE.md diff gone from the conversation, absent as a unit, as a substring
+// and line by line. The same request's other suppression (wire 13, carrier
+// matched and pinned) was correct — this fails per instance, never wholesale,
+// which is exactly why nothing louder than the conservation gate caught it.
+//
+// The other entry path to the same hole, closed by the same construction:
+// identity is volatile-blind, so a carrier that arrives with a cache_control
+// breakpoint still MATCHES while pinnedForwardForm (:637-641) hands CC's
+// message through untouched — a matched carrier is not the same claim as a
+// restored one, and only the forwarded bytes settle it.
+//
+// Narrowing, never widening: a slot enters this set only if the extension is
+// putting restored bytes there (a matched pin, a move re-serve, a re-fire).
+// Where the precondition now fails, the standalone is forwarded as CC sent it
+// — which costs no extra cache, because the precondition can only fail when
+// CC itself edited or dropped the carrier, i.e. when CC's own array has
+// already diverged at or before that slot.
+function restoringHashes(forwardedCarriers) {
+  const entries = forwardedCarriers.filter(Boolean).map((m) => ({ m }));
+  return { blocks: pinnedBlockHashes(entries), joins: pinnedJoinHashes(entries) };
+}
+
 // Is `msg` a suppressible duplicate of a currently-pinned block (or, since
 // 2026-07-30, a currently-pinned entry's FULL joined volatile-block set)?
 // Narrow by definition (BACKLOG #76606 part (c)): STANDALONE only (single
@@ -1058,8 +1099,19 @@ export function classifyPinned(messages, priorCanonical) {
     // rather than a second mechanism: a standalone duplicate is suppressible
     // precisely when the inline form it duplicates is being restored, and
     // `applied` above is that restoration.
-    const pinnedHashesR = pinnedBlockHashes(priorCanonical);
-    const pinnedJoinR = pinnedJoinHashes(priorCanonical);
+    //
+    // `out` already carries every restoration this path performs — the pins
+    // just above, then the move and re-fire substitutions — so the hash sets
+    // are read off the slots this extension controls on the array it is about
+    // to forward, never off the canonical (restoringHashes, :796).
+    const restoredIdxR = new Set();
+    for (const e of incoming) {
+      if (priorByKey.has(identityKey(e))) restoredIdxR.add(e.index);
+    }
+    for (const mv of moves) restoredIdxR.add(mv.mergedIndex);
+    for (const rf of refires) restoredIdxR.add(rf.index);
+    const { blocks: pinnedHashesR, joins: pinnedJoinR } =
+      restoringHashes([...restoredIdxR].map((i) => out[i]));
     const lastIdxR = messages.length - 1;
     const suppressedR = new Set();
     // DECLARED, not merely counted. `suppressions` (the incoming indices) is
@@ -1571,8 +1623,16 @@ export function classifyPinned(messages, priorCanonical) {
   // it. Applies uniformly to both single-block and join-hash matches: the
   // guard is positional, not about which hash set matched.
   const lastIdx = messages.length - 1;
-  const pinnedHashes = pinnedBlockHashes(priorCanonical);
-  const pinnedJoin = pinnedJoinHashes(priorCanonical);
+  // Same precondition as the reset path, and the same reason (restoringHashes,
+  // :796): the forwarded array is not built yet here, so the slots this
+  // extension controls are computed with the very functions the forwarding
+  // loop below uses — pinnedForwardForm for a matched pin, reserveForward for
+  // a move or a re-fire — rather than read back off it.
+  const { blocks: pinnedHashes, joins: pinnedJoin } = restoringHashes([
+    ...matched.map(({ ci, idx }) => pinnedForwardForm(storedAt(ci), messages[idx])),
+    ...joinMoves.map((mv) => reserveForward(priorCanonical[mv.ci])),
+    ...refires.map((rf) => reserveForward(priorCanonical[rf.ci])),
+  ]);
   const suppressions = [];
   for (const e of newEntries) {
     if (e.r === "assistant") continue;
