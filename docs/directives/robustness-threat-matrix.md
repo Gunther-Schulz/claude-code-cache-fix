@@ -1209,6 +1209,65 @@ fourth walk section is the writer-side repair for this instance:
 reader is the route from `previous_message_not_found` / a
 TTL-exceeding `gap` TO row 27, and that is booked.
 
+## Event walk 2026-08-07 04:08:35Z + 04:17:25Z — two ❄ `messages_changed`
+## (203k + 230k, 433k total): NOT OURS. Row 4 class. Operator hypothesis refuted.
+
+Session in project `statiker`, model `claude-fable-5` throughout.
+Operator asked whether enabling `/keep-warm` moments earlier caused it.
+
+REFUTED, by timeline. The transcript's own usage rows:
+
+    04:08:34.643Z  cc=203,091  cr=15,702   <- bust #1
+    04:12:50.799Z  /keep-warm invoked      <- 4m16s AFTER bust #1
+    04:12:53 -> 04:16:56  cr 218,874 -> 242,976, cc 150-1,500  (healthy)
+    04:17:24.796Z  cc=229,805  cr=15,702   <- bust #2
+
+Bust #1 PREDATES the invocation. Everything keep-warm did between the
+two is visible and healthy — twenty-odd requests, reads climbing,
+writes tiny. Its tick interval is 3000 s (50 min), so no tick fired in
+this window at all; only the arming happened. Two further refutation
+probes: both bust rows are `isSidechain:false` with ZERO sidechain rows
+in the transcript (not subagent traffic misread as churn), and every
+row across the window is `claude-fable-5` (not a model-switch
+cache-key change).
+
+NOT OURS — the gate says so, replayed under the SERVING config
+(`/health` gates, `--max-old-space-size=2048`) over the 91 MB capture:
+
+    cross-request byte-stability violations (self-inflicted busts): 0
+    stability exemptions:                                           0
+    safety violations:                                              0
+    content-conservation violations:                                0
+    canonical order violations:                                     0
+
+Zero violations AND zero exemptions — so this is not the
+"green gate with an exemption on the busting pair" case the runbook
+warns about; there is no unexamined claim hiding behind an exemption.
+
+THE CLASS — row 4, the reminder container migration. Both busts sit on
+an `inline->standalone` conversion in the census:
+
+    n=198->202  inline->standalone 196->197  04:08:28.897Z
+    n=198->202  join:cross-message inline->standalone 178+179->179
+    n=243->247  inline->standalone 246->247  04:17:17.861Z
+
+`mitigation: 1/1 mitigable events absorbed (100%)` — what we can absorb,
+we absorbed. Both busts read back exactly `cr=15,702`, twice: the same
+surviving prefix, i.e. system+tools and nothing else, while neighbouring
+traffic read 216k and 243k. Row 4 remains the most expensive open class
+and these two events add 433k to it.
+
+ALSO SEEN, not a defect: `tools[] deltas: 5 (5 tools-ONLY)`, each
+`membership+ in=9->10 forwardedStable=false heldStable=true` — the
+shared-name subset guarantee held on all five; the whole-array
+comparison is expected to differ when a deferred tool loads.
+
+INSTRUMENT FINDING, second instance. `bust-triage --at` reported
+`no capture pair (capture off, or rotated)` and returned UNVERIFIABLE
+while the capture sat on disk at 91 MB. Identical to the 01:00:55Z
+walk's finding 2. Two instances now, so this is a recurrence and its
+BACKLOG entry should say so.
+
 ## Event walk 2026-08-07 01:00:55Z — ❄ 336k `other`: NON-DEFECT.
 ## The cache worked perfectly; GROWTH was booked as LOSS
 

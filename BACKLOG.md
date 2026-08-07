@@ -335,10 +335,34 @@ the first entry below.
   This is the three-answer rule (verified clean / verified broken / COULD NOT
   VERIFY) one level down: it already governs CHECKERS and not the FIELDS they
   read. Widening the existing section beats a new one.
+  **WIDENED 2026-08-07 — the class covers PRESENCE-encoded booleans, not just
+  numeric zeros, and the sixth instance cost a wrong finding delivered to the
+  operator.** `prefix-diff` writes `record.crossTenant = true` and OMITS the
+  field when false (`prefix-diff.mjs:1095`). Reading the raw event log, a
+  session saw two very different `msgs` shapes under one key with no marker on
+  either, concluded the tool was POOLING two conversations into one baseline,
+  and told the operator so — who correctly asked for it to be booked. It was
+  wrong: 475 persisted records DO carry `crossTenant`, and the ones without it
+  are correctly unmarked. An absent boolean and an unemitted boolean are the
+  same bytes, exactly as an unwritten 0 and a measured 0 are.
+  This is the harder half of the class, because the numeric version at least
+  shows a value. Design addition: the section states that a boolean encoded by
+  key PRESENCE is unreadable from a single record — the reader must establish
+  that the writer emits it at all (`grep -c` for the key across the corpus is
+  the one-command check, and it is what settled this instance) before reading
+  its absence as `false`.
+  Residual, PARKED with its named probe rather than booked as a finding: four
+  records in one capture show `messages=31->2` with `tools[SendMessage:removed]`
+  and no `crossTenant`. Whether that is correct depends on `prefix-diff`'s own
+  tenant DEFINITION, which has not been read; the probe is reading it and
+  checking those four against it. The session's tenant-switch signature was
+  hand-rolled, which is the never-hand-roll-identity trap, so the discrepancy
+  is suggestive and nothing more.
   Verifier: the section names the five fields above with, for each, what its
-  zero means; and `cause: other`'s FORK-NOTES paragraph gains a pointer to it,
-  since that paragraph is where a reader currently learns the class from a
-  single instance.
+  zero means; states the presence-encoded-boolean case with `crossTenant` as
+  its worked example; and `cause: other`'s FORK-NOTES paragraph gains a pointer
+  to it, since that paragraph is where a reader currently learns the class from
+  a single instance.
 
 - **READY — the threat matrix has a datapoint-section form and yesterday's
   addendum was appended INTO the table cell instead, which is how a cell came
