@@ -6,7 +6,27 @@ SYSTEM items — code, PRs, investigations, upstream threads — live here.
 Fork-only file, excluded from PR slices like FORK-NOTES.md. One item per
 bullet, evidence pointer included.
 
-## Build order — DERIVED 2026-08-07 (midday), re-derive before building
+## Build order — DERIVED 2026-08-07 (midday) — **STALE, DO NOT RANK FROM IT**
+
+> **STALE as of 2026-08-07 evening. Re-derive before building anything.** Three
+> of this block's inputs moved after it was written, so it is a label over a
+> body that has changed — the drift class the rubric itself names. (i) The
+> operator-ranked #1 (the cache-fix paths leaving `~/.claude/`) SHIPPED —
+> merged `7b804fe`, 16/16 live paths migrated, proxy restarted 19:28Z, dotfiles
+> pin `a5c7263` -> `b1d070f`; its body still says SIXTEEN where the executed
+> count was 24. (ii) The Tier B head below still reads "RED on **3** — 35 + 31
+> + 1 rows" and still names the HOT insertion-normalization entry as the
+> pending REAL loss; that entry shipped in `403dde9` and the corpus sweep
+> measured 34 / 31 / 1. (iii) The XDG restart produced NO cold event
+> (`bust-triage --list`, newest row 12:58:06Z, read 20:20Z with
+> `activity.jsonl` live at write time), a fresh datapoint the restart-pricing
+> entries should rank against.
+> Also: `node tools/backlog-order.mjs --check` already exits 1 at HEAD —
+> verified against an isolated `git archive` of HEAD, so the drift predates
+> this banner and is not caused by it.
+> Marked rather than patched, per the rubric's own rule — "the derived order is
+> re-derived, not edited"; patching re-creates the stored-priority defect.
+> Re-derivation is booked READY below.
 
 Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
 ("Build order is DERIVED at build time"), over the 65 `- **READY` bullets under
@@ -5256,6 +5276,32 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   per path, so exempting `claude-worktime.sh` from `capture-key-prefix` would
   hide every FUTURE capture key in the file that matters most.
   <!-- entry: "the leak scan's already-published discard" -->
+
+- **READY — re-derive the build order; the block is banner-marked STALE and
+  three of its inputs moved on 2026-08-07 evening.** Booked rather than done at
+  session close, because a derivation is judgment over the whole READY
+  population and this session had none of it loaded. What moved is enumerated
+  in the banner itself (shipped operator-ranked #1; stale Tier B head numbers;
+  the restart's zero-bust datapoint). Note `--check` is ALREADY red at HEAD, so
+  the re-derivation also discharges a pre-existing drift rather than one this
+  session introduced. Done-criterion: `node tools/backlog-order.mjs --check`
+  exits 0 against a block whose header date is the derivation's own, and the
+  STALE banner is gone. Do NOT patch the existing block.
+
+- **READY — `.claude/settings.local.json` still grants the DEAD capture path,
+  so every agent read of the corpus now costs a permission prompt.** Lines 9-10
+  grant `Read(//home/g/.claude/cache-fix-captures/**)` and a `Bash(cp
+  ~/.claude/cache-fix-captures/…)`; that directory no longer exists — the
+  migration moved the corpus to `~/.local/share/cache-fix/captures/` (96
+  entries, verified 2026-08-07 20:20Z). The grants are write-only labels: they
+  permit a path nothing can read and fail to permit the one everything reads.
+  Design, decided: ADD `Read(//home/g/.local/share/cache-fix/captures/**)` and
+  repoint the `cp` rule; KEEP the legacy entries through the transition,
+  matching the code's one-transition fallback. Config write, therefore
+  veto-gated — correctly refused once when a SUBAGENT asked for it (permission
+  laundering); the operator asking is not that. Done-criterion: an agent `Read`
+  under the XDG captures path raises no prompt.
+  <!-- entry: "settings.local.json still grants the DEAD capture path" -->
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
