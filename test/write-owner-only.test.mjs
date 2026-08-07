@@ -81,7 +81,16 @@ async function silenced(fn) {
 
 async function runExt(body, { headers, dir } = {}) {
   const savedHome = process.env.CLAUDE_CONFIG_DIR;
-  if (dir) process.env.CLAUDE_CONFIG_DIR = dir;
+  const savedState = process.env.XDG_STATE_HOME;
+  // CLAUDE_CONFIG_DIR alone no longer isolates this extension's state: since
+  // the XDG migration its paths resolve from XDG_STATE_HOME / XDG_DATA_HOME
+  // (proxy/xdg-dirs.mjs), not from the Claude config root. Pointing all three
+  // at one temp dir keeps the helper's contract — everything this case writes
+  // lands under `dir` — and puts our artifacts at `dir/cache-fix/...`.
+  if (dir) {
+    process.env.CLAUDE_CONFIG_DIR = dir;
+    process.env.XDG_STATE_HOME = dir;
+  }
   try {
     const ctx = { body, meta: {}, headers: headers || {} };
     await ext.onRequest(ctx);
@@ -90,6 +99,8 @@ async function runExt(body, { headers, dir } = {}) {
     if (dir) {
       if (savedHome === undefined) delete process.env.CLAUDE_CONFIG_DIR;
       else process.env.CLAUDE_CONFIG_DIR = savedHome;
+      if (savedState === undefined) delete process.env.XDG_STATE_HOME;
+      else process.env.XDG_STATE_HOME = savedState;
     }
   }
 }
@@ -105,8 +116,8 @@ async function driveInsertion(dir, seed, headers) {
   );
   const key = resolveInsertionSessionKey(headers, body.messages, body.system);
   return {
-    canon: join(dir, "cache-fix-snapshots", `${key}-insertion-canon.json`),
-    events: join(dir, "cache-fix-snapshots", `${key}-insertion-events.jsonl`),
+    canon: join(dir, "cache-fix", "snapshots", `${key}-insertion-canon.json`),
+    events: join(dir, "cache-fix", "snapshots", `${key}-insertion-events.jsonl`),
   };
 }
 
@@ -158,7 +169,7 @@ test("BITE — a pre-existing group-readable events file is repaired to 0600 on 
     const headers = { "x-claude-code-session-id": "sess-repair-events" };
     const body = { model: "claude-opus-4-7", messages: conv(6, "repair-events") };
     const key = resolveInsertionSessionKey(headers, body.messages, body.system);
-    const snapshotDir = join(dir, "cache-fix-snapshots");
+    const snapshotDir = join(dir, "cache-fix", "snapshots");
     const events = join(snapshotDir, `${key}-insertion-events.jsonl`);
 
     await mkdir(snapshotDir, { recursive: true });
@@ -186,7 +197,7 @@ test("BITE — a pre-existing group-readable canon file is replaced at 0600 by t
     const headers = { "x-claude-code-session-id": "sess-repair-canon" };
     const body = { model: "claude-opus-4-7", messages: conv(6, "repair-canon") };
     const key = resolveInsertionSessionKey(headers, body.messages, body.system);
-    const snapshotDir = join(dir, "cache-fix-snapshots");
+    const snapshotDir = join(dir, "cache-fix", "snapshots");
     const canon = join(snapshotDir, `${key}-insertion-canon.json`);
 
     await mkdir(snapshotDir, { recursive: true });
@@ -229,14 +240,14 @@ async function driveFreshSort(dir, convSeed, headers, blockSeed = convSeed) {
   const body = { model: "claude-opus-4-7", messages };
   const key = resolveInsertionSessionKey(headers, messages, body.system);
   await silenced(() =>
-    withEnvAsync({ CLAUDE_CONFIG_DIR: dir }, async () => {
+    withEnvAsync({ CLAUDE_CONFIG_DIR: dir, XDG_STATE_HOME: dir }, async () => {
       const mod = await import(
         "../proxy/extensions/fresh-session-sort.mjs?owner-only-probe=" + encodeURIComponent(convSeed + ":" + blockSeed)
       );
       await mod.default.onRequest({ body, headers, meta: {} });
     }),
   );
-  return join(dir, "cache-fix-snapshots", `${key}-fresh-sort-relocated.json`);
+  return join(dir, "cache-fix", "snapshots", `${key}-fresh-sort-relocated.json`);
 }
 
 test("BITE — the relocation-memory file lands 0600, not at the ambient umask", async () => {

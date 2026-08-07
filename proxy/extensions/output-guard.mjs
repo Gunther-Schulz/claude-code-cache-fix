@@ -20,7 +20,7 @@
 
 import { appendFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { validateToolAdjacency } from "./insertion-normalization.mjs";
 import { isGuardEnabled } from "./output-guard-stash.mjs";
@@ -32,8 +32,10 @@ function isDebug(env = process.env) {
   return env.CACHE_FIX_DEBUG === "1";
 }
 
+// XDG STATE: regenerable snapshot/telemetry state, not Claude Code config.
+// Writer path — no legacy fallback (proxy/xdg-dirs.mjs states why).
 function getSnapshotDir() {
-  return join(claudeHome(), "cache-fix-snapshots");
+  return process.env.CACHE_FIX_SNAPSHOT_DIR || statePath("snapshots");
 }
 
 // --- Invariant validators (pure; each returns null or a violation string) ---

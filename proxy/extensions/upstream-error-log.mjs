@@ -38,13 +38,13 @@
 import { mkdir } from "node:fs/promises";
 import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 
 const ENV_VAR = "CACHE_FIX_UPSTREAM_ERROR_LOG";
 
 function logPath() {
-  return process.env.CACHE_FIX_UPSTREAM_ERROR_LOG_PATH ||
-    join(claudeHome(), "usage-log", "upstream-errors.jsonl");
+  return process.env.CACHE_FIX_UPSTREAM_ERROR_LOG_PATH
+    || join(process.env.CACHE_FIX_USAGE_LOG_DIR || statePath("usage-log"), "upstream-errors.jsonl");
 }
 
 // Detection predicate — every non-200 upstream response is in scope.

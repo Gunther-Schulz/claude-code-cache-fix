@@ -103,7 +103,7 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
@@ -175,8 +175,12 @@ const TRACKED_PARAMS = [
   "betas",
 ];
 
-function getSnapshotDir() {
-  return join(claudeHome(), "cache-fix-snapshots");
+// XDG STATE: regenerable snapshot/telemetry state, not Claude Code config.
+// Writer path — no legacy fallback (proxy/xdg-dirs.mjs states why).
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function getSnapshotDir() {
+  return process.env.CACHE_FIX_SNAPSHOT_DIR || statePath("snapshots");
 }
 
 // The key->conversation map. One line per key the FIRST time it is seen.
@@ -193,8 +197,10 @@ function getSnapshotDir() {
 // halves exist at once: the hash is computed from the header on the same
 // frame the header is readable. Nothing downstream can reconstruct it — the
 // hash is one-way, and the id never appears in a file name.
-function getKeymapPath() {
-  return join(claudeHome(), "cache-fix-keymap.jsonl");
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function getKeymapPath() {
+  return process.env.CACHE_FIX_KEYMAP || statePath("keymap.jsonl");
 }
 
 function debug(msg) {

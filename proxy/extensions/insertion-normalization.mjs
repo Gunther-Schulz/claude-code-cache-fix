@@ -138,7 +138,7 @@
 import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
 import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
@@ -169,7 +169,7 @@ function debug(msg) {
 // --- Storage ---
 
 function getSnapshotDir() {
-  return join(claudeHome(), "cache-fix-snapshots");
+  return process.env.CACHE_FIX_SNAPSHOT_DIR || statePath("snapshots");
 }
 
 // Sub-key on the system prompt (threat-matrix row 14): sidecar requests

@@ -63,10 +63,14 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readLines } from "./read-lines.mjs";
+import { statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
 // Live ledger for the proxy-side wiring (BACKLOG assignment). Exported, never
 // defaulted to: see the `--out` note above.
-export const DEFAULT_LEDGER_PATH = join(homedir(), ".claude/cache-fix-cold-events.jsonl");
+// XDG STATE, and found the same way as the oauth events log: by grepping the
+// writers rather than listing the directory.
+export const DEFAULT_LEDGER_PATH = process.env.CACHE_FIX_COLD_EVENTS
+  || legacyReadPath(statePath("cold-events.jsonl"), "cache-fix-cold-events.jsonl");
 
 // worktime's own constants. COLD_MIN_CTX is its cosmetic floor (default 0 —
 // "shows everything"); CACHE_GUARD_TTL defaults to 3600s there too.

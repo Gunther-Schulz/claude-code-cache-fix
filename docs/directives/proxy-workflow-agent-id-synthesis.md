@@ -220,7 +220,19 @@ The "canonical wins" priority is structural: when both could populate, `canonica
 
 The event-log writer lives in the **synthesis extension itself**, not in `request-log.mjs`. Round 2 incorrectly assigned the writer to `request-log.mjs`, which is `enabled: false` in mainline `extensions.json` AND additionally no-ops without `CACHE_FIX_REQUEST_LOG` set (verified at `proxy/extensions/request-log.mjs:3,21`). Default installs would therefore get zero drift-canary signal — defeating the purpose of the canary, which is the early warning when the marker catalog goes stale. The synthesis extension is `enabled: true` in v4.2.0; its own writer is the right home.
 
-Event log path: `~/.claude/workflow-derivation-events.jsonl` (NOT `~/.cache-fix-proxy/`).
+Event log path: `$XDG_STATE_HOME/cache-fix/workflow-derivation-events.jsonl`
+(default `~/.local/state/cache-fix/workflow-derivation-events.jsonl`), overridable
+with `CACHE_FIX_WORKFLOW_DERIVATION_LOG_PATH`.
+
+A bare `~/.cache-fix-proxy/` remains REJECTED, and the XDG state root is not that
+in a new costume: the objection was a tool inventing a private top-level dotdir
+of its own, and XDG state is the platform's declared home for regenerable
+per-user state, shared with every other tool on the machine. This log is exactly
+that — a drift canary, rebuilt from traffic, worthless if restored from backup.
+
+(RESTATED 2026-08-07. It read `~/.claude/workflow-derivation-events.jsonl` until
+the XDG migration moved all 16 of this repo's artifacts out of Claude Code's
+config root; `proxy/xdg-dirs.mjs` carries the split rule and the full table.)
 
 Per-record fields:
 

@@ -10,7 +10,7 @@
 
 import { appendFileSync, mkdirSync, statSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 
 const FORBIDDEN_KEYS = new Set([
   "accessToken", "refreshToken", "access_token", "refresh_token",
@@ -20,9 +20,12 @@ const FORBIDDEN_KEYS = new Set([
 
 const MAX_BYTES = 1_000_000;
 
-function eventsPath() {
-  return process.env.CACHE_FIX_OAUTH_EVENTS_LOG ||
-    join(claudeHome(), "cache-fix-oauth-events.jsonl");
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+// XDG STATE. Found by grepping the WRITERS, not the directory listing — the
+// file does not exist yet, so no enumeration of `~/.claude` could have seen it.
+export function eventsPath() {
+  return process.env.CACHE_FIX_OAUTH_EVENTS_LOG || statePath("oauth-events.jsonl");
 }
 
 function rotateIfLarge(path) {

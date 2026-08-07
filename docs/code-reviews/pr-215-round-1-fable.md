@@ -30,7 +30,7 @@ Reviewed at HEAD `387bcf8` (directive stage, no implementation yet). Verified ag
 
 1. **"Additive only, no request mutation" is self-contradictory as written.** Adding headers *is* request mutation, and "harmless, ignored by Anthropic" is asserted without evidence. Resolving B1 the recommended way (ctx.meta, nothing upstream) makes the claim true; if header emission upstream is retained for some reason, it needs default-off until validated against the live API, per the same caution that gated `request_id`.
 2. **The activation model doesn't fit the loader.** "`enabled: true` in `extensions.json` for the helper module (always loaded)" — `extensions.json` configures extensions in `proxy/extensions/` by export name (`pipeline.mjs:26-27`); lib modules are imported, not registered, and need no config entry. Meanwhile both named consumers are `enabled: false` by default (`usage-log.mjs:270`, `request-log.mjs:8`; usage-log isn't even present in `extensions.json`), and request-log additionally no-ops without `CACHE_FIX_REQUEST_LOG` set (`request-log.mjs:3,21`). So "default-on in v4.2.0" describes an env-var defaulting to `on` for a derivation with zero active consumers in a default install. State what default-on actually means operationally, and which extension entry (if any) changes in `extensions.json`.
-3. **Event-log location and discipline.** `~/.cache-fix-proxy/workflow-derivation-events.jsonl` breaks the established home — every proxy artifact lives under `~/.claude/` (`usage.jsonl`, `quota-status/`, `cache-fix-debug.log`). And "showing the inputs" is underspecified: the marker substring is prompt-derived content, and the derivation inputs border on prompt text. Pin the PII allowlist (session id, marker *name/id* — not matched prompt text — derived ids, timestamp) and rotation (5 MB single-tier per the `bootstrap-defense` precedent, reaffirmed in #213 A6). Small scope doesn't excuse an unbounded JSONL of prompt-derived strings.
+3. **Event-log location and discipline.** `~/.cache-fix-proxy/workflow-derivation-events.jsonl` breaks the established home — every proxy artifact lives under `~/.claude/` (`usage.jsonl`, `quota-status/`, `cache-fix-debug.log`).[^xdg-2026-08-07] And "showing the inputs" is underspecified: the marker substring is prompt-derived content, and the derivation inputs border on prompt text. Pin the PII allowlist (session id, marker *name/id* — not matched prompt text — derived ids, timestamp) and rotation (5 MB single-tier per the `bootstrap-defense` precedent, reaffirmed in #213 A6). Small scope doesn't excuse an unbounded JSONL of prompt-derived strings.
 4. **Marker false positives from user-controlled content.** Condition 3 scans "system-prompt or first-user-message" — a user message that *quotes* `[workflow-agent]` (e.g., someone discussing this very feature) triggers derivation. Consequence is mild (mis-attributed meter row), but cheap hardening exists: prefer system-prompt-position-anchored matches, and add a negative test for marker-text-in-user-content.
 5. **`derived_parent_agent_id` flattens nesting.** `sha256(session_id + "workflow-root")` gives every Workflow agent in a session the same parent, including nested `pipeline()`-within-`parallel()` trees. Probably the right v1 simplification — but say so, since "Workflow tree" language implies structure the parent id doesn't capture.
 6. **64-bit truncation.** `slice(0, 16)` matches house precedent (`hashOrgId`, `sessionFilename`) and is fine for per-session attribution, but document that the id is not globally unique (~2^32 birthday bound) so a future cross-user aggregation doesn't silently inherit collision risk.
@@ -57,3 +57,20 @@ Reviewed at HEAD `387bcf8` (directive stage, no implementation yet). Verified ag
 The motivation is sound, the derived-not-authoritative posture is exactly right, and the self-retiring design is the kind of upstream-respecting fix this proxy does well. But the directive's mechanics fail verification at every load-bearing joint: the headers it synthesizes cannot reach the wire through the existing pipeline and nothing owns the derivation; the meter field it claims already exists does not, and default-on would break every unpatched meter install; the derived id cannot pass the directive's own three-distinct-ids test; the module home contradicts a convention settled in PR #213; and the marker catalog the whole detection rests on has no verified content. All five are fixable in one revision pass — and B1's fix (ctx.meta instead of header emission) simplifies the design rather than complicating it. Fix B1–B5, tighten the activation-model description, and this is approvable in round 2.
 
 — Fable 5 Review Agent
+
+---
+
+[^xdg-2026-08-07]: **CORRECTION, 2026-08-07 — the convention this review cites was
+    reversed.** The three artifacts named above (`usage.jsonl`, `quota-status/`,
+    `cache-fix-debug.log`) no longer live under `~/.claude/`, and neither does
+    anything else this repo owns: all 16 moved to `$XDG_DATA_HOME/cache-fix`
+    (unrecoverable if lost) and `$XDG_STATE_HOME/cache-fix` (regenerable), via
+    `tools/xdg-migrate.mjs`. The review's *reasoning* stands and is left intact:
+    `~/.cache-fix-proxy/` was correctly rejected, and consistency with the
+    established home was the right test to apply at the time. What changed is
+    the home, not the argument — `~/.claude/` is Claude Code's CONFIG root, our
+    artifacts are DATA, and the harness protects that directory by path SHAPE,
+    so every read and write of ours raised a sensitive-file prompt (one was
+    denied mid-task on 2026-08-07 and the session lost work in flight). A reader
+    arriving at this bullet for the current convention wants
+    `proxy/xdg-dirs.mjs`, which carries the split rule and the destination table.

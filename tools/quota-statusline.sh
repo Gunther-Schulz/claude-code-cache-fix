@@ -3,8 +3,8 @@
 # Written by cache-fix proxy's cache-telemetry extension on every API call.
 #
 # Layout (post-v3.5.0):
-#   ~/.claude/quota-status/account.json            — global quota fields (5h/7d, status, overage)
-#   ~/.claude/quota-status/sessions/<filename>.json — per-session cache fields (ttl_tier, hit_rate)
+#   $XDG_STATE_HOME/cache-fix/quota-status/account.json            — global quota fields (5h/7d, status, overage)
+#   $XDG_STATE_HOME/cache-fix/quota-status/sessions/<filename>.json — per-session cache fields (ttl_tier, hit_rate)
 #
 # CC pipes hook input as JSON on stdin including `session_id`, which we map to
 # the per-session filename via the canonical rule (matches the writer in
@@ -26,7 +26,7 @@
 CC_INPUT=$(cat)
 export CC_INPUT
 
-ACCOUNT="$HOME/.claude/quota-status/account.json"
+ACCOUNT="${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix/quota-status/account.json"
 
 # Show quota even if no per-session file exists yet (fresh session, first
 # request hasn't fired). Per-session block just gets blank.
@@ -44,8 +44,9 @@ import sys, json, os, re, hashlib
 from datetime import datetime, timezone
 
 home = os.path.expanduser('~')
-account_path = os.path.join(home, '.claude', 'quota-status', 'account.json')
-sessions_dir = os.path.join(home, '.claude', 'quota-status', 'sessions')
+state = os.environ.get('XDG_STATE_HOME') or os.path.join(home, '.local', 'state')
+account_path = os.path.join(state, 'cache-fix', 'quota-status', 'account.json')
+sessions_dir = os.path.join(state, 'cache-fix', 'quota-status', 'sessions')
 
 # Parse stdin JSON (CC hook input) for session_id. Pass the raw value
 # (including null / "" / whitespace) through session_filename so the

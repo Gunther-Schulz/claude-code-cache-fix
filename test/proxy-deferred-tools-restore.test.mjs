@@ -575,7 +575,7 @@ test("onRequest: persists baseline (no UNAVAILABLE marker)", async () => {
     });
     assert.equal(ctx.meta.deferredToolsRestoreStats?.action, "persisted");
     const key = deriveSnapshotKey(CWD);
-    const snapPath = join(dir, ".claude", "cache-fix-state", `deferred-tools-${key}.txt`);
+    const snapPath = join(dir, ".local", "state", "cache-fix", "state", `deferred-tools-${key}.txt`);
     const onDisk = await readFile(snapPath, "utf-8");
     assert.equal(onDisk, baseline);
   } finally {
@@ -650,7 +650,7 @@ async function downgradeTest(snapshotLen, currentLen, expectAction) {
 
     const key = deriveSnapshotKey(CWD);
     await persistDeferredTools(snap, {
-      dir: join(dir, ".claude", "cache-fix-state"),
+      dir: join(dir, ".local", "state", "cache-fix", "state"),
       key,
     });
 
@@ -708,7 +708,7 @@ test("onRequest: concurrent persist calls do not corrupt the snapshot", async ()
     }
     // Final snapshot must be exactly one of the two candidates
     const key = deriveSnapshotKey(CWD);
-    const snapPath = join(dir, ".claude", "cache-fix-state", `deferred-tools-${key}.txt`);
+    const snapPath = join(dir, ".local", "state", "cache-fix", "state", `deferred-tools-${key}.txt`);
     const onDisk = await readFile(snapPath, "utf-8");
     assert.ok(
       onDisk === blockA || onDisk === blockB,

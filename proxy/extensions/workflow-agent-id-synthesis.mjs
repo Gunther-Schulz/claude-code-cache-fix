@@ -33,11 +33,11 @@
 
 import { statSync, renameSync, mkdirSync } from "node:fs";
 import { appendFileSyncOwnerOnly } from "./write-owner-only.mjs";
-import { join, dirname } from "node:path";
+import { dirname } from "node:path";
 
 import { resolveSessionId, sessionFilename } from "./cache-telemetry.mjs";
 import { matchWorkflowMarker } from "../workflow-markers.mjs";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 import {
   deriveAgentId,
   deriveParentAgentId,
@@ -55,9 +55,11 @@ const DRIFT_CANARY_THROTTLE_MS = 60 * 60 * 1000; // 1 hour per session
 // longer load-bearing).
 const _lastCanaryEmitMs = new Map();
 
-function logPath() {
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function logPath() {
   return process.env.CACHE_FIX_WORKFLOW_DERIVATION_LOG_PATH
-    || join(claudeHome(), "workflow-derivation-events.jsonl");
+    || statePath("workflow-derivation-events.jsonl");
 }
 
 // Single-tier rotation precedent — see `bootstrap-defense.mjs:20-25`.

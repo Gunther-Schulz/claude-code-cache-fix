@@ -11,14 +11,22 @@ import { createHash, randomBytes } from "node:crypto";
 import { writeFileSyncOwnerOnly } from "./write-owner-only.mjs";
 
 // Paths are resolved per call (not cached at module load) so tests can swap
-// CLAUDE_CONFIG_DIR / $HOME between cases; claudeHome() reads the env live.
-function paths() {
-  const quotaDir = join(claudeHome(), "quota-status");
+// $HOME between cases; statePath() reads the env live.
+//
+// `legacyPath` is the pre-DIRECTORY single-file format this extension deletes on
+// sight. It is a separate path from `quota-status/` and it moves with everything
+// else — `preload.mjs` writes it and `tools/cache_analysis.py` falls back to
+// reading it, so it is a live path, not a historical curiosity. It is READ here
+// (to delete it), so it carries the one-transition legacy fallback.
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function paths() {
+  const quotaDir = process.env.CACHE_FIX_QUOTA_STATUS_DIR || statePath("quota-status");
   return {
     quotaDir,
     accountPath: join(quotaDir, "account.json"),
     sessionsDir: join(quotaDir, "sessions"),
-    legacyPath: join(claudeHome(), "quota-status.json"),
+    legacyPath: legacyReadPath(statePath("quota-status.json"), "quota-status.json"),
   };
 }
 
@@ -50,7 +58,7 @@ const SAME_FAMILY_STICKY_THRESHOLD = 3;
 // reader that imports it from this module; new call sites should import
 // directly from `../model-families.mjs`.
 import { modelFamily } from "../model-families.mjs";
-import { claudeHome } from "../claude-home.mjs";
+import { legacyReadPath, statePath } from "../xdg-dirs.mjs";
 export { modelFamily } from "../model-families.mjs";
 
 // Read the persisted per-session JSON's divergence fields, guarded on

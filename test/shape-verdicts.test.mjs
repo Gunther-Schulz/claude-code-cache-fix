@@ -9,7 +9,7 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { writeFile, mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { shapeWatchVerdict, baselineStepVerdict, computeVerdicts } from "../tools/shape-verdicts.mjs";
 
@@ -23,6 +23,7 @@ const ledger = (s) => ({ keys: { "s-a": { shape: s } } });
 // ~/.claude on the machine running the suite.
 let configDir;
 let savedConfigDir;
+let savedStateHome;
 const TELEMETRY_GATE_VARS = [
   "CACHE_FIX_OUTPUT_GUARD",
   "CACHE_FIX_UPSTREAM_DETECTION",
@@ -36,13 +37,17 @@ const TELEMETRY_GATE_VARS = [
 beforeEach(async () => {
   configDir = await mkdtemp(join(tmpdir(), "shape-verdicts-config-"));
   savedConfigDir = process.env.CLAUDE_CONFIG_DIR;
+  savedStateHome = process.env.XDG_STATE_HOME;
   process.env.CLAUDE_CONFIG_DIR = configDir;
+  process.env.XDG_STATE_HOME = configDir;
   for (const v of TELEMETRY_GATE_VARS) delete process.env[v];
 });
 
 afterEach(async () => {
   if (savedConfigDir === undefined) delete process.env.CLAUDE_CONFIG_DIR;
   else process.env.CLAUDE_CONFIG_DIR = savedConfigDir;
+  if (savedStateHome === undefined) delete process.env.XDG_STATE_HOME;
+  else process.env.XDG_STATE_HOME = savedStateHome;
   for (const v of TELEMETRY_GATE_VARS) delete process.env[v];
   await rm(configDir, { recursive: true, force: true });
 });
@@ -175,10 +180,10 @@ test("BITE — telemetry alarm kind: a recent guard-events entry fires; an old o
     kind: "alarm",
     maxAgeH: 26,
     gate: () => process.env.CACHE_FIX_OUTPUT_GUARD === "1",
-    dir: () => join(configDir, "cache-fix-snapshots"),
+    dir: () => join(configDir, "cache-fix", "snapshots"),
     suffix: "-guard-events.jsonl",
   };
-  const path = join(configDir, "cache-fix-snapshots", "s-abc123-guard-events.jsonl");
+  const path = join(configDir, "cache-fix", "snapshots", "s-abc123-guard-events.jsonl");
   await writeFixture(path, recentMs());
   const recent = await telemetryConsumerVerdict(entry);
   assert.equal(recent.level, "warn", "a recent alarm entry IS the finding");
@@ -197,10 +202,10 @@ test("BITE — telemetry log kind: an old-mtime insertion-events file warns; a f
     kind: "log",
     maxAgeH: 26,
     gate: () => process.env.CACHE_FIX_INSERTION_NORMALIZE === "1",
-    dir: () => join(configDir, "cache-fix-snapshots"),
+    dir: () => join(configDir, "cache-fix", "snapshots"),
     suffix: "-insertion-events.jsonl",
   };
-  const path = join(configDir, "cache-fix-snapshots", "s-xyz789-insertion-events.jsonl");
+  const path = join(configDir, "cache-fix", "snapshots", "s-xyz789-insertion-events.jsonl");
   await writeFixture(path, oldMs());
   const stale = await telemetryConsumerVerdict(entry);
   assert.equal(stale.level, "warn", "gate on, no writes within maxAgeH — silence is the defect");
@@ -374,8 +379,10 @@ test("BITE — a MIXED-schema ledger parses and still answers (old lines carry n
 
 test("fire-ledger rides computeVerdicts, reading the real ledger path", async () => {
   const { computeVerdicts, fireLedgerPath } = await import("../tools/shape-verdicts.mjs");
-  // configDir is this test's CLAUDE_CONFIG_DIR, so the path resolves inside it.
-  assert.equal(fireLedgerPath(), join(configDir, "cache-fix-fire-ledger.jsonl"));
+  // configDir is this test's XDG_STATE_HOME, so the path resolves inside it —
+  // under a `cache-fix/` subdirectory now, which nothing has created yet.
+  assert.equal(fireLedgerPath(), join(configDir, "cache-fix", "fire-ledger.jsonl"));
+  await mkdir(dirname(fireLedgerPath()), { recursive: true });
   const before = await computeVerdicts(join(configDir, "ledger.json"));
   const fire = before.find((v) => v.name === "fire-ledger");
   assert.ok(fire, "the verdict must be in the CLI's output set");
@@ -430,7 +437,7 @@ test("moved-fresh: three answers — null (unreadable dir) warns named, a short 
 
 test("readMovedFreshRecords: reads every *-insertion-events.jsonl file, skips torn lines and non-pin records, sorts oldest-first", async () => {
   const { readMovedFreshRecords } = await import("../tools/shape-verdicts.mjs");
-  const dir = join(configDir, "cache-fix-snapshots");
+  const dir = join(configDir, "cache-fix", "snapshots");
   await mkdir(dir, { recursive: true });
   await writeFile(
     join(dir, "s-a-insertion-events.jsonl"),
@@ -464,7 +471,7 @@ test("moved-fresh rides computeVerdicts, reading the real snapshots dir", async 
   assert.ok(before, "the verdict must be in the CLI's output set");
   assert.equal(before.level, "warn", "no snapshots directory yet in this scratch config dir");
 
-  const dir = join(configDir, "cache-fix-snapshots");
+  const dir = join(configDir, "cache-fix", "snapshots");
   await mkdir(dir, { recursive: true });
   await writeFile(
     join(dir, "s-c-insertion-events.jsonl"),

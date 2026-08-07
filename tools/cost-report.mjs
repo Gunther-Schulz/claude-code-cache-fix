@@ -21,13 +21,14 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { homedir } from 'node:os';
+import { statePath, legacyReadPath } from '../proxy/xdg-dirs.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RATES_PATH = join(__dirname, 'rates.json');
 const PRICING_URL = 'https://platform.claude.com/docs/en/about-claude/pricing';
 const ADMIN_API_BASE = 'https://api.anthropic.com/v1/organizations/usage_report/messages';
-const DEFAULT_USAGE_LOG = join(homedir(), '.claude', 'usage.jsonl');
+const DEFAULT_USAGE_LOG = process.env.CACHE_FIX_USAGE_LOG
+  || legacyReadPath(statePath('usage.jsonl'), 'usage.jsonl');
 
 // ─── CLI parsing ────────────────────────────────────────────────────────────
 

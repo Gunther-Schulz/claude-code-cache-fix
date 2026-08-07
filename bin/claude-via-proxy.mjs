@@ -7,6 +7,8 @@ import { homedir } from "node:os";
 import { existsSync } from "node:fs";
 import http from "node:http";
 
+import config from "../proxy/config.mjs";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SERVER_PATH = resolve(__dirname, "../proxy/server.mjs");
 
@@ -188,14 +190,19 @@ let claudeEnv;
 if (remoteControl) {
   // Forward-proxy wiring. Leave ANTHROPIC_BASE_URL UNSET (that is exactly what
   // keeps Remote Control enabled) and route claude through the proxy as an
-  // HTTPS proxy, trusting the MITM CA it generated on startup. Resolve the CA
-  // dir from the SAME inputs as the proxy's config.caDir, in the same order:
-  // CACHE_FIX_CA_DIR wins, else ${CLAUDE_CONFIG_DIR||~/.claude}/cache-fix-ca.
-  // (Reading only CLAUDE_CONFIG_DIR here would ignore a CACHE_FIX_CA_DIR
-  // override and point claude at the wrong — or absent — CA than the one the
-  // spawned proxy actually generated.)
-  const caDir = process.env.CACHE_FIX_CA_DIR ||
-    join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), "cache-fix-ca");
+  // HTTPS proxy, trusting the MITM CA it generated on startup.
+  //
+  // Ask the proxy's own config for the CA dir rather than re-deriving it. This
+  // used to hand-roll the resolution — `CACHE_FIX_CA_DIR ||
+  // ${CLAUDE_CONFIG_DIR||~/.claude}/cache-fix-ca` — and the XDG migration
+  // proved why that shape is wrong: the proxy's default moved to
+  // `$XDG_DATA_HOME/cache-fix/ca` while this copy still looked under
+  // `~/.claude`, so the wrapper printed the NEW path for NODE_EXTRA_CA_CERTS
+  // and then aborted because it could not find the CA at the OLD one — five
+  // proxy-wrapper tests, failing on a message that named both paths. Two
+  // resolvers with one silently stale is exactly the divergence
+  // proxy/xdg-dirs.mjs exists to prevent; there is now one source of truth.
+  const caDir = config.caDir;
   const caPem = join(caDir, "ca.pem");
   if (!existsSync(caPem)) {
     process.stderr.write(

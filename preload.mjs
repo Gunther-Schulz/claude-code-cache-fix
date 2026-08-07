@@ -28,7 +28,7 @@
 //   - GrowthBook flag dump on first API call (CACHE_FIX_DEBUG=1)
 //   - Microcompact / budget enforcement detection (logs cleared tool results)
 //   - False rate limiter detection (model: "<synthetic>")
-//   - Quota utilization tracking (writes ~/.claude/quota-status.json)
+//   - Quota utilization tracking (writes $XDG_STATE_HOME/cache-fix/quota-status.json)
 //   - Prefix snapshot diffing across process restarts (CACHE_FIX_PREFIXDIFF=1)
 //
 // Based on community fix by @VictorSun92 / @jmarianski (issue #34629),
@@ -38,6 +38,20 @@
 // Load via: NODE_OPTIONS="--import $HOME/.claude/cache-fix-preload.mjs"
 
 import { createHash } from "node:crypto";
+
+// XDG state root — INLINED HERE ON PURPOSE, and this is the one sanctioned
+// copy of proxy/xdg-dirs.mjs's resolution rule.
+//
+// Everything else in this repo imports that module precisely so a second
+// resolver cannot drift. This file cannot: it is deployed STANDALONE as
+// `~/.claude/cache-fix-preload.mjs` and loaded into Claude Code's own process
+// via NODE_OPTIONS (see the header), so a relative import of `../proxy/` would
+// not resolve from where it actually runs. The rule is restated in two lines
+// rather than imported, and a change to the roots must be made in BOTH places —
+// proxy/xdg-dirs.mjs is the original. Everything this file writes is STATE.
+const xdgState = () =>
+  join(process.env.XDG_STATE_HOME || join(homedir(), ".local", "state"), "cache-fix");
+
 
 // --------------------------------------------------------------------------
 // Fingerprint stabilization (Bug 2)
@@ -447,7 +461,7 @@ function isContinueTrailerBlock(block) {
 // for this session.
 //
 // This extension snapshots the block to
-// `~/.claude/cache-fix-state/deferred-tools-<sha1(key)>.txt` every time
+// `$XDG_STATE_HOME/cache-fix/state/deferred-tools-<sha1(key)>.txt` every time
 // it's sent in its full form (no UNAVAILABLE marker), keyed by a caller-
 // supplied project key (default: cwd). On a subsequent request where the
 // block is shorter AND contains the UNAVAILABLE marker, the persisted
@@ -463,7 +477,7 @@ const DEFERRED_TOOLS_AVAILABLE_MARKER =
   "The following deferred tools are now available via ToolSearch";
 const DEFERRED_TOOLS_UNAVAILABLE_MARKER =
   "The following deferred tools are no longer available";
-const DEFERRED_TOOLS_SNAPSHOT_DIR = join(homedir(), ".claude", "cache-fix-state");
+const DEFERRED_TOOLS_SNAPSHOT_DIR = process.env.CACHE_FIX_STATE_DIR || join(xdgState(), "state");
 
 /**
  * Build the absolute snapshot path for a given key. Exported for tests so
@@ -782,7 +796,7 @@ function normalizeToolUseInputsInBody(body) {
 // Opt-out via CACHE_FIX_SKIP_CACHE_CONTROL_STICKY=1 (defaults ON).
 // --------------------------------------------------------------------------
 
-const CACHE_CONTROL_STICKY_DIR = join(homedir(), ".claude", "cache-fix-state");
+const CACHE_CONTROL_STICKY_DIR = process.env.CACHE_FIX_STATE_DIR || join(xdgState(), "state");
 // Anthropic hard limit: 4 cache_control markers total per request.
 // CC uses 1 on system[2] + cache_control_normalize places 1 on last user msg = 2 reserved.
 // Sticky can use at most 2 historical positions to stay within the 4-marker cap.
@@ -1357,13 +1371,14 @@ function replaceOutputEfficiencySection(text) {
 // --------------------------------------------------------------------------
 
 // --------------------------------------------------------------------------
-// Debug logging (writes to ~/.claude/cache-fix-debug.log)
+// Debug logging (writes to $XDG_STATE_HOME/cache-fix/debug.log)
 // Set CACHE_FIX_DEBUG=1 to enable
 // --------------------------------------------------------------------------
 
 import { appendFileSync, readFileSync, writeFileSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
 
 const DEBUG = process.env.CACHE_FIX_DEBUG === "1";
 const PREFIXDIFF = process.env.CACHE_FIX_PREFIXDIFF === "1";
@@ -1372,9 +1387,9 @@ const STRIP_GIT_STATUS = process.env.CACHE_FIX_STRIP_GIT_STATUS === "1";
 const NORMALIZE_CWD = process.env.CACHE_FIX_NORMALIZE_CWD === "1";
 const TTL_MAIN = (process.env.CACHE_FIX_TTL_MAIN || "1h").toLowerCase();
 const TTL_SUBAGENT = (process.env.CACHE_FIX_TTL_SUBAGENT || "1h").toLowerCase();
-const LOG_PATH = join(homedir(), ".claude", "cache-fix-debug.log");
-const SNAPSHOT_DIR = join(homedir(), ".claude", "cache-fix-snapshots");
-const USAGE_JSONL = process.env.CACHE_FIX_USAGE_LOG || join(homedir(), ".claude", "usage.jsonl");
+const LOG_PATH = process.env.CACHE_FIX_DEBUG_LOG || join(xdgState(), "debug.log");
+const SNAPSHOT_DIR = process.env.CACHE_FIX_SNAPSHOT_DIR || join(xdgState(), "snapshots");
+const USAGE_JSONL = process.env.CACHE_FIX_USAGE_LOG || join(xdgState(), "usage.jsonl");
 
 function debugLog(...args) {
   if (!DEBUG) return;
@@ -1405,7 +1420,7 @@ function shouldApplyFix(fixName) {
 // Persistent effectiveness stats
 // --------------------------------------------------------------------------
 
-const STATS_PATH = join(homedir(), ".claude", "cache-fix-stats.json");
+const STATS_PATH = process.env.CACHE_FIX_STATS || join(xdgState(), "stats.json");
 
 const _STATS_SCHEMA = {
   relocate: { applied: 0, skipped: 0, bugPresent: 0, resumeScanned: 0, lastApplied: null, lastScanned: null },
@@ -1495,10 +1510,10 @@ function recordRelocateScan(bugFound) {
 // Set CACHE_FIX_PREFIXDIFF=1 to enable.
 //
 // On each API call: saves JSON of first 5 messages + system + tools hash
-// to ~/.claude/cache-fix-snapshots/<session-hash>-last.json
+// to $XDG_STATE_HOME/cache-fix/snapshots/<session-hash>-last.json
 //
 // On first call after startup: compares against saved snapshot and writes
-// a diff report to ~/.claude/cache-fix-snapshots/<session-hash>-diff.json
+// a diff report to $XDG_STATE_HOME/cache-fix/snapshots/<session-hash>-diff.json
 // --------------------------------------------------------------------------
 
 let _prefixDiffFirstCall = true;
@@ -2412,7 +2427,7 @@ globalThis.fetch = async function (url, options) {
       // them on future bodies. Runs AFTER cache_control_normalize (when
       // present) so normalize pins the canonical tail-marker first and
       // sticky re-adds the historical ones. State file is per-project at
-      // ~/.claude/cache-fix-state/cache-control-sticky-<sha1(cwd)>.json.
+      // $XDG_STATE_HOME/cache-fix/state/cache-control-sticky-<sha1(cwd)>.json.
       // Opt-out via CACHE_FIX_SKIP_CACHE_CONTROL_STICKY=1 (defaults ON).
       if (shouldApplyFix("cache_control_sticky") && payload.messages) {
         try {
@@ -2648,7 +2663,7 @@ globalThis.fetch = async function (url, options) {
       }
 
       if (h5 || h7d) {
-        const quotaFile = join(homedir(), ".claude", "quota-status.json");
+        const quotaFile = join(xdgState(), "quota-status.json");
         let quota = {};
         try { quota = JSON.parse(readFileSync(quotaFile, "utf8")); } catch {}
         quota.timestamp = new Date().toISOString();
@@ -2708,7 +2723,7 @@ globalThis.fetch = async function (url, options) {
  * The message_start event contains usage.cache_creation with ephemeral_1h and
  * ephemeral_5m token counts, revealing which TTL tier the server applied.
  *
- * Writes TTL tier to ~/.claude/quota-status.json (merges with existing data)
+ * Writes TTL tier to $XDG_STATE_HOME/cache-fix/quota-status.json (merges with existing data)
  * and logs to debug log.
  */
 async function drainTTLFromClone(clone, model, quotaHeaders) {
@@ -2755,7 +2770,7 @@ async function drainTTLFromClone(clone, model, quotaHeaders) {
             else if (e1h === 0 && e5m === 0 && cacheCreate === 0) {
               // Fully cached — no creation to determine tier. Preserve previous.
               try {
-                const prev = JSON.parse(readFileSync(join(homedir(), ".claude", "quota-status.json"), "utf8"));
+                const prev = JSON.parse(readFileSync(join(xdgState(), "quota-status.json"), "utf8"));
                 ttlTier = prev.cache?.ttl_tier || "1h";
               } catch { ttlTier = "1h"; }
             }
@@ -2773,7 +2788,7 @@ async function drainTTLFromClone(clone, model, quotaHeaders) {
 
             // Merge TTL data into quota-status.json
             try {
-              const quotaFile = join(homedir(), ".claude", "quota-status.json");
+              const quotaFile = join(xdgState(), "quota-status.json");
               let quota = {};
               try { quota = JSON.parse(readFileSync(quotaFile, "utf8")); } catch {}
               quota.cache = {

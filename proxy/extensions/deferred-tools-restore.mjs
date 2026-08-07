@@ -38,7 +38,7 @@ import {
 } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
-import { claudeHome } from "../claude-home.mjs";
+import { statePath } from "../xdg-dirs.mjs";
 import { writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 const SKIP = process.env.CACHE_FIX_SKIP_DEFERRED_TOOLS_RESTORE === "1";
@@ -56,8 +56,12 @@ const DEFAULT_FS = {
   rename: _rename,
 };
 
-function getSnapshotDir() {
-  return join(claudeHome(), "cache-fix-state");
+// XDG STATE: regenerable snapshot/telemetry state, not Claude Code config.
+// Writer path — no legacy fallback (proxy/xdg-dirs.mjs states why).
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function getSnapshotDir() {
+  return process.env.CACHE_FIX_STATE_DIR || statePath("state");
 }
 
 function debug(msg) {

@@ -50,6 +50,7 @@
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
+import { dataPath, statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 import { join } from "node:path";
 import { censusPair } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
@@ -57,13 +58,15 @@ import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
 
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
-const CAPTURES = join(homedir(), ".claude/cache-fix-captures");
+const CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
+  || legacyReadPath(dataPath("captures"), "cache-fix-captures");
 const PROJECTS = join(homedir(), ".claude/projects");
 const MATRIX = "docs/directives/robustness-threat-matrix.md";
-// Mirrors CAPTURES above: hardcoded to ~/.claude rather than routed through
-// proxy/claude-home.mjs's claudeHome() (which also honors CLAUDE_CONFIG_DIR)
-// — pre-existing in this file, not introduced here.
-const SNAPSHOTS = join(homedir(), ".claude/cache-fix-snapshots");
+// Mirrors CAPTURES above, and both are read-only here, so both carry the
+// legacy fallback. Routed through proxy/xdg-dirs.mjs rather than hand-rolled:
+// a second resolver under tools/ can silently diverge from production's.
+const SNAPSHOTS = process.env.CACHE_FIX_SNAPSHOT_DIR
+  || legacyReadPath(statePath("snapshots"), "cache-fix-snapshots");
 // A reset telemetry event within this many ms of a candidate request's own
 // `ts` is treated as "that request is what the event is reporting on"
 // (BACKLOG TOOL GAP, 2026-07-31 twin-busts entry). Measured live on the

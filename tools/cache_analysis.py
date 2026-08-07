@@ -14,9 +14,9 @@ cache-fix npm package's ``tools/`` directory; npm consumers can reference
 copy it out for non-npm installs.
 
 The ``read_quota_status()`` helper handles both cache-fix v3.5.0+ (proxy
-mode, per-session split at ``~/.claude/quota-status/account.json``) and
+mode, per-session split at ``$XDG_STATE_HOME/cache-fix/quota-status/account.json``) and
 v3.4.x and earlier / preload mode (single global
-``~/.claude/quota-status.json``). See the README's "Migration:
+``$XDG_STATE_HOME/cache-fix/quota-status.json``). See the README's "Migration:
 v3.4.x → v3.5.0+" section.
 """
 
@@ -142,13 +142,26 @@ def estimate_savings(total_context, ttl_tier="5m"):
     return cold_cost - compact_cost
 
 
+def _state_root():
+    """cache-fix's XDG state root — the same rule as proxy/xdg-dirs.mjs.
+
+    Restated here rather than imported because this file is Python and is
+    copied or symlinked into ``~/.claude/mcp/`` by consumers (see the module
+    header), so it cannot reach the JS resolver. proxy/xdg-dirs.mjs is the
+    original; a change to the roots must be made in both.
+    """
+    import os
+    state = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    return os.path.join(state, "cache-fix")
+
+
 def read_quota_status():
     """Read current quota utilization from cache-fix's quota-status file.
 
     Written by the cache-fix interceptor from API response headers. Path
     depends on cache-fix version:
-      - v3.5.0+ (proxy mode, per-session split): ~/.claude/quota-status/account.json
-      - v3.4.x and earlier (or preload mode): ~/.claude/quota-status.json (flat)
+      - v3.5.0+ (proxy mode, per-session split): $XDG_STATE_HOME/cache-fix/quota-status/account.json
+      - v3.4.x and earlier (or preload mode): $XDG_STATE_HOME/cache-fix/quota-status.json (flat)
 
     Tries the v3.5.0+ path first, falls back to the legacy flat path. A
     candidate file whose JSON parses but isn't a dict (e.g. a partial write
@@ -162,6 +175,11 @@ def read_quota_status():
     """
     import os
     for quota_file in (
+        os.path.join(_state_root(), "quota-status", "account.json"),
+        os.path.join(_state_root(), "quota-status.json"),
+        # One-transition legacy fallback, mirroring proxy/xdg-dirs.mjs's
+        # legacyReadPath: a machine whose data has not been moved yet is still
+        # readable. Remove these two with that function.
         os.path.expanduser("~/.claude/quota-status/account.json"),
         os.path.expanduser("~/.claude/quota-status.json"),
     ):

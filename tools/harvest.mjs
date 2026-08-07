@@ -92,13 +92,15 @@ import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
-import { homedir, hostname, tmpdir } from "node:os";
+import { hostname, tmpdir } from "node:os";
+import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
 import { censusPair } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
+const DEFAULT_CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
+  || legacyReadPath(dataPath("captures"), "cache-fix-captures");
 const DEFAULT_OUT = join(__dirname, "..", "test", "fixtures", "harvested");
 // PER-MACHINE ledger. Fixtures are committed and therefore shared across
 // machines — which is the point, since a bust class found on one machine

@@ -28,7 +28,7 @@
 // `findMitigationGaps`'s row (kind / mitigated / rebilledBytes / outputForm /
 // outputPreserved / rebilledOutBytes); and across the whole replay,
 // `findSafetyViolations`. The replay itself is the tests' own loop
-// (loadExtensions + runOnRequest over a scratch CLAUDE_CONFIG_DIR under the
+// (loadExtensions + runOnRequest over a scratch config + XDG root under the
 // capture's gate set), not a re-derivation of it.
 //
 // NUMBERING. A cut fixture drops leading request records, so its own record
@@ -87,7 +87,18 @@ export async function replayVerdicts(fixturePath) {
 
   const scratch = await mkdtemp(join(tmpdir(), "fixture-verdict-"));
   const saved = {};
-  const overrides = { CLAUDE_CONFIG_DIR: scratch, ...GATES };
+  // All three roots, not CLAUDE_CONFIG_DIR alone: since the XDG migration the
+  // state-writing extensions resolve their snapshots from XDG_STATE_HOME /
+  // XDG_DATA_HOME (proxy/xdg-dirs.mjs). With only the config root scratched,
+  // every invocation shared ONE snapshot store and a fixture diverged from
+  // itself — which is the failure this tool exists to detect, produced by the
+  // tool rather than by the fixture.
+  const overrides = {
+    CLAUDE_CONFIG_DIR: scratch,
+    XDG_STATE_HOME: scratch,
+    XDG_DATA_HOME: scratch,
+    ...GATES,
+  };
   for (const k of Object.keys(overrides)) {
     saved[k] = process.env[k];
     process.env[k] = overrides[k];

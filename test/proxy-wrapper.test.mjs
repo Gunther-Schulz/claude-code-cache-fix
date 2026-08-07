@@ -163,13 +163,16 @@ describe("launch wrapper (claude-via-proxy)", { concurrency: 1 }, () => {
     assert.equal(code, 0, `Expected exit 0, got ${code}. stderr: ${stderr}`);
     assert.ok(stdout.includes("BASE=UNSET"), `ANTHROPIC_BASE_URL should be unset in forward mode, got: ${stdout}`);
     assert.match(stdout, /HP=http:\/\/127\.0\.0\.1:\d+/, `HTTPS_PROXY should point at the proxy, got: ${stdout}`);
-    assert.match(stdout, /CA=\S*cache-fix-ca\/ca\.pem/, `NODE_EXTRA_CA_CERTS should point at the MITM CA, got: ${stdout}`);
+    assert.match(stdout, /CA=\S*cache-fix\/ca\/ca\.pem/, `NODE_EXTRA_CA_CERTS should point at the MITM CA, got: ${stdout}`);
   });
 
   it("--remote-control honors CACHE_FIX_CA_DIR (matches the proxy's CA path contract)", async () => {
-    // The proxy resolves its CA dir as CACHE_FIX_CA_DIR || claudeHome()/cache-fix-ca.
-    // The launcher MUST resolve NODE_EXTRA_CA_CERTS from the same input in the
-    // same order, or it points claude at a different (or absent) CA than the one
+    // The proxy resolves its CA dir as CACHE_FIX_CA_DIR || $XDG_DATA_HOME/cache-fix/ca.
+    // The launcher no longer re-derives that at all — it imports proxy/config.mjs
+    // and reads config.caDir, because the two copies DID diverge during the XDG
+    // migration: the launcher kept looking under ~/.claude while the proxy had
+    // moved, and it aborted with a message naming both paths. One resolver now.
+    // Otherwise it points claude at a different (or absent) CA than the one
     // the spawned proxy generated — a hard fail, or a silent trust mismatch when
     // a stale default CA exists. This test pins the override path exactly.
     const caDir = mkdtempSync(join(tmpdir(), "cffcadir-"));

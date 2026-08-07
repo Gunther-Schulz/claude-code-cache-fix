@@ -2,7 +2,9 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, readdir, rename, stat, unlink } from "node:fs/promises";
 import { join } from "node:path";
 
-import { claudeHome } from "../claude-home.mjs";
+// Aliased: this module already has its own local `statePath()` (a per-session
+// filename builder). The XDG root resolver is a different thing entirely.
+import { statePath as xdgStatePath } from "../xdg-dirs.mjs";
 import { resolveInsertionSessionKey } from "./insertion-normalization.mjs";
 import { writeFileOwnerOnly } from "./write-owner-only.mjs";
 
@@ -144,8 +146,10 @@ function maxConversations() {
   return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_CONVERSATIONS;
 }
 
+// XDG STATE: regenerable snapshot/telemetry state, not Claude Code config.
+// Writer path — no legacy fallback (proxy/xdg-dirs.mjs states why).
 function stateDir() {
-  return join(claudeHome(), "cache-fix-snapshots");
+  return process.env.CACHE_FIX_SNAPSHOT_DIR || xdgStatePath("snapshots");
 }
 
 function statePath(key) {

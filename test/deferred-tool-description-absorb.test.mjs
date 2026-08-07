@@ -51,7 +51,16 @@ async function withEnvAsync(overrides, fn) {
 
 async function runExt(body, { headers, dir } = {}) {
   const savedHome = process.env.CLAUDE_CONFIG_DIR;
-  if (dir) process.env.CLAUDE_CONFIG_DIR = dir;
+  const savedState = process.env.XDG_STATE_HOME;
+  // CLAUDE_CONFIG_DIR alone no longer isolates this extension's state: since
+  // the XDG migration its paths resolve from XDG_STATE_HOME / XDG_DATA_HOME
+  // (proxy/xdg-dirs.mjs), not from the Claude config root. Pointing all three
+  // at one temp dir keeps the helper's contract — everything this case writes
+  // lands under `dir` — and puts our artifacts at `dir/cache-fix/...`.
+  if (dir) {
+    process.env.CLAUDE_CONFIG_DIR = dir;
+    process.env.XDG_STATE_HOME = dir;
+  }
   try {
     const ctx = { body, meta: {}, headers: headers || {} };
     await ext.onRequest(ctx);
@@ -60,6 +69,8 @@ async function runExt(body, { headers, dir } = {}) {
     if (dir) {
       if (savedHome === undefined) delete process.env.CLAUDE_CONFIG_DIR;
       else process.env.CLAUDE_CONFIG_DIR = savedHome;
+      if (savedState === undefined) delete process.env.XDG_STATE_HOME;
+      else process.env.XDG_STATE_HOME = savedState;
     }
   }
 }
@@ -87,7 +98,7 @@ function announcements(ctx) {
 }
 
 async function readEvents(dir) {
-  const snapDir = join(dir, "cache-fix-snapshots");
+  const snapDir = join(dir, "cache-fix", "snapshots");
   const f = (await readdir(snapDir)).find((n) => n.endsWith("-deferred-tool-events.jsonl"));
   assert.ok(f, "telemetry file must exist");
   return (await readFile(join(snapDir, f), "utf-8")).trim().split("\n").map(JSON.parse);

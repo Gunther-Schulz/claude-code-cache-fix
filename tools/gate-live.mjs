@@ -36,6 +36,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { readdir, stat, writeFile, appendFile, mkdir, readFile, open } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir, hostname } from "node:os";
+import { dataPath, statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 import { fileURLToPath } from "node:url";
 
 import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
@@ -48,10 +49,17 @@ import { scrubMessage, sidToken } from "./harvest.mjs";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
 const CENSUS = join(__dirname, "reminder-migration-census.mjs");
-const DEFAULT_CAPTURES = join(homedir(), ".claude", "cache-fix-captures");
-const DEFAULT_STATUS = join(homedir(), ".claude", "cache-fix-gate-status.json");
-const DEFAULT_FIRE_LEDGER = join(homedir(), ".claude", "cache-fix-fire-ledger.jsonl");
-const DEFAULT_SNAPSHOTS = join(homedir(), ".claude", "cache-fix-snapshots");
+// Captures and snapshots are READ here, so they consult the legacy
+// `~/.claude/` location and warn loudly if that is where the data still is.
+// Status and fire ledger are WRITTEN here, so they never fall back — a writer
+// that fell back would keep appending to the old file while readers preferred
+// the new one, which is two stores diverging.
+const DEFAULT_CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
+  || legacyReadPath(dataPath("captures"), "cache-fix-captures");
+export const DEFAULT_STATUS = process.env.CACHE_FIX_GATE_STATUS || statePath("gate-status.json");
+const DEFAULT_FIRE_LEDGER = process.env.CACHE_FIX_FIRE_LEDGER || statePath("fire-ledger.jsonl");
+const DEFAULT_SNAPSHOTS = process.env.CACHE_FIX_SNAPSHOT_DIR
+  || legacyReadPath(statePath("snapshots"), "cache-fix-snapshots");
 const DEFAULT_TRANSCRIPTS = join(homedir(), ".claude", "projects");
 
 // --- Production gate set ---

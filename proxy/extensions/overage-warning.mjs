@@ -17,7 +17,7 @@ import { appendFileOwnerOnly } from "./write-owner-only.mjs";
 import { join, dirname } from "node:path";
 
 import { WEIGHTED_TOKEN_COST_USD_COARSE } from "../rates.mjs";
-import { claudeHome } from "../claude-home.mjs";
+import { xdgState } from "../xdg-dirs.mjs";
 
 // Env-gated runtime flags read on each call. Reading at module load would
 // freeze the values and make per-test isolation impossible. The check is
@@ -244,9 +244,20 @@ function checkAndMarkDedup(threshold, q5h_resets_at) {
 
 // --- I/O ---
 
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+// It is the SAME function appendJsonl uses, not a parallel copy — an accessor
+// that merely agrees with the writer today is the divergence this migration
+// spent its afternoon on.
+export function logPath(dir) {
+  // XDG STATE root. Enabled but not yet fired — see session-budget-breaker.
+  const outDir = dir || (process.env.CACHE_FIX_OVERAGE_WARNING_DIR || xdgState());
+  return join(outDir, "overage-warnings.jsonl");
+}
+
 async function appendJsonl(record, dir) {
-  const outDir = dir || (process.env.CACHE_FIX_OVERAGE_WARNING_DIR || claudeHome());
-  const outPath = join(outDir, "overage-warnings.jsonl");
+  const outDir = dir || (process.env.CACHE_FIX_OVERAGE_WARNING_DIR || xdgState());
+  const outPath = logPath(dir);
   await mkdir(outDir, { recursive: true });
   await appendFileOwnerOnly(outPath, JSON.stringify(record) + "\n");
 }

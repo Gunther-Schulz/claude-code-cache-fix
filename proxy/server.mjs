@@ -15,13 +15,14 @@ import { sourceFingerprint, PROXY_ROOT } from "./source-fingerprint.mjs";
 // Env is read on every call so tests (and operators flipping the flag at
 // runtime) see live behavior — same pattern as image-strip's #98 gate.
 import { appendFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import util from "node:util";
-import { claudeHome } from "./claude-home.mjs";
+import { statePath } from "./xdg-dirs.mjs";
 
-function debugLogPath() {
-  return process.env.CACHE_FIX_DEBUG_LOG ||
-    join(claudeHome(), "cache-fix-debug.log");
+// Exported so tools/xdg-migrate.mjs --verify can resolve this path through
+// the code that OWNS it, rather than rebuilding the path string itself.
+export function debugLogPath() {
+  return process.env.CACHE_FIX_DEBUG_LOG || statePath("debug.log");
 }
 
 // Never spread raw headers to the log: Authorization / x-api-key / cookies
