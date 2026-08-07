@@ -245,6 +245,42 @@ the first entry below.
 
 ## Open
 
+- **READY — every human-facing stamp emits BOTH zones, because ten tools emit
+  UTC and none emits local.** Measured 2026-08-07: `grep -l 'toISOString\|UTC'
+  tools/*.mjs` returns ten tools; `grep -rn 'toLocaleTimeString\|local)'`
+  returns zero local-time renderings anywhere in `tools/`. So every stamp that
+  reaches the operator is in a zone their clock does not show, and the
+  conversion is left to a human doing arithmetic at 6am.
+  **The recurrence is the case for building it.** The dev-loop already carries
+  a UTC section, and `bust-triage.mjs:618-624` shows the class was reasoned
+  about carefully — but only at the MACHINE-to-machine end ("`dossier` now
+  reads a zone-less stamp as UTC; this end stops producing one"). The human end
+  was never in scope. Cost, 2026-08-07: several turns of a phantom
+  disagreement in which the operator and the session were each correct about a
+  DIFFERENT bust — 01:49:59Z (03:49 local, 419k, one session) versus
+  04:08:35Z/04:17:25Z (06:08/06:17 local, another) — while appearing to
+  contradict each other. Operator, same day: "this timezone mismatch has bitten
+  many times in many sessions here."
+  Design, writer-side, one shared helper in `tools/` used by the human-facing
+  print paths: `2026-08-07 04:08:35Z (06:08 local)`. Two constraints that
+  decide the format. The UTC token stays FIRST and unmodified, because
+  `bust-triage --list` instructs the reader to paste a stamp straight into
+  `dossier` and that copy path must keep working. And machine-readable output
+  (`--json`, status files, ledger writes) gains NOTHING — the suffix is for
+  display lines only, or it becomes a parsing hazard, which is this same class
+  in mirror.
+  Verifier, red-first: `bust-triage --list` today prints `04:08:35Z` with no
+  local rendering — that is the red; after, it prints the pair, and
+  `dossier "$(node tools/bust-triage.mjs --list | ...)"` still resolves the
+  same event, which is the control proving the paste path survived. Plus a
+  negative: `--json` output must be byte-identical before and after.
+  **Reader-side backstop is an OPERATOR DECISION, stated not taken** — a Stop
+  hook scanning the session's own final message for a bare UTC stamp outside
+  code fences with no local equivalent nearby. It is computable and the machine
+  already runs a hook of exactly this shape over assistant output
+  (`midturn-answer-check.py`), so the pattern is proven here. It changes what
+  every session on this machine is nagged about, so it is not a fork-side call.
+
 - **READY — a TRANSCRIPT query instrument. It is the least-tooled data
   source we own, measured, and it is where every cache investigation
   actually lives.** Two enumerations run 2026-08-07:
