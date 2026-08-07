@@ -19,7 +19,7 @@ behind any step.
 | the daily sweep reports a finding, nobody present | `runbooks/sweep-finding.md` | regression / known-open / non-defect / instrument-defect / new-class / could-not-verify |
 | the proxy's own detectors log an anomaly (429, 5xx, auth, retry storm) | `runbooks/runtime-anomaly.md` | the sweep's six, plus open-booked |
 | an upstream PR gets a review round | `runbooks/upstream-pr-round.md` | round answered, pushed, comment posted |
-| the operator signals the session is ending | `runbooks/session-close.md` | closed — every context-resident fact on disk, or named as dropped |
+| the operator signals the session is ending | `runbooks/session-close.md` | closed — every context-resident fact on disk in its consumer's carrier, every open backlog entry executable without asking anyone a question, or named as dropped |
 
 Why these exist at all (operator, 2026-08-06): the method and the closing gate
 were both written down, and how completely an event got handled still depended

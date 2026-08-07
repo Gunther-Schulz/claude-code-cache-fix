@@ -206,6 +206,33 @@ the first entry below.
 
 ## Open
 
+- **READY (small; same file as the backlog-lint WARN item, dispatch them
+  together) — a `backlog-lint` lane for the two ways a booked entry is not
+  DISPATCHABLE.** Standing rule persisted 2026-08-06 (operator, session-close
+  runbook step 8): the backlog closes dispatchable — every open entry
+  executable by someone who is not you, in the repo where the work happens,
+  without asking anyone a question. Steps 5 to 7 of that lane catch findings
+  that were never booked; nothing catches a booked entry that reads complete
+  and cannot be executed. Both shapes were measured the day the rule was
+  written, both authored by the session that wrote them: a decision parked in
+  a work queue (an entry whose body says the operator must decide first —
+  correct authorship, incomplete queue item, and the operator was present the
+  whole time), and the wrong carrier (two claude-worktime items booked here
+  while that repo's own BACKLOG.md read "Ready: (empty), Parked: (empty)").
+  Design: two classes over READY/HOT bodies only — DECISION-PARKED on the
+  language tells ("operator decision", "stated rather than taken", "bring to
+  the operator", "decide whether", "recommendation:" adjacent to a grade
+  header) and FOREIGN-CARRIER on a repo path outside this tree in an entry
+  that is not marked operator-side-informational. WARN, not blocking: whether
+  a given entry is genuinely blocked is judgment, so the lint flags and the
+  operator backstops — a blocking predicate here would fire on legitimate
+  entries and train the override reflex.
+  Verifier, red-first and both sides required: red on the two 2026-08-06
+  entries named above at the commit that introduced them, and SILENT on a
+  PARKED entry whose body names missing evidence — parking on evidence is
+  healthy and must never flag, which is the whole distinction the rule rests
+  on.
+
 - **READY — `bust-triage` has no idle/TTL guard, so a 216k eviction answered
   KNOWN-OPEN row 4.** Measured 2026-08-06 23:59:10Z (s-captureAL, matrix row 27,
   minted by that walk): `gap` 22,702 s against `"ttl":"1h"` on the session's own

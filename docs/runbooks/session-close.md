@@ -97,7 +97,53 @@ continue-or-restart decision at depth. It is not "the work looks done"
    anything small, booking costs about what doing it costs, so the
    postponement refutes itself (dev-loop, rule three).
 
-8. **Answer the three closing questions** from the operator corpus, each
+8. **The backlog closes DISPATCHABLE — every open entry executable by
+   someone who is not you, in the repo where the work happens, without
+   asking anyone a question.** Steps 5 to 7 catch findings that were
+   never booked. This catches the opposite and less visible failure: an
+   entry that IS booked, reads complete, carries its grade and its
+   verifier — and cannot be executed. Two shapes, both measured
+   2026-08-06, both by the session that wrote the entries:
+
+   - **A question parked in a work queue.** An entry whose body says
+     "this is an operator decision, stated rather than taken". That is
+     correct authorship — a decision only the operator can settle must
+     not be taken silently — and it is incomplete as a QUEUE ITEM,
+     because a dispatch that reaches it stops, and the operator learns
+     of the question whenever some future session happens to surface
+     it. **The decision costs one question and the operator is
+     present at session close.** Not asking converts a one-question
+     cost into open-ended latency, and it is invisible precisely
+     because the entry looks finished.
+   - **The wrong carrier.** An entry whose fix lives in ANOTHER repo,
+     booked here. A fresh session in that repo loads ITS backlog, not
+     this one, so the entry has no reader. Measured: two
+     claude-worktime items sat in this file while
+     `~/dev/Gunther-Schulz/claude-worktime/BACKLOG.md` read "Ready:
+     (empty), Parked: (empty)". The corpus rule is that everything
+     persisted names its consumer and sits on that consumer's read
+     path; a backlog is the one artifact where violating it is
+     invisible, because the entry is perfectly well written.
+
+   **The line that keeps this from swallowing PARKED: park on missing
+   EVIDENCE, never on a missing DECISION.** Evidence may genuinely not
+   be obtainable today, and naming it is what makes a park a spec. A
+   decision is always obtainable at close, because the person who makes
+   it is in the conversation. So "parked pending measurement X" is
+   healthy; "ready, but the operator must first decide Y" is a
+   question wearing a work item's clothes — the costume shape the
+   grounding corpus names, applied to the backlog.
+
+   Ask it as a round, not one at a time: every decision whose
+   prerequisites are settled, numbered, each with a recommendation and
+   the facts already gathered. Facts are gathered, never asked.
+   `[GRADUATE -> a backlog-lint lane over READY bodies: decision-language
+   ("operator decision", "stated rather than taken", "bring to the
+   operator", "decide whether") and cross-repo path tells. The language
+   half is computable; whether a given entry is genuinely blocked is
+   not, so the lint flags and the operator backstops. BACKLOG ready]`
+
+9. **Answer the three closing questions** from the operator corpus, each
    against its evidence rather than from feel: anything missing (against
    the enumeration above), anything learned (against the session's
    incident and correction list), how was it routed (against the turn
@@ -107,9 +153,13 @@ continue-or-restart decision at depth. It is not "the work looks done"
 ## Terminal state
 
 One, and there is no second: **CLOSED — every context-resident fact is
-on disk, or is explicitly named as deliberately dropped.** "I think
-that's everything" is not it, and neither is a clean `git status`: the
-losses this lane exists for are invisible to git by construction.
+on disk, in the carrier its consumer reads, and every open backlog
+entry is executable without asking anyone a question; or the exception
+is explicitly named as deliberately dropped.** "I think that's
+everything" is not it, and neither is a clean `git status`: the losses
+this lane exists for are invisible to git by construction. A backlog
+full of well-written entries that a dispatch cannot execute is the
+same failure one level up — the queue looks full and is not moving.
 
 ## Limits (the box)
 
@@ -128,6 +178,14 @@ losses this lane exists for are invisible to git by construction.
 - **Do not treat a clean checker as a clean session.** Every mechanical
   check can pass while a decision made an hour ago exists nowhere. That
   gap is the whole reason for steps 5 to 7.
+- **Do not take an operator decision yourself in order to satisfy step
+  8.** The repair for a question parked in the queue is to ASK it, not
+  to answer it — silently picking is the failure the entry's author
+  correctly avoided, and re-introducing it at close is worse, because
+  by then it is buried in a close-out rather than stated in a reply. If
+  the operator is genuinely unreachable, the entry stays as it is and
+  the close-out names it: still a question, still unasked, here is the
+  recommendation.
 
 ## Report
 
