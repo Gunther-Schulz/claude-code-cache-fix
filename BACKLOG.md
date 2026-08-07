@@ -1067,6 +1067,32 @@ the first entry below.
   from source rather than exercising it, pointed at OUR OWN machinery, which is
   where it is least suspected because we wrote it. So the lane opens by running
   what it is about to report on.
+  **SCOPE EXTENSION 2026-08-07 — the trigger is not session close, and
+  scoping it there is why this keeps happening.** Twice in ONE session, hours
+  apart, the same shape fired mid-flight with no close in sight. First: a
+  timed-out ad-hoc scan was described in prose and converted only when the
+  operator asked "may a tool/instrument improvement to book?". Then, later,
+  the session's own closing paragraph listed THREE of its own instrument
+  misfires — a process-per-line scan, a jq keyed on a field name taken from a
+  summary instead of the file, and `$?` after a pipe reporting `tail` — and
+  booked none of them until the operator asked a second time, "why were two
+  not booked before I mentioned it?". One of the three had nearly let a
+  CRASHING guard read as passing.
+  The entry as written says the value is "a list to walk at close". A long
+  session has one close and many work-units, so a close-scoped check cannot
+  catch either instance above. The global corpus already states the correct
+  trigger — the learning question fires again whenever the CORRECTION LIST
+  GROWS, because the count is a recognizable event where closing is not — and
+  this entry does not carry it.
+  Computable, and tonight is its red-first case: fire when one assistant
+  message enumerates two or more of the session's OWN errors (a self-directed
+  correction list), not only at close. Run it over this session's transcript
+  and it must surface the three-misfire paragraph with zero of the three
+  resolving to a commit at that timestamp; run it after `95f9c89` and two of
+  the three must resolve.
+  The recorded miss shape is that both conversions came from the operator
+  asking. That is the backstop doing the mechanism's job, twice in one
+  session, on a mechanism already booked and still unbuilt.
   **Judgment half — stays prose, and is where today's other two lived:**
   decisions or designs settled in conversation with no carrier (the tell is a
   sentence like "we agreed X" with no commit, backlog entry, or file behind
