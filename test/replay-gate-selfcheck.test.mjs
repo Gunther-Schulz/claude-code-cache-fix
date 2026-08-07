@@ -1895,3 +1895,155 @@ test("prefixCostTag: BITE — an ABSENT measurement is NOT reported as intact", 
     /ALREADY broken above messages: tools changed/,
   );
 });
+
+// =====================================================================
+// Clause (h): identity-normalization's declared SessionStart substitution
+// =====================================================================
+//
+// DEFINITION, written before the assertions and taken from the EXTENSION, not
+// from what the gate currently prints (the same-parentage trap: an expectation
+// derived from the checker pins the bug it should catch).
+//
+// `identity-normalization` rewrites a SessionStart hook block IN PLACE —
+// `SessionStart:resume hook success:` becomes
+// `SessionStart:startup hook success:`, the `<session-id>` tag and the
+// `Last active:` line are removed (identity-normalization.mjs,
+// `normalizeSessionStartText`). So the unit CC sent is genuinely not on the
+// wire and a transformed one is, which is the same shape as
+// fresh-session-sort's clause (f) and reads, unexempted, as `lost` on the raw
+// side plus `invented` on the forwarded side — one pair per request carrying a
+// resume block. A BLOCKING gate firing on a declared, intended behaviour is
+// the fires-on-a-non-defect class this repo treats as its own defect.
+//
+// A lost R-side unit is ACCOUNTED when the extension is DECLARED to have
+// mutated this request AND re-running its own `normalizeSessionStartText` over
+// the raw block that produced the unit yields a changed text whose unit is
+// present in F byte-identically. The F-side unit that appeared in its place is
+// accounted by that same verified pair and by nothing else. The mapping is per
+// BLOCK, pre-image to post-image: a second unit of the same message that the
+// substitution does not reach is not covered by it.
+//
+// Live instance this was built from: capture s-captureAL, request n=91,
+// message 96 (role system), 2026-08-06T17:39:23.557Z — `SessionStart:resume
+// hook success:` in CC's raw array, `SessionStart:startup hook success:` on
+// the wire, byte-identical to the extension's own output.
+import { normalizeSessionStartText } from "../proxy/extensions/identity-normalization.mjs";
+
+const SESSION_START_RESUME =
+  "SessionStart:resume hook success: ledger tail\n<session-id>abc</session-id>\nLast active: yesterday\ntail line";
+
+// The substitution's own output — never restated here, so the fixture cannot
+// drift from the extension it is about.
+const sessionStartForwarded = () => {
+  const [after, count] = normalizeSessionStartText(SESSION_START_RESUME);
+  assert.ok(count > 0 && after !== SESSION_START_RESUME,
+    "arrange: the extension really does substitute in this block");
+  return after;
+};
+
+// The replay loop's own per-extension measurement (it hashes the body either
+// side of each extension), which is what "declared" means for this clause:
+// identity-normalization emits no ctx.meta telemetry at all.
+const idnorm = (extra = {}) => ({ mutatedBy: ["identity-normalization"], ...extra });
+
+test("conservation: identity-normalization's declared SessionStart substitution is exempt on both sides", () => {
+  const inM = [{ role: "system", content: [txt(SESSION_START_RESUME)] }];
+  const outM = [{ role: "system", content: [txt(sessionStartForwarded())] }];
+  const cv = conservationViolations(entry(0, inM, outM, idnorm()), new Set(), new Set());
+
+  assert.deepEqual(cv.violations, [],
+    "the substituted block is on the wire, byte-identical to the extension's own output");
+  assert.deepEqual(cv.exemptions.map((x) => x.kind).sort(), ["invented", "lost"],
+    "one exemption record per side — the pre-image is gone from F, the post-image is new to it");
+  for (const x of cv.exemptions) {
+    assert.match(x.exemptReason, /identity-normalization:session-start-substitution/,
+      `the ${x.kind} side must credit the substitution, not another mechanism`);
+  }
+});
+
+test("conservation: BITE — the same substitution WITHOUT a declaration stays a violation", () => {
+  // No declaration, no exemption attempt: a gate that re-derives a transform
+  // nobody claimed is inventing the exemption rather than verifying one.
+  const inM = [{ role: "system", content: [txt(SESSION_START_RESUME)] }];
+  const outM = [{ role: "system", content: [txt(sessionStartForwarded())] }];
+  const v = findConservationViolations([entry(0, inM, outM)]);
+  assert.equal(v.length, 2, "one lost at in[0], one invented at out[0]");
+  assert.deepEqual(v.map((x) => x.kind).sort(), ["invented", "lost"]);
+});
+
+test("conservation: BITE — a substitution that changed EXTRA bytes goes red THROUGH the exemption", () => {
+  // The backlog entry's named verifier, and the reason the exemption
+  // re-derives instead of trusting the declaration. These forwarded bytes are
+  // what a MUTATED substitution would emit: the shipped rewrite plus one extra
+  // byte the extension never touches. The gate re-derives with the real
+  // `normalizeSessionStartText`, the post-image hash it computes is not on the
+  // wire, and the violation stands on both sides exactly as if nothing had
+  // been declared.
+  const mutated = sessionStartForwarded().replace("tail line", "taiL line");
+  assert.notEqual(mutated, sessionStartForwarded(), "arrange: the mutation really changed a byte");
+  const inM = [{ role: "system", content: [txt(SESSION_START_RESUME)] }];
+  const outM = [{ role: "system", content: [txt(mutated)] }];
+  const cv = conservationViolations(entry(0, inM, outM, idnorm()), new Set(), new Set());
+
+  assert.deepEqual(cv.violations.map((x) => x.kind).sort(), ["invented", "lost"],
+    "a declared but unverifiable substitution is not exempt");
+  assert.deepEqual(cv.exemptions, [], "and nothing is written into the exemption ledger");
+});
+
+test("conservation: BITE — a REAL loss in the same message as a legitimate substitution still fires", () => {
+  // Narrowness, stated as a test rather than as a claim: the exemption maps
+  // ONE pre-image to ONE post-image. A second block of the same message that
+  // the substitution never reaches, and that is missing from the wire, is a
+  // real conservation violation and must survive the exemption beside it.
+  const inM = [{
+    role: "system",
+    content: [txt(SESSION_START_RESUME), txt("<system-reminder>\nreal content CC sent\n</system-reminder>")],
+  }];
+  const outM = [{ role: "system", content: [txt(sessionStartForwarded())] }];
+  const cv = conservationViolations(entry(0, inM, outM, idnorm()), new Set(), new Set());
+
+  assert.equal(cv.violations.length, 1, "the message stays red");
+  assert.equal(cv.violations[0].kind, "lost");
+  assert.equal(cv.violations[0].at, 0);
+  // And nothing is excused on the R side while an unexplained unit remains:
+  // the message-level exemption fires only when every lost unit is accounted
+  // for, so a real drop beside a legitimate substitution keeps the whole row.
+  assert.deepEqual(cv.exemptions.filter((x) => x.kind === "lost"), [],
+    "a partially-explained message is not a partially-excused one");
+
+  // NAMED RESIDUE, reported rather than silently accepted: the row's own count
+  // reads `2 of 2`, not `1 of 2` — the violation branch prints the whole lost
+  // list, so a reader sees both units named as missing when one of them has a
+  // declared, byte-verified explanation. That is pre-existing behaviour shared
+  // with clauses (f) and (g) and is NOT changed here: narrowing it edits the
+  // rows those two clauses emit as well, which is outside this clause's
+  // settled design. Surfaced to the dispatcher as its own item.
+});
+
+test("conservation: BITE — prose that merely QUOTES the marker is not covered", () => {
+  // The extension's own ANCHOR is what separates the hook's own output from a
+  // message that mentions the marker mid-sentence, and that separation cost a
+  // live incident: an unanchored substitution silently edited a teammate's
+  // quotation (identity-normalization.mjs, SESSION_START_ANCHOR).
+  //
+  // So the forwarded side here carries what an UNANCHORED substitution would
+  // emit — CC's prose with the marker rewritten inside it. Nothing in the
+  // shipped pipeline produces that, which is the point: if some component ever
+  // did, it would be a silent edit of conversation content, and the gate must
+  // report it rather than excuse it through this clause. The clause chains the
+  // extension's own anchored function, gets `count === 0`, builds no pre-image
+  // -> post-image pair, and the violation stands on both sides.
+  const prose = 'Index 41 is role:"system", plain `SessionStart:resume hook success: …`.';
+  const [out, count] = normalizeSessionStartText(prose);
+  assert.equal(count, 0, "arrange: the extension leaves prose alone");
+  assert.equal(out, prose);
+  const edited = prose.replace("SessionStart:resume", "SessionStart:startup");
+  assert.notEqual(edited, prose, "arrange: an unanchored rewrite really would change these bytes");
+
+  const inM = [{ role: "user", content: [txt(prose)] }];
+  const outM = [{ role: "user", content: [txt(edited)] }];
+  const cv = conservationViolations(entry(0, inM, outM, idnorm()), new Set(), new Set());
+  assert.deepEqual(cv.violations.map((v) => v.kind).sort(), ["invented", "lost"],
+    "an edit the extension's own anchor refuses is a corrupted message, not a declared behaviour");
+  assert.deepEqual(cv.exemptions, []);
+});

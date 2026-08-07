@@ -72,6 +72,7 @@ import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
 import { splitSmooshedReminders } from "../proxy/extensions/smoosh-split.mjs";
 import { rewriteBlockText, getBlockType, isRelocatableBlock } from "../proxy/extensions/fresh-session-sort.mjs";
 import { isContinueTrailerBlock, isBookkeepingReminder } from "../proxy/extensions/content-strip.mjs";
+import { normalizeSessionStartText } from "../proxy/extensions/identity-normalization.mjs";
 import { systemPromptSubKey } from "../proxy/extensions/insertion-normalization.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -2556,7 +2557,16 @@ export function findSuccessions(entries) {
 //         one tool_result's trailing reminder(s) into standalone text
 //         blocks of the SAME message, so the verified split form accounts
 //         for both the R-side unit that disappears and the F-side unit(s)
-//         that appear in its place (clause (d) below, F-side).
+//         that appear in its place (clause (d) below, F-side), or
+//     (h) part of a DECLARED SESSION-START SUBSTITUTION by
+//         identity-normalization: re-running the extension's OWN
+//         `normalizeSessionStartText` over the RAW block that produced this
+//         unit yields a CHANGED text whose unit is present in F
+//         byte-identically. The mapping is per block, ONE pre-image to ONE
+//         post-image — a second unit of the same message the substitution
+//         does not reach is not covered by it. What "declared" means for an
+//         extension that publishes no telemetry is stated at the clause
+//         itself, below.
 //   F-side. Every content unit of a non-assistant message of F is either
 //     (a) present in R, or
 //     (b) present in an EARLIER request of the same conversation — this is
@@ -2583,7 +2593,11 @@ export function findSuccessions(entries) {
 //         stripped) the bytes descend from CC's through a transform this gate
 //         re-derived and saw on the wire. That descent is the evidence — a
 //         declaration alone excuses nothing, per the controls in
-//         test/conservation-exemptions.test.mjs.
+//         test/conservation-exemptions.test.mjs, or
+//     (h) the POST-IMAGE of a session-start substitution verified on the
+//         R-side (h) in THIS request. The substituted block is new bytes on
+//         the wire by construction, so without this clause the F side reads
+//         as invented for every request the R side just excused.
 //
 // POPULATION — non-assistant messages, and the reason is definitional rather
 // than convenient. Every mechanism that can delete or re-serve content in
@@ -2766,6 +2780,69 @@ function contentStripUnitHashes(msg) {
   return out;
 }
 
+// (h) A declared SESSION-START SUBSTITUTION by identity-normalization: it
+//     rewrites a SessionStart hook block IN PLACE — `resume` becomes
+//     `startup`, the `<session-id>` tag and the `Last active:` line go — so
+//     the unit CC sent is genuinely not on the wire and a transformed one is.
+//     Unexempted that is one `lost` plus one `invented` on EVERY request
+//     carrying a resume block, on a BLOCKING gate: the
+//     fires-on-a-non-defect class, which trains its reader to discount
+//     conservation red. Measured on capture s-captureAL, request n=91,
+//     message 96 (role system), 2026-08-06T17:39:23.557Z — the raw block
+//     opens `SessionStart:resume hook success:`, the forwarded one
+//     `SessionStart:startup hook success:`, and the extension's own function
+//     reproduces the forwarded bytes exactly.
+//
+//     WHAT "DECLARED" MEANS HERE, and it is a deliberate deviation from the
+//     three clauses above. Those key on the extension's own `ctx.meta`
+//     telemetry (`smooshSplitStats`, `freshSessionSortStats`,
+//     `contentStripStats`). identity-normalization publishes NONE — it writes
+//     nothing to `ctx.meta` at all — so there is no such key to read, and
+//     minting one is a `proxy/**` change, which makes the fix
+//     deployment-coupled (pin bump + restart) for a checker-side repair.
+//     What stands in its place is the replay's OWN per-extension
+//     measurement: the read loop runs the pipeline one extension at a time
+//     and hashes the body either side of each, so `mutatedBy` is an observed
+//     effect of this extension on THIS request rather than its self-report —
+//     strictly harder evidence than a stat field, and it cannot miss a
+//     substitution, because a substitution changes the body by definition.
+//     Absent (an older caller, a hand-built entry) the clause is simply off
+//     and the rows report — noisy, never silent, the same failure direction
+//     `seenRewrites` already has.
+//
+//     Chains the extension's OWN export rather than restating the regexes —
+//     one definition of "the SessionStart substitution" in the codebase, the
+//     same discipline as isDeclaredStrip importing isClearArtifact. And it is
+//     PURE: `normalizeSessionStartText` touches no module state, unlike
+//     fresh-session-sort's `fixBlockText`, so re-running it here cannot edit
+//     the state of the thing being checked.
+//
+//     PER-BLOCK, pre-image hash -> post-image hash, which is what keeps a
+//     REAL loss in the same message firing: only the unit the substitution
+//     actually consumed is excused, and only if the substitution's own output
+//     is on the wire.
+function identityNormalizationSubstitutionPairs(msg) {
+  const c = msg?.content;
+  const blocks = typeof c === "string" ? [{ type: "text", text: c }] : Array.isArray(c) ? c : [];
+  const out = new Map();
+  for (const b of blocks) {
+    if (b?.type !== "text" || typeof b.text !== "string") continue;
+    const [after, count] = normalizeSessionStartText(b.text);
+    if (count === 0 || after === b.text) continue;
+    // Through the gate's OWN unit function on BOTH sides, so pre-image and
+    // post-image are hashed exactly as the R- and F-side loops hash them —
+    // units are UNWRAPPED (blockUnitsFull strips the <system-reminder>
+    // envelope) and hashing the wrapped text on one side would make the
+    // exemption quietly dead. Same trap freshSessionSortRewriteHashes
+    // documents one function up.
+    const before = blockUnitsFull({ content: [b] });
+    const afterUnits = blockUnitsFull({ content: [{ ...b, text: after }] });
+    if (before.length !== 1 || afterUnits.length !== 1) continue;
+    out.set(before[0].hash, afterUnits[0].hash);
+  }
+  return out;
+}
+
 function smooshSplitPeelUnits(msg) {
   const { messages, stats } = splitSmooshedReminders([msg]);
   if (!stats || !(stats.peeled > 0)) return null;
@@ -2827,6 +2904,10 @@ export function conservationViolations(e, seen, seenRewrites) {
   const fssReserved = (e.freshSessionSortStats?.reserved?.length ?? 0) > 0;
   const stripDeclared = ((e.contentStripStats?.trailerCount ?? 0)
     + (e.contentStripStats?.reminderCount ?? 0)) > 0;
+  // Clause (h)'s declaration. Not a ctx.meta stat, because the extension
+  // publishes none — see the clause comment for why `mutatedBy` stands in its
+  // place and why that is the harder evidence, not the softer.
+  const idnormDeclared = (e.mutatedBy ?? []).includes("identity-normalization");
   // F-side hashes a verified rewrite introduced, filled on the R-side and read
   // by the F-side loop — the post-rewrite block is new bytes on the wire by
   // construction and would otherwise read as invented.
@@ -2835,6 +2916,11 @@ export function conservationViolations(e, seen, seenRewrites) {
   // below, read by the F-side loop after it, so a peeled unit's F-side
   // "invented" candidacy is judged only once the R-side has verified it.
   const smooshExemptFHashes = new Set();
+  // Post-image hashes a verified session-start substitution introduced, filled
+  // on the R-side and read by the F-side loop — same arrangement as the two
+  // sets above, and for the same reason: the substituted block is new bytes on
+  // the wire and would otherwise read as invented.
+  const idnormExemptFHashes = new Set();
 
   const fUnitsByMsg = outMsgs.map(conservationUnits);
   const fHashes = new Set();
@@ -2907,20 +2993,38 @@ export function conservationViolations(e, seen, seenRewrites) {
         // declared re-serve of the same bytes gets to point at (clause (e)).
         if (seenRewrites) seenRewrites.add(h);
       }
-      const declaredExempt = [...stripExempt, ...rewriteExempt];
+      // Clause (h): identity-normalization's declared session-start
+      // substitution, re-derived here. Per UNIT, not per message: a lost unit
+      // is excused only when the substitution's own output for THAT block is
+      // on the wire, which is what leaves a real loss beside it standing.
+      const substituted = idnormDeclared ? identityNormalizationSubstitutionPairs(msg) : new Map();
+      const idnormExempt = substituted.size
+        ? lost.filter((u) => !stripExempt.includes(u) && !rewriteExempt.includes(u)
+            && substituted.has(u.hash) && fHashes.has(substituted.get(u.hash)))
+        : [];
+      for (const u of idnormExempt) idnormExemptFHashes.add(substituted.get(u.hash));
+      const declaredExempt = [...stripExempt, ...rewriteExempt, ...idnormExempt];
       if (declaredExempt.length === lost.length && lost.length > 0) {
+        // Which mechanism accounted for what, in the order the clauses ran.
+        // The F-side has always named its reasons as a list; the R-side's
+        // two-way ternary could not express a third, and an exemption ledger
+        // that mislabels WHY bytes were excused is the only thing standing
+        // between a declared exemption and a silent one.
+        const reasons = [];
+        if (rewriteExempt.length) reasons.push("fresh-session-sort:rewrite");
+        if (stripExempt.length) reasons.push("content-strip:declared-strip");
+        if (idnormExempt.length) reasons.push("identity-normalization:session-start-substitution");
         exemptions.push({
           n: e.n,
           ts: e.ts,
           kind: "lost",
           at: i,
           side: "in",
-          exemptReason: rewriteExempt.length && stripExempt.length
-            ? "fresh-session-sort:rewrite + content-strip:declared-strip"
-            : rewriteExempt.length ? "fresh-session-sort:rewrite" : "content-strip:declared-strip",
+          exemptReason: reasons.join(" + "),
           detail: `in[${i}] (${msg?.role}): ${lost.length} of ${units.length} unit(s) exempt — `
             + `${rewriteExempt.length} re-derived from fresh-session-sort's own rewrite and verified in F, `
-            + `${stripExempt.length} accepted by content-strip's own predicates`,
+            + `${stripExempt.length} accepted by content-strip's own predicates, `
+            + `${idnormExempt.length} re-derived from identity-normalization's own SessionStart substitution and verified in F`,
         });
         continue;
       }
@@ -2969,7 +3073,7 @@ export function conservationViolations(e, seen, seenRewrites) {
     // bytes this gate verified earlier in this conversation.
     const reserveExempt = (u) => fssReserved && seenRewrites && seenRewrites.has(u.hash);
     const invented = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
-      && !fssExemptFHashes.has(u.hash) && !reserveExempt(u));
+      && !fssExemptFHashes.has(u.hash) && !reserveExempt(u) && !idnormExemptFHashes.has(u.hash));
     // Which mechanism accounted for it, counted separately. Reporting a
     // fresh-session-sort rewrite as "smoosh-split:declared-peel" — which this
     // did when the second exemption was first wired — makes the exemption
@@ -2980,11 +3084,15 @@ export function conservationViolations(e, seen, seenRewrites) {
       && fssExemptFHashes.has(u.hash)).length;
     const byReserve = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
       && !fssExemptFHashes.has(u.hash) && reserveExempt(u)).length;
-    if (byPeel + byRewrite + byReserve > 0) {
+    const bySubstitution = candidates.filter((u) => !smooshExemptFHashes.has(u.hash)
+      && !fssExemptFHashes.has(u.hash) && !reserveExempt(u)
+      && idnormExemptFHashes.has(u.hash)).length;
+    if (byPeel + byRewrite + byReserve + bySubstitution > 0) {
       const reasons = [];
       if (byPeel) reasons.push("smoosh-split:declared-peel");
       if (byRewrite) reasons.push("fresh-session-sort:rewrite");
       if (byReserve) reasons.push("fresh-session-sort:reserved");
+      if (bySubstitution) reasons.push("identity-normalization:session-start-substitution");
       exemptions.push({
         n: e.n,
         ts: e.ts,
@@ -2992,10 +3100,11 @@ export function conservationViolations(e, seen, seenRewrites) {
         at: i,
         side: "out",
         exemptReason: reasons.join(" + "),
-        detail: `out[${i}] (${msg?.role}): ${byPeel + byRewrite + byReserve} of ${fUnitsByMsg[i].length} unit(s) exempt — `
+        detail: `out[${i}] (${msg?.role}): ${byPeel + byRewrite + byReserve + bySubstitution} of ${fUnitsByMsg[i].length} unit(s) exempt — `
           + `${byPeel} produced by smoosh-split's declared peel, `
           + `${byRewrite} by fresh-session-sort's verified rewrite, `
-          + `${byReserve} re-served by fresh-session-sort from an earlier verified rewrite in this conversation`,
+          + `${byReserve} re-served by fresh-session-sort from an earlier verified rewrite in this conversation, `
+          + `${bySubstitution} produced by identity-normalization's verified SessionStart substitution`,
       });
     }
     if (invented.length) {
@@ -3366,6 +3475,11 @@ async function main() {
       // messages intact" (compactEntry hashes both; the bodies stop here).
       inSystem: rec.body?.system,
       outSystem: ctx.body?.system,
+      // Which extensions actually changed the body, measured by the staged
+      // hashing above rather than self-reported. The conservation gate's
+      // clause (h) uses it as identity-normalization's declaration, because
+      // that extension publishes no ctx.meta telemetry to key on.
+      mutatedBy,
       action: ctx.meta.insertionNormalizeStats?.action ?? null,
       resetReason: ctx.meta.insertionNormalizeStats?.resetReason ?? null,
       stats: ctx.meta.insertionNormalizeStats ?? null,
