@@ -1,0 +1,130 @@
+{
+  "key": "s-48bf252a4e02",
+  "field": "systemBytes",
+  "oldBytes": 13220,
+  "newBytes": 17679,
+  "watermark": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_0d7062851dd7_62",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 124
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_bc6f0d8ea14e_698\n\nt_eabb83031eda_460\n\nt_8d59922ad673_394\n\nt_37629f6c3817_255\n\nt_3072ae95e201_613\n\nt_541e51846e6d_309\n\nt_d7d2ee3617fd_3968\n\nt_b0a274e5fcda_222\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_864b9dcf378a_1128\n\nt_04b8c6d76d03_231\n\nt_247e6c6fb3cf_455\n\nt_57292f869e55_459\n\nt_6a5c2732677b_30\n\nt_19c8d89f3908_175\n\nt_817507d75327_106\n\nt_677d19fb503d_121\n\nt_e907a3c15da4_337\n\nt_5145202c6f78_895\n\nt_876281fb5f53_329\n\nt_7fec6a7b8b22_39\n\nt_e6e02b2c94e7_157\n\nt_96b5a06eb124_20\n\nt_afd105088016_53\n\nt_5aa6d37c7ef2_24\n\nt_3356af446afa_24\n\nt_71005f00b6c0_428",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 13093
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 3484
+      },
+      {
+        "name": "Artifact",
+        "bytes": 10821
+      },
+      {
+        "name": "Bash",
+        "bytes": 2972
+      },
+      {
+        "name": "Edit",
+        "bytes": 993
+      },
+      {
+        "name": "Read",
+        "bytes": 1617
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 2817
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 668
+      }
+    ]
+  },
+  "newest": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_0d7062851dd7_62",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 124
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_bc6f0d8ea14e_698\n\nt_eabb83031eda_460\n\nt_8d59922ad673_394\n\nt_37629f6c3817_255\n\nt_3072ae95e201_613\n\nt_541e51846e6d_309\n\nt_d7d2ee3617fd_3968\n\nt_b0a274e5fcda_222\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_864b9dcf378a_1128\n\nt_04b8c6d76d03_231\n\nt_247e6c6fb3cf_455\n\nt_57292f869e55_459\n\nt_6a5c2732677b_30\n\nt_19c8d89f3908_175\n\nt_817507d75327_106\n\nt_677d19fb503d_121\n\nt_e907a3c15da4_337\n\nt_5145202c6f78_895\n\nt_e3906c2fbc0c_316\n\nt_f7143541013d_43\n\nt_e6e02b2c94e7_157\n\nt_96b5a06eb124_20\n\nt_afd105088016_53\n\nt_5aa6d37c7ef2_24\n\nt_3356af446afa_24\n\nt_71005f00b6c0_428",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 13084
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 7229
+      },
+      {
+        "name": "Artifact",
+        "bytes": 10821
+      },
+      {
+        "name": "Bash",
+        "bytes": 11890
+      },
+      {
+        "name": "Edit",
+        "bytes": 1731
+      },
+      {
+        "name": "Read",
+        "bytes": 2615
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 2817
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 1051
+      }
+    ]
+  }
+}
