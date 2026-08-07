@@ -245,6 +245,47 @@ the first entry below.
 
 ## Open
 
+- **READY — three ingestion lanes reach the same event and two disposition
+  VOCABULARIES reach the matrix, with nothing reconciling or deduping them.**
+  Operator, 2026-08-07: "there are two ingestion lanes right? when I report,
+  but at the same time we sweep on a schedule — two lanes but they converge on
+  results I assume." Three, and they converge on the CARRIER but not on the
+  VOCABULARY. From `dev-loop.md`'s own index:
+  - `bust-appears` (❄ / operator / `--list`) ends at **mitigated / parked /
+    controlled-cause / upstream-filed** — four values, all answering "what did
+    we DO about it";
+  - `sweep-finding` (the daily gate, nobody present) ends at **regression /
+    known-open / non-defect / instrument-defect / new-class /
+    could-not-verify** — six values, all answering "what KIND of thing is it";
+  - `runtime-anomaly` (our own detectors) ends at "the sweep's six, plus
+    open-booked".
+  So two of three share a vocabulary and the bust lane's is DISJOINT from it.
+  The axes are legitimately different — one is a disposition, the other a
+  classification — but the same EVENT can enter by any door, and which door it
+  came through decides which shape of answer it gets.
+  **The concrete risk, measured 2026-08-07:** the sweep last ran 2026-08-06
+  07:35Z and is RED (`ok:false, failing:1`); the next run is due 07:15 CEST.
+  Today's three busts (03:49 local 419k, 06:08 203k, 06:17 230k) were all
+  ingested through the bust lane, two of them dispositioned. Nothing tells the
+  sweep that. It can re-raise a dispositioned event as a fresh finding, and a
+  reader has no way to see that the two records describe one event — the
+  duplicate-under-two-names shape the dev-loop already documents for class
+  names ("one phenomenon reached from two directions grows two names"), here at
+  the level of whole lanes.
+  Design: one reconciliation point, not a merged vocabulary — the vocabularies
+  stay distinct because the questions are. A matrix event carries the LANE it
+  entered by and the event identity (timestamp + session) it was dispositioned
+  under; the sweep consults that before raising, and an event already
+  dispositioned by another lane is reported as `already-dispositioned (<lane>,
+  <date>)` rather than as a new finding. That is a set difference, not a
+  judgment call.
+  Verifier, red-first: run the sweep against today's ledger with the two
+  dispositioned busts in the matrix — today it raises them as findings, which
+  is the red; after, it names them as already-dispositioned and raises only the
+  419k, which genuinely is not walked. Negative control: an event no lane has
+  touched must still be raised normally, so the reconciliation cannot become a
+  silencer.
+
 - **READY — the operator's view and `bust-triage --list` share NO identifying
   field, so neither side can name an event the other can find.** Operator,
   2026-08-07: "I feel like there must be some gaps here as well in our tooling
