@@ -135,6 +135,64 @@ export function transcriptCause(sid, cc) {
 }
 
 /**
+ * WHY `transcriptCause` came back null — COMPUTED, never asserted.
+ *
+ * The defect (BACKLOG, measured 2026-08-07 01:00:55Z): the step printed
+ * "no diagnostic found (older CC, or transcript rotated)" while the
+ * transcript sat on disk at 55 lines. Both named causes were false, for a
+ * state the tool had no word for. A guessed reason reads exactly like a
+ * measured one, and the reason text is what a reader acts on.
+ *
+ * Three ordered checks, mirroring `pairFailure`'s: no transcript file for
+ * this session / the file exists but carries no cache_miss_reason record at
+ * all / it carries some but none whose cache_creation matches this bust's.
+ * The third names the input it had, because that is the case where the
+ * reader's next move depends on the numbers.
+ *
+ * Separate from `transcriptCause` rather than folded into it: `dossier.mjs`
+ * consumes that function's null-or-`{type,missed}` contract, and widening a
+ * return shape across a boundary this change does not own is how a fix to
+ * one reader breaks another.
+ */
+export function transcriptMiss(sid, cc, projectsDir = PROJECTS) {
+  if (!existsSync(projectsDir)) {
+    return { code: "no-projects-dir", detail: `no transcript directory at ${projectsDir}` };
+  }
+  const found = [];
+  for (const proj of readdirSync(projectsDir)) {
+    const f = join(projectsDir, proj, `${sid}.jsonl`);
+    if (existsSync(f)) found.push(f);
+  }
+  if (!found.length) {
+    return { code: "transcript-absent",
+             detail: `no transcript for this session under ${projectsDir} (transcript rotated, or a different CLAUDE_CONFIG_DIR)` };
+  }
+  let records = 0;
+  let diagnostics = 0;
+  const ccSeen = [];
+  for (const f of found) {
+    for (const line of lines(f)) {
+      const r = j(line);
+      if (!r) continue;
+      records++;
+      const d = r?.message?.diagnostics?.cache_miss_reason;
+      if (!d) continue;
+      diagnostics++;
+      ccSeen.push(r.message?.usage?.cache_creation_input_tokens ?? null);
+    }
+  }
+  if (!diagnostics) {
+    return { code: "no-diagnostics",
+             detail: `transcript present (${records} records) but carries no cache_miss_reason ` +
+                     `at all — this CC build does not write the diagnostic` };
+  }
+  return { code: "no-matching-diagnostic",
+           detail: `transcript present (${records} records, ${diagnostics} with a cache_miss_reason) ` +
+                   `but none reports cache_creation ${cc} — the diagnostics it has are for ` +
+                   `${ccSeen.slice(0, 6).join(", ")}${ccSeen.length > 6 ? ", …" : ""}` };
+}
+
+/**
  * RESET-ONLY insertion-normalization telemetry for a session, at or before
  * a cutoff (epoch ms) — the population `preferTelemetryConfirmed` matches
  * candidates against. Filename pattern mirrors
@@ -255,9 +313,13 @@ export function preferTelemetryConfirmed(candidates, events, windowMs = TELEMETR
  * died at >512 MB (ERR_STRING_TOO_LONG, live 2026-07-31) — the same class
  * a77c930 fixed in the census. Two passes, retaining only the two records
  * that matter. */
-export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
+export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES) {
   const f = join(capturesDir, `s-${sid}-requests.jsonl`);
-  if (!existsSync(f)) return null;
+  // CHECK 1 of 3 (see `triage`): the capture file itself.
+  if (!existsSync(f)) {
+    return { ok: false, code: "capture-absent",
+             detail: "no capture file for this session (request capture was off, or the capture rotated)" };
+  }
   // The busting request is the newest one at or before the ledger stamp; its
   // predecessor IN THE SAME CONVERSATION is the comparison. Conversation, not
   // adjacency — interleaved tenants sit several lines apart.
@@ -289,6 +351,10 @@ export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
   // chosen (`after`, `before`) ever get held in full.
   const candidates = [];
   let seen = 0;
+  // Coverage bookkeeping for the computed failure reason (BACKLOG item A):
+  // every number a reason string quotes is accumulated by the SAME walk that
+  // failed, never re-derived by a second pass that could disagree with it.
+  let firstTs = null, lastTs = null, atOrBefore = 0;
   // File-wide REQUEST ORDINAL, counted by HARVEST's rule so the number this
   // tool prints is the number `harvest --pin <key> n..m` takes: non-boot and
   // non-outcome records only, zero-based (harvest.mjs pinRange). It is NOT the
@@ -303,12 +369,36 @@ export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
     r.ord = ord;
     seen++;
     const t = Date.parse(r.ts);
+    if (firstTs === null || t < firstTs) firstTs = t;
+    if (lastTs === null || t > lastTs) lastTs = t;
+    if (t <= cutoff) atOrBefore++;
     if (t <= cutoff && plausible(r)) {
       if (!after || t > Date.parse(after.ts)) after = r;
       if (events) candidates.push({ ts: t });
     }
   }
-  if (seen < 2 || !after) return null;
+  const span = firstTs === null ? "empty"
+    : `${new Date(firstTs).toISOString()} .. ${new Date(lastTs).toISOString()}`;
+  // CHECK 2 of 3: the capture exists — does it COVER the stamp? "Covered"
+  // means it holds at least one request at or before the bust, i.e. the
+  // busting request is inside the file at all. Deliberately not "the stamp
+  // lies between first and last": a bust on a session's FINAL request has no
+  // record after it, and a coverage rule that demanded one would fire on
+  // that entirely healthy case. The span rides the reason text instead, so a
+  // capture that merely ENDS early is visible to the reader as numbers
+  // rather than mis-stated as a verdict.
+  if (!seen || !atOrBefore) {
+    return { ok: false, code: "window-not-covered",
+             detail: `capture present (${seen} requests, ${span}) but holds no request at or ` +
+                     `before the bust stamp — the busting request is not in this file` };
+  }
+  // CHECK 3 of 3, first half: records cover the stamp, but nothing in them
+  // could be the busting request.
+  if (!after) {
+    return { ok: false, code: "no-candidate",
+             detail: `capture covers the stamp (${seen} requests, ${span}; ${atOrBefore} at or before it) ` +
+                     `but none of them could carry this bust — every candidate was ruled out` };
+  }
 
   if (events && events.length) {
     const afterT = Date.parse(after.ts);
@@ -334,6 +424,7 @@ export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
   const cid = JSON.stringify(after.body.messages[0]);
   let before = null;
   let o3 = -1;
+  let convSize = 0;
   for await (const line of readLines(f)) {
     const r = j(line);
     if (r && r.type !== "boot" && r.type !== "outcome") o3++;
@@ -342,10 +433,35 @@ export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
     // `after` itself is excluded by the strict earlier-than check below —
     // the cross-pass object-identity test the array version used is gone.
     if (JSON.stringify(r.body.messages[0]) !== cid) continue;
+    convSize++;
     if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
     if (!before || Date.parse(r.ts) > Date.parse(before.ts)) before = r;
   }
-  return before ? { before, after } : null;
+  if (before) return { ok: true, before, after };
+  // CHECK 3 of 3, second half — and the state that had no word: capture
+  // PRESENT, window COVERED, a busting request SELECTED, and the pairing step
+  // nonetheless returning nothing because the selected request is the first
+  // of its own conversation. This is the case that printed "capture off, or
+  // rotated" on 2026-08-06 and again on 2026-08-07 while the capture sat on
+  // disk. It names the pairing input it had, per the entry's design.
+  return { ok: false, code: "no-pair-in-conversation",
+           detail: `capture covers the stamp (${seen} requests, ${span}); selected the request at ` +
+                   `${after.ts} (ord ${after.ord}, n=${after.body.messages.length}) but its ` +
+                   `conversation has ${convSize} request(s) in this capture and none earlier — ` +
+                   `nothing to pair it against` };
+}
+
+/**
+ * Back-compatible view of `capturePairResult`: `{before, after}` or null.
+ *
+ * Kept EXACTLY as it was because `tools/dossier.mjs` reads it as a truthy
+ * pair and would dereference a failure object (`pair.before.body`) if the
+ * shape widened. The reason lives on the result form, which `triage` uses;
+ * a caller that only needs the pair keeps the contract it was written to.
+ */
+export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES) {
+  const r = await capturePairResult(sid, tsEpoch, capturesDir);
+  return r.ok ? { before: r.before, after: r.after } : null;
 }
 
 /**
@@ -603,9 +719,13 @@ export function causeToRow(cause, pair) {
 export async function triage(bust) {
   const steps = [];
   const tc = transcriptCause(bust.s, bust.cc);
+  // The reason a step could not run is COMPUTED, never asserted (BACKLOG item
+  // A). The old text named two causes — "older CC, or transcript rotated" —
+  // and tested neither; on 2026-08-07 01:00:55Z both were false while the
+  // transcript sat on disk.
   steps.push(tc
     ? { step: "transcript", ok: true, detail: `${tc.type}${tc.missed ? ` / ${tc.missed}` : ""}` }
-    : { step: "transcript", ok: false, detail: "no diagnostic found (older CC, or transcript rotated)" });
+    : { step: "transcript", ok: false, detail: transcriptMiss(bust.s, bust.cc).detail });
 
   // Reconciliation: the ledger and the transcript must agree. They disagreed
   // live on 2026-07-31 (display upgraded, record left "other") and the
@@ -620,11 +740,19 @@ export async function triage(bust) {
     steps.push({ step: "reconcile", ok: true, detail: "ledger and transcript agree" });
   }
 
-  const pair = await capturePair(bust.s, bust.t);
-  if (!pair) {
-    steps.push({ step: "capture", ok: false, detail: "no capture pair (capture off, or rotated)" });
-    return { bust, steps, verdict: "UNVERIFIABLE", why: "no capture pair to classify" };
+  const res = await capturePairResult(bust.s, bust.t);
+  if (!res.ok) {
+    // Three ordered checks, each one TESTED before it is reported
+    // (BACKLOG item A): capture-absent / window-not-covered / no-candidate /
+    // no-pair-in-conversation. The old text was a disjunction of two causes
+    // the tool never examined — "capture off, or rotated" — and on both
+    // 2026-08-06 and 2026-08-07 every disjunct was false: the capture was
+    // present, covered the window, and the pairing step still returned
+    // nothing. A guessed reason reads exactly like a measured one.
+    steps.push({ step: "capture", ok: false, detail: res.detail });
+    return { bust, steps, verdict: "UNVERIFIABLE", why: res.detail, unverifiable: res.code };
   }
+  const pair = { before: res.before, after: res.after };
   // Both numbers, and which is which: `n=` is the MESSAGE COUNT, the pin
   // hint carries the file-wide REQUEST ORDINALS `harvest --pin` takes. They
   // are far apart in a long capture (message 591 vs ordinal 892 on the
