@@ -247,11 +247,70 @@ the first entry below.
   a given entry is genuinely blocked is judgment, so the lint flags and the
   operator backstops — a blocking predicate here would fire on legitimate
   entries and train the override reflex.
-  Verifier, red-first and both sides required: red on the two 2026-08-06
-  entries named above at the commit that introduced them, and SILENT on a
-  PARKED entry whose body names missing evidence — parking on evidence is
-  healthy and must never flag, which is the whole distinction the rule rests
-  on.
+  **SECTION EXEMPTION, found by HAND-RUNNING the check before building it
+  (2026-08-06):** this file already has a `## Parked decisions` section (line
+  6204) — the sanctioned home for a question that is deliberately waiting.
+  DECISION-PARKED must not fire inside it, or the lane's first run flags the
+  one place the shape is CORRECT: the fires-on-legitimate-work failure this
+  entry's own WARN-not-blocking clause guards against, one level down. So the
+  distinction is three-way, not two — parked on evidence (healthy, anywhere),
+  a decision inside `## Parked decisions` (healthy), a decision inside a READY
+  work entry (the finding).
+  **Its red cases already exist, unsettled, and producing that list is what
+  the lane is FOR:** the same hand-run found three outside that section — the
+  write-registration item ("registered nowhere, by instruction … an operator
+  decision, not build work", ~line 78), the upstream order-690 collision
+  ("SURFACED, NOT RAISED — an operator decision", ~line 1108), and the
+  upstream-error-log gate flip ("operator decision", ~line 6195). Each either
+  moves into `## Parked decisions` or gets settled. Which one is the
+  operator's call, not the lane's.
+  Verifier, red-first and THREE sides required: red on the two 2026-08-06
+  entries named above at the commit that introduced them; SILENT on a PARKED
+  entry whose body names missing evidence; and SILENT on every entry inside
+  `## Parked decisions`, checked against the three real ones now sitting
+  there.
+
+- **READY — `rebilledBytes` prices the re-bill from the DIVERGENCE, the wire
+  prices it from the last surviving BREAKPOINT, and the fire ledger's one
+  meaningful ratio is built on the first.** Derived by hand during the
+  2026-08-06 18:08:32Z walk and not booked at the time — caught by the
+  session-close named-and-unbooked sweep, which is exactly the class that
+  step existed for.
+  `findMitigationGaps` computes `rebilled` as the sum of `inBytes` from the
+  divergence index onward (`replay.mjs`, the `cur.inBytes.slice(from)` line),
+  and `savedBytes` is its complement. `gate-live`'s `summariseFireBytes` reads
+  both as the relocations class's leaked/saved columns, and its own comment
+  calls `saved/(saved+leaked)` "the one ratio on this line that means
+  something".
+  **The model is breakpoint-blind.** The API reuses up to a WRITTEN
+  cache_control breakpoint, not up to an arbitrary index, so a divergence at
+  index N re-bills from the last breakpoint at or before N — and when no
+  breakpoint sits between the array start and N, that is the whole array.
+  Measured on the 18:08:32Z pair (s-captureAM, n=265->266): the census row
+  reports `rebilledBytes` 114,653 while the transcript recorded `cc` 300,597
+  against `ctx` 315,821 with `cacheRead` **15,222** — the surviving hit is
+  tools+system alone. Threat-matrix row 4 already states this economics in
+  prose ("all of which sit at the tail"); what is new is that a FIELD feeding
+  a ledger does not model it.
+  **Units, stated because this repo has been bitten by exactly this:** 114,653
+  is `JSON.stringify(...).length` — UTF-16 code units under a name that says
+  bytes — and 300,597 is tokens. They are not two measurements of one
+  quantity and the entry does not divide them. The claim is about the MODEL,
+  not a ratio between those two numbers.
+  **What is NOT established, and it decides the size of the fix:** whether the
+  ratio survives. Both columns share the model, so a uniform understatement
+  would cancel — but the error depends on per-pair breakpoint placement, so
+  uniformity is an assumption, not a finding. Nothing here has measured it.
+  Design: price from the last cache_control breakpoint at or before the
+  divergence, which `compactEntry` can retain as a per-message breakpoint
+  index at no content cost (`outHashNoCC`/`stripCacheControlDeep` already walk
+  the field). Keep the current number under its own name rather than
+  redefining a field other rows carry.
+  Verifier, red-first: on this pair the new number must price essentially the
+  whole array while the old one prices the suffix, and a TAIL edit — where a
+  breakpoint does sit at the divergence — must leave both numbers equal, since
+  that is the case the current model gets right and a fix that moves it is
+  overshooting.
 
 - **READY — `bust-triage` has no idle/TTL guard, so a 216k eviction answered
   KNOWN-OPEN row 4.** Measured 2026-08-06 23:59:10Z (s-captureAL, matrix row 27,
