@@ -921,6 +921,60 @@ named class, ask which running conversations contain that class and
 how large they are. `tools/restart-exposure.mjs` answers the
 size half mechanically.
 
+### Row 3 PRE-declaration — the XDG migration restart (stated BEFORE, as
+### the 21:46 amendment requires; operator authorized 2026-08-07)
+
+Written before the restart is taken, so it is a PREDICTION and not a
+post-hoc reading. The change moves sixteen paths out of `~/.claude/`
+to `~/.local/share/cache-fix/` and `~/.local/state/cache-fix/`,
+including every persisted store the stateful extensions read:
+`cache-fix-state/`, `cache-fix-snapshots/`, `cache-fix-keymap.jsonl`.
+
+THE DECLARATION. No state KEY changes and no freeze logic changes —
+the keying, the canonical identity scheme and the freeze predicates
+are untouched; only the DIRECTORY the store lives in moves. Under the
+21:46 amendment's formulation, which asks about the diff, that reads
+transparent. Under the sharper rule two paragraphs above — transparent
+only if nothing an extension does to forwarded bytes changes across it
+— it is transparent CONDITIONALLY, and the condition is the whole
+risk: an extension whose store arrives intact at the new path
+forwards what it would have forwarded a second earlier, and an
+extension whose store does NOT arrive starts empty. An empty store is
+indistinguishable in effect from a changed key: every baseline it
+addressed becomes unreachable, and the first request per conversation
+forwards CC's raw array instead of the frozen one — row 21's measured
+`tools_changed` shape, one-time per conversation, self-healing on the
+next request, and real.
+
+So the prediction is two-branched, and the branches are what make it
+worth writing down:
+
+- Every store arrives and is read at its new path -> **zero tokens**.
+  Not "cheap" — zero, because the forwarded bytes are byte-identical
+  by construction.
+- Any single store does not arrive -> a guaranteed re-baseline for
+  every conversation that store addressed, priced below.
+
+MEASURED EXPOSURE, 2026-08-07 12:58Z (14:58 local), `restart-exposure
+--window-min 60`: 7 live sessions, ~846k tokens worst case, the three
+largest at ~336k / ~233k / ~166k. No `--match` predicate is given
+deliberately: the affected class under the failure branch is not a
+content class but "every conversation with persisted state", so the
+whole-population number IS the right denominator here — the one case
+where the unnarrowed figure is the honest one rather than the lazy
+one. One of the seven is the session performing the migration, which
+the 2026-08-05 datapoint above already names as the normal case for a
+change made while using the thing it changes.
+
+WHAT DISCRIMINATES THE BRANCHES, checked before `start`, never after:
+per moved path, one executed read through the tool or extension that
+owns it. A path that reads back is in branch one; a path that does not
+is in branch two and the restart is aborted rather than diagnosed. The
+`ls` of the old location is NOT this check — an empty old directory
+proves a move happened, never that the destination is readable by the
+code that needs it, and that gap is exactly where a silent branch-two
+failure would sit.
+
 ## Row 24 — messages layer: DESIGN, not a negative (2026-08-02,
 ## opus investigation, dispatcher-verified independently)
 
