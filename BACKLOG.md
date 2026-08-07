@@ -327,6 +327,33 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
 
 ## Open
 
+- **READY — `restart-exposure --match` takes a TEXT predicate, and an
+  extension-behaviour change's affected class is usually STRUCTURAL, so the
+  rule that says "price it against live sessions, not the corpus" has no
+  instrument for the commonest case.** Found 2026-08-07 while shipping the
+  suppression fix (403dde9, matrix row 28). That change's affected class is
+  "a conversation where a suppression is firing with nothing restoring the
+  block" — a predicate over canonical state and forwarded bytes, not over
+  text. Without `--match` the tool answers ~815k across all seven live
+  sessions, which is the worst case and is not the number the decision
+  needs; the real number came from the morning sweep's conservation rows
+  (zero live sessions in the class), which is a DIFFERENT instrument
+  answering a NEIGHBOURING question — it reports on the last sweep's
+  snapshot, not on the sessions live at restart time, and a session that
+  entered the class since 11:50Z is invisible to it. Two sessions have now
+  reached for a text predicate and settled for a proxy.
+  Design, decided: `--match` keeps its text form and gains a
+  `--match-class <name>` that runs the named replay predicate over each live
+  session's own capture tail — the classes are the conservation kinds the
+  gate already emits (`suppressed-without-copy`, `invented`, `lost`), so the
+  vocabulary is `replay.mjs`'s, not a new one. Verifier, red-first: point it
+  at capture s-captureAE (which carries the row) and at s-captureAO (which
+  does not) and require the two to separate; the arrangement exists today
+  because both captures are preserved at
+  `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
+  decision for a structural class can quote a per-session number with the
+  class named.
+
 - **READY — the SIXTEEN cache-fix-owned paths leave `~/.claude/`; the
   registry was one of seventeen.** Operator-ranked FIRST, 2026-08-07.
   `~/.claude/` holds `cache-fix-captures/`, `cache-fix-snapshots/`,
