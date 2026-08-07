@@ -1,5 +1,12 @@
 #!/usr/bin/env node
-// Move this repo's 16 artifacts out of `~/.claude/` into the XDG roots.
+// Move this repo's 24 artifacts out of `~/.claude/` into the XDG roots.
+//
+// The count started at 16 and reached 24 in three corrections, every one of
+// them the same error: `ls ~/.claude` — an enumeration of what EXISTS —
+// standing in for the class "paths this project owns". Latent writers that had
+// simply never fired were invisible to it. The table below is derived from the
+// WRITERS in the code; a 17th, 21st or 25th path is found by grepping those,
+// never by listing the directory again.
 //
 //   node tools/xdg-migrate.mjs              # DRY RUN (the default)
 //   node tools/xdg-migrate.mjs --apply      # perform the moves
@@ -30,7 +37,7 @@
 //  - Anything not on the table below. A 17th path is a finding, not an
 //    inferred move.
 
-import { existsSync, statSync, mkdirSync, renameSync, readdirSync, chmodSync } from "node:fs";
+import { existsSync, statSync, mkdirSync, renameSync, readdirSync, chmodSync, appendFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
 
@@ -217,6 +224,40 @@ if (process.argv.includes("--verify")) {
   }
   if (n("arrived") === 0) {
     process.stdout.write("\n  NOTHING arrived. If --apply has not run yet, that is the expected red.\n");
+  }
+  // PERSIST THE VERDICT, at the moment it is found.
+  //
+  // The closing gate asks whether the evidence is harvestable, and this check
+  // is the worst case for that question: it runs once, at a restart, and the
+  // stores it inspects begin mutating the second the proxy comes back. A
+  // verdict that exists only as terminal output is one nobody can re-read, and
+  // "re-run it later" is no answer when a later run measures a different world.
+  //
+  // Appended, never overwritten — a re-verify after a repaired path is exactly
+  // the datum worth keeping — and written into the state root so the record
+  // travels with the thing it describes.
+  try {
+    mkdirSync(ROOTS.state, { recursive: true, mode: 0o700 });
+    appendFileSync(
+      join(ROOTS.state, "xdg-verify-log.jsonl"),
+      JSON.stringify({
+        at: new Date().toISOString(),
+        roots: ROOTS,
+        counts: {
+          arrived: n("arrived"),
+          notArrived: n("not-arrived"),
+          couldNotVerify: n("could-not-verify"),
+          total: results.length,
+        },
+        rows: results,
+      }) + "\n",
+      { mode: 0o600 },
+    );
+  } catch (err) {
+    // Bookkeeping never decides the gate: the VERDICT is what the restart rests
+    // on, so losing the log must not turn a clean run red nor a red run clean.
+    // Say so loudly instead of swallowing it.
+    process.stdout.write(`\n  WARNING: could not write the verify log: ${err.message}\n`);
   }
   process.exit(n("not-arrived") > 0 ? 1 : 0);
 }
