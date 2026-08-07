@@ -1184,6 +1184,22 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   identifier in a file inside `rowpins/`, run the suite, and require red;
   today it passes green, which is the defect.
 
+- **OPEN — three residuals of the DONE-anchor guard (c533cef), each named in
+  its lane's report and none dispositioned by it.** (i) The guard's
+  resolution vocabulary is `backlog-lint.mjs`'s four (DONE/RESOLVED/FIXED/
+  BUILT); this file's headers also open with CLOSED, SUPERSEDED, MOVED,
+  ACCEPTED, which neither tool treats as resolution markers. Whether they
+  should is a definition call — decide it in backlog-lint FIRST (single
+  source; the guard imports its verdict), never by widening the guard alone.
+  None of the four is anchored today. Trigger: the first ranked entry whose
+  header opens with one of them. (ii) `BUILT ... NOT LIVE` is arguably still
+  live work; the guard would call it completed if it were ever anchored.
+  Named, not special-cased — a shape exemption is how a predicate stops
+  being computable. Same trigger. (iii) The pre-existing zero-match/
+  multi-match errors in `backlog-order.mjs` still have no bites — the
+  completed-entry clause shipped with the tool's first and only 9 tests.
+  Cheap: same suite, two synthetic fixtures.
+
 - **(DONE — this commit, 2026-08-07)
   a COMPLETED entry can hold a rank anchor, so the '## Build order' block
   keeps proposing work that already shipped — and no tool said so.**
