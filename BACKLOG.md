@@ -34,8 +34,17 @@ re-derivation is not finished until the tool has run:
     node tools/backlog-order.mjs --check   # exit 1 = file order has drifted
     node tools/backlog-order.mjs           # apply it
 
-**The day's cost.** Six threshold busts on 2026-08-07 as of this derivation:
-419k, 336k, 203k, 230k, 274k, 333k, 134k and 212k across five sessions. Two are
+**The day's cost.** EIGHT threshold busts on 2026-08-07 as of this derivation:
+419k, 336k, 203k, 230k, 274k, 333k, 134k and 212k across five sessions.
+(Corrected at session close, 2026-08-07: this read "Six" over a list of eight —
+the count came from what had been attended to, the list from `--list`. Same
+defect the session-close lane was built on, in the same artifact class, one day
+later. The list was right; only the word was wrong. The BOUNDARY, since a bare
+count invites the next mis-read: `--list` shows ELEVEN rows for the day; the
+eight above are the non-controlled ones, and the remaining three are a
+`CONTROLLED(compact)` 55k plus a 428k that appears twice, once as `idle` and
+once as `CONTROLLED(resume)` — one event, two bookings, which is the ledger
+duplication the paragraph below already warns about.) Two are
 dispositioned NOT OURS / row 4 (the 04:08+04:17 pair), one more joined them at
 05:24 (the third statiker bust, 567k for that class today), the 212k is
 CONTROLLED-CAUSE (TTL expiry after a 4 h idle), the 336k now reads UNCLASSIFIED
@@ -244,88 +253,55 @@ on the same test: the lanes backfill is contract work, not a lying instrument.
 `## Upstream PR round` — unranked because they sit outside `## Open`, i.e.
 because of item 27, not because of a judgment.
 
-## Handoff — 2026-08-07 early. SPENT: the session it was written for has run.
+## Handoff — 2026-08-07 midday. Rewritten, not appended; a stale one reads as authoritative.
 
-**Kept as record, not as instruction.** Its two directives are discharged:
-the plain-language explanation of the 01:00:55Z false ❄ was delivered as that
-session's opening message, and the build order it asked to be re-derived was
-re-derived on 2026-08-07 (early morning) — the block ABOVE, which supersedes
-the 2026-08-06 evening pass this handoff was written against. The heading's
-old wording ("read this before the build order below") also had its geometry
-backwards: `backlog-order.mjs` reorders inside `## Open`, so a handoff placed
-above it necessarily sits BELOW the build-order block, never above it.
-Nothing here is a live instruction; read it for what that session knew.
+The previous handoff (2026-08-07 early) is REPLACED by this one, per the
+session-close lane's rule. Its content is discharged and not repeated here.
 
-**State: everything on disk and pushed, three repos.** Fork `main` clean, 0
-outgoing, suite green at the tip. dotfiles clean (`qgis/QGIS3.ini` is QGIS
-writing its own config, not ours). claude-worktime clean. The previous
-handoff's warning about 9 unclaimed dotfiles commits is DISCHARGED — they were
-already on the remote before tonight; the one commit pushed from here
-(`302fe01`) was verified sole and ours by `git log 141b391..302fe01` before
-pushing.
+**The entry point is `continue from backlog`, and nothing below is an
+instruction the entries lack.** Build ORDER is deliberately absent — it is
+derived at build time, and the block above carries the current derivation with
+its date.
 
-**FIRST THING, BEFORE ANY BUILD WORK: the operator asked for a plain-language
-explanation of the 2026-08-07 01:00:55Z false ❄, and asked at the end of a long
-night rather than getting one then.** It is the first entry under `## Open`.
-Deliver that explanation as your opening message — conversationally, no jargon,
-no commit-message register — and wait for their response before starting
-anything else. Do not lead with a status report.
+**State.** Fork `main` clean and pushed. `claude-worktime` clean and pushed
+(`cb1b5b4`). `dispatch-guards` observation pushed (`53caa2c`). **dotfiles is
+NOT ours to push right now** — a peer session is working there with the
+XDG-guard directive, and its outgoing set carries that session's commits
+alongside one of ours (the leak-scan reach, verified here).
 
-**What to build next, after that: everything under `## Open` that is graded READY.** Ten of
-them, and they are decision-complete by construction — design decided,
-verifier named. Re-derive the build ORDER (this file's rubric says derived at
-build time, never stored); what follows is only what a derivation cannot
-recover on its own.
+**What is BROKEN rather than merely unbuilt — read this before trusting a
+push.** The leak scan's already-published discard is BLOB-granular, so the next
+edit to ANY file already carrying a published finding is blocked, forever, with
+`--no-verify` as the only exit. It bit `claude-worktime.sh` today and was
+cured for that one file by scrubbing the bytes; the class is untouched and its
+entry carries the design and a red-first verifier available immediately.
+Second: the daily sweep is red (conservation) on three captures; the fourth
+flipped green today. Both are entries, not lore.
 
-**The route, because the write-sets are a fact and not a judgement.** Two
-disjoint groups, so the default is two PARALLEL dispatches rather than a queue:
+**A full `gate-live` sweep was running at close** — started ~11:22Z in the main
+clone by a session other than this one — and it writes row pins into
+`test/fixtures/harvested/rowpins/` as it goes. Those pins are UNTRACKED and are
+meant to be committed: they are the evidence that outlives capture rotation, and
+the sweep deliberately never commits. Whoever arrives next: `git status` there,
+run `node tools/absence-scan.mjs test/fixtures/harvested/rowpins/*.json`, and
+commit them. This is the machinery's designed flow, not an incident.
 
-  group A — `tools/replay.mjs`, `tools/backlog-lint.mjs`, `docs/dev-loop.md`
-  group B — `tools/bust-triage.mjs`, `docs/runbooks/bust-appears.md`,
-            `docs/directives/robustness-threat-matrix.md`
+**Disjoint write-sets, a fact about the files rather than a judgement** — for
+anyone dispatching the ranked head in parallel:
+  `tools/bust-triage.mjs` + `test/bust-triage-*` + the matrix's row cells
+  `tools/replay.mjs` + `test/replay-gate-selfcheck.test.mjs`
+  `tools/gate-live.mjs` + `tools/harvest.mjs` + `test/rowpin.test.mjs`
+  `BACKLOG.md` belongs to the dispatcher alone, always.
+The collision surfaces that are NOT visible in a file list — the shared git
+index, the node_modules symlink, the alias registry, sibling-repo isolation —
+are written down in `docs/dev-loop.md` ("Once the order is derived, run it in
+PARALLEL"), because they cost real time to rediscover.
 
-  `BACKLOG.md` belongs to NEITHER — it is the dispatcher's integration point,
-  and two agents booking departures into one file is the overlap that forces
-  serialization for no gain.
-
-**Two hard orderings, both stated inside their own entries — this is a pointer,
-not the source.** The verdict-enum entry must precede the idle/TTL guard (row
-27's cell flips, so a test written first pins the workaround). The conservation
-exemption is the one item where something is currently BROKEN rather than
-blind: `~/.claude/cache-fix-gate-status.json` has been red since 2026-08-06
-07:35Z. Read it before anything else.
-
-**Three entries are NOT dispatchable and are flagged as such**, found by
-hand-running session-close step 8: an unsettled operator decision sits inside
-a READY body in three places (write-registration ~line 78, upstream order-690
-~line 1108, upstream-error-log gate ~line 6195). Each either moves into
-`## Parked decisions` or gets settled. Put them to the operator; do not answer
-them. The lane that will find these mechanically is itself booked.
-
-**Work booked in OTHER repos, with pointers here** (the carrier rule: body
-where the work happens, pointer where the finder sits): two claude-worktime
-items (`0f03e4b`) and the leak-gate reach in dotfiles (`302fe01`).
-
-**The standing question this session added, and it now binds every close:** the
-backlog closes DISPATCHABLE — every open entry executable by someone who is not
-you, in the repo where the work happens, without asking a question
-(`docs/runbooks/session-close.md` step 8). Park on missing EVIDENCE, never on a
-missing DECISION.
-
-**This handoff sits ABOVE `## Open` because**
-`tools/backlog-order.mjs` reorders bullets INSIDE `## Open` and would
-otherwise push a handoff below the ranked head. That is a real tension
-between two things built the same day — the ranked-file carrier and the
-handoff convention — and it is resolved here by placement, not by design.
-If a future re-derivation wants handoffs ranked, that is a decision, not
-a bug fix.
-
-**Today's own close-out found one thing, and it was found by the lane
-rather than by anyone looking:** a 308k `previous_message_not_found`
-event at 16:35:15Z that `bust-triage` called UNCLASSIFIED, for a class
-the threat matrix had already walked on 2026-07-31. Dispositioned
-CONTROLLED-CAUSE, evidence pinned and verified, and the gap it exposed is
-the first entry below.
+**Work booked in other repos, with pointers here:** the XDG data/config guard
+(`docs/directives/xdg-data-and-config-dir-guard.md`, executing in dotfiles),
+the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
+(dotfiles), two claude-worktime items, and the push-gate over-fire
+(dispatch-guards `dev-notes/`, already written there).
 
 ## Open
 
