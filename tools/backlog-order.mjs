@@ -39,6 +39,25 @@
 import { readFileSync, writeFileSync } from "node:fs";
 
 const argv = process.argv.slice(2);
+
+// Unknown flags are REJECTED rather than ignored, because the no-flag default
+// is the destructive branch: anything not recognised used to fall straight
+// through to "rewrite BACKLOG.md". Measured 2026-08-07 — `--help`, which this
+// tool does not implement, silently reordered the whole file (and restored an
+// already-SHIPPED entry to the ranked head, the exact defect the DONE-anchor
+// guard exists to catch). A default that acts, reached by a typo, is the
+// check-that-fires-on-a-non-defect shape with the sign flipped.
+const KNOWN = new Set(["--check", "--file"]);
+for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--file") { i++; continue; }   // its value is not a flag
+    if (!KNOWN.has(argv[i])) {
+        console.error(`backlog-order: unknown argument '${argv[i]}'`);
+        console.error("usage: backlog-order.mjs [--check] [--file <path>]");
+        console.error("  no flags = REWRITE the file in ranked order");
+        process.exit(2);
+    }
+}
+
 const CHECK = argv.includes("--check");
 const fileIdx = argv.indexOf("--file");
 const FILE = fileIdx >= 0 ? argv[fileIdx + 1] : "BACKLOG.md";
