@@ -2059,7 +2059,8 @@ ENOSPC misattribution with its wrong first explanation left in.
   decision for a structural class can quote a per-session number with the
   class named.
 
-- **(OVERTAKEN — 2026-08-08 afternoon, verified by reading the file; residual
+- **(DONE — OVERTAKEN, 2026-08-08 afternoon, verified by reading the file;
+  residual
   named below) `.claude/settings.local.json` still grants the DEAD capture path,
   so every agent read of the corpus now costs a permission prompt.**
   **The load-bearing half of this entry is FALSE against the world today, and
@@ -6594,9 +6595,26 @@ ENOSPC misattribution with its wrong first explanation left in.
   a non-zero count there means live work is invisible to every consumer, which
   is a finding, not a statistic.
   Verifier, red-first, anchored to immutable refs so it cannot decay: run it
-  over `git show b7ae5aa:BACKLOG.md` and it must name exactly two bullets — the
-  `CORRECTED WITHIN THE HOUR` XDG-ownership entry and the `DOWNGRADED`
-  tool-adjacency entry; run it over this commit and it must be silent on both.
+  over `git show b7ae5aa:BACKLOG.md` and it must name the two bullets the hand
+  scan found — the `CORRECTED WITHIN THE HOUR` XDG-ownership entry and the
+  `DOWNGRADED` tool-adjacency entry; run it over this commit and it must be
+  silent on both.
+  **CORRECTED WITHIN THE HOUR by the census's first real run, and the
+  correction is the point: the class is 26, not 2.** The paragraph above was
+  written from a HAND scan, and the hand scan was the pattern — it reached the
+  two bullets I happened to read and stopped. `backlog-lint.mjs --census` over
+  `b7ae5aa` reports `UNCLASSIFIED=25`, and over HEAD `UNCLASSIFIED=26` — the
+  26th being the `OVERTAKEN` grade I invented three edits earlier, which is the
+  instrument firing on its own dispatcher within minutes of landing. So the
+  number in a claim about a class is the instrument's, never the reader's.
+  What the 26 are is NOT yet classified and that is the remaining work: most
+  look archival by shape (`HANDOFF`, `BUST`, `GATE-RED TRIAGED`, `MOVED`,
+  `FINDING`) and are fine as history, but at least `OPEN-BOOKED`,
+  `QUEUED THIS SESSION` and `IN FLIGHT` name live work that no READY-based
+  count can see. Done-criterion, sharpened: every one of the 26 carries an
+  individual verdict — live-work-mis-graded, or archival-and-correct — and the
+  WARN then fires only on the first class. A count without that split would
+  train the override reflex on its first run.
   Consumer tier **3 (backlog and process)** — it mis-files entries and is
   recovered at the next derivation. Ranked at the next derivation, not here.
   <!-- entry: "a bullet whose grade token is a NARRATIVE word hides live" -->
