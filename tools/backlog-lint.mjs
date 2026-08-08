@@ -58,6 +58,11 @@
 //   node tools/backlog-lint.mjs --pointers [<path>|-]
 //                                           # ADDITIONALLY runs the
 //                                           # pointer-liveness lane (below)
+//   node tools/backlog-lint.mjs --census [--since <ref>] [<path>|-]
+//                                           # emits the population census
+//                                           # (below) INSTEAD of the header
+//                                           # lint; suppresses the normal
+//                                           # output
 
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -359,13 +364,230 @@ function formatPointerFinding(f) {
   return `WARN backlog-pointer line=${f.line} ${f.label} token="${f.token}" entry="${f.title}" proof=${f.proof}`;
 }
 
+// ==========================================================================
+// Population census (--census) — a `## Open` entry-by-entry inventory
+// ==========================================================================
+//
+// Why this exists: the five numbers that gate the mechanism proof below
+// (167 bullets, 81 READY, 86 whole-file READY, 18 READY added / 3 removed
+// between two historical commits) were first produced by a throwaway awk
+// one-liner re-typed at every derivation. This is that awk graduated into a
+// tool this file owns — one entry parser (`splitEntries`, already above),
+// one boundary definition (matching `tools/backlog-order.mjs`'s `## Open`
+// delimitation exactly, so the two tools never silently disagree about
+// where the section starts and ends), one census.
+//
+// Scope: the `## Open` section only, from the line matching `^## Open` to
+// the line before the next `^## `. A bullet AFTER that boundary — even one
+// that looks identical to a bullet inside it — is invisible to this lane by
+// construction; `test/fixtures/backlog-census-sample.md` carries exactly
+// that case as a mutation-proof fixture (a bullet placed under
+// `## Later section`).
+//
+// Absence rule (one rule for the whole instrument, stated once rather than
+// per-field): anything this census cannot read gets its own bucket and is
+// LISTED — UNCLASSIFIED for a grade word outside the closed vocabulary,
+// "none" for an empty list, "0" for a zero count. Nothing is folded into a
+// neighbouring answer and nothing is summarized away.
+
+// The closed grade vocabulary. Order here is the order the summary line
+// prints buckets in — UNCLASSIFIED last, since it is the "recognized
+// nothing" bucket rather than a grade word this corpus actually writes.
+const CENSUS_GRADES = [
+  "READY", "OPEN", "HOT", "OPEN/HOT", "PARKED", "DONE", "RESOLVED",
+  "FIXED", "BUILT", "PARTLY", "CORRECTED", "DOWNGRADED",
+];
+const CENSUS_GRADE_SET = new Set(CENSUS_GRADES);
+const CENSUS_GRADE_TOKEN = /^([A-Z]+(?:\/[A-Z]+)?)/;
+const CENSUS_VERIFIER_WORD = /done-criterion|verifier|red-first/i;
+const CENSUS_ANCHOR_MARK = "<!-- entry:";
+const CENSUS_POINTER_MARK = "POINTER";
+const CENSUS_FILE_EXT = /\.(mjs|py|md|json|jsonl|sh)$/;
+const CENSUS_INLINE_CODE = /`([^`\n]+)`/g;
+
+// The bullet header's grade token, classified into the closed vocabulary
+// above. A header that does not open with a recognized grade word — a
+// lowercase opener, a backtick-fenced tag, anything outside the list — is
+// UNCLASSIFIED rather than folded into a neighbouring bucket.
+function censusGrade(headerLine) {
+  let rest = headerLine.replace(/^- \*\*/, "");
+  if (rest.startsWith("(")) rest = rest.slice(1);
+  const m = CENSUS_GRADE_TOKEN.exec(rest);
+  const token = m ? m[1] : null;
+  return token && CENSUS_GRADE_SET.has(token) ? token : "UNCLASSIFIED";
+}
+
+// Every backtick-quoted token in the entry body that reads as a file
+// reference: contains both a `/` and a `.`, or ends in one of this corpus's
+// tracked extensions. Deduped, first-appearance order — a command span like
+// `node tools/replay.mjs --census` yields the one real path token, exactly
+// as the pointer lane above already establishes for the same shape.
+function censusFiles(body) {
+  const files = [];
+  const seen = new Set();
+  CENSUS_INLINE_CODE.lastIndex = 0;
+  let m;
+  while ((m = CENSUS_INLINE_CODE.exec(body))) {
+    for (const tok of m[1].split(/\s+/)) {
+      if (!tok || seen.has(tok)) continue;
+      const looksLikeFile = (tok.includes("/") && tok.includes(".")) || CENSUS_FILE_EXT.test(tok);
+      if (looksLikeFile) {
+        seen.add(tok);
+        files.push(tok);
+      }
+    }
+  }
+  return files;
+}
+
+// First line, whitespace-collapsed and truncated — the same idiom
+// `formatFinding`/`formatPointerFinding` already use for entry titles above.
+function censusHeadline(firstLine) {
+  return firstLine.replace(/^- \*\*/, "").replace(/\s+/g, " ").trim().slice(0, 100);
+}
+
+// The `## Open` section's body text and the line-number offset needed to
+// turn `splitEntries`'s slice-relative line numbers back into file-absolute
+// ones. Boundary matches `tools/backlog-order.mjs`'s `splitOpen` exactly
+// (head = first `## Open` line, tail = next `## ` line or EOF) — the two
+// tools must never silently disagree about where this section is.
+function censusOpenSection(text) {
+  const lines = text.split("\n");
+  const head = lines.findIndex((l) => l.startsWith("## Open"));
+  if (head < 0) return null;
+  let tail = lines.length;
+  for (let i = head + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("## ")) {
+      tail = i;
+      break;
+    }
+  }
+  return { body: lines.slice(head + 1, tail).join("\n"), lineOffset: head + 1 };
+}
+
+// One row per `## Open` bullet, in file order. Returns [] if the file has
+// no `## Open` section at all (an absence this function's caller surfaces,
+// never silently treats as zero entries).
+export function censusEntries(text) {
+  const section = censusOpenSection(text);
+  if (!section) return [];
+  return splitEntries(section.body).map((e) => {
+    const firstLine = e.header;
+    return {
+      line: section.lineOffset + e.startLine,
+      grade: censusGrade(firstLine),
+      anchor: e.body.includes(CENSUS_ANCHOR_MARK) ? "anchor" : "-",
+      verifier: CENSUS_VERIFIER_WORD.test(e.body) ? "verifier" : "-",
+      pointer: firstLine.includes(CENSUS_POINTER_MARK) ? "pointer" : "-",
+      files: censusFiles(e.body),
+      headline: censusHeadline(firstLine),
+      rawFirstLine: firstLine,
+    };
+  });
+}
+
+function formatCensusRow(e) {
+  return [e.line, e.grade, e.anchor, e.verifier, e.pointer, e.files.join(","), e.headline].join("\t");
+}
+
+function censusSummaryLines(entries) {
+  const counts = Object.fromEntries(CENSUS_GRADES.map((g) => [g, 0]));
+  counts.UNCLASSIFIED = 0;
+  for (const e of entries) counts[e.grade]++;
+  const gradeLine =
+    "# grades: " + [...CENSUS_GRADES, "UNCLASSIFIED"].map((g) => `${g}=${counts[g]}`).join(" ");
+
+  const unclassified = entries.filter((e) => e.grade === "UNCLASSIFIED").map((e) => e.line);
+  const unclassifiedLine =
+    `# UNCLASSIFIED bullets: ${unclassified.length ? unclassified.join(",") : "none"}`;
+
+  const ready = entries.filter((e) => e.grade === "READY");
+  const readyNoAnchorLine = `# READY without anchor: ${ready.filter((e) => e.anchor === "-").length}`;
+  const readyNoVerifierLine = `# READY without verifier: ${ready.filter((e) => e.verifier === "-").length}`;
+
+  // Files claimed by 2+ READY entries. Each entry's own file list is
+  // already deduped, so counting once per entry (not once per occurrence)
+  // is what makes this "claimed by N DIFFERENT entries" rather than "cited
+  // N times by any entry".
+  const fileCounts = new Map();
+  for (const e of ready) {
+    for (const f of e.files) fileCounts.set(f, (fileCounts.get(f) ?? 0) + 1);
+  }
+  const shared = [...fileCounts.entries()]
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const sharedLine =
+    "# files claimed by 2+ READY entries: " +
+    (shared.length ? shared.map(([f, n]) => `${f}(${n})`).join(", ") : "none");
+
+  return [gradeLine, unclassifiedLine, readyNoAnchorLine, readyNoVerifierLine, sharedLine];
+}
+
+// "Added"/"removed" compare the SET of READY bullet FIRST LINES (raw,
+// untruncated) between the two sides — a header that was only re-graded
+// shows up on both lists, which is correct and intended (this is a
+// set-membership diff, not a text diff).
+function censusSinceLines(newEntries, oldText, ref) {
+  const oldReady = censusEntries(oldText).filter((e) => e.grade === "READY");
+  const oldSet = new Set(oldReady.map((e) => e.rawFirstLine));
+  const newReady = newEntries.filter((e) => e.grade === "READY");
+  const newSet = new Set(newReady.map((e) => e.rawFirstLine));
+
+  const added = newReady.filter((e) => !oldSet.has(e.rawFirstLine));
+  const removed = oldReady.filter((e) => !newSet.has(e.rawFirstLine));
+
+  return [
+    `# READY added since ${ref}: ${added.length}`,
+    ...added.map((e) => `+ ${e.headline}`),
+    `# READY removed since ${ref}: ${removed.length}`,
+    ...removed.map((e) => `- ${e.headline}`),
+  ];
+}
+
+// The full census text: rows, a blank line, the summary, and (with a
+// `since` ref) the added/removed tail. Exported so the bites pin this
+// directly rather than only through the CLI's stdout.
+export function censusText(text, { sinceRef, oldText } = {}) {
+  const entries = censusEntries(text);
+  const rows = entries.map(formatCensusRow);
+  const summary = censusSummaryLines(entries);
+  const since = sinceRef ? censusSinceLines(entries, oldText, sinceRef) : [];
+  return [...rows, "", ...summary, ...since].join("\n") + "\n";
+}
+
 function readInput(pathArg) {
   if (pathArg === "-") return readFileSync(0, "utf8");
   return readFileSync(pathArg ?? DEFAULT_BACKLOG, "utf8");
 }
 
+// --census suppresses the normal header-lint output and emits the census
+// instead (per the CLI usage comment at the top of this file). It never
+// throws past this function: an internal error here still exits 0, per the
+// WARN-only convention the whole tool keeps (see the try/catch at the
+// bottom).
+function runCensus(args) {
+  const sinceIdx = args.indexOf("--since");
+  const sinceRef = sinceIdx >= 0 ? args[sinceIdx + 1] : null;
+  const rest = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--census") continue;
+    if (args[i] === "--since") {
+      i++; // also skip its value
+      continue;
+    }
+    rest.push(args[i]);
+  }
+  const text = readInput(rest[0]);
+  const oldText = sinceRef
+    ? execFileSync("git", ["show", `${sinceRef}:BACKLOG.md`], { cwd: REPO_ROOT, encoding: "utf8" })
+    : undefined;
+  process.stdout.write(censusText(text, sinceRef ? { sinceRef, oldText } : {}));
+  return 0;
+}
+
 function main(argv) {
   const args = argv.slice(2);
+  if (args.includes("--census")) return runCensus(args);
   const wantPointers = args.includes("--pointers");
   const pathArg = args.find((a) => a !== "--pointers");
   const text = readInput(pathArg);
