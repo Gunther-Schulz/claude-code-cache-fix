@@ -86,7 +86,6 @@ of a partition that no longer has a third, and this pass does not renumber them
    <!-- entry: "and the shipped scoping cannot tell them apart" -->
 2. **The push-side leak scan reaches ONE repo.** Every other repo on this
    machine pushes past it.
-   <!-- entry: "the push-side leak scan reaches ONE repo; body and design" -->
 
 ### Instruments that lied — Tier A: feeds EVENT DISPOSITION
 
@@ -408,63 +407,6 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   fixture clone with two remotes where the message exists only on remote A must
   BLOCK on a push to remote B, and pass on a push to A; today it passes both.
   Done when the scope question is answered per destination.
-
-- **POINTER — the push-side leak scan reaches ONE repo; body and design live in
-  `~/dev/Gunther-Schulz/dotfiles/BACKLOG.md` (booked 2026-08-06).** The
-  machine-wide `git/hooks/pre-push` dispatcher activates on one substring
-  (`MARKER = "claude-code-cache-fix"`, `is_active = any(MARKER in u)`), so
-  every other repo gets a silent exit 0 — including `claude-worktime`, which
-  is PUBLIC, handles session ids and capture keys by its nature, and as of
-  2026-08-06 carries this repo's operator-side bust items. One
-  `capture-key-prefix` finding already sits in its published history,
-  unremediable.
-  **Why a pointer HERE when the code is there** (operator, 2026-08-06): the
-  two repos are operationally linked, and the session likely to do this work
-  is a cache-fix bust session — the scanner it would extend is
-  `tools/absence-scan.mjs` in this tree, and the hazard is discovered here.
-  The carrier rule wants the body where the work happens and a pointer on the
-  reader's path; this is the pointer. It is deliberately NOT a copy — the
-  design (including the `MARKER`-has-two-jobs trap) is stated once, there.
-  Do not execute from this entry; open that one.
-  Same shape, mirrored, as the two claude-worktime pointers above: body in the
-  executing repo, pointer where the finder sits.
-  **BUILT 2026-08-07, UNPUSHED (dotfiles `ca46be4`).** `MARKER`'s two jobs are
-  split exactly as the design says — `SCANNER_REPO` keeps the fallback scanner
-  path, a separate `GUARDED` tuple drives activation, and activation stayed a
-  LIST. Verified here rather than on the report: reverting `GUARDED` to its old
-  single-entry value reddens exactly the claude-worktime assertion and
-  restoring it greens the whole battery. The lane also graduated its end-to-end
-  probe into the battery as a permanent case, so activation is no longer proven
-  only by a bare predicate assertion.
-  **The push is BLOCKED and not by this work:** two peer-session commits
-  (`b795abf`, `8942ec5`, both operator-GO corpus/gate work) sit in the same
-  outgoing set, so pushing would publish another session's work. Halted as a
-  question rather than pushed — an unexpected commit in the push set is
-  answered, never resolved by a live push.
-  **EVIDENCE CORRECTION, measured by the lane and stronger than what the
-  dotfiles entry states:** that entry cites ONE `capture-key-prefix` finding in
-  claude-worktime's `BACKLOG.md`. Measured over the whole history: **four**
-  findings, and **none of them in `BACKLOG.md`** — two in `claude-worktime.sh`,
-  one in `docs/cachebust-runbook.md`, one in `tests/replay-cold-detect.sh`,
-  plus one in a commit message. All are ancestors of `origin/main`, published
-  and unremediable. This strengthens the entry's own trigger-rate argument, and
-  the dotfiles-side body still carries the stale number — correct it there when
-  that repo is next written.
-  **ENTRY TWO ("already on a remote" is not "already public") is HALTED at a
-  design contradiction, and the decision is the operator's** — the entry's
-  design (scope the published set to the DESTINATION remote) was implemented
-  and measured, and it regresses the two 2026-08-06 cases: this clone has
-  `origin` and `upstream` both public, so destination-only scoping stops
-  counting upstream as published and re-blocks every push to origin. The entry
-  itself concedes the premise ("origin and upstream are both public GitHub
-  repos") and specifies only what to do about a PRIVATE remote. The options are
-  (A) destination-only, measured and rejected; (B) destination plus an
-  explicitly DECLARED-PUBLIC remote list — fail-closed, keeps the measured
-  cases green, and note that matching by repo NAME does not work because a
-  private mirror carries the same name; (C) park with the residual named, since
-  no clone here has a private+public pair today. Nothing is committed for entry
-  TWO; the measured implementation is preserved as a patch in the lane's
-  scratch.
 
 - **READY — the operator's view and `bust-triage --list` share NO identifying
   field, so neither side can name an event the other can find.** Operator,
@@ -1446,6 +1388,96 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — verified shipped 2026-08-08 by reading the deployed hook, not the
+  entry) the push-side leak scan reaches ONE repo; body and design live in
+  `~/dev/Gunther-Schulz/dotfiles/BACKLOG.md` (booked 2026-08-06).**
+  **Re-graded before dispatching against it**, which is the third stale grade
+  caught today by probing an entry's claim first. The design was to split
+  `MARKER`'s two jobs; `git/hooks/pre-push` now carries exactly that:
+  `SCANNER_REPO = "claude-code-cache-fix"` (`:121`) keeps the fallback-scanner
+  path, and `GUARDED = (SCANNER_REPO, "claude-worktime")` (`:132`) is the
+  activation list `is_active` reads (`:170-172`). The measured trigger — one
+  `capture-key-prefix` finding already published in `claude-worktime`'s history
+  — is covered: that repo is guarded now.
+  **What is NOT closed, and is a DECISION rather than a residual:** every repo
+  outside `GUARDED` still gets a silent exit 0. The file says why in its own
+  comment — deliberately a LIST, not a pattern, because the hook is fail-closed
+  on a missing scanner and a repo swept in by regex would push unchecked. So
+  the entry's "reaches ONE repo" framing is superseded: it reaches the repos on
+  a list, and widening the list is a per-repo decision with a scanner
+  prerequisite, not a bug to fix. A future repo handling capture keys gets
+  added to `GUARDED` deliberately; that is the standing action, not a build
+  item.
+
+  The machine-wide `git/hooks/pre-push` dispatcher activates on one substring
+  (`MARKER = "claude-code-cache-fix"`, `is_active = any(MARKER in u)`), so
+  every other repo gets a silent exit 0 — including `claude-worktime`, which
+  is PUBLIC, handles session ids and capture keys by its nature, and as of
+  2026-08-06 carries this repo's operator-side bust items. One
+  `capture-key-prefix` finding already sits in its published history,
+  unremediable.
+  **Why a pointer HERE when the code is there** (operator, 2026-08-06): the
+  two repos are operationally linked, and the session likely to do this work
+  is a cache-fix bust session — the scanner it would extend is
+  `tools/absence-scan.mjs` in this tree, and the hazard is discovered here.
+  The carrier rule wants the body where the work happens and a pointer on the
+  reader's path; this is the pointer. It is deliberately NOT a copy — the
+  design (including the `MARKER`-has-two-jobs trap) is stated once, there.
+  Do not execute from this entry; open that one.
+  Same shape, mirrored, as the two claude-worktime pointers above: body in the
+  executing repo, pointer where the finder sits.
+  **BUILT 2026-08-07, UNPUSHED (dotfiles `ca46be4`).** `MARKER`'s two jobs are
+  split exactly as the design says — `SCANNER_REPO` keeps the fallback scanner
+  path, a separate `GUARDED` tuple drives activation, and activation stayed a
+  LIST. Verified here rather than on the report: reverting `GUARDED` to its old
+  single-entry value reddens exactly the claude-worktime assertion and
+  restoring it greens the whole battery. The lane also graduated its end-to-end
+  probe into the battery as a permanent case, so activation is no longer proven
+  only by a bare predicate assertion.
+  **The push is BLOCKED and not by this work:** two peer-session commits
+  (`b795abf`, `8942ec5`, both operator-GO corpus/gate work) sit in the same
+  outgoing set, so pushing would publish another session's work. Halted as a
+  question rather than pushed — an unexpected commit in the push set is
+  answered, never resolved by a live push.
+  **EVIDENCE CORRECTION, measured by the lane and stronger than what the
+  dotfiles entry states:** that entry cites ONE `capture-key-prefix` finding in
+  claude-worktime's `BACKLOG.md`. Measured over the whole history: **four**
+  findings, and **none of them in `BACKLOG.md`** — two in `claude-worktime.sh`,
+  one in `docs/cachebust-runbook.md`, one in `tests/replay-cold-detect.sh`,
+  plus one in a commit message. All are ancestors of `origin/main`, published
+  and unremediable. This strengthens the entry's own trigger-rate argument, and
+  the dotfiles-side body still carries the stale number — correct it there when
+  that repo is next written.
+  **ENTRY TWO ("already on a remote" is not "already public") is HALTED at a
+  design contradiction, and the decision is the operator's** — the entry's
+  design (scope the published set to the DESTINATION remote) was implemented
+  and measured, and it regresses the two 2026-08-06 cases: this clone has
+  `origin` and `upstream` both public, so destination-only scoping stops
+  counting upstream as published and re-blocks every push to origin. The entry
+  itself concedes the premise ("origin and upstream are both public GitHub
+  repos") and specifies only what to do about a PRIVATE remote. The options are
+  (A) destination-only, measured and rejected; (B) destination plus an
+  explicitly DECLARED-PUBLIC remote list — fail-closed, keeps the measured
+  cases green, and note that matching by repo NAME does not work because a
+  private mirror carries the same name; (C) park with the residual named, since
+  no clone here has a private+public pair today. Nothing is committed for entry
+  TWO; the measured implementation is preserved as a patch in the lane's
+  scratch.
+
+- **READY (small) — the matrix datapoint convention's COMPUTABLE half: a table
+  cell over N chars, or one carrying a date-stamped addendum, is a finding.**
+  Carved out 2026-08-08 at dispatch time, not deferred by judgment: the check
+  belongs in `tools/bust-triage.mjs` beside the existing `--lint-matrix`, and
+  that file was being edited by the `mkdtemp` lane in the same window, so
+  building it concurrently would have collided. The prose half — the convention
+  in the matrix header — shipped separately.
+  Design, unchanged from the parent entry: red-first on row 24 at the commit
+  BEFORE the retraction (the cell then held a dated addendum contradicting its
+  own body), and SILENT on rows whose walks live in datapoint sections — which
+  is most of them, and is what keeps the check from firing on the whole table.
+  That silence half is the load-bearing one: a lint that flags every long cell
+  trains the override reflex the convention exists to prevent.
 
 - **(DONE — 2026-08-08, `052468b`) the byte-gate's `anyPresent` probe can never
   return false for a
