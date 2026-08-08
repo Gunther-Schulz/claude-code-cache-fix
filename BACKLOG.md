@@ -5933,6 +5933,128 @@ ENOSPC misattribution with its wrong first explanation left in.
   claim dissolving under a one-command probe, all found by a session that
   probed before briefing. None was found by a check.
 
+- **READY — attribute the state-key FLIP that disarmed row 1's mitigation on a
+  live 141k bust; the class is row 26 but this instance has no cause.**
+  Booked 2026-08-08 from the bust walk on s-captureAT (2026-08-08T09:59:53Z,
+  141k, `messages_changed / 124331`, this repo's own dev session). The two
+  requests of the busting pair ran under DIFFERENT state keys 4 s apart —
+  capture 09:58:46.362Z -> insertion event 09:58:46.364Z key
+  `…496b188f5f435920`, capture 09:58:50.626Z -> event 09:58:50.628Z key
+  `…a20843f8616f3866` — and BOTH logged `action=reset resetReason=no-prior-
+  canonical`. The census classes the pair `splice/insert-mid`, which IS in
+  `replay.mjs`'s MITIGABLE set, so unlike the same morning's 638k this is a
+  mitigation that was ARMED and had no baseline to act on, not one that was
+  never attempted. Session-wide that session: 12 distinct keys / 127 events /
+  13 resets, **12 of them `no-prior-canonical`**; 8 of the 12 keys carry
+  exactly ONE event, i.e. a key appears, takes one request, and is never seen
+  again. `bust-triage` answered **MITIGATED (row 1)** on it, because it maps
+  the census class to the row's STATUS and never reads the pair's extension
+  events — the runbook's step-8 GRADUATE marker is exactly this and is booked
+  separately.
+  **What is NOT established, and must not be assumed by whoever takes this:**
+  that the key flip CAUSED the re-bill. CC keys its cache on the bytes it
+  sends, not on our internal key, so what is established is that the flip
+  DISARMED our absorption — the upstream miss has its own cause, unattributed
+  here. Do not write "key rotation caused a 141k bust" into the matrix on this
+  evidence.
+  Design: determine what varies the sub-key across two requests of one
+  conversation. Read `conversationSubKey`/`identityKey` (import them, never
+  re-derive — a probe that re-computes a key has produced a confident wrong
+  answer three times here) and diff the two raw capture records at 09:58:46.362Z
+  and 09:58:50.626Z on exactly the inputs the key function consumes.
+  Verifier, red-first and with a control: feeding the earlier record's
+  key-inputs must reproduce key `…496b188f…` and the later record's must
+  reproduce `…a20843f8…`; the control that proves the probe discriminates is a
+  sentinel mutation of one key-input yielding NEITHER. Done when the varying
+  input is named at field granularity, or the entry is re-graded PARKED with
+  that named as the missing evidence.
+  <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
+
+- **READY — `bust-triage` reports a state-key CHANGE across the pair as its own
+  line (runbook step 8's GRADUATE marker, now with a measured false verdict
+  behind it).** The marker has sat in `docs/runbooks/bust-appears.md` step 8
+  since it was written; 2026-08-08 supplied the miss it predicted. On
+  s-captureAT the tool answered `VERDICT: MITIGATED / matrix row 1 (MITIGATED)`
+  for a pair whose two requests ran under different state keys with both sides
+  `no-prior-canonical` — i.e. it reported the ROW's status as though it were a
+  per-instance absorption claim, on an instance where nothing absorbed.
+  Consumer tier **1 (event disposition)** under the dev-loop's reach ordering:
+  a walker who runs only the triage, which is what step 2 of the runbook
+  prescribes, closes the walk on a pass that was not one.
+  Design: `bust-triage` already locates the pair's two requests by timestamp;
+  read `~/.local/state/cache-fix/snapshots/*-insertion-events.jsonl` (and the
+  deferred-tool log) at those two timestamps, and emit the state key for each
+  side plus a `KEY-FLIP` line when they differ. A flip is a stop-here, ranking
+  with UNCLASSIFIED and STATUS-UNREADABLE, because a body diff cannot see it.
+  Emit `no-prior-canonical` on both sides as its own note even when the key is
+  stable — "armed but baseline-less" is the state this walk needed named.
+  Verifier, red-first, and it is available today rather than synthetic: run the
+  new code against **2026-08-08T09:59:54Z** (s-captureAT) — must emit KEY-FLIP
+  and must NOT close as MITIGATED; and against **2026-08-08T09:48:53Z**
+  (s-captureAS), whose pair was measured state-key IDENTICAL — must NOT emit
+  KEY-FLIP. Two live cases, one of each polarity, so the check cannot pass by
+  always firing. Old code fails the first and passes the second, which is the
+  red.
+  <!-- entry: "bust-triage reports a state-key CHANGE across the pair" -->
+
+- **READY — FORK-NOTES asserts `deferred-tool-rewrite` is disabled; it is
+  ENABLED in the serving config, and that sentence is load-bearing.**
+  Measured 2026-08-08: `FORK-NOTES.md` (the restart-transparency section)
+  states "`deferred-tool-rewrite` (the only extension holding tool-order state)
+  is disabled in the unit". The extension's gate is `CACHE_FIX_TOOL_REWRITE`
+  (`proxy/extensions/deferred-tool-rewrite.mjs:92`) and `/health` reports
+  `CACHE_FIX_TOOL_REWRITE=1`; its event log carries `action=rewrite` on live
+  traffic in both sessions examined that morning. So the claim is false against
+  the running system.
+  **Why this is not a typo fix.** The sentence is a PREMISE in FORK-NOTES' own
+  argument that no enabled extension can vary `body.tools` across a restart —
+  the argument that supports treating restarts as cache-transparent and that
+  retired an earlier "restarts bust live sessions" caution. With the premise
+  false, the argument's reach is unknown: `deferred-tool-rewrite` is named
+  there as *the* extension holding tool-order state, and it is running.
+  Design: correct the sentence, then re-derive the restart-transparency
+  argument from the current gate set rather than editing around it — the
+  stale-premise rule's "plans and conclusions built on the old premise execute
+  stale unless enumerated and re-derived". State explicitly whether
+  `deferred-tool-rewrite`'s persisted serialization state makes a fresh process
+  emit a byte-identical `body.tools`, citing the code that makes it so.
+  Verifier: a restart with `verdict-ab --seed-from-a` over the deferred-tool
+  canon, plus the assertion that the corrected FORK-NOTES sentence names the
+  same gate value `/health` reports. Done when the sentence and the argument
+  both match the serving config, or the row-3 restart-transparency claim is
+  re-graded with its new bound stated.
+  <!-- entry: "FORK-NOTES asserts deferred-tool-rewrite is disabled" -->
+
+- **READY — the dispatch-guards writer-claims gate WARNs on a claim whose work
+  is already in HEAD, which trains the override reflex it exists to prevent.**
+  Measured 2026-08-08, live: a lane's first Edit to
+  `~/dev/Gunther-Schulz/claude-worktime/claude-worktime.sh` fired
+  `writer-claims-gate` naming `aopus-rotation-writer-a3b5e1755a1598d3` "within
+  the claim TTL". That agent's guard fires are stamped 08:06Z; the commits
+  carrying its work landed 08:52–08:58Z; its session was quiet from 08:18Z. So
+  the claim outlived its own commits by ~2 h and fired on work that could not
+  collide with anything.
+  **Why it matters beyond the nuisance:** the executing lane could not
+  distinguish this from a live conflict using git state alone — a clean tree
+  proves nothing was COMMITTED, never that nobody holds uncommitted work — and
+  it proceeded on that reasoning, correctly but on a basis narrower than its
+  conclusion. What actually settled it was an out-of-band timing comparison the
+  dispatcher ran. A guard that fires on a non-defect and can only be cleared by
+  the dispatcher is the check-that-trains-its-reader-to-ignore-red shape from
+  the corpus.
+  Design (this is the PLUGIN's repo, not this one — body belongs in
+  `dispatch-guards`' `dev-notes/dispatch-OBSERVATIONS.md` and its BACKLOG;
+  this entry is a POINTER so the finding is not lost if that repo is not opened
+  soon): before firing, check whether the claimed path's claimed work is
+  reachable from HEAD — if the claiming agent's commits are already merged, the
+  claim is spent and the gate stays silent. Cheaper variant if that is hard:
+  expire a claim when the working tree is clean at the claimed path.
+  Verifier, red-first: replay this exact case — a claim stamped before a commit
+  that contains its work — must NOT warn; a claim with genuinely uncommitted
+  changes at the claimed path MUST still warn. Both arms required; the second
+  is the over-firing control that keeps the repair from silencing the gate.
+  <!-- entry: "the dispatch-guards writer-claims gate WARNs on a claim whose work" -->
+
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
 
