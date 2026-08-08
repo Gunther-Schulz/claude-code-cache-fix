@@ -51,6 +51,7 @@ import {
   migrationVerdict,
   matrixRow,
   classToRow,
+  sameEvent,
 } from "./bust-triage.mjs";
 import { censusPair } from "./replay.mjs";
 import { resolveSessionKey } from "../proxy/extensions/prefix-diff.mjs";
@@ -293,7 +294,13 @@ export function renderDossier(d) {
     out.push(`- transcript diagnostic: ${d.transcriptCause
       ? `\`${d.transcriptCause.type}\`${d.transcriptCause.missed ? ` / mtok ${d.transcriptCause.missed}` : ""}`
       : "not found (older CC, or transcript rotated)"}`);
-    if (d.transcriptCause && r.cause && r.cause !== d.transcriptCause.type) {
+    // `sameEvent` (bust-triage.mjs), not a bare string compare: the ledger's
+    // cause and the transcript's diagnostic are two different vocabularies
+    // for some of the same events (e.g. "idle" / "previous_message_not_found"
+    // both name a TTL expiry), and a naive inequality test warned on that
+    // AGREEMENT — see BACKLOG, "dossier.mjs carries the reconcile
+    // vocabulary-collision that bust-triage just shed".
+    if (d.transcriptCause && r.cause && !sameEvent(r.cause, d.transcriptCause.type)) {
       out.push(`- **RECONCILE: ledger says \`${r.cause}\`, transcript says ` +
                `\`${d.transcriptCause.type}\` — instrument disagreement**`);
     }
