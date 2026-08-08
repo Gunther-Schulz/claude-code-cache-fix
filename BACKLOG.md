@@ -5511,6 +5511,40 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   Verifier: `git grep -c "\.claude/cache-fix"` before and after, with the
   three populations accounted for by name rather than by count.
 
+- **READY (POINTER — body belongs in the `dispatch-guards` plugin repo's
+  `dev-notes/`) — a veto gate keyed on a WORD in a command matches that word in
+  a commit MESSAGE.** Measured 2026-08-08 by the leak-scan lane: `git commit -F -`
+  with a heredoc was BLOCKED by `subagent-push-gate` because the commit message
+  contained the word "push" (it was describing the push hook). No push was
+  attempted or possible. The lane recovered correctly — confirmed nothing had
+  been committed, then committed via `-F <file>` — and the confirm-before-retry
+  step is the part worth keeping, because a blocked step leaves the state its
+  successor assumes was created.
+  **Why it is worth a booking rather than a shrug:** this is the
+  check-that-fires-on-a-non-defect shape sitting on the gate that matters most,
+  and its cost is the override reflex it trains on exactly the guard where an
+  override is most dangerous. The general form is a predicate reading the
+  PAYLOAD when it means to read the INTENT. Design NOT decided here — it is the
+  plugin's, and the plugin's own evolution rule says the observation goes to
+  `dev-notes/dispatch-OBSERVATIONS.md` with a proposed rule change. Done when
+  that observation exists there; the fix itself is the plugin maintainer's call.
+
+- **PARKED (named residual, not a defect) — the finding-granular discard walks
+  every distinct published version of a path, measured at 5.4s for 226 versions
+  of one file.** Recorded 2026-08-08 from the leak-scan lane's measurement so it
+  is not re-derived. Paid ONLY when a path already has findings; a clean push
+  short-circuits before the walk (rc==0), so no normal push pays it. The lane
+  surfaced an early exit (stop once every pending identity is matched, giving an
+  IDENTICAL discard decision and cutting the common case to ~1 run) and did NOT
+  build it, correctly — it was outside its brief.
+  **DECIDED at the desk: do not build it.** A latency nobody waits on does not
+  justify adding a termination condition to a filter whose correctness is the
+  entire point — a wrong early exit discards a finding that was never matched,
+  which is the swallow direction. What would unpark this: a measured case where
+  the walk is actually in someone's way (a path with versions in the thousands,
+  or a push that visibly stalls). The number above is the trigger to compare
+  against.
+
 - **PARKED — nothing checks that a booked verifier is still RUNNABLE, so a
   red-first arrangement rots silently between booking and build.** Booked
   2026-08-08 as the WRITER half of the leak-scan entry's stale-verifier
