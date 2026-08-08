@@ -24,10 +24,10 @@
 // And for every class: pin OFF output bytes == the phase-2 baseline
 // (flag off changes nothing it didn't already change).
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -59,7 +59,7 @@ async function replayCorpus(name, envFlags) {
   const corpusPath = join(FIXTURES, `corpus-${name}.jsonl`);
   const lines = (await readFile(corpusPath, "utf-8")).split("\n").filter((l) => l.trim());
 
-  const scratch = await mkdtemp(join(tmpdir(), "class-matrix-"));
+  const scratch = await tmpDir("class-matrix-");
   const saved = {};
   const overrides = { CLAUDE_CONFIG_DIR: scratch, ...envFlags };
   for (const k of Object.keys(overrides)) {

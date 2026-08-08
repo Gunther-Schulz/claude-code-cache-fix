@@ -17,11 +17,11 @@
 //      the wire. Before this fix, this exact test would have failed: the
 //      upstream would have received the UN-stripped header.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { startProxy } from "../proxy/server.mjs";
 
@@ -65,7 +65,7 @@ describe("preForward header propagation (generic add/change/delete via a synthet
   let handle, upstream, upstreamPort, extDir, lastUpstreamHeaders;
 
   before(async () => {
-    extDir = await mkdtemp(join(tmpdir(), "header-propagation-ext-"));
+    extDir = await tmpDir("header-propagation-ext-");
     await writeFile(join(extDir, "extensions.json"), JSON.stringify({}));
     // Synthetic extension: adds a new header, changes an existing one, and
     // deletes a third — exercises all three mutation kinds in one pass.

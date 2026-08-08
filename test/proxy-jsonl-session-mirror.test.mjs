@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync, existsSync, readdirSync, writeFileSync } from "node:fs";
+import { rmSync, readFileSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import ext, { _resetSessionState } from "../proxy/extensions/jsonl-session-mirror.mjs";
 
 let tmpDir;
@@ -12,7 +12,7 @@ beforeEach(() => {
   if (tmpDir) {
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
-  tmpDir = mkdtempSync(join(tmpdir(), "mirror-ext-test-"));
+  tmpDir = tmpDirSync("mirror-ext-test-");
   process.env.CACHE_FIX_SESSION_MIRROR_DIR = tmpDir;
   process.env.CACHE_FIX_SESSION_MIRROR_EVENT_LOG = join(tmpDir, "session-mirror-events.jsonl");
   process.env.CACHE_FIX_SESSION_MIRROR = "on";

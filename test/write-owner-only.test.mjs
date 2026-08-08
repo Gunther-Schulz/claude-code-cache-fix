@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, mkdir, stat, writeFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { chmod, mkdir, stat, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import ext, { resolveInsertionSessionKey } from "../proxy/extensions/insertion-normalization.mjs";
@@ -35,7 +35,7 @@ async function modeOf(path) {
 }
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "write-owner-only-test-"));
+  return tmpDir("write-owner-only-test-");
 }
 
 function userMsg(text) {

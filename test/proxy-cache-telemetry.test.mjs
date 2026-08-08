@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, utimesSync, readdirSync } from "node:fs";
+import { rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, utimesSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import ext, { sessionFilename } from "../proxy/extensions/cache-telemetry.mjs";
 
 // --- Helpers for file-write tests ---
@@ -19,7 +19,7 @@ const QUOTA_HEADERS = {
 };
 
 function setupTmpHome() {
-  const dir = mkdtempSync(join(tmpdir(), "ct-"));
+  const dir = tmpDirSync("ct-");
   const oldHome = process.env.HOME;
   process.env.HOME = dir;
   ext.__resetForTests();

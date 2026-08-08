@@ -15,12 +15,12 @@
 //
 // Every identifier here is synthetic — this repo is public.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from "node:fs";
 import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -201,7 +201,7 @@ const run = (args, cwd) =>
   spawnSync(process.execPath, [TOOL, ...args], { cwd, encoding: "utf-8", env: SCRUBBED_GIT_ENV });
 
 function withTemp(fn) {
-  const dir = mkdtempSync(join(tmpdir(), "absence-scan-"));
+  const dir = tmpDirSync("absence-scan-");
   try {
     return fn(dir);
   } finally {

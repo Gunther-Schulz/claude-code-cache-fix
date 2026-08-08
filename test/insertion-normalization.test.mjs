@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -40,7 +40,7 @@ function conv(n, seed = "c") {
 }
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "insertion-norm-test-"));
+  return tmpDir("insertion-norm-test-");
 }
 
 function withEnv(overrides, fn) {

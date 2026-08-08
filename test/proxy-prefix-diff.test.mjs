@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile, rm, readdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, writeFile, rm, readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -40,7 +40,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // --- Helpers ---
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "prefix-diff-test-"));
+  return tmpDir("prefix-diff-test-");
 }
 
 function makePayload({

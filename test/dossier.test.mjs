@@ -11,10 +11,10 @@
 // allowed is a section that is simply blank — an absence wearing a verdict's
 // clothes is the specific defect this shape exists to prevent.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, rm, writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -39,7 +39,7 @@ const bust = {
   mtok: 201434, gap: 9, pblk: ["text"], flight: false, ubytes: 4248, concur: 1,
 };
 
-const tmp = () => mkdtemp(join(tmpdir(), "dossier-test-"));
+const tmp = () => tmpDir("dossier-test-");
 
 // --- step 1 ---
 

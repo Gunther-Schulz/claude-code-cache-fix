@@ -35,12 +35,12 @@
 // even though it fires on the live capture. Nothing here re-implements that;
 // the numbers below are the ones measured on the real pair.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, writeFile, readFile } from "node:fs/promises";
+import { writeFile, readFile } from "node:fs/promises";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -160,7 +160,7 @@ test("(4) the parser reads a REAL tools/replay.mjs run — anchors present, pair
   const pin = smallestReplayablePin();
   assert.ok(pin, "no replayable pinned fixture in the corpus — discovery or corpus is broken");
 
-  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-verify-"));
+  const dir = await tmpDir("harvest-pin-verify-");
   const jsonl = join(dir, "pin.jsonl");
   await writeFile(jsonl, pin.doc.records.map((r) => JSON.stringify(r)).join("\n") + "\n");
 
@@ -279,7 +279,7 @@ test("(4c) the parser collects the detail lines, and drops only the rebased time
 // --- writeCapturePrefix: the live side must hold the SAME records -----------
 
 test("(5) writeCapturePrefix counts request ordinals the way pinRange does — boot and outcome consume no index", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-verify-"));
+  const dir = await tmpDir("harvest-pin-verify-");
   const src = join(dir, "cap.jsonl");
   const req = (i) => JSON.stringify({ ts: `2026-01-01T00:00:0${i}Z`, key: "k", body: { messages: [{ role: "user", content: `m${i}` }] } });
   await writeFile(

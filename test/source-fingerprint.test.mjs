@@ -13,16 +13,16 @@
 //   - one changed byte anywhere             -> DIFFERENT fingerprint
 // The rest pins the details a second reader might otherwise assume.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm, utimes } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile, rm, utimes } from "node:fs/promises";
 import { join } from "node:path";
 
 import { sourceFingerprint } from "../proxy/source-fingerprint.mjs";
 
 async function tree(spec) {
-  const root = await mkdtemp(join(tmpdir(), "cache-fix-fp-"));
+  const root = await tmpDir("cache-fix-fp-");
   for (const [rel, content] of Object.entries(spec)) {
     const full = join(root, rel);
     await mkdir(join(full, ".."), { recursive: true });

@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
+import { rmSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { readFileSync as readJSON } from "node:fs";
 
 import ext from "../../proxy/extensions/workflow-agent-id-synthesis.mjs";
@@ -14,7 +14,7 @@ const FIXTURE = JSON.parse(
 const WORKFLOW_SYSTEM = "You are a code reviewer.\n\nYou are a subagent spawned by a workflow orchestration script. Use the tools available to complete the task.";
 
 function setupEnv() {
-  const dir = mkdtempSync(join(tmpdir(), "wfsyn-"));
+  const dir = tmpDirSync("wfsyn-");
   const logPath = join(dir, "workflow-derivation-events.jsonl");
   const oldEnv = {
     CACHE_FIX_WORKFLOW_DERIVATION_LOG_PATH: process.env.CACHE_FIX_WORKFLOW_DERIVATION_LOG_PATH,

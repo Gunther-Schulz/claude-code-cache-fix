@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import ext, {
   runDivergenceDetector,
   sessionFilePath,
@@ -13,7 +13,7 @@ const SID = "sess-divergence-test";
 const NOW = "2026-06-13T15:00:00.000Z";
 
 function setupTmpHome() {
-  const dir = mkdtempSync(join(tmpdir(), "ctmd-"));
+  const dir = tmpDirSync("ctmd-");
   const oldHome = process.env.HOME;
   process.env.HOME = dir;
   mkdirSync(join(dir, ".local", "state", "cache-fix", "quota-status", "sessions"), { recursive: true });

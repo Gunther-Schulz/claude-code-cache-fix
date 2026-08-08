@@ -1,3 +1,4 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import ext, {
@@ -216,8 +217,7 @@ import {
   canonicalStringify,
   computeSignatureSurfaceHash,
 } from "../proxy/extensions/signature-surface-hash.mjs";
-import { tmpdir } from "node:os";
-import { mkdtempSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join as joinPath } from "node:path";
 
 const redacted = () => ({ type: "redacted_thinking", data: "OPAQUE" });
@@ -363,7 +363,7 @@ test("computeSignatureSurfaceHash: forward-compat — passing system/anthropic_b
 function withV2(fn) {
   const oldEnv = process.env.CACHE_FIX_THINKING_SANITIZE;
   const oldHome = process.env.HOME;
-  const dir = mkdtempSync(joinPath(tmpdir(), "thinking-v2-"));
+  const dir = tmpDirSync("thinking-v2-");
   process.env.CACHE_FIX_THINKING_SANITIZE = "v2";
   process.env.HOME = dir;
   _resetV2State();

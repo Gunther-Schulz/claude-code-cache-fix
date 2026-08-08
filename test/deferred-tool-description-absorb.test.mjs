@@ -17,10 +17,10 @@
 // reset — that is the CONTROL bite, and it is what proves the absorb did not
 // widen into unsafe territory.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,7 +29,7 @@ import ext, { classifyToolChange } from "../proxy/extensions/deferred-tool-rewri
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "deferred-tool-desc-test-"));
+  return tmpDir("deferred-tool-desc-test-");
 }
 
 async function withEnvAsync(overrides, fn) {

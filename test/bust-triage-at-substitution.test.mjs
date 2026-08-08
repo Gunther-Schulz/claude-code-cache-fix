@@ -19,11 +19,11 @@
 // assertion below (a NOTE is printed at all) failed, and the run named the
 // 12:20:13Z bust with no marking whatsoever.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,7 +36,7 @@ const sec = (iso) => Math.floor(Date.parse(iso) / 1000);
 
 /** A HOME whose worktime ledger holds exactly the motivating two events. */
 function fakeHome() {
-  const home = mkdtempSync(join(tmpdir(), "bt-at-"));
+  const home = tmpDirSync("bt-at-");
   const dir = join(home, ".local/share/claude-worktime");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "activity.jsonl"), [

@@ -38,9 +38,9 @@
 //
 // Usage: node tools/absorption-classify.mjs <capture.jsonl> [--json]
 
+import { tmpDir } from "./tmpdir.mjs";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, readFile } from "node:fs/promises";
 import { join, basename } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -218,7 +218,7 @@ async function main() {
   }
   const spec = specParts.join(",");
 
-  const scratch = await mkdtemp(join(tmpdir(), "cache-fix-absorption-classify-"));
+  const scratch = await tmpDir("cache-fix-absorption-classify-");
   const dumpOut = join(scratch, "dump.ndjson");
   const pass2 = await runChild([
     heapFlag, REPLAY, file, "--json", "--gates-from-capture",

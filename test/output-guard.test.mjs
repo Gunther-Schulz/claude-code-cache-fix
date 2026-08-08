@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readdir, readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -48,7 +48,7 @@ async function silenced(fn) {
 }
 
 async function withGuardEnv(fn) {
-  const dir = await mkdtemp(join(tmpdir(), "output-guard-test-"));
+  const dir = await tmpDir("output-guard-test-");
   const saved = {
     CLAUDE_CONFIG_DIR: process.env.CLAUDE_CONFIG_DIR,
     XDG_STATE_HOME: process.env.XDG_STATE_HOME,

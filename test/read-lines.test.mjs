@@ -9,11 +9,11 @@
 // bytesRead === file size after ONE consumed line — that red run is what
 // makes it a bite test rather than a hope.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
+import { writeFile, rm } from "node:fs/promises";
 import { createReadStream } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { readLines, READ_CHUNK_SIZE } from "../tools/read-lines.mjs";
@@ -21,7 +21,7 @@ import { readLines, READ_CHUNK_SIZE } from "../tools/read-lines.mjs";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function withTempFile(content, fn) {
-  const dir = await mkdtemp(join(tmpdir(), "read-lines-"));
+  const dir = await tmpDir("read-lines-");
   const path = join(dir, "f.jsonl");
   await writeFile(path, content);
   try {

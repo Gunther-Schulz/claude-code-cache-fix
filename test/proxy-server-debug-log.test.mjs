@@ -8,11 +8,11 @@
 //   - The 500 fallback body must NOT echo the internal error message.
 //   - The module must not write to stdout at import time.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdtempSync, existsSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -87,7 +87,7 @@ describe("server debug logging (#190)", () => {
 
   beforeEach(() => {
     priorEnv = envSnapshot();
-    tmpDir = mkdtempSync(join(tmpdir(), "cf-debug-log-"));
+    tmpDir = tmpDirSync("cf-debug-log-");
     logPath = join(tmpDir, "cache-fix-debug.log");
     process.env.CACHE_FIX_DEBUG_LOG = logPath;
   });
@@ -217,7 +217,7 @@ describe("server async rejection containment (#190)", () => {
   let priorEnv;
   beforeEach(() => {
     priorEnv = envSnapshot();
-    tmpDir = mkdtempSync(join(tmpdir(), "cf-debug-log-"));
+    tmpDir = tmpDirSync("cf-debug-log-");
     logPath = join(tmpDir, "cache-fix-debug.log");
     process.env.CACHE_FIX_DEBUG_LOG = logPath;
   });

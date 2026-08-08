@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 
@@ -19,7 +19,7 @@ import ext, {
 } from "../proxy/extensions/usage-log.mjs";
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "usage-log-test-"));
+  return tmpDir("usage-log-test-");
 }
 
 async function freshExt() {

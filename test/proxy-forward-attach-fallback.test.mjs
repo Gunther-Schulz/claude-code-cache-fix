@@ -11,10 +11,11 @@
 // close() so an embedded/shared process is not left with altered crash
 // semantics after the forward-mode instance is gone.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdtempSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -63,7 +64,7 @@ const swallowerCount = () =>
 // semantics and reverse-mode 404s — not the ghost of the closed instance.
 test("successful attach: self-heal removed on close(), forward routing retired", async () => {
   const saved = saveEnv();
-  const caDir = mkdtempSync(join(tmpdir(), "fwd-ok-ca-"));
+  const caDir = tmpDirSync("fwd-ok-ca-");
   const upstreamHits = [];
   const upstream = http.createServer((req, res) => {
     upstreamHits.push(req.url);
@@ -116,7 +117,7 @@ test("successful attach: self-heal removed on close(), forward routing retired",
 // not be installed for a mode that never attached.
 test("attach failure: non-core paths 404 (not passthrough), no self-heal installed", async () => {
   const saved = saveEnv();
-  const caDir = mkdtempSync(join(tmpdir(), "fwd-fail-ca-"));
+  const caDir = tmpDirSync("fwd-fail-ca-");
   const upstreamHits = [];
   const upstream = http.createServer((req, res) => {
     upstreamHits.push(req.url);

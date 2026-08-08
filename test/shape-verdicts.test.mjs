@@ -5,10 +5,10 @@
 // repos changed nothing about what fires and what stays quiet. The deployment
 // side now only invokes the CLI and books the verdicts.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { writeFile, mkdir, mkdtemp, rm, utimes } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, mkdir, rm, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { shapeWatchVerdict, baselineStepVerdict, computeVerdicts } from "../tools/shape-verdicts.mjs";
@@ -35,7 +35,7 @@ const TELEMETRY_GATE_VARS = [
 ];
 
 beforeEach(async () => {
-  configDir = await mkdtemp(join(tmpdir(), "shape-verdicts-config-"));
+  configDir = await tmpDir("shape-verdicts-config-");
   savedConfigDir = process.env.CLAUDE_CONFIG_DIR;
   savedStateHome = process.env.XDG_STATE_HOME;
   process.env.CLAUDE_CONFIG_DIR = configDir;
@@ -100,7 +100,7 @@ test("BITE — the +94% class fires with numbers; shrinkage and floor stay quiet
 });
 
 test("computeVerdicts: a missing ledger file yields both verdicts as honest warns, exit path intact", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "shape-verdicts-"));
+  const dir = await tmpDir("shape-verdicts-");
   try {
     const verdicts = await computeVerdicts(join(dir, "no-such-ledger.json"));
     // 6 standing verdicts (3 ledger-shape + duplicate-billing + fire-ledger

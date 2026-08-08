@@ -46,11 +46,11 @@
 // CONTROLLED-CAUSE (row 27's cell led with `ACCEPT` until 2026-08-07 solely
 // to stay readable). Asserting today's KNOWN-OPEN would pin the workaround.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -88,7 +88,7 @@ function captureLines({ ctx, ttl, edited, beforeTs, afterTs }) {
 
 /** A HOME carrying one cold-hit record and the capture pair behind it. */
 function fakeHome({ at, sid, gap, ctx, cc, cause, ttl = "1h", edited = true }) {
-  const home = mkdtempSync(join(tmpdir(), "bt-idle-"));
+  const home = tmpDirSync("bt-idle-");
   const wt = join(home, ".local/share/claude-worktime");
   const caps = join(home, ".claude/cache-fix-captures");
   mkdirSync(wt, { recursive: true });

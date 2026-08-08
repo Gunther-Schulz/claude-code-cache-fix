@@ -32,10 +32,10 @@
 //     re-serialization cases stay green — the mutation removes the exact
 //     condition the bite names, rather than adjacent machinery.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -241,7 +241,7 @@ test("messages the pin cannot rewrite are outside the population", () => {
 // --- end to end, through the real read path -------------------------------
 
 test("census() reports volatileChange over a capture file", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "census-volatile-"));
+  const dir = await tmpDir("census-volatile-");
   t.after(() => rm(dir, { recursive: true, force: true }));
   const capture = join(dir, "s-testsession-requests.jsonl");
 
@@ -278,7 +278,7 @@ test("census() retains ONE row per distinct entry, carrying its repeat count", a
   // Counts must show all of them (each is another request served stale) while
   // the detail rows must show the ENTRY once — a flat occurrence cap would
   // enumerate the first few entries exhaustively and the rest not at all.
-  const dir = await mkdtemp(join(tmpdir(), "census-volatile-entry-"));
+  const dir = await tmpDir("census-volatile-entry-");
   t.after(() => rm(dir, { recursive: true, force: true }));
   const capture = join(dir, "s-hold-requests.jsonl");
 

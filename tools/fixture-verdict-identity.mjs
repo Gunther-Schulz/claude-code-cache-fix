@@ -43,9 +43,8 @@
 // in module scope, so two replays in one process would compare a cold run
 // against a warm one.
 
+import { tmpDir } from "./tmpdir.mjs";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -85,7 +84,7 @@ export async function replayVerdicts(fixturePath) {
   const replayFrom = fixture.header?.replayFrom ?? 0;
   const range = fixture.header?.range ?? null;
 
-  const scratch = await mkdtemp(join(tmpdir(), "fixture-verdict-"));
+  const scratch = await tmpDir("fixture-verdict-");
   const saved = {};
   // All three roots, not CLAUDE_CONFIG_DIR alone: since the XDG migration the
   // state-writing extensions resolve their snapshots from XDG_STATE_HOME /

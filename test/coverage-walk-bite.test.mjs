@@ -49,10 +49,10 @@
 // and 57 with an unrelated message between them. A fixture that put them
 // side by side would be a shape the gate can already see.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { coverageWalk, optsFromWithout } from "../tools/coverage-walk.mjs";
@@ -158,7 +158,7 @@ const run = (f, without = []) => coverageWalk(f.capture, f.dump, f.rowsPath, opt
 // --- the baseline the three reds are measured against ------------------------
 
 test("BASELINE — the three-piece non-adjacent join is fully COVERED", async (t) => {
-  const f = writeJoinFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeJoinFixture(tmpDirSync("cw-bite-"));
   const [r] = await run(f);
   // The DEFINITION: content is on the wire when every code unit of the raw
   // message can be exhibited among the forwarded array's text units. It says
@@ -179,7 +179,7 @@ test("a whole-string substring scan — the defect this replaces — finds NONE 
   // raw message as a contiguous substring, which is what every hand-rolled
   // presence probe here has done. Not a mutation of the tool — a statement
   // about the input, so the fixture cannot silently stop being a positive.
-  const f = writeJoinFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeJoinFixture(tmpDirSync("cw-bite-"));
   // Every text the wire carries, taken from the fixture itself rather than
   // re-listed here — a hand-written copy of the wire would be a second truth
   // about what the fixture contains, and would keep passing after the fixture
@@ -207,7 +207,7 @@ test("MUTATION reminder-unwrap — removing ONLY the envelope strip sends it bac
   // DEFINITION: two of the three pieces are on the wire wrapped in
   // <system-reminder>. Without the unwrap they cannot match the raw bytes at
   // any offset, so the walk stalls at offset 0.
-  const f = writeJoinFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeJoinFixture(tmpDirSync("cw-bite-"));
   const [r] = await run(f, ["reminder-unwrap"]);
   assert.notEqual(r.verdict, "COVERED");
   assert.equal(r.verdict, "UNCOVERED");
@@ -219,7 +219,7 @@ test("MUTATION multi-piece — removing ONLY the accumulation sends it back to l
   // DEFINITION: the content survives as three pieces. A walk that stops after
   // the first match reports whatever fraction that first piece happens to be
   // — a number that is neither 0 nor 100 and means nothing.
-  const f = writeJoinFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeJoinFixture(tmpDirSync("cw-bite-"));
   const [r] = await run(f, ["multi-piece"]);
   assert.notEqual(r.verdict, "COVERED");
   assert.equal(r.verdict, "UNCOVERED");
@@ -231,7 +231,7 @@ test("MUTATION separator-skip — removing ONLY the join separator sends it back
   // DEFINITION: the pieces are "\n\n"-joined in the raw message, and no
   // forwarded unit carries the separator. Without the skip the walk matches
   // piece A and then stalls on the two bytes between A and B.
-  const f = writeJoinFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeJoinFixture(tmpDirSync("cw-bite-"));
   const [r] = await run(f, ["separator-skip"]);
   assert.notEqual(r.verdict, "COVERED");
   assert.equal(r.verdict, "UNCOVERED");
@@ -247,7 +247,7 @@ test("CONTROL — list-content-descent is a NO-OP on this fixture, and that is t
   // descent exists here and removing it changes nothing, because no piece of
   // this shape lives in one. A mutation that leaves a bite green is evidence
   // about the mutation, so this asserts the green rather than hiding it.
-  const f = writeJoinFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeJoinFixture(tmpDirSync("cw-bite-"));
   const [r] = await run(f, ["list-content-descent"]);
   assert.equal(r.verdict, "COVERED");
   assert.equal(r.coveragePct, 100);
@@ -258,7 +258,7 @@ test("CONTROL — list-content-descent is a NO-OP on this fixture, and that is t
 test("BASELINE — content reachable ONLY inside a list-valued tool_result is COVERED", async () => {
   // DEFINITION: `tool_result.content` may be a LIST of sub-blocks, and text
   // inside one is on the wire exactly as much as text in a bare text block.
-  const f = writeListContentFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeListContentFixture(tmpDirSync("cw-bite-"));
   const [r] = await run(f);
   assert.equal(r.verdict, "COVERED");
   assert.equal(r.coveragePct, 100);
@@ -275,7 +275,7 @@ test("MUTATION list-content-descent — removing ONLY the descent sends THIS row
   // The positive the condition was missing. Its own fixture, because no row
   // of the three sweep captures exercises the descent: 93 covering pieces
   // across the 31 rows, zero from a list-content sub-block.
-  const f = writeListContentFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeListContentFixture(tmpDirSync("cw-bite-"));
   const [r] = await run(f, ["list-content-descent"]);
   assert.notEqual(r.verdict, "COVERED");
   assert.equal(r.coveragePct, 0);
@@ -286,7 +286,7 @@ test("CONTROL — the join fixture's three conditions are NO-OPS on the list-con
   // from being one fixture wearing two names: the list-content row carries no
   // wrapper, no separator and one piece, so none of the other three
   // conditions can be what covers it.
-  const f = writeListContentFixture(mkdtempSync(join(tmpdir(), "cw-bite-")));
+  const f = writeListContentFixture(tmpDirSync("cw-bite-"));
   for (const c of ["reminder-unwrap", "multi-piece", "separator-skip"]) {
     const [r] = await run(f, [c]);
     assert.equal(r.verdict, "COVERED", `${c} should not affect the list-content row`);

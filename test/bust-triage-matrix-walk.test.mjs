@@ -38,11 +38,11 @@
 // and `--at 2026-08-07T09:52:42Z` / `--at 2026-08-06T16:35:15Z` both printed
 // `VERDICT: UNCLASSIFIED` there.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -110,7 +110,7 @@ const sec = (iso) => Math.floor(Date.parse(iso) / 1000);
  *  capture at all — the walk lookup must not depend on capture survival, and
  *  the captures behind the two live stamps rotate. */
 function fakeHome(at, sid) {
-  const home = mkdtempSync(join(tmpdir(), "bt-walk-"));
+  const home = tmpDirSync("bt-walk-");
   const dir = join(home, ".local/share/claude-worktime");
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "activity.jsonl"),
@@ -156,7 +156,7 @@ test("BITE — a degraded default is never resolved to a disposition", () => {
 // a copy of the real matrix and watch the specific finding appear.
 
 function withMatrix(mutate) {
-  const dir = mkdtempSync(join(tmpdir(), "bt-lintmx-"));
+  const dir = tmpDirSync("bt-lintmx-");
   const p = join(dir, "matrix.md");
   writeFileSync(p, mutate(readFileSync(MATRIX, "utf8")));
   return p;

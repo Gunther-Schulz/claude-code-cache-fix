@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync, symlinkSync, realpathSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, writeFileSync, symlinkSync, realpathSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -46,7 +46,7 @@ function runHook({ toolName, toolInput, cwd }) {
 }
 
 function makeRepo() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "wgt-")));
+  const root = realpathSync(tmpDirSync("wgt-"));
   git(root, "init", "-q");
   git(root, "config", "user.email", "t@t");
   git(root, "config", "user.name", "t");
@@ -213,7 +213,7 @@ test("Not in any git repo → exit 0 (fail-open)", () => {
 
 test("`git` subprocess times out → exit 0 (fail-open environmental, deterministic via PATH shim)", () => {
   const repo = makeRepo(); const wt = makeWorktree(repo);
-  const shimDir = realpathSync(mkdtempSync(join(tmpdir(), "wgt-shim-")));
+  const shimDir = realpathSync(tmpDirSync("wgt-shim-"));
   try {
     const shim = join(shimDir, "git");
     writeFileSync(shim, "#!/usr/bin/env bash\nsleep 10\n");

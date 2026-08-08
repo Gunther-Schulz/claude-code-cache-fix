@@ -1,9 +1,9 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { describe, it, before, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync, statSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { mkdtempSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 
 let extension;
 let logPath;
@@ -19,7 +19,7 @@ function readRecords() {
 
 describe("bootstrap-defense extension", () => {
   before(async () => {
-    tmpHome = mkdtempSync(join(tmpdir(), "bootstrap-defense-"));
+    tmpHome = tmpDirSync("bootstrap-defense-");
     logPath = join(tmpHome, "cache-fix-bootstrap-log.jsonl");
     process.env.CACHE_FIX_BOOTSTRAP_LOG_PATH = logPath;
     extension = (await import("../proxy/extensions/bootstrap-defense.mjs?t=" + Date.now())).default;

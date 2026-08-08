@@ -15,9 +15,10 @@
 // own curation axis"). That half is verified by running the tool over the live
 // captures, and only there.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -35,7 +36,7 @@ const plain = (role, text) => ({ role, content: [{ type: "text", text }] });
 const rec = (ts, messages) => JSON.stringify({ ts, body: { messages } });
 
 function capture(lines) {
-  const dir = mkdtempSync(join(tmpdir(), "census-read-"));
+  const dir = tmpDirSync("census-read-");
   const p = join(dir, "s-x-requests.jsonl");
   writeFileSync(p, lines.join("\n") + "\n");
   return p;

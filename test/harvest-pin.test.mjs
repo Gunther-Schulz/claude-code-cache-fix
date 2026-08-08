@@ -19,11 +19,11 @@
 //     real-pair test files as subprocesses with env overrides, never by
 //     re-deriving their assertions here.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, readFile, mkdir } from "node:fs/promises";
+import { writeFile, readFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -100,7 +100,7 @@ async function writeTinyCapture(dir) {
 }
 
 test("pinRange: sanitized (no raw secret text), shape preserved, range covers boot/outcome/request through m", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-"));
+  const dir = await tmpDir("harvest-pin-");
   const path = await writeTinyCapture(dir);
 
   const records = await pinRange(path, 1);
@@ -116,7 +116,7 @@ test("pinRange: sanitized (no raw secret text), shape preserved, range covers bo
 });
 
 test("pinRange: m beyond available requests throws rather than writing a truncated fixture", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-"));
+  const dir = await tmpDir("harvest-pin-");
   const path = await writeTinyCapture(dir);
   await assert.rejects(() => pinRange(path, 5), /has only 2 request record\(s\), cannot pin through m=5/);
 });
@@ -131,7 +131,7 @@ test("pinRange: m beyond available requests throws rather than writing a truncat
 const KEY_TOKEN = `s-${createHash("sha256").update("s-tiny0000").digest("hex").slice(0, 12)}`;
 
 test("harvest --pin CLI: writes pinned-<s-sha12>-<n>-<m>.json, no session key in the name, header or records", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-cli-"));
+  const dir = await tmpDir("harvest-pin-cli-");
   const capturesDir = join(dir, "captures");
   const outDir = join(dir, "out");
   await mkdir(capturesDir, { recursive: true });
@@ -168,7 +168,7 @@ test("harvest --pin CLI: writes pinned-<s-sha12>-<n>-<m>.json, no session key in
 });
 
 test("harvest --pin CLI: unknown key exits non-zero with a stated reason, writes nothing", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-cli-"));
+  const dir = await tmpDir("harvest-pin-cli-");
   const capturesDir = join(dir, "captures");
   const outDir = join(dir, "out");
   await mkdir(capturesDir, { recursive: true });
@@ -187,7 +187,7 @@ test("harvest --pin CLI: unknown key exits non-zero with a stated reason, writes
 // --- readPinnedFixture: round-trips through the same [n, line] tuple shape readCapture yields ---
 
 test("readPinnedFixture: yields [n, line] tuples whose parsed records match what was pinned", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "harvest-pin-"));
+  const dir = await tmpDir("harvest-pin-");
   const capturePath = await writeTinyCapture(dir);
   const records = await pinRange(capturePath, 1);
   const fixturePath = join(dir, "pinned-s-tiny0000-0-1.json");

@@ -36,8 +36,8 @@
 //                       whether steady-state behaviour moved.
 //     --fixtures <dir>  fixture corpus directory
 //                       (default: <this repo>/test/fixtures/harvested)
-//     --scratch <dir>   where scratch worktrees are created
-//                       (default: $TMPDIR/verdict-ab-<pid>)
+//     --scratch <dir>   where scratch worktrees are created (default: a
+//                       directory under this run's temp root, removed at exit)
 //     --verbose         print every verdict line, not only the differing ones
 //
 //   exit 0  every verdict line identical
@@ -49,7 +49,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { tmpdir } from "node:os";
+import { tmpDirSync } from "./tmpdir.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const EXT = "proxy/extensions/insertion-normalization.mjs";
@@ -175,7 +175,12 @@ const verdictLine = (corpus, n, res, rawLen) =>
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const scratchRoot = resolve(opts.scratch ?? join(tmpdir(), `verdict-ab-${process.pid}`));
+  // Default scratch lives under the run root so it is removed when this process
+  // exits: the pid-named directory this used to build was created and never
+  // removed, and it was the one producer still leaking after every mkdtemp call
+  // site had been converted (3 per suite run). An explicit --scratch is the
+  // caller's directory and stays the caller's to clean up.
+  const scratchRoot = opts.scratch ? resolve(opts.scratch) : tmpDirSync("verdict-ab-");
   mkdirSync(scratchRoot, { recursive: true });
   const created = [];
   let exitCode = 0;

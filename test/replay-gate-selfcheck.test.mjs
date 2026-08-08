@@ -23,11 +23,11 @@
 // goes RED. These tests fail if a checker stops catching what it exists to
 // catch — the bite-test discipline, made permanent.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -741,7 +741,7 @@ test("census: semanticCore keeps genuinely different content distinct", () => {
 // wrong request — a wrong answer rather than a crash. Pin the semantics.
 
 test("readCapture: blank lines are skipped WITHOUT consuming an index", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "cache-fix-readcapture-"));
+  const dir = await tmpDir("cache-fix-readcapture-");
   try {
     const file = join(dir, "c.jsonl");
     // Blank and whitespace-only lines interleaved, plus a trailing newline.
@@ -765,7 +765,7 @@ test("readCapture: blank lines are skipped WITHOUT consuming an index", async ()
 });
 
 test("readCapture: an empty corpus yields nothing rather than one blank entry", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "cache-fix-readcapture-"));
+  const dir = await tmpDir("cache-fix-readcapture-");
   try {
     const file = join(dir, "empty.jsonl");
     await writeFile(file, "\n\n");

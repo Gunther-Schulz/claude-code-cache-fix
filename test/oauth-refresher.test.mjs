@@ -12,12 +12,12 @@
 // strings (uppercase + dashes only, prefix "FIXTURE-") so the entropy
 // detector doesn't trigger on the test file.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, symlinkSync, chmodSync, existsSync, readdirSync } from "node:fs";
+import { rmSync, writeFileSync, readFileSync, symlinkSync, chmodSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import properLockfile from "proper-lockfile";
 
 import {
@@ -114,7 +114,7 @@ after(async () => {
 });
 
 beforeEach(() => {
-  tmpHome = mkdtempSync(join(tmpdir(), "oauth-refresher-"));
+  tmpHome = tmpDirSync("oauth-refresher-");
   credPath = join(tmpHome, ".credentials.json");
   lockPath = join(tmpHome, ".oauth_refresh.lock");
   eventsPath = join(tmpHome, "events.jsonl");

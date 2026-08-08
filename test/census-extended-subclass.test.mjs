@@ -29,10 +29,10 @@
 // comment said the opposite, from report §c5, which was true when it was
 // written and had already been fixed when this landed.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { census } from "../tools/reminder-migration-census.mjs";
@@ -48,7 +48,7 @@ const rec = (ts, messages) => JSON.stringify({ ts, body: { messages } });
 
 /** One capture holding exactly one same-conversation pair. */
 async function pairCensus(beforeMsgs, afterMsgs) {
-  const dir = mkdtempSync(join(tmpdir(), "census-ext-"));
+  const dir = tmpDirSync("census-ext-");
   const p = join(dir, "s-x-requests.jsonl");
   writeFileSync(p, [rec("2026-07-31T10:00:00.000Z", beforeMsgs),
                     rec("2026-07-31T10:00:05.000Z", afterMsgs)].join("\n") + "\n");

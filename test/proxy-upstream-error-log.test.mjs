@@ -4,10 +4,10 @@
 // shape across the two 429 classes + 5xx, header normalization, missing
 // header tolerance, fail-open, and the onRequest model-capture seam.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 import ext, {
@@ -24,7 +24,7 @@ let tmpDir;
 let logFile;
 
 beforeEach(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), "upstream-error-log-"));
+  tmpDir = tmpDirSync("upstream-error-log-");
   logFile = join(tmpDir, "upstream-errors.jsonl");
   process.env[ENV_PATH] = logFile;
   delete process.env[ENV_GATE];

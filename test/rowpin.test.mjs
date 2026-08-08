@@ -16,11 +16,11 @@
 // disabled as the control, because a zero from an instrument that never fires
 // is indistinguishable from a zero that means something.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile, readFile, readdir, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -219,7 +219,7 @@ const sentinelMessage = {
 };
 
 test("the writer scrubs — proven on a planted sentinel, with the scrub OFF as the control", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-scrub-"));
+  const dir = await tmpDir("rowpin-scrub-");
   try {
     const res = await writeRowPins([pinWith(sentinelMessage)], dir);
     assert.equal(res.written, 1);
@@ -278,7 +278,7 @@ test("BITE — the exemption does not leak outside the rowpins directory", () =>
 });
 
 test("BITE — a live capture key or instant never reaches the pin", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-ids-"));
+  const dir = await tmpDir("rowpin-ids-");
   try {
     const res = await writeRowPins([pinWith(sentinelMessage)], dir);
     const body = await readFile(join(dir, res.files[0]), "utf-8");
@@ -300,7 +300,7 @@ test("BITE — a live capture key or instant never reaches the pin", async () =>
 });
 
 test("BITE — a pin whose bytes do not match its row is REJECTED, never written", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-reject-"));
+  const dir = await tmpDir("rowpin-reject-");
   try {
     const bad = pinWith(sentinelMessage, { checks: { comparisons: 2, bytesMatchRow: false } });
     const res = await writeRowPins([bad], dir);
@@ -313,7 +313,7 @@ test("BITE — a pin whose bytes do not match its row is REJECTED, never written
 });
 
 test("an unverifiable pin IS written, and says so in its own checks", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-unver-"));
+  const dir = await tmpDir("rowpin-unver-");
   try {
     const res = await writeRowPins([pinWith(sentinelMessage, { checks: { comparisons: 0, bytesMatchRow: null } })], dir);
     assert.equal(res.written, 1);
@@ -326,7 +326,7 @@ test("an unverifiable pin IS written, and says so in its own checks", async () =
 });
 
 test("idempotent by (key, n, index, family); a same-name pin with DIFFERENT bytes is a conflict, not an overwrite", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-idem-"));
+  const dir = await tmpDir("rowpin-idem-");
   try {
     const first = await writeRowPins([pinWith(sentinelMessage)], dir);
     assert.equal(first.written, 1);
@@ -351,7 +351,7 @@ test("idempotent by (key, n, index, family); a same-name pin with DIFFERENT byte
 // there skipped every conservation, sequence and order pin while its summary
 // said "21 built". One family's row shape is not the row shape.
 test("BITE — a family whose rows carry no key still names its pin (the key comes off the side)", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-keyless-"));
+  const dir = await tmpDir("rowpin-keyless-");
   try {
     const keyless = pinWith(sentinelMessage, {
       family: "conservation",
@@ -370,7 +370,7 @@ test("BITE — a family whose rows carry no key still names its pin (the key com
 // raw-side and a forwarded-side row at the same request and index — two
 // different messages — and a name without the space maps them onto one file.
 test("BITE — a raw-side and a forwarded-side row at the same index get different pins", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-space-"));
+  const dir = await tmpDir("rowpin-space-");
   try {
     const inSide = pinWith(sentinelMessage, {
       family: "conservationExempt", index: 0, indexSpace: "raw",
@@ -416,7 +416,7 @@ const captureLine = (n, id, messages) => JSON.stringify({
 });
 
 test("END TO END — a departure row on a synthetic capture pins the bytes behind it", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "rowpin-e2e-"));
+  const dir = await tmpDir("rowpin-e2e-");
   try {
     const opener = { role: "user", content: [{ type: "text", text: "opening turn" }] };
     // The relocatable block, carrying the sentinel where a real one carries

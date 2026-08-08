@@ -14,11 +14,11 @@
 // actually sees on stderr/stdout — the same reasoning replay-class-matrix
 // gives for running the real pipeline instead of just its classifiers.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -95,7 +95,7 @@ async function writeMultiBootFixture(dir, gates) {
 }
 
 test("gated capture replayed under empty env: warns on stderr, census stamped 'none'", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "replay-gate-warn-"));
+  const dir = await tmpDir("replay-gate-warn-");
   try {
     const gates = Object.fromEntries(GATE_KEYS.map((k) => [k, "1"]));
     const file = await writeFixture(dir, gates);
@@ -115,7 +115,7 @@ test("gated capture replayed under empty env: warns on stderr, census stamped 'n
 });
 
 test("gated capture replayed WITH the declared gates: no warning, census stamped set", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "replay-gate-warn-"));
+  const dir = await tmpDir("replay-gate-warn-");
   try {
     const gates = Object.fromEntries(GATE_KEYS.map((k) => [k, "1"]));
     const file = await writeFixture(dir, gates);
@@ -133,7 +133,7 @@ test("gated capture replayed WITH the declared gates: no warning, census stamped
 });
 
 test("capture with no declared gates: no warning, header names it explicitly", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "replay-gate-warn-"));
+  const dir = await tmpDir("replay-gate-warn-");
   try {
     const file = await writeFixture(dir, {});
     const res = runReplay(file, {});
@@ -154,7 +154,7 @@ test("capture with no declared gates: no warning, header names it explicitly", a
 // the ALL-boots union exists for, and is the one an operator's --env
 // hand-extraction would get wrong by reading only the FIRST boot record.
 test("--gates-from-capture on a multi-boot fixture: no warning, header 'N of N declared set'", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "replay-gate-warn-"));
+  const dir = await tmpDir("replay-gate-warn-");
   try {
     const gates = Object.fromEntries(GATE_KEYS.map((k) => [k, "1"]));
     const file = await writeMultiBootFixture(dir, gates);
@@ -180,7 +180,7 @@ test("--gates-from-capture on a multi-boot fixture: no warning, header 'N of N d
 // main() calls (resolveGatesFromCapture), never a re-derived one
 // (dev-loop.md, "never hand-roll identity in a probe").
 test("--gates-from-capture: resolveGatesFromCapture lets an explicit --env value win per-key", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "replay-gate-warn-"));
+  const dir = await tmpDir("replay-gate-warn-");
   try {
     const gates = Object.fromEntries(GATE_KEYS.map((k) => [k, "1"]));
     const file = await writeMultiBootFixture(dir, gates);

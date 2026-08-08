@@ -86,13 +86,14 @@
 // traffic): token lengths, paragraph structure, intra-fixture timing deltas,
 // and equality relations. See the audience caveat on scrubText below.
 
-import { readdir, readFile, writeFile, stat, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpDir } from "./tmpdir.mjs";
+import { readdir, readFile, writeFile, stat, mkdir, rm } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
-import { hostname, tmpdir } from "node:os";
+import { hostname } from "node:os";
 import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
 import { censusPair } from "./replay.mjs";
@@ -864,7 +865,7 @@ function runReplay(jsonlPath) {
  * numbers a reader needs to see that something WAS compared.
  */
 export async function verifyPin(capturePath, pinPath, m) {
-  const scratch = await mkdtemp(join(tmpdir(), "cache-fix-pin-verify-"));
+  const scratch = await tmpDir("cache-fix-pin-verify-");
   try {
     const liveJsonl = join(scratch, "live.jsonl");
     const pinJsonl = join(scratch, "pin.jsonl");

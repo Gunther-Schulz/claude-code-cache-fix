@@ -28,10 +28,10 @@
 // dispatch report: before this change `--at 2026-08-07T01:00:55Z` printed both
 // disjunctions above; after it, the measured third case.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { capturePairResult, capturePair, transcriptMiss } from "../tools/bust-triage.mjs";
@@ -44,7 +44,7 @@ const req = (ts, conv, n) => JSON.stringify({
 });
 
 function capture(records, key = "s-unv0001") {
-  const dir = mkdtempSync(join(tmpdir(), "bt-unv-"));
+  const dir = tmpDirSync("bt-unv-");
   writeFileSync(join(dir, `${key}-requests.jsonl`), records.join("\n") + "\n");
   return dir;
 }
@@ -53,7 +53,7 @@ const at = (iso) => Date.parse(iso) / 1000;
 // --- check 1 of 3: the capture file is not there ---
 
 test("BITE — an absent capture reports ABSENT, and says only that", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "bt-unv-empty-"));
+  const dir = tmpDirSync("bt-unv-empty-");
   const r = await capturePairResult("nosuchsession", at("2026-08-07T01:00:55Z"), dir);
   assert.equal(r.ok, false);
   assert.equal(r.code, "capture-absent");
@@ -66,7 +66,7 @@ test("BITE — an absent capture reports ABSENT, and says only that", async () =
 // THE CONTROL the entry names: "a genuinely absent capture must still report
 // absent." The fix must not turn every failure into the third case.
 test("CONTROL — a genuinely absent capture still reports absent, not 'no pair'", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "bt-unv-empty2-"));
+  const dir = tmpDirSync("bt-unv-empty2-");
   const r = await capturePairResult("gone", at("2026-08-07T01:00:55Z"), dir);
   assert.equal(r.code, "capture-absent");
   assert.notEqual(r.code, "no-pair-in-conversation");
@@ -132,7 +132,7 @@ test("BITE — present + covered + no predecessor is its OWN reason, naming its 
 // neither may appear in ANY reason string.
 test("BITE — no computed reason recites an untested cause", async () => {
   const cases = [
-    ["absent", mkdtempSync(join(tmpdir(), "bt-unv-none-")), []],
+    ["absent", tmpDirSync("bt-unv-none-"), []],
     ["uncovered", null, [req("2026-08-07T02:00:00.000Z", "A", 3)]],
     ["no-pair", null, [req("2026-08-07T01:00:00.000Z", "A", 3)]],
   ];
@@ -170,7 +170,7 @@ test("capturePair still returns null (never a failure object) so dossier's `if (
 // --- the transcript half of the same defect ---
 
 function projects(files) {
-  const dir = mkdtempSync(join(tmpdir(), "bt-proj-"));
+  const dir = tmpDirSync("bt-proj-");
   for (const [sid, records] of Object.entries(files)) {
     const p = join(dir, "some-project");
     mkdirSync(p, { recursive: true });

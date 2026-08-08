@@ -3,12 +3,12 @@
 // extensions.json via loadExtensions(), drives a synthetic response through
 // onResponseStart + onStreamEvent, asserts on disk state.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { mkdtempSync, rmSync, readFileSync, existsSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { loadExtensions, runOnRequest, runOnResponseStart, runOnStreamEvent } from "../proxy/pipeline.mjs";
 import cacheTelemetry from "../proxy/extensions/cache-telemetry.mjs";
 
@@ -28,7 +28,7 @@ const QUOTA_HEADERS = {
 };
 
 function setupHome() {
-  const home = mkdtempSync(join(tmpdir(), "qsp-"));
+  const home = tmpDirSync("qsp-");
   const oldHome = process.env.HOME;
   process.env.HOME = home;
   cacheTelemetry.__resetForTests();

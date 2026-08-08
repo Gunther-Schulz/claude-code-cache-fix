@@ -23,10 +23,10 @@
 // fixing it; a byte-identical-restart test for it would fail by design
 // until that follow-up lands.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -34,7 +34,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "restart-transparent-test-"));
+  return tmpDir("restart-transparent-test-");
 }
 
 function withEnv(overrides, fn) {

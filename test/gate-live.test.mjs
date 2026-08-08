@@ -11,11 +11,11 @@
 // clean row, and that a clean sweep needs actual captures behind it. Those are
 // the two ways a green verdict could lie.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, mkdir, writeFile, readFile, utimes, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { mkdir, writeFile, readFile, utimes, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -362,7 +362,7 @@ test("absorbed: only lines inside the window count", () => {
 });
 
 async function snapshotDirWith(files) {
-  const dir = await mkdtemp(join(tmpdir(), "fire-snapshots-"));
+  const dir = await tmpDir("fire-snapshots-");
   for (const [name, body] of Object.entries(files)) {
     await writeFile(join(dir, name), body);
     // Recent mtime: the append-only prefilter must not skip these.
@@ -433,7 +433,7 @@ test("BITE — relocations counts FRESH recognitions, not the moved sum, with `m
 });
 
 test("cc versions: read from the transcript that owns the swept session", async (t) => {
-  const root = await mkdtemp(join(tmpdir(), "fire-projects-"));
+  const root = await tmpDir("fire-projects-");
   t.after(() => rm(root, { recursive: true, force: true }));
   await mkdir(join(root, "-home-g-dev-x"), { recursive: true });
   const sid = "00000000-0000-4000-8000-c4f1efb22222";
@@ -459,7 +459,7 @@ test("cc versions: read from the transcript that owns the swept session", async 
 });
 
 test("the absorbed window starts at the previous line, so the series is additive", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "fire-ledger-"));
+  const dir = await tmpDir("fire-ledger-");
   t.after(() => rm(dir, { recursive: true, force: true }));
   const p = join(dir, "l.jsonl");
   assert.equal(await lastFireLedgerTs(p), null, "no ledger yet — no window to inherit");
@@ -478,7 +478,7 @@ test("the absorbed window starts at the previous line, so the series is additive
 // snapshots and transcripts — the production files under ~/.claude are
 // never touched by the suite.
 test("BITE — a real sweep appends exactly one well-formed ledger line", async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), "fire-sweep-"));
+  const dir = await tmpDir("fire-sweep-");
   t.after(() => rm(dir, { recursive: true, force: true }));
   const captures = join(dir, "captures");
   const snapshots = join(dir, "snapshots");

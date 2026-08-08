@@ -48,6 +48,7 @@
 //                 never folded into MITIGATED (see statusKind).
 // A step that cannot run says so and does not fold into a pass.
 
+import { tmpDirSync } from "./tmpdir.mjs";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dataPath, statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
@@ -1557,9 +1558,8 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     eq(dropVsExact.verdict, "EXACT", "EXACT beats DROPPED");
     eq(dropVsExact.host, 1, "the EXACT host wins over the dropped one");
     // retraction + cause-upgrade handling, on a synthetic ledger
-    const { writeFileSync, mkdtempSync } = await import("node:fs");
-    const { tmpdir } = await import("node:os");
-    const d = mkdtempSync(join(tmpdir(), "bt-"));
+    const { writeFileSync } = await import("node:fs");
+    const d = tmpDirSync("bt-");
     const p = join(d, "a.jsonl");
     writeFileSync(p, [
       JSON.stringify({ type: "cold", k: "hit", t: 100, s: "S", cc: 1000, cause: "other" }),
@@ -1697,7 +1697,7 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     // see resetEvents's docstring for why normalized had to go too), and
     // anything after the cutoff.
     {
-      const evDir = mkdtempSync(join(tmpdir(), "bt-events-"));
+      const evDir = tmpDirSync("bt-events-");
       writeFileSync(join(evDir, "s-SID-key1-insertion-events.jsonl"), [
         JSON.stringify({ ts: "2026-07-31T19:22:22.257Z", sid: "SID", action: "reset", resetReason: "not-subsequence" }),
         JSON.stringify({ ts: "2026-07-31T19:23:00.000Z", sid: "SID", action: "reset" }), // after cutoff

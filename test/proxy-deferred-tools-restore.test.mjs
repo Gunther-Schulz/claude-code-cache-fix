@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile, rm, readdir, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, writeFile, rm, readdir, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -21,7 +21,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // --- Helpers ---
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "deferred-tools-test-"));
+  return tmpDir("deferred-tools-test-");
 }
 
 // Build a system block array shaped like real CC v2.1.117+ system prompts:

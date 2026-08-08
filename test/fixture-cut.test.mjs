@@ -27,11 +27,11 @@
 //       mitigation row at range.m vanishes without it: suppressed count
 //       1 -> 0, the row itself absent). The tool must write nothing.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -95,7 +95,7 @@ function run(args) {
   }
 }
 
-const scratch = mkdtempSync(join(tmpdir(), "fixture-cut-test-"));
+const scratch = tmpDirSync("fixture-cut-test-");
 test.after(() => rmSync(scratch, { recursive: true, force: true }));
 const write = (name, doc) => {
   const p = join(scratch, name);

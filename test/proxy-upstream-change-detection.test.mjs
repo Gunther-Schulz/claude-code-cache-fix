@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -27,7 +27,7 @@ async function freshExt() {
 }
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "upstream-change-test-"));
+  return tmpDir("upstream-change-test-");
 }
 
 function makeBody(overrides = {}) {

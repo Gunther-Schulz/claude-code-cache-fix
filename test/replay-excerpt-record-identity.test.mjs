@@ -25,11 +25,11 @@
 // and was already correct — the guard sat on the pure function while the
 // record SELECTION feeding it was unguarded, this repo's one-route shape).
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -84,7 +84,7 @@ async function writeFixture(dir) {
 }
 
 test("BITE — the far-from-anchor excerpt names the request the census row names, not the capture line", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "replay-excerpt-"));
+  const dir = await tmpDir("replay-excerpt-");
   try {
     const file = await writeFixture(dir);
     const run = spawnSync(process.execPath, [REPLAY, file, "--census"], {

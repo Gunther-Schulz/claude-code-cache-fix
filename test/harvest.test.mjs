@@ -134,9 +134,9 @@ test("select: pairs are formed within a conversation, never across tenants", () 
 // --- Shape watch: the dormant thinking classes must not reactivate unseen ---
 
 import { scanCapture, completedThinkingTextCount, thinkingCountInPrefix } from "../tools/harvest.mjs";
-import { writeFile as wf, mkdtemp as mkd, rm as rmr } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile as wf, rm as rmr } from "node:fs/promises";
 import { join as pjoin } from "node:path";
+import { tmpDir } from "../tools/tmpdir.mjs";
 
 const think = (text) => ({ type: "thinking", thinking: text, signature: "SIG==" });
 const req = (msgs, extra = {}) => JSON.stringify({ ts: "t", body: { model: "m", messages: msgs, system: [{ type: "text", text: "sys" }], tools: [], ...extra } });
@@ -154,7 +154,7 @@ test("completedThinkingTextCount: stubs are not population; active continuations
 });
 
 test("BITE — a capture where completed-turn thinking text reappears sets the shape counters", async () => {
-  const dir = await mkd(pjoin(tmpdir(), "harvest-shape-"));
+  const dir = await tmpDir("harvest-shape-");
   const cap = pjoin(dir, "s-x-requests.jsonl");
   const u = { role: "user", content: [{ type: "text", text: "q" }] };
   const fatTurn = { role: "assistant", content: [think("REAL TEXT — the dormant population"), { type: "text", text: "a" }] };

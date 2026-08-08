@@ -62,8 +62,8 @@
 // here — past Node's ~512 MB max string length, which threw outright on the
 // very traffic this tool exists to price.
 
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpDir } from "./tmpdir.mjs";
+import { rm } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -218,7 +218,7 @@ async function main() {
   let extensions = null;
   let scratch = null;
   if (usePipeline) {
-    scratch = await mkdtemp(join(tmpdir(), "cache-sim-"));
+    scratch = await tmpDir("cache-sim-");
     process.env.CLAUDE_CONFIG_DIR = scratch;
     for (const [k, v] of Object.entries(env)) process.env[k] = v;
     const here = dirname(fileURLToPath(import.meta.url));

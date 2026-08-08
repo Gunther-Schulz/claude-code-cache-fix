@@ -22,11 +22,11 @@
 // normalized bytes differ from every pinned block is untouched: existing
 // rules (append/splice/edit-shaped reset) apply exactly as before.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { mkdtemp } from "node:fs/promises";
-import { tmpdir, homedir } from "node:os";
+import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -399,7 +399,7 @@ test(
     const { findMitigationGaps, findSafetyViolations, safetyViolation, readCapture } = replayTools;
     if (source === null) source = readCapture(REAL_CAPTURE);
 
-    const scratch = await mkdtemp(join(tmpdir(), "insertion-suppression-"));
+    const scratch = await tmpDir("insertion-suppression-");
     const saved = {};
     const overrides = { CLAUDE_CONFIG_DIR: scratch, XDG_STATE_HOME: scratch, ...GATES };
     for (const k of Object.keys(overrides)) {

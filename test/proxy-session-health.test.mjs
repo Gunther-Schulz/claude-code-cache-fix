@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { tmpdir } from "node:os";
 import ext, {
   countThinkingBlocks,
   computeContextTokens,
@@ -71,7 +71,7 @@ test("onRequest: stashes thinking-block count on ctx.meta", async () => {
 // --- onStreamEvent integration ---
 
 function setupTmpHome() {
-  const dir = mkdtempSync(join(tmpdir(), "sh-"));
+  const dir = tmpDirSync("sh-");
   const oldHome = process.env.HOME;
   process.env.HOME = dir;
   ext.__resetForTests();

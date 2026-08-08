@@ -28,10 +28,10 @@
 // carry the same mechanism so it survives the capture's rotation, and each is
 // falsifiable by disabling the size test (see the last test).
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { capturePairResult } from "../tools/bust-triage.mjs";
@@ -51,7 +51,7 @@ function req(ts, conv, n, bytes) {
 }
 
 function capture(records, key = "s-sel0001") {
-  const dir = mkdtempSync(join(tmpdir(), "bt-sel-"));
+  const dir = tmpDirSync("bt-sel-");
   writeFileSync(join(dir, `${key}-requests.jsonl`), records.join("\n") + "\n");
   return dir;
 }

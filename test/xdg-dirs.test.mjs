@@ -40,10 +40,10 @@
 // resolver — the branch production actually takes, since neither XDG variable
 // is set in a stock login shell. The explicit-variable branch gets its own
 // case.
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 // `async` and `await fn(...)`, not a bare `return fn(...)`: a synchronous
@@ -52,7 +52,7 @@ import { dirname, join } from "node:path";
 // instead of its own. Caught by the first red run naming two temp homes on
 // adjacent lines — the same shape tools/test-config-root.mjs records.
 async function withHome(fn) {
-  const home = mkdtempSync(join(tmpdir(), "cache-fix-xdg-pin-"));
+  const home = tmpDirSync("cache-fix-xdg-pin-");
   const saved = {
     HOME: process.env.HOME,
     XDG_DATA_HOME: process.env.XDG_DATA_HOME,

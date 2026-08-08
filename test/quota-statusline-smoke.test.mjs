@@ -7,11 +7,11 @@
 // this harness overrides and what production actually does (the systemd unit
 // sets neither XDG variable).
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -19,7 +19,7 @@ import { createHash } from "node:crypto";
 const SCRIPT = resolve(fileURLToPath(import.meta.url), "..", "..", "tools", "quota-statusline.sh");
 
 function setupHome() {
-  const home = mkdtempSync(join(tmpdir(), "qsl-"));
+  const home = tmpDirSync("qsl-");
   mkdirSync(join(home, ".local", "state", "cache-fix", "quota-status", "sessions"), { recursive: true });
   return {
     home,

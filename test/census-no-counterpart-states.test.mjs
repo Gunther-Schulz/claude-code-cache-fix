@@ -26,11 +26,11 @@
 // what a reader of the byte-gate acts on (dev-loop.md, "wrongness lives where
 // the work takes effect"). The capture is SYNTHETIC and written to a temp dir.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { analysePair, hostId } from "../tools/reminder-migration-census.mjs";
 
@@ -57,7 +57,7 @@ const before = [head, standalone(B0), filler(1),
 const after = [head, standalone(B0), filler(1), filler(2)];
 
 function runCensus(beforeMsgs = before, afterMsgs = after) {
-  const dir = mkdtempSync(join(tmpdir(), "census-no-counterpart-"));
+  const dir = tmpDirSync("census-no-counterpart-");
   const p = join(dir, "s-synthetic-requests.jsonl");
   writeFileSync(p, [
     JSON.stringify({ ts: "2026-08-08T09:00:00.000Z", body: { messages: beforeMsgs } }),
@@ -86,7 +86,7 @@ test("the token is not printed for a row whose host survived", () => {
   // The other side of the split: same shape, host PRESENT in `after`, so the
   // third field is about a candidate again and `host-pruned` would be a lie.
   // Without this, a rule that printed the token unconditionally would pass.
-  const dir = mkdtempSync(join(tmpdir(), "census-host-present-"));
+  const dir = tmpDirSync("census-host-present-");
   const p = join(dir, "s-synthetic-requests.jsonl");
   const afterPresent = [head, standalone(B0), filler(1),
                         { role: "user", content: [{ type: "tool_result", tool_use_id: HOST_ID }] },

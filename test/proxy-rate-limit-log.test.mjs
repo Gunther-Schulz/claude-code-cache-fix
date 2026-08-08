@@ -5,9 +5,10 @@
 // test/fixtures/burst-limit-429.json (anonymized from the raw capture at
 // ~/.local/share/cache-fix-rate-limit-capture/log.jsonl).
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, utimesSync } from "node:fs";
+import { rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, utimesSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -142,7 +143,7 @@ test("[#14] isPeakHourOldSchedule: Sunday 14:00 UTC → false (weekend)", () => 
 // ---------------------------------------------------------------------------
 
 test("[#15] countActiveSessions: counts files mtime within 5min window", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rll-sess-"));
+  const dir = tmpDirSync("rll-sess-");
   try {
     const now = Date.now();
     // Three "active" files
@@ -171,7 +172,7 @@ test("[#16] countActiveSessions: missing directory → 0 (no throw)", () => {
 // ---------------------------------------------------------------------------
 
 test("[#17] readQ5hPctAtEvent: reads .five_hour.pct from account.json", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rll-acct-"));
+  const dir = tmpDirSync("rll-acct-");
   try {
     const path = join(dir, "account.json");
     writeFileSync(path, JSON.stringify({ five_hour: { pct: 42 } }));
@@ -186,7 +187,7 @@ test("[#18] readQ5hPctAtEvent: missing file → null", () => {
 });
 
 test("[#19] readQ5hPctAtEvent: malformed JSON → null", () => {
-  const dir = mkdtempSync(join(tmpdir(), "rll-acct-"));
+  const dir = tmpDirSync("rll-acct-");
   try {
     const path = join(dir, "account.json");
     writeFileSync(path, "not json");
@@ -248,7 +249,7 @@ test("[#21] buildRecord: missing meta fields → null/zero defaults, no throw", 
 // ---------------------------------------------------------------------------
 
 test("[#22] writeRecord: appends one JSON line per call, parsable", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "rll-out-"));
+  const dir = tmpDirSync("rll-out-");
   try {
     const path = join(dir, "rate-limit-events.jsonl");
     await writeRecord({ a: 1 }, path);
@@ -270,7 +271,7 @@ test("[#22] writeRecord: appends one JSON line per call, parsable", async () => 
 import rateLimitLog from "../proxy/extensions/rate-limit-log.mjs";
 
 function setupHome() {
-  const home = mkdtempSync(join(tmpdir(), "rll-home-"));
+  const home = tmpDirSync("rll-home-");
   mkdirSync(join(home, ".local", "state", "cache-fix", "quota-status", "sessions"), { recursive: true });
   // Seed account.json so q5h_pct_at_event has a concrete value to assert on.
   writeFileSync(

@@ -13,16 +13,16 @@
 // so. A controlled cost is not triageable — that is an ANSWER, and the
 // three-answer rule is that it must be stated, never expressed as silence.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { coldEvents, busts, listRows, listHeader, causeToRow, fallbackNote } from "../tools/bust-triage.mjs";
 
 function ledger(records) {
-  const d = mkdtempSync(join(tmpdir(), "bt-controlled-"));
+  const d = tmpDirSync("bt-controlled-");
   const p = join(d, "activity.jsonl");
   writeFileSync(p, records.map((r) => JSON.stringify(r)).join("\n") + "\n");
   return p;
@@ -127,8 +127,8 @@ test("BITE — --list names its ordering and its truncation", () => {
 // records only, zero-based (harvest.mjs pinRange `const idx = count++`). A
 // second definition here would be a second truth about what an ordinal is.
 test("BITE — capturePair reports harvest's own request ordinals", async () => {
-  const { mkdtempSync, writeFileSync } = await import("node:fs");
-  const dir = mkdtempSync(join(tmpdir(), "bt-ord-"));
+  const { writeFileSync } = await import("node:fs");
+  const dir = tmpDirSync("bt-ord-");
   const key = "s-ord0001";
   const f = join(dir, `${key}-requests.jsonl`);
   const msg = (t) => ({ role: "user", content: [{ type: "text", text: t }] });

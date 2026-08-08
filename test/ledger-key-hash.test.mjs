@@ -7,10 +7,10 @@
 // were not scanned at all, so the class that would have caught them never
 // looked. Both are fixed; this pins the half that lives here.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, writeFile, readFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { ledgerKey, loadLedger } from "../tools/harvest.mjs";
@@ -41,7 +41,7 @@ test("MIGRATION: an old raw-key ledger loads with its watermarks intact", async 
   // The case that decides whether this ships without anyone running anything:
   // every existing ledger is raw-keyed, and losing its watermarks would make
   // the next harvest re-bank fixtures it already has.
-  const dir = await mkdtemp(join(tmpdir(), "ledger-mig-"));
+  const dir = await tmpDir("ledger-mig-");
   const path = join(dir, "LEDGER-Test.json");
   await writeFile(path, JSON.stringify({
     version: 1,
@@ -62,7 +62,7 @@ test("MIGRATION: an old raw-key ledger loads with its watermarks intact", async 
 });
 
 test("a ledger that does not parse yields an empty one rather than throwing", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "ledger-bad-"));
+  const dir = await tmpDir("ledger-bad-");
   const path = join(dir, "LEDGER-Test.json");
   await writeFile(path, "{ not json");
   const l = await loadLedger(path);

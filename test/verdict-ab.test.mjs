@@ -33,11 +33,11 @@
 // question there is whether a DIFFERENCE is reported, and manufacturing one
 // out of the real extension would pin its current behaviour instead.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readdirSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -60,7 +60,7 @@ function run(args) {
   }
 }
 
-const scratch = (tag) => mkdtempSync(join(tmpdir(), `verdict-ab-test-${tag}-`));
+const scratch = (tag) => tmpDirSync(`verdict-ab-test-${tag}-`);
 
 /** A minimal tree the tool will accept: just the extension module it imports. */
 function stubTree(tag, source) {

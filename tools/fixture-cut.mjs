@@ -46,8 +46,8 @@
 // "cut" that silently reproduces the input would misreport a floor that was
 // never measured.
 
-import { existsSync, readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpDirSync } from "./tmpdir.mjs";
+import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve, dirname, basename, extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -148,7 +148,7 @@ async function main() {
     process.exit(1);
   }
 
-  const scratch = mkdtempSync(join(tmpdir(), "fixture-cut-"));
+  const scratch = tmpDirSync("fixture-cut-");
   try {
     const full = dump(args.input);
 

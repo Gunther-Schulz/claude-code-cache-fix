@@ -14,11 +14,11 @@
 // idempotence per capture (a retry must not burn an alias) and the identity
 // rule (a session id and its capture filename are one capture, not two).
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, writeFile, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, writeFile, rm, stat } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -29,7 +29,7 @@ const run = promisify(execFile);
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "alias-claim.mjs");
 
 const withRegistry = async (fn) => {
-  const dir = await mkdtemp(join(tmpdir(), "alias-claim-"));
+  const dir = await tmpDir("alias-claim-");
   const reg = join(dir, "aliases.json");
   try {
     return await fn(reg, dir);

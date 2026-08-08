@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync, existsSync } from "node:fs";
+import { rmSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import ext, { _resetState } from "../proxy/extensions/image-retry-circuit-breaker.mjs";
 
 const IMG_A_B64 = Buffer.from("image-a-bytes").toString("base64");
@@ -47,7 +47,7 @@ beforeEach(() => {
   if (tmpDir) {
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
-  tmpDir = mkdtempSync(join(tmpdir(), "image-retry-test-"));
+  tmpDir = tmpDirSync("image-retry-test-");
   process.env.CACHE_FIX_IMAGE_RETRY_LOG_PATH = join(tmpDir, "events.jsonl");
   process.env.CACHE_FIX_IMAGE_RETRY_BREAKER = "on";
   delete process.env.CACHE_FIX_IMAGE_RETRY_COOLOFF_MS;

@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import ext, {
@@ -29,7 +29,7 @@ function makeCtx(overrides = {}) {
 }
 
 test("request-capture: disabled by default (no env flag) — onRequest is a no-op", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "capture-test-"));
+  const dir = await tmpDir("capture-test-");
   const prevConfig = process.env.CLAUDE_CONFIG_DIR;
   const prevData = process.env.XDG_DATA_HOME;
   const prevFlag = process.env.CACHE_FIX_REQUEST_CAPTURE;
@@ -56,7 +56,7 @@ test("request-capture: disabled by default (no env flag) — onRequest is a no-o
 });
 
 test("request-capture: enabled — appends one full-body NDJSON record per request", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "capture-test-"));
+  const dir = await tmpDir("capture-test-");
   const prevConfig = process.env.CLAUDE_CONFIG_DIR;
   const prevData = process.env.XDG_DATA_HOME;
   const prevFlag = process.env.CACHE_FIX_REQUEST_CAPTURE;
@@ -124,7 +124,7 @@ test("resolveCaptureKey: session header preferred, content-hash fallback", () =>
 });
 
 test("sweepCaptureDir: deletes oldest files first until under the cap", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "capture-sweep-"));
+  const dir = await tmpDir("capture-sweep-");
   try {
     // Three 100-byte files with distinct mtimes (writes are sequential).
     for (const name of ["a", "b", "c"]) {
@@ -141,7 +141,7 @@ test("sweepCaptureDir: deletes oldest files first until under the cap", async ()
 });
 
 test("sweepCaptureDir: no-op under the cap and on missing dir", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "capture-sweep-"));
+  const dir = await tmpDir("capture-sweep-");
   try {
     await writeFile(join(dir, "s-a-requests.jsonl"), "x".repeat(50));
     assert.equal(await sweepCaptureDir(dir, 1000), 0);

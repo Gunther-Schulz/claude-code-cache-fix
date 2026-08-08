@@ -22,11 +22,12 @@
 // the direct claudeHome() cases below. The oauth-events path is proven
 // behaviorally here via emitOAuthEvent().
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { join } from "node:path";
-import { mkdtempSync, existsSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 
 import { claudeHome } from "../proxy/claude-home.mjs";
 import { logPath } from "../proxy/extensions/usage-log.mjs";
@@ -62,7 +63,7 @@ function withEnv(overrides, fn) {
 }
 
 function tmpDir() {
-  return mkdtempSync(join(tmpdir(), "cfgdir-"));
+  return tmpDirSync("cfgdir-");
 }
 
 const DEFAULT_HOME = join(homedir(), ".claude");

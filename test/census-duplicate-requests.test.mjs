@@ -43,10 +43,10 @@
 //     while the pair count stays 2, which is precisely the confusion the
 //     streak metric exists to prevent.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFile, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -92,7 +92,7 @@ const outcome = (id, ts = "2026-08-01T00:00:09.000Z") => ({
 });
 
 async function captureOf(t, lines, name = "s-testsession-requests.jsonl") {
-  const dir = await mkdtemp(join(tmpdir(), "census-dup-"));
+  const dir = await tmpDir("census-dup-");
   t.after(() => rm(dir, { recursive: true, force: true }));
   const path = join(dir, name);
   await writeFile(path, lines.map((l) => JSON.stringify(l)).join("\n") + "\n");

@@ -3,10 +3,10 @@
 // run then understated the very session it was built to warn about — so the
 // record-selection is what this pins hardest.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, rmSync, utimesSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync, rmSync, utimesSync } from "node:fs";
 import { join } from "node:path";
 
 import { lastRecord, contextChars, scanLive } from "../tools/restart-exposure.mjs";
@@ -46,7 +46,7 @@ test("context size counts system, tools and messages", () => {
 });
 
 test("only captures touched inside the window count as live", () => {
-  const dir = mkdtempSync(join(tmpdir(), "restart-exp-"));
+  const dir = tmpDirSync("restart-exp-");
   try {
     const now = Date.now();
     const fresh = join(dir, "s-fresh-requests.jsonl");
@@ -66,7 +66,7 @@ test("only captures touched inside the window count as live", () => {
 test("--match narrows to sessions whose recent traffic carries the affected class", () => {
   // The half that turns a worst case into a decision: today's change affected
   // messages quoting one marker, and exactly one live session contained it.
-  const dir = mkdtempSync(join(tmpdir(), "restart-exp-m-"));
+  const dir = tmpDirSync("restart-exp-m-");
   try {
     const hit = req(4);
     hit.body.messages.push({ role: "assistant", content: "quoting SENTINEL-MARKER here" });

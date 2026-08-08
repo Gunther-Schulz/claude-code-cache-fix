@@ -1,10 +1,9 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { fork } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve, join } from "node:path";
-import { tmpdir } from "node:os";
-import { mkdtempSync } from "node:fs";
 import http from "node:http";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -175,7 +174,7 @@ describe("launch wrapper (claude-via-proxy)", { concurrency: 1 }, () => {
     // Otherwise it points claude at a different (or absent) CA than the one
     // the spawned proxy generated — a hard fail, or a silent trust mismatch when
     // a stale default CA exists. This test pins the override path exactly.
-    const caDir = mkdtempSync(join(tmpdir(), "cffcadir-"));
+    const caDir = tmpDirSync("cffcadir-");
     const script =
       'process.stdout.write("BASE="+(process.env.ANTHROPIC_BASE_URL||"UNSET")+' +
       '"|CA="+(process.env.NODE_EXTRA_CA_CERTS||"UNSET")+"\\n")';

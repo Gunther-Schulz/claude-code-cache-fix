@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -22,7 +22,7 @@ const FIXTURE_PATH = join(__dirname, "fixtures", "toolload-1247.json");
 const GC_FIXTURE_PATH = join(__dirname, "fixtures", "toolgc-1536.json");
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "deferred-tool-rewrite-test-"));
+  return tmpDir("deferred-tool-rewrite-test-");
 }
 
 function withEnv(overrides, fn) {

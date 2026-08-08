@@ -1,7 +1,7 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -23,7 +23,7 @@ async function freshExt() {
 }
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "overage-warning-test-"));
+  return tmpDir("overage-warning-test-");
 }
 
 function mkHeaders({

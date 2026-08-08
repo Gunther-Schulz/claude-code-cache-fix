@@ -53,11 +53,11 @@
 // tool performs is between two replays, and it does not care which side of it
 // history called which.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, readdirSync, writeFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -115,7 +115,7 @@ function run(fullPath, cutPath) {
   }
 }
 
-const scratch = mkdtempSync(join(tmpdir(), "fixture-verdict-identity-"));
+const scratch = tmpDirSync("fixture-verdict-identity-");
 test.after(() => rmSync(scratch, { recursive: true, force: true }));
 const write = (name, doc) => {
   const p = join(scratch, name);

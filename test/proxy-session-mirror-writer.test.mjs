@@ -1,8 +1,8 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, readFileSync, existsSync, statSync, utimesSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
+import { rmSync, readFileSync, existsSync, statSync, utimesSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import {
   writeRecordsSync,
   sweepRetentionThrottled,
@@ -17,7 +17,7 @@ beforeEach(() => {
   if (tmpDir) {
     try { rmSync(tmpDir, { recursive: true, force: true }); } catch {}
   }
-  tmpDir = mkdtempSync(join(tmpdir(), "mirror-writer-test-"));
+  tmpDir = tmpDirSync("mirror-writer-test-");
   process.env.CACHE_FIX_SESSION_MIRROR_DIR = tmpDir;
   process.env.CACHE_FIX_SESSION_MIRROR_EVENT_LOG = join(tmpDir, "session-mirror-events.jsonl");
   delete process.env.CACHE_FIX_SESSION_MIRROR_MAX_BYTES;

@@ -32,9 +32,8 @@
 // file under `test/` as a test file: from there it was ALSO executed as a
 // (zero-assertion) test, inflating the suite count by one and reading in the
 // output as if the harness bootstrap were a test that passed.
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { rmSync } from "node:fs";
+import { tmpDirSync } from "./tmpdir.mjs";
 
 // ONE home per test-file process TREE, not per process. `child_process.fork`
 // propagates the parent's execArgv, so a forked child re-runs this very module
@@ -54,7 +53,7 @@ const MARKER = "CACHE_FIX_TEST_HOME";
 
 if (!process.env.CLAUDE_CONFIG_DIR) {
   const inherited = process.env[MARKER];
-  const root = inherited || mkdtempSync(join(tmpdir(), "cache-fix-test-home-"));
+  const root = inherited || tmpDirSync("cache-fix-test-home-");
   process.env[MARKER] = root;
   process.env.HOME = root;
   // Windows' equivalent, for the same reason — `os.homedir()` reads it there.

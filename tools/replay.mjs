@@ -63,9 +63,9 @@
 // first message); co-tenant sidecar traffic sharing a session-id header
 // is skipped rather than reported as churn (runbook's known artifact).
 
-import { mkdtemp, rm } from "node:fs/promises";
+import { tmpDir } from "./tmpdir.mjs";
+import { rm } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
@@ -2179,7 +2179,7 @@ async function collectPinEvidence(file, asks, loadExtensions, runOnRequest) {
   }
   const out = new Map();
   if (!wanted.size) return out;
-  const scratch = await mkdtemp(join(tmpdir(), "cache-fix-pin-"));
+  const scratch = await tmpDir("cache-fix-pin-");
   const saved = process.env.CLAUDE_CONFIG_DIR;
   const savedState = process.env.XDG_STATE_HOME;
   const savedData = process.env.XDG_DATA_HOME;
@@ -3406,7 +3406,7 @@ async function main() {
   // module scope is not the idiom here (all gates are read per-call),
   // but claude-home is read per-call too — set it first anyway so no
   // load-order surprise can leak a write to the live ~/.claude.
-  const scratch = await mkdtemp(join(tmpdir(), "cache-fix-replay-"));
+  const scratch = await tmpDir("cache-fix-replay-");
   process.env.CLAUDE_CONFIG_DIR = scratch;
   process.env.XDG_STATE_HOME = scratch;
   process.env.XDG_DATA_HOME = scratch;
@@ -3735,7 +3735,7 @@ async function main() {
     // whether its output divergence has already dropped below the bar.
     const replayThrough = async (cut) => {
       const prefix = mutators.slice(0, cut);
-      const scratch2 = await mkdtemp(join(tmpdir(), "cache-fix-attr-"));
+      const scratch2 = await tmpDir("cache-fix-attr-");
       const savedHome = process.env.CLAUDE_CONFIG_DIR;
       const savedState2 = process.env.XDG_STATE_HOME;
       const savedData2 = process.env.XDG_DATA_HOME;

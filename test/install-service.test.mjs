@@ -1,7 +1,8 @@
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, writeFile, rm, readdir, mkdir } from "node:fs/promises";
-import { tmpdir, platform } from "node:os";
+import { readFile, writeFile, rm, readdir, mkdir } from "node:fs/promises";
+import { platform } from "node:os";
 import { join, dirname } from "node:path";
 import { execFile } from "node:child_process";
 import { createServer } from "node:net";
@@ -31,7 +32,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const BIN = join(__dirname, "..", "bin", "claude-via-proxy.mjs");
 
 async function newTmp() {
-  return mkdtemp(join(tmpdir(), "install-service-test-"));
+  return tmpDir("install-service-test-");
 }
 
 const sampleVars = {

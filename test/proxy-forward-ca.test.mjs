@@ -7,10 +7,10 @@
 // while positively owning .gen.lock — a waiter that times out on a lock held by
 // a LIVE peer must not generate over it and must not delete the peer's lock.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, rmSync, chmodSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, existsSync, readFileSync, writeFileSync, readdirSync, rmSync, chmodSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { X509Certificate, createPublicKey, generateKeyPairSync } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
@@ -28,7 +28,7 @@ const ENV_KEYS = [
 function withCA(overrides, fn) {
   const saved = {};
   for (const k of ENV_KEYS) saved[k] = process.env[k];
-  const dir = mkdtempSync(join(tmpdir(), "fwd-ca-"));
+  const dir = tmpDirSync("fwd-ca-");
   const cleanup = () => {
     for (const k of ENV_KEYS) {
       if (saved[k] === undefined) delete process.env[k];

@@ -15,10 +15,10 @@
 // prev_ctx = 100000 the exact boundary pair (cc = 60000, cr = 20000) is a
 // hit, and one token either way on either side is not.
 
+import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, rm, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { rm, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import {
@@ -207,7 +207,7 @@ test("a run that found no usage rows says so and exits 2 — never a clean 0", (
   // dev-loop.md, "A checker has THREE answers": absence of evidence must not
   // wear a verdict's clothes.
   return (async () => {
-    const dir = await mkdtemp(join(tmpdir(), "cold-events-"));
+    const dir = await tmpDir("cold-events-");
     try {
       const empty = join(dir, "empty.jsonl");
       await writeFile(empty, '{"type":"boot","gates":{}}\n');
@@ -220,7 +220,7 @@ test("a run that found no usage rows says so and exits 2 — never a clean 0", (
 });
 
 test("--out writes the ledger it is given, and the live ledger path is never a default", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "cold-events-"));
+  const dir = await tmpDir("cold-events-");
   try {
     const src = join(dir, "t.jsonl");
     await writeFile(src, [

@@ -27,10 +27,11 @@
 // must not depend on any slice branch existing on this machine, and the two
 // defect shapes are SEEDED rather than remembered.
 
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,7 +41,7 @@ import { preflight } from "../tools/slice-preflight.mjs";
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "slice-preflight.mjs");
 
 function withTree(files, fn) {
-  const dir = mkdtempSync(join(tmpdir(), "slice-preflight-"));
+  const dir = tmpDirSync("slice-preflight-");
   try {
     for (const [rel, body] of Object.entries(files)) {
       const p = join(dir, rel);

@@ -1,9 +1,9 @@
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdtempSync, rmSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
 import { startProxy } from "../proxy/server.mjs";
 
 let handle;
@@ -34,7 +34,7 @@ function clientRequest(method, path, body) {
 
 describe("proxy server — /api/claude_cli/bootstrap routing", () => {
   before(async () => {
-    tmpHome = mkdtempSync(join(tmpdir(), "bootstrap-route-"));
+    tmpHome = tmpDirSync("bootstrap-route-");
     process.env.CACHE_FIX_BOOTSTRAP_LOG_PATH = join(tmpHome, "bootstrap-log.jsonl");
 
     // Local upstream that pretends to be api.anthropic.com for the bootstrap path.
