@@ -185,7 +185,6 @@ right.
 9. **`bust-triage` maps `replace/edit` -> row 4 flatly.** The census class is
    not the cause, and the flat map is how a wrong row gets its evidence
    inflated.
-   <!-- entry: "`bust-triage` maps `replace/edit` -> row 4 flatly" -->
 10. **`bust-triage` cannot reach threat-matrix row 24 by ANY of its three
     routes.** A whole row invisible to the tool that triages into it.
     <!-- entry: "`bust-triage` cannot reach threat-matrix row 24 by ANY of its" -->
@@ -696,24 +695,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   breakpoint does sit at the divergence — must leave both numbers equal, since
   that is the case the current model gets right and a fix that moves it is
   overshooting.
-
-- **READY — `bust-triage` maps `replace/edit` -> row 4 flatly
-  (`bust-triage.mjs:501`), so the census annotations that distinguish this
-  row's sub-mechanisms never reach the operator at the runbook's designated
-  entry point.** Measured 2026-08-06: the 301k s-captureAM bust is a 20-leg
-  FLAP at one index with `anchorDelta` -45/-48 — i.e. the census's own
-  far-from-anchor tripwire fires and says "NOT the known reminder-anchoring
-  class" — and `bust-triage`'s verdict block shows `census replace/edit` and
-  nothing else. `anchorDelta` exists nowhere outside `replay.mjs`: zero hits in
-  `bust-triage.mjs` and zero in the threat matrix. A walker who runs only the
-  triage (which is what step 2 of `runbooks/bust-appears.md` prescribes) cannot
-  tell an anchored ±2 re-stamp from a deep oscillation, and the two have
-  different mitigation stories inside one row.
-  Design: `bust-triage` already imports `censusPair` from `replay.mjs`; have it
-  also report the pair's `anchorDelta` and any `blockMigration`/FLAP rows on
-  the same pair, and print the far-from-anchor callout verbatim when it fires.
-  Verifier: run against this capture's stamp — the row must name FLAP and the
-  anchor distance; run against a ±2 anchored instance and it must not.
 
 - **READY — `bust-triage` cannot reach threat-matrix row 24 by ANY of its three
   routes, so the whole resume / born-large class triages as UNVERIFIABLE or
@@ -1920,6 +1901,102 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **READY — `capturePairResult`'s conversation identity is the busting
+  request's own `messages[0]`, so the pairing instrument goes BLIND exactly
+  when the class it would observe fires.** Found 2026-08-08 by the row-map
+  lane, which correctly refused to fix it and returned the question.
+  Sites, cited rather than described: `tools/bust-triage.mjs:749`
+  (`const cid = JSON.stringify(after.body.messages[0])`) fixes identity from
+  the busting request, and `:760`
+  (`if (JSON.stringify(r.body.messages[0]) !== cid) continue;`) tests every
+  candidate predecessor against it. **Threat-matrix row 29's mechanism IS the
+  rebuild of `messages[0]` at an idle boundary**, so for every row-29 event the
+  predecessor is unreachable by construction and the tool answers
+  `UNVERIFIABLE / no-pair-in-conversation`. Measured identically BEFORE and
+  AFTER that lane's change on `2026-08-08T11:46:36Z` and its companion
+  `11:46:13Z` — which is also what proved my own briefed verifier vacuous
+  (below).
+  **Three consequences, and the third decided the ranking.** (1) Every row-29
+  event reports as could-not-verify rather than as row 29, so the class is
+  silently UNDER-COUNTED in any survey reading this tool. (2) The outcome is
+  indistinguishable from a genuinely absent capture — the could-not-verify
+  REASON class this tool was already corrected for once. (3) `docs/dev-loop.md`
+  now carries a gate: no mitigation may be designed while attribution is
+  COULD-NOT-ATTRIBUTE. So row 29 cannot be mitigated at all until pairing
+  works — a tooling gap holding a whole matrix row hostage.
+  **Design NOT decided, and the fork is real, which is what keeps this from
+  being a one-liner.** `conversationOf`'s history-derived identity is CORRECT
+  for cache purposes — a rebuilt `messages[0]` genuinely IS a new conversation
+  to the API, which is why row 29 costs what it costs. What a bust WALK needs
+  is a different relation: the predecessor ACROSS an identity rotation. Those
+  are two concepts and conflating them is how this defect arrived. Whatever
+  ships must not re-derive identity inline (three confident wrong answers here
+  from hand-rolled identity) and must land in the shared primitive, not as a
+  local patch.
+  **Dependency the fix must carry:** `pairEditContext`
+  (`tools/bust-triage.mjs:1271`) deliberately reuses the SAME test to stay
+  consistent with `capturePairResult`'s notion of "same conversation". A fix at
+  749/760 updates that call site in the same change, or the two disagree about
+  which requests are one conversation — a silent split-brain inside one tool.
+  Verifier, red-first, available today: `--at 2026-08-08T11:46:36Z` must stop
+  returning `no-pair-in-conversation` and reach a row; `--at 2026-08-08T12:18:15Z`
+  (a stable-identity pair) must be UNCHANGED, which is the control that stops a
+  fix from simply pairing everything to anything.
+  Consumer tier **1 (event disposition)**. Unranked (booked after the
+  derivation); a Tier A head candidate at the next one.
+  <!-- entry: "capturePairResult's conversation identity is the busting request's own messages[0]" -->
+
+- **READY — `capturePairResult` may select a DIFFERENT pair than the one the
+  census walk calls "the bust", and nothing says the two disagree.** Found
+  2026-08-08 by the row-map lane while validating against known bytes, and it
+  is the more dangerous of that lane's two findings because the output looks
+  correct either way.
+  Measured on s-captureAM (session `c7e7cb71`): the tool's pairing selected
+  **ord 260->261** — a real `replace/edit` pair in the same conversation,
+  `anchorDelta +0`, benign — while the threat matrix's own hand walk names
+  **ord 265->266** (`anchorDelta -48`, the FLAP) as the actual busting
+  transition. Both are genuine pairs several requests apart; the tool is not
+  malfunctioning, it is answering a different question than the reader assumes.
+  **The general shape, which is why this is booked rather than shrugged at:**
+  two independently-computed facts about "the same bust" — the ledger
+  cc/transcript-diagnostic match, and the capture-pair selection — agreeing
+  that an event happened is NOT evidence that they picked the same underlying
+  request pair. Every piece of evidence the tool prints beside its verdict
+  (anchorDelta, blockMigration rows, FLAP tags, and the new far-from-anchor
+  callout) is computed on the SELECTED pair, so a mis-selection presents as
+  confident, well-formatted evidence for the wrong transition.
+  Design, decided: the tool states which pair it selected and on what basis,
+  and flags when a same-conversation neighbour scores as a stronger bust
+  candidate (a larger |anchorDelta|, or a FLAP where the selected pair has
+  none). Do NOT silently change the selection rule — the current one is
+  documented and a second, unannounced heuristic is how the previous selection
+  defect got its wrong story.
+  Verifier, red-first, on committed evidence that cannot decay: s-captureAM,
+  where the tool selects 260->261 and the matrix names 265->266. After the
+  change the disagreement must be VISIBLE in the output. Control: a walk whose
+  selected pair IS the strongest candidate must gain no warning.
+  Consumer tier **1 (event disposition)** — it feeds the evidence every walk's
+  disposition rests on. Unranked (booked after the derivation).
+  <!-- entry: "capturePairResult may select a DIFFERENT pair than the census walk" -->
+
+- **(DONE — 2026-08-08, `844b792`; two findings booked separately below) `bust-triage` maps `replace/edit` -> row 4 flatly
+  (`bust-triage.mjs:501`), so the census annotations that distinguish this
+  row's sub-mechanisms never reach the operator at the runbook's designated
+  entry point.** Measured 2026-08-06: the 301k s-captureAM bust is a 20-leg
+  FLAP at one index with `anchorDelta` -45/-48 — i.e. the census's own
+  far-from-anchor tripwire fires and says "NOT the known reminder-anchoring
+  class" — and `bust-triage`'s verdict block shows `census replace/edit` and
+  nothing else. `anchorDelta` exists nowhere outside `replay.mjs`: zero hits in
+  `bust-triage.mjs` and zero in the threat matrix. A walker who runs only the
+  triage (which is what step 2 of `runbooks/bust-appears.md` prescribes) cannot
+  tell an anchored ±2 re-stamp from a deep oscillation, and the two have
+  different mitigation stories inside one row.
+  Design: `bust-triage` already imports `censusPair` from `replay.mjs`; have it
+  also report the pair's `anchorDelta` and any `blockMigration`/FLAP rows on
+  the same pair, and print the far-from-anchor callout verbatim when it fires.
+  Verifier: run against this capture's stamp — the row must name FLAP and the
+  anchor distance; run against a ±2 anchored instance and it must not.
 
 - **READY (small, operator-side, dotfiles — POINTER) — `doctor` has no verdict
   over the live EXTENSION set, so six extensions run undeclared and nothing
