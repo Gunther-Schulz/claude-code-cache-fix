@@ -178,10 +178,8 @@ right.
    `join:cross-message`?** Until this is measured, "row 4 is partly mitigated"
    is a claim nobody has tested — and it is the premise the whole mitigation
    step rests on.
-   <!-- entry: "does `movedFresh` EVER fire on a pair the census labels" -->
 8. **`rebilledBytes` prices the re-bill from the DIVERGENCE.** A 2.6×
    understate on the number every cost figure is made of.
-   <!-- entry: "`rebilledBytes` prices the re-bill from the DIVERGENCE, the" -->
 9. **`bust-triage` maps `replace/edit` -> row 4 flatly.** The census class is
    not the cause, and the flat map is how a wrong row gets its evidence
    inflated.
@@ -632,69 +630,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   one. Live and growing, not historical. Two further entries were booked there
   from this pass (the 45 unreadable ledger lines' writer; the missing ledger
   query surface).
-
-- **READY — does `movedFresh` EVER fire on a pair the census labels
-  `join:cross-message`? The matrix and the tool disagree and nobody has
-  measured it.** Booked 2026-08-07 from the 05:24:37Z statiker walk. Row 4's
-  2026-07-31 datapoint says the flap/cross-message-join mitigation is "BUILT
-  and corpus-clean, pending deployment"; `replay.mjs`'s own census text says "a
-  cross-message join spans two messages, so no hash set in the extension
-  matches it"; and on that live 134k bust the deployed extension logged
-  `moved=0 movedFresh=0` while the census scored the pair `mitigation: 0/0
-  mitigable` — the shape never entered the mitigable denominator at all. One of
-  those two statements is about a shape the other does not name, which is the
-  one-phenomenon-two-names trap this repo already books elsewhere. This is a
-  MEASUREMENT, not a design: over the corpus the daily sweep already reads,
-  count pairs the census labels `join:cross-message` and, for each, whether the
-  insertion event log records a `movedFresh > 0` at that request. Done when the
-  two claims are reconciled in the matrix, or the divergence is minted as its
-  own row. Discriminator stated so the result cannot be read both ways: a
-  non-zero rate means the mitigation reaches the class and the 05:24 instance
-  is a miss to attribute; a zero rate means the built mitigation and the census
-  label name different shapes, and row 4's "pending deployment" line is
-  describing something that is not this.
-
-- **READY — `rebilledBytes` prices the re-bill from the DIVERGENCE, the wire
-  prices it from the last surviving BREAKPOINT, and the fire ledger's one
-  meaningful ratio is built on the first.** Derived by hand during the
-  2026-08-06 18:08:32Z walk and not booked at the time — caught by the
-  session-close named-and-unbooked sweep, which is exactly the class that
-  step existed for.
-  `findMitigationGaps` computes `rebilled` as the sum of `inBytes` from the
-  divergence index onward (`replay.mjs`, the `cur.inBytes.slice(from)` line),
-  and `savedBytes` is its complement. `gate-live`'s `summariseFireBytes` reads
-  both as the relocations class's leaked/saved columns, and its own comment
-  calls `saved/(saved+leaked)` "the one ratio on this line that means
-  something".
-  **The model is breakpoint-blind.** The API reuses up to a WRITTEN
-  cache_control breakpoint, not up to an arbitrary index, so a divergence at
-  index N re-bills from the last breakpoint at or before N — and when no
-  breakpoint sits between the array start and N, that is the whole array.
-  Measured on the 18:08:32Z pair (s-captureAM, n=265->266): the census row
-  reports `rebilledBytes` 114,653 while the transcript recorded `cc` 300,597
-  against `ctx` 315,821 with `cacheRead` **15,222** — the surviving hit is
-  tools+system alone. Threat-matrix row 4 already states this economics in
-  prose ("all of which sit at the tail"); what is new is that a FIELD feeding
-  a ledger does not model it.
-  **Units, stated because this repo has been bitten by exactly this:** 114,653
-  is `JSON.stringify(...).length` — UTF-16 code units under a name that says
-  bytes — and 300,597 is tokens. They are not two measurements of one
-  quantity and the entry does not divide them. The claim is about the MODEL,
-  not a ratio between those two numbers.
-  **What is NOT established, and it decides the size of the fix:** whether the
-  ratio survives. Both columns share the model, so a uniform understatement
-  would cancel — but the error depends on per-pair breakpoint placement, so
-  uniformity is an assumption, not a finding. Nothing here has measured it.
-  Design: price from the last cache_control breakpoint at or before the
-  divergence, which `compactEntry` can retain as a per-message breakpoint
-  index at no content cost (`outHashNoCC`/`stripCacheControlDeep` already walk
-  the field). Keep the current number under its own name rather than
-  redefining a field other rows carry.
-  Verifier, red-first: on this pair the new number must price essentially the
-  whole array while the old one prices the suffix, and a TAIL edit — where a
-  breakpoint does sit at the divergence — must leave both numbers equal, since
-  that is the case the current model gets right and a fix that moves it is
-  overshooting.
 
 - **READY — `bust-triage` cannot reach threat-matrix row 24 by ANY of its three
   routes, so the whole resume / born-large class triages as UNVERIFIABLE or
@@ -1901,6 +1836,126 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **READY — ~30% of `join:cross-message` pairs do NOT fire `movedFresh`, and
+  nobody has established whether they share a cause.** Booked 2026-08-08 from
+  the corpus measurement that closed the question above: over all 89 captures
+  under PRODUCTION gates, 18,425 pairs, **139 labelled `join:cross-message`, 97
+  of them (69.8%) fire `movedFresh`**. The measurement's job was to decide
+  whether the mitigation reaches the class at all — it does — and the residue
+  is a separate question the same run surfaced and deliberately did not chase.
+  **Why it is worth its own entry rather than a footnote:** the 42 non-firing
+  pairs are, today, indistinguishable from each other. Some are presumably the
+  same shape as the 05:24:37Z instance (s-captureAN) that motivated the parent
+  entry and is confirmed absent from the 97; whether the rest share that shape,
+  several shapes, or none, is unmeasured. A 30% miss rate quoted without that
+  split is a number that sounds like a bound and is not one.
+  Design, decided: classify the 42. Group them by whatever the census already
+  emits (anchorDelta band, block counts, whether the suppression set contained
+  a NEAR-miss hash), and report the distribution — the deliverable is the
+  SPLIT, not a rate. Only once the groups exist is it worth asking whether any
+  of them is mitigable.
+  Verifier, red-first and permanent because it runs over committed corpus
+  behaviour rather than live state: the classifier must place the 05:24:37Z
+  pair in a named group rather than in an "other" bucket, and the group counts
+  must sum to 42 with an explicit zero for any empty class — a classifier whose
+  buckets do not reconcile against the total has not classified anything.
+  Consumer tier **1 (event disposition)** — it decides whether an individual
+  cross-message miss is a known shape or a new one. Unranked (booked after the
+  derivation).
+  <!-- entry: "~30% of join:cross-message pairs do NOT fire movedFresh" -->
+
+- **READY (small) — `rebilledBytes` still emits the understated number under
+  the intuitive NAME, while the corrected figure hides behind a longer one.**
+  Booked 2026-08-08 as the named residual of the fix above. The lane added
+  `rebilledBreakpointBytes` / `savedBreakpointBytes` alongside and left
+  `rebilledBytes` / `savedBytes` untouched — correct as a conservative change
+  that breaks no consumer, and it leaves the misleading half in the position a
+  reader reaches for first.
+  Measured on the worked example (s-captureAM, n=265->266): `rebilledBytes` =
+  **114,653**, `rebilledBreakpointBytes` = **884,858**, the latter
+  independently verified equal to the sum of all 291 messages in the raw
+  capture. That is a **7.7x** spread between two fields whose names differ by
+  one word — and note the parent entry's own headline said 2.6x, so the entry
+  under-stated its own defect and the fix's measurement corrected it.
+  **Why a naming change rather than leaving both:** every cost figure in this
+  repo is assembled by a reader choosing a field, and the field named
+  `rebilledBytes` is the one they will choose. Design, decided: rename the
+  divergence-based field to `rebilledSuffixBytes` — which is what it actually
+  measures, the suffix from the divergence — so neither name is the obvious
+  default and the reader has to say which they mean. Do NOT delete it: it is
+  the right number for "how much of the tail changed", a different question
+  from what the cache re-bills.
+  This is a value-set change others depend on, so it lands with its DEPENDENTS
+  SEARCH stated — command and hits — in the same commit: `rebilledBytes` and
+  `savedBytes` are read by `gate-live.mjs`, the status file's row schema, and
+  anything consuming `replay.mjs --json`. A rename that misses one of those
+  breaks silently, which is the class this repo's convention exists for.
+  Verifier: the search's own hits, all updated, plus the suite green.
+  <!-- entry: "rebilledBytes still emits the understated number under the intuitive NAME" -->
+
+- **(DONE — MEASURED 2026-08-08; the answer is YES, 69.8%) does `movedFresh` EVER fire on a pair the census labels
+  `join:cross-message`? The matrix and the tool disagree and nobody has
+  measured it.** Booked 2026-08-07 from the 05:24:37Z statiker walk. Row 4's
+  2026-07-31 datapoint says the flap/cross-message-join mitigation is "BUILT
+  and corpus-clean, pending deployment"; `replay.mjs`'s own census text says "a
+  cross-message join spans two messages, so no hash set in the extension
+  matches it"; and on that live 134k bust the deployed extension logged
+  `moved=0 movedFresh=0` while the census scored the pair `mitigation: 0/0
+  mitigable` — the shape never entered the mitigable denominator at all. One of
+  those two statements is about a shape the other does not name, which is the
+  one-phenomenon-two-names trap this repo already books elsewhere. This is a
+  MEASUREMENT, not a design: over the corpus the daily sweep already reads,
+  count pairs the census labels `join:cross-message` and, for each, whether the
+  insertion event log records a `movedFresh > 0` at that request. Done when the
+  two claims are reconciled in the matrix, or the divergence is minted as its
+  own row. Discriminator stated so the result cannot be read both ways: a
+  non-zero rate means the mitigation reaches the class and the 05:24 instance
+  is a miss to attribute; a zero rate means the built mitigation and the census
+  label name different shapes, and row 4's "pending deployment" line is
+  describing something that is not this.
+
+- **(DONE — 2026-08-08, `1d07836`; naming residual booked below) `rebilledBytes` prices the re-bill from the DIVERGENCE, the wire
+  prices it from the last surviving BREAKPOINT, and the fire ledger's one
+  meaningful ratio is built on the first.** Derived by hand during the
+  2026-08-06 18:08:32Z walk and not booked at the time — caught by the
+  session-close named-and-unbooked sweep, which is exactly the class that
+  step existed for.
+  `findMitigationGaps` computes `rebilled` as the sum of `inBytes` from the
+  divergence index onward (`replay.mjs`, the `cur.inBytes.slice(from)` line),
+  and `savedBytes` is its complement. `gate-live`'s `summariseFireBytes` reads
+  both as the relocations class's leaked/saved columns, and its own comment
+  calls `saved/(saved+leaked)` "the one ratio on this line that means
+  something".
+  **The model is breakpoint-blind.** The API reuses up to a WRITTEN
+  cache_control breakpoint, not up to an arbitrary index, so a divergence at
+  index N re-bills from the last breakpoint at or before N — and when no
+  breakpoint sits between the array start and N, that is the whole array.
+  Measured on the 18:08:32Z pair (s-captureAM, n=265->266): the census row
+  reports `rebilledBytes` 114,653 while the transcript recorded `cc` 300,597
+  against `ctx` 315,821 with `cacheRead` **15,222** — the surviving hit is
+  tools+system alone. Threat-matrix row 4 already states this economics in
+  prose ("all of which sit at the tail"); what is new is that a FIELD feeding
+  a ledger does not model it.
+  **Units, stated because this repo has been bitten by exactly this:** 114,653
+  is `JSON.stringify(...).length` — UTF-16 code units under a name that says
+  bytes — and 300,597 is tokens. They are not two measurements of one
+  quantity and the entry does not divide them. The claim is about the MODEL,
+  not a ratio between those two numbers.
+  **What is NOT established, and it decides the size of the fix:** whether the
+  ratio survives. Both columns share the model, so a uniform understatement
+  would cancel — but the error depends on per-pair breakpoint placement, so
+  uniformity is an assumption, not a finding. Nothing here has measured it.
+  Design: price from the last cache_control breakpoint at or before the
+  divergence, which `compactEntry` can retain as a per-message breakpoint
+  index at no content cost (`outHashNoCC`/`stripCacheControlDeep` already walk
+  the field). Keep the current number under its own name rather than
+  redefining a field other rows carry.
+  Verifier, red-first: on this pair the new number must price essentially the
+  whole array while the old one prices the suffix, and a TAIL edit — where a
+  breakpoint does sit at the divergence — must leave both numbers equal, since
+  that is the case the current model gets right and a fix that moves it is
+  overshooting.
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly

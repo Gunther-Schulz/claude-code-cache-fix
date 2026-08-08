@@ -1943,10 +1943,22 @@ function scanBlockMigrations(prev, cur) {
 // findSuppressibleDuplicate's own hash set, so an in-entry join is a
 // migration the shipped mitigation can already match. `cross-message` spans
 // two ADJACENT messages (a message's wrapped blocks plus the whole of the
-// next one) and no hash set in the extension covers it — that is the parked
-// design item's subject, and the tag is what will count it. Which is why the
-// kind rides on the row rather than being folded away: the census reader has
-// to be able to tell "already matchable" from "nothing can match this yet".
+// next one).
+//
+// CORRECTED 2026-08-08, and the sentence that stood here was FALSE as a
+// blanket claim: it read "no hash set in the extension covers it". Measured
+// corpus-wide under PRODUCTION gates over all 89 captures — 18,425 pairs, 139
+// of them labelled `join:cross-message` — `movedFresh` fires on **97 of the
+// 139 (69.8%)**. The extension matches many cross-message joins by exact
+// hash; verified on one pair where the suppression set contains the EXACT
+// hash of one of its two cross-message rows. So the kind is NOT "nothing can
+// match this yet", and an individual miss is an individual miss to attribute
+// rather than evidence the class is unreached.
+// What remains open is the ~30% that do NOT fire; nobody has established
+// whether they share a cause (BACKLOG). The kind still rides on the row —
+// not to separate "matchable" from "unmatchable", which was the wrong
+// dichotomy, but because the two kinds have different match RATES and a
+// reader pooling them cannot see that.
 //
 // The join hashes themselves are NOT computed here — they ride on the compact
 // entry (`inJoins`, compactEntry), because a join needs the block TEXT and
