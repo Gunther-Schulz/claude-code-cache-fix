@@ -531,6 +531,69 @@ second implementation of an identity or a divergence test has produced a
 confident wrong answer here three times, and this is the one place a wrong
 answer sends us to fix the wrong system.
 
+### CLOSING is established against the WORLD, never against a document that says it is closed
+
+MANDATE (operator, 2026-08-08): *"every bust needs to be investigated until it
+is certain — not circumstantial construction or guessing."* Written here rather
+than absorbed as a resolution, because the failure recurred three times in one
+day, in both directions, and each time the closing sentence was TRUE about the
+document it came from.
+
+**The asymmetry that makes this a rule and not advice: OPEN is self-correcting,
+CLOSED is not.** An item wrongly left open costs one re-read at the next
+derivation. An item wrongly CLOSED leaves every future list — nobody looks
+again, and the thing that would have prompted a second look is exactly the
+sentence that closed it. So closure carries an evidence burden that staying
+open does not.
+
+**The rule.** A bust, a class, or a concern is closed only by evidence read
+from the RUNNING SYSTEM: the installed artifact, the live process, the event
+log at the timestamp, the counter after the change. A document *about* the
+system is never that evidence — not a handoff, not a status header, not an
+entry's own grade, not another repo's backlog grade, not this file. Those are
+PROMPTS TO CHECK. Reading one and repeating it is inheritance, not
+verification, and it reads identically to both its author and its reader.
+
+The three instances, one day, all with true source sentences:
+
+- **A discharge inherited from a handoff.** The midday handoff said the
+  cross-repo ❄ items had shipped, "so that cross-repo pointer is discharged".
+  That was repeated to the operator as fact. The operator observed the class
+  still firing minutes earlier; one `md5sum` settled it — the installed
+  statusline was byte-identical to the FIXED repo copy and installed an hour
+  BEFORE the events. The fix was live and the class fired anyway. The handoff
+  sentence was true (the items had shipped) and the conclusion drawn from it
+  was false.
+- **A row's status standing in for an instance measurement.** `bust-triage`
+  answered `MITIGATED` on a live bust by mapping the census class to the
+  threat-matrix ROW's status — a document about the class, quoted as a
+  measurement of the instance. Nothing absorbed on that instance.
+- **The inverse, so the rule is not read as one-directional.** A ranked entry
+  claimed a permission grant "does not exist"; it existed, at line 9 of the file
+  the entry named. Wrongly OPEN this time, from the same habit — the entry's
+  own body read instead of the file.
+
+**What "certain" means operationally, so it is checkable rather than a
+feeling:** name the observation that would have shown the OPPOSITE, and state
+that you went and looked for it. `md5sum` against the installed file was that
+observation, and it cost one command. If no such observation can be named, the
+item is not closed — it is assumed, and it says so.
+
+**Two things this does NOT demand,** because a rule that fires on everything
+trains its reader to ignore it. It does not forbid a walk from ending in
+COULD-NOT-VERIFY or PARKED — those are honest terminal states, and the runbook
+already names them with their missing evidence. And it does not require
+re-verifying every fact in a handoff before using it: a handoff is a fine basis
+for *doing* work. What it forbids is one specific act — using a document as the
+basis for CLOSING something, or for telling the operator that something is
+closed.
+
+Corollary for cross-repo POINTER items, which is where this bit: the target's
+grade in the other repo answers "did they ship something", never "is our
+concern gone". Those are different questions, and today the first was YES while
+the second was NO. Resolved-there is a prompt to re-read our own entry's premise
+against the world; it is never a discharge on its own.
+
 **Group by conversation before comparing anything.** One session-id header
 carries the main thread, every subagent, and CC's own sidecar calls. Comparing
 across them makes tenant switches look like churn. This artifact produced
