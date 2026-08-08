@@ -5354,6 +5354,28 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   exits 0 against a block whose header date is the derivation's own, and the
   STALE banner is gone. Do NOT patch the existing block.
 
+- **READY (small) — `absence-scan`'s `allowlisted:` line cannot distinguish a
+  whole-file SKIP from a class-scoped DROP, which is exactly the distinction the
+  2026-08-05 narrowing was made to create.** Noticed 2026-08-08 while scanning
+  today's sweep pins before committing them: three files reported `allowlisted:`
+  and the reader cannot tell whether they were scanned-with-two-findings-dropped
+  or skipped whole. `report()` prints one line for both routes — `main()`'s file
+  branch and `scanGitRange` both `allowlisted.push(file)` on a full skip
+  (`isAllowlisted`), and both push again when `kept.length < findings.length`.
+  **Graded honestly as LATENT, not as a lying instrument, because the check was
+  run rather than assumed:** `isAllowlisted` was narrowed the same day to mean
+  "exempt from EVERY class", and no `ALLOWLIST` entry uses `classes: "all"`
+  today, so the full-skip route is currently unreachable. It becomes live the
+  day someone adds one — and then a path-wide skip reads exactly like a
+  two-class drop, which is the entry-path shape `docs/dev-loop.md` collects (the
+  protected thing reachable by a second, silent route). Design, decided: two
+  distinct lines — `skipped (all classes): <path>` and
+  `exempt <class,…>: <path>` — so the report states which route fired. Verifier,
+  red-first: a temporary `classes: "all"` entry must make the two lines differ;
+  today both render identically. NOT built on notice because
+  `tools/absence-scan.mjs` is owned by a running lane (the finding-granular
+  discard); this is the booking, and whoever holds that file next takes it.
+
 - **PARKED — nothing checks that a booked verifier is still RUNNABLE, so a
   red-first arrangement rots silently between booking and build.** Booked
   2026-08-08 as the WRITER half of the leak-scan entry's stale-verifier
