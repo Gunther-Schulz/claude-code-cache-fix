@@ -43,9 +43,22 @@ export async function loadExtensions(dir, configPath) {
       const cfg = config[ext.name];
       const enabled = cfg?.enabled ?? ext.enabled ?? true;
       const order = cfg?.order ?? ext.order ?? 1000;
+      // Which of the three layers decided `enabled` — surfaced on /health
+      // (BACKLOG "extensions.json is NOT the activation gate") so the loaded
+      // set is answerable instead of silently defaulting to on. Config wins
+      // outright when present, even when it flips a module's own default
+      // (tool-input-normalize: file says `enabled:false`, config says
+      // `true` — the config override IS why it runs, so it reports
+      // "config", not "module-default").
+      const enabledSource = cfg?.enabled !== undefined ? "config" : ext.enabled !== undefined ? "module-default" : "implicit-true";
 
       if (enabled) {
-        extensions.push({ ...ext, order, _file: file });
+        // `enabled` is placed after the `...ext` spread so the computed,
+        // three-layer-resolved value wins over any literal `enabled` the
+        // module itself exports (e.g. tool-input-normalize's own
+        // `enabled: false` would otherwise leak through unchanged even
+        // though the config override is what actually turned it on).
+        extensions.push({ ...ext, order, _file: file, enabled, _enabledSource: enabledSource });
       }
     } catch (err) {
       // Load-bearing observability: this branch is the only signal that the

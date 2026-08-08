@@ -96,7 +96,7 @@ const TMPDIR_EXEMPT = {
   // Creators that own their cleanup — each verified by the leftover count
   // after a full suite run, which is 0.
   "tools/sim-session-budget-breaker.mjs": [1, "sim event log; removed by its own process.on('exit')"],
-  "test/proxy-server.test.mjs": [2, "ext dirs; removed in finally / after hooks"],
+  "test/proxy-server.test.mjs": [3, "ext dirs; removed in finally / after hooks"],
   "test/proxy-session-budget-breaker.test.mjs": [3, "event log files; removed in after hooks"],
   "test/proxy-pipeline.test.mjs": [1, "config dir; removed in the after hook"],
   // Paths built to be ABSENT or merely asserted about — these create nothing.

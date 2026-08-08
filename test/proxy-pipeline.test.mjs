@@ -84,6 +84,83 @@ describe("extension pipeline", () => {
     });
   });
 
+  // BACKLOG: "extensions.json is NOT the activation gate" — `enabled` is
+  // computed from three layers (config / module default / implicit true)
+  // and absence from config means DEFAULT ON. `_enabledSource` records
+  // which layer decided, so /health can make the loaded set answerable
+  // instead of a silent implicit-on.
+  describe("_enabledSource attribution", () => {
+    it("red-first: a file absent from config and with no own `enabled` loads via implicit-true", async () => {
+      await writeFile(join(testDir, "implicit.mjs"), `export default { name: "implicit", order: 10, onRequest(ctx) {} };`);
+      await writeFile(configPath, JSON.stringify({}));
+
+      const { loadExtensions } = await freshImport();
+      const exts = await loadExtensions(testDir, configPath);
+      const ext = exts.find((e) => e.name === "implicit");
+
+      assert.ok(ext, "implicit extension must be loaded (default-on)");
+      assert.equal(ext.enabled, true);
+      assert.equal(ext._enabledSource, "implicit-true");
+
+      await rm(join(testDir, "implicit.mjs"));
+    });
+
+    it("negative control: a file with its own enabled:false and no config override does NOT load", async () => {
+      await writeFile(join(testDir, "self-disabled.mjs"), `export default { name: "self-disabled", order: 10, enabled: false, onRequest(ctx) {} };`);
+      await writeFile(configPath, JSON.stringify({}));
+
+      const { loadExtensions } = await freshImport();
+      const exts = await loadExtensions(testDir, configPath);
+
+      assert.ok(!exts.find((e) => e.name === "self-disabled"), "self-disabled extension must NOT appear in the loaded set");
+
+      await rm(join(testDir, "self-disabled.mjs"));
+    });
+
+    it("attributes source 'module-default' when config is silent and the module states its own enabled:true", async () => {
+      await writeFile(join(testDir, "own-true.mjs"), `export default { name: "own-true", order: 10, enabled: true, onRequest(ctx) {} };`);
+      await writeFile(configPath, JSON.stringify({}));
+
+      const { loadExtensions } = await freshImport();
+      const exts = await loadExtensions(testDir, configPath);
+      const ext = exts.find((e) => e.name === "own-true");
+
+      assert.ok(ext);
+      assert.equal(ext._enabledSource, "module-default");
+
+      await rm(join(testDir, "own-true.mjs"));
+    });
+
+    it("attributes source 'config' when config's enabled:true overrides the module's own enabled:false (tool-input-normalize shape)", async () => {
+      await writeFile(join(testDir, "overridden.mjs"), `export default { name: "overridden", order: 10, enabled: false, onRequest(ctx) {} };`);
+      await writeFile(configPath, JSON.stringify({ overridden: { enabled: true } }));
+
+      const { loadExtensions } = await freshImport();
+      const exts = await loadExtensions(testDir, configPath);
+      const ext = exts.find((e) => e.name === "overridden");
+
+      assert.ok(ext, "config override must turn the extension on despite its own enabled:false");
+      assert.equal(ext.enabled, true);
+      assert.equal(ext._enabledSource, "config", "config is what turned it on, not the module default");
+
+      await rm(join(testDir, "overridden.mjs"));
+    });
+
+    it("attributes source 'config' when config explicitly declares enabled:true and the module has no own enabled", async () => {
+      await writeFile(join(testDir, "declared.mjs"), `export default { name: "declared", order: 10, onRequest(ctx) {} };`);
+      await writeFile(configPath, JSON.stringify({ declared: { enabled: true } }));
+
+      const { loadExtensions } = await freshImport();
+      const exts = await loadExtensions(testDir, configPath);
+      const ext = exts.find((e) => e.name === "declared");
+
+      assert.ok(ext);
+      assert.equal(ext._enabledSource, "config");
+
+      await rm(join(testDir, "declared.mjs"));
+    });
+  });
+
   describe("runOnRequest", () => {
     it("executes hooks in order and mutates ctx", async () => {
       const { loadExtensions, runOnRequest } = await freshImport();

@@ -342,3 +342,119 @@ describe("proxy server /health degraded (#196)", () => {
     assert.ok(!/cache-fix-proxy\.service/.test(parsed.hint), "hint must not be systemd-specific");
   });
 });
+
+// BACKLOG: "extensions.json is NOT the activation gate" — loadExtensions
+// (pipeline.mjs) defaults absence-from-config to enabled
+// (`cfg?.enabled ?? ext.enabled ?? true`), so a `.mjs` dropped into
+// proxy/extensions/ runs with no declaration anywhere and no signal on
+// /health. This makes the loaded set answerable: name, file, order,
+// enabled, and which layer decided `enabled` (config / module-default /
+// implicit-true).
+describe("proxy server /health extensions set (loaded-set answerability)", () => {
+  const extDir = join(tmpdir(), `server-health-extensions-${Date.now()}`);
+  const extConfig = join(extDir, "extensions.json");
+  let extHandle;
+  let extPort;
+
+  before(async () => {
+    await mkdir(extDir, { recursive: true });
+    // Config declares only "declared-ext" (module has no own `enabled`,
+    // so this exercises the "config" source path).
+    await writeFile(extConfig, JSON.stringify({ "declared-ext": { enabled: true, order: 10 } }));
+    await writeFile(
+      join(extDir, "declared-ext.mjs"),
+      `export default { name: "declared-ext", order: 10, onRequest(ctx) {} };`
+    );
+    // No-op extension with NO config entry and NO own `enabled` — this is
+    // the entry's red-first case: absent from config, live anyway, via
+    // implicit default-on.
+    await writeFile(
+      join(extDir, "implicit-ext.mjs"),
+      `export default { name: "implicit-ext", order: 20, onRequest(ctx) {} };`
+    );
+    // No config entry, but the module states its own `enabled:true` —
+    // the third source: "module-default".
+    await writeFile(
+      join(extDir, "module-default-ext.mjs"),
+      `export default { name: "module-default-ext", order: 25, enabled: true, onRequest(ctx) {} };`
+    );
+    // Config overrides the module's own `enabled:false` default — the
+    // tool-input-normalize-shaped case: config is what turned it ON, so
+    // source must read "config", not "module-default".
+    await writeFile(extConfig, JSON.stringify({
+      "declared-ext": { enabled: true, order: 10 },
+      "config-override-ext": { enabled: true, order: 30 },
+    }));
+    await writeFile(
+      join(extDir, "config-override-ext.mjs"),
+      `export default { name: "config-override-ext", order: 999, enabled: false, onRequest(ctx) {} };`
+    );
+    // Negative control: own `enabled:false`, no config entry — must NOT
+    // appear in the loaded set at all (the property the entry's verifier
+    // demands: absence is truly absence, not "enabled:false" in the list).
+    await writeFile(
+      join(extDir, "disabled-ext.mjs"),
+      `export default { name: "disabled-ext", order: 40, enabled: false, onRequest(ctx) {} };`
+    );
+
+    extHandle = await startProxy({
+      port: 0,
+      watch: false,
+      extensionsDir: extDir,
+      extensionsConfig: extConfig,
+    });
+    extPort = extHandle.port;
+  });
+
+  after(async () => {
+    await extHandle.close();
+    await rm(extDir, { recursive: true, force: true });
+  });
+
+  it("GET /health lists the loaded set with name, file, order, enabled, source", async () => {
+    const res = await new Promise((resolve, reject) => {
+      const req = http.request(
+        { hostname: "127.0.0.1", port: extPort, method: "GET", path: "/health" },
+        (r) => {
+          const chunks = [];
+          r.on("data", (c) => chunks.push(c));
+          r.on("end", () => resolve({ status: r.statusCode, body: Buffer.concat(chunks).toString() }));
+        }
+      );
+      req.on("error", reject);
+      req.end();
+    });
+
+    assert.equal(res.status, 200);
+    const parsed = JSON.parse(res.body);
+    assert.ok(Array.isArray(parsed.extensions));
+
+    const byName = Object.fromEntries(parsed.extensions.map((e) => [e.name, e]));
+
+    // Red-first case: absent from config, live anyway, implicit default-on.
+    assert.ok(byName["implicit-ext"], "implicit-ext must appear in the loaded set");
+    assert.equal(byName["implicit-ext"].file, "implicit-ext.mjs");
+    assert.equal(byName["implicit-ext"].order, 20);
+    assert.equal(byName["implicit-ext"].enabled, true);
+    assert.equal(byName["implicit-ext"].source, "implicit-true");
+
+    // Config-declared case.
+    assert.ok(byName["declared-ext"]);
+    assert.equal(byName["declared-ext"].source, "config");
+
+    // Own enabled:true, no config entry — "module-default".
+    assert.ok(byName["module-default-ext"]);
+    assert.equal(byName["module-default-ext"].enabled, true);
+    assert.equal(byName["module-default-ext"].source, "module-default");
+
+    // Config overrides the module's own enabled:false — source must credit
+    // config, not module-default, since config is what actually turned it on.
+    assert.ok(byName["config-override-ext"], "config-override-ext must appear (config turned it on)");
+    assert.equal(byName["config-override-ext"].enabled, true);
+    assert.equal(byName["config-override-ext"].source, "config");
+
+    // Negative control: own enabled:false, no config override — must NOT
+    // appear in the loaded set at all.
+    assert.ok(!byName["disabled-ext"], "disabled-ext must NOT appear in the loaded set");
+  });
+});

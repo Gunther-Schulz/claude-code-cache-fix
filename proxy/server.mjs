@@ -401,6 +401,22 @@ function handleHealth(_req, res) {
     // sweep reported 0 violations; the same corpus under the real gate set
     // reported 2.
     gates: _gates,
+    // The loaded extension set — answerable the same way `gates` is,
+    // because `extensions.json` is NOT the activation gate: `loadExtensions`
+    // (pipeline.mjs) defaults absence-from-config to enabled, so a `.mjs`
+    // dropped into proxy/extensions/ runs unless it disables ITSELF. Read
+    // fresh per request (snapshotRegistry(), not a startup snapshot) so a
+    // hot-reload picks up here too. Deliberately excludes disabled
+    // extensions — this is "what is loaded", not "every file on disk"; a
+    // module with its own `enabled:false` and no config override must not
+    // appear here (see proxy-pipeline.test.mjs negative control).
+    extensions: snapshotRegistry().map((ext) => ({
+      name: ext.name,
+      file: ext._file,
+      order: ext.order,
+      enabled: ext.enabled,
+      source: ext._enabledSource,
+    })),
   }));
 }
 
