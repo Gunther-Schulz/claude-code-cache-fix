@@ -132,7 +132,6 @@ right.
    mtimes. Its `[GRADUATE -> this entry]` marker has now survived three
    consecutive occurrences of its own event, which the dev-loop calls overdue
    rather than pending.
-   <!-- entry: "the operator's view and `bust-triage --list` share NO identifying" -->
 3. **`bust-triage` reports a state-key CHANGE across the pair as its own line.**
    NEW. A measured FALSE VERDICT with a named consumer: it answered
    `MITIGATED / row 1` on s-captureAT, reporting the ROW's status as though it
@@ -140,7 +139,6 @@ right.
    and the runbook's step 2 prescribes running exactly this tool, so a walker
    closes the walk on a pass that was not one. Both polarity cases are live
    TODAY and were confirmed present during this pass (input (i)).
-   <!-- entry: "bust-triage reports a state-key CHANGE across the pair" -->
 4. **Every human-facing stamp emits BOTH zones.** Ten tools emit UTC and none
    emits local. Fired again in this session: separating today's busts from their
    captures required converting `09:59:53Z` to `11:59` local by hand.
@@ -319,7 +317,6 @@ order and grades, and nothing below rank 8 was re-graded here.
    Signal 3 — the class is silent by construction: three sweeps each shipped
    believing it was closed and the first full accounting returned 65. Red-first
    in hand at both polarities, on committed history, so it cannot decay.
-   <!-- entry: "the WRITER-side guard that ends the XDG class" -->
 2. **The 39 fork-owned stale location claims (the accounting's corrected
    scope).** The amplifier to rank 1's generator, and it ranks second only
    because one of its items is itself generative: the CONTRACT SENTENCE at
@@ -564,99 +561,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)** — every "which extension did this"
   attribution, including today's two bust walks, reads the set this would fix.
   <!-- entry: "extensions.json is NOT the activation gate" -->
-
-- **READY — the operator's view and `bust-triage --list` share NO identifying
-  field, so neither side can name an event the other can find.** Operator,
-  2026-08-07: "I feel like there must be some gaps here as well in our tooling
-  that we can't properly match my reporting and what you are able to easily
-  investigate and match." Correct, and it is computable.
-  What each side actually sees. The ❄ token renders **ordinal (`#2`), size,
-  cause, AGE (`17m`)** and the operator knows the **project** they are sitting
-  in; it shows no session id and no timestamp. `--list` renders
-  (`bust-triage.mjs:648-649`) **UTC stamp, size, cause, 8-char sid**; it shows
-  no project, no age, no ordinal. **The only overlap is size+cause.** That is
-  why an entire exchange ran on "203k / 230k / 419k" as the sole handles, and
-  why "the largest" and "the latest" collided into a phantom disagreement — with
-  the zone mismatch (its own entry, above) sitting on top.
-  Design: `--list` gains the three fields the operator can read off their
-  screen — the per-session ORDINAL that worktime displays, the PROJECT
-  directory the session belongs to, and the AGE — beside the existing UTC
-  stamp and sid. The ordinal is the load-bearing one: worktime already computes
-  it (`cold_count`, `claude-worktime.sh:1371`), the operator sees it, and
-  "#2 in statiker" is unambiguous where "230k" is not. Project comes from the
-  transcript path under `~/.claude/projects/`; age is `now - t`, rendered like
-  the token's.
-  **Operator addition, 2026-08-07, and it improves the design:** a WINDOW and
-  SESSION GROUPING, not just extra columns. Today `--list` shows "15 of 112" —
-  a count, not a period — while the question actually asked is "what happened
-  in the last day, and in which sessions". So: `--since <dur>` (default 24h)
-  and rows grouped under their session, each group headed by project and
-  session, e.g. `statiker c08e2235: #1 203k messages_changed 06:08 local /
-  #2 230k messages_changed 06:17 local`. Grouping is what makes the ordinal
-  meaningful, since the ordinal is per-session by construction.
-  Extend `--list`; do NOT add a tool. `bust-triage` already carries the
-  conversation-grouping, the ledger/transcript reconcile, and the
-  three-answer discipline, and a fresh file re-earns all of it from zero.
-  **SEQUENCING, and this is the part that must not be skipped: the overview
-  inherits the ledger's three known duplication modes** — one event booked
-  three times (17:39:59/17:40:08/17:40:16Z), two events booked under
-  contradictory classes (23:59, 03:32), and a pair with no retraction. Built
-  today, a 24-hour overview would render phantom rows with an authoritative
-  face, which is strictly worse than the current friction: the operator would
-  stop trusting it after the first phantom, and a display nobody trusts is the
-  guard-trains-its-reader-to-ignore-it shape. So this ships AFTER, or
-  simultaneously with, the claude-worktime dedupe (that repo's entry (B)), or
-  it ships with a stated caveat line naming the duplication modes in its own
-  output — never silently.
-  Verifier, red-first against today's own confusion: given only what the
-  operator can see — "statiker, #2, 230k, messages_changed, 17m" — one
-  `--list` invocation must identify exactly one row, and the same three inputs
-  against the OTHER session's 419k event must identify a different single row.
-  Today neither is possible, which is the red. Negative control: a session with
-  one bust must render no ordinal, matching the token's own omit-at-N=1 rule,
-  so the two displays cannot disagree about the ordinal itself. Plus a
-  duplication control: the 17:40 triple must appear as ONE row (or as one row
-  flagged as a known duplicate set), never as three.
-
-- **READY — `bust-triage` reports a state-key CHANGE across the pair as its own
-  line (runbook step 8's GRADUATE marker, now with a measured false verdict
-  behind it).** The marker has sat in `docs/runbooks/bust-appears.md` step 8
-  since it was written; 2026-08-08 supplied the miss it predicted. On
-  s-captureAT the tool answered `VERDICT: MITIGATED / matrix row 1 (MITIGATED)`
-  for a pair whose two requests ran under different state keys with both sides
-  `no-prior-canonical` — i.e. it reported the ROW's status as though it were a
-  per-instance absorption claim, on an instance where nothing absorbed.
-  Consumer tier **1 (event disposition)** under the dev-loop's reach ordering:
-  a walker who runs only the triage, which is what step 2 of the runbook
-  prescribes, closes the walk on a pass that was not one.
-  Design: `bust-triage` already locates the pair's two requests by timestamp;
-  read `~/.local/state/cache-fix/snapshots/*-insertion-events.jsonl` (and the
-  deferred-tool log) at those two timestamps, and emit the state key for each
-  side plus a `KEY-FLIP` line when they differ. A flip is a stop-here, ranking
-  with UNCLASSIFIED and STATUS-UNREADABLE, because a body diff cannot see it.
-  Emit `no-prior-canonical` on both sides as its own note even when the key is
-  stable — "armed but baseline-less" is the state this walk needed named.
-  Verifier, red-first, and it is available today rather than synthetic: run the
-  new code against **2026-08-08T09:59:54Z** (s-captureAT) — must emit KEY-FLIP
-  and must NOT close as MITIGATED; and against **2026-08-08T09:48:53Z**
-  (s-captureAS), whose pair was measured state-key IDENTICAL — must NOT emit
-  KEY-FLIP. Two live cases, one of each polarity, so the check cannot pass by
-  always firing. Old code fails the first and passes the second, which is the
-  red.
-  **Second half, same entry because it is the same read** (added 2026-08-08
-  when runbook step 11 was corrected): once the tool reads those logs it also
-  PRINTS the snapshot command for them, beside the pin command it already
-  prints — for whichever artifact the verdict actually rests on. The runbook
-  now carries the artifact table and the machine-local snapshot convention
-  (`~/.local/share/cache-fix/bust-evidence/<date>/`, 0600, never committed —
-  raw lines carry session ids and the hygiene scan's `capture-uuid` class
-  blocks them at push); what is missing is the tool emitting it, so a walker
-  who runs only `bust-triage` is told which freeze to take. Verifier: on
-  s-captureAT the tool must print an event-log snapshot command, on a pair
-  whose finding is byte-shaped it must print the pin command, and the
-  snapshot arm must be shown to reproduce (both timestamps present, >1
-  distinct `key`) — a snapshot is a claim exactly like a pin is.
-  <!-- entry: "bust-triage reports a state-key CHANGE across the pair" -->
 
 - **READY — every human-facing stamp emits BOTH zones, because ten tools emit
   UTC and none emits local.** Measured 2026-08-07: `grep -l 'toISOString\|UTC'
@@ -1624,27 +1528,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   either. Consumer: `bootstrap/doctor.py`, which enumerates its own `*_verdict`
   functions and fails its self-check if one lacks a test.
 
-- **READY — the WRITER-side guard that ends the XDG class: a module importing
-  `statePath`/`dataPath` must not carry a `~/.claude` citation outside a
-  labelled legacy context.** Proposed 2026-08-08 by the lane that ran the
-  accounting, and it is the one item here that would stop the sweeps rather
-  than run another one. Rule zero applies: this is the generator, and every
-  sweep so far has been the amplifier.
-  **Why it is the right predicate:** it is computable, it has near-zero false
-  fires (a legacy/migration mention is labelled and exempt by construction),
-  and it fires at WRITE time rather than at sweep time. Measured reach: it would
-  have caught all 14 comment hits in the accounting's bucket (d), plus the four
-  `description:` strings fixed before them — i.e. the entire source half of a
-  class that has now consumed four lanes.
-  **Red-first, and the arrangement is real and in hand:** the 14 known hits are
-  committed history. Point the check at the tree before `bdd964d` and require it
-  to name them; point it at the tree after the bucket-(d) lane lands and require
-  silence. Both ends exist, so this cannot decay the way a live-state
-  arrangement does.
-  Placement: a repo check under `tools/`, wired into the suite the way the other
-  source-shape guards are. NOT `gate-live` — this is a source property, not a
-  traffic property.
-
 - **READY (counts CORRECTED WITHIN THE HOUR — the counts below are WRONG; read
   this block
   first). FORK-OWNED is 39 items / 42 occurrences; UPSTREAM-OWNED is 4 locations
@@ -2055,6 +1938,120 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — 2026-08-08, `6faf161`) the operator's view and `bust-triage --list` share NO identifying
+  field, so neither side can name an event the other can find.** Operator,
+  2026-08-07: "I feel like there must be some gaps here as well in our tooling
+  that we can't properly match my reporting and what you are able to easily
+  investigate and match." Correct, and it is computable.
+  What each side actually sees. The ❄ token renders **ordinal (`#2`), size,
+  cause, AGE (`17m`)** and the operator knows the **project** they are sitting
+  in; it shows no session id and no timestamp. `--list` renders
+  (`bust-triage.mjs:648-649`) **UTC stamp, size, cause, 8-char sid**; it shows
+  no project, no age, no ordinal. **The only overlap is size+cause.** That is
+  why an entire exchange ran on "203k / 230k / 419k" as the sole handles, and
+  why "the largest" and "the latest" collided into a phantom disagreement — with
+  the zone mismatch (its own entry, above) sitting on top.
+  Design: `--list` gains the three fields the operator can read off their
+  screen — the per-session ORDINAL that worktime displays, the PROJECT
+  directory the session belongs to, and the AGE — beside the existing UTC
+  stamp and sid. The ordinal is the load-bearing one: worktime already computes
+  it (`cold_count`, `claude-worktime.sh:1371`), the operator sees it, and
+  "#2 in statiker" is unambiguous where "230k" is not. Project comes from the
+  transcript path under `~/.claude/projects/`; age is `now - t`, rendered like
+  the token's.
+  **Operator addition, 2026-08-07, and it improves the design:** a WINDOW and
+  SESSION GROUPING, not just extra columns. Today `--list` shows "15 of 112" —
+  a count, not a period — while the question actually asked is "what happened
+  in the last day, and in which sessions". So: `--since <dur>` (default 24h)
+  and rows grouped under their session, each group headed by project and
+  session, e.g. `statiker c08e2235: #1 203k messages_changed 06:08 local /
+  #2 230k messages_changed 06:17 local`. Grouping is what makes the ordinal
+  meaningful, since the ordinal is per-session by construction.
+  Extend `--list`; do NOT add a tool. `bust-triage` already carries the
+  conversation-grouping, the ledger/transcript reconcile, and the
+  three-answer discipline, and a fresh file re-earns all of it from zero.
+  **SEQUENCING, and this is the part that must not be skipped: the overview
+  inherits the ledger's three known duplication modes** — one event booked
+  three times (17:39:59/17:40:08/17:40:16Z), two events booked under
+  contradictory classes (23:59, 03:32), and a pair with no retraction. Built
+  today, a 24-hour overview would render phantom rows with an authoritative
+  face, which is strictly worse than the current friction: the operator would
+  stop trusting it after the first phantom, and a display nobody trusts is the
+  guard-trains-its-reader-to-ignore-it shape. So this ships AFTER, or
+  simultaneously with, the claude-worktime dedupe (that repo's entry (B)), or
+  it ships with a stated caveat line naming the duplication modes in its own
+  output — never silently.
+  Verifier, red-first against today's own confusion: given only what the
+  operator can see — "statiker, #2, 230k, messages_changed, 17m" — one
+  `--list` invocation must identify exactly one row, and the same three inputs
+  against the OTHER session's 419k event must identify a different single row.
+  Today neither is possible, which is the red. Negative control: a session with
+  one bust must render no ordinal, matching the token's own omit-at-N=1 rule,
+  so the two displays cannot disagree about the ordinal itself. Plus a
+  duplication control: the 17:40 triple must appear as ONE row (or as one row
+  flagged as a known duplicate set), never as three.
+
+- **(DONE — 2026-08-08, `13278fa`) `bust-triage` reports a state-key CHANGE across the pair as its own
+  line (runbook step 8's GRADUATE marker, now with a measured false verdict
+  behind it).** The marker has sat in `docs/runbooks/bust-appears.md` step 8
+  since it was written; 2026-08-08 supplied the miss it predicted. On
+  s-captureAT the tool answered `VERDICT: MITIGATED / matrix row 1 (MITIGATED)`
+  for a pair whose two requests ran under different state keys with both sides
+  `no-prior-canonical` — i.e. it reported the ROW's status as though it were a
+  per-instance absorption claim, on an instance where nothing absorbed.
+  Consumer tier **1 (event disposition)** under the dev-loop's reach ordering:
+  a walker who runs only the triage, which is what step 2 of the runbook
+  prescribes, closes the walk on a pass that was not one.
+  Design: `bust-triage` already locates the pair's two requests by timestamp;
+  read `~/.local/state/cache-fix/snapshots/*-insertion-events.jsonl` (and the
+  deferred-tool log) at those two timestamps, and emit the state key for each
+  side plus a `KEY-FLIP` line when they differ. A flip is a stop-here, ranking
+  with UNCLASSIFIED and STATUS-UNREADABLE, because a body diff cannot see it.
+  Emit `no-prior-canonical` on both sides as its own note even when the key is
+  stable — "armed but baseline-less" is the state this walk needed named.
+  Verifier, red-first, and it is available today rather than synthetic: run the
+  new code against **2026-08-08T09:59:54Z** (s-captureAT) — must emit KEY-FLIP
+  and must NOT close as MITIGATED; and against **2026-08-08T09:48:53Z**
+  (s-captureAS), whose pair was measured state-key IDENTICAL — must NOT emit
+  KEY-FLIP. Two live cases, one of each polarity, so the check cannot pass by
+  always firing. Old code fails the first and passes the second, which is the
+  red.
+  **Second half, same entry because it is the same read** (added 2026-08-08
+  when runbook step 11 was corrected): once the tool reads those logs it also
+  PRINTS the snapshot command for them, beside the pin command it already
+  prints — for whichever artifact the verdict actually rests on. The runbook
+  now carries the artifact table and the machine-local snapshot convention
+  (`~/.local/share/cache-fix/bust-evidence/<date>/`, 0600, never committed —
+  raw lines carry session ids and the hygiene scan's `capture-uuid` class
+  blocks them at push); what is missing is the tool emitting it, so a walker
+  who runs only `bust-triage` is told which freeze to take. Verifier: on
+  s-captureAT the tool must print an event-log snapshot command, on a pair
+  whose finding is byte-shaped it must print the pin command, and the
+  snapshot arm must be shown to reproduce (both timestamps present, >1
+  distinct `key`) — a snapshot is a claim exactly like a pin is.
+  <!-- entry: "bust-triage reports a state-key CHANGE across the pair" -->
+
+- **(DONE — 2026-08-08, `2545fdf`; 29 violations remain for the repair lane) the WRITER-side guard that ends the XDG class: a module importing
+  `statePath`/`dataPath` must not carry a `~/.claude` citation outside a
+  labelled legacy context.** Proposed 2026-08-08 by the lane that ran the
+  accounting, and it is the one item here that would stop the sweeps rather
+  than run another one. Rule zero applies: this is the generator, and every
+  sweep so far has been the amplifier.
+  **Why it is the right predicate:** it is computable, it has near-zero false
+  fires (a legacy/migration mention is labelled and exempt by construction),
+  and it fires at WRITE time rather than at sweep time. Measured reach: it would
+  have caught all 14 comment hits in the accounting's bucket (d), plus the four
+  `description:` strings fixed before them — i.e. the entire source half of a
+  class that has now consumed four lanes.
+  **Red-first, and the arrangement is real and in hand:** the 14 known hits are
+  committed history. Point the check at the tree before `bdd964d` and require it
+  to name them; point it at the tree after the bucket-(d) lane lands and require
+  silence. Both ends exist, so this cannot decay the way a live-state
+  arrangement does.
+  Placement: a repo check under `tools/`, wired into the suite the way the other
+  source-shape guards are. NOT `gate-live` — this is a source property, not a
+  traffic property.
 
 - **(DONE — 2026-08-08, `83de792`; residual named below) FORK-NOTES asserts
   `deferred-tool-rewrite` is disabled; it is
