@@ -6,7 +6,24 @@ SYSTEM items — code, PRs, investigations, upstream threads — live here.
 Fork-only file, excluded from PR slices like FORK-NOTES.md. One item per
 bullet, evidence pointer included.
 
-## Build order — DERIVED 2026-08-08 (morning)
+## Build order — DERIVED 2026-08-08 (morning) — **STALE, DO NOT RANK FROM IT**
+
+> **STALE as of 2026-08-08 midday. Re-derive before building anything.** Marked
+> rather than patched, per the rubric's own rule — "the derived order is
+> re-derived, not edited". What moved, all on the day it was derived:
+> (i) **The IRREVERSIBLE partition is EMPTY** — both members shipped (the
+> already-published discard as declared publicness, dotfiles `3014043`; the
+> one-repo reach found already shipped). Its anchors were removed, not
+> re-pointed, per the DONE-anchor guard.
+> (ii) **Four ranked anchors are gone** (35 -> 31): the two above plus Tier B's
+> rank 15 (coverage walk, certified) and rank 16 (byte-gate `anyCreated`).
+> (iii) **The READY population grew from 67 to 76** while nine items shipped —
+> the ranking was computed over a set that no longer exists.
+> (iv) The cost-ordering head (`settings.local.json` grants) shipped, and the
+> mkdtemp leak — never ranked, since it was booked after the derivation — turned
+> out to be the item that had been breaking unrelated tooling machine-wide.
+> A re-derivation is judgment over the whole READY population and wants a fresh
+> context; it is booked READY below.
 
 Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
 ("Build order is DERIVED at build time"), over the **67 `- **READY` bullets
@@ -341,55 +358,61 @@ it grades, and the verdict enum precedes the idle/TTL guard.
 carries order only inside that section — so a rank there would have no carrier
 at all. That is a fact about the tool, not a judgement about the work.
 
-## Handoff — 2026-08-07 midday. Rewritten, not appended; a stale one reads as authoritative.
+## Handoff — 2026-08-08 midday. Rewritten, not appended; a stale one reads as authoritative.
 
-The previous handoff (2026-08-07 early) is REPLACED by this one, per the
-session-close lane's rule. Its content is discharged and not repeated here.
+The 2026-08-07 handoff is REPLACED. Its content is discharged and not repeated.
 
-**The entry point is `continue from backlog`, and nothing below is an
+**The entry point is `continue from backlog`, and nothing here is an
 instruction the entries lack.** Build ORDER is deliberately absent — it is
-derived at build time, and the block above carries the current derivation with
-its date.
+derived at build time, and the block above is BANNER-MARKED STALE with the
+re-derivation booked as a READY entry.
 
-**State.** Fork `main` clean and pushed. `claude-worktime` clean and pushed
-(`cb1b5b4`). `dispatch-guards` observation pushed (`53caa2c`). **dotfiles is
-NOT ours to push right now** — a peer session is working there with the
-XDG-guard directive, and its outgoing set carries that session's commits
-alongside one of ours (the leak-scan reach, verified here).
+**State.** Fork `main` clean and pushed. dotfiles clean and pushed (proxy tree
+pinned `27d810f`, proxy restarted 10:2xZ, running source fingerprint verified
+against the checkout). Nine items shipped today across seven dispatched lanes.
 
-**What is BROKEN rather than merely unbuilt — read this before trusting a
-push.** The leak scan's already-published discard is BLOB-granular, so the next
-edit to ANY file already carrying a published finding is blocked, forever, with
-`--no-verify` as the only exit. It bit `claude-worktime.sh` today and was
-cured for that one file by scrubbing the bytes; the class is untouched and its
-entry carries the design and a red-first verifier available immediately.
-Second: the daily sweep is red (conservation) on three captures; the fourth
-flipped green today. Both are entries, not lore.
+**What is BROKEN rather than merely unbuilt — read before trusting anything:**
+nothing is known-broken in the fork right now. The two things that WERE
+breaking work are fixed and verified: the `mkdtemp` leak (a full suite left 113
+temp dirs, 31,108 had accumulated, `/tmp` hit 100% and broke unrelated tooling
+machine-wide while the suite stayed green) and the leak scan's blob-granular
+discard (a gate that could not pass). Both have loud regression signals now —
+`gate-live` fails on stale run roots, and the discard is finding-granular.
 
-**The first full sweep WITH row pins has run and its pins are committed**
-(`b86a96d`): 90 captures, 194 pins written, 0 rejected, 0 conflicts, 1.3 MB,
-absence-scan clean. That is the human half of the design — the sweep writes,
-never commits — so expect an untracked `test/fixtures/harvested/rowpins/` after
-every sweep from now on, and commit it the same way harvest's fixtures are
-committed. The gate is red on THREE captures, all conservation, down from four:
-the identity-normalization clause landed today and took the fourth green.
+**One decision is OPEN and belongs to the operator** — stated here because the
+close-out asked it and it may not have been answered: `tools/usage-to-dashboard
+-ndjson.mjs:106` now defaults to `statePath('anthropic-proxy-logs')` while
+fgrosswig's dashboard auto-discovers `~/.claude/anthropic-proxy-logs/`. The
+integration was zero-config and silently is not; anyone who upgraded has a
+dashboard quietly showing nothing. `ANTHROPIC_PROXY_LOG_DIR` and `--output-dir`
+are documented as the fix. The DEFAULT is the decision: our XDG hygiene rule, or
+the consumer's directory. It has no entry because it is a question, not a work
+item — see the session-close lane on questions parked in queues.
 
 **Disjoint write-sets, a fact about the files rather than a judgement** — for
-anyone dispatching the ranked head in parallel:
+anyone dispatching in parallel:
   `tools/bust-triage.mjs` + `test/bust-triage-*` + the matrix's row cells
-  `tools/replay.mjs` + `test/replay-gate-selfcheck.test.mjs`
-  `tools/gate-live.mjs` + `tools/harvest.mjs` + `test/rowpin.test.mjs`
+  `tools/replay.mjs` + `tools/coverage-walk.mjs` + `test/replay-gate-selfcheck*`
+  `tools/reminder-migration-census.mjs` + `test/census-*`
+  `proxy/**` — deployment-coupled: any change needs a dotfiles pin bump
+  (`git rev-parse --short HEAD:proxy`) and a restart
   `BACKLOG.md` belongs to the dispatcher alone, always.
-The collision surfaces that are NOT visible in a file list — the shared git
-index, the node_modules symlink, the alias registry, sibling-repo isolation —
-are written down in `docs/dev-loop.md` ("Once the order is derived, run it in
-PARALLEL"), because they cost real time to rediscover.
+The collision surfaces NOT visible in a file list — the shared git index, the
+node_modules symlink, the alias registry, sibling-repo isolation — are in
+`docs/dev-loop.md` ("Once the order is derived, run it in PARALLEL").
 
-**Work booked in other repos, with pointers here:** the XDG data/config guard
-(`docs/directives/xdg-data-and-config-dir-guard.md`, executing in dotfiles),
-the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
-(dotfiles), two claude-worktime items, and the push-gate over-fire
-(dispatch-guards `dev-notes/`, already written there).
+**Work booked in other repos, with pointers here:** the declared-public
+visibility check (dotfiles doctor), the push-gate and path-hook payload-vs-intent
+fires (the `dispatch-guards` plugin's `dev-notes/`), and the claude-worktime
+items. A peer session was active in `claude-worktime` and dotfiles today.
+
+**What this session added to the method**, all in `docs/dev-loop.md`, because
+the next session inherits the rules and not the reasoning: the pattern-scope
+blind spot and its ACCOUNTING mechanism (which returned 65 on its first run),
+enumeration keyed on a NAME vs a BEHAVIOUR, red-first arrangements that decay
+when the work is committed, instruments that match themselves, fixtures encoding
+states the real system cannot produce, extract-then-validate probes, and the
+ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
@@ -5770,6 +5793,79 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   the walk is actually in someone's way (a path with versions in the thousands,
   or a push that visibly stalls). The number above is the trigger to compare
   against.
+
+- **READY — re-derive the build order; the block is banner-marked STALE and
+  four of its ranked anchors shipped the day it was written.** Booked at session
+  close 2026-08-08 rather than done, because a derivation is judgment over the
+  whole READY population and this session had spent its context elsewhere.
+  What moved is enumerated in the banner (empty irreversible partition, 35 -> 31
+  anchors, 67 -> 76 READY). Done-criterion: `node tools/backlog-order.mjs
+  --check` exits 0 against a block whose header date is the derivation's own,
+  and the STALE banner is gone. Do NOT patch the existing block.
+  Note for whoever does it: the irreversible partition being EMPTY is a real
+  input, not an oversight — an empty top partition is a re-derivation trigger,
+  not a vacancy to fill by promoting whatever sat below it.
+
+- **READY (small, POINTER — body belongs in the dotfiles/harness repo) — a
+  path-restriction hook read a REGEX as a filesystem path and denied the
+  command.** Measured 2026-08-08: `restrict-bash-paths.py` blocked a lane's
+  probe because the grep PATTERN it carried was `/home/[a-z]+/\.claude` — a
+  regular expression, matched as though it were a path outside the allowed
+  directories. The lane obeyed the hook's own instruction not to retry or work
+  around, so that arm of its reach check is permanently UNRUN.
+  **Third instance today of one shape**, which is what makes it worth booking
+  rather than shrugging at: a guard whose predicate reads the PAYLOAD when it
+  means to read the INTENT. The other two are the subagent push-gate firing on
+  the word "push" inside commit MESSAGES, twice, both on lanes whose subject was
+  the push hook. Design not decided here — it belongs to whoever owns the hook;
+  what this entry carries is the measured shape and the fire count.
+
+- **READY — bucket (d) of the XDG accounting: 65 measured instances still
+  telling readers the proxy writes under `~/.claude`.** Booked 2026-08-08 with
+  the list ITEMISED here rather than left in a scratchpad, because a dispatch
+  was in flight against it and its input had no durable carrier — if that lane
+  had died the work would have been lost with the message that described it.
+  IN FLIGHT as of this booking (worktree `cache-fix-xdgd`, branch
+  `wt/xdg-bucket-d`, base `bdd964d`); if that lane landed, re-grade, and if it
+  did not, this entry is complete on its own.
+  **The list, by write-set, so it can be split or run whole:**
+  (1) SOURCE COMMENTS contradicting their own module, 14 — each file imports and
+  calls `statePath`/`dataPath`: `proxy/extensions/prefix-diff.mjs:5,11,954,957`
+  (`:954` is an `@param` default), `upstream-change-detection.mjs:8,10`,
+  `bootstrap-defense.mjs:156`, `overage-warning.mjs:7`, `proxy/server.mjs:13`,
+  `proxy/oauth/events.mjs:2`, `proxy/session-mirror-writer.mjs:7`,
+  `usage-log.mjs:1`, `upstream-error-log.mjs:2`, `rate-limit-log.mjs:1`.
+  (2) THE CONTRACT SENTENCE, `proxy/session-mirror-writer.mjs:8-9`: "established
+  convention is all proxy artifacts live under `~/.claude/` per Fable round 1 B5
+  finding", four lines under `import { statePath }`. Not a stale path — a stated
+  project CONVENTION that is false and will regenerate the class in the next
+  artifact someone writes. Fix this one even if nothing else on the list gets
+  done.
+  (3) `README.ko.md`, 7 — never swept by either doc lane, both of whose file
+  lists named `README.md` and `README.zh.md` from memory. `:128` claims ALL
+  telemetry is written under `~/.claude/`; also `:42`, `:205` x3, `:301` x2.
+  `:249` is CORRECT (inside a migration blockquote) and stays.
+  (4) `docs/runbooks/runtime-anomaly.md`, 5 — `:35` says five extensions log
+  under `~/.claude/` directly above a table whose rows are XDG-relative; plus
+  `:68,69,71,104`.
+  (5) `tools/`, 16 — `usage-to-dashboard-ndjson` x4, `cost-report` x3,
+  `cache_analysis.py` x2, one each in `bust-triage`, `cold-events`,
+  `quota-analysis`, `reminder-migration-census`, `replay`,
+  `sim-session-budget-breaker`, `test-config-root`. `test/`, 3 —
+  `harvest-pin:232`, `proxy-session-budget-breaker:47`, and
+  `proxy-rate-limit-log:306` which is a wrong ASSERT MESSAGE (fix the message,
+  never the assertion).
+  **MUST NOT be "fixed":** Claude Code's own config root (`settings.json`,
+  `hooks/`, `projects/`, `.credentials.json`, `.oauth_refresh.lock`), and
+  `docs/dashboard-integration.md:34,44` which are fgrosswig's dashboard's own
+  default, attributed in the text.
+  **`BACKLOG.md`'s 19 hits are excluded** — mostly historical narrative in
+  entries describing what the paths WERE; the counting lane flagged 19 as a
+  conservative over-count it did not adjudicate.
+  Done-criterion: re-run the accounting (classifier preserved at
+  `docs/directives/` or rebuilt per the method in `docs/dev-loop.md`) and reach
+  bucket (d) = 0, or itemise each survivor with the reason. DEPLOYMENT-COUPLED:
+  `proxy/` changes move the tree hash, needing a dotfiles pin bump and restart.
 
 - **READY — the WRITER-side guard that ends the XDG class: a module importing
   `statePath`/`dataPath` must not carry a `~/.claude` citation outside a
