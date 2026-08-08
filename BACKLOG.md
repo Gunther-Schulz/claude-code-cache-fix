@@ -398,13 +398,25 @@ snapshotted to `~/.local/share/cache-fix/bust-evidence/2026-08-08/` (verified to
 carry both timestamps and >1 distinct key). The capture pin was taken and
 reported `does NOT reproduce`; it was deleted rather than committed.
 
-**One decision is OPEN and belongs to the operator** — stated here because the
-close-out asked it and it may not have been answered: `tools/usage-to-dashboard
--ndjson.mjs:106` now defaults to `statePath('anthropic-proxy-logs')` while
-fgrosswig's dashboard auto-discovers `~/.claude/anthropic-proxy-logs/`. The
-integration was zero-config and silently is not; anyone who upgraded has a
-dashboard quietly showing nothing. `ANTHROPIC_PROXY_LOG_DIR` and `--output-dir`
-are documented as the fix. The DEFAULT is the decision: our XDG hygiene rule, or
+**DECIDED (operator, 2026-08-08 afternoon) — the XDG default STAYS.** The
+question below is settled and carried here only as the record: keep
+`statePath('anthropic-proxy-logs')`, because the config-directory hygiene cost
+is ours permanently (a data file under `~/.claude/` draws a permission prompt on
+every read and write, for every session and agent) while the dashboard side is
+one exported variable. What the decision actually surfaced was a DEFECT, not a
+doc gap: the pointer was already complete — `docs/dashboard-integration.md`
+documents the divergence, the shared `ANTHROPIC_PROXY_LOG_DIR`, the export
+one-liner and the `--output-dir` alternative, and both READMEs link it — but the
+tool's own `--help` claimed its defaults were `~/.claude/usage.jsonl` and
+`~/.claude/anthropic-proxy-logs`, contradicting the `statePath()` calls twenty
+lines above it, and `CACHE_FIX_USAGE_LOG` was undocumented. Fixed and verified
+by running `--help`; the interop caveat now sits in the help text where someone
+debugging an empty dashboard will actually meet it. This is another instance of
+the class the XDG accounting found sixty-five of — a doc line disagreeing with
+the `statePath()` call in its own module — so the accounting's residual is not
+yet zero.
+
+Superseded question, kept for the record: the DEFAULT was the decision — our XDG hygiene rule, or
 the consumer's directory. It has no entry because it is a question, not a work
 item — see the session-close lane on questions parked in queues.
 

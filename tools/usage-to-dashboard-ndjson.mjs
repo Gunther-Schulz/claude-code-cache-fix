@@ -133,13 +133,19 @@ Usage:
   node usage-to-dashboard-ndjson.mjs                 One-shot: read all, write today's file
   node usage-to-dashboard-ndjson.mjs --follow        Tail usage.jsonl, append new records live
   node usage-to-dashboard-ndjson.mjs --stdout        Print NDJSON to stdout instead of files
-  node usage-to-dashboard-ndjson.mjs --input <path>  Custom input (default: ~/.claude/usage.jsonl)
-  node usage-to-dashboard-ndjson.mjs --output-dir <path>  Custom output dir (default: ~/.claude/anthropic-proxy-logs)
+  node usage-to-dashboard-ndjson.mjs --input <path>  Custom input (default: ~/.local/state/cache-fix/usage.jsonl, legacy ~/.claude/usage.jsonl still read)
+  node usage-to-dashboard-ndjson.mjs --output-dir <path>  Custom output dir (default: ~/.local/state/cache-fix/anthropic-proxy-logs)
 
 Output files follow the convention: proxy-YYYY-MM-DD.ndjson (one per UTC day).
 
+Note both defaults are XDG state paths, NOT ~/.claude — fgrosswig's dashboard
+auto-discovers ~/.claude/anthropic-proxy-logs/, so the two do not meet by
+default. Export ANTHROPIC_PROXY_LOG_DIR once (both sides read it) or pass
+--output-dir; docs/dashboard-integration.md carries the full setup.
+
 Environment:
   ANTHROPIC_PROXY_LOG_DIR  Override output directory (also used by fgrosswig's dashboard).
+  CACHE_FIX_USAGE_LOG      Override input path.
 
 Credit: this tool writes the NDJSON schema expected by @fgrosswig's
 claude-usage-dashboard (https://github.com/fgrosswig/claude-usage-dashboard).
