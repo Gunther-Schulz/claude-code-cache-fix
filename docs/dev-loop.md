@@ -720,6 +720,18 @@ lied on 2026-08-05, each of which read as a finding about the system:
   class the pattern cannot match.** If you cannot name one, say that is what
   you did. It costs a sentence and it is the only step that reaches outside the
   instrument.
+  **RUN ONCE, IT RETURNED 65.** The accounting below was first executed
+  2026-08-08 over this tree: 500 instances, every one classified, and bucket
+  (d) STILL-WRONG came back **sixty-five** — after three sweeps had each
+  shipped believing the class was closed. That is the number the mechanism
+  exists to produce, and what it caught is the shape to expect: a translated
+  README nobody's file list included (`README.ko.md`, with a live claim that
+  ALL telemetry is written under the old root), a runbook line contradicting
+  the table directly beneath it, fourteen source comments each disagreeing
+  with the `statePath()` call in their own module, and — the one that would
+  have regenerated everything — a stated project CONVENTION four lines under
+  the import that refutes it. Three of those five classes were invisible to
+  every pattern used before it.
   **And the MECHANISM that ends the class, rather than catching it once** —
   contributed by the third lane to inherit this defect, which is the right
   source for it: after sweeping the named file set, run the pattern over the
