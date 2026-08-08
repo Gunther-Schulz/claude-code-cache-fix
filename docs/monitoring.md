@@ -65,7 +65,7 @@ Enable debug logging to verify the fix is working:
 CACHE_FIX_DEBUG=1 claude-fixed
 ```
 
-Logs are written to `~/.claude/cache-fix-debug.log`. Look for:
+Logs are written to `~/.local/state/cache-fix/debug.log`. Look for:
 - `APPLIED: resume message relocation` — block scatter was detected and fixed
 - `APPLIED: tool order stabilization` — tools were reordered
 - `APPLIED: fingerprint stabilized from XXX to YYY` — fingerprint was corrected
@@ -89,7 +89,7 @@ Enable cross-process prefix snapshot diffing to diagnose cache busts on restart:
 CACHE_FIX_PREFIXDIFF=1 claude-fixed
 ```
 
-Snapshots are saved to `~/.claude/cache-fix-snapshots/` and diff reports are generated on the first API call after a restart.
+Snapshots are saved to `~/.local/state/cache-fix/snapshots/` and diff reports are generated on the first API call after a restart.
 
 ## Environment variables (preload mode)
 
@@ -97,7 +97,7 @@ Proxy mode uses extension configuration in `proxy/extensions.json`. These env va
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CACHE_FIX_DEBUG` | `0` | Enable debug logging to `~/.claude/cache-fix-debug.log` |
+| `CACHE_FIX_DEBUG` | `0` | Enable debug logging to `~/.local/state/cache-fix/debug.log` |
 | `CACHE_FIX_PREFIXDIFF` | `0` | Enable prefix snapshot diffing |
 | `CACHE_FIX_IMAGE_KEEP_LAST` | `0` | Keep images in last N user messages (0 = disabled) |
 | `CACHE_FIX_IMAGE_MAX_DIM` | `0` | Legacy strip-only cap (px). v3.2.1 behavior; still works standalone |

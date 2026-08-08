@@ -85,6 +85,6 @@ itself; a consumer needs none of it.
 The mitigation is invisible by design — the observable is your usage:
 long sessions stop hitting sudden six-figure `cache_creation` spikes on
 turns where nothing big changed. If you suspect a problem, the guard's
-restore events land in
-`~/.claude/cache-fix-snapshots/guard-events.jsonl`; an empty or absent
-file is the normal state.
+restore events land in `~/.local/state/cache-fix/snapshots/` as
+`<key>-guard-events.jsonl`; an empty or absent file is the normal
+state.

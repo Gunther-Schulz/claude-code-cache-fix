@@ -72,10 +72,10 @@ Sem o fix, uma sessão resumida desperdiça ~19x mais tokens reconstruindo o cac
 
 ```bash
 # Ver o log de debug (o que o interceptor fez)
-cat ~/.claude/cache-fix-debug.log
+cat ~/.local/state/cache-fix/debug.log
 
 # Ver estatísticas por fix
-cat ~/.claude/cache-fix-stats.json
+cat ~/.local/state/cache-fix/stats.json
 
 # Ver cota atual (5h e 7d) — modo proxy (v3.5.0+)
 cat ~/.claude/quota-status/account.json

@@ -38,11 +38,11 @@ In **forward-proxy mode** the proxy sits in front of the *real* `api.anthropic.c
 CACHE_FIX_FORWARD_PROXY=on node "$(npm root -g)/claude-code-cache-fix/proxy/server.mjs" &
 # It prints the two env vars to wire the client, e.g.:
 #   export HTTPS_PROXY=http://127.0.0.1:9801
-#   export NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem
+#   export NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem
 
 # Launch Claude Code through it (leave ANTHROPIC_BASE_URL UNSET)
 HTTPS_PROXY=http://127.0.0.1:9801 \
-NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem \
+NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem \
   claude
 ```
 
@@ -58,7 +58,7 @@ The `--remote-control` flag is the one-command equivalent of the manual wiring a
 
 > If you wire forward-proxy mode manually (setting `HTTPS_PROXY` yourself instead of using `--remote-control`), set `NO_PROXY=127.0.0.1,localhost,::1` as well, or local HTTP-transport MCP servers and other localhost services will be routed at the cache-fix proxy and fail. stdio-transport MCP servers are unaffected (they use pipes, not the network).
 
-How it works: the proxy also handles HTTP `CONNECT`. It MITMs **only** the upstream host (`api.anthropic.com`), terminating TLS with a locally-generated CA so it can run the same extension pipeline, and **blind-tunnels every other CONNECT** (mcp-proxy, telemetry, npm, ...) untouched. On first start it generates a CA under `$CLAUDE_CONFIG_DIR/cache-fix-ca/` (default `~/.claude/cache-fix-ca/`; override with `CACHE_FIX_CA_DIR`); the client must trust it via `NODE_EXTRA_CA_CERTS`. A WebSocket/Upgrade to the upstream host (e.g. `/voice`) is relayed to upstream as-is. Because base URL stays `api.anthropic.com`, all of `/api/oauth/*`, `/v1/agents`, Remote Control credential fetches, etc. pass through untouched and RC stays enabled.
+How it works: the proxy also handles HTTP `CONNECT`. It MITMs **only** the upstream host (`api.anthropic.com`), terminating TLS with a locally-generated CA so it can run the same extension pipeline, and **blind-tunnels every other CONNECT** (mcp-proxy, telemetry, npm, ...) untouched. On first start it generates a CA under `~/.local/share/cache-fix/ca/` (`$XDG_DATA_HOME/cache-fix/ca` when that is set; override with `CACHE_FIX_CA_DIR`); the client must trust it via `NODE_EXTRA_CA_CERTS`. A WebSocket/Upgrade to the upstream host (e.g. `/voice`) is relayed to upstream as-is. Because base URL stays `api.anthropic.com`, all of `/api/oauth/*`, `/v1/agents`, Remote Control credential fetches, etc. pass through untouched and RC stays enabled.
 
 Corporate proxy chaining works the same as reverse mode: set `HTTPS_PROXY`/`HTTP_PROXY` for the proxy's **own** upstream egress (the proxy dials `api.anthropic.com` through it). The client's `HTTPS_PROXY` points at the cache-fix proxy; the cache-fix proxy's `HTTPS_PROXY` (in its own env) points at the corporate proxy.
 
@@ -75,26 +75,26 @@ The generated systemd unit / launchd agent carries `CACHE_FIX_FORWARD_PROXY=on`,
 **The service only manages the proxy end.** It does **not** — and cannot — set anything on your `claude` client, which is a separate process. You still wire the client yourself in whatever shell launches `claude`, using the two values from the forward-proxy quick-start above:
 
 - `HTTPS_PROXY` — where the proxy listens: `http://127.0.0.1:<port>` (default port `9801`, or your `CACHE_FIX_PROXY_PORT`).
-- `NODE_EXTRA_CA_CERTS` — the CA the proxy generated on first start: `~/.claude/cache-fix-ca/ca.pem` (or `$CACHE_FIX_CA_DIR/ca.pem`).
+- `NODE_EXTRA_CA_CERTS` — the CA the proxy generated on first start: `~/.local/share/cache-fix/ca/ca.pem` (or `$CACHE_FIX_CA_DIR/ca.pem`).
 
 Three ways to wire it, depending on how broadly you want the vars to apply:
 
 ```bash
 # a) per-invocation — scoped to just this claude run
 HTTPS_PROXY=http://127.0.0.1:9801 \
-NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem \
+NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem \
   claude
 
 # b) whole shell — add to ~/.zshrc / ~/.bashrc (every HTTPS in that shell goes
 #    through the proxy; harmless since non-anthropic hosts are blind-tunneled,
 #    but that shell's HTTPS breaks if the proxy is ever down)
 export HTTPS_PROXY=http://127.0.0.1:9801
-export NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem
+export NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem
 
 # c) scoped to claude only — a shell function (recommended; avoids b's blast radius)
 claude() {
   HTTPS_PROXY=http://127.0.0.1:9801 \
-  NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem \
+  NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem \
     command claude "$@"
 }
 ```
@@ -234,7 +234,7 @@ All proxy settings are controlled via environment variables. Set them before sta
 | `CACHE_FIX_PROXY_BIND` | `127.0.0.1` | Bind address |
 | `CACHE_FIX_PROXY_UPSTREAM` | `https://api.anthropic.com` | Upstream URL. Change to chain another proxy (e.g. `http://localhost:8080`) |
 | `CACHE_FIX_FORWARD_PROXY` | unset | Set to `on` for forward-proxy mode (HTTP CONNECT + selective MITM of the upstream host) so the client points `HTTPS_PROXY` at the proxy instead of `ANTHROPIC_BASE_URL`, keeping Remote Control enabled. See [Forward-proxy mode](#forward-proxy-mode-keeps-remote-control-working). |
-| `CACHE_FIX_CA_DIR` | `~/.claude/cache-fix-ca` | Directory for the forward-proxy CA/leaf cert (generated once on first start). The client trusts `ca.pem` via `NODE_EXTRA_CA_CERTS`. |
+| `CACHE_FIX_CA_DIR` | `~/.local/share/cache-fix/ca` | Directory for the forward-proxy CA/leaf cert (generated once on first start). The client trusts `ca.pem` via `NODE_EXTRA_CA_CERTS`. |
 | `CACHE_FIX_PROXY_TIMEOUT` | `600000` | Request timeout in milliseconds |
 | `CACHE_FIX_EXTENSIONS_DIR` | `proxy/extensions/` | Directory for extension `.mjs` files |
 | `CACHE_FIX_EXTENSIONS_CONFIG` | `proxy/extensions.json` | Extension configuration file |
@@ -381,7 +381,7 @@ Cache-fix's `bootstrap-defense` extension ships three modes, selected via `CACHE
 
 | Mode | Default? | Behavior |
 |---|---|---|
-| `audit` | yes | Bootstrap responses proxy through to CC. Each response is logged to `~/.claude/cache-fix-bootstrap-log.jsonl` with surface metadata: which prompt-source surfaces fired (`tengu_heron_brook` legacy and/or env-var-selected), the SHA-256 hash of the value (first 16 hex chars — never the value itself), and the `CLAUDE_CODE_REMOTE` flag. Multi-surface responses emit one record per surface, correlated by `request_id` + timestamp window. |
+| `audit` | yes | Bootstrap responses proxy through to CC. Each response is logged to `~/.local/state/cache-fix/bootstrap-log.jsonl` with surface metadata: which prompt-source surfaces fired (`tengu_heron_brook` legacy and/or env-var-selected), the SHA-256 hash of the value (first 16 hex chars — never the value itself), and the `CLAUDE_CODE_REMOTE` flag. Multi-surface responses emit one record per surface, correlated by `request_id` + timestamp window. |
 | `block` | opt-in | `onRequest` returns a 200 with an empty JSON body. Upstream is never called, no flag map ever reaches the on-disk GrowthBook cache. Defeats both legacy and env-var-selected injection surfaces. |
 | `allowlist` | opt-in (experimental) | Bootstrap response proxies through, but prompt-source-eligible keys (legacy `tengu_heron_brook` + env-var-selected key) not in the allowlist are stripped from the response body before it reaches CC. Default allowlist is `tengu_heron_brook` (the only known-legitimate historical key); configure via `CACHE_FIX_BOOTSTRAP_ALLOWED_KEYS=comma,separated,list`. Pass `CACHE_FIX_BOOTSTRAP_ALLOWED_KEYS=` (explicit empty) for full deny-all. Other GrowthBook flag keys pass through untouched. May need updates if Anthropic adds legitimate prompt-source keys in future CC releases. |
 
@@ -748,9 +748,9 @@ On multi-agent hosts (multiple Claude Code sessions sharing one proxy), the pre-
 
 ### `CLAUDE_CONFIG_DIR`
 
-Claude Code reads `CLAUDE_CONFIG_DIR` to relocate its config root away from the default `~/.claude` (used to keep multiple independent config roots in separate directories). The proxy now honors the same variable for **all** of its on-disk state: `quota-status/`, `usage.jsonl`, `cache-fix-state/`, session mirrors, snapshots, and OAuth events all land under `$CLAUDE_CONFIG_DIR` instead of a hardcoded `~/.claude`. When it's unset the proxy uses `~/.claude` exactly as before (no change for the common single-config case).
+Claude Code reads `CLAUDE_CONFIG_DIR` to relocate its config root away from the default `~/.claude` (used to keep multiple independent config roots in separate directories). The proxy reads it too, but only for the files Claude Code itself owns — the shared OAuth credential (`.credentials.json`) and its lock. Everything the proxy *writes* now lives under the XDG base directories instead: `$XDG_DATA_HOME/cache-fix` (default `~/.local/share/cache-fix`) for the capture corpus and the forward-proxy CA, and `$XDG_STATE_HOME/cache-fix` (default `~/.local/state/cache-fix`) for `quota-status/`, `usage.jsonl`, `state/`, session mirrors, snapshots, and OAuth events. `~/.claude` is Claude Code's *config* root; the proxy's captures, logs and ledgers are data, so they no longer sit there.
 
-This matters when you run **one proxy per config dir**: without it, every proxy writes to `~/.claude/quota-status/account.json` and they clobber each other's quota state. Give each proxy the same `CLAUDE_CONFIG_DIR` its Claude Code client uses, and their state stays cleanly separated.
+This matters when you run **one proxy per config dir**: the proxy's own state is no longer separated by `CLAUDE_CONFIG_DIR`, so give each proxy its own `XDG_STATE_HOME`/`XDG_DATA_HOME` (or pin the individual `CACHE_FIX_*` path overrides) if you need their quota state and snapshots kept apart. `CLAUDE_CONFIG_DIR` still points each proxy at the right client credential.
 
 ## Image stripping (preload mode)
 
@@ -1209,7 +1209,7 @@ The `CACHE_FIX_OAUTH_POST_TIMEOUT_MS` ceiling is load-bearing. The refresh POST 
 
 Adds `proper-lockfile` as a runtime dependency (the only other runtime dep is `hpagent`).
 
-Operational events go to `~/.claude/cache-fix-oauth-events.jsonl`. Seven event classes: `oauth_refreshed` (routine), `oauth_family_revoked` (loud — requires human `/login`; also writes a stderr banner), `oauth_refresh_timeout` (UNKNOWN outcome — no write, no retry), `oauth_refresh_error` (clean failure — leave file, try next tick), `oauth_refresh_skipped` (already-rotated or no-longer-due), `oauth_lock_contended` (another writer holds the lock), `oauth_cred_*` (validation failures: symlink rejected, mode warning, unreadable). Records carry only `{event, outcome, status_code, expires_at, err_class, elapsed_ms}` — never token strings, never raw POST bodies, never raw response bodies.
+Operational events go to `~/.local/state/cache-fix/oauth-events.jsonl`. Seven event classes: `oauth_refreshed` (routine), `oauth_family_revoked` (loud — requires human `/login`; also writes a stderr banner), `oauth_refresh_timeout` (UNKNOWN outcome — no write, no retry), `oauth_refresh_error` (clean failure — leave file, try next tick), `oauth_refresh_skipped` (already-rotated or no-longer-due), `oauth_lock_contended` (another writer holds the lock), `oauth_cred_*` (validation failures: symlink rejected, mode warning, unreadable). Records carry only `{event, outcome, status_code, expires_at, err_class, elapsed_ms}` — never token strings, never raw POST bodies, never raw response bodies.
 
 Validation gates on every credential read: not a symlink, mode `0600`, owner-matches-uid, JSON-shape valid. Atomic persist: temp-write (mode 0600) + fsync FD + rename + fsync parent dir, preserving every other credential field across the rotation.
 

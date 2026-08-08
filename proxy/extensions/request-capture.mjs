@@ -255,7 +255,7 @@ export default {
   name: "request-capture",
   description:
     "Append full request bodies (pre-mutation) to " +
-    "~/.claude/cache-fix-captures/<key>-requests.jsonl for offline " +
+    "~/.local/share/cache-fix/captures/<key>-requests.jsonl for offline " +
     "replay and cache simulation",
   enabled: false, // overridden by extensions.json
   order: 60,
