@@ -300,7 +300,7 @@ function getTtlDays() {
 
 export default {
   name: "cache-telemetry",
-  description: "Extract cache stats from response stream, persist quota state to ~/.claude/quota-status/{account.json,sessions/<filename>.json}",
+  description: "Extract cache stats from response stream, persist quota state to ~/.local/state/cache-fix/quota-status/{account.json,sessions/<filename>.json}",
   order: 600,
 
   async onRequest(ctx) {

@@ -143,7 +143,7 @@ export function getLogPath() {
 
 export default {
   name: "upstream-error-log",
-  description: "Append a structured record for every non-200 upstream response to ~/.claude/usage-log/upstream-errors.jsonl. Default OFF; opt-in via CACHE_FIX_UPSTREAM_ERROR_LOG=on. Closes #235.",
+  description: "Append a structured record for every non-200 upstream response to ~/.local/state/cache-fix/usage-log/upstream-errors.jsonl. Default OFF; opt-in via CACHE_FIX_UPSTREAM_ERROR_LOG=on. Closes #235.",
   // Order 670: after rate-limit-log (660). The two extensions are
   // independent (different streams) so the order isn't load-bearing —
   // pick a number after rate-limit-log so the field is visually grouped

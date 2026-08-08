@@ -299,7 +299,7 @@ export { logPath };
 
 export default {
   name: "usage-log",
-  description: "Append per-call usage record to ~/.claude/usage.jsonl (MeterRowSchema v:1)",
+  description: "Append per-call usage record to ~/.local/state/cache-fix/usage.jsonl (MeterRowSchema v:1)",
   enabled: false,
   order: 650,
 

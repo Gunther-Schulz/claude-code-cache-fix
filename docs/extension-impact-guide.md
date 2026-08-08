@@ -81,7 +81,7 @@ All measurements unless noted are from our production telemetry: 24,667 calls (A
 
 ### 7. `cache-telemetry` (order 600)
 
-**What it fixes:** Nothing — this is monitoring, not a fix. Extracts cache statistics from response headers and writes them to `~/.claude/quota-status/account.json` (account-global) and `~/.claude/quota-status/sessions/<filename>.json` (per-session) on every API call.
+**What it fixes:** Nothing — this is monitoring, not a fix. Extracts cache statistics from response headers and writes them to `~/.local/state/cache-fix/quota-status/account.json` (account-global) and `~/.local/state/cache-fix/quota-status/sessions/<filename>.json` (per-session) on every API call.
 
 **ON:** Status bar shows live Q5h/Q7d utilization, TTL tier, cache hit rate, peak hour detection.
 
@@ -96,7 +96,7 @@ All measurements unless noted are from our production telemetry: 24,667 calls (A
 
 ### 8. `overage-warning` (order 610) — opt-in via `CACHE_FIX_OVERAGE_WARNING=1`
 
-**What it fixes:** Nothing — advisory only. When Anthropic's response headers indicate the user is approaching or has crossed the overage threshold (`anthropic-ratelimit-unified-status: allowed_warning|throttled` plus a non-empty `anthropic-ratelimit-unified-7d-surpassed-threshold`), emits a one-time-per-threshold-per-Q5h-window warning to stderr AND appends a structured record to `~/.claude/overage-warnings.jsonl`.
+**What it fixes:** Nothing — advisory only. When Anthropic's response headers indicate the user is approaching or has crossed the overage threshold (`anthropic-ratelimit-unified-status: allowed_warning|throttled` plus a non-empty `anthropic-ratelimit-unified-7d-surpassed-threshold`), emits a one-time-per-threshold-per-Q5h-window warning to stderr AND appends a structured record to `~/.local/state/cache-fix/overage-warnings.jsonl`.
 
 **ON (`CACHE_FIX_OVERAGE_WARNING=1`):** You learn about a threshold crossing on the response that Anthropic flagged it on, with a coarse projection of minutes-to-100% and an estimated burn rate at API rates. The JSONL record is consumable by status lines, dashboards, or downstream alerting.
 
@@ -118,7 +118,7 @@ All measurements unless noted are from our production telemetry: 24,667 calls (A
 
 **Other env vars:**
 - `CACHE_FIX_OVERAGE_WARNING_QUIET=1` — suppress stderr emission, keep JSONL output.
-- `CACHE_FIX_OVERAGE_WARNING_DIR=/path` — override JSONL output directory (defaults to `~/.claude/`).
+- `CACHE_FIX_OVERAGE_WARNING_DIR=/path` — override JSONL output directory (defaults to `~/.local/state/cache-fix/`).
 
 See `docs/directives/proxy-overage-cost-warning.md` for the full design.
 

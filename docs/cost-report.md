@@ -4,7 +4,7 @@ Calculate Claude API costs from usage telemetry. Works standalone or with the in
 
 ## Quick Start
 
-If you're using the interceptor, it automatically logs usage to `~/.claude/usage.jsonl`. Just run:
+If you're using the interceptor, it automatically logs usage to `~/.local/state/cache-fix/usage.jsonl`. Just run:
 
 ```bash
 npx claude-code-cache-fix-cost-report
@@ -16,7 +16,7 @@ That's it — you get a per-call breakdown with costs.
 
 ## How It Works
 
-The interceptor writes one JSON line per API call to `~/.claude/usage.jsonl` as it drains the SSE response stream. Each line contains the standard Anthropic usage fields:
+The interceptor writes one JSON line per API call to `~/.local/state/cache-fix/usage.jsonl` as it drains the SSE response stream. Each line contains the standard Anthropic usage fields:
 
 ```json
 {
@@ -37,7 +37,7 @@ The cost report reads these records, applies current pricing, and produces a det
 ## Usage
 
 ```bash
-# Default — reads ~/.claude/usage.jsonl
+# Default — reads ~/.local/state/cache-fix/usage.jsonl
 node cost-report.mjs
 
 # Filter to a specific date
@@ -154,7 +154,7 @@ If you're using an intercepting proxy (e.g. [X-Ray-Claude-Code-Interceptor](http
 | Variable | Description |
 |----------|-------------|
 | `ANTHROPIC_ADMIN_KEY` | Admin API key (alternative to `--admin-key`) |
-| `CACHE_FIX_USAGE_LOG` | Override the default usage log path (`~/.claude/usage.jsonl`) |
+| `CACHE_FIX_USAGE_LOG` | Override the default usage log path (`~/.local/state/cache-fix/usage.jsonl`) |
 
 ## Pricing Reference
 

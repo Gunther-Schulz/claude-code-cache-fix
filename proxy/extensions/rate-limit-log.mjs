@@ -214,7 +214,7 @@ export function getLogPath() {
 
 export default {
   name: "rate-limit-log",
-  description: "Append rate-limit incident records to ~/.claude/usage-log/rate-limit-events.jsonl (opt-in)",
+  description: "Append rate-limit incident records to ~/.local/state/cache-fix/usage-log/rate-limit-events.jsonl (opt-in)",
   enabled: false,
   order: 660,
 

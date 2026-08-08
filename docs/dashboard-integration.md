@@ -18,27 +18,42 @@ one-liner thanks to the dashboard's tolerant NDJSON ingest and our
 npm install -g claude-code-cache-fix
 # (follow fgrosswig's dashboard install: https://github.com/fgrosswig/claude-usage-dashboard)
 
-# One-shot translation (reads ~/.claude/usage.jsonl, writes to
-# ~/.claude/anthropic-proxy-logs/proxy-YYYY-MM-DD.ndjson, which his
-# dashboard already watches)
+# One-shot translation (reads ~/.local/state/cache-fix/usage.jsonl, writes to
+# ~/.local/state/cache-fix/anthropic-proxy-logs/proxy-YYYY-MM-DD.ndjson —
+# see "Pointing the two sides at one directory" below)
 node $(npm root -g)/claude-code-cache-fix/tools/usage-to-dashboard-ndjson.mjs
 
 # Or keep it live-updating as the interceptor logs new calls
 node $(npm root -g)/claude-code-cache-fix/tools/usage-to-dashboard-ndjson.mjs --follow &
 ```
 
-No configuration required on the dashboard side — fgrosswig's
-`collectProxyNdjsonFiles()` auto-discovers files in
-`~/.claude/anthropic-proxy-logs/` (or `$ANTHROPIC_PROXY_LOG_DIR`), and our
-translator writes to exactly that path with the expected `proxy-YYYY-MM-DD.ndjson`
-filename convention. The dashboard's tolerant ingestion layer ignores unknown
+### Pointing the two sides at one directory
+
+The two defaults are no longer the same directory, so one of them has to be
+set. fgrosswig's `collectProxyNdjsonFiles()` auto-discovers files in
+`~/.claude/anthropic-proxy-logs/` (or `$ANTHROPIC_PROXY_LOG_DIR`); our
+translator defaults to `~/.local/state/cache-fix/anthropic-proxy-logs/`,
+because this project keeps its own data out of Claude Code's config root.
+Both sides read `$ANTHROPIC_PROXY_LOG_DIR`, so exporting it once is the
+simplest fix:
+
+```bash
+export ANTHROPIC_PROXY_LOG_DIR=~/.local/state/cache-fix/anthropic-proxy-logs
+```
+
+Alternatively pass `--output-dir ~/.claude/anthropic-proxy-logs` to the
+translator and leave the dashboard on its own default.
+
+The filename convention is unchanged (`proxy-YYYY-MM-DD.ndjson`), so once
+both sides agree on the directory nothing else needs configuring. The
+dashboard's tolerant ingestion layer ignores unknown
 fields, so interceptor-specific extras (`ttl_tier`, `ephemeral_1h_input_tokens`,
 `ephemeral_5m_input_tokens`, `peak_hour`, quota state) pass through cleanly
 and remain available to downstream consumers that know to read them.
 
 ## Schema compatibility
 
-The translator accepts both schemas of `~/.claude/usage.jsonl` transparently
+The translator accepts both schemas of `~/.local/state/cache-fix/usage.jsonl` transparently
 (v3.5.3+):
 
 - **Preload-era schema** — written by the v2.x preload interceptor:
