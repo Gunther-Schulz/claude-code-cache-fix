@@ -646,6 +646,26 @@ lied on 2026-08-05, each of which read as a finding about the system:
   or one attributed to the other — name the SPACE each is in first. Escaped vs
   raw, content-hash vs git hash, mine vs anyone's. All three were free to check
   and each was one step from a confident wrong claim.
+- **An instrument that matches ITSELF.** The needle rule one turn further in:
+  not a needle matching more than one thing, but one matching the hand holding
+  it. Measured 2026-08-08 — `until ! pgrep -f "reminder-migration-census.mjs";
+  do sleep 10; done` can NEVER exit, because the poller's own command line
+  contains the pattern, so `pgrep` always finds at least itself. Two such
+  monitors sat alive indefinitely, each also matching the other, and a lane
+  misread "still running" for ~30 minutes over a census that had finished in
+  30 seconds. The failure is silent and reads as patience.
+  **And the obvious fix does not work, which is why this is written out rather
+  than left as "use the bracket trick".** `pgrep -f "[r]eminder-…"` is the
+  standard idiom, and it self-matched too when tried here: the same command
+  line also carried the unbracketed string from an adjacent call, so the regex
+  found it. The idiom only holds while the raw string appears nowhere else in
+  the poller's own argv, which is a property of the whole command, not of the
+  pattern — exactly the kind of condition nobody re-checks when editing the
+  line later. Robust forms instead: wait on the actual child (`wait $!`), poll
+  a PID file the producer writes, or filter the poller's own PID explicitly.
+  Cheap tell, before trusting any process-existence poll: run the predicate
+  ONCE by hand with nothing of the sort running. If it returns a hit, the
+  instrument is matching itself and every later "still running" is noise.
 - **An instrument that never reached the system under test.** `node`'s global
   `fetch` does NOT honour `HTTPS_PROXY`/`https_proxy` — undici needs an explicit
   `ProxyAgent`/`EnvHttpProxyAgent` dispatcher. So a node one-liner written to

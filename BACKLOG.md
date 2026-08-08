@@ -216,7 +216,6 @@ defect — is INTACT and is now harder evidence than when it was a story.
     second, independent defect in the same row (`rejectedCandidate` printing an
     unrelated 37,831-char body when the host is absent); synthetic red-first
     arrangement fully specified, because the class cannot survive the scrub.
-    <!-- entry: "the byte-gate's `anyPresent` probe can never return false" -->
 17. **The stability exemption for a first-appearance relocation must assert
     forwarded `tools[]`.** DEMOTED from this tier's head, and the reason is a
     fact about the entry rather than about the defect: its named red-first known
@@ -921,106 +920,6 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   35 return COULD-NOT-VERIFY with the reason computed. So the floor's SCOPE
   shrank and the floor remains a floor.
 
-- **READY — the byte-gate's `anyPresent` probe can never return false for a
-  RECURRING reminder text, so a pruned host is reported MISMATCH instead of
-  DROPPED.** Found 2026-08-07 by the byteGate-MISMATCH lane, dispatcher-verified
-  in the code the same hour. Instrument-partition tier 2 (feeds the GATES): a
-  MISMATCH blocks shipping any NORMALIZATION design, so a false MISMATCH blocks
-  a correct mitigation, and this one has been standing in the corpus-wide tally
-  that three documents quote as a semantics question.
-  **The defect, at `tools/reminder-migration-census.mjs:326-330`.** The
-  no-counterpart branch distinguishes DROP from rule-failure, and its own
-  comment states the question correctly: "if the text is absent from `after`
-  ENTIRELY, nothing migrated and the rule was never exercised". The
-  implementation asks a different question — `blocks.some(...)` takes a 60-char
-  probe of each block and searches `wholeAfter()`, the entire serialized after
-  body. For a reminder text that recurs at other indices the predicate cannot
-  return false whatever the pair did. This is dev-loop's own "a needle that
-  matches more than one thing", shipped inside a tool rather than a throwaway
-  probe — and the file that documents that lesson is the one this tool's author
-  had read.
-  **The measured instance (s-captureAP, request ordinal 97, predecessor 96,
-  2026-08-05T11:44:44.398Z / 13:44 local).** `MISMATCH host=186 blocks=2
-  recon=780ch rejected=37831ch`; n 190->189, prune INTERIOR-DIVERGENT div=174
-  anchor=176. The host's `tool_use_id` is absent from the after body entirely —
-  the host was PRUNED, nothing migrated. Per-block occurrence counts, which are
-  the whole evidence and are what the fix keys on:
-
-  | block | as standalone system msgs | 60-char probe occurrences |
-  |---|---|---|
-  | 0 (319ch, PreToolUse:Bash push-claim hook) | before [40, 87, 175] -> after [40, 87] | before 4 -> after **3** |
-  | 1 (459ch, PostToolUse:Bash plugin-update hook) | before [] -> after [] | before 1 -> after **0** |
-
-  Every count DECREASED. `anyPresent` fired on pre-existing standalones at
-  indices 40 and 87 that are byte-identical on both sides. Correct verdict:
-  DROPPED.
-  **Design, decided — the discriminator comes from the DEFINITION, not from the
-  artifact.** The question is whether a counterpart was CREATED at or after the
-  host's position, never whether the text appears somewhere. So `anyPresent`
-  becomes `anyCreated`.
-  **REFUTED 2026-08-08 by the dry-run this entry said it had already done.**
-  The struck design read: "per block, count occurrences in BOTH bodies and
-  require some block's after-count to EXCEED its before-count. Checked against
-  both live cases: case B has no block increasing -> DROPPED; case A
-  (s-captureAQ, the genuine wrapper-envelope hole) creates its standalone in
-  after, so that block's count increases -> stays MISMATCH." The second half is
-  false, and the word "checked" is what makes this worth recording: the dry-run
-  was asserted, not executed. Measured by the lane, before any edit, with a
-  probe importing `analysePair`/`conversationOf` and counting EVERY match —
-  case A (reqOrd 25, prev 24, host present in after at hj=2): block 0 probe60
-  2->2, block 1 2->2, block 2 1->1. Whole-body `anyCreated` calls case A
-  **DROPPED**, which is a FALSE DROPPED — the one-way error direction REVERSED,
-  hiding a real hole instead of over-reporting one.
-  **The mechanism is structural, not a quirk of the case:** a migration
-  CONSERVES the whole-body count — the inline occurrence disappears exactly as
-  the standalone appears — so counting a serialized body is blind to precisely
-  the event "a counterpart was created". The corrected design counts the
-  STANDALONE population `classify()` already walks (`sysBefore`/`sysAfter`),
-  which is what "counterpart" means in this tool: case A block 2 goes 0->1,
-  case B goes 3->2 and 0->0. It is also cheaper than the shipped code — no
-  `wholeAfter()` serialization, so the per-pair memory note at `:324-326` stays
-  satisfied.
-  **And COUNT-ONLY is still not the definition, decided at the desk on the
-  lane's own case B.** A pair that PRUNES one standalone carrying the block's
-  text AND creates a counterpart nets zero, reads "no increase", and returns a
-  false DROPPED; case B's block 0 (`standaloneSys` 3->2) proves prunes are
-  ordinary here. So the rule is a MATCHING one — a standalone in after not
-  accounted for by a corresponding standalone in before — and count-only ships
-  only with that residual named in the code, in the report, and as a stated
-  loss of the one-way error property the corpus tally's bound rests on. A
-  synthetic prune+create pair is the bite that pins it either way.
-  **Second, independent defect in the same row, and it is a fix that
-  overshot.** `rejectedCandidate` (`:302`, `:304`) exists to cure the
-  `actual=0ch` misleading tell — the READY entry further down this file. Its
-  position filter reads `if (hj !== null && hj >= 0 && s.j <= hj) continue;`,
-  so when `hj = -1` (host absent, exactly this case) the guard short-circuits,
-  no filter applies, and the FIRST system message in the array is reported as
-  "the nearest position-eligible standalone that classify() rejected". Here
-  that printed 37,831 chars of an unrelated summarization notice as though it
-  were the counterpart considered. Fix: `rejectedCandidate` is null whenever
-  `hj < 0`, because the claim its name makes is false there. Note the shape for
-  the ledger — the earlier misleading-tell fix grew its own misleading tell one
-  case over, which is the class a single clean review round books and a second
-  falsification round catches.
-  **Verifier, red-first, and the fixture must be SYNTHETIC.** The class is
-  detected by literal TEXT, and the sanitizer replaces text with hash tokens —
-  so a harvested pin of s-captureAP cannot reproduce it, and pinning it would
-  produce the `harvest --pin` trap dev-loop already documents (a fixture that
-  replays clean and proves nothing). Build a synthetic pair: a 2-block host at
-  a mid index; block 0's inner text also present as byte-identical standalones
-  at two lower indices in BOTH bodies; block 1's text present in before and
-  absent from after; the host's `tool_use_id` absent from after. Current code
-  must say MISMATCH on it and the fixed code DROPPED. The mutation that proves
-  the bite discriminates: raise one block's after-count above its before-count
-  and watch the verdict return to MISMATCH.
-  **Corpus consequence, stated so the tally is not re-quoted stale.** The
-  error direction is one-way (a true DROPPED can be reported MISMATCH, never
-  the reverse), so today's `8 DROPPED / 2 MISMATCH` is at most 2 rows wrong and
-  the real byte-gate hole count is ONE, not two. The 2026-08-02 `MISMATCH x3`
-  accounting (this file, s-captureJ x1 attributed to row 24 — another
-  host-vanishing event) may be the same misfire; that is UNVERIFIABLE and stays
-  so, because s-captureJ predates the alias registry and cannot be resolved.
-
 - **READY — the stability exemption for a first-appearance relocation must
   assert what it does NOT currently cover: that the forwarded `tools[]` held
   across the relocation.** This is the instrument that would have caught row 26
@@ -1547,6 +1446,133 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — 2026-08-08, `052468b`) the byte-gate's `anyPresent` probe can never
+  return false for a
+  RECURRING reminder text, so a pruned host is reported MISMATCH instead of
+  DROPPED.**
+  **SHIPPED in the MATCHING form, not the counting one**, and the corpus result
+  was reproduced by the dispatcher rather than booked from the report: 100/100
+  captures read, 0 UNREADABLE, **9 DROPPED / 1 MISMATCH** (was 8 / 2). The sole
+  surviving MISMATCH is case A — `2026-08-06T11:12:52.584Z host=3 blocks=3
+  recon=4347ch rejected=7961ch`, the genuine wrapper-envelope hole — and the
+  verdict block still reads `DO NOT SHIP as-is`, which is the outcome that
+  mattered: whole-body counting would have reached ZERO MISMATCH and flipped
+  that block to "the rule holds on every occurrence", turning the gate green
+  for a NORMALIZATION design while a live hole existed.
+  **`hj === null` was MEASURED, not argued, and the measurement changed the
+  answer.** Over 100 captures / 17.5k pairs / 950 hosts it occurs TWICE, and
+  BOTH occurrences reach the no-counterpart branch reporting a bogus rejected
+  candidate (25,870ch and 36,066ch, each the message at index 1). So the guard
+  was extended to cover it; both rows now print `host-unlocatable`. The
+  competing lane had left this unmeasured and its guard did not cover it — had
+  that implementation been integrated, the defect would have shipped with a
+  plausible story saying it was probably unreachable.
+  **Three states now have three words**, closing the tell this row inherited:
+  `host-pruned` (host absent), `host-unlocatable` (host carries no id),
+  `actual=0ch` (host located, nothing found — three rows, correctly).
+  **NAMED RESIDUAL, written at the branch in code as well as here:** a created
+  counterpart whose text is byte-identical to a carrier pruned in the SAME pair
+  is accounted for by it and reads DROPPED. Outside that case the one-way
+  property holds (a true DROPPED may read MISMATCH, never the reverse), so the
+  tally stays an upper bound on holes. No live instance searched for.
+  Original entry follows. Found 2026-08-07 by the byteGate-MISMATCH lane, dispatcher-verified
+  in the code the same hour. Instrument-partition tier 2 (feeds the GATES): a
+  MISMATCH blocks shipping any NORMALIZATION design, so a false MISMATCH blocks
+  a correct mitigation, and this one has been standing in the corpus-wide tally
+  that three documents quote as a semantics question.
+  **The defect, at `tools/reminder-migration-census.mjs:326-330`.** The
+  no-counterpart branch distinguishes DROP from rule-failure, and its own
+  comment states the question correctly: "if the text is absent from `after`
+  ENTIRELY, nothing migrated and the rule was never exercised". The
+  implementation asks a different question — `blocks.some(...)` takes a 60-char
+  probe of each block and searches `wholeAfter()`, the entire serialized after
+  body. For a reminder text that recurs at other indices the predicate cannot
+  return false whatever the pair did. This is dev-loop's own "a needle that
+  matches more than one thing", shipped inside a tool rather than a throwaway
+  probe — and the file that documents that lesson is the one this tool's author
+  had read.
+  **The measured instance (s-captureAP, request ordinal 97, predecessor 96,
+  2026-08-05T11:44:44.398Z / 13:44 local).** `MISMATCH host=186 blocks=2
+  recon=780ch rejected=37831ch`; n 190->189, prune INTERIOR-DIVERGENT div=174
+  anchor=176. The host's `tool_use_id` is absent from the after body entirely —
+  the host was PRUNED, nothing migrated. Per-block occurrence counts, which are
+  the whole evidence and are what the fix keys on:
+
+  | block | as standalone system msgs | 60-char probe occurrences |
+  |---|---|---|
+  | 0 (319ch, PreToolUse:Bash push-claim hook) | before [40, 87, 175] -> after [40, 87] | before 4 -> after **3** |
+  | 1 (459ch, PostToolUse:Bash plugin-update hook) | before [] -> after [] | before 1 -> after **0** |
+
+  Every count DECREASED. `anyPresent` fired on pre-existing standalones at
+  indices 40 and 87 that are byte-identical on both sides. Correct verdict:
+  DROPPED.
+  **Design, decided — the discriminator comes from the DEFINITION, not from the
+  artifact.** The question is whether a counterpart was CREATED at or after the
+  host's position, never whether the text appears somewhere. So `anyPresent`
+  becomes `anyCreated`.
+  **REFUTED 2026-08-08 by the dry-run this entry said it had already done.**
+  The struck design read: "per block, count occurrences in BOTH bodies and
+  require some block's after-count to EXCEED its before-count. Checked against
+  both live cases: case B has no block increasing -> DROPPED; case A
+  (s-captureAQ, the genuine wrapper-envelope hole) creates its standalone in
+  after, so that block's count increases -> stays MISMATCH." The second half is
+  false, and the word "checked" is what makes this worth recording: the dry-run
+  was asserted, not executed. Measured by the lane, before any edit, with a
+  probe importing `analysePair`/`conversationOf` and counting EVERY match —
+  case A (reqOrd 25, prev 24, host present in after at hj=2): block 0 probe60
+  2->2, block 1 2->2, block 2 1->1. Whole-body `anyCreated` calls case A
+  **DROPPED**, which is a FALSE DROPPED — the one-way error direction REVERSED,
+  hiding a real hole instead of over-reporting one.
+  **The mechanism is structural, not a quirk of the case:** a migration
+  CONSERVES the whole-body count — the inline occurrence disappears exactly as
+  the standalone appears — so counting a serialized body is blind to precisely
+  the event "a counterpart was created". The corrected design counts the
+  STANDALONE population `classify()` already walks (`sysBefore`/`sysAfter`),
+  which is what "counterpart" means in this tool: case A block 2 goes 0->1,
+  case B goes 3->2 and 0->0. It is also cheaper than the shipped code — no
+  `wholeAfter()` serialization, so the per-pair memory note at `:324-326` stays
+  satisfied.
+  **And COUNT-ONLY is still not the definition, decided at the desk on the
+  lane's own case B.** A pair that PRUNES one standalone carrying the block's
+  text AND creates a counterpart nets zero, reads "no increase", and returns a
+  false DROPPED; case B's block 0 (`standaloneSys` 3->2) proves prunes are
+  ordinary here. So the rule is a MATCHING one — a standalone in after not
+  accounted for by a corresponding standalone in before — and count-only ships
+  only with that residual named in the code, in the report, and as a stated
+  loss of the one-way error property the corpus tally's bound rests on. A
+  synthetic prune+create pair is the bite that pins it either way.
+  **Second, independent defect in the same row, and it is a fix that
+  overshot.** `rejectedCandidate` (`:302`, `:304`) exists to cure the
+  `actual=0ch` misleading tell — the READY entry further down this file. Its
+  position filter reads `if (hj !== null && hj >= 0 && s.j <= hj) continue;`,
+  so when `hj = -1` (host absent, exactly this case) the guard short-circuits,
+  no filter applies, and the FIRST system message in the array is reported as
+  "the nearest position-eligible standalone that classify() rejected". Here
+  that printed 37,831 chars of an unrelated summarization notice as though it
+  were the counterpart considered. Fix: `rejectedCandidate` is null whenever
+  `hj < 0`, because the claim its name makes is false there. Note the shape for
+  the ledger — the earlier misleading-tell fix grew its own misleading tell one
+  case over, which is the class a single clean review round books and a second
+  falsification round catches.
+  **Verifier, red-first, and the fixture must be SYNTHETIC.** The class is
+  detected by literal TEXT, and the sanitizer replaces text with hash tokens —
+  so a harvested pin of s-captureAP cannot reproduce it, and pinning it would
+  produce the `harvest --pin` trap dev-loop already documents (a fixture that
+  replays clean and proves nothing). Build a synthetic pair: a 2-block host at
+  a mid index; block 0's inner text also present as byte-identical standalones
+  at two lower indices in BOTH bodies; block 1's text present in before and
+  absent from after; the host's `tool_use_id` absent from after. Current code
+  must say MISMATCH on it and the fixed code DROPPED. The mutation that proves
+  the bite discriminates: raise one block's after-count above its before-count
+  and watch the verdict return to MISMATCH.
+  **Corpus consequence, stated so the tally is not re-quoted stale.** The
+  error direction is one-way (a true DROPPED can be reported MISMATCH, never
+  the reverse), so today's `8 DROPPED / 2 MISMATCH` is at most 2 rows wrong and
+  the real byte-gate hole count is ONE, not two. The 2026-08-02 `MISMATCH x3`
+  accounting (this file, s-captureJ x1 attributed to row 24 — another
+  host-vanishing event) may be the same misfire; that is UNVERIFIABLE and stays
+  so, because s-captureJ predates the alias registry and cannot be resolved.
 
 - **(DONE — 2026-08-08; fork `7591fec` = `e607c3a` + the test fix, dotfiles
   `d144540`) the leak scan's already-published discard
