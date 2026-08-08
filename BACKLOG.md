@@ -1909,7 +1909,46 @@ ENOSPC misattribution with its wrong first explanation left in.
   from a green baseline. Write boundary: `tools/md-splice.mjs`,
   `test/md-splice.test.mjs` (both new).
 
-- **READY — the premise EVERY attribution verdict rests on is guarded by a
+- **PARKED — TWO REAL order collisions exist in the loaded registry, and
+  nothing says whether their relative order matters.** Measured 2026-08-08
+  while red-proving the tie bite above, against the real loaded registry:
+  `deferred-tools-restore` and `microcompact-stability` both sit at order
+  350; `output-guard` and `session-budget-breaker` both sit at 690. Within a
+  tie, which runs first rests on sort stability — no contract fixes it, and a
+  registry reload or a rename could silently swap them.
+  This was found in passing, NOT investigated: I do not know whether either
+  pair is order-sensitive, and the 350 pair in particular both touch request
+  content, which is where a swap would show.
+  NAMED MISSING EVIDENCE, the one thing that decides it: for each pair, run
+  the two orderings over the same realistic body and compare the resulting
+  `body.messages` — identical output means the tie is harmless and the pair
+  can stay; any difference makes it a live latent bug and the orders must be
+  separated (which touches `proxy/**`, so tree-pin bump plus restart, with a
+  row-3 declaration).
+  Deliberately parked rather than "fixed" by assigning distinct orders: that
+  would CHANGE execution order for whichever pair is order-sensitive, i.e. the
+  repair could itself be the regression. Measure first.
+  Trigger to unpark: any change to either pair, or the next time the tie bite
+  above is extended registry-wide.
+
+- **DONE `93cbad4` + `3abc02d` (2026-08-08) — the pre-mutation premise is
+  pinned by a runtime bite.** `test/capture-is-pre-mutation.test.mjs`: the
+  pre-capture slice is derived from the loaded registry`s own `order` values
+  every run, never from today`s extension names, so a future extension landing
+  below 60 is exercised without the file changing.
+  Two desk findings the lane did not have:
+  (i) THE TIE WAS UNCOVERED. `splitAtCapture` divides on `order < rc.order`,
+  so a mutator at exactly 60 fell into `atOrAfter` and was never exercised,
+  while its real position against request-capture rested on sort stability.
+  Found by probing the boundary once the lane`s bites were green: caught at
+  59, missed at 60. Closed by FORBIDDING the tie rather than defining a
+  tie-break, and red-proven on a TRUE positive — the registry already has
+  collisions at 350 and 690, so aiming the same predicate there reddens it.
+  (ii) The lane settled one claim statically (request-capture`s own onRequest
+  does not mutate `body.messages`). Executed it instead: hash identical across
+  the call, capture file written, so it engaged rather than no-opped.
+  ORIGINAL ENTRY:
+- **(shipped) READY — the premise EVERY attribution verdict rests on is guarded by a
   code comment and nothing else.** Every `OURS / CC's` call this repo makes
   reduces to one claim: the capture is PRE-mutation, so a divergence visible in
   it was sent by Claude Code. Measured 2026-08-08: `request-capture` is order
