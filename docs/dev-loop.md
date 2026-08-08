@@ -719,7 +719,17 @@ lied on 2026-08-05, each of which read as a finding about the system:
   **The check, before trusting any pattern-scoped count: name one member of the
   class the pattern cannot match.** If you cannot name one, say that is what
   you did. It costs a sentence and it is the only step that reaches outside the
-  instrument. The corollary for scope written into a BRIEF: the dispatcher's
+  instrument.
+  **And the MECHANISM that ends the class, rather than catching it once** —
+  contributed by the third lane to inherit this defect, which is the right
+  source for it: after sweeping the named file set, run the pattern over the
+  WHOLE tree and account for EVERY hit as fixed / correct / deliberately
+  excluded / still-wrong. The residual is then a NUMBER instead of an
+  assumption, and "the sweep is done" becomes a measurement. Two sweeps here
+  each shipped believing they were complete; the accounting is what would have
+  told either one it was not. Applies to any bounded-scope cleanup, not just
+  paths: the last step is classifying the leftovers, and a non-empty
+  still-wrong bucket is the finding. The corollary for scope written into a BRIEF: the dispatcher's
   pattern becomes the executor's boundary, so a blind spot at brief time is
   designed into the result and comes back looking like a completed sweep.
 - **A relocation sweep has a CONTRACT sentence somewhere, and it matches no
@@ -732,6 +742,17 @@ lied on 2026-08-05, each of which read as a finding about the system:
   repointing paths in a document: grep it for the mechanism that USED to govern
   them — the env var, the config key, the base directory — and read what it
   still promises.
+- **An EXTRACT-then-validate probe can validate the wrong extract.** Measured
+  2026-08-08: a lane pulled a fenced code block out of a markdown file with an
+  `awk` that took the FIRST block of that language, ran `node --check` on it,
+  and got a clean pass — on a block that did not contain the edit it had just
+  made. The checker was working; it was pointed at the wrong bytes, and its
+  green said nothing about the change. The cheap repair, and it generalises to
+  every extract-then-validate shape (a fence, a JSON subtree, a log slice, a
+  test's captured output): `grep` the EXTRACT for the string you just wrote
+  BEFORE reading the checker's verdict. Confirming the instrument is aimed at
+  your change costs one command; a green from a mis-aimed checker is
+  indistinguishable from a real one.
 - **An instrument that matches ITSELF.** The needle rule one turn further in:
   not a needle matching more than one thing, but one matching the hand holding
   it. Measured 2026-08-08 — `until ! pgrep -f "reminder-migration-census.mjs";
