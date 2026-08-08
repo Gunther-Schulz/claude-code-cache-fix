@@ -38,11 +38,11 @@ In **forward-proxy mode** the proxy sits in front of the *real* `api.anthropic.c
 CACHE_FIX_FORWARD_PROXY=on node "$(npm root -g)/claude-code-cache-fix/proxy/server.mjs" &
 # It prints the two env vars to wire the client, e.g.:
 #   export HTTPS_PROXY=http://127.0.0.1:9801
-#   export NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem
+#   export NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem
 
 # Launch Claude Code through it (leave ANTHROPIC_BASE_URL UNSET)
 HTTPS_PROXY=http://127.0.0.1:9801 \
-NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem \
+NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem \
   claude
 ```
 
@@ -58,7 +58,7 @@ The `--remote-control` flag is the one-command equivalent of the manual wiring a
 
 > If you wire forward-proxy mode manually (setting `HTTPS_PROXY` yourself instead of using `--remote-control`), set `NO_PROXY=127.0.0.1,localhost,::1` as well, or local HTTP-transport MCP servers and other localhost services will be routed at the cache-fix proxy and fail. stdio-transport MCP servers are unaffected (they use pipes, not the network).
 
-How it works: the proxy also handles HTTP `CONNECT`. It MITMs **only** the upstream host (`api.anthropic.com`), terminating TLS with a locally-generated CA so it can run the same extension pipeline, and **blind-tunnels every other CONNECT** (mcp-proxy, telemetry, npm, ...) untouched. On first start it generates a CA under `~/.local/share/cache-fix/ca/` (`$XDG_DATA_HOME/cache-fix/ca` when that is set; override with `CACHE_FIX_CA_DIR`); the client must trust it via `NODE_EXTRA_CA_CERTS`. A WebSocket/Upgrade to the upstream host (e.g. `/voice`) is relayed to upstream as-is. Because base URL stays `api.anthropic.com`, all of `/api/oauth/*`, `/v1/agents`, Remote Control credential fetches, etc. pass through untouched and RC stays enabled.
+How it works: the proxy also handles HTTP `CONNECT`. It MITMs **only** the upstream host (`api.anthropic.com`), terminating TLS with a locally-generated CA so it can run the same extension pipeline, and **blind-tunnels every other CONNECT** (mcp-proxy, telemetry, npm, ...) untouched. On first start it generates a CA under `$CLAUDE_CONFIG_DIR/cache-fix-ca/` (default `~/.claude/cache-fix-ca/`; override with `CACHE_FIX_CA_DIR`); the client must trust it via `NODE_EXTRA_CA_CERTS`. A WebSocket/Upgrade to the upstream host (e.g. `/voice`) is relayed to upstream as-is. Because base URL stays `api.anthropic.com`, all of `/api/oauth/*`, `/v1/agents`, Remote Control credential fetches, etc. pass through untouched and RC stays enabled.
 
 Corporate proxy chaining works the same as reverse mode: set `HTTPS_PROXY`/`HTTP_PROXY` for the proxy's **own** upstream egress (the proxy dials `api.anthropic.com` through it). The client's `HTTPS_PROXY` points at the cache-fix proxy; the cache-fix proxy's `HTTPS_PROXY` (in its own env) points at the corporate proxy.
 
@@ -75,26 +75,26 @@ The generated systemd unit / launchd agent carries `CACHE_FIX_FORWARD_PROXY=on`,
 **The service only manages the proxy end.** It does **not** — and cannot — set anything on your `claude` client, which is a separate process. You still wire the client yourself in whatever shell launches `claude`, using the two values from the forward-proxy quick-start above:
 
 - `HTTPS_PROXY` — where the proxy listens: `http://127.0.0.1:<port>` (default port `9801`, or your `CACHE_FIX_PROXY_PORT`).
-- `NODE_EXTRA_CA_CERTS` — the CA the proxy generated on first start: `~/.local/share/cache-fix/ca/ca.pem` (or `$CACHE_FIX_CA_DIR/ca.pem`).
+- `NODE_EXTRA_CA_CERTS` — the CA the proxy generated on first start: `~/.claude/cache-fix-ca/ca.pem` (or `$CACHE_FIX_CA_DIR/ca.pem`).
 
 Three ways to wire it, depending on how broadly you want the vars to apply:
 
 ```bash
 # a) per-invocation — scoped to just this claude run
 HTTPS_PROXY=http://127.0.0.1:9801 \
-NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem \
+NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem \
   claude
 
 # b) whole shell — add to ~/.zshrc / ~/.bashrc (every HTTPS in that shell goes
 #    through the proxy; harmless since non-anthropic hosts are blind-tunneled,
 #    but that shell's HTTPS breaks if the proxy is ever down)
 export HTTPS_PROXY=http://127.0.0.1:9801
-export NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem
+export NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem
 
 # c) scoped to claude only — a shell function (recommended; avoids b's blast radius)
 claude() {
   HTTPS_PROXY=http://127.0.0.1:9801 \
-  NODE_EXTRA_CA_CERTS=~/.local/share/cache-fix/ca/ca.pem \
+  NODE_EXTRA_CA_CERTS=~/.claude/cache-fix-ca/ca.pem \
     command claude "$@"
 }
 ```
@@ -111,7 +111,7 @@ On every `/v1/messages` request, the pipeline runs an ordered chain of extension
 | `identity-normalization` | Normalizes message identity fields for prefix stability |
 | `fresh-session-sort` | Fixes non-deterministic ordering on first turn |
 | `cache-control-normalize` | Normalizes cache_control markers across messages |
-| `cache-telemetry` | Extracts cache stats from response headers → `~/.local/state/cache-fix/quota-status/{account.json,sessions/<id>.json}` |
+| `cache-telemetry` | Extracts cache stats from response headers → `~/.claude/quota-status/{account.json,sessions/<id>.json}` |
 | `session-health` | Observes per-session thinking-desync risk (context size + thinking-block count) and warns before a session reaches the danger zone. Read-only |
 | `thinking-block-sanitize` | Drops omitted (empty-text) thinking blocks to head off the CC thinking-desync `400` (#63147). **On by default as of v4.0.0** (v1 mode). Set `CACHE_FIX_THINKING_SANITIZE=off` to disable, `=v2` for additional tools-hash-mismatch drop (opt-in). |
 | `workflow-agent-id-synthesis` | Derives a stable per-leg agent id for Workflow-tool subagents whose canonical `x-claude-code-agent-id` header CC does not set ([CC#66761](https://github.com/anthropics/claude-code/issues/66761)). On by default; stash lives on `ctx.meta._workflowAgentId` and never leaves the proxy. `usage-log` emits the `agent_id` + `agent_id_source` fields when `CACHE_FIX_USAGE_LOG_AGENT_ID=on` AND meter v0.8.0+ is installed. Master switch: `CACHE_FIX_WORKFLOW_AGENT_DERIVATION=off`. |
@@ -234,7 +234,7 @@ All proxy settings are controlled via environment variables. Set them before sta
 | `CACHE_FIX_PROXY_BIND` | `127.0.0.1` | Bind address |
 | `CACHE_FIX_PROXY_UPSTREAM` | `https://api.anthropic.com` | Upstream URL. Change to chain another proxy (e.g. `http://localhost:8080`) |
 | `CACHE_FIX_FORWARD_PROXY` | unset | Set to `on` for forward-proxy mode (HTTP CONNECT + selective MITM of the upstream host) so the client points `HTTPS_PROXY` at the proxy instead of `ANTHROPIC_BASE_URL`, keeping Remote Control enabled. See [Forward-proxy mode](#forward-proxy-mode-keeps-remote-control-working). |
-| `CACHE_FIX_CA_DIR` | `~/.local/share/cache-fix/ca` | Directory for the forward-proxy CA/leaf cert (generated once on first start). The client trusts `ca.pem` via `NODE_EXTRA_CA_CERTS`. |
+| `CACHE_FIX_CA_DIR` | `~/.claude/cache-fix-ca` | Directory for the forward-proxy CA/leaf cert (generated once on first start). The client trusts `ca.pem` via `NODE_EXTRA_CA_CERTS`. |
 | `CACHE_FIX_PROXY_TIMEOUT` | `600000` | Request timeout in milliseconds |
 | `CACHE_FIX_EXTENSIONS_DIR` | `proxy/extensions/` | Directory for extension `.mjs` files |
 | `CACHE_FIX_EXTENSIONS_CONFIG` | `proxy/extensions.json` | Extension configuration file |
@@ -381,7 +381,7 @@ Cache-fix's `bootstrap-defense` extension ships three modes, selected via `CACHE
 
 | Mode | Default? | Behavior |
 |---|---|---|
-| `audit` | yes | Bootstrap responses proxy through to CC. Each response is logged to `~/.local/state/cache-fix/bootstrap-log.jsonl` with surface metadata: which prompt-source surfaces fired (`tengu_heron_brook` legacy and/or env-var-selected), the SHA-256 hash of the value (first 16 hex chars — never the value itself), and the `CLAUDE_CODE_REMOTE` flag. Multi-surface responses emit one record per surface, correlated by `request_id` + timestamp window. |
+| `audit` | yes | Bootstrap responses proxy through to CC. Each response is logged to `~/.claude/cache-fix-bootstrap-log.jsonl` with surface metadata: which prompt-source surfaces fired (`tengu_heron_brook` legacy and/or env-var-selected), the SHA-256 hash of the value (first 16 hex chars — never the value itself), and the `CLAUDE_CODE_REMOTE` flag. Multi-surface responses emit one record per surface, correlated by `request_id` + timestamp window. |
 | `block` | opt-in | `onRequest` returns a 200 with an empty JSON body. Upstream is never called, no flag map ever reaches the on-disk GrowthBook cache. Defeats both legacy and env-var-selected injection surfaces. |
 | `allowlist` | opt-in (experimental) | Bootstrap response proxies through, but prompt-source-eligible keys (legacy `tengu_heron_brook` + env-var-selected key) not in the allowlist are stripped from the response body before it reaches CC. Default allowlist is `tengu_heron_brook` (the only known-legitimate historical key); configure via `CACHE_FIX_BOOTSTRAP_ALLOWED_KEYS=comma,separated,list`. Pass `CACHE_FIX_BOOTSTRAP_ALLOWED_KEYS=` (explicit empty) for full deny-all. Other GrowthBook flag keys pass through untouched. May need updates if Anthropic adds legitimate prompt-source keys in future CC releases. |
 
@@ -460,7 +460,7 @@ These aren't bugs cache-fix patches — they're upstream CC behaviors users shou
 
 Running `/context`, `/release-notes` (and likely other state-inspection commands) appends the diagnostic output to conversation history rather than rendering terminal-only. Subsequent turns replay the inflated payload via prompt cache, compounding token cost on a state-inspection action that should be free. Empirically measured at +3,480 `cache_creation_input_tokens` for a single `/context` invocation on v2.1.148; another user reports ~5K on a separate session. `/release-notes` is worse — defaults to dumping the full changelog.
 
-Worse for diagnosis: the inflated payload that bills against your cache isn't written to the local JSONL transcript, so you can't audit the cost source locally — you can only infer it from `cache_creation_input_tokens` jumps in response usage metadata. (Proxy-mode users can inspect the deltas in `~/.local/state/cache-fix/quota-status/` files, which the proxy writes directly from response headers.)
+Worse for diagnosis: the inflated payload that bills against your cache isn't written to the local JSONL transcript, so you can't audit the cost source locally — you can only infer it from `cache_creation_input_tokens` jumps in response usage metadata. (Proxy-mode users can inspect the deltas in `~/.claude/quota-status/` files, which the proxy writes directly from response headers.)
 
 **Workaround until upstream fix:** use these commands sparingly in long sessions. If you need them frequently in a session, consider `/compact` after a diagnostic run to reset the bleed.
 
@@ -500,7 +500,7 @@ For manual VS Code wrapper setup (without the VSIX), see [docs/preload-setup.md]
 
 **What it does:** Modifies outgoing request structure (block order, fingerprint, TTL, git-status) to fix cache bugs. Reads response headers and SSE usage data for monitoring.
 
-**What it does NOT do:** No network calls from the proxy or interceptor. All telemetry is written to local files under `~/.local/state/cache-fix/` (and `~/.local/share/cache-fix/` for the capture corpus and the forward-proxy CA). No data leaves your machine.
+**What it does NOT do:** No network calls from the proxy or interceptor. All telemetry is written to local files under `~/.claude/`. No data leaves your machine.
 
 **Supply chain:** Proxy mode: small focused extension modules in `proxy/extensions/` (most under a few hundred lines; the pipeline is composable, you can read any single one in isolation). Preload mode: single unminified file (`preload.mjs`). One dev dependency (`zod` for schema validation in tests only). Review before installing. Published builds carry npm's default registry signatures; sigstore provenance attestation is not currently published — tracked as a follow-up.
 
@@ -577,7 +577,7 @@ The interceptor can only *help* or *do nothing*. It cannot make things worse.
 
 ## Status line — quota warnings in real time
 
-Both modes write quota state on every API call. Proxy mode (v3.5.0+) splits into `~/.local/state/cache-fix/quota-status/account.json` (account-global fields: Q5h/Q7d, status, overage) plus `~/.local/state/cache-fix/quota-status/sessions/<id>.json` (per-session cache fields: TTL tier, hit rate). Preload mode keeps the flat `~/.local/state/cache-fix/quota-status.json` (single-session by construction). The included `tools/quota-statusline.sh` script displays a live status line showing:
+Both modes write quota state on every API call. Proxy mode (v3.5.0+) splits into `~/.claude/quota-status/account.json` (account-global fields: Q5h/Q7d, status, overage) plus `~/.claude/quota-status/sessions/<id>.json` (per-session cache fields: TTL tier, hit rate). Preload mode keeps the legacy `~/.claude/quota-status.json` (single-session by construction). The included `tools/quota-statusline.sh` script displays a live status line showing:
 
 - **Q5h** quota bar `[███░┃░░░░░]` + percent + `(exhaust X, reset Y)`. Filled cells are consumed quota; the heavy-vertical tick is wall-clock elapsed position in the window. Tick to the right of the fill = under pace; tick inside the fill = burning faster than time (over pace). `exhaust` is the projected time-to-100% at the current burn rate; `reset` is the wall-clock time until the window rolls over. When `exhaust < reset`, you will hit 100% before the window resets — back off.
 - **Q7d** same shape with day-scale durations (e.g. `(exhaust 3d13h, reset 3d0h)`). Below a day, the suffix auto-switches to `h/m` format (e.g. `(exhaust 1h41m, reset 0h30m)`).
@@ -640,15 +640,13 @@ If you wrote a custom statusline, monitoring script, or anything else that reads
 
 | | v3.4.x and earlier (proxy + preload) | v3.5.0+ proxy mode | v3.5.0+ preload mode |
 |---|---|---|---|
-| Quota fields (Q5h, Q7d, status, overage) | `~/.claude/quota-status.json` | `~/.local/state/cache-fix/quota-status/account.json` | `~/.local/state/cache-fix/quota-status.json` (flat file) |
-| Cache fields (TTL tier, hit rate, cache_creation/read) | same file as above | `~/.local/state/cache-fix/quota-status/sessions/<filename>.json` | same file as above |
+| Quota fields (Q5h, Q7d, status, overage) | `~/.claude/quota-status.json` | `~/.claude/quota-status/account.json` | `~/.claude/quota-status.json` (legacy path) |
+| Cache fields (TTL tier, hit rate, cache_creation/read) | same file as above | `~/.claude/quota-status/sessions/<filename>.json` | same file as above |
 | Multi-session attribution | none — last writer wins | per-session files | preload is single-session by construction |
-
-Two changes are folded into that table. v3.5.0 **split** the single file; a later release **moved the root** out of Claude Code's config directory into the XDG base directories, so the v3.5.0+ paths above read `$XDG_STATE_HOME/cache-fix/…` (default `~/.local/state/cache-fix/…`). On an install predating that move the same names sit under `~/.claude/` — a reader that has not been migrated with `node tools/xdg-migrate.mjs --apply` still finds them there.
 
 `<filename>` is derived from the request's `x-claude-code-session-id` header via a deterministic safe-name rule: UUIDs and other ids matching `[A-Za-z0-9_-]{1,128}` pass through; null/empty/whitespace become `unknown`; anything else is mapped to `inv-<sha256-prefix>`. Full rule is documented at [`docs/directives/proxy-quota-status-per-session.md`](docs/directives/proxy-quota-status-per-session.md).
 
-The flat `~/.local/state/cache-fix/quota-status.json` (and a `~/.claude/quota-status.json` left over from before the XDG move) is auto-deleted on the first proxy-mode write after upgrade. Per-session files older than `CACHE_FIX_QUOTA_STATUS_TTL_DAYS` (default `7`) are swept on write.
+The legacy `~/.claude/quota-status.json` is auto-deleted on the first proxy-mode write after upgrade. Per-session files older than `CACHE_FIX_QUOTA_STATUS_TTL_DAYS` (default `7`) are swept on write.
 
 ### Consumer-side migration pattern
 
@@ -656,12 +654,9 @@ Your script should try the v3.5.0+ proxy paths first and fall back to the legacy
 
 **Bash (statusline-style):**
 ```bash
-STATE="${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix"
-QS_DIR="$STATE/quota-status"
+QS_DIR="$HOME/.claude/quota-status"
 ACCOUNT="$QS_DIR/account.json"
-LEGACY="$STATE/quota-status.json"
-# installs predating the move out of Claude Code's config root
-[ -f "$LEGACY" ] || LEGACY="$HOME/.claude/quota-status.json"
+LEGACY="$HOME/.claude/quota-status.json"
 
 # Canonical filename rule — must mirror proxy/extensions/cache-telemetry.mjs
 # sessionFilename(): trim, then "" → unknown, safe regex passthrough, else
@@ -715,12 +710,8 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 
 const home = homedir();
-const stateRoot = join(process.env.XDG_STATE_HOME || join(home, ".local", "state"), "cache-fix");
-const accountPath = join(stateRoot, "quota-status", "account.json");
-// installs predating the move out of Claude Code's config root keep the flat
-// file under ~/.claude
-const xdgLegacyPath = join(stateRoot, "quota-status.json");
-const legacyPath = existsSync(xdgLegacyPath) ? xdgLegacyPath : join(home, ".claude", "quota-status.json");
+const accountPath = join(home, ".claude", "quota-status", "account.json");
+const legacyPath = join(home, ".claude", "quota-status.json");
 
 const SAFE_NAME_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -742,7 +733,7 @@ function readQuotaJson() {
 
 function readCacheJson(sessionId) {
   const filename = sessionFilename(sessionId);
-  const p = join(stateRoot, "quota-status", "sessions", `${filename}.json`);
+  const p = join(home, ".claude", "quota-status", "sessions", `${filename}.json`);
   if (existsSync(p)) return JSON.parse(readFileSync(p, "utf8"));
   if (existsSync(legacyPath)) return JSON.parse(readFileSync(legacyPath, "utf8"));
   return null;
@@ -757,9 +748,9 @@ On multi-agent hosts (multiple Claude Code sessions sharing one proxy), the pre-
 
 ### `CLAUDE_CONFIG_DIR`
 
-Claude Code reads `CLAUDE_CONFIG_DIR` to relocate its config root away from the default `~/.claude` (used to keep multiple independent config roots in separate directories). The proxy reads it too, but only for the files Claude Code itself owns — the shared OAuth credential (`.credentials.json`) and its lock. Everything the proxy *writes* now lives under the XDG base directories instead: `$XDG_DATA_HOME/cache-fix` (default `~/.local/share/cache-fix`) for the capture corpus and the forward-proxy CA, and `$XDG_STATE_HOME/cache-fix` (default `~/.local/state/cache-fix`) for `quota-status/`, `usage.jsonl`, `state/`, session mirrors, snapshots, and OAuth events. `~/.claude` is Claude Code's *config* root; the proxy's captures, logs and ledgers are data, so they no longer sit there.
+Claude Code reads `CLAUDE_CONFIG_DIR` to relocate its config root away from the default `~/.claude` (used to keep multiple independent config roots in separate directories). The proxy now honors the same variable for **all** of its on-disk state: `quota-status/`, `usage.jsonl`, `cache-fix-state/`, session mirrors, snapshots, and OAuth events all land under `$CLAUDE_CONFIG_DIR` instead of a hardcoded `~/.claude`. When it's unset the proxy uses `~/.claude` exactly as before (no change for the common single-config case).
 
-This matters when you run **one proxy per config dir**: the proxy's own state is no longer separated by `CLAUDE_CONFIG_DIR`, so give each proxy its own `XDG_STATE_HOME`/`XDG_DATA_HOME` (or pin the individual `CACHE_FIX_*` path overrides) if you need their quota state and snapshots kept apart. `CLAUDE_CONFIG_DIR` still points each proxy at the right client credential.
+This matters when you run **one proxy per config dir**: without it, every proxy writes to `~/.claude/quota-status/account.json` and they clobber each other's quota state. Give each proxy the same `CLAUDE_CONFIG_DIR` its Claude Code client uses, and their state stays cleanly separated.
 
 ## Image stripping (preload mode)
 
@@ -869,7 +860,7 @@ export CACHE_FIX_IMAGE_RETRY_BREAKER=on
 | `CACHE_FIX_IMAGE_RETRY_BREAKER` | `off` | Mode gate — `on` / `off` / `dry-run` |
 | `CACHE_FIX_IMAGE_RETRY_COOLOFF_MS` | 30000 | Sliding cool-off window per recorded failure |
 | `CACHE_FIX_IMAGE_RETRY_MAX_ENTRIES` | 4096 | LRU cap on the in-memory failure map |
-| `CACHE_FIX_IMAGE_RETRY_LOG_PATH` | `~/.local/state/cache-fix/image-retry-events.jsonl` | Structured event log path (5 MB single-tier rotation) |
+| `CACHE_FIX_IMAGE_RETRY_LOG_PATH` | `~/.claude/image-retry-events.jsonl` | Structured event log path (5 MB single-tier rotation) |
 
 **Observability surface:** the JSONL event log is the only signal. Short-circuited requests do not produce `usage.jsonl` rows — they bypass `usage-log` and `cache-telemetry` entirely (no upstream call → no SSE stream → no row). Each fire writes `{ event: "breaker_fire", mode, session_id, image_hashes, retry_count, remaining_ms, request_id, ... }`; each first-time failure writes `{ event: "failure_recorded", ... }`. The log carries hashes and metadata only — no image bytes, no request bodies, no auth headers.
 
@@ -911,7 +902,7 @@ export CACHE_FIX_SESSION_BUDGET_COST_USD=25      # e.g. stop this session at ~$2
 | `CACHE_FIX_SESSION_BUDGET_RATE_TPM` | unset | Hard-stop when the session's tokens/min over the sliding window cross this integer — the **early fan-out catch** (fires on the slope, before a big in-flight batch lands). |
 | `CACHE_FIX_SESSION_BUDGET_RATE_WINDOW_MS` | 60000 | Sliding window for the rate lever. |
 | `CACHE_FIX_SESSION_BUDGET_MAX_ENTRIES` | 4096 | LRU cap on the in-memory per-session tally map. |
-| `CACHE_FIX_SESSION_BUDGET_EVENT_LOG` | `~/.local/state/cache-fix/session-budget-events.jsonl` | Structured fire-event log path (5 MB single-tier rotation). |
+| `CACHE_FIX_SESSION_BUDGET_EVENT_LOG` | `~/.claude/session-budget-events.jsonl` | Structured fire-event log path (5 MB single-tier rotation). |
 
 ### Which lever for which billing model
 
@@ -978,7 +969,7 @@ export CACHE_FIX_SESSION_MIRROR=on
 | Env var | Default | Purpose |
 |---------|---------|---------|
 | `CACHE_FIX_SESSION_MIRROR` | `off` | Master gate — `on` activates mirroring |
-| `CACHE_FIX_SESSION_MIRROR_DIR` | `~/.local/state/cache-fix/session-mirrors/` | Storage root |
+| `CACHE_FIX_SESSION_MIRROR_DIR` | `~/.claude/session-mirrors/` | Storage root |
 | `CACHE_FIX_SESSION_MIRROR_MAX_BYTES` | 100 MB | Per-session active-file rotation threshold |
 | `CACHE_FIX_SESSION_MIRROR_RETENTION_DAYS` | 30 | Retention sweep horizon (files past this are unlinked) |
 | `CACHE_FIX_SESSION_MIRROR_MAX_SESSIONS` | 1024 | LRU cap on the in-memory dedup state map |
@@ -992,7 +983,7 @@ export CACHE_FIX_SESSION_MIRROR=on
 
 Storage layout: `<DIR>/<sessionFilename(sessionId)>/<timestamp>.jsonl`. Session ids that don't match `[A-Za-z0-9_-]{1,128}` bucket to `inv-<sha256[:16]>` (path-traversal safe). Sessionless requests share an `unknown/` directory.
 
-**Operational events** (open / rotate / sweep / error) are logged to `~/.local/state/cache-fix/session-mirrors/session-mirror-events.jsonl` (5 MB single-tier rotation). The mirror is read-only with respect to upstream traffic; no requests or responses are modified, and writer errors are isolated from the response stream by the pipeline's per-hook try/catch.
+**Operational events** (open / rotate / sweep / error) are logged to `~/.claude/session-mirrors/session-mirror-events.jsonl` (5 MB single-tier rotation). The mirror is read-only with respect to upstream traffic; no requests or responses are modified, and writer errors are isolated from the response stream by the pipeline's per-hook try/catch.
 
 See [docs/disk-usage.md](docs/disk-usage.md) for the worst-case disk-footprint accounting.
 
@@ -1082,7 +1073,7 @@ Scoping rules baked into the extension:
 
 Long-running Opus 4.7 `[1m]` sessions accumulate interleaved thinking blocks and grow their live context until Claude Code's own history reconstruction desyncs a thinking-block signature, producing a permanent `400 … thinking blocks … cannot be modified` on every subsequent turn (upstream root cause: [anthropics/claude-code#63147](https://github.com/anthropics/claude-code/issues/63147)). The session dies abruptly with no prior signal.
 
-The `session-health` extension watches the conditions that correlate with the trip and warns **before** a session reaches the danger zone, so the operator can retire it deliberately (write a session-state handoff, `/clear`) instead of being surprised by a dead session. It is **read-only** — it never mutates the request/response body and never attempts to repair the desync (that is CC-side, #63147). It records numeric telemetry into the per-session file (`~/.local/state/cache-fix/quota-status/sessions/<id>.json`) on each request and, when a session first crosses into `high` risk, emits a one-time stderr line. Counts only — no thinking text or signatures are ever logged.
+The `session-health` extension watches the conditions that correlate with the trip and warns **before** a session reaches the danger zone, so the operator can retire it deliberately (write a session-state handoff, `/clear`) instead of being surprised by a dead session. It is **read-only** — it never mutates the request/response body and never attempts to repair the desync (that is CC-side, #63147). It records numeric telemetry into the per-session file (`~/.claude/quota-status/sessions/<id>.json`) on each request and, when a session first crosses into `high` risk, emits a one-time stderr line. Counts only — no thinking text or signatures are ever logged.
 
 Fields added to the per-session JSON:
 
@@ -1118,13 +1109,13 @@ The interceptor can rewrite Claude Code's `# Output efficiency` system-prompt se
 
 ## Monitoring & diagnostics
 
-The preload interceptor includes monitoring for microcompact degradation, false rate limiters, GrowthBook flag state, usage telemetry, and cost reporting. Quota tracking works in both proxy and preload modes via `~/.local/state/cache-fix/quota-status/` (proxy: per-session split) or `~/.local/state/cache-fix/quota-status.json` (preload: single-session flat file).
+The preload interceptor includes monitoring for microcompact degradation, false rate limiters, GrowthBook flag state, usage telemetry, and cost reporting. Quota tracking works in both proxy and preload modes via `~/.claude/quota-status/` (proxy: per-session split) or `~/.claude/quota-status.json` (preload: single-session legacy path).
 
 See [docs/monitoring.md](docs/monitoring.md) for full details, debug mode, prefix diffing, environment variables, and the bundled quota analysis tool.
 
 ### `usage-log` extension and the `MeterRowSchema v:1` wire format
 
-The `usage-log` extension (opt-in via `proxy/extensions.json`) appends one JSON line per API response to `~/.local/state/cache-fix/usage.jsonl`. The row shape is `MeterRowSchema v:1` — the cross-repo contract validated by [`claude-code-meter`](https://github.com/cnighswonger/claude-code-meter)'s strict schema. Every field below is captured per call:
+The `usage-log` extension (opt-in via `proxy/extensions.json`) appends one JSON line per API response to `~/.claude/usage.jsonl`. The row shape is `MeterRowSchema v:1` — the cross-repo contract validated by [`claude-code-meter`](https://github.com/cnighswonger/claude-code-meter)'s strict schema. Every field below is captured per call:
 
 | Field | Type | Source |
 |---|---|---|
@@ -1159,7 +1150,7 @@ The `usage-log` extension (opt-in via `proxy/extensions.json`) appends one JSON 
 
 ```bash
 # Find which CC session each usage.jsonl row belongs to:
-for row in $(jq -c . < ~/.local/state/cache-fix/usage.jsonl); do
+for row in $(jq -c . < ~/.claude/usage.jsonl); do
   req=$(jq -r '.request_id // empty' <<< "$row")
   [ -z "$req" ] && continue
   grep -l "\"requestId\":\"$req\"" ~/.claude/projects/*/*.jsonl
@@ -1172,7 +1163,7 @@ The filename of the matching transcript is the CC session UUID, recovering per-s
 
 The `usage-log` extension above only records successful (200) responses. Non-200s (429 capacity throttling, 5xx errors) leave only an unstructured line in the debug log, so server-side throttling has been effectively invisible to any analysis built on `usage.jsonl`.
 
-`upstream-error-log` (opt-in, new in v4.2.0) emits a structured record for every `status >= 400` to `~/.local/state/cache-fix/usage-log/upstream-errors.jsonl`. Two distinct 429 classes look identical to a user — **account/usage-limit** carries `anthropic-ratelimit-unified-*` headers + `retry-after`; **infrastructure/capacity** is Cloudflare-fronted, carries `x-should-retry: true` only, NO ratelimit headers (the "Server is temporarily limiting requests, not your usage limit" case). The discriminator is `has_ratelimit_headers` (bool): with headers → usage limit; without → capacity event.
+`upstream-error-log` (opt-in, new in v4.2.0) emits a structured record for every `status >= 400` to `~/.claude/usage-log/upstream-errors.jsonl`. Two distinct 429 classes look identical to a user — **account/usage-limit** carries `anthropic-ratelimit-unified-*` headers + `retry-after`; **infrastructure/capacity** is Cloudflare-fronted, carries `x-should-retry: true` only, NO ratelimit headers (the "Server is temporarily limiting requests, not your usage limit" case). The discriminator is `has_ratelimit_headers` (bool): with headers → usage limit; without → capacity event.
 
 Opt-in via env var; default-off:
 
@@ -1183,7 +1174,7 @@ export CACHE_FIX_UPSTREAM_ERROR_LOG=on
 | Env var | Default | Purpose |
 |---------|---------|---------|
 | `CACHE_FIX_UPSTREAM_ERROR_LOG` | `off` | Master gate — `on` activates capture |
-| `CACHE_FIX_UPSTREAM_ERROR_LOG_PATH` | `~/.local/state/cache-fix/usage-log/upstream-errors.jsonl` | Log path override |
+| `CACHE_FIX_UPSTREAM_ERROR_LOG_PATH` | `~/.claude/usage-log/upstream-errors.jsonl` | Log path override |
 
 Record fields per row: `schema_version`, `ts`, `type`, `session_id`, `requested_model`, `request_path`, `response_status`, `upstream_message`, `has_ratelimit_headers`, `ratelimit_status`, `ratelimit_overage_status`, `x_should_retry` (normalized to bool from string), `retry_after`, `upstream_request_id`, `upstream_connection_id`.
 
@@ -1218,7 +1209,7 @@ The `CACHE_FIX_OAUTH_POST_TIMEOUT_MS` ceiling is load-bearing. The refresh POST 
 
 Adds `proper-lockfile` as a runtime dependency (the only other runtime dep is `hpagent`).
 
-Operational events go to `~/.local/state/cache-fix/oauth-events.jsonl`. Seven event classes: `oauth_refreshed` (routine), `oauth_family_revoked` (loud — requires human `/login`; also writes a stderr banner), `oauth_refresh_timeout` (UNKNOWN outcome — no write, no retry), `oauth_refresh_error` (clean failure — leave file, try next tick), `oauth_refresh_skipped` (already-rotated or no-longer-due), `oauth_lock_contended` (another writer holds the lock), `oauth_cred_*` (validation failures: symlink rejected, mode warning, unreadable). Records carry only `{event, outcome, status_code, expires_at, err_class, elapsed_ms}` — never token strings, never raw POST bodies, never raw response bodies.
+Operational events go to `~/.claude/cache-fix-oauth-events.jsonl`. Seven event classes: `oauth_refreshed` (routine), `oauth_family_revoked` (loud — requires human `/login`; also writes a stderr banner), `oauth_refresh_timeout` (UNKNOWN outcome — no write, no retry), `oauth_refresh_error` (clean failure — leave file, try next tick), `oauth_refresh_skipped` (already-rotated or no-longer-due), `oauth_lock_contended` (another writer holds the lock), `oauth_cred_*` (validation failures: symlink rejected, mode warning, unreadable). Records carry only `{event, outcome, status_code, expires_at, err_class, elapsed_ms}` — never token strings, never raw POST bodies, never raw response bodies.
 
 Validation gates on every credential read: not a symlink, mode `0600`, owner-matches-uid, JSON-shape valid. Atomic persist: temp-write (mode 0600) + fsync FD + rename + fsync parent dir, preserving every other credential field across the rotation.
 

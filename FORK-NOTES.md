@@ -141,6 +141,50 @@ logic — such a change states its row-3 declaration before the
 restart. Reading `<key>-events.jsonl` (append-only) needs no live
 intervention — never restart to investigate.
 
+## Where this fork's own state lives — and why the READMEs do NOT say so
+
+**This fork writes its data and state under XDG paths; upstream writes under
+`~/.claude`.** Resolver: `proxy/xdg-dirs.mjs`, `resolveRoot(kind, {platform,
+env, home})`. Order per root: explicit `CACHE_FIX_DATA_DIR` /
+`CACHE_FIX_STATE_DIR`, then `XDG_DATA_HOME` / `XDG_STATE_HOME` (honoured on
+every platform), then the platform default — Linux `~/.local/share|state`,
+darwin `Library/Application Support` | `Library/Logs`, win32 `%LOCALAPPDATA%`.
+On Linux with `XDG_*` unset the paths are byte-identical to what this fork used
+before the platform work, which is why that change needed no migration
+(`8ba8c0d`).
+
+**The three READMEs are UPSTREAM's and are deliberately left describing
+upstream's behaviour.** On 2026-08-08 two fork commits (`ddcdca3`, `332df4a`)
+patched `README.md` and `README.zh.md` to describe our XDG paths while
+`README.ko.md` was never touched — leaving three translations of one document
+disagreeing about the same software, and the English and Chinese ones
+disagreeing with THEMSELVES (29 new-path claims beside 22 old-path ones in
+`README.md`). Both patches were reverted to their pre-patch state, restoring
+exactly our own edits and pulling in no upstream drift (verified: no merge
+touched those files after the patches, so `ddcdca3^` is the precise base).
+
+Reverted rather than completed, for reasons that outlive this instance:
+- The READMEs are upstream's user-facing docs and are not on this file's
+  fork-only list, so fork behaviour does not belong in them — the same rule
+  that keeps fork content out of PR slices.
+- Upstream's `~/.claude` claims are TRUE OF UPSTREAM. Their convention is
+  stated in their own source (`session-mirror-writer.mjs:8-9`, byte-identical
+  here) and implemented in it (`cache-telemetry.mjs:16` calls
+  `join(claudeHome(), …)`). Patching their docs made English and Chinese wrong
+  about upstream while only half-right about us.
+- Finishing the migration would have meant editing Korean and Chinese prose
+  nobody here can review, and tripling the merge-conflict surface on the most
+  frequently merged files while this fork sits 27 commits behind.
+- If the XDG work ever goes upstream, the doc updates ride WITH that PR, in all
+  three languages, through upstream's own translation process.
+
+So: **this section is the carrier for the divergence.** Anyone reading the
+fork's README gets upstream's paths; the fork's real layout is here. If that
+trade ever stops being right — i.e. if people actually install from this fork
+rather than it being the operator's deployment plus a PR staging ground — the
+answer changes to finishing the migration properly and accepting the conflicts,
+and that is the discriminator to re-check, not the tidiness of the docs.
+
 ## Update-from-upstream procedure
 
     # Restart timing is free: restarts are cache-transparent (row 3,

@@ -41,7 +41,7 @@ ANTHROPIC_BASE_URL=http://127.0.0.1:9801 claude
 | `identity-normalization`  | 规范化消息身份字段以保持前缀稳定                                                                                                           |
 | `fresh-session-sort`      | 修复首次轮次中的非确定性排序                                                                                                               |
 | `cache-control-normalize` | 规范化消息间的 cache_control 标记                                                                                                          |
-| `cache-telemetry`         | 从响应头中提取缓存统计 → `~/.local/state/cache-fix/quota-status/{account.json,sessions/<id>.json}`                                                        |
+| `cache-telemetry`         | 从响应头中提取缓存统计 → `~/.claude/quota-status/{account.json,sessions/<id>.json}`                                                        |
 | `session-health`          | 观察每个会话的 thinking-desync 风险（上下文大小 + thinking 块数量），并在会话进入危险区域前发出警告。只读                                  |
 | `thinking-block-sanitize` | 丢弃已省略（空文本）的 thinking 块，以预先阻止 CC thinking-desync `400` 错误（#63147）。**需主动选择**（`CACHE_FIX_THINKING_SANITIZE=on`） |
 
@@ -224,7 +224,7 @@ cache-fix 的 `bootstrap-defense` 扩展提供三种模式，通过 `CACHE_FIX_B
 
 | 模式        | 默认？             | 行为                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ----------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `audit`     | 是                 | Bootstrap 响应代理透传至 CC。每条响应记录到 `~/.local/state/cache-fix/bootstrap-log.jsonl`，包含表面元数据：哪些提示源表面被触发（`tengu_heron_brook` 旧版和/或环境变量选择），值的 SHA-256 哈希（前 16 个十六进制字符——从不记录值本身），以及 `CLAUDE_CODE_REMOTE` 标志。多表面响应每个表面发出一记录，通过 `request_id` + 时间戳窗口关联。                                                                                       |
+| `audit`     | 是                 | Bootstrap 响应代理透传至 CC。每条响应记录到 `~/.claude/cache-fix-bootstrap-log.jsonl`，包含表面元数据：哪些提示源表面被触发（`tengu_heron_brook` 旧版和/或环境变量选择），值的 SHA-256 哈希（前 16 个十六进制字符——从不记录值本身），以及 `CLAUDE_CODE_REMOTE` 标志。多表面响应每个表面发出一记录，通过 `request_id` + 时间戳窗口关联。                                                                                       |
 | `block`     | 主动选择           | `onRequest` 返回 200 及空 JSON 体。绝不调用上游，任何标志映射绝不触及磁盘上的 GrowthBook 缓存。同时防御旧版和环境变量选择的注入面。                                                                                                                                                                                                                                                                                           |
 | `allowlist` | 主动选择（实验性） | Bootstrap 响应代理透传，但不在允许列表中的提示源合格键（旧版 `tengu_heron_brook` + 环境变量选择的键）在到达 CC 前从响应体中剥离。默认允许列表为 `tengu_heron_brook`（唯一已知的历史合法键）；通过 `CACHE_FIX_BOOTSTRAP_ALLOWED_KEYS=逗号,分隔,列表` 配置。传入 `CACHE_FIX_BOOTSTRAP_ALLOWED_KEYS=`（显式空值）以完全拒绝所有。其他 GrowthBook 标志键原样透传。如果 Anthropic 在未来 CC 版本中添加合法的提示源键，可能需要更新。 |
 
@@ -282,7 +282,7 @@ cache-fix 的 `bootstrap-defense` 扩展提供三种模式，通过 `CACHE_FIX_B
 
 运行 `/context`、`/release-notes`（以及可能的其他状态检查命令）会将诊断输出追加到对话历史中，而非仅渲染在终端上。后续轮次通过提示缓存重放膨胀后的载荷，在本应免费的状态检查操作上叠加 token 成本。经验测量：在 v2.1.148 上单次 `/context` 调用增加 +3,480 `cache_creation_input_tokens`；另一用户报告在另一会话中约 5K。`/release-notes` 更糟——默认会倾倒完整更新日志。
 
-诊断上更糟的是：计入您缓存的膨胀载荷不会写入本地 JSONL 记录，因此您无法在本地审计成本来源——只能从响应使用量元数据中的 `cache_creation_input_tokens` 跳跃来推断。（代理模式用户可以在 `~/.local/state/cache-fix/quota-status/` 文件中检查增量，这些文件由代理直接从响应头写入。）
+诊断上更糟的是：计入您缓存的膨胀载荷不会写入本地 JSONL 记录，因此您无法在本地审计成本来源——只能从响应使用量元数据中的 `cache_creation_input_tokens` 跳跃来推断。（代理模式用户可以在 `~/.claude/quota-status/` 文件中检查增量，这些文件由代理直接从响应头写入。）
 
 **在上游修复之前的变通方案：** 在长会话中谨慎使用这些命令。如果在会话中需要频繁使用，考虑在诊断运行后使用 `/compact` 来重置流失。
 
@@ -330,7 +330,7 @@ NODE_OPTIONS="--import claude-code-cache-fix" claude
 
 **它做什么：** 修改传出请求结构（块顺序、指纹、TTL、git-status）以修复缓存 bug。读取响应头和 SSE 使用量数据以进行监控。
 
-**它不做什么：** 代理或拦截器不发起网络调用。所有遥测数据写入 `~/.local/state/cache-fix/` 下的本地文件（抓包语料和正向代理 CA 位于 `~/.local/share/cache-fix/`）。不会有数据离开您的机器。
+**它不做什么：** 代理或拦截器不发起网络调用。所有遥测数据写入 `~/.claude/` 下的本地文件。不会有数据离开您的机器。
 
 **供应链：** 代理模式：`proxy/extensions/` 中的 7 个小扩展模块（每个不足 200 行）。预加载模式：单个未压缩文件（`preload.mjs`，约 1,700 行）。一个开发依赖（`zod`，仅用于测试中的 schema 验证）。安装前请审查。已发布的构建带有 npm 默认注册表签名；sigstore 来源证明目前未发布——作为后续事项跟踪。
 
@@ -421,7 +421,7 @@ Fixes are disabled — consider re-enabling to recover cache performance.
 
 ## 状态行——实时额度警告
 
-两种模式在每次 API 调用时写入额度状态。代理模式（v3.5.0+）拆分为 `~/.local/state/cache-fix/quota-status/account.json`（账户全局字段：Q5h/Q7d、状态、超额）加上 `~/.local/state/cache-fix/quota-status/sessions/<id>.json`（每个会话的缓存字段：TTL 等级、命中率）。预加载模式保留单文件 `~/.local/state/cache-fix/quota-status.json`（按设计为单会话）。附带的 `tools/quota-statusline.sh` 脚本显示实时状态行，包含：
+两种模式在每次 API 调用时写入额度状态。代理模式（v3.5.0+）拆分为 `~/.claude/quota-status/account.json`（账户全局字段：Q5h/Q7d、状态、超额）加上 `~/.claude/quota-status/sessions/<id>.json`（每个会话的缓存字段：TTL 等级、命中率）。预加载模式保留旧版 `~/.claude/quota-status.json`（按设计为单会话）。附带的 `tools/quota-statusline.sh` 脚本显示实时状态行，包含：
 
 - **Q5h** 额度条 `[███░┃░░░░░]` + 百分比 + `(exhaust X, reset Y)`。实心格为已消耗额度；粗竖线为窗口内挂钟已过位置。竖线在实心格右侧 = 低于消耗速度；竖线在实心格内 = 消耗速度快于时间流逝（超速）。`exhaust` 为按当前消耗速率到达 100% 的预计时间；`reset` 为窗口翻转的挂钟剩余时间。当 `exhaust < reset` 时，您将在窗口重置前达到 100%——应减速。
 - **Q7d** 相同形态，以天为量级（例如 `(exhaust 3d13h, reset 3d0h)`）。不足一天时，后缀自动切换为 `h/m` 格式（例如 `(exhaust 1h41m, reset 0h30m)`）。
@@ -485,15 +485,13 @@ export CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS=1
 
 |                                                   | v3.4.x 及更早（代理 + 预加载） | v3.5.0+ 代理模式                                  | v3.5.0+ 预加载模式                        |
 | ------------------------------------------------- | ------------------------------ | ------------------------------------------------- | ----------------------------------------- |
-| 额度字段（Q5h、Q7d、状态、超额）                  | `~/.claude/quota-status.json`  | `~/.local/state/cache-fix/quota-status/account.json`             | `~/.local/state/cache-fix/quota-status.json`（单文件） |
-| 缓存字段（TTL 等级、命中率、cache_creation/read） | 同上文件                       | `~/.local/state/cache-fix/quota-status/sessions/<filename>.json` | 同上文件                                  |
+| 额度字段（Q5h、Q7d、状态、超额）                  | `~/.claude/quota-status.json`  | `~/.claude/quota-status/account.json`             | `~/.claude/quota-status.json`（旧版路径） |
+| 缓存字段（TTL 等级、命中率、cache_creation/read） | 同上文件                       | `~/.claude/quota-status/sessions/<filename>.json` | 同上文件                                  |
 | 多会话归属                                        | 无——最后写入者胜               | 每个会话单独文件                                  | 预加载按设计为单会话                      |
-
-该表包含两次变更。v3.5.0 **拆分**了这个单一文件；之后的某个版本又把根目录**移出**了 Claude Code 的配置目录，迁到 XDG 基础目录，因此上表中 v3.5.0+ 的路径实为 `$XDG_STATE_HOME/cache-fix/…`（默认 `~/.local/state/cache-fix/…`）。在该次迁移之前的安装中，同名文件仍位于 `~/.claude/` 下——尚未执行 `node tools/xdg-migrate.mjs --apply` 的读者依然能在那里找到它们。
 
 `<filename>` 从请求的 `x-claude-code-session-id` 头通过确定性安全名称规则派生：UUID 和其他匹配 `[A-Za-z0-9_-]{1,128}` 的 ID 直接通过；null/空/空白变为 `unknown`；其他映射到 `inv-<sha256-prefix>`。完整规则记录在 [`docs/directives/proxy-quota-status-per-session.md`](docs/directives/proxy-quota-status-per-session.md)。
 
-单文件 `~/.local/state/cache-fix/quota-status.json`（以及 XDG 迁移之前遗留的 `~/.claude/quota-status.json`）在升级后首次代理模式写入时自动删除。早于 `CACHE_FIX_QUOTA_STATUS_TTL_DAYS`（默认 `7`）天的按会话文件在写入时清理。
+旧版 `~/.claude/quota-status.json` 在升级后首次代理模式写入时自动删除。早于 `CACHE_FIX_QUOTA_STATUS_TTL_DAYS`（默认 `7`）天的按会话文件在写入时清理。
 
 ### 消费者侧迁移模式
 
@@ -502,12 +500,9 @@ export CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS=1
 **Bash（状态行风格）：**
 
 ```bash
-STATE="${XDG_STATE_HOME:-$HOME/.local/state}/cache-fix"
-QS_DIR="$STATE/quota-status"
+QS_DIR="$HOME/.claude/quota-status"
 ACCOUNT="$QS_DIR/account.json"
-LEGACY="$STATE/quota-status.json"
-# 迁出 Claude Code 配置目录之前的安装
-[ -f "$LEGACY" ] || LEGACY="$HOME/.claude/quota-status.json"
+LEGACY="$HOME/.claude/quota-status.json"
 
 # 规范文件名规则——必须与 proxy/extensions/cache-telemetry.mjs 一致
 # sessionFilename()：trim，然后 "" → unknown，安全正则透传，否则
@@ -562,16 +557,8 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 
 const home = homedir();
-const stateRoot = join(
-  process.env.XDG_STATE_HOME || join(home, ".local", "state"),
-  "cache-fix",
-);
-const accountPath = join(stateRoot, "quota-status", "account.json");
-// 迁出 Claude Code 配置目录之前的安装，其单文件仍在 ~/.claude 下
-const xdgLegacyPath = join(stateRoot, "quota-status.json");
-const legacyPath = existsSync(xdgLegacyPath)
-  ? xdgLegacyPath
-  : join(home, ".claude", "quota-status.json");
+const accountPath = join(home, ".claude", "quota-status", "account.json");
+const legacyPath = join(home, ".claude", "quota-status.json");
 
 const SAFE_NAME_RE = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -595,7 +582,13 @@ function readQuotaJson() {
 
 function readCacheJson(sessionId) {
   const filename = sessionFilename(sessionId);
-  const p = join(stateRoot, "quota-status", "sessions", `${filename}.json`);
+  const p = join(
+    home,
+    ".claude",
+    "quota-status",
+    "sessions",
+    `${filename}.json`,
+  );
   if (existsSync(p)) return JSON.parse(readFileSync(p, "utf8"));
   if (existsSync(legacyPath))
     return JSON.parse(readFileSync(legacyPath, "utf8"));
@@ -792,7 +785,7 @@ export CACHE_FIX_THINKING_DISPLAY=disabled
 
 长时间运行的 Opus 4.7 `[1m]` 会话会累积交错的 thinking 块并增长其实时上下文，直到 Claude Code 自身的历史重建使 thinking 块签名失同步，在每次后续轮次上产生永久性的 `400 … thinking blocks … cannot be modified` 错误（上游根因：[anthropics/claude-code#63147](https://github.com/anthropics/claude-code/issues/63147)）。会话突然死亡，事先没有任何信号。
 
-`session-health` 扩展监视与触发相关的条件，并在会话**到达危险区域之前**发出警告，使操作者可以有意地退役该会话（写入会话状态交接，`/clear`），而不是被死会话突袭。它是**只读的**——它从不修改请求/响应体，也从不尝试修复失同步（那是 CC 侧的问题，#63147）。它在每次请求时将数值遥测记录到按会话文件（`~/.local/state/cache-fix/quota-status/sessions/<id>.json`）中，并在会话首次进入 `high` 风险时发出一次性 stderr 行。仅计数——绝不记录 thinking 文本或签名。
+`session-health` 扩展监视与触发相关的条件，并在会话**到达危险区域之前**发出警告，使操作者可以有意地退役该会话（写入会话状态交接，`/clear`），而不是被死会话突袭。它是**只读的**——它从不修改请求/响应体，也从不尝试修复失同步（那是 CC 侧的问题，#63147）。它在每次请求时将数值遥测记录到按会话文件（`~/.claude/quota-status/sessions/<id>.json`）中，并在会话首次进入 `high` 风险时发出一次性 stderr 行。仅计数——绝不记录 thinking 文本或签名。
 
 添加到按会话 JSON 的字段：
 
@@ -834,7 +827,7 @@ thinking-desync 响应的*缓解*部分（*预警*部分是上面的 session-hea
 
 ## 监控与诊断
 
-预加载拦截器包括微压缩降级监控、伪速率限制器、GrowthBook 标志状态、使用量遥测和成本报告。额度跟踪在代理和预加载两种模式下均通过 `~/.local/state/cache-fix/quota-status/`（代理：按会话拆分）或 `~/.local/state/cache-fix/quota-status.json`（预加载：单会话单文件）工作。
+预加载拦截器包括微压缩降级监控、伪速率限制器、GrowthBook 标志状态、使用量遥测和成本报告。额度跟踪在代理和预加载两种模式下均通过 `~/.claude/quota-status/`（代理：按会话拆分）或 `~/.claude/quota-status.json`（预加载：单会话旧版路径）工作。
 
 参见 [docs/monitoring.md](docs/monitoring.md) 了解完整细节、调试模式、前缀差异对比、环境变量以及附带的额度分析工具。
 
