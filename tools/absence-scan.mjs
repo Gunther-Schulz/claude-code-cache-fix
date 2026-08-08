@@ -24,7 +24,7 @@
 // FINDINGS NEVER ECHO THE MATCH. A leak reporter that prints the leak into a
 // terminal, a CI log or a hook transcript has moved the leak, not found it. A
 // finding carries the class, the file, the JSON path that reaches the string,
-// and lengths. Never the bytes.
+// lengths, and a HASHED identity (see "Finding identity"). Never the bytes.
 //
 // THE THIRD ANSWER (docs/dev-loop.md, "A checker has THREE answers"): a file
 // that does not parse is neither silently skipped nor silently passed — it is
@@ -33,6 +33,7 @@
 
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { basename } from "node:path";
 
 // --- Allowlist ---------------------------------------------------------------
@@ -273,6 +274,43 @@ const zeroSeen = () => Object.fromEntries(CLASS_NAMES.map((n) => [n, 0]));
 /** The classes a given path is in scope for. */
 export const classesFor = (file) => (inCorpus(file) ? CLASSES : CLASSES.filter((c) => c.scope === "any"));
 
+// --- Finding identity --------------------------------------------------------
+//
+// WHY IT EXISTS. The push hook discards findings the other side demonstrably
+// already has — blocking them buys nothing, and the `--no-verify` habit it
+// trains is the actual damage. Until 2026-08-08 it asked that question of the
+// whole BLOB: is this path's blob byte-identical to a published one? Editing
+// the file mints a new blob, so a months-old, already-public finding inside it
+// read as NEW on every subsequent push, forever. Measured 2026-08-07 on
+// claude-worktime.sh: two capture-key-prefix findings whose lines have been
+// public since long before, blocking every future edit of that file. This
+// identity moves the question down one level, from the file to the finding.
+//
+// HASHED, NEVER PRINTED — the same rule the rest of this file follows (see the
+// header), and the same one the hook's `_nachricht_hash` already applies to
+// commit messages. An identity that echoed its match would move the leak into
+// every terminal, transcript and CI log the hook writes to.
+//
+// THE BYTES ARE THE FINDING'S OWN UNIT — the same span its `length` measures:
+// the whole source LINE for capture-key-prefix, the whole string VALUE for a
+// document class, the basename for the filename class. Deliberately the wider
+// span rather than the regex match: `scanSourceText` emits ONE finding per
+// line however many keys that line carries, so an identity keyed on the match
+// alone would answer "already published" for a line that has just gained a
+// fresh identifier next to an old one. The wider unit fails closed — any edit
+// to the flagged span mints a new identity, and the finding blocks again.
+export const IDENTITY_LEN = 12;
+export const findingId = (cls, bytes) =>
+  createHash("sha256").update(`${cls}\0${bytes}`, "utf8").digest("hex").slice(0, IDENTITY_LEN);
+
+/**
+ * One finding. `bytes` is both what the identity is computed over and what
+ * `length` measures — the two cannot drift apart, because there is one
+ * argument for both.
+ */
+const finding = (cls, bytes, rest) =>
+  ({ class: cls, ...rest, length: bytes.length, id: findingId(cls, bytes) });
+
 /**
  * Scan one parsed document (or a bare string, for the raw-byte fallback).
  * Returns { findings, seen, scanned } — findings carry class, path and
@@ -292,7 +330,7 @@ export function scanDocument(doc, { file = "", path = "$", classes = CLASSES } =
       seen[cls.name]++;
       const detail = cls.violates(entry);
       if (detail) {
-        findings.push({ class: cls.name, file, path: entry.path, length: entry.value.length, ...detail });
+        findings.push(finding(cls.name, entry.value, { file, path: entry.path, ...detail }));
       }
     }
   }
@@ -303,7 +341,7 @@ export function scanDocument(doc, { file = "", path = "$", classes = CLASSES } =
 export function scanName(file) {
   const name = basename(String(file));
   if (UUID.test(name) || NAME_UUID_PREFIX.test(name)) {
-    return [{ class: "capture-uuid-filename", file, path: "<filename>", length: name.length }];
+    return [finding("capture-uuid-filename", name, { file, path: "<filename>" })];
   }
   return [];
 }
@@ -418,14 +456,18 @@ export function scanSourceText(text, file) {
     if (!SHORT_KEY.test(line)) return;
     if (SHORT_KEY_EXEMPT.some((re) => re.test(line))) return;
     if (FULL_UUID_HEAD.test(line)) return;
-    findings.push({ class: "capture-key-prefix", file, path: `line ${i + 1}`,
-                    length: line.length });
+    findings.push(finding("capture-key-prefix", line, { file, path: `line ${i + 1}` }));
   });
   return { findings, degraded: [] };
 }
 
-function git(args) {
-  return execFileSync("git", args, { encoding: "utf-8", maxBuffer: 1 << 28 });
+// `quiet` suppresses git's own stderr for calls whose failure is EXPECTED and
+// already reported by the caller — otherwise a `fatal: path … does not exist`
+// rides along into the hook transcript beside the `degraded:` line that says
+// the same thing more precisely.
+function git(args, { quiet = false } = {}) {
+  return execFileSync("git", args, { encoding: "utf-8", maxBuffer: 1 << 28,
+                                     stdio: quiet ? ["ignore", "pipe", "ignore"] : undefined });
 }
 
 /**
@@ -529,11 +571,63 @@ export function scanGitRange(oldRef, newRef) {
            messages: messages.length };
 }
 
+// --- one published version of a path -----------------------------------------
+
+/**
+ * The findings of `paths` AS THEY STAND AT `ref` — content out of git, but
+ * classified under each path's own LOGICAL name, so the allowlist, the
+ * class-scoped exemptions and the harvested-corpus scope rule all decide
+ * exactly what they decide in `--git-range`. Reusing `scanContent` rather than
+ * re-deriving the classification is the point: a second reading of "what is a
+ * finding here" would drift from this one silently (docs/dev-loop.md, "Never
+ * hand-roll identity in a probe").
+ *
+ * The caller is the push hook, asking what a path's ALREADY PUBLISHED versions
+ * carry, so it can discard exactly those findings from the push it is scanning.
+ *
+ * `ref` is a commit-ish: content comes from `git show <ref>:<path>`. A path
+ * that does not resolve there contributes NOTHING and is named on a
+ * `degraded:` line — the fail-closed direction, because a version that could
+ * not be read must not read as "carries no findings" (docs/dev-loop.md, "A
+ * checker has THREE answers"). The hook's own walk only ever passes versions
+ * it has already resolved, so this is the safety net rather than the path.
+ */
+export function scanAtRef(ref, paths) {
+  const findings = [];
+  const allowlisted = [];
+  const degraded = [];
+  let partial = 0;
+  for (const file of paths) {
+    if (isAllowlisted(file)) {
+      allowlisted.push(file);
+      continue;
+    }
+    let text;
+    try {
+      text = git(["show", `${ref}:${file}`], { quiet: true });
+    } catch {
+      degraded.push(`${file} does not resolve at ${ref} — contributes nothing`);
+      continue;
+    }
+    const r = scanContent(text, file);
+    // The same class-scoped filtering as both other modes — one meaning of
+    // "exempt" in this file, not three.
+    const exempt = exemptClasses(file);
+    const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
+    if (kept.length < r.findings.length) allowlisted.push(file);
+    findings.push(...kept);
+    if (r.partial) partial++;
+    degraded.push(...r.degraded.map((d) => `${file}: ${d}`));
+  }
+  return { findings, allowlisted, degraded, partial };
+}
+
 // --- CLI ---------------------------------------------------------------------
 
 const USAGE = `usage:
   node tools/absence-scan.mjs <file...>
   node tools/absence-scan.mjs --git-range <old>..<new>   (from a repo root; <old> may be EMPTY)
+  node tools/absence-scan.mjs --at <ref> <path...>       (from a repo root; content via git show <ref>:<path>)
 
 exit 0 = clean, 2 = findings, 1 = internal error`;
 
@@ -548,7 +642,15 @@ function report(out, { findings, allowlisted = [], degraded = [], partial = 0 })
   }
   for (const f of findings) {
     const extra = f.run ? ` run=${f.run}` : "";
-    out(`FINDING ${f.class}  ${f.file || "<input>"}  ${f.path}  (${f.length} chars${extra})`);
+    // The identity rides INSIDE the parentheses, and that is load-bearing
+    // rather than cosmetic: the hook's file-finding regex ends
+    // `\(\d+ chars[^)]*\)$`, so an identity in here is backward-compatible by
+    // construction while one appended after the closing paren would stop every
+    // file finding from parsing at all. A finding whose identity is not
+    // well-formed prints none — the hook keeps what it cannot parse, which is
+    // the direction every uncertainty in this pipeline takes.
+    const ident = /^[0-9a-f]{12}$/.test(String(f.id ?? "")) ? `, #${f.id}` : "";
+    out(`FINDING ${f.class}  ${f.file || "<input>"}  ${f.path}  (${f.length} chars${extra}${ident})`);
   }
 }
 
@@ -572,6 +674,14 @@ function main(argv) {
       return 1;
     }
     result = scanGitRange(oldRef, newRef);
+  } else if (args[0] === "--at") {
+    const ref = args[1];
+    const paths = args.slice(2);
+    if (!ref || paths.length === 0) {
+      process.stderr.write(`absence-scan: --at needs <ref> <path...>\n${USAGE}\n`);
+      return 1;
+    }
+    result = scanAtRef(ref, paths);
   } else {
     const findings = [];
     const allowlisted = [];

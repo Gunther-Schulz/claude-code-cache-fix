@@ -18,12 +18,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES } from "../tools/absence-scan.mjs";
+import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -88,10 +89,17 @@ test("the clean document produces no finding at all", () => {
 
 test("a finding never carries the matched bytes", () => {
   // A leak reporter that prints the leak has moved it, not found it.
+  //
+  // The key list is CLOSED on purpose: a new field on a finding has to be
+  // argued for here, in the test whose whole subject is what a finding may
+  // carry. `id` was added 2026-08-08 and is the one field derived FROM the
+  // matched bytes — so it is asserted to be a digest rather than merely
+  // tolerated, and the identity section below pins what it is a digest OF.
   const findings = scanDocument(SEEDED["capture-uuid"]).findings;
   assert.equal(findings.length, 1);
-  assert.deepEqual(Object.keys(findings[0]).sort(), ["class", "file", "length", "path"]);
+  assert.deepEqual(Object.keys(findings[0]).sort(), ["class", "file", "id", "length", "path"]);
   assert.ok(!JSON.stringify(findings).includes(FAKE_UUID));
+  assert.match(findings[0].id, /^[0-9a-f]{12}$/, "the identity is a digest, not a quotation");
 });
 
 test("the filename class fires on a UUID name and on an 8-hex s- prefix, not on the real token shape", () => {
@@ -614,5 +622,136 @@ test("git-range: a clean message with a clean file reports nothing", () => {
     g("commit", "-qm", "scrub: replace the residual capture id in 9 files");
     const r = run(["--git-range", `${base}..HEAD`], dir);
     assert.equal(r.status, 0, r.stdout + r.stderr);
+  });
+});
+
+// --- finding identity, and the published-version mode that consumes it -------
+//
+// Both exist for ONE consumer: the pre-push hook in the dotfiles repo, which
+// discards findings the other side demonstrably already has. It used to ask
+// that of the whole BLOB, so editing a file re-reported every months-old
+// public finding inside it on every push, forever — a gate that cannot pass,
+// and the `--no-verify` habit it trains is the damage. The identity moves the
+// question from the file to the finding; `--at` is how the hook reads what a
+// path's already-published versions carry.
+//
+// The FINDING line is therefore a wire format with a parser in another
+// repository. These tests are its contract, pinned on this side.
+
+test("identity: a digest of the class and the finding's own bytes, computed independently here", () => {
+  // Second implementation of the documented rule, on purpose: if the tool's
+  // notion of the identity ever diverges from the written one, an expectation
+  // sharing the tool's parentage would move along with it and pin nothing.
+  const line = "// nennt s-1a2b3c4d";
+  const expected = createHash("sha256").update(`capture-key-prefix\0${line}`, "utf8")
+    .digest("hex").slice(0, 12);
+  assert.equal(findingId("capture-key-prefix", line), expected);
+  assert.equal(findingId("capture-key-prefix", line).length, 12);
+});
+
+test("identity: the same bytes at a DIFFERENT path carry the same identity", () => {
+  // The path is deliberately NOT in the digest. The hook supplies the path
+  // qualifier by collecting one identity set per path — so the same bytes in a
+  // NEW file have no published set and still block. Folding the path in here
+  // as well would double-count it and make a renamed file's public lines
+  // unremovable, which is the very defect this replaced.
+  const doc = { key: FAKE_UUID };
+  const a = scanContent(JSON.stringify(doc), `${CORPUS}/one.json`).findings;
+  const b = scanContent(JSON.stringify(doc), `${CORPUS}/two.json`).findings;
+  assert.equal(a.length, 1);
+  assert.equal(a[0].id, b[0].id);
+});
+
+test("identity: it is the finding's OWN span, so an edit anywhere in that span mints a new one", () => {
+  // The unit is the whole flagged line, not the matched token. A line that
+  // gains a SECOND identifier beside an old one must not keep answering "already
+  // published" — that is the swallow this widening prevents, and it is the
+  // fail-closed direction.
+  const one = scanContent("// nennt s-1a2b3c4d\n", "a.mjs").findings;
+  const two = scanContent("// nennt s-1a2b3c4d und s-44556677\n", "a.mjs").findings;
+  assert.equal(one.length, 1);
+  assert.equal(two.length, 1, "still one finding per line");
+  assert.notEqual(one[0].id, two[0].id, "the added identifier must change the identity");
+  assert.equal(one[0].length, "// nennt s-1a2b3c4d".length,
+    "and length measures the same span the identity is taken over");
+});
+
+test("the FINDING line carries the identity INSIDE the parentheses", () => {
+  // Load-bearing placement: the hook's file-finding regex ends
+  // `\(\d+ chars[^)]*\)$`. Inside, it is backward-compatible by construction;
+  // appended after the closing paren, every file finding would stop parsing and
+  // the hook would silently discard nothing.
+  withTemp((dir) => {
+    const rel = seedCorpusFile(dir, "dirty.json", SEEDED["capture-uuid"]);
+    const r = run([rel], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    const line = r.stdout.split("\n").find((l) => l.startsWith("FINDING "));
+    assert.match(line, /\(\d+ chars, #[0-9a-f]{12}\)$/);
+    // The hook's own regex, transcribed. A change here is a change over there.
+    assert.match(line, /^FINDING\s+\S+\s{2,}(.+?)\s{2,}.+\s{2,}\(\d+ chars[^)]*\)$/);
+    assert.ok(!line.includes(FAKE_UUID));
+  });
+});
+
+test("--at: reads content from a ref and classifies it under the LOGICAL path", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const rel = seedCorpusFile(dir, "dirty.json", SEEDED["capture-uuid"]);
+    g("add", rel);
+    g("commit", "-qm", "seed");
+    const head = g("rev-parse", "HEAD");
+
+    // The working tree no longer carries it; the ref still does.
+    writeFileSync(join(dir, rel), JSON.stringify(CLEAN, null, 2));
+
+    const at = run(["--at", head, rel], dir);
+    assert.equal(at.status, 2, at.stdout + at.stderr);
+    assert.match(at.stdout, /FINDING capture-uuid {2}test\/fixtures\/harvested\/dirty\.json/);
+    assert.ok(!at.stdout.includes(FAKE_UUID), "--at must not echo the match either");
+
+    // …and the identity is the same one the file mode reports for those bytes,
+    // which is the whole basis on which the hook compares the two sides.
+    const idAt = at.stdout.match(/#([0-9a-f]{12})\)/)[1];
+    assert.equal(idAt, scanDocument(SEEDED["capture-uuid"]).findings[0].id);
+  });
+});
+
+test("--at: a path that does not resolve at the ref contributes nothing and SAYS so", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "a.md"), "clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "seed");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--at", head, "nicht/da.md"], dir);
+    // Clean, but never SILENTLY clean: an unreadable version that read as
+    // "carries no findings" would let the hook treat it as a checked one.
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /^degraded: nicht\/da\.md does not resolve at /m);
+  });
+});
+
+test("--at: the exemption is class-scoped here too, not path-wide", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const led = seedCorpusFile(dir, "LEDGER-Testhost.json",
+      { ...SEEDED["capture-uuid"], ts: "2026-08-05T09:10:03.000Z" });
+    g("add", led);
+    g("commit", "-qm", "seed");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--at", head, led], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING capture-uuid/, "the class it is NOT exempt from fires");
+    assert.ok(!r.stdout.includes("FINDING live-timestamp"), "the exempt class stays quiet");
+  });
+});
+
+test("--at: a missing ref or path is a usage error, not a silent clean", () => {
+  withTemp((dir) => {
+    gitRepo(dir);
+    assert.equal(run(["--at"], dir).status, 1);
+    assert.equal(run(["--at", "HEAD"], dir).status, 1);
   });
 });
