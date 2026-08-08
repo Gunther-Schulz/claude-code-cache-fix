@@ -1405,6 +1405,18 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   already-blessed 7/7b fix); and all three declared URLs confirmed `PUBLIC` via
   `gh repo view --json visibility`, because declaring a private repo public is
   the one failure this design cannot survive.
+  **First LIVE git-invoked runs, and stated precisely rather than generously:**
+  the fork's pushes at 10:19:32 and 10:22:19 ran the new hook as a real git
+  hook (committed 10:18:57; the fork is `GUARDED`). Neither crashed and neither
+  false-blocked. That is the clean-path only — a scan returning no findings
+  short-circuits before the filter — so the FILTERING path remains
+  battery-and-fixture verified, not live-verified. The distinction is the whole
+  difference between "it ran" and "it worked".
+  **Named limits, all fail-closed by construction, none measured:** the URL
+  normal form covers https and scp-style; `ssh://` with an explicit port and
+  other transports fall through to NOT-public. The `git push <url>` form
+  contributes no declared remote, so stdin `<old>` alone applies. Each errs
+  toward keeping findings, which is the safe direction, and each is unmeasured.
 
 - **READY (small, operator-side, dotfiles) — nothing checks that a
   declared-public remote is STILL public.** Booked 2026-08-08 as the named limit
@@ -5721,7 +5733,16 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   a commit MESSAGE.** Measured 2026-08-08 by the leak-scan lane: `git commit -F -`
   with a heredoc was BLOCKED by `subagent-push-gate` because the commit message
   contained the word "push" (it was describing the push hook). No push was
-  attempted or possible. The lane recovered correctly — confirmed nothing had
+  attempted or possible.
+  **SECOND FIRE, 2026-08-08, different lane:** the same gate denied a
+  `git commit` whose inline message carried push-adjacent wording, in a lane
+  whose entire subject was the push hook — so the wording was unavoidable, not
+  incidental. Both lanes recovered the same correct way (read the state, confirm
+  nothing was staged or committed, retry with `-F <file>`), and both surfaced it
+  rather than working around it silently. Two fires in one day, both on lanes
+  working ON the push path, is the fire-rate this observation needed: the
+  predicate reads the payload when it means to read the intent, and it fires
+  hardest on exactly the work most likely to need the words. The lane recovered correctly — confirmed nothing had
   been committed, then committed via `-F <file>` — and the confirm-before-retry
   step is the part worth keeping, because a blocked step leaves the state its
   successor assumes was created.

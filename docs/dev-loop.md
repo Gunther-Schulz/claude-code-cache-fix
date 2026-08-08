@@ -1289,6 +1289,22 @@ Two rules, both learned the expensive way:
    and reads exactly like a measured one. Check in order, report which
    check failed, and give the state that has no word yet its own string.
 
+   **A FIXTURE can encode a state the real system cannot produce, and the
+   wrong design will pass it for the wrong reason.** Measured 2026-08-08: a
+   two-remote fixture set `refs/remotes/privat/main = C1` while telling git's
+   stdin the old value was C0 — a state git never produces, because if the
+   remote held C1 then git reports old = C1. The first design passed it because
+   the tracking ref counted regardless; the second design exposed it as a
+   failure that looked like a design defect and was a fixture defect. The lane
+   diagnosed the fixture instead of papering over the verdict, and turned the
+   realistic arrangement into a permanent case. So: when a verifier fails, the
+   FIXTURE's realism is a suspect equal to the code — and a fixture that can
+   only exist in the harness is testing the harness. Corollary from the same
+   build: shared fixture setup is a dependency surface. Making a shared helper
+   "more realistic" unconditionally reddened an unrelated bite, because the
+   added URL carried a guarded name and activated the very code path that bite
+   held constant; changes to shared setup belong opt-in.
+
    **A mutation must remove the exact condition the bite names** — two
    bites in one build passed for the WRONG reason and survived their
    mutations, because the mutation deleted adjacent machinery rather
