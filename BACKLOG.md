@@ -5933,6 +5933,131 @@ ENOSPC misattribution with its wrong first explanation left in.
   claim dissolving under a one-command probe, all found by a session that
   probed before briefing. None was found by a check.
 
+- **READY — `backlog-lint`'s enumeration exemption is SLASH-ONLY, so the same
+  enumeration written with `vs` or commas false-fires.** Measured 2026-08-08,
+  live, on the entry two below this one: writing the repo's own three-answer
+  gate discipline as a `vs`-joined triple tripped `WARN backlog-header
+  grade=READY`, i.e. the lint read a NAMED TECHNICAL TERM as a claim that the
+  entry's work was resolved. The tool already anticipates exactly this class —
+  its header comment says the exemption exists because its own entry lists the
+  marker words — but the guard is `(?<!\/)…(?!\/)`, so it clears the
+  slash-joined form and misses the same enumeration joined by `vs`, by a
+  comma, or by `and`. Worked around at the time by writing the triple
+  slash-joined, which is honest (it IS an enumeration) but is a workaround,
+  not the fix.
+  **This entry self-fired while being written, which is the evidence.** Naming
+  the trigger forms literally in prose trips the very gap they describe, so
+  they are described here and belong as literal strings in the test fixture,
+  not in this file — a guard whose gap cannot be documented without tripping
+  it is the sharpest possible statement of the gap.
+  **Why it is worth fixing rather than living with:** the verification word is
+  a term of art in this repo — it is one third of the DECLARED/RUNNING/VERIFIED
+  triple
+  that `doctor` compares — so any entry discussing gate verification trips it.
+  A guard that fires on correct prose is the check-that-fires-on-a-non-defect
+  shape: it trains its reader to route around it, which is what happened here
+  within one minute of it firing.
+  Design: widen the exemption from slash-adjacency to ENUMERATION CONTEXT —
+  the marker word appearing inside a run of two or more all-caps terms joined
+  by `/`, `,`, `vs`, `and`, or `+`. Do NOT simply drop the verification word
+  from the marker set; the dated-resolution signal it carries is the whole
+  point of the check.
+  Verifier, red-first, BOTH arms required because this is a predicate change to
+  a live guard: (1) the real prose instances the check exists for — a READY
+  entry whose body carries the verification word beside a resolution date, in
+  resolution prose — must STILL fire; (2) the enumeration forms above must
+  NOT. Take arm (1) from the check's own
+  historical true positives so the fix is measured against what it caught, not
+  against what I imagine it caught. Done when `node tools/backlog-lint.mjs` is
+  clean on a corpus containing both arms and `test/backlog-lint.test.mjs`
+  covers each.
+  Consumer tier **3 (backlog and process)** — it mis-labels entries and is
+  recovered at the next read; ranked accordingly, not promoted for being
+  annoying.
+  <!-- entry: "backlog-lint's enumeration exemption is SLASH-ONLY" -->
+
+- **READY — the tool-adjacency SAFETY check does not run on ANY reset path, and
+  safety is the property this repo says outranks cache.** Found 2026-08-08 by
+  the row-22 disarm enumeration; the control flow confirmed at the source by
+  the dispatcher rather than booked on the lane's word.
+  `validateToolAdjacency` (`proxy/extensions/insertion-normalization.mjs:459`)
+  has exactly two call sites, `:545` and `:1720`. Every reset is an EARLY
+  RETURN that never reaches `:1720` — `return resetKeepingPins("not-
+  subsequence")` `:1535`, `("dropped-majority")` `:1539`, `("edit-shaped")`
+  `:1597`, `("assistant-interleaved")` `:1601` — and `resetKeepingPins` itself
+  (`:1039-1212`) contains no adjacency call. So the pinned/moved/refired
+  messages a reset forwards go out WITHOUT the correctness check the success
+  path applies to its own output.
+  **Rate, measured, not assumed:** the matrix's row-22 work puts the reset rate
+  at roughly one request in three. In one live session 2026-08-08 (s-captureAT):
+  13 resets over 127 insertion events, 12 of them `no-prior-canonical`; a second
+  session took `edit-shaped` on its busting request. So this is a routinely
+  taken path, not an edge case.
+  **What is NOT claimed, and this bounds the severity honestly:** no adjacency
+  violation has been OBSERVED. `replay.mjs`'s own safety gate covers message
+  count, roles, order and tool adjacency over pipeline output, and it reported
+  `safety violations: 0` on both captures replayed that day. So this is an
+  UNGUARDED ROUTE, not a known-broken one — the dev-loop's entry-path table
+  shape exactly ("the protected thing is reachable by a second route, the
+  second route is silent"), one level inside an extension rather than across
+  invocations. Do not write "the proxy corrupts conversations on reset" into
+  the matrix on this evidence.
+  Design: call `validateToolAdjacency` on `resetKeepingPins`' output before it
+  returns, taking the same action the success path takes when it fails. The
+  success path's failure branch at `:545`/`:1720` is the model; do not invent a
+  second policy.
+  Verifier, red-first and it needs CONSTRUCTING because no natural instance
+  exists: build a fixture whose reset output violates adjacency (a pinned
+  `tool_use` restored without its `tool_result`, or the reverse), assert the new
+  code rejects it, and confirm the OLD code forwards it silently — that silent
+  forward IS the red. Negative control, required so the check cannot pass by
+  always firing: a normal `no-prior-canonical` reset from s-captureAT must still
+  pass untouched. Done when both arms hold and the full suite is green.
+  **Sequencing constraint (hard):** this check must be demonstrated RED against
+  the current code BEFORE any change to the reset paths ships, or it ships
+  having never gone red on anything.
+  Consumer tier **2 (feeds the gates)** — it is a correctness guard, not an
+  event classifier — but note it outranks its tier on the SILENCE signal: a
+  fidelity failure here is silent by construction, and the repo's stance is
+  that safety outranks cache.
+  <!-- entry: "the tool-adjacency SAFETY check does not run on ANY reset path" -->
+
+- **READY — `extensions.json` is NOT the activation gate: every `.mjs` in
+  `proxy/extensions/` runs unless it disables ITSELF.** Found 2026-08-08 as the
+  zero-order finding of the disarm enumeration; verified by the dispatcher at
+  `proxy/pipeline.mjs:20-70`. `loadExtensions` does `readdir(dir)`, filters
+  `.mjs`, and computes `const enabled = cfg?.enabled ?? ext.enabled ?? true`.
+  Absence from `extensions.json` therefore means DEFAULT ON, not off. Six files
+  are absent from the config and live anyway, four of them un-inspected as of
+  this booking: `deferred-tools-restore.mjs` (MUTATES, `:352`),
+  `thinking-block-sanitize.mjs`, `upstream-change-detection.mjs` (5 Maps),
+  `prefix-diff.mjs`, plus `session-health.mjs` and `auto-1m-guard.mjs`
+  (classified read-only/stateless).
+  **Why this is more than a config nit.** The repo has a three-answer
+  discipline for which GATES run — DECLARED/RUNNING/VERIFIED (the unit's
+  `Environment=`, `/health`, and the sweep's status file), and `doctor`
+  compares all three. There is NO equivalent answer for which EXTENSIONS run:
+  a `.mjs` dropped into the directory is live with no declaration anywhere and
+  nothing compares it against anything. Every enumeration of "what is enabled"
+  written from `extensions.json` has been over the wrong set — which is the
+  enumeration-keyed-on-a-NAME error from the dev-loop, one level up at the
+  directory. FORK-NOTES' restart-transparency argument enumerates extensions
+  this way and is booked separately for the same reason.
+  Design: make the extension set answerable and comparable. Emit the loaded set
+  (name, file, order, enabled, and WHERE enabled came from — config / module
+  default / implicit true) on `/health` beside `gates`, and have `doctor` fail
+  when a live extension has no explicit declaration. Do NOT flip the default to
+  off in the same change: that is a behaviour change to the serving pipeline
+  and needs its own row-3 declaration and live pricing.
+  Verifier, red-first: plant a no-op `.mjs` in a scratch extensions dir, load
+  it, and assert `/health` lists it with source `implicit-true`; assert
+  `doctor` goes RED on exactly that condition and stays green when the same
+  extension is declared. Negative control: a file with its own
+  `enabled:false` must NOT appear in the loaded set.
+  Consumer tier **1 (event disposition)** — every "which extension did this"
+  attribution, including today's two bust walks, reads the set this would fix.
+  <!-- entry: "extensions.json is NOT the activation gate" -->
+
 - **READY — attribute the state-key FLIP that disarmed row 1's mitigation on a
   live 141k bust; the class is row 26 but this instance has no cause.**
   Booked 2026-08-08 from the bust walk on s-captureAT (2026-08-08T09:59:53Z,
@@ -5995,6 +6120,19 @@ ENOSPC misattribution with its wrong first explanation left in.
   KEY-FLIP. Two live cases, one of each polarity, so the check cannot pass by
   always firing. Old code fails the first and passes the second, which is the
   red.
+  **Second half, same entry because it is the same read** (added 2026-08-08
+  when runbook step 11 was corrected): once the tool reads those logs it also
+  PRINTS the snapshot command for them, beside the pin command it already
+  prints — for whichever artifact the verdict actually rests on. The runbook
+  now carries the artifact table and the machine-local snapshot convention
+  (`~/.local/share/cache-fix/bust-evidence/<date>/`, 0600, never committed —
+  raw lines carry session ids and the hygiene scan's `capture-uuid` class
+  blocks them at push); what is missing is the tool emitting it, so a walker
+  who runs only `bust-triage` is told which freeze to take. Verifier: on
+  s-captureAT the tool must print an event-log snapshot command, on a pair
+  whose finding is byte-shaped it must print the pin command, and the
+  snapshot arm must be shown to reproduce (both timestamps present, >1
+  distinct `key`) — a snapshot is a claim exactly like a pin is.
   <!-- entry: "bust-triage reports a state-key CHANGE across the pair" -->
 
 - **READY — FORK-NOTES asserts `deferred-tool-rewrite` is disabled; it is

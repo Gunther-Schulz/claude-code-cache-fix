@@ -208,6 +208,41 @@ already carries — never by trusting that two counters agree.
 
 11. **Freeze the evidence — and then verify the freeze.**
     `[GRADUATE -> harvest --pin verifies its own pin; BACKLOG ready]`
+
+    **FIRST: freeze what carries YOUR finding, which is not always the
+    capture.** Added 2026-08-08, from following this step literally and
+    freezing the wrong artifact. This step used to describe captures and
+    only captures — while step 8, three steps above, says the state key
+    lives in the EXTENSION EVENT LOGS and is *invisible to every body
+    diff*. Both sentences were correct and nobody had put them together:
+    a walk whose finding is a state-key flip pins a capture that cannot
+    contain it. Measured that day — the pin's own self-check reported
+    `does NOT reproduce`, correctly, and for a reason narrower than the
+    truth (the scrub had destroyed the text-predicate classes; the
+    state-key finding had never been in that file at all).
+    So, before pinning anything, name the artifact your finding actually
+    lives in:
+
+    | the finding | what carries it |
+    |---|---|
+    | byte divergence, message shape, migrations | the CAPTURE (pin it) |
+    | state key, reset reason, what an extension DID | `~/.local/state/cache-fix/snapshots/*-events.jsonl` |
+    | cause, token cost, `cache_miss_reason` | the CC transcript |
+    | which gates/extensions were live | `/health` + the sweep status file |
+
+    Event-log slices are machine-local, never committed — raw lines carry
+    full session ids and the hygiene scan blocks them at push (the
+    `capture-uuid` class). Snapshot to
+    `~/.local/share/cache-fix/bust-evidence/<date>/`, mode 0600, and cite
+    it in tracked prose by ALIAS like any capture.
+    The same verify-your-freeze rule binds here: after snapshotting,
+    re-read the slice and confirm the records that PROVE the finding are
+    in it (for a key flip: both timestamps present, and more than one
+    distinct `key`). A snapshot is a claim exactly like a pin is.
+    `[GRADUATE -> bust-triage prints the event-log snapshot command beside
+    the pin command, for whichever artifact the verdict rests on; BACKLOG
+    ready]`
+
     Captures
     rotate on a quadratic clock and eviction is oldest-mtime-first,
     which takes the quiet session first. `bust-triage` prints the pin

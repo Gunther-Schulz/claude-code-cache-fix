@@ -1745,3 +1745,85 @@ cause classes. Coverage verdicts, each measured where possible:
   request after going cold, this is the first hypothesis (a forward-path
   retry/backoff would be the mitigation candidate).
 - N/A — usage hygiene (#69468): tracked by worktime/statusline already.
+
+### Row 4 datapoint — 2026-08-08 09:48:53Z (11:48 local): a 638k non-tail instance, attributed to CC, and NOTHING attempted to absorb it
+
+Capture `s-captureAS`, session in the dotfiles project (not this repo).
+Pair `n=370->372` in `replay.mjs` ordinal space — note `bust-triage` prints
+`n=305->311` for the same pair, which is the MESSAGE COUNT and is documented
+as such at `bust-triage.mjs:1184`; the two were joined by timestamp
+(09:47:49.317Z -> 09:47:52.398Z), never by trusting two counters.
+
+Census: `replace/edit`, **MID-HISTORY**, `at=274 / lastIdx=310`,
+`anchorDelta=-36`, ~35 kB, with 4 `blockMigration inline->standalone`
+(290->291, 292->291, 300->303, and a `join:cross-message` 274+275->275).
+This is the RE-OPENED non-tail shape, not the `idx == length-1` form the
+2026-07-28 closure measured.
+
+**Attribution: Claude Code's.** Raw pre-pipeline divergence (order 60, the
+untouched capture) at index 274; forwarded divergence at index 267, the
+offset being suppression count. Established by dumping and diffing the actual
+forwarded message bodies via `replay.mjs --dump-forwarded`, not by reasoning
+about the pipeline. No new divergence introduced by us.
+
+**Why nothing absorbed it, and this is the part worth keeping:**
+`replace/edit` is not in `replay.mjs`'s `MITIGABLE` set (line 1178 — only
+`splice/insert-mid`, `append-after-change`, `reorder-only`). The pipeline does
+not attempt this class at all, and insertion-normalization logged
+`action=reset resetReason=edit-shaped`. So this row's READY canonicalization
+design has been decision-complete since 2026-07-31 and this bust is what its
+absence costs.
+
+Gates: replay exit 0 under all 10 SERVING gates, zero
+stability/safety/conservation/sequence/canonical-order violations. The run's
+single stability exemption names a DIFFERENT pair (`n=111->113`) — silent on
+ours, which per the runbook is not a pass on it.
+State key **identical** across both requests: not a row-26 state loss.
+Daily sweep finished 06:20:22Z, ~3.5 h before the bust — covers nothing here.
+
+**Instrument note, corrected in place:** `findAbsorptionMisses` returned
+nothing for this pair, and the first explanation written down — "because
+`replace/edit` is not in MITIGABLE" — was WRONG. That gate is at line 1238 in
+a different loop. `findAbsorptionMisses` (line 1445) gates on
+`claims = movedFresh|descriptionAbsorbed|oscillationAbsorptions > 0`; our pair
+logged `action=reset, movedFresh=0`, so it was skipped for having claimed
+nothing. Correct behaviour, different mechanism — caught before it shipped as
+a "coverage hole in the absorption check", which it is not.
+
+### Row 1 / Row 26 datapoint — 2026-08-08 09:59:53Z (11:59 local): a 141k bust where the mitigation was ARMED and had no baseline, and the triage called it MITIGATED
+
+Capture `s-captureAT`, this repo's own dev session. Census
+`splice/insert-mid` — a class that IS in `MITIGABLE`, which is what separates
+this instance from the 638k above: the pipeline does attempt this shape.
+
+It absorbed nothing, because the pair's two requests ran under DIFFERENT
+state keys 4 s apart, both logging `action=reset resetReason=no-prior-
+canonical`:
+
+    capture 09:58:46.362Z -> insertion event 09:58:46.364Z  key …496b188f5f435920
+    capture 09:58:50.626Z -> insertion event 09:58:50.628Z  key …a20843f8616f3866
+
+Session-wide: 12 distinct state keys over 127 insertion events, 13 resets,
+**12 of them `no-prior-canonical`**; 8 of the 12 keys carry exactly ONE event
+— a key appears, takes one request, and is never seen again.
+
+**`bust-triage` answered `VERDICT: MITIGATED, matrix row 1`.** That is the
+row's STATUS being reported as though it were a per-instance absorption
+claim. The tool maps the census class to a row and never reads the pair's
+extension event logs, which is the one place the disarm is visible — a body
+diff cannot see it. Runbook step 8's GRADUATE marker names exactly this and is
+now booked READY with both polarities available live as its verifier
+(`s-captureAT` flips keys, `s-captureAS` does not).
+
+**Deliberately NOT claimed:** that the key flip caused the re-bill. CC keys
+its cache on the bytes it sends, not on our internal key. What is established
+is that the flip DISARMED our absorption; the upstream miss has its own cause
+and is unattributed. Booked READY as its own item rather than written here as
+a mechanism.
+
+**Class relationship, stated because these three keep getting conflated:**
+(i) SKIPPED-ON-RESET — the success path runs a behaviour the reset path
+returns before (row 22's promoted question, one instance fixed in `059aae3`,
+the enumeration still open); (ii) NO BASELINE AT ALL — this datapoint, row 26's
+class; (iii) NOT IN `MITIGABLE` — the 638k above, absent by design rather than
+disarmed. A fix aimed at any one of them does not reach the other two.
