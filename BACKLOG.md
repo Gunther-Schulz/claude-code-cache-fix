@@ -5987,9 +5987,38 @@ ENOSPC misattribution with its wrong first explanation left in.
   claim dissolving under a one-command probe, all found by a session that
   probed before briefing. None was found by a check.
 
-- **READY — repair the 17 fork-only stale location claims. The other 29 are
-  UPSTREAM'S and must not be touched, because upstream's stated convention IS
-  `~/.claude`.** Accounting completed 2026-08-08 over the whole tracked tree,
+- **CORRECTED WITHIN THE HOUR — the counts below are WRONG; read this block
+  first. FORK-OWNED is 39 items / 42 occurrences; UPSTREAM-OWNED is 4 locations
+  / 7 occurrences, `README.ko.md` and nothing else.** Commit `53a5adc` shipped
+  the superseded numbers in its title and body; git history is immutable, so the
+  correction lives here.
+  **The instrument was wrong, and the distinction is the lesson.** The first
+  ownership pass tested whether the COMMENT TEXT was byte-identical to
+  `upstream/main`. That answers "is this prose inherited?" — a different
+  question from the one that decides ownership: does the FUNCTION the claim
+  describes still belong to upstream, or did this fork rewrite it? Re-tested
+  against the function, every one of the 13 proxy/tools items imports
+  `statePath`/`dataPath`/`xdgState` from `xdg-dirs.mjs` — a module upstream does
+  not have — in the very function the comment sits above. **A byte-identical
+  comment over a fork-rewritten function is a stale comment on the fork's OWN
+  change, not an upstream claim.** Ambiguous after re-testing: none.
+  So `session-mirror-writer.mjs:8-9`'s contract sentence is OURS to fix after
+  all — we rewrote the function under it and left the sentence describing the
+  old behaviour.
+  **What survives the correction, unchanged:** that sentence IS byte-identical
+  in `upstream/main`, and upstream's `cache-telemetry.mjs:16` really does
+  `join(claudeHome(), "quota-status")`. Upstream's stated convention genuinely
+  is `~/.claude`, so the PR repricing below stands on its own evidence — it
+  never depended on the miscounted bucket. Both things are true at once: the
+  convention is upstream's, and our stale copy of the sentence is ours.
+  Scope of the authorised repair is therefore the 39 fork-owned items, and the
+  verifier's guard inverts: after the repair the UPSTREAM-OWNED bucket must
+  still read exactly `README.ko.md` — evidence `git log --format='%an' --
+  README.ko.md` shows zero commits by this fork's operator, ever.
+
+  Superseded text follows: **repair the 17 fork-only stale location claims. The
+  other 29 are UPSTREAM'S and must not be touched, because upstream's stated
+  convention IS `~/.claude`.** Accounting completed 2026-08-08 over the whole tracked tree,
   then re-classified against `upstream/main` by byte-level evidence
   (`git show upstream/main:<file> | grep -F "<exact text>"` per item, not by a
   file-ownership guess).
