@@ -136,6 +136,51 @@ test("PRUNE + CREATE is MISMATCH — matching, never netting", () => {
     "a counterpart was created; a simultaneous prune must not net it away");
 });
 
+// --- "accounted for" is a MULTISET relation, not a set one ---
+//
+// It follows from the definition rather than from caution: a migration turns an
+// INLINE occurrence into a standalone, so the standalone count for that block
+// goes UP by one. Each `before` standalone can therefore account for at most
+// ONE in `after` — matched partners are consumed. Set semantics would ask only
+// "did this text exist in `before`", which is true whenever any byte-identical
+// copy was already there, so a creation sitting BESIDE pre-existing copies
+// would read DROPPED: the same conservation blindness that killed whole-body
+// counting, one level down. The live corpus does not separate the two today
+// (both give 9 DROPPED / 1 MISMATCH), which is exactly why this pair pins it
+// instead of the corpus.
+//
+// The two `after` bodies differ by exactly ONE message, asserted below, so the
+// verdict difference cannot come from anything else in the fixture.
+
+const recurringBefore = [standalone(wrap(B0)), filler(1), standalone(wrap(B0)), filler(2),
+                         host([B0]), filler(3)];
+/** N -> N: the same two copies survive, nothing was created. */
+const recurringSame = [standalone(wrap(B0)), filler(1), standalone(wrap(B0)), filler(2),
+                       hostEcho(), filler(3)];
+/** N -> N+1: a third byte-identical copy appears after the host. */
+const recurringPlusOne = [standalone(wrap(B0)), filler(1), standalone(wrap(B0)), filler(2),
+                          hostEcho(), standalone(wrap(B0)), filler(3)];
+const exactCarriers = (msgs) => msgs.filter((m) => m.role === "system" && m.content === wrap(B0)).length;
+
+test("N -> N+1 byte-identical carriers IS a creation: one copy is unaccounted, so MISMATCH", () => {
+  assert.equal(exactCarriers(recurringBefore), 2, "two byte-identical carriers before…");
+  assert.equal(exactCarriers(recurringPlusOne), 3, "…and three after: one of them has no partner");
+  assert.equal(recurringPlusOne.length, recurringSame.length + 1,
+    "the two `after` bodies differ by exactly one message");
+
+  const f = verdictOf(recurringBefore, recurringPlusOne);
+  assert.equal(f.verdict, "MISMATCH",
+    "a counterpart created beside pre-existing identical copies is still a counterpart");
+});
+
+test("N -> N carriers is NOT a creation: every copy has a partner, so DROPPED", () => {
+  assert.equal(exactCarriers(recurringBefore), 2, "two byte-identical carriers before…");
+  assert.equal(exactCarriers(recurringSame), 2, "…and the same two after");
+
+  const f = verdictOf(recurringBefore, recurringSame);
+  assert.equal(f.verdict, "DROPPED", "nothing was created — the copies were already there");
+});
+
 test("a new standalone that does NOT carry the block's text leaves the verdict DROPPED", () => {
   // The carrier condition itself: `after` gains a standalone `before` never had,
   // but it carries none of the host's block texts, so it is not a counterpart
