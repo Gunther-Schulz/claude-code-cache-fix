@@ -5,21 +5,27 @@ import { claudeHome } from "./claude-home.mjs";
 
 // The two roots every artifact this repo OWNS resolves under.
 //
-//   xdgData()   $XDG_DATA_HOME/cache-fix    (~/.local/share/cache-fix)
-//   xdgState()  $XDG_STATE_HOME/cache-fix   (~/.local/state/cache-fix)
+//   xdgData()   $XDG_DATA_HOME/cache-fix    (~/.local/share/cache-fix on Linux)
+//   xdgState()  $XDG_STATE_HOME/cache-fix   (~/.local/state/cache-fix on Linux)
 //
-// WHY THIS EXISTS, and why it is not `claudeHome()`. `~/.claude/` is Claude
-// Code's CONFIG root. This proxy's captures, snapshots, ledgers and logs are
-// our DATA, and they only lived there by habit — Claude Code itself has no
-// config/data split, but we are not Claude Code. The harness protects that
-// directory by PATH SHAPE, so every read and write of our own artifacts, by
-// the operator's session and by every dispatched agent, raised a
-// sensitive-file prompt. On 2026-08-07 one such prompt was DENIED mid-task and
-// the session lost the work in flight. Moving the data out removes the prompt
-// for good without touching a security control — the repair the box demands: a
-// guard firing on legitimate work gets the work moved, never a loosened
-// predicate. `tools/alias-claim.mjs` moved first and this module generalises
-// its shape.
+// WHY A SEPARATE ROOT FROM CLAUDE CODE'S CONFIG DIRECTORY, and why it is not
+// `claudeHome()`. A config directory is for configuration; captures,
+// snapshots, ledgers and logs are DATA and STATE, not config, and platform
+// conventions exist for exactly this split. `~/.claude/` is Claude Code's
+// CONFIG root — Claude Code itself has no config/data split, but we are not
+// Claude Code — and a user who has set `XDG_DATA_HOME` / `XDG_STATE_HOME`
+// expects it honoured, not overridden by this tool's own opinion of where
+// things belong.
+//
+// FORK-LOCAL NOTE, true on this deployment and not upstream, kept for the
+// history: the harness protects `~/.claude/` by PATH SHAPE, so every read and
+// write of our own artifacts there, by the operator's session and by every
+// dispatched agent, raised a sensitive-file prompt. On 2026-08-07 one such
+// prompt was DENIED mid-task and the session lost the work in flight. Moving
+// the data out removes the prompt for good without touching a security
+// control — the repair the box demands: a guard firing on legitimate work
+// gets the work moved, never a loosened predicate. `tools/alias-claim.mjs`
+// moved first and this module generalises its shape.
 //
 // THE SPLIT RULE, stated so it is reviewable: unrecoverable if lost -> DATA;
 // regenerable, or merely expensive to lose -> STATE. So the capture corpus and
@@ -35,6 +41,30 @@ import { claudeHome } from "./claude-home.mjs";
 // importing this module must be obeyed, and a constant captured at import
 // silently ignores it — which is a test that certifies nothing while writing
 // to the real root.
+//
+// RESOLUTION ORDER, highest first, decided by the pure `resolveRoot` below:
+//
+//   1. `CACHE_FIX_DATA_DIR` / `CACHE_FIX_STATE_DIR` — explicit override,
+//      absolute, used AS-IS: it names the root itself, so `cache-fix` is NOT
+//      appended.
+//   2. `XDG_DATA_HOME` / `XDG_STATE_HOME` — honoured on EVERY platform when
+//      set, not only Linux: a macOS user who sets `XDG_DATA_HOME` has stated
+//      an intent and means it.
+//   3. Platform default + `cache-fix` — darwin gets
+//      `~/Library/Application Support` / `~/Library/Logs`, win32 gets
+//      `%LOCALAPPDATA%` (fallback `~/AppData/Local`) with state under a
+//      `State` subdirectory (Windows has no separate state root, and
+//      collapsing both into one directory would dissolve the split rule
+//      above), everything else — Linux included — gets `~/.local/share` /
+//      `~/.local/state`, unchanged from before this table existed. The
+//      darwin mapping is `env-paths`' own choice for the XDG-state-shaped
+//      role, which is what a reviewer will expect, and it is honest here too:
+//      our state artifacts (event logs, snapshots, status files) are
+//      log-shaped.
+//
+// On Linux with `XDG_*` unset — the running deployment, today — every
+// resolved path is BYTE-IDENTICAL to before this table existed: this is a
+// no-op for production, asserted in the test file, not merely believed.
 //
 // THE TRIPWIRE, carried over from claudeHome() unchanged in intent: under the
 // node test runner (NODE_TEST_CONTEXT — set by node in every --test child
@@ -77,14 +107,55 @@ function assertIsolated(what) {
   }
 }
 
+const OVERRIDE_VAR = { data: "CACHE_FIX_DATA_DIR", state: "CACHE_FIX_STATE_DIR" };
+const XDG_VAR = { data: "XDG_DATA_HOME", state: "XDG_STATE_HOME" };
+
+// Platform default BASE (before `cache-fix` is appended), per the table in
+// the header comment. Keyed by `process.platform` value; anything not listed
+// here — "linux" included — falls through to the `~/.local/{share,state}`
+// default below.
+const PLATFORM_DEFAULT_BASE = {
+  darwin: {
+    data: (home) => join(home, "Library", "Application Support"),
+    state: (home) => join(home, "Library", "Logs"),
+  },
+  win32: {
+    data: (home, env) => env.LOCALAPPDATA || join(home, "AppData", "Local"),
+    state: (home, env) => join(env.LOCALAPPDATA || join(home, "AppData", "Local"), "State"),
+  },
+};
+
+function defaultBase(kind, platform, home, env) {
+  const perPlatform = PLATFORM_DEFAULT_BASE[platform];
+  if (perPlatform) return perPlatform[kind](home, env);
+  return join(home, ".local", kind === "data" ? "share" : "state");
+}
+
+/**
+ * Pure resolver — no `process.*` reads, no filesystem, no throw. `kind` is
+ * `"data" | "state"`. Returns the absolute root INCLUDING the `cache-fix`
+ * segment, except for the explicit-override level, which names the root
+ * itself. See the header comment for the resolution order and the platform
+ * table.
+ */
+export function resolveRoot(kind, { platform, env, home }) {
+  const override = env[OVERRIDE_VAR[kind]];
+  if (override) return override;
+
+  const xdgHome = env[XDG_VAR[kind]];
+  if (xdgHome) return join(xdgHome, "cache-fix");
+
+  return join(defaultBase(kind, platform, home, env), "cache-fix");
+}
+
 export function xdgData() {
   assertIsolated("xdgData");
-  return join(process.env.XDG_DATA_HOME || join(homedir(), ".local", "share"), "cache-fix");
+  return resolveRoot("data", { platform: process.platform, env: process.env, home: homedir() });
 }
 
 export function xdgState() {
   assertIsolated("xdgState");
-  return join(process.env.XDG_STATE_HOME || join(homedir(), ".local", "state"), "cache-fix");
+  return resolveRoot("state", { platform: process.platform, env: process.env, home: homedir() });
 }
 
 /** `xdgData()` with path segments appended. */
@@ -99,10 +170,14 @@ export function statePath(...segments) {
 
 // LEGACY FALLBACK — LOUD, AND FOR ONE TRANSITION ONLY.
 //
-// REMOVE THIS AND EVERY `legacyReadPath(` CALL after the transition. Grep for
-// the function name; that is the whole deletion. It exists so a reader run
-// against a machine whose data has not been moved yet still finds it, and it
-// warns every time so the state cannot be mistaken for the new normal.
+// REMOVAL TRIGGER, measurable rather than a judgement call: remove this
+// function and every `legacyReadPath(` call site once `CacheFixLegacyPathWarning`
+// has not been observed for 30 consecutive days on this machine. The warning
+// is already the instrument, so the trigger is mechanically enumerable —
+// grep the function name; that is the whole deletion. Until that condition
+// holds, it exists so a reader run against a machine whose data has not been
+// moved yet still finds it, and it warns every time so the state cannot be
+// mistaken for the new normal.
 //
 // WRITERS NEVER CALL THIS. A writer that fell back would append to the legacy
 // file while readers preferred the new one — two stores diverging, silently,

@@ -45,6 +45,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { resolveRoot } from "../proxy/xdg-dirs.mjs";
 
 // `async` and `await fn(...)`, not a bare `return fn(...)`: a synchronous
 // `finally` around a returned promise restores the environment BEFORE the
@@ -211,6 +212,109 @@ test("BITE B3 — the roots resolve LIVE, not frozen at module load", async () =
   const first = await withHome(async () => xdgState());
   const second = await withHome(async () => xdgState());
   assert.notEqual(first, second, "a root captured at import ignores a later env change");
+});
+
+// --- PART E: resolveRoot — the pure function, platform table and override
+// precedence (`docs/directives/portable-state-roots.md` §§1-4). No temp home
+// or env mutation needed: the function takes platform/env/home as arguments,
+// which is the whole reason it is pure and testable without touching
+// globals.
+//
+// RED-FIRST, stated per the directive's Verifier item 1: `resolveRoot` does
+// not exist before this change at all, so a literal red-first run against
+// the unmutated file is a module-load failure only — the same caveat PART B's
+// header already states for this module. The discriminating red was
+// established differently: these same expectations (E1-E3, E6-E7) were run
+// against a scratch shim reproducing the OLD xdgData()/xdgState() behavior
+// (env-var-or-home fallback, no platform branch, no override) — see the
+// closing report for the pasted output. E1-E3 (platform mapping) and E6-E7
+// (override precedence) went red there; E4 (no-op control) and E5 (XDG
+// honoured regardless of platform) were already green, because the old
+// behavior already does both unconditionally — which is exactly the
+// no-op-on-Linux invariant this change must preserve.
+
+test("BITE E1 — darwin platform default", () => {
+  const home = "/Users/pin";
+  assert.equal(
+    resolveRoot("data", { platform: "darwin", env: {}, home }),
+    join(home, "Library", "Application Support", "cache-fix"),
+  );
+  assert.equal(
+    resolveRoot("state", { platform: "darwin", env: {}, home }),
+    join(home, "Library", "Logs", "cache-fix"),
+  );
+});
+
+test("BITE E2 — win32 platform default, LOCALAPPDATA set", () => {
+  const home = "C:\\Users\\pin";
+  const env = { LOCALAPPDATA: "C:\\Users\\pin\\AppData\\Local" };
+  assert.equal(
+    resolveRoot("data", { platform: "win32", env, home }),
+    join(env.LOCALAPPDATA, "cache-fix"),
+  );
+  assert.equal(
+    resolveRoot("state", { platform: "win32", env, home }),
+    join(env.LOCALAPPDATA, "State", "cache-fix"),
+  );
+});
+
+test("BITE E3 — win32 falls back to ~/AppData/Local when LOCALAPPDATA is unset", () => {
+  const home = "C:\\Users\\pin";
+  assert.equal(
+    resolveRoot("data", { platform: "win32", env: {}, home }),
+    join(home, "AppData", "Local", "cache-fix"),
+  );
+  assert.equal(
+    resolveRoot("state", { platform: "win32", env: {}, home }),
+    join(home, "AppData", "Local", "State", "cache-fix"),
+  );
+});
+
+// BITE E4 — the no-op control. LOAD-BEARING (directive, Verifier item 2): if
+// this assertion is absent, the change can silently relocate the live
+// deployment's entire state while every other test in this file stays green.
+test("BITE E4 — no-op control: linux, XDG unset, resolves EXACTLY today's paths", () => {
+  const home = "/home/pin";
+  assert.equal(
+    resolveRoot("data", { platform: "linux", env: {}, home }),
+    join(home, ".local", "share", "cache-fix"),
+  );
+  assert.equal(
+    resolveRoot("state", { platform: "linux", env: {}, home }),
+    join(home, ".local", "state", "cache-fix"),
+  );
+});
+
+test("BITE E5 — XDG_DATA_HOME / XDG_STATE_HOME honoured on every platform, not only Linux", () => {
+  const home = "/Users/pin";
+  const env = { XDG_DATA_HOME: "/tmp/xdg-data", XDG_STATE_HOME: "/tmp/xdg-state" };
+  assert.equal(
+    resolveRoot("data", { platform: "darwin", env, home }),
+    join("/tmp/xdg-data", "cache-fix"),
+  );
+  assert.equal(
+    resolveRoot("state", { platform: "darwin", env, home }),
+    join("/tmp/xdg-state", "cache-fix"),
+  );
+});
+
+test("BITE E6 — CACHE_FIX_DATA_DIR / CACHE_FIX_STATE_DIR beat XDG_*, used as-is with no `cache-fix` appended", () => {
+  const home = "/home/pin";
+  const env = {
+    CACHE_FIX_DATA_DIR: "/opt/cache-fix-data",
+    CACHE_FIX_STATE_DIR: "/opt/cache-fix-state",
+    XDG_DATA_HOME: "/tmp/xdg-data",
+    XDG_STATE_HOME: "/tmp/xdg-state",
+  };
+  assert.equal(resolveRoot("data", { platform: "linux", env, home }), "/opt/cache-fix-data");
+  assert.equal(resolveRoot("state", { platform: "linux", env, home }), "/opt/cache-fix-state");
+});
+
+test("BITE E7 — CACHE_FIX_DATA_DIR / CACHE_FIX_STATE_DIR beat the platform default too", () => {
+  const home = "/home/pin";
+  const env = { CACHE_FIX_DATA_DIR: "/opt/cache-fix-data", CACHE_FIX_STATE_DIR: "/opt/cache-fix-state" };
+  assert.equal(resolveRoot("data", { platform: "darwin", env, home }), "/opt/cache-fix-data");
+  assert.equal(resolveRoot("state", { platform: "win32", env, home }), "/opt/cache-fix-state");
 });
 
 // --- PART D: the HARD GUARD. What must NOT have moved. ---
