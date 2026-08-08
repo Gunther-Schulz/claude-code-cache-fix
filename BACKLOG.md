@@ -5771,6 +5771,39 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   or a push that visibly stalls). The number above is the trigger to compare
   against.
 
+- **READY — the WRITER-side guard that ends the XDG class: a module importing
+  `statePath`/`dataPath` must not carry a `~/.claude` citation outside a
+  labelled legacy context.** Proposed 2026-08-08 by the lane that ran the
+  accounting, and it is the one item here that would stop the sweeps rather
+  than run another one. Rule zero applies: this is the generator, and every
+  sweep so far has been the amplifier.
+  **Why it is the right predicate:** it is computable, it has near-zero false
+  fires (a legacy/migration mention is labelled and exempt by construction),
+  and it fires at WRITE time rather than at sweep time. Measured reach: it would
+  have caught all 14 comment hits in the accounting's bucket (d), plus the four
+  `description:` strings fixed before them — i.e. the entire source half of a
+  class that has now consumed four lanes.
+  **Red-first, and the arrangement is real and in hand:** the 14 known hits are
+  committed history. Point the check at the tree before `bdd964d` and require it
+  to name them; point it at the tree after the bucket-(d) lane lands and require
+  silence. Both ends exist, so this cannot decay the way a live-state
+  arrangement does.
+  Placement: a repo check under `tools/`, wired into the suite the way the other
+  source-shape guards are. NOT `gate-live` — this is a source property, not a
+  traffic property.
+
+- **READY (small) — the three READMEs must agree on their path citations.**
+  Proposed 2026-08-08 by the same lane, from a measured miss: `README.ko.md` was
+  skipped by BOTH doc sweeps because each file list named `README.md` and
+  `README.zh.md` from memory, and it ended up carrying the class's single worst
+  line — a blanket claim (`:128`) that ALL telemetry is written under
+  `~/.claude/`. A translation drifting from its source is invisible to any
+  reviewer who does not read that language.
+  Design: a check asserting the three READMEs cite the same set of paths.
+  Computable, near-zero false fire, and it does not require the checker to read
+  Korean — it compares path tokens, not prose. Red-first: the pre-fix
+  `README.ko.md` must fail it.
+
 - **PARKED — nothing checks that a booked verifier is still RUNNABLE, so a
   red-first arrangement rots silently between booking and build.** Booked
   2026-08-08 as the WRITER half of the leak-scan entry's stale-verifier

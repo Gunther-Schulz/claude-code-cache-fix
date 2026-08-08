@@ -21,7 +21,7 @@ above): upstream fixes CC bugs, so a mitigation can stop earning its
 keep — and "it has been quiet lately" retires nothing. A retirement
 carries three things, all three or it does not happen:
 
-  (a) **Ledger evidence.** `~/.claude/cache-fix-fire-ledger.jsonl`
+  (a) **Ledger evidence.** `~/.local/state/cache-fix/fire-ledger.jsonl`
       (written per sweep by `tools/gate-live.mjs --fire-ledger`, read by
       `tools/shape-verdicts.mjs`'s `fire-ledger` verdict) carries two
       columns per class: RAW — what CC did, measured off the captured
