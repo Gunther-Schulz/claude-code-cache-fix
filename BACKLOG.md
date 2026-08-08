@@ -1856,7 +1856,50 @@ ENOSPC misattribution with its wrong first explanation left in.
   silent (over-firing control). Done-criterion: both bites, full suite green.
   Write boundary: `tools/backlog-order.mjs`, `test/backlog-order.test.mjs`.
 
-- **READY — the both-zones class has no mechanism at the ALTITUDE the defect
+- **DONE `d02d58c` + `f9ec558` (2026-08-08) — the both-zones class now has a
+  check at the printed-output altitude, and it found two live defects on its
+  first run.** `test/tool-output-stamps.test.mjs` executes each of the seven
+  converted tools over a fixture and reads the actual bytes: ARM 1 (no bare UTC
+  instant without a local pairing on the same line) and ARM 2 (no `local` text
+  in machine-read output). 16 bites, all enforcing.
+  **What it caught, which is the point:** `82372db` claimed a complete sweep;
+  the check refuted it. `bust-triage`s capture step prints the pair stamps and
+  the computed span raw at FOUR sites including the success path that fires on
+  every clean triage, and `dossier`s step 3 does the same in what that file
+  calls the body a person reads. Both verified live against fixtures, not read
+  from source.
+  **The repair shape, worth reusing:** the two lanes disagreed about
+  `bust-triage`s `span` and both were right — it is composed once and read
+  verbatim by BOTH `--json` and the text renderer, so mutating it leaks a
+  suffix into a parsed payload, while no raw epoch survives at the print site
+  to re-derive from. `local-stamp.mjs` gained `withLocalStamps`, applied at the
+  TEXT boundary only; the stored value stays bare. One call at each tools
+  single text emit site covers every stamp beneath it — including the dossier
+  step 2 and step 4 rows the lane named as reached but never exercised.
+  Desk note: the lane marked its two findings `todo` rather than silencing
+  them, which was correct while `tools/` was outside its write boundary — but a
+  todo test reports neither pass nor fail, so the markers were removed once the
+  defects were fixed. A todo left standing is a bite that guards nothing.
+
+- **READY (small, BLOCKED on a guard fix) — `test/tool-output-stamps.test.mjs`s
+  header is now STALE and actively false.** It still says ARM 1 is red on this
+  tree on purpose and that two assertions are todo-marked; `f9ec558` fixed the
+  defects and removed the markers. A reader who trusts the header will believe
+  two live defects remain.
+  Design (decided): rewrite the header block to say the two sites WERE found
+  still-wrong by this check and were fixed in `f9ec558`, keeping the citations
+  (they are the evidence that the check works) and dropping every present-tense
+  red and todo claim.
+  Verifier: `grep -n "todo" test/tool-output-stamps.test.mjs` returns nothing,
+  and the header names `f9ec558`.
+  **Why not done in `f9ec558`:** the header is a comment block whose every line
+  opens with a double slash, and a PreToolUse guard currently hard-denies any
+  Bash command whose text contains that token — a false fire diagnosed
+  2026-08-08 and handed to the dotfiles session. Correcting the header was
+  booked rather than worked around. UNBLOCKS as soon as that guard fix lands;
+  the edit itself is a two-minute rewrite.
+
+- **(shipped) READY — the both-zones class has no mechanism at the ALTITUDE the defect
   lives at: the printed output.** `82372db` fixed the sites a human found by
   reading; nothing stops the next one. The lane's own lesson says why a source
   check cannot cover it: `quota-analysis` and `cost-report` print raw UTC
