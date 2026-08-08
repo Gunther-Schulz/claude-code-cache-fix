@@ -199,8 +199,7 @@ right.
 13. **`tools/dossier.mjs` carries the reconcile vocabulary-collision.** The
     identical predicate `bust-triage` shed, still live in the second tool, with
     the shared helpers already exported for it.
-    <!-- entry: "`tools/dossier.mjs` carries the reconcile" -->
-14. **The threat matrix needs a datapoint-section form.**
+ 14. **The threat matrix needs a datapoint-section form.**
     <!-- entry: "the threat matrix has a datapoint-section form and" -->
 15. **The 01:00:55Z 336k event reads UNCLASSIFIED and its transcript diagnostic
     does not join.** Ranks near the tier's end because it is one event rather
@@ -735,21 +734,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   419k, which genuinely is not walked. Negative control: an event no lane has
   touched must still be raised normally, so the reconciliation cannot become a
   silencer.
-
-- **READY (small) — `tools/dossier.mjs` carries the reconcile
-  vocabulary-collision that `bust-triage` just shed.** Found 2026-08-07 while
-  fixing the bust-triage half (`fb20f3d`): `dossier.mjs:286` does
-  `if (d.transcriptCause && r.cause && r.cause !== d.transcriptCause.type)` ->
-  "instrument disagreement", i.e. the same string-inequality test over two
-  different vocabularies that warned on AGREEMENT. `sameEvent` and
-  `CAUSE_EQUIVALENCE` are already exported from `bust-triage.mjs` for exactly
-  this, so the change is one import and one call. Verifier, red-first: drive
-  `dossier` on 2026-08-06T23:59:10Z (ledger `idle`, transcript
-  `previous_message_not_found`) — today it must warn, after the change it must
-  not; control, the raced-read positive (s-captureQ, 2026-08-05T09:09:41Z,
-  ledger `other` vs transcript `messages_changed`) must still warn. Recorded
-  honestly: identified by READING dossier, not by running it — the
-  reproduction is the first step, not a formality.
 
 - **READY — the threat matrix has a datapoint-section form and yesterday's
   addendum was appended INTO the table cell instead, which is how a cell came
@@ -1836,6 +1820,21 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — 2026-08-08, `6d9a8d3`) `tools/dossier.mjs` carries the reconcile
+  vocabulary-collision that `bust-triage` just shed.** Found 2026-08-07 while
+  fixing the bust-triage half (`fb20f3d`): `dossier.mjs:286` does
+  `if (d.transcriptCause && r.cause && r.cause !== d.transcriptCause.type)` ->
+  "instrument disagreement", i.e. the same string-inequality test over two
+  different vocabularies that warned on AGREEMENT. `sameEvent` and
+  `CAUSE_EQUIVALENCE` are already exported from `bust-triage.mjs` for exactly
+  this, so the change is one import and one call. Verifier, red-first: drive
+  `dossier` on 2026-08-06T23:59:10Z (ledger `idle`, transcript
+  `previous_message_not_found`) — today it must warn, after the change it must
+  not; control, the raced-read positive (s-captureQ, 2026-08-05T09:09:41Z,
+  ledger `other` vs transcript `messages_changed`) must still warn. Recorded
+  honestly: identified by READING dossier, not by running it — the
+  reproduction is the first step, not a formality.
 
 - **READY — ~30% of `join:cross-message` pairs do NOT fire `movedFresh`, and
   nobody has established whether they share a cause.** Booked 2026-08-08 from
