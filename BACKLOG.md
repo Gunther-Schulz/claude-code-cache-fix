@@ -1834,6 +1834,103 @@ ENOSPC misattribution with its wrong first explanation left in.
   (`midturn-answer-check.py`), so the pattern is proven here. It changes what
   every session on this machine is nagged about, so it is not a fork-side call.
 
+- **READY (small) — `backlog-order.mjs --check` reports a verdict with no
+  diagnostic, so establishing WHY costs a stash-and-bisect.** Fired 2026-08-08:
+  after booking three entries the check printed `file order does NOT match the
+  derived order` and nothing else. Finding out that my own insertion caused it
+  took `git stash` -> re-run -> `git stash pop` — i.e. mutating the working tree
+  to interrogate a read-only check, on a copy other agents write to. The tool
+  already HAS both sequences in hand at that moment (`ordered` and `bullets`,
+  `tools/backlog-order.mjs:168-170`); it just discards the difference.
+  Design (decided): on mismatch, print the first divergent index with the
+  leading line of the bullet found there and the bullet expected there, plus a
+  count of misplaced bullets. Exit code unchanged (1).
+  Verifier: red-first — a fixture BACKLOG with one bullet moved out of rank
+  order must produce the naming output; a fixture already in order must stay
+  silent (over-firing control). Done-criterion: both bites, full suite green.
+  Write boundary: `tools/backlog-order.mjs`, `test/backlog-order.test.mjs`.
+
+- **READY — the both-zones class has no mechanism at the ALTITUDE the defect
+  lives at: the printed output.** `82372db` fixed the sites a human found by
+  reading; nothing stops the next one. The lane's own lesson says why a source
+  check cannot cover it: `quota-analysis` and `cost-report` print raw UTC
+  stamps without ever calling `toISOString()` (pass-through from upstream
+  JSONL), so grep-for-the-render-call undercounts at the FILE level and again
+  at the LINE level inside a file already in scope.
+  Design (decided), `test/tool-output-stamps.test.mjs`: EXECUTE each converted
+  tool in a side-effect-free invocation over a fixture, capture stdout, and
+  assert no line contains a bare `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}` without a
+  `(HH:MM local)` on the same line. Companion arm: each tool's `--json` output
+  must contain no `local` text.
+  Constraint the lane must respect: find a genuinely side-effect-free
+  invocation per tool, and where none exists, SKIP that tool explicitly with
+  the reason named in the test file — never invent one that writes.
+  Verifier: red-first — revert one converted site (e.g. `quota-analysis`'s
+  "Time range") and the bite must name that tool; over-firing control — a line
+  legitimately carrying a bare stamp (an output FILENAME, a machine field
+  echoed in text) must not fire, so the exclusion is declared IN the test as
+  data it checks, not as a softened regex.
+  Done-criterion: red-first on the reverted site, control green, suite green.
+  Write boundary: `test/tool-output-stamps.test.mjs` only.
+
+- **READY (small) — anchored markdown splices fail SILENTLY, and the pattern is
+  used constantly here.** Measured 2026-08-08 in `claude-worktime`: a python
+  splice targeted `## Open`, that repo uses `## Ready`, and because only the
+  FIRST replacement was asserted the second dropped with no error — the only
+  tell was an insertion count that looked plausible. Same session ran this
+  splice shape a dozen times against `BACKLOG.md`; each one re-pastes the
+  assert-by-hand discipline, which is exactly where the re-pasted one-liner
+  hides a variant bug (project convention: a probe used twice graduates to
+  `tools/`).
+  Design (decided), `tools/md-splice.mjs`: one exported function taking a file
+  path and a list of `{find, replace, count}` operations; every operation
+  states its expected occurrence count, and any mismatch throws NAMING the
+  operation and both counts before writing anything. All-or-nothing: the file
+  is written once, after every operation has matched its count.
+  Verifier: red-first — an operation whose `find` is absent must throw with the
+  operation named (not a generic error); an operation matching twice where
+  `count: 1` was stated must throw; the all-or-nothing property gets its own
+  bite (a two-operation call where the second fails must leave the file
+  byte-identical). Done-criterion: three bites, each independently reddened
+  from a green baseline. Write boundary: `tools/md-splice.mjs`,
+  `test/md-splice.test.mjs` (both new).
+
+- **READY — the premise EVERY attribution verdict rests on is guarded by a
+  code comment and nothing else.** Every `OURS / CC's` call this repo makes
+  reduces to one claim: the capture is PRE-mutation, so a divergence visible in
+  it was sent by Claude Code. Measured 2026-08-08: `request-capture` is order
+  60; the only thing asserting that no earlier extension touches the body is
+  prose in `proxy/extensions/output-guard-stash.mjs` ("Order 55: before the
+  first body-mutating extension (cc-version-normalize, 90)"). No test pins it.
+  Instrument-positive for that absence: `grep -rn '\.order\b' test/` DOES find
+  relative-order pins (`proxy-cc-version-normalize.test.mjs:275` asserts
+  `ext.order < fingerprintExt.order`), so the pattern can match — it finds
+  nothing for `request-capture`.
+  **Why it is severe: the failure is silent and points the wrong way.** Add or
+  reorder any extension below order 60 that touches `body.messages` and every
+  future verdict flips from "CC's" to possibly-ours with no alarm — i.e. we
+  would build a mitigation for a bust we caused. That is the exact
+  mis-attribution the operator named as the thing to never do.
+  **Do NOT verify this statically.** Measured the same day: a grep for
+  body-mutation idioms returned zero for the three sub-60 extensions AND zero
+  for two KNOWN mutators (`sort-stabilization`, `identity-normalization`), so a
+  pattern search cannot answer "does X mutate Y" here.
+  Design (decided), runtime, `test/capture-is-pre-mutation.test.mjs`:
+  (a) REAL-REGISTRY BITE — run the actual loaded registry over a realistic
+  fixture body; structurally hash `body.messages` at the instant
+  `request-capture`'s `onRequest` runs; assert it equals the hash of the
+  unmutated input.
+  (b) RED-FIRST — inject a synthetic extension at order 50 that mutates
+  `body.messages`; bite (a) must fire. This is a real mechanism disable, not a
+  module-load red.
+  (c) OVER-FIRING CONTROL — a synthetic extension at order 100 that mutates
+  just as hard must NOT fire (a). Without it, (a) is indistinguishable from
+  "nothing anywhere ever mutates", which is false and would make the check
+  unprovable.
+  Done-criterion: (b) reddens exactly (a) from a green baseline; (c) green in
+  the same run; full suite green. Write boundary: `test/` only — no `proxy/**`
+  change, so no tree-pin bump and no restart.
+
 - **READY (small) — the both-zones class recurs PAST the eleven-file boundary
   the shipped entry drew, at two measured sites.** `proxy/server.mjs:51` and
   `preload.mjs:1396` are both `[${new Date().toISOString()}] ...` human-facing
