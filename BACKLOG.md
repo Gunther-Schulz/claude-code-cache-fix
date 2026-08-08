@@ -329,11 +329,29 @@ order and grades, and nothing below rank 8 was re-graded here.
    residual from a FLOOR into a number, so it ranks directly behind the repairs
    it bounds.
    <!-- entry: "the XDG accounting's EXCLUDED-BY-GENRE bucket was never verified" -->
-6. **Key our roots by PROFILE when `CLAUDE_CONFIG_DIR` is set.** Its hard
-   sequencing constraint dissolved this pass (input (iv)) — `portable-state-roots`
-   shipped in `8ba8c0d` — so it moves from blocked to buildable. Lands as its own
-   commit; deployment-coupled.
-   <!-- entry: "key our roots by PROFILE when CLAUDE_CONFIG_DIR is set" -->
+6. **RANK VACATED — the entry it pointed at is WITHDRAWN, and input (iv) was
+   my error.** This rank read "Key our roots by PROFILE when
+   `CLAUDE_CONFIG_DIR` is set — its hard sequencing constraint dissolved, so it
+   moves from blocked to buildable". The sequencing check was TRUE and answered
+   a NARROWER question than the one it shut: I verified `portable-state-roots`
+   SHIPPED (`8ba8c0d`) and never asked whether the design it gated SURVIVED. It
+   did not — `docs/directives/portable-state-roots.md` §7 REVERSES it, and the
+   reason is measured rather than cautious: `CLAUDE_CONFIG_DIR` does not bound
+   Claude Code's OWN footprint (tmpdir session scratch, a separate
+   securestorage variable, an XDG updater family, and `.claude.json` as a
+   sibling file in `$HOME` all escape it), so a knob that does not contain its
+   own product cannot be sold as containing ours. Surfaced by the peer session
+   that did the measuring; verified here by reading §7 before acting on it.
+   The anchor is REMOVED rather than re-pointed, per the DONE-anchor guard's
+   own instruction: removal only, re-derive to re-rank. The ranks around it are
+   NOT renumbered — that is a re-derivation's job.
+   **What was stranded by the withdrawal is now its own READY entry**
+   (`CacheFixConfigDirDivergenceWarning`, booked at the end of `## Open`,
+   unranked because it was booked after this derivation): the warning was the
+   design's subordinate clause and is now the WHOLE answer for both
+   profile-commingling and the encrypted-volume case, so dropping the parent
+   entry would have taken it with it. That is a carrier defect, caught before
+   it landed.
 7. **The three READMEs must agree on their path citations.** Small, computable,
    near-zero false fire, and it closes the specific hole that let `README.ko.md`
    carry the class's worst single line past two doc sweeps.
@@ -1499,6 +1517,28 @@ ENOSPC misattribution with its wrong first explanation left in.
   against what I imagine it caught. Done when `node tools/backlog-lint.mjs` is
   clean on a corpus containing both arms and `test/backlog-lint.test.mjs`
   covers each.
+  **SECOND MEASURED FALSE FIRE, 2026-08-08 afternoon, and it is a DIFFERENT
+  shape — so the design above is too narrow.** Editing the XDG-ownership entry
+  to record that its three-way README sub-claim had been resolved by `bbc1213`
+  tripped `WARN backlog-header grade=READY marker=RESOLVED`. That is not an
+  enumeration and no exemption for `vs`/comma/`and` would clear it: the marker
+  was a genuine dated resolution, of a SUB-CLAIM, inside an entry that is
+  correctly still open. The tool's scope comment already concedes the boundary
+  — "one entry runs from a `- **` bullet to the next" — so it cannot tell "this
+  entry is resolved" from "something inside this entry is resolved", and a long
+  entry that records its own corrections over time is exactly where the second
+  case lives. Both fires share one root: the rule reads a marker's PRESENCE
+  where it means the entry's STATUS.
+  **Worked around, and the workaround is named rather than hidden:** the word
+  was changed to `DECIDED`, which is accurate and is not in the marker set, so
+  `backlog-lint` is clean at this commit. That is the second time in two days
+  this guard has been routed around within a minute of firing — which is the
+  fire rate, and it is the argument for fixing rather than living with it.
+  Widen the design accordingly: the fix must clear a dated resolution that
+  scopes to a NAMED SUB-CLAIM (a sentence-initial bold run, a "superseded text
+  follows" section) while still firing on a resolution that scopes to the entry.
+  Arm (1) of the verifier is unchanged and still comes from the check's own
+  historical true positives.
   Consumer tier **3 (backlog and process)** — it mis-labels entries and is
   recovered at the next read; ranked accordingly, not promoted for being
   annoying.
@@ -1643,6 +1683,24 @@ ENOSPC misattribution with its wrong first explanation left in.
   still read exactly `README.ko.md` — evidence `git log --format='%an' --
   README.ko.md` shows zero commits by this fork's operator, ever.
 
+  **GUARD WIDENED 2026-08-08 afternoon, and as written above it had become a
+  guard that PASSES WHILE THE DEFECT RETURNS.** `bbc1213` (operator decision,
+  peer session) REVERTS the fork's XDG patches to `README.md` and
+  `README.zh.md` — restoring upstream's `~/.claude` text in all three
+  translations deliberately, measured 0 / 0 / 0 XDG claims after. So
+  **all three READMEs are UPSTREAM-OWNED and EXCLUDED from this repair class**,
+  not `README.ko.md` alone. The guard's authorship evidence is what made it too
+  narrow: `README.ko.md` had zero fork commits, the other two had some, and the
+  guard encoded AUTHORSHIP where the question is OWNERSHIP — and a revert
+  changes ownership without changing authorship history. Read as written, the
+  old guard would have watched the Korean file, seen it unchanged, passed, and
+  let a future accounting "repair" `README.md`'s ~22 restored `~/.claude`
+  mentions straight back into the divergence the operator just decided against.
+  Corrected guard: after any repair, ALL THREE READMEs still carry upstream's
+  text, and the XDG-claim count in each is ZERO. The trap was surfaced by the
+  peer session that made the revert, which is the only place it was visible —
+  from inside this entry the guard reads correct.
+
   Superseded text follows: **repair the 17 fork-only stale location claims. The
   other 29 are UPSTREAM'S and must not be touched, because upstream's stated
   convention IS `~/.claude`.** Accounting completed 2026-08-08 over the whole tracked tree,
@@ -1670,7 +1728,18 @@ ENOSPC misattribution with its wrong first explanation left in.
   cleanup PR, and it should be priced that way before anyone opens it. It also
   means every one of those 29 comments is CORRECT in its own repo and repairing
   them here would silently diverge 29 more upstream files.
-  **Three-way README contradiction, now measured.** `README.md` (29 XDG
+  **Three-way README contradiction — DECIDED 2026-08-08 by `bbc1213`, and the
+  paragraph below is kept only as the input that produced the decision. Every
+  one of its three clauses is now STALE: the count is 0, not 29; the fork edits
+  are reverted; the disagreement is gone.** The operator's revert-or-upstream
+  call — named "still open" below — was made, and it went REVERT: all three
+  translations carry upstream's `~/.claude` text on purpose. Where the
+  divergence is documented now is `FORK-NOTES.md`, in a new section before the
+  update-from-upstream procedure, which also records the condition that would
+  flip the call — if people actually install FROM this fork rather than it being
+  the operator's deployment plus a PR staging ground, the answer becomes finish
+  the migration and accept the conflicts.
+  Superseded text: **Three-way README contradiction, now measured.** `README.md` (29 XDG
   mentions, fork-patched in `332df4a`/`ddcdca3`) and `README.zh.md` were both
   edited by this fork; `README.ko.md` was not — it is byte-identical to
   upstream's plus one disclaimer line. So three translations of one document now
@@ -1867,87 +1936,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   individual verdict and the residual is a number.
   <!-- entry: "the XDG accounting's EXCLUDED-BY-GENRE bucket was never verified" -->
 
-- **READY — key our roots by PROFILE when `CLAUDE_CONFIG_DIR` is set, because
-  that variable IS Claude Code's profile identity and our single global root
-  silently dissolves it.** Designed 2026-08-08 when the operator challenged the
-  don't-use-`claudeHome()` decision; the decision survived, this gap did not.
-  Claude Code's machinery has exactly ONE storage concept: a single relocatable
-  root, no config/data/state split (`getClaudeConfigHomeDir()` is one memoized
-  base for config, caches, state and transcripts alike). `CLAUDE_CONFIG_DIR`
-  therefore carries two meanings at once — WHERE things live, and WHICH PROFILE
-  they belong to. `proxy/claude-home.mjs:5-7` names the second in its own words:
-  "running one proxy per config dir". Our XDG roots honour neither, so two
-  profiles under two config dirs commingle their captures in one directory,
-  losing an isolation upstream's `claudeHome()` callers get for free.
-  **The split this design rests on:** copy Claude's IDENTITY model, refuse its
-  STORAGE model. Its storage model puts data in a config directory because it
-  has no split, and the harness then protects that path by SHAPE — which is the
-  defect that caused the relocation in the first place, so copying it
-  reproduces the thing we fixed. Identity is orthogonal to storage class and
-  costs one path segment.
-  Design: `root(kind)` = explicit `CACHE_FIX_{DATA,STATE}_DIR` used as-is;
-  otherwise `<xdg-or-platform-base>/cache-fix[/<profile>]`, where `<profile>` is
-  OMITTED when `CLAUDE_CONFIG_DIR` is unset or resolves to the default
-  `~/.claude`, and is a short stable key derived from the resolved config-dir
-  path otherwise. Derive the key from the RESOLVED absolute path, not the raw
-  variable, so `~/x`, `$HOME/x` and `/home/g/x` are one profile and not three —
-  the hand-rolled-identity rule applies to path keys too.
-  **Sequencing (hard): lands AFTER `docs/directives/portable-state-roots.md`
-  ships**, and as its own commit. Bundling it hides which edit moved which path,
-  and the portable-roots change carries a byte-identical-paths invariant that
-  must be provable on its own.
-  Verifier, red-first, three arms: (1) `CLAUDE_CONFIG_DIR` unset -> roots
-  byte-identical to today (the no-op control that protects the live deployment
-  — measured 2026-08-08: neither `CLAUDE_CONFIG_DIR` nor `XDG_*` is set in the
-  unit or the operator's environment, so this arm covers production); (2)
-  `CLAUDE_CONFIG_DIR` set to the DEFAULT `~/.claude` -> still no suffix, which
-  is the over-firing control and the one a naive implementation fails; (3) two
-  distinct config dirs -> two distinct roots, and the same dir spelled three
-  ways -> one root. Old code fails (2)... no: old code passes 1 and 2 and fails
-  3, so arm 3 is the red.
-  **AMENDED same day, operator question: the security-boundary case is SOLVED
-  by construction, not by the warning.** The first draft of this entry left a
-  relocated-`CLAUDE_CONFIG_DIR` user with our DATA root at the platform default
-  and offered a warning as the answer. A warning is a notification, not a
-  control, and for a security boundary that is the wrong instrument.
-  What the evidence changed: the DATA root has exactly two consumers
-  (`git grep -l "dataPath("` over `proxy/`), and both are the sensitive ones —
-  the MITM CA (`proxy/config.mjs:67`, already overridable via
-  `CACHE_FIX_CA_DIR`) and the capture corpus (`request-capture.mjs`, already
-  opt-in behind `CACHE_FIX_REQUEST_CAPTURE=1`). STATE holds the regenerable
-  half: event logs, snapshots, status files. So the module's own split rule —
-  unrecoverable if lost -> DATA, regenerable -> STATE — already partitions by
-  SENSITIVITY as well as by durability, and the design can use that.
-  So the roots diverge deliberately, and the rationale is stated because two
-  roots behaving differently is otherwise a surprise:
-
-      DATA:  CACHE_FIX_DATA_DIR
-             -> $CLAUDE_CONFIG_DIR/cache-fix   (when set and non-default)
-             -> platform/XDG data root
-      STATE: CACHE_FIX_STATE_DIR
-             -> platform/XDG state root [+ profile suffix, above]
-
-  DATA follows the boundary the user CHOSE; STATE follows platform convention.
-  A user who deliberately puts their Claude root on an encrypted volume has
-  stated where their Claude-adjacent secrets live, and our preference for
-  spec purity does not outrank that — while regenerable operational logs have
-  no such claim on the volume.
-  **This also simplifies the entry above rather than adding to it:** DATA
-  following `CLAUDE_CONFIG_DIR` gives profile isolation for free, so the profile
-  SUFFIX is needed only on the STATE root. One mechanism, not two.
-  The explicit `CACHE_FIX_*_DIR` overrides stay top of the ladder, which is the
-  escape for the case this does NOT cover: a relocated config dir that the
-  harness's shape-based protection still prompts on. Whether it does is
-  **UNVERIFIED** — the protection keys on path shape and a user-chosen
-  `/secure/claude` is probably not that shape, but nothing here measured it, and
-  the argument above deliberately does not rest on it.
-  `CacheFixConfigDirDivergenceWarning` narrows accordingly: it now fires only
-  when STATE diverges from a set `CLAUDE_CONFIG_DIR`, since DATA no longer
-  does — and if that leaves it firing on every relocated-config user for a
-  divergence that is now deliberate and documented, it should not ship at all.
-  Decide that when the portable-roots lane's version is in hand.
-  <!-- entry: "key our roots by PROFILE when CLAUDE_CONFIG_DIR is set" -->
-
 - **READY (small) — the three READMEs must agree on their path citations.**
   Proposed 2026-08-08 by the same lane, from a measured miss: `README.ko.md` was
   skipped by BOTH doc sweeps because each file list named `README.md` and
@@ -1959,6 +1947,23 @@ ENOSPC misattribution with its wrong first explanation left in.
   Computable, near-zero false fire, and it does not require the checker to read
   Korean — it compares path tokens, not prose. Red-first: the pre-fix
   `README.ko.md` must fail it.
+  **RE-AIMED 2026-08-08 afternoon, and the entry is MORE worth building, not
+  less.** `bbc1213` reverted the fork's XDG patches to `README.md` and
+  `README.zh.md`, so the three now AGREE (0 / 0 / 0 XDG claims) and the check
+  would be green today. Two things follow and neither is "drop it".
+  (1) The red-first arrangement moves to committed history and becomes
+  permanent rather than expiring: run it over `ddcdca3`, where the three
+  demonstrably disagreed — English and Chinese carrying XDG claims beside
+  upstream's, Korean carrying upstream's alone — and require a FAIL; run it
+  over `bbc1213` and require silence. Two immutable refs, one of each polarity,
+  so it cannot pass by always firing and cannot decay.
+  (2) Its VALUE changed from detective to preventive, and that is the stronger
+  case: the operator's decision is that all three carry upstream's text, and
+  the thing most likely to undo it is a future XDG accounting "repairing"
+  `README.md`'s restored `~/.claude` mentions. This check is what makes that
+  attempt fail loudly instead of silently re-creating the divergence. It is the
+  same shape as the writer-side guard at cost rank 1 — a generator-stopper, not
+  another sweep.
 
 - **READY — the census header promises MISMATCH bodies "printed in full"; the
   code prints lengths only, and three consumers believed the sentence.** Found
@@ -2058,6 +2063,117 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — WITHDRAWN before implementation, 2026-08-08; see
+  `docs/directives/portable-state-roots.md` §7) key our roots by PROFILE when
+  `CLAUDE_CONFIG_DIR` is set, because
+  that variable IS Claude Code's profile identity and our single global root
+  silently dissolves it.**
+  **The design is REVERSED, and the reason is measured rather than cautious:
+  `CLAUDE_CONFIG_DIR` does not mean what this entry assumed.** It does not bound
+  Claude Code's OWN footprint — session-resume mirrors under `os.tmpdir()`, a
+  separate `CLAUDE_SECURESTORAGE_CONFIG_DIR`, an XDG updater family
+  (`versions`/`staging`/`locks` under the XDG data/cache/state roots), a
+  platform-fixed managed-settings root, and `.claude.json` as a SIBLING FILE in
+  `$HOME` all escape it. A knob that does not contain its own product cannot be
+  sold as containing ours, so both halves of this entry's design — "DATA follows
+  the config dir" and the profile-suffix rule — are withdrawn. Establishing that
+  took two independent lanes, one reading documentation and one reading the
+  installed binary, and each caught something the other missed; the record is in
+  §7.
+  What replaces it is what was already there: the explicit `CACHE_FIX_DATA_DIR`
+  / `CACHE_FIX_STATE_DIR` overrides, which are OUR contract and cannot move
+  under us. Profile isolation and security relocation are BOTH served by the
+  user setting the override per profile.
+  **The surviving piece was STRANDED inside this entry as a subordinate clause
+  and is now its own READY entry** (`CacheFixConfigDirDivergenceWarning`, at the
+  end of `## Open`). That is the carrier defect worth recording: the warning had
+  been AMENDED into this entry rather than split out, so re-grading the parent
+  — which is correct — would have taken the only remaining answer with it. The
+  peer session that made the withdrawal caught it and asked for the split before
+  the re-grade, which is the only order in which it was catchable.
+  **This entry also cost a rank.** The 2026-08-08 afternoon derivation ranked it
+  at cost rank 6 on the basis that its hard sequencing constraint had dissolved.
+  That check was TRUE and answered a narrower question than the one it shut:
+  `portable-state-roots` shipped, and the design it gated did not survive. The
+  rank is VACATED rather than re-pointed, per the DONE-anchor guard.
+  Original entry follows. Designed 2026-08-08 when the operator challenged the
+  don't-use-`claudeHome()` decision; the decision survived, this gap did not.
+  Claude Code's machinery has exactly ONE storage concept: a single relocatable
+  root, no config/data/state split (`getClaudeConfigHomeDir()` is one memoized
+  base for config, caches, state and transcripts alike). `CLAUDE_CONFIG_DIR`
+  therefore carries two meanings at once — WHERE things live, and WHICH PROFILE
+  they belong to. `proxy/claude-home.mjs:5-7` names the second in its own words:
+  "running one proxy per config dir". Our XDG roots honour neither, so two
+  profiles under two config dirs commingle their captures in one directory,
+  losing an isolation upstream's `claudeHome()` callers get for free.
+  **The split this design rests on:** copy Claude's IDENTITY model, refuse its
+  STORAGE model. Its storage model puts data in a config directory because it
+  has no split, and the harness then protects that path by SHAPE — which is the
+  defect that caused the relocation in the first place, so copying it
+  reproduces the thing we fixed. Identity is orthogonal to storage class and
+  costs one path segment.
+  Design: `root(kind)` = explicit `CACHE_FIX_{DATA,STATE}_DIR` used as-is;
+  otherwise `<xdg-or-platform-base>/cache-fix[/<profile>]`, where `<profile>` is
+  OMITTED when `CLAUDE_CONFIG_DIR` is unset or resolves to the default
+  `~/.claude`, and is a short stable key derived from the resolved config-dir
+  path otherwise. Derive the key from the RESOLVED absolute path, not the raw
+  variable, so `~/x`, `$HOME/x` and `/home/g/x` are one profile and not three —
+  the hand-rolled-identity rule applies to path keys too.
+  **Sequencing (hard): lands AFTER `docs/directives/portable-state-roots.md`
+  ships**, and as its own commit. Bundling it hides which edit moved which path,
+  and the portable-roots change carries a byte-identical-paths invariant that
+  must be provable on its own.
+  Verifier, red-first, three arms: (1) `CLAUDE_CONFIG_DIR` unset -> roots
+  byte-identical to today (the no-op control that protects the live deployment
+  — measured 2026-08-08: neither `CLAUDE_CONFIG_DIR` nor `XDG_*` is set in the
+  unit or the operator's environment, so this arm covers production); (2)
+  `CLAUDE_CONFIG_DIR` set to the DEFAULT `~/.claude` -> still no suffix, which
+  is the over-firing control and the one a naive implementation fails; (3) two
+  distinct config dirs -> two distinct roots, and the same dir spelled three
+  ways -> one root. Old code fails (2)... no: old code passes 1 and 2 and fails
+  3, so arm 3 is the red.
+  **AMENDED same day, operator question: the security-boundary case is SOLVED
+  by construction, not by the warning.** The first draft of this entry left a
+  relocated-`CLAUDE_CONFIG_DIR` user with our DATA root at the platform default
+  and offered a warning as the answer. A warning is a notification, not a
+  control, and for a security boundary that is the wrong instrument.
+  What the evidence changed: the DATA root has exactly two consumers
+  (`git grep -l "dataPath("` over `proxy/`), and both are the sensitive ones —
+  the MITM CA (`proxy/config.mjs:67`, already overridable via
+  `CACHE_FIX_CA_DIR`) and the capture corpus (`request-capture.mjs`, already
+  opt-in behind `CACHE_FIX_REQUEST_CAPTURE=1`). STATE holds the regenerable
+  half: event logs, snapshots, status files. So the module's own split rule —
+  unrecoverable if lost -> DATA, regenerable -> STATE — already partitions by
+  SENSITIVITY as well as by durability, and the design can use that.
+  So the roots diverge deliberately, and the rationale is stated because two
+  roots behaving differently is otherwise a surprise:
+
+      DATA:  CACHE_FIX_DATA_DIR
+             -> $CLAUDE_CONFIG_DIR/cache-fix   (when set and non-default)
+             -> platform/XDG data root
+      STATE: CACHE_FIX_STATE_DIR
+             -> platform/XDG state root [+ profile suffix, above]
+
+  DATA follows the boundary the user CHOSE; STATE follows platform convention.
+  A user who deliberately puts their Claude root on an encrypted volume has
+  stated where their Claude-adjacent secrets live, and our preference for
+  spec purity does not outrank that — while regenerable operational logs have
+  no such claim on the volume.
+  **This also simplifies the entry above rather than adding to it:** DATA
+  following `CLAUDE_CONFIG_DIR` gives profile isolation for free, so the profile
+  SUFFIX is needed only on the STATE root. One mechanism, not two.
+  The explicit `CACHE_FIX_*_DIR` overrides stay top of the ladder, which is the
+  escape for the case this does NOT cover: a relocated config dir that the
+  harness's shape-based protection still prompts on. Whether it does is
+  **UNVERIFIED** — the protection keys on path shape and a user-chosen
+  `/secure/claude` is probably not that shape, but nothing here measured it, and
+  the argument above deliberately does not rest on it.
+  `CacheFixConfigDirDivergenceWarning` narrows accordingly: it now fires only
+  when STATE diverges from a set `CLAUDE_CONFIG_DIR`, since DATA no longer
+  does — and if that leaves it firing on every relocated-config user for a
+  divergence that is now deliberate and documented, it should not ship at all.
+  Decide that when the portable-roots lane's version is in hand.
 
 - **(DONE — OVERTAKEN, 2026-08-08 afternoon, verified by reading the file;
   residual
@@ -6618,6 +6734,49 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **3 (backlog and process)** — it mis-files entries and is
   recovered at the next derivation. Ranked at the next derivation, not here.
   <!-- entry: "a bullet whose grade token is a NARRATIVE word hides live" -->
+
+- **READY — `CacheFixConfigDirDivergenceWarning`: tell a user who has set
+  `CLAUDE_CONFIG_DIR` that our roots deliberately do NOT follow it, and where
+  they actually resolve.** Booked 2026-08-08 afternoon at the request of the
+  peer session that withdrew the parent design, and booked BEFORE that parent
+  was re-graded — which is the only order that works. This warning existed as a
+  subordinate clause inside the `key our roots by PROFILE` entry; that entry's
+  headline design is withdrawn (`docs/directives/portable-state-roots.md` §7),
+  so re-grading it — correct in itself — would have taken the warning with it.
+  **It is now the WHOLE answer**, not a fallback: with `CLAUDE_CONFIG_DIR`
+  refused as a root key, the warning is what tells a user that per-profile
+  isolation and security relocation are available, and how (the explicit
+  `CACHE_FIX_DATA_DIR` / `CACHE_FIX_STATE_DIR` overrides, which are OUR contract
+  and cannot move under us). A carrier defect caught one step before it landed;
+  the writer half — an amendment that should have been a split — is the lesson.
+  **Design, complete, so nothing needs re-deriving:**
+  - Fires in the WRAPPERS — `xdgData()` (`proxy/xdg-dirs.mjs:151`) and
+    `xdgState()` (`:156`) — never in `resolveRoot` (`:141`), which stays pure
+    and side-effect-free. That purity is what makes it testable, and it is the
+    same reason `assertIsolated` sits in the wrappers.
+  - Reuses the existing `warned` Set at `:192` — the legacy fallback's
+    once-per-key mechanism. Do NOT add a second warn-once mechanism.
+  - Condition: `CLAUDE_CONFIG_DIR` is set AND neither `CACHE_FIX_DATA_DIR` nor
+    `CACHE_FIX_STATE_DIR` is set.
+  - Text states four things: the variable is set; our roots deliberately do not
+    follow it; where they actually resolve; and that the two `CACHE_FIX_*_DIR`
+    overrides co-locate them.
+  **Verifier, red-first, three arms, ALL required — the third is the one that
+  matters.** FIRES: config dir set, no override → exactly one warning per root
+  key (not per call). SILENT: config dir unset — this is the control that
+  protects the live deployment, where neither variable is set. SILENT: config
+  dir set WITH an override present — the over-firing control, because a warning
+  that keeps firing after the user has already resolved the divergence trains
+  them to ignore it, which is the check-that-fires-on-a-non-defect shape aimed
+  at the one message we need read.
+  Deployment-coupled: `proxy/**`, so it needs a dotfiles pin bump
+  (`git rev-parse --short HEAD:proxy`) and a restart. Row 3: it touches neither
+  state KEYS nor freeze logic — a warn-once side effect in a path wrapper — so
+  the restart is cache-transparent, and that declaration is made HERE, before
+  the restart, per the row's own rule.
+  Unranked deliberately: booked after the 2026-08-08 afternoon derivation, and
+  a rank is a re-derivation's to assign.
+  <!-- entry: "CacheFixConfigDirDivergenceWarning" -->
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
