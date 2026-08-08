@@ -136,6 +136,135 @@ export function busts(ledgerPath = LEDGER) {
   return coldEvents(ledgerPath).filter((e) => e.cls === "bust");
 }
 
+/**
+ * The project a session belongs to — one of the three fields `--list` was
+ * missing (BACKLOG, 2026-08-07: "the operator's view and `bust-triage
+ * --list` share NO identifying field"). The ❄ token shows ordinal, size,
+ * cause and age, and the operator already knows the PROJECT they are
+ * sitting in; `--list` showed none of that, so "230k messages_changed" was
+ * the only shared handle between two different sessions.
+ *
+ * The mangled `~/.claude/projects/<dir>` name cannot be reversed to a real
+ * path: Claude Code replaces every `/` with `-`, and repo names routinely
+ * carry literal dashes of their own — this repo's own directory is
+ * `claude-code-cache-fix`, so "take the last dash-separated segment" would
+ * report "fix". Reading the session's own `cwd` field out of its transcript
+ * and taking ITS basename is unambiguous — the same basename
+ * `_short_project_v` (claude-worktime.sh) takes before any further
+ * shortening, and that shortening needs operator config (`HOME_ORG`) this
+ * tool has no equivalent of, so it stops at the basename rather than
+ * guessing a shorter form.
+ *
+ * Null for "no transcript" and for "transcript present but no line ever
+ * carried a `cwd`" — a project left unresolved must read as unresolved,
+ * never silently as the session id it was supposed to disambiguate.
+ */
+export function projectFor(sid, projectsDir = PROJECTS) {
+  if (!existsSync(projectsDir)) return null;
+  for (const proj of readdirSync(projectsDir)) {
+    const f = join(projectsDir, proj, `${sid}.jsonl`);
+    if (!existsSync(f)) continue;
+    for (const line of lines(f)) {
+      const r = j(line);
+      if (typeof r?.cwd === "string" && r.cwd) {
+        const base = r.cwd.replace(/\/+$/, "").split("/").pop();
+        return base || r.cwd;
+      }
+    }
+    return null; // transcript found, but no line in it ever carried a cwd
+  }
+  return null;
+}
+
+/**
+ * Age since a cold event, rendered EXACTLY like the ❄ token's own age
+ * (claude-worktime.sh: `< 3600 -> "Nm"`, else `"NhMm"`, both floored, no
+ * zero-padding) — so a row copied out of `--list` and a live token never
+ * disagree about what "17m" means.
+ */
+export function ageStr(ageSec) {
+  const s = Math.max(0, Math.floor(ageSec));
+  return s < 3600 ? `${Math.floor(s / 60)}m`
+                  : `${Math.floor(s / 3600)}h${Math.floor((s % 3600) / 60)}m`;
+}
+
+/**
+ * Per-session ORDINAL among BUST events only, oldest first — the load-
+ * bearing field of the three (BACKLOG): worktime already computes and
+ * displays it (`cold_count`, the `.cold_${sid}` state file's first field,
+ * claude-worktime.sh), incrementing exactly once per booked `k:"hit"` and
+ * never on a `k:"cost"`/`resume` (controlled) event or a retracted hit.
+ * "#2 in statiker" is unambiguous where "230k" is not.
+ *
+ * Derived from the ledger's own retraction-aware population (`coldEvents`),
+ * not read from worktime's live state file: the state file only ever holds
+ * the SESSION'S CURRENT count, but every row in a `--list` slice needs its
+ * own — so this recomputes the same monotonic count worktime keeps, from
+ * the same source of truth, rather than re-deriving it a second way (a
+ * second definition of an ordinal would be a second truth about what an
+ * ordinal is — dev-loop, "never hand-roll identity").
+ *
+ * Keyed `${s}#${t}` (session + this tool's own event identity elsewhere in
+ * the file) rather than by array position, so callers can look an ordinal
+ * up for a row from a DIFFERENT (e.g. de-duplicated) population than the
+ * one this was computed over.
+ */
+export function sessionOrdinals(events) {
+  const perSession = new Map();
+  const ord = new Map();
+  const asc = events.filter((e) => e.cls === "bust").sort((a, b) => a.t - b.t);
+  for (const e of asc) {
+    const n = (perSession.get(e.s) ?? 0) + 1;
+    perSession.set(e.s, n);
+    ord.set(`${e.s}#${e.t}`, n);
+  }
+  return ord;
+}
+
+// A raced statusline read can book ONE API response as several `k:"hit"`
+// records a few seconds apart, all sharing session + `cc` (BACKLOG: "one
+// event booked three times", 17:39:59/17:40:08/17:40:16Z, 9s apart) — a
+// client-side render race claude-worktime.sh's own `token_prev` filter
+// (its comment: "exactly the false-❄ shape measured 2026-08-07 01:00:55Z,
+// three renders of one API call") now guards going forward, but the
+// ledger's own past bookings from before that fix stay triple-booked
+// forever (the ledger is append-only). 120s mirrors COLD_LATE_BIND_SECS
+// (claude-worktime.sh), the SAME window the client already treats as "one
+// race, still settling" for a cause correction — the real triple landed
+// well inside it (9s total span).
+export const DUPLICATE_BOOKING_WINDOW_SEC = 120;
+
+/**
+ * Collapse a run of same-session, same-`cc`, close-in-time BUST bookings
+ * into ONE row, flagged with its own count — never silently dropped, and
+ * never left as separate rows a reader would misread as separate busts
+ * (BACKLOG duplication control: "the 17:40 triple must appear as ONE row
+ * (or as one row flagged as a known duplicate set), never as three").
+ * Same `cc` is the discriminator, not adjacency alone: a GENUINE second
+ * bust re-bills a DIFFERENT amount, so identical `cc` within the window is
+ * the signature of one API response rendered more than once, never a
+ * coincidence between two distinct events. Controlled events pass through
+ * untouched — the triple-booking race is a bust-side (`k:"hit"`) defect.
+ * The earliest booking's own `t` and `cause` are kept as the row's
+ * identity (the true moment of the bust); a later booking's cause upgrades
+ * it only when the earlier one is still the raced "other" placeholder.
+ */
+export function collapseDuplicateBookings(events, windowSec = DUPLICATE_BOOKING_WINDOW_SEC) {
+  const asc = [...events].sort((a, b) => a.t - b.t);
+  const merged = [];
+  for (const e of asc) {
+    const prev = merged[merged.length - 1];
+    if (prev && e.cls === "bust" && prev.cls === "bust" &&
+        prev.s === e.s && prev.cc === e.cc && (e.t - prev.t) <= windowSec) {
+      prev.dupCount = (prev.dupCount ?? 1) + 1;
+      if (prev.cause === "other" && e.cause && e.cause !== "other") prev.cause = e.cause;
+      continue;
+    }
+    merged.push({ ...e });
+  }
+  return merged.sort((a, b) => b.t - a.t);
+}
+
 /** The transcript's own diagnostic for a bust, or null when unreadable. */
 export function transcriptCause(sid, cc) {
   if (!existsSync(PROJECTS)) return null;
@@ -1307,12 +1436,37 @@ export function listHeader(events, shown) {
          ` paste one straight into \`dossier <stamp>\`.`;
 }
 
-/** `--list` rows: every ❄-visible event, controlled ones labelled as such. */
-export function listRows(events) {
+/**
+ * `--list` rows: every ❄-visible event, controlled ones labelled as such,
+ * now carrying the three fields the operator's own screen shows and the
+ * old row did not — ORDINAL, PROJECT, AGE — beside the pre-existing UTC
+ * stamp, size, cause and sid (BACKLOG: "the operator's view and
+ * `bust-triage --list` share NO identifying field").
+ *
+ * `opts.ordinals` lets a caller pass ordinals computed over a DIFFERENT
+ * (typically larger, or de-duplicated) population than `events` itself —
+ * `main()` does this so a truncated slice's ordinals still reflect the
+ * session's FULL bust history. Falls back to computing them from `events`
+ * alone, which keeps every direct call site (including this file's own
+ * tests) working unchanged.
+ * `opts.now` is seconds-since-epoch for AGE; defaults to the real clock and
+ * exists only so a test can pin it.
+ * A row whose earlier bookings were collapsed (`e.dupCount`,
+ * `collapseDuplicateBookings`) says so — flagged, never silently merged.
+ */
+export function listRows(events, opts = {}) {
+  const ord = opts.ordinals ?? sessionOrdinals(events);
+  const now = opts.now ?? Math.floor(Date.now() / 1000);
   return events.map((e) => {
     const label = e.cls === "controlled" ? `CONTROLLED(${e.cause ?? "-"})` : (e.cause ?? "-");
+    const n = e.cls === "bust" ? ord.get(`${e.s}#${e.t}`) : null;
+    const ordPrefix = n && n > 1 ? `#${n} ` : "";
+    const dupSuffix = e.dupCount > 1 ? ` (x${e.dupCount} booked)` : "";
+    const proj = projectFor(e.s) ?? "-";
+    const age = ageStr(now - e.t);
     return `  ${fmt(e.t)}  ${String(Math.round((e.cc ?? 0) / 1000)).padStart(4)}k  ` +
-           `${label.padEnd(30)} ${e.s.slice(0, 8)}`;
+           `${(ordPrefix + label + dupSuffix).padEnd(34)} ${e.s.slice(0, 8)}  ` +
+           `${proj.padEnd(20)} ${age}`;
   });
 }
 
@@ -1395,9 +1549,15 @@ async function main(argv) {
       process.stdout.write("no cold events in the worktime ledger.\n");
       return 0;
     }
-    const slice = events.slice(0, 15);
-    process.stdout.write(listHeader(events, slice.length) + "\n");
-    for (const row of listRows(slice)) process.stdout.write(row + "\n");
+    // De-duplicated over the FULL population, not the slice: a duplicate
+    // booking (or a session's earlier busts) can sit outside the visible 15
+    // rows, and both the "showing N of M" count and every ordinal must
+    // still be right against the true history.
+    const deduped = collapseDuplicateBookings(events);
+    const ordinals = sessionOrdinals(deduped);
+    const slice = deduped.slice(0, 15);
+    process.stdout.write(listHeader(deduped, slice.length) + "\n");
+    for (const row of listRows(slice, { ordinals })) process.stdout.write(row + "\n");
     return 0;
   }
   if (args.includes("--lint-matrix")) {
