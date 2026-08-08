@@ -158,21 +158,52 @@ same exported `conservationViolations` and the same extension exports.
 
 **And "1 REAL-LOSS" is a FLOOR, not a bound.** The enumerating lane's first
 probe labelled all 31 clause-(b) rows REAL-LOSS with a definite verdict and a
-TRUE stated basis: it had never looked inside list-content `tool_result`
-blocks, so bytes on the wire scanned as absent. A coverage walk replaced it and
-the 31 flipped. That reach limit is invisible from inside the probe and to any
-second instrument sharing it — which is why the instrument that closes it is
-this tier's rank 1 rather than a follow-up.
+TRUE stated basis. A coverage walk replaced it and the 31 flipped. That reach
+limit is invisible from inside the probe and to any second instrument sharing
+it — which is why the instrument that closes it is this tier's rank 1 rather
+than a follow-up.
+**MECHANISM CORRECTED 2026-08-08, and the correction is the point.** This
+paragraph said the first probe "had never looked inside list-content
+`tool_result` blocks". That is FALSE of both probes, measured over all 31 rows
+through the shipped instrument and reproduced at the desk against the preserved
+rows: `--without list-content-descent` leaves `COVERED=31` — the named
+condition is a NO-OP on the known positive. The three conditions that actually
+carry it each take 31 -> 0: `reminder-unwrap`, `multi-piece`, `separator-skip`.
+The true reach limit was a whole-string substring scan (0% vs 100%), and the
+GATE-side limit is narrower still: `crossJoinUnitHash` reconstructs a
+cross-message join only for ADJACENT forwarded messages, while these
+contributors sit at 55 and 57 with an unrelated message at 56. The headline —
+31 phantom losses, one instrument away from being reported as a mitigation
+defect — is INTACT and is now harder evidence than when it was a story.
 
 15. **Graduate the coverage walk into `tools/`: "is this content on the wire"
     must not be answered by a substring scan, and today every such answer is
-    one.** NEW. Ranked at the tier head because it re-grades the tier's OWN
-    head evidence — it is what converts the FLOOR above back into a bound — and
-    because 31 phantom content losses were one instrument away from being
-    reported as a mitigation defect. Red-first positive is real and in hand
-    (the 31 rows); the walk that survives contact exists only as a scratchpad
-    probe, perishable by construction.
+    one.** PARTLY SHIPPED 2026-08-08 (`7827c4e`, `tools/coverage-walk.mjs`);
+    stays ranked here for the two pieces that did not land. Ranked at the tier
+    head because it re-grades the tier's OWN head evidence — **and that claim
+    is now corrected: it converts the floor into a bound for 31 of the 66
+    checker-reach rows only.** The other 35 are `out`/`invented` rows asking
+    the INVERSE question ("CC never sent this in this conversation"), which
+    needs conversation-wide raw grouping the three-input interface does not
+    carry; the instrument returns COULD-NOT-VERIFY for all 35 with the reason
+    computed, which is the honest answer and not a bound.
     <!-- entry: "graduate the coverage walk into `tools/`" -->
+15b. **The bite for the coverage walk, with the condition it actually has.**
+    The briefed mutation (`list-content-descent`) is a no-op on the known
+    positive, so the lane correctly refused to build a bite around it and
+    refused to hunt a substitute case. DECIDED at the desk: this is NOT the
+    dissolved-motivating-case rule — the case is the same 31 rows, unchanged;
+    only the entry's STORY about which condition carried it was wrong, which is
+    the precedent `docs/dev-loop.md` already records for `bust-triage`'s
+    "picks by TIME ALONE" (right design, wrong story). So the bite names the
+    three measured conditions, each of which is red on the real known positive.
+    **And the residue ships NAMED rather than credited:** the list-content
+    descent IS implemented and is exercised by NOTHING, so it carries the label
+    unverified until it has its own positive — the wire survey found 7
+    list-content `tool_result` blocks carrying `text`x8 and `tool_reference`x2,
+    which is where that positive would come from, synthetically if no row
+    exercises it. Shares rank 15's anchor deliberately: it is the same entry's
+    unshipped half, not a second rankable item.
 16. **The byte-gate's `anyPresent` probe can never return false for a RECURRING
     reminder text, so a pruned host is reported MISMATCH instead of DROPPED.**
     NEW, and the entry places itself in this tier for the right reason: a
@@ -889,14 +920,52 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   of container shapes is the thing being graduated, since that is exactly what
   the substring scan got wrong.
   **Verifier, red-first, and the known positive is real and in hand:** the 31
-  clause-(b) rows. The graduated walk must report them fully covered, and a
-  mutation removing list-content descent must send them back to REAL-LOSS.
-  That mutation is the bite, and it removes the exact condition the check
-  names rather than adjacent machinery.
-  **Then re-run it over the rows already attributed.** The Tier B corroboration
-  line now says "1 REAL-LOSS" is a FLOOR rather than a bound; this is the
-  instrument that converts it back into a bound. That re-run is the entry's
-  done-criterion, not an optional follow-up.
+  clause-(b) rows.
+  **PARTLY SHIPPED 2026-08-08 — `7827c4e`, `tools/coverage-walk.mjs` (new, 564
+  lines) plus `blockUnitsFull` exported from `replay.mjs`.** New file rather
+  than an extension, reason stated as the rule requires: `bust-triage` owns
+  capture-PAIR plumbing and not `--dump-forwarded`, `replay.mjs` is the dump's
+  PRODUCER and this is a consumer of its output, and the house precedent for a
+  separate consumer of replay's dump is `absorption-classify.mjs`. Suite
+  2344/2342/0 at that commit, verified at the desk in a frozen worktree, not
+  taken from the report.
+  **THE ENTRY'S OWN MECHANISM WAS FALSE, and the halt this entry's brief
+  carried is what caught it.** Struck: "it had simply never looked inside
+  list-content `tool_result` blocks" and "a mutation removing list-content
+  descent must send them back to REAL-LOSS". Measured over all 31 rows through
+  the shipped instrument, and REPRODUCED at the desk against the PRESERVED
+  attribution rows (i.e. not the lane's own row derivation):
+
+      (no mutation)                    COVERED=31 UNCOVERED=0
+      --without reminder-unwrap        COVERED=0  UNCOVERED=31
+      --without list-content-descent   COVERED=31 UNCOVERED=0   <- NO-OP
+      --without multi-piece            COVERED=0  UNCOVERED=31
+      --without separator-skip         COVERED=0  UNCOVERED=31
+
+  The true reach limit was the whole-string substring scan (0% vs 100%), plus
+  the reminder unwrap and the join separator. The GATE-side limit is narrower
+  than "cannot see joins": `crossJoinUnitHash` reconstructs a cross-message join
+  only for ADJACENT forwarded messages, and the contributors sit at forwarded 55
+  and 57 with an unrelated message at 56. All 31 rows are ONE message (one
+  distinct content sha, 9949 bytes / 9865 code units, role=system, string
+  content) reconstructing exactly as `unwrap(fwd[55].content[9])` + `"\n\n"` +
+  `unwrap(fwd[55].content[10])` + `"\n\n"` + `fwd[57].content` = 683+2+683+2+
+  8495 = 9865.
+  **REMAINING WORK, and it is what keeps this entry READY:**
+  (1) the bite, naming the three conditions that are actually red (decided at
+  the desk — the case is unchanged, so this is a corrected condition and not a
+  substitute case);
+  (2) the list-content descent ships EXERCISED BY NOTHING and therefore
+  unverified — it needs its own positive, synthetic if no row provides one (the
+  wire survey found 7 list-content `tool_result` blocks carrying `text`x8 and
+  `tool_reference`x2);
+  (3) the 35 `out`/`invented` rows — see the entry immediately below.
+  **The done-criterion as written CANNOT be met, and the honest form replaces
+  it.** It said the re-run converts "1 REAL-LOSS" from a floor into a bound.
+  Measured: of the 66 checker-reach rows, 31 are now POSITIVELY confirmed on
+  the wire by an instrument whose covering conditions are each red; the other
+  35 return COULD-NOT-VERIFY with the reason computed. So the floor's SCOPE
+  shrank and the floor remains a floor.
 
 - **READY — the byte-gate's `anyPresent` probe can never return false for a
   RECURRING reminder text, so a pruned host is reported MISMATCH instead of
@@ -1524,6 +1593,24 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **READY — the inverse-direction coverage walk: an `out`/`invented`
+  conservation row asks "CC never sent this in this conversation", which no
+  instrument answers today.** Split out 2026-08-08 from the entry above, whose
+  three-input interface (capture + forwarded dump + rows) structurally cannot
+  carry it. Rows by side across the three failing captures, measured: 67 total,
+  32 `in`, 35 `out` — s-captureAE 35 rows (1 `in`/suppressed-without-copy, 34
+  `out`/invented), s-captureAH 31 rows (all `in`), s-captureAO 1 row
+  (`out`/invented). Every `out` row needs `conversationOf` grouping over the
+  conversation's whole RAW population rather than one request's forwarded
+  array. Design NOT decided — this is the fork in the road that keeps it out of
+  the ready grade: either `coverage-walk` grows a second mode that takes the
+  capture and a conversation key, or the question belongs in `replay.mjs` where
+  the grouping already exists. Verifier, red-first and available: the 35 rows
+  return COULD-NOT-VERIFY today (real output: `35 row(s): COVERED=0 UNCOVERED=0
+  COULD-NOT-VERIFY=35`), so any real verdict on them is a change of state.
+  Until this ships, "1 REAL-LOSS" stays a FLOOR and no document may quote it as
+  a bound.
 
 - **(DONE — 2026-08-07, `7b804fe` merge + `c50f183`; dotfiles pin `a5c7263` ->
   `b1d070f`) the SIXTEEN cache-fix-owned paths leave `~/.claude/`; the
