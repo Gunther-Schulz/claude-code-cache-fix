@@ -85,15 +85,65 @@ So neither "a restart IS a bust" nor "restarts are safe now" holds.
 **The proxy is not the variable — CC is.** Tool-array changes are NOT
 restart-correlated: they occur throughout a session (17:11, 17:12,
 17:16, 17:22, 17:33 UTC on 2026-07-27) while restarts were at 17:01,
-17:15, 17:32 and 18:20. And no enabled extension can vary the array
-across a restart: `sort-stabilization` sorts `body.tools` alphabetically
-(`sort-stabilization.mjs:60-62`) — deterministic and stateless, so a
-fresh process produces byte-identical output;
-`deferred-tool-rewrite` (the only extension holding tool-order state) is
-disabled in the unit; and `deferred-tools-restore` never touches
-`body.tools` at all — it rewrites a system-reminder TEXT block
-(`findDeferredToolsBlockInBody`, messages only, zero `body.tools`
-references).
+17:15, 17:32 and 18:20.
+
+**CORRECTED 2026-08-08 — `deferred-tool-rewrite` is ENABLED, not
+disabled, and the extension set below was re-enumerated from the
+extensions directory and the serving `extensions.json` (the path the
+systemd unit's `ExecStart` actually loads — this checkout's copy is a
+worktree of the same content), not from memory of this file's old
+claim.** `/health` on the running unit reports
+`"CACHE_FIX_TOOL_REWRITE":"1"`, and a per-session event log under the
+snapshots state dir carried a live `"action":"rewrite"` entry the same
+morning (07:15:47Z; file name omitted — it embeds a session id and
+this file is public). `grep -l 'body\.tools' proxy/extensions/*.mjs`
+finds FOUR extensions touching `body.tools`, not the three this
+section used to name — two were never considered before:
+
+- `sort-stabilization` sorts it alphabetically
+  (`sort-stabilization.mjs:60-62`) — deterministic and stateless (no
+  disk state, no imports beyond its own pure functions), so a fresh
+  process produces byte-identical output from the same input.
+- `deferred-tools-restore` never touches `body.tools` at all (zero
+  references in the file) — it rewrites a system-reminder TEXT block
+  inside `body.system`/`body.messages`, by its own header comment and
+  confirmed by the grep finding nothing.
+- `thinking-block-sanitize` (newly enumerated; active — no
+  `enabled:false` in its own default export and no override in
+  `extensions.json`, so it falls to the pipeline's `ext.enabled ?? true`)
+  only READS `body.tools`, to feed `computeSignatureSurfaceHash`
+  (`thinking-block-sanitize.mjs:278`); it never assigns `body.tools`
+  and is not a candidate for varying it.
+- `tool-input-normalize` (newly enumerated; active — `extensions.json`
+  sets `"enabled": true`, overriding its own file-level
+  `enabled: false` default) reads `body.tools` only to look up each
+  tool's schema key order, then reorders keys inside `tool_use` INPUT
+  blocks in `body.messages` (`tool-input-normalize.mjs:1-56`). It never
+  assigns `body.tools` either.
+- `deferred-tool-rewrite` **is enabled**
+  (`extensions.json: {"enabled": true, "order": 425}` plus the runtime
+  gate `CACHE_FIX_TOOL_REWRITE=1`, both confirmed live) and it is the
+  only one of the four that assigns `body.tools`. That does not reopen
+  restart-transparency for the array, because the assignment is built
+  from PERSISTED state, not process memory: `classifyToolChange` is a
+  pure function (`deferred-tool-rewrite.mjs:367-444`) and `loadState`
+  re-reads the canonical tools array from an XDG-state JSON file on
+  every request (`:218-227`, no in-process cache) — a file a fresh
+  process reads exactly like the one before it. For the `unchanged`,
+  `description-absorbed`, and `rewrite` classifier outcomes,
+  `body.tools` is unconditionally rebuilt from that persisted array via
+  `forwardedTools(result.knownTools, additions)`
+  (`:626-629`, called at `:784-786`) — never from CC's incoming bytes.
+  Only `no-baseline` (first-seen session) and `reset` (a known tool's
+  SCHEMA changed) forward CC's raw incoming array unchanged, and both
+  are triggered by what CC sent, not by the proxy having restarted.
+  So a fresh process reproduces byte-identical `body.tools` for an
+  unchanged incoming tool set — the same persisted-state argument row 3
+  of the threat matrix already makes for insertion-normalization and
+  the ladder, extended here to a fourth mechanism this section had
+  wrongly written off as inert. Row 3's restart-transparency verdict
+  does not need re-grading on this correction; if anything it gains a
+  fourth confirming mechanism instead of losing its only stated one.
 
 What actually varies the array is CC's own tool set: `ToolSearch`
 loading deferred tools, MCP servers connecting and disconnecting,
