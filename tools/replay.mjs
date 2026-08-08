@@ -850,6 +850,15 @@ export function compactEntry(e) {
     id: e.id ?? null,
     key: e.key,
     inHash: inMsgs.map((m) => sha(JSON.stringify(m))),
+    // cache_control-stripped twin of inHash, the INPUT-side sibling of
+    // outHashNoCC below — same primitive (stripCacheControlDeep), same
+    // reason: comparing it against inHash index-by-index is what locates a
+    // written breakpoint (inHash[i] !== inHashNoCC[i]) without retaining a
+    // message body or hand-rolling a second cache_control walk. Consumer:
+    // lastBreakpointAtOrBefore, findMitigationGaps'/findEditPositions'
+    // rebilledBreakpointBytes (the "model is breakpoint-blind" fix, BACKLOG
+    // 2026-08-06 18:08:32Z entry).
+    inHashNoCC: inMsgs.map((m) => sha(JSON.stringify(stripCacheControlDeep(m)))),
     // Byte length per message. Numbers, not content — this is what lets a
     // missed mitigation be priced (everything from the divergence index on is
     // re-billed) without retaining a single message body.
@@ -1177,6 +1186,58 @@ export function buildTrace(entries) {
 // with events no mitigation should touch.
 const MITIGABLE = new Set(["splice/insert-mid", "append-after-change", "reorder-only"]);
 
+// --- The model is breakpoint-blind (BACKLOG, 2026-08-06 18:08:32Z entry) ---
+//
+// `rebilledBytes` (below, and in findEditPositions) prices a miss from the
+// DIVERGENCE index onward — `cur.inBytes.slice(from)` where `from` is
+// `firstDivergence(prev.inHash, cur.inHash)`. That assumes the cache reuses
+// everything byte-identical up to the divergence, but the API does not: it
+// reuses up to the last WRITTEN `cache_control` breakpoint at or before the
+// divergence, never an arbitrary matching prefix. Measured, capture
+// s-captureAM, pair n=265->266
+// (findEditPositions: `at=235` of `lastIdx=290`, `rebilledBytes=114653`):
+// the transcript's own outcome record for that request reads `cc` (cache
+// creation) 300,597 against `ctx` 315,821 with `cacheRead` 15,222 — the
+// surviving hit is tools+system alone, not the ~55 messages between the
+// divergence and the array end that the old number credits as cached.
+//
+// Threat-matrix's own corpus measurement (robustness-threat-matrix.md, row
+// 4/24 cost model) explains why: of 1,512 requests with messages, 1,414
+// carry a message-layer breakpoint and every one of them carries exactly
+// ONE — 1,408 on the final message, 6 one-to-two off. So for a MID-history
+// edit, prev's one breakpoint sits near prev's OWN tail — after the
+// divergence, not before it — and "no partial credit" (this file's own
+// repeated finding) means that breakpoint is unreadable and NOTHING in the
+// messages array survives: `from` should be 0 (whole array), not the
+// divergence index.
+//
+// `lastBreakpointAtOrBefore` finds the highest index <= `limit` at which
+// `hashArr[i] !== hashNoCCArr[i]` — a written breakpoint, detected the same
+// way outHashNoCC already lets findAbsorptionMisses detect one, never a
+// second hand-rolled cache_control walk (dev-loop.md, "never hand-roll
+// identity in a probe"). Searched over PREV's own arrays: prev's breakpoint
+// is what the API actually has cached going into this request. `null` when
+// prev carries no in-range breakpoint at all (either none exists, or the
+// only one sits AFTER `limit` and is therefore invalidated by the
+// divergence) — the caller's `from` collapses to 0 in that case, per "when
+// no breakpoint sits between the array start and N, that is the whole
+// array" (the entry's own words).
+//
+// TAIL EDIT, the case the OLD model already gets right and this must not
+// disturb: when the divergence IS the breakpoint's own index (`limit ===
+// bpIdx`), `lastBreakpointAtOrBefore` returns `limit` itself (inclusive
+// scan), so the new `from` equals the old `from` (both `limit`) and both
+// numbers price identically — verified in
+// test/replay-gate-selfcheck.test.mjs.
+export function lastBreakpointAtOrBefore(hashArr, hashNoCCArr, limit) {
+  if (limit === null || limit === undefined) return null;
+  let last = null;
+  for (let i = 0; i <= limit && i < hashArr.length; i++) {
+    if (hashArr[i] !== hashNoCCArr[i]) last = i;
+  }
+  return last;
+}
+
 // `mitigated` above is an INPUT-side fact and nothing more: it trusts
 // insertion-normalization's own self-report that it re-serialised CC's
 // splice into an append, and prices the miss from CC's OWN divergence
@@ -1246,6 +1307,16 @@ export function findMitigationGaps(entries) {
       const from = inDiv === null ? cur.inBytes.length : inDiv;
       const rebilled = cur.inBytes.slice(from).reduce((a, b) => a + b, 0);
 
+      // Breakpoint-aware twin of `rebilled` above — see the "model is
+      // breakpoint-blind" block comment before MITIGABLE. `bpFrom` collapses
+      // to `from` when prev's breakpoint sits exactly at the divergence (the
+      // tail-edit case the old model already prices correctly) and to 0 when
+      // no in-range breakpoint survives (the mid-history case the old model
+      // understates).
+      const bpIdx = inDiv === null ? null : lastBreakpointAtOrBefore(prev.inHash, prev.inHashNoCC, inDiv);
+      const bpFrom = inDiv === null ? cur.inBytes.length : bpIdx === null ? 0 : bpIdx;
+      const rebilledBreakpoint = cur.inBytes.slice(bpFrom).reduce((a, b) => a + b, 0);
+
       // Output-side classification — see the block comment above. Uses
       // outHashSem (cache_control stripped, see outputContentHash), not the
       // stability check's raw outHash — a cache_control-only relocation is
@@ -1281,6 +1352,13 @@ export function findMitigationGaps(entries) {
         // construction (their sum is always `rebilled`) — the fire ledger's
         // saved column reads it (gate-live summariseFireBytes).
         savedBytes: mitigated ? rebilled : 0,
+        // Breakpoint-aware pricing, under its OWN name — `rebilledBytes` and
+        // `savedBytes` above keep their existing (divergence-only) meaning
+        // unchanged; gate-live's fire ledger and every other consumer of
+        // those two fields is unaffected by this addition. Same
+        // mitigated/complement split as the pair above.
+        rebilledBreakpointBytes: mitigated ? 0 : rebilledBreakpoint,
+        savedBreakpointBytes: mitigated ? rebilledBreakpoint : 0,
         outputForm,
         outputPreserved,
         rebilledOutBytes,
@@ -1632,6 +1710,13 @@ export function findEditPositions(entries) {
       const lastIdx = cur.inSem.length - 1;
       // Everything from the edit onward is re-billed.
       const rebilled = cur.inBytes.slice(at).reduce((a, b) => a + b, 0);
+      // Breakpoint-aware twin — see the "model is breakpoint-blind" block
+      // comment before MITIGABLE (findMitigationGaps). `at` is a positional
+      // index over the same inSem/inHash/inBytes coordinate space
+      // lastBreakpointAtOrBefore searches, same as findMitigationGaps' inDiv.
+      const bpIdx = lastBreakpointAtOrBefore(prev.inHash, prev.inHashNoCC, at);
+      const bpFrom = bpIdx === null ? 0 : bpIdx;
+      const rebilledBreakpointBytes = cur.inBytes.slice(bpFrom).reduce((a, b) => a + b, 0);
       rows.push({
         n: cur.n,
         prevN: prev.n,
@@ -1646,6 +1731,9 @@ export function findEditPositions(entries) {
         lastIdx,
         tail: at >= lastIdx,
         rebilledBytes: rebilled,
+        // Under its own name — `rebilledBytes` above keeps its existing
+        // (divergence-only) meaning; this is the breakpoint-priced number.
+        rebilledBreakpointBytes,
         // Structural context (see compactEntry's inLastHuman note): where the
         // edit sits relative to the last human-typed message. anchorDelta 0
         // means the anchor message itself was re-stamped; small negative

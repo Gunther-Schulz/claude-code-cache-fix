@@ -40,11 +40,20 @@ import {
   semanticCore,
   readCapture,
   findMitigationGaps,
+  findEditPositions,
+  lastBreakpointAtOrBefore,
 } from "../tools/replay.mjs";
 import { buildDescriptionChangeMessage } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 
 const user = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
 const asst = (t) => ({ role: "assistant", content: [{ type: "text", text: t }] });
+// A user message carrying a written cache_control breakpoint — the shape
+// lastBreakpointAtOrBefore/rebilledBreakpointBytes detect via inHash vs
+// inHashNoCC (compactEntry).
+const bpUser = (t) => ({
+  role: "user",
+  content: [{ type: "text", text: t, cache_control: { type: "ephemeral" } }],
+});
 
 // One capture entry as the replay loop builds it.
 const entry = (n, inMsgs, outMsgs, extra = {}) => ({
@@ -848,6 +857,106 @@ test("mitigation: honest history rewrites are NOT counted as missed mitigations"
     findMitigationGaps([entry(0, a, a, { action: "append-only" }), entry(1, dropped, dropped, { action: "reset" })]).length,
     0,
   );
+});
+
+// --- Breakpoint-aware pricing (BACKLOG, "the model is breakpoint-blind") ---
+//
+// rebilledBytes/savedBytes price from the divergence index alone, which
+// understates a mid-history miss whenever the one written breakpoint sits
+// AFTER the divergence (near the array's own tail, per the corpus finding
+// that every request carries exactly one, normally on the last message) —
+// that breakpoint cannot survive a divergence that happens before it, and
+// nothing earlier exists to fall back to. rebilledBreakpointBytes is the
+// corrected number, under its own name.
+
+test("lastBreakpointAtOrBefore: BITE — a breakpoint AFTER the limit does not count", () => {
+  // Bare hash/noCC arrays: only index 2 differs (the breakpoint), and the
+  // search is capped at limit=1 — the breakpoint at 2 must not be found.
+  assert.equal(lastBreakpointAtOrBefore(["h0", "h1", "hBP"], ["h0", "h1", "hPlain"], 1), null);
+  assert.equal(lastBreakpointAtOrBefore(["h0", "h1", "hBP"], ["h0", "h1", "hPlain"], 2), 2);
+});
+
+test("lastBreakpointAtOrBefore: the HIGHEST in-range breakpoint wins, not the first", () => {
+  assert.equal(
+    lastBreakpointAtOrBefore(["hBP0", "h1", "hBP2", "h3"], ["hPlain0", "h1", "hPlain2", "h3"], 3),
+    2,
+  );
+});
+
+test("lastBreakpointAtOrBefore: no breakpoint anywhere returns null", () => {
+  assert.equal(lastBreakpointAtOrBefore(["h0", "h1", "h2"], ["h0", "h1", "h2"], 2), null);
+});
+
+test("mitigation/edits: BITE — a mid-history edit BEFORE the tail breakpoint prices the WHOLE array, not the suffix", () => {
+  // Mirrors the real reproduction (capture s-captureAM, pair n=265->266): the
+  // one written breakpoint sits on the tail message, the edit lands well
+  // before it, so
+  // nothing in messages[] survives — rebilledBreakpointBytes must equal the
+  // FULL cur array, strictly more than rebilledBytes (which only counts
+  // from the edit onward).
+  const prev = [user("u0"), asst("a1"), user("u2"), user("u3"), bpUser("u4")];
+  const cur = [user("u0"), asst("a1"), user("EDITED"), user("u3"), bpUser("u4")];
+  const rows = findEditPositions([entry(0, prev, prev), entry(1, cur, cur)]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].at, 2, "divergence at the edited message");
+  assert.equal(rows[0].tail, false, "the edit is not the last message");
+  const wholeArray = cur.reduce((a, m) => a + JSON.stringify(m).length, 0);
+  assert.equal(rows[0].rebilledBreakpointBytes, wholeArray);
+  assert.ok(
+    rows[0].rebilledBreakpointBytes > rows[0].rebilledBytes,
+    "the breakpoint-aware price must exceed the divergence-only price — old code priced only the suffix",
+  );
+});
+
+test("mitigation/edits: a TAIL edit AT the breakpoint's own index leaves both numbers equal", () => {
+  // The case the OLD model already gets right: the breakpoint sits exactly
+  // at the divergence (the tail message itself was edited), so
+  // lastBreakpointAtOrBefore returns the same index firstDivergence/at
+  // already used — the fix must not move this number.
+  const prev = [user("u0"), asst("a1"), bpUser("u2")];
+  const cur = [user("u0"), asst("a1"), bpUser("EDITED")];
+  const rows = findEditPositions([entry(0, prev, prev), entry(1, cur, cur)]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].tail, true);
+  assert.equal(
+    rows[0].rebilledBreakpointBytes,
+    rows[0].rebilledBytes,
+    "a breakpoint at the divergence itself must price identically to the old (correct) suffix number",
+  );
+});
+
+test("mitigation: findMitigationGaps' rebilledBreakpointBytes/savedBreakpointBytes follow the same mitigated split", () => {
+  const a = [user("u0"), asst("a1"), user("u2"), user("u3"), bpUser("u4")];
+  // A genuine INSERT (prev stays a subsequence of cur), same shape as the
+  // existing "a normalized splice counts as absorbed" test above — a
+  // REPLACE at index 2 would census as replace/edit and MITIGABLE excludes
+  // that kind, which is exactly the mistake the first draft of this test
+  // made (0 rows, silently proving nothing).
+  const b = [user("u0"), asst("a1"), user("SPLICED"), user("u2"), user("u3"), bpUser("u4")];
+  // Miss (reset): the whole array should now price, same reasoning as the
+  // findEditPositions BITE test above (mid-history, breakpoint at the tail).
+  const missRows = findMitigationGaps([
+    entry(0, a, a, { action: "append-only" }),
+    entry(1, b, b, { action: "reset", resetReason: "not-subsequence" }),
+  ]);
+  assert.equal(missRows.length, 1);
+  assert.equal(missRows[0].mitigated, false);
+  const wholeArray = b.reduce((acc, m) => acc + JSON.stringify(m).length, 0);
+  assert.equal(missRows[0].rebilledBreakpointBytes, wholeArray);
+  assert.equal(missRows[0].savedBreakpointBytes, 0);
+  assert.ok(missRows[0].rebilledBreakpointBytes > missRows[0].rebilledBytes);
+
+  // Mitigated (normalized): both breakpoint-aware fields stay 0/full-saved,
+  // same as the existing rebilledBytes/savedBytes pair — a successful
+  // re-serialization needs no breakpoint reasoning.
+  const hitRows = findMitigationGaps([
+    entry(0, a, a, { action: "append-only" }),
+    entry(1, b, b, { action: "normalized" }),
+  ]);
+  assert.equal(hitRows.length, 1);
+  assert.equal(hitRows[0].mitigated, true);
+  assert.equal(hitRows[0].rebilledBreakpointBytes, 0);
+  assert.equal(hitRows[0].savedBreakpointBytes > 0, true);
 });
 
 // Occurrence ordinals in the census identity. Repeats are common — one
