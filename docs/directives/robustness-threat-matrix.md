@@ -88,6 +88,31 @@ other dated section below the table is the per-event walk,
 `## Event walk <stamp> — <verdict>`, which records one event end to
 end. Either form is a section, and neither is a cell.
 
+**And an event walk NAMES ITS ROW, in the heading or its first line.**
+Decided 2026-08-08 on a measurement taken while writing this section:
+of the five event walks in this file, only two name a numbered row —
+the `2026-08-07 05:24:37Z` and `2026-08-07 04:08:35Z + 04:17:25Z`
+walks, both "Row 4". The `2026-08-07 09:52:42Z`, `2026-08-07 01:00:55Z`
+and `2026-07-31` walks name none within thirty lines of their heading.
+(Cited by STAMP, not by line: the first draft of this paragraph carried
+line numbers, and inserting the paragraph itself shifted every one of
+them by eighteen — a citation that decays as the file it cites is
+edited, in the document about labels drifting from their bodies.) That
+is not a
+style question, because `causeToRow` indexes NUMBERED ROWS ONLY — so a
+disposition that lives only in an unnumbered walk is invisible to
+`bust-triage`, and three of them are invisible right now. This is the
+exact failure already recorded in `docs/dev-loop.md`: on 2026-08-06
+`bust-triage` returned UNCLASSIFIED for a cause this matrix had
+already dispositioned, because the disposition sat in an `## Event
+walk` section the row index could not reach. The reader half was fixed
+then and the WRITER half was named and left open — "nothing requires a
+CONTROLLED-CAUSE walk to become a row, so the next walk lands in prose
+too". This sentence is that writer half. A walk about a class with no
+row yet mints the row first; a walk that cannot name one is reporting
+an UNCLASSIFIED event, which is the matrix's own stop-and-mint signal
+rather than something to write around.
+
 The reason is structural, not tidiness, and it is measured on this
 file. Row 24's status is a single table cell of 13,161 characters. It
 carries a 2026-08-02 measurement — "mid-session corpus edits are FREE,

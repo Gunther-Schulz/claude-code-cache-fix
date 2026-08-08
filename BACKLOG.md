@@ -1476,6 +1476,24 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   BEFORE the retraction (the cell then held a dated addendum contradicting its
   own body), and SILENT on rows whose walks live in datapoint sections — which
   is most of them, and is what keeps the check from firing on the whole table.
+  **PROBE THE RED-FIRST ARRANGEMENT BEFORE BRIEFING IT.** The building lane
+  flagged that it did not check whether that commit is still reachable or
+  whether the cell there really holds the contradicting addendum — and booked
+  verifiers have now decayed twice this week in this repo. One command settles
+  it; do it first.
+  **Implementation notes from the lane that wrote the prose half**, so the next
+  one does not re-derive them: `splitRowCells` already exists in
+  `tools/bust-triage.mjs` and `matrixRow` sits beside it at `:740`; the status
+  truncation is `:751`; row 24's cell is 13,161 chars, which is the outlier to
+  threshold against; and a date-stamped addendum inside a cell is a
+  `20\d\d-\d\d-\d\d` match in the status cell.
+  **A SECOND computable case, now that the convention names it:** an
+  `## Event walk` section that names no numbered row is unreachable to
+  `causeToRow` (which indexes numbered rows only, `bust-triage.mjs:912` and the
+  comment at `:934`). Three such walks exist today — the `2026-08-07 09:52:42Z`,
+  `2026-08-07 01:00:55Z` and `2026-07-31` ones. That is a real red-first
+  arrangement sitting in the file right now, and it is stronger than the row-24
+  one because it cannot decay: the walks are committed history.
   That silence half is the load-bearing one: a lint that flags every long cell
   trains the override reflex the convention exists to prevent.
 
