@@ -6967,9 +6967,43 @@ ENOSPC misattribution with its wrong first explanation left in.
   derivation).
   <!-- entry: "a lane whose worktree is RECLAIMED lands in the shared main checkout" -->
 
-- **READY — the pre-push suite verifies the WORKING TREE, not the commits being
+- **(DONE — 2026-08-08 afternoon, operator instruction "please do it") the
+  pre-push suite verifies the WORKING TREE, not the commits being
   pushed, so it can go red on code that is not being pushed and green on a
-  commit that is broken.** Found 2026-08-08 afternoon by an operator question
+  commit that is broken.**
+  Shipped in `tools/git-hooks/pre-push`: the suite now runs in a DETACHED
+  WORKTREE at each pushed sha, read from the refs git feeds the hook on stdin
+  (branch deletions carry an all-zero sha and are skipped; empty stdin falls
+  back to HEAD — still the committed state, never the working tree). Not
+  `git stash`: a pre-push hook must never mutate a working copy a co-writer may
+  be mid-edit in. The worktree gets the standing `node_modules` symlink and is
+  removed on exit, throw and signal.
+  **RED-FIRST PROOF, executed at the desk against the OLD hook
+  (`git show HEAD:tools/git-hooks/pre-push`, bare `npm test` in the working
+  tree) over the same two synthetic fixtures — inverted on BOTH directions, and
+  the output is the whole point of this entry:**
+
+      OLD, untracked scratch red / commit green   -> RESULT: BLOCKED  <- false red
+      OLD, commit red / tree 'fixed' uncommitted  -> RESULT: ALLOWED  <- FALSE GREEN,
+                                                     broken commit reached the remote
+
+  The false-green direction is now MEASURED rather than argued. It was the arm
+  nobody had seen fire, and it is the reason this was worth changing: the cheap
+  direction merely wastes a push, the silent one publishes a broken commit under
+  a green hook.
+  The permanent guard is `test/pre-push-hook.test.mjs`, 4 bites: untracked red
+  does not block; committed red blocks even over a green tree; an ordinary green
+  push still passes (the over-firing control); and no worktree is left
+  registered. Its fixture repo carries its OWN trivial `npm test`, so a hook
+  that runs `npm test` is never exercised BY `npm test` — that recursion is real
+  and the fixture is what avoids it.
+  **A defect in the TEST, caught by the test:** the first version asserted the
+  hook's message against `execFileSync`'s return value, which is stdout alone
+  while the hook reports on stderr — an assertion that could only ever have been
+  vacuous, and it failed loudly only because it was a PRESENCE assertion. The
+  same mistake inside an absence assertion is a permanent silent green. Switched
+  to `spawnSync` and the reason is written into the helper.
+  Original entry follows. Found 2026-08-08 afternoon by an operator question
   ("is that a bug? should be fixed also then") about a blocked push, which is
   the right question: the blockage looked like correct guard behaviour and the
   guard underneath it is aimed at the wrong object.

@@ -21,9 +21,60 @@
 # The suite is ~17 s (measured 2026-08-05, 2054 tests); there is no
 # timeout because the known "hang" was a missing-dependency artifact,
 # not the suite (BACKLOG.md stale-premise note).
+#
+# AIMED AT THE PUSHED COMMITS, NOT THE WORKING TREE (2026-08-08). This
+# hook used to run `npm test` in the working tree, which is a different
+# object from what is being published, and it failed in both directions:
+#   FALSE RED  — a co-writer's UNTRACKED scratch blocked a push whose
+#                commits were all green (measured: two `??` files, three
+#                unrelated commits, push refused). Its cost is not the
+#                delay, it is that the refusal text names --no-verify,
+#                and this hook is CHAINED behind the dotfiles leak scan,
+#                so a bypass taken for someone else's red also skips the
+#                scan at the boundary where history stops being editable.
+#   FALSE GREEN — the same defect reversed and silent: edit a file, do
+#                not commit it, push. The suite verifies the edit while
+#                the pushed commit is broken, and the hook records a
+#                green. That is the direction that lets a broken commit
+#                reach main, and it is why this was worth changing.
+# So the suite now runs in a DETACHED WORKTREE at each pushed sha.
+# Deliberately NOT `git stash`: a pre-push hook must never mutate a
+# working copy a co-writer may be mid-edit in. The worktree needs its
+# node_modules symlink, same standing hazard as any other worktree here.
+# Red-first proof for both directions: test/pre-push-hook.test.mjs.
 
 set -u
 cd "$(git rev-parse --show-toplevel)" || exit 1
+REPO="$(pwd)"
+
+# What is actually being published. Git feeds pre-push one line per ref
+# on stdin: "<local ref> <local sha> <remote ref> <remote sha>". A branch
+# DELETION carries an all-zero local sha and ships no code, so it is
+# skipped rather than tested. If stdin is empty or unreadable we fall
+# back to HEAD — still the committed state, never the working tree.
+PUSH_SHAS=""
+while read -r _lref lsha _rref _rsha; do
+  case "$lsha" in
+    "" | *[!0-9a-f]*) continue ;;
+    *[!0]*) PUSH_SHAS="$PUSH_SHAS $lsha" ;;
+  esac
+done
+if [ -z "$PUSH_SHAS" ]; then
+  PUSH_SHAS="$(git rev-parse HEAD 2>/dev/null || true)"
+  [ -n "$PUSH_SHAS" ] || {
+    echo "pre-push: REFUSED — cannot determine what is being pushed." >&2
+    exit 1
+  }
+fi
+
+WTROOT=""
+cleanup() {
+  [ -n "$WTROOT" ] || return 0
+  git worktree remove --force "$WTROOT/t" >/dev/null 2>&1
+  rm -rf "$WTROOT"
+  git worktree prune >/dev/null 2>&1
+}
+trap cleanup EXIT INT TERM HUP
 
 # Git exports its hook environment (GIT_DIR and friends) into this
 # process, and npm test spawns tests that build SCRATCH git repos via
@@ -37,14 +88,35 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 # (after the cd above, which legitimately needs the hook context).
 unset $(git rev-parse --local-env-vars) 2>/dev/null || true
 
-echo "pre-push: npm test (full suite) ..." >&2
-if ! npm test >/tmp/pre-push-suite.$$.log 2>&1; then
-  echo "pre-push: REFUSED — full suite is red. Tail of the run:" >&2
-  tail -25 "/tmp/pre-push-suite.$$.log" >&2
-  echo "pre-push: full log: /tmp/pre-push-suite.$$.log" >&2
-  echo "pre-push: deliberate WIP push: git push --no-verify (state it)." >&2
-  exit 1
-fi
-rm -f "/tmp/pre-push-suite.$$.log"
-echo "pre-push: suite green, push allowed." >&2
+for sha in $PUSH_SHAS; do
+  short="$(git rev-parse --short "$sha" 2>/dev/null || echo "$sha")"
+  echo "pre-push: npm test (full suite) at pushed commit $short ..." >&2
+
+  WTROOT="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-wt.XXXXXX")" || exit 1
+  if ! git worktree add --detach --quiet "$WTROOT/t" "$sha" 2>/tmp/pre-push-wt.$$.log; then
+    echo "pre-push: REFUSED — could not check out $short to verify it:" >&2
+    cat /tmp/pre-push-wt.$$.log >&2
+    rm -f /tmp/pre-push-wt.$$.log
+    exit 1
+  fi
+  rm -f /tmp/pre-push-wt.$$.log
+  # Standing worktree hazard: without this every proxy suite dies
+  # ERR_MODULE_NOT_FOUND and two tests appear to hang ~900 s.
+  [ -d "$REPO/node_modules" ] && ln -s "$REPO/node_modules" "$WTROOT/t/node_modules"
+
+  if ! (cd "$WTROOT/t" && npm test) >/tmp/pre-push-suite.$$.log 2>&1; then
+    echo "pre-push: REFUSED — full suite is red AT THE PUSHED COMMIT $short." >&2
+    echo "pre-push: (your working tree is not what was tested; this is the" >&2
+    echo "pre-push:  commit you are publishing). Tail of the run:" >&2
+    tail -25 "/tmp/pre-push-suite.$$.log" >&2
+    echo "pre-push: full log: /tmp/pre-push-suite.$$.log" >&2
+    echo "pre-push: deliberate WIP push: git push --no-verify (state it)." >&2
+    exit 1
+  fi
+  rm -f "/tmp/pre-push-suite.$$.log"
+  cleanup
+  WTROOT=""
+done
+
+echo "pre-push: suite green at the pushed commit(s), push allowed." >&2
 exit 0
