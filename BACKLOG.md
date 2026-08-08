@@ -199,10 +199,15 @@ defect — is INTACT and is now harder evidence than when it was a story.
     three measured conditions, each of which is red on the real known positive.
     **And the residue ships NAMED rather than credited:** the list-content
     descent IS implemented and is exercised by NOTHING, so it carries the label
-    unverified until it has its own positive — the wire survey found 7
-    list-content `tool_result` blocks carrying `text`x8 and `tool_reference`x2,
-    which is where that positive would come from, synthetically if no row
-    exercises it. Shares rank 15's anchor deliberately: it is the same entry's
+    unverified until it has its own positive. CLOSED 2026-08-08 with a
+    SYNTHETIC positive, because no real row reaches it: across the 31 rows
+    there are 93 covering pieces and ZERO come from a list-content sub-block.
+    The count in this entry was also wrong and is corrected — "7 list-content
+    blocks" came from the small preserved `fwd-*` files; over the full 39 MB
+    dump it is 186 list-content `tool_result` blocks (186 `text` + 62
+    `tool_reference` sub-blocks) in ONE capture's forwarded arrays. The reach
+    is ordinary and was simply shipping unexercised, which is a stronger
+    reason to keep it than the entry had. Shares rank 15's anchor deliberately: it is the same entry's
     unshipped half, not a second rankable item.
 16. **The byte-gate's `anyPresent` probe can never return false for a RECURRING
     reminder text, so a pruned host is reported MISMATCH instead of DROPPED.**
@@ -951,15 +956,22 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   content) reconstructing exactly as `unwrap(fwd[55].content[9])` + `"\n\n"` +
   `unwrap(fwd[55].content[10])` + `"\n\n"` + `fwd[57].content` = 683+2+683+2+
   8495 = 9865.
-  **REMAINING WORK, and it is what keeps this entry READY:**
-  (1) the bite, naming the three conditions that are actually red (decided at
-  the desk — the case is unchanged, so this is a corrected condition and not a
-  substitute case);
-  (2) the list-content descent ships EXERCISED BY NOTHING and therefore
-  unverified — it needs its own positive, synthetic if no row provides one (the
-  wire survey found 7 list-content `tool_result` blocks carrying `text`x8 and
-  `tool_reference`x2);
-  (3) the 35 `out`/`invented` rows — see the entry immediately below.
+  **REMAINING WORK — (1) and (2) CLOSED 2026-08-08 (`b94d118`), (3) split out:**
+  (1) DONE — the bite (`test/coverage-walk-bite.test.mjs`, 9 tests) names the
+  three conditions that are actually red on the real 31-row positive, one bite
+  each, each certified by breaking THAT condition's wiring alone; the
+  dispatcher reproduced one mutant independently and exactly the bite naming it
+  fired. Plus two controls that stop the fixtures collapsing into one: a
+  whole-string scan must FAIL on the join fixture (with its own positive
+  control), and each fixture asserts the other's conditions are no-ops on it.
+  (2) DONE — the list-content descent has a SYNTHETIC positive, and the branch
+  is stated plainly because no real row reaches it: 93 covering pieces across
+  the 31 rows, zero from a list-content sub-block. The entry's "7 list-content
+  blocks" was itself wrong — it came from the small preserved `fwd-*` files;
+  the full dump carries 186, with 62 `tool_reference` sub-blocks.
+  (3) OPEN — the 35 `out`/`invented` rows, split into its own entry below.
+  **This entry is therefore READY only for (3)'s absence**, which is another
+  entry's work; it survives here as the record of what the instrument covers.
   **The done-criterion as written CANNOT be met, and the honest form replaces
   it.** It said the re-run converts "1 REAL-LOSS" from a floor into a bound.
   Measured: of the 66 checker-reach rows, 31 are now POSITIVELY confirmed on

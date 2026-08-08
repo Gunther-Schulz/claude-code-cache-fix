@@ -2,21 +2,27 @@
 // coverage-walk — answer "is this content on the wire" by WALKING the
 // forwarded array, never by scanning it for a substring.
 //
-// *** UNCERTIFIED AS OF 2026-08-08: THIS TOOL HAS NO BITE. ***
-// Its verdicts below rest on a battery run BY HAND — the perishable
-// arrangement this file exists to replace — so they are not booked evidence
-// and must not be quoted as such until `test/` carries a red-first bite for
-// each covering condition. Two conditions have never gone red on anything:
-// `list-content-descent` and the `tool_reference` sub-block reader. They are
-// reach the wire demands (7 list-content blocks in the survey) and the known
-// positive does not exercise them, so they carry the label unverified rather
-// than credit.
-// Why this warning is HERE and not only in the commit message: the builder
+// CERTIFIED 2026-08-08 by `test/coverage-walk-bite.test.mjs` (9 tests). Each
+// covering condition has its own bite, and each was shown RED by breaking
+// THAT condition's wiring alone — one mutant at a time, exactly one bite
+// firing per mutant, reproduced by the dispatcher before integration. The
+// suite also carries the two controls that stop the fixtures collapsing into
+// one: a whole-string scan must FAIL on the join fixture (with its own
+// positive control that the same scan finds each individual piece), and each
+// fixture asserts the other's conditions are no-ops on it.
+// WHICH POSITIVES ARE REAL, stated because it is the difference between
+// certified and certified-on-what: `reminder-unwrap`, `multi-piece` and
+// `separator-skip` are red on the REAL known positive (the 31 rows). Nothing
+// in that population reaches a list-content sub-block — 93 covering pieces,
+// zero from one — so `list-content-descent` and the `tool_reference` reader
+// are red on a SYNTHETIC positive instead. That reach is not exotic: the full
+// forwarded dump of one capture carries 186 list-content `tool_result` blocks
+// with 186 `text` and 62 `tool_reference` sub-blocks.
+// This banner replaced an UNCERTIFIED one, which existed because the builder
 // wrote "must not be pushed without a bite" into `dbf85e4`'s message and the
-// dispatcher pushed it anyway (`7827c4e`), because a commit message sits on
-// nobody's read path once the commit is in. The next reader of this tool
-// reads this file. Remove these lines in the commit that lands the bite —
-// never before, and never by deciding the tool is fine as it is.
+// dispatcher pushed it anyway (`7827c4e`) — a commit message sits on nobody's
+// read path once the commit is in, and the next reader of this tool reads
+// this file.
 //
 // The question this replaces. A conservation row names a message the gate
 // could not account for; attributing it means asking whether the bytes
