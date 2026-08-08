@@ -1333,6 +1333,66 @@ a sweep of an unchanged system yields nothing. Retirement signal, borrowed
 from skill-craft's consolidation rule: two consecutive sweeps returning
 only minor findings — then the ritual stops until the next burst.
 
+## Grading a dispatched lane: verify with something the lane did not run
+
+A lane’s closing report is a CLAIM, and its most dangerous slot is the one
+that reads best: the checks-run section, where real output is quoted and
+everything passed. Nothing in that output is false. What it cannot contain
+is the probe nobody thought to run — and a report is written by the party
+least able to notice which one that is, because the missing probe and the
+missing thought are the same absence.
+
+So a lane is graded by running something it did not, and the four moves
+below are the ones that have actually produced findings here. This is not
+a substitute for reading the diff; it is what to do AFTER the diff reads
+fine and the suite is green, which is the state every one of these was
+found in.
+
+**1. Probe the BOUNDARY of the new check.** A bite proves the class it
+fires on, never its reach. Measured 2026-08-08 on
+`test/capture-is-pre-mutation.test.mjs`: three bites green, red-first
+correctly arranged, full suite passing. `splitAtCapture` divides on
+`order < rc.order`, so a synthetic mutator at 59 was caught and the same
+mutator at 60 was not — an extension tied with `request-capture` could
+mutate before the capture and every attribution verdict would still read
+“CC’s”. The lane had no way to see it: its bites were about the class, and
+the hole was at the edge. Move the mutation one step and re-run.
+
+**2. Re-execute anything the lane settled by READING.** A deviation
+justified as "read it, it does not do X" is a static claim, and it arrives
+most often in exactly the lanes whose subject is that static reads cannot
+be trusted. Same day, same lane: "never invoked request-capture’s own
+onRequest — it does not mutate body.messages (read it)". The claim was
+true. It was not established until the call was executed and the hash
+compared, and a capture file appeared proving the extension had engaged
+rather than no-opped.
+
+**3. Close the lane’s own NOT-VERIFIED slot.** It is the cheapest finding
+in the report and the one nobody reads as work — the lane has already
+named where it stopped. 2026-08-08: a lane reported the index-0 and
+three-displaced cases as untested "low-risk"; probing them took one
+command. Low-risk is a prediction, and the report is the place it goes
+unchecked.
+
+**4. Red-prove a new check on a TRUE positive, not a planted one.** A
+planted defect proves the predicate matches what you planted. Aiming the
+same predicate at real data proves it matches reality — and it is how the
+two live order collisions (350, 690) surfaced, which no planted case
+would have shown. Where the real world offers a positive, use it.
+
+**The tell that grading was skipped:** the grading commit cites only the
+lane’s evidence. If the DONE entry contains nothing the lane did not
+report, nothing independent was run — whatever else the entry says.
+Convention: a DONE grading names the desk check and its result, or says
+plainly that the lane’s evidence was taken as sufficient and why.
+
+**What this costs, and why it is still the cheap side.** All four moves
+above are single commands over an artifact already in hand. The lane that
+produced them cost minutes of dispatch; the findings were free. The
+asymmetry is the argument: execution is briefable and travels down a
+tier, the verdict is where the tiers actually differ, and the verdict is
+this.
+
 ## Adding a check
 
 Two rules, both learned the expensive way:
