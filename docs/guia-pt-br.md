@@ -78,9 +78,9 @@ cat ~/.local/state/cache-fix/debug.log
 cat ~/.local/state/cache-fix/stats.json
 
 # Ver cota atual (5h e 7d) — modo proxy (v3.5.0+)
-cat ~/.claude/quota-status/account.json
-# Modo preload (legado, sessão única)
-cat ~/.claude/quota-status.json 2>/dev/null
+cat ~/.local/state/cache-fix/quota-status/account.json
+# Modo preload (arquivo único, sessão única)
+cat ~/.local/state/cache-fix/quota-status.json 2>/dev/null
 ```
 
 > **Migrando scripts de v3.4.x para v3.5.0+:** se você escreveu um statusline ou script de monitoramento que lia `~/.claude/quota-status.json` diretamente, consulte a seção ["Migration: v3.4.x → v3.5.0+" no README em inglês](../README.md#migration-v34x--v350) para o padrão de migração (tente o novo caminho, recue para o legado). Tradução em português é bem-vinda via PR.

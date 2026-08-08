@@ -18,7 +18,7 @@ On the first API call, the interceptor reads `~/.claude.json` and logs the curre
 
 ## Quota tracking
 
-Response headers are parsed for `anthropic-ratelimit-unified-5h-utilization` and `7d-utilization`, saved for consumption by status line hooks or other tools. Proxy mode (v3.5.0+, via `cache-telemetry` extension) splits state into `~/.claude/quota-status/account.json` (account-global facts) plus `~/.claude/quota-status/sessions/<filename>.json` (per-session cache facts), so multi-agent users no longer see cross-session contamination. Preload mode keeps the legacy single-file `~/.claude/quota-status.json` (single-session by construction).
+Response headers are parsed for `anthropic-ratelimit-unified-5h-utilization` and `7d-utilization`, saved for consumption by status line hooks or other tools. Proxy mode (v3.5.0+, via `cache-telemetry` extension) splits state into `~/.local/state/cache-fix/quota-status/account.json` (account-global facts) plus `~/.local/state/cache-fix/quota-status/sessions/<filename>.json` (per-session cache facts), so multi-agent users no longer see cross-session contamination. Preload mode keeps the single flat file `~/.local/state/cache-fix/quota-status.json` (single-session by construction).
 
 ## Peak hour detection
 
@@ -26,7 +26,7 @@ Anthropic applies elevated quota drain rates during weekday peak hours (13:00–
 
 ## Usage telemetry and cost reporting
 
-The interceptor logs per-call usage data to `~/.claude/usage.jsonl` — one JSON line per API call with model, token counts, and cache breakdown. Use the bundled cost report tool to analyze costs:
+The interceptor logs per-call usage data to `~/.local/state/cache-fix/usage.jsonl` — one JSON line per API call with model, token counts, and cache breakdown. Use the bundled cost report tool to analyze costs:
 
 ```bash
 node tools/cost-report.mjs                    # today's costs from interceptor log
@@ -106,7 +106,7 @@ Proxy mode uses extension configuration in `proxy/extensions.json`. These env va
 | `CACHE_FIX_IMAGE_REQUEST_SIZE_MAX` | `31457280` | Pass 2 byte budget (30 MB; 2 MB headroom from Anthropic's 32 MB ceiling) |
 | `CACHE_FIX_IMAGE_COUNT_MAX` | `100` | Hard image-count cap. Set `600` for legacy Claude 1/2.x/Instant if needed |
 | `CACHE_FIX_OUTPUT_EFFICIENCY_REPLACEMENT` | unset | Replace Claude Code's `# Output efficiency` system-prompt section |
-| `CACHE_FIX_USAGE_LOG` | `~/.claude/usage.jsonl` | Path for per-call usage telemetry log |
+| `CACHE_FIX_USAGE_LOG` | `~/.local/state/cache-fix/usage.jsonl` | Path for per-call usage telemetry log |
 | `CACHE_FIX_DISABLED` | `0` | Disable all bug fixes; keep monitoring + optimizations active |
 | `CACHE_FIX_SKIP_RELOCATE` | `0` | Skip block relocation fix |
 | `CACHE_FIX_SKIP_FINGERPRINT` | `0` | Skip fingerprint stabilization |

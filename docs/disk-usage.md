@@ -1,16 +1,16 @@
 # Disk usage — proxy-written files
 
 This document covers the disk-footprint accounting for files cache-fix-proxy
-writes outside of `~/.claude/usage.jsonl` (which is the meter's surface, not
+writes outside of `~/.local/state/cache-fix/usage.jsonl` (which is the meter's surface, not
 the proxy's). See the individual extension docs for behavior; this doc is the
 single place that adds up worst-case bytes per default configuration.
 
 | Extension | Path(s) | Default rotation / retention | Worst-case footprint (defaults) |
 |---|---|---|---|
 | `bootstrap-defense` | `~/.local/state/cache-fix/bootstrap-log.jsonl` (+ `.1`) | 5 MB single-tier | ≤ 10 MB |
-| `image-retry-circuit-breaker` | `~/.claude/image-retry-events.jsonl` (+ `.1`) | 5 MB single-tier | ≤ 10 MB |
-| `jsonl-session-mirror` (default-off) | `~/.claude/session-mirrors/<sessionFilename>/*.jsonl` + `~/.claude/session-mirrors/session-mirror-events.jsonl` | See below | See below |
-| `cache-telemetry` | `~/.claude/quota-status/sessions/*.json` | TTL sweep (`CACHE_FIX_QUOTA_STATUS_TTL_DAYS`, default 30) | Bounded by # sessions × small per-file payload |
+| `image-retry-circuit-breaker` | `~/.local/state/cache-fix/image-retry-events.jsonl` (+ `.1`) | 5 MB single-tier | ≤ 10 MB |
+| `jsonl-session-mirror` (default-off) | `~/.local/state/cache-fix/session-mirrors/<sessionFilename>/*.jsonl` + `~/.local/state/cache-fix/session-mirrors/session-mirror-events.jsonl` | See below | See below |
+| `cache-telemetry` | `~/.local/state/cache-fix/quota-status/sessions/*.json` | TTL sweep (`CACHE_FIX_QUOTA_STATUS_TTL_DAYS`, default 30) | Bounded by # sessions × small per-file payload |
 
 ## `jsonl-session-mirror`
 
@@ -24,7 +24,7 @@ active_sessions × MAX_BYTES × (1 + rotations_within_retention_days)
 
 For default configuration (100 MB cap × 30-day retention × 32 sessions × typical 2 rotations/session/month): **~9.6 GB worst case, more typically <500 MB.** Most chat sessions stay well below the 100 MB cap.
 
-Operational events (open / rotate / sweep / error) are logged to `~/.claude/session-mirrors/session-mirror-events.jsonl` with 5 MB single-tier rotation, so the event log itself caps at ≤ 10 MB.
+Operational events (open / rotate / sweep / error) are logged to `~/.local/state/cache-fix/session-mirrors/session-mirror-events.jsonl` with 5 MB single-tier rotation, so the event log itself caps at ≤ 10 MB.
 
 ### Tunables for tighter bounds
 
@@ -38,7 +38,7 @@ Operational events (open / rotate / sweep / error) are logged to `~/.claude/sess
 Session-id resolution and filesystem encoding both reuse `cache-telemetry.sessionFilename(rawId)`:
 
 - safe charset (`[A-Za-z0-9_-]{1,128}`) → raw passthrough
-- otherwise → `inv-<sha256[:16]>` (the proxy can never escape `~/.claude/session-mirrors/`)
+- otherwise → `inv-<sha256[:16]>` (the proxy can never escape `~/.local/state/cache-fix/session-mirrors/`)
 - sessionless requests bucket to a shared `unknown/` directory
 
 ### Default-off in v4.2.0 and v4.3.0
