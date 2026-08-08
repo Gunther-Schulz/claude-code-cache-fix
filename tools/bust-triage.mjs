@@ -46,6 +46,13 @@
 //   STATUS-UNREADABLE  a row matched, but its status is in no state the
 //                 vocabulary below knows. Stop-here, with UNCLASSIFIED —
 //                 never folded into MITIGATED (see statusKind).
+//   KEY-FLIP      the pair's two requests ran under DIFFERENT extension
+//                 state keys (deferred-tool-rewrite / insertion-normalization's
+//                 own per-request key) — no continuous instance for a row's
+//                 status to have absorbed ACROSS, so a matrix row's verdict
+//                 (even MITIGATED) is a claim about the wrong population.
+//                 Stop-here, ranking with UNCLASSIFIED and STATUS-UNREADABLE
+//                 — a body diff cannot see this (see stateKeyFlip).
 // A step that cannot run says so and does not fold into a pass.
 
 import { tmpDirSync } from "./tmpdir.mjs";
@@ -75,7 +82,7 @@ const SNAPSHOTS = process.env.CACHE_FIX_SNAPSHOT_DIR
 // ~5ms; the wrongly-chosen append-only request sat ~15.8s from that reset,
 // well outside this window. (Originally matched ANY non-append action;
 // narrowed to reset-only — see resetEvents's docstring for why.)
-const TELEMETRY_WINDOW_MS = 3000;
+export const TELEMETRY_WINDOW_MS = 3000;
 // How far back from the recency-picked `after` the telemetry preference is
 // even allowed to look for a replacement candidate. Discovered live: without
 // this bound, "nearest wins" (preferTelemetryConfirmed) searches EVERY
@@ -454,6 +461,138 @@ export function preferTelemetryConfirmed(candidates, events, windowMs = TELEMETR
     if (!best || dist < best.dist || (dist === best.dist && c.ts > best.c.ts)) best = { c, dist };
   }
   return best ? best.c : newest;
+}
+
+// The event-log filename SUFFIXES that carry a per-request state `key` —
+// `insertion-normalization.mjs`'s and `deferred-tool-rewrite`'s own action
+// logs. Both are read (BACKLOG: "read ... (and the deferred-tool log) at
+// those two timestamps") because either can be the one that still has a
+// live file for a given sub-key, and both extensions write the SAME `key`
+// for the SAME request (measured live, 2026-08-08T09:58:46Z/50Z: the
+// insertion-events and deferred-tool-events lines for one request carry
+// byte-identical `key` values) — one match from either log is the request's
+// state key.
+const STATE_KEY_LOG_SUFFIXES = ["insertion-events.jsonl", "deferred-tool-events.jsonl"];
+
+/**
+ * The extension state key (and reset reason, when the record is a reset) a
+ * specific request ran under, read off ITS OWN entry in the snapshot event
+ * logs — never re-derived (dev-loop, "never hand-roll identity"): the key
+ * is whatever the extension itself wrote, at the timestamp of the request
+ * this tool already selected as `before`/`after`.
+ *
+ * One sid owns SEVERAL of each log file (one per conversation/system-prompt
+ * sub-key — `resetEvents`'s own docstring), so this globs by sid prefix
+ * across BOTH log kinds and picks the record NEAREST `tsIso`, mirroring
+ * `preferTelemetryConfirmed`'s own reasoning: a genuine join between a
+ * captured request and its own extension log line is millisecond-scale
+ * (measured live: 2ms both sides of the motivating pair), so nearest-within-
+ * window cannot be confused with a different sub-key's own nearby record.
+ * `TELEMETRY_WINDOW_MS` is reused rather than a new number invented for a
+ * structurally identical join.
+ *
+ * Only records carrying BOTH `ts` and `key` AND `action` are eligible — the
+ * detail lines a normalization pass also writes (`event:"suppressed-
+ * duplicate"`, `"join-move"`, ...) share the same `ts`/`key` as their
+ * parent action line, so excluding them changes nothing about the answer
+ * and just avoids scanning lines that were never meant to stand alone.
+ *
+ * Returns null when no record is found within the window — a state this
+ * tool has no word to guess at, surfaced by the caller as its own third
+ * answer rather than folded into "stable" or "flip".
+ */
+export function stateKeyAt(sid, tsIso, dir = SNAPSHOTS) {
+  const target = Date.parse(tsIso);
+  if (!existsSync(dir) || Number.isNaN(target)) return null;
+  let files;
+  try {
+    files = readdirSync(dir).filter((f) =>
+      f.startsWith(`s-${sid}-`) && STATE_KEY_LOG_SUFFIXES.some((suf) => f.endsWith(suf)));
+  } catch {
+    return null;
+  }
+  let best = null; // { key, action, resetReason, dist }
+  for (const name of files) {
+    for (const line of lines(join(dir, name))) {
+      const r = j(line);
+      if (!r?.ts || !r.key || !r.action) continue;
+      const t = Date.parse(r.ts);
+      if (Number.isNaN(t)) continue;
+      const dist = Math.abs(t - target);
+      if (dist > TELEMETRY_WINDOW_MS) continue;
+      if (!best || dist < best.dist) {
+        best = { key: r.key, action: r.action, resetReason: r.resetReason ?? null, dist };
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * Does this pair's before/after request carry the SAME extension state key?
+ * The finding matrix row 1's own status cannot see (BACKLOG): a matrix row
+ * describes what the CLASS looks like when it absorbs, which presumes the
+ * two requests shared one continuous instance to absorb across — a flip
+ * means they did not, so the row's status is a claim about a population
+ * this pair was never a member of.
+ *
+ * Three outcomes, never collapsed to two: `flip` (the actionable finding),
+ * `stable` (both resolved and equal — the finding this tool must NOT raise
+ * a false alarm on), and `unresolved` (one or both sides had no matching
+ * event-log record within the window — a state this tool has no evidence
+ * for, and "no evidence of a flip" must never print as "stable").
+ * `noPriorCanonical` is true when EITHER side's own action was a
+ * `resetReason:"no-prior-canonical"` reset — reported even when the key is
+ * stable, because "armed but baseline-less" on both sides is a materially
+ * different state from "carried a real baseline across" and a reader must
+ * not infer the stronger claim from a stable key alone (BACKLOG: "Emit
+ * `no-prior-canonical` on both sides as its own note even when the key is
+ * stable").
+ */
+export function stateKeyFlip(sid, pair, dir = SNAPSHOTS) {
+  const before = stateKeyAt(sid, pair.before.ts, dir);
+  const after = stateKeyAt(sid, pair.after.ts, dir);
+  if (!before || !after) {
+    return { code: "unresolved", before, after, noPriorCanonical: false };
+  }
+  const noPriorCanonical =
+    (before.action === "reset" && before.resetReason === "no-prior-canonical") ||
+    (after.action === "reset" && after.resetReason === "no-prior-canonical");
+  return { code: before.key === after.key ? "stable" : "flip", before, after, noPriorCanonical };
+}
+
+/**
+ * The copy-paste command that snapshots THIS pair's own extension event-log
+ * records — the artifact a state-key finding actually rests on
+ * (`docs/runbooks/bust-appears.md` step 11's table: "state key, reset
+ * reason, what an extension DID" -> the event logs, never the capture).
+ * Printed beside the capture-pin command the "capture" step already prints
+ * (BACKLOG, second half of the same entry: "prints the snapshot command for
+ * them, beside the pin command it already prints — for whichever artifact
+ * the verdict actually rests on").
+ *
+ * Matches by SECOND, not millisecond: the pair's own `ts` and its nearest
+ * event-log record differ by single-digit milliseconds (measured live), so
+ * truncating both timestamps to their shared second is generous and robust
+ * to that jitter while excluding everything from a different moment.
+ *
+ * Machine-local, mode 0600, never committed (event-log slices carry raw
+ * session ids — the hygiene scan's `capture-uuid` class blocks them at
+ * push) — the SAME convention the runbook already states for a hand-run
+ * snapshot; this only saves working out the grep and the path by hand.
+ */
+export function snapshotCommand(bust, pair) {
+  const date = fmt(bust.t).slice(0, 10);
+  const sid8 = bust.s.slice(0, 8);
+  const time = fmt(bust.t).slice(11, 19).replace(/:/g, "");
+  const dir = `~/.local/share/cache-fix/bust-evidence/${date}`;
+  const out = `${dir}/${sid8}-${time}Z-events.jsonl`;
+  const sec = (iso) => iso.slice(0, 19);
+  const pattern = `"ts":"(${sec(pair.before.ts)}|${sec(pair.after.ts)})`;
+  return `mkdir -p ${dir} && grep -h -E '${pattern}' ` +
+         `~/.local/state/cache-fix/snapshots/s-${bust.s}-*-insertion-events.jsonl ` +
+         `~/.local/state/cache-fix/snapshots/s-${bust.s}-*-deferred-tool-events.jsonl ` +
+         `> ${out} && chmod 600 ${out}`;
 }
 
 /** The capture request pair straddling a bust, by conversation.
@@ -1322,6 +1461,27 @@ export async function triage(bust) {
   steps.push({ step: "capture", ok: true,
                detail: `${pair.before.ts} -> ${pair.after.ts}, n=${pair.before.body.messages.length}->${pair.after.body.messages.length}${ords}` });
 
+  // State-key check (BACKLOG: "bust-triage reports a state-key CHANGE
+  // across the pair as its own line"). Read right after `pair` is known so
+  // the step prints beside census/migration/idle-ttl for context even on a
+  // run where it does not end up deciding the verdict — a reader should see
+  // "the two requests shared one state" or "they did not" alongside every
+  // other fact about the pair, not only when it is the deciding one.
+  const sk = stateKeyFlip(bust.s, pair);
+  if (sk.code === "unresolved") {
+    const missing = !sk.before && !sk.after ? "neither side"
+      : !sk.before ? "the BEFORE request" : "the AFTER request";
+    steps.push({ step: "state-key", ok: false,
+                 detail: `no insertion/deferred-tool event-log record within ${TELEMETRY_WINDOW_MS}ms ` +
+                          `of ${missing} — cannot test for a state-key flip` });
+  } else {
+    const npc = sk.noPriorCanonical ? " (no-prior-canonical armed-but-baseline-less on the reset side(s))" : "";
+    steps.push({ step: "state-key", ok: sk.code === "stable",
+                 detail: `${sk.before.key.slice(-16)} (${sk.before.action}${sk.before.resetReason ? `/${sk.before.resetReason}` : ""}) ` +
+                          `-> ${sk.after.key.slice(-16)} (${sk.after.action}${sk.after.resetReason ? `/${sk.after.resetReason}` : ""})` +
+                          `${sk.code === "flip" ? " — KEY-FLIP" : " — stable"}${npc}` });
+  }
+
   const cls = censusPair(pair.before.body.messages, pair.after.body.messages);
   steps.push({ step: "census", ok: true, detail: cls });
 
@@ -1350,6 +1510,25 @@ export async function triage(bust) {
     // DECISIONS rather than absences: a note on every run is a note nobody
     // reads.
     steps.push({ step: "idle-ttl", ok: false, detail: idle.detail });
+  }
+
+  // KEY-FLIP stops here, before any row/matrix-walk dispatch — a body diff
+  // cannot see a state-key discontinuity (BACKLOG: "it reported the ROW's
+  // status as though it were a per-instance absorption claim, on an
+  // instance where nothing absorbed"), so every verdict downstream of a
+  // classification derived from the body (MITIGATED, KNOWN-OPEN, and a
+  // matrix-walk disposition alike) would be a claim about a population this
+  // pair was never a member of. Placed before rowN is even computed —
+  // "ranking with UNCLASSIFIED and STATUS-UNREADABLE" is a general
+  // stop-here, not a carve-out that only fires when the row would have said
+  // MITIGATED.
+  if (sk.code === "flip") {
+    steps.push({ step: "freeze-hint", ok: true, detail: `snapshot: ${snapshotCommand(bust, pair)}` });
+    return { bust, steps, verdict: "KEY-FLIP",
+             why: `this pair's two requests ran under DIFFERENT extension state keys ` +
+                  `(...${sk.before.key.slice(-16)} -> ...${sk.after.key.slice(-16)}) — no continuous ` +
+                  `instance for a matrix row's status to have absorbed across, so any row-based ` +
+                  `verdict here (even MITIGATED) would describe the wrong population` };
   }
 
   // Two axes, in order: the message census first (it is the more specific

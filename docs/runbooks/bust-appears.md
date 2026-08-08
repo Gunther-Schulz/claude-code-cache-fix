@@ -178,8 +178,12 @@ already carries — never by trusting that two counters agree.
    that exists to make it cheap.
 
 8. **Where state is involved, compare the KEYS, not only the bodies.**
-   `[GRADUATE -> bust-triage reads the pair's extension event logs and
-   reports a state-key change as its own line; BACKLOG ready]`
+   `bust-triage` now reads the pair's extension event logs itself
+   (`stateKeyFlip`) and reports a state-key change as its own
+   `state-key` line, stopping at `VERDICT: KEY-FLIP` — ranked with
+   UNCLASSIFIED and STATUS-UNREADABLE — rather than reading a
+   matrix row's status as a per-instance absorption claim on a pair
+   that never shared one instance.
    This is the step that found row 26 and it is invisible to every
    body diff: the extension event logs carry the state key each
    request was handled under, and a key that CHANGES between two
@@ -239,9 +243,11 @@ already carries — never by trusting that two counters agree.
     re-read the slice and confirm the records that PROVE the finding are
     in it (for a key flip: both timestamps present, and more than one
     distinct `key`). A snapshot is a claim exactly like a pin is.
-    `[GRADUATE -> bust-triage prints the event-log snapshot command beside
-    the pin command, for whichever artifact the verdict rests on; BACKLOG
-    ready]`
+    On a `VERDICT: KEY-FLIP`, `bust-triage` now prints this snapshot
+    command itself (a `freeze-hint` line) beside the pin command the
+    `capture` step already prints — verified live 2026-08-08 to
+    reproduce, carrying both timestamps and more than one distinct
+    `key`.
 
     Captures
     rotate on a quadratic clock and eviction is oldest-mtime-first,
