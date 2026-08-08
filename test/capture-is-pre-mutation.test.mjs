@@ -326,3 +326,36 @@ test("(c) OVER-FIRING CONTROL: a synthetic extension at order 100 that mutates j
     "the order-100 synthetic mutator must actually mutate when run — proves this is a real over-firing control, not a vacuous exclusion"
   );
 });
+
+// (d) THE TIE IS FORBIDDEN, not resolved. `splitAtCapture` divides on
+// `order < rc.order`, so an extension registered at EXACTLY 60 lands in
+// `atOrAfter` and is never exercised by (a) — while the pipeline's real
+// execution order between it and request-capture is whatever the sort
+// happens to do, which no contract fixes. That is the same silent,
+// wrong-direction failure this file exists to prevent, one order value
+// further along: such an extension could mutate before the capture and
+// every verdict would still read "CC's".
+//
+// Found at the desk by probing the boundary after the bites above were
+// green: a synthetic mutator at 59 is caught by (b); moved to 60 it is
+// not, and (b) goes red for the wrong reason.
+//
+// The repair is to make the ambiguous state unreachable rather than to
+// define a tie-break — a tie-break would still leave the capture's
+// position resting on sort stability. Nothing legitimate needs order 60;
+// it belongs to request-capture.
+test("capture-is-pre-mutation: no other extension shares request-capture's order", async () => {
+  const exts = await loadExtensions(EXT_DIR, EXT_CONFIG);
+  const rc = exts.find((e) => e.name === "request-capture");
+  assert.ok(rc, "request-capture must be present in the loaded registry");
+  const collisions = exts
+    .filter((e) => e.name !== "request-capture" && e.order === rc.order)
+    .map((e) => `${e.name} (order ${e.order})`);
+  assert.deepEqual(
+    collisions,
+    [],
+    `order ${rc.order} is request-capture's alone — a tie makes the capture's ` +
+      `position depend on sort stability, and the pre-capture bite above ` +
+      `does not cover the tied extension. Give it a different order.`
+  );
+});
