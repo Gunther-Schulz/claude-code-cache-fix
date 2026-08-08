@@ -40,9 +40,13 @@
 //               occurrences in the then-readable corpus were merged
 //               standalones and 0 were new text (report §b1). "Absorbable"
 //               still needs the placement half — see the placement block.
-//   DROPPED   — the blocks vanished and the text is absent from the later
-//               request entirely. Nothing migrated, so the rule was never
-//               exercised; counting these as failures manufactures a blocker.
+//   DROPPED   — the blocks vanished and no standalone COUNTERPART was created
+//               for them. Nothing migrated, so the rule was never exercised;
+//               counting these as failures manufactures a blocker. ("Absent
+//               from the later request entirely" is what this line said until
+//               2026-08-08, and it was the wrong question: a reminder text
+//               recurs at other indices, so the later body contains it however
+//               the pair behaved — see `anyCreated` in `analysePair`.)
 //   MISMATCH  — neither. Every one is a hole in the rule and is printed in
 //               full, because these are what would silently move a bust.
 //
@@ -249,14 +253,26 @@ async function* readRecords(path, tornCount) {
 
 export function analysePair(before, after) {
   const b = before.body.messages, a = after.body.messages;
-  let wholeAfterCache = null;
-  const wholeAfter = () => (wholeAfterCache ??= JSON.stringify(a));
   const sysAfter = a
     .map((m, j) => (m?.role === "system" ? { j, text: textOf(m) } : null))
     .filter(Boolean);
   // The predecessor's standalone system messages: the population an EXTENDED
   // remainder is checked against (subclassifyExtended).
   const sysBefore = b.filter((m) => m?.role === "system").map(textOf);
+  // The same population as a text -> occurrence-count MULTISET, per side. Built
+  // at most once per PAIR and only if an unmatched host is reached, because the
+  // pair loop runs over the whole corpus and most pairs never get here. This is
+  // what `anyCreated` (the no-counterpart branch) matches on; the multiset, not
+  // a bare total, is the point — see the definitional comment there.
+  let sysCountsCache = null;
+  const sysCounts = () => (sysCountsCache ??= (() => {
+    const tally = (texts) => {
+      const m = new Map();
+      for (const t of texts) m.set(t, (m.get(t) ?? 0) + 1);
+      return m;
+    };
+    return { before: tally(sysBefore), after: tally(sysAfter.map((s) => s.text)) };
+  })());
   // Every reminder block still living INLINE anywhere in `after`, by text.
   // Index alignment cannot be used here: one inserted message shifts every
   // later index, so comparing before[i] to after[i] reports a migration for
@@ -301,22 +317,33 @@ export function analysePair(before, after) {
     // null for the whole scan (see the no-counterpart branch).
     let rejectedCandidate = null;
     // "Position-eligible" is a claim about the HOST's position, so it can only
-    // be made when the host was LOCATED. `hj === -1` means the host is absent
-    // from `after` — it was pruned — and then the filter below never runs at
-    // all, so the first system message in the array would be recorded as
-    // though it had been considered against the host. Measured 2026-08-07 on
-    // the pruned-host pair: 37,831 chars of an unrelated summarization notice
-    // printed as "the nearest position-eligible standalone that classify()
-    // rejected". The field's own name is false there, so it stays null.
-    // Scoped to hj === -1 deliberately: `hj === null` (a host carrying no
-    // tool_use_id at all) is a separate state and is not touched here.
-    const hostAbsent = hj !== null && hj < 0;
+    // be made when the host was LOCATED. TWO states defeat that, and the filter
+    // below short-circuits identically in both — so the first system message in
+    // the array would be recorded as though it had been considered against the
+    // host:
+    //   hj === -1    the host is absent from `after`: it was PRUNED. Measured
+    //                2026-08-07 on the pruned-host pair — 37,831 chars of an
+    //                unrelated summarization notice printed as "the nearest
+    //                position-eligible standalone that classify() rejected".
+    //   hj === null  the host's `content[0]` carries no tool_use_id, so it has
+    //                no identity to look up. This was left out when the pruned
+    //                case was fixed, on reasoning rather than measurement. The
+    //                measurement (2026-08-08, 100 captures, 0 unreadable,
+    //                17,512 pairs, 950 hosts): it occurs TWICE, and BOTH
+    //                occurrences reach this branch and report a rejected
+    //                candidate — 25,870 and 36,066 chars, each the message at
+    //                index 1, neither considered against anything.
+    // The field's own name is false in both, so it stays null; the two states
+    // are kept APART on the finding, because they print different words.
+    const hostPruned = hj !== null && hj < 0;
+    const hostIdless = hj === null;
+    const hostUnlocated = hostPruned || hostIdless;
     for (const s of sysAfter) {
       if (hj !== null && hj >= 0 && s.j <= hj) continue;
       const verdict = classify(recon, s.text);
       if (verdict === "EXACT") { best = { verdict, ...s }; break; }
       if (verdict === "EXTENDED") { if (!best) best = { verdict, ...s }; continue; }
-      if (!best && !rejectedCandidate && !hostAbsent) rejectedCandidate = { j: s.j, chars: s.text.length };
+      if (!best && !rejectedCandidate && !hostUnlocated) rejectedCandidate = { j: s.j, chars: s.text.length };
     }
     const offset = best && hj !== null && hj >= 0 ? best.j - hj : null;
     if (best) {
@@ -326,23 +353,60 @@ export function analysePair(before, after) {
       findings.push({ host: i, blocks: blocks.length, ...best, recon, offset, sub });
       continue;
     }
-    // No standalone counterpart. Distinguish a DROP from a rule failure: if
-    // the text is absent from `after` ENTIRELY, nothing migrated and the rule
-    // was never exercised — calling that MISMATCH blames the rule for a
-    // different phenomenon and manufactures a blocker. (Observed: a 3-block
-    // host whose blocks vanished as the array went 211 -> 209.)
-    // Serialized at most once per PAIR, not once per unmatched host: on the
-    // corpus's largest captures one request body is tens of MB, and the
-    // per-host form made this O(hosts x bytes) on exactly the files that only
-    // became readable when the read was fixed.
-    const anyPresent = blocks.some((t) => {
-      const inner = WRAP.exec(t);
-      const probe = (inner ? inner[1] : t).slice(0, 60);
-      return probe.length > 0 && wholeAfter().includes(JSON.stringify(probe).slice(1, -1));
+    // No standalone counterpart matched the canonical rule. Distinguish a DROP
+    // from a rule failure — and the DEFINITION decides which question to ask,
+    // never the artifact: a COUNTERPART in this tool is a standalone
+    // role:"system" message carrying the block's inner text (the population the
+    // `classify()` scan above walks). So the question is "was such a standalone
+    // CREATED", i.e. does `after` carry one that `before` did not.
+    //
+    // Two forms were refuted before this one, both measured (BACKLOG, "the
+    // byte-gate's `anyPresent` probe can never return false"):
+    //   - the WHOLE SERIALIZED BODY, searched for a 60-char probe (shipped
+    //     until 2026-08-08). A reminder text recurs at other indices, so the
+    //     predicate cannot return false whatever the pair did — every pruned
+    //     host was reported MISMATCH. Measured: s-captureAP reqOrd 97, all
+    //     counts DECREASING (4->3, 1->0), reported MISMATCH, correct DROPPED.
+    //     Counting the whole body the other way round is worse than wrong: a
+    //     migration CONSERVES that count (the inline occurrence disappears
+    //     exactly as the standalone appears), so it is blind to the very event
+    //     it detects and turns the corpus tally GREEN with the wrapper-envelope
+    //     hole live.
+    //   - a bare COUNT of standalone carriers, after > before. A pair that
+    //     PRUNES one carrier AND creates a counterpart nets zero and reads
+    //     DROPPED; prunes are ordinary here (s-captureAP block 0: 3 carriers
+    //     -> 2). So the test MATCHES rather than nets: a carrier in `after`
+    //     whose text occurs there MORE often than in `before` is one the
+    //     predecessor cannot account for. Text identity is the correspondence
+    //     relation `subclassifyExtended` already uses against `sysBefore`; no
+    //     position convention is invented, because none exists to read.
+    //
+    // The residual, named rather than hidden: a counterpart whose text is
+    // byte-identical to a carrier pruned in the same pair is accounted for by
+    // it and reads DROPPED. The one-way error property (a true DROPPED may be
+    // reported MISMATCH, never the reverse) holds outside that case, which is
+    // what lets the corpus tally stand as an upper bound on holes.
+    const { before: carriersBefore, after: carriersAfter } = sysCounts();
+    const anyCreated = blocks.some((t) => {
+      const inner = unwrapText(t);
+      if (!inner.length) return false;
+      for (const [text, n] of carriersAfter) {
+        if (n <= (carriersBefore.get(text) ?? 0)) continue;
+        if (text.includes(inner)) return true;
+      }
+      return false;
     });
     findings.push({ host: i, blocks: blocks.length,
-                    verdict: anyPresent ? "MISMATCH" : "DROPPED",
-                    j: null, text: "", recon, sub: null, rejectedCandidate });
+                    verdict: anyCreated ? "MISMATCH" : "DROPPED",
+                    j: null, text: "", recon, sub: null, rejectedCandidate,
+                    // An unlocatable host is its own state and gets its own
+                    // word: with no `rejectedCandidate` the row would otherwise
+                    // fall back to `actual=0ch` — the exact misleading tell
+                    // that field was built to cure, handed back to the reader.
+                    // A pruned host, an ID-less host and a genuinely empty
+                    // counterpart are three findings, not one (dev-loop.md,
+                    // "give the state that has no word yet its own string").
+                    hostPruned, hostIdless });
   }
   return findings;
 }
@@ -1168,10 +1232,21 @@ async function main(argv) {
       // A no-counterpart row (DROPPED/MISMATCH, `d.text` always "") prints
       // its rejected candidate's length when one exists, never a bare 0ch
       // that reads as "nothing found" — see the ~264 comment and BACKLOG's
-      // "census must distinguish" entry.
+      // "census must distinguish" entry. FOUR states, not two: where the host
+      // could not be LOCATED — pruned from `after`, or carrying no tool_use_id
+      // to look it up by — there is no position to consider a candidate
+      // against, so there is no rejected candidate either, and `actual=0ch`
+      // would hand the reader the same misleading tell one case over. Each
+      // gets its own word, and they are different words because they are
+      // different states: one says CC removed the host, the other says this
+      // tool cannot identify it.
       const actualPart = d.rejectedCandidate
         ? `rejected=${d.rejectedCandidate.chars}ch`
-        : `actual=${d.text.length}ch`;
+        : d.hostPruned
+          ? "host-pruned"
+          : d.hostIdless
+            ? "host-unlocatable"
+            : `actual=${d.text.length}ch`;
       process.stdout.write(
         `  ${d.verdict.padEnd(8)} ${d.ts}  host=${d.host} blocks=${d.blocks}` +
         ` recon=${d.recon.length}ch ${actualPart}${d.sub ? `  ${d.sub}` : ""}\n`);
