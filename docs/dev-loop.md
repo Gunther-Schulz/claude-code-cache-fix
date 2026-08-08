@@ -1232,6 +1232,34 @@ Two rules, both learned the expensive way:
    is observably off (a counter at zero, a branch never entered), not that the
    flag was passed.
 
+   **A RED-FIRST ARRANGEMENT DECAYS THE MOMENT THE WORK IS COMMITTED, and it
+   decays into a false green.** Measured 2026-08-08. A lane's arrangement was
+   `git stash push -- tools/<file>` with the new tests kept in place — valid
+   while the fix was uncommitted, and a NO-OP an hour later once it had been
+   committed: the stash found nothing to stash, every bite ran NEW against NEW,
+   and all six passed. That is the vacuous green this file already warns about,
+   arriving from the opposite direction — not "old runs against old" but "new
+   runs against new", from an arrangement that had genuinely worked earlier.
+   Two tells caught it and both are cheap: `git stash pop` answered
+   `No stash entries found`, and EVERY bite passed when at least one was
+   required to fail. The second is the general one — a red-first run in which
+   nothing goes red has not demonstrated anything, whatever the arrangement
+   claims. Durable form, which is what the numbers should rest on:
+   `git checkout <old-sha> -- <file>`, with the resulting
+   `git diff --stat HEAD` PRINTED as proof the old blob is really in place
+   (here: 33 insertions / 108 deletions, reproduced at the desk before the
+   commit was integrated). State the arrangement AND its proof, not the
+   arrangement alone.
+
+   **A bite for a rule quantified with `.some()` needs exactly ONE candidate in
+   its fixture.** Same day, same lane: a prune+create fixture carried a 2-block
+   host, the SECOND block's carrier count rose 0->1 on its own, that satisfied
+   the predicate, and the bite stayed green under the mutation it was built to
+   catch. The mutation was evidence about the FIXTURE, not about the rule —
+   the sibling-satisfies-the-predicate variant of the surviving-mutation rule
+   above. Any existential quantifier in the rule under test makes every extra
+   candidate in the fixture a way for the bite to pass for the wrong reason.
+
    **A bite's expected value comes from the invariant's DEFINITION, never
    from the implementation or the reasoning that produced it** — an
    expectation with the same parentage as the code pins the bug it should
