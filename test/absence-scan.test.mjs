@@ -638,11 +638,21 @@ test("git-range: a clean message with a clean file reports nothing", () => {
 // The FINDING line is therefore a wire format with a parser in another
 // repository. These tests are its contract, pinned on this side.
 
+// A SECOND synthetic key, distinct from SYNTH_KEY and built from fragments for
+// exactly the same reason (see SYNTH_KEY above): a literal of this shape in a
+// tracked file IS what capture-key-prefix refuses, so writing one out would
+// block this repository's own push. That is not hypothetical — the first
+// version of the tests below carried two literals and the guard blocked the
+// push carrying them, 2026-08-08. The convention is the repair; an allowlist
+// entry would not be, since exempting this file from capture-key-prefix would
+// hide every future capture key in the file where it matters most.
+const SYNTH_KEY_2 = ["s", "-", "4455", "6677"].join("");
+
 test("identity: a digest of the class and the finding's own bytes, computed independently here", () => {
   // Second implementation of the documented rule, on purpose: if the tool's
   // notion of the identity ever diverges from the written one, an expectation
   // sharing the tool's parentage would move along with it and pin nothing.
-  const line = "// nennt s-1a2b3c4d";
+  const line = `// nennt ${SYNTH_KEY}`;
   const expected = createHash("sha256").update(`capture-key-prefix\0${line}`, "utf8")
     .digest("hex").slice(0, 12);
   assert.equal(findingId("capture-key-prefix", line), expected);
@@ -667,12 +677,18 @@ test("identity: it is the finding's OWN span, so an edit anywhere in that span m
   // gains a SECOND identifier beside an old one must not keep answering "already
   // published" — that is the swallow this widening prevents, and it is the
   // fail-closed direction.
-  const one = scanContent("// nennt s-1a2b3c4d\n", "a.mjs").findings;
-  const two = scanContent("// nennt s-1a2b3c4d und s-44556677\n", "a.mjs").findings;
+  // The second key must be a key in its own right, or "gains a SECOND
+  // identifier" would be an overstatement and the differing identity would be
+  // proving something weaker than the test claims.
+  assert.deepEqual(scanContent(`// nur ${SYNTH_KEY_2}\n`, "a.mjs").findings.map((f) => f.class),
+    ["capture-key-prefix"], "the second synthetic key is itself a capture key");
+
+  const one = scanContent(`// nennt ${SYNTH_KEY}\n`, "a.mjs").findings;
+  const two = scanContent(`// nennt ${SYNTH_KEY} und ${SYNTH_KEY_2}\n`, "a.mjs").findings;
   assert.equal(one.length, 1);
   assert.equal(two.length, 1, "still one finding per line");
   assert.notEqual(one[0].id, two[0].id, "the added identifier must change the identity");
-  assert.equal(one[0].length, "// nennt s-1a2b3c4d".length,
+  assert.equal(one[0].length, `// nennt ${SYNTH_KEY}`.length,
     "and length measures the same span the identity is taken over");
 });
 
