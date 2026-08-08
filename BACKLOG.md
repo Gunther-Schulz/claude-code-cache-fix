@@ -125,7 +125,6 @@ right.
    Verified by the dispatcher at `proxy/pipeline.mjs:20-70`; six files are absent
    from the config and live anyway. It is also the mechanism behind rank 5 below,
    which is the tell that it sits upstream of them.
-   <!-- entry: "extensions.json is NOT the activation gate" -->
 2. **The operator's view and `bust-triage --list` share NO identifying field.**
    FIRED A THIRD TIME, during this derivation: placing today's two busts against
    their captures took a hand-join of the alias registry, `--list` and file
@@ -525,42 +524,6 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
-
-- **READY — `extensions.json` is NOT the activation gate: every `.mjs` in
-  `proxy/extensions/` runs unless it disables ITSELF.** Found 2026-08-08 as the
-  zero-order finding of the disarm enumeration; verified by the dispatcher at
-  `proxy/pipeline.mjs:20-70`. `loadExtensions` does `readdir(dir)`, filters
-  `.mjs`, and computes `const enabled = cfg?.enabled ?? ext.enabled ?? true`.
-  Absence from `extensions.json` therefore means DEFAULT ON, not off. Six files
-  are absent from the config and live anyway, four of them un-inspected as of
-  this booking: `deferred-tools-restore.mjs` (MUTATES, `:352`),
-  `thinking-block-sanitize.mjs`, `upstream-change-detection.mjs` (5 Maps),
-  `prefix-diff.mjs`, plus `session-health.mjs` and `auto-1m-guard.mjs`
-  (classified read-only/stateless).
-  **Why this is more than a config nit.** The repo has a three-answer
-  discipline for which GATES run — DECLARED/RUNNING/VERIFIED (the unit's
-  `Environment=`, `/health`, and the sweep's status file), and `doctor`
-  compares all three. There is NO equivalent answer for which EXTENSIONS run:
-  a `.mjs` dropped into the directory is live with no declaration anywhere and
-  nothing compares it against anything. Every enumeration of "what is enabled"
-  written from `extensions.json` has been over the wrong set — which is the
-  enumeration-keyed-on-a-NAME error from the dev-loop, one level up at the
-  directory. FORK-NOTES' restart-transparency argument enumerates extensions
-  this way and is booked separately for the same reason.
-  Design: make the extension set answerable and comparable. Emit the loaded set
-  (name, file, order, enabled, and WHERE enabled came from — config / module
-  default / implicit true) on `/health` beside `gates`, and have `doctor` fail
-  when a live extension has no explicit declaration. Do NOT flip the default to
-  off in the same change: that is a behaviour change to the serving pipeline
-  and needs its own row-3 declaration and live pricing.
-  Verifier, red-first: plant a no-op `.mjs` in a scratch extensions dir, load
-  it, and assert `/health` lists it with source `implicit-true`; assert
-  `doctor` goes RED on exactly that condition and stays green when the same
-  extension is declared. Negative control: a file with its own
-  `enabled:false` must NOT appear in the loaded set.
-  Consumer tier **1 (event disposition)** — every "which extension did this"
-  attribution, including today's two bust walks, reads the set this would fix.
-  <!-- entry: "extensions.json is NOT the activation gate" -->
 
 - **READY — every human-facing stamp emits BOTH zones, because ten tools emit
   UTC and none emits local.** Measured 2026-08-07: `grep -l 'toISOString\|UTC'
@@ -1413,6 +1376,25 @@ ENOSPC misattribution with its wrong first explanation left in.
   against what I imagine it caught. Done when `node tools/backlog-lint.mjs` is
   clean on a corpus containing both arms and `test/backlog-lint.test.mjs`
   covers each.
+  **THIRD FIRE, same day, and it pins the sub-shape the design must handle:
+  SPACE-PADDED separators.** The repo's three-answer gate triple, written with
+  spaces around its slashes, trips the lint; the identical triple written tight
+  (the spelling `docs/dev-loop.md` uses) does not. The exemption is
+  slash-ADJACENCY — it inspects the single character on each side of the marker
+  word — so a padded separator puts a SPACE there and escapes it. Not a new
+  defect: the precise boundary of the existing one, and it settles the design
+  question above. The widened predicate must key on enumeration CONTEXT, never
+  on adjacent characters.
+  **And this paragraph tripped the guard while being written, for the second
+  time in this entry — by violating the entry's OWN instruction four
+  paragraphs up:** literal trigger forms belong in the test fixture, not in
+  this file. The first draft pasted the padded triple in as its example, the
+  lint fired on this entry, and because `test/backlog-lint.test.mjs` treats a
+  WARN as BLOCKING (the separate ranked entry two below), it turned the whole
+  suite red and refused a push. So the convention is not stylistic: writing a
+  trigger form literally here costs a red suite. Restated without the literal,
+  which is what the entry already told me to do.
+
   **SECOND MEASURED FALSE FIRE, 2026-08-08 afternoon, and it is a DIFFERENT
   shape — so the design above is too narrow.** Editing the XDG-ownership entry
   to record that its three-way README sub-claim had been resolved by `bbc1213`
@@ -1938,6 +1920,75 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **READY (small, operator-side, dotfiles — POINTER) — `doctor` has no verdict
+  over the live EXTENSION set, so six extensions run undeclared and nothing
+  says so.** Booked 2026-08-08 as the half of the activation-gate entry that
+  lands in the dotfiles repo and therefore outside this tree's write boundary.
+  The reporting half SHIPPED here (`2e088df`, deployed): `/health` now emits
+  `extensions: [{name, file, order, enabled, source}]` beside `gates`, where
+  `source` is the layer that decided it — `config` / `module-default` /
+  `implicit-true`.
+  **Measured live at the moment it shipped: 36 loaded, 30 `config`, and SIX
+  with no declaration anywhere** — `upstream-change-detection` (50),
+  `deferred-tools-restore` (350), `auto-1m-guard` (520),
+  `thinking-block-sanitize` (550), `session-health` (590), `prefix-diff` (680).
+  Three of those are `implicit-true`: nothing in any file says they should run;
+  they run because the loader defaults to true on absence.
+  Design, decided, from the shipping lane's recommendation and stated as a
+  predicate rather than a description: `doctor` FAILS when any entry in the
+  live `/health` `.extensions` array carries `source !== "config"` — running
+  without an explicit `extensions.json` entry. Green when the same extension is
+  declared. This completes the DECLARED/RUNNING/VERIFIED discipline for
+  extensions, which today exists only for gates.
+  **Do NOT pair this with flipping the loader default to off.** That is a
+  behaviour change to the serving pipeline and needs its own row-3 declaration
+  and live pricing; this verdict only makes the gap visible.
+  Verifier, red-first and available today without constructing anything: the
+  live `/health` currently returns six non-`config` entries, so the verdict
+  must go RED against production as it stands. Green arm: declare one of the
+  six in `extensions.json` and require that entry to stop firing while the
+  other five still do — an over-firing control, so it cannot pass by always
+  failing. Third answer required per this repo's standing checker discipline: a
+  `/health` that cannot be reached is COULD-NOT-VERIFY, never a pass.
+  <!-- entry: "doctor has no verdict over the live EXTENSION set" -->
+
+- **(DONE — 2026-08-08, `2e088df`; deployed, pin `8127160`, restarted; the
+  doctor half is booked below) `extensions.json` is NOT the activation gate: every `.mjs` in
+  `proxy/extensions/` runs unless it disables ITSELF.** Found 2026-08-08 as the
+  zero-order finding of the disarm enumeration; verified by the dispatcher at
+  `proxy/pipeline.mjs:20-70`. `loadExtensions` does `readdir(dir)`, filters
+  `.mjs`, and computes `const enabled = cfg?.enabled ?? ext.enabled ?? true`.
+  Absence from `extensions.json` therefore means DEFAULT ON, not off. Six files
+  are absent from the config and live anyway, four of them un-inspected as of
+  this booking: `deferred-tools-restore.mjs` (MUTATES, `:352`),
+  `thinking-block-sanitize.mjs`, `upstream-change-detection.mjs` (5 Maps),
+  `prefix-diff.mjs`, plus `session-health.mjs` and `auto-1m-guard.mjs`
+  (classified read-only/stateless).
+  **Why this is more than a config nit.** The repo has a three-answer
+  discipline for which GATES run — DECLARED/RUNNING/VERIFIED (the unit's
+  `Environment=`, `/health`, and the sweep's status file), and `doctor`
+  compares all three. There is NO equivalent answer for which EXTENSIONS run:
+  a `.mjs` dropped into the directory is live with no declaration anywhere and
+  nothing compares it against anything. Every enumeration of "what is enabled"
+  written from `extensions.json` has been over the wrong set — which is the
+  enumeration-keyed-on-a-NAME error from the dev-loop, one level up at the
+  directory. FORK-NOTES' restart-transparency argument enumerates extensions
+  this way and is booked separately for the same reason.
+  Design: make the extension set answerable and comparable. Emit the loaded set
+  (name, file, order, enabled, and WHERE enabled came from — config / module
+  default / implicit true) on `/health` beside `gates`, and have `doctor` fail
+  when a live extension has no explicit declaration. Do NOT flip the default to
+  off in the same change: that is a behaviour change to the serving pipeline
+  and needs its own row-3 declaration and live pricing.
+  Verifier, red-first: plant a no-op `.mjs` in a scratch extensions dir, load
+  it, and assert `/health` lists it with source `implicit-true`; assert
+  `doctor` goes RED on exactly that condition and stays green when the same
+  extension is declared. Negative control: a file with its own
+  `enabled:false` must NOT appear in the loaded set.
+  Consumer tier **1 (event disposition)** — every "which extension did this"
+  attribution, including today's two bust walks, reads the set this would fix.
+  <!-- entry: "extensions.json is NOT the activation gate" -->
 
 - **(DONE — 2026-08-08, `6faf161`) the operator's view and `bust-triage --list` share NO identifying
   field, so neither side can name an event the other can find.** Operator,
