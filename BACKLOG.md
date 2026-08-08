@@ -367,17 +367,36 @@ instruction the entries lack.** Build ORDER is deliberately absent — it is
 derived at build time, and the block above is BANNER-MARKED STALE with the
 re-derivation booked as a READY entry.
 
-**State.** Fork `main` clean and pushed. dotfiles clean and pushed (proxy tree
-pinned `27d810f`, proxy restarted 10:2xZ, running source fingerprint verified
-against the checkout). Nine items shipped today across seven dispatched lanes.
+**State (afternoon pass — supersedes the midday state above).** All three repos
+clean and pushed: fork, dotfiles, and `claude-worktime`. No `proxy/**` change
+this pass, so no pin bump and no restart. Two busts walked to disposition
+(below); the `claude-worktime` false-❄ items SHIPPED (`8bfc385`) and their
+entries there are marked shipped, so that cross-repo pointer is discharged.
 
 **What is BROKEN rather than merely unbuilt — read before trusting anything:**
-nothing is known-broken in the fork right now. The two things that WERE
-breaking work are fixed and verified: the `mkdtemp` leak (a full suite left 113
-temp dirs, 31,108 had accumulated, `/tmp` hit 100% and broke unrelated tooling
-machine-wide while the suite stayed green) and the leak scan's blob-granular
-discard (a gate that could not pass). Both have loud regression signals now —
-`gate-live` fails on stale run roots, and the discard is finding-granular.
+nothing is known-broken in the running fork. Two DOC-level falsehoods are live
+and booked, which is worse than unbuilt because they are load-bearing premises:
+`FORK-NOTES.md` states `deferred-tool-rewrite` is disabled in the unit while
+`/health` reports its gate ON and it logs `action=rewrite` on live traffic —
+that sentence is a premise of the restart-transparency argument; and commit
+`0ca3419`'s TITLE overstates a safety finding that the same day's later
+measurement downgraded (git history is immutable, the correction lives in the
+entry). Both have READY entries. The earlier `mkdtemp` leak and the leak scan's
+blob-granular discard remain fixed and carry loud regression signals.
+
+**Two busts, 2026-08-08 morning, both dispositioned.** 638k (`s-captureAS`,
+dotfiles project) — Claude Code's, `replace/edit` MID-HISTORY at host 274,
+attributed by diffing raw vs forwarded bodies; it re-billed because the class is
+not in `replay.mjs`'s MITIGABLE set at all, and row 4's READY canonicalization
+design is what closes it. 141k (`s-captureAT`, this repo's session) —
+`splice/insert-mid`, a class the pipeline DOES attempt, disarmed by a state-key
+flip across the pair with both sides `no-prior-canonical`; the flip's cause is
+unattributed and booked. `bust-triage` answered MITIGATED on the second, which
+is the row's status reported as a per-instance absorption claim — booked.
+Evidence for the 141k is NOT in a capture: it is the extension event logs,
+snapshotted to `~/.local/share/cache-fix/bust-evidence/2026-08-08/` (verified to
+carry both timestamps and >1 distinct key). The capture pin was taken and
+reported `does NOT reproduce`; it was deleted rather than committed.
 
 **One decision is OPEN and belongs to the operator** — stated here because the
 close-out asked it and it may not have been answered: `tools/usage-to-dashboard
@@ -405,6 +424,29 @@ node_modules symlink, the alias registry, sibling-repo isolation — are in
 visibility check (dotfiles doctor), the push-gate and path-hook payload-vs-intent
 fires (the `dispatch-guards` plugin's `dev-notes/`), and the claude-worktime
 items. A peer session was active in `claude-worktime` and dotfiles today.
+
+**Population and collision facts, measured this pass (a fact about the files,
+not a judgement).** 84 `- **READY` entries, re-grepped at close. By consumer
+tier: 26 event-disposition / 26 gates / 15 backlog-process / 17 not-instrument.
+15 carry an UNRESOLVED write-set, 8 carry NO verifier, 20 are flagged
+stale-risk — re-read a stored entry's PREMISE against the world before
+dispatching it; three entries were overtaken by reality today. Files claimed by
+2+ entries, which is what caps fan-out width: `tools/bust-triage.mjs` (9),
+`tools/replay.mjs` (8), `session-scan.py` (4), `docs/dev-loop.md` (4),
+`bootstrap/doctor.py` (3), then `fixture-verdict-identity.mjs`,
+`backlog-lint.mjs`, `README.ko.md`, `proxy/server.mjs`,
+`insertion-normalization.mjs`, the matrix (2 each). The first two alone
+serialize 17 entries. The raw census extraction is deliberately NOT stored: it
+snapshotted a file that grew +217 lines under it, and a stale extraction invites
+ranking from it — the stored-priority defect one level up. Re-run the census
+dispatch; it is one lane and ~15 minutes.
+
+**The row-22 enumeration is DONE and its output is in the repo** —
+`docs/directives/success-path-only-enumeration.md`. It answers the matrix's
+nine-day-old question ("which normalization behaviours silently switch off on a
+reset"), covers every extension with per-label counts, and carries the finding
+that `extensions.json` is not the activation gate. Read it before designing any
+reset-path change.
 
 **What this session added to the method**, all in `docs/dev-loop.md`, because
 the next session inherits the rules and not the reasoning: the pattern-scope
@@ -5976,8 +6018,46 @@ ENOSPC misattribution with its wrong first explanation left in.
   annoying.
   <!-- entry: "backlog-lint's enumeration exemption is SLASH-ONLY" -->
 
-- **READY — the tool-adjacency SAFETY check does not run on ANY reset path, and
-  safety is the property this repo says outranks cache.** Found 2026-08-08 by
+- **DOWNGRADED 2026-08-08, SAME DAY, BY THE LANE THAT FOUND IT — read this
+  first: the reset paths skip insertion-normalization's OWN adjacency check,
+  but `output-guard` is an unconditional BACKSTOP, so this is not a safety
+  hole.** The original entry follows unchanged below; it is kept rather than
+  rewritten because the correction is the more useful artifact.
+  What kills the severity claim: `output-guard.mjs` (order 690, gate
+  `CACHE_FIX_OUTPUT_GUARD=1` live) imports the SAME `validateToolAdjacency`
+  (`:25`) and runs it as `checkToolAdjacency` inside the `VALIDATORS` array
+  (`:118`), which `findViolation` (`:124-130`) walks unconditionally on the
+  fully-mutated final body at `:157`, every request, with no early return
+  reachable from any reset. On a violation it reverts `ctx.body` to the
+  pre-pipeline stash and logs CRITICAL. Dispatcher-confirmed at those lines.
+  **And it has NEVER FIRED.** Zero `*-guard-events.jsonl` files exist in
+  `statePath("snapshots")` — which is where `appendGuardEvent(getSnapshotDir(),
+  …)` (`:192`, `:38`) writes, and the same directory holds thousands of other
+  extensions' `*-events.jsonl`, so the zero is a measured absence and not a
+  glob that could never match.
+  **What the finding actually is, re-derived rather than deleted:** a reset
+  that produced an invalid body would cost a FULL PIPELINE DISCARD — every
+  mitigation for that request thrown away and the raw body forwarded — which
+  is an honest bust, LOUD (CRITICAL log + telemetry), and never yet observed.
+  That moves it off the silence signal entirely, which was half its ranking
+  case. It stays READY because the defence-in-depth argument is real (the
+  backstop discards work the inner check could have prevented) and because
+  `checkAssistantTerminal` (`:108-117`) silently no-ops when the stash's
+  `structuredClone` throws (`:25`) — a narrow same-gate gap worth closing in
+  the same pass. Consumer tier stays **2**; the SILENCE elevation is WITHDRAWN.
+  **Method note, the reason this entry is kept in full:** the severity claim
+  was published to the operator and committed (`0ca3419`, whose title now
+  overstates it — git history is immutable, the correction lives here) before
+  the backstop was known. Round 1 of the enumeration was scoped to
+  insertion-normalization and answered its question correctly; the backstop sat
+  one extension away, and the question that surfaced it — "does any OTHER
+  extension have this shape?" — was asked only in round 2. A single-extension
+  enumeration cannot see a cross-extension backstop, and nothing in round 1's
+  output signalled the absence. Ask the cross-file question in round ONE.
+
+  Original entry, unchanged: **the tool-adjacency SAFETY check does not run on
+  ANY reset path, and safety is the property this repo says outranks cache.**
+  Found 2026-08-08 by
   the row-22 disarm enumeration; the control flow confirmed at the source by
   the dispatcher rather than booked on the lane's word.
   `validateToolAdjacency` (`proxy/extensions/insertion-normalization.mjs:459`)
