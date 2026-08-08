@@ -8716,3 +8716,28 @@ then the queued ones. Work the items in that order.
   unparks this: the executor skill shipped + §6 amended (named
   trigger). Consumer: the session instantiating READINESS.json
   here, and the grading session booking probe evidence.
+
+- READY 2026-08-08 — every temp-dir producer here LEAKS its mkdtemp
+  dir: /tmp (31 GB tmpfs) hit 100% with 31,108 top-level dirs
+  (7,024 fixture-verd*, ~8,000 bt-*, plus census-*, harvest-*,
+  verdict-*, ledger-*, mitigation-output-*, insertion-suppress*,
+  cache-fix-probe/replay-*), and the ENOSPC broke UNRELATED live
+  tooling machine-wide (Claude Code's Bash output capture died
+  mid-session — silent-failure class: the suite stays green while
+  filling the disk). Writer half: test suite and tools create
+  mkdtemp dirs and never remove them — one full-suite run leaves
+  thousands; gate-live (daily) and harvest (twice daily) add on
+  schedule, so refill is structural, not incidental. Entry-path
+  enumeration: npm test, bare node --test, gate-live, harvest,
+  bust-triage, census, replay probes — every mkdtemp call site.
+  Design: one shared tmpdir helper (per-run parent dir + cleanup
+  registered on exit/finally), imported by tools and tests (the
+  extend-existing-tool rule); plus gate-live reports a leftover
+  count of matching dirs older than 1h as a failing signal so a
+  regression is loud. Verifier (red-first: today's state IS the
+  red): run the full suite, then count matching /tmp dirs newer
+  than a start marker — must be 0; current runs leave thousands.
+  Interim relief 2026-08-08: hand-deleted ~21,500 pattern-matched
+  g-owned dirs older than 60 min (100% -> 25G free) — the
+  hand-cleanup is the prototype, the helper is the deliverable.
+  Consumer: next tooling session here; the derivation ranks it.
