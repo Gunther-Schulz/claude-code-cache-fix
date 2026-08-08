@@ -60,7 +60,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dataPath, statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 import { join } from "node:path";
-import { censusPair } from "./replay.mjs";
+import { censusPair, compactEntry, findEditPositions, findBlockMigrations } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
@@ -1194,6 +1194,105 @@ export function causeToRow(cause, pair) {
   return descOnly ? 23 : 6;
 }
 
+// --- Row-4 sub-mechanism evidence: anchor position and block-migration/FLAP ---
+//
+// BACKLOG READY: "bust-triage maps replace/edit -> row 4 flatly ... so the
+// census annotations that distinguish this row's sub-mechanisms never reach
+// the operator at the runbook's designated entry point." `classToRow` itself
+// is unchanged by this section — it still maps `replace/edit` to row 4, and
+// that mapping is not what was wrong. What was missing is the EVIDENCE beside
+// it: an edit at the human anchor (the known reminder-re-stamping shape) and
+// an edit 45 raw indices away inside a 20-leg FLAP (measured live,
+// 2026-08-06T18:08:32Z, capture s-captureAM — matrix row 4's own datapoint)
+// both printed as the identical two lines, `census replace/edit` /
+// `no reminder container migration`, with nothing to tell a reader which
+// mechanism produced either one.
+
+// FLAP is an OSCILLATION (markFlaps, replay.mjs): a migration is a FLAP only
+// when an EARLIER migration of the same conversation reversed it, so a bare
+// {before, after} pair can never show one — there is nothing earlier to
+// compare against. This is the window fed to findEditPositions /
+// findBlockMigrations so the pair's own transition can be scored against its
+// real history. Deliberately larger than replay.mjs's own FLAP_WINDOW (5,
+// not exported from that file): findBlockMigrations enforces its own window
+// internally when scanning backward (markFlaps), so handing it MORE history
+// than it needs is harmless, while hand-copying the constant's VALUE here
+// would silently drift the day replay.mjs's own window changes without this
+// file noticing.
+const WINDOW_ENTRIES = 12;
+
+// Mirrors replay.mjs's own inline literal for the far-from-anchor tripwire
+// (`Math.abs(e.anchorDelta) > 30`, not exported — a private threshold inside
+// a printing block cannot be imported). Named here rather than left as a
+// magic number repeated at its one call site below.
+const FAR_ANCHOR_THRESHOLD = 30;
+
+/**
+ * The pair's own anchor position and block-migration/FLAP evidence — see the
+ * section header above for what this exists to distinguish. Never re-derives
+ * the edit-position or block-migration algorithms: both are IMPORTED from
+ * replay.mjs (`findEditPositions`, `findBlockMigrations`, `compactEntry`) and
+ * run over a real conversation window read fresh off the capture (see
+ * WINDOW_ENTRIES for why a bare pair cannot show a FLAP).
+ *
+ * Streams the capture file ONCE, filtering to records sharing `after`'s own
+ * first-message identity — the SAME "same conversation" test
+ * `capturePairResult` already uses for `before`, never a second notion of
+ * conversation identity — and stopping once the stream passes `after`'s own
+ * ordinal. Only the last `windowEntries` matching records are retained, as
+ * COMPACT entries (hashes, never message bodies), so the extra pass costs
+ * O(window) memory, not O(conversation) — the same heap discipline
+ * `capturePairResult` already documents for this file.
+ *
+ * Returns null when the window cannot be built at all (no ordinal on the
+ * pair, no capture file, fewer than 2 in-conversation records found — the
+ * pair itself should always supply 2, so this is a defensive floor, not an
+ * expected path). Returns `{ edit: null, blockMigrations: [] }` when the
+ * window built but named no replace/edit row for this exact transition —
+ * should not happen when the caller already classified the pair's census as
+ * "replace/edit", and is surfaced as "no evidence" rather than asserted, per
+ * the "gaps surface, never bridge" rule.
+ */
+export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowEntries = WINDOW_ENTRIES) {
+  const beforeOrd = pair?.before?.ord;
+  const afterOrd = pair?.after?.ord;
+  const cidTarget = pair?.after?.body?.messages?.[0];
+  if (beforeOrd == null || afterOrd == null || cidTarget === undefined) return null;
+  const f = join(capturesDir, `s-${sid}-requests.jsonl`);
+  if (!existsSync(f)) return null;
+  const cidJson = JSON.stringify(cidTarget);
+  const ring = [];
+  let ord = -1;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") ord++;
+    if (ord > afterOrd) break;
+    if (!r?.body?.messages || !r?.ts) continue;
+    if (JSON.stringify(r.body.messages[0]) !== cidJson) continue;
+    ring.push(compactEntry({ n: ord, ts: r.ts, id: r.id ?? null, key: "w", inMsgs: r.body.messages }));
+    if (ring.length > windowEntries) ring.shift();
+  }
+  if (ring.length < 2) return null;
+  const edit = findEditPositions(ring).find((e) => e.n === afterOrd && e.prevN === beforeOrd) ?? null;
+  const blockMigrations = findBlockMigrations(ring).filter((b) => b.n === afterOrd && b.prevN === beforeOrd);
+  return { edit, blockMigrations };
+}
+
+// Presentation only, for the `edit-anchor` triage step below. replay.mjs's
+// own `migrationLine`/`flapTag` are module-private (not exported), so these
+// mirror their FORMAT rather than re-deriving anything: every field printed
+// here (`direction`, `sourceIdx`, `targetIdx`, `join`, `flap`) comes straight
+// off the row `findBlockMigrations` already computed.
+const migrationSpan = (b) =>
+  b.join !== "cross-message"
+    ? `${b.sourceIdx}->${b.targetIdx}`
+    : b.direction === "inline->standalone"
+      ? `${b.sourceIdx}+${b.sourceIdx + 1}->${b.targetIdx}`
+      : `${b.sourceIdx}->${b.targetIdx}+${b.targetIdx + 1}`;
+const migrationLine = (b) => `${b.join ? `join:${b.join} ` : ""}${b.direction} ${migrationSpan(b)}`;
+const flapTag = (b) =>
+  b.flap ? ` [FLAP reverses n=${b.flap.reversesPrevN}->${b.flap.reversesN}, ${b.flap.span} req]` : "";
+
 // --- The matrix's SECOND container for a disposition: `## Event walk` prose ---
 //
 // The defect (BACKLOG, found 2026-08-06 at session close, fired live again
@@ -1491,6 +1590,34 @@ export async function triage(bust) {
         detail: `row-4 container migration at host ${mig.host} ` +
                 `(${mig.verdict}${mig.sub ? `/${mig.sub}` : ""})` }
     : { step: "migration", ok: true, detail: "no reminder container migration in this pair" });
+
+  // Row-4 sub-mechanism evidence (BACKLOG READY item — see the section header
+  // above pairEditContext): only meaningful for the census class classToRow
+  // maps flatly, so this does not run for other classes. Printed beside
+  // census/migration for the same reason those two are unconditional: a
+  // reader should see every fact about the pair together, not only when it
+  // ends up deciding the verdict.
+  if (cls === "replace/edit") {
+    const ec = await pairEditContext(bust.s, pair, CAPTURES);
+    if (ec?.edit) {
+      const e = ec.edit;
+      const anchor = e.anchorDelta === null ? "no-human-anchor"
+        : `anchor${e.anchorDelta >= 0 ? "+" : ""}${e.anchorDelta}`;
+      const far = e.anchorDelta !== null && Math.abs(e.anchorDelta) > FAR_ANCHOR_THRESHOLD;
+      const bmTag = ec.blockMigrations.length
+        ? " " + ec.blockMigrations.map((b) => `[blockMigration ${migrationLine(b)}]${flapTag(b)}`).join(" ")
+        : "";
+      steps.push({ step: "edit-anchor", ok: !far,
+                   detail: `edit@${e.at} of ${e.lastIdx} [${anchor}]${bmTag}` +
+                           (far
+                             ? ` — >30 from the human anchor: NOT the known reminder-anchoring class`
+                             : "") });
+    } else {
+      steps.push({ step: "edit-anchor", ok: false,
+                   detail: "could not resolve anchor/blockMigration evidence for this replace/edit pair " +
+                           "(capture window unavailable, or this transition named no row inside it)" });
+    }
+  }
 
   // The idle/TTL guard runs BEFORE any classToRow call (BACKLOG item T,
   // matrix row 27). Order is the whole point: `classToRow` answers "what
