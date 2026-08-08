@@ -1743,7 +1743,14 @@ function unwrapReminder(block) {
 // become garbage at the end of the iteration — so it takes the full form and
 // keeps nothing. One derivation, two projections, rather than a second notion
 // of "the same block".
-function blockUnitsFull(msg) {
+//
+// EXPORTED for tools/coverage-walk.mjs, which needs exactly this unwrapping
+// and exactly this text projection to ask "is this content on the wire".
+// Exported rather than restated because a second copy of "what a unit is"
+// would be a second truth about it — the rule dev-loop states as "never
+// hand-roll identity in a probe: if a tool needs an identity that is not
+// exported yet, export it rather than restate it".
+export function blockUnitsFull(msg) {
   const c = msg?.content;
   let blocks;
   if (typeof c === "string") blocks = [{ type: "text", text: c }];
