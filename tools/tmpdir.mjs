@@ -41,7 +41,13 @@ import { join } from "node:path";
 // Every directory this repo creates under the temp root is a child of a parent
 // carrying this prefix, which is what makes the leftover scan below a closed
 // question rather than a list of prefixes someone has to remember to extend.
+//
+// The name carries the creating PID (`cache-fix-run-<pid>-XXXXXX`) so the scan
+// can tell a run that DIED from one that is merely slow. Without it the age
+// threshold alone would fire on gate-live's own long replay children — a check
+// firing on legitimate work, which trains its reader to ignore red.
 export const RUN_ROOT_PREFIX = "cache-fix-run-";
+const RUN_ROOT_RE = /^cache-fix-run-(\d+)-/;
 
 let runRoot = null;
 let removed = false;
@@ -61,7 +67,7 @@ function removeRunRoot() {
 
 function ensureRunRoot() {
   if (runRoot) return runRoot;
-  runRoot = mkdtempSync(join(tmpdir(), RUN_ROOT_PREFIX));
+  runRoot = mkdtempSync(join(tmpdir(), `${RUN_ROOT_PREFIX}${process.pid}-`));
   removed = false;
 
   // `exit` covers the ordinary paths AND the crash paths: node runs exit
@@ -124,6 +130,17 @@ export function cleanupRunRoot() {
   runRoot = null;
 }
 
+// `kill(pid, 0)` probes existence without signalling. EPERM means the process
+// exists and belongs to someone else, which still counts as alive.
+function defaultIsAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === "EPERM";
+  }
+}
+
 /**
  * Run roots left behind by OTHER runs — the SIGKILL residue, and the tell that
  * a call site has stopped using this module. Reads only; deletes nothing.
@@ -135,12 +152,19 @@ export function cleanupRunRoot() {
  * @param {string} [opts.root] temp root to scan, default os.tmpdir().
  * @param {number} [opts.now] clock injection point, so the test does not have
  *   to sleep an hour to exercise the threshold.
+ * @param {(pid: number) => boolean} [opts.isAlive] liveness probe, injectable
+ *   for the same reason.
  * @returns {{count: number, dirs: string[], scanned: boolean, reason: string|null}}
  *   `scanned: false` with a reason is the third answer — the temp root could
  *   not be read, which is neither clean nor dirty and must not be reported as
  *   a count of zero.
  */
-export function staleRunRoots({ olderThanMs = 60 * 60 * 1000, root = tmpdir(), now = Date.now() } = {}) {
+export function staleRunRoots({
+  olderThanMs = 60 * 60 * 1000,
+  root = tmpdir(),
+  now = Date.now(),
+  isAlive = defaultIsAlive,
+} = {}) {
   let entries;
   try {
     entries = readdirSync(root, { withFileTypes: true });
@@ -152,6 +176,10 @@ export function staleRunRoots({ olderThanMs = 60 * 60 * 1000, root = tmpdir(), n
     if (!e.isDirectory() || !e.name.startsWith(RUN_ROOT_PREFIX)) continue;
     const full = join(root, e.name);
     if (full === runRoot) continue; // our own, still in use
+    // A run that is still going owns its directory however old it is: a sweep
+    // over a large corpus legitimately outlives the threshold.
+    const pid = RUN_ROOT_RE.exec(e.name)?.[1];
+    if (pid && isAlive(Number(pid))) continue;
     try {
       if (now - statSync(full).mtimeMs >= olderThanMs) dirs.push(full);
     } catch {

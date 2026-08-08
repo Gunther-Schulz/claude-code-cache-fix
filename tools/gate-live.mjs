@@ -45,6 +45,7 @@ import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
 // the copy — the same reason every checker in this tree imports its identity
 // rather than restating it (docs/dev-loop.md, "Never hand-roll identity").
 import { scrubMessage, sidToken } from "./harvest.mjs";
+import { staleRunRoots } from "./tmpdir.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
@@ -1255,6 +1256,25 @@ async function main() {
     backlogLint = null;
   }
 
+  // Temp-directory leftovers. BLOCKING, unlike the backlog lint above, because
+  // the failure it reports is silent by construction: on 2026-08-08 the leaked
+  // directories filled a 31 GB tmpfs and broke unrelated tooling machine-wide
+  // while this very sweep and the whole test suite stayed green. Nothing else
+  // in the stack looks at the disk, so if this does not block, nothing does.
+  //
+  // Counting only roots older than an hour AND belonging to a dead process is
+  // what keeps it off legitimate work — a sweep's own replay children hold run
+  // roots for as long as they run.
+  const tmpLeftovers = staleRunRoots();
+  if (tmpLeftovers.count) {
+    process.stderr.write(
+      `FAIL tmp-leftovers: ${tmpLeftovers.count} run root(s) older than 1h from dead processes\n`
+      + tmpLeftovers.dirs.slice(0, 10).map((d) => `  ${d}\n`).join(""),
+    );
+  } else if (!tmpLeftovers.scanned) {
+    process.stderr.write(`COULD NOT VERIFY tmp-leftovers: ${tmpLeftovers.reason}\n`);
+  }
+
   const status = {
     version: 1,
     started,
@@ -1271,8 +1291,19 @@ async function main() {
     proving: proving.length,
     unproving: rows.length - failed.length >= 0 ? rows.filter((r) => r.provesNothing).length : 0,
     // ok requires at least one PROVING row: a sweep of empty and
-    // single-request captures ran zero cross-request checks.
-    ok: failed.length === 0 && proving.length > 0,
+    // single-request captures ran zero cross-request checks. A temp root that
+    // could not be scanned fails too — an unreadable temp dir is the third
+    // answer, and it must not read as "nothing left behind".
+    ok: failed.length === 0 && proving.length > 0
+      && tmpLeftovers.scanned && tmpLeftovers.count === 0,
+    // The paths are the finding; cap the list so one bad day cannot bloat a
+    // status file that is already ~200 KB.
+    tmpLeftovers: {
+      count: tmpLeftovers.count,
+      scanned: tmpLeftovers.scanned,
+      reason: tmpLeftovers.reason,
+      dirs: tmpLeftovers.dirs.slice(0, 20),
+    },
     byteGate,
     absorption: summariseAbsorption(rows),
     rowPins: reduceRowPins(rows),
@@ -1320,6 +1351,7 @@ async function main() {
   if (!args.quiet) {
     process.stdout.write(
       `\n${rows.length} capture(s), ${(status.bytes / 1e6).toFixed(0)} MB, ${failed.length} failing -> ${args.status}\n` +
+      `tmp leftovers: ${tmpLeftovers.scanned ? tmpLeftovers.count : "COULD NOT VERIFY"}\n` +
       `byte-gate corpus-wide: ${byteGate.tally.EXACT} EXACT / ${byteGate.tally.EXTENDED} EXTENDED ` +
       `(${byteGate.merged} merged-standalone, ${byteGate.newText} new-text) / ` +
       `${byteGate.tally.DROPPED} DROPPED / ${byteGate.tally.MISMATCH} MISMATCH; ` +
