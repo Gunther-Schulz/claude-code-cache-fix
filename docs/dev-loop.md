@@ -311,6 +311,37 @@ not decision-complete and the gap is in the entry, not in the rubric. And
 **the derived order is re-derived, not edited**: patching yesterday's list
 re-creates the stored-priority problem one level up.
 
+### A gap CAUGHT by an expensive tier is a gap a cheap tier would have filled silently
+
+Routing finding, 2026-08-08, from reviewing one session's seven dispatches.
+Every lane that mattered corrected something its own brief asserted: a counting
+rule that was structurally blind to the event it detected, a brief that
+contradicted itself, a second consumer the brief never named, a battery running
+vacuously against a deployed artifact, and a sweep whose scope pattern encoded a
+naming convention while the defect was a location. Four of the seven were
+genuinely tier-bound for that reason. Three — a convention written into a doc
+header, 146 mechanical call-site conversions, and pattern-application under a
+stated discrimination rule — probably were not.
+
+The corpus already says a gap FILLED silently is designed at the cheaper tier.
+The inversion is the useful half: **paying a higher tier to CATCH brief defects
+is buying brief quality the expensive way.** The tier was compensating for the
+dispatcher, and that is a fact about the briefs rather than about the work.
+
+What converts a lane from tier-bound to tier-free is moving the NOTICING into
+the brief. The two mechanisms booked the same day do exactly that — the
+post-sweep accounting (classify every leftover as fixed / correct / excluded /
+still-wrong) and "name one member of the class the pattern cannot match" — and
+between them they would have made every sweep-shaped lane safe at a cheaper
+tier, because the check no longer depends on the executor happening to look.
+
+**Stated as reasoning, not measurement.** No brief was run at two tiers, so
+"sonnet could have" is a judgment about the work's character. The honest test at
+brief time is the one that does not need a comparison: if the brief's own
+verifier would catch the defect, the tier is free; if catching it depends on the
+executor noticing something the brief does not ask for, the brief is
+incomplete — and raising the tier is the workaround, not the fix.
+
 ### Once the order is derived, run it in PARALLEL — the width is evaluated, never guessed
 
 Standing operating procedure (operator, 2026-08-07): **as much parallelisation
