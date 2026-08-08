@@ -5987,6 +5987,205 @@ ENOSPC misattribution with its wrong first explanation left in.
   claim dissolving under a one-command probe, all found by a session that
   probed before briefing. None was found by a check.
 
+- **READY — repair the 17 fork-only stale location claims. The other 29 are
+  UPSTREAM'S and must not be touched, because upstream's stated convention IS
+  `~/.claude`.** Accounting completed 2026-08-08 over the whole tracked tree,
+  then re-classified against `upstream/main` by byte-level evidence
+  (`git show upstream/main:<file> | grep -F "<exact text>"` per item, not by a
+  file-ownership guess).
+  Counts: **STILL-WRONG 17**, all confirmed fork-only — the file is absent from
+  upstream, or the text has no upstream match. **UPSTREAM-OWNED 29 locations /
+  ~32 occurrences**, confirmed byte-identical in `upstream/main` right now.
+  CORRECT ~45. EXCLUDED 3 files. The headline dropped from 49 to 17 purely by
+  asking who owns the file — and the earlier figure of 65 contained false
+  positives too (`tools/cache_analysis.py`'s two hits re-verified CORRECT: an
+  explicitly commented legacy fallback, not a stale claim).
+  **The finding that outranks the counts, and it is definition-level:**
+  `proxy/extensions/session-mirror-writer.mjs:8-9` carries the sentence "the
+  established convention is all proxy artifacts live under `~/.claude/`" — and
+  that sentence is byte-identical in `upstream/main`. It is not a fork mistake
+  we failed to clean up; it is UPSTREAM'S OWN STATED DESIGN, inherited
+  unchanged. Corroborated at the code altitude rather than the comment
+  altitude: upstream's `cache-telemetry.mjs:16` literally does
+  `join(claudeHome(), "quota-status")`.
+  **What that does to the upstream-PR question:** the XDG relocation is not "add
+  a missing convention" to upstream, it is REVERSING one they have written down
+  and implemented. That is a design argument with their maintainers, not a
+  cleanup PR, and it should be priced that way before anyone opens it. It also
+  means every one of those 29 comments is CORRECT in its own repo and repairing
+  them here would silently diverge 29 more upstream files.
+  **Three-way README contradiction, now measured.** `README.md` (29 XDG
+  mentions, fork-patched in `332df4a`/`ddcdca3`) and `README.zh.md` were both
+  edited by this fork; `README.ko.md` was not — it is byte-identical to
+  upstream's plus one disclaimer line. So three translations of one document now
+  disagree about where the same proxy writes. The repair is NOT to patch the
+  Korean file into agreement: it is the operator's revert-or-upstream decision,
+  still open, and this entry is its input.
+  Scope of the repair this entry authorises: the 17 fork-only items ONLY —
+  `docs/runbooks/runtime-anomaly.md` (5), `tools/` (9 across
+  `usage-to-dashboard-ndjson`, `cost-report`, `cold-events`, `quota-analysis`,
+  `reminder-migration-census`, `replay`, `sim-session-budget-breaker`), `test/`
+  (3), plus the fork-only source items including `write-owner-only.mjs:6-9,14`
+  (a module DEFINITION that is false against ~15 callers) and
+  `tools/test-config-root.mjs`'s opening definition (a false universal
+  `claudeHome()` claim carrying no path substring — the accounting lane's own
+  answer to "name one member the pattern cannot match").
+  Verifier: after the repair, re-run the accounting's own probes and the
+  STILL-WRONG bucket returns zero for fork-only files, with UPSTREAM-OWNED
+  unchanged at 29 — a repair that shrinks the upstream bucket has overstepped
+  and is the failure this entry exists to prevent.
+  <!-- entry: "repair the 17 fork-only stale location claims" -->
+
+- **READY — the XDG accounting's EXCLUDED-BY-GENRE bucket (~260 occurrences)
+  was never individually verified, and two exceptions have already been found
+  inside it.** Measured 2026-08-08 by the accounting lane, and flagged by that
+  lane itself rather than by a reader — which is what makes it credible.
+  The accounting bucketed `docs/directives/`, `docs/code-reviews/`,
+  `docs/release-tests/`, `docs/audits/` and `BACKLOG.md` as EXCLUDED on the
+  reasoning that they are historical genres whose stale paths are honest
+  history. That reasoning is right for most of the set and wrong for an unknown
+  fraction of it: `robustness-threat-matrix.md` was already a known exception
+  (fixed earlier), and this run found a SECOND —
+  `docs/audits/restart-state-audit.md:84`, which is not frozen history at all
+  because `proxy-restart-transparent-state.md:11` actively cites it as "the
+  authority". Two more are unresolved:
+  `docs/directives/xdg-data-and-config-dir-guard.md` (the directive that
+  MOTIVATED this migration, carrying stale "TODAY:" framing) and
+  `proxy-restart-transparent-state.md` (cites the wrong audit).
+  **So the headline number is a FLOOR, not a count.** STILL-WRONG came back 49
+  occurrences across 30 file:line locations, and that figure explicitly excludes
+  a bucket with a known non-zero error rate. Anyone reading "49" as the residual
+  is reading a partial view as its whole body.
+  **The discriminator that separates the two cases, and why a genre rule cannot:
+  CITATION.** A historical document nobody cites is history; a historical
+  document another live document cites as authority is a live claim wearing a
+  genre's clothes. Genre is a property of the folder; authority is a property of
+  the citation graph, and only the second decides.
+  Design: sweep the excluded set by CITATION rather than by genre — for each
+  file in it carrying a location claim, grep the tracked tree for references to
+  that filename; a file cited by any live document (runbook, directive in force,
+  CLAUDE.md, FORK-NOTES, a tool's comment) is IN SCOPE and gets classified
+  individually. Uncited files stay excluded, and the exclusion is then a
+  measurement rather than an assumption.
+  Verifier, red-first with both polarities available today: the sweep must
+  return `restart-state-audit.md` IN SCOPE (it is cited as authority) and must
+  return at least one genuinely-uncited historical document OUT of scope —
+  otherwise it has simply widened to everything and re-created the genre problem
+  with a different label. Done when every one of the ~260 occurrences carries an
+  individual verdict and the residual is a number.
+  <!-- entry: "the XDG accounting's EXCLUDED-BY-GENRE bucket was never verified" -->
+
+- **READY — key our roots by PROFILE when `CLAUDE_CONFIG_DIR` is set, because
+  that variable IS Claude Code's profile identity and our single global root
+  silently dissolves it.** Designed 2026-08-08 when the operator challenged the
+  don't-use-`claudeHome()` decision; the decision survived, this gap did not.
+  Claude Code's machinery has exactly ONE storage concept: a single relocatable
+  root, no config/data/state split (`getClaudeConfigHomeDir()` is one memoized
+  base for config, caches, state and transcripts alike). `CLAUDE_CONFIG_DIR`
+  therefore carries two meanings at once — WHERE things live, and WHICH PROFILE
+  they belong to. `proxy/claude-home.mjs:5-7` names the second in its own words:
+  "running one proxy per config dir". Our XDG roots honour neither, so two
+  profiles under two config dirs commingle their captures in one directory,
+  losing an isolation upstream's `claudeHome()` callers get for free.
+  **The split this design rests on:** copy Claude's IDENTITY model, refuse its
+  STORAGE model. Its storage model puts data in a config directory because it
+  has no split, and the harness then protects that path by SHAPE — which is the
+  defect that caused the relocation in the first place, so copying it
+  reproduces the thing we fixed. Identity is orthogonal to storage class and
+  costs one path segment.
+  Design: `root(kind)` = explicit `CACHE_FIX_{DATA,STATE}_DIR` used as-is;
+  otherwise `<xdg-or-platform-base>/cache-fix[/<profile>]`, where `<profile>` is
+  OMITTED when `CLAUDE_CONFIG_DIR` is unset or resolves to the default
+  `~/.claude`, and is a short stable key derived from the resolved config-dir
+  path otherwise. Derive the key from the RESOLVED absolute path, not the raw
+  variable, so `~/x`, `$HOME/x` and `/home/g/x` are one profile and not three —
+  the hand-rolled-identity rule applies to path keys too.
+  **Sequencing (hard): lands AFTER `docs/directives/portable-state-roots.md`
+  ships**, and as its own commit. Bundling it hides which edit moved which path,
+  and the portable-roots change carries a byte-identical-paths invariant that
+  must be provable on its own.
+  Verifier, red-first, three arms: (1) `CLAUDE_CONFIG_DIR` unset -> roots
+  byte-identical to today (the no-op control that protects the live deployment
+  — measured 2026-08-08: neither `CLAUDE_CONFIG_DIR` nor `XDG_*` is set in the
+  unit or the operator's environment, so this arm covers production); (2)
+  `CLAUDE_CONFIG_DIR` set to the DEFAULT `~/.claude` -> still no suffix, which
+  is the over-firing control and the one a naive implementation fails; (3) two
+  distinct config dirs -> two distinct roots, and the same dir spelled three
+  ways -> one root. Old code fails (2)... no: old code passes 1 and 2 and fails
+  3, so arm 3 is the red.
+  **AMENDED same day, operator question: the security-boundary case is SOLVED
+  by construction, not by the warning.** The first draft of this entry left a
+  relocated-`CLAUDE_CONFIG_DIR` user with our DATA root at the platform default
+  and offered a warning as the answer. A warning is a notification, not a
+  control, and for a security boundary that is the wrong instrument.
+  What the evidence changed: the DATA root has exactly two consumers
+  (`git grep -l "dataPath("` over `proxy/`), and both are the sensitive ones —
+  the MITM CA (`proxy/config.mjs:67`, already overridable via
+  `CACHE_FIX_CA_DIR`) and the capture corpus (`request-capture.mjs`, already
+  opt-in behind `CACHE_FIX_REQUEST_CAPTURE=1`). STATE holds the regenerable
+  half: event logs, snapshots, status files. So the module's own split rule —
+  unrecoverable if lost -> DATA, regenerable -> STATE — already partitions by
+  SENSITIVITY as well as by durability, and the design can use that.
+  So the roots diverge deliberately, and the rationale is stated because two
+  roots behaving differently is otherwise a surprise:
+
+      DATA:  CACHE_FIX_DATA_DIR
+             -> $CLAUDE_CONFIG_DIR/cache-fix   (when set and non-default)
+             -> platform/XDG data root
+      STATE: CACHE_FIX_STATE_DIR
+             -> platform/XDG state root [+ profile suffix, above]
+
+  DATA follows the boundary the user CHOSE; STATE follows platform convention.
+  A user who deliberately puts their Claude root on an encrypted volume has
+  stated where their Claude-adjacent secrets live, and our preference for
+  spec purity does not outrank that — while regenerable operational logs have
+  no such claim on the volume.
+  **This also simplifies the entry above rather than adding to it:** DATA
+  following `CLAUDE_CONFIG_DIR` gives profile isolation for free, so the profile
+  SUFFIX is needed only on the STATE root. One mechanism, not two.
+  The explicit `CACHE_FIX_*_DIR` overrides stay top of the ladder, which is the
+  escape for the case this does NOT cover: a relocated config dir that the
+  harness's shape-based protection still prompts on. Whether it does is
+  **UNVERIFIED** — the protection keys on path shape and a user-chosen
+  `/secure/claude` is probably not that shape, but nothing here measured it, and
+  the argument above deliberately does not rest on it.
+  `CacheFixConfigDirDivergenceWarning` narrows accordingly: it now fires only
+  when STATE diverges from a set `CLAUDE_CONFIG_DIR`, since DATA no longer
+  does — and if that leaves it firing on every relocated-config user for a
+  divergence that is now deliberate and documented, it should not ship at all.
+  Decide that when the portable-roots lane's version is in hand.
+  <!-- entry: "key our roots by PROFILE when CLAUDE_CONFIG_DIR is set" -->
+
+- **PARKED 2026-08-08 — delete `legacyReadPath` and its 26 call sites. Named
+  missing evidence: 30 consecutive days with no `CacheFixLegacyPathWarning`.**
+  `proxy/xdg-dirs.mjs:100-106` instructs its own deletion — "REMOVE THIS AND
+  EVERY `legacyReadPath(` call after the transition. Grep for the function name;
+  that is the whole deletion" — and nothing anywhere named when the transition
+  ends, so a fallback designed for ONE transition has been indistinguishable
+  from permanent since it landed. Measured 2026-08-08: `git grep
+  "legacyReadPath("` returns **26 hits across 12 files** (`proxy/xdg-dirs.mjs`,
+  `proxy/extensions/cache-telemetry.mjs`, `test/xdg-dirs.test.mjs`, and the
+  tools `bust-triage`, `cold-events`, `cost-report`, `dossier`, `gate-live`,
+  `harvest`, `quota-analysis`, `restart-exposure`,
+  `scan-description-carrier-evidence`), and BACKLOG.md contained zero mentions
+  of it before this entry.
+  **Why PARKED and not READY, with the evidence named so this is a spec rather
+  than drift:** the deletion is trivially enumerable and its DONE-criterion is
+  its own grep returning zero, so nothing about the work is undecided — what is
+  missing is the evidence that the transition finished. Deleting while a machine
+  still holds unmigrated data turns a loud warning into a silent absent-file,
+  which is the failure the fallback exists to prevent.
+  The trigger is measurable rather than a judgement call because the instrument
+  already exists: the fallback emits `CacheFixLegacyPathWarning` once per path
+  per process, so "no warning for 30 consecutive days" is observable. It becomes
+  READY the day that holds.
+  Verifier when it fires: `git grep "legacyReadPath("` returns zero, `npm test`
+  green, and — the arm that matters — a probe run against a HOME containing only
+  legacy-located artifacts must fail LOUDLY with a missing-file error rather
+  than silently resolving to an empty new path, because a silent empty read is
+  exactly what the three-answer design in the module header was built to avoid.
+  <!-- entry: "delete legacyReadPath and its 26 call sites" -->
+
 - **READY — `backlog-lint`'s enumeration exemption is SLASH-ONLY, so the same
   enumeration written with `vs` or commas false-fires.** Measured 2026-08-08,
   live, on the entry two below this one: writing the repo's own three-answer
