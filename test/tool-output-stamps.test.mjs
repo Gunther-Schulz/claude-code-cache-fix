@@ -184,10 +184,14 @@ test("bust-triage ARM 1 — --list rows carry local pairing on every bare stamp 
   assert.match(out, LOCAL_PAIRED, "fixture produced no local-paired row to check");
 });
 
-test("bust-triage ARM 1 — default triage output, capture-step regression (KNOWN, see file header)",
-  { todo: "tools/bust-triage.mjs:702/713-714,720-721,774-775,1562 — capturePairResult's " +
-          "`span`/`pair.before.ts`/`pair.after.ts` print raw, no localSuffix; outside this " +
-          "dispatch's write boundary (tools/ off limits) — see closing report" },
+/* FIXED at the desk 2026-08-08. The lane that wrote this test could not: tools/
+   was outside its write boundary, so it landed the finding as a LIVE todo rather
+   than silencing it, which was the right call. The repair is at the single TEXT
+   emit site, not in the composed string: that detail is also read verbatim by
+   --json, so local-stamp.mjs's withLocalStamps adds the local half on the way out
+   and the stored value stays bare. The todo marker is REMOVED because a todo test
+   reports neither pass nor fail, so it would have guarded nothing. */
+test("bust-triage ARM 1 — default triage output, capture step carries both zones",
   () => {
     const { home, caps, atIso } = btFixture();
     const out = run(BT, ["--at", atIso], { HOME: home, CACHE_FIX_CAPTURE_DIR: caps });
@@ -291,10 +295,12 @@ test("dossier ARM 1 — the rendered dossier BODY (the file, not just stdout) �
     assertLocalPaired("dossier body (steps 1-2, header)", withoutStep3);
   });
 
-test("dossier ARM 1 — step 3 (capture pair) regression (KNOWN, see file header)",
-  { todo: "tools/dossier.mjs:167 — step3Bytes prints pair.before.ts/pair.after.ts raw, " +
-          "no localSuffix, in what the file's own header calls the dossier body a person reads; " +
-          "outside this dispatch's write boundary — see closing report" },
+/* FIXED at the desk 2026-08-08, same repair shape: the whole rendered dossier body
+   is prose nobody parses (the output FILENAME keeps its bare UTC stamp and is
+   composed elsewhere), so one withLocalStamps pass at the render return covers
+   step 3 AND the step 2 / step 4 table rows this lane named as reached but never
+   exercised — closing its own NOT-VERIFIED slot. */
+test("dossier ARM 1 — step 3 (capture pair) carries both zones",
   () => {
     const { home, caps, cwd } = dossierFixture();
     run(DOSSIER, ["--last", "--no-gh"], { HOME: home, CACHE_FIX_CAPTURE_DIR: caps, cwd });

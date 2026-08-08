@@ -64,7 +64,7 @@ import { censusPair, compactEntry, findEditPositions, findBlockMigrations } from
 import { readLines } from "./read-lines.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
-import { localSuffix } from "./local-stamp.mjs";
+import { localSuffix, withLocalStamps } from "./local-stamp.mjs";
 
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
 const CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
@@ -1952,7 +1952,11 @@ async function main(argv) {
   if (note.length) process.stdout.write("\n" + note.join("\n") + "\n");
   process.stdout.write(`\nbust-triage — ${fmt(bust.t)} ${localSuffix(bust.t * 1000)}  ${Math.round(bust.cc / 1000)}k re-written  session ${bust.s.slice(0, 8)}\n\n`);
   for (const s of r.steps) {
-    process.stdout.write(`  ${s.ok ? "OK  " : "WARN"}  ${s.step.padEnd(11)} ${s.detail}\n`);
+    // Both zones at the TEXT boundary only: the detail string is composed once
+    // and also read verbatim by `--json`, so the local half is added on the way
+    // out rather than baked into the stored value (local-stamp.mjs,
+    // withLocalStamps). One call covers every step's stamps.
+    process.stdout.write(`  ${s.ok ? "OK  " : "WARN"}  ${s.step.padEnd(11)} ${withLocalStamps(s.detail)}\n`);
   }
   process.stdout.write(`\n  VERDICT: ${r.verdict}\n  ${r.why}\n`);
   if (r.verdict === "UNCLASSIFIED") {

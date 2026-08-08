@@ -48,3 +48,36 @@ export function localSuffix(epochMsOrDate) {
 export function withLocal(utcText, epochMsOrDate) {
   return `${utcText} ${localSuffix(epochMsOrDate)}`;
 }
+
+// ISO-8601 instants as they appear inside already-composed PROSE. Deliberately
+// anchored on the `T` and the zone marker so a bare date (`2026-08-07`) and a
+// version-looking number never match.
+const ISO_IN_PROSE = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g;
+
+/**
+ * Appends a local suffix to every ISO instant inside a prose string.
+ *
+ * For the case the per-site helpers above cannot reach: a detail string built
+ * ONCE and consumed by two output modes — `--json` (machine-read, must stay
+ * bare) and the text renderer (human-facing, wants both zones). Mutating the
+ * shared string would leak "local" into the JSON; re-deriving at the print
+ * site is impossible when no raw epoch survives there. So the text renderer
+ * calls this on its way out and the stored string is never touched.
+ *
+ * Measured 2026-08-08: `bust-triage`'s capture step composes its detail in
+ * `capturePairResult` and prints it at the single text emit site, so ONE call
+ * here covers the span, both pair stamps, and every other step detail — while
+ * `--json` keeps reading the untouched originals.
+ *
+ * Idempotent: an instant already followed by a local suffix is left alone, so
+ * a string that passed through a per-site helper does not collect a second one.
+ */
+export function withLocalStamps(prose) {
+  if (typeof prose !== "string" || !prose) return prose;
+  return prose.replace(ISO_IN_PROSE, (stamp, offset, whole) => {
+    const rest = whole.slice(offset + stamp.length);
+    if (/^ \(\d{2}:\d{2} local\)/.test(rest)) return stamp;
+    const t = Date.parse(stamp);
+    return Number.isNaN(t) ? stamp : `${stamp} ${localSuffix(t)}`;
+  });
+}

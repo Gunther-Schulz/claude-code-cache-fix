@@ -55,7 +55,7 @@ import {
 } from "./bust-triage.mjs";
 import { censusPair } from "./replay.mjs";
 import { resolveSessionKey } from "../proxy/extensions/prefix-diff.mjs";
-import { localSuffix } from "./local-stamp.mjs";
+import { localSuffix, withLocalStamps } from "./local-stamp.mjs";
 
 const execFileP = promisify(execFile);
 
@@ -370,7 +370,11 @@ export function renderDossier(d) {
     }
     out.push("");
   }
-  return out.join("\n") + "\n";
+  // The rendered dossier is prose a person reads — no machine parses it (the
+  // file NAME keeps its bare UTC stamp, and that is composed elsewhere). One
+  // pass here gives every stamp in the body both zones, including the step 2
+  // and step 4 table rows that render `.ts` straight from their sources.
+  return withLocalStamps(out.join("\n")) + "\n";
 }
 
 /** Collect every class for one bust. All paths injectable so a test never
