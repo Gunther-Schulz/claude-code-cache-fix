@@ -10,7 +10,7 @@ single place that adds up worst-case bytes per default configuration.
 | `bootstrap-defense` | `~/.local/state/cache-fix/bootstrap-log.jsonl` (+ `.1`) | 5 MB single-tier | ≤ 10 MB |
 | `image-retry-circuit-breaker` | `~/.local/state/cache-fix/image-retry-events.jsonl` (+ `.1`) | 5 MB single-tier | ≤ 10 MB |
 | `jsonl-session-mirror` (default-off) | `~/.local/state/cache-fix/session-mirrors/<sessionFilename>/*.jsonl` + `~/.local/state/cache-fix/session-mirrors/session-mirror-events.jsonl` | See below | See below |
-| `cache-telemetry` | `~/.local/state/cache-fix/quota-status/sessions/*.json` | TTL sweep (`CACHE_FIX_QUOTA_STATUS_TTL_DAYS`, default 30) | Bounded by # sessions × small per-file payload |
+| `cache-telemetry` | `~/.local/state/cache-fix/quota-status/sessions/*.json` | TTL sweep (`CACHE_FIX_QUOTA_STATUS_TTL_DAYS`, default 7) | Bounded by # sessions × small per-file payload |
 
 ## `jsonl-session-mirror`
 
