@@ -2,6 +2,22 @@
 // coverage-walk — answer "is this content on the wire" by WALKING the
 // forwarded array, never by scanning it for a substring.
 //
+// *** UNCERTIFIED AS OF 2026-08-08: THIS TOOL HAS NO BITE. ***
+// Its verdicts below rest on a battery run BY HAND — the perishable
+// arrangement this file exists to replace — so they are not booked evidence
+// and must not be quoted as such until `test/` carries a red-first bite for
+// each covering condition. Two conditions have never gone red on anything:
+// `list-content-descent` and the `tool_reference` sub-block reader. They are
+// reach the wire demands (7 list-content blocks in the survey) and the known
+// positive does not exercise them, so they carry the label unverified rather
+// than credit.
+// Why this warning is HERE and not only in the commit message: the builder
+// wrote "must not be pushed without a bite" into `dbf85e4`'s message and the
+// dispatcher pushed it anyway (`7827c4e`), because a commit message sits on
+// nobody's read path once the commit is in. The next reader of this tool
+// reads this file. Remove these lines in the commit that lands the bite —
+// never before, and never by deciding the tool is fine as it is.
+//
 // The question this replaces. A conservation row names a message the gate
 // could not account for; attributing it means asking whether the bytes
 // really left the wire or whether the gate merely could not see them. Every

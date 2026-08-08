@@ -5463,6 +5463,42 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   `tools/absence-scan.mjs` is owned by a running lane (the finding-granular
   discard); this is the booking, and whoever holds that file next takes it.
 
+- **READY — the XDG migration left ~50 legacy `~/.claude/cache-fix*` path
+  citations across the tracked tree, and only the operational read path was
+  swept.** Found 2026-08-08 by a lane that named ONE stale citation
+  (`docs/dev-loop.md`); the grep for the class found, AFTER the operational
+  half was fixed, 85 remaining hits in 48 files (`git grep -c
+  '\.claude/cache-fix' -- . ':!BACKLOG.md'`, summed — 106 in 49 files counting
+  this file's own prose, which is history and stays). The
+  operational half is FIXED in this entry's commit — `docs/dev-loop.md` and the
+  three runbooks, 11 citations repointed to
+  `~/.local/state/cache-fix/gate-status.json`,
+  `~/.local/share/cache-fix/captures/` and
+  `~/.local/state/cache-fix/snapshots/`, each proved by RUNNING the documented
+  command (the `jq` returns `false / 3`, the census glob resolves 100 captures)
+  rather than by re-reading the path.
+  **What is deliberately NOT swept, and why it is a decision rather than an
+  omission.** Three populations, and bulk-editing them would each be a
+  different mistake. (1) HISTORICAL records — `docs/code-reviews/`,
+  `docs/audits/`, `docs/disclosure/`, `march-23-regression-investigation.md`:
+  these record what was true when written, and rewriting them falsifies the
+  record. Leave permanently. (2) UPSTREAM-FACING docs — `README.md`,
+  `README.zh.md`, `CHANGELOG.md`, `docs/guia-pt-br.md`, `docs/monitoring.md`,
+  `docs/CONSUMER-SETUP.md`, `docs/disk-usage.md`: these document behaviour for
+  cnighswonger's users, and whether they are wrong depends on whether the
+  PROXY's own defaults moved or only this machine's data did. Unresolved and it
+  is the real question. (3) CODE comments and docstrings in `proxy/**` and
+  `tools/**`: same dependency, plus `tools/alias-claim.mjs:48`'s
+  `LEGACY_REGISTRY` is a DELIBERATE one-transition fallback and must not be
+  touched.
+  **Done-criterion:** answer (2) first by reading what `proxy/` actually writes
+  today — if the defaults moved, the upstream-facing docs are wrong for every
+  consumer and that is a shipping bug, not a docs chore; if only this
+  deployment's data moved, they are correct as written and the sweep ends. The
+  entry stays READY because that read is the whole decision and it is cheap.
+  Verifier: `git grep -c "\.claude/cache-fix"` before and after, with the
+  three populations accounted for by name rather than by count.
+
 - **PARKED — nothing checks that a booked verifier is still RUNNABLE, so a
   red-first arrangement rots silently between booking and build.** Booked
   2026-08-08 as the WRITER half of the leak-scan entry's stale-verifier

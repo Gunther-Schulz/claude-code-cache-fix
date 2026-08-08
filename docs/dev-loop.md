@@ -401,7 +401,7 @@ Designing a NORMALIZATION (rewriting CC's form into a canonical one) has its
 own gate, and it is not optional:
 
 ```sh
-node tools/reminder-migration-census.mjs ~/.claude/cache-fix-captures/*.jsonl
+node tools/reminder-migration-census.mjs ~/.local/share/cache-fix/captures/*.jsonl
 ```
 
 It byte-tests a canonical rule against what CC itself emits, across the whole
@@ -422,7 +422,7 @@ MISMATCH blocks shipping — see the matrix's "Byte-match test".
 its own curation axis" below. `gate-live` is the one that runs against
 production-shaped input.
 
-Captures live in `~/.claude/cache-fix-captures/` (written by the
+Captures live in `~/.local/share/cache-fix/captures/` (written by the
 `request-capture` extension, `CACHE_FIX_REQUEST_CAPTURE=1`).
 
 ## The gate
@@ -1168,6 +1168,24 @@ Two rules, both learned the expensive way:
    than the named condition; a mutation that leaves the bite green is
    evidence about the mutation before it is evidence about the bite.
 
+   **And a mutation arm that returns the BASELINE answer indicts the ARM
+   first, the finding second.** Measured 2026-08-08, twice in one build, with
+   opposite causes — which is the whole reason it cannot be read either way
+   without checking the arm itself. The `list-content-descent` arm returned
+   the baseline (COVERED=31) because the condition genuinely is a no-op on
+   that known positive: a true negative, and the finding that corrected the
+   entry. The `separator-skip` arm returned the baseline in a scratch battery
+   because it was MIS-PARAMETERIZED — the disabling flag was passed with the
+   wrong sense, so the arm never disabled anything — and the wrong figure was
+   already written into a tool header before the real run caught it. This is
+   the "three arms agreeing IS the finding" rule from the proxy-probe section,
+   one level in: a discriminating instrument has to disagree somewhere, and an
+   arm that agrees with the baseline is the first suspect, never the
+   conclusion. Check the arm did what its name says before reading its result
+   — for a `--without <condition>` flag, the cheap proof is that the condition
+   is observably off (a counter at zero, a branch never entered), not that the
+   flag was passed.
+
    **A bite's expected value comes from the invariant's DEFINITION, never
    from the implementation or the reasoning that produced it** — an
    expectation with the same parentage as the code pins the bug it should
@@ -1191,7 +1209,7 @@ Two rules, both learned the expensive way:
    That is what `tools/gate-live.mjs` is for — it runs the real gate over the
    live captures (daily, via `cache-fix-gate.timer`), because they are the
    only production-shaped input that exists. `doctor` reads its verdict from
-   `~/.claude/cache-fix-gate-status.json`. Run it by hand after any change
+   `~/.local/state/cache-fix/gate-status.json`. Run it by hand after any change
    that touches how the tools READ or RETAIN a capture; the fixtures will not
    tell you.
 

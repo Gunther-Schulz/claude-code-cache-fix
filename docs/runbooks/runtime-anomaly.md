@@ -138,7 +138,7 @@ whether it is on. Before trusting an absent `rate-limit-events.jsonl` as
    suppression had stripped the requests' final message. "The platform
    did it" is comfortable, specific, and was wrong both times it was
    said out loud before the grep. Grep the anomaly's timestamp across
-   `~/.claude/cache-fix-snapshots/*-events.jsonl` (per-session insertion,
+   `~/.local/state/cache-fix/snapshots/*-events.jsonl` (per-session insertion,
    deferred-tool, guard events) before writing down any cause outside
    this repo's own code.
 

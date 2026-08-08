@@ -141,7 +141,7 @@ already carries — never by trusting that two counters agree.
 
    Check the daily sweep's own coverage before leaning on it: a sweep
    that FINISHED before the bust happened says nothing about the bust
-   (`jq -r '.started, .finished' ~/.claude/cache-fix-gate-status.json`).
+   (`jq -r '.started, .finished' ~/.local/state/cache-fix/gate-status.json`).
 
 5. **Read what the gate already prints before reaching for a probe.**
    Every stability violation carries its own attribution
@@ -171,7 +171,7 @@ already carries — never by trusting that two counters agree.
 7. **Rule out ourselves at our own event logs before any external
    attribution.** The pipeline is a live ACTOR, and every mutating
    extension logs its acts. Grep the timestamp in
-   `~/.claude/cache-fix-snapshots/*-events.jsonl`,
+   `~/.local/state/cache-fix/snapshots/*-events.jsonl`,
    `*-insertion-events.jsonl`, `*-deferred-tool-events.jsonl`. "The
    platform did it" is claimable only once our logs are clean at the
    timestamp. The grep takes seconds; skipping it wasted the machinery

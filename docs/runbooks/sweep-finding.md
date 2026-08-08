@@ -15,7 +15,7 @@ instance), `CLAUDE.local.md` ("Verification stack", "Deployment coupling"),
 (the READY-item destination for an instrument defect or a mapping fix).
 
 The sweep is `tools/gate-live.mjs`, run daily by `cache-fix-gate.timer`,
-writing `~/.claude/cache-fix-gate-status.json`. It replays the real gate over
+writing `~/.local/state/cache-fix/gate-status.json`. It replays the real gate over
 every live capture under the SERVING gate set (dev-loop.md, "Replay the
 configuration that is SERVING"). It produces findings every morning, forever,
 with nobody present when they appear, while the evidence behind those
@@ -47,13 +47,13 @@ Read pays 25k tokens for a third of the file plus a paging notice
 (dev-loop.md, "Never `Read` that status file whole"). Useful queries:
 
 ```sh
-jq -r '.started, .finished, .ok, .failing, .proving, .unproving' ~/.claude/cache-fix-gate-status.json
-jq -r '.ok, .failing, (.rows[]|select(.exit!=0)|.file)' ~/.claude/cache-fix-gate-status.json
-jq -r '.code, .gateSource, .host, .version' ~/.claude/cache-fix-gate-status.json
-jq -r '.absorption, .backlogLint' ~/.claude/cache-fix-gate-status.json
+jq -r '.started, .finished, .ok, .failing, .proving, .unproving' ~/.local/state/cache-fix/gate-status.json
+jq -r '.ok, .failing, (.rows[]|select(.exit!=0)|.file)' ~/.local/state/cache-fix/gate-status.json
+jq -r '.code, .gateSource, .host, .version' ~/.local/state/cache-fix/gate-status.json
+jq -r '.absorption, .backlogLint' ~/.local/state/cache-fix/gate-status.json
 # a specific capture's finding rows, with timestamps and request numbers:
 jq -r '.rows[] | select(.file=="<capture-file>") | .conservationRows, .stabilityRows' \
-  ~/.claude/cache-fix-gate-status.json
+  ~/.local/state/cache-fix/gate-status.json
 ```
 
 Each finding row (`stabilityRows`, `conservationRows`, `sequenceRows`,
