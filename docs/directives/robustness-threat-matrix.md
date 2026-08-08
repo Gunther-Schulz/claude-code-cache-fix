@@ -73,6 +73,53 @@ NEW information rather than re-serialized information, no normalization
 can absorb it; that is a different class and gets booked as one, never
 folded into the normalization's claim.
 
+Where a finding goes (2026-08-07, after row 24's cell came to
+contradict itself): **a walk, an instance or a measurement about row N
+lands as a dated section BELOW the table; the CELL carries only what
+the row currently IS — its status and disposition.** The section form
+is the one already in use here:
+
+    ### Row N datapoint — <date>: <the finding in a line>
+
+Rows 3, 24 and 27 carry one each and row 4 carries seven. A stamp in
+the heading is UTC and carries local time beside it when it is
+operator-facing (`… — 2026-08-07 12:58:06Z (14:58 local): …`). The
+other dated section below the table is the per-event walk,
+`## Event walk <stamp> — <verdict>`, which records one event end to
+end. Either form is a section, and neither is a cell.
+
+The reason is structural, not tidiness, and it is measured on this
+file. Row 24's status is a single table cell of 13,161 characters. It
+carries a 2026-08-02 measurement — "mid-session corpus edits are FREE,
+only the resume pays", 246 requests over 1h40m — and, a few hundred
+words later, a 2026-08-06 addendum asserting the opposite: editing the
+global corpus during live sessions "re-bills every one of them from
+index 0". Both stood in one cell until the addendum was retracted
+2026-08-07 on re-measurement (a live session across a corpus edit:
+`messages[0]` 64,006 bytes before and 64,006 after). Neither the author
+nor any reader was placed to catch it. An author appending to a cell
+that long does not read it first — the addendum says as much in its own
+words, "recorded here because nothing else requires one to become a
+row" — and on the reading side `matrixRow` truncates the status to 260
+characters (`tools/bust-triage.mjs:751`), so every tool that surfaces a
+row shows a window in which the contradiction cannot appear. A cell
+nobody reads whole is a label standing over its own body, which is the
+drift `docs/dev-loop.md` names when it refuses to store a priority
+number in a backlog entry; appending to one is how a row comes to
+contradict itself in place.
+
+The form was here already and simply was not used — every other walk
+that week landed in a section below the table. A section is readable
+at its own heading, diffable line by line, and reachable by a reader
+arriving at the row from anywhere; a long cell is none of those, and
+renders as one unbroken line in every diff.
+
+So a walk that changes a row makes two edits, not one: the finding goes
+into its new section, and the cell's status is rewritten to say what
+the row is now, pointing at the datapoint that moved it. This binds
+what gets written from here on; it is not an instruction to go strip
+the history out of cells that have already accumulated it.
+
 | # | Class | Mechanism | Status |
 |---|---|---|---|
 | 1 | Mid-history insertion (queue splice, notification, tool-result race, task_reminder) | entry inserted at index < tail | MITIGATED-half (ladder, this branch) → NEAR-ZERO (insertion-normalization, this branch) |
