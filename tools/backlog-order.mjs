@@ -157,6 +157,30 @@ export function reorder(bullets, anchors) {
   return [...ranked, ...bullets.filter((_, i) => !taken.has(i))];
 }
 
+// A bullet's leading line, truncated to a readable width — same 72-char
+// convention the rewrite path's "ranked head is now ..." summary already uses.
+function leadingLine(bullet) {
+  return bullet.split("\n", 1)[0].slice(0, 72);
+}
+
+// A mismatch report names WHAT is misplaced, not only that something is —
+// the fired shape (2026-08-08): `--check` printed "does NOT match" and
+// nothing else, so establishing why cost a stash-and-bisect on a copy other
+// agents write to, even though `ordered` and `bullets` are both already in
+// hand at the call site. Null means the two sequences match.
+export function describeMismatch(bullets, ordered) {
+  let index = -1;
+  let misplacedCount = 0;
+  for (let i = 0; i < ordered.length; i++) {
+    if (ordered[i] !== bullets[i]) {
+      misplacedCount++;
+      if (index < 0) index = i;
+    }
+  }
+  if (index < 0) return null;
+  return { index, found: leadingLine(bullets[index]), expected: leadingLine(ordered[index]), misplacedCount };
+}
+
 function main() {
   const text = readFileSync(FILE, "utf8");
   const anchors = readAnchors(text);
@@ -167,13 +191,21 @@ function main() {
   const { lines, head, tail, pre, bullets } = splitOpen(text);
   const ordered = reorder(bullets, anchors);
 
-  const same = ordered.every((b, i) => b === bullets[i]);
+  const mismatch = describeMismatch(bullets, ordered);
   console.log(`${anchors.length} anchors, ${bullets.length} bullets in '## Open'`);
   if (CHECK) {
-    console.log(same ? "file order MATCHES the derived order" : "file order does NOT match the derived order");
-    process.exit(same ? 0 : 1);
+    if (!mismatch) {
+      console.log("file order MATCHES the derived order");
+      process.exit(0);
+    }
+    console.log("file order does NOT match the derived order");
+    console.log(`  first divergent index: ${mismatch.index}`);
+    console.log(`  found:    ${JSON.stringify(mismatch.found)}`);
+    console.log(`  expected: ${JSON.stringify(mismatch.expected)}`);
+    console.log(`  ${mismatch.misplacedCount} bullet(s) misplaced`);
+    process.exit(1);
   }
-  if (same) {
+  if (!mismatch) {
     console.log("already in ranked order — no write");
     return;
   }
