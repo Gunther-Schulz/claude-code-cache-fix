@@ -66,26 +66,25 @@ REACH, then cost. If that is wrong it is a decision to revisit, not a bug.
 
 ### Irreversible — evidence or history that cannot be undone
 
-Three members, all operator-side/dotfiles, all passing the partition's two
-guards: the failure mode is public git history (the remediation precedent in
-this repo's `CLAUDE.md` is destroying and recreating a host), and the trigger
-rate is MEASURED rather than imagined — four overrides in two days, and rank 1
-below fired on a real push yesterday.
+Two members remaining, both operator-side/dotfiles, both passing the
+partition's two guards: the failure mode is public git history (the remediation
+precedent in this repo's `CLAUDE.md` is destroying and recreating a host), and
+the trigger rate is MEASURED rather than imagined — four overrides in two days.
 
-1. **The leak scan's already-published discard is BLOB-granular, so any edit to
-   a file carrying a pre-existing finding is blocked forever.** NEW to this
-   partition, and it leads it: this is a gate that CANNOT PASS, live right now,
-   and its only exit is `--no-verify` — i.e. it is actively training the bypass
-   that would defeat ranks 2 and 3 as well. It is a double member (a check
-   firing on a non-defect is also a lying instrument); it ranks here because
-   what the bypass costs is unremediable. Measured yesterday on the guard's
-   FIRST real push after widening; red-first verifier available immediately.
-   <!-- entry: "the leak scan's already-published discard" -->
-2. **"Already on a remote" is not "already public".** The shipped leak scan
+**This partition's rank 1 SHIPPED the same day it was ranked** (2026-08-08;
+fork `7591fec`, dotfiles `d144540`) — the BLOB-granular discard is now
+finding-granular over each path's published blob versions, verified BLOCKED ->
+allowed on the real case and still BLOCKING a planted new identifier. Its
+anchor was REMOVED rather than re-pointed, per the DONE-anchor guard's own
+instruction: removal only, re-derive to re-rank. So the ranks below are 1 and 2
+of a partition that no longer has a third, and this pass does not renumber them
+— a re-derivation does.
+
+1. **"Already on a remote" is not "already public".** The shipped leak scan
    reasons about publication from the wrong predicate; a wrong answer here
    passes bytes into public history.
    <!-- entry: "and the shipped scoping cannot tell them apart" -->
-3. **The push-side leak scan reaches ONE repo.** Every other repo on this
+2. **The push-side leak scan reaches ONE repo.** Every other repo on this
    machine pushes past it.
    <!-- entry: "the push-side leak scan reaches ONE repo; body and design" -->
 
@@ -386,63 +385,6 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
 (dispatch-guards `dev-notes/`, already written there).
 
 ## Open
-
-- **READY (operator-side, dotfiles) — the leak scan's already-published discard
-  is BLOB-granular, so any edit to a file carrying a pre-existing finding is
-  blocked forever.** Measured 2026-08-07, on the guard's FIRST real push after
-  being widened to `claude-worktime`: a one-function fix to
-  `claude-worktime.sh` was blocked by two `capture-key-prefix` findings at lines
-  1664 and 1933, both **byte-identical to lines already in `origin/main`**
-  (`git grep -F "<line>" origin/main` → present). The bytes are months public
-  and unremediable; blocking the push does not unpublish them, it only stops all
-  future work on that file.
-  **Mechanism:** the discard asks whether the BLOB is already published. Editing
-  the file mints a new blob, so a pre-existing finding inside it reads as new on
-  every subsequent push. The commit-MESSAGE half of the same discard works
-  correctly and is what the widening lane demonstrated end-to-end — which is why
-  this passed its verifier and still failed in production: the lane's E2E case
-  planted its identifier in a NEW file, so no already-published blob was ever
-  edited.
-  **This is a gate that cannot pass**, the shape `docs/dev-loop.md` already names
-  for `--git-range` over a whole branch, and it trains exactly the `--no-verify`
-  habit the hook's own header was rewritten to prevent. It is live right now.
-  Design, decided: make the discard FINDING-granular — a finding whose matched
-  bytes already appear at the same path in the published history is discarded,
-  regardless of which blob currently carries them. The path qualifier keeps it
-  narrow: the same bytes appearing in a NEW file are still a finding.
-  **CORRECTED 2026-08-08, by probing the entry's own verifier before briefing
-  against it.** The line below read "Verifier, red-first and available
-  immediately: `git push` in the `claude-worktime` clone with commit `0527e88`
-  present must go from BLOCKED to allowed". It is not runnable, and the same
-  session that booked it is what killed it: `git log --oneline origin/main..HEAD`
-  in that clone is EMPTY, and the offending bytes were scrubbed hours later by
-  `cb1b5b4` ("scrub the capture-key prefixes out of four comments"). A booked
-  entry's mechanism claim earns the same disproving probe as any other
-  load-bearing claim — the rule `docs/dev-loop.md` states, firing on the entry
-  that quotes it.
-  **The runnable red, on real history and needing no construction** (executed
-  2026-08-08 from the claude-worktime clone):
-  `node <fork>/tools/absence-scan.mjs --git-range cb1b5b4~2..cb1b5b4^` reports
-  the two `capture-key-prefix` findings in `claude-worktime.sh` at lines 1664
-  and 1933. `cb1b5b4^` IS `0527e88`, so the pushed range is the one the entry
-  meant; the difference is that the arrangement is driven through the scanner
-  and the hook's filter rather than through a push.
-  **And this enlarges the design rather than merely repairing the verifier.**
-  Those bytes are reachable in published HISTORY (at `cb1b5b4^`, an ancestor of
-  `origin/main`) and are ABSENT from today's `origin/main` TIP, because the
-  scrub removed them. The shipped code reasons over published TIPS; the design
-  sentence above says "published history". Tip-only is why the right sentence
-  and the wrong implementation coexisted, and the fix must walk the path's
-  distinct published blob versions, not the tip.
-  Verifier, red-first, as executed above; and a planted NEW identifier in the
-  same file must still BLOCK —
-  both halves required, since a discard that swallows the new one has traded a
-  gate that cannot pass for a gate that does not fire. Plant it in a throwaway
-  clone, never in the real one.
-  **Do not "fix" this with an allowlist entry:** the allowlist is class-scoped
-  per path, so exempting `claude-worktime.sh` from `capture-key-prefix` would
-  hide every FUTURE capture key in the file that matters most.
-  <!-- entry: "the leak scan's already-published discard" -->
 
 - **READY (operator-side, dotfiles) — "already on a remote" is not "already
   public", and the shipped scoping cannot tell them apart.** Found 2026-08-06
@@ -1605,6 +1547,93 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — 2026-08-08; fork `7591fec` = `e607c3a` + the test fix, dotfiles
+  `d144540`) the leak scan's already-published discard
+  is BLOB-granular, so any edit to a file carrying a pre-existing finding is
+  blocked forever.**
+  **SHIPPED, and both halves verified by the dispatcher against the DEPLOYED
+  scanner rather than the lane's copy** — the distinction matters, because the
+  lane's own battery first ran green vacuously against the deployed scanner
+  that had no `--at` yet, which is how it found the need for a capability
+  assert. Real case (range `cb1b5b4~2..cb1b5b4^`, driven through the hook's
+  `main()` with git's own stdin, never a live push): hook exit **1 -> 0**, with
+  `2 Befund(e) ... uebersprungen: dieselben Bytes liegen am selben Pfad schon in
+  der veroeffentlichten History`. Anti-swallow, in a throwaway clone deleted
+  afterwards: a freshly planted identifier still **BLOCKS** (exit 1, one
+  finding). A discard that swallowed the new one would have traded a gate that
+  cannot pass for a gate that does not fire, so that half was the required one.
+  **Mechanism as built:** every finding carries an identity —
+  `sha256(class + NUL + bytes)[:12]`, hashed never printed, emitted INSIDE the
+  parens so the hook's `FINDING_DATEI` regex stays backward-compatible by
+  construction; a new `--at <ref> <path>` mode classifies content by its
+  LOGICAL path so allowlisting and class-scoped exemptions behave as in
+  `--git-range`; and the hook walks each path's DISTINCT published blob
+  versions, unioning identities. Fail-closed at every branch.
+  **The gate then blocked the dispatcher's own push of the fix** — four
+  `capture-key-prefix` findings from literal synthetic keys in the new tests.
+  Repaired with the file's existing convention (`SYNTH_KEY`, built from
+  fragments so no literal sits on disk), never an allowlist entry and never
+  `--no-verify`: exempting the scanner's own test file would blind it to the
+  class that matters most, which is this entry's own argument about
+  `claude-worktime.sh`. Touching the test to fix it also exposed a real hole in
+  it — `SYNTH_KEY_2` was never asserted to fire the class on its own, so the
+  "a line gains a SECOND identifier" test had been proving something weaker
+  than it claimed.
+  Original entry follows. Measured 2026-08-07, on the guard's FIRST real push after
+  being widened to `claude-worktime`: a one-function fix to
+  `claude-worktime.sh` was blocked by two `capture-key-prefix` findings at lines
+  1664 and 1933, both **byte-identical to lines already in `origin/main`**
+  (`git grep -F "<line>" origin/main` → present). The bytes are months public
+  and unremediable; blocking the push does not unpublish them, it only stops all
+  future work on that file.
+  **Mechanism:** the discard asks whether the BLOB is already published. Editing
+  the file mints a new blob, so a pre-existing finding inside it reads as new on
+  every subsequent push. The commit-MESSAGE half of the same discard works
+  correctly and is what the widening lane demonstrated end-to-end — which is why
+  this passed its verifier and still failed in production: the lane's E2E case
+  planted its identifier in a NEW file, so no already-published blob was ever
+  edited.
+  **This is a gate that cannot pass**, the shape `docs/dev-loop.md` already names
+  for `--git-range` over a whole branch, and it trains exactly the `--no-verify`
+  habit the hook's own header was rewritten to prevent. It is live right now.
+  Design, decided: make the discard FINDING-granular — a finding whose matched
+  bytes already appear at the same path in the published history is discarded,
+  regardless of which blob currently carries them. The path qualifier keeps it
+  narrow: the same bytes appearing in a NEW file are still a finding.
+  **CORRECTED 2026-08-08, by probing the entry's own verifier before briefing
+  against it.** The line below read "Verifier, red-first and available
+  immediately: `git push` in the `claude-worktime` clone with commit `0527e88`
+  present must go from BLOCKED to allowed". It is not runnable, and the same
+  session that booked it is what killed it: `git log --oneline origin/main..HEAD`
+  in that clone is EMPTY, and the offending bytes were scrubbed hours later by
+  `cb1b5b4` ("scrub the capture-key prefixes out of four comments"). A booked
+  entry's mechanism claim earns the same disproving probe as any other
+  load-bearing claim — the rule `docs/dev-loop.md` states, firing on the entry
+  that quotes it.
+  **The runnable red, on real history and needing no construction** (executed
+  2026-08-08 from the claude-worktime clone):
+  `node <fork>/tools/absence-scan.mjs --git-range cb1b5b4~2..cb1b5b4^` reports
+  the two `capture-key-prefix` findings in `claude-worktime.sh` at lines 1664
+  and 1933. `cb1b5b4^` IS `0527e88`, so the pushed range is the one the entry
+  meant; the difference is that the arrangement is driven through the scanner
+  and the hook's filter rather than through a push.
+  **And this enlarges the design rather than merely repairing the verifier.**
+  Those bytes are reachable in published HISTORY (at `cb1b5b4^`, an ancestor of
+  `origin/main`) and are ABSENT from today's `origin/main` TIP, because the
+  scrub removed them. The shipped code reasons over published TIPS; the design
+  sentence above says "published history". Tip-only is why the right sentence
+  and the wrong implementation coexisted, and the fix must walk the path's
+  distinct published blob versions, not the tip.
+  Verifier, red-first, as executed above; and a planted NEW identifier in the
+  same file must still BLOCK —
+  both halves required, since a discard that swallows the new one has traded a
+  gate that cannot pass for a gate that does not fire. Plant it in a throwaway
+  clone, never in the real one.
+  **Do not "fix" this with an allowlist entry:** the allowlist is class-scoped
+  per path, so exempting `claude-worktime.sh` from `capture-key-prefix` would
+  hide every FUTURE capture key in the file that matters most.
+  <!-- entry: "the leak scan's already-published discard" -->
 
 - **READY — the inverse-direction coverage walk: an `out`/`invented`
   conservation row asks "CC never sent this in this conversation", which no
