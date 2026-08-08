@@ -6967,6 +6967,61 @@ ENOSPC misattribution with its wrong first explanation left in.
   derivation).
   <!-- entry: "a lane whose worktree is RECLAIMED lands in the shared main checkout" -->
 
+- **READY — the pre-push suite verifies the WORKING TREE, not the commits being
+  pushed, so it can go red on code that is not being pushed and green on a
+  commit that is broken.** Found 2026-08-08 afternoon by an operator question
+  ("is that a bug? should be fixed also then") about a blocked push, which is
+  the right question: the blockage looked like correct guard behaviour and the
+  guard underneath it is aimed at the wrong object.
+  **Measured, both facts checked rather than assumed:** `tools/git-hooks/pre-push:41`
+  runs bare `npm test`. At the blocked push, `git status --short` reported
+  `?? test/xdg-writer-guard.test.mjs` and `?? tools/xdg-writer-guard.mjs` — both
+  UNTRACKED — while `git log origin/main..HEAD` listed exactly three commits,
+  none of which touched either file. So the hook failed a push over a file that
+  was not in it.
+  **The false-red is the cheap direction. The false-GREEN is why this ranks.**
+  The same defect runs the other way and silently: uncommitted fixes in the
+  working tree make a BROKEN committed state pass. Edit a file, do not commit
+  it, push — the suite runs against the edit and the pushed commit is broken,
+  with a green hook on the record. This repo has already written that shape down
+  twice in `docs/dev-loop.md` from other instruments ("new runs against new", a
+  red-first arrangement decaying into a vacuous green); this is the same error
+  in the guard that stands in front of the irreversible boundary.
+  **Second cost, and it is the one that compounds:** the hook's own failure text
+  advertises `git push --no-verify` as the escape. The repo hook is CHAINED
+  behind the dotfiles global hook that runs the fixture-leak scan, so every
+  bypass taken for an unrelated red also skips the scan at the exact boundary
+  where git history stops being editable. A guard that false-fires on a
+  co-writer's scratch, while naming its own bypass in the error, is training the
+  override reflex on the one guard that must never be overridden.
+  Design, decided: run the suite against the PUSHED SHA, not the working tree —
+  `git worktree add --detach <tmp> <sha>` (the tip being pushed), symlink
+  `node_modules` into it (the repo's standing worktree hazard, already noted in
+  this hook's own header comment at `:14`), run `npm test` there, remove it.
+  Do NOT `git stash` the working tree instead: stashing mutates a working copy
+  that a co-writer may be mid-edit in, which is the one thing a pre-push hook
+  must never do.
+  Verifier, red-first, BOTH directions required and both reproducible in a
+  throwaway clone (never against this repo — a destructive repro aimed at a
+  working tree took out the main clone and six worktrees once):
+  (1) FALSE-RED: commit a green change, add an UNTRACKED failing test, push —
+  must be ALLOWED after the fix and is BLOCKED today (today's behaviour is the
+  red, already observed live);
+  (2) FALSE-GREEN: commit a BROKEN change, then fix it in the working tree
+  WITHOUT committing, push — must be BLOCKED after the fix and is ALLOWED today.
+  Direction (2) is the one that must be demonstrated, because it is the one
+  nobody has seen fire and the one that lets a broken commit reach main.
+  Negative control so the hook does not simply always block: an ordinary clean
+  push with a green tree must still pass, unchanged.
+  **Do not weaken the blocking while fixing the aim.** The whole-suite run and
+  the hard block are correct and stay; what changes is only WHICH tree it runs
+  against. A change that narrowed the suite to touched files would trade a real
+  guard for push latency.
+  Consumer tier **2 (feeds the gates)** — it is the gate in front of the
+  irreversible boundary. Unranked (booked after the derivation); on the next
+  derivation it is a Tier B head candidate on the false-green direction alone.
+  <!-- entry: "the pre-push suite verifies the WORKING TREE, not the commits being pushed" -->
+
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
 
