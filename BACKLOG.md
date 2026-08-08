@@ -5825,9 +5825,13 @@ ENOSPC misattribution with its wrong first explanation left in.
   the list ITEMISED here rather than left in a scratchpad, because a dispatch
   was in flight against it and its input had no durable carrier — if that lane
   had died the work would have been lost with the message that described it.
-  IN FLIGHT as of this booking (worktree `cache-fix-xdgd`, branch
-  `wt/xdg-bucket-d`, base `bdd964d`); if that lane landed, re-grade, and if it
-  did not, this entry is complete on its own.
+  **The in-flight lane was STOPPED at session close and its work DISCARDED** —
+  twelve files edited, nothing committed, so there was no verified artifact to
+  salvage and no report to book. Recorded rather than hidden: the cost was that
+  lane's time, and the reason it cost nothing more is that this list is in the
+  file. A worktree of half-finished uncommitted edits carried across a session
+  boundary is worse than redoing it — the next session would find modifications
+  with no owner and no verification, and might trust them.
   **The list, by write-set, so it can be split or run whole:**
   (1) SOURCE COMMENTS contradicting their own module, 14 — each file imports and
   calls `statePath`/`dataPath`: `proxy/extensions/prefix-diff.mjs:5,11,954,957`
