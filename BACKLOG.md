@@ -1834,7 +1834,13 @@ ENOSPC misattribution with its wrong first explanation left in.
   (`midturn-answer-check.py`), so the pattern is proven here. It changes what
   every session on this machine is nagged about, so it is not a fork-side call.
 
-- **READY (small) — `backlog-order.mjs --check` reports a verdict with no
+- **DONE `c567907` (2026-08-08) — `backlog-order.mjs --check` names the
+  misplaced bullet.** On mismatch it now prints the first divergent index, the
+  leading line found there, the leading line expected there, and a misplaced
+  count. Desk verification beyond the lane: I probed the combination the lane
+  reported as untested (mismatch at index 0, three displaced, and a full
+  reversal) — correct in all three. ORIGINAL ENTRY:
+- **(shipped) READY (small) — `backlog-order.mjs --check` reports a verdict with no
   diagnostic, so establishing WHY costs a stash-and-bisect.** Fired 2026-08-08:
   after booking three entries the check printed `file order does NOT match the
   derived order` and nothing else. Finding out that my own insertion caused it
@@ -1873,7 +1879,15 @@ ENOSPC misattribution with its wrong first explanation left in.
   Done-criterion: red-first on the reverted site, control green, suite green.
   Write boundary: `test/tool-output-stamps.test.mjs` only.
 
-- **READY (small) — anchored markdown splices fail SILENTLY, and the pattern is
+- **DONE `8fc54e0` (2026-08-08) — `tools/md-splice.mjs` makes anchored splices
+  fail loudly.** Desk verification beyond the lane: I replayed the ORIGINAL
+  incident against the helper — a two-op call whose second op targets `## Open`
+  in a file that says `## Ready` — and it threw naming `operation 2 (find:
+  "## Open")` with expected/actual counts, leaving the file byte-identical.
+  That is the instrument going red on the defect it was built for, established
+  by replay rather than by its own expectation. First real use: this very
+  grading edit. ORIGINAL ENTRY:
+- **(shipped) READY (small) — anchored markdown splices fail SILENTLY, and the pattern is
   used constantly here.** Measured 2026-08-08 in `claude-worktime`: a python
   splice targeted `## Open`, that repo uses `## Ready`, and because only the
   FIRST replacement was asserted the second dropped with no error — the only
