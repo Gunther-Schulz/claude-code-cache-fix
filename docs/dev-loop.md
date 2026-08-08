@@ -484,6 +484,53 @@ Claude Code's; one absent there is OURS. That single fact is what makes
 attribution possible instead of speculative — use it before blaming either
 side.
 
+### No mitigation is DESIGNED before the attribution verdict exists
+
+Added 2026-08-08 on an operator question — *"are we careful not to attribute
+wrongly and create a new mitigation for a bust we caused?"* — and the honest
+answer, checked in the code rather than in the doctrine, was NO, with the gap
+in a specific place. The PRIMITIVE above is implemented and correct:
+`replay.mjs` computes it at two independent sites (`ours: inDiv === null ||
+inDiv > outDiv` at `:1537`, and the `ccIdenticalAtOutDiv` annotation printed
+per stability violation at `:3897`). **`tools/bust-triage.mjs` — the tool the
+runbook tells you to run FIRST, and the one that emits the VERDICT — computes
+none of it.** Its verdicts (MITIGATED / KNOWN-OPEN / UNCLASSIFIED /
+UNVERIFIABLE) answer *which threat-matrix row*, never *whose divergence*. The
+grep is the evidence: zero attribution logic in that file, against two live
+sites in `replay.mjs`.
+
+That gap is not theoretical, and all three instances are from one morning:
+
+- the 141k walk answered **MITIGATED** by mapping the census class to the
+  ROW's status — an absorption claim on an instance where nothing absorbed.
+  That is the dangerous direction: it says our mitigation worked;
+- the 638k walk was attributed by HAND-diffing raw against forwarded bodies —
+  the primitive applied by a human because the tool does not;
+- the 540k walk returned **UNVERIFIABLE** and stopped, leaving no attribution
+  at all — which is precisely where a human then guesses.
+
+So the rule, and it is a gate rather than advice. **A bust walk carries an
+ATTRIBUTION line with three answers and no default: OURS / CC's /
+COULD-NOT-ATTRIBUTE-with-its-computed-reason. While that answer is missing or
+COULD-NOT-ATTRIBUTE, no mitigation for that bust may be designed, booked, or
+briefed.** Not "should be careful" — may not, because the state in which we
+build a mitigation for our own regression is exactly the state where the
+attribution is unknown and the pressure to act is highest. A row status is not
+an attribution; a census class is not a cause; and a verdict about which row an
+event belongs to says nothing about who moved the bytes.
+
+Two guards so this does not become the check that fires on everything. It binds
+at MITIGATION DESIGN, not at investigation — gathering evidence under an
+unknown attribution is the whole point of a walk. And COULD-NOT-ATTRIBUTE is a
+legitimate terminal state for the walk itself (the runbook's parked disposition,
+with its named missing piece); what it forbids is the NEXT step.
+
+The mechanised half is booked: `bust-triage` emits the attribution line,
+computed by IMPORTING `replay.mjs`'s primitive rather than re-deriving it — a
+second implementation of an identity or a divergence test has produced a
+confident wrong answer here three times, and this is the one place a wrong
+answer sends us to fix the wrong system.
+
 **Group by conversation before comparing anything.** One session-id header
 carries the main thread, every subagent, and CC's own sidecar calls. Comparing
 across them makes tenant switches look like churn. This artifact produced

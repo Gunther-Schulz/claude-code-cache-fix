@@ -145,17 +145,37 @@ right.
    emits local. Fired again in this session: separating today's busts from their
    captures required converting `09:59:53Z` to `11:59` local by hand.
    <!-- entry: "every human-facing stamp emits BOTH zones, because ten tools emit" -->
-5. **FORK-NOTES asserts `deferred-tool-rewrite` is disabled; it is ENABLED in
-   the serving config.** NEW. A false premise, not a typo: it is the load-bearing
-   sentence in FORK-NOTES' argument that no enabled extension can vary
-   `body.tools` across a restart — the argument that retired the "restarts bust
-   live sessions" caution and supports row 3. Measured against `/health`
-   (`CACHE_FIX_TOOL_REWRITE=1`) and against `action=rewrite` in its live event
-   log. Ranked here rather than in the cost ordering because its consumer is
-   restart ATTRIBUTION.
-   <!-- entry: "FORK-NOTES asserts deferred-tool-rewrite is disabled" -->
+5. **RANK VACATED — SHIPPED `83de792` the same afternoon it was ranked.**
+   FORK-NOTES' false `deferred-tool-rewrite is disabled` premise is corrected
+   and the argument it carried is re-derived, not patched around. The anchor is
+   REMOVED rather than re-pointed, per the DONE-anchor guard — **which is what
+   caught this**, throwing on the very next `--check` after the entry was
+   graded. Third time today the guard has stopped a resolved entry from holding
+   a rank, and the first where the resolving session was the ranking session.
+   The residual that did NOT ship is a parentage defect in the entry's own
+   verifier and is booked separately (`verdict-ab` is hardcoded to
+   `insertion-normalization.mjs:55`, so the named check structurally cannot
+   verify what it was named for).
 6. **The ❄ detector fires on `cc` alone, so GROWTH reads as a bust.** Every
    operator bust report starts here. (claude-worktime; POINTER.)
+   **RANK HELD, and a discharge claim made this afternoon is RETRACTED.** I told
+   the operator this pointer was discharged because its root cause shipped in
+   claude-worktime `8bfc385`. The operator answered that the miscounted busts
+   were minutes old — and the check settles it against the discharge: the
+   installed statusline `/home/g/.local/bin/claude-worktime` is byte-identical
+   to the fixed repo copy (md5 `0cef7c5caf1b52aad8db6fd965e70e8a`), installed
+   12:52 local, while the events fired at 13:46 and 13:58 local. **So the fix
+   was live and the class fired anyway** — "not installed" is ruled out, and
+   either the shipped fix does not reach this shape or these ❄ are TRUE and the
+   entry's premise needs re-stating. The operator's own words ("fully billed as
+   if it had been cold") argue the second, which would make it a real cache miss
+   on a warm resume rather than a display defect — a different entry entirely.
+   The measurement that separates them is in flight (the `other`-cause share
+   after `8bfc385`, which is also the named missing evidence unparking
+   claude-worktime's Layer-3a entry). **The lesson is the discharge itself:** a
+   POINTER entry's liveness lives in ANOTHER repo, so this file's DONE-anchor
+   guard cannot see it, and I discharged it from a handoff sentence rather than
+   from the world. Booked below.
    <!-- entry: "the ❄ detector fires on `cc` alone, so GROWTH" -->
 7. **Does `movedFresh` EVER fire on a pair the census labels
    `join:cross-message`?** Until this is measured, "row 4 is partly mitigated"
@@ -673,34 +693,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   already runs a hook of exactly this shape over assistant output
   (`midturn-answer-check.py`), so the pattern is proven here. It changes what
   every session on this machine is nagged about, so it is not a fork-side call.
-
-- **READY — FORK-NOTES asserts `deferred-tool-rewrite` is disabled; it is
-  ENABLED in the serving config, and that sentence is load-bearing.**
-  Measured 2026-08-08: `FORK-NOTES.md` (the restart-transparency section)
-  states "`deferred-tool-rewrite` (the only extension holding tool-order state)
-  is disabled in the unit". The extension's gate is `CACHE_FIX_TOOL_REWRITE`
-  (`proxy/extensions/deferred-tool-rewrite.mjs:92`) and `/health` reports
-  `CACHE_FIX_TOOL_REWRITE=1`; its event log carries `action=rewrite` on live
-  traffic in both sessions examined that morning. So the claim is false against
-  the running system.
-  **Why this is not a typo fix.** The sentence is a PREMISE in FORK-NOTES' own
-  argument that no enabled extension can vary `body.tools` across a restart —
-  the argument that supports treating restarts as cache-transparent and that
-  retired an earlier "restarts bust live sessions" caution. With the premise
-  false, the argument's reach is unknown: `deferred-tool-rewrite` is named
-  there as *the* extension holding tool-order state, and it is running.
-  Design: correct the sentence, then re-derive the restart-transparency
-  argument from the current gate set rather than editing around it — the
-  stale-premise rule's "plans and conclusions built on the old premise execute
-  stale unless enumerated and re-derived". State explicitly whether
-  `deferred-tool-rewrite`'s persisted serialization state makes a fresh process
-  emit a byte-identical `body.tools`, citing the code that makes it so.
-  Verifier: a restart with `verdict-ab --seed-from-a` over the deferred-tool
-  canon, plus the assertion that the corrected FORK-NOTES sentence names the
-  same gate value `/health` reports. Done when the sentence and the argument
-  both match the serving config, or the row-3 restart-transparency claim is
-  re-graded with its new bound stated.
-  <!-- entry: "FORK-NOTES asserts deferred-tool-rewrite is disabled" -->
 
 - **READY (operator-side, claude-worktime — POINTER; body belongs in that
   repo's BACKLOG) — the ❄ detector fires on `cc` alone, so GROWTH is booked as
@@ -2063,6 +2055,66 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — 2026-08-08, `83de792`; residual named below) FORK-NOTES asserts
+  `deferred-tool-rewrite` is disabled; it is
+  ENABLED in the serving config, and that sentence is load-bearing.**
+  The sentence is corrected AND the argument it was a premise of is re-derived
+  rather than patched around. Three claims verified by the dispatcher in the
+  artifact, not booked on the lane's word: `/health` reports
+  `"CACHE_FIX_TOOL_REWRITE":"1"`; `grep -l 'body\.tools' proxy/extensions/*.mjs`
+  returns **FOUR** files, not the three the old argument enumerated; and
+  `tools/verdict-ab.mjs:55` is hardcoded (below).
+  **The re-enumeration is the part worth keeping.** Two extensions touching
+  `body.tools` had never been considered — `thinking-block-sanitize` (reads
+  only, for a hash) and `tool-input-normalize`, which is ACTIVE because
+  `extensions.json` overrides its own file-level `enabled: false`. That is the
+  `extensions.json`-is-not-the-activation-gate finding arriving from the
+  opposite direction: the old argument enumerated from memory of a config, and
+  the config both under- and over-states what runs. Outcome: row 3's
+  restart-transparency verdict does NOT need re-grading — it gains a fourth
+  confirming mechanism (`body.tools` is rebuilt every request from
+  disk-persisted state, so a fresh process reproduces it byte-identically)
+  instead of losing its only stated one.
+  **RESIDUAL, and it is a PARENTAGE defect in this entry rather than in the
+  work: the verifier this entry named cannot verify what it was named for.**
+  The entry said "a restart with `verdict-ab --seed-from-a` over the
+  deferred-tool canon". `tools/verdict-ab.mjs:55` is
+  `const EXT = "proxy/extensions/insertion-normalization.mjs"` — hardcoded, no
+  override, single-extension by its own header's admission. The lane ran it as
+  literally specified (exit 0, IDENTICAL across 310 verdict lines, 8 corpora)
+  and then said plainly that the green was OFF-TARGET, which is the right call
+  and the reason it is recorded here: a spec sentence and the tool it names
+  disagreed, and neither settles it from the inside. So this entry's
+  restart-transparency half rests on CODE READING with the label **unverified**
+  for the executed half. The tool that would actually verify it is
+  `replay.mjs --restart-at N` against a deferred-tool-carrying fixture. That is
+  booked below as its own entry rather than left as a caveat here.
+  Measured 2026-08-08: `FORK-NOTES.md` (the restart-transparency section)
+  states "`deferred-tool-rewrite` (the only extension holding tool-order state)
+  is disabled in the unit". The extension's gate is `CACHE_FIX_TOOL_REWRITE`
+  (`proxy/extensions/deferred-tool-rewrite.mjs:92`) and `/health` reports
+  `CACHE_FIX_TOOL_REWRITE=1`; its event log carries `action=rewrite` on live
+  traffic in both sessions examined that morning. So the claim is false against
+  the running system.
+  **Why this is not a typo fix.** The sentence is a PREMISE in FORK-NOTES' own
+  argument that no enabled extension can vary `body.tools` across a restart —
+  the argument that supports treating restarts as cache-transparent and that
+  retired an earlier "restarts bust live sessions" caution. With the premise
+  false, the argument's reach is unknown: `deferred-tool-rewrite` is named
+  there as *the* extension holding tool-order state, and it is running.
+  Design: correct the sentence, then re-derive the restart-transparency
+  argument from the current gate set rather than editing around it — the
+  stale-premise rule's "plans and conclusions built on the old premise execute
+  stale unless enumerated and re-derived". State explicitly whether
+  `deferred-tool-rewrite`'s persisted serialization state makes a fresh process
+  emit a byte-identical `body.tools`, citing the code that makes it so.
+  Verifier: a restart with `verdict-ab --seed-from-a` over the deferred-tool
+  canon, plus the assertion that the corrected FORK-NOTES sentence names the
+  same gate value `/health` reports. Done when the sentence and the argument
+  both match the serving config, or the row-3 restart-transparency claim is
+  re-graded with its new bound stated.
+  <!-- entry: "FORK-NOTES asserts deferred-tool-rewrite is disabled" -->
 
 - **(DONE — WITHDRAWN before implementation, 2026-08-08; see
   `docs/directives/portable-state-roots.md` §7) key our roots by PROFILE when
@@ -6777,6 +6829,101 @@ ENOSPC misattribution with its wrong first explanation left in.
   Unranked deliberately: booked after the 2026-08-08 afternoon derivation, and
   a rank is a re-derivation's to assign.
   <!-- entry: "CacheFixConfigDirDivergenceWarning" -->
+
+- **READY — `bust-triage` emits an ATTRIBUTION verdict (OURS / CC's /
+  COULD-NOT-ATTRIBUTE), because today it emits none and the walk that decides
+  whether to build a mitigation is the walk that cannot say whose bytes
+  moved.** Booked 2026-08-08 on an operator question — "are we careful not to
+  attribute wrongly and create a mitigation for a bust we caused?" — answered
+  by reading the code rather than the doctrine, which is what turned a
+  reassuring answer into an entry.
+  **The primitive EXISTS and is correct; the bust walk does not use it.**
+  `replay.mjs` computes it twice, independently: `ours: inDiv === null || inDiv
+  > outDiv` (`:1537`) and the `ccIdenticalAtOutDiv` annotation printed per
+  stability violation (`:3897`). `grep -n 'ours\|attribut' tools/bust-triage.mjs`
+  returns **only prose comments** — zero attribution logic — against those two
+  live sites. Instrument-positive for that grep: the same pattern over
+  `replay.mjs` returns the two sites above, so the zero is a measured absence
+  and not a pattern that could never match.
+  **Three measured instances, all from one morning, one in each failure
+  direction:** the 141k answered `MITIGATED` by mapping the census class to the
+  ROW's status (an absorption claim where nothing absorbed — the dangerous
+  direction, since it says our mitigation worked); the 638k was attributed by
+  HAND-diffing raw against forwarded; the 540k returned `UNVERIFIABLE` and
+  stopped with no attribution, which is where a human guesses.
+  Design, decided: `bust-triage` prints an `ATTRIBUTION:` line beside its
+  verdict, with three answers and no default, the third carrying its COMPUTED
+  reason (never a guessed disjunction — that defect already cost this tool a
+  correction). It IMPORTS the primitive from `replay.mjs` rather than
+  re-deriving it: a second implementation of a divergence or identity test has
+  produced a confident wrong answer here three times, and this is the one place
+  a wrong answer sends us to fix the wrong system.
+  Verifier, red-first, both polarities available today and both anchored to
+  frozen evidence rather than to live captures: the 638k pair
+  (`2026-08-08T09:48:53Z`, hand-attributed to CC's `replace/edit` mid-history)
+  must come back **CC's**; and a pair whose forwarded bytes diverge earlier than
+  CC's — the stability-violation shape `replay.mjs` already annotates
+  `[CC bytes at outDiv IDENTICAL -> ours]` — must come back **OURS**. Old code
+  emits neither line, which is the red. Negative control so it cannot pass by
+  always answering: the 540k (`2026-08-08T11:46:36Z`), which genuinely cannot be
+  paired, must come back COULD-NOT-ATTRIBUTE with the pairing reason, NOT with a
+  guess in either direction.
+  The prose half SHIPPED with this entry's commit (`docs/dev-loop.md`, "No
+  mitigation is DESIGNED before the attribution verdict exists") — it is a gate,
+  not advice: while the answer is missing or COULD-NOT-ATTRIBUTE, no mitigation
+  for that bust may be designed, booked or briefed. This entry is the machinery
+  half; until it lands the gate is enforced by hand, which is exactly the
+  arrangement the closing gate's question 1 says does not survive a session
+  boundary.
+  Consumer tier **1 (event disposition)** — it is the definition of the tier: a
+  lie here mis-files the class and every mitigation designed afterwards is
+  designed against the wrong evidence. Unranked deliberately (booked after the
+  2026-08-08 afternoon derivation); on the next derivation it is a Tier A head
+  candidate.
+  <!-- entry: "bust-triage emits an ATTRIBUTION verdict" -->
+
+- **READY (small) — a POINTER entry's liveness lives in ANOTHER repo, so this
+  file's DONE-anchor guard cannot see it, and a POINTER can hold a rank forever
+  after its work has shipped.** Measured 2026-08-08 afternoon on myself:
+  `backlog-order.mjs` throws when a rank anchor resolves to a DONE-graded entry
+  — it fired three times today and is the reason no stale rank survived — but it
+  only reads THIS file's grade. A POINTER entry's body lives elsewhere by
+  definition, so the fork entry stays `READY` no matter what that repo does, and
+  the guard passes with a clean conscience. Two ranked entries in the current
+  block are POINTERs; a third was in the previous block.
+  **And the failure mode is not hypothetical — it is how I got it wrong in both
+  directions in one hour.** I first carried the ❄-detector POINTER forward at
+  Tier A rank 6 without checking the other repo (the midday handoff had said the
+  cross-repo items shipped); then, when the operator asked, I discharged it from
+  that same handoff SENTENCE rather than from the world; then the operator
+  observed the class still firing and the check refuted the discharge. Three
+  readings, none of them from the pointed-at repo, and the one that settled it
+  was an md5 against the installed file.
+  Design, decided: a POINTER entry names its target repo and an identifying
+  string; a check resolves that repo's backlog and reports the target entry's
+  grade beside the pointer, with the three-answer discipline — target RESOLVED
+  (this pointer is stale) / target LIVE / COULD-NOT-RESOLVE with its reason
+  (repo absent, string not found, ambiguous match). It runs where the other
+  cross-file checks run, not in `gate-live`: this is a repo-state property, not
+  a traffic property. Keep it a REPORT, not a blocker, until its false-fire rate
+  over the current POINTER population is measured — a guard that blocks before
+  anyone knows how often it fires on legitimate work is how a guard trains its
+  reader to ignore it.
+  **And "resolved there" is NOT "discharged here" — the check reports, the human
+  grades.** That distinction is the whole lesson above: the ❄ pointer's target
+  entries ARE shipped in the other repo, and the fork-side concern survived them
+  anyway. A pointer whose target is RESOLVED is a prompt to re-read the fork
+  entry's own premise against the world, never an instruction to grade it DONE.
+  Verifier, red-first and available on committed history: run it over
+  `git show ed76e61:BACKLOG.md` — the ❄ pointer must report target-RESOLVED
+  (`8bfc385` shipped before that commit) while the fork entry there reads READY,
+  which is exactly the divergence nothing currently detects. Negative control: a
+  POINTER whose target is genuinely open must report target-LIVE, and a POINTER
+  naming a repo that is not present must report COULD-NOT-RESOLVE rather than
+  either.
+  Consumer tier **3 (backlog and process)** — it mis-orders work and is
+  recovered at the next derivation. Unranked (booked after the derivation).
+  <!-- entry: "a POINTER entry's liveness lives in ANOTHER repo" -->
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
