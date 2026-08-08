@@ -6925,6 +6925,48 @@ ENOSPC misattribution with its wrong first explanation left in.
   recovered at the next derivation. Unranked (booked after the derivation).
   <!-- entry: "a POINTER entry's liveness lives in ANOTHER repo" -->
 
+- **READY (small) — a lane whose worktree is RECLAIMED lands in the shared main
+  checkout, and its in-progress red then blocks the DISPATCHER's unrelated
+  push.** Measured 2026-08-08 afternoon, end to end. A lane was dispatched with
+  worktree isolation; the worktree did not survive, and the lane correctly
+  reported that it was in the shared checkout. That report was acknowledged and
+  the write-boundary rules were re-issued (pathspec-only commits, never amend,
+  never push) — and the coupling nobody named was the PUSH: the repo's pre-push
+  hook runs the WHOLE suite, so the lane's half-written
+  `test/xdg-writer-guard.test.mjs:112` (2407 pass / 1 fail, a test it was
+  actively iterating on) blocked a dispatcher push carrying two unrelated
+  commits. The dispatcher's work was green; the tree was not.
+  **The wrong repair is `--no-verify`, and it is worth writing down why**, since
+  it is the obvious move and the hook itself suggests it. The repo hook is
+  CHAINED behind the global dispatcher hook (dotfiles `git/hooks/pre-push`),
+  which runs the fixture-leak scan — so `--no-verify` skips the suite AND the
+  leak scan, at the exact boundary where git history stops being editable. A
+  bypass taken for an unrelated red is how a capture id reaches a public repo.
+  The correct move is to wait for the tree to go green, which is what happened.
+  **What is actually missing:** `docs/dev-loop.md` says concurrent lanes need
+  worktrees, and the dispatch skill's worktree recipe assumes the worktree
+  exists. Neither covers the case where the harness RECLAIMS it mid-run and the
+  lane silently continues in the shared checkout — discovered by the dispatcher
+  at push time, which is the worst moment to discover it.
+  Design, decided, two halves. (1) A dispatcher-side probe at the first report
+  from any isolated lane: confirm the worktree still exists
+  (`git worktree list` naming it) before acknowledging; a reclaimed worktree
+  converts the lane to shared-checkout rules, which now include "the dispatcher
+  cannot push until you are green — tell me when you are". (2) State the
+  coupling in the brief's write-boundaries section so the executing lane knows
+  its red is not private. Do NOT try to scope the pre-push suite to changed
+  files: the whole-suite run is what catches cross-file breakage and narrowing
+  it to buy push latency trades a real guard for convenience.
+  Verifier, red-first, reproducible without waiting for a lane: in a scratch
+  clone, add a failing test file, commit an unrelated change by pathspec, and
+  confirm `git push` is BLOCKED; remove the failing test and confirm it is
+  allowed. That is the whole mechanism, and it is the arrangement this incident
+  ran by accident.
+  Consumer tier **3 (backlog and process)** — it costs elapsed time and a
+  bypass temptation, not a wrong verdict. Unranked (booked after the
+  derivation).
+  <!-- entry: "a lane whose worktree is RECLAIMED lands in the shared main checkout" -->
+
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
 
