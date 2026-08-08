@@ -6371,8 +6371,28 @@ then the queued ones. Work the items in that order.
   corrupted pool entry is caught rather than silently rehydrated.
   Blocked on nothing. Do it before pinning the next large fixture.
 
-- **READY — census must distinguish "no counterpart" from
-  "counterpart present but unmatched".** Grounding: the diagnostic
+- **(DONE — shipped as `rejectedCandidate`, live at
+  `tools/reminder-migration-census.mjs:302` and `:304`, with its bite in
+  `test/census-counterpart-diagnostic.test.mjs`; re-graded 2026-08-08 after
+  the byte-gate lane found it still carrying a READY header) census must
+  distinguish "no counterpart" from
+  "counterpart present but unmatched".** Re-graded rather than closed
+  silently, because the entry's own case and the field's REACH came apart
+  afterwards and both facts belong here. The case this entry names — a
+  wrapper-retaining standalone at host+1, host PRESENT — is served: the row no
+  longer reads `actual=0ch` about something present.
+  **What the field does NOT reach, found 2026-08-07/08 and booked in the
+  byte-gate entry rather than re-opening this one:** with the host ABSENT
+  (`hj = -1`, pruned) the position filter never ran, so the field named the
+  FIRST system message in the array as "the nearest position-eligible
+  standalone that classify() rejected" — 37,831 chars of an unrelated
+  summarization notice. `41ed30c` nulls it there, which is correct and hands
+  the reader back `actual=0ch` — this entry's own tell, returning one case
+  over, for a state that still has no word of its own. The fix (a distinct
+  `host-pruned` token) is in the live byte-gate lane's brief.
+  This is the shape worth keeping: a fix that cures a misleading tell can grow
+  its own misleading tell one case over, and the entry that shipped the cure is
+  where the next reader looks. Original entry follows. Grounding: the diagnostic
   cost the dispatcher several investigation steps today. On a
   MISMATCH the census prints `actual=0ch`, and its own comment
   (:264) documents that as "the tell that no counterpart was found
