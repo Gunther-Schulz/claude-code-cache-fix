@@ -22,6 +22,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { statePath, legacyReadPath } from '../proxy/xdg-dirs.mjs';
+import { localClock, localSuffix } from './local-stamp.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RATES_PATH = join(__dirname, 'rates.json');
@@ -541,10 +542,15 @@ function printMarkdownReport(results, summary, ratesData, adminSummary) {
     for (let i = 0; i < results.length; i++) {
       const r = results[i];
       const ts = r.timestamp ? r.timestamp.slice(0, 19) : '—';
+      // r.timestamp passes through from the raw telemetry (never rendered
+      // via toISOString in this file) but is UTC, same as every other stamp
+      // this proxy writes — a human reading this table gets the local hour
+      // beside it, same as every other display site in this sweep.
+      const tsDisplay = r.timestamp ? `${ts} ${localSuffix(Date.parse(r.timestamp))}` : ts;
       const modelShort = r.model.replace('claude-', '').replace(/-\d{8}$/, '');
       const cacheWr = (r.cw1h || 0) + (r.cw5m || 0);
       const deg = r.degradation.length > 0 ? r.degradation.length + ' steps' : '';
-      lines.push(`| ${i + 1} | ${ts} | ${modelShort} | ${fmt(r.input_tokens)} | ${fmt(r.output_tokens)} | ${fmt(r.cache_read)} | ${fmt(cacheWr)} | ${fmtCost(r.cost)} | ${deg} |`);
+      lines.push(`| ${i + 1} | ${tsDisplay} | ${modelShort} | ${fmt(r.input_tokens)} | ${fmt(r.output_tokens)} | ${fmt(r.cache_read)} | ${fmt(cacheWr)} | ${fmtCost(r.cost)} | ${deg} |`);
     }
     lines.push('');
   }
@@ -632,7 +638,7 @@ function printTextReport(results, summary, ratesData, adminSummary) {
     console.log('─── Per-Call Breakdown ─────────────────────────────────────────────────────────');
     console.log(
       '  #'.padEnd(5) +
-      'Timestamp'.padEnd(28) +
+      'Timestamp'.padEnd(43) +
       'Model'.padEnd(10) +
       'Input'.padStart(10) +
       'Output'.padStart(9) +
@@ -646,13 +652,17 @@ function printTextReport(results, summary, ratesData, adminSummary) {
     for (let i = 0; i < results.length; i++) {
       const r = results[i];
       const ts = r.timestamp ? r.timestamp.slice(0, 19) : '—';
+      // Same pass-through case as the markdown table above: r.timestamp is
+      // UTC (this proxy's own convention) but never runs through
+      // toISOString() in this file, so it reached a terminal unconverted.
+      const tsDisplay = r.timestamp ? `${ts} ${localSuffix(Date.parse(r.timestamp))}` : ts;
       const modelShort = r.model.replace('claude-', '').replace(/-\d{8}$/, '').slice(0, 8);
       const cacheWr = (r.cw1h || 0) + (r.cw5m || 0);
       const deg = r.degradation.length > 0 ? r.degradation.length + ' steps' : '';
 
       console.log(
         `  ${String(i + 1).padStart(2)}  ` +
-        ts.padEnd(28) +
+        tsDisplay.padEnd(43) +
         modelShort.padEnd(10) +
         fmt(r.input_tokens).padStart(10) +
         fmt(r.output_tokens).padStart(9) +
@@ -903,7 +913,8 @@ async function main() {
   if (opts.adminKey) {
     const window = getTimeWindow(entries);
     if (window) {
-      console.error(`Querying Admin API for ${window.start.toISOString()} → ${window.end.toISOString()}...`);
+      console.error(`Querying Admin API for ${window.start.toISOString()} ${localSuffix(window.start)} ` +
+        `→ ${window.end.toISOString()} ${localSuffix(window.end)}...`);
       const apiData = await fetchAdminUsage(opts.adminKey, window.start, window.end);
       if (apiData) {
         adminSummary = summarizeAdminData(apiData, ratesData);

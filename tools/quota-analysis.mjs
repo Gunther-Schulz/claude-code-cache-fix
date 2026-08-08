@@ -46,6 +46,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { statePath, legacyReadPath } from '../proxy/xdg-dirs.mjs';
+import { localSuffix } from './local-stamp.mjs';
 
 const DEFAULT_USAGE_LOG = process.env.CACHE_FIX_USAGE_LOG
   || legacyReadPath(statePath('usage.jsonl'), 'usage.jsonl');
@@ -340,8 +341,8 @@ function printText(report) {
   console.log(`Data source:      ${meta.file}`);
   console.log(`Total entries:    ${meta.totalRows}`);
   console.log(`With q5h_pct:     ${meta.withQuota} (${pct(meta.withQuota / meta.totalRows)})`);
-  console.log(`Time range:       ${meta.timeStart}`);
-  console.log(`             →    ${meta.timeEnd}`);
+  console.log(`Time range:       ${meta.timeStart} ${localSuffix(Date.parse(meta.timeStart))}`);
+  console.log(`             →    ${meta.timeEnd} ${localSuffix(Date.parse(meta.timeEnd))}`);
   console.log(`Reset windows:    ${windows.total} detected, ${windows.usable} usable for fit`);
   console.log();
 

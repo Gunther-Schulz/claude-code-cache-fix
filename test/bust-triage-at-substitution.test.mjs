@@ -85,9 +85,13 @@ test("--at with an unreadable stamp refuses rather than triaging the newest", ()
 });
 
 test("CONTROL — the default path's note is unchanged", () => {
+  // The stamp itself and everything after it are pinned exactly; a local
+  // rendering (BACKLOG, "every human-facing stamp emits BOTH zones") is
+  // allowed to appear between the UTC stamp and what follows, so this
+  // tolerates it without pinning the machine's own offset.
   const out = run(fakeHome(), []);
-  assert.match(out, /the newest cold event is 2026-08-05 17:22:36Z CONTROLLED\(resume\), 408k re-written/);
-  assert.match(out, /Falling back to the newest BUST: 2026-08-05 12:20:13Z \(messages_changed\)/);
+  assert.match(out, /the newest cold event is 2026-08-05 17:22:36Z( \(\d{2}:\d{2} local\))? CONTROLLED\(resume\), 408k re-written/);
+  assert.match(out, /Falling back to the newest BUST: 2026-08-05 12:20:13Z( \(\d{2}:\d{2} local\))? \(messages_changed\)/);
 });
 
 test("--json carries the substitution too", () => {

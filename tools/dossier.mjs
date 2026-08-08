@@ -55,6 +55,7 @@ import {
 } from "./bust-triage.mjs";
 import { censusPair } from "./replay.mjs";
 import { resolveSessionKey } from "../proxy/extensions/prefix-diff.mjs";
+import { localSuffix } from "./local-stamp.mjs";
 
 const execFileP = promisify(execFile);
 
@@ -78,6 +79,11 @@ const j = (line) => { try { return JSON.parse(line); } catch { return null; } };
 // only tell is that one of them is wrong.
 const lines = (p) => (existsSync(p) ? readFileSync(p, "utf8").split("\n").filter(Boolean) : []);
 const iso = (epoch) => new Date(epoch * 1000).toISOString();
+// Human-facing rendering only — the dossier body a person reads. `iso()`
+// itself stays bare UTC: the output filename (`main`, below) still keys off
+// it, and the "requested stamp" line keeps its backtick span copy-pasteable
+// verbatim, with the local half added OUTSIDE the backticks.
+const isoLocal = (epoch) => `${iso(epoch)} ${localSuffix(epoch * 1000)}`;
 
 /** PRESENT / ABSENT, with the reason attached to the absence. Never a bare
  * empty section: an unexplained blank reads as "nothing happened". */
@@ -104,7 +110,7 @@ export function step1Worktime(events, tsEpoch) {
     Math.abs(e.t - tsEpoch) < Math.abs(best.t - tsEpoch) ? e : best, events[0]);
   const drift = Math.abs(row.t - tsEpoch);
   return present(
-    `${iso(row.t)}  ${row.cc ?? 0} cc  cause=${row.cause ?? "-"}  ` +
+    `${isoLocal(row.t)}  ${row.cc ?? 0} cc  cause=${row.cause ?? "-"}  ` +
     `${row.cls}${drift ? `  (nearest event, ${drift}s from the requested stamp)` : ""}`,
     row);
 }
@@ -264,13 +270,16 @@ const sect = (n, title, s) => {
 export function renderDossier(d) {
   const out = [];
   const b = d.bust;
-  out.push(`# Cache-bust dossier — ${iso(d.tsEpoch)}`);
+  out.push(`# Cache-bust dossier — ${isoLocal(d.tsEpoch)}`);
   out.push("");
   out.push("Collected by `tools/dossier.mjs`. The cachebust runbook is the");
   out.push("interpretation guide; this file is the collection. Working artifact —");
   out.push("not committed.");
   out.push("");
-  out.push(`- requested stamp: \`${iso(d.tsEpoch)}\``);
+  // The backtick span stays the bare UTC stamp, unmodified — it is what a
+  // reader copies straight back into `dossier <stamp>`; local rides outside
+  // the backticks where copying it does no harm.
+  out.push(`- requested stamp: \`${iso(d.tsEpoch)}\` ${localSuffix(d.tsEpoch * 1000)}`);
   out.push(`- session: \`${d.sid ?? "-"}\``);
   out.push(`- prefix-diff key: \`${d.key ?? "-"}\``);
   if (b) {
@@ -370,7 +379,7 @@ export async function collect(bust, tsEpoch, opts = {}) {
   const sid = bust?.s ?? opts.sid ?? null;
   const key = sid ? (opts.key ?? snapshotKeyFor(sid)) : null;
   const step1 = opts.events ? step1Worktime(opts.events, tsEpoch)
-                            : (bust ? present(`${iso(bust.t)}  ${bust.cc ?? 0} cc  cause=${bust.cause ?? "-"}  ${bust.cls}`, bust)
+                            : (bust ? present(`${isoLocal(bust.t)}  ${bust.cc ?? 0} cc  cause=${bust.cause ?? "-"}  ${bust.cls}`, bust)
                                     : absent("no worktime cold event supplied"));
   const step2 = sid ? step2PrefixDiff(sid, tsEpoch, { ...opts, key })
                     : absent("no session id — cannot locate a prefix-diff ledger");

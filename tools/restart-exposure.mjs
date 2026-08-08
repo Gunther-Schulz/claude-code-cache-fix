@@ -35,6 +35,7 @@
 import { readdirSync, statSync, openSync, readSync, closeSync } from "node:fs";
 import { join } from "node:path";
 import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
+import { localSuffix } from "./local-stamp.mjs";
 
 const CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
   || legacyReadPath(dataPath("captures"), "cache-fix-captures");
@@ -168,7 +169,8 @@ function main(argv) {
   for (const r of rows) {
     process.stdout.write(
       `  ${r.capture.slice(0, 14)}…  ${String(r.messages ?? "?").padStart(5)} msgs  ` +
-      `~${(r.chars / 4 / 1000).toFixed(0)}k tok (est)  last ${r.lastActivity}\n`);
+      `~${(r.chars / 4 / 1000).toFixed(0)}k tok (est)  last ${r.lastActivity} ` +
+      `${localSuffix(Date.parse(r.lastActivity))}\n`);
   }
   process.stdout.write(
     `\nworst case if a restart changes forwarded bytes for these: ~${(total / 4 / 1000).toFixed(0)}k tokens\n`);

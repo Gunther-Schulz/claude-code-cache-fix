@@ -95,6 +95,7 @@ import { readFileSync, writeFileSync, appendFileSync, existsSync, mkdirSync, sta
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { statePath, legacyReadPath } from '../proxy/xdg-dirs.mjs';
+import { localSuffix } from './local-stamp.mjs';
 
 // ─── CLI parsing ────────────────────────────────────────────────────────────
 
@@ -358,7 +359,8 @@ function runFollow(opts) {
           const dayFile = dayFileFor(opts.outputDir, r.ts_start);
           appendFileSync(dayFile, JSON.stringify(r) + '\n');
         }
-        console.error(`[${new Date().toISOString()}] appended ${newRecs.length} records`);
+        const now = new Date();
+        console.error(`[${now.toISOString()} ${localSuffix(now)}] appended ${newRecs.length} records`);
       }
     } catch (err) {
       console.error(`watch error: ${err.message}`);

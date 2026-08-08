@@ -46,6 +46,7 @@ import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
 // rather than restating it (docs/dev-loop.md, "Never hand-roll identity").
 import { scrubMessage, sidToken } from "./harvest.mjs";
 import { staleRunRoots } from "./tmpdir.mjs";
+import { localSuffix } from "./local-stamp.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
@@ -1366,7 +1367,8 @@ async function main() {
       FIRE_CLASSES.map((c) => `${c}=${o[c] === null ? "n/a" : `${(o[c] / 1e3).toFixed(0)}kB`}`).join(" ");
     process.stdout.write(
       `fire-ledger -> ${args.fireLedger}\n` +
-      `  cc ${fireLine.ccVersions.join(",") || "unknown"}; absorbed window ${fireLine.windowFrom}${fireLine.windowSeeded ? " (seeded)" : ""}\n` +
+      `  cc ${fireLine.ccVersions.join(",") || "unknown"}; absorbed window ${fireLine.windowFrom} ` +
+      `${localSuffix(Date.parse(fireLine.windowFrom))}${fireLine.windowSeeded ? " (seeded)" : ""}\n` +
       `  raw      ${col(fireLine.raw)}\n` +
       `  absorbed ${col(fireLine.absorbed)}\n` +
       // Bytes, not counts — printed as kB so nobody reads them as a fifth

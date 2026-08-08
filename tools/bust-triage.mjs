@@ -64,6 +64,7 @@ import { censusPair, compactEntry, findEditPositions, findBlockMigrations } from
 import { readLines } from "./read-lines.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
+import { localSuffix } from "./local-stamp.mjs";
 
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
 const CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
@@ -1723,6 +1724,11 @@ export async function triage(bust) {
 // Measured on this machine (CEST, 2026-08-05): the dossier came back 1/5
 // evidence classes PRESENT with four plausible, wrong "ABSENT" reasons.
 // `dossier` now reads a zone-less stamp as UTC; this end stops producing one.
+//
+// Stays bare UTC on purpose: `dossier <stamp>` and `--at <stamp>` both take
+// this exact string as a copy-paste argument, so `fmt`'s own output is never
+// where local time gets attached — callers add it beside `fmt(t)`, never
+// inside it (BACKLOG: "every human-facing stamp emits BOTH zones").
 function fmt(t) { return `${new Date(t * 1000).toISOString().replace("T", " ").slice(0, 19)}Z`; }
 
 /**
@@ -1738,8 +1744,9 @@ function fmt(t) { return `${new Date(t * 1000).toISOString().replace("T", " ").s
  */
 export function listHeader(events, shown) {
   return `cold events — NEWEST FIRST, showing ${shown} of ${events.length}` +
-         ` (a tail of these rows is the OLDEST of them). Times are UTC;` +
-         ` paste one straight into \`dossier <stamp>\`.`;
+         ` (a tail of these rows is the OLDEST of them). Times are UTC,` +
+         ` with local alongside; paste the leading UTC token straight into` +
+         ` \`dossier <stamp>\`.`;
 }
 
 /**
@@ -1770,7 +1777,11 @@ export function listRows(events, opts = {}) {
     const dupSuffix = e.dupCount > 1 ? ` (x${e.dupCount} booked)` : "";
     const proj = projectFor(e.s) ?? "-";
     const age = ageStr(now - e.t);
-    return `  ${fmt(e.t)}  ${String(Math.round((e.cc ?? 0) / 1000)).padStart(4)}k  ` +
+    // Local time is its OWN column (two-space-separated on both sides), not
+    // glued onto fmt(e.t) — the round trip's copy-paste target is "the first
+    // whitespace-delimited field" (test/stamp-utc.test.mjs), and that must
+    // stay exactly `fmt(e.t)` with nothing attached.
+    return `  ${fmt(e.t)}  ${localSuffix(e.t * 1000).padEnd(15)}${String(Math.round((e.cc ?? 0) / 1000)).padStart(4)}k  ` +
            `${(ordPrefix + label + dupSuffix).padEnd(34)} ${e.s.slice(0, 8)}  ` +
            `${proj.padEnd(20)} ${age}`;
   });
@@ -1793,11 +1804,11 @@ export function fallbackNote(events) {
   if (!newest || newest.cls !== "controlled") return [];
   const bust = events.find((e) => e.cls === "bust");
   const head =
-    `  NOTE  the newest cold event is ${fmt(newest.t)} ` +
+    `  NOTE  the newest cold event is ${fmt(newest.t)} ${localSuffix(newest.t * 1000)} ` +
     `CONTROLLED(${newest.cause ?? "-"}), ${Math.round((newest.cc ?? 0) / 1000)}k re-written.\n` +
     CANNOT_TRIAGE;
   return [head, bust
-    ? `        Falling back to the newest BUST: ${fmt(bust.t)} (${(bust.cause ?? "-")}).`
+    ? `        Falling back to the newest BUST: ${fmt(bust.t)} ${localSuffix(bust.t * 1000)} (${(bust.cause ?? "-")}).`
     : "        No bust in the ledger to fall back to."];
 }
 
@@ -1838,11 +1849,12 @@ export function resolveAt(events, wantSec) {
       `${Math.round((requested.cc ?? 0) / 1000)}k re-written — but LATER than the\n` +
       "        stamp you asked about, so it is not the event you were looking at.";
   const head =
-    `  NOTE  --at ${fmt(wantSec)} resolves to the cold event at ${fmt(requested.t)},\n${why}`;
+    `  NOTE  --at ${fmt(wantSec)} ${localSuffix(wantSec * 1000)} resolves to the cold event at ` +
+    `${fmt(requested.t)} ${localSuffix(requested.t * 1000)},\n${why}`;
   return { requested, bust, note: [head, bust
-    ? `        Falling back to the newest BUST at or before ${fmt(wantSec)}: ` +
-      `${fmt(bust.t)} (${bust.cause ?? "-"}).`
-    : `        No bust at or before ${fmt(wantSec)} to fall back to.`] };
+    ? `        Falling back to the newest BUST at or before ${fmt(wantSec)} ${localSuffix(wantSec * 1000)}: ` +
+      `${fmt(bust.t)} ${localSuffix(bust.t * 1000)} (${bust.cause ?? "-"}).`
+    : `        No bust at or before ${fmt(wantSec)} ${localSuffix(wantSec * 1000)} to fall back to.`] };
 }
 
 async function main(argv) {
@@ -1916,7 +1928,7 @@ async function main(argv) {
     ({ requested, bust, note } = resolveAt(events, want));
     if (!bust) {
       for (const line of note) process.stdout.write(line + "\n");
-      process.stdout.write(`no cold-cache BUST at or before ${fmt(want)} to triage.\n`);
+      process.stdout.write(`no cold-cache BUST at or before ${fmt(want)} ${localSuffix(want * 1000)} to triage.\n`);
       return 0;
     }
   } else if (!all.length) {
@@ -1938,7 +1950,7 @@ async function main(argv) {
   }
 
   if (note.length) process.stdout.write("\n" + note.join("\n") + "\n");
-  process.stdout.write(`\nbust-triage — ${fmt(bust.t)}  ${Math.round(bust.cc / 1000)}k re-written  session ${bust.s.slice(0, 8)}\n\n`);
+  process.stdout.write(`\nbust-triage — ${fmt(bust.t)} ${localSuffix(bust.t * 1000)}  ${Math.round(bust.cc / 1000)}k re-written  session ${bust.s.slice(0, 8)}\n\n`);
   for (const s of r.steps) {
     process.stdout.write(`  ${s.ok ? "OK  " : "WARN"}  ${s.step.padEnd(11)} ${s.detail}\n`);
   }
