@@ -1120,6 +1120,18 @@ Two rules, both learned the expensive way:
    candidate plus a stage-by-stage trace of the real function, before the
    entry is written.
 
+   **FIRE RATE, kept here rather than re-derived as a new rule each time.**
+   2026-08-08, both found by lanes probing before building against the entry
+   they were briefed from: the leak-scan entry's verifier had decayed (below),
+   and the byte-gate entry's design claimed a dry-run it had not run — "checked
+   against both live cases", where the second case in fact refutes the rule and
+   does so STRUCTURALLY (a migration conserves the whole-body count, so the
+   proposed counting rule is blind to the event it detects). The tell is the
+   same both times and it is a word: an entry that says CHECKED, VERIFIED or
+   MEASURED without the executed output beside it is making a claim in the
+   costume of a result. Writing the numbers in is what would have caught both,
+   and it costs a paste.
+
    **A red-first arrangement is anchored to an IMMUTABLE reference, or it
    decays before it is built.** Same rule as the briefed known positive, aimed
    at the arrangement rather than the case — and the decay is not slow.
