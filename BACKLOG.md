@@ -8797,8 +8797,43 @@ then the queued ones. Work the items in that order.
   trigger). Consumer: the session instantiating READINESS.json
   here, and the grading session booking probe evidence.
 
-- READY 2026-08-08 — every temp-dir producer here LEAKS its mkdtemp
-  dir: /tmp (31 GB tmpfs) hit 100% with 31,108 top-level dirs
+- **(DONE — 2026-08-08, `b82ee4f` + `eca3a10`)** every temp-dir producer here LEAKS its mkdtemp
+  dir:
+  **SHIPPED.** `tools/tmpdir.mjs`: one run root per process, removed on exit,
+  on throw, and on SIGINT/SIGTERM/SIGHUP — and deliberately NOT a reaper, it
+  never deletes what it did not create in-process. 146 call sites across 81
+  files converted. `gate-live` now carries `tmpLeftovers` and BLOCKS (`ok`
+  false) on run roots older than 1h whose creating process is dead; the
+  liveness skip is what keeps it from firing on gate-live's own long replay
+  children, which would have been a guard firing on legitimate work.
+  **Verified by the dispatcher, not booked from the report:** a full suite run
+  leaves ZERO entries newer than a marker (0 in a frozen worktree at the lane's
+  commit, 0 again on main after integration). No `proxy/` file changed, so this
+  is NOT deployment-coupled — no pin bump, no restart.
+  **THE ENTRY'S OWN NUMBER WAS REFUTED, and it was a ranking input.** "One
+  full-suite run leaves thousands" was never measured: the real figure is
+  **113**, confirmed by two independent instruments. 31,108 was ACCUMULATION
+  over many runs plus the scheduled tools. Nothing about the fix changes; the
+  cost signal this was ranked on does.
+  **The brief's enumeration key was wrong and would have shipped a false
+  green** — "every mkdtemp call site" missed a hand-rolled `join(tmpdir(), …)`
+  and an aliased `mkdtemp as mkd`. Found by MEASURING after conversion (3
+  leftovers, not 0), never by grepping. Third instance of the name-vs-behaviour
+  class in one day, all in the dispatcher's own scoping; rule booked in
+  `docs/dev-loop.md`.
+  **Writer half shipped too**, unasked and correctly: `test/no-raw-mkdtemp.
+  test.mjs` fails on the `mkdtemp` name outside the helper (no exemptions —
+  matching the NAME rather than the call shape is what makes the alias route
+  fail) and on undeclared hand-rolled `tmpdir()` sites, each declared with a
+  count and a reason so a changed count fails too. Shown red against the base.
+  **DECIDED, on the nine remaining hand-rolled `tmpdir()` sites:** leave them.
+  Four create things and own their cleanup (measured: 0 leftovers), five build
+  paths that must not exist or are assertion-only, and all nine are declared in
+  a guard that fails on an undeclared site or a changed count. That is a
+  mechanism rather than a promise, which is the bar. Converting the four is
+  available if the helper should ever be the single route; it buys nothing
+  measurable today.
+  ORIGINAL ENTRY FOLLOWS. /tmp (31 GB tmpfs) hit 100% with 31,108 top-level dirs
   (7,024 fixture-verd*, ~8,000 bt-*, plus census-*, harvest-*,
   verdict-*, ledger-*, mitigation-output-*, insertion-suppress*,
   cache-fix-probe/replay-*), and the ENOSPC broke UNRELATED live

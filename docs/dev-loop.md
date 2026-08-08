@@ -481,7 +481,22 @@ The cause was **ENOSPC**. This repo's suite and its scheduled tools leak every
 A peer session diagnosed and hand-cleaned it mid-run — which is why the counts
 went green again. It is structural rather than incidental: one full-suite run
 leaves thousands, and `gate-live` (daily) plus `harvest` (twice daily) refill on
-schedule. Booked, with the shared-helper design and a loud-regression signal.
+schedule. FIXED 2026-08-08: `tools/tmpdir.mjs` gives every producer one run
+root per process, removed on exit, on throw and on SIGINT/SIGTERM/SIGHUP — and
+deliberately never deletes anything it did not create, so it is a helper and
+not a reaper. `gate-live` carries `tmpLeftovers` and FAILS on run roots older
+than an hour whose creating process is dead, so the leak cannot come back
+quietly. Measured after: a full suite leaves ZERO.
+**Two numbers here were wrong and are corrected, because the ranking read
+them.** "One full-suite run leaves thousands" was never measured: a full run
+leaked **113**, confirmed by two independent instruments (a marker-based `find`
+and the raw `/tmp` entry delta, 11074 -> 11187). The 31,108 figure is real but
+it is ACCUMULATION across many runs plus the scheduled tools. And counting
+leftovers by a TIME WINDOW over shared `/tmp` attributes any concurrent
+writer's dirs to your own run — measured here, where a verification run
+reported 2 and the same run repeated named zero, the difference being another
+lane. Count by NAMING the entries, or give the route a private `TMPDIR`, which
+is what the per-route arm did.
 **And the way this session got it WRONG is the more useful half.** The first
 explanation written down here was "a concurrent lane in a sibling worktree",
 because the timeline fit perfectly: failures while a dispatched lane was
@@ -672,9 +687,22 @@ lied on 2026-08-05, each of which read as a finding about the system:
   or one attributed to the other — name the SPACE each is in first. Escaped vs
   raw, content-hash vs git hash, mine vs anyone's. All three were free to check
   and each was one step from a confident wrong claim.
+- **An enumeration keyed on a NAME is not an enumeration of the BEHAVIOUR.**
+  The sharpest form of the rule below, and the one that produced a false green:
+  a brief scoped a cleanup to "every `mkdtemp` call site". Two producers were
+  invisible to that key — `tools/verdict-ab.mjs` built `join(tmpdir(), …)` by
+  hand and removed nothing (3 dirs per run, the last leaker), and a test file
+  imported `mkdtemp as mkd`, which no scan for `mkdtemp(` can see. Neither was
+  found by grepping; BOTH were found by measuring after the conversion, when
+  the leftover count came back 3 instead of 0. Where a done-criterion is a
+  measured count, take the count before believing the enumeration — the count
+  is the thing that reaches outside the key. And the writer half needs its own
+  guard: a leftover COUNT can never catch a new raw prefix, because a fresh
+  prefix is not a run root, so the reader-side count and a source-side guard
+  are not substitutes for each other.
 - **A SWEEP scoped by a pattern inherits that pattern's blind spot, and the
-  blind spot is invisible from inside the sweep.** Measured 2026-08-08, twice
-  in one session, by the same author, hours apart — which is why it is written
+  blind spot is invisible from inside the sweep.** Measured 2026-08-08, three
+  times in one session, by the same author, hours apart — which is why it is written
   here rather than left to the general search-reach rule it is an instance of.
   First: an entry claimed nine cache-fix-owned paths under `~/.claude`, from
   `ls ~/.claude/cache-fix*`; the class was sixteen, because seven of its
