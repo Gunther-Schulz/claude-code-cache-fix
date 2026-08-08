@@ -300,12 +300,23 @@ export function analysePair(before, after) {
     // flat absence. Never overrides `best`; only consulted when `best` stays
     // null for the whole scan (see the no-counterpart branch).
     let rejectedCandidate = null;
+    // "Position-eligible" is a claim about the HOST's position, so it can only
+    // be made when the host was LOCATED. `hj === -1` means the host is absent
+    // from `after` — it was pruned — and then the filter below never runs at
+    // all, so the first system message in the array would be recorded as
+    // though it had been considered against the host. Measured 2026-08-07 on
+    // the pruned-host pair: 37,831 chars of an unrelated summarization notice
+    // printed as "the nearest position-eligible standalone that classify()
+    // rejected". The field's own name is false there, so it stays null.
+    // Scoped to hj === -1 deliberately: `hj === null` (a host carrying no
+    // tool_use_id at all) is a separate state and is not touched here.
+    const hostAbsent = hj !== null && hj < 0;
     for (const s of sysAfter) {
       if (hj !== null && hj >= 0 && s.j <= hj) continue;
       const verdict = classify(recon, s.text);
       if (verdict === "EXACT") { best = { verdict, ...s }; break; }
       if (verdict === "EXTENDED") { if (!best) best = { verdict, ...s }; continue; }
-      if (!best && !rejectedCandidate) rejectedCandidate = { j: s.j, chars: s.text.length };
+      if (!best && !rejectedCandidate && !hostAbsent) rejectedCandidate = { j: s.j, chars: s.text.length };
     }
     const offset = best && hj !== null && hj >= 0 ? best.j - hj : null;
     if (best) {
