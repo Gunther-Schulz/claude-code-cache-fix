@@ -5607,11 +5607,25 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   one day and both are the dispatcher's: the first was this entry's own
   `ls ~/.claude/cache-fix*` count, corrected in the morning and then reproduced
   in an afternoon brief. Rule booked in `docs/dev-loop.md`.
-  The wider sweep is in flight, carrying the discrimination that is the real
-  work: ~33 `~/.claude` citations are Claude Code's OWN config root
-  (`settings.json`, `hooks/`, `projects/`, `.credentials.json`) and must
-  survive — Claude Code did not move. A CHANGELOG entry for the relocation ships
-  with it.
+  **THE WIDER SWEEP SHIPPED** (`332df4a`), and the discrimination held: 116 ->
+  76 occurrences over the owned set, with 34 SURVIVORS that are supposed to
+  survive — `settings.json` x9, `hooks/` x8, `projects/` x4, `.credentials.json`
+  x3, `.oauth_refresh.lock` x1, all Claude Code's own config root, plus 9
+  deliberate historical/fallback mentions. `docs/disk-usage.md` went to ZERO and
+  its rows no longer disagree with each other. CHANGELOG rose by 2 on purpose —
+  the new `[Unreleased]` entry cites `~/.claude` to say what moved OUT of it —
+  and all ~27 wider hits there sit in dated release sections, so none was
+  rewritten.
+  **Untouched populations verified by construction rather than by count**: the
+  commit touches exactly the six owned docs, so `code-reviews/`, `audits/`,
+  `directives/`, `tools/`, `test/`, `proxy/` and `preload.mjs` cannot have
+  moved. Worth recording because my first attempt to check this compared MY
+  occurrence counts against the lane's LINE counts on a tree that had since
+  gained two other lanes' commits — two instruments and two trees, which is the
+  namespace error one level up. The file list settles it and the counts do not.
+  **What remains, and it is not this entry's:** `preload.mjs`'s citations are
+  its real deployment path and are correct; `docs/directives/` and the
+  historical sets stay as written.
   Original entry follows. Found 2026-08-08 by a lane that named ONE stale citation
   (`docs/dev-loop.md`); the grep for the class found, AFTER the operational
   half was fixed, 85 remaining hits in 48 files (`git grep -c
