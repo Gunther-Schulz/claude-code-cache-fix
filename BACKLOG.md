@@ -66,10 +66,20 @@ REACH, then cost. If that is wrong it is a decision to revisit, not a bug.
 
 ### Irreversible — evidence or history that cannot be undone
 
-Two members remaining, both operator-side/dotfiles, both passing the
-partition's two guards: the failure mode is public git history (the remediation
-precedent in this repo's `CLAUDE.md` is destroying and recreating a host), and
-the trigger rate is MEASURED rather than imagined — four overrides in two days.
+**THIS PARTITION IS NOW EMPTY. Both members shipped on 2026-08-08** — the
+one-repo reach was found already shipped (`GUARDED`, verified by reading the
+deployed hook), and the "already on a remote" scoping shipped as declared
+publicness (dotfiles `3014043`). Both anchors were REMOVED rather than
+re-pointed, per the DONE-anchor guard's own instruction: removal only,
+re-derive to re-rank. The guard fired on the second one as it was graded, which
+is the third time today it has caught a resolved entry still holding a rank.
+An empty top partition is a re-derivation trigger, not a vacancy to fill by
+promoting whatever sat below it.
+
+The partition's admission test is unchanged for whatever enters next: the
+failure mode must be genuinely UNDOABLE — public git history, whose remediation
+precedent in this repo's `CLAUDE.md` is destroying and recreating a host — and
+the trigger rate MEASURED rather than imagined.
 
 **This partition's rank 1 SHIPPED the same day it was ranked** (2026-08-08;
 fork `7591fec`, dotfiles `d144540`) — the BLOB-granular discard is now
@@ -83,7 +93,6 @@ of a partition that no longer has a third, and this pass does not renumber them
 1. **"Already on a remote" is not "already public".** The shipped leak scan
    reasons about publication from the wrong predicate; a wrong answer here
    passes bytes into public history.
-   <!-- entry: "and the shipped scoping cannot tell them apart" -->
 2. **The push-side leak scan reaches ONE repo.** Every other repo on this
    machine pushes past it.
 
@@ -383,30 +392,6 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
 (dispatch-guards `dev-notes/`, already written there).
 
 ## Open
-
-- **READY (operator-side, dotfiles) — "already on a remote" is not "already
-  public", and the shipped scoping cannot tell them apart.** Found 2026-08-06
-  while confirming the leak-scan lane's scope reading, which is otherwise
-  correct and confirmed: it treats a commit message as published when the text
-  is reachable from `stdin <old>` or from ANY `refs/remotes/**` ref. That is the
-  right rule for this clone — origin and upstream are both public GitHub repos,
-  and it is the only reading under which 3 of the 4 measured occurrences are
-  covered, since upstream's merge commit is not reachable from any PR branch's
-  old remote tip.
-  The residual is the word "remote". A clone with BOTH a private remote and a
-  public one — a private mirror, a work remote, a bare backup — would treat a
-  message published only to the PRIVATE side as already public, and then let it
-  through to the public one. The gate would be correct about "the remote already
-  has this" and wrong about the only thing that matters, which is whether the
-  bytes are already beyond recall. No such clone exists here today; this is
-  written down because the hook is machine-global and the next clone is not
-  reviewed by anyone.
-  Design, decided: the published set is computed per REMOTE against the remote
-  being pushed to, not over `refs/remotes/**` as a flat set — `git push` names
-  its remote on argv, and the hook already receives it. Verifier, red-first: a
-  fixture clone with two remotes where the message exists only on remote A must
-  BLOCK on a push to remote B, and pass on a push to A; today it passes both.
-  Done when the scope question is answered per destination.
 
 - **READY — the operator's view and `bust-triage --list` share NO identifying
   field, so neither side can name an event the other can find.** Operator,
@@ -1388,6 +1373,77 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **(DONE — 2026-08-08, dotfiles `3014043`) "already on a remote" is not "already
+  public", and the shipped scoping cannot tell them apart.**
+  **SHIPPED as DECLARED publicness, not inferred.** `OEFFENTLICHE_REMOTES` sits
+  beside `GUARDED`, same list-not-pattern form: the published set is stdin
+  `<old>` (always, unconditional) UNION the tracking refs of remotes whose URL
+  is declared public. Matching is on a normal form (`host/owner/repo`,
+  lowercased, so `https://…/r.git` and `git@…:o/r.git` collapse) and is EXACT
+  rather than substring — `…/claude-code-cache-fix` is a prefix of
+  `…/claude-code-cache-fix-private`, so a substring match would declare public
+  precisely the mirror the list guards against. That trap carries its own
+  assertion.
+  **The route NOT taken, and why, because the record had it backwards.** The
+  entry specified destination-only scoping. The building lane implemented it,
+  measured it, and showed it reddens two battery bites that encode measured
+  2026-08-06 incidents: bytes already public on UPSTREAM must not block a push
+  to ORIGIN. Upstream is public, so those bytes are already beyond recall and
+  blocking them is the fires-on-a-non-defect shape on the one gate before
+  unerasable history. Destination-only was too narrow; any-remote was too wide;
+  declared publicness is the only reading that keeps both properties.
+  **A prior halt on this design was recorded with a basis that had gone STALE**
+  — its stated reason, "regresses the two 2026-08-06 cases", was true on
+  2026-08-07 under the blob-granular rule and false after the finding-granular
+  change of 2026-08-08. Re-measuring cost ten minutes and changed what was
+  actually being decided. An inherited verdict deserves a re-measure, not a
+  re-read.
+  **Verified by the dispatcher before pushing:** `pre-push --test` all green
+  against the deployed scanner; the two incident bites' assertions byte-identical
+  (only a fixture-realism argument changed on a shared helper, same class as the
+  already-blessed 7/7b fix); and all three declared URLs confirmed `PUBLIC` via
+  `gh repo view --json visibility`, because declaring a private repo public is
+  the one failure this design cannot survive.
+
+- **READY (small, operator-side, dotfiles) — nothing checks that a
+  declared-public remote is STILL public.** Booked 2026-08-08 as the named limit
+  of the entry above. `OEFFENTLICHE_REMOTES` is a human claim the hook trusts:
+  a repo made private later keeps being treated as published, and its bytes
+  would then pass a gate that exists to stop exactly that.
+  **Decided: NOT a check inside the hook.** A live `gh repo view` in pre-push is
+  the wrong mechanism in both directions — offline it either fails closed (a
+  gate that cannot pass, the defect this week removed twice) or fails open (no
+  protection at all), and it puts a network round trip in front of every push.
+  Design: a dotfiles doctor verdict that asserts each URL in
+  `OEFFENTLICHE_REMOTES` still reports `PUBLIC`, on the doctor's own schedule,
+  with the three-answer discipline (unreachable network is COULD-NOT-VERIFY, not
+  a pass). Verifier, red-first: point it at a list entry that is private (or a
+  nonexistent repo) and require a FAIL; today nothing asks. Done when the list
+  has a mechanism keeping it true rather than a convention.
+
+ Found 2026-08-06
+  while confirming the leak-scan lane's scope reading, which is otherwise
+  correct and confirmed: it treats a commit message as published when the text
+  is reachable from `stdin <old>` or from ANY `refs/remotes/**` ref. That is the
+  right rule for this clone — origin and upstream are both public GitHub repos,
+  and it is the only reading under which 3 of the 4 measured occurrences are
+  covered, since upstream's merge commit is not reachable from any PR branch's
+  old remote tip.
+  The residual is the word "remote". A clone with BOTH a private remote and a
+  public one — a private mirror, a work remote, a bare backup — would treat a
+  message published only to the PRIVATE side as already public, and then let it
+  through to the public one. The gate would be correct about "the remote already
+  has this" and wrong about the only thing that matters, which is whether the
+  bytes are already beyond recall. No such clone exists here today; this is
+  written down because the hook is machine-global and the next clone is not
+  reviewed by anyone.
+  Design, decided: the published set is computed per REMOTE against the remote
+  being pushed to, not over `refs/remotes/**` as a flat set — `git push` names
+  its remote on argv, and the hook already receives it. Verifier, red-first: a
+  fixture clone with two remotes where the message exists only on remote A must
+  BLOCK on a push to remote B, and pass on a push to A; today it passes both.
+  Done when the scope question is answered per destination.
 
 - **(DONE — verified shipped 2026-08-08 by reading the deployed hook, not the
   entry) the push-side leak scan reaches ONE repo; body and design live in
