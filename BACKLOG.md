@@ -374,11 +374,35 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   bytes already appear at the same path in the published history is discarded,
   regardless of which blob currently carries them. The path qualifier keeps it
   narrow: the same bytes appearing in a NEW file are still a finding.
-  Verifier, red-first and available immediately: `git push` in the
-  `claude-worktime` clone with commit `0527e88` present must go from BLOCKED to
-  allowed, while a planted NEW identifier in the same file must still BLOCK —
+  **CORRECTED 2026-08-08, by probing the entry's own verifier before briefing
+  against it.** The line below read "Verifier, red-first and available
+  immediately: `git push` in the `claude-worktime` clone with commit `0527e88`
+  present must go from BLOCKED to allowed". It is not runnable, and the same
+  session that booked it is what killed it: `git log --oneline origin/main..HEAD`
+  in that clone is EMPTY, and the offending bytes were scrubbed hours later by
+  `cb1b5b4` ("scrub the capture-key prefixes out of four comments"). A booked
+  entry's mechanism claim earns the same disproving probe as any other
+  load-bearing claim — the rule `docs/dev-loop.md` states, firing on the entry
+  that quotes it.
+  **The runnable red, on real history and needing no construction** (executed
+  2026-08-08 from the claude-worktime clone):
+  `node <fork>/tools/absence-scan.mjs --git-range cb1b5b4~2..cb1b5b4^` reports
+  the two `capture-key-prefix` findings in `claude-worktime.sh` at lines 1664
+  and 1933. `cb1b5b4^` IS `0527e88`, so the pushed range is the one the entry
+  meant; the difference is that the arrangement is driven through the scanner
+  and the hook's filter rather than through a push.
+  **And this enlarges the design rather than merely repairing the verifier.**
+  Those bytes are reachable in published HISTORY (at `cb1b5b4^`, an ancestor of
+  `origin/main`) and are ABSENT from today's `origin/main` TIP, because the
+  scrub removed them. The shipped code reasons over published TIPS; the design
+  sentence above says "published history". Tip-only is why the right sentence
+  and the wrong implementation coexisted, and the fix must walk the path's
+  distinct published blob versions, not the tip.
+  Verifier, red-first, as executed above; and a planted NEW identifier in the
+  same file must still BLOCK —
   both halves required, since a discard that swallows the new one has traded a
-  gate that cannot pass for a gate that does not fire.
+  gate that cannot pass for a gate that does not fire. Plant it in a throwaway
+  clone, never in the real one.
   **Do not "fix" this with an allowlist entry:** the allowlist is class-scoped
   per path, so exempting `claude-worktime.sh` from `capture-key-prefix` would
   hide every FUTURE capture key in the file that matters most.
@@ -5304,6 +5328,35 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   session introduced. Done-criterion: `node tools/backlog-order.mjs --check`
   exits 0 against a block whose header date is the derivation's own, and the
   STALE banner is gone. Do NOT patch the existing block.
+
+- **PARKED — nothing checks that a booked verifier is still RUNNABLE, so a
+  red-first arrangement rots silently between booking and build.** Booked
+  2026-08-08 as the WRITER half of the leak-scan entry's stale-verifier
+  correction (that entry carries the reader half: the arrangement re-anchored to
+  a commit range). The judgment half shipped as prose the same hour —
+  `docs/dev-loop.md`, "Adding a check", the immutable-anchor paragraph — so what
+  is parked here is only the mechanized half.
+  **Why it is parked and not ready: the missing piece is a computable predicate
+  with near-zero false fires, and three candidates have already failed.**
+  (1) Matching wording ("must go from BLOCKED to allowed", "currently",
+  "available immediately") is an enumerated tell — it catches its listed
+  variants and misses the next one, which is the failure shape the corpus names.
+  (2) "The verifier must cite an immutable anchor" over-fires on every entry
+  whose verifier is legitimately `npm test`. (3) Re-RUNNING each booked verifier
+  is the only honest check and is not a lint — it is a sweep, and its cost is
+  unbounded.
+  **What would unpark it:** a predicate that separates a verifier naming
+  VOLATILE state from one naming a standing command, stated as a rule rather
+  than a word list — plus a measured false-fire rate over the current READY
+  population before it blocks anything. Note the adjacent machinery that may
+  already reach part of it: the pointer lane's liveness check
+  (`docs/dev-loop.md`, "A liveness or resolution check asks 'does this
+  resolve'") already resolves cited refs and paths, and a verifier citing a
+  commit that no longer resolves is exactly its shape — check whether extending
+  it costs less than a new check before designing one.
+  **Rate, honestly:** three recorded instances of an entry's own load-bearing
+  claim dissolving under a one-command probe, all found by a session that
+  probed before briefing. None was found by a check.
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry

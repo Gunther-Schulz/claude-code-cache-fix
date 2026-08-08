@@ -1120,6 +1120,27 @@ Two rules, both learned the expensive way:
    candidate plus a stage-by-stage trace of the real function, before the
    entry is written.
 
+   **A red-first arrangement is anchored to an IMMUTABLE reference, or it
+   decays before it is built.** Same rule as the briefed known positive, aimed
+   at the arrangement rather than the case — and the decay is not slow.
+   Measured 2026-08-08: the leak-scan entry's verifier read "available
+   immediately: `git push` in the `claude-worktime` clone with commit `0527e88`
+   present must go from BLOCKED to allowed", and by the time it was read the
+   clone had nothing to push and the offending bytes had been scrubbed — by the
+   SAME session, hours later, curing the symptom in the file the verifier
+   named. The arrangement pointed at a working copy's live state, which is the
+   one thing guaranteed to move. The runnable form was one step away and
+   permanent: a COMMIT RANGE (`cb1b5b4~2..cb1b5b4^`) driven through the
+   scanner, which reproduces today and will reproduce next year. Two things
+   follow. An entry naming live mutable state as its red — an unpushed commit,
+   an un-evicted capture, a dirty tree — is booking an arrangement with an
+   expiry date, and question 2's harvest obligation applies to the ARRANGEMENT
+   and not only to the evidence. And the writer is still running: nothing
+   checks that a booked verifier is still runnable, so the next stale one is
+   found the same way, by a session that probes before it briefs. This is the
+   third recorded case of an entry's own load-bearing claim dissolving under a
+   one-command probe; the cost each time was paid by whoever built against it.
+
    **A tool's "could not verify" REASON is a claim, and it is computed or
    it is a guess.** Same day, same tool: `UNVERIFIABLE — no capture pair
    (capture off, or rotated)` named two causes on an event where the
