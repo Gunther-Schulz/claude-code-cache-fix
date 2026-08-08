@@ -469,6 +469,32 @@ deltas on one corpus, never as a verdict.
 commit in the same repo makes it block on `index.lock` — once observed as a
 600-second hang that looked like a hung test.
 
+**A failure count that swings by hundreds between runs of ONE commit indicts
+the environment — and the first thing to check is DISK.** Measured 2026-08-08:
+five consecutive runs of one commit returned **0, 3, 95, 525, 528** failures,
+while the same commit in another checkout returned 0, 0, 0 minutes later.
+Nothing hung and no lock error appeared; hundreds of ordinary assertions simply
+failed, which reads as a broken build.
+The cause was **ENOSPC**. This repo's suite and its scheduled tools leak every
+`mkdtemp` directory they create; `/tmp` (a 31 GB tmpfs) had reached 100% with
+31,108 top-level dirs, and the exhaustion broke unrelated tooling machine-wide.
+A peer session diagnosed and hand-cleaned it mid-run — which is why the counts
+went green again. It is structural rather than incidental: one full-suite run
+leaves thousands, and `gate-live` (daily) plus `harvest` (twice daily) refill on
+schedule. Booked, with the shared-helper design and a loud-regression signal.
+**And the way this session got it WRONG is the more useful half.** The first
+explanation written down here was "a concurrent lane in a sibling worktree",
+because the timeline fit perfectly: failures while a dispatched lane was
+running its own suite, green once it went quiet. That story survived a
+deliberate check for concurrent test processes (there were none) and would have
+shipped as a rule. Two variables moved in the same window — the lane stopping,
+and a third party emptying the disk — and the result was attributed to the one
+already predicted about. That is the corpus's two-variable trap arriving with a
+correlation good enough to feel like evidence, so: before writing an
+environmental explanation down, name the OTHER things that changed in the same
+window, including changes made by someone else on the same machine. `df` costs
+nothing and would have answered it first.
+
 **A mitigation ships with its SIBLINGS enumerated.** A class arrives as one
 instance, and a fix scoped to that instance leaves the cases one step out
 along the same axis uncovered — which is how a single afternoon (2026-08-02)
