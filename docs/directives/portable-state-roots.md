@@ -1,6 +1,75 @@
 # Directive: portable state roots that survive an upstream PR
 
-Status: DESIGN SETTLED, implementation dispatchable. Operator GO 2026-08-08.
+Status: §1–§5 SHIPPED (`8ba8c0d`). §7 below is the GROUNDED addendum and it
+REVERSES two decisions that were still unbuilt. Operator GO 2026-08-08.
+
+## 7. Grounded addendum — what measuring Claude Code changed
+
+Two independent lanes answered the same seven questions, one from documentation
+and one from the installed binary (v2.1.221, a 276 MB Bun-compiled ELF installed
+by pacman, inspected by `strings`/`grep -a`). Their disagreements are recorded
+here because each caught something the other missed.
+
+**The facts that decide the remaining design:**
+
+- **Claude Code's per-user resolver has NO platform branch.** It is
+  `CLAUDE_CONFIG_DIR || homedir()/.claude`, NFC-normalised and memoised — the
+  same `~/.claude` on macOS and Windows. (The docs lane reported
+  `%APPDATA%\Claude` for Windows; the binary lane found no branch. UNRESOLVED —
+  `APPDATA` does occur 37 times, so something uses it. Named, not settled.)
+- **Claude Code DOES use XDG for part of its own state**, which the docs deny:
+  its auto-updater resolves `versions` under `XDG_DATA_HOME/claude`, `staging`
+  under `XDG_CACHE_HOME/claude`, `locks` under `XDG_STATE_HOME/claude`. The
+  paths are COMPOSED, not literal — `.local/share/claude` appears zero times as
+  a string. The docs lane was right that XDG is undocumented; the binary lane
+  was right that it is implemented. Both, and neither alone would have shown it.
+- **`CLAUDE_CONFIG_DIR` does NOT relocate everything, even for Claude Code
+  itself.** Measured escapes: session-resume mirrors under `os.tmpdir()`, a
+  separate `CLAUDE_SECURESTORAGE_CONFIG_DIR`, the XDG updater family, and a
+  platform-fixed managed-settings root. `.claude.json` bypasses the resolver
+  entirely and lands as a SIBLING FILE in `$HOME`, confirmed on disk.
+- **Sensitive-path protection is hardcoded and not configurable** — `.git`,
+  `.claude`, home and root, by literal path matching. So no settings exemption
+  was ever an alternative to relocating, and a relocated config dir is unlikely
+  to be protected at all.
+- **`XDG_DATA_HOME/claude/` is a SHARED namespace.** Claude Code's updater
+  claims `claude/versions`; on this machine a third-party plugin writes its own
+  files directly into `~/.local/share/claude/`. No collision observed, but the
+  parent is shared by construction.
+- **Nothing here is a published contract.** Single compiled ELF, no typings, no
+  package.json, every path symbol minified to 1–3 characters.
+
+**REVERSED — do NOT key any root off `CLAUDE_CONFIG_DIR`.** Both the
+"DATA follows `CLAUDE_CONFIG_DIR`" rule and the profile-suffix rule are
+withdrawn before implementation. The reason is not the missing stability
+guarantee, it is stronger and measured: **that variable does not mean what the
+design assumed.** It does not bound Claude Code's own footprint — tmpdir,
+securestorage and the updater all escape it — so treating it as "the boundary
+the user chose" would inherit a false premise and give a user relocating for
+security a guarantee neither we nor Claude Code can honour. A knob that does not
+contain its own product cannot contain ours.
+What replaces it is what was already there: the explicit `CACHE_FIX_DATA_DIR` /
+`CACHE_FIX_STATE_DIR` overrides, which are OUR contract and cannot move under
+us, plus the divergence warning — now promoted from fallback to the whole
+answer, and better grounded for it. Profile isolation and security relocation
+are BOTH served by the user setting the override per profile; the warning is
+what tells them the choice exists.
+
+**CONFIRMED — the top-level directory name stays `cache-fix`, not
+`claude/cache-fix`.** The shared-namespace finding is the evidence: putting our
+data under the `claude/` segment would join a namespace Claude Code's own
+updater and at least one third party already write into. A sibling tool on this
+machine (`claude-worktime`) independently reached the same shape. This was
+right by accident before; it is right on evidence now.
+
+**OPEN, and it is a real question rather than a residual:** the platform table
+shipped in §3 gives macOS `Library/Application Support` and `Library/Logs`,
+which is platform-native and is NOT what Claude Code does — Claude Code would
+use `~/.local/share` there. So §3 chose platform correctness over consistency
+with Claude Code. The recommendation is to KEEP it — a reviewer expects
+`env-paths` conventions, and the XDG env vars are honoured on every platform so
+anyone wanting Claude-consistency can set them — but this is a deliberate
+divergence and is recorded as one rather than discovered later as a surprise.
 
 ## Goal
 
