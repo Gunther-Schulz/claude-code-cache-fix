@@ -5562,9 +5562,39 @@ the leak-scan discard defect (dotfiles), the doctor verdict for `rowPins`
   `tools/absence-scan.mjs` is owned by a running lane (the finding-granular
   discard); this is the booking, and whoever holds that file next takes it.
 
-- **READY — the XDG migration left ~50 legacy `~/.claude/cache-fix*` path
+- **(PARTLY DONE — 2026-08-08, `978a44e` operational + `ddcdca3` user-facing;
+  the wider class is IN FLIGHT) the XDG migration left ~50 legacy
+  `~/.claude/cache-fix*` path
   citations across the tracked tree, and only the operational read path was
-  swept.** Found 2026-08-08 by a lane that named ONE stale citation
+  swept.**
+  **ANSWERED, and it was the entry's gating question: the PROXY's own defaults
+  moved, not just this machine's data.** `proxy/extensions/request-capture.mjs`
+  returns `process.env.CACHE_FIX_CAPTURE_DIR || dataPath("captures")`, importing
+  from `proxy/xdg-dirs.mjs`, and six proxy extensions import those helpers. So
+  the legacy citations were wrong for every consumer of this package, not merely
+  stale for us — which is what moved this from a docs chore to a shipping bug.
+  **The user-facing sweep shipped** (`ddcdca3`): 25 citations across seven docs,
+  each path resolved through its OWNING module before being written, plus one
+  user-facing string inside `proxy/` — which moved the proxy tree hash and was
+  handled as such (dotfiles pin `b1d070f` -> `e631c5b`, restart 09:59 local,
+  row-3 declaration made BEFORE the restart because the string is metadata on an
+  extension's default export and cannot reach forwarded bytes).
+  **AND THE SWEEP'S OWN SCOPE WAS THE DEFECT.** It was scoped by
+  `git grep "\.claude/cache-fix"` — a pattern encoding a NAMING convention while
+  the defect is a LOCATION. ~74 citations of the same class remained, of
+  proxy-owned artifacts whose filenames lack the substring (`quota-status/`,
+  `usage.jsonl`, `session-mirrors/`, `upstream-baseline.json`,
+  `workflow-derivation-events.jsonl`, …), leaving `docs/disk-usage.md`
+  internally contradicting itself. This is the SECOND instance of that error in
+  one day and both are the dispatcher's: the first was this entry's own
+  `ls ~/.claude/cache-fix*` count, corrected in the morning and then reproduced
+  in an afternoon brief. Rule booked in `docs/dev-loop.md`.
+  The wider sweep is in flight, carrying the discrimination that is the real
+  work: ~33 `~/.claude` citations are Claude Code's OWN config root
+  (`settings.json`, `hooks/`, `projects/`, `.credentials.json`) and must
+  survive — Claude Code did not move. A CHANGELOG entry for the relocation ships
+  with it.
+  Original entry follows. Found 2026-08-08 by a lane that named ONE stale citation
   (`docs/dev-loop.md`); the grep for the class found, AFTER the operational
   half was fixed, 85 remaining hits in 48 files (`git grep -c
   '\.claude/cache-fix' -- . ':!BACKLOG.md'`, summed — 106 in 49 files counting

@@ -672,6 +672,38 @@ lied on 2026-08-05, each of which read as a finding about the system:
   or one attributed to the other — name the SPACE each is in first. Escaped vs
   raw, content-hash vs git hash, mine vs anyone's. All three were free to check
   and each was one step from a confident wrong claim.
+- **A SWEEP scoped by a pattern inherits that pattern's blind spot, and the
+  blind spot is invisible from inside the sweep.** Measured 2026-08-08, twice
+  in one session, by the same author, hours apart — which is why it is written
+  here rather than left to the general search-reach rule it is an instance of.
+  First: an entry claimed nine cache-fix-owned paths under `~/.claude`, from
+  `ls ~/.claude/cache-fix*`; the class was sixteen, because seven of its
+  members do not carry the prefix. That was corrected, written down, and then
+  REPEATED four hours later in a dispatch brief that scoped a documentation
+  sweep by `git grep "\.claude/cache-fix"` — 25 hits fixed, ~74 of the same
+  class left standing, including a file left internally contradicting itself
+  (one row saying XDG, three rows below saying `~/.claude`).
+  **The mechanism, which is what makes it repeatable:** the pattern encoded a
+  NAMING convention while the defect was a LOCATION. Everything downstream then
+  certifies the wrong thing — the before/after count went to zero, the diff was
+  clean, the suite was green, and a completeness claim built on any of them
+  would have been true about the pattern and false about the class.
+  **The check, before trusting any pattern-scoped count: name one member of the
+  class the pattern cannot match.** If you cannot name one, say that is what
+  you did. It costs a sentence and it is the only step that reaches outside the
+  instrument. The corollary for scope written into a BRIEF: the dispatcher's
+  pattern becomes the executor's boundary, so a blind spot at brief time is
+  designed into the result and comes back looking like a completed sweep.
+- **A relocation sweep has a CONTRACT sentence somewhere, and it matches no
+  path pattern.** Same day, found by the executing lane rather than the brief:
+  `README.md`'s `CLAUDE_CONFIG_DIR` section claimed the proxy honoured that
+  variable for ALL of its on-disk state. It contained no path and no searched
+  substring, yet it was the GENERATIVE claim behind every individual citation
+  being repointed — so a sweep that fixed all the paths would have left the
+  document asserting the opposite of its own examples. Standing check after
+  repointing paths in a document: grep it for the mechanism that USED to govern
+  them — the env var, the config key, the base directory — and read what it
+  still promises.
 - **An instrument that matches ITSELF.** The needle rule one turn further in:
   not a needle matching more than one thing, but one matching the hand holding
   it. Measured 2026-08-08 — `until ! pgrep -f "reminder-migration-census.mjs";
