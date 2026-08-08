@@ -138,10 +138,14 @@ right.
    and the runbook's step 2 prescribes running exactly this tool, so a walker
    closes the walk on a pass that was not one. Both polarity cases are live
    TODAY and were confirmed present during this pass (input (i)).
-4. **Every human-facing stamp emits BOTH zones.** Ten tools emit UTC and none
-   emits local. Fired again in this session: separating today's busts from their
-   captures required converting `09:59:53Z` to `11:59` local by hand.
-   <!-- entry: "every human-facing stamp emits BOTH zones, because ten tools emit" -->
+4. **RANK VACATED — SHIPPED `82372db`, the afternoon it was ranked.** Every
+   human-facing stamp now emits both zones; machine-read fields stay bare UTC,
+   pinned by their own CONTROL bites. The anchor is REMOVED, not re-pointed
+   (DONE-anchor guard). The measured correction the lane returned: the entry
+   said "ten tools", the sweep found **eleven** files, and two of them
+   (`quota-analysis`, `cost-report`) print raw UTC without ever calling
+   `toISOString()` — pass-through from upstream JSONL. Grep-for-the-render-call
+   undercounts at the FILE level and again at the LINE level inside a file.
 5. **RANK VACATED — SHIPPED `83de792` the same afternoon it was ranked.**
    FORK-NOTES' false `deferred-tool-rewrite is disabled` premise is corrected
    and the argument it carried is re-derived, not patched around. The anchor is
@@ -520,42 +524,6 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
-
-- **READY — every human-facing stamp emits BOTH zones, because ten tools emit
-  UTC and none emits local.** Measured 2026-08-07: `grep -l 'toISOString\|UTC'
-  tools/*.mjs` returns ten tools; `grep -rn 'toLocaleTimeString\|local)'`
-  returns zero local-time renderings anywhere in `tools/`. So every stamp that
-  reaches the operator is in a zone their clock does not show, and the
-  conversion is left to a human doing arithmetic at 6am.
-  **The recurrence is the case for building it.** The dev-loop already carries
-  a UTC section, and `bust-triage.mjs:618-624` shows the class was reasoned
-  about carefully — but only at the MACHINE-to-machine end ("`dossier` now
-  reads a zone-less stamp as UTC; this end stops producing one"). The human end
-  was never in scope. Cost, 2026-08-07: several turns of a phantom
-  disagreement in which the operator and the session were each correct about a
-  DIFFERENT bust — 01:49:59Z (03:49 local, 419k, one session) versus
-  04:08:35Z/04:17:25Z (06:08/06:17 local, another) — while appearing to
-  contradict each other. Operator, same day: "this timezone mismatch has bitten
-  many times in many sessions here."
-  Design, writer-side, one shared helper in `tools/` used by the human-facing
-  print paths: `2026-08-07 04:08:35Z (06:08 local)`. Two constraints that
-  decide the format. The UTC token stays FIRST and unmodified, because
-  `bust-triage --list` instructs the reader to paste a stamp straight into
-  `dossier` and that copy path must keep working. And machine-readable output
-  (`--json`, status files, ledger writes) gains NOTHING — the suffix is for
-  display lines only, or it becomes a parsing hazard, which is this same class
-  in mirror.
-  Verifier, red-first: `bust-triage --list` today prints `04:08:35Z` with no
-  local rendering — that is the red; after, it prints the pair, and
-  `dossier "$(node tools/bust-triage.mjs --list | ...)"` still resolves the
-  same event, which is the control proving the paste path survived. Plus a
-  negative: `--json` output must be byte-identical before and after.
-  **Reader-side backstop is an OPERATOR DECISION, stated not taken** — a Stop
-  hook scanning the session's own final message for a bare UTC stamp outside
-  code fences with no local equivalent nearby. It is computable and the machine
-  already runs a hook of exactly this shape over assistant output
-  (`midturn-answer-check.py`), so the pattern is proven here. It changes what
-  every session on this machine is nagged about, so it is not a fork-side call.
 
 - **READY (operator-side, claude-worktime — POINTER; body belongs in that
   repo's BACKLOG) — the ❄ detector fires on `cc` alone, so GROWTH is booked as
@@ -1820,6 +1788,91 @@ ENOSPC misattribution with its wrong first explanation left in.
   `~/.local/share/cache-fix/attribution-2026-08-07/`. Done when a restart
   decision for a structural class can quote a per-session number with the
   class named.
+
+- **DONE `82372db` (2026-08-08) — every human-facing stamp emits BOTH zones.**
+  Shipped: `tools/local-stamp.mjs` + `test/local-stamp.test.mjs`; seven tools
+  converted, four verified as needing none. Verified at the desk by my own
+  one-condition mutation, not the lane's: appending a local suffix to
+  `restart-exposure`'s machine field `lastActivity` reddened exactly the
+  purity CONTROL and nothing else (6 pass / 1 fail from a 7/7 green
+  baseline); restored, full suite 2479 pass / 0 fail. Scope correction the
+  lane measured: **eleven** files, not ten — original text kept below.
+  ORIGINAL ENTRY:
+- **(shipped) READY — every human-facing stamp emits BOTH zones, because ten tools emit
+  UTC and none emits local.** Measured 2026-08-07: `grep -l 'toISOString\|UTC'
+  tools/*.mjs` returns ten tools; `grep -rn 'toLocaleTimeString\|local)'`
+  returns zero local-time renderings anywhere in `tools/`. So every stamp that
+  reaches the operator is in a zone their clock does not show, and the
+  conversion is left to a human doing arithmetic at 6am.
+  **The recurrence is the case for building it.** The dev-loop already carries
+  a UTC section, and `bust-triage.mjs:618-624` shows the class was reasoned
+  about carefully — but only at the MACHINE-to-machine end ("`dossier` now
+  reads a zone-less stamp as UTC; this end stops producing one"). The human end
+  was never in scope. Cost, 2026-08-07: several turns of a phantom
+  disagreement in which the operator and the session were each correct about a
+  DIFFERENT bust — 01:49:59Z (03:49 local, 419k, one session) versus
+  04:08:35Z/04:17:25Z (06:08/06:17 local, another) — while appearing to
+  contradict each other. Operator, same day: "this timezone mismatch has bitten
+  many times in many sessions here."
+  Design, writer-side, one shared helper in `tools/` used by the human-facing
+  print paths: `2026-08-07 04:08:35Z (06:08 local)`. Two constraints that
+  decide the format. The UTC token stays FIRST and unmodified, because
+  `bust-triage --list` instructs the reader to paste a stamp straight into
+  `dossier` and that copy path must keep working. And machine-readable output
+  (`--json`, status files, ledger writes) gains NOTHING — the suffix is for
+  display lines only, or it becomes a parsing hazard, which is this same class
+  in mirror.
+  Verifier, red-first: `bust-triage --list` today prints `04:08:35Z` with no
+  local rendering — that is the red; after, it prints the pair, and
+  `dossier "$(node tools/bust-triage.mjs --list | ...)"` still resolves the
+  same event, which is the control proving the paste path survived. Plus a
+  negative: `--json` output must be byte-identical before and after.
+  **Reader-side backstop is an OPERATOR DECISION, stated not taken** — a Stop
+  hook scanning the session's own final message for a bare UTC stamp outside
+  code fences with no local equivalent nearby. It is computable and the machine
+  already runs a hook of exactly this shape over assistant output
+  (`midturn-answer-check.py`), so the pattern is proven here. It changes what
+  every session on this machine is nagged about, so it is not a fork-side call.
+
+- **READY (small) — the both-zones class recurs PAST the eleven-file boundary
+  the shipped entry drew, at two measured sites.** `proxy/server.mjs:51` and
+  `preload.mjs:1396` are both `[${new Date().toISOString()}] ...` human-facing
+  log-line prefixes — the same shape as `usage-to-dashboard-ndjson`'s watch
+  line, which WAS converted in `82372db`. They were left because they sit
+  outside that lane's write boundary, not because they are correct.
+  Design (decided): import `withLocal` from `tools/local-stamp.mjs` at both
+  sites. Verifier: extend `test/local-stamp.test.mjs` with a bite per site plus
+  the standing purity CONTROL that no machine-read `ts`/`timestamp` field in
+  `proxy/**` gains a suffix (the sweep already accounted 33 proxy hits and 11
+  preload hits as machine fields — that accounting is the exclusion list).
+  Done-criterion: red-first on each new bite, full suite green.
+  **Deployment coupling:** `proxy/**` is TREE-PINNED — this needs the dotfiles
+  `CACHE_FIX_PROXY_TREE_PIN` bump plus `systemctl --user restart
+  cache-fix-proxy`. Row-3 declaration, stated before the restart: a log-line
+  format change touches neither state KEYS nor freeze logic, so the restart is
+  cache-transparent.
+
+- **READY (small) — `cost-report.mjs` had ZERO test coverage before `82372db`
+  and still has none.** Measured by the lane: `grep -rl cost-report test/`
+  returned nothing. Its timestamp changes in `82372db` (three display sites, two
+  of them pass-through, plus a `padEnd 28→43` column widening) are verified only
+  by live smoke output, which is not a committed regression. This is the
+  general shape, not a one-off: the both-zones sweep touched a tool whose
+  correctness nothing pins, so the NEXT edit there is equally unguarded.
+  Design (decided): `test/cost-report.test.mjs` pinning (a) the text-report
+  Timestamp column renders both zones, (b) `--json` carries no `local` text,
+  (c) the column is wide enough that a both-zones stamp does not wrap.
+  Verifier: red-first — revert each pin's site in turn, confirm exactly its own
+  bite fires. Done-criterion: three bites, each independently reddened.
+
+- **PARKED — `usage-to-dashboard-ndjson.mjs --watch` was never exercised live.**
+  Its converted line sits in a long-running `fs.watch` callback; the lane
+  verified it by code inspection plus the shared helper's Date-input unit tests
+  (the same input type), never by running it. NAMED MISSING EVIDENCE: one live
+  `--watch` run observed emitting a both-zones line while a real append occurs.
+  Trigger to unpark: the next time anything edits that watch path, or the next
+  dashboard session that runs `--watch` anyway — cheap to grab in passing, and
+  it is the only site in the sweep with no executed check behind it.
 
 - **(DONE — 2026-08-08, `6d9a8d3`) `tools/dossier.mjs` carries the reconcile
   vocabulary-collision that `bust-triage` just shed.** Found 2026-08-07 while
