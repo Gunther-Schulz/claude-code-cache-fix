@@ -3687,7 +3687,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   the requestId dedupe from zero, and that is exactly the property
   whose absence produced the 2026-08-07 false ❄.
   Verifier, red-first: over the frozen transcript archive at
-  `~/.claude/cold-design-evidence-2026-08-07/`, `--rows` reports the
+  `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`, `--rows` reports the
   01:00 session's two API calls (cc 39,711 / cc 335,933) as TWO rows
   where the raw transcript carries more, and names the dropped
   duplicate count; and it reproduces, in one command, the
