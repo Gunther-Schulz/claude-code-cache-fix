@@ -75,17 +75,26 @@ test("CONTROL — an ordinary same-cid pair never reaches the lineage fallback",
 });
 
 // NEGATIVE CONTROL, from the entry's own measurement: a 1-message sidecar
-// sharing 0% of the target's content must be rejected on its own evidence —
-// never by a special case naming it. With no earlier request sharing enough
-// content, the walk must still fail rather than pair to the unrelated sidecar.
-test("BITE — a 0%-overlap sidecar is never selected as the rotated predecessor", async () => {
+// sharing 0% of the target's content must be rejected BY LINEAGE on its own
+// evidence — never by a special case naming it. It may still resolve via
+// the SEPARATE born-large fallback (BACKLOG "bust-triage cannot reach
+// threat-matrix row 24 by ANY of its three routes", a later entry than this
+// one) — that fallback deliberately does not require content overlap at
+// all — but it must never be mistaken for a lineage/rotation match.
+test("BITE — a 0%-overlap sidecar is never selected as the rotated (lineage) predecessor", async () => {
   const dir = capture([
     req("2026-08-08T11:00:05.000Z", "SIDECAR", "totally-unrelated"),
     req("2026-08-08T11:00:10.000Z", "B", "conv"),
   ], "s-lin0003");
   const r = await capturePairResult("lin0003", at("2026-08-08T11:00:11Z"), dir, null);
-  assert.equal(r.ok, false, "0% overlap must not clear the threshold");
-  assert.equal(r.code, "no-pair-in-conversation");
+  assert.equal(r.crossesRotation, undefined,
+    "0% overlap must not clear the lineage threshold — it must not be labelled crossesRotation");
+  if (r.ok) {
+    assert.equal(r.crossConversation, true,
+      "if it resolves at all, it must be via the born-large fallback, labelled as such");
+  } else {
+    assert.equal(r.code, "no-pair-in-conversation");
+  }
 });
 
 // The dependency the fix must carry: pairEditContext deliberately reuses

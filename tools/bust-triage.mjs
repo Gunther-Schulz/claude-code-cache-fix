@@ -830,6 +830,36 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES, ct
     // ordinary same-identity pair the cid search would have found.
     return { ok: true, before: bestCandidate, after, crossesRotation: true };
   }
+  // BORN-LARGE FALLBACK (BACKLOG "bust-triage cannot reach threat-matrix row
+  // 24 by ANY of its three routes" — the resume/born-large class, matrix row
+  // 24). At a same-machine /resume boundary CC hands the proxy a conversation
+  // that is ALREADY large on its very first request: it shares no earlier
+  // request's cid (genuinely the first of a new conversation, BY
+  // CONSTRUCTION) and no earlier request's CONTENT either (a resume's
+  // context is CC's own rebuild from its transcript, not a re-serve of bytes
+  // this capture already has), so stage 2 above finds nothing to reject
+  // either. Only reached when BOTH prior stages found nothing. The nearest
+  // earlier request in this SAME capture file — one session, any
+  // conversation — with >=2 messages stands in as the comparison point, so
+  // the class has SOMETHING to classify against instead of UNVERIFIABLE
+  // forever. Labelled crossConversation so nothing downstream (census,
+  // migration, edit-anchor) mistakes it for a same-conversation pair.
+  let nearest = null;
+  let o5 = -1;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") o5++;
+    if (!r?.body?.messages || !r?.ts) continue;
+    if ((r.body.messages.length ?? 0) < 2) continue;
+    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
+    if (!nearest || Date.parse(r.ts) > Date.parse(nearest.ts)) {
+      r.ord = o5;
+      nearest = r;
+    }
+  }
+  if (nearest) {
+    return { ok: true, before: nearest, after, crossConversation: true };
+  }
   // CHECK 3 of 3, second half — and the state that had no word: capture
   // PRESENT, window COVERED, a busting request SELECTED, and the pairing step
   // nonetheless returning nothing because the selected request is the first
@@ -1285,6 +1315,12 @@ export function idleExpiry(bust, pair) {
  */
 export function causeToRow(cause, pair) {
   if (cause === "messages_changed") return 4;
+  // A same-machine /resume rebuilds the whole prefix and CC reports it as
+  // `system_changed` (matrix row 24's own precedent, s-captureAL
+  // 2026-08-06T17:40:16Z: "transcript cause `system_changed`... n=91 opens a
+  // NEW conversation identity"). Named missing before this line existed:
+  // `system_changed` is one of only three causes CC emits and the one this
+  // whole class books under, and it mapped to no row at all.
   if (cause === "system_changed") return 24;
   if (cause !== "tools_changed") return null;
   const b = pair?.before?.body?.tools;
@@ -1377,7 +1413,11 @@ export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowE
   // conversation (the dependency this fix carries) while returning the same
   // "no evidence" shape a genuine absence returns — say so explicitly
   // instead.
-  if (pair?.crossesRotation) {
+  // `crossConversation` (the BORN-LARGE fallback, matrix row 24) is the same
+  // shape one step further: `before` and `after` were never even claimed to
+  // share content, only to be the nearest earlier request in the same
+  // capture file — so it inherits the identical reasoning above.
+  if (pair?.crossesRotation || pair?.crossConversation) {
     return { edit: null, blockMigrations: [], strongerNeighbour: null };
   }
   const f = join(capturesDir, `s-${sid}-requests.jsonl`);

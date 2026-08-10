@@ -77,19 +77,31 @@ test("BITE — a request too small to BE the event is not selected as its cause"
 });
 
 // The cascade the entry describes: with the sidecar selected there is no
-// predecessor, so the tool reports UNVERIFIABLE about a capture that holds
-// the answer. This pins that the size test is what prevents it — the same
-// input with the test disabled reproduces the original failure.
-test("BITE — without the ctx test the same input reproduces the original UNVERIFIABLE", async () => {
+// SAME-CONVERSATION predecessor, so the tool used to report UNVERIFIABLE
+// about a capture that holds the answer. Since the born-large fallback
+// (BACKLOG "bust-triage cannot reach threat-matrix row 24 by ANY of its
+// three routes") shipped, a wrongly-selected busting request no longer
+// dead-ends the walk — it falls through to the nearest earlier request in
+// the same capture, LABELLED crossConversation so a reader can tell this is
+// not the real, same-conversation comparison the ctx test would have found.
+// This still pins that the size test is what prevents the wrong SELECTION —
+// the sidecar is still the wrong busting request, only surfaced differently.
+test("BITE — without the ctx test the sidecar is still wrongly selected, now surfaced as a labelled cross-conversation pair", async () => {
   const dir = capture(SHAPE);
   const off = await capturePairResult("sel0001", at("2026-08-07T01:00:55Z"), dir, null);
-  assert.equal(off.ok, false, "with no ctx the sidecar is selectable again");
-  assert.equal(off.code, "no-pair-in-conversation");
-  assert.match(off.detail, /2026-08-07T01:00:54\.702Z/,
-    "and the reason names the sidecar it wrongly selected");
-  // …which is exactly the pair the ctx test recovers.
+  assert.equal(off.ok, true, "the born-large fallback now finds SOME pair rather than UNVERIFIABLE");
+  assert.equal(off.crossConversation, true,
+    "it must be labelled cross-conversation — never mistaken for a real same-conversation pair");
+  assert.equal(off.after.ts, "2026-08-07T01:00:54.702Z", "the sidecar is still the (wrong) busting request");
+  assert.notEqual(off.before.ts, "2026-08-07T01:00:21.700Z",
+    "and it is NOT paired with the real predecessor — that is what the ctx test recovers");
+  // …which is exactly the pair the ctx test recovers, as a normal same-
+  // conversation pair, with neither fallback label set.
   const on = await capturePairResult("sel0001", at("2026-08-07T01:00:55Z"), dir, CTX);
   assert.equal(on.ok, true);
+  assert.equal(on.crossConversation, undefined);
+  assert.equal(on.crossesRotation, undefined);
+  assert.equal(on.before.ts, "2026-08-07T01:00:21.700Z");
 });
 
 // Size, not model. The entry: "Prefer the size test as primary; it needs no

@@ -107,23 +107,23 @@ test("CONTROL — a bust on the session's LAST request is not 'window not covere
 test("BITE — present + covered + no predecessor is its OWN reason, naming its input", async () => {
   // The selected request is the first of its own conversation: an interleaved
   // co-tenant sits in the file, but nothing earlier in the SAME conversation
-  // — and, since `capturePairResult` now also asks whether an earlier
-  // request is the SAME conversation by CONTENT (the lineage fallback), the
-  // co-tenant's filler text must be genuinely unrelated too. The shared
-  // `req` helper's generic "m0"/"m1" filler collides across conversations by
-  // construction (same text regardless of `conv`), which is exactly the kind
-  // of accidental overlap the fallback's threshold exists to reject on real
-  // data — but a FIXTURE built before that fallback existed can manufacture
-  // the collision that real conversation text would not. Distinct per-
-  // conversation filler restores this test's actual intent: no predecessor
-  // AT ALL, not merely none the OLD identity test could see.
+  // — and `capturePairResult` now has THREE routes to a predecessor, so all
+  // three must fail for this fixture to still prove "no predecessor at all":
+  // (1) cid — genuinely unrelated conversations, per-conversation filler
+  // rather than the shared `req` helper's colliding generic "m0"/"m1" text;
+  // (2) lineage (content overlap) — the same distinct filler keeps overlap
+  // at 0%; (3) the BORN-LARGE fallback (matrix row 24), which stands in the
+  // nearest earlier request with >=2 messages REGARDLESS of content or
+  // identity — so the co-tenant must itself carry fewer than 2 messages, or
+  // it would now correctly resolve the pair via that route instead of
+  // proving the genuine-absence case this test exists for.
   const unrelated = (ts, conv, n) => JSON.stringify({
     ts, id: ts,
     body: { messages: [msg("conv-" + conv),
                         ...Array.from({ length: n - 1 }, (_, i) => msg(conv + "-m" + i))] },
   });
   const dir = capture([
-    unrelated("2026-08-07T00:59:00.000Z", "OTHER", 5),
+    unrelated("2026-08-07T00:59:00.000Z", "OTHER", 1),  // below the born-large floor too
     unrelated("2026-08-07T01:00:00.000Z", "A", 3),   // first of conversation A
   ]);
   const r = await capturePairResult("unv0001", at("2026-08-07T01:00:55Z"), dir);
