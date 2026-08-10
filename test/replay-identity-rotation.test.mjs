@@ -22,6 +22,39 @@
 //     mutation). The per-request rows stay (the honest per-request fact),
 //     and a TRANSITION count is added beside them: NEW only the first time
 //     a given (key, raw identity) pair is seen rotating in this capture.
+//
+// ============================================================================
+// SYNTHETIC-ONLY. Every bite below is CONSTRUCTED. None has gone red on a live
+// instance of this class, and that is a deliberate, operator-GO'd departure
+// from this repo's substitute-case prohibition rather than an oversight — read
+// the next paragraph before treating any green here as certifying the class.
+//
+// WHY THE DEPARTURE IS CORRECT HERE (BACKLOG.md "DECISIONS 2026-08-10",
+// decision 2: GO on INTEGRATE-WITH-LABEL). `docs/dev-loop.md` says a check
+// whose motivating case dissolves does not get a substitute case found for it.
+// The discriminator `e53f873` established is whether the class is STRUCTURAL or
+// TEXT-PREDICATED: structural classes survive the harvest scrub, so a real pin
+// would have worked and a synthetic stand-in is prohibited; text-predicated
+// ones provably do not survive it. This class is text-predicated.
+// `fresh-session-sort`'s four relocatable-block predicates key on literal
+// prefixes (`fresh-session-sort.mjs:17-32`) and the scrubber tokenizes them
+// away — MEASURED, not argued: a pin taken minutes before its capture rotated
+// off disk carried the structure (33 live vs 33 pinned same-conversation pairs,
+// agreed by two independent instruments) and NOT the class
+// (`identityRotations = 0` on the pinned replay). So the live positive that
+// existed is unreachable forever, and no future one can be frozen either.
+// dev-loop's own exit applies: where a class cannot survive the scrub, the
+// durable evidence is synthetic — "not merely preferred but the only option".
+//
+// SWAP TRIGGER — on the first LIVE instance of this class, this label comes off
+// and a live arm replaces it. The instance is recognisable without a hunt: the
+// daily sweep already counts it (`gate-live.mjs:491`, `:564-567` carry
+// `identityRotationRows` and the requests/transitions pair), so a non-zero
+// `identityRotations.transitions` in `gate-status.json` IS the trigger firing.
+// On that day, pin the pair while the capture still exists — and note that the
+// pin will carry the structure and not the predicate, so the live arm has to be
+// a replay of the RAW records, never of the scrubbed fixture.
+// ============================================================================
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
