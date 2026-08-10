@@ -412,6 +412,13 @@ function scanGroup(entries) {
       const record = {
         n: cur.n,
         prevN: prev.n,
+        // The capture record's own id (BACKLOG "every OTHER row family in
+        // replay.mjs still carries only report ordinals") — n/prevN alone
+        // do not join back to the capture file, which is read by LINE and
+        // diverges from the request-only n space by every outcome/boot
+        // record in between.
+        id: cur.id ?? null,
+        prevId: prev.id ?? null,
         ts: cur.ts,
         key: cur.key,
         inDiv,
@@ -1065,6 +1072,11 @@ export function findToolsDeltas(entries) {
       rows.push({
         n: c.n,
         prevN: p.n,
+        // BACKLOG "every OTHER row family in replay.mjs still carries only
+        // report ordinals" — n/prevN are report ordinals and join to
+        // nothing on disk; id/prevId are the capture record's own.
+        id: c.id ?? null,
+        prevId: p.id ?? null,
         ts: c.ts,
         kind,
         msgKind,
@@ -1258,7 +1270,10 @@ export function findDuplicateRequests(entries) {
       if (prev.inHash.length === 0 || prev.inHash.length !== cur.inHash.length) continue;
       const identical = prev.inHash.every((h, idx) => h === cur.inHash[idx]);
       if (!identical) continue;
-      rows.push({ n: cur.n, prevN: prev.n, ts: cur.ts, msgs: cur.inHash.length });
+      rows.push({
+        n: cur.n, prevN: prev.n, id: cur.id ?? null, prevId: prev.id ?? null,
+        ts: cur.ts, msgs: cur.inHash.length,
+      });
     }
   }
   return rows.sort((a, b) => a.n - b.n);
@@ -1520,6 +1535,8 @@ export function findMitigationGaps(entries) {
       rows.push({
         n: cur.n,
         prevN: prev.n,
+        id: cur.id ?? null,
+        prevId: prev.id ?? null,
         ts: cur.ts,
         kind,
         mitigated,
@@ -1784,6 +1801,8 @@ export function findAbsorptionMisses(entries) {
       rows.push({
         n: cur.n,
         prevN: prev.n,
+        id: cur.id ?? null,
+        prevId: prev.id ?? null,
         ts: cur.ts,
         absorbedFreshAt: fresh.slice().sort((a, b) => a - b),
         forwardedDivergence: outDiv,
@@ -1871,6 +1890,8 @@ export function findRelocDepartures(entries) {
         rows.push({
           n: cur.n,
           prevN: prev.n,
+          id: cur.id ?? null,
+          prevId: prev.id ?? null,
           ts: cur.ts,
           key: cur.key,
           type,
@@ -2088,11 +2109,11 @@ function scanBlockMigrations(prev, cur) {
         // one. Anything else alone in a message is a message that shed
         // siblings, not a block that emerged.
         if (inline && u.wrapped && dstUnits.some((d) => d.hash === u.hash && d.standalone)) {
-          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j, hash: u.hash });
+          found.push({ n: cur.n, prevN: prev.n, id: cur.id ?? null, prevId: prev.id ?? null, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j, hash: u.hash });
           break;
         }
         if (standalone && dstUnits.length >= 2 && dstUnits.some((d) => d.hash === u.hash && d.wrapped)) {
-          found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j, hash: u.hash });
+          found.push({ n: cur.n, prevN: prev.n, id: cur.id ?? null, prevId: prev.id ?? null, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j, hash: u.hash });
           break;
         }
       }
@@ -2222,7 +2243,7 @@ function scanJoinMigrations(prev, cur) {
       const j = wholeMsgNear(C, jh, i);
       if (j < 0) continue;
       if (!unwrappedOn(C, constituents(prev, i, kind))) continue; // (B)
-      found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j, hash: jh, join: kind });
+      found.push({ n: cur.n, prevN: prev.n, id: cur.id ?? null, prevId: prev.id ?? null, ts: cur.ts, direction: "inline->standalone", sourceIdx: i, targetIdx: j, hash: jh, join: kind });
     }
     // PREV standalone, CUR inline: the join dissolved back into its host.
     for (let j = 0; j < cur.inJoins.length; j++) {
@@ -2232,7 +2253,7 @@ function scanJoinMigrations(prev, cur) {
       const i = wholeMsgNear(P, jh, j);
       if (i < 0) continue;
       if (!unwrappedOn(P, constituents(cur, j, kind))) continue; // (B)
-      found.push({ n: cur.n, prevN: prev.n, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j, hash: jh, join: kind });
+      found.push({ n: cur.n, prevN: prev.n, id: cur.id ?? null, prevId: prev.id ?? null, ts: cur.ts, direction: "standalone->inline", sourceIdx: i, targetIdx: j, hash: jh, join: kind });
     }
   }
   return found;
@@ -2821,6 +2842,8 @@ export function findSuccessions(entries) {
     out.push({
       n: cur.n,
       prevN: prev.n,
+      id: cur.id ?? null,
+      prevId: prev.id ?? null,
       ts: cur.ts,
       kind,
       openerMsgs: cur.msgs,
