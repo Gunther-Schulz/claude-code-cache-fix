@@ -16,6 +16,23 @@ the morning derivation stated 86 where the file held 91.
 **Re-derive rather than edit** — patching this list re-creates the
 stored-priority problem one level up.
 
+**STALE AS OF 2026-08-10 15:5x — a THIRD derivation is owed, and this note is
+here instead of a patch because the rubric forbids the patch.** Three things
+moved under it since it was written, all inside one session: the transcript
+instrument SHIPPED (`b0adb93`) and its anchor is removed above — removal only,
+which is why the numbering now skips; `capturePairResult`'s design was SETTLED
+(`cf0592d`), so its "DESK — design NOT decided" grade is wrong in both halves,
+and it is now BLOCKED behind a three-link chain (lineage primitive -> bounded
+`--pin` -> freeze) rather than takeable-with-context; and four entries booked
+today are unranked. A fresh session should read the item-2 grade as void and
+re-derive before choosing, not follow this order.
+**And the cadence itself is a finding, noted rather than acted on:** this would
+be the day's THIRD derivation, each superseded within hours by that day's own
+work landing. That is the list being consumed as designed, not the form
+failing — but a ranking that needs re-deriving every few hours is paying for
+itself in re-derivation, and the question of whether the block should rank only
+the HEAD few items belongs in the next pass.
+
 **Why a second derivation the same day, and it is not churn.** The morning
 list was written before the day's work. Four of its anchors shipped and were
 removed; more importantly TWO entries booked during the day were
@@ -116,9 +133,6 @@ designed against the wrong evidence.
 4. **Billing and verdict join by timestamp proximity, not by request id** — the same proximity heuristic that picked the wrong conversation this week.
    _DISPATCHABLE_
    <!-- entry: "billing and verdict are written by two extensions with no" -->
-5. **A transcript query instrument** — the least-tooled data source we own, and where every cache investigation actually lives.
-   _PARTIAL — verifier named, done-criterion not_
-   <!-- entry: "a TRANSCRIPT query instrument" -->
 6. **The ❄ detector fires on `cc` alone, so GROWTH is booked as LOSS.** Tier A by consumer, but operator-side in `claude-worktime` — ranked here so its position is honest, not because this repo builds it.
    _PARTIAL — and cross-repo; the body belongs in that repo_
    <!-- entry: "the ❄ detector fires on `cc` alone, so GROWTH" -->
@@ -445,45 +459,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   (`git rev-parse --short HEAD:proxy`) and `systemctl --user restart
   cache-fix-proxy`; the change touches no state KEYS and no freeze logic, so
   row 3's restart-transparency verdict holds and the restart is cache-transparent.
-
-- **READY — a TRANSCRIPT query instrument. It is the least-tooled data
-  source we own, measured, and it is where every cache investigation
-  actually lives.** Two enumerations run 2026-08-07:
-  an instrument inventory across the three repos (100 instruments) and
-  a probe census over readable session history since 2026-07-28
-  (1,258 ad-hoc analysis commands matching a closed five-pattern set).
-  Cross-read, `transcripts` is served by **exactly one** instrument, a
-  QUERY — no GATE, no REPORT, no DOCTOR — while **36 hand-written
-  probes** went at transcripts directly. By contrast `live_captures`
-  has 9 instruments across all four labels.
-  Both numbers are FLOORS, not estimates: the census found no session
-  data at all before 2026-07-28, `claude-worktime` has no readable
-  main transcript, and 15 of 39 session identities survive only as
-  orphaned subagent fragments. The true hand-probe count is higher.
-  The recurring shape is stable across the 36 and is what makes this
-  designable rather than vague: open `~/.claude/projects/**/<sid>.jsonl`,
-  walk it line by line, pull `message.usage` and
-  `message.diagnostics.cache_miss_reason` per entry, join to a
-  timestamp or an ordinal. Tonight's whole investigation was that
-  query, run four times by hand.
-  Design: extend `tools/cold-events.mjs` rather than add a file — it
-  already reads transcripts, already dedupes rows into API CALLS by
-  `requestId` (the property every hand probe got wrong or omitted),
-  and already carries the conversation-grouping discipline. Add a
-  `--rows` mode emitting one record per API call: timestamp, `sid`,
-  `requestId`, `messageId`, `cache_creation`, `cache_read`,
-  `input_tokens`, `ctx`, `cache_miss_reason.{type,cache_missed_input_tokens}`,
-  and `stop_reason` — as JSONL, filterable by time window. The
-  extend-don't-add rule applies with force here: a fresh file re-earns
-  the requestId dedupe from zero, and that is exactly the property
-  whose absence produced the 2026-08-07 false ❄.
-  Verifier, red-first: over the frozen transcript archive at
-  `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`, `--rows` reports the
-  01:00 session's two API calls (cc 39,711 / cc 335,933) as TWO rows
-  where the raw transcript carries more, and names the dropped
-  duplicate count; and it reproduces, in one command, the
-  `previous_message_not_found` diagnostics at 03:31:59Z and 03:32:01Z
-  that took a hand probe to find.
 
 - **READY (operator-side, claude-worktime — POINTER; body belongs in that
   repo's BACKLOG) — the ❄ detector fires on `cc` alone, so GROWTH is booked as
@@ -878,6 +853,123 @@ ENOSPC misattribution with its wrong first explanation left in.
   into the daily sweep as the existing header class already is.
   Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
 
+- **READY (small) — a FROZEN evidence archive whose own cited numbers are not
+  in it, and nothing said so for three days.** Found 2026-08-10 by the lane
+  building the transcript instrument, which was sent to reproduce two claims
+  against `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`
+  and could reproduce NEITHER — correctly reporting both as gaps rather than
+  tuning the tool until the numbers appeared. Re-run independently at the desk,
+  same result both times:
+  - the "01:00 session" numbers (`cc` 335,933 / `cr` 39,711) are real and ARE
+    frozen — in `event-windows.jsonl`, a DERIVED worktime log sitting beside
+    the tar. The raw CC transcript they were computed from is NOT in
+    `transcripts-2026-08-07.tar.gz`: no file among its 24 carries
+    `"sessionId":"06636dd1-…"`. The id appears eight times in the tar's PATH
+    names — as a scratchpad DIRECTORY belonging to that session, whose
+    transcripts have their own, different session ids. A name-shaped match in
+    the wrong namespace, which is the coordinate-space confusion `dev-loop`
+    already collects, arriving inside an evidence archive.
+  - the `previous_message_not_found` timestamps (03:31:59Z / 03:32:01Z) appear
+    NOWHERE in the archive — not in the tar, not in `cold-rows-all.jsonl`, not
+    in `event-windows.jsonl`. The archive does hold two real ones, at
+    2026-08-06T16:41:37.941Z and 2026-08-06T23:59:10.461Z. The cited pair most
+    likely came from the worktime LEDGER (the neighbouring entry discusses a
+    contradictory-class pair at 2026-08-07T03:32:02Z in ledger vocabulary —
+    booked twice, `hit`/`idle` then `cost`/`resume`), i.e. a verifier that
+    silently crossed two sources.
+  **Why this is the closing gate's question 2 failing in the field, not a
+  filing error.** The archive was created BY a design pass, on the day of the
+  measurement, precisely so the claims would stay checkable after rotation. It
+  froze the derived views and left the source out — so the entry read as
+  evidence-backed for three days while the evidence for half of it did not
+  exist, and the only reason anyone found out is that a lane was sent to
+  reproduce it rather than to trust it.
+  Design, decided, two halves — the second is the one that generalises:
+  (1) the archive gains an INVENTORY it does not currently have: one
+  `MANIFEST.jsonl` listing every file with its size, its sha256, and for a
+  transcript the session ids actually INSIDE it (never the ones in its path).
+  (2) A verifier that cites a frozen archive names the FILE inside it that
+  carries the number, not the directory — `<archive>/event-windows.jsonl` is a
+  checkable citation, `<archive>/` is a gesture. The convention costs a path
+  segment and is what would have caught this at write time.
+  Verifier, red-first, with the positive already in hand: build the manifest
+  and assert it lists no `sessionId` for 06636dd1 while
+  `event-windows.jsonl` does carry `cc` 335,933 — the exact split this finding
+  is. RED against the old state is that no manifest exists at all, so the
+  question "is the source in here?" is answerable only by extracting 24 files
+  and grepping, which is what it cost today.
+  Done-criterion: the manifest exists, the transcript entry above cites file
+  paths rather than the directory, and both facts above are readable without
+  extracting the tar.
+  Write boundary: the archive directory (operator-side data, not this repo's
+  tree) plus this repo's citing entries. **Consumer tier 1 (event
+  disposition)** — a frozen archive is what every later attribution re-reads,
+  and one that silently lacks its source sends the re-reader to a wrong
+  conclusion or to no conclusion at all.
+
+- **DONE 2026-08-10 (`b0adb93`) as to the INSTRUMENT; its verifier was
+  wrong about the evidence and is corrected below rather than left to be
+  re-inherited.** `--rows` ships: one JSONL record per deduped API call, with
+  inclusive `--since`/`--until` windowing, `--rows`+`--json` a named usage
+  error, `messageId`/`stopReason` added to `normalizeRow`, and `scanRows` now
+  returning the `rows` its own docstring had claimed for it while the body
+  returned three keys. Red-first: 9 new bites red against the unmodified tool
+  with all 16 pre-existing bites still green, then 25/25; full suite green at
+  the integrated commit (2637 pass / 0 fail).
+  **Verified at the desk by running it, not by reading the report:** over the
+  frozen 2026-08-07 archive it emits **732 rows from 1,483 raw transcript
+  rows — 751 dropped as duplicate API calls**, which is the requestId dedupe
+  doing more than half the work, and surfaces both real
+  `previous_message_not_found` calls in one command.
+  **The two claims this entry's verifier named could NOT be reproduced, and
+  that is a finding about the ARCHIVE, not about the tool** — booked as its own
+  entry directly above. The reproducible replacements, run 2026-08-10 and
+  recorded so the next reader inherits a checkable claim: the two
+  `previous_message_not_found` rows sit at 2026-08-06T16:41:37.941Z and
+  2026-08-06T23:59:10.461Z, and `cc` 335,933 lives in the archive's
+  `event-windows.jsonl`, not in any transcript inside its tar.
+  Residual, unverified and named: `--rows` was not load-tested on a >512 MB
+  transcript (`readUsageRows` is already streamed, so this is untested rather
+  than suspect).
+  Original header: **READY — a TRANSCRIPT query instrument. It is the least-tooled data
+  source we own, measured, and it is where every cache investigation
+  actually lives.** Two enumerations run 2026-08-07:
+  an instrument inventory across the three repos (100 instruments) and
+  a probe census over readable session history since 2026-07-28
+  (1,258 ad-hoc analysis commands matching a closed five-pattern set).
+  Cross-read, `transcripts` is served by **exactly one** instrument, a
+  QUERY — no GATE, no REPORT, no DOCTOR — while **36 hand-written
+  probes** went at transcripts directly. By contrast `live_captures`
+  has 9 instruments across all four labels.
+  Both numbers are FLOORS, not estimates: the census found no session
+  data at all before 2026-07-28, `claude-worktime` has no readable
+  main transcript, and 15 of 39 session identities survive only as
+  orphaned subagent fragments. The true hand-probe count is higher.
+  The recurring shape is stable across the 36 and is what makes this
+  designable rather than vague: open `~/.claude/projects/**/<sid>.jsonl`,
+  walk it line by line, pull `message.usage` and
+  `message.diagnostics.cache_miss_reason` per entry, join to a
+  timestamp or an ordinal. Tonight's whole investigation was that
+  query, run four times by hand.
+  Design: extend `tools/cold-events.mjs` rather than add a file — it
+  already reads transcripts, already dedupes rows into API CALLS by
+  `requestId` (the property every hand probe got wrong or omitted),
+  and already carries the conversation-grouping discipline. Add a
+  `--rows` mode emitting one record per API call: timestamp, `sid`,
+  `requestId`, `messageId`, `cache_creation`, `cache_read`,
+  `input_tokens`, `ctx`, `cache_miss_reason.{type,cache_missed_input_tokens}`,
+  and `stop_reason` — as JSONL, filterable by time window. The
+  extend-don't-add rule applies with force here: a fresh file re-earns
+  the requestId dedupe from zero, and that is exactly the property
+  whose absence produced the 2026-08-07 false ❄.
+  Verifier, red-first: over the frozen transcript archive at
+  `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`, `--rows` reports the
+  01:00 session's two API calls (cc 39,711 / cc 335,933) as TWO rows
+  where the raw transcript carries more, and names the dropped
+  duplicate count; and it reproduces, in one command, the
+  `previous_message_not_found` diagnostics at 03:31:59Z and 03:32:01Z
+  that took a hand probe to find.
+
 - **READY (small) — the new tools-decision instrument is CAPTURE-BOUND, so it
   answers only while the evidence it needs is still on disk.** Surfaced by the
   lane's own deviation slot (`6fc397d`): the decision reaches
@@ -1077,6 +1169,19 @@ ENOSPC misattribution with its wrong first explanation left in.
   suite green.
   Write boundary: `tools/backlog-neighbours.mjs`, `test/backlog-neighbours.test.mjs`.
   Consumer tier **3 (backlog and process)**.
+  **Second, smaller finding from the same hour, same file, booked here rather
+  than as its own entry because the mechanism is the same lint:** cross-entry
+  references in this file are written POSITIONALLY — "the entry above", "split
+  out from the entry below" — and `tools/backlog-order.mjs` PHYSICALLY REORDERS
+  entries on every derivation. Four such references were written today and all
+  four still happened to hold after a reorder ran minutes later, which is luck
+  and not a property. When one breaks it breaks silently: the sentence stays
+  grammatical and points at whatever entry now occupies the position. The file
+  already carries the durable handle — each entry's `<!-- entry: "…" -->`
+  anchor — so the rule is that a cross-entry reference names the headline, and
+  the check is a `backlog-lint` report flagging positional words in an entry
+  body that refers to another entry. Instrument-positive available today: the
+  lineage chain's three entries reference each other positionally right now.
 
 - **READY (small) — the LINEAGE relation, as a shared primitive in
   `replay.mjs`, ahead of BOTH its consumers.** Split out 2026-08-10 from the
