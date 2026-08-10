@@ -2006,6 +2006,61 @@ ENOSPC misattribution with its wrong first explanation left in.
   the standing rate — that is a separate measurement over more captures, and it
   is not what caused this event.
 
+- **READY — no instrument reads the BILLING side, so the only ground truth we
+  have about whether the cache held is unread.** Measured 2026-08-10:
+  `grep -c usage tools/gate-live.mjs` → 0; `bust-triage` reads none;
+  `replay.mjs`'s only `cacheRead` mentions are prose in comments (`:1200`,
+  `:1256`). Every gate asks a POSITIONAL question about our output against CC's
+  input; none asks whether the prefix was actually reused. The 213k walk above
+  took hours and reached UNCLASSIFIED, then resolved in one command once the
+  `outcome` records were read — records that were in the capture the whole time.
+  Design (decided): a `cacheLoss` check in `tools/gate-live.mjs`, REPORT-only
+  until its corpus-wide rate is measured (the absorption check's precedent — a
+  blocking check shipped before anyone knows how often it fires is how a guard
+  trains its reader to ignore it). Per same-conversation pair, join the capture's
+  `outcome` usage to the pair and flag: `cacheRead` falling by an order of
+  magnitude while the pair's own verdict is NO divergence. Rows carry the
+  four-request neighbourhood — ts, model, msgs, causes, appendOnly, cacheRead,
+  cacheCreation — written AT DETECTION TIME, because this is a recurring
+  producer with no closing moment and its inputs are on the eviction clock
+  (closing gate q2); a count alone would have lost today's event by tomorrow.
+  Verifier, red-first on a TRUE positive from real data, not a planted one: the
+  2026-08-10T04:40:39Z fable request must fire (`cacheRead` 224187 -> 15603,
+  `causes: []`, `appendOnly: true`). Over-firing controls, both required
+  silent and both real: the 04:40:17 pair, which DID diverge mid-history and
+  kept its cache at 220904, and the 04:41:04 pair (divergent, cr=229032) —
+  divergence without loss must never fire, or the check reports the class
+  backwards.
+  Done-criterion: red on the real positive with its output pasted, both real
+  controls green, corpus-wide rate reported over the live captures, suite green.
+  Write boundary: `tools/gate-live.mjs`, `test/gate-live*.test.mjs`. No `proxy/`
+  change, so no pin bump and no restart.
+
+- **READY (small) — billing and verdict are written by two extensions with no
+  join key, so the join is by TIMESTAMP, which is how today's walk mis-joined.**
+  The capture's `outcome` record carries `id` and `requestId`; the prefix-diff
+  event record carries none of them — its keys are `betaHeader, causes, chain,
+  key, msgs, params, prevTs, sid, system, systemMatch, tools, toolsMatch, ts,
+  view, windows` (read off a real record 2026-08-10). Joining them therefore
+  means matching wall-clock stamps across two tap points, on a session that
+  interleaves several conversations and models — the exact conditions under
+  which `bust-triage` picked the wrong conversation the same morning.
+  Design (decided): prefix-diff writes the request `id` into its event record,
+  same value the capture's request and outcome records already share, so the
+  join is an equality test instead of a proximity heuristic. Field name `id`,
+  matching the capture's — never a second spelling (this repo has paid for that
+  twice today).
+  Verifier, red-first: a replay over a capture must join every prefix-diff event
+  to its outcome by `id` with zero unmatched, and the SAME join by timestamp
+  proximity must be shown to mis-pair at least one record on the 2026-08-10
+  session — the measurement that justifies the field, not an assumption that it
+  helps. Done-criterion: both numbers pasted, suite green, `/health` unchanged.
+  Write boundary: `proxy/extensions/prefix-diff.mjs` + its tests. **Deployment-
+  coupled**: `proxy/` changes need the dotfiles pin bump
+  (`git rev-parse --short HEAD:proxy`) and `systemctl --user restart
+  cache-fix-proxy`; the change touches no state KEYS and no freeze logic, so
+  row 3's restart-transparency verdict holds and the restart is cache-transparent.
+
 - **READY (small) — mint the matrix row this walk's terminal state requires.**
   An event mapping to no row is UNCLASSIFIED, and the rule is to stop and mint
   rather than explain it away; the walk above reached a terminal state with no
