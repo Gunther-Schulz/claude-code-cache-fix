@@ -1364,6 +1364,96 @@ ENOSPC misattribution with its wrong first explanation left in.
   behaviour without running it.
   Write boundary: `tools/replay.mjs`. Consumer tier **3**.
 
+- **READY (small) — `identityRotation` measures the right EVENT with the
+  wrong DIGEST, so its rows cannot be joined to the event logs that record the
+  same rotation.** Surfaced 2026-08-10 by the lane that built it, as a question
+  rather than a unilateral predicate change — correctly. The class fires
+  exactly on its named positive and stays silent on its named negative, both
+  verified live; what does not line up are the row's `rawId`/`fwdId` STRINGS.
+  `replay.mjs`'s `sha()` (`:87-89`) truncates to **12** hex chars over
+  `JSON.stringify` of the WHOLE message object, `role` included;
+  `conversationSubKey`/`hashMessageContent`
+  (`proxy/extensions/message-hash.mjs:16-24,48-63`) truncates to **16** over
+  `msg.content` ONLY. Two primitives over one conceptual quantity, never shown
+  equivalent, so by construction a census row can never print the digest the
+  insertion-normalization event log recorded for the same request — the desk's
+  own verification of this class had to compute the second primitive by hand
+  to check the first.
+  **Why this is a definition problem and not a formatting one.** What counts as
+  "the conversation identity our extensions key on" is defined by
+  `conversationSubKey`, because that is the function the proxy actually keys
+  on. A near-twin computed over a different input shape can disagree with it —
+  a `role` change on `messages[0]` fires our class and moves no real key — and
+  nothing downstream would notice, since no consumer compares the two.
+  Design, decided: the row carries the REAL identity. Retain `inConvKey` and
+  `outConvKey` on the compact entry — two short strings per ENTRY, not per
+  message, which is cheaper than the per-message arrays already retained
+  beside them — computed by importing `conversationSubKey` itself, never a
+  re-implementation (`tools/harvest.mjs` already imports across the
+  `proxy/` boundary, so the direction is established). The stripped-twin
+  predicate stays as the cheap pre-filter; the digests reported become the
+  proxy's own.
+  Verifier, red-first, live positive already in hand: the row for
+  `s-captureAT` at 2026-08-08T09:58:50.626Z must print
+  `496b188f5f435920` -> `a20843f8616f3866`, the pair the desk verified twice
+  and the event log recorded, where today it prints two 12-char digests
+  matching neither. The negative at 09:58:46.362Z must stay silent.
+  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
+  Consumer tier **1 (event disposition)**.
+
+- **READY (small) — `identityRotation` counts a persistent STATE as if it were
+  an event, so its 40% is not the rate row 26 asks about.** Measured
+  2026-08-10 on `s-captureAT`: **298 of 738 requests** classify. The lane's
+  reading, which the code supports: `fresh-session-sort`'s relocation is a
+  persistent per-session mutation — once it fires for a conversation, EVERY
+  subsequent request in that conversation carries the relocated block, and a
+  per-REQUEST predicate re-fires on each one. So 298 is "requests served under
+  a rotated identity", while row 26's open question is "how often does a
+  rotation OCCUR", and the two differ by roughly the length of each affected
+  conversation.
+  Design, decided: keep the per-request rows (they are the honest per-request
+  fact and the join surface for a cost question), and add a TRANSITION count
+  beside them — a rotation is NEW when the conversation's raw identity has not
+  been seen rotating before in this capture. Report both, labelled, because
+  reporting either alone invites the other's question.
+  Verifier: over `s-captureAT` the per-request count stays 298 and the
+  transition count is materially smaller; both printed, neither derivable from
+  the other by the reader guessing. Done when the daily sweep's number cannot
+  be read as a rotation rate without saying which of the two it is.
+  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
+  Consumer tier **3** — it mis-describes a count rather than mis-classifying an
+  event.
+
+- **READY (small) — the suite has at least one INTERMITTENT test, and the
+  runner throws away the evidence needed to name it.** Observed 2026-08-10 at
+  `e9a374b`: four consecutive full runs of ONE commit returned 2642 pass / **1
+  fail**, then 2643 / 0, then 2643 / 0, then (with another lane integrated)
+  2649 / 0. The documented environment class was EXCLUDED rather than assumed:
+  `df` reported `/tmp` at **3% used, 30 GB free**, so this is not the 2026-08-08
+  ENOSPC shape, which is the first suspect this repo tells you to check.
+  **The failing test was never identified, and that is the actual defect.** The
+  run streamed to a terminal, the summary counters were read, and by the time
+  the failure mattered the output was gone; two further runs were spent on
+  greps against output that no longer existed. The suite gates every push, so
+  an intermittent failure that vanishes on re-run trains precisely the retry
+  reflex that a red result must never train.
+  Design, decided, two halves. (1) The runner persists each run's full output
+  to a per-run file under the repo's scratch convention and prints the path in
+  its summary line, so a transient red is diagnosable after the fact instead of
+  re-run away. (2) The pre-push hook keeps its own last-failure output for the
+  same reason — it is the run most likely to be transient and least likely to
+  be watched.
+  Verifier, red-first: with the persistence in place, force one failure, then
+  confirm the named file contains the failing test's name and diff AFTER a
+  subsequent green run has overwritten the console. Today no such file exists,
+  which is the red.
+  NOT fixed on notice, and named rather than left implicit: the flake itself
+  stays UNIDENTIFIED until the mechanism exists to catch it, so this entry
+  buys the diagnosis, not the fix. If the same counter split recurs before
+  then, capture the log by redirection first.
+  Write boundary: `package.json`, `tools/git-hooks/pre-push`.
+  Consumer tier **2 (feeds the gates)**.
+
 - **READY (small) — the LINEAGE relation, as a shared primitive in
   `replay.mjs`, ahead of BOTH its consumers.** Split out 2026-08-10 from the
   `capturePairResult` entry above, when re-reading the bounded-`--pin` entry's
