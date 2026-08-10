@@ -6,23 +6,32 @@ SYSTEM items — code, PRs, investigations, upstream threads — live here.
 Fork-only file, excluded from PR slices like FORK-NOTES.md. One item per
 bullet, evidence pointer included.
 
-## Build order — DERIVED 2026-08-10 (after the first retirement pass)
+## Build order — RE-DERIVED 2026-08-10 evening (second derivation of the day)
 
 Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
-("Build order is DERIVED at build time"), over the **86 `- **READY` bullets
-under `## Open`** as of this derivation. **Re-derive rather than edit** —
-patching this list re-creates the stored-priority problem one level up.
+("Build order is DERIVED at build time"), over the **89 `- **READY` bullets
+under `## Open`** as of this derivation — counted with the header test
+(`awk '/^## Done/{exit} /^- \*\*READY/{c++}'`), not carried in prose, because
+the morning derivation stated 86 where the file held 91.
+**Re-derive rather than edit** — patching this list re-creates the
+stored-priority problem one level up.
 
-**Since this derivation (2026-08-10, same day):** three anchors were REMOVED
-because their entries shipped — the ATTRIBUTION verdict (rank 1), the
-neighbour-invalidation report (rank 9), and `backlog-lint`'s enumeration
-exemption (rank 16); all three are in `## Done` with their commit refs.
-Removal only, per the rule above: the surviving ranks are NOT renumbered and
-the list is not re-derived here. Separately, the population stated above is
-wrong at its own commit — the file carried **91** `- **READY` bullets, not
-86. Recorded as a measured instance on the READY-count entry rather than
-patched here, because patching a derived number in place is the very move
-this block forbids.
+**Why a second derivation the same day, and it is not churn.** The morning
+list was written before the day's work. Four of its anchors shipped and were
+removed; more importantly TWO entries booked during the day were
+decision-complete and UNRANKED, so the ranking no longer described what a
+fresh session should do first. One of them carries the largest measured cost
+on the whole list and the only one measured today. A ranking that omits the
+day's best-evidenced item is stale in the way this block exists to prevent.
+
+**Each item now carries a DESK / DISPATCHABLE / PARTIAL grade**, which is new
+and is the point of this pass. The grade answers the handoff question the
+ranking alone could not: a fresh session can take any DISPATCHABLE item
+straight to a brief, while a DESK item needs judgment before a brief exists —
+and the morning list's HEAD was a DESK item, so a fresh session following it
+would have opened on an undecided design fork. The grade is read off the
+entry's own markers (design decided / verifier named / done-criterion or write
+boundary), not from memory.
 
 This pass SUPERSEDES the 2026-08-08 afternoon derivation, which ranked 33 of 81
 entries. Four inputs moved it, each with the check that established it:
@@ -97,20 +106,23 @@ deleted — AND the trigger rate measured rather than imagined.
 A lie here mis-files the class, and every mitigation designed afterwards is
 designed against the wrong evidence.
 
-3. **`capturePairResult` picks the busting conversation.** Declared Tier 1. Pick
-   the wrong conversation and the class is mis-filed before any other check runs.
+1. **No instrument reports what `deferred-tool-rewrite` DECIDED, and a 263k bust rode out under two clean-looking readings.** Ranked first on the rubric's own signals rather than on recency: signal 2, the largest measured cost on this list and the only one measured TODAY (263k re-billed, 2026-08-10, frozen as `s-captureAV`); signal 3, SILENT — `absorptionMisses` reports 0 and `mutatedBy` reports that the extension engaged, and neither can tell "absorbed" from "never applied", so an unabsorbed event reads clean. It also carries a hard ordering constraint (signal 1): threat-matrix row 6's NAMED MISSING EVIDENCE *is* this instrument, so row 6 cannot reach a disposition until it exists.
+   _DISPATCHABLE — design decided, red-first anchored to a frozen pin_
+   <!-- entry: "`deferred-tool-rewrite` ENGAGED on a 263k tools bust" -->
+2. **`capturePairResult` picks the busting conversation.** Declared Tier 1: pick the wrong conversation and the class is mis-filed before any other check runs, which is the widest reach on this list. It drops below item 1 only because item 1 is dispatchable today and this is not — reach still argues for it, and a session with context to spend should take it.
+   _DESK — the entry says "Design NOT decided"; the identity-vs-predecessor fork must be settled by judgment before any brief exists_
    <!-- entry: "`capturePairResult`'s conversation identity is the busting" -->
-4. **The state-key FLIP that disarmed row 1's mitigation is unattributed.**
+3. **The state-key FLIP that disarmed row 1's mitigation is unattributed.** 
+   _PARTIAL — verifier and boundary present, design section thin_
    <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
-5. **Billing and verdict join by timestamp proximity, not by request id** — the
-   same proximity heuristic that picked the wrong conversation this week.
+4. **Billing and verdict join by timestamp proximity, not by request id** — the same proximity heuristic that picked the wrong conversation this week.
+   _DISPATCHABLE_
    <!-- entry: "billing and verdict are written by two extensions with no" -->
-6. **A transcript query instrument** — the least-tooled data source we own, and
-   where every cache investigation actually lives.
+5. **A transcript query instrument** — the least-tooled data source we own, and where every cache investigation actually lives.
+   _PARTIAL — verifier named, done-criterion not_
    <!-- entry: "a TRANSCRIPT query instrument" -->
-8. **The ❄ detector fires on `cc` alone, so GROWTH is booked as LOSS.**
-   Tier A by consumer, but operator-side in `claude-worktime` — ranked here so
-   its position is honest, not because this repo builds it.
+6. **The ❄ detector fires on `cc` alone, so GROWTH is booked as LOSS.** Tier A by consumer, but operator-side in `claude-worktime` — ranked here so its position is honest, not because this repo builds it.
+   _PARTIAL — and cross-repo; the body belongs in that repo_
    <!-- entry: "the ❄ detector fires on `cc` alone, so GROWTH" -->
 
 ### Tier B: feeds the GATES
@@ -118,27 +130,30 @@ designed against the wrong evidence.
 A lie here passes a broken mitigation — expensive and loud, and it only matters
 once the class above is right.
 
-11. **`rebilledBytes` emits the understated number under the intuitive name.**
-    <!-- entry: "`rebilledBytes` still emits the understated number under" -->
-12. **Bucket (d) of the XDG accounting: 65 measured instances still wrong.**
-    <!-- entry: "bucket (d) of the XDG accounting" -->
-13. **The required-reading gate guards `Write`/`Edit` and not a script.**
-    Found by walking into it during this pass — the guarded route was taken by
-    accident, which is what makes it worth ranking rather than noting.
-    <!-- entry: "the required-reading gate guards `Write`/`Edit` and NOT a" -->
+7. **`rebilledBytes` emits the understated number under the intuitive name.** 
+   _PARTIAL — design and verifier present, done-criterion not_
+   <!-- entry: "`rebilledBytes` still emits the understated number under" -->
+8. **Bucket (d) of the XDG accounting.** RE-MEASURED 2026-08-10: `tools/xdg-writer-guard.mjs` is red at 34, of which 9 correctly name someone else's path and ~20 are real stale claims about our own artifacts — the entry's "STILL-WRONG 17" was two days old. The guard is also wired to NOTHING, which is a second item hiding inside this one.
+   _PARTIAL — repair set now measured but not triaged item by item_
+   <!-- entry: "bucket (d) of the XDG accounting" -->
+9. **The required-reading gate guards `Write`/`Edit` and not a script.** 
+   _PARTIAL — design and verifier present_
+   <!-- entry: "the required-reading gate guards `Write`/`Edit` and NOT a" -->
 
 ### Tier C: feeds the BACKLOG and the process
 
-A lie here mis-orders work and is recovered at the next derivation.
-
-14. **A derived VIEW of this backlog outlives its source** — three wrong
-    readings inside one session, each returning plausible bytes.
-    <!-- entry: "a derived VIEW of this backlog outlives its source" -->
-15. **The READY count every session reads at startup is wrong** — now carrying
-    the merged grade-vocabulary design and three real positives.
-    <!-- entry: "the READY count every session reads at startup is 66" -->
-17. **The succession rule's computable slice.**
-    <!-- entry: "the succession rule's computable slice" -->
+10. **A backlog entry that cites `file:line` has no check that the line still holds what it quotes.** Booked and sharpened 2026-08-10 from six drifts in one session, one of them LOAD-BEARING (a BROKEN-PATH under the argument that sets our whole upstream-PR strategy). Ranks above its sibling below because its criterion has already been dry-run against real cases and corrected once — the sibling's has not.
+   _DISPATCHABLE — four answers, red-first against a frozen reference_
+   <!-- entry: "a backlog entry that cites `file:line` has no check that" -->
+11. **A derived VIEW of this backlog outlives its source.** Same class as item 10 and a CANDIDATE MERGE with it at the next retirement pass — kept separate here because merging is a retirement-pass act, not a ranking act.
+   _DISPATCHABLE_
+   <!-- entry: "a derived VIEW of this backlog outlives its source" -->
+12. **The READY count every session reads at startup is wrong.** Now carrying a third measured instance: this block's own previous derivation stated its population as 86 where the file held 91.
+   _PARTIAL — verifier and boundary present_
+   <!-- entry: "the READY count every session reads at startup is 66" -->
+13. **The succession rule's computable slice.** 
+   _DISPATCHABLE_
+   <!-- entry: "the succession rule's computable slice" -->
 
 **Not ranked, deliberately:** upstream PR work, the operator-side dotfiles and
 corpus pointers, and the 69 entries below — they keep their existing relative
@@ -255,6 +270,52 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
+
+- **READY (small) — `deferred-tool-rewrite` ENGAGED on a 263k tools bust and the
+  array still grew on the wire; nothing reads what it actually did.** Measured
+  2026-08-10 on `s-captureAV` (pin `pinned-s-dda5c6419d49-372-373.json`,
+  replayed `--gates-from-capture`, 10 of 10 declared gates set including
+  `CACHE_FIX_TOOL_REWRITE=1`): the n=372->373 pair is `membership+`,
+  `toolsOnly:true`, `msgKind:append-only`, zero removals, zero reorders — seven
+  `mcp__claude-in-chrome__*` tools arriving from a mid-session MCP connect.
+  `heldStable` TRUE, `absorptionMisses` 0, and `outCount` `27->34`. The
+  extension appears in `mutatedBy` for BOTH requests, so it ran.
+  **The gap is instrument-shaped, not mitigation-shaped.** `mutatedBy` reports
+  that an extension ENGAGED; it cannot report what the extension DECIDED. Threat
+  matrix row 6 describes ladder step (a) as holding `tools[]` byte-stable and
+  delivering new schemas as appended `tool_addition` blocks — had that happened
+  here `outCount` would have stayed 27. Two readings survive the measurement and
+  it separates neither: (i) the rewrite scopes out MCP-sourced tools; (ii) its
+  guarantee is only held-tool byte-stability and a growing array front-invalidates
+  regardless, which is what row 6's own AMBIGUITY-RESOLVED paragraph actually
+  says. This is the "the mitigation ran" vs "the mitigation absorbed" split
+  `docs/runbooks/bust-appears.md` names, one level lower: here even the ABSORBED
+  question returns 0 while the wire shows growth, so neither existing instrument
+  answers it.
+  Design, decided: `deferred-tool-rewrite` already computes the decision; surface
+  it as per-request stats the way the other extensions do
+  (`ctx.meta.<ext>Stats`, the shape `fresh-session-sort` and
+  `insertion-normalization` already use and that `replay.mjs` already reads for
+  its exemption bases). Minimum fields: how many additions were injected as
+  `tool_addition` blocks, how many names were passed through into `tools[]`
+  untouched, and the reason for each pass-through. Then `findToolsDeltas`'s row
+  carries the decision beside `heldStable`/`outCount`, and row 6's open question
+  is answerable from any `--census` run instead of by hand.
+  Verifier, red-first, anchored to the FROZEN pin above so it cannot decay:
+  replaying `pinned-s-dda5c6419d49-372-373.json` must report, for n=373, a
+  non-empty pass-through list naming the seven `mcp__claude-in-chrome__*` tools
+  — today it reports nothing at all, which is the red. Control: a pair with no
+  tools delta must carry an empty decision record and NOT be absent, so "no
+  decision" and "extension never ran" stay distinguishable.
+  Done-criterion: the stats ride every `--census` run, the pin above reproduces
+  the pass-through list, and threat-matrix row 6's NAMED MISSING EVIDENCE line is
+  answered by a command rather than a reading. **This entry does not decide
+  whether the pass-through is a defect** — it builds the instrument that can tell
+  the two readings apart, which the matrix row cannot do today.
+  Write boundary: `proxy/extensions/deferred-tool-rewrite.mjs`, `tools/replay.mjs`
+  (`findToolsDeltas` row only), their tests. Touches `proxy/` — so a dotfiles pin
+  bump plus `systemctl --user restart cache-fix-proxy` rides along, and the
+  restart is cache-transparent (no state KEYS or freeze logic touched).
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
@@ -605,6 +666,73 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **2 (feeds the gates)** — it is a guard in front of a
   correctness obligation. Unranked (booked after the derivation).
 
+- **READY (small) — a backlog entry that cites `file:line` has no check that
+  the line still holds what it quotes, and citations outlived their source six
+  times in one session.** Measured 2026-08-10 across the retirement pass and
+  the attribution grade: the `capturePairResult` entry cited
+  `tools/bust-triage.mjs:749` and `:760`; `28d5022` inserted the attribution
+  section above both and they silently became `:754` and `:765`. That entry
+  survived only because it QUOTED the expression beside each number — a bare
+  `:749` now points at an unrelated line that still reads as a plausible site,
+  which is the silent direction. Same class as the stale line index, the
+  shifted ordinals and the live-anchored test assertions this session also
+  produced: a derived view outliving its source.
+  Design, decided: extend `tools/backlog-lint.mjs` with a CITATION check over
+  `## Open` — for every `path:line` token whose entry also quotes a backticked
+  expression within the following two lines, read that line of that file and
+  compare. Reuse `backlog-neighbours`'s `citedPath` for the split rather than a
+  second regex; that function exists because this exact namespace confusion
+  already cost a silent zero-candidate run.
+  Reach requirement, measured 2026-08-10: the check must also catch the BARE
+  continuation form (`` `:760` `` on its own, meaning "the same file, line
+  760"), not only the full `path:line` token. A `grep -o` for
+  `tools/bust-triage.mjs:[0-9]*` over this file found four citations and
+  MISSED every bare one — including the two that were actually stale. An
+  instrument that under-reports exactly where entries are most compact is the
+  zero-hit-read-as-absence shape, so the bare form is part of the scope, not
+  a follow-up. Resolve a bare `:NNN` against the nearest preceding full path
+  citation in the same entry.
+  SCOPE: `## Open` only. `## Done` citations are historical records of the
+  state at closing time and must NOT be rewritten — one drifted example is
+  already in there (`tools/bust-triage.mjs:553` for `stateKeyFlip`, now at
+  `:557`), and correcting it would falsify the record it exists to keep.
+  FOUR answers, never two — and the count is four because dry-running the
+  criterion split one of them (below): MATCH; DRIFTED — the quoted expression
+  is elsewhere in the file, reported WITH its new line number, which makes the
+  report a patch rather than a complaint; BROKEN-PATH — the cited file does not
+  exist; COULD-NOT-CHECK — line past EOF, or no quoted expression to anchor
+  on — naming which check failed. A citation
+  with no quoted expression is COULD-NOT-CHECK by construction and never a
+  pass — the whole point is that a bare number cannot be validated.
+  **Correction to this design, 2026-08-10, found by dry-running it:** an
+  ABSENT FILE is its own finding (BROKEN-PATH), NOT a COULD-NOT-CHECK. The
+  first draft above filed it under could-not-check, which would have swallowed
+  a real positive silently — the exact failure mode the three-answer rule
+  exists to prevent, written into the criterion itself. Caught because the
+  criterion was dry-run against cases already in hand rather than booked
+  unexercised. COULD-NOT-CHECK keeps only: line past EOF, and no quoted
+  expression to anchor on.
+  **Dry run over `## Open`, the instrument-positive for this entry** (same
+  day, 33 distinct `path:line` citations resolved against their files):
+  1 BROKEN-PATH — `proxy/extensions/session-mirror-writer.mjs:8-9`, where no
+  `extensions/` copy exists and the real file is `proxy/session-mirror-writer.mjs`
+  (lines 8-9 correct there). That one is load-bearing: the entry citing it
+  argues the XDG relocation REVERSES upstream's stated design rather than
+  adding a missing convention, which sets the whole upstream-PR strategy. The
+  substantive claim survived the check — the sentence is byte-identical in
+  `upstream/main` at those lines, verified by `diff` — so the defect was the
+  path alone, corrected in place. That is the shape this check is for: a
+  citation wrong in a way that leaves every sentence around it true.
+  Verifier, red-first, against a FROZEN reference so the case cannot decay the
+  way `3acdcd5` had to repair: run the check over the pre-correction backlog
+  (`git show <the commit before today's correction>:BACKLOG.md`) against
+  today's `tools/bust-triage.mjs` — it must report DRIFTED with 749 -> 754.
+  Control: the same run over the corrected text must report MATCH, and an entry
+  citing a line that never moved must not fire.
+  Done when the check runs inside `backlog-lint`'s existing pass (no new entry
+  point) and its drift report names the corrected line number.
+  Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint.test.mjs`.
+
 - **READY — a derived VIEW of this backlog outlives its source within one
   session, three times measured in one afternoon, and every consumer of it reads
   the wrong bytes silently.** Measured 2026-08-10 during the retirement pass, by
@@ -742,118 +870,82 @@ ENOSPC misattribution with its wrong first explanation left in.
   into the daily sweep as the existing header class already is.
   Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
 
-- **READY (small) — `deferred-tool-rewrite` ENGAGED on a 263k tools bust and the
-  array still grew on the wire; nothing reads what it actually did.** Measured
-  2026-08-10 on `s-captureAV` (pin `pinned-s-dda5c6419d49-372-373.json`,
-  replayed `--gates-from-capture`, 10 of 10 declared gates set including
-  `CACHE_FIX_TOOL_REWRITE=1`): the n=372->373 pair is `membership+`,
-  `toolsOnly:true`, `msgKind:append-only`, zero removals, zero reorders — seven
-  `mcp__claude-in-chrome__*` tools arriving from a mid-session MCP connect.
-  `heldStable` TRUE, `absorptionMisses` 0, and `outCount` `27->34`. The
-  extension appears in `mutatedBy` for BOTH requests, so it ran.
-  **The gap is instrument-shaped, not mitigation-shaped.** `mutatedBy` reports
-  that an extension ENGAGED; it cannot report what the extension DECIDED. Threat
-  matrix row 6 describes ladder step (a) as holding `tools[]` byte-stable and
-  delivering new schemas as appended `tool_addition` blocks — had that happened
-  here `outCount` would have stayed 27. Two readings survive the measurement and
-  it separates neither: (i) the rewrite scopes out MCP-sourced tools; (ii) its
-  guarantee is only held-tool byte-stability and a growing array front-invalidates
-  regardless, which is what row 6's own AMBIGUITY-RESOLVED paragraph actually
-  says. This is the "the mitigation ran" vs "the mitigation absorbed" split
-  `docs/runbooks/bust-appears.md` names, one level lower: here even the ABSORBED
-  question returns 0 while the wire shows growth, so neither existing instrument
-  answers it.
-  Design, decided: `deferred-tool-rewrite` already computes the decision; surface
-  it as per-request stats the way the other extensions do
-  (`ctx.meta.<ext>Stats`, the shape `fresh-session-sort` and
-  `insertion-normalization` already use and that `replay.mjs` already reads for
-  its exemption bases). Minimum fields: how many additions were injected as
-  `tool_addition` blocks, how many names were passed through into `tools[]`
-  untouched, and the reason for each pass-through. Then `findToolsDeltas`'s row
-  carries the decision beside `heldStable`/`outCount`, and row 6's open question
-  is answerable from any `--census` run instead of by hand.
-  Verifier, red-first, anchored to the FROZEN pin above so it cannot decay:
-  replaying `pinned-s-dda5c6419d49-372-373.json` must report, for n=373, a
-  non-empty pass-through list naming the seven `mcp__claude-in-chrome__*` tools
-  — today it reports nothing at all, which is the red. Control: a pair with no
-  tools delta must carry an empty decision record and NOT be absent, so "no
-  decision" and "extension never ran" stay distinguishable.
-  Done-criterion: the stats ride every `--census` run, the pin above reproduces
-  the pass-through list, and threat-matrix row 6's NAMED MISSING EVIDENCE line is
-  answered by a command rather than a reading. **This entry does not decide
-  whether the pass-through is a defect** — it builds the instrument that can tell
-  the two readings apart, which the matrix row cannot do today.
-  Write boundary: `proxy/extensions/deferred-tool-rewrite.mjs`, `tools/replay.mjs`
-  (`findToolsDeltas` row only), their tests. Touches `proxy/` — so a dotfiles pin
-  bump plus `systemctl --user restart cache-fix-proxy` rides along, and the
-  restart is cache-transparent (no state KEYS or freeze logic touched).
+- **READY (small) — the public-repo hygiene policy enumerates origin IPs and
+  stack fingerprints and says NOTHING about CONVERSATION CONTENT, which is the
+  category this repo actually handles most of.** Raised by the operator
+  2026-08-10 ("for public consumption, we leak nothing from our chats?") and
+  answered by measurement rather than by assurance, on the pin pushed the same
+  day (`pinned-s-dda5c6419d49-372-373.json`): message text is replaced by
+  `t_<hash>_<len>` tokens, tool inputs by `REDACTED`, the SYSTEM block —
+  where the operator's private global corpus renders — tokenized identically,
+  headers reduced to `anthropic-beta` alone (no auth, no key), and tool
+  objects reduced to `{"name": ...}` with descriptions and JSON schemas
+  dropped. The scrubber holds. That is not the gap.
+  **The gap is that none of it is WRITTEN DOWN as policy, and two things do
+  survive by design.** (i) Tool NAMES ship in cleartext — today's matrix row 6
+  entry names seven `mcp__claude-in-chrome__*` tools, which discloses which MCP
+  servers and skills this machine runs. Capability disclosure, not
+  conversation, and almost certainly acceptable — but it is currently
+  acceptable by nobody's decision. (ii) Our own tracked PROSE quotes short
+  operator phrasings verbatim: `BACKLOG.md` carries "92 seems like a lot" and
+  today's commit bodies carry "does our design violate upstream?" and "why is
+  it mine?". Those are already pushed and public. They are work-scoped
+  fragments with no personal data, and they carry real evidential value — an
+  "operator trigger" quote records WHY a pass happened — so the recommendation
+  is to KEEP the practice and make it deliberate, not to strip it.
+  Design, decided: state the conversation-content rule beside the existing
+  origin-IP rules, in three lines — capture-derived fixtures ship structure and
+  hashes only, never prose (already true, now asserted); tool names are
+  acceptable disclosure; operator quotes are permitted when work-scoped and
+  short, and never when they carry anything personal, third-party, or
+  credential-shaped.
+  **Placement, and it is the whole reason this is booked rather than done:**
+  the tracked `CLAUDE.md` is UPSTREAM's, and this fork's own rule says
+  corrections and deviations land in `CLAUDE.local.md`, which is DEPLOYED from
+  the dotfiles repo and must be edited THERE, never in this tree. So the edit
+  is a dotfiles change (`cache-fix/CLAUDE.local.md`) and this entry is the
+  fork-side record of it. Consumer: the next dotfiles session.
+  Verifier: the deployed overlay carries the three lines, and the doctor's
+  content-drift check on `DEPLOYED_COPIES` stays green.
 
-- **READY (small) — a backlog entry that cites `file:line` has no check that
-  the line still holds what it quotes, and citations outlived their source six
-  times in one session.** Measured 2026-08-10 across the retirement pass and
-  the attribution grade: the `capturePairResult` entry cited
-  `tools/bust-triage.mjs:749` and `:760`; `28d5022` inserted the attribution
-  section above both and they silently became `:754` and `:765`. That entry
-  survived only because it QUOTED the expression beside each number — a bare
-  `:749` now points at an unrelated line that still reads as a plausible site,
-  which is the silent direction. Same class as the stale line index, the
-  shifted ordinals and the live-anchored test assertions this session also
-  produced: a derived view outliving its source.
-  Design, decided: extend `tools/backlog-lint.mjs` with a CITATION check over
-  `## Open` — for every `path:line` token whose entry also quotes a backticked
-  expression within the following two lines, read that line of that file and
-  compare. Reuse `backlog-neighbours`'s `citedPath` for the split rather than a
-  second regex; that function exists because this exact namespace confusion
-  already cost a silent zero-candidate run.
-  Reach requirement, measured 2026-08-10: the check must also catch the BARE
-  continuation form (`` `:760` `` on its own, meaning "the same file, line
-  760"), not only the full `path:line` token. A `grep -o` for
-  `tools/bust-triage.mjs:[0-9]*` over this file found four citations and
-  MISSED every bare one — including the two that were actually stale. An
-  instrument that under-reports exactly where entries are most compact is the
-  zero-hit-read-as-absence shape, so the bare form is part of the scope, not
-  a follow-up. Resolve a bare `:NNN` against the nearest preceding full path
-  citation in the same entry.
-  SCOPE: `## Open` only. `## Done` citations are historical records of the
-  state at closing time and must NOT be rewritten — one drifted example is
-  already in there (`tools/bust-triage.mjs:553` for `stateKeyFlip`, now at
-  `:557`), and correcting it would falsify the record it exists to keep.
-  FOUR answers, never two — and the count is four because dry-running the
-  criterion split one of them (below): MATCH; DRIFTED — the quoted expression
-  is elsewhere in the file, reported WITH its new line number, which makes the
-  report a patch rather than a complaint; BROKEN-PATH — the cited file does not
-  exist; COULD-NOT-CHECK — line past EOF, or no quoted expression to anchor
-  on — naming which check failed. A citation
-  with no quoted expression is COULD-NOT-CHECK by construction and never a
-  pass — the whole point is that a bare number cannot be validated.
-  **Correction to this design, 2026-08-10, found by dry-running it:** an
-  ABSENT FILE is its own finding (BROKEN-PATH), NOT a COULD-NOT-CHECK. The
-  first draft above filed it under could-not-check, which would have swallowed
-  a real positive silently — the exact failure mode the three-answer rule
-  exists to prevent, written into the criterion itself. Caught because the
-  criterion was dry-run against cases already in hand rather than booked
-  unexercised. COULD-NOT-CHECK keeps only: line past EOF, and no quoted
-  expression to anchor on.
-  **Dry run over `## Open`, the instrument-positive for this entry** (same
-  day, 33 distinct `path:line` citations resolved against their files):
-  1 BROKEN-PATH — `proxy/extensions/session-mirror-writer.mjs:8-9`, where no
-  `extensions/` copy exists and the real file is `proxy/session-mirror-writer.mjs`
-  (lines 8-9 correct there). That one is load-bearing: the entry citing it
-  argues the XDG relocation REVERSES upstream's stated design rather than
-  adding a missing convention, which sets the whole upstream-PR strategy. The
-  substantive claim survived the check — the sentence is byte-identical in
-  `upstream/main` at those lines, verified by `diff` — so the defect was the
-  path alone, corrected in place. That is the shape this check is for: a
-  citation wrong in a way that leaves every sentence around it true.
-  Verifier, red-first, against a FROZEN reference so the case cannot decay the
-  way `3acdcd5` had to repair: run the check over the pre-correction backlog
-  (`git show <the commit before today's correction>:BACKLOG.md`) against
-  today's `tools/bust-triage.mjs` — it must report DRIFTED with 749 -> 754.
-  Control: the same run over the corrected text must report MATCH, and an entry
-  citing a line that never moved must not fire.
-  Done when the check runs inside `backlog-lint`'s existing pass (no new entry
-  point) and its drift report names the corrected line number.
-  Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint.test.mjs`.
+- **READY (small) — `harvest --pin` cannot freeze a LATE event in a LARGE
+  capture, which is exactly when the expensive busts happen.** `--pin n..m`
+  always writes every record from 0 through m (deliberately: replay from 0 is
+  what keeps insertion-normalization's per-conversation canonical state in
+  sync, stated in `tools/harvest.mjs`'s own header). That is correct and it
+  does not scale. Measured 2026-08-10 on a live 311k `messages_changed` bust:
+  the capture was 592 MB / 2065 records and the busting pair sat at 1048..1049,
+  so the prescribed freeze would have written roughly 300 MB into a PUBLIC git
+  history. The existing tracked pins are 36 KB, 1.7 MB and 30 MB — this is an
+  order of magnitude past the largest, and `docs/runbooks/bust-appears.md`'s
+  "structural classes are worth the megabytes" was written when pins were tens
+  of megabytes.
+  **Consequence, and it is the closing gate's own question 2:** for a late
+  event in a big capture there is currently NO proportionate freeze, so the
+  evidence-harvestable answer is "no" by construction rather than by choice.
+  The one thing that keeps this from being urgent is also measured: eviction is
+  oldest-mtime-first, so an ACTIVE session's capture is the last to go — the
+  window is real, but it closes when the session goes quiet, which is exactly
+  when it stops being traffic and starts being evidence.
+  Design, decided: `--pin` gains a bounded-prefix mode that keeps replay
+  correctness instead of trading it away. Replay from 0 is needed for the
+  per-conversation canonical state, so the bound is per-CONVERSATION, not
+  per-file: keep every record of the busting pair's own conversation
+  (`conversationOf`, already the grouping key `replay.mjs` uses) from 0
+  through m, and drop records belonging to other conversations, which
+  contribute nothing to that state. On an interleaved multi-tenant capture like
+  the measured one that is most of the file.
+  Verifier, red-first and self-proving: the bounded pin must reproduce the SAME
+  verdicts as the full pin over the same range — same pair count for the
+  busting conversation, same violations, same census classes — which is the
+  check `--pin` already runs on itself today, so the bar is "identical verdicts
+  at a fraction of the bytes", not a new notion of correctness. RED: the same
+  bound applied by naive truncation (records n..m only, no conversation
+  filter) must FAIL that check, which is the failure mode the header comment
+  already predicts and nothing currently demonstrates.
+  Done-criterion: the 2026-08-10 bust above is freezable at a size in line with
+  the existing tracked pins, with verdicts identical to the unbounded pin.
+  Write boundary: `tools/harvest.mjs`, `test/harvest*.test.mjs`.
 
 - **RESOLVED 2026-08-10 — CLOSED by the pass's own correction, taking the
   "or close" branch it offered. `bust-appears.md` already carries the designed
