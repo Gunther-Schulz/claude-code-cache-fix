@@ -4395,7 +4395,17 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census, toolsDeltas, identityRotations, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
+    // runCensus returns `tally`/`examples` as Maps (the text report below
+    // reads them via .entries()); JSON.stringify renders a bare Map as `{}`,
+    // so `--json --census` shipped with the two fields carrying the actual
+    // classification silently empty (BACKLOG "replay.mjs --json drops the
+    // census entirely" — measured: `{"pairs":1,...,"tally":{},"examples":{}}`
+    // with nothing erroring). Serialized here, at the JSON boundary only —
+    // `census` itself stays Map-shaped for every other consumer in this file.
+    const censusJson = census
+      ? { ...census, tally: Object.fromEntries(census.tally), examples: Object.fromEntries(census.examples) }
+      : null;
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census: censusJson, toolsDeltas, identityRotations, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
