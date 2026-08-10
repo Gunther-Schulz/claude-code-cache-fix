@@ -34,6 +34,36 @@
 // prints "0 candidates" with its reason — an empty result and a broken run
 // must not look alike.
 //
+// SECOND JOIN, one grain finer (booked 2026-08-10: "backlog-neighbours joins
+// on FILES, so a premise refuted inside ANOTHER ENTRY is invisible to it").
+// `cf0592d` recorded a rotation measurement inside the `capturePairResult`
+// entry that refuted the retention rule of a DIFFERENT open entry (the
+// bounded-`--pin` one) — both entries live only in `BACKLOG.md`, so the file
+// join returns a populated but wrong-population report (every entry that
+// happens to CITE `BACKLOG.md` by name) and the one that actually shares the
+// moved premise is absent. When a commit changes `BACKLOG.md` itself, this
+// second join diffs which ENTRIES its body changed, collects their
+// backtick-quoted camelCase IDENTIFIER tokens (`conversationOf`, not
+// `tools/replay.mjs` or `BACKLOG.md`), and lists every other still-open entry
+// sharing one — same report shape, same blank disposition slot, still a
+// REPORT, never a gate. The file join is untouched except for a `via=file`
+// marker added to its CANDIDATE lines so a reader can tell the two joins'
+// rows apart; `via=identifier` marks the new join's own rows.
+//
+// NOT built on `tools/backlog-order.mjs`'s `splitOpen`, despite it already
+// doing exactly the section-slicing this join needs: that file runs
+// unguarded `process.argv` parsing at IMPORT time and calls `process.exit(2)`
+// on any argument it does not recognise (verified at the desk, reading the
+// file — `backlog-order.mjs:41-58`, `KNOWN = new Set(["--check", "--file"])`
+// with no `import.meta.url` guard around it). Importing it here would kill
+// this tool's own CLI the moment it ran with a commit-ish argv, since that
+// argv is `process.argv` too. `openSectionSlice` below duplicates the small
+// (~10-line) `## Open` boundary lookup instead — the same boundary
+// `backlog-lint.mjs`'s private `censusOpenSection` already computes and that
+// its own comment says must never disagree with `backlog-order.mjs`'s
+// version; a third copy of just the boundary, not a third bullet/grade/file
+// parser, since `censusEntries` still supplies all of that.
+//
 // CLI:
 //   node tools/backlog-neighbours.mjs             # against HEAD, BACKLOG.md
 //   node tools/backlog-neighbours.mjs <commit-ish> [<backlog-path>]
@@ -43,7 +73,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { censusEntries } from "./backlog-lint.mjs";
+import { censusEntries, splitEntries } from "./backlog-lint.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -136,7 +166,7 @@ export function findCandidates(touched, entries) {
 
 function formatCandidate(c) {
   return (
-    `CANDIDATE line=${c.line} shared=${c.files.join(",")} ` +
+    `CANDIDATE line=${c.line} via=file shared=${c.files.join(",")} ` +
     `disposition=<still-valid|premise-corrected|now-unnecessary> "${c.headline}"`
   );
 }
@@ -184,6 +214,243 @@ export function buildReport(commitish, touchedResult, entriesResult) {
 }
 
 // ---------------------------------------------------------------------------
+// Identifier join — I/O boundary
+// ---------------------------------------------------------------------------
+
+// Locates the '## Open' section's own text and the line offset needed to
+// turn a 1-based line number relative to that text back into a file-absolute
+// one. Deliberately duplicated rather than imported (see the file header):
+// `backlog-lint.mjs`'s equivalent (`censusOpenSection`) is private, and
+// `backlog-order.mjs`'s exported `splitOpen` is unsafe to import from a CLI
+// context. Boundary matches both exactly (head = first '## Open' line,
+// tail = next '## ' line or EOF) — the same invariant `censusEntries`
+// already depends on internally, so `censusEntries(text)` and
+// `splitEntries(openSectionSlice(text).body)` walk the identical entries in
+// the identical order by construction, not by coincidence.
+function openSectionSlice(text) {
+  const lines = text.split("\n");
+  const head = lines.findIndex((l) => l.startsWith("## Open"));
+  if (head < 0) return null;
+  let tail = lines.length;
+  for (let i = head + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("## ")) {
+      tail = i;
+      break;
+    }
+  }
+  return { body: lines.slice(head + 1, tail).join("\n"), lineOffset: head + 1 };
+}
+
+// `censusEntries`'s rows, one grain richer: each row also carries its own
+// raw body text, needed for identifier extraction (`censusEntries` itself
+// discards the body once it has pulled grade/headline/files out of it).
+export function resolveOpenEntriesWithBodies(text) {
+  const section = openSectionSlice(text);
+  if (!section) return { ok: false, proof: "no '## Open' section" };
+  const meta = censusEntries(text);
+  const rows = splitEntries(section.body);
+  return { ok: true, entries: meta.map((m, i) => ({ ...m, body: rows[i].body })) };
+}
+
+export function resolveOpenEntriesWithBodiesFromPath(backlogPath) {
+  let text;
+  try {
+    text = readFileSync(backlogPath, "utf8");
+  } catch (e) {
+    return { ok: false, proof: `cannot read ${backlogPath}: ${e.message}` };
+  }
+  const r = resolveOpenEntriesWithBodies(text);
+  return r.ok ? r : { ok: false, proof: `${r.proof} in ${backlogPath}` };
+}
+
+// The commit's own AFTER image of BACKLOG.md, plus the raw unified diff
+// against its parent (git's own line-diff, not a hand-rolled one) — one
+// failure at either step collapses to a single COULD-NOT-VERIFY, matching
+// the settled design's "either git show fails" wording: a root commit (no
+// `<commit>^`) fails the same way as an unresolvable commit-ish.
+export function resolveIdentifierImages(commitish, cwd = REPO_ROOT) {
+  const run = (args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  try {
+    const after = run(["show", `${commitish}:BACKLOG.md`]);
+    // Before image: existence/resolution check only. The actual line-change
+    // detection below is git's own diff, not a hand-rolled comparison of
+    // this text against `after`.
+    run(["show", `${commitish}^:BACKLOG.md`]);
+    const diff = run(["diff", "--unified=0", `${commitish}^`, commitish, "--", "BACKLOG.md"]);
+    return { ok: true, after, diff };
+  } catch (e) {
+    const text = `${e.stderr ?? ""}${e.stdout ?? ""}`.trim();
+    return { ok: false, proof: text || `exit ${e.status ?? "?"}, no output` };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Identifier join — pure core
+// ---------------------------------------------------------------------------
+
+// A backtick-quoted token counts as a camelCase IDENTIFIER only if the WHOLE
+// token (after stripping a trailing `()`) is letters/digits, starts
+// lowercase, and carries at least one internal uppercase letter. Deliberately
+// EXCLUDES: file paths and `path:line` citations (contain `/`, `.`, or `:`),
+// ALL-CAPS tokens (`BACKLOG.md`'s own name, acronyms), snake_case, and plain
+// lowercase prose words — the shapes that would otherwise turn this into a
+// second, noisier file join.
+export const CAMEL_CASE_IDENTIFIER = /^[a-z][A-Za-z0-9]*[A-Z][A-Za-z0-9]*$/;
+
+const BACKTICK_SPAN = /`([^`\n]+)`/g;
+
+// Every backtick-quoted camelCase identifier in an entry body, deduped,
+// first-appearance order. Same idiom as `backlog-lint.mjs`'s `censusFiles`: a
+// backtick span is split on whitespace and each token judged alone, so a
+// command span like `` `node tools/x.mjs conversationOf` `` yields the one
+// real identifier token.
+export function extractIdentifiers(body) {
+  const ids = [];
+  const seen = new Set();
+  BACKTICK_SPAN.lastIndex = 0;
+  let m;
+  while ((m = BACKTICK_SPAN.exec(body))) {
+    for (const tok of m[1].split(/\s+/)) {
+      const stripped = tok.replace(/\(\)$/, "");
+      if (CAMEL_CASE_IDENTIFIER.test(stripped) && !seen.has(stripped)) {
+        seen.add(stripped);
+        ids.push(stripped);
+      }
+    }
+  }
+  return ids;
+}
+
+const HUNK_HEADER = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm;
+
+// Post-image line numbers a `--unified=0` diff touched. A hunk whose new
+// count is 0 is a pure deletion — no post-image line to attribute, so it
+// contributes nothing.
+export function parseChangedLines(diffText) {
+  const lines = new Set();
+  HUNK_HEADER.lastIndex = 0;
+  let m;
+  while ((m = HUNK_HEADER.exec(diffText))) {
+    const start = Number(m[1]);
+    const count = m[2] === undefined ? 1 : Number(m[2]);
+    for (let i = 0; i < count; i++) lines.add(start + i);
+  }
+  return lines;
+}
+
+// Every Open-section entry (any grade — grade filtering happens on the
+// CANDIDATE side, not here) whose own body span contains at least one
+// changed line. An entry's span is [entry.line, entry.line + lineCount - 1];
+// `lineCount` comes from its own body text, so no separate "next entry"
+// bookkeeping is needed — each entry's body already stops at the next bullet
+// or the '## Open' section's own end, by `resolveOpenEntriesWithBodies`'s
+// construction.
+export function changedEntriesOf(changedLines, entriesWithBodies) {
+  const changed = [];
+  for (const e of entriesWithBodies) {
+    const end = e.line + e.body.split("\n").length - 1;
+    for (const ln of changedLines) {
+      if (ln >= e.line && ln <= end) {
+        changed.push(e);
+        break;
+      }
+    }
+  }
+  return changed;
+}
+
+function formatIdentifierCandidate(c) {
+  return (
+    `CANDIDATE line=${c.line} via=identifier shared=${c.ids.join(",")} ` +
+    `disposition=<still-valid|premise-corrected|now-unnecessary> "${c.headline}"`
+  );
+}
+
+// The identifier join's report, built the same { code, lines } shape as
+// `buildReport`, from already-resolved pieces so bites can inject canned
+// failures for any I/O step without git or a fixture file. `touchedResult`
+// is the SAME resolved value the file join uses — reused, not re-fetched.
+// `imagesResult`/`poolResult` may be `null` when `touchedResult` makes them
+// unreachable (commit unresolved, or resolved but not touching BACKLOG.md);
+// they are never read in those branches.
+export function buildIdentifierReport(commitish, touchedResult, imagesResult, poolResult) {
+  if (!touchedResult.ok) {
+    // The file join already reports COULD-NOT-VERIFY commit-resolve for
+    // this same failure; nothing more to say about it here.
+    return { code: 2, lines: [] };
+  }
+  if (!touchedResult.files.includes("BACKLOG.md")) {
+    return {
+      code: 0,
+      lines: [`0 identifier candidates -- commit ${commitish} did not change BACKLOG.md`],
+    };
+  }
+  if (!imagesResult.ok) {
+    return { code: 2, lines: [`COULD-NOT-VERIFY identifier-join-images -- ${imagesResult.proof}`] };
+  }
+
+  const afterEntries = resolveOpenEntriesWithBodies(imagesResult.after);
+  if (!afterEntries.ok) {
+    return { code: 2, lines: [`COULD-NOT-VERIFY identifier-join-images -- ${afterEntries.proof}`] };
+  }
+  if (!poolResult.ok) {
+    return { code: 2, lines: [`COULD-NOT-VERIFY identifier-join-pool -- ${poolResult.proof}`] };
+  }
+
+  const changedLines = parseChangedLines(imagesResult.diff);
+  const changedEntries = changedEntriesOf(changedLines, afterEntries.entries);
+  if (!changedEntries.length) {
+    return {
+      code: 0,
+      lines: [
+        `0 identifier candidates -- commit ${commitish} changed BACKLOG.md but no '## Open' entry body`,
+      ],
+    };
+  }
+
+  const changedIds = new Set();
+  for (const e of changedEntries) for (const id of extractIdentifiers(e.body)) changedIds.add(id);
+  if (!changedIds.size) {
+    return {
+      code: 0,
+      lines: [
+        `0 identifier candidates -- changed entries in commit ${commitish} cite no camelCase identifier`,
+      ],
+    };
+  }
+
+  // Excludes the changed entries themselves by HEADLINE, not by line number:
+  // `poolResult` reads a possibly different file (a frozen image, a live
+  // tree since reordered) than `imagesResult.after`, so line numbers are not
+  // a stable cross-image key while the headline text usually still is.
+  const changedHeadlines = new Set(changedEntries.map((e) => e.headline));
+  const candidates = [];
+  for (const e of poolResult.entries) {
+    if (!OPEN_GRADES.has(e.grade)) continue;
+    if (changedHeadlines.has(e.headline)) continue;
+    const shared = extractIdentifiers(e.body).filter((id) => changedIds.has(id));
+    if (shared.length) candidates.push({ line: e.line, headline: e.headline, ids: shared });
+  }
+
+  if (!candidates.length) {
+    return {
+      code: 0,
+      lines: [
+        `0 identifier candidates -- no open entry shares an identifier with commit ${commitish}'s changed entries`,
+      ],
+    };
+  }
+  return {
+    code: 0,
+    lines: [
+      ...candidates.map(formatIdentifierCandidate),
+      `${candidates.length} identifier candidate(s) for commit ${commitish}`,
+    ],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // CLI glue
 // ---------------------------------------------------------------------------
 
@@ -194,7 +461,18 @@ function main(argv) {
 
   const touchedResult = resolveTouchedFiles(commitish);
   const entriesResult = resolveOpenEntries(backlogPath);
-  const { code, lines } = buildReport(commitish, touchedResult, entriesResult);
+  const fileReport = buildReport(commitish, touchedResult, entriesResult);
+
+  // Only reach for git/the pool file when the commit resolved AND actually
+  // touched BACKLOG.md — the two cases `buildIdentifierReport` short-circuits
+  // on without ever reading `imagesResult`/`poolResult`.
+  const touchesBacklog = touchedResult.ok && touchedResult.files.includes("BACKLOG.md");
+  const imagesResult = touchesBacklog ? resolveIdentifierImages(commitish) : null;
+  const poolResult = touchesBacklog ? resolveOpenEntriesWithBodiesFromPath(backlogPath) : null;
+  const idReport = buildIdentifierReport(commitish, touchedResult, imagesResult, poolResult);
+
+  const lines = [...fileReport.lines, ...idReport.lines];
+  const code = fileReport.code === 2 || idReport.code === 2 ? 2 : 0;
   for (const l of lines) process.stdout.write(`${l}\n`);
   return code;
 }

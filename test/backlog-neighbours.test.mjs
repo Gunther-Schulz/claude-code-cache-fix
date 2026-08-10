@@ -46,6 +46,11 @@ import {
   resolveOpenEntries,
   OPEN_GRADES,
 } from "../tools/backlog-neighbours.mjs";
+// Namespace import for the identifier-join additions (docs/dev-loop.md's
+// ESM link-collapse rule): a static named import of a not-yet-existing
+// export fails the WHOLE file at link time, before a single bite runs, so
+// the discriminating red/green split between old and new bites is lost.
+import * as neighbours from "../tools/backlog-neighbours.mjs";
 import { tmpDirSync } from "../tools/tmpdir.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -145,7 +150,7 @@ test("buildReport: candidates present -- CANDIDATE lines plus the count line, ex
   assert.equal(r.lines.length, 2);
   assert.match(
     r.lines[0],
-    /^CANDIDATE line=1 shared=tools\/foo\.mjs disposition=<still-valid\|premise-corrected\|now-unnecessary> "READY — a thing\."$/,
+    /^CANDIDATE line=1 via=file shared=tools\/foo\.mjs disposition=<still-valid\|premise-corrected\|now-unnecessary> "READY — a thing\."$/,
   );
   assert.equal(r.lines[1], "1 candidate(s) for commit HEAD");
 });
@@ -285,5 +290,280 @@ test("CLI: 508a006 does NOT surface the verdict-count entry (line ~4396) -- docu
     "the verdict-count entry's only file-shaped token, `cache-fix/CLAUDE.local.md:91`, is a " +
       "dotfiles-repo path this repo's git can never report as touched -- structurally " +
       "unreachable by this join, not a bug in it",
+  );
+});
+
+// ==========================================================================
+// Section 6: CAMEL_CASE_IDENTIFIER / extractIdentifiers -- the identifier
+// join's own token filter, one condition at a time.
+// ==========================================================================
+
+test("CAMEL_CASE_IDENTIFIER: accepts conversationOf and sameLineage", () => {
+  assert.ok(neighbours.CAMEL_CASE_IDENTIFIER.test("conversationOf"));
+  assert.ok(neighbours.CAMEL_CASE_IDENTIFIER.test("sameLineage"));
+});
+
+test("CAMEL_CASE_IDENTIFIER: rejects a file path, a path:line citation, an ALL-CAPS token, and plain lowercase", () => {
+  for (const tok of ["tools/replay.mjs", "foo.mjs:12", "BACKLOG.md", "UPPER", "lowercase"]) {
+    assert.equal(neighbours.CAMEL_CASE_IDENTIFIER.test(tok), false, `${tok} must not match`);
+  }
+});
+
+test("extractIdentifiers: pulls camelCase tokens from backtick spans, ignoring file paths and path:line citations", () => {
+  const body =
+    "Cites `conversationOf`, `tools/replay.mjs`, and `foo.mjs:12`, plus `sameLineage()` with a trailing call.";
+  assert.deepEqual(neighbours.extractIdentifiers(body), ["conversationOf", "sameLineage"]);
+});
+
+test("extractIdentifiers: dedupes, first-appearance order", () => {
+  const body = "`conversationOf` appears twice: `conversationOf` again, then `sameLineage`.";
+  assert.deepEqual(neighbours.extractIdentifiers(body), ["conversationOf", "sameLineage"]);
+});
+
+test("extractIdentifiers: a body with no qualifying token returns an empty array", () => {
+  assert.deepEqual(neighbours.extractIdentifiers("Only `BACKLOG.md` and `tools/foo.mjs` here."), []);
+});
+
+// ==========================================================================
+// Section 7: parseChangedLines / changedEntriesOf -- pure, no git
+// ==========================================================================
+
+test("parseChangedLines: a hunk with an explicit count expands to every post-image line in range", () => {
+  const diff = "@@ -5,2 +10,3 @@\n+a\n+b\n+c\n";
+  assert.deepEqual([...neighbours.parseChangedLines(diff)].sort((a, b) => a - b), [10, 11, 12]);
+});
+
+test("parseChangedLines: a hunk with an implicit count (single line) is exactly one line", () => {
+  const diff = "@@ -5 +10 @@\n+a\n";
+  assert.deepEqual([...neighbours.parseChangedLines(diff)], [10]);
+});
+
+test("parseChangedLines: a pure deletion (post-image count 0) contributes no line", () => {
+  const diff = "@@ -5,3 +10,0 @@\n-a\n-b\n-c\n";
+  assert.deepEqual([...neighbours.parseChangedLines(diff)], []);
+});
+
+const bodyEntry = (line, bodyLines, over) => ({
+  line,
+  grade: "READY",
+  headline: `entry at ${line}`,
+  files: [],
+  body: bodyLines.join("\n"),
+  ...over,
+});
+
+test("changedEntriesOf: a changed line inside an entry's own span selects it", () => {
+  const entries = [bodyEntry(10, ["- **READY**", "body line 2", "body line 3"])]; // spans 10-12
+  const out = neighbours.changedEntriesOf(new Set([11]), entries);
+  assert.equal(out.length, 1);
+});
+
+test("changedEntriesOf: a changed line at the entry's LAST line still selects it (off-by-one control)", () => {
+  const entries = [bodyEntry(10, ["- **READY**", "body line 2", "body line 3"])]; // spans 10-12
+  const out = neighbours.changedEntriesOf(new Set([12]), entries);
+  assert.equal(out.length, 1);
+});
+
+test("changedEntriesOf: a changed line outside every entry's span selects nothing", () => {
+  const entries = [bodyEntry(10, ["- **READY**", "body line 2", "body line 3"])]; // spans 10-12
+  const out = neighbours.changedEntriesOf(new Set([20]), entries);
+  assert.deepEqual(out, []);
+});
+
+// ==========================================================================
+// Section 8: resolveOpenEntriesWithBodies -- censusEntries's rows, plus body
+// ==========================================================================
+
+test("resolveOpenEntriesWithBodies: no '## Open' section at all -- ok:false", () => {
+  const r = neighbours.resolveOpenEntriesWithBodies("# not a backlog\nJust prose.\n");
+  assert.equal(r.ok, false);
+  assert.match(r.proof, /no '## Open' section/);
+});
+
+test("resolveOpenEntriesWithBodies: an entry's row carries both censusEntries metadata and its own body text", () => {
+  const text = "## Open\n- **READY — a thing.** Cites `conversationOf` here.\n\n## Later\nprose\n";
+  const r = neighbours.resolveOpenEntriesWithBodies(text);
+  assert.equal(r.ok, true);
+  assert.equal(r.entries.length, 1);
+  assert.equal(r.entries[0].grade, "READY");
+  assert.equal(r.entries[0].line, 2);
+  assert.match(r.entries[0].body, /conversationOf/);
+});
+
+test("resolveOpenEntriesWithBodiesFromPath: file does not exist -- ok:false", () => {
+  const r = neighbours.resolveOpenEntriesWithBodiesFromPath(join(REPO, "does-not-exist-BACKLOG.md"));
+  assert.equal(r.ok, false);
+  assert.match(r.proof, /cannot read/);
+});
+
+// ==========================================================================
+// Section 9: buildIdentifierReport -- the THREE-answer discipline, one
+// injected failure at a time (same idiom as buildReport in Section 2).
+// ==========================================================================
+
+test("buildIdentifierReport: commit did not resolve -- shares the file join's fate, empty lines, exit 2", () => {
+  const r = neighbours.buildIdentifierReport(
+    "bad-ref",
+    { ok: false, proof: "fatal: bad revision 'bad-ref'" },
+    null,
+    null,
+  );
+  assert.equal(r.code, 2);
+  assert.deepEqual(r.lines, [], "the file join already reported this failure; nothing to add here");
+});
+
+test("buildIdentifierReport: commit resolves but did not touch BACKLOG.md -- '0 identifier candidates' with reason, exit 0", () => {
+  const r = neighbours.buildIdentifierReport("c1", { ok: true, files: ["tools/x.mjs"] }, null, null);
+  assert.equal(r.code, 0);
+  assert.match(r.lines[0], /^0 identifier candidates -- commit c1 did not change BACKLOG\.md$/);
+});
+
+test("buildIdentifierReport: image resolution failed (e.g. root commit) -- COULD-NOT-VERIFY identifier-join-images, exit 2", () => {
+  const r = neighbours.buildIdentifierReport(
+    "c1",
+    { ok: true, files: ["BACKLOG.md"] },
+    { ok: false, proof: "fatal: bad object HEAD^" },
+    { ok: true, entries: [] },
+  );
+  assert.equal(r.code, 2);
+  assert.match(r.lines[0], /^COULD-NOT-VERIFY identifier-join-images -- fatal: bad object HEAD\^$/);
+});
+
+test("buildIdentifierReport: the AFTER image has no '## Open' section -- COULD-NOT-VERIFY identifier-join-images, exit 2", () => {
+  const r = neighbours.buildIdentifierReport(
+    "c1",
+    { ok: true, files: ["BACKLOG.md"] },
+    { ok: true, after: "# not a backlog\n", diff: "@@ -1 +1 @@\n" },
+    { ok: true, entries: [] },
+  );
+  assert.equal(r.code, 2);
+  assert.match(r.lines[0], /^COULD-NOT-VERIFY identifier-join-images -- no '## Open' section$/);
+});
+
+test("buildIdentifierReport: pool resolution failed -- COULD-NOT-VERIFY identifier-join-pool, exit 2", () => {
+  const after = "## Open\n- **READY — x.** Cites `conversationOf`.\n";
+  const r = neighbours.buildIdentifierReport(
+    "c1",
+    { ok: true, files: ["BACKLOG.md"] },
+    { ok: true, after, diff: "@@ -1 +2 @@\n+x\n" },
+    { ok: false, proof: "cannot read x: ENOENT" },
+  );
+  assert.equal(r.code, 2);
+  assert.match(r.lines[0], /^COULD-NOT-VERIFY identifier-join-pool -- cannot read x: ENOENT$/);
+});
+
+test("buildIdentifierReport: diff touches BACKLOG.md but no changed line falls inside an Open entry's body -- '0 identifier candidates', exit 0", () => {
+  const after = "## Open\n- **READY — x.** Cites `conversationOf`.\n\n## Later\nprose\n";
+  const diff = "@@ -1 +10 @@\n+something\n"; // line 10 is well past the Open section
+  const r = neighbours.buildIdentifierReport(
+    "c1",
+    { ok: true, files: ["BACKLOG.md"] },
+    { ok: true, after, diff },
+    { ok: true, entries: [] },
+  );
+  assert.equal(r.code, 0);
+  assert.match(
+    r.lines[0],
+    /^0 identifier candidates -- commit c1 changed BACKLOG\.md but no '## Open' entry body$/,
+  );
+});
+
+test("buildIdentifierReport: the changed entry cites no camelCase identifier -- '0 identifier candidates', exit 0", () => {
+  const after = "## Open\n- **READY — x.** No identifiers here, just `BACKLOG.md`.\n";
+  const diff = "@@ -1 +2 @@\n+x\n";
+  const r = neighbours.buildIdentifierReport(
+    "c1",
+    { ok: true, files: ["BACKLOG.md"] },
+    { ok: true, after, diff },
+    { ok: true, entries: [] },
+  );
+  assert.equal(r.code, 0);
+  assert.match(
+    r.lines[0],
+    /^0 identifier candidates -- changed entries in commit c1 cite no camelCase identifier$/,
+  );
+});
+
+test("buildIdentifierReport: candidates present -- excludes the changed entry itself (by headline), grade-filters the rest, CANDIDATE + count line, exit 0", () => {
+  const after = "## Open\n- **READY — a title.** Cites `conversationOf` and `capturePairResult`.\n";
+  const diff = "@@ -1 +2 @@\n+x\n";
+  const afterEntries = neighbours.resolveOpenEntriesWithBodies(after);
+  const changedHeadline = afterEntries.entries[0].headline;
+  const pool = {
+    ok: true,
+    entries: [
+      // Same entry, reached via a DIFFERENT file (the pool argument) -- must
+      // be excluded from its own candidate list by headline.
+      {
+        line: 50,
+        grade: "READY",
+        headline: changedHeadline,
+        files: [],
+        body: "Cites `conversationOf` and `capturePairResult`.",
+      },
+      { line: 99, grade: "READY", headline: "the pin entry", files: [], body: "Cites `conversationOf` too." },
+      { line: 5, grade: "DONE", headline: "closed entry", files: [], body: "Also cites `conversationOf`." },
+      {
+        line: 7,
+        grade: "READY",
+        headline: "unrelated entry",
+        files: [],
+        body: "Cites `somethingElseEntirely`.",
+      },
+    ],
+  };
+  const r = neighbours.buildIdentifierReport(
+    "c1",
+    { ok: true, files: ["BACKLOG.md"] },
+    { ok: true, after, diff },
+    pool,
+  );
+  assert.equal(r.code, 0);
+  assert.equal(r.lines.length, 2, `expected exactly one candidate plus the count line:\n${r.lines.join("\n")}`);
+  assert.match(
+    r.lines[0],
+    /^CANDIDATE line=99 via=identifier shared=conversationOf disposition=<still-valid\|premise-corrected\|now-unnecessary> "the pin entry"$/,
+  );
+  assert.equal(r.lines[1], "1 identifier candidate(s) for commit c1");
+});
+
+// ==========================================================================
+// Section 10: resolveIdentifierImages -- real git, one failure mode
+// ==========================================================================
+
+test("resolveIdentifierImages: a root commit (no parent) -- ok:false", () => {
+  const root = execFileSync("git", ["rev-list", "--max-parents=0", "HEAD"], { cwd: REPO, encoding: "utf8" })
+    .trim()
+    .split("\n")[0];
+  const r = neighbours.resolveIdentifierImages(root, REPO);
+  assert.equal(r.ok, false);
+});
+
+// ==========================================================================
+// Section 11: CLI, real history -- the settled design's own red-first proof.
+// `cf0592d` recorded a rotation measurement in the `capturePairResult` entry
+// that refuted the retention rule of the bounded-`--pin` entry (line 1017 of
+// this frozen image); the file join cannot see it (Section 4 idiom: 508a006
+// already proves the file join's own true-positive/over-firing pair, so this
+// section is scoped to what only the identifier join demonstrates).
+// ==========================================================================
+
+function frozenAt(ref) {
+  const path = join(tmpDirSync("neighbours-frozen-"), "BACKLOG.md");
+  writeFileSync(path, execFileSync("git", ["show", `${ref}:BACKLOG.md`], { encoding: "utf8" }));
+  return path;
+}
+
+test("CLI: cf0592d over its OWN frozen image -- identifier join surfaces line=1017 via conversationOf, file join still 9 rows", () => {
+  const { code, out } = runTool(["cf0592d", frozenAt("cf0592d")]);
+  assert.equal(code, 0);
+  const lines = out.trim().split("\n");
+  const fileLines = lines.filter((l) => l.startsWith("CANDIDATE") && l.includes(" via=file "));
+  assert.equal(fileLines.length, 9, `expected the 9 file-join rows:\n${fileLines.join("\n")}`);
+  assert.ok(fileLines.every((l) => /shared=BACKLOG\.md\b/.test(l)));
+  const idLines = lines.filter((l) => l.startsWith("CANDIDATE") && l.includes(" via=identifier "));
+  assert.ok(
+    idLines.some((l) => l.startsWith("CANDIDATE line=1017 ") && /shared=[^ ]*\bconversationOf\b/.test(l)),
+    `expected line=1017 sharing conversationOf among:\n${idLines.join("\n")}`,
   );
 });
