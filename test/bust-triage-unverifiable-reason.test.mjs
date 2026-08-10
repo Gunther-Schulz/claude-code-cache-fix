@@ -106,10 +106,25 @@ test("CONTROL — a bust on the session's LAST request is not 'window not covere
 
 test("BITE — present + covered + no predecessor is its OWN reason, naming its input", async () => {
   // The selected request is the first of its own conversation: an interleaved
-  // co-tenant sits in the file, but nothing earlier in the SAME conversation.
+  // co-tenant sits in the file, but nothing earlier in the SAME conversation
+  // — and, since `capturePairResult` now also asks whether an earlier
+  // request is the SAME conversation by CONTENT (the lineage fallback), the
+  // co-tenant's filler text must be genuinely unrelated too. The shared
+  // `req` helper's generic "m0"/"m1" filler collides across conversations by
+  // construction (same text regardless of `conv`), which is exactly the kind
+  // of accidental overlap the fallback's threshold exists to reject on real
+  // data — but a FIXTURE built before that fallback existed can manufacture
+  // the collision that real conversation text would not. Distinct per-
+  // conversation filler restores this test's actual intent: no predecessor
+  // AT ALL, not merely none the OLD identity test could see.
+  const unrelated = (ts, conv, n) => JSON.stringify({
+    ts, id: ts,
+    body: { messages: [msg("conv-" + conv),
+                        ...Array.from({ length: n - 1 }, (_, i) => msg(conv + "-m" + i))] },
+  });
   const dir = capture([
-    req("2026-08-07T00:59:00.000Z", "OTHER", 5),
-    req("2026-08-07T01:00:00.000Z", "A", 3),   // first of conversation A
+    unrelated("2026-08-07T00:59:00.000Z", "OTHER", 5),
+    unrelated("2026-08-07T01:00:00.000Z", "A", 3),   // first of conversation A
   ]);
   const r = await capturePairResult("unv0001", at("2026-08-07T01:00:55Z"), dir);
   assert.equal(r.ok, false);

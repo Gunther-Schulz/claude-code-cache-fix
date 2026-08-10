@@ -78,7 +78,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { censusPair, compactEntry, findEditPositions, findBlockMigrations,
-         firstDivergence, attributionOf } from "./replay.mjs";
+         lineageOverlap, sameLineage, firstDivergence, attributionOf } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
@@ -784,10 +784,57 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES, ct
     if (!before || Date.parse(r.ts) > Date.parse(before.ts)) before = r;
   }
   if (before) return { ok: true, before, after };
+  // LINEAGE FALLBACK (BACKLOG "capturePairResult's conversation identity is
+  // the busting request's own messages[0]"). `conversationOf` (the cid
+  // search above) is CORRECT for cache identity and stays exactly as it was
+  // — every stable-identity pair returns above, byte-for-byte unchanged.
+  // But matrix row 29's mechanism REBUILDS messages[0] at an idle boundary,
+  // so the cid search finds nothing to pair against not because there is no
+  // predecessor, but because the identity it searches on was just replaced.
+  // Only reached when the cid search above found NOTHING. A second relation
+  // — content overlap over per-message hashes, imported rather than
+  // re-derived (three confident wrong answers here already came from
+  // hand-rolled identity) — finds the predecessor by what it CONTAINS
+  // instead of by its first message, and survives the rotation that defeats
+  // `conversationOf`.
+  const afterEntry = compactEntry({ inMsgs: after.body.messages });
+  let bestOverlap = -1;
+  let bestEntry = null;
+  let bestCandidate = null;
+  let o4 = -1;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") o4++;
+    if (!r?.body?.messages || !r?.ts) continue;
+    // Strictly earlier than `after` — the same "predecessor" relation the
+    // cid search above enforces, never a second notion of "earlier".
+    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
+    const candEntry = compactEntry({ inMsgs: r.body.messages });
+    const ov = lineageOverlap(candEntry, afterEntry);
+    // >= so that among tied overlaps the MORE RECENT candidate wins — the
+    // measured cluster rises monotonically with recency (97.1/97.3/97.7/
+    // 98.1/98.5%), so ties are not expected, but a later, closer request is
+    // the more plausible predecessor.
+    if (ov >= bestOverlap) {
+      bestOverlap = ov;
+      bestEntry = candEntry;
+      r.ord = o4;
+      bestCandidate = r;
+    }
+  }
+  // Reject on the relation's OWN evidence, not by a special case: a
+  // 1-message co-tenant sidecar sharing 0% never clears the threshold, so it
+  // never needs naming here.
+  if (bestCandidate && sameLineage(bestEntry, afterEntry)) {
+    // Labelled explicitly — a reader must never mistake this for an
+    // ordinary same-identity pair the cid search would have found.
+    return { ok: true, before: bestCandidate, after, crossesRotation: true };
+  }
   // CHECK 3 of 3, second half — and the state that had no word: capture
   // PRESENT, window COVERED, a busting request SELECTED, and the pairing step
   // nonetheless returning nothing because the selected request is the first
-  // of its own conversation. This is the case that printed "capture off, or
+  // of its own conversation and no earlier request shares enough content to
+  // be its predecessor either. This is the case that printed "capture off, or
   // rotated" on 2026-08-06 and again on 2026-08-07 while the capture sat on
   // disk. It names the pairing input it had, per the entry's design.
   return { ok: false, code: "no-pair-in-conversation",
@@ -1299,6 +1346,22 @@ export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowE
   const afterOrd = pair?.after?.ord;
   const cidTarget = pair?.after?.body?.messages?.[0];
   if (beforeOrd == null || afterOrd == null || cidTarget === undefined) return null;
+  // A pair whose predecessor came from `capturePairResult`'s LINEAGE
+  // fallback (`crossesRotation`) has a DIFFERENT `messages[0]` than `after`
+  // by construction — that is the rotation the fallback exists to cross.
+  // The cid-based window below groups by the SAME `conversationOf`
+  // (`inHash[0]`) identity `findEditPositions`/`findBlockMigrations` group
+  // by, which by definition puts `before` and `after` in two different
+  // groups — no edit-position row can ever have `prevN === beforeOrd` and
+  // `n === afterOrd` there, because that pair spans the very rotation the
+  // grouping treats as a hard boundary. Building the window anyway would
+  // silently disagree with `capturePairResult` about which requests are one
+  // conversation (the dependency this fix carries) while returning the same
+  // "no evidence" shape a genuine absence returns — say so explicitly
+  // instead.
+  if (pair?.crossesRotation) {
+    return { edit: null, blockMigrations: [] };
+  }
   const f = join(capturesDir, `s-${sid}-requests.jsonl`);
   if (!existsSync(f)) return null;
   const cidJson = JSON.stringify(cidTarget);
