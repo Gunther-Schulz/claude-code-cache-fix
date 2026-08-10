@@ -822,6 +822,39 @@ ENOSPC misattribution with its wrong first explanation left in.
   into the daily sweep as the existing header class already is.
   Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
 
+- **READY (small) — the new tools-decision instrument is CAPTURE-BOUND, so it
+  answers only while the evidence it needs is still on disk.** Surfaced by the
+  lane's own deviation slot (`6fc397d`): the decision reaches
+  `ctx.meta.deferredToolRewriteStats` and the `findToolsDeltas` census row, and
+  `appendTelemetry` was deliberately left untouched to keep the diff inside
+  "no behaviour change". Correct for that dispatch, and it leaves a hole.
+  **Why it matters is `docs/dev-loop.md`'s question 2, the RECURRING-producer
+  corollary:** a mechanism that produces findings forever satisfies the
+  evidence question in its own machinery or not at all — "a human can re-run it
+  later" is not an answer while the inputs expire. Reading this decision today
+  requires REPLAYING a capture, and captures rotate on a quadratic clock with
+  oldest-mtime-first eviction. The JSONL telemetry outlives them. So for any
+  bust older than the retention window the question this instrument was built
+  to answer is once again unanswerable — the exact shape the absorption check
+  hit on 2026-08-05, when 3 of the 12 captures behind its first 50 rows were
+  evicted within hours of shipping.
+  Design, decided: `appendTelemetry` carries the same two fields the census row
+  now carries (`announcedNames`, `passthrough`), written at the moment the
+  decision is made. Telemetry already has a `suppressed` flag covering one of
+  the two pass-through reasons, so the addition is the second reason plus the
+  announced list — not a new record type.
+  Verifier, red-first: a request that announces new tools must leave a
+  telemetry line naming them, checkable WITHOUT any capture present. Today no
+  such line exists — that absence is the red. Control: a request with no tools
+  delta writes the empty form rather than omitting the fields, keeping "decided
+  nothing" distinct from "never ran", the same distinction the census row
+  already preserves.
+  Done-criterion: the 2026-08-10 decision is recoverable from telemetry alone
+  after its capture is gone.
+  Write boundary: `proxy/extensions/deferred-tool-rewrite.mjs`, its tests.
+  Touches `proxy/` — pin bump and restart ride along, and the restart is
+  cache-transparent (no state keys, no freeze logic).
+
 - **PARKED 2026-08-10 — the fork's ENTIRE operational corpus is public, and
   nothing about the upstream relationship requires it to be.** Raised by the
   operator while settling the quote question, and it reaches much further than
@@ -11572,9 +11605,17 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   and `:1004` (`no-anchor-message`). Write boundary held: 4 files, 195
   insertions, ZERO deletions, which is the shape a reporting-only change must
   have.
-  **Honest residue:** `passthrough` has never been observed non-empty on real
-  traffic. Reachable by construction is not the same as reached, and one pin is
-  one pin.
+  **Honest residue, three parts.** (1) `passthrough` has never been observed
+  non-empty on real traffic; both reason branches are exercised only by
+  synthetic unit tests, so reachable-by-construction is not reached, and one
+  pin is one pin. (2) The empty-not-absent CONTROL was likewise exercised only
+  on constructed input — every row in the pin carries non-empty
+  `announcedNames`, so no real pair demonstrates the empty-array case live.
+  The property is a code invariant and constructed input is adequate for one,
+  but the distinction is recorded rather than rounded off. (3) The instrument
+  has not been run against the OTHER row-6 instances (the 2026-07-27 175k
+  event, the 141k and 638k walks), so "the mitigation works" is established for
+  this pin and inferred everywhere else.
   **Deployment deliberately NOT done:** this touches `proxy/`, so it needs a
   dotfiles pin bump and a proxy restart. The dotfiles repo carried ~50 unpushed
   commits from a peer session, so the pin bump is held rather than half-landed.
