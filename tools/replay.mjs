@@ -71,7 +71,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 
 import { readLines } from "./read-lines.mjs";
-import { hashMessageContent } from "../proxy/extensions/message-hash.mjs";
+import { hashMessageContent, conversationSubKey } from "../proxy/extensions/message-hash.mjs";
 import { isDescriptionNotice } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
 import { splitSmooshedReminders } from "../proxy/extensions/smoosh-split.mjs";
@@ -883,6 +883,17 @@ export function compactEntry(e) {
     // rebilledBreakpointBytes (the "model is breakpoint-blind" fix, BACKLOG
     // 2026-08-06 18:08:32Z entry).
     inHashNoCC: inMsgs.map((m) => sha(JSON.stringify(stripCacheControlDeep(m)))),
+    // The proxy's OWN conversation identity (BACKLOG "measures the right
+    // EVENT" — row 26's digest defect): imported from conversationSubKey
+    // rather than re-derived, because a hand-rolled identity has produced a
+    // confident wrong answer in this repo three times. Two short strings per
+    // ENTRY, not per message — cheaper than the per-message arrays already
+    // retained beside them. inHashNoCC/outHashNoCC above STAY as the cheap
+    // stripped-twin pre-filter (index [0] compared cheaply, no hashing of a
+    // real identity needed just to detect a change); inConvKey/outConvKey
+    // are what a rotation row REPORTS, so it can be joined against the
+    // insertion-normalization event log, which keys on the same function.
+    inConvKey: conversationSubKey(inMsgs),
     // Byte length per message. Numbers, not content — this is what lets a
     // missed mitigation be priced (everything from the divergence index on is
     // re-billed) without retaining a single message body.
@@ -910,6 +921,8 @@ export function compactEntry(e) {
     // order of retention as the three arrays above it — no bodies, so the
     // 2 GB child cap is unaffected.
     outHashNoCC: outMsgs.map((m) => sha(JSON.stringify(stripCacheControlDeep(m)))),
+    // Forwarded-side twin of inConvKey above — same primitive, same comment.
+    outConvKey: conversationSubKey(outMsgs),
     // Byte length per FORWARDED message, the output-side twin of inBytes —
     // what lets rebilledOutBytes be priced without retaining a message body.
     outBytes: outMsgs.map((m) => JSON.stringify(m).length),
@@ -1085,18 +1098,41 @@ export const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
 // left the pipeline against what entered THIS SAME request, never one
 // request against another.
 //
-// The predicate is the cache_control-STRIPPED twins, never inHash/outHash.
-// The proxy's own key function (hashMessageContent, message-hash.mjs:16-24)
-// strips cache_control per block before hashing, so inHash[0]/outHash[0]
-// change on every moved breakpoint — constant traffic — while the real
-// conversation identity (what conversationSubKey computes) has not moved at
-// all. Using the unstripped hashes here is exactly how this class would ship
-// firing on every moved breakpoint (BACKLOG, booked and retracted the same
-// day) rather than on the pipeline actually rotating identity.
+// The CLASSIFICATION predicate is the cache_control-STRIPPED twins
+// (inHashNoCC[0] vs outHashNoCC[0]), never inHash/outHash. The proxy's own
+// key function (hashMessageContent, message-hash.mjs:16-24) strips
+// cache_control per block before hashing, so inHash[0]/outHash[0] change on
+// every moved breakpoint — constant traffic — while the real conversation
+// identity (what conversationSubKey computes) has not moved at all. Using
+// the unstripped hashes here is exactly how this class would ship firing on
+// every moved breakpoint (BACKLOG, booked and retracted the same day) rather
+// than on the pipeline actually rotating identity.
+//
+// The REPORTED identity (BACKLOG "measures the right EVENT") is a different
+// pair: inConvKey/outConvKey, computed by compactEntry via conversationSubKey
+// itself. inHashNoCC/outHashNoCC stay as the cheap pre-filter (index [0]
+// compared without touching the real identity); a match/mismatch there and
+// on the conv-key pair always agree, because both are cache_control-stripped
+// views of the same messages[0] — this row just reports the one the proxy
+// actually keys on, so it joins the insertion-normalization event log
+// instead of requiring a hand-computed second primitive to verify it.
 //
 // A rotation is not itself a defect — BACKLOG 2026-08-10: eleven of row 26's
 // twelve measured rotations cost nothing — so this is a CLASS and a COUNT for
 // the census, never a gate failure.
+//
+// TRANSITIONS (BACKLOG "counts a persistent STATE"): fresh-session-sort's
+// relocation is a persistent per-session mutation, so once a conversation
+// rotates, every SUBSEQUENT request in it re-fires this per-request
+// predicate identically — the per-request rows are the honest per-request
+// fact (the join surface for a cost question), but their COUNT is "requests
+// served under a rotated identity", not "how often a rotation OCCURS". Each
+// row therefore also carries `transition`: true the first time a given
+// (key, raw identity) pair is seen rotating in this capture, false on every
+// repeat — grouped by `${key}|${rawId}`, the same `${e.key}|${cid}`
+// convention every other conversation-grouped scan in this file uses,
+// because rawId (conversationSubKey of CC's own, un-rotated messages[0]) is
+// stable across a conversation exactly like conversationOf's inHash[0] is.
 export function findIdentityRotations(entries) {
   const rows = [];
   for (const raw of entries) {
@@ -1104,12 +1140,17 @@ export function findIdentityRotations(entries) {
     // Absent identities are not rotations: an empty raw or forwarded array
     // means there is nothing to compare, not that the comparison differed.
     if (e.inHashNoCC.length === 0 || e.outHashNoCC.length === 0) continue;
-    const rawId = e.inHashNoCC[0];
-    const fwdId = e.outHashNoCC[0];
-    if (rawId === fwdId) continue;
-    rows.push({ n: e.n, ts: e.ts, key: e.key, rawId, fwdId });
+    if (e.inHashNoCC[0] === e.outHashNoCC[0]) continue;
+    rows.push({ n: e.n, ts: e.ts, key: e.key, rawId: e.inConvKey, fwdId: e.outConvKey });
   }
-  return rows.sort((a, b) => a.n - b.n);
+  rows.sort((a, b) => a.n - b.n);
+  const seen = new Set();
+  for (const r of rows) {
+    const g = `${r.key}|${r.rawId}`;
+    r.transition = !seen.has(g);
+    seen.add(g);
+  }
+  return rows;
 }
 
 // LINEAGE: a second, DIFFERENT relation over the same compact-entry inHash
@@ -4433,9 +4474,22 @@ async function main() {
       // is not itself a defect (eleven of row 26's twelve measured instances
       // cost nothing) — this is a rate, not a gate, so nothing here fails
       // the run.
-      process.stdout.write(`\nidentity rotations (row 26 — our own pipeline, raw vs forwarded): ${identityRotations.length}\n`);
+      // Two counts, both labelled (BACKLOG "counts a persistent STATE"):
+      // reporting either alone invites the other's question. requestCount is
+      // "requests served under a rotated identity" (fresh-session-sort's
+      // relocation persists, so every later request in a rotated
+      // conversation re-fires); transitionCount is "how often a rotation
+      // OCCURS", row 26's actual open question.
+      const transitionCount = identityRotations.filter((r) => r.transition).length;
+      process.stdout.write(
+        `\nidentity rotations (row 26 — our own pipeline, raw vs forwarded): ` +
+          `${identityRotations.length} requests served under a rotated identity, ` +
+          `${transitionCount} rotation transitions\n`,
+      );
       for (const r of identityRotations.slice(0, 20)) {
-        process.stdout.write(`    n=${r.n} ts=${r.ts} raw=${r.rawId} -> forwarded=${r.fwdId}\n`);
+        process.stdout.write(
+          `    n=${r.n} ts=${r.ts} ${r.transition ? "[transition] " : ""}raw=${r.rawId} -> forwarded=${r.fwdId}\n`,
+        );
       }
     }
     if (pinSummary) {
