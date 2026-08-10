@@ -634,7 +634,39 @@ ENOSPC misattribution with its wrong first explanation left in.
   behaviour without running it.
   Write boundary: `tools/replay.mjs`. Consumer tier **3**.
 
-- **READY (small, IN FLIGHT 2026-08-10) — a file outside `test/` whose NAME
+- **DONE 2026-08-10 (`0fe9cf4`) — closed by RENAME, so the guard ships with
+  zero exemptions.** `tools/test-config-root.mjs` became
+  `tools/suite-config-root.mjs` (the `suite-*` precedent `suite-run-log.mjs`
+  had already set), every live dependent moved with it including two
+  operator-facing error messages that carry runnable commands, and its
+  docstring now states the measured mechanism instead of the refuted one.
+  `test/no-discovered-non-test-files.test.mjs` is the guard: it walks the WHOLE
+  repo rather than a fixed directory list, mirrors node's own scan rules
+  (skips `node_modules` and dot-directories, treats everything under a `test/`
+  directory as intended), and asserts an empty hit list with no exemptions.
+  **Verified at the desk INDEPENDENTLY of the lane's own arrangement, and past
+  what the brief asked for.** I copied the guard into a synthetic tree so no
+  file was planted in a checkout another lane was using, and ran it there:
+  baseline GREEN on a clean tree (so its red is not the always-red kind), then
+  all FOUR naming rules planted at once — `test-plant.mjs`, `foo-test.mjs`,
+  `a_test.mjs`, `b.test.mjs` — each NAMED individually in the failure. The
+  brief asked for two patterns; four were exercised, because a red proves the
+  class that fired and not the instrument's reach. Over-firing control:
+  `tools/suite-thing.mjs` in the same position leaves it silent.
+  **The suite arithmetic reconciles exactly, which was the point of demanding
+  it.** 2664 tests before and after. The renamed file stops being counted as a
+  test (-1: `✔ tools/test-config-root.mjs` is gone from the run log and
+  `suite-config-root.mjs` never appears, confirming it sits outside the glob),
+  the new guard adds one (+1, at line 1094 of the persisted log). Net zero, and
+  both halves were checked rather than inferred from the total holding still —
+  a net-zero total is exactly what two unrelated errors would also produce.
+  **Second-order finding, and it is the one worth carrying:** the lane ran in
+  the SHARED checkout, not a worktree — a third measured instance of the
+  reclaimed-worktree class whose half (1) came back to us from the
+  dispatch-guards session the same hour. Its commit therefore landed on `main`
+  and appeared in my push set as an unexpected commit, which is precisely the
+  case the claim rule exists for. It was caught by claiming, not by luck.
+  Original header: **a file outside `test/` whose NAME
   matches node's `--test` discovery glob is EXECUTED as a test, and one is in
   the tree right now.** Found 2026-08-10 by the suite-output lane, which hit it
   as a live defect rather than reasoning about it: its first helper was named
