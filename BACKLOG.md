@@ -5574,6 +5574,53 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "public-surface split: untrack in place, do not move the files" -->
 
+- **READY (BLOCKING for the publication bar) — `absence-scan` cannot see
+  PROSE. Both of its byte-level classes fire only on parsed JSON values, so a
+  session UUID or an image payload written into any `.md` file passes the
+  pre-push guard untouched — and its own scope line says the opposite.**
+  Found 2026-08-10 by doing it: while writing the history-scan entry below I
+  put a real published session UUID into `BACKLOG.md`, and neither guard
+  stopped it. My own grep did.
+  **Measured, both arms, same UUID, same run:**
+  - as a JSON value → `FINDING capture-uuid ... $.note (36 chars)`, exit
+    non-zero. The class works.
+  - in markdown prose → `absence-scan: clean`.
+  Identical split for the other class: a 400-char base64 run is
+  `FINDING b64-run` as a JSON value and **clean** in a `.md` file.
+  **The label-over-body half, which is why nobody looked.** The tool prints
+  `scope: N file(s) outside test/fixtures/harvested/ — byte-level classes
+  only (b64-run, capture-uuid)` (`tools/absence-scan.mjs:640`). "Byte-level"
+  reads as "these classes run over the raw bytes of this file". They do not:
+  `:248-253` and `:221` are value predicates evaluated during a JSON walk, so
+  for a non-JSON file the walk yields nothing and every class returns clean.
+  The assurance is wider than the predicate establishes, which is exactly
+  what stops anyone checking it.
+  **Why this is blocking rather than tidy-up.** The alias convention exists
+  *for prose* — `BACKLOG.md`, `docs/dev-loop.md`, the threat matrix, the
+  runbooks are where captures get discussed, and prose is the one place the
+  pre-push scan is blind. The Edit-time hook covers part of the gap: it
+  denied a later write of mine for `capture-key-prefix` (short `s-<hex>`
+  forms). It did NOT deny the full canonical UUID. So a full session id in a
+  markdown file today passes BOTH guards, and the only thing that caught it
+  was a human running grep on the diff.
+  Design (decided): the two `scope: "any"` classes get a genuine byte-level
+  pass over the file's raw text for every scanned file, JSON or not — the
+  JSON walk stays as-is for the corpus classes that need key context
+  (`raw-content` needs `CONTENT_KEYS`, so it cannot go byte-level and must
+  keep saying so). Then correct the scope line to state what each class
+  actually reaches; an instrument's own words about itself are a claim like
+  any other.
+  Verifier, red-first, and the arrangement is already run: plant a real
+  published session UUID and a 400-char base64 run in a `.md` fixture and
+  confirm both fire (today both are silent — that is the red, and it is a
+  REAL positive, not a constructed one: the UUID is s-captureAX's, which
+  genuinely shipped). Over-fire half: the current tree, including this file
+  with its ~185 alias citations, must stay green — aliases are not UUIDs and
+  must not become findings.
+  Consumer tier **1 (event disposition)** — it is the guard on the
+  irreversible boundary.
+  <!-- entry: "absence-scan cannot see prose; both byte-level classes are JSON-value-only" -->
+
 - **DECISION (operator's) — git history was scanned end to end for the first
   time on 2026-08-10, and it holds exactly two things: one real published
   image, and a reversible session-id mapping. No conversation text.** The
