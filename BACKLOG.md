@@ -1281,10 +1281,27 @@ ENOSPC misattribution with its wrong first explanation left in.
   filter) must FAIL that check, which is the failure mode the header comment
   already predicts and nothing currently demonstrates.
   SECOND RED, from the finding above, so the union clause is demonstrated
-  load-bearing instead of assumed: the conversation-only bound applied to
-  `s-captureAT` ord 715 must produce a pin whose replay reports ZERO pairs —
-  the "compared nothing" clause — while the conversation-union-lineage bound
-  over the same range reproduces the live verdicts for that conversation.
+  load-bearing instead of assumed — and CORRECTED 2026-08-10 before it was
+  briefed, because the first version of it could not discriminate. It read
+  "the conversation-only bound must report ZERO pairs while the union bound
+  reproduces the live verdicts for that conversation". Both arms report zero
+  pairs: `replay.mjs` groups by `conversationOf`, so the ord-715 target is a
+  singleton there whatever the pin contains, and the live replay of 0..715
+  finds no pair either. A check both arms pass is not a check — it is the
+  unprovable-predicate shape this repo already names, arriving as a
+  verdict-level check where the difference is at CONTENT level.
+  The discriminating form, which is what the union clause is actually for:
+  the two bounds differ in WHAT THE PIN CONTAINS, so assert on the pin.
+  Conversation-only over `s-captureAT` 715 writes exactly ONE request record
+  (the target itself). Conversation-union-lineage writes that one PLUS the
+  ord-709..713 neighbours, ord 713 among them — the 98.5% predecessor a later
+  `capturePairResult` has to be able to find in the frozen artifact. Assert
+  the record counts and ord 713's presence, not the replay verdict.
+  This also states the boundary plainly for whoever builds it: keeping the
+  lineage records does NOT make `replay.mjs` pair them, and is not meant to.
+  Replay's grouping stays `conversationOf` and stays right. The union exists
+  so the FROZEN FILE still holds the predecessor when the lineage-aware
+  consumer arrives.
   Done-criterion: the 2026-08-10 bust above is freezable at a size in line with
   the existing tracked pins, with verdicts identical to the unbounded pin.
   Write boundary: `tools/harvest.mjs`, `test/harvest*.test.mjs`.
