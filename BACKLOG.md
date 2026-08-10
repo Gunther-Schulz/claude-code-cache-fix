@@ -5564,9 +5564,10 @@ ENOSPC misattribution with its wrong first explanation left in.
   So the residual is SHAPE, never content: nobody reconstructs a conversation
   from it, but for a session that pasted a known public document the vector
   can confirm which one.
-  **This entry is the DECISION, and it is the operator's**: accept the shape
-  residual under the new bar with a rationale that is true, or change the
-  scrub granularity. The recommendation attached is ACCEPT-AND-REWRITE — the
+  **DECIDED 2026-08-10 — ACCEPT-AND-REWRITE** (operator, standing go on the
+  recommendation): the shape residual is accepted under the new bar, and the
+  falsified rationale is replaced rather than inherited. The alternative was
+  changing the scrub granularity, rejected because the
   granularity is what makes the fixtures useful as replay input, and
   quantising paragraph lengths would degrade the corpus to defeat an attack
   nobody has evidence of. What is not defensible is leaving the falsified
@@ -5659,11 +5660,15 @@ ENOSPC misattribution with its wrong first explanation left in.
   Use a TRACKED `.gitignore`, not `.git/info/exclude` — the latter does not
   travel to a fresh clone, which is the whole failure mode being guarded
   against.
-  Priority: LOW now, by the bar. It is cheap and can be done whenever.
+  **DECIDED 2026-08-10 — UNTRACK IN PLACE, priority LOW** (operator, standing
+  go on the recommendation). Low because the bar's content half is met in the
+  tree, so the move buys hygiene rather than protection; the design above is
+  what gets built when it is picked up, and no part of it waits on further
+  evidence.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "public-surface split: untrack in place, do not move the files" -->
 
-- **DONE `<this commit>` (2026-08-10) — the full-UUID shape was deferred to a
+- **DONE `a449d9a` (2026-08-10) — the full-UUID shape was deferred to a
   roster that did not walk the file, so writing the FULL id disabled the guard
   that catches the SHORT one. Roster widened to the scanner's own predicate;
   the two now import the same regex.**
@@ -5822,9 +5827,13 @@ ENOSPC misattribution with its wrong first explanation left in.
   and a real agent id, committed RAW on purpose because the migration
   evidence needed raw bytes. All `in_head: false` after the 2026-07-31
   rebuild; history keeps them. Not another session's chat.
-  **The decision, and it is the operator's:** rewrite history to remove the
-  PNG and the id mapping, or accept them on the record. Recommendation:
-  **ACCEPT**. A 951x55 image strip and a set of session identifiers do not
+  **DECIDED 2026-08-10 — ACCEPT, no history rewrite** (operator, standing go
+  on the recommendation). Recorded as a made decision rather than a live
+  question so the next session does not re-open it: the basis is the
+  measurement in this entry, and what would re-open it is NEW evidence — a
+  further class found in history, or the image turning out to carry something
+  its 951x55 strip does not suggest. Absent that, this is closed.
+  The reasoning it rests on: A 951x55 image strip and a set of session identifiers do not
   justify rewriting a repo with three open upstream PRs, and the rewrite
   would not retract anything already cloned or cached. What the measurement
   changes is that the acceptance is made on evidence instead of on the
