@@ -18,8 +18,11 @@ stored-priority problem one level up.
 
 **STALE AS OF 2026-08-10 15:5x — a THIRD derivation is owed, and this note is
 here instead of a patch because the rubric forbids the patch.** Three things
-moved under it since it was written, all inside one session: the transcript
-instrument SHIPPED (`b0adb93`) and its anchor is removed above — removal only,
+moved under it since it was written, all inside one session: the state-key
+FLIP was ATTRIBUTED and its anchor is removed above (it turned out to be row 26
+with its cause confirmed, and it spawned two successors, one of which blocks
+the other); the transcript instrument SHIPPED (`b0adb93`) and its anchor is
+removed above — removal only,
 which is why the numbering now skips; `capturePairResult`'s design was SETTLED
 (`cf0592d`), so its "DESK — design NOT decided" grade is wrong in both halves,
 and it is now BLOCKED behind a three-link chain (lineage primitive -> bounded
@@ -127,9 +130,6 @@ designed against the wrong evidence.
 2. **`capturePairResult` picks the busting conversation.** Declared Tier 1: pick the wrong conversation and the class is mis-filed before any other check runs, which is the widest reach on this list. It drops below item 1 only because item 1 is dispatchable today and this is not — reach still argues for it, and a session with context to spend should take it.
    _DESK — the entry says "Design NOT decided"; the identity-vs-predecessor fork must be settled by judgment before any brief exists_
    <!-- entry: "`capturePairResult`'s conversation identity is the busting" -->
-3. **The state-key FLIP that disarmed row 1's mitigation is unattributed.** 
-   _PARTIAL — verifier and boundary present, design section thin_
-   <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
 4. **Billing and verdict join by timestamp proximity, not by request id** — the same proximity heuristic that picked the wrong conversation this week.
    _DISPATCHABLE_
    <!-- entry: "billing and verdict are written by two extensions with no" -->
@@ -397,43 +397,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**. Unranked (booked after the
   derivation); a Tier A head candidate at the next one.
   <!-- entry: "capturePairResult's conversation identity is the busting request's own messages[0]" -->
-
-- **READY — attribute the state-key FLIP that disarmed row 1's mitigation on a
-  live 141k bust; the class is row 26 but this instance has no cause.**
-  Booked 2026-08-08 from the bust walk on s-captureAT (2026-08-08T09:59:53Z,
-  141k, `messages_changed / 124331`, this repo's own dev session). The two
-  requests of the busting pair ran under DIFFERENT state keys 4 s apart —
-  capture 09:58:46.362Z -> insertion event 09:58:46.364Z key
-  `…496b188f5f435920`, capture 09:58:50.626Z -> event 09:58:50.628Z key
-  `…a20843f8616f3866` — and BOTH logged `action=reset resetReason=no-prior-
-  canonical`. The census classes the pair `splice/insert-mid`, which IS in
-  `replay.mjs`'s MITIGABLE set, so unlike the same morning's 638k this is a
-  mitigation that was ARMED and had no baseline to act on, not one that was
-  never attempted. Session-wide that session: 12 distinct keys / 127 events /
-  13 resets, **12 of them `no-prior-canonical`**; 8 of the 12 keys carry
-  exactly ONE event, i.e. a key appears, takes one request, and is never seen
-  again. `bust-triage` answered **MITIGATED (row 1)** on it, because it maps
-  the census class to the row's STATUS and never reads the pair's extension
-  events — the runbook's step-8 GRADUATE marker is exactly this and is booked
-  separately.
-  **What is NOT established, and must not be assumed by whoever takes this:**
-  that the key flip CAUSED the re-bill. CC keys its cache on the bytes it
-  sends, not on our internal key, so what is established is that the flip
-  DISARMED our absorption — the upstream miss has its own cause, unattributed
-  here. Do not write "key rotation caused a 141k bust" into the matrix on this
-  evidence.
-  Design: determine what varies the sub-key across two requests of one
-  conversation. Read `conversationSubKey`/`identityKey` (import them, never
-  re-derive — a probe that re-computes a key has produced a confident wrong
-  answer three times here) and diff the two raw capture records at 09:58:46.362Z
-  and 09:58:50.626Z on exactly the inputs the key function consumes.
-  Verifier, red-first and with a control: feeding the earlier record's
-  key-inputs must reproduce key `…496b188f…` and the later record's must
-  reproduce `…a20843f8…`; the control that proves the probe discriminates is a
-  sentinel mutation of one key-input yielding NEITHER. Done when the varying
-  input is named at field granularity, or the entry is re-graded PARKED with
-  that named as the missing evidence.
-  <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
 
 - **READY (small) — billing and verdict are written by two extensions with no
   join key, so the join is by TIMESTAMP, which is how today's walk mis-joined.**
@@ -852,6 +815,135 @@ ENOSPC misattribution with its wrong first explanation left in.
   its output pasted, both controls green, full suite green, lint wired WARN-only
   into the daily sweep as the existing header class already is.
   Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
+
+- **READY (small) — the census cannot see OUR OWN pipeline rotating the
+  conversation identity, which is the one thing it would have to see to catch
+  row 26 automatically.** Booked 2026-08-10, straight out of the state-key
+  attribution below, and it is the closing gate's questions 1 and 3 answered
+  together: the rotation was found by a hand replay of the pre-395 pipeline in
+  a scratch state dir, and a class found by hand is a class the census should
+  emit. Today nothing compares the two identities at all — `replay.mjs`
+  computes `conversationOf` on ONE snapshot and never asks whether our own
+  extensions moved it.
+  Design, decided: a census class `identityRotation`, emitted per request when
+  `conversationSubKey` over the RAW captured body differs from the same
+  function over the body as it reaches order 395. `replay.mjs` already runs
+  the real pipeline over recorded traffic, so both snapshots are in hand at the
+  point the census runs; nothing new needs replaying. A rotation is not by
+  itself a defect (it is row 26's precondition, and eleven of row 26's twelve
+  measured rotations cost nothing), so this ships as a CLASS and a count, never
+  as a gate failure — a check firing on a non-defect trains the override reflex
+  that kills it.
+  Verifier, red-first, with a live known positive rather than a constructed
+  one: over capture `s-captureAT`, the request at 2026-08-08T09:58:50.626Z must
+  classify `identityRotation` (raw `496b188f5f435920` -> post-pipeline
+  `a20843f8616f3866`, both verified twice on 2026-08-10), while the request at
+  09:58:46.362Z — same conversation, same session, 4 s earlier, untouched by
+  `fresh-session-sort` — must NOT. That neighbouring negative is what stops the
+  class being a counter that fires on everything. RED against the old
+  implementation is that the class does not exist and the two requests are
+  indistinguishable to every census output today.
+  Done-criterion: the class is emitted, the positive/negative pair above is
+  reproduced in a bite, and the count appears in the daily sweep so the class's
+  RATE becomes observable instead of anecdotal — the rate is exactly what row
+  26 says this corpus cannot currently estimate.
+  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
+  Consumer tier **1 (event disposition)**.
+
+- **READY — give the downstream stateful extensions the PRE-PIPELINE
+  conversation identity; the fix already exists in-tree and only one extension
+  uses it.** Booked 2026-08-10 from the same attribution. Row 26's defect is
+  that `insertion-normalization` (order 395) and `deferred-tool-rewrite`
+  (order 425) key their per-conversation state on `conversationSubKey` of the
+  body AS THEY RECEIVE IT — i.e. over `messages[0]` bytes that
+  `fresh-session-sort` (order 250) may have just invented. `fresh-session-sort`
+  itself does NOT have this problem, and that is the whole design input:
+  `fresh-session-sort.mjs:373` computes its memory key by calling
+  `resolveInsertionSessionKey` on `body.messages` BEFORE its own relocation
+  runs, so its identity is stable under its own edit. Corroborated on disk —
+  the only `*-fresh-sort-relocated.json` present sits under the pre-mutation
+  suffix, none under the rotated one.
+  Design, NOT yet decided, and this is named rather than hand-waved: the shape
+  is "capture the conversation identity once, at the pipeline's entry, and let
+  every stateful extension read THAT" — but where it is carried (a `ctx` field
+  set before the first mutating extension is the obvious candidate), and what
+  happens to state already on disk under rotated keys, are open. The migration
+  half is the one that bites: existing per-key files are named by the rotated
+  identity, and a change to the key scheme touches state KEYS, which is exactly
+  the threat-matrix row-3 condition under which a restart is NOT
+  cache-transparent and must state its declaration before it ships.
+  **HARD ORDERING CONSTRAINT (rubric signal 1): blocked on the
+  `identityRotation` census class above.** A check that only goes red against
+  the current defect has to be demonstrated red BEFORE the fix removes the
+  defect, or it ships having never gone red on anything — and this fix's whole
+  effect is to make rotations stop mattering, which would leave the class
+  permanently green and unproven.
+  Consumer tier **1 (event disposition)**. Deployment-coupled: `proxy/` change,
+  needs the dotfiles pin bump and a restart, at a stated session boundary.
+
+- **DONE 2026-08-10 — ANSWERED, and the answer is that the flip is OURS. The
+  entry's own premise ("the class is row 26 but this instance has no cause")
+  was half wrong: it IS row 26, cause and all.** The varying input is named at
+  field granularity, which was this entry's done-criterion. `sid` and
+  `systemPromptSubKey(system)` are identical across the pair; the only
+  differing input is `conversationSubKey(messages)` — the hash of
+  `messages[0]` — and **CC sent byte-identical `messages[0]` in both
+  requests**. `fresh-session-sort` (order 250) stripped an
+  `# MCP Server Instructions` `<system-reminder>` out of message index 3 and
+  prepended it as a new block 0 (`fresh-session-sort.mjs:462-470`, `:480-483`),
+  taking `messages[0]` from 3 blocks to 4, and `insertion-normalization`
+  (order 395) keyed on the mutated array.
+  Established TWICE, independently: the lane reproduced both recorded suffixes
+  by replaying the real pre-395 pipeline in a scratch XDG state dir, with a
+  one-byte sentinel mutation yielding a third value (so the probe discriminates
+  rather than merely agreeing); and the desk recomputed `conversationSubKey`
+  over the RAW captured records alone, where both hash to
+  `496b188f5f435920` with 3 blocks each. Full text and the new
+  pre/post-snapshot fact are in the threat matrix, row 26.
+  **The entry's warning held and is repeated here because the successor
+  entries inherit it:** what the flip demonstrably did is DISARM our
+  absorption. It is NOT established that it caused the 141k re-bill — CC keys
+  its cache on the bytes it sends, not on our internal key — and the upstream
+  miss's own cause stays unattributed on this instance.
+  Successors booked directly above: the `identityRotation` census class (the
+  mechanism this hand investigation prototyped) and the pre-pipeline-identity
+  fix it gates.
+  Original header: **READY — attribute the state-key FLIP that disarmed row 1's mitigation on a
+  live 141k bust; the class is row 26 but this instance has no cause.**
+  Booked 2026-08-08 from the bust walk on s-captureAT (2026-08-08T09:59:53Z,
+  141k, `messages_changed / 124331`, this repo's own dev session). The two
+  requests of the busting pair ran under DIFFERENT state keys 4 s apart —
+  capture 09:58:46.362Z -> insertion event 09:58:46.364Z key
+  `…496b188f5f435920`, capture 09:58:50.626Z -> event 09:58:50.628Z key
+  `…a20843f8616f3866` — and BOTH logged `action=reset resetReason=no-prior-
+  canonical`. The census classes the pair `splice/insert-mid`, which IS in
+  `replay.mjs`'s MITIGABLE set, so unlike the same morning's 638k this is a
+  mitigation that was ARMED and had no baseline to act on, not one that was
+  never attempted. Session-wide that session: 12 distinct keys / 127 events /
+  13 resets, **12 of them `no-prior-canonical`**; 8 of the 12 keys carry
+  exactly ONE event, i.e. a key appears, takes one request, and is never seen
+  again. `bust-triage` answered **MITIGATED (row 1)** on it, because it maps
+  the census class to the row's STATUS and never reads the pair's extension
+  events — the runbook's step-8 GRADUATE marker is exactly this and is booked
+  separately.
+  **What is NOT established, and must not be assumed by whoever takes this:**
+  that the key flip CAUSED the re-bill. CC keys its cache on the bytes it
+  sends, not on our internal key, so what is established is that the flip
+  DISARMED our absorption — the upstream miss has its own cause, unattributed
+  here. Do not write "key rotation caused a 141k bust" into the matrix on this
+  evidence.
+  Design: determine what varies the sub-key across two requests of one
+  conversation. Read `conversationSubKey`/`identityKey` (import them, never
+  re-derive — a probe that re-computes a key has produced a confident wrong
+  answer three times here) and diff the two raw capture records at 09:58:46.362Z
+  and 09:58:50.626Z on exactly the inputs the key function consumes.
+  Verifier, red-first and with a control: feeding the earlier record's
+  key-inputs must reproduce key `…496b188f…` and the later record's must
+  reproduce `…a20843f8…`; the control that proves the probe discriminates is a
+  sentinel mutation of one key-input yielding NEITHER. Done when the varying
+  input is named at field granularity, or the entry is re-graded PARKED with
+  that named as the missing evidence.
+  <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
 
 - **READY (small) — a FROZEN evidence archive whose own cited numbers are not
   in it, and nothing said so for three days.** Found 2026-08-10 by the lane
@@ -5422,6 +5514,15 @@ ENOSPC misattribution with its wrong first explanation left in.
   stated in one line, with the mechanism named beside it.
   Verifier: the five planted-positive fixtures each turn `absence-scan` red in
   isolation, and the whole current tree stays green — the over-fire half.
+  **Two of the five now have a REAL known positive, which beats a planted one
+  and was found the same day** (see the history-scan entry below): the base64
+  predicate can be proven on blob
+  `aceb2c443f4a35f5f76ac2adbf5e7c59c96ca1b8` — an actual 9,794-byte PNG that
+  actually shipped — and the UUID predicate on **s-captureAX**'s full session
+  id, which sits in `LEDGER-Siren.json`'s historical blob (the id itself is in
+  the machine-local alias registry, not here). A predicate red on the defect
+  that really occurred certifies the class
+  that really fires; a planted case certifies only the planting.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "the operator's publication bar is not written down or enforced" -->
 
@@ -5472,6 +5573,81 @@ ENOSPC misattribution with its wrong first explanation left in.
   Priority: LOW now, by the bar. It is cheap and can be done whenever.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "public-surface split: untrack in place, do not move the files" -->
+
+- **DECISION (operator's) — git history was scanned end to end for the first
+  time on 2026-08-10, and it holds exactly two things: one real published
+  image, and a reversible session-id mapping. No conversation text.** The
+  question decision #4 ("no history rewrite") was answered under is now
+  measured rather than unknown.
+  **Method, so the numbers are re-checkable.** Population defined
+  mechanically and pinned: every blob introduced by a fork-only commit, any
+  path — `git rev-list upstream/main..HEAD` then `git diff-tree -r` per
+  commit — **712 commits, 1,752 distinct (blob, path) pairs**, pinned at
+  `cf0592d` because HEAD moved mid-run and a moving population is not a
+  population. Seven-class closed taxonomy, each class required to catch a
+  planted positive before any of its zeros counted; `blobs_scanned` 1752,
+  `blobs_unreadable` 0.
+  **FINDING 1 — a real PNG, published, unretractable.** Blob
+  `aceb2c443f4a35f5f76ac2adbf5e7c59c96ca1b8`, the reset-move 196-197 fixture
+  of **s-captureAX**, at `$.requests[0..4].messages[210].content[2].source.data`:
+  9,794 bytes, PNG magic verified, **951x55, 8-bit RGBA**, five identical
+  copies. Header decoded only; the image was not viewed. Introduced by
+  `a1170a7`, removed by `687cbc5` ("sanitize fixtures fully: nested payloads,
+  capture identifiers, wall-clock, filenames") — **both commits are ancestors
+  of `origin/main`**, so it was public before the scrubber fix and the blob
+  stays fetchable at its sha forever. This is the incident
+  `docs/dev-loop.md` already records, now located to the byte. `in_head:
+  false` is not protection, and the permalink probe (raw and blob both HTTP
+  200 at a pinned sha, 404 at `main`) is why.
+  The second base64-shaped hit is NOT an image — it is a thinking-block
+  `signature` field in the oscillation 863 fixture of **s-captureAZ**.
+  Recorded because the taxonomy's literal shape test cannot tell the two
+  apart and the next reader will hit the same ambiguity.
+  **FINDING 2 — the short scrub tokens are reversible from public files.**
+  The short token for **s-captureAX** resolves to its full canonical session
+  UUID in historical blobs of `test/fixtures/harvested/LEDGER-Siren.json`,
+  `docs/directives/robustness-threat-matrix.md` and `tools/replay.mjs`; the
+  same holds for **s-captureAY** and **s-captureAZ**. Every containing commit
+  is an ancestor of `origin/main`. Verified with a negative control:
+  `git log --all -S` on a planted nonexistent UUID returns 0 commits.
+  Current HEAD is clean — its 13 canonical UUIDs are placeholders plus three
+  fixed test constants. (The three full ids are in the alias registry, which
+  is machine-local by nature; they are not repeated here, for the reason this
+  entry is about.)
+  **What the scan did NOT find, each with the reason its zero is
+  believable.** No other-session conversation text: 681 CHAT-PROSE hits, 78
+  unique, every one our own provenance headers, our census verdict strings,
+  harness text, or hand-written synthetic fixtures that declare themselves
+  in-band (`insertion-1405.json`: "NOT real session content — built by
+  hand"). No foreign-project paths: 295 hits, 27 unique, all this repo's own
+  PR worktrees, `claude-worktime`, or `/home/test/...` placeholders — the
+  allowlist was too narrow, an instrument-scope artifact rather than a leak.
+  One THINKING-TEXT hit, synthetic and self-labelled.
+  **The one residual that is the operator's own:** the flap and oscillation
+  fixtures carry dotfiles corpus hook prose (`CLAUDE-maintenance.md` text)
+  and a real agent id, committed RAW on purpose because the migration
+  evidence needed raw bytes. All `in_head: false` after the 2026-07-31
+  rebuild; history keeps them. Not another session's chat.
+  **The decision, and it is the operator's:** rewrite history to remove the
+  PNG and the id mapping, or accept them on the record. Recommendation:
+  **ACCEPT**. A 951x55 image strip and a set of session identifiers do not
+  justify rewriting a repo with three open upstream PRs, and the rewrite
+  would not retract anything already cloned or cached. What the measurement
+  changes is that the acceptance is made on evidence instead of on the
+  absence of it — which was the whole reason to scan.
+  **Not deferrable regardless of that decision:** the two predicates get
+  their real known positives wired into `absence-scan` (entry above), so the
+  next occurrence is stopped at the pre-push boundary rather than found by a
+  scan a year later.
+  **The guard proved itself while this entry was being written.** The first
+  draft quoted the three full session UUIDs as evidence, and the fixture-leak
+  hook refused the write — an entry ABOUT an id leak would have committed
+  those ids into the current tree, where none of them are today. A guard that
+  fires on its author writing about the very class it guards is the strongest
+  evidence it is not decorative, and it is worth one line so the next session
+  does not read the alias convention as bureaucracy.
+  Consumer tier **1 (event disposition)**.
+  <!-- entry: "git history scanned: one published PNG, one reversible id mapping, no chat text" -->
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED, current state is the first entry
 
