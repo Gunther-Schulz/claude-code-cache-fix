@@ -1984,6 +1984,74 @@ ENOSPC misattribution with its wrong first explanation left in.
   insertion-normalization's 1/8 absorption on this capture is a regression or
   the standing rate.
 
+- **READY (small) — both event runbooks open on a tool measured unreliable for
+  the exact event that enters them.** `docs/runbooks/sweep-finding.md` and
+  `docs/runbooks/bust-appears.md` send a fresh context to `bust-triage` FIRST.
+  Measured 2026-08-10: it selects the busting request by time proximity to the
+  worktime event and is blind to `model`, so on a fable session with sonnet
+  subagents it handed back the sonnet pair `n=97->99` (04:40:43/47) while the
+  fable request at 04:40:37.944 was the one that busted — and every instrument
+  reading the walk then collected described a conversation that never busted.
+  A fresh context following either runbook today walks into that silently.
+  This entry exists because the dependents were NAMED in session prose and
+  nearly left there — the named-and-unbooked shape, caught by the operator.
+  Design (decided): both runbooks gain a step-zero caveat BEFORE the
+  `bust-triage` line — check the busting request's `model` against the
+  session's other traffic, and treat a verdict as void if the selected pair's
+  model differs from the model the bust was reported against. Written as a
+  caveat, not a rewrite: the tool fix is a separate entry, and the runbook must
+  stay correct in the window before it ships. Each caveat carries
+  `[GRADUATE -> bust-triage groups by conversation AND model]` per this repo's
+  runbook-as-staging-area rule, so it is removed by the commit that mechanizes
+  it rather than by someone deciding it reads fine.
+  Verifier: the caveat must name the 2026-08-10 instance with its two
+  timestamps, so a reader can reproduce the miss rather than take the warning
+  on trust; `grep -n "GRADUATE" docs/runbooks/*.md` shows both new markers.
+  Done-criterion: both files carry the caveat above their `bust-triage` step,
+  both markers present, suite green.
+  Write boundary: `docs/runbooks/sweep-finding.md`,
+  `docs/runbooks/bust-appears.md`.
+
+- **READY — one reader owns the schemas of everything this repo writes, and it
+  THROWS on an unknown field instead of returning `null`.** Supersedes the
+  narrower "normalize two field names" framing in the parked 213k entry's item
+  (d): the defect is not two spellings, it is that every consumer hand-parses.
+  Measured 2026-08-10: one bust walk ran ~8 ad-hoc `jq` probes over four
+  formats this repo writes, and two returned confidently wrong answers by
+  querying one schema with another's names — `usage.cacheRead` (capture
+  `outcome`) vs `cache_read_input_tokens` (`usage.jsonl`); `msgs` (prefix-diff
+  events) vs `messageCountPrev/Now` (prefix-diff last-state). Both reached the
+  operator as fact before being caught. A missing check is silent; a
+  hand-rolled read returns a NUMBER indistinguishable from a correct one.
+  Design (decided): `tools/logs.mjs`, one module, four format readers — capture
+  request records, capture `outcome` records, `usage.jsonl`, prefix-diff
+  events + last-state — each exposing normalized accessors over BOTH on-disk
+  spellings. The on-disk names do NOT change: `proxy/stream.mjs:21-22` and
+  `proxy/extensions/usage-log.mjs:187-188` are wire/schema writers with the
+  whole capture corpus behind them, and renaming either makes every archived
+  capture unreadable by the new reader — a bigger version of the bug being
+  fixed. Reader is strict: an unknown field name throws, naming the field and
+  the format, never returns `undefined`.
+  Companion scope lint, same shape as the existing xdg scope check
+  (`test/` already proves the form): a known schema's raw field names must not
+  appear outside `tools/logs.mjs` and the writers named above; a new call site
+  that hand-parses fails the bite.
+  Verifier, red-first, anchored to immutable references — the two real wrong
+  reads, replayed: asking a capture `outcome` record for
+  `cache_read_input_tokens`, and a prefix-diff EVENT row for
+  `messageCountPrev`, must THROW under the reader while both correct spellings
+  return the right numbers on the same records. Over-firing control: a record
+  legitimately missing an optional field returns its declared default and does
+  not throw, declared IN the test as data. Known positive from real data, not
+  planted: the 04:40:39Z outcome must read `cacheRead=15603`,
+  `cacheCreation=213429` through the reader.
+  Done-criterion: both throws demonstrated red before the reader exists (or, if
+  the module must exist first, one named accessor disabled at a time per the
+  module-load-red rule), controls green, scope lint green, full suite green.
+  Write boundary: `tools/logs.mjs`, `test/logs*.test.mjs`. No `proxy/` change,
+  so no pin bump and no restart. `bust-triage`'s adoption is a SEPARATE entry —
+  this one ships the reader and its lint only.
+
 - **READY (small) — the succession rule's computable slice: an entry that
   ASSERTS a matrix row's status is a dependent nothing re-reads.** The rule
   itself is judgment-shaped and stays prose (dev-loop, "A finding never lands

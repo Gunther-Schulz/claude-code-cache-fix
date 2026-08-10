@@ -65,6 +65,45 @@ Three things make this operational rather than a slogan:
   the deferral is the failure. Say what you would build and why — not what you
   would skip.
 
+**The trigger fires DURING the work, on a count you keep — not at closing.**
+Sharpened 2026-08-10 on operator mandate: *"always build tools, never skimp on
+those — we need to immediately notice these kinds of things and act on them."*
+The throwaway-probe tell was already written down here and it UNDER-FIRES,
+because it is stated retrospectively: it reads as something to notice while
+writing the report, and by then the probes have already done their damage and
+the session is out of context to fix them.
+
+Measured the same day: one bust walk ran roughly EIGHT ad-hoc `jq` probes
+across four formats this repo itself writes (capture request records, capture
+`outcome` records, `usage.jsonl`, prefix-diff events and last-state). Two
+returned confidently wrong answers by querying one schema with another's field
+names, and both reached the operator before anyone caught them. Nothing in the
+session noticed the count — the operator did, after the second wrong answer.
+
+So the rule is a COUNT, and it is small: **the SECOND ad-hoc probe against a
+format this repo already writes stops the investigation.** Not the fifth, not
+the closing gate. At the second, say out loud which tool should have answered
+it, and build that tool before continuing — the investigation resumes on top of
+it, which is strictly cheaper than finishing on probes and rebuilding the
+conclusions afterwards.
+
+**Why a missing READER outranks a missing check, which is what makes this worth
+its own paragraph.** A check that does not exist stays silent, and silence is at
+least honest. A hand-rolled read RETURNS A NUMBER — and a number produced by
+asking for a field that does not exist is byte-identical to a number that means
+something. `null` reads as zero, absent reads as clean, and the wrong answer
+travels into a report wearing the same confidence as a right one. That is the
+same "absence of evidence wearing a verdict's clothes" this file collects
+elsewhere, arriving through the one door nobody guards: the analyst's own
+one-liner.
+
+**The mechanism, so this does not rest on noticing.** Formats this repo writes
+get ONE reader that owns their schemas and THROWS on an unknown field name
+rather than returning `null`; tools import it instead of parsing, and a scope
+lint keeps a schema's field names from appearing outside it (the shape
+`test/xdg-scope` already uses). Then the wrong-namespace read fails loudly at
+the moment it is written, which is the only moment it is cheap.
+
 **One — an event that maps to no existing threat-matrix row is UNCLASSIFIED.**
 Stop and mint the row; that is the alarm the matrix's convergence note relies
 on.
@@ -649,10 +688,22 @@ would re-grade it, the way a PARKED entry already must. And a grade that survive
 the re-check is not wasted work — it is the only version of that grade anyone
 can trust.
 
+**The enumeration is not the delivery — each dependent gets a carrier in the
+same act.** This is the global corpus's no-third-exit rule ("do it now or book
+it"; naming a gap feels like delivering it, so the check is against the record,
+never the feeling) aimed at succession specifically, and it is written out here
+because it failed on this rule's own first day: the session that wrote the
+paragraphs above then NAMED two stale dependents in a reply — both event
+runbooks open on `bust-triage`, a tool measured unreliable hours earlier for the
+exact event that enters them — and booked neither. The operator caught it. A
+re-grade that exists only as a sentence in a reply is indistinguishable, one
+session later, from never having noticed.
+
 **The tell that succession was skipped** is computable and worth watching for:
 one session's output containing a premise and a conclusion drawn from it that
-contradict each other, or a booking whose grade predates the last piece of
-evidence the same session gathered. Both appeared here.
+contradict each other, a booking whose grade predates the last piece of evidence
+the same session gathered, or a dependent named in prose with no commit or entry
+in that session referencing it. All three appeared here.
 
 **Group by conversation before comparing anything.** One session-id header
 carries the main thread, every subagent, and CC's own sidecar calls. Comparing
