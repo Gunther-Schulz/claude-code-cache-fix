@@ -807,6 +807,15 @@ export function scanVolatileRegions(messages, seen) {
 // backstop, not the working limit, and tripping it is reported.
 const ENTRY_ROW_CAP = 5000;
 
+// The byte-gate's own MISMATCH rows had no way OUT of the census (BACKLOG
+// "READY — the byte-gate's MISMATCH rows have no way OUT of the census"):
+// `details` carries every verdict, unbounded, and never left this process.
+// The producer owns its own bound, same convention as the caps above — 200
+// is the cap gate-live's `persistRows` already uses for every OTHER per-gate
+// row array, chosen there because it sits above every count observed (the
+// largest so far a 38-row conservation gate-red).
+const MISMATCH_ROW_CAP = 200;
+
 // Same shape of backstop for duplicate-streak detail rows: the counts stay
 // exact, the rows are capped and the cap reports what it dropped. Streaks are
 // a small population by construction (a hundred pairs across a corpus), so
@@ -995,6 +1004,18 @@ async function main(argv) {
     `${unreadable.length} UNREADABLE, ${captures} with pairs` +
     (tornLines ? `, ${tornLines} TORN line(s) skipped` : "");
 
+  // The MISMATCH-filtered slice out of `details` (BACKLOG "the byte-gate's
+  // MISMATCH rows have no way OUT of the census"): never raw `details`,
+  // which is unbounded and includes every other verdict too. Verbatim rows,
+  // no reshaping — the census is the recorder, not the interpreter, same
+  // convention gate-live's own row arrays already use. `mismatchRowsTruncated`
+  // appears only when the cap actually trimmed something, so its PRESENCE
+  // alone is what means rows were dropped (the same convention
+  // `volatileTruncated`/`duplicatesTruncated` already use elsewhere in this
+  // file's own JSON output).
+  const mismatchAll = details.filter((d) => d.verdict === "MISMATCH");
+  const mismatchRows = mismatchAll.slice(0, MISMATCH_ROW_CAP);
+
   if (json) {
     // ADDITIVE ONLY. gate-live's summariseCensus and bust-triage read named
     // fields, so new keys ride along without touching either; `volatileChange`
@@ -1007,7 +1028,9 @@ async function main(argv) {
         volatileChange, volatileKinds, volatileTruncated, volatileExempt,
         volatileByCapture, volatileEntries, volatileEntriesByKind,
         duplicates, duplicatesByCapture, duplicatesTruncated,
-        ...(verbose ? { volatileRows, duplicateRows } : {}) },
+        ...(verbose ? { volatileRows, duplicateRows, mismatchRows,
+                         ...(mismatchAll.length > MISMATCH_ROW_CAP
+                           ? { mismatchRowsTruncated: mismatchAll.length } : {}) } : {}) },
       null, 2) + "\n");
     return unreadable.length ? 1 : 0;
   }
@@ -1454,7 +1477,15 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     eq(firstDiffOffset("ab", "ab"), -1, "equal strings");
 
     process.stdout.write("reminder-migration-census: selftest passed\n");
-    process.exit(0);
+  } else {
+    // `process.exit()` here truncated its own output: a single large
+    // `--json --verbose` write (this member's own MISMATCH-rows export,
+    // 200 rows, ~146 KB) landed as invalid JSON at the reading end because
+    // `process.exit()` does not wait for a pending async stdout write to a
+    // pipe to drain — found by executing the new capability against its own
+    // cap, not by reasoning about it. Setting `exitCode` and returning lets
+    // Node's normal shutdown flush stdout before the process actually exits;
+    // no behavior for a caller reading the exit code changes.
+    process.exitCode = await main(process.argv);
   }
-  process.exit(await main(process.argv));
 }
