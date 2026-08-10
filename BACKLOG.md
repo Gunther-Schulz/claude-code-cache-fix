@@ -742,6 +742,20 @@ ENOSPC misattribution with its wrong first explanation left in.
   for this same stamp dispositioned it NON-DEFECT/GROWTH on the transcript's
   own numbers — that walk and this verdict must be reconciled, not stacked.
 
+  **DROP REJECTED 2026-08-10 — a lane graded this OVERTAKEN; the desk
+  overturned it.**
+  A lane graded this OVERTAKEN on the threat matrix's reconciled walk
+  (disposition NON-DEFECT). REJECTED at the desk: that is closing against a
+  document, and the document CONTRADICTS this entry on a checkable fact. This
+  entry says the transcript holds 328 records with 5 cache_miss_reason
+  diagnostics (339, 339, 427535 x3); the matrix says `there is no
+  cache_miss_reason anywhere in this session's transcript — grep returns
+  zero`. Both cannot be true, and the walk's own FINDING 2 (bust-triage had
+  selected a haiku sidecar, not the real predecessor) is a live candidate for
+  why they disagree about WHICH conversation. The entry stands, with a sharper
+  question than it was booked with: which conversation does each of those two
+  readings belong to? Settle it by reading the transcript, never by quoting
+  either document.
 - **READY — attribute the state-key FLIP that disarmed row 1's mitigation on a
   live 141k bust; the class is row 26 but this instance has no cause.**
   Booked 2026-08-08 from the bust walk on s-captureAT (2026-08-08T09:59:53Z,
@@ -1176,6 +1190,16 @@ ENOSPC misattribution with its wrong first explanation left in.
   Done when: both bites go red first and green after, and the injected startup
   count equals `grep -c '^- \*\*READY' BACKLOG.md`.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Reader half FIXED (session-scan.py now matches READY by header line, with a
+  regression test); WRITER half still open — 5 `- **READY` bullets sit outside
+  `## Open` under `## Upstream PR round`, whole-file 97 vs section 92, and no
+  backlog-lint guard exists. Also: phase 1 of this pass identified a SECOND
+  writer mechanism this entry never named — five bullets reading `-
+  **(shipped) READY`, invisible to a `^- \*\*READY` grep but counted by the
+  hook's substring rule. They are now in `## Done`. See the merge note: this
+  entry and the NARRATIVE-grade-token entry are one defect.
 - **READY — `backlog-order.mjs`'s anchor namespace is the whole BULLET BODY, so
   an entry that QUOTES another entry's title breaks the ranking tool.** Hit
   2026-08-06 evening, first use after the tool shipped, by ordinary work: an
@@ -1412,6 +1436,12 @@ ENOSPC misattribution with its wrong first explanation left in.
   either. Consumer: `bootstrap/doctor.py`, which enumerates its own `*_verdict`
   functions and fails its self-check if one lacks a test.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Path citation is stale: `~/.claude/cache-fix-gate-status.json` does not
+  exist. Real path `~/.local/state/cache-fix/gate-status.json` (present),
+  written by gate-live.mjs:61 via statePath(). rowPins and rollup fields
+  confirmed still present there. Substance unaffected.
 - **READY (counts CORRECTED WITHIN THE HOUR — the counts below are WRONG; read
   this block
   first). FORK-OWNED is 39 items / 42 occurrences; UPSTREAM-OWNED is 4 locations
@@ -1656,6 +1686,12 @@ ENOSPC misattribution with its wrong first explanation left in.
   bucket (d) = 0, or itemise each survivor with the reason. DEPLOYMENT-COUPLED:
   `proxy/` changes move the tree hash, needing a dotfiles pin bump and restart.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Three cited paths moved under proxy/extensions/: usage-log.mjs,
+  upstream-error-log.mjs, rate-limit-log.mjs. session-mirror-writer.mjs's
+  contract sentence is now at lines 7-9, not 8-9. The core defect (stale
+  ~/.claude comments) is unfixed and the entry stands.
 - **READY — the XDG accounting's EXCLUDED-BY-GENRE bucket (~260 occurrences)
   was never individually verified, and two exceptions have already been found
   inside it.** Measured 2026-08-08 by the accounting lane, and flagged by that
@@ -1823,24 +1859,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   decision for a structural class can quote a per-session number with the
   class named.
 
-- **READY (small, BLOCKED on a guard fix) — `test/tool-output-stamps.test.mjs`s
-  header is now STALE and actively false.** It still says ARM 1 is red on this
-  tree on purpose and that two assertions are todo-marked; `f9ec558` fixed the
-  defects and removed the markers. A reader who trusts the header will believe
-  two live defects remain.
-  Design (decided): rewrite the header block to say the two sites WERE found
-  still-wrong by this check and were fixed in `f9ec558`, keeping the citations
-  (they are the evidence that the check works) and dropping every present-tense
-  red and todo claim.
-  Verifier: `grep -n "todo" test/tool-output-stamps.test.mjs` returns nothing,
-  and the header names `f9ec558`.
-  **Why not done in `f9ec558`:** the header is a comment block whose every line
-  opens with a double slash, and a PreToolUse guard currently hard-denies any
-  Bash command whose text contains that token — a false fire diagnosed
-  2026-08-08 and handed to the dotfiles session. Correcting the header was
-  booked rather than worked around. UNBLOCKS as soon as that guard fix lands;
-  the edit itself is a two-minute rewrite.
-
 - **PARKED (provisional — investigation still open, operator flagged that these
   gradings may be revised) — the 2026-08-10 04:40:39Z 213k event and the
   instrument failures the walk exposed.** One entry rather than seven, because
@@ -1943,26 +1961,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   phrase-class it was built for, naming a defect its own author had left in
   prose one message earlier.
 
-- **READY (small) — `named-unbooked-scan` is referenced by nothing but itself.**
-  Measured immediately after it shipped: `grep -n "named-unbooked-scan"` across
-  `BACKLOG.md`, `docs/runbooks/*.md`, `docs/dev-loop.md` and `tools/*.mjs`
-  returns hits in ONE file — the tool's own source. No runbook step invokes it,
-  no lane names it, nothing schedules it. It is a mechanism with no trigger,
-  which is the state the class it detects is about: the check against
-  named-and-unbooked was itself named and unwired within the hour of being
-  built, by the session that built it.
-  Design (decided): the session-close lane owns it —
-  `docs/runbooks/session-close.md` gains a numbered step running it over the
-  session's own transcript with `--until HEAD`, and the step carries
-  `[GRADUATE -> a Stop-hook runs it without anyone remembering]`, because a
-  runbook step still depends on someone reading the runbook, which is the same
-  dependency that produced the defect. Report-only, as the tool already is.
-  Verifier: `grep -n "named-unbooked-scan" docs/runbooks/session-close.md`
-  returns the step and its GRADUATE marker; running the step by hand over this
-  session's transcript prints its examined-count line rather than a bare
-  verdict. Done-criterion: both, suite green.
-  Write boundary: `docs/runbooks/session-close.md`.
-
 - **READY — no instrument reads the BILLING side, so the only ground truth we
   have about whether the cache held is unread.** Measured 2026-08-10:
   `grep -c usage tools/gate-live.mjs` → 0; `bust-triage` reads none;
@@ -2063,6 +2061,14 @@ ENOSPC misattribution with its wrong first explanation left in.
   Write boundary: `docs/runbooks/sweep-finding.md`,
   `docs/runbooks/bust-appears.md`.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Half of the premise is gone. bust-appears.md already carries the designed
+  model-mismatch caveat (step 2 + GRADUATE marker). sweep-finding.md was
+  restructured and no longer opens on bust-triage — step 1 is now `Freeze
+  before you analyze`, and bust-triage enters only inside the KNOWN-OPEN
+  branch (~line 174) under a different caveat. `Both runbooks open on the
+  unreliable tool` no longer holds; re-scope to bust-appears alone or close.
 - **READY — one reader owns the schemas of everything this repo writes, and it
   THROWS on an unknown field instead of returning `null`.** Supersedes the
   narrower "normalize two field names" framing in the parked 213k entry's item
@@ -2210,6 +2216,13 @@ ENOSPC misattribution with its wrong first explanation left in.
   Verifier: red-first — revert each pin's site in turn, confirm exactly its own
   bite fires. Done-criterion: three bites, each independently reddened.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  `ZERO test coverage` is factually wrong today: the entry's own verifying
+  command `grep -rl cost-report test/` now returns
+  test/tool-output-stamps.test.mjs, whose ARM1/ARM2 cover design points (a)
+  and (b). Still true: no dedicated test/cost-report.test.mjs, and nothing
+  covers design point (c), the column-width/wrap concern. Re-scope to (c).
 - **PARKED — `usage-to-dashboard-ndjson.mjs --watch` was never exercised live.**
   Its converted line sits in a long-running `fs.watch` callback; the lane
   verified it by code inspection plus the shared helper's Date-input unit tests
@@ -2625,66 +2638,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   same verdict the hand-walk reached — and the ladder's existing steps stay in
   their current order, since this adds a rung rather than re-ranking them.
 
-- **READY — FIRST THING NEXT SESSION: explain the 2026-08-07 01:00:55Z false ❄
-  to the operator in plain language, before any build work.** They asked for
-  this explicitly, tired, at the end of a long session, after an explanation
-  written in commit-message register did not land. Deliver it as the opening
-  message of the session and wait for their reply.
-  **What to explain, in this order** (the material is all on disk — matrix
-  "Event walk 2026-08-07 01:00:55Z" and the detector entry below; nothing needs
-  re-deriving):
-  1. Nothing broke. The cache did its job perfectly. The ❄ was wrong.
-  2. What the ❄ actually watches: two numbers per turn — how much was newly
-     written, and how much was re-read from cache. It cries wolf when the write
-     is big AND the read is small, both measured against the previous turn.
-  3. What really happened: the session's first tool call returned a 907 kB
-     result. That is genuinely new text, so of course it had to be written to
-     the cache once. Everything from before it was re-read intact — the read
-     equals the previous write to the token.
-  4. Why the alarm fired anyway: Claude Code writes one reply into the
-     transcript as SEVERAL rows carrying the same numbers. The alarm compared
-     one of those rows against another row of the SAME reply. That inflated
-     "the previous turn" from 40k to 375k, and against a made-up 375k baseline
-     the perfectly normal numbers look alarming.
-  5. Why it said `other`: the alarm's list of causes is idle / model-changed /
-     everything-else. There is no entry for "nothing was wrong", so a false
-     alarm can only ever come out as `other`. The word is a symptom of the bug,
-     not a clue about it.
-  6. How we know rather than think: the fork has its own copy of the same
-     alarm, which throws away duplicate rows first. Run on the same transcript
-     it reports zero events, where the other reported a 336k disaster.
-  **7. THEN disambiguate it from the OTHER incident, because the operator
-  conflated the two at the end of that session and the next reader will too.**
-  They are different events with opposite verdicts, hours apart:
-  - the 336k above (01:00:55Z) — a FALSE alarm, nothing lost, an instrument
-    bug;
-  - the 205k at 2026-08-06 17:40:16Z (`system_changed`, matrix row 24) — a
-    REAL cost, and the cause is a RESUME, not an edit. Restarting a
-    conversation makes Claude Code rebuild its opening from whatever is on
-    disk at that moment, and it pays for the whole rebuilt opening. If the
-    rules file changed while the session was away, the new text shows up in
-    that rebuild — visible at the boundary, but it is the rebuild being paid
-    for, not the edit.
-  The plain-language version of the rule, which is the useful part: **editing
-  the rules while a session is running costs that session nothing — it already
-  holds its copy. The next resume pays.**
-  **8. And say what was checked, including the correction.** This session
-  edited the global rules at 2026-08-07 01:37:48Z with six sessions live, then
-  measured its own: the opening message was 64,006 bytes before the edit and
-  64,006 after, unchanged. Nothing was re-read, nothing was re-billed. That
-  matters because a claim written into the threat matrix hours earlier said the
-  opposite — and the matrix had ALREADY recorded the correct, measured version
-  months of requests earlier, in the same cell. Both are now reconciled, with
-  the wrong one struck. Tell the operator that part too: they asked the
-  question that surfaced it.
-  **Rules for the delivery, and they are the point of this entry:** short
-  sentences, no field names in the first pass, no timestamps unless asked, and
-  no "findings/booked/verifier" vocabulary. Offer the detail afterwards; do not
-  open with it. If it cannot be said without jargon, it is not understood well
-  enough yet.
-  Done when: the operator says it landed, or asks a follow-up that shows it
-  did. Not when the message is sent.
-
 - **READY (small; same file as the backlog-lint WARN item, dispatch them
   together) — a `backlog-lint` lane for the two ways a booked entry is not
   DISPATCHABLE.** Standing rule persisted 2026-08-06 (operator, session-close
@@ -2738,46 +2691,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Two captures, one shape, both containing a resume. Still NOT the byte-level
   proof: that remains the `normalizeSessionStartText` comparison the entry
   names. What this changes is the odds, not the evidence class.
-
-- **READY — THREE triggers have no watcher, and the third is the worst: a RED
-  daily sweep has no doorbell either.** Found 2026-08-06 while enumerating the
-  lanes: `session-scan.py` surfaces BACKLOG only, and NO SessionStart hook reads
-  `~/.claude/cache-fix-gate-status.json`. The dotfiles doctor reads it, but
-  doctor is a command someone runs, not something that greets them. So
-  `docs/runbooks/sweep-finding.md` — written that same morning — has a trigger
-  of "you happened to look." The runbook was authored, reviewed and committed
-  without anyone noticing its entry condition did not exist, which is the
-  clearest possible case for the standing instrument question (dev-loop, rule
-  three): the gap was in the thing being built, not in something old.
-  All three conditions are computable, share one carrier, and ship together:
-  gate red (`.ok == false` or `.failing > 0` in the status file, plus its
-  `finished` age so a stale sweep reads as stale rather than clean), commits
-  behind (`git log main..upstream/main --oneline | wc -l`), and review rounds
-  waiting (`gh pr list --author @me` with activity newer than our last push).
-  Silent at zero, all three.
-  Measured 2026-08-06, by looking rather than by anything reporting: fork `main`
-  is **24 commits behind `upstream/main`**, and **three open PRs (#273, #276,
-  #278) carry a reviewer comment from that same day**, all three `CONFLICTING`,
-  all three at `REVIEW_REQUIRED`, all three asking for the same rebase. The
-  runbook for answering a round exists and is good; nothing tells anyone a
-  round is waiting. A well-written line with no doorbell.
-  Both conditions are computable with near-zero false fires, which is the test
-  a mechanism has to pass here — no judgment, no semantics, two counts:
-  `git log main..upstream/main --oneline | wc -l`, and `gh pr list --author @me
-  --json number,reviewDecision,updatedAt` filtered to rounds newer than our last
-  push on that branch. Design, decided: both land as counts on the SessionStart
-  line beside the backlog count that already appears there — same carrier,
-  because that line is demonstrably on the read path and a new one would not
-  be. Silent at zero; a count only when there is something. Verifier: with the
-  state as of 2026-08-06 it must print both (24 behind, 3 rounds waiting);
-  against a synthetic in-sync state it must print nothing. Done-criterion:
-  both, plus the zero case proven silent — a trigger that always prints is a
-  trigger nobody reads.
-  NOT covered here, because it is not computable and should not be faked: WHEN
-  a fork mitigation becomes an upstream slice. FORK-NOTES says "when ready",
-  which is an unstated trigger and therefore drift. That one is an operator
-  decision and stays prose — but it stays prose ON PURPOSE and says so, rather
-  than by omission.
 
 - **READY — kill the relocation-induced conversation-key rotation (threat
   matrix row 26): resolve the conversation sub-key ONCE from the RAW body and
@@ -3002,6 +2915,11 @@ ENOSPC misattribution with its wrong first explanation left in.
   resolved set — a fix that leaves doctor comparing env lists has moved the
   blind spot, not closed it.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  /health already reports resolved extensions with their source (2e088df). The
+  doctor-side consumption is still open — and it is a DUPLICATE of n=50, so
+  this is a merge candidate rather than an independent entry.
 - **READY — extend `replay.mjs`'s extension bisection to CONSERVATION rows;
   today it attributes stability violations only, and conservation rows are
   attributed by hand.** The graduation trigger fired long ago and was only
@@ -3049,6 +2967,17 @@ ENOSPC misattribution with its wrong first explanation left in.
   12 free instances and one costly one is not a rate. Ranks below the fixture
   work: it explains the cost distribution, it does not block the mitigation.
 
+  **DROP REJECTED 2026-08-10 — a lane graded this OVERTAKEN; the desk
+  overturned it.**
+  A lane graded this OVERTAKEN citing the STAGE-2b record at
+  BACKLOG.md:904-916. REJECTED at the desk: that record answers a NARROWER
+  question. It establishes that zero of the 12 surviving positives would fire
+  the proposed check, and that all 12 are `mcp` with prefixAboveMessages
+  INTACT. This entry asks a MECHANISM question — why twelve rotations were
+  free and the thirteenth cost 216k, with its own text already saying the type
+  is the obvious suspect and probably the wrong one. A true sentence answering
+  a smaller question is the reach failure the corpus names; the mechanism is
+  still unexplained.
 - **READY — the PR-ROUNDS trigger, split out of the entry above with its WRITER
   named, because it is the one part that cannot ride the SessionStart hook
   directly.** The gate-red part reads a local file and is dispatched; this part
@@ -3115,16 +3044,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   text, same input, one variable. Durable evidence must be SYNTHETIC — the
   predicate is literal text, which the scrub destroys.
 
-- **READY (small) — `capturePair`'s comment describes a size floor the code does
-  not implement.** `bust-triage.mjs:275-277` says the busting request must carry
-  "a body at least as large as the ledger's own ctx figure allows, floored at 2
-  messages"; the code implements only `messages.length >= 2`. Doc-over-body
-  drift in a function whose selection rule is load-bearing for every triage.
-  Either implement the ctx floor or delete the clause — deciding which needs one
-  measurement: whether any real bust would be selected differently. Verifier:
-  the 12:54:49Z control and the s-captureAL case must both be unchanged by
-  whichever way it resolves.
-
 - **IN FLIGHT (operator-side, dotfiles; dispatched 2026-08-06 evening) — the
   push scan's already-published filter covers COMMIT MESSAGES only, and the FILE
   half fired on the identical class the same week.** The 2026-08-06 fix
@@ -3183,6 +3102,12 @@ ENOSPC misattribution with its wrong first explanation left in.
   NOT this repo's file — this is a dotfiles change, booked here only because it
   was found here and the fork backlog already carries operator-side entries.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Substance STILL-TRUE (doctor.py still ages the file by mtime;
+  session-scan.py's own comment records doctor as deliberately left
+  unconverged), but the entry's path citation
+  `~/.claude/cache-fix-gate-status.json` is stale — same correction as n=25.
 - **QUEUED THIS SESSION (2026-08-06 evening) — #278's second rebase round,
   serialized behind the running fork-repo lane, not dropped.** The round is read
   and understood (previous entry carries its content); the work is the runbook
@@ -3402,6 +3327,10 @@ ENOSPC misattribution with its wrong first explanation left in.
   That file is deployed from dotfiles `cache-fix/CLAUDE.local.md` and is edited
   THERE, never in this repo.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  The extract markers are at docs/dev-loop.md:1348 and :1422, not 728/802. The
+  file grew under the citation.
 - **READY — an index check for the runbook lane system, and it must be built
   BEFORE the two reds above.** Peer session's design, adopted: build it split,
   with checks 2 and 3 domain-free so they are not this repo's private tooling,
@@ -3701,6 +3630,10 @@ ENOSPC misattribution with its wrong first explanation left in.
   and each lands with a JOURNAL line in dotfiles. Not done here because the
   operator routed it to a separate session.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Of the four proposed corpus edits, item (4) has already landed in the global
+  accretion.md; items (1)-(3) are still open. Re-scope to three.
 - **PARKED — do the three runbooks actually get FOLLOWED, and did folding the
   two sub-classes in rather than splitting them out hold?** The
   per-event-line work is DONE (operator session 2026-08-06, `0868657` +
@@ -3749,31 +3682,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   times, since an unauthenticated probe on a schedule is the shape that fits.
   Until the sender is named this stays OPEN-BOOKED — real, reproducible,
   cause not established — and NOT closed as controlled-cause on a guess.
-
-- **READY — `bust-triage` reports a STATE-KEY CHANGE across the busting pair
-  as its own line.** This is the hand-step that found row 26, and it is
-  invisible to every diff of the request bodies: the extension event logs
-  carry the key each request was handled under, and a key that changes between
-  two requests of one conversation is a total state loss reported as
-  `no-baseline`/`reset` rather than as an error. Measured 2026-08-06:
-  `deferred-tool-rewrite` logged `rewrite` under one key and `no-baseline`
-  under another nine seconds later, same conversation — that flip WAS the
-  216,060-token bust, and nothing in either request's bytes said so. Closing
-  gate question 3 answers YES by existing: the classification was made by hand,
-  so the tool should emit it. Design, decided: for the pair it already
-  identifies, `bust-triage` greps
-  `~/.claude/cache-fix-snapshots/*-{insertion,deferred-tool}-events.jsonl` at
-  both timestamps, extracts the key each request was handled under, and prints
-  a `state-key` step — OK when both requests share a key, and a named finding
-  when they differ, quoting both keys and both `action` values. It is a STEP in
-  the existing chain, not a new tool (dev-loop: extend an existing tool before
-  writing a new one; reuse inherits the interleaving and pairing lessons a
-  fresh file re-earns from zero). Verifier, red-first: run it at
-  `--at 2026-08-06T09:59:58Z`, which must report the flip
-  `7741083f1d475059 -> 0adfdad6b91abb0e` with `rewrite -> no-baseline`; and at
-  a stamp whose pair shares one key, which must report OK. Done-criterion:
-  both, plus the step appearing in the OK case too — a check that prints only
-  on findings cannot be distinguished from one that did not run.
 
 - **HANDOFF 2026-08-05 NIGHT — read this first; it supersedes the
   EVENING handoff's "START HERE" section and nothing else.**
@@ -4550,6 +4458,11 @@ ENOSPC misattribution with its wrong first explanation left in.
   update the runbook's list if it drifts again — this repo's copy was corrected
   in the same commit as this booking.
 
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  The doc still lists 4 verdicts (unchanged, so the entry stands), but the
+  real count is now 7, not the `six` this entry cites — KEY-FLIP, shipped by
+  n=76's own work, was never counted.
 - **READY (small) — `absence-scan`'s `allowlisted:` line cannot distinguish a
   whole-file SKIP from a class-scoped DROP, which is exactly the distinction the
   2026-08-05 narrowing was made to create.** Noticed 2026-08-08 while scanning
@@ -4652,33 +4565,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Verifier: `git grep -c "\.claude/cache-fix"` before and after, with the
   three populations accounted for by name rather than by count.
 
-- **READY (POINTER — body belongs in the `dispatch-guards` plugin repo's
-  `dev-notes/`) — a veto gate keyed on a WORD in a command matches that word in
-  a commit MESSAGE.** Measured 2026-08-08 by the leak-scan lane: `git commit -F -`
-  with a heredoc was BLOCKED by `subagent-push-gate` because the commit message
-  contained the word "push" (it was describing the push hook). No push was
-  attempted or possible.
-  **SECOND FIRE, 2026-08-08, different lane:** the same gate denied a
-  `git commit` whose inline message carried push-adjacent wording, in a lane
-  whose entire subject was the push hook — so the wording was unavoidable, not
-  incidental. Both lanes recovered the same correct way (read the state, confirm
-  nothing was staged or committed, retry with `-F <file>`), and both surfaced it
-  rather than working around it silently. Two fires in one day, both on lanes
-  working ON the push path, is the fire-rate this observation needed: the
-  predicate reads the payload when it means to read the intent, and it fires
-  hardest on exactly the work most likely to need the words. The lane recovered correctly — confirmed nothing had
-  been committed, then committed via `-F <file>` — and the confirm-before-retry
-  step is the part worth keeping, because a blocked step leaves the state its
-  successor assumes was created.
-  **Why it is worth a booking rather than a shrug:** this is the
-  check-that-fires-on-a-non-defect shape sitting on the gate that matters most,
-  and its cost is the override reflex it trains on exactly the guard where an
-  override is most dangerous. The general form is a predicate reading the
-  PAYLOAD when it means to read the INTENT. Design NOT decided here — it is the
-  plugin's, and the plugin's own evolution rule says the observation goes to
-  `dev-notes/dispatch-OBSERVATIONS.md` with a proposed rule change. Done when
-  that observation exists there; the fix itself is the plugin maintainer's call.
-
 - **PARKED (named residual, not a defect) — the finding-granular discard walks
   every distinct published version of a path, measured at 5.4s for 226 versions
   of one file.** Recorded 2026-08-08 from the leak-scan lane's measurement so it
@@ -4767,36 +4653,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   than silently resolving to an empty new path, because a silent empty read is
   exactly what the three-answer design in the module header was built to avoid.
   <!-- entry: "delete legacyReadPath and its 26 call sites" -->
-
-- **READY — the dispatch-guards writer-claims gate WARNs on a claim whose work
-  is already in HEAD, which trains the override reflex it exists to prevent.**
-  Measured 2026-08-08, live: a lane's first Edit to
-  `~/dev/Gunther-Schulz/claude-worktime/claude-worktime.sh` fired
-  `writer-claims-gate` naming `aopus-rotation-writer-a3b5e1755a1598d3` "within
-  the claim TTL". That agent's guard fires are stamped 08:06Z; the commits
-  carrying its work landed 08:52–08:58Z; its session was quiet from 08:18Z. So
-  the claim outlived its own commits by ~2 h and fired on work that could not
-  collide with anything.
-  **Why it matters beyond the nuisance:** the executing lane could not
-  distinguish this from a live conflict using git state alone — a clean tree
-  proves nothing was COMMITTED, never that nobody holds uncommitted work — and
-  it proceeded on that reasoning, correctly but on a basis narrower than its
-  conclusion. What actually settled it was an out-of-band timing comparison the
-  dispatcher ran. A guard that fires on a non-defect and can only be cleared by
-  the dispatcher is the check-that-trains-its-reader-to-ignore-red shape from
-  the corpus.
-  Design (this is the PLUGIN's repo, not this one — body belongs in
-  `dispatch-guards`' `dev-notes/dispatch-OBSERVATIONS.md` and its BACKLOG;
-  this entry is a POINTER so the finding is not lost if that repo is not opened
-  soon): before firing, check whether the claimed path's claimed work is
-  reachable from HEAD — if the claiming agent's commits are already merged, the
-  claim is spent and the gate stays silent. Cheaper variant if that is hard:
-  expire a claim when the working tree is clean at the claimed path.
-  Verifier, red-first: replay this exact case — a claim stamped before a commit
-  that contains its work — must NOT warn; a claim with genuinely uncommitted
-  changes at the claimed path MUST still warn. Both arms required; the second
-  is the over-firing control that keeps the repair from silencing the gate.
-  <!-- entry: "the dispatch-guards writer-claims gate WARNs on a claim whose work" -->
 
 - **READY (small) — a bullet whose grade token is a NARRATIVE word hides live,
   decision-complete work from every READY-based count, including the one this
@@ -8180,6 +8036,270 @@ no entry was dropped — the move is relocation only, verified by header-multise
 Grade tokens moved: DONE, (DONE …), (shipped) READY, RESOLVED, CLOSED, BUILT, SHIPPED,
 RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
 
+- **RETIRED 2026-08-10 (was READY) (small, BLOCKED on a guard fix) — `test/tool-output-stamps.test.mjs`s
+  header is now STALE and actively false.** It still says ARM 1 is red on this
+  tree on purpose and that two assertions are todo-marked; `f9ec558` fixed the
+  defects and removed the markers. A reader who trusts the header will believe
+  two live defects remain.
+  Design (decided): rewrite the header block to say the two sites WERE found
+  still-wrong by this check and were fixed in `f9ec558`, keeping the citations
+  (they are the evidence that the check works) and dropping every present-tense
+  red and todo claim.
+  Verifier: `grep -n "todo" test/tool-output-stamps.test.mjs` returns nothing,
+  and the header names `f9ec558`.
+  **Why not done in `f9ec558`:** the header is a comment block whose every line
+  opens with a double slash, and a PreToolUse guard currently hard-denies any
+  Bash command whose text contains that token — a false fire diagnosed
+  2026-08-08 and handed to the dotfiles session. Correcting the header was
+  booked rather than worked around. UNBLOCKS as soon as that guard fix lands;
+  the edit itself is a two-minute rewrite.
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  test/tool-output-stamps.test.mjs's header is no longer false: every
+  surviving mention of ARM 1 and of the `{ todo }` markers is past-tense
+  history (grep for `ARM 1|todo|on purpose` over the file, lines
+  21/34/73/82/84). Shipped by c3481d1.
+- **RETIRED 2026-08-10 (was READY) (small) — `named-unbooked-scan` is referenced by nothing but itself.**
+  Measured immediately after it shipped: `grep -n "named-unbooked-scan"` across
+  `BACKLOG.md`, `docs/runbooks/*.md`, `docs/dev-loop.md` and `tools/*.mjs`
+  returns hits in ONE file — the tool's own source. No runbook step invokes it,
+  no lane names it, nothing schedules it. It is a mechanism with no trigger,
+  which is the state the class it detects is about: the check against
+  named-and-unbooked was itself named and unwired within the hour of being
+  built, by the session that built it.
+  Design (decided): the session-close lane owns it —
+  `docs/runbooks/session-close.md` gains a numbered step running it over the
+  session's own transcript with `--until HEAD`, and the step carries
+  `[GRADUATE -> a Stop-hook runs it without anyone remembering]`, because a
+  runbook step still depends on someone reading the runbook, which is the same
+  dependency that produced the defect. Report-only, as the tool already is.
+  Verifier: `grep -n "named-unbooked-scan" docs/runbooks/session-close.md`
+  returns the step and its GRADUATE marker; running the step by hand over this
+  session's transcript prints its examined-count line rather than a bare
+  verdict. Done-criterion: both, suite green.
+  Write boundary: `docs/runbooks/session-close.md`.
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  named-unbooked-scan is wired: docs/runbooks/session-close.md:82 invokes it
+  as numbered step 5. Shipped by 75155b2, hours after this entry was booked.
+- **RETIRED 2026-08-10 (was READY) — FIRST THING NEXT SESSION: explain the 2026-08-07 01:00:55Z false ❄
+  to the operator in plain language, before any build work.** They asked for
+  this explicitly, tired, at the end of a long session, after an explanation
+  written in commit-message register did not land. Deliver it as the opening
+  message of the session and wait for their reply.
+  **What to explain, in this order** (the material is all on disk — matrix
+  "Event walk 2026-08-07 01:00:55Z" and the detector entry below; nothing needs
+  re-deriving):
+  1. Nothing broke. The cache did its job perfectly. The ❄ was wrong.
+  2. What the ❄ actually watches: two numbers per turn — how much was newly
+     written, and how much was re-read from cache. It cries wolf when the write
+     is big AND the read is small, both measured against the previous turn.
+  3. What really happened: the session's first tool call returned a 907 kB
+     result. That is genuinely new text, so of course it had to be written to
+     the cache once. Everything from before it was re-read intact — the read
+     equals the previous write to the token.
+  4. Why the alarm fired anyway: Claude Code writes one reply into the
+     transcript as SEVERAL rows carrying the same numbers. The alarm compared
+     one of those rows against another row of the SAME reply. That inflated
+     "the previous turn" from 40k to 375k, and against a made-up 375k baseline
+     the perfectly normal numbers look alarming.
+  5. Why it said `other`: the alarm's list of causes is idle / model-changed /
+     everything-else. There is no entry for "nothing was wrong", so a false
+     alarm can only ever come out as `other`. The word is a symptom of the bug,
+     not a clue about it.
+  6. How we know rather than think: the fork has its own copy of the same
+     alarm, which throws away duplicate rows first. Run on the same transcript
+     it reports zero events, where the other reported a 336k disaster.
+  **7. THEN disambiguate it from the OTHER incident, because the operator
+  conflated the two at the end of that session and the next reader will too.**
+  They are different events with opposite verdicts, hours apart:
+  - the 336k above (01:00:55Z) — a FALSE alarm, nothing lost, an instrument
+    bug;
+  - the 205k at 2026-08-06 17:40:16Z (`system_changed`, matrix row 24) — a
+    REAL cost, and the cause is a RESUME, not an edit. Restarting a
+    conversation makes Claude Code rebuild its opening from whatever is on
+    disk at that moment, and it pays for the whole rebuilt opening. If the
+    rules file changed while the session was away, the new text shows up in
+    that rebuild — visible at the boundary, but it is the rebuild being paid
+    for, not the edit.
+  The plain-language version of the rule, which is the useful part: **editing
+  the rules while a session is running costs that session nothing — it already
+  holds its copy. The next resume pays.**
+  **8. And say what was checked, including the correction.** This session
+  edited the global rules at 2026-08-07 01:37:48Z with six sessions live, then
+  measured its own: the opening message was 64,006 bytes before the edit and
+  64,006 after, unchanged. Nothing was re-read, nothing was re-billed. That
+  matters because a claim written into the threat matrix hours earlier said the
+  opposite — and the matrix had ALREADY recorded the correct, measured version
+  months of requests earlier, in the same cell. Both are now reconciled, with
+  the wrong one struck. Tell the operator that part too: they asked the
+  question that surfaced it.
+  **Rules for the delivery, and they are the point of this entry:** short
+  sentences, no field names in the first pass, no timestamps unless asked, and
+  no "findings/booked/verifier" vocabulary. Offer the detail afterwards; do not
+  open with it. If it cannot be said without jargon, it is not understood well
+  enough yet.
+  Done when: the operator says it landed, or asks a follow-up that shows it
+  did. Not when the message is sent.
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  Delivered, and then overtaken a second time. The 2026-08-07 transcript
+  records the plain-language explanation given as that session's opening
+  message; independently, the false-❄ root cause was found and fixed
+  2026-08-08 with `hits=0` against the fix. Verified by transcript search at
+  the desk, not from the lane's report.
+- **RETIRED 2026-08-10 (was READY) — THREE triggers have no watcher, and the third is the worst: a RED
+  daily sweep has no doorbell either.** Found 2026-08-06 while enumerating the
+  lanes: `session-scan.py` surfaces BACKLOG only, and NO SessionStart hook reads
+  `~/.claude/cache-fix-gate-status.json`. The dotfiles doctor reads it, but
+  doctor is a command someone runs, not something that greets them. So
+  `docs/runbooks/sweep-finding.md` — written that same morning — has a trigger
+  of "you happened to look." The runbook was authored, reviewed and committed
+  without anyone noticing its entry condition did not exist, which is the
+  clearest possible case for the standing instrument question (dev-loop, rule
+  three): the gap was in the thing being built, not in something old.
+  All three conditions are computable, share one carrier, and ship together:
+  gate red (`.ok == false` or `.failing > 0` in the status file, plus its
+  `finished` age so a stale sweep reads as stale rather than clean), commits
+  behind (`git log main..upstream/main --oneline | wc -l`), and review rounds
+  waiting (`gh pr list --author @me` with activity newer than our last push).
+  Silent at zero, all three.
+  Measured 2026-08-06, by looking rather than by anything reporting: fork `main`
+  is **24 commits behind `upstream/main`**, and **three open PRs (#273, #276,
+  #278) carry a reviewer comment from that same day**, all three `CONFLICTING`,
+  all three at `REVIEW_REQUIRED`, all three asking for the same rebase. The
+  runbook for answering a round exists and is good; nothing tells anyone a
+  round is waiting. A well-written line with no doorbell.
+  Both conditions are computable with near-zero false fires, which is the test
+  a mechanism has to pass here — no judgment, no semantics, two counts:
+  `git log main..upstream/main --oneline | wc -l`, and `gh pr list --author @me
+  --json number,reviewDecision,updatedAt` filtered to rounds newer than our last
+  push on that branch. Design, decided: both land as counts on the SessionStart
+  line beside the backlog count that already appears there — same carrier,
+  because that line is demonstrably on the read path and a new one would not
+  be. Silent at zero; a count only when there is something. Verifier: with the
+  state as of 2026-08-06 it must print both (24 behind, 3 rounds waiting);
+  against a synthetic in-sync state it must print nothing. Done-criterion:
+  both, plus the zero case proven silent — a trigger that always prints is a
+  trigger nobody reads.
+  NOT covered here, because it is not computable and should not be faked: WHEN
+  a fork mitigation becomes an upstream slice. FORK-NOTES says "when ready",
+  which is an unstated trigger and therefore drift. That one is an operator
+  decision and stays prose — but it stays prose ON PURPOSE and says so, rather
+  than by omission.
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  The doorbell exists. session-scan.py:293 gate_alerts() reads
+  gate_status_path() (:257, XDG first, ~/.claude fallback at :129), and THIS
+  session's SessionStart carried `attention: gate RED: 2/103 failing` — the
+  live world-read, stronger than the code read.
+- **RETIRED 2026-08-10 (was READY) (small) — `capturePair`'s comment describes a size floor the code does
+  not implement.** `bust-triage.mjs:275-277` says the busting request must carry
+  "a body at least as large as the ledger's own ctx figure allows, floored at 2
+  messages"; the code implements only `messages.length >= 2`. Doc-over-body
+  drift in a function whose selection rule is load-bearing for every triage.
+  Either implement the ctx floor or delete the clause — deciding which needs one
+  measurement: whether any real bust would be selected differently. Verifier:
+  the 12:54:49Z control and the s-captureAL case must both be unchanged by
+  whichever way it resolves.
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  The ctx-byte size floor is implemented, not messages.length>=2 alone:
+  bust-triage.mjs:652-653 `bigEnough = (line) => ctx == null ||
+  Buffer.byteLength(line) >= ctx`, composed into `plausible`.
+- **RETIRED 2026-08-10 (was READY) — `bust-triage` reports a STATE-KEY CHANGE across the busting pair
+  as its own line.** This is the hand-step that found row 26, and it is
+  invisible to every diff of the request bodies: the extension event logs
+  carry the key each request was handled under, and a key that changes between
+  two requests of one conversation is a total state loss reported as
+  `no-baseline`/`reset` rather than as an error. Measured 2026-08-06:
+  `deferred-tool-rewrite` logged `rewrite` under one key and `no-baseline`
+  under another nine seconds later, same conversation — that flip WAS the
+  216,060-token bust, and nothing in either request's bytes said so. Closing
+  gate question 3 answers YES by existing: the classification was made by hand,
+  so the tool should emit it. Design, decided: for the pair it already
+  identifies, `bust-triage` greps
+  `~/.claude/cache-fix-snapshots/*-{insertion,deferred-tool}-events.jsonl` at
+  both timestamps, extracts the key each request was handled under, and prints
+  a `state-key` step — OK when both requests share a key, and a named finding
+  when they differ, quoting both keys and both `action` values. It is a STEP in
+  the existing chain, not a new tool (dev-loop: extend an existing tool before
+  writing a new one; reuse inherits the interleaving and pairing lessons a
+  fresh file re-earns from zero). Verifier, red-first: run it at
+  `--at 2026-08-06T09:59:58Z`, which must report the flip
+  `7741083f1d475059 -> 0adfdad6b91abb0e` with `rewrite -> no-baseline`; and at
+  a stamp whose pair shares one key, which must report OK. Done-criterion:
+  both, plus the step appearing in the OK case too — a check that prints only
+  on findings cannot be distinguished from one that did not run.
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  The state-key line shipped: stateKeyFlip at tools/bust-triage.mjs:553,
+  stateKeyAt at :505, and the KEY-FLIP verdict documented at :49-55.
+- **RETIRED 2026-08-10 (was READY) (POINTER — body belongs in the `dispatch-guards` plugin repo's
+  `dev-notes/`) — a veto gate keyed on a WORD in a command matches that word in
+  a commit MESSAGE.** Measured 2026-08-08 by the leak-scan lane: `git commit -F -`
+  with a heredoc was BLOCKED by `subagent-push-gate` because the commit message
+  contained the word "push" (it was describing the push hook). No push was
+  attempted or possible.
+  **SECOND FIRE, 2026-08-08, different lane:** the same gate denied a
+  `git commit` whose inline message carried push-adjacent wording, in a lane
+  whose entire subject was the push hook — so the wording was unavoidable, not
+  incidental. Both lanes recovered the same correct way (read the state, confirm
+  nothing was staged or committed, retry with `-F <file>`), and both surfaced it
+  rather than working around it silently. Two fires in one day, both on lanes
+  working ON the push path, is the fire-rate this observation needed: the
+  predicate reads the payload when it means to read the intent, and it fires
+  hardest on exactly the work most likely to need the words. The lane recovered correctly — confirmed nothing had
+  been committed, then committed via `-F <file>` — and the confirm-before-retry
+  step is the part worth keeping, because a blocked step leaves the state its
+  successor assumes was created.
+  **Why it is worth a booking rather than a shrug:** this is the
+  check-that-fires-on-a-non-defect shape sitting on the gate that matters most,
+  and its cost is the override reflex it trains on exactly the guard where an
+  override is most dangerous. The general form is a predicate reading the
+  PAYLOAD when it means to read the INTENT. Design NOT decided here — it is the
+  plugin's, and the plugin's own evolution rule says the observation goes to
+  `dev-notes/dispatch-OBSERVATIONS.md` with a proposed rule change. Done when
+  that observation exists there; the fix itself is the plugin maintainer's call.
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  Recorded where the entry said it belonged: dispatch-guards
+  dev-notes/dispatch-OBSERVATIONS.md:104-107 carries the
+  heredoc-commit-message case with its proposed fix.
+- **RETIRED 2026-08-10 (was READY) — the dispatch-guards writer-claims gate WARNs on a claim whose work
+  is already in HEAD, which trains the override reflex it exists to prevent.**
+  Measured 2026-08-08, live: a lane's first Edit to
+  `~/dev/Gunther-Schulz/claude-worktime/claude-worktime.sh` fired
+  `writer-claims-gate` naming `aopus-rotation-writer-a3b5e1755a1598d3` "within
+  the claim TTL". That agent's guard fires are stamped 08:06Z; the commits
+  carrying its work landed 08:52–08:58Z; its session was quiet from 08:18Z. So
+  the claim outlived its own commits by ~2 h and fired on work that could not
+  collide with anything.
+  **Why it matters beyond the nuisance:** the executing lane could not
+  distinguish this from a live conflict using git state alone — a clean tree
+  proves nothing was COMMITTED, never that nobody holds uncommitted work — and
+  it proceeded on that reasoning, correctly but on a basis narrower than its
+  conclusion. What actually settled it was an out-of-band timing comparison the
+  dispatcher ran. A guard that fires on a non-defect and can only be cleared by
+  the dispatcher is the check-that-trains-its-reader-to-ignore-red shape from
+  the corpus.
+  Design (this is the PLUGIN's repo, not this one — body belongs in
+  `dispatch-guards`' `dev-notes/dispatch-OBSERVATIONS.md` and its BACKLOG;
+  this entry is a POINTER so the finding is not lost if that repo is not opened
+  soon): before firing, check whether the claimed path's claimed work is
+  reachable from HEAD — if the claiming agent's commits are already merged, the
+  claim is spent and the gate stays silent. Cheaper variant if that is hard:
+  expire a claim when the working tree is clean at the claimed path.
+  Verifier, red-first: replay this exact case — a claim stamped before a commit
+  that contains its work — must NOT warn; a claim with genuinely uncommitted
+  changes at the claimed path MUST still warn. Both arms required; the second
+  is the over-firing control that keeps the repair from silencing the gate.
+  <!-- entry: "the dispatch-guards writer-claims gate WARNs on a claim whose work" -->
+
+  **RETIRED 2026-08-10 — the retirement pass, verified at the desk.**
+  Recorded upstream: dispatch-guards dev-notes/dispatch-OBSERVATIONS.md:410,
+  section titled `writer-claims-gate WARNs on a claim whose work is already in
+  HEAD`.
 - **DONE `82372db` (2026-08-08) — every human-facing stamp emits BOTH zones.**
   Shipped: `tools/local-stamp.mjs` + `test/local-stamp.test.mjs`; seven tools
   converted, four verified as needing none. Verified at the desk by my own
