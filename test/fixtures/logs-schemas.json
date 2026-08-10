@@ -4,7 +4,7 @@
   "captureRequest": {
     "ts": "2026-08-10T04:16:00.000Z",
     "id": "EXAMPLE-ID-0001",
-    "sid": "EXAMPLE-SID-00000000-0000-0000-0000-000000000000",
+    "sid": "EXAMPLE-SID-ONE",
     "key": "s-EXAMPLE0000",
     "headers": {
       "anthropic-beta": "example-beta-token-set",
@@ -45,7 +45,7 @@
   "usageLogFull": {
     "v": 1,
     "ts": "2026-08-10T05:00:00.000Z",
-    "sid": "EXAMPLE-SID-11111111-1111-1111-1111-111111111111",
+    "sid": "EXAMPLE-SID-TWO",
     "model": "claude-example-5",
     "speed": "normal",
     "service_tier": "standard",
@@ -81,7 +81,7 @@
   "usageLogMinimal": {
     "v": 1,
     "ts": "2026-08-10T05:05:00.000Z",
-    "sid": "EXAMPLE-SID-22222222-2222-2222-2222-222222222222",
+    "sid": "EXAMPLE-SID-THREE",
     "model": "claude-example-5",
     "speed": "normal",
     "service_tier": "standard",
@@ -109,7 +109,7 @@
     "ts": "2026-08-10T06:00:12.000Z",
     "prevTs": "2026-08-10T05:59:54.000Z",
     "key": "s-EXAMPLE00002",
-    "sid": "EXAMPLE-SID-33333333-3333-3333-3333-333333333333",
+    "sid": "EXAMPLE-SID-FOUR",
     "view": "forwarded@10",
     "causes": ["messages@2(user)"],
     "systemMatch": true,
