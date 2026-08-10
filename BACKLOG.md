@@ -1984,6 +1984,19 @@ ENOSPC misattribution with its wrong first explanation left in.
   insertion-normalization's 1/8 absorption on this capture is a regression or
   the standing rate.
 
+- **DONE (2026-08-10) — `bust-appears.md` now checks the tool's conversation and
+  model before trusting its verdict. CORRECTED ON EXECUTION: the entry claimed
+  BOTH runbooks; only one was exposed.** `sweep-finding.md` does not open on
+  `bust-triage` — its line runs freeze -> establish -> rule out instrument ->
+  attribute -> route, and it reaches the tool only in the KNOWN-OPEN terminal
+  state, for row mapping, which it already warns about at its own `:174-184`.
+  Its findings arrive as `gate-live` rows per capture, so the model-blind
+  SELECTION defect cannot reach it. The entry's "both runbooks" was written from
+  memory of naming them together in a reply, not from reading either line — the
+  same inherited-claim shape this session already booked twice, caught here by
+  opening the file the entry named. No caveat added there; forcing one in to
+  satisfy the entry would have been the tuning-to-fit failure.
+  ORIGINAL ENTRY:
 - **READY (small) — both event runbooks open on a tool measured unreliable for
   the exact event that enters them.** `docs/runbooks/sweep-finding.md` and
   `docs/runbooks/bust-appears.md` send a fresh context to `bust-triage` FIRST.

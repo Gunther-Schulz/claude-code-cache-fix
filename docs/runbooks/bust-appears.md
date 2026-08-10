@@ -86,7 +86,29 @@ already carries — never by trusting that two counters agree.
    and busts arrive in clusters precisely because one root cause
    fires repeatedly.
 
-2. **Triage each one, and read the ROW, not just the verdict.**
+2. **FIRST, check which CONVERSATION and MODEL the tool picked — its
+   verdict is void if they are not the busting one.**
+   `[GRADUATE -> bust-triage groups by conversation AND model]`
+   `bust-triage` selects the busting request by TIME PROXIMITY to the
+   worktime event and is blind to `model`. One session id carries the
+   main thread, its subagents, and CC's sidecars — and since dispatches
+   run on other tiers, it carries more than one MODEL too. Measured
+   2026-08-10: on a fable session with sonnet subagents, the 213k event
+   at 04:40:50Z was a fable request at **04:40:37.944Z**, and the tool
+   returned the sonnet pair `n=97->99` at **04:40:43/47Z** because those
+   sat closer to the reported stamp. Every instrument then read on that
+   pair — insertion `append-only`, deferred-tool `unchanged`,
+   prefix-diff `toolsMatch/systemMatch` true — was TRUE about a
+   conversation that never busted, and the walk reached UNCLASSIFIED
+   with the answer untouched on disk. The cheap check, before trusting
+   any verdict: read the `outcome` records around the stamp
+   (`.model`, `.usage.cacheRead`, `.usage.cacheCreation`) straight out
+   of the capture and confirm the model of the busting request matches
+   the pair the tool chose. A `cacheRead` that collapses to roughly
+   tools+system size is the bust; the request carrying it is the one to
+   triage.
+
+3. **Triage each one, and read the ROW, not just the verdict.**
    `node tools/bust-triage.mjs --at <stamp>` chains the six-step hand
    walk into one verdict. Its verdicts are MITIGATED / KNOWN-OPEN /
    CONTROLLED-CAUSE / **UNCLASSIFIED** / **STATUS-UNREADABLE** /
