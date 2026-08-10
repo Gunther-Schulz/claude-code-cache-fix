@@ -299,15 +299,44 @@ ENOSPC misattribution with its wrong first explanation left in.
   now carries a gate: no mitigation may be designed while attribution is
   COULD-NOT-ATTRIBUTE. So row 29 cannot be mitigated at all until pairing
   works — a tooling gap holding a whole matrix row hostage.
-  **Design NOT decided, and the fork is real, which is what keeps this from
-  being a one-liner.** `conversationOf`'s history-derived identity is CORRECT
-  for cache purposes — a rebuilt `messages[0]` genuinely IS a new conversation
-  to the API, which is why row 29 costs what it costs. What a bust WALK needs
-  is a different relation: the predecessor ACROSS an identity rotation. Those
-  are two concepts and conflating them is how this defect arrived. Whatever
-  ships must not re-derive identity inline (three confident wrong answers here
-  from hand-rolled identity) and must land in the shared primitive, not as a
-  local patch.
+  **DESIGN DECIDED 2026-08-10 at the desk, by measuring the rotation rather
+  than reasoning about it.** The fork was real: `conversationOf`'s
+  history-derived identity is CORRECT for cache purposes — a rebuilt
+  `messages[0]` genuinely IS a new conversation to the API, which is why row 29
+  costs what it costs — while a bust WALK needs a different relation, the
+  predecessor ACROSS an identity rotation. Two concepts; conflating them is how
+  the defect arrived, so the fix adds a relation instead of bending the
+  existing one.
+  **The measurement that settled it** (capture `s-captureAT`, the entry's own
+  red case, ord 715 = the 2026-08-08T11:46:36Z bust; per-message SHA over the
+  raw arrays): the target carries 555 messages and its `messages[0]` matches
+  NONE of the preceding requests — the rebuild is total, so no
+  `messages[0]`-keyed search can ever reach the predecessor. But by CONTENT the
+  same requests share 97.1 / 97.3 / 97.7 / 98.1 / **98.5%** of the target's
+  messages (ords 709-713, rising with recency), while the co-tenant sidecar at
+  ord 714 — a 1-message title-generation call — shares **0%**. Index-aligned
+  comparison is useless here (longest common run from index 1 is only 21,
+  because the rebuild also changed the array LENGTH, 564 -> 555, shifting
+  everything after the first divergence); set overlap over per-message hashes
+  is what separates cleanly.
+  **So content overlap does the very job `messages[0]` identity was introduced
+  for** — excluding co-tenant traffic — AND survives the rotation that defeats
+  it. That is the design: a SECOND, explicitly named relation, never a
+  loosening of the first.
+  Design: keep `conversationOf` (`messages[0]`) exactly as it is, as the CACHE
+  identity. Add a LINEAGE relation to the shared primitive — overlap of
+  per-message hash sets, `shared / min(|a|,|b|)` — and make
+  `capturePairResult` two-stage: the current same-`cid` search first, unchanged,
+  so every stable-identity pair behaves byte-identically; only when it returns
+  nothing does the lineage fallback run, taking the highest-overlap EARLIER
+  request above the threshold. The returned pair is LABELLED as crossing a
+  rotation so a reader cannot mistake it for an ordinary pair, and neither
+  relation is re-derived inline — three confident wrong answers here already
+  came from hand-rolled identity.
+  Threshold: **0.5**, chosen to sit far from both measured clusters (0% for a
+  co-tenant, 97%+ for a true predecessor) rather than tuned to either edge. If
+  a future case lands between them that is a finding about the class, not a
+  reason to tune the number.
   **Dependency the fix must carry:** `pairEditContext`
   (`tools/bust-triage.mjs:1261`, its shared identity test at `:1276`)
   deliberately reuses the SAME test to stay consistent with
@@ -320,10 +349,31 @@ ENOSPC misattribution with its wrong first explanation left in.
   the report quoted and left these, which is the reach failure the citation
   checker is booked to end: a correction scoped to what the instrument
   pointed at, in an entry where the same numbers appear twice more.)
-  Verifier, red-first, available today: `--at 2026-08-08T11:46:36Z` must stop
-  returning `no-pair-in-conversation` and reach a row; `--at 2026-08-08T12:18:15Z`
-  (a stable-identity pair) must be UNCHANGED, which is the control that stops a
-  fix from simply pairing everything to anything.
+  Verifier, red-first — BOTH sides re-run 2026-08-10 and their current output
+  recorded here, so the arrangement is checkable rather than remembered.
+  RED: `--at 2026-08-08T11:46:36Z` today returns `VERDICT: UNVERIFIABLE` /
+  `ATTRIBUTION: COULD-NOT-ATTRIBUTE`, reason "its conversation has 18
+  request(s) in this capture and none earlier — nothing to pair it against".
+  After the fix it must reach a row, and the pair it reaches must be ord 713
+  (the 98.5% neighbour), not merely "some" pair.
+  CONTROL: `--at 2026-08-08T12:18:15Z` today pairs n=224->226 with
+  `ATTRIBUTION: CC's` and a stable state key; it must come back BYTE-IDENTICAL,
+  which is what stops a fix from pairing everything to anything.
+  NEGATIVE CONTROL, from the same measurement: the 1-message sidecar at ord 714
+  shares 0% and must never be selected as the predecessor — the lineage
+  fallback has to reject it on its own evidence, not by a special case.
+  **HARD ORDERING CONSTRAINT (rubric signal 1) — this entry is BLOCKED on the
+  bounded-`--pin` entry, and the block is measured, not cautious.** Both
+  verifier cases live in captures that rotate: `s-captureAT` is **441 MB** and
+  `s-captureAU` is **279 MB**, and `harvest --pin` writes every record from 0
+  through the pair, so freezing the red case at ord 715 is a multi-hundred-MB
+  write into a PUBLIC history. Building this against the LIVE captures instead
+  produces a verifier that decays into a false alarm the moment they age out —
+  the anchored-to-mutating-state defect this repo already names. So the
+  bounded, per-conversation `--pin` lands first, then both cases are frozen,
+  then this ships against the frozen pins. Until then the design above is
+  complete and the work is NOT dispatchable, which is a sequencing fact rather
+  than a gap in the design.
   Consumer tier **1 (event disposition)**. Unranked (booked after the
   derivation); a Tier A head candidate at the next one.
   <!-- entry: "capturePairResult's conversation identity is the busting request's own messages[0]" -->
