@@ -5828,13 +5828,64 @@ ENOSPC misattribution with its wrong first explanation left in.
   mid-run kills Bash outright — and `worktree_doctor.py` covers a third, the
   16-worktree destructive sweep. Neither is this class.
   So half (2), the Write-boundaries sentence, is theirs and is the half they
-  judge worth building. **Half (1) is unwritten and is ours: the dispatcher
-  probes `git worktree list` for the lane's worktree BEFORE acknowledging its
-  first report**, because a reclaimed worktree means the lane has been writing
-  into the shared checkout and its in-progress red will block the next unrelated
-  push. Verifier: the probe names a lane whose worktree is absent while the lane
-  is still reporting — exercised against a real reclaimed worktree, not a
-  reasoned-about one.
+  judge worth building. **Half (1) is unwritten and is ours — and it MOVED
+  EARLIER the same hour, on evidence.** It was written as "the dispatcher probes
+  `git worktree list` before ACKNOWLEDGING a lane's first report". That is too
+  late by one step. The correct moment is BEFORE THE BRIEF IS WRITTEN, because
+  the brief ASSERTS the isolation.
+  **Measured 2026-08-10, on me, twice in one hour.** I wrote "You are in your own
+  worktree; a concurrent lane owns X — do not touch it" into two briefs. Both
+  were false: neither lane got a worktree, both ran directly in the shared main
+  checkout alongside my own session. The `sonnet-test-glob-guard` lane found
+  this itself and returned it as a gap rather than absorbing it — it ran
+  `git worktree list`, saw only two `.claude/worktrees/agent-*` entries
+  belonging to OTHER lanes, watched my own `BACKLOG.md` commits land live in its
+  working tree mid-task, and hand-diffed every changed line before committing
+  because it could no longer trust the isolation the brief had promised.
+  **The class, and why it escaped the provenance rule I had just applied.** The
+  same brief graded its factual claims carefully — the node discovery patterns
+  were probed, the dependents list was a pasted command output. Then it asserted
+  an ENVIRONMENT fact with no grade at all, because an environment fact reads
+  like a decision the dispatcher is making ("you are in a worktree" sounds like
+  an assignment) rather than a claim about the world that could be false. A
+  dispatcher cannot assign a worktree by saying so. The costume is
+  assignment-shaped, which is why nothing prompted the check.
+  **What the false claim costs**, and it is not zero: it changes which commit
+  safety checks the executor thinks it needs. An executor believing itself
+  isolated has no reason to hand-diff before committing, and a pathspec commit
+  in a shared copy is the one place that matters.
+  Design, revised: the dispatcher probes `git worktree list` and compares the
+  lane's cwd against it BEFORE composing the brief's isolation sentence, and
+  writes what the probe returned — including "you are in the SHARED checkout,
+  hand-diff before every commit" when that is the answer. The
+  acknowledge-time probe stays as the second gate, for the reclaim-mid-run case
+  the original entry describes.
+  Verifier: a brief whose isolation sentence disagrees with `git worktree list`
+  at dispatch time — exercised against a real dispatch that gets no worktree,
+  which is now the OBSERVED default here rather than the exception, so the
+  positive is free.
+
+- **READY (small) — `git stash`/`pop` across a `git mv` desyncs the index, and
+  `test/logs-schemas.test.mjs` reports it as an unrelated ENOENT.** Found
+  2026-08-10 by the `sonnet-test-glob-guard` lane, self-inflicted and
+  self-caught, reported rather than buried. It stashed to check whether a red it
+  was seeing belonged to it (correct instinct — it did not; the red was my own
+  in-flight `BACKLOG.md` edit, and the lane proved that by reproducing it on
+  bare HEAD with its own changes stashed out). The `pop` split the rename into a
+  staged ADD plus an unstaged DELETE, so `logs-schemas`' `git ls-files`-based
+  sweep hit ENOENT on a path that no longer exists. Resolved by re-staging the
+  deletion on one targeted path, never `-A`.
+  Why it is worth a mechanism: the failure names a file the developer did not
+  touch, in a test about something else, and the true cause is index state
+  rather than any content — the diagnosis costs a detour every time, and the
+  lane only got there because it had just been doing a rename and remembered.
+  Design, decided: `logs-schemas`' sweep distinguishes "path missing from disk"
+  from "path missing from the index", and says which — a three-answer verdict,
+  not a two-answer one. No existing guard catches this class.
+  Verifier, red-first: reproduce the split index (`git mv`, `stash`, `pop`), run
+  the suite, and confirm the failure now names the INDEX desync rather than the
+  file. Baseline stated: on a clean index the same check stays green.
+  Consumer tier **2 (feeds the gates)**.
   Original entry follows unchanged.
 - **PARKED [SUPERSEDED — see above] (small) — a lane whose worktree is RECLAIMED lands in the shared main
   checkout, and its in-progress red then blocks the DISPATCHER's unrelated
