@@ -141,6 +141,54 @@ const OWNERS = [
     "no accessor: preload.mjs is a NODE_OPTIONS preload deployed standalone into ~/.claude and importing it executes its install side effects"],
 ];
 
+// NEVER-WRITTEN vs NOT-ARRIVED — the distinction the FIRST run of this gate
+// got wrong (BACKLOG.md, "`xdg-migrate.mjs --verify` exits 1 on a
+// NON-defect"). A path can fail the real read above for two different
+// reasons, and only one of them is an abort:
+//
+//   NOT-ARRIVED   the data is real and sitting somewhere this run cannot
+//                 reach it — the legacy `~/.claude/...` copy is still there,
+//                 waiting on a migration that has not happened or did not
+//                 finish. Starting the restart here means the extension
+//                 begins empty while its old data survives, unreachable: a
+//                 guaranteed re-baseline that a completed move would have
+//                 avoided. This is the real abort condition.
+//   NEVER-WRITTEN the legacy copy does not exist EITHER: the writer behind
+//                 this row has simply never fired (several of the 24 rows
+//                 are exactly this — enabled extensions with no traffic
+//                 shaped to trigger them yet). There was never anything to
+//                 move, so there is nothing this restart can lose. Reported,
+//                 not aborting.
+//
+// Computed from the CURRENT filesystem, never from a stored record of what
+// `--apply` did: `--apply` and `--verify` are separate invocations, often
+// separated by a restart, and a machine migrated by an OLDER build of this
+// script (before this distinction existed) carries no such record — the
+// verdict still has to be right there. `planOne` is a pure function of
+// on-disk state, so calling it again at verify time answers exactly the
+// question "what would `--apply` say about this row RIGHT NOW" without
+// needing `--apply` to have said it out loud anywhere (docs/dev-loop.md,
+// "CLOSING is established against the WORLD, never against a document that
+// says it is closed" — the document here would have been a log file, and
+// this avoids depending on one existing at all).
+function neverWritten(name) {
+  const row = TABLE.find(([, , newName]) => newName === name);
+  if (!row) return false; // no TABLE row names this owner; never guess
+  return planOne(row).reason === "neither present — nothing was ever written here";
+}
+
+/** One miss, classified. `detail` is the reason the real read already computed. */
+function classifyMiss(name, detail) {
+  if (neverWritten(name)) {
+    return {
+      name,
+      state: "never-written",
+      detail: `${detail} (and the legacy path is empty too — this artifact was never written)`,
+    };
+  }
+  return { name, state: "not-arrived", detail };
+}
+
 async function verify() {
   const results = [];
   for (const [name, spec, pick, why] of OWNERS) {
@@ -176,11 +224,10 @@ async function verify() {
     // through, not a reconstruction of the expected path: the verifier still
     // never builds the string it is checking.
     if (!resolved.startsWith(ROOTS.data) && !resolved.startsWith(ROOTS.state)) {
-      results.push({
+      results.push(classifyMiss(
         name,
-        state: "not-arrived",
-        detail: `${resolved} — the owner resolved OUTSIDE both XDG roots (legacy fallback still in effect)`,
-      });
+        `${resolved} — the owner resolved OUTSIDE both XDG roots (legacy fallback still in effect)`,
+      ));
       continue;
     }
     // The real read. `statSync` on the resolved path, and for a directory a
@@ -191,11 +238,7 @@ async function verify() {
       if (st.isDirectory()) readdirSync(resolved);
       results.push({ name, state: "arrived", detail: resolved });
     } catch (err) {
-      results.push({
-        name,
-        state: "not-arrived",
-        detail: `${resolved} — ${err.code || err.message}`,
-      });
+      results.push(classifyMiss(name, `${resolved} — ${err.code || err.message}`));
     }
   }
   return results;
@@ -205,7 +248,12 @@ const ROOTS = { data: xdgData(), state: xdgState() };
 
 if (process.argv.includes("--verify")) {
   const results = await verify();
-  const V = { arrived: "arrived", "not-arrived": "NOT-ARRIVED", "could-not-verify": "COULD-NOT-VERIFY" };
+  const V = {
+    arrived: "arrived",
+    "not-arrived": "NOT-ARRIVED",
+    "never-written": "NEVER-WRITTEN",
+    "could-not-verify": "COULD-NOT-VERIFY",
+  };
   const w = Math.max(...results.map((r) => r.name.length));
   process.stdout.write("xdg-migrate --verify: reading each path through the code that OWNS it\n\n");
   for (const r of results) {
@@ -213,7 +261,8 @@ if (process.argv.includes("--verify")) {
   }
   const n = (s) => results.filter((r) => r.state === s).length;
   process.stdout.write(
-    `\n  arrived: ${n("arrived")}   NOT-ARRIVED: ${n("not-arrived")}   COULD-NOT-VERIFY: ${n("could-not-verify")}   (of ${results.length})\n`,
+    `\n  arrived: ${n("arrived")}   NOT-ARRIVED: ${n("not-arrived")}   never-written: ${n("never-written")}`
+      + `   COULD-NOT-VERIFY: ${n("could-not-verify")}   (of ${results.length})\n`,
   );
   if (n("not-arrived") > 0) {
     process.stdout.write(
@@ -246,6 +295,7 @@ if (process.argv.includes("--verify")) {
         counts: {
           arrived: n("arrived"),
           notArrived: n("not-arrived"),
+          neverWritten: n("never-written"),
           couldNotVerify: n("could-not-verify"),
           total: results.length,
         },
