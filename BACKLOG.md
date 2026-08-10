@@ -8525,6 +8525,47 @@ then the queued ones. Work the items in that order.
   designed here has to state which of the two shapes it covers before
   it reaches the byte-match gate.
 
+  **DATAPOINT 2026-08-10 21:44 local (19:44:24Z) — the THIRD same-day
+  instance, and it makes the anchor distance a pattern rather than a
+  pair.** `❄ 179k messages_changed`, capture `s-captureBA`, pair
+  `n=143->147`. ATTRIBUTION **CC's**, settled two ways rather than
+  assumed: CC's own raw bytes diverged at index 47, and the replayed
+  census recorded no stability violation for the pair. Row-4 container
+  migration at host 47, EXTENDED/MERGED-STANDALONE,
+  `edit@48 of 168 [anchor-120]`, ~25 kB of moved text, three block
+  migrations of which two are cross-message joins (`47+48->48`,
+  `66+67->67`) plus one in-entry (`90->91`).
+  **Evidence FROZEN and replay-verified to carry THIS event, not merely
+  to reproduce something:** `pinned-s-9365ef5cd8c1-143-147.json`
+  (bounded, 294 records, 80 kept / 68 placeholders) replays under the
+  SERVING gate set to `n=143->147 edit@48 of 168 [anchor-120]` with all
+  three migrations and the ">30 from the human anchor" callout — the
+  same strings the live triage printed. Hygiene gate clean on it, and
+  non-vacuously: `raw-content` applied 5,185 times for 0 findings, which
+  is also the first LIVE positive for `9464ac0`'s tokenized bounded
+  placeholder (the class that blocked the first bounded pin ever
+  committed now passes on a new one).
+  **What it adds to this entry's open half:** the anchor-distance
+  signal is now 3-for-3 today (anchor-183, anchor-120, and the earlier
+  instance), all >30 from the human anchor, i.e. all outside the known
+  reminder-anchoring class. Two measurements were suggestive; three of
+  three with no counter-instance is the shape the canonicalization
+  design must cover, and it sharpens the open question from "which of
+  two shapes" to "the far-from-anchor shape is the common case here".
+  **NOT established, and deliberately not written as though it were:**
+  the rate. Three instances in one day is one day of one machine's
+  traffic, and this entry has no denominator — the census counts
+  instances, not opportunities.
+  **This instance also exonerates the D1 restart minutes earlier**, which
+  is worth recording because the timing invites the opposite reading: the
+  pair's `state-key` line reads
+  `296cc2723f48ed4d -> 296cc2723f48ed4d — stable`, and a restart-induced
+  rotation IS a key flip. Independently corroborated by the operator, who
+  reported the bust as belonging to another session while this one stayed
+  clean. Two variables moved in that window (the ship and this bust) and
+  the attribution evidence separates them rather than the timeline doing
+  it — the two-variable trap this repo has already paid for once.
+
 - **OPEN (attributed 2026-08-02, fix serialized behind a running
   read-only dispatch) — conservation gate fires on
   fresh-session-sort's declared rewrite: 38 violations, capture

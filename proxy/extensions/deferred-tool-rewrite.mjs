@@ -705,8 +705,11 @@ export default {
       // insertion-normalization's, and deliberately the same window so the two
       // retire together rather than leaving one half-migrated — remove this
       // fallback once `d1OldKeyFallbackHit` has been absent from the event logs
-      // for SEVEN CONSECUTIVE DAYS. `gate-live` surfaces the count per capture;
-      // a sustained zero there is what discharges it, never an impression that
+      // for SEVEN CONSECUTIVE DAYS. The instrument is the `oldKeyFallback` field
+      // this extension writes into its own `<key>-deferred-tool-events.jsonl`
+      // (grep in insertion-normalization's twin comment); `gate-live` does not
+      // surface it today, and that is stated rather than assumed. A sustained
+      // zero over the window discharges the bridge — never an impression that
       // "everything has migrated by now".
       if (prior === null && rotatedKey !== sessionKey) {
         prior = await loadState(dir, rotatedKey, fs);
@@ -907,6 +910,10 @@ export default {
           newNames: result.newNames ?? [],
           heldNames: result.heldNames ?? [],
           injected: additions.length,
+          // D1's RETIREMENT COUNTER (matrix row 26) — same field name and same
+          // reason as insertion-normalization's, so one grep answers the
+          // retirement question across both consumers rather than two.
+          ...(ctx.meta?.[OLD_KEY_HIT] ? { oldKeyFallback: true, oldKey: rotatedKey } : {}),
           ...(result.descriptionChanges
             ? { descriptionChangedNames: result.descriptionChanges.map((c) => c.name) }
             : {}),

@@ -243,7 +243,7 @@ test("D1 gate 1: the OLD key is COMPUTABLE at both stateful extensions' read poi
 // fixture whose two keys happen to be equal, which is precisely why the
 // unrotated case is asserted separately below.
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readdir, readFile } from "node:fs/promises";
 import { resolveToolRewriteSessionKey } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 import { PRE_PIPELINE_CONV, OLD_KEY_HIT } from "../proxy/extensions/message-hash.mjs";
 
@@ -302,6 +302,22 @@ test("D1 state continuity: a baseline on disk under the OLD rotated key IS found
     ctx.meta?.[OLD_KEY_HIT],
     true,
     "the dual-read must FALL BACK to the rotated key and find the planted baseline; without this the D1 restart re-baselines every live conversation and the ~817k figure is real",
+  );
+
+  // The RETIREMENT COUNTER is itself an instrument, so it is proven rather than
+  // assumed. The trigger is "the event logs show zero old-key hits over a
+  // window", and a flag that never reaches a log makes that condition
+  // unobservable while reading as though it had been checked — the absence
+  // would be indistinguishable from a genuine zero, which is precisely the
+  // shape that discharges bridges early.
+  const events = await readdir(scratch);
+  const eventFiles = events.filter((n) => n.endsWith("-deferred-tool-events.jsonl"));
+  assert.ok(eventFiles.length > 0, "the extension must have written an event log at all");
+  const logged = await readFile(join(scratch, eventFiles[0]), "utf-8");
+  assert.match(
+    logged,
+    /"oldKeyFallback":true/,
+    `the fallback must be COUNTED in the persisted event log, not only on ctx.meta, or the retirement trigger cannot be evaluated: ${logged.slice(0, 400)}`,
   );
 });
 

@@ -1920,8 +1920,16 @@ export default {
       // session observed here, since a conversation that has not spoken since
       // before the migration is exactly what the fallback exists for. Anything
       // shorter retires the bridge while a live session still needs it.
-      // Counting instrument: the `oldKeyFallback` field written below, which
-      // `gate-live` surfaces per capture — a zero there is what discharges this.
+      // Counting instrument, stated as what it IS rather than what would be
+      // convenient: the `oldKeyFallback` field this extension writes into its
+      // OWN `<key>-insertion-events.jsonl`, so the retirement question is
+      //   grep -l '"oldKeyFallback":true' <snapshots>/*-insertion-events.jsonl
+      //   grep -l '"oldKeyFallback":true' <snapshots>/*-deferred-tool-events.jsonl
+      // over the window. `gate-live` does NOT surface this today — it replays
+      // captures, and these events live in the snapshots state dir, which is a
+      // different source. Wiring it there is booked; until it is, the grep above
+      // is the whole instrument, and saying otherwise would be an assurance
+      // wider than the predicate it establishes.
       if (prior === null && rotatedKey !== sessionKey) {
         prior = await loadCanonical(dir, rotatedKey, fs, mode);
         if (prior !== null) {
@@ -1990,6 +1998,13 @@ export default {
           sid: sessionId,
           action: result.action,
           inserted: result.inserted ?? 0,
+          // D1's RETIREMENT COUNTER (matrix row 26). Written only when the
+          // dual-read actually fell back, so the absence of this field across a
+          // window is what discharges the bridge. It has to be PERSISTED rather
+          // than left on ctx.meta: the trigger is "the event logs show zero
+          // old-key hits", and a flag that never reaches a log makes that
+          // condition unobservable while reading as if it were checked.
+          ...(ctx.meta?.[OLD_KEY_HIT] ? { oldKeyFallback: true, oldKey: rotatedKey } : {}),
           ...(result.resetReason ? { resetReason: result.resetReason } : {}),
           ...(pin
             ? {
