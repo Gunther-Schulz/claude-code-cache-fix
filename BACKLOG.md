@@ -1058,6 +1058,16 @@ ENOSPC misattribution with its wrong first explanation left in.
   Done-criterion: the backlog-tooling family is one lane and its entries close
   together or return with a stated reason why one could not; and at least one
   BATCH lane has run, its entries dispositioned one by one.
+  **LANE PLAN DERIVED 2026-08-10 (late)** — the full assignment exists:
+  `docs/directives/backlog-lane-plan-2026-08-10.md` maps all 100 READY
+  entries into 10 dispatchable lanes (wave 1: nine parallel, wave 2:
+  gate-live after replay), a 7-entry deployment-coupled desk round, and 10
+  trigger-gated holds, each lane with its write boundary, internal ordering,
+  and the carve-outs that keep the write sets disjoint. Consumer: the
+  session executing the drain. The plan is derived-not-edited (same rule as
+  the build-order block) and keys entries by HEADLINE, not line number.
+  This entry stays open until its own done-criterion above is met by lanes
+  actually running.
   Consumer tier **3 (backlog and process)**.
 
 - **READY (small) — `DOTFILES-BRIEF-inherited-items.md` sits untracked at the
