@@ -37,7 +37,8 @@ This pass SUPERSEDES the 2026-08-08 afternoon derivation, which ranked 33 of 81
 entries. Four inputs moved it, each with the check that established it:
 
 (i) **The population was re-established rather than inherited.** The first
-retirement pass this repo has run (operator trigger: "92 seems like a lot")
+retirement pass this repo has run (operator trigger: the READY count read as
+implausibly large)
 dispositioned all 92 READY entries against the world — four read-only lanes
 probing each entry's load-bearing premise, every disposition made at the desk
 from their executed output. Eight retired, two proposed drops REJECTED, ten
@@ -870,6 +871,39 @@ ENOSPC misattribution with its wrong first explanation left in.
   into the daily sweep as the existing header class already is.
   Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
 
+- **PARKED 2026-08-10 — the fork's ENTIRE operational corpus is public, and
+  nothing about the upstream relationship requires it to be.** Raised by the
+  operator while settling the quote question, and it reaches much further than
+  quotes. Measured the same day: `FORK-NOTES.md`, `BACKLOG.md` (760K),
+  `docs/directives` (52 files), `docs/code-reviews` (217), `docs/audits` (9),
+  `docs/runbooks` (5), `docs/release-tests` (4) — ~289 fork-only documents,
+  ~3.5 MB of working prose — plus 229 files under `test/fixtures/harvested`,
+  all world-readable. By this fork's OWN convention none of it ever appears in
+  an upstream PR slice; it is public only because it shares a tracked tree with
+  code that is.
+  **Why it is public is an accident of GitHub, not a decision:** a fork
+  inherits its parent's visibility and cannot be made private. The operator's
+  private material already has a home — `Gunther-Schulz/dotfiles` is private —
+  so this is the one body of working notes that escaped it.
+  **What the public fork IS load-bearing for, checked rather than assumed:**
+  `gh pr list --repo cnighswonger/... --author ...` returns 6 MERGED and 3 OPEN
+  upstream PRs whose branches live in this fork. So the fork itself must stay,
+  and "delete and recreate with a clean history" — the remediation the
+  Public-Repo Information Hygiene section prescribes for a leak — would break
+  three open contributions. That option is real but no longer cheap, and the
+  repo has 0 stars and 0 forks, so the cost is entirely the open PRs.
+  RECOMMENDATION (operator's call, which is why this is parked): move the
+  fork-only operational corpus into the private repo and leave the public fork
+  carrying only what upstream could ever want. That stops the accrual without
+  touching the PR relationship. It does NOT retract what is already published —
+  history rewrite on a repo with live upstream PRs is the disruptive option and
+  is a separate decision.
+  MISSING (why parked): the operator's decision on the public surface, and — if
+  it is yes — the migration's own design, since the tooling assumes these paths
+  (`.claude/required-reading.json` names repo-relative files, and
+  `tools/backlog-*.mjs`, the runbook router and the dotfiles doctor all read
+  in-tree paths). The migration is tractable but it is not a `git mv`.
+
 - **READY (small) — the public-repo hygiene policy enumerates origin IPs and
   stack fingerprints and says NOTHING about CONVERSATION CONTENT, which is the
   category this repo actually handles most of.** Raised by the operator
@@ -885,20 +919,36 @@ ENOSPC misattribution with its wrong first explanation left in.
   survive by design.** (i) Tool NAMES ship in cleartext — today's matrix row 6
   entry names seven `mcp__claude-in-chrome__*` tools, which discloses which MCP
   servers and skills this machine runs. Capability disclosure, not
-  conversation, and almost certainly acceptable — but it is currently
-  acceptable by nobody's decision. (ii) Our own tracked PROSE quotes short
-  operator phrasings verbatim: `BACKLOG.md` carries "92 seems like a lot" and
-  today's commit bodies carry "does our design violate upstream?" and "why is
-  it mine?". Those are already pushed and public. They are work-scoped
-  fragments with no personal data, and they carry real evidential value — an
-  "operator trigger" quote records WHY a pass happened — so the recommendation
-  is to KEEP the practice and make it deliberate, not to strip it.
+  conversation, and probably acceptable — but acceptable by nobody's decision
+  until stated. (ii) Our own tracked PROSE and COMMIT MESSAGES quoted the
+  operator verbatim.
+  **OPERATOR DECISION 2026-08-10, and it overrides the recommendation this
+  entry originally carried:** no verbatim operator quotes in public material,
+  going forward, and the existing ones scrubbed where scrubbing is possible.
+  The original recommendation here was to KEEP the practice because a quote is
+  a BASIS and a paraphrased trigger is the label-over-body drift this repo
+  keeps getting bitten by. That reasoning was answered on two grounds and both
+  are recorded because the entry would otherwise re-argue it: the rule needed
+  PER-INSTANCE judgment ("keep it when work-scoped and short"), which is the
+  predicate shape that over- and under-fires, and here a single misjudgment is
+  irreversible public history — unbounded downside against marginal upside;
+  and the evidential value survives a neutral restatement ("operator trigger:
+  the READY count read as implausibly large" records the same causation), so
+  compliance costs nearly nothing, which collapses the basis argument on its
+  own arithmetic. The deciding ground is not evidence quality at all: they are
+  the operator's words, published without their having agreed to it.
+  EXTENT, measured 2026-08-10 rather than estimated: ONE verbatim quote in the
+  whole tracked tree (`BACKLOG.md:39`, scrubbed in this change to a neutral
+  restatement that keeps the attribution and the trigger), and SIX across all
+  commit messages. An earlier scan suggesting ~56 was instrument error — those
+  hits quote documents, code and review reports, not the operator.
   Design, decided: state the conversation-content rule beside the existing
-  origin-IP rules, in three lines — capture-derived fixtures ship structure and
+  origin-IP rules, in four lines — capture-derived fixtures ship structure and
   hashes only, never prose (already true, now asserted); tool names are
-  acceptable disclosure; operator quotes are permitted when work-scoped and
-  short, and never when they carry anything personal, third-party, or
-  credential-shaped.
+  acceptable disclosure; NO verbatim operator quotes in tracked prose or commit
+  messages; where a trigger or decision needs recording, the attribution and
+  the causal record stay and only the wording is restated, because a blunt
+  deletion would destroy the provenance that made the line worth having.
   **Placement, and it is the whole reason this is booked rather than done:**
   the tracked `CLAUDE.md` is UPSTREAM's, and this fork's own rule says
   corrections and deviations land in `CLAUDE.local.md`, which is DEPLOYED from
