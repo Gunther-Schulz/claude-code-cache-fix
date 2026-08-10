@@ -3042,7 +3042,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   the standing rate — that is a separate measurement over more captures, and it
   is not what caused this event.
 
-- **READY (small) — a brief that dispatches committing work into THIS repo must
+- **PARKED [HANDED OFF 2026-08-10 — dispatch-guards brief] (small) — a brief that dispatches committing work into THIS repo must
   state both trailers, or the dispatcher's push bounces.** Measured 2026-08-10:
   the brief gave the executor `Co-Authored-By: Claude sonnet-5 …` and nothing
   else; this repo's pre-push guard treats a commit carrying
@@ -5608,7 +5608,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   recovered at the next derivation. Unranked (booked after the derivation).
   <!-- entry: "a POINTER entry's liveness lives in ANOTHER repo" -->
 
-- **READY (small) — a lane whose worktree is RECLAIMED lands in the shared main
+- **PARKED [HANDED OFF 2026-08-10 — dispatch-guards brief] (small) — a lane whose worktree is RECLAIMED lands in the shared main
   checkout, and its in-progress red then blocks the DISPATCHER's unrelated
   push.** Measured 2026-08-08 afternoon, end to end. A lane was dispatched with
   worktree isolation; the worktree did not survive, and the lane correctly
