@@ -325,7 +325,9 @@ ENOSPC misattribution with its wrong first explanation left in.
   loosening of the first.
   Design: keep `conversationOf` (`messages[0]`) exactly as it is, as the CACHE
   identity. Add a LINEAGE relation to the shared primitive — overlap of
-  per-message hash sets, `shared / min(|a|,|b|)` — and make
+  per-message hash sets, `shared / min(|a|,|b|)` — SPLIT OUT 2026-08-10 into
+  its own entry below, because the bounded-`--pin` entry turned out to need the
+  same relation and neither could be verified before it existed. Then make
   `capturePairResult` two-stage: the current same-`cid` search first, unchanged,
   so every stable-identity pair behaves byte-identically; only when it returns
   nothing does the lineage fallback run, taking the highest-overlap EARLIER
@@ -369,9 +371,13 @@ ENOSPC misattribution with its wrong first explanation left in.
   through the pair, so freezing the red case at ord 715 is a multi-hundred-MB
   write into a PUBLIC history. Building this against the LIVE captures instead
   produces a verifier that decays into a false alarm the moment they age out —
-  the anchored-to-mutating-state defect this repo already names. So the
-  bounded, per-conversation `--pin` lands first, then both cases are frozen,
-  then this ships against the frozen pins. Until then the design above is
+  the anchored-to-mutating-state defect this repo already names. So the chain is
+  THREE links, not two: the LINEAGE primitive lands first (its own entry below
+  — a pure function needing no capture), then the bounded `--pin` that consumes
+  it, then both cases are frozen, then this ships against the frozen pins. The
+  middle link acquired its lineage-union clause on 2026-08-10 for THIS entry's
+  sake: bounded on `conversationOf` alone it would have dropped the ord-713
+  predecessor and frozen a pin proving nothing — recorded in that entry. Until then the design above is
   complete and the work is NOT dispatchable, which is a sequencing fact rather
   than a gap in the design.
   Consumer tier **1 (event disposition)**. Unranked (booked after the
@@ -1014,6 +1020,51 @@ ENOSPC misattribution with its wrong first explanation left in.
   Verifier: the deployed overlay carries the three lines, and the doctor's
   content-drift check on `DEPLOYED_COPIES` stays green.
 
+- **READY (small) — the LINEAGE relation, as a shared primitive in
+  `replay.mjs`, ahead of BOTH its consumers.** Split out 2026-08-10 from the
+  `capturePairResult` entry above, when re-reading the bounded-`--pin` entry's
+  premises against the world showed the two could not both be right in the
+  order they were booked (the finding is recorded in that entry, below).
+  `conversationOf` (`tools/replay.mjs:1077`, `e.inHash[0]` — the first
+  message's byte hash) is the CACHE identity and stays exactly as it is: it
+  answers "will these two requests hit the same prefix". It cannot answer "is
+  this the same conversation as before CC rebuilt its history", and the
+  measurement says so — on `s-captureAT` ord 715 the target's `messages[0]`
+  matches NONE of the preceding requests, while those same requests share
+  97.1 / 97.3 / 97.7 / 98.1 / **98.5%** of its messages by content (ords
+  709-713, rising with recency) and the 1-message co-tenant sidecar at ord 714
+  shares **0%**.
+  Design, decided: a SECOND named relation beside `conversationOf`, in the same
+  module, exported the same way — `lineageOverlap(a, b)` = |shared message
+  hashes| / min(|a|, |b|) over the compact form's `inHash`, and
+  `sameLineage(a, b)` = that ratio >= **0.5**. The threshold sits far from both
+  measured clusters rather than tuned to either edge; a future case landing
+  between them is a finding about the class, not a reason to tune the number.
+  Neither relation replaces the other, and no consumer re-derives either
+  inline — three confident wrong answers in this repo already came from
+  hand-rolled identity.
+  **Why it lands FIRST, ahead of either consumer:** it is a pure function over
+  two hash arrays, so its own red-first arrangement needs no capture at all.
+  That is what breaks the deadlock the re-read exposed — each consumer needed
+  the other's output before it could be verified.
+  Verifier, red-first: constructed `inHash` arrays reproducing the measured
+  shape — a predecessor whose index 0 differs and whose length changed
+  (564 -> 555 in the real case) while ~97% of contents survive, plus a
+  1-message sidecar. RED against the OLD implementation is `conversationOf`
+  itself: it returns different identities for the 97%-overlap pair, i.e. no
+  pairing at all, which is the defect; `sameLineage` must return true there and
+  false for the sidecar. BASELINE, stated because the red is otherwise
+  indistinguishable from a check that is always red: `conversationOf` must go
+  GREEN on two requests that DO share `messages[0]`, so the arrangement
+  demonstrates the split rather than a blanket failure.
+  Done-criterion: both relations exported from `replay.mjs` with bites green,
+  and no existing caller of `conversationOf` changed — the cache identity is
+  not touched by this entry.
+  Write boundary: `tools/replay.mjs`, `test/replay-lineage.test.mjs` (new file
+  — `git add -N` before the pathspec commit).
+  Consumer tier **1 (event disposition)**, inherited from the two entries that
+  consume it.
+
 - **READY (small) — `harvest --pin` cannot freeze a LATE event in a LARGE
   capture, which is exactly when the expensive busts happen.** `--pin n..m`
   always writes every record from 0 through m (deliberately: replay from 0 is
@@ -1038,9 +1089,26 @@ ENOSPC misattribution with its wrong first explanation left in.
   per-conversation canonical state, so the bound is per-CONVERSATION, not
   per-file: keep every record of the busting pair's own conversation
   (`conversationOf`, already the grouping key `replay.mjs` uses) from 0
-  through m, and drop records belonging to other conversations, which
-  contribute nothing to that state. On an interleaved multi-tenant capture like
-  the measured one that is most of the file.
+  through m, UNION every record `sameLineage` relates to the busting request
+  (the primitive entry above), and drop the rest, which contribute nothing to
+  that state. On an interleaved multi-tenant capture like the measured one that
+  is most of the file.
+  **What the re-read found, 2026-08-10, and why the union clause is part of the
+  design rather than a refinement of it.** This entry was booked with the
+  conversation filter ALONE, hours before the rotation measurement in the
+  `capturePairResult` entry above existed. Applied to that entry's own red case
+  it freezes nothing usable: `bust-triage`'s live output on `s-captureAT` ord
+  715 reads "its conversation has 18 request(s) in this capture and none
+  earlier", so a `conversationOf`-bounded pin over 0..715 keeps exactly ONE
+  record — itself. The replay then finds zero pairs, and the pin's own
+  self-verification says so in its own words: "compared nothing — same-
+  conversation pairs live=N pin=0; a replay over zero pairs proves nothing"
+  (`tools/harvest.mjs:814`). The 98.5% predecessor at ord 713 would be dropped
+  by the very filter meant to make freezing it affordable. Neither entry was
+  wrong when it was written; the premise moved under this one, and it moved
+  inside a DIFFERENT entry, which is why nothing flagged it until the two were
+  read together at dispatch time — the stored-brief rot the routing rules name,
+  caught here by the re-read rather than by a mechanism.
   Verifier, red-first and self-proving: the bounded pin must reproduce the SAME
   verdicts as the full pin over the same range — same pair count for the
   busting conversation, same violations, same census classes — which is the
@@ -1049,6 +1117,11 @@ ENOSPC misattribution with its wrong first explanation left in.
   bound applied by naive truncation (records n..m only, no conversation
   filter) must FAIL that check, which is the failure mode the header comment
   already predicts and nothing currently demonstrates.
+  SECOND RED, from the finding above, so the union clause is demonstrated
+  load-bearing instead of assumed: the conversation-only bound applied to
+  `s-captureAT` ord 715 must produce a pin whose replay reports ZERO pairs —
+  the "compared nothing" clause — while the conversation-union-lineage bound
+  over the same range reproduces the live verdicts for that conversation.
   Done-criterion: the 2026-08-10 bust above is freezable at a size in line with
   the existing tracked pins, with verdicts identical to the unbounded pin.
   Write boundary: `tools/harvest.mjs`, `test/harvest*.test.mjs`.
