@@ -83,27 +83,31 @@ planting a synthetic id in a tracked file and watching the suite go red. The
 publication-bar and untrack-in-place questions are live but operator-gated, not
 buildable, and they sit in item 0's decision round.
 
+### HEAD DRAINED 2026-08-10 late-evening — five of the ten anchors completed
+
+Removal-only, per this block's own rule; the survivors keep their numbers so a
+rank stays a stable reference. **Removed as DONE: 1** (`verifyPin`'s bounded
+red, `ce975c5`), **3** and **9** (`identityRotation`'s digest and its
+transition count, both `a68a8af`), **6** (the intermittent-test runner
+persistence), **10** (the `LINEAGE_THRESHOLD` sizing note, `baf3fa3`). What
+remains ranked is 2, 4, 5, 7, 8 — and the loop-stage paragraph below still
+holds unchanged: the one MITIGATE item is still item 5 and still not
+dispatchable. **Item 2's three-link chain is now two-thirds discharged** (the
+lineage primitive and the bounded pin both landed, the latter with its fidelity
+check), so its remaining blocker is the FREEZE step alone. Do not read this
+as a fourth derivation — it is anchor removal. The next session with capacity
+past items 7 and 8 re-derives over the tail rather than reading down from here.
+
 ### 2. Instruments that LIED — Tier A: feeds EVENT DISPOSITION
 
 Ordered by REACH — how much downstream evidence the lie corrupts.
 
-1. **`verifyPin` cannot fail for the defect it exists to catch, on bounded
-   pins.** Measured by sabotage today, not argued: with `boundedKeep` dropping
-   every third record it should keep, both sides lost the same records, the
-   pair count fell 188 -> 125, and the check still returned `diffs: []`. Widest
-   reach on this list — every frozen pin's trustworthiness reads through it,
-   and the freeze is how evidence survives capture rotation at all.
-   _DISPATCHABLE — design decided, red-first arrangement already run_
 2. **`capturePairResult` picks the busting conversation.** Tier 1 by consumer:
    pick the wrong conversation and the class is mis-filed before any other
    check runs. Design settled today by measuring the rotation; two of its three
    blockers have now landed (the lineage primitive, the bounded pin).
    _BLOCKED — needs item 1, then both verifier cases frozen_
    <!-- entry: "capturePairResult's conversation identity is the busting" -->
-3. **`identityRotation` reports the right event under the wrong digest**, so
-   its rows cannot be joined to the event logs recording the same rotation —
-   12-char whole-message hash against the proxy's 16-char content-only one.
-   _DISPATCHABLE_
 4. **A frozen evidence archive whose own cited numbers are not in it.** Found
    by sending a lane to reproduce two claims and having both fail; the source
    transcript was never frozen, only a derived view beside it.
@@ -128,14 +132,13 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
 
 ### 3. Tier B: feeds the GATES
 
-6. **The suite has at least one intermittent test and the runner discards the
-   evidence to name it.** One failure in four runs of one commit today, with
-   the documented ENOSPC class excluded by checking `df` rather than assuming.
-   It gates every push, so a red that vanishes on re-run trains the retry
-   reflex.
-   _DISPATCHABLE_
 7. **The required-reading gate guards `Write`/`Edit` and not a third tool.**
-   _DISPATCHABLE_
+   _DESK, not dispatchable as written — re-graded 2026-08-10 late: its design
+   names two alternatives (a Bash-argv write predicate, or inverting the
+   obligation to a session precondition) and does not pick one, so a brief
+   would hand that choice to the executing tier. Its realizing write boundary
+   is also the DOTFILES repo (`claude/hooks/required-reading-gate.py`), not
+   this one — a deployment-coupled sibling-repo lane._
    <!-- entry: "the required-reading gate guards" -->
 
 ### 4. Tier C: feeds the BACKLOG and the process
@@ -143,15 +146,17 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
 8. **`backlog-neighbours` joins on FILES**, so a premise refuted inside another
    entry is invisible to it — the miss that happened here today, with its red
    already run.
-   _DISPATCHABLE_
+   _IN FLIGHT 2026-08-10 late-evening — dispatched to sonnet in a worktree.
+   Its red was RE-MEASURED at the desk against an immutable reference before
+   the brief shipped, because the entry's own baseline had decayed: against
+   the live `BACKLOG.md` the file join now returns 19 candidates, not the ten
+   the entry records, and the entry's second planted positive (`sameLineage`
+   as a two-member open class) no longer exists — three of its four citing
+   entries are now DONE. The durable arrangement is
+   `node tools/backlog-neighbours.mjs cf0592d <git show cf0592d:BACKLOG.md>`:
+   9 candidates, all `shared=BACKLOG.md`, and line 1017 of that frozen image
+   — the entry sharing the moved premise via `conversationOf` — absent._
    <!-- entry: "backlog-neighbours` joins on FILES" -->
-9. **`identityRotation` counts a persistent STATE as if it were an event**, so
-   its 40% is not the rotation rate row 26 asks for.
-   _DISPATCHABLE_
-10. **A bounded pin's size scales with identity CHURN**, which no note says and
-    the first real measurement contradicted.
-    _DISPATCHABLE_
-    <!-- entry: "a bounded pin's SIZE scales with the busting" -->
 
 ### The unranked ~99
 
@@ -315,68 +320,6 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
-
-- **READY — a ship-a-proxy-change runbook: the deploy discipline exists in
-  three homes and no lane, and D1 is its first consumer.** Booked 2026-08-10
-  (operator question "do we have good procedures to handle service restart?"
-  — answered by inventory: `docs/runbooks/` has five lanes, none for
-  deployment; the discipline is scattered across FORK-NOTES' restart section,
-  CLAUDE.local.md's deployment-coupling block, and matrix row 3). D1 is about
-  to ship several `proxy/**` changes, each owing the full sequence, and a
-  fresh context today reconstructs it from three files or misses a step.
-  Design, decided: an INTENT workflow (dev-loop's runbook taxonomy), written
-  for a fresh context, consolidating — not restating — the three homes by
-  pointer where the reasoning lives there: (1) row-3 declaration owed?
-  (state keys / freeze logic — stated BEFORE the restart); (2) session
-  boundary confirmed; (3) commit+push; (4) pin bump in dotfiles
-  (`git rev-parse --short HEAD:proxy` → `CACHE_FIX_PROXY_TREE_PIN`) —
-  doc/tools-only commits skip 4-7; (5) `systemctl --user restart
-  cache-fix-proxy` + `/health` gates check; (6) gate run (`systemctl --user
-  start cache-fix-gate`); (7) doctor's three answers agree. Hand steps carry
-  `[GRADUATE -> …]` per the staging-area rule. The upstream catch-up merge
-  (restart-and-repin, FORK-NOTES procedure) ENTERS this lane as a caller,
-  which retires the borderline prose block from being the only carrier.
-  Realizing write-boundary: `docs/runbooks/ship-proxy-change.md` (new) +
-  the dev-loop "Which line are you on" index row + `.claude/`
-  required-reading untouched.
-  Verifier, red-first: the runbook-format checker / lane index check must
-  fail on the missing index row before it is added (the lanes-backfill
-  entry's machinery); dry-run the lane against the LAST shipped proxy
-  change's commit trail and require every step to map to an artifact that
-  exists (the pin bump commit, the restart timestamp, the gate verdict).
-  Done-criterion: D1's first proxy ship executes from the runbook without
-  consulting FORK-NOTES or CLAUDE.local.md for sequence, and the lane ends
-  at a named terminal state (shipped / aborted-with-reason).
-  Consumer: D1 and every future proxy ship. Loop stage: VERIFY.
-
-- **READY — an upstream-PR-slice runbook: the highest-hygiene procedure in
-  the repo has a sketch, a tool, and no lane.** Booked 2026-08-10 (same
-  operator question, PR half). What exists: FORK-NOTES' "Upstream-PR plan
-  (when ready)" sketch (cut `feat/<topic>` from main, per-topic slices,
-  attach forensics), `tools/slice-preflight.mjs` (does a test file still
-  LOAD in its slice — built from the 2026-07-30 wave-2 load failures), the
-  fork-only-files list (CLAUDE.local.md), and the publication bar. What is
-  missing is the LANE: the ordered sequence a fresh context runs to produce
-  one reviewable upstream PR without leaking fork-only content — and the
-  stakes are public git history, where the remediation precedent is
-  destroy-and-recreate.
-  Design, decided: an intent workflow consolidating: (1) topic chosen from
-  the slice plan, cut from main; (2) fork-only exclusion sweep (the list is
-  data — the runbook names its home, never copies it); (3) slice-preflight
-  over every mapped test file; (4) the absence-scan / hygiene gates run
-  against the SLICE, not the branch it came from; (5) upstream PR body form
-  (attribution footer per upstream's CLAUDE.md, forensics attachment);
-  (6) the review-round handoff into `upstream-pr-round.md`, which already
-  exists and stays the receiving lane.
-  Realizing write-boundary: `docs/runbooks/upstream-pr-slice.md` (new) +
-  the dev-loop index row.
-  Verifier, red-first: run the exclusion sweep step against a deliberately
-  mis-mapped slice containing one fork-only file (planted) — the lane must
-  refuse; slice-preflight's own red is its existing test. Done-criterion:
-  the first real upstream slice ships through the lane end to end, and the
-  sketch paragraph in FORK-NOTES is replaced by a pointer to the runbook.
-  Consumer: the post-drain upstream-PR phase. Loop stage: RETIRE (posting
-  verified mechanisms back is the loop's retirement arm).
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
@@ -547,77 +490,47 @@ ENOSPC misattribution with its wrong first explanation left in.
   and one that silently lacks its source sends the re-reader to a wrong
   conclusion or to no conclusion at all.
 
-- **DONE 2026-08-10 — MERGED into "kill the relocation-induced conversation-key
-  rotation (threat matrix row 26)": one fix, two entries, and the LATER one
-  re-opened a decision the earlier one had already made.** (Graded `DONE` and
-  not `MERGED` deliberately: lane L1 is building a CLOSED grade vocabulary over
-  this file right now, and minting a seventh token mid-flight would hand its
-  new check a false positive on its first run.) Found at D1's
-  dispatch check by reading both bodies together. They describe the same change
-  to the same two extensions; this entry says the carrier is "NOT yet decided …
-  a `ctx` field set before the first mutating extension is the obvious
-  candidate", while the older entry has already decided exactly that
-  (`ctx.meta`, computed before order 250) and carries a named synthetic-fixture
-  verifier and a row-3 declaration this one lacks. That is the
-  one-phenomenon-two-names shape `docs/dev-loop.md` collects, with the harm
-  running the unusual way round: the newer booking was LESS decision-complete
-  and would have handed a desk round an open design question that was already
-  closed one entry over.
-  **Three things travel to the surviving entry and are not lost:**
-  (1) the design input — `fresh-session-sort.mjs:373` computes its memory key
-  by calling `resolveInsertionSessionKey` on `body.messages` BEFORE its own
-  relocation runs, so its identity is stable under its own edit; that asymmetry
-  is the bug's signature.
-  (2) the on-disk corroboration — the only `*-fresh-sort-relocated.json`
-  present sits under the pre-mutation suffix, none under the rotated one.
-  (3) **the HARD ORDERING CONSTRAINT (rubric signal 1), which is the load-bearing
-  one:** blocked on the `identityRotation` census class, because a check that
-  only goes red against the current defect must be demonstrated red BEFORE the
-  fix removes it — and this fix's whole effect is to make rotations stop
-  mattering, which would leave the class permanently green and unproven.
-  Status of that blocker, checked in the world rather than inherited:
-  `findIdentityRotations` EXISTS in `tools/replay.mjs` (`:3939`, `:4471-4489`,
-  shipped in `a68a8af`), so the class is no longer absent — but its entry's
-  done-criterion (the live positive/negative pair reproduced in a bite, and the
-  count in the daily sweep) is open and is in lane L3's hands this wave. The
-  constraint is therefore PARTLY discharged, not discharged; D1 does not ship
-  until L3 reports.
-  **The one decision that genuinely remains open in either entry** is the one
-  this entry named and the older one does not address: what happens to state
-  already on disk under rotated keys. It is at the operator, surfaced
-  2026-08-10 with a recommendation, and the answer lands in the surviving entry.
-  Original entry follows.
-
-- **DONE (original entry, superseded by the merge directly above) — give the downstream stateful extensions the PRE-PIPELINE
-  conversation identity; the fix already exists in-tree and only one extension
-  uses it.** Booked 2026-08-10 from the same attribution. Row 26's defect is
-  that `insertion-normalization` (order 395) and `deferred-tool-rewrite`
-  (order 425) key their per-conversation state on `conversationSubKey` of the
-  body AS THEY RECEIVE IT — i.e. over `messages[0]` bytes that
-  `fresh-session-sort` (order 250) may have just invented. `fresh-session-sort`
-  itself does NOT have this problem, and that is the whole design input:
-  `fresh-session-sort.mjs:373` computes its memory key by calling
-  `resolveInsertionSessionKey` on `body.messages` BEFORE its own relocation
-  runs, so its identity is stable under its own edit. Corroborated on disk —
-  the only `*-fresh-sort-relocated.json` present sits under the pre-mutation
-  suffix, none under the rotated one.
-  Design, NOT yet decided, and this is named rather than hand-waved: the shape
-  is "capture the conversation identity once, at the pipeline's entry, and let
-  every stateful extension read THAT" — but where it is carried (a `ctx` field
-  set before the first mutating extension is the obvious candidate), and what
-  happens to state already on disk under rotated keys, are open. The migration
-  half is the one that bites: existing per-key files are named by the rotated
-  identity, and a change to the key scheme touches state KEYS, which is exactly
-  the threat-matrix row-3 condition under which a restart is NOT
-  cache-transparent and must state its declaration before it ships.
-  **HARD ORDERING CONSTRAINT (rubric signal 1): blocked on the
-  `identityRotation` census class above.** A check that only goes red against
-  the current defect has to be demonstrated red BEFORE the fix removes the
-  defect, or it ships having never gone red on anything — and this fix's whole
-  effect is to make rotations stop mattering, which would leave the class
-  permanently green and unproven.
-  Consumer tier **1 (event disposition)**. Deployment-coupled: `proxy/` change,
-  needs the dotfiles pin bump and a restart, at a stated session boundary.
+- **READY — kill the relocation-induced conversation-key rotation (threat
+  matrix row 26): resolve the conversation sub-key ONCE from the RAW body and
+  have both stateful extensions read it.** Mechanism fully isolated 2026-08-06,
+  216,060 tokens on one request; the row carries the four measured links and the
+  falsification probe with its control, so nothing here needs re-deriving.
+  Design, decided: `conversationSubKey` is a property of CC's conversation, so
+  it is computed early (before order 250 mutates `messages[0]`) into `ctx.meta`
+  and both `insertion-normalization` (395) and `deferred-tool-rewrite` (425)
+  read it from there instead of each re-deriving it from whatever body reaches
+  them — the repo's own "never hand-roll identity" rule, applied to the case
+  where the second derivation is over OUR bytes. `fresh-session-sort` (250)
+  already keys on the raw body and needs no change; that asymmetry is the bug's
+  signature and its state files are the proof (its memory sits under the raw
+  key while the downstream two sit under the rotated one).
+  Verifier, named: a SYNTHETIC fixture — mandatory, not preferred, because the
+  scrub destroys all four relocatable-block predicates (dev-loop, "The scrub
+  destroys CONTENT PREDICATES"), so no harvested pin can ever carry this class.
+  Red-first arrangement, stated so it cannot pass vacuously: the fixture's two
+  requests differ only by the first appearance of a skills block; against the
+  CURRENT implementation the assertion "the sub-key deferred-tool-rewrite keys
+  on is identical across the pair" must FAIL, and the failure must name the two
+  keys. Done-criterion: that assertion green, `deferred-tool-rewrite` reporting
+  `rewrite`/`unchanged` rather than `no-baseline` on the second request, and
+  the forwarded `tools[]` byte-identical across the pair.
+  **Row-3 declaration, required before the restart, not after:** this CHANGES
+  STATE KEYS for two extensions — the restart is NOT cache-transparent and
+  every live conversation re-baselines. Price it with
+  `tools/restart-exposure.mjs --match` against live sessions before shipping,
+  per dev-loop's "price it against LIVE sessions, not the corpus".
+  **FIXTURE SPEC CORRECTED 2026-08-06 evening (dispatcher), and the correction is
+  load-bearing for the entry ranked before this one.** The two-request shape
+  above — "differ only by the first appearance of a skills block" — is sufficient
+  for THIS entry's assertion (the sub-key must not rotate) and INSUFFICIENT for
+  the tools-condition check that must ship first: it reproduces the rotation
+  only, and 12 surviving pairs measured the same evening prove rotation alone
+  leaves the forwarded `tools[]` intact. Build the fixture at three-or-more
+  requests — leading traffic that makes `deferred-tool-rewrite` freeze a tools
+  order under the pre-rotation key differing from CC's passthrough array, then
+  the relocating request — and ONE fixture serves both verifiers. Building the
+  two-request version first would satisfy this entry and silently hand the other
+  a check that passes while asserting nothing.
 
 - **READY (small) — the required-reading gate guards `Write`/`Edit` and NOT a
   script, so the session's first write can bypass it entirely.** Measured
@@ -720,7 +633,157 @@ ENOSPC misattribution with its wrong first explanation left in.
   body that refers to another entry. Instrument-positive available today: the
   lineage chain's three entries reference each other positionally right now.
 
-- **READY (small) — a bounded pin's SIZE scales with the busting
+- **READY (IN FLIGHT 2026-08-10 late-evening — dispatched to sonnet in a
+  worktree; write set `docs/runbooks/ship-proxy-change.md` + one row in
+  dev-loop's index table) — a ship-a-proxy-change runbook: the deploy
+  discipline exists in
+  three homes and no lane, and D1 is its first consumer.** Booked 2026-08-10
+  (operator question "do we have good procedures to handle service restart?"
+  — answered by inventory: `docs/runbooks/` has five lanes, none for
+  deployment; the discipline is scattered across FORK-NOTES' restart section,
+  CLAUDE.local.md's deployment-coupling block, and matrix row 3). D1 is about
+  to ship several `proxy/**` changes, each owing the full sequence, and a
+  fresh context today reconstructs it from three files or misses a step.
+  Design, decided: an INTENT workflow (dev-loop's runbook taxonomy), written
+  for a fresh context, consolidating — not restating — the three homes by
+  pointer where the reasoning lives there: (1) row-3 declaration owed?
+  (state keys / freeze logic — stated BEFORE the restart); (2) session
+  boundary confirmed; (3) commit+push; (4) pin bump in dotfiles
+  (`git rev-parse --short HEAD:proxy` → `CACHE_FIX_PROXY_TREE_PIN`) —
+  doc/tools-only commits skip 4-7; (5) `systemctl --user restart
+  cache-fix-proxy` + `/health` gates check; (6) gate run (`systemctl --user
+  start cache-fix-gate`); (7) doctor's three answers agree. Hand steps carry
+  `[GRADUATE -> …]` per the staging-area rule. The upstream catch-up merge
+  (restart-and-repin, FORK-NOTES procedure) ENTERS this lane as a caller,
+  which retires the borderline prose block from being the only carrier.
+  Realizing write-boundary: `docs/runbooks/ship-proxy-change.md` (new) +
+  the dev-loop "Which line are you on" index row + `.claude/`
+  required-reading untouched.
+  Verifier, red-first: the runbook-format checker / lane index check must
+  fail on the missing index row before it is added (the lanes-backfill
+  entry's machinery); dry-run the lane against the LAST shipped proxy
+  change's commit trail and require every step to map to an artifact that
+  exists (the pin bump commit, the restart timestamp, the gate verdict).
+  Done-criterion: D1's first proxy ship executes from the runbook without
+  consulting FORK-NOTES or CLAUDE.local.md for sequence, and the lane ends
+  at a named terminal state (shipped / aborted-with-reason).
+  Consumer: D1 and every future proxy ship. Loop stage: VERIFY.
+
+- **READY (IN FLIGHT 2026-08-10 late-evening — dispatched to sonnet in a
+  worktree; write set `docs/runbooks/upstream-pr-slice.md` + one row in
+  dev-loop's index table) — an upstream-PR-slice runbook: the highest-hygiene
+  procedure in
+  the repo has a sketch, a tool, and no lane.** Booked 2026-08-10 (same
+  operator question, PR half). What exists: FORK-NOTES' "Upstream-PR plan
+  (when ready)" sketch (cut `feat/<topic>` from main, per-topic slices,
+  attach forensics), `tools/slice-preflight.mjs` (does a test file still
+  LOAD in its slice — built from the 2026-07-30 wave-2 load failures), the
+  fork-only-files list (CLAUDE.local.md), and the publication bar. What is
+  missing is the LANE: the ordered sequence a fresh context runs to produce
+  one reviewable upstream PR without leaking fork-only content — and the
+  stakes are public git history, where the remediation precedent is
+  destroy-and-recreate.
+  Design, decided: an intent workflow consolidating: (1) topic chosen from
+  the slice plan, cut from main; (2) fork-only exclusion sweep (the list is
+  data — the runbook names its home, never copies it); (3) slice-preflight
+  over every mapped test file; (4) the absence-scan / hygiene gates run
+  against the SLICE, not the branch it came from; (5) upstream PR body form
+  (attribution footer per upstream's CLAUDE.md, forensics attachment);
+  (6) the review-round handoff into `upstream-pr-round.md`, which already
+  exists and stays the receiving lane.
+  Realizing write-boundary: `docs/runbooks/upstream-pr-slice.md` (new) +
+  the dev-loop index row.
+  Verifier, red-first: run the exclusion sweep step against a deliberately
+  mis-mapped slice containing one fork-only file (planted) — the lane must
+  refuse; slice-preflight's own red is its existing test. Done-criterion:
+  the first real upstream slice ships through the lane end to end, and the
+  sketch paragraph in FORK-NOTES is replaced by a pointer to the runbook.
+  Consumer: the post-drain upstream-PR phase. Loop stage: RETIRE (posting
+  verified mechanisms back is the loop's retirement arm).
+
+- **DONE 2026-08-10 — MERGED into "kill the relocation-induced conversation-key
+  rotation (threat matrix row 26)": one fix, two entries, and the LATER one
+  re-opened a decision the earlier one had already made.** (Graded `DONE` and
+  not `MERGED` deliberately: lane L1 is building a CLOSED grade vocabulary over
+  this file right now, and minting a seventh token mid-flight would hand its
+  new check a false positive on its first run.) Found at D1's
+  dispatch check by reading both bodies together. They describe the same change
+  to the same two extensions; this entry says the carrier is "NOT yet decided …
+  a `ctx` field set before the first mutating extension is the obvious
+  candidate", while the older entry has already decided exactly that
+  (`ctx.meta`, computed before order 250) and carries a named synthetic-fixture
+  verifier and a row-3 declaration this one lacks. That is the
+  one-phenomenon-two-names shape `docs/dev-loop.md` collects, with the harm
+  running the unusual way round: the newer booking was LESS decision-complete
+  and would have handed a desk round an open design question that was already
+  closed one entry over.
+  **Three things travel to the surviving entry and are not lost:**
+  (1) the design input — `fresh-session-sort.mjs:373` computes its memory key
+  by calling `resolveInsertionSessionKey` on `body.messages` BEFORE its own
+  relocation runs, so its identity is stable under its own edit; that asymmetry
+  is the bug's signature.
+  (2) the on-disk corroboration — the only `*-fresh-sort-relocated.json`
+  present sits under the pre-mutation suffix, none under the rotated one.
+  (3) **the HARD ORDERING CONSTRAINT (rubric signal 1), which is the load-bearing
+  one:** blocked on the `identityRotation` census class, because a check that
+  only goes red against the current defect must be demonstrated red BEFORE the
+  fix removes it — and this fix's whole effect is to make rotations stop
+  mattering, which would leave the class permanently green and unproven.
+  Status of that blocker, checked in the world rather than inherited:
+  `findIdentityRotations` EXISTS in `tools/replay.mjs` (`:3939`, `:4471-4489`,
+  shipped in `a68a8af`), so the class is no longer absent — but its entry's
+  done-criterion (the live positive/negative pair reproduced in a bite, and the
+  count in the daily sweep) is open and is in lane L3's hands this wave. The
+  constraint is therefore PARTLY discharged, not discharged; D1 does not ship
+  until L3 reports.
+  **The one decision that genuinely remains open in either entry** is the one
+  this entry named and the older one does not address: what happens to state
+  already on disk under rotated keys. It is at the operator, surfaced
+  2026-08-10 with a recommendation, and the answer lands in the surviving entry.
+  Original entry follows.
+
+- **DONE (original entry, superseded by the merge directly above) — give the downstream stateful extensions the PRE-PIPELINE
+  conversation identity; the fix already exists in-tree and only one extension
+  uses it.** Booked 2026-08-10 from the same attribution. Row 26's defect is
+  that `insertion-normalization` (order 395) and `deferred-tool-rewrite`
+  (order 425) key their per-conversation state on `conversationSubKey` of the
+  body AS THEY RECEIVE IT — i.e. over `messages[0]` bytes that
+  `fresh-session-sort` (order 250) may have just invented. `fresh-session-sort`
+  itself does NOT have this problem, and that is the whole design input:
+  `fresh-session-sort.mjs:373` computes its memory key by calling
+  `resolveInsertionSessionKey` on `body.messages` BEFORE its own relocation
+  runs, so its identity is stable under its own edit. Corroborated on disk —
+  the only `*-fresh-sort-relocated.json` present sits under the pre-mutation
+  suffix, none under the rotated one.
+  Design, NOT yet decided, and this is named rather than hand-waved: the shape
+  is "capture the conversation identity once, at the pipeline's entry, and let
+  every stateful extension read THAT" — but where it is carried (a `ctx` field
+  set before the first mutating extension is the obvious candidate), and what
+  happens to state already on disk under rotated keys, are open. The migration
+  half is the one that bites: existing per-key files are named by the rotated
+  identity, and a change to the key scheme touches state KEYS, which is exactly
+  the threat-matrix row-3 condition under which a restart is NOT
+  cache-transparent and must state its declaration before it ships.
+  **HARD ORDERING CONSTRAINT (rubric signal 1): blocked on the
+  `identityRotation` census class above.** A check that only goes red against
+  the current defect has to be demonstrated red BEFORE the fix removes the
+  defect, or it ships having never gone red on anything — and this fix's whole
+  effect is to make rotations stop mattering, which would leave the class
+  permanently green and unproven.
+  Consumer tier **1 (event disposition)**. Deployment-coupled: `proxy/` change,
+  needs the dotfiles pin bump and a restart, at a stated session boundary.
+
+- **DONE 2026-08-10 (`baf3fa3`) — the note landed at the definition, and the
+  one claim under it that could be checked without the 441 MB capture WAS
+  checked rather than transcribed: the denominator really is
+  `Math.min(setA.size, setB.size)` (`tools/replay.mjs:1187`), which is the
+  mechanism the whole sizing consequence rests on. The two NUMBERS (0.60-0.98,
+  251 records) are carried with their source and date — the `--bounded` lane's
+  measurement — and are not independently reproduced here; reproducing them
+  needs the capture, which is exactly the volatility that made stating the
+  mechanism at the definition the point. Desk check: `node --check` clean and
+  the export still resolves to 0.5, so the comment did not break the module.
+  Original header: **a bounded pin's SIZE scales with the busting
   conversation's identity CHURN, which the design note does not say and the
   first real measurement contradicts.** Measured 2026-08-10 by the
   `--bounded` lane. The `capturePairResult` entry's framing implies a target
@@ -4332,48 +4395,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Two captures, one shape, both containing a resume. Still NOT the byte-level
   proof: that remains the `normalizeSessionStartText` comparison the entry
   names. What this changes is the odds, not the evidence class.
-
-- **READY — kill the relocation-induced conversation-key rotation (threat
-  matrix row 26): resolve the conversation sub-key ONCE from the RAW body and
-  have both stateful extensions read it.** Mechanism fully isolated 2026-08-06,
-  216,060 tokens on one request; the row carries the four measured links and the
-  falsification probe with its control, so nothing here needs re-deriving.
-  Design, decided: `conversationSubKey` is a property of CC's conversation, so
-  it is computed early (before order 250 mutates `messages[0]`) into `ctx.meta`
-  and both `insertion-normalization` (395) and `deferred-tool-rewrite` (425)
-  read it from there instead of each re-deriving it from whatever body reaches
-  them — the repo's own "never hand-roll identity" rule, applied to the case
-  where the second derivation is over OUR bytes. `fresh-session-sort` (250)
-  already keys on the raw body and needs no change; that asymmetry is the bug's
-  signature and its state files are the proof (its memory sits under the raw
-  key while the downstream two sit under the rotated one).
-  Verifier, named: a SYNTHETIC fixture — mandatory, not preferred, because the
-  scrub destroys all four relocatable-block predicates (dev-loop, "The scrub
-  destroys CONTENT PREDICATES"), so no harvested pin can ever carry this class.
-  Red-first arrangement, stated so it cannot pass vacuously: the fixture's two
-  requests differ only by the first appearance of a skills block; against the
-  CURRENT implementation the assertion "the sub-key deferred-tool-rewrite keys
-  on is identical across the pair" must FAIL, and the failure must name the two
-  keys. Done-criterion: that assertion green, `deferred-tool-rewrite` reporting
-  `rewrite`/`unchanged` rather than `no-baseline` on the second request, and
-  the forwarded `tools[]` byte-identical across the pair.
-  **Row-3 declaration, required before the restart, not after:** this CHANGES
-  STATE KEYS for two extensions — the restart is NOT cache-transparent and
-  every live conversation re-baselines. Price it with
-  `tools/restart-exposure.mjs --match` against live sessions before shipping,
-  per dev-loop's "price it against LIVE sessions, not the corpus".
-  **FIXTURE SPEC CORRECTED 2026-08-06 evening (dispatcher), and the correction is
-  load-bearing for the entry ranked before this one.** The two-request shape
-  above — "differ only by the first appearance of a skills block" — is sufficient
-  for THIS entry's assertion (the sub-key must not rotate) and INSUFFICIENT for
-  the tools-condition check that must ship first: it reproduces the rotation
-  only, and 12 surviving pairs measured the same evening prove rotation alone
-  leaves the forwarded `tools[]` intact. Build the fixture at three-or-more
-  requests — leading traffic that makes `deferred-tool-rewrite` freeze a tools
-  order under the pre-rotation key differing from CC's passthrough array, then
-  the relocating request — and ONE fixture serves both verifiers. Building the
-  two-request version first would satisfy this entry and silently hand the other
-  a check that passes while asserting nothing.
 
 - **PARTLY DONE — `docs/runbooks/session-close.md` SHIPPED 2026-08-06; the
   computable half of it is still READY. The fifth lane: the operator
