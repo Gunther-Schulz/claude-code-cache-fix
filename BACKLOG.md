@@ -107,9 +107,6 @@ deleted — AND the trigger rate measured rather than imagined.
 A lie here mis-files the class, and every mitigation designed afterwards is
 designed against the wrong evidence.
 
-1. **No instrument reports what `deferred-tool-rewrite` DECIDED, and a 263k bust rode out under two clean-looking readings.** Ranked first on the rubric's own signals rather than on recency: signal 2, the largest measured cost on this list and the only one measured TODAY (263k re-billed, 2026-08-10, frozen as `s-captureAV`); signal 3, SILENT — `absorptionMisses` reports 0 and `mutatedBy` reports that the extension engaged, and neither can tell "absorbed" from "never applied", so an unabsorbed event reads clean. It also carries a hard ordering constraint (signal 1): threat-matrix row 6's NAMED MISSING EVIDENCE *is* this instrument, so row 6 cannot reach a disposition until it exists.
-   _DISPATCHABLE — design decided, red-first anchored to a frozen pin_
-   <!-- entry: "`deferred-tool-rewrite` ENGAGED on a 263k tools bust" -->
 2. **`capturePairResult` picks the busting conversation.** Declared Tier 1: pick the wrong conversation and the class is mis-filed before any other check runs, which is the widest reach on this list. It drops below item 1 only because item 1 is dispatchable today and this is not — reach still argues for it, and a session with context to spend should take it.
    _DESK — the entry says "Design NOT decided"; the identity-vs-predecessor fork must be settled by judgment before any brief exists_
    <!-- entry: "`capturePairResult`'s conversation identity is the busting" -->
@@ -271,52 +268,6 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
-
-- **READY (small) — `deferred-tool-rewrite` ENGAGED on a 263k tools bust and the
-  array still grew on the wire; nothing reads what it actually did.** Measured
-  2026-08-10 on `s-captureAV` (pin `pinned-s-dda5c6419d49-372-373.json`,
-  replayed `--gates-from-capture`, 10 of 10 declared gates set including
-  `CACHE_FIX_TOOL_REWRITE=1`): the n=372->373 pair is `membership+`,
-  `toolsOnly:true`, `msgKind:append-only`, zero removals, zero reorders — seven
-  `mcp__claude-in-chrome__*` tools arriving from a mid-session MCP connect.
-  `heldStable` TRUE, `absorptionMisses` 0, and `outCount` `27->34`. The
-  extension appears in `mutatedBy` for BOTH requests, so it ran.
-  **The gap is instrument-shaped, not mitigation-shaped.** `mutatedBy` reports
-  that an extension ENGAGED; it cannot report what the extension DECIDED. Threat
-  matrix row 6 describes ladder step (a) as holding `tools[]` byte-stable and
-  delivering new schemas as appended `tool_addition` blocks — had that happened
-  here `outCount` would have stayed 27. Two readings survive the measurement and
-  it separates neither: (i) the rewrite scopes out MCP-sourced tools; (ii) its
-  guarantee is only held-tool byte-stability and a growing array front-invalidates
-  regardless, which is what row 6's own AMBIGUITY-RESOLVED paragraph actually
-  says. This is the "the mitigation ran" vs "the mitigation absorbed" split
-  `docs/runbooks/bust-appears.md` names, one level lower: here even the ABSORBED
-  question returns 0 while the wire shows growth, so neither existing instrument
-  answers it.
-  Design, decided: `deferred-tool-rewrite` already computes the decision; surface
-  it as per-request stats the way the other extensions do
-  (`ctx.meta.<ext>Stats`, the shape `fresh-session-sort` and
-  `insertion-normalization` already use and that `replay.mjs` already reads for
-  its exemption bases). Minimum fields: how many additions were injected as
-  `tool_addition` blocks, how many names were passed through into `tools[]`
-  untouched, and the reason for each pass-through. Then `findToolsDeltas`'s row
-  carries the decision beside `heldStable`/`outCount`, and row 6's open question
-  is answerable from any `--census` run instead of by hand.
-  Verifier, red-first, anchored to the FROZEN pin above so it cannot decay:
-  replaying `pinned-s-dda5c6419d49-372-373.json` must report, for n=373, a
-  non-empty pass-through list naming the seven `mcp__claude-in-chrome__*` tools
-  — today it reports nothing at all, which is the red. Control: a pair with no
-  tools delta must carry an empty decision record and NOT be absent, so "no
-  decision" and "extension never ran" stay distinguishable.
-  Done-criterion: the stats ride every `--census` run, the pin above reproduces
-  the pass-through list, and threat-matrix row 6's NAMED MISSING EVIDENCE line is
-  answered by a command rather than a reading. **This entry does not decide
-  whether the pass-through is a defect** — it builds the instrument that can tell
-  the two readings apart, which the matrix row cannot do today.
-  Write boundary: `proxy/extensions/deferred-tool-rewrite.mjs`, `tools/replay.mjs`
-  (`findToolsDeltas` row only), their tests. Touches `proxy/` — so a dotfiles pin
-  bump plus `systemctl --user restart cache-fix-proxy` rides along, and the
-  restart is cache-transparent (no state KEYS or freeze logic touched).
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
@@ -11590,3 +11541,87 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   Write boundary: `tools/logs.mjs`, `test/logs*.test.mjs`. No `proxy/` change,
   so no pin bump and no restart. `bust-triage`'s adoption is a SEPARATE entry —
   this one ships the reader and its lint only.
+
+- **DONE `6fc397d` (2026-08-10) — `deferred-tool-rewrite` reports WHAT IT
+  DECIDED, and the decision closed threat-matrix row 6's open residue.** The
+  extension now emits `announcedNames` and `passthrough[{name,reason}]` on
+  `ctx.meta.deferredToolRewriteStats` every request — always present, empty
+  arrays rather than omitted, so "ran and had nothing to decide" stays
+  distinguishable from "never ran" — and `findToolsDeltas` carries it beside
+  `heldStable`/`outCount`, so any `--census` run answers the question that
+  previously took a hand investigation.
+  **The answer, and it is reading (ii).** Verified at the desk by replaying the
+  frozen pin under the serving gate config rather than by reading the lane's
+  report: n=373 carries all seven `mcp__claude-in-chrome__*` names in
+  `announcedNames` with `passthrough: []`, and n=370 the five
+  `mcp__playwright__*` names. The MCP tools were never scoped out — they took
+  the documented `tool_addition` path, and the one-time array growth is the
+  API's own precondition (the schema must sit in `tools[]` with
+  `defer_loading:true` for the `tool_reference` block to resolve;
+  `proxy/extensions/deferred-tool-rewrite.mjs:13-15`, `:450`). So the 263k was
+  NOT a mitigation miss: ladder step (a) holds what was already forwarded, and a
+  genuinely new tool costs one front invalidation because tools render above
+  system+messages. The remaining lever is step (b), the session-start preload.
+  **Desk checks beyond the report.** The red was independently confirmed — this
+  session had recorded the same n=373 row hours earlier with no decision field
+  at all, so the absence was observed before the lane existed rather than taken
+  on trust. The `passthrough` field was probed for the unprovable-predicate
+  shape (a field no input can make non-empty, the defect caught in the
+  attribution code the same morning): both reason branches are reachable and
+  exercised — `test/deferred-tool-rewrite.test.mjs:976` (`model-not-allowlisted`)
+  and `:1004` (`no-anchor-message`). Write boundary held: 4 files, 195
+  insertions, ZERO deletions, which is the shape a reporting-only change must
+  have.
+  **Honest residue:** `passthrough` has never been observed non-empty on real
+  traffic. Reachable by construction is not the same as reached, and one pin is
+  one pin.
+  **Deployment deliberately NOT done:** this touches `proxy/`, so it needs a
+  dotfiles pin bump and a proxy restart. The dotfiles repo carried ~50 unpushed
+  commits from a peer session, so the pin bump is held rather than half-landed.
+  The running proxy is unaffected — the code ships here, the deployment waits.
+  ORIGINAL ENTRY:
+- **(shipped) READY (small) — `deferred-tool-rewrite` ENGAGED on a 263k tools bust and the
+  array still grew on the wire; nothing reads what it actually did.** Measured
+  2026-08-10 on `s-captureAV` (pin `pinned-s-dda5c6419d49-372-373.json`,
+  replayed `--gates-from-capture`, 10 of 10 declared gates set including
+  `CACHE_FIX_TOOL_REWRITE=1`): the n=372->373 pair is `membership+`,
+  `toolsOnly:true`, `msgKind:append-only`, zero removals, zero reorders — seven
+  `mcp__claude-in-chrome__*` tools arriving from a mid-session MCP connect.
+  `heldStable` TRUE, `absorptionMisses` 0, and `outCount` `27->34`. The
+  extension appears in `mutatedBy` for BOTH requests, so it ran.
+  **The gap is instrument-shaped, not mitigation-shaped.** `mutatedBy` reports
+  that an extension ENGAGED; it cannot report what the extension DECIDED. Threat
+  matrix row 6 describes ladder step (a) as holding `tools[]` byte-stable and
+  delivering new schemas as appended `tool_addition` blocks — had that happened
+  here `outCount` would have stayed 27. Two readings survive the measurement and
+  it separates neither: (i) the rewrite scopes out MCP-sourced tools; (ii) its
+  guarantee is only held-tool byte-stability and a growing array front-invalidates
+  regardless, which is what row 6's own AMBIGUITY-RESOLVED paragraph actually
+  says. This is the "the mitigation ran" vs "the mitigation absorbed" split
+  `docs/runbooks/bust-appears.md` names, one level lower: here even the ABSORBED
+  question returns 0 while the wire shows growth, so neither existing instrument
+  answers it.
+  Design, decided: `deferred-tool-rewrite` already computes the decision; surface
+  it as per-request stats the way the other extensions do
+  (`ctx.meta.<ext>Stats`, the shape `fresh-session-sort` and
+  `insertion-normalization` already use and that `replay.mjs` already reads for
+  its exemption bases). Minimum fields: how many additions were injected as
+  `tool_addition` blocks, how many names were passed through into `tools[]`
+  untouched, and the reason for each pass-through. Then `findToolsDeltas`'s row
+  carries the decision beside `heldStable`/`outCount`, and row 6's open question
+  is answerable from any `--census` run instead of by hand.
+  Verifier, red-first, anchored to the FROZEN pin above so it cannot decay:
+  replaying `pinned-s-dda5c6419d49-372-373.json` must report, for n=373, a
+  non-empty pass-through list naming the seven `mcp__claude-in-chrome__*` tools
+  — today it reports nothing at all, which is the red. Control: a pair with no
+  tools delta must carry an empty decision record and NOT be absent, so "no
+  decision" and "extension never ran" stay distinguishable.
+  Done-criterion: the stats ride every `--census` run, the pin above reproduces
+  the pass-through list, and threat-matrix row 6's NAMED MISSING EVIDENCE line is
+  answered by a command rather than a reading. **This entry does not decide
+  whether the pass-through is a defect** — it builds the instrument that can tell
+  the two readings apart, which the matrix row cannot do today.
+  Write boundary: `proxy/extensions/deferred-tool-rewrite.mjs`, `tools/replay.mjs`
+  (`findToolsDeltas` row only), their tests. Touches `proxy/` — so a dotfiles pin
+  bump plus `systemctl --user restart cache-fix-proxy` rides along, and the
+  restart is cache-transparent (no state KEYS or freeze logic touched).
