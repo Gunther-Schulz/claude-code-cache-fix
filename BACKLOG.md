@@ -1978,11 +1978,50 @@ ENOSPC misattribution with its wrong first explanation left in.
   (f) `gate-live` keeps finding ROWS but not what attributes them: of this
   morning's three conservation reds, the 34-row capture was already evicted, so
   that finding can no longer be attributed at all.
-  **Not established, deliberately unstated as fact:** that the 213k was a
-  `splice/insert-mid` (consistent with the +3 message step and the class present
-  in this capture, but the specific pair's row is unread); and whether
+  **PARKING CONDITION DISCHARGED 2026-08-10 — and it refutes the hypothesis it
+  was booked to test.** The splice/insert-mid guess is DEAD. The busting pair's
+  own prefix-diff record reads `msgs 110->113, causes: [], chain.appendOnly:
+  true, first: -1, toolsMatch: true, systemMatch: true, params: [],
+  betaHeader: null, windows {head:0, markers:2, tail:3}` — strictly append-only,
+  and the census carries no row for it because there was no divergence to
+  report. The four-request neighbourhood inverts the story outright:
+
+      04:40:17  106->108  causes:[messages@105(user)]  appendOnly:false  cr=220904  no bust
+      04:40:24  108->110  causes:[]                    appendOnly:true   cr=224187  no bust
+      04:40:37  110->113  causes:[]                    appendOnly:true   cr= 15603  cc=213429  BUST
+      04:41:04  113->115  causes:[messages@112(system)] appendOnly:false cr=229032  no bust
+
+  The request carrying a MID-HISTORY divergence kept its cache; the one that
+  lost 213k differed from its predecessor by three APPENDED messages and
+  nothing else. Marker windows identical across all four, so a breakpoint move
+  is excluded too — which also clears `stripCacheControlMarkers` on our side.
+  **Terminal state: COULD-NOT-ATTRIBUTE with a computed reason, and a NEW CLASS
+  by construction** — every axis any instrument here measures was stable, so
+  the loss is not ours (replay: 0 stability, 0 safety over 281 pairs) and not a
+  CC prefix change (append-only in the PRE-pipeline capture). What remains is
+  server-side cache behaviour we cannot observe from either tap point. Per the
+  attribution gate, NO mitigation may be designed for this, and none is booked.
+  **The one thing still not established:** whether
   insertion-normalization's 1/8 absorption on this capture is a regression or
-  the standing rate.
+  the standing rate — that is a separate measurement over more captures, and it
+  is not what caused this event.
+
+- **READY (small) — mint the matrix row this walk's terminal state requires.**
+  An event mapping to no row is UNCLASSIFIED, and the rule is to stop and mint
+  rather than explain it away; the walk above reached a terminal state with no
+  row to record it against, which is the alarm the matrix's convergence note
+  relies on. Drafted content, so this is a placement task and not a re-think:
+  CLASS — an APPEND-ONLY request loses its cached prefix, cache read collapsing
+  to roughly tools+system size while cache creation prices the whole context.
+  DETECTION — `outcome.usage.cacheRead` falling by an order of magnitude across
+  a pair whose prefix-diff record reads `causes: []` and `appendOnly: true`.
+  STATUS — OBSERVED, CAUSE NOT ISOLATED (server-side; both tap points clean).
+  NOT MITIGABLE from here, stated with its reason rather than left blank, and
+  the row carries the 2026-08-10 04:40:39Z datapoint with the four-request
+  table above as its evidence. Verifier: `bust-triage` on that stamp must map
+  to the new row instead of answering UNCLASSIFIED. Done-criterion: row present,
+  `bust-triage --at 2026-08-10T04:40:50Z` names it, suite green.
+  Write boundary: `docs/directives/robustness-threat-matrix.md`.
 
 - **DONE (2026-08-10) — `bust-appears.md` now checks the tool's conversation and
   model before trusting its verdict. CORRECTED ON EXECUTION: the entry claimed
