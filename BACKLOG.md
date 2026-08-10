@@ -6,412 +6,138 @@ SYSTEM items — code, PRs, investigations, upstream threads — live here.
 Fork-only file, excluded from PR slices like FORK-NOTES.md. One item per
 bullet, evidence pointer included.
 
-## Build order — DERIVED 2026-08-08 (afternoon)
+## Build order — DERIVED 2026-08-10 (after the first retirement pass)
 
 Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
-("Build order is DERIVED at build time"), over the **81 `- **READY` bullets
+("Build order is DERIVED at build time"), over the **86 `- **READY` bullets
 under `## Open`** as of this derivation. **Re-derive rather than edit** —
 patching this list re-creates the stored-priority problem one level up.
 
-This pass SUPERSEDES the 2026-08-08 morning derivation, which its own session
-banner-marked STALE at close rather than patching. Six inputs moved it, each
-with the check that established it:
+This pass SUPERSEDES the 2026-08-08 afternoon derivation, which ranked 33 of 81
+entries. Four inputs moved it, each with the check that established it:
 
-(i) **The IRREVERSIBLE partition is still EMPTY, and this pass PROBED it rather
-than inheriting it.** The morning pass emptied it and called an empty top
-partition a re-derivation trigger. One new candidate presented itself — the
-KEY-FLIP entry's red-first arrangement, which names two LIVE captures and would
-decay into "declare unbuildable" the way rank 17's did when its known positive
-was evicted the same day it was booked. It is DECLINED on the partition's own
-second guard (a MEASURED trigger rate, not an imagined one): both captures are
-present and are the two NEWEST of 84 in the corpus (mtimes 12:00 and 13:28
-local, checked against `ls -1rt`), and eviction is oldest-mtime-first, so the
-hazard is not approaching them. A hazard nobody is approaching is a matrix row,
-not a build item. The probe is recorded because the story was persuasive and one
-command killed it.
+(i) **The population was re-established rather than inherited.** The first
+retirement pass this repo has run (operator trigger: "92 seems like a lot")
+dispositioned all 92 READY entries against the world — four read-only lanes
+probing each entry's load-bearing premise, every disposition made at the desk
+from their executed output. Eight retired, two proposed drops REJECTED, ten
+premises corrected, one merge. 92 -> 83, then +3 booked from the pass itself.
+The 2026-08-08 list ranked entries whose premises nobody had re-checked; this
+one ranks entries that were.
 
-(ii) **A FRESH SWEEP ran, so Tier B's head evidence is re-measured rather than
-carried.** `~/.local/state/cache-fix/gate-status.json` is stamped 2026-08-08
-08:20 local over **97 captures** (the morning pass read a 2026-08-07 15:47 file
-and said no sweep had run since). `ok=false failing=3`, conservation rows
-**34 + 31 + 1 = 66**, and the three failing captures are the same three. The
-numbers the morning head rested on survive on today's date.
+(ii) **The IRREVERSIBLE partition is EMPTY for the THIRD consecutive
+derivation, which the rubric itself says is a decision to surface rather than a
+result to record.** Probed, not inherited: no candidate presented itself — the
+capture-eviction and leak-gate hazards that populated it all week are shipped or
+not approaching, and no entry names a hazard whose failure mode is genuinely
+undoable AND whose trigger rate is measured. Per the partition's own text ("If a
+third pass finds it empty, the partition has stopped earning its place at the
+top and that is a rubric decision to put to the operator"), that question is now
+live and is NOT settled here.
 
-(iii) **The morning pass's input (iii) is WITHDRAWN.** It rested on "nineteen
-quiet hours, newest cold event 2026-08-07 12:58:06Z" and spent that datapoint in
-exactly one place — demoting `restart-exposure --match`, whose whole case is
-that a restart's exposure cannot be priced. `bust-triage --list` now carries two
-cold events since: **2026-08-08 09:48:53Z (638k)** and **09:59:53Z (141k)**,
-both dispositioned this morning. The class did not stop; one quiet day was one
-quiet day. `restart-exposure --match` returns to the cost ordering on its own
-merits, neither promoted nor demoted by a quiet-day datapoint.
+(iii) **The false-verdict partition holds 21 of 86 — a quarter of the list —
+so REACH does the ordering, exactly as the 2026-08-08 pass concluded.** The
+admission test was re-run over the census rather than carried: 24 entries
+carried a measured wrong verdict with a consumer, three of those were retired by
+the pass, 21 remain. Tier is read OFF the entry where it declares one.
 
-(iv) **A hard sequencing constraint DISSOLVED.** "Key our roots by PROFILE"
-carries `lands AFTER docs/directives/portable-state-roots.md ships` — and that
-shipped (`8ba8c0d`, with the directive present in `docs/directives/`). It moves
-from blocked to buildable, which is a partition-1 fact (hard ordering), not a
-judgement.
-
-(v) **Eighteen READY entries were booked after the morning derivation ran and
-three left**, measured by header-set diff between `0cef42f` and `b7ae5aa` over
-the `## Open` section: 143 -> 167 bullets, 66 -> 81 READY. NINE of the eighteen
-carry their own `Consumer tier N` declaration in the entry body, which is the
-property this rubric wants — the tier is read OFF the entry, a fact it already
-states, never re-judged at ranking time.
-
-(vi) **The READY count is wrong for the third measured time.** Today's
-SessionStart line says **99 READY**; the file carries **81** under `## Open` and
-**86** across the whole file. Out by eighteen against its own section. The
-instrument that ends this class is in flight (below, Tier C rank 1).
-
-**Carried forward on their recorded bases, not re-litigated:** the previous
-pass's anchors were re-checked for one thing only — that each still resolves to
-a LIVE entry, which `backlog-order.mjs --check` enforces mechanically (it throws
-on an anchor resolving to a DONE/RESOLVED/FIXED/BUILT grade). Their partition
-admissions stand on the reasoning recorded there.
-
-**A GRADE-CARRIER defect found by this pass, fixed in its own commit.** Two
-entries carried live, decision-complete work under a NARRATIVE grade token
-(`CORRECTED WITHIN THE HOUR`, `DOWNGRADED` — the latter's own body says "It
-stays READY"). Every READY-based count, the SessionStart injection and this
-ranking's population are blind to a bullet whose first word is a story. Both are
-re-graded READY with the narrative kept in parentheses. The standing mechanism
-is the census mode being built now: a non-zero count in a narrative-grade bucket
-is the signal, and an unrecognised grade token lands in UNCLASSIFIED rather than
-being folded into a neighbour.
+(iv) **Only 10 of 86 entries declare their consumer tier, and that is a finding
+about the entries.** The rubric wants the tier read off the entry as a fact it
+already states; for 76 it is not stated, so this pass read the entry body to
+place it. Every future derivation pays that cost again until entries carry the
+declaration — which is why the tier line is now part of what a new entry writes.
 
 **FILE ORDER IS THE CARRIER.** The `## Open` section below is in this ranking's
-order, so the SessionStart hook's injected head IS the ranked head. The rank
-lives in ONE place: each numbered item carries its own anchor (an `entry:` HTML
-comment), which is what `tools/backlog-order.mjs` reads — never a second list. A
+order, so the SessionStart hook's injected head IS the ranked head. A
 re-derivation is not finished until the tool has run:
 
     node tools/backlog-order.mjs --check   # exit 1 = file order has drifted
     node tools/backlog-order.mjs           # apply it
 
-**Partition order**, unchanged from the previous passes and for their stated
-reason: irreversibility first, then the false-verdict partition ordered by
-REACH, then cost. If that is wrong it is a decision to revisit, not a bug.
+**Partition order**, unchanged and for its stated reason: irreversibility first
+(empty), then the false-verdict partition ordered by REACH, then cost.
 
 ### Irreversible — evidence or history that cannot be undone
 
-**EMPTY, for the second consecutive derivation — and this time the emptiness was
-tested rather than inherited.** See input (i): the one candidate was declined on
-the partition's measured-trigger-rate guard, with the check recorded. The
-admission test is unchanged for whatever enters next: the failure mode must be
-genuinely UNDOABLE — public git history, whose remediation precedent in this
-repo's `CLAUDE.md` is destroying and recreating a host, or evidence already
-being deleted — AND the trigger rate measured rather than imagined.
-
-Two consecutive empty passes is itself a datapoint: the leak-gate and
-capture-eviction hazards that populated this partition all week are, today,
-either shipped or not approaching. If a third pass finds it empty, the partition
-has stopped earning its place at the top and that is a rubric decision to put to
-the operator.
+**EMPTY for the third consecutive derivation, and this time that emptiness is
+itself the finding** — see input (ii). The admission test is unchanged for
+whatever enters next: the failure mode must be genuinely UNDOABLE — public git
+history, or evidence already being deleted — AND the trigger rate measured
+rather than imagined.
 
 ### Instruments that lied — Tier A: feeds EVENT DISPOSITION
 
-The reach discriminator, unchanged: a lie here mis-files the class, and every
-mitigation designed afterwards is designed against the wrong evidence. Nothing
-downstream can recover it, because the downstream checks all assume the class is
-right.
+A lie here mis-files the class, and every mitigation designed afterwards is
+designed against the wrong evidence.
 
-1. **`extensions.json` is NOT the activation gate — every `.mjs` in
-   `proxy/extensions/` runs unless it disables ITSELF.** NEW, and it takes the
-   tier head from a carried item because it is the GENERATOR the others amplify:
-   every enumeration of "what is enabled" ever written here was over the wrong
-   set, including both of today's bust walks, and there is no
-   DECLARED/RUNNING/VERIFIED answer for extensions the way there is for gates.
-   Verified by the dispatcher at `proxy/pipeline.mjs:20-70`; six files are absent
-   from the config and live anyway. It is also the mechanism behind rank 5 below,
-   which is the tell that it sits upstream of them.
-2. **The operator's view and `bust-triage --list` share NO identifying field.**
-   FIRED A THIRD TIME, during this derivation: placing today's two busts against
-   their captures took a hand-join of the alias registry, `--list` and file
-   mtimes. Its `[GRADUATE -> this entry]` marker has now survived three
-   consecutive occurrences of its own event, which the dev-loop calls overdue
-   rather than pending.
-3. **`bust-triage` reports a state-key CHANGE across the pair as its own line.**
-   NEW. A measured FALSE VERDICT with a named consumer: it answered
-   `MITIGATED / row 1` on s-captureAT, reporting the ROW's status as though it
-   were a per-instance absorption claim, on an instance where nothing absorbed —
-   and the runbook's step 2 prescribes running exactly this tool, so a walker
-   closes the walk on a pass that was not one. Both polarity cases are live
-   TODAY and were confirmed present during this pass (input (i)).
-4. **RANK VACATED — SHIPPED `82372db`, the afternoon it was ranked.** Every
-   human-facing stamp now emits both zones; machine-read fields stay bare UTC,
-   pinned by their own CONTROL bites. The anchor is REMOVED, not re-pointed
-   (DONE-anchor guard). The measured correction the lane returned: the entry
-   said "ten tools", the sweep found **eleven** files, and two of them
-   (`quota-analysis`, `cost-report`) print raw UTC without ever calling
-   `toISOString()` — pass-through from upstream JSONL. Grep-for-the-render-call
-   undercounts at the FILE level and again at the LINE level inside a file.
-5. **RANK VACATED — SHIPPED `83de792` the same afternoon it was ranked.**
-   FORK-NOTES' false `deferred-tool-rewrite is disabled` premise is corrected
-   and the argument it carried is re-derived, not patched around. The anchor is
-   REMOVED rather than re-pointed, per the DONE-anchor guard — **which is what
-   caught this**, throwing on the very next `--check` after the entry was
-   graded. Third time today the guard has stopped a resolved entry from holding
-   a rank, and the first where the resolving session was the ranking session.
-   The residual that did NOT ship is a parentage defect in the entry's own
-   verifier and is booked separately (`verdict-ab` is hardcoded to
-   `insertion-normalization.mjs:55`, so the named check structurally cannot
-   verify what it was named for).
-6. **The ❄ detector fires on `cc` alone, so GROWTH reads as a bust.** Every
-   operator bust report starts here. (claude-worktime; POINTER.)
-   **RANK HELD, and a discharge claim made this afternoon is RETRACTED.** I told
-   the operator this pointer was discharged because its root cause shipped in
-   claude-worktime `8bfc385`. The operator answered that the miscounted busts
-   were minutes old — and the check settles it against the discharge: the
-   installed statusline `/home/g/.local/bin/claude-worktime` is byte-identical
-   to the fixed repo copy (md5 `0cef7c5caf1b52aad8db6fd965e70e8a`), installed
-   12:52 local, while the events fired at 13:46 and 13:58 local. **So the fix
-   was live and the class fired anyway** — "not installed" is ruled out, and
-   either the shipped fix does not reach this shape or these ❄ are TRUE and the
-   entry's premise needs re-stating. The operator's own words ("fully billed as
-   if it had been cold") argue the second, which would make it a real cache miss
-   on a warm resume rather than a display defect — a different entry entirely.
-   The measurement that separates them is in flight (the `other`-cause share
-   after `8bfc385`, which is also the named missing evidence unparking
-   claude-worktime's Layer-3a entry). **The lesson is the discharge itself:** a
-   POINTER entry's liveness lives in ANOTHER repo, so this file's DONE-anchor
-   guard cannot see it, and I discharged it from a handoff sentence rather than
-   from the world. Booked below.
+1. **`bust-triage` emits no ATTRIBUTION verdict, and the dev-loop makes that a
+   hard gate on every mitigation.** Ranked first because it BLOCKS: while the
+   attribution is missing, no mitigation for that bust may be designed, booked
+   or briefed. Nothing else in Tier A unblocks work the way this does.
+   <!-- entry: "`bust-triage` emits an ATTRIBUTION verdict" -->
+2. **One reader owns the schemas this repo writes, throwing on an unknown field
+   instead of returning `null`.** A wrong-namespace read returns a number
+   byte-identical to a right one; measured at two confidently wrong answers
+   reaching the operator in a single bust walk.
+   <!-- entry: "one reader owns the schemas of everything this repo writes" -->
+3. **`capturePairResult` picks the busting conversation.** Declared Tier 1. Pick
+   the wrong conversation and the class is mis-filed before any other check runs.
+   <!-- entry: "`capturePairResult`'s conversation identity is the busting" -->
+4. **The state-key FLIP that disarmed row 1's mitigation is unattributed.**
+   <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
+5. **Billing and verdict join by timestamp proximity, not by request id** — the
+   same proximity heuristic that picked the wrong conversation this week.
+   <!-- entry: "billing and verdict are written by two extensions with no" -->
+6. **A transcript query instrument** — the least-tooled data source we own, and
+   where every cache investigation actually lives.
+   <!-- entry: "a TRANSCRIPT query instrument" -->
+7. **Both event runbooks open on a tool measured unreliable for the very event
+   that enters them.**
+   <!-- entry: "both event runbooks open on a tool measured unreliable" -->
+8. **The ❄ detector fires on `cc` alone, so GROWTH is booked as LOSS.**
+   Tier A by consumer, but operator-side in `claude-worktime` — ranked here so
+   its position is honest, not because this repo builds it.
    <!-- entry: "the ❄ detector fires on `cc` alone, so GROWTH" -->
-7. **Does `movedFresh` EVER fire on a pair the census labels
-   `join:cross-message`?** Until this is measured, "row 4 is partly mitigated"
-   is a claim nobody has tested — and it is the premise the whole mitigation
-   step rests on.
-8. **`rebilledBytes` prices the re-bill from the DIVERGENCE.** A 2.6×
-   understate on the number every cost figure is made of.
-9. **`bust-triage` maps `replace/edit` -> row 4 flatly.** The census class is
-   not the cause, and the flat map is how a wrong row gets its evidence
-   inflated.
-10. **`bust-triage` cannot reach threat-matrix row 24 by ANY of its three
-    routes.** A whole row invisible to the tool that triages into it.
-    <!-- entry: "`bust-triage` cannot reach threat-matrix row 24 by ANY of its" -->
-11. **The matrix datapoint convention's COMPUTABLE half.** NEW, and it ranks
-    beside rank 10 because its second case is the SAME lie with more instances:
-    three `## Event walk` sections name no numbered row and are therefore
-    unreachable to `causeToRow`. Its red-first arrangement cannot decay — the
-    walks are committed history — which is why it outranks the row-24 cell
-    check inside its own entry.
-    <!-- entry: "the matrix datapoint convention's COMPUTABLE half" -->
-12. **Three ingestion lanes reach the same event and two disposition
-    vocabularies, with nothing reconciling them.**
-    <!-- entry: "three ingestion lanes reach the same event and two disposition" -->
-13. **`tools/dossier.mjs` carries the reconcile vocabulary-collision.** The
-    identical predicate `bust-triage` shed, still live in the second tool, with
-    the shared helpers already exported for it.
- 14. **The threat matrix needs a datapoint-section form.**
-    <!-- entry: "the threat matrix has a datapoint-section form and" -->
-15. **The 01:00:55Z 336k event reads UNCLASSIFIED and its transcript diagnostic
-    does not join.** Ranks near the tier's end because it is one event rather
-    than an instrument, and because the join question must be answered before
-    the verdict can be graded at all.
-    <!-- entry: "the 2026-08-07 01:00:55Z 336k event reads UNCLASSIFIED" -->
-16. **Attribute the state-key FLIP that disarmed row 1's mitigation on the live
-    141k bust.** NEW, and it ranks LAST in the tier for rank 15's reason: it is
-    one event, not an instrument. Its evidence is already snapshotted to
-    `~/.local/share/cache-fix/bust-evidence/2026-08-08/`, so it carries no
-    expiry pressure.
-    <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
 
-### Instruments that lied — Tier B: feeds the GATES
+### Tier B: feeds the GATES
 
-These pass a broken mitigation, and only matter once the class above is right.
-The sweep is RED on 3 captures — 34 + 31 + 1 rows, kinds `invented` and
-`suppressed-without-copy` — re-read from today's 08:20 sweep, not carried.
+A lie here passes a broken mitigation — expensive and loud, and it only matters
+once the class above is right.
 
-**"1 REAL-LOSS" is a FLOOR, not a bound**, and the shipped coverage walk
-converted it into a bound for 31 of the 66 checker-reach rows ONLY. The other 35
-ask the INVERSE question and return COULD-NOT-VERIFY by construction, which is
-the honest answer and not a bound — so the instrument that closes them is this
-tier's rank 2 rather than a follow-up.
+9. **Closing an entry can invalidate a different open entry, and nothing
+   re-reads the neighbours.** Booked by the retirement pass from two measured
+   instances; ranked above the rest of Tier B because its red-first case is a
+   true positive already in the commit history.
+   <!-- entry: "closing an entry can invalidate a DIFFERENT open entry" -->
+10. **Graduate the coverage walk into `tools/`.**
+    <!-- entry: "graduate the coverage walk into `tools/`" -->
+11. **`rebilledBytes` emits the understated number under the intuitive name.**
+    <!-- entry: "`rebilledBytes` still emits the understated number under" -->
+12. **Bucket (d) of the XDG accounting: 65 measured instances still wrong.**
+    <!-- entry: "bucket (d) of the XDG accounting" -->
+13. **The required-reading gate guards `Write`/`Edit` and not a script.**
+    Found by walking into it during this pass — the guarded route was taken by
+    accident, which is what makes it worth ranking rather than noting.
+    <!-- entry: "the required-reading gate guards `Write`/`Edit` and NOT a" -->
 
-1. **The coverage walk's two unshipped pieces.** PARTLY SHIPPED 2026-08-08
-   (`7827c4e`, `tools/coverage-walk.mjs`); stays at the tier head because it
-   re-grades the tier's OWN head evidence.
-   <!-- entry: "graduate the coverage walk into `tools/`" -->
-2. **The inverse-direction coverage walk: an `out`/`invented` conservation row
-   asks "CC never sent this in this conversation", which no instrument answers
-   today.** NEW. Directly behind rank 1 because it closes the other half of the
-   same floor-vs-bound question: 35 rows across two captures return
-   `COVERED=0 UNCOVERED=0 COULD-NOT-VERIFY=35` today, so any real verdict is a
-   change of state and the red-first is available now. Until it ships, no
-   document may quote "1 REAL-LOSS" as a bound.
-   <!-- entry: "the inverse-direction coverage walk" -->
-3. **The stability exemption for a first-appearance relocation must assert
-   forwarded `tools[]`.** Still demoted, and for a fact about the ENTRY rather
-   than the defect: its named red-first known positive was a live pair whose
-   capture was evicted the same day it was booked, so the arrangement must be
-   re-derived from the sweep's own exemption rows (which now carry pinned bytes)
-   or declared unbuildable red-first. The two above it have their arrangements
-   in hand today.
-   <!-- entry: "the stability exemption for a first-appearance relocation must" -->
-4. **`findAbsorptionMisses` prints nothing when it finds something.**
-   <!-- entry: "`findAbsorptionMisses` runs on every replay and prints" -->
-5. **`replay.mjs --json` drops the census entirely.**
-   <!-- entry: "`replay.mjs --json` drops the census entirely, so" -->
-6. **The far-from-anchor excerpt pass keys asks by census `n` against a LINE
-   index.**
-   <!-- entry: "every OTHER row family in `replay.mjs` still carries" -->
-7. **The widened mutation test went RED on the first new real pin.** Which side
-   is wrong is unsettled, and an unsettled red in the suite is the same
-   trained-to-ignore hazard one level in.
-   <!-- entry: "the widened mutation test WENT RED on the first new real pin" -->
-8. **A non-executable hook is SKIPPED BY GIT in silence.** (dotfiles.)
-   <!-- entry: "a non-executable hook is SKIPPED BY GIT" -->
-9. **The fixture-verdict mutation population is DIRECTORY-derived.**
-   <!-- entry: "the fixture-verdict mutation population is DIRECTORY-derived, so" -->
-10. **The synthetic-HOME pattern is the only way to drive this repo's CLIs.**
-    <!-- entry: "the synthetic-HOME pattern is the only way to" -->
-11. **The suggestion-mode variant fork is a census class.** Overstates the
-    absorption miss count by 18%.
-    <!-- entry: "the suggestion-mode variant fork is a census" -->
+### Tier C: feeds the BACKLOG and the process
 
-### Instruments that lied — Tier C: feeds the BACKLOG and the process
+A lie here mis-orders work and is recovered at the next derivation.
 
-Recovered at the next derivation, which is why they rank here — and four of them
-corrupt THIS list.
+14. **A derived VIEW of this backlog outlives its source** — three wrong
+    readings inside one session, each returning plausible bytes.
+    <!-- entry: "a derived VIEW of this backlog outlives its source" -->
+15. **The READY count every session reads at startup is wrong** — now carrying
+    the merged grade-vocabulary design and three real positives.
+    <!-- entry: "the READY count every session reads at startup is 66" -->
+16. **`backlog-lint`'s enumeration exemption is SLASH-ONLY.**
+    <!-- entry: "`backlog-lint`'s enumeration exemption is SLASH-ONLY" -->
+17. **The succession rule's computable slice.**
+    <!-- entry: "the succession rule's computable slice" -->
 
-1. **The READY count every session reads is wrong, measured a THIRD time by
-   this derivation** — 99 injected against 81 in the section and 86 in the file
-   (input (vi)). The instrument that answers it is in flight as a `--census`
-   mode on `tools/backlog-lint.mjs`, anchored to two immutable refs so it cannot
-   decay; this rank stays until that lands and the injected number matches.
-   <!-- entry: "the READY count every session reads at startup is 66" -->
-2. **`backlog-order.mjs`'s anchor namespace is the whole BULLET BODY.** It bit
-   two sessions during DONE-marking, and it constrains every re-derivation:
-   anchors have to be chosen against a namespace nobody can see.
-   <!-- entry: "`backlog-order.mjs`'s anchor namespace is the whole BULLET BODY" -->
-3. **`backlog-lint`'s enumeration exemption is SLASH-ONLY, so the same
-   enumeration written with a comma or `vs` false-fires.** NEW, self-declared
-   tier 3, and it emitted a measured false WARN on a live entry — a guard firing
-   on correct prose, which trained a route-around within one minute.
-   <!-- entry: "backlog-lint's enumeration exemption is SLASH-ONLY" -->
-4. **`backlog-lint` calls its own header findings advisory and its test calls
-   them blocking.**
-   <!-- entry: "`backlog-lint` calls its own header findings advisory and" -->
-5. **`test/harvest-scrub-relations.test.mjs` does not recurse.**
-   <!-- entry: "`test/harvest-scrub-relations.test.mjs` reads" -->
-6. **The reorder collapses the READY-age signal.** (dotfiles.)
-   <!-- entry: "the reorder collapses the READY-age" -->
-7. **The doctor has no three-answer verdict for the sweep's `rowPins` fields.**
-   (dotfiles; POINTER.)
-   <!-- entry: "doctor has no three-answer verdict for the sweep's new" -->
-
-### Below the partitions — cost ordering
-
-The head is re-ranked by this pass; everything after keeps its existing relative
-order and grades, and nothing below rank 8 was re-graded here.
-
-1. **The WRITER-side guard that ends the XDG class: a module importing
-   `statePath`/`dataPath` must not carry a `~/.claude` citation outside a
-   labelled legacy context.** Head of the cost ordering, and it beats the four
-   items below it on the dev-loop's rule zero rather than on cheapness: it is the
-   GENERATOR and every sweep so far has been the amplifier. Signal 2 with today's
-   date — measured reach over all 14 comment hits plus the four `description:`
-   strings, i.e. the entire source half of a class that has consumed four lanes.
-   Signal 3 — the class is silent by construction: three sweeps each shipped
-   believing it was closed and the first full accounting returned 65. Red-first
-   in hand at both polarities, on committed history, so it cannot decay.
-2. **The 39 fork-owned stale location claims (the accounting's corrected
-   scope).** The amplifier to rank 1's generator, and it ranks second only
-   because one of its items is itself generative: the CONTRACT SENTENCE at
-   `proxy/session-mirror-writer.mjs:8-9` states a project CONVENTION that is
-   false and will regenerate the class in the next artifact someone writes. The
-   entry's own instruction stands — fix that one even if nothing else on the list
-   gets done. Note the counts here supersede the bucket-(d) entry's 65.
-   <!-- entry: "repair the 17 fork-only stale location claims" -->
-3. **The tool-adjacency SAFETY check does not run on ANY reset path.** DECLINED
-   from the false-verdict partition on its own guard — it is a missing guard, a
-   GAP, not an instrument emitting a wrong verdict, and gaps rank on cost. It
-   ranks at the cost head anyway on signal 2 (the reset rate is roughly one
-   request in three; 13 resets over 127 insertion events in one live session
-   measured 2026-08-08) and because fidelity is the property this repo says
-   outranks cache. The honest bound, from the entry's own same-day downgrade: no
-   adjacency violation has been observed, `output-guard` is an unconditional
-   backstop that has never fired, and the SILENCE elevation is withdrawn.
-   <!-- entry: "the tool-adjacency SAFETY check does not run on ANY reset path" -->
-4. **Bucket (d) of the XDG accounting, itemised.** The list-shaped half of rank
-   2, kept separate because it carries the per-file write-sets a dispatch needs.
-   DEPLOYMENT-COUPLED: `proxy/` changes move the tree hash.
-   <!-- entry: "bucket (d) of the XDG accounting" -->
-5. **The XDG accounting's EXCLUDED-BY-GENRE bucket (~260 occurrences) was never
-   individually verified, and two exceptions have already been found inside
-   it.** Ranked here rather than in the false-verdict partition because it is a
-   measurement gap, not a wrong verdict — but it is what turns the class's
-   residual from a FLOOR into a number, so it ranks directly behind the repairs
-   it bounds.
-   <!-- entry: "the XDG accounting's EXCLUDED-BY-GENRE bucket was never verified" -->
-6. **RANK VACATED — the entry it pointed at is WITHDRAWN, and input (iv) was
-   my error.** This rank read "Key our roots by PROFILE when
-   `CLAUDE_CONFIG_DIR` is set — its hard sequencing constraint dissolved, so it
-   moves from blocked to buildable". The sequencing check was TRUE and answered
-   a NARROWER question than the one it shut: I verified `portable-state-roots`
-   SHIPPED (`8ba8c0d`) and never asked whether the design it gated SURVIVED. It
-   did not — `docs/directives/portable-state-roots.md` §7 REVERSES it, and the
-   reason is measured rather than cautious: `CLAUDE_CONFIG_DIR` does not bound
-   Claude Code's OWN footprint (tmpdir session scratch, a separate
-   securestorage variable, an XDG updater family, and `.claude.json` as a
-   sibling file in `$HOME` all escape it), so a knob that does not contain its
-   own product cannot be sold as containing ours. Surfaced by the peer session
-   that did the measuring; verified here by reading §7 before acting on it.
-   The anchor is REMOVED rather than re-pointed, per the DONE-anchor guard's
-   own instruction: removal only, re-derive to re-rank. The ranks around it are
-   NOT renumbered — that is a re-derivation's job.
-   **What was stranded by the withdrawal is now its own READY entry**
-   (`CacheFixConfigDirDivergenceWarning`, booked at the end of `## Open`,
-   unranked because it was booked after this derivation): the warning was the
-   design's subordinate clause and is now the WHOLE answer for both
-   profile-commingling and the encrypted-volume case, so dropping the parent
-   entry would have taken it with it. That is a carrier defect, caught before
-   it landed.
-7. **The three READMEs must agree on their path citations.** Small, computable,
-   near-zero false fire, and it closes the specific hole that let `README.ko.md`
-   carry the class's worst single line past two doc sweeps.
-   <!-- entry: "the three READMEs must agree on their path citations" -->
-8. **The census header promises MISMATCH bodies "printed in full"; the code
-   prints lengths only.** Carried, with its declination recorded: the missing
-   bodies are a CAPABILITY GAP and a gap ranks on cost — the lie is in a header,
-   not in a verdict.
-   <!-- entry: "the census header promises MISMATCH bodies" -->
-9. **`xdg-migrate.mjs --verify` exits 1 on a NON-defect.** Carried, declined
-   from the partition on the guard that a lying tool nobody reads stays where
-   cost puts it (checked: no mechanical consumer).
-   <!-- entry: "`xdg-migrate.mjs --verify` exits 1 on a NON-defect" -->
-10. **`restart-exposure --match` takes a TEXT predicate, so a structural class
-    cannot be priced.** **Its demotion is WITHDRAWN** — the morning pass demoted
-    it on nineteen quiet hours, and two cold events have landed since (input
-    (iii)). It ranks on its own merits again, which is where it was before that
-    datapoint was spent on it.
-    <!-- entry: "`restart-exposure --match` takes a TEXT predicate" -->
-
-**Declined from the false-verdict partition, and why** — the honest record,
-since a partition that admits everything is worthless. The previous passes'
-declinations stand on the same grounds (each is a GAP, an unmeasured
-source-read, or a human misreading correct output). Of this pass's eighteen new
-READY entries, FOUR were admitted (Tier A ranks 1, 3, 5, 11 and Tier B rank 2 —
-five admissions across two tiers) and the rest were declined to the cost
-ordering or left in it, with the two load-bearing declinations written out at
-cost ranks 3 and 5. The test each failed is the same one: a missing guard, a
-missing measurement, or a capability gap is not an instrument emitting a wrong
-verdict today.
-
-**Three items carry hard orderings** stated in their own bodies and are exempt
-from being reordered around: the lane INDEX check must precede the two lane reds
-it grades; the verdict enum precedes the idle/TTL guard; and cost rank 6 lands
-as its own commit after `portable-state-roots` (satisfied as of this pass).
-
-**Not ranked, deliberately:** upstream PR work, and the six READY bullets under
-`## Upstream PR round`. They sit outside `## Open`, and `backlog-order.mjs`
-carries order only inside that section — so a rank there would have no carrier
-at all. That is a fact about the tool, not a judgement about the work. The three
-POINTER entries whose bodies belong in other repos (`dispatch-guards`, the
-harness hook repo) are likewise unranked here: their done-criterion is an
-observation written THERE, and ranking them in this file would put the rank and
-the work in different repos.
+**Not ranked, deliberately:** upstream PR work, the operator-side dotfiles and
+corpus pointers, and the 69 entries below — they keep their existing relative
+order, which is what ranking a head rather than the whole list means.
 
 ## Handoff — 2026-08-08 midday. Rewritten, not appended; a stale one reads as authoritative.
 
@@ -525,6 +251,280 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY — `bust-triage` emits an ATTRIBUTION verdict (OURS / CC's /
+  COULD-NOT-ATTRIBUTE), because today it emits none and the walk that decides
+  whether to build a mitigation is the walk that cannot say whose bytes
+  moved.** Booked 2026-08-08 on an operator question — "are we careful not to
+  attribute wrongly and create a mitigation for a bust we caused?" — answered
+  by reading the code rather than the doctrine, which is what turned a
+  reassuring answer into an entry.
+  **The primitive EXISTS and is correct; the bust walk does not use it.**
+  `replay.mjs` computes it twice, independently: `ours: inDiv === null || inDiv
+  > outDiv` (`:1537`) and the `ccIdenticalAtOutDiv` annotation printed per
+  stability violation (`:3897`). `grep -n 'ours\|attribut' tools/bust-triage.mjs`
+  returns **only prose comments** — zero attribution logic — against those two
+  live sites. Instrument-positive for that grep: the same pattern over
+  `replay.mjs` returns the two sites above, so the zero is a measured absence
+  and not a pattern that could never match.
+  **Three measured instances, all from one morning, one in each failure
+  direction:** the 141k answered `MITIGATED` by mapping the census class to the
+  ROW's status (an absorption claim where nothing absorbed — the dangerous
+  direction, since it says our mitigation worked); the 638k was attributed by
+  HAND-diffing raw against forwarded; the 540k returned `UNVERIFIABLE` and
+  stopped with no attribution, which is where a human guesses.
+  Design, decided: `bust-triage` prints an `ATTRIBUTION:` line beside its
+  verdict, with three answers and no default, the third carrying its COMPUTED
+  reason (never a guessed disjunction — that defect already cost this tool a
+  correction). It IMPORTS the primitive from `replay.mjs` rather than
+  re-deriving it: a second implementation of a divergence or identity test has
+  produced a confident wrong answer here three times, and this is the one place
+  a wrong answer sends us to fix the wrong system.
+  Verifier, red-first, both polarities available today and both anchored to
+  frozen evidence rather than to live captures: the 638k pair
+  (`2026-08-08T09:48:53Z`, hand-attributed to CC's `replace/edit` mid-history)
+  must come back **CC's**; and a pair whose forwarded bytes diverge earlier than
+  CC's — the stability-violation shape `replay.mjs` already annotates
+  `[CC bytes at outDiv IDENTICAL -> ours]` — must come back **OURS**. Old code
+  emits neither line, which is the red. Negative control so it cannot pass by
+  always answering: the 540k (`2026-08-08T11:46:36Z`), which genuinely cannot be
+  paired, must come back COULD-NOT-ATTRIBUTE with the pairing reason, NOT with a
+  guess in either direction.
+  The prose half SHIPPED with this entry's commit (`docs/dev-loop.md`, "No
+  mitigation is DESIGNED before the attribution verdict exists") — it is a gate,
+  not advice: while the answer is missing or COULD-NOT-ATTRIBUTE, no mitigation
+  for that bust may be designed, booked or briefed. This entry is the machinery
+  half; until it lands the gate is enforced by hand, which is exactly the
+  arrangement the closing gate's question 1 says does not survive a session
+  boundary.
+  Consumer tier **1 (event disposition)** — it is the definition of the tier: a
+  lie here mis-files the class and every mitigation designed afterwards is
+  designed against the wrong evidence. Unranked deliberately (booked after the
+  2026-08-08 afternoon derivation); on the next derivation it is a Tier A head
+  candidate.
+  <!-- entry: "bust-triage emits an ATTRIBUTION verdict" -->
+
+- **READY — one reader owns the schemas of everything this repo writes, and it
+  THROWS on an unknown field instead of returning `null`.** Supersedes the
+  narrower "normalize two field names" framing in the parked 213k entry's item
+  (d): the defect is not two spellings, it is that every consumer hand-parses.
+  Measured 2026-08-10: one bust walk ran ~8 ad-hoc `jq` probes over four
+  formats this repo writes, and two returned confidently wrong answers by
+  querying one schema with another's names — `usage.cacheRead` (capture
+  `outcome`) vs `cache_read_input_tokens` (`usage.jsonl`); `msgs` (prefix-diff
+  events) vs `messageCountPrev/Now` (prefix-diff last-state). Both reached the
+  operator as fact before being caught. A missing check is silent; a
+  hand-rolled read returns a NUMBER indistinguishable from a correct one.
+  Design (decided): `tools/logs.mjs`, one module, four format readers — capture
+  request records, capture `outcome` records, `usage.jsonl`, prefix-diff
+  events + last-state — each exposing normalized accessors over BOTH on-disk
+  spellings. The on-disk names do NOT change: `proxy/stream.mjs:21-22` and
+  `proxy/extensions/usage-log.mjs:187-188` are wire/schema writers with the
+  whole capture corpus behind them, and renaming either makes every archived
+  capture unreadable by the new reader — a bigger version of the bug being
+  fixed. Reader is strict: an unknown field name throws, naming the field and
+  the format, never returns `undefined`.
+  Companion scope lint, same shape as the existing xdg scope check
+  (`test/` already proves the form): a known schema's raw field names must not
+  appear outside `tools/logs.mjs` and the writers named above; a new call site
+  that hand-parses fails the bite.
+  Verifier, red-first, anchored to immutable references — the two real wrong
+  reads, replayed: asking a capture `outcome` record for
+  `cache_read_input_tokens`, and a prefix-diff EVENT row for
+  `messageCountPrev`, must THROW under the reader while both correct spellings
+  return the right numbers on the same records. Over-firing control: a record
+  legitimately missing an optional field returns its declared default and does
+  not throw, declared IN the test as data. Known positive from real data, not
+  planted: the 04:40:39Z outcome must read `cacheRead=15603`,
+  `cacheCreation=213429` through the reader.
+  Done-criterion: both throws demonstrated red before the reader exists (or, if
+  the module must exist first, one named accessor disabled at a time per the
+  module-load-red rule), controls green, scope lint green, full suite green.
+  Write boundary: `tools/logs.mjs`, `test/logs*.test.mjs`. No `proxy/` change,
+  so no pin bump and no restart. `bust-triage`'s adoption is a SEPARATE entry —
+  this one ships the reader and its lint only.
+
+- **READY — `capturePairResult`'s conversation identity is the busting
+  request's own `messages[0]`, so the pairing instrument goes BLIND exactly
+  when the class it would observe fires.** Found 2026-08-08 by the row-map
+  lane, which correctly refused to fix it and returned the question.
+  Sites, cited rather than described: `tools/bust-triage.mjs:749`
+  (`const cid = JSON.stringify(after.body.messages[0])`) fixes identity from
+  the busting request, and `:760`
+  (`if (JSON.stringify(r.body.messages[0]) !== cid) continue;`) tests every
+  candidate predecessor against it. **Threat-matrix row 29's mechanism IS the
+  rebuild of `messages[0]` at an idle boundary**, so for every row-29 event the
+  predecessor is unreachable by construction and the tool answers
+  `UNVERIFIABLE / no-pair-in-conversation`. Measured identically BEFORE and
+  AFTER that lane's change on `2026-08-08T11:46:36Z` and its companion
+  `11:46:13Z` — which is also what proved my own briefed verifier vacuous
+  (below).
+  **Three consequences, and the third decided the ranking.** (1) Every row-29
+  event reports as could-not-verify rather than as row 29, so the class is
+  silently UNDER-COUNTED in any survey reading this tool. (2) The outcome is
+  indistinguishable from a genuinely absent capture — the could-not-verify
+  REASON class this tool was already corrected for once. (3) `docs/dev-loop.md`
+  now carries a gate: no mitigation may be designed while attribution is
+  COULD-NOT-ATTRIBUTE. So row 29 cannot be mitigated at all until pairing
+  works — a tooling gap holding a whole matrix row hostage.
+  **Design NOT decided, and the fork is real, which is what keeps this from
+  being a one-liner.** `conversationOf`'s history-derived identity is CORRECT
+  for cache purposes — a rebuilt `messages[0]` genuinely IS a new conversation
+  to the API, which is why row 29 costs what it costs. What a bust WALK needs
+  is a different relation: the predecessor ACROSS an identity rotation. Those
+  are two concepts and conflating them is how this defect arrived. Whatever
+  ships must not re-derive identity inline (three confident wrong answers here
+  from hand-rolled identity) and must land in the shared primitive, not as a
+  local patch.
+  **Dependency the fix must carry:** `pairEditContext`
+  (`tools/bust-triage.mjs:1271`) deliberately reuses the SAME test to stay
+  consistent with `capturePairResult`'s notion of "same conversation". A fix at
+  749/760 updates that call site in the same change, or the two disagree about
+  which requests are one conversation — a silent split-brain inside one tool.
+  Verifier, red-first, available today: `--at 2026-08-08T11:46:36Z` must stop
+  returning `no-pair-in-conversation` and reach a row; `--at 2026-08-08T12:18:15Z`
+  (a stable-identity pair) must be UNCHANGED, which is the control that stops a
+  fix from simply pairing everything to anything.
+  Consumer tier **1 (event disposition)**. Unranked (booked after the
+  derivation); a Tier A head candidate at the next one.
+  <!-- entry: "capturePairResult's conversation identity is the busting request's own messages[0]" -->
+
+- **READY — attribute the state-key FLIP that disarmed row 1's mitigation on a
+  live 141k bust; the class is row 26 but this instance has no cause.**
+  Booked 2026-08-08 from the bust walk on s-captureAT (2026-08-08T09:59:53Z,
+  141k, `messages_changed / 124331`, this repo's own dev session). The two
+  requests of the busting pair ran under DIFFERENT state keys 4 s apart —
+  capture 09:58:46.362Z -> insertion event 09:58:46.364Z key
+  `…496b188f5f435920`, capture 09:58:50.626Z -> event 09:58:50.628Z key
+  `…a20843f8616f3866` — and BOTH logged `action=reset resetReason=no-prior-
+  canonical`. The census classes the pair `splice/insert-mid`, which IS in
+  `replay.mjs`'s MITIGABLE set, so unlike the same morning's 638k this is a
+  mitigation that was ARMED and had no baseline to act on, not one that was
+  never attempted. Session-wide that session: 12 distinct keys / 127 events /
+  13 resets, **12 of them `no-prior-canonical`**; 8 of the 12 keys carry
+  exactly ONE event, i.e. a key appears, takes one request, and is never seen
+  again. `bust-triage` answered **MITIGATED (row 1)** on it, because it maps
+  the census class to the row's STATUS and never reads the pair's extension
+  events — the runbook's step-8 GRADUATE marker is exactly this and is booked
+  separately.
+  **What is NOT established, and must not be assumed by whoever takes this:**
+  that the key flip CAUSED the re-bill. CC keys its cache on the bytes it
+  sends, not on our internal key, so what is established is that the flip
+  DISARMED our absorption — the upstream miss has its own cause, unattributed
+  here. Do not write "key rotation caused a 141k bust" into the matrix on this
+  evidence.
+  Design: determine what varies the sub-key across two requests of one
+  conversation. Read `conversationSubKey`/`identityKey` (import them, never
+  re-derive — a probe that re-computes a key has produced a confident wrong
+  answer three times here) and diff the two raw capture records at 09:58:46.362Z
+  and 09:58:50.626Z on exactly the inputs the key function consumes.
+  Verifier, red-first and with a control: feeding the earlier record's
+  key-inputs must reproduce key `…496b188f…` and the later record's must
+  reproduce `…a20843f8…`; the control that proves the probe discriminates is a
+  sentinel mutation of one key-input yielding NEITHER. Done when the varying
+  input is named at field granularity, or the entry is re-graded PARKED with
+  that named as the missing evidence.
+  <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
+
+- **READY (small) — billing and verdict are written by two extensions with no
+  join key, so the join is by TIMESTAMP, which is how today's walk mis-joined.**
+  The capture's `outcome` record carries `id` and `requestId`; the prefix-diff
+  event record carries none of them — its keys are `betaHeader, causes, chain,
+  key, msgs, params, prevTs, sid, system, systemMatch, tools, toolsMatch, ts,
+  view, windows` (read off a real record 2026-08-10). Joining them therefore
+  means matching wall-clock stamps across two tap points, on a session that
+  interleaves several conversations and models — the exact conditions under
+  which `bust-triage` picked the wrong conversation the same morning.
+  Design (decided): prefix-diff writes the request `id` into its event record,
+  same value the capture's request and outcome records already share, so the
+  join is an equality test instead of a proximity heuristic. Field name `id`,
+  matching the capture's — never a second spelling (this repo has paid for that
+  twice today).
+  Verifier, red-first: a replay over a capture must join every prefix-diff event
+  to its outcome by `id` with zero unmatched, and the SAME join by timestamp
+  proximity must be shown to mis-pair at least one record on the 2026-08-10
+  session — the measurement that justifies the field, not an assumption that it
+  helps. Done-criterion: both numbers pasted, suite green, `/health` unchanged.
+  Write boundary: `proxy/extensions/prefix-diff.mjs` + its tests. **Deployment-
+  coupled**: `proxy/` changes need the dotfiles pin bump
+  (`git rev-parse --short HEAD:proxy`) and `systemctl --user restart
+  cache-fix-proxy`; the change touches no state KEYS and no freeze logic, so
+  row 3's restart-transparency verdict holds and the restart is cache-transparent.
+
+- **READY — a TRANSCRIPT query instrument. It is the least-tooled data
+  source we own, measured, and it is where every cache investigation
+  actually lives.** Two enumerations run 2026-08-07:
+  an instrument inventory across the three repos (100 instruments) and
+  a probe census over readable session history since 2026-07-28
+  (1,258 ad-hoc analysis commands matching a closed five-pattern set).
+  Cross-read, `transcripts` is served by **exactly one** instrument, a
+  QUERY — no GATE, no REPORT, no DOCTOR — while **36 hand-written
+  probes** went at transcripts directly. By contrast `live_captures`
+  has 9 instruments across all four labels.
+  Both numbers are FLOORS, not estimates: the census found no session
+  data at all before 2026-07-28, `claude-worktime` has no readable
+  main transcript, and 15 of 39 session identities survive only as
+  orphaned subagent fragments. The true hand-probe count is higher.
+  The recurring shape is stable across the 36 and is what makes this
+  designable rather than vague: open `~/.claude/projects/**/<sid>.jsonl`,
+  walk it line by line, pull `message.usage` and
+  `message.diagnostics.cache_miss_reason` per entry, join to a
+  timestamp or an ordinal. Tonight's whole investigation was that
+  query, run four times by hand.
+  Design: extend `tools/cold-events.mjs` rather than add a file — it
+  already reads transcripts, already dedupes rows into API CALLS by
+  `requestId` (the property every hand probe got wrong or omitted),
+  and already carries the conversation-grouping discipline. Add a
+  `--rows` mode emitting one record per API call: timestamp, `sid`,
+  `requestId`, `messageId`, `cache_creation`, `cache_read`,
+  `input_tokens`, `ctx`, `cache_miss_reason.{type,cache_missed_input_tokens}`,
+  and `stop_reason` — as JSONL, filterable by time window. The
+  extend-don't-add rule applies with force here: a fresh file re-earns
+  the requestId dedupe from zero, and that is exactly the property
+  whose absence produced the 2026-08-07 false ❄.
+  Verifier, red-first: over the frozen transcript archive at
+  `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`, `--rows` reports the
+  01:00 session's two API calls (cc 39,711 / cc 335,933) as TWO rows
+  where the raw transcript carries more, and names the dropped
+  duplicate count; and it reproduces, in one command, the
+  `previous_message_not_found` diagnostics at 03:31:59Z and 03:32:01Z
+  that took a hand probe to find.
+
+- **READY (small) — both event runbooks open on a tool measured unreliable for
+  the exact event that enters them.** `docs/runbooks/sweep-finding.md` and
+  `docs/runbooks/bust-appears.md` send a fresh context to `bust-triage` FIRST.
+  Measured 2026-08-10: it selects the busting request by time proximity to the
+  worktime event and is blind to `model`, so on a fable session with sonnet
+  subagents it handed back the sonnet pair `n=97->99` (04:40:43/47) while the
+  fable request at 04:40:37.944 was the one that busted — and every instrument
+  reading the walk then collected described a conversation that never busted.
+  A fresh context following either runbook today walks into that silently.
+  This entry exists because the dependents were NAMED in session prose and
+  nearly left there — the named-and-unbooked shape, caught by the operator.
+  Design (decided): both runbooks gain a step-zero caveat BEFORE the
+  `bust-triage` line — check the busting request's `model` against the
+  session's other traffic, and treat a verdict as void if the selected pair's
+  model differs from the model the bust was reported against. Written as a
+  caveat, not a rewrite: the tool fix is a separate entry, and the runbook must
+  stay correct in the window before it ships. Each caveat carries
+  `[GRADUATE -> bust-triage groups by conversation AND model]` per this repo's
+  runbook-as-staging-area rule, so it is removed by the commit that mechanizes
+  it rather than by someone deciding it reads fine.
+  Verifier: the caveat must name the 2026-08-10 instance with its two
+  timestamps, so a reader can reproduce the miss rather than take the warning
+  on trust; `grep -n "GRADUATE" docs/runbooks/*.md` shows both new markers.
+  Done-criterion: both files carry the caveat above their `bust-triage` step,
+  both markers present, suite green.
+  Write boundary: `docs/runbooks/sweep-finding.md`,
+  `docs/runbooks/bust-appears.md`.
+
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Half of the premise is gone. bust-appears.md already carries the designed
+  model-mismatch caveat (step 2 + GRADUATE marker). sweep-finding.md was
+  restructured and no longer opens on bust-triage — step 1 is now `Freeze
+  before you analyze`, and bust-triage enters only inside the KNOWN-OPEN
+  branch (~line 174) under a different caveat. `Both runbooks open on the
+  unreliable tool` no longer holds; re-scope to bust-appears alone or close.
 - **READY (operator-side, claude-worktime — POINTER; body belongs in that
   repo's BACKLOG) — the ❄ detector fires on `cc` alone, so GROWTH is booked as
   LOSS.** Measured 2026-08-07 01:00:55Z: `cc` 335,933 with `cr` **39,711 =
@@ -597,6 +597,456 @@ ENOSPC misattribution with its wrong first explanation left in.
   one. Live and growing, not historical. Two further entries were booked there
   from this pass (the 45 unreadable ledger lines' writer; the missing ledger
   query surface).
+
+- **READY — closing an entry can invalidate a DIFFERENT open entry, and nothing
+  re-reads the neighbours when work ships.** Measured 2026-08-10 by the
+  retirement pass, twice, from real history: the state-key entry shipped
+  `KEY-FLIP`, which made a second entry's cited verdict count (`six`) wrong — the
+  real number is seven, and the second entry was not touched; and `/health`
+  gaining an `extensions[]` field from unrelated work dissolved half of the
+  gates-blindness entry's premise. Both survived as plausible, decision-complete
+  text until a lane probed them directly, which is the failure mode: the entry
+  reads perfectly and is quietly about a world that moved.
+  **Why the existing rules do not catch it.** The ranking rubric's signal 1
+  handles the opposite sign — items that must PRECEDE others or their motivating
+  case dissolves — which is about ordering, not about re-reading afterwards. The
+  succession rule in `docs/dev-loop.md` is scoped to new EVIDENCE killing a
+  premise; our own shipped implementation does not read as evidence arriving, it
+  reads as progress, so the trigger never fires on it. Neither is wrong; both
+  are aimed one step away.
+  **The firing moment is computable, which is what makes this mechanizable at
+  all:** an entry going to a closed grade WITH a commit ref is a discrete,
+  observable event, unlike the judgment-shaped conditions this file usually has
+  to leave as prose.
+  Design, decided — `tools/backlog-neighbours.mjs`, a REPORT and never a gate:
+  given a commit that closes an entry, list every still-open entry naming a file
+  that commit touched, and require a one-line disposition per candidate —
+  still-valid / premise-corrected / now-unnecessary. Report, because most hits
+  are ordinary co-tenancy (`docs/dev-loop.md` alone is named by sixteen entries)
+  and a guard that fires on non-defects trains the override reflex that kills it.
+  The join already exists: `filesNamed` per entry, which the census emits.
+  **Verifier, red-first over an immutable reference and a TRUE positive rather
+  than a planted one:** run it against `508a006` — the commit that retired the
+  state-key entry — and it must surface the verdict-count entry as a candidate.
+  That pairing is real history and reproduces forever. Control against
+  over-firing: it must NOT surface entries whose only overlap is a file the
+  closing commit did not touch.
+  Done when a closed entry cannot be committed without its neighbour
+  dispositions, and the two 2026-08-10 pairs both appear in a dry run over
+  history.
+  Consumer tier **3 (backlog and process)** — it mis-files entries and is
+  recovered at the next derivation, but it left two stale premises standing in
+  decision-complete text, which is where it does real damage.
+
+- **READY — graduate the coverage walk into `tools/`: "is this content on the
+  wire" must not be answered by a substring scan, and today every such answer
+  is one.** Found 2026-08-07 by the conservation enumeration lane, reported
+  against its own delivered result after its lane had closed.
+  **The measured defect, in a probe that read as CLEAN.** Its first R-side
+  probe labelled all 31 clause-(b) rows REAL-LOSS. It returned a definite
+  verdict for every row with a stated basis, and the basis was TRUE — it had
+  simply never looked inside list-content `tool_result` blocks, so bytes that
+  were on the wire scanned as absent. A coverage walk replaced it and all 31
+  flipped to fully covered. Thirty-one phantom content losses, one instrument
+  away from being reported as a mitigation defect.
+  **Why this is a tooling item and not a war story.** The failure is invisible
+  from inside the probe — its output is a definite label, not an error — and
+  invisible to a second instrument that shares the reach limit, so the usual
+  cross-check does not reach it. Any attribution resolving presence by scanning
+  `block.text` and string `block.content` only carries the same defect, in the
+  direction that OVER-reports loss. That is the shape of the hand-rolled
+  presence probes written here so far, and the walk that survives contact
+  exists only as `cover-rows.py` in a session scratchpad, perishable by
+  construction.
+  **Design, decided.** Graduate it to `tools/`, extending an existing tool
+  rather than adding a file if one fits — `bust-triage` and `replay` both
+  already own capture+dump plumbing. Interface, from the working probe: given a
+  capture, a `replay.mjs --dump-forwarded` dump and a rows JSON, report per-row
+  coverage percent plus the uncovered remainder VERBATIM — the remainder is
+  what turns "X% covered" into an attribution. It walks every container the
+  wire can carry, list-content `tool_result` blocks included; the enumeration
+  of container shapes is the thing being graduated, since that is exactly what
+  the substring scan got wrong.
+  **Verifier, red-first, and the known positive is real and in hand:** the 31
+  clause-(b) rows.
+  **PARTLY SHIPPED 2026-08-08 — `7827c4e`, `tools/coverage-walk.mjs` (new, 564
+  lines) plus `blockUnitsFull` exported from `replay.mjs`.** New file rather
+  than an extension, reason stated as the rule requires: `bust-triage` owns
+  capture-PAIR plumbing and not `--dump-forwarded`, `replay.mjs` is the dump's
+  PRODUCER and this is a consumer of its output, and the house precedent for a
+  separate consumer of replay's dump is `absorption-classify.mjs`. Suite
+  2344/2342/0 at that commit, verified at the desk in a frozen worktree, not
+  taken from the report.
+  **THE ENTRY'S OWN MECHANISM WAS FALSE, and the halt this entry's brief
+  carried is what caught it.** Struck: "it had simply never looked inside
+  list-content `tool_result` blocks" and "a mutation removing list-content
+  descent must send them back to REAL-LOSS". Measured over all 31 rows through
+  the shipped instrument, and REPRODUCED at the desk against the PRESERVED
+  attribution rows (i.e. not the lane's own row derivation):
+
+      (no mutation)                    COVERED=31 UNCOVERED=0
+      --without reminder-unwrap        COVERED=0  UNCOVERED=31
+      --without list-content-descent   COVERED=31 UNCOVERED=0   <- NO-OP
+      --without multi-piece            COVERED=0  UNCOVERED=31
+      --without separator-skip         COVERED=0  UNCOVERED=31
+
+  The true reach limit was the whole-string substring scan (0% vs 100%), plus
+  the reminder unwrap and the join separator. The GATE-side limit is narrower
+  than "cannot see joins": `crossJoinUnitHash` reconstructs a cross-message join
+  only for ADJACENT forwarded messages, and the contributors sit at forwarded 55
+  and 57 with an unrelated message at 56. All 31 rows are ONE message (one
+  distinct content sha, 9949 bytes / 9865 code units, role=system, string
+  content) reconstructing exactly as `unwrap(fwd[55].content[9])` + `"\n\n"` +
+  `unwrap(fwd[55].content[10])` + `"\n\n"` + `fwd[57].content` = 683+2+683+2+
+  8495 = 9865.
+  **REMAINING WORK — (1) and (2) CLOSED 2026-08-08 (`b94d118`), (3) split out:**
+  (1) DONE — the bite (`test/coverage-walk-bite.test.mjs`, 9 tests) names the
+  three conditions that are actually red on the real 31-row positive, one bite
+  each, each certified by breaking THAT condition's wiring alone; the
+  dispatcher reproduced one mutant independently and exactly the bite naming it
+  fired. Plus two controls that stop the fixtures collapsing into one: a
+  whole-string scan must FAIL on the join fixture (with its own positive
+  control), and each fixture asserts the other's conditions are no-ops on it.
+  (2) DONE — the list-content descent has a SYNTHETIC positive, and the branch
+  is stated plainly because no real row reaches it: 93 covering pieces across
+  the 31 rows, zero from a list-content sub-block. The entry's "7 list-content
+  blocks" was itself wrong — it came from the small preserved `fwd-*` files;
+  the full dump carries 186, with 62 `tool_reference` sub-blocks.
+  (3) OPEN — the 35 `out`/`invented` rows, split into its own entry below.
+  **This entry is therefore READY only for (3)'s absence**, which is another
+  entry's work; it survives here as the record of what the instrument covers.
+  **The done-criterion as written CANNOT be met, and the honest form replaces
+  it.** It said the re-run converts "1 REAL-LOSS" from a floor into a bound.
+  Measured: of the 66 checker-reach rows, 31 are now POSITIVELY confirmed on
+  the wire by an instrument whose covering conditions are each red; the other
+  35 return COULD-NOT-VERIFY with the reason computed. So the floor's SCOPE
+  shrank and the floor remains a floor.
+
+- **READY (small) — `rebilledBytes` still emits the understated number under
+  the intuitive NAME, while the corrected figure hides behind a longer one.**
+  Booked 2026-08-08 as the named residual of the fix above. The lane added
+  `rebilledBreakpointBytes` / `savedBreakpointBytes` alongside and left
+  `rebilledBytes` / `savedBytes` untouched — correct as a conservative change
+  that breaks no consumer, and it leaves the misleading half in the position a
+  reader reaches for first.
+  Measured on the worked example (s-captureAM, n=265->266): `rebilledBytes` =
+  **114,653**, `rebilledBreakpointBytes` = **884,858**, the latter
+  independently verified equal to the sum of all 291 messages in the raw
+  capture. That is a **7.7x** spread between two fields whose names differ by
+  one word — and note the parent entry's own headline said 2.6x, so the entry
+  under-stated its own defect and the fix's measurement corrected it.
+  **Why a naming change rather than leaving both:** every cost figure in this
+  repo is assembled by a reader choosing a field, and the field named
+  `rebilledBytes` is the one they will choose. Design, decided: rename the
+  divergence-based field to `rebilledSuffixBytes` — which is what it actually
+  measures, the suffix from the divergence — so neither name is the obvious
+  default and the reader has to say which they mean. Do NOT delete it: it is
+  the right number for "how much of the tail changed", a different question
+  from what the cache re-bills.
+  This is a value-set change others depend on, so it lands with its DEPENDENTS
+  SEARCH stated — command and hits — in the same commit: `rebilledBytes` and
+  `savedBytes` are read by `gate-live.mjs`, the status file's row schema, and
+  anything consuming `replay.mjs --json`. A rename that misses one of those
+  breaks silently, which is the class this repo's convention exists for.
+  Verifier: the search's own hits, all updated, plus the suite green.
+  <!-- entry: "rebilledBytes still emits the understated number under the intuitive NAME" -->
+
+- **READY — bucket (d) of the XDG accounting: 65 measured instances still
+  telling readers the proxy writes under `~/.claude`.** Booked 2026-08-08 with
+  the list ITEMISED here rather than left in a scratchpad, because a dispatch
+  was in flight against it and its input had no durable carrier — if that lane
+  had died the work would have been lost with the message that described it.
+  **The in-flight lane was STOPPED at session close and its work DISCARDED** —
+  twelve files edited, nothing committed, so there was no verified artifact to
+  salvage and no report to book. Recorded rather than hidden: the cost was that
+  lane's time, and the reason it cost nothing more is that this list is in the
+  file. A worktree of half-finished uncommitted edits carried across a session
+  boundary is worse than redoing it — the next session would find modifications
+  with no owner and no verification, and might trust them.
+  **The list, by write-set, so it can be split or run whole:**
+  (1) SOURCE COMMENTS contradicting their own module, 14 — each file imports and
+  calls `statePath`/`dataPath`: `proxy/extensions/prefix-diff.mjs:5,11,954,957`
+  (`:954` is an `@param` default), `upstream-change-detection.mjs:8,10`,
+  `bootstrap-defense.mjs:156`, `overage-warning.mjs:7`, `proxy/server.mjs:13`,
+  `proxy/oauth/events.mjs:2`, `proxy/session-mirror-writer.mjs:7`,
+  `usage-log.mjs:1`, `upstream-error-log.mjs:2`, `rate-limit-log.mjs:1`.
+  (2) THE CONTRACT SENTENCE, `proxy/session-mirror-writer.mjs:8-9`: "established
+  convention is all proxy artifacts live under `~/.claude/` per Fable round 1 B5
+  finding", four lines under `import { statePath }`. Not a stale path — a stated
+  project CONVENTION that is false and will regenerate the class in the next
+  artifact someone writes. Fix this one even if nothing else on the list gets
+  done.
+  (3) `README.ko.md`, 7 — never swept by either doc lane, both of whose file
+  lists named `README.md` and `README.zh.md` from memory. `:128` claims ALL
+  telemetry is written under `~/.claude/`; also `:42`, `:205` x3, `:301` x2.
+  `:249` is CORRECT (inside a migration blockquote) and stays.
+  (4) `docs/runbooks/runtime-anomaly.md`, 5 — `:35` says five extensions log
+  under `~/.claude/` directly above a table whose rows are XDG-relative; plus
+  `:68,69,71,104`.
+  (5) `tools/`, 16 — `usage-to-dashboard-ndjson` x4, `cost-report` x3,
+  `cache_analysis.py` x2, one each in `bust-triage`, `cold-events`,
+  `quota-analysis`, `reminder-migration-census`, `replay`,
+  `sim-session-budget-breaker`, `test-config-root`. `test/`, 3 —
+  `harvest-pin:232`, `proxy-session-budget-breaker:47`, and
+  `proxy-rate-limit-log:306` which is a wrong ASSERT MESSAGE (fix the message,
+  never the assertion).
+  **MUST NOT be "fixed":** Claude Code's own config root (`settings.json`,
+  `hooks/`, `projects/`, `.credentials.json`, `.oauth_refresh.lock`), and
+  `docs/dashboard-integration.md:34,44` which are fgrosswig's dashboard's own
+  default, attributed in the text.
+  **`BACKLOG.md`'s 19 hits are excluded** — mostly historical narrative in
+  entries describing what the paths WERE; the counting lane flagged 19 as a
+  conservative over-count it did not adjudicate.
+  Done-criterion: re-run the accounting (classifier preserved at
+  `docs/directives/` or rebuilt per the method in `docs/dev-loop.md`) and reach
+  bucket (d) = 0, or itemise each survivor with the reason. DEPLOYMENT-COUPLED:
+  `proxy/` changes move the tree hash, needing a dotfiles pin bump and restart.
+
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Three cited paths moved under proxy/extensions/: usage-log.mjs,
+  upstream-error-log.mjs, rate-limit-log.mjs. session-mirror-writer.mjs's
+  contract sentence is now at lines 7-9, not 8-9. The core defect (stale
+  ~/.claude comments) is unfixed and the entry stands.
+- **READY (small) — the required-reading gate guards `Write`/`Edit` and NOT a
+  script, so the session's first write can bypass it entirely.** Measured
+  2026-08-10 by walking into it: this session's phase-1 edit rewrote
+  `BACKLOG.md` from a `node` script run through `Bash`, moving 74 bullets, and
+  the PreToolUse gate that is supposed to deny the first write until
+  `docs/dev-loop.md` and `FORK-NOTES.md` have been Read never fired — it keys on
+  the Write/Edit tool names. No harm here (both files had been Read, which is
+  why this is a gate finding and not an incident), and that is exactly what makes
+  it worth booking: the guarded route was taken by accident, not by design.
+  This is the entry-path table in `docs/dev-loop.md` ("a mechanism that guards
+  one route is not a guard") with a fifth row, and the same shape as the
+  `npm test` vs `node --test` row already in it: the protected thing is reachable
+  by a second route, the second route is silent, and every instance reads as
+  working because the route someone happened to take was the guarded one.
+  Design, decided: the gate matches on the WRITE EFFECT, not the tool name — add
+  a Bash lane that fires when a command's argv would write a repo file (a
+  redirect, a `tee`, an interpreter invocation with a script that writes), or, if
+  that predicate is too loose to keep near-zero false fires, invert it: make the
+  reading obligation a precondition of the SESSION rather than of the first
+  Write, satisfied once and checked cheaply thereafter. The judgment-shaped
+  remainder stays prose with the operator as backstop — the corpus rule on
+  mechanisms earning their slot only where the trigger is computable.
+  Verifier, red-first and permanently runnable: in a scratch clone with the
+  reading unsatisfied, run `node -e 'require("fs").appendFileSync("BACKLOG.md","x")'`
+  through Bash — it must be DENIED, and the identical run after the two Reads must
+  be allowed. Both arms required; today only the second is observable, which is
+  the vacuous-green shape.
+  Consumer tier **2 (feeds the gates)** — it is a guard in front of a
+  correctness obligation. Unranked (booked after the derivation).
+
+- **READY — a derived VIEW of this backlog outlives its source within one
+  session, three times measured in one afternoon, and every consumer of it reads
+  the wrong bytes silently.** Measured 2026-08-10 during the retirement pass, by
+  the session that built the views: (1) a line-number index generated at
+  `8e58988` was read after a commit that inserted 34 lines, and six entries came
+  back as the WRONG entries — the tell was a bullet rendering as `PARKED` where a
+  `READY` was expected, i.e. it was caught by luck, not by a check; (2) after
+  eight entries left `## Open`, the ORDINALS shifted, so a lane's `n=61` and the
+  desk's `n=61` named different entries — resolved only by mapping through header
+  TEXT; (3) a disposition script captured bullet positions before later
+  insertions moved them and mangled the file, caught by a conservation check and
+  restored from HEAD.
+  All three are one class and it is already named in `docs/dev-loop.md` ("two
+  coordinate spaces that look like one", "paraphrases drift ... constructed at
+  read time as a partial or transformed view"). What the day adds is that the
+  view here is generated by the session itself, minutes before use, which is
+  precisely when it feels safest.
+  Design, decided: the index stops being a throwaway and becomes
+  `tools/backlog-index.mjs` — the third re-paste of the same twelve lines is the
+  graduation trigger this repo already writes down. It emits per READY entry a
+  STABLE identity that survives both insertion and removal (the header line's
+  content hash), alongside the volatile `n`/`startLine`/`endLine`, and it stamps
+  the file with the `git rev-parse HEAD:BACKLOG.md` blob it was built from. Any
+  consumer re-checks that blob before trusting a line number and re-derives on
+  mismatch. Dispatch briefs cite the stable id, never the ordinal — which is what
+  would have made lane C's `n=61` unambiguous.
+  Verifier, red-first over an immutable reference: build the index at `8e58988`,
+  then read entry ordinals 50 and 61 against HEAD `f3980db` — the ordinals must
+  resolve to DIFFERENT headers (the defect, reproducible forever), while the
+  content-hash ids must resolve to the same two entries in both. Done when a
+  stale index fails loudly instead of returning a plausible wrong entry.
+  Consumer tier **3 (backlog and process)** — it mis-files entries and is
+  recovered at the next derivation, but it corrupted three separate readings in
+  one session. Unranked (booked after the derivation).
+
+- **READY 2026-08-07 — the READY count every session reads at startup is 66
+  where 57 exist, and 6 further READY items sit outside the ranking carrier
+  entirely.** Two halves of one reach failure — the reader and the writer, per
+  dev-loop's standing question.
+  **Reader.** `session-scan.py:29` (dotfiles) defines a bullet as READY "when
+  the literal 'READY' appears anywhere in the bullet's own text". Measured
+  2026-08-07 over this file: 114 top-level bullets under `## Open`, **66** match
+  the hook's rule, **57** begin `- **READY`. The nine extras are two bullets
+  marked **DONE**, plus PARTLY DONE, BUST, HANDOFF, GATE-RED and two FINDING
+  bullets — each merely mentions READY in its body. So the startup line a fresh
+  context reads over-reports the unbuilt-actionable queue by 16%, and the
+  `## Build order` block's own rule ("a finished item must not hold a rank") is
+  broken by the COUNTER rather than by the list. Not a hidden bug: the docstring
+  states the rule as intended, which is why it survived — a definition that
+  over-fires reads as deliberate.
+  **Writer.** Six `- **READY` bullets sit BELOW `## Open`'s end (line 4253),
+  under `## Upstream PR round`. File order is the ranking carrier
+  (`tools/backlog-order.mjs`) and the hook reads `## Open` only, so those six
+  are unrankable and invisible by construction — and nothing stops the next one
+  from landing there. Fixing only the predicate leaves the generator running.
+  **Why this ranks as an instrument defect, not a gap:** the count is consumed
+  at every session start, and it is an input to the build-order derivation
+  itself — the ranking reads a population that includes finished work.
+  Design, both halves. *Reader* (dotfiles repo; booked there too — this entry is
+  the fork-side record): the predicate becomes a HEADER test, the bullet's first
+  line matching `^- \*\*READY\b`, which is the grade-marker convention the file
+  actually uses. *Writer* (here): the six are moved into `## Open` or re-graded,
+  and `tools/backlog-lint.mjs` gains a check that no `- **READY` or
+  `- **PARKED` bullet exists outside `## Open`.
+  Verifier, red-first, two bites: the lint bite fails on the file as it stands
+  (6 offenders) and passes after the move; and `session-scan.py --test` gains a
+  fixture bullet reading `- **DONE 2026-08-06 … supersedes the READY entry
+  above`, which must NOT be counted — today it is, and that is the red.
+  Done when: both bites go red first and green after, and the injected startup
+  count equals `grep -c '^- \*\*READY' BACKLOG.md`.
+
+  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
+  the cited fact does not.**
+  Reader half FIXED (session-scan.py now matches READY by header line, with a
+  regression test); WRITER half still open — 5 `- **READY` bullets sit outside
+  `## Open` under `## Upstream PR round`, whole-file 97 vs section 92, and no
+  backlog-lint guard exists. Also: phase 1 of this pass identified a SECOND
+  writer mechanism this entry never named — five bullets reading `-
+  **(shipped) READY`, invisible to a `^- \*\*READY` grep but counted by the
+  hook's substring rule. They are now in `## Done`. See the merge note: this
+  entry and the NARRATIVE-grade-token entry are one defect.
+  **MERGED 2026-08-10 by the retirement pass — this entry ABSORBS the
+  narrative-grade-token entry, because the pass proved them one defect with
+  one verifier.** The other entry's writer half (nothing stops a bullet
+  opening with a story instead of a grade) and this entry's writer half (READY
+  bullets outside the ranking carrier) are the same failure: the GRADE MARKER
+  in a bullet's first token is the only thing every consumer reads, and
+  nothing enforces its vocabulary. The pass added a THIRD variant neither
+  entry named — five bullets reading `- **(shipped) READY`, which a `^-
+  \*\*READY` grep misses while the hook's substring rule counts them, so the
+  two known counters disagreed in OPPOSITE directions on the same five
+  bullets. Merged design, one check in `tools/backlog-lint.mjs`: every
+  top-level bullet's first token must come from a closed grade vocabulary, and
+  no bullet carrying a READY grade may sit outside `## Open`. Red-first on
+  three real positives now permanently available in `## Done` at this commit
+  rather than on planted cases — the nine substring-only extras, the five
+  outside-`## Open` bullets, and the five `(shipped) READY` bullets. Done when
+  `backlog-lint` fails on each of the three and the SessionStart count equals
+  `grep -c '^- \*\*READY'` over `## Open`.
+- **READY — `backlog-lint`'s enumeration exemption is SLASH-ONLY, so the same
+  enumeration written with `vs` or commas false-fires.** Measured 2026-08-08,
+  live, on the entry two below this one: writing the repo's own three-answer
+  gate discipline as a `vs`-joined triple tripped `WARN backlog-header
+  grade=READY`, i.e. the lint read a NAMED TECHNICAL TERM as a claim that the
+  entry's work was resolved. The tool already anticipates exactly this class —
+  its header comment says the exemption exists because its own entry lists the
+  marker words — but the guard is `(?<!\/)…(?!\/)`, so it clears the
+  slash-joined form and misses the same enumeration joined by `vs`, by a
+  comma, or by `and`. Worked around at the time by writing the triple
+  slash-joined, which is honest (it IS an enumeration) but is a workaround,
+  not the fix.
+  **This entry self-fired while being written, which is the evidence.** Naming
+  the trigger forms literally in prose trips the very gap they describe, so
+  they are described here and belong as literal strings in the test fixture,
+  not in this file — a guard whose gap cannot be documented without tripping
+  it is the sharpest possible statement of the gap.
+  **Why it is worth fixing rather than living with:** the verification word is
+  a term of art in this repo — it is one third of the DECLARED/RUNNING/VERIFIED
+  triple
+  that `doctor` compares — so any entry discussing gate verification trips it.
+  A guard that fires on correct prose is the check-that-fires-on-a-non-defect
+  shape: it trains its reader to route around it, which is what happened here
+  within one minute of it firing.
+  Design: widen the exemption from slash-adjacency to ENUMERATION CONTEXT —
+  the marker word appearing inside a run of two or more all-caps terms joined
+  by `/`, `,`, `vs`, `and`, or `+`. Do NOT simply drop the verification word
+  from the marker set; the dated-resolution signal it carries is the whole
+  point of the check.
+  Verifier, red-first, BOTH arms required because this is a predicate change to
+  a live guard: (1) the real prose instances the check exists for — a READY
+  entry whose body carries the verification word beside a resolution date, in
+  resolution prose — must STILL fire; (2) the enumeration forms above must
+  NOT. Take arm (1) from the check's own
+  historical true positives so the fix is measured against what it caught, not
+  against what I imagine it caught. Done when `node tools/backlog-lint.mjs` is
+  clean on a corpus containing both arms and `test/backlog-lint.test.mjs`
+  covers each.
+  **THIRD FIRE, same day, and it pins the sub-shape the design must handle:
+  SPACE-PADDED separators.** The repo's three-answer gate triple, written with
+  spaces around its slashes, trips the lint; the identical triple written tight
+  (the spelling `docs/dev-loop.md` uses) does not. The exemption is
+  slash-ADJACENCY — it inspects the single character on each side of the marker
+  word — so a padded separator puts a SPACE there and escapes it. Not a new
+  defect: the precise boundary of the existing one, and it settles the design
+  question above. The widened predicate must key on enumeration CONTEXT, never
+  on adjacent characters.
+  **And this paragraph tripped the guard while being written, for the second
+  time in this entry — by violating the entry's OWN instruction four
+  paragraphs up:** literal trigger forms belong in the test fixture, not in
+  this file. The first draft pasted the padded triple in as its example, the
+  lint fired on this entry, and because `test/backlog-lint.test.mjs` treats a
+  WARN as BLOCKING (the separate ranked entry two below), it turned the whole
+  suite red and refused a push. So the convention is not stylistic: writing a
+  trigger form literally here costs a red suite. Restated without the literal,
+  which is what the entry already told me to do.
+
+  **SECOND MEASURED FALSE FIRE, 2026-08-08 afternoon, and it is a DIFFERENT
+  shape — so the design above is too narrow.** Editing the XDG-ownership entry
+  to record that its three-way README sub-claim had been resolved by `bbc1213`
+  tripped `WARN backlog-header grade=READY marker=RESOLVED`. That is not an
+  enumeration and no exemption for `vs`/comma/`and` would clear it: the marker
+  was a genuine dated resolution, of a SUB-CLAIM, inside an entry that is
+  correctly still open. The tool's scope comment already concedes the boundary
+  — "one entry runs from a `- **` bullet to the next" — so it cannot tell "this
+  entry is resolved" from "something inside this entry is resolved", and a long
+  entry that records its own corrections over time is exactly where the second
+  case lives. Both fires share one root: the rule reads a marker's PRESENCE
+  where it means the entry's STATUS.
+  **Worked around, and the workaround is named rather than hidden:** the word
+  was changed to `DECIDED`, which is accurate and is not in the marker set, so
+  `backlog-lint` is clean at this commit. That is the second time in two days
+  this guard has been routed around within a minute of firing — which is the
+  fire rate, and it is the argument for fixing rather than living with it.
+  Widen the design accordingly: the fix must clear a dated resolution that
+  scopes to a NAMED SUB-CLAIM (a sentence-initial bold run, a "superseded text
+  follows" section) while still firing on a resolution that scopes to the entry.
+  Arm (1) of the verifier is unchanged and still comes from the check's own
+  historical true positives.
+  Consumer tier **3 (backlog and process)** — it mis-labels entries and is
+  recovered at the next read; ranked accordingly, not promoted for being
+  annoying.
+  <!-- entry: "backlog-lint's enumeration exemption is SLASH-ONLY" -->
+
+- **READY (small) — the succession rule's computable slice: an entry that
+  ASSERTS a matrix row's status is a dependent nothing re-reads.** The rule
+  itself is judgment-shaped and stays prose (dev-loop, "A finding never lands
+  alone"), but one slice is a byte comparison: entries routinely say "row N is
+  OPEN" / "row N is mitigated" in their own words, and the row's status text
+  moves without them. The runbook already names the trap — "a row NAMED is not a
+  row READ" — and today's walk hit it from the other side, where row 4's text
+  carried the answer an entry had not absorbed.
+  Design (decided): extend `tools/backlog-lint.mjs` rather than add a file (the
+  extend-before-writing rule; it already owns entry-scoped parsing and the
+  `- **` to next `- **` boundary). New WARN class: an entry citing `row N`
+  within a sentence that also carries a status word (OPEN / RE-OPENED / CLOSED /
+  MITIGATED / OBSERVED / ACCEPTED) is checked against that row's actual status
+  cell in `docs/directives/robustness-threat-matrix.md`; a mismatch names the
+  entry, the asserted status, and the row's current one. Status vocabulary comes
+  from the matrix's own cells, read as data, never a hardcoded list — the
+  seven-value vocabulary is exactly what `bust-triage` already collapses wrongly.
+  Verifier, red-first against an immutable reference: `git show` an entry from
+  before row 4's 2026-07-31 RE-OPENED edit that asserts the row CLOSED, run the
+  lint over that pair, and it must name the entry. Over-firing controls, both
+  required green: an entry citing `row N` with no status claim must stay silent,
+  and an entry whose asserted status matches the current cell must stay silent.
+  Done-criterion: red demonstrated on the historical pair with the command and
+  its output pasted, both controls green, full suite green, lint wired WARN-only
+  into the daily sweep as the existing header class already is.
+  Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
 
 - **READY — `bust-triage` cannot reach threat-matrix row 24 by ANY of its three
   routes, so the whole resume / born-large class triages as UNVERIFIABLE or
@@ -756,127 +1206,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   question than it was booked with: which conversation does each of those two
   readings belong to? Settle it by reading the transcript, never by quoting
   either document.
-- **READY — attribute the state-key FLIP that disarmed row 1's mitigation on a
-  live 141k bust; the class is row 26 but this instance has no cause.**
-  Booked 2026-08-08 from the bust walk on s-captureAT (2026-08-08T09:59:53Z,
-  141k, `messages_changed / 124331`, this repo's own dev session). The two
-  requests of the busting pair ran under DIFFERENT state keys 4 s apart —
-  capture 09:58:46.362Z -> insertion event 09:58:46.364Z key
-  `…496b188f5f435920`, capture 09:58:50.626Z -> event 09:58:50.628Z key
-  `…a20843f8616f3866` — and BOTH logged `action=reset resetReason=no-prior-
-  canonical`. The census classes the pair `splice/insert-mid`, which IS in
-  `replay.mjs`'s MITIGABLE set, so unlike the same morning's 638k this is a
-  mitigation that was ARMED and had no baseline to act on, not one that was
-  never attempted. Session-wide that session: 12 distinct keys / 127 events /
-  13 resets, **12 of them `no-prior-canonical`**; 8 of the 12 keys carry
-  exactly ONE event, i.e. a key appears, takes one request, and is never seen
-  again. `bust-triage` answered **MITIGATED (row 1)** on it, because it maps
-  the census class to the row's STATUS and never reads the pair's extension
-  events — the runbook's step-8 GRADUATE marker is exactly this and is booked
-  separately.
-  **What is NOT established, and must not be assumed by whoever takes this:**
-  that the key flip CAUSED the re-bill. CC keys its cache on the bytes it
-  sends, not on our internal key, so what is established is that the flip
-  DISARMED our absorption — the upstream miss has its own cause, unattributed
-  here. Do not write "key rotation caused a 141k bust" into the matrix on this
-  evidence.
-  Design: determine what varies the sub-key across two requests of one
-  conversation. Read `conversationSubKey`/`identityKey` (import them, never
-  re-derive — a probe that re-computes a key has produced a confident wrong
-  answer three times here) and diff the two raw capture records at 09:58:46.362Z
-  and 09:58:50.626Z on exactly the inputs the key function consumes.
-  Verifier, red-first and with a control: feeding the earlier record's
-  key-inputs must reproduce key `…496b188f…` and the later record's must
-  reproduce `…a20843f8…`; the control that proves the probe discriminates is a
-  sentinel mutation of one key-input yielding NEITHER. Done when the varying
-  input is named at field granularity, or the entry is re-graded PARKED with
-  that named as the missing evidence.
-  <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
-
-- **READY — graduate the coverage walk into `tools/`: "is this content on the
-  wire" must not be answered by a substring scan, and today every such answer
-  is one.** Found 2026-08-07 by the conservation enumeration lane, reported
-  against its own delivered result after its lane had closed.
-  **The measured defect, in a probe that read as CLEAN.** Its first R-side
-  probe labelled all 31 clause-(b) rows REAL-LOSS. It returned a definite
-  verdict for every row with a stated basis, and the basis was TRUE — it had
-  simply never looked inside list-content `tool_result` blocks, so bytes that
-  were on the wire scanned as absent. A coverage walk replaced it and all 31
-  flipped to fully covered. Thirty-one phantom content losses, one instrument
-  away from being reported as a mitigation defect.
-  **Why this is a tooling item and not a war story.** The failure is invisible
-  from inside the probe — its output is a definite label, not an error — and
-  invisible to a second instrument that shares the reach limit, so the usual
-  cross-check does not reach it. Any attribution resolving presence by scanning
-  `block.text` and string `block.content` only carries the same defect, in the
-  direction that OVER-reports loss. That is the shape of the hand-rolled
-  presence probes written here so far, and the walk that survives contact
-  exists only as `cover-rows.py` in a session scratchpad, perishable by
-  construction.
-  **Design, decided.** Graduate it to `tools/`, extending an existing tool
-  rather than adding a file if one fits — `bust-triage` and `replay` both
-  already own capture+dump plumbing. Interface, from the working probe: given a
-  capture, a `replay.mjs --dump-forwarded` dump and a rows JSON, report per-row
-  coverage percent plus the uncovered remainder VERBATIM — the remainder is
-  what turns "X% covered" into an attribution. It walks every container the
-  wire can carry, list-content `tool_result` blocks included; the enumeration
-  of container shapes is the thing being graduated, since that is exactly what
-  the substring scan got wrong.
-  **Verifier, red-first, and the known positive is real and in hand:** the 31
-  clause-(b) rows.
-  **PARTLY SHIPPED 2026-08-08 — `7827c4e`, `tools/coverage-walk.mjs` (new, 564
-  lines) plus `blockUnitsFull` exported from `replay.mjs`.** New file rather
-  than an extension, reason stated as the rule requires: `bust-triage` owns
-  capture-PAIR plumbing and not `--dump-forwarded`, `replay.mjs` is the dump's
-  PRODUCER and this is a consumer of its output, and the house precedent for a
-  separate consumer of replay's dump is `absorption-classify.mjs`. Suite
-  2344/2342/0 at that commit, verified at the desk in a frozen worktree, not
-  taken from the report.
-  **THE ENTRY'S OWN MECHANISM WAS FALSE, and the halt this entry's brief
-  carried is what caught it.** Struck: "it had simply never looked inside
-  list-content `tool_result` blocks" and "a mutation removing list-content
-  descent must send them back to REAL-LOSS". Measured over all 31 rows through
-  the shipped instrument, and REPRODUCED at the desk against the PRESERVED
-  attribution rows (i.e. not the lane's own row derivation):
-
-      (no mutation)                    COVERED=31 UNCOVERED=0
-      --without reminder-unwrap        COVERED=0  UNCOVERED=31
-      --without list-content-descent   COVERED=31 UNCOVERED=0   <- NO-OP
-      --without multi-piece            COVERED=0  UNCOVERED=31
-      --without separator-skip         COVERED=0  UNCOVERED=31
-
-  The true reach limit was the whole-string substring scan (0% vs 100%), plus
-  the reminder unwrap and the join separator. The GATE-side limit is narrower
-  than "cannot see joins": `crossJoinUnitHash` reconstructs a cross-message join
-  only for ADJACENT forwarded messages, and the contributors sit at forwarded 55
-  and 57 with an unrelated message at 56. All 31 rows are ONE message (one
-  distinct content sha, 9949 bytes / 9865 code units, role=system, string
-  content) reconstructing exactly as `unwrap(fwd[55].content[9])` + `"\n\n"` +
-  `unwrap(fwd[55].content[10])` + `"\n\n"` + `fwd[57].content` = 683+2+683+2+
-  8495 = 9865.
-  **REMAINING WORK — (1) and (2) CLOSED 2026-08-08 (`b94d118`), (3) split out:**
-  (1) DONE — the bite (`test/coverage-walk-bite.test.mjs`, 9 tests) names the
-  three conditions that are actually red on the real 31-row positive, one bite
-  each, each certified by breaking THAT condition's wiring alone; the
-  dispatcher reproduced one mutant independently and exactly the bite naming it
-  fired. Plus two controls that stop the fixtures collapsing into one: a
-  whole-string scan must FAIL on the join fixture (with its own positive
-  control), and each fixture asserts the other's conditions are no-ops on it.
-  (2) DONE — the list-content descent has a SYNTHETIC positive, and the branch
-  is stated plainly because no real row reaches it: 93 covering pieces across
-  the 31 rows, zero from a list-content sub-block. The entry's "7 list-content
-  blocks" was itself wrong — it came from the small preserved `fwd-*` files;
-  the full dump carries 186, with 62 `tool_reference` sub-blocks.
-  (3) OPEN — the 35 `out`/`invented` rows, split into its own entry below.
-  **This entry is therefore READY only for (3)'s absence**, which is another
-  entry's work; it survives here as the record of what the instrument covers.
-  **The done-criterion as written CANNOT be met, and the honest form replaces
-  it.** It said the re-run converts "1 REAL-LOSS" from a floor into a bound.
-  Measured: of the 66 checker-reach rows, 31 are now POSITIVELY confirmed on
-  the wire by an instrument whose covering conditions are each red; the other
-  35 return COULD-NOT-VERIFY with the reason computed. So the floor's SCOPE
-  shrank and the floor remains a floor.
-
 - **READY — the inverse-direction coverage walk: an `out`/`invented`
   conservation row asks "CC never sent this in this conversation", which no
   instrument answers today.** Split out 2026-08-08 from the entry above, whose
@@ -1154,70 +1483,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   a predicate keyed to prose decays — `cc-version-normalize`'s own version
   telemetry is the join if it ever needs one.
 
-- **READY 2026-08-07 — the READY count every session reads at startup is 66
-  where 57 exist, and 6 further READY items sit outside the ranking carrier
-  entirely.** Two halves of one reach failure — the reader and the writer, per
-  dev-loop's standing question.
-  **Reader.** `session-scan.py:29` (dotfiles) defines a bullet as READY "when
-  the literal 'READY' appears anywhere in the bullet's own text". Measured
-  2026-08-07 over this file: 114 top-level bullets under `## Open`, **66** match
-  the hook's rule, **57** begin `- **READY`. The nine extras are two bullets
-  marked **DONE**, plus PARTLY DONE, BUST, HANDOFF, GATE-RED and two FINDING
-  bullets — each merely mentions READY in its body. So the startup line a fresh
-  context reads over-reports the unbuilt-actionable queue by 16%, and the
-  `## Build order` block's own rule ("a finished item must not hold a rank") is
-  broken by the COUNTER rather than by the list. Not a hidden bug: the docstring
-  states the rule as intended, which is why it survived — a definition that
-  over-fires reads as deliberate.
-  **Writer.** Six `- **READY` bullets sit BELOW `## Open`'s end (line 4253),
-  under `## Upstream PR round`. File order is the ranking carrier
-  (`tools/backlog-order.mjs`) and the hook reads `## Open` only, so those six
-  are unrankable and invisible by construction — and nothing stops the next one
-  from landing there. Fixing only the predicate leaves the generator running.
-  **Why this ranks as an instrument defect, not a gap:** the count is consumed
-  at every session start, and it is an input to the build-order derivation
-  itself — the ranking reads a population that includes finished work.
-  Design, both halves. *Reader* (dotfiles repo; booked there too — this entry is
-  the fork-side record): the predicate becomes a HEADER test, the bullet's first
-  line matching `^- \*\*READY\b`, which is the grade-marker convention the file
-  actually uses. *Writer* (here): the six are moved into `## Open` or re-graded,
-  and `tools/backlog-lint.mjs` gains a check that no `- **READY` or
-  `- **PARKED` bullet exists outside `## Open`.
-  Verifier, red-first, two bites: the lint bite fails on the file as it stands
-  (6 offenders) and passes after the move; and `session-scan.py --test` gains a
-  fixture bullet reading `- **DONE 2026-08-06 … supersedes the READY entry
-  above`, which must NOT be counted — today it is, and that is the red.
-  Done when: both bites go red first and green after, and the injected startup
-  count equals `grep -c '^- \*\*READY' BACKLOG.md`.
-
-  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
-  the cited fact does not.**
-  Reader half FIXED (session-scan.py now matches READY by header line, with a
-  regression test); WRITER half still open — 5 `- **READY` bullets sit outside
-  `## Open` under `## Upstream PR round`, whole-file 97 vs section 92, and no
-  backlog-lint guard exists. Also: phase 1 of this pass identified a SECOND
-  writer mechanism this entry never named — five bullets reading `-
-  **(shipped) READY`, invisible to a `^- \*\*READY` grep but counted by the
-  hook's substring rule. They are now in `## Done`. See the merge note: this
-  entry and the NARRATIVE-grade-token entry are one defect.
-  **MERGED 2026-08-10 by the retirement pass — this entry ABSORBS the
-  narrative-grade-token entry, because the pass proved them one defect with
-  one verifier.** The other entry's writer half (nothing stops a bullet
-  opening with a story instead of a grade) and this entry's writer half (READY
-  bullets outside the ranking carrier) are the same failure: the GRADE MARKER
-  in a bullet's first token is the only thing every consumer reads, and
-  nothing enforces its vocabulary. The pass added a THIRD variant neither
-  entry named — five bullets reading `- **(shipped) READY`, which a `^-
-  \*\*READY` grep misses while the hook's substring rule counts them, so the
-  two known counters disagreed in OPPOSITE directions on the same five
-  bullets. Merged design, one check in `tools/backlog-lint.mjs`: every
-  top-level bullet's first token must come from a closed grade vocabulary, and
-  no bullet carrying a READY grade may sit outside `## Open`. Red-first on
-  three real positives now permanently available in `## Done` at this commit
-  rather than on planted cases — the nine substring-only extras, the five
-  outside-`## Open` bullets, and the five `(shipped) READY` bullets. Done when
-  `backlog-lint` fails on each of the three and the SessionStart count equals
-  `grep -c '^- \*\*READY'` over `## Open`.
 - **READY — `backlog-order.mjs`'s anchor namespace is the whole BULLET BODY, so
   an entry that QUOTES another entry's title breaks the ranking tool.** Hit
   2026-08-06 evening, first use after the tool shipped, by ordinary work: an
@@ -1247,90 +1512,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   therefore quoted here as the reproduction input: a bullet body containing the
   string `the stability exemption for a first-appearance` + ` relocation`, split
   across two literals in this entry for exactly the reason the entry exists.
-
-- **READY — `backlog-lint`'s enumeration exemption is SLASH-ONLY, so the same
-  enumeration written with `vs` or commas false-fires.** Measured 2026-08-08,
-  live, on the entry two below this one: writing the repo's own three-answer
-  gate discipline as a `vs`-joined triple tripped `WARN backlog-header
-  grade=READY`, i.e. the lint read a NAMED TECHNICAL TERM as a claim that the
-  entry's work was resolved. The tool already anticipates exactly this class —
-  its header comment says the exemption exists because its own entry lists the
-  marker words — but the guard is `(?<!\/)…(?!\/)`, so it clears the
-  slash-joined form and misses the same enumeration joined by `vs`, by a
-  comma, or by `and`. Worked around at the time by writing the triple
-  slash-joined, which is honest (it IS an enumeration) but is a workaround,
-  not the fix.
-  **This entry self-fired while being written, which is the evidence.** Naming
-  the trigger forms literally in prose trips the very gap they describe, so
-  they are described here and belong as literal strings in the test fixture,
-  not in this file — a guard whose gap cannot be documented without tripping
-  it is the sharpest possible statement of the gap.
-  **Why it is worth fixing rather than living with:** the verification word is
-  a term of art in this repo — it is one third of the DECLARED/RUNNING/VERIFIED
-  triple
-  that `doctor` compares — so any entry discussing gate verification trips it.
-  A guard that fires on correct prose is the check-that-fires-on-a-non-defect
-  shape: it trains its reader to route around it, which is what happened here
-  within one minute of it firing.
-  Design: widen the exemption from slash-adjacency to ENUMERATION CONTEXT —
-  the marker word appearing inside a run of two or more all-caps terms joined
-  by `/`, `,`, `vs`, `and`, or `+`. Do NOT simply drop the verification word
-  from the marker set; the dated-resolution signal it carries is the whole
-  point of the check.
-  Verifier, red-first, BOTH arms required because this is a predicate change to
-  a live guard: (1) the real prose instances the check exists for — a READY
-  entry whose body carries the verification word beside a resolution date, in
-  resolution prose — must STILL fire; (2) the enumeration forms above must
-  NOT. Take arm (1) from the check's own
-  historical true positives so the fix is measured against what it caught, not
-  against what I imagine it caught. Done when `node tools/backlog-lint.mjs` is
-  clean on a corpus containing both arms and `test/backlog-lint.test.mjs`
-  covers each.
-  **THIRD FIRE, same day, and it pins the sub-shape the design must handle:
-  SPACE-PADDED separators.** The repo's three-answer gate triple, written with
-  spaces around its slashes, trips the lint; the identical triple written tight
-  (the spelling `docs/dev-loop.md` uses) does not. The exemption is
-  slash-ADJACENCY — it inspects the single character on each side of the marker
-  word — so a padded separator puts a SPACE there and escapes it. Not a new
-  defect: the precise boundary of the existing one, and it settles the design
-  question above. The widened predicate must key on enumeration CONTEXT, never
-  on adjacent characters.
-  **And this paragraph tripped the guard while being written, for the second
-  time in this entry — by violating the entry's OWN instruction four
-  paragraphs up:** literal trigger forms belong in the test fixture, not in
-  this file. The first draft pasted the padded triple in as its example, the
-  lint fired on this entry, and because `test/backlog-lint.test.mjs` treats a
-  WARN as BLOCKING (the separate ranked entry two below), it turned the whole
-  suite red and refused a push. So the convention is not stylistic: writing a
-  trigger form literally here costs a red suite. Restated without the literal,
-  which is what the entry already told me to do.
-
-  **SECOND MEASURED FALSE FIRE, 2026-08-08 afternoon, and it is a DIFFERENT
-  shape — so the design above is too narrow.** Editing the XDG-ownership entry
-  to record that its three-way README sub-claim had been resolved by `bbc1213`
-  tripped `WARN backlog-header grade=READY marker=RESOLVED`. That is not an
-  enumeration and no exemption for `vs`/comma/`and` would clear it: the marker
-  was a genuine dated resolution, of a SUB-CLAIM, inside an entry that is
-  correctly still open. The tool's scope comment already concedes the boundary
-  — "one entry runs from a `- **` bullet to the next" — so it cannot tell "this
-  entry is resolved" from "something inside this entry is resolved", and a long
-  entry that records its own corrections over time is exactly where the second
-  case lives. Both fires share one root: the rule reads a marker's PRESENCE
-  where it means the entry's STATUS.
-  **Worked around, and the workaround is named rather than hidden:** the word
-  was changed to `DECIDED`, which is accurate and is not in the marker set, so
-  `backlog-lint` is clean at this commit. That is the second time in two days
-  this guard has been routed around within a minute of firing — which is the
-  fire rate, and it is the argument for fixing rather than living with it.
-  Widen the design accordingly: the fix must clear a dated resolution that
-  scopes to a NAMED SUB-CLAIM (a sentence-initial bold run, a "superseded text
-  follows" section) while still firing on a resolution that scopes to the entry.
-  Arm (1) of the verifier is unchanged and still comes from the check's own
-  historical true positives.
-  Consumer tier **3 (backlog and process)** — it mis-labels entries and is
-  recovered at the next read; ranked accordingly, not promoted for being
-  annoying.
-  <!-- entry: "backlog-lint's enumeration exemption is SLASH-ONLY" -->
 
 - **READY (small) — `backlog-lint` calls its own header findings advisory and
   the suite treats them as blocking, so the CLI trains its reader to walk into
@@ -1653,63 +1834,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   that safety outranks cache.
   <!-- entry: "the tool-adjacency SAFETY check does not run on ANY reset path" -->
 
-- **READY — bucket (d) of the XDG accounting: 65 measured instances still
-  telling readers the proxy writes under `~/.claude`.** Booked 2026-08-08 with
-  the list ITEMISED here rather than left in a scratchpad, because a dispatch
-  was in flight against it and its input had no durable carrier — if that lane
-  had died the work would have been lost with the message that described it.
-  **The in-flight lane was STOPPED at session close and its work DISCARDED** —
-  twelve files edited, nothing committed, so there was no verified artifact to
-  salvage and no report to book. Recorded rather than hidden: the cost was that
-  lane's time, and the reason it cost nothing more is that this list is in the
-  file. A worktree of half-finished uncommitted edits carried across a session
-  boundary is worse than redoing it — the next session would find modifications
-  with no owner and no verification, and might trust them.
-  **The list, by write-set, so it can be split or run whole:**
-  (1) SOURCE COMMENTS contradicting their own module, 14 — each file imports and
-  calls `statePath`/`dataPath`: `proxy/extensions/prefix-diff.mjs:5,11,954,957`
-  (`:954` is an `@param` default), `upstream-change-detection.mjs:8,10`,
-  `bootstrap-defense.mjs:156`, `overage-warning.mjs:7`, `proxy/server.mjs:13`,
-  `proxy/oauth/events.mjs:2`, `proxy/session-mirror-writer.mjs:7`,
-  `usage-log.mjs:1`, `upstream-error-log.mjs:2`, `rate-limit-log.mjs:1`.
-  (2) THE CONTRACT SENTENCE, `proxy/session-mirror-writer.mjs:8-9`: "established
-  convention is all proxy artifacts live under `~/.claude/` per Fable round 1 B5
-  finding", four lines under `import { statePath }`. Not a stale path — a stated
-  project CONVENTION that is false and will regenerate the class in the next
-  artifact someone writes. Fix this one even if nothing else on the list gets
-  done.
-  (3) `README.ko.md`, 7 — never swept by either doc lane, both of whose file
-  lists named `README.md` and `README.zh.md` from memory. `:128` claims ALL
-  telemetry is written under `~/.claude/`; also `:42`, `:205` x3, `:301` x2.
-  `:249` is CORRECT (inside a migration blockquote) and stays.
-  (4) `docs/runbooks/runtime-anomaly.md`, 5 — `:35` says five extensions log
-  under `~/.claude/` directly above a table whose rows are XDG-relative; plus
-  `:68,69,71,104`.
-  (5) `tools/`, 16 — `usage-to-dashboard-ndjson` x4, `cost-report` x3,
-  `cache_analysis.py` x2, one each in `bust-triage`, `cold-events`,
-  `quota-analysis`, `reminder-migration-census`, `replay`,
-  `sim-session-budget-breaker`, `test-config-root`. `test/`, 3 —
-  `harvest-pin:232`, `proxy-session-budget-breaker:47`, and
-  `proxy-rate-limit-log:306` which is a wrong ASSERT MESSAGE (fix the message,
-  never the assertion).
-  **MUST NOT be "fixed":** Claude Code's own config root (`settings.json`,
-  `hooks/`, `projects/`, `.credentials.json`, `.oauth_refresh.lock`), and
-  `docs/dashboard-integration.md:34,44` which are fgrosswig's dashboard's own
-  default, attributed in the text.
-  **`BACKLOG.md`'s 19 hits are excluded** — mostly historical narrative in
-  entries describing what the paths WERE; the counting lane flagged 19 as a
-  conservative over-count it did not adjudicate.
-  Done-criterion: re-run the accounting (classifier preserved at
-  `docs/directives/` or rebuilt per the method in `docs/dev-loop.md`) and reach
-  bucket (d) = 0, or itemise each survivor with the reason. DEPLOYMENT-COUPLED:
-  `proxy/` changes move the tree hash, needing a dotfiles pin bump and restart.
-
-  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
-  the cited fact does not.**
-  Three cited paths moved under proxy/extensions/: usage-log.mjs,
-  upstream-error-log.mjs, rate-limit-log.mjs. session-mirror-writer.mjs's
-  contract sentence is now at lines 7-9, not 8-9. The core defect (stale
-  ~/.claude comments) is unfixed and the entry stands.
 - **READY — the XDG accounting's EXCLUDED-BY-GENRE bucket (~260 occurrences)
   was never individually verified, and two exceptions have already been found
   inside it.** Measured 2026-08-08 by the accounting lane, and flagged by that
@@ -2009,31 +2133,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Write boundary: `tools/gate-live.mjs`, `test/gate-live*.test.mjs`. No `proxy/`
   change, so no pin bump and no restart.
 
-- **READY (small) — billing and verdict are written by two extensions with no
-  join key, so the join is by TIMESTAMP, which is how today's walk mis-joined.**
-  The capture's `outcome` record carries `id` and `requestId`; the prefix-diff
-  event record carries none of them — its keys are `betaHeader, causes, chain,
-  key, msgs, params, prevTs, sid, system, systemMatch, tools, toolsMatch, ts,
-  view, windows` (read off a real record 2026-08-10). Joining them therefore
-  means matching wall-clock stamps across two tap points, on a session that
-  interleaves several conversations and models — the exact conditions under
-  which `bust-triage` picked the wrong conversation the same morning.
-  Design (decided): prefix-diff writes the request `id` into its event record,
-  same value the capture's request and outcome records already share, so the
-  join is an equality test instead of a proximity heuristic. Field name `id`,
-  matching the capture's — never a second spelling (this repo has paid for that
-  twice today).
-  Verifier, red-first: a replay over a capture must join every prefix-diff event
-  to its outcome by `id` with zero unmatched, and the SAME join by timestamp
-  proximity must be shown to mis-pair at least one record on the 2026-08-10
-  session — the measurement that justifies the field, not an assumption that it
-  helps. Done-criterion: both numbers pasted, suite green, `/health` unchanged.
-  Write boundary: `proxy/extensions/prefix-diff.mjs` + its tests. **Deployment-
-  coupled**: `proxy/` changes need the dotfiles pin bump
-  (`git rev-parse --short HEAD:proxy`) and `systemctl --user restart
-  cache-fix-proxy`; the change touches no state KEYS and no freeze logic, so
-  row 3's restart-transparency verdict holds and the restart is cache-transparent.
-
 - **READY (small) — mint the matrix row this walk's terminal state requires.**
   An event mapping to no row is UNCLASSIFIED, and the rule is to stop and mint
   rather than explain it away; the walk above reached a terminal state with no
@@ -2050,109 +2149,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   to the new row instead of answering UNCLASSIFIED. Done-criterion: row present,
   `bust-triage --at 2026-08-10T04:40:50Z` names it, suite green.
   Write boundary: `docs/directives/robustness-threat-matrix.md`.
-
-- **READY (small) — both event runbooks open on a tool measured unreliable for
-  the exact event that enters them.** `docs/runbooks/sweep-finding.md` and
-  `docs/runbooks/bust-appears.md` send a fresh context to `bust-triage` FIRST.
-  Measured 2026-08-10: it selects the busting request by time proximity to the
-  worktime event and is blind to `model`, so on a fable session with sonnet
-  subagents it handed back the sonnet pair `n=97->99` (04:40:43/47) while the
-  fable request at 04:40:37.944 was the one that busted — and every instrument
-  reading the walk then collected described a conversation that never busted.
-  A fresh context following either runbook today walks into that silently.
-  This entry exists because the dependents were NAMED in session prose and
-  nearly left there — the named-and-unbooked shape, caught by the operator.
-  Design (decided): both runbooks gain a step-zero caveat BEFORE the
-  `bust-triage` line — check the busting request's `model` against the
-  session's other traffic, and treat a verdict as void if the selected pair's
-  model differs from the model the bust was reported against. Written as a
-  caveat, not a rewrite: the tool fix is a separate entry, and the runbook must
-  stay correct in the window before it ships. Each caveat carries
-  `[GRADUATE -> bust-triage groups by conversation AND model]` per this repo's
-  runbook-as-staging-area rule, so it is removed by the commit that mechanizes
-  it rather than by someone deciding it reads fine.
-  Verifier: the caveat must name the 2026-08-10 instance with its two
-  timestamps, so a reader can reproduce the miss rather than take the warning
-  on trust; `grep -n "GRADUATE" docs/runbooks/*.md` shows both new markers.
-  Done-criterion: both files carry the caveat above their `bust-triage` step,
-  both markers present, suite green.
-  Write boundary: `docs/runbooks/sweep-finding.md`,
-  `docs/runbooks/bust-appears.md`.
-
-  **PREMISE CORRECTED 2026-08-10 by the retirement pass — the entry stands,
-  the cited fact does not.**
-  Half of the premise is gone. bust-appears.md already carries the designed
-  model-mismatch caveat (step 2 + GRADUATE marker). sweep-finding.md was
-  restructured and no longer opens on bust-triage — step 1 is now `Freeze
-  before you analyze`, and bust-triage enters only inside the KNOWN-OPEN
-  branch (~line 174) under a different caveat. `Both runbooks open on the
-  unreliable tool` no longer holds; re-scope to bust-appears alone or close.
-- **READY — one reader owns the schemas of everything this repo writes, and it
-  THROWS on an unknown field instead of returning `null`.** Supersedes the
-  narrower "normalize two field names" framing in the parked 213k entry's item
-  (d): the defect is not two spellings, it is that every consumer hand-parses.
-  Measured 2026-08-10: one bust walk ran ~8 ad-hoc `jq` probes over four
-  formats this repo writes, and two returned confidently wrong answers by
-  querying one schema with another's names — `usage.cacheRead` (capture
-  `outcome`) vs `cache_read_input_tokens` (`usage.jsonl`); `msgs` (prefix-diff
-  events) vs `messageCountPrev/Now` (prefix-diff last-state). Both reached the
-  operator as fact before being caught. A missing check is silent; a
-  hand-rolled read returns a NUMBER indistinguishable from a correct one.
-  Design (decided): `tools/logs.mjs`, one module, four format readers — capture
-  request records, capture `outcome` records, `usage.jsonl`, prefix-diff
-  events + last-state — each exposing normalized accessors over BOTH on-disk
-  spellings. The on-disk names do NOT change: `proxy/stream.mjs:21-22` and
-  `proxy/extensions/usage-log.mjs:187-188` are wire/schema writers with the
-  whole capture corpus behind them, and renaming either makes every archived
-  capture unreadable by the new reader — a bigger version of the bug being
-  fixed. Reader is strict: an unknown field name throws, naming the field and
-  the format, never returns `undefined`.
-  Companion scope lint, same shape as the existing xdg scope check
-  (`test/` already proves the form): a known schema's raw field names must not
-  appear outside `tools/logs.mjs` and the writers named above; a new call site
-  that hand-parses fails the bite.
-  Verifier, red-first, anchored to immutable references — the two real wrong
-  reads, replayed: asking a capture `outcome` record for
-  `cache_read_input_tokens`, and a prefix-diff EVENT row for
-  `messageCountPrev`, must THROW under the reader while both correct spellings
-  return the right numbers on the same records. Over-firing control: a record
-  legitimately missing an optional field returns its declared default and does
-  not throw, declared IN the test as data. Known positive from real data, not
-  planted: the 04:40:39Z outcome must read `cacheRead=15603`,
-  `cacheCreation=213429` through the reader.
-  Done-criterion: both throws demonstrated red before the reader exists (or, if
-  the module must exist first, one named accessor disabled at a time per the
-  module-load-red rule), controls green, scope lint green, full suite green.
-  Write boundary: `tools/logs.mjs`, `test/logs*.test.mjs`. No `proxy/` change,
-  so no pin bump and no restart. `bust-triage`'s adoption is a SEPARATE entry —
-  this one ships the reader and its lint only.
-
-- **READY (small) — the succession rule's computable slice: an entry that
-  ASSERTS a matrix row's status is a dependent nothing re-reads.** The rule
-  itself is judgment-shaped and stays prose (dev-loop, "A finding never lands
-  alone"), but one slice is a byte comparison: entries routinely say "row N is
-  OPEN" / "row N is mitigated" in their own words, and the row's status text
-  moves without them. The runbook already names the trap — "a row NAMED is not a
-  row READ" — and today's walk hit it from the other side, where row 4's text
-  carried the answer an entry had not absorbed.
-  Design (decided): extend `tools/backlog-lint.mjs` rather than add a file (the
-  extend-before-writing rule; it already owns entry-scoped parsing and the
-  `- **` to next `- **` boundary). New WARN class: an entry citing `row N`
-  within a sentence that also carries a status word (OPEN / RE-OPENED / CLOSED /
-  MITIGATED / OBSERVED / ACCEPTED) is checked against that row's actual status
-  cell in `docs/directives/robustness-threat-matrix.md`; a mismatch names the
-  entry, the asserted status, and the row's current one. Status vocabulary comes
-  from the matrix's own cells, read as data, never a hardcoded list — the
-  seven-value vocabulary is exactly what `bust-triage` already collapses wrongly.
-  Verifier, red-first against an immutable reference: `git show` an entry from
-  before row 4's 2026-07-31 RE-OPENED edit that asserts the row CLOSED, run the
-  lint over that pair, and it must name the entry. Over-firing controls, both
-  required green: an entry citing `row N` with no status claim must stay silent,
-  and an entry whose asserted status matches the current cell must stay silent.
-  Done-criterion: red demonstrated on the historical pair with the command and
-  its output pasted, both controls green, full suite green, lint wired WARN-only
-  into the daily sweep as the existing header class already is.
-  Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
 
 - **READY (small) — a comment claiming a `{ todo }` marker exists is checkable
   against the runner, and nothing checks it.** `c3481d1` fixed three such
@@ -2277,80 +2273,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   cross-message miss is a known shape or a new one. Unranked (booked after the
   derivation).
   <!-- entry: "~30% of join:cross-message pairs do NOT fire movedFresh" -->
-
-- **READY (small) — `rebilledBytes` still emits the understated number under
-  the intuitive NAME, while the corrected figure hides behind a longer one.**
-  Booked 2026-08-08 as the named residual of the fix above. The lane added
-  `rebilledBreakpointBytes` / `savedBreakpointBytes` alongside and left
-  `rebilledBytes` / `savedBytes` untouched — correct as a conservative change
-  that breaks no consumer, and it leaves the misleading half in the position a
-  reader reaches for first.
-  Measured on the worked example (s-captureAM, n=265->266): `rebilledBytes` =
-  **114,653**, `rebilledBreakpointBytes` = **884,858**, the latter
-  independently verified equal to the sum of all 291 messages in the raw
-  capture. That is a **7.7x** spread between two fields whose names differ by
-  one word — and note the parent entry's own headline said 2.6x, so the entry
-  under-stated its own defect and the fix's measurement corrected it.
-  **Why a naming change rather than leaving both:** every cost figure in this
-  repo is assembled by a reader choosing a field, and the field named
-  `rebilledBytes` is the one they will choose. Design, decided: rename the
-  divergence-based field to `rebilledSuffixBytes` — which is what it actually
-  measures, the suffix from the divergence — so neither name is the obvious
-  default and the reader has to say which they mean. Do NOT delete it: it is
-  the right number for "how much of the tail changed", a different question
-  from what the cache re-bills.
-  This is a value-set change others depend on, so it lands with its DEPENDENTS
-  SEARCH stated — command and hits — in the same commit: `rebilledBytes` and
-  `savedBytes` are read by `gate-live.mjs`, the status file's row schema, and
-  anything consuming `replay.mjs --json`. A rename that misses one of those
-  breaks silently, which is the class this repo's convention exists for.
-  Verifier: the search's own hits, all updated, plus the suite green.
-  <!-- entry: "rebilledBytes still emits the understated number under the intuitive NAME" -->
-
-- **READY — `capturePairResult`'s conversation identity is the busting
-  request's own `messages[0]`, so the pairing instrument goes BLIND exactly
-  when the class it would observe fires.** Found 2026-08-08 by the row-map
-  lane, which correctly refused to fix it and returned the question.
-  Sites, cited rather than described: `tools/bust-triage.mjs:749`
-  (`const cid = JSON.stringify(after.body.messages[0])`) fixes identity from
-  the busting request, and `:760`
-  (`if (JSON.stringify(r.body.messages[0]) !== cid) continue;`) tests every
-  candidate predecessor against it. **Threat-matrix row 29's mechanism IS the
-  rebuild of `messages[0]` at an idle boundary**, so for every row-29 event the
-  predecessor is unreachable by construction and the tool answers
-  `UNVERIFIABLE / no-pair-in-conversation`. Measured identically BEFORE and
-  AFTER that lane's change on `2026-08-08T11:46:36Z` and its companion
-  `11:46:13Z` — which is also what proved my own briefed verifier vacuous
-  (below).
-  **Three consequences, and the third decided the ranking.** (1) Every row-29
-  event reports as could-not-verify rather than as row 29, so the class is
-  silently UNDER-COUNTED in any survey reading this tool. (2) The outcome is
-  indistinguishable from a genuinely absent capture — the could-not-verify
-  REASON class this tool was already corrected for once. (3) `docs/dev-loop.md`
-  now carries a gate: no mitigation may be designed while attribution is
-  COULD-NOT-ATTRIBUTE. So row 29 cannot be mitigated at all until pairing
-  works — a tooling gap holding a whole matrix row hostage.
-  **Design NOT decided, and the fork is real, which is what keeps this from
-  being a one-liner.** `conversationOf`'s history-derived identity is CORRECT
-  for cache purposes — a rebuilt `messages[0]` genuinely IS a new conversation
-  to the API, which is why row 29 costs what it costs. What a bust WALK needs
-  is a different relation: the predecessor ACROSS an identity rotation. Those
-  are two concepts and conflating them is how this defect arrived. Whatever
-  ships must not re-derive identity inline (three confident wrong answers here
-  from hand-rolled identity) and must land in the shared primitive, not as a
-  local patch.
-  **Dependency the fix must carry:** `pairEditContext`
-  (`tools/bust-triage.mjs:1271`) deliberately reuses the SAME test to stay
-  consistent with `capturePairResult`'s notion of "same conversation". A fix at
-  749/760 updates that call site in the same change, or the two disagree about
-  which requests are one conversation — a silent split-brain inside one tool.
-  Verifier, red-first, available today: `--at 2026-08-08T11:46:36Z` must stop
-  returning `no-pair-in-conversation` and reach a row; `--at 2026-08-08T12:18:15Z`
-  (a stable-identity pair) must be UNCHANGED, which is the control that stops a
-  fix from simply pairing everything to anything.
-  Consumer tier **1 (event disposition)**. Unranked (booked after the
-  derivation); a Tier A head candidate at the next one.
-  <!-- entry: "capturePairResult's conversation identity is the busting request's own messages[0]" -->
 
 - **READY — `capturePairResult` may select a DIFFERENT pair than the one the
   census walk calls "the bust", and nothing says the two disagree.** Found
@@ -2514,45 +2436,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   cross-conversation probe read b.text where tool_result carries content; the
   corrected probe was proven live on a known positive first and the leak claim
   withdrawn). Same evidence bundle.
-
-- **READY — a TRANSCRIPT query instrument. It is the least-tooled data
-  source we own, measured, and it is where every cache investigation
-  actually lives.** Two enumerations run 2026-08-07:
-  an instrument inventory across the three repos (100 instruments) and
-  a probe census over readable session history since 2026-07-28
-  (1,258 ad-hoc analysis commands matching a closed five-pattern set).
-  Cross-read, `transcripts` is served by **exactly one** instrument, a
-  QUERY — no GATE, no REPORT, no DOCTOR — while **36 hand-written
-  probes** went at transcripts directly. By contrast `live_captures`
-  has 9 instruments across all four labels.
-  Both numbers are FLOORS, not estimates: the census found no session
-  data at all before 2026-07-28, `claude-worktime` has no readable
-  main transcript, and 15 of 39 session identities survive only as
-  orphaned subagent fragments. The true hand-probe count is higher.
-  The recurring shape is stable across the 36 and is what makes this
-  designable rather than vague: open `~/.claude/projects/**/<sid>.jsonl`,
-  walk it line by line, pull `message.usage` and
-  `message.diagnostics.cache_miss_reason` per entry, join to a
-  timestamp or an ordinal. Tonight's whole investigation was that
-  query, run four times by hand.
-  Design: extend `tools/cold-events.mjs` rather than add a file — it
-  already reads transcripts, already dedupes rows into API CALLS by
-  `requestId` (the property every hand probe got wrong or omitted),
-  and already carries the conversation-grouping discipline. Add a
-  `--rows` mode emitting one record per API call: timestamp, `sid`,
-  `requestId`, `messageId`, `cache_creation`, `cache_read`,
-  `input_tokens`, `ctx`, `cache_miss_reason.{type,cache_missed_input_tokens}`,
-  and `stop_reason` — as JSONL, filterable by time window. The
-  extend-don't-add rule applies with force here: a fresh file re-earns
-  the requestId dedupe from zero, and that is exactly the property
-  whose absence produced the 2026-08-07 false ❄.
-  Verifier, red-first: over the frozen transcript archive at
-  `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`, `--rows` reports the
-  01:00 session's two API calls (cc 39,711 / cc 335,933) as TWO rows
-  where the raw transcript carries more, and names the dropped
-  duplicate count; and it reproduces, in one command, the
-  `previous_message_not_found` diagnostics at 03:31:59Z and 03:32:01Z
-  that took a hand probe to find.
 
 - **READY (small) — the own-event-log timestamp correlator: a RULE
   stated in three places with no tool behind it.** `docs/dev-loop.md`
@@ -4715,58 +4598,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   a rank is a re-derivation's to assign.
   <!-- entry: "CacheFixConfigDirDivergenceWarning" -->
 
-- **READY — `bust-triage` emits an ATTRIBUTION verdict (OURS / CC's /
-  COULD-NOT-ATTRIBUTE), because today it emits none and the walk that decides
-  whether to build a mitigation is the walk that cannot say whose bytes
-  moved.** Booked 2026-08-08 on an operator question — "are we careful not to
-  attribute wrongly and create a mitigation for a bust we caused?" — answered
-  by reading the code rather than the doctrine, which is what turned a
-  reassuring answer into an entry.
-  **The primitive EXISTS and is correct; the bust walk does not use it.**
-  `replay.mjs` computes it twice, independently: `ours: inDiv === null || inDiv
-  > outDiv` (`:1537`) and the `ccIdenticalAtOutDiv` annotation printed per
-  stability violation (`:3897`). `grep -n 'ours\|attribut' tools/bust-triage.mjs`
-  returns **only prose comments** — zero attribution logic — against those two
-  live sites. Instrument-positive for that grep: the same pattern over
-  `replay.mjs` returns the two sites above, so the zero is a measured absence
-  and not a pattern that could never match.
-  **Three measured instances, all from one morning, one in each failure
-  direction:** the 141k answered `MITIGATED` by mapping the census class to the
-  ROW's status (an absorption claim where nothing absorbed — the dangerous
-  direction, since it says our mitigation worked); the 638k was attributed by
-  HAND-diffing raw against forwarded; the 540k returned `UNVERIFIABLE` and
-  stopped with no attribution, which is where a human guesses.
-  Design, decided: `bust-triage` prints an `ATTRIBUTION:` line beside its
-  verdict, with three answers and no default, the third carrying its COMPUTED
-  reason (never a guessed disjunction — that defect already cost this tool a
-  correction). It IMPORTS the primitive from `replay.mjs` rather than
-  re-deriving it: a second implementation of a divergence or identity test has
-  produced a confident wrong answer here three times, and this is the one place
-  a wrong answer sends us to fix the wrong system.
-  Verifier, red-first, both polarities available today and both anchored to
-  frozen evidence rather than to live captures: the 638k pair
-  (`2026-08-08T09:48:53Z`, hand-attributed to CC's `replace/edit` mid-history)
-  must come back **CC's**; and a pair whose forwarded bytes diverge earlier than
-  CC's — the stability-violation shape `replay.mjs` already annotates
-  `[CC bytes at outDiv IDENTICAL -> ours]` — must come back **OURS**. Old code
-  emits neither line, which is the red. Negative control so it cannot pass by
-  always answering: the 540k (`2026-08-08T11:46:36Z`), which genuinely cannot be
-  paired, must come back COULD-NOT-ATTRIBUTE with the pairing reason, NOT with a
-  guess in either direction.
-  The prose half SHIPPED with this entry's commit (`docs/dev-loop.md`, "No
-  mitigation is DESIGNED before the attribution verdict exists") — it is a gate,
-  not advice: while the answer is missing or COULD-NOT-ATTRIBUTE, no mitigation
-  for that bust may be designed, booked or briefed. This entry is the machinery
-  half; until it lands the gate is enforced by hand, which is exactly the
-  arrangement the closing gate's question 1 says does not survive a session
-  boundary.
-  Consumer tier **1 (event disposition)** — it is the definition of the tier: a
-  lie here mis-files the class and every mitigation designed afterwards is
-  designed against the wrong evidence. Unranked deliberately (booked after the
-  2026-08-08 afternoon derivation); on the next derivation it is a Tier A head
-  candidate.
-  <!-- entry: "bust-triage emits an ATTRIBUTION verdict" -->
-
 - **READY (small) — a POINTER entry's liveness lives in ANOTHER repo, so this
   file's DONE-anchor guard cannot see it, and a POINTER can hold a rank forever
   after its work has shipped.** Measured 2026-08-08 afternoon on myself:
@@ -4851,111 +4682,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   bypass temptation, not a wrong verdict. Unranked (booked after the
   derivation).
   <!-- entry: "a lane whose worktree is RECLAIMED lands in the shared main checkout" -->
-
-- **READY (small) — the required-reading gate guards `Write`/`Edit` and NOT a
-  script, so the session's first write can bypass it entirely.** Measured
-  2026-08-10 by walking into it: this session's phase-1 edit rewrote
-  `BACKLOG.md` from a `node` script run through `Bash`, moving 74 bullets, and
-  the PreToolUse gate that is supposed to deny the first write until
-  `docs/dev-loop.md` and `FORK-NOTES.md` have been Read never fired — it keys on
-  the Write/Edit tool names. No harm here (both files had been Read, which is
-  why this is a gate finding and not an incident), and that is exactly what makes
-  it worth booking: the guarded route was taken by accident, not by design.
-  This is the entry-path table in `docs/dev-loop.md` ("a mechanism that guards
-  one route is not a guard") with a fifth row, and the same shape as the
-  `npm test` vs `node --test` row already in it: the protected thing is reachable
-  by a second route, the second route is silent, and every instance reads as
-  working because the route someone happened to take was the guarded one.
-  Design, decided: the gate matches on the WRITE EFFECT, not the tool name — add
-  a Bash lane that fires when a command's argv would write a repo file (a
-  redirect, a `tee`, an interpreter invocation with a script that writes), or, if
-  that predicate is too loose to keep near-zero false fires, invert it: make the
-  reading obligation a precondition of the SESSION rather than of the first
-  Write, satisfied once and checked cheaply thereafter. The judgment-shaped
-  remainder stays prose with the operator as backstop — the corpus rule on
-  mechanisms earning their slot only where the trigger is computable.
-  Verifier, red-first and permanently runnable: in a scratch clone with the
-  reading unsatisfied, run `node -e 'require("fs").appendFileSync("BACKLOG.md","x")'`
-  through Bash — it must be DENIED, and the identical run after the two Reads must
-  be allowed. Both arms required; today only the second is observable, which is
-  the vacuous-green shape.
-  Consumer tier **2 (feeds the gates)** — it is a guard in front of a
-  correctness obligation. Unranked (booked after the derivation).
-
-- **READY — a derived VIEW of this backlog outlives its source within one
-  session, three times measured in one afternoon, and every consumer of it reads
-  the wrong bytes silently.** Measured 2026-08-10 during the retirement pass, by
-  the session that built the views: (1) a line-number index generated at
-  `8e58988` was read after a commit that inserted 34 lines, and six entries came
-  back as the WRONG entries — the tell was a bullet rendering as `PARKED` where a
-  `READY` was expected, i.e. it was caught by luck, not by a check; (2) after
-  eight entries left `## Open`, the ORDINALS shifted, so a lane's `n=61` and the
-  desk's `n=61` named different entries — resolved only by mapping through header
-  TEXT; (3) a disposition script captured bullet positions before later
-  insertions moved them and mangled the file, caught by a conservation check and
-  restored from HEAD.
-  All three are one class and it is already named in `docs/dev-loop.md` ("two
-  coordinate spaces that look like one", "paraphrases drift ... constructed at
-  read time as a partial or transformed view"). What the day adds is that the
-  view here is generated by the session itself, minutes before use, which is
-  precisely when it feels safest.
-  Design, decided: the index stops being a throwaway and becomes
-  `tools/backlog-index.mjs` — the third re-paste of the same twelve lines is the
-  graduation trigger this repo already writes down. It emits per READY entry a
-  STABLE identity that survives both insertion and removal (the header line's
-  content hash), alongside the volatile `n`/`startLine`/`endLine`, and it stamps
-  the file with the `git rev-parse HEAD:BACKLOG.md` blob it was built from. Any
-  consumer re-checks that blob before trusting a line number and re-derives on
-  mismatch. Dispatch briefs cite the stable id, never the ordinal — which is what
-  would have made lane C's `n=61` unambiguous.
-  Verifier, red-first over an immutable reference: build the index at `8e58988`,
-  then read entry ordinals 50 and 61 against HEAD `f3980db` — the ordinals must
-  resolve to DIFFERENT headers (the defect, reproducible forever), while the
-  content-hash ids must resolve to the same two entries in both. Done when a
-  stale index fails loudly instead of returning a plausible wrong entry.
-  Consumer tier **3 (backlog and process)** — it mis-files entries and is
-  recovered at the next derivation, but it corrupted three separate readings in
-  one session. Unranked (booked after the derivation).
-
-- **READY — closing an entry can invalidate a DIFFERENT open entry, and nothing
-  re-reads the neighbours when work ships.** Measured 2026-08-10 by the
-  retirement pass, twice, from real history: the state-key entry shipped
-  `KEY-FLIP`, which made a second entry's cited verdict count (`six`) wrong — the
-  real number is seven, and the second entry was not touched; and `/health`
-  gaining an `extensions[]` field from unrelated work dissolved half of the
-  gates-blindness entry's premise. Both survived as plausible, decision-complete
-  text until a lane probed them directly, which is the failure mode: the entry
-  reads perfectly and is quietly about a world that moved.
-  **Why the existing rules do not catch it.** The ranking rubric's signal 1
-  handles the opposite sign — items that must PRECEDE others or their motivating
-  case dissolves — which is about ordering, not about re-reading afterwards. The
-  succession rule in `docs/dev-loop.md` is scoped to new EVIDENCE killing a
-  premise; our own shipped implementation does not read as evidence arriving, it
-  reads as progress, so the trigger never fires on it. Neither is wrong; both
-  are aimed one step away.
-  **The firing moment is computable, which is what makes this mechanizable at
-  all:** an entry going to a closed grade WITH a commit ref is a discrete,
-  observable event, unlike the judgment-shaped conditions this file usually has
-  to leave as prose.
-  Design, decided — `tools/backlog-neighbours.mjs`, a REPORT and never a gate:
-  given a commit that closes an entry, list every still-open entry naming a file
-  that commit touched, and require a one-line disposition per candidate —
-  still-valid / premise-corrected / now-unnecessary. Report, because most hits
-  are ordinary co-tenancy (`docs/dev-loop.md` alone is named by sixteen entries)
-  and a guard that fires on non-defects trains the override reflex that kills it.
-  The join already exists: `filesNamed` per entry, which the census emits.
-  **Verifier, red-first over an immutable reference and a TRUE positive rather
-  than a planted one:** run it against `508a006` — the commit that retired the
-  state-key entry — and it must surface the verdict-count entry as a candidate.
-  That pairing is real history and reproduces forever. Control against
-  over-firing: it must NOT surface entries whose only overlap is a file the
-  closing commit did not touch.
-  Done when a closed entry cannot be committed without its neighbour
-  dispositions, and the two 2026-08-10 pairs both appear in a dry run over
-  history.
-  Consumer tier **3 (backlog and process)** — it mis-files entries and is
-  recovered at the next derivation, but it left two stale premises standing in
-  decision-complete text, which is where it does real damage.
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
