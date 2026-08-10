@@ -304,7 +304,13 @@ const FIXTURE_DIR = join(dirname(fileURLToPath(import.meta.url)), "fixtures", "h
 const corpusPath = (f) => `test/fixtures/harvested/${f}`;
 
 function committedFixtures() {
-  return readdirSync(FIXTURE_DIR)
+  // recursive: rowpins/ (and any future subdirectory under
+  // test/fixtures/harvested/) is a real path this repo writes into, not a
+  // hypothetical one — a non-recursive read makes every absence class below
+  // blind to whatever lives one level down. The reachability test above is
+  // the guard that the next subdirectory does not repeat this silently.
+  return readdirSync(FIXTURE_DIR, { recursive: true })
+    .map((f) => String(f).replace(/\\/g, "/"))
     .filter((f) => f.endsWith(".json") || f.endsWith(".jsonl"))
     .filter((f) => !isAllowlisted(corpusPath(f)))
     .sort()
@@ -348,6 +354,25 @@ function corpusScan() {
 // file, the JSON path and the length.
 const hitsOf = (findings, cls) =>
   findings.filter((f) => f.class === cls).map((f) => `${f.file} ${f.path} (${f.length} chars)`);
+
+// The reachability seam, so the NEXT subdirectory under
+// test/fixtures/harvested/ (not just rowpins/, which this closes) cannot go
+// invisible the same way. An INDEPENDENT recursive walk of the real
+// filesystem is the ground truth; committedFixtures()'s own file list must
+// reach every one of those files, or an absence class scoped to a file it
+// never sees is not a check, it is a claim. A set difference, no judgment —
+// found 2026-08-07 (the lane that created rowpins/, `e787960`) when the
+// corpus check stayed green over a subdirectory it never opened.
+test("absence: every fixture file under test/fixtures/harvested/** is reached by the corpus scan (no subdirectory hides from it)", () => {
+  const independent = readdirSync(FIXTURE_DIR, { recursive: true })
+    .map((f) => String(f).replace(/\\/g, "/"))
+    .filter((f) => f.endsWith(".json") || f.endsWith(".jsonl"))
+    .sort();
+  const reached = new Set(committedFixtures().map((f) => f.name));
+  const missing = independent.filter((f) => !reached.has(f));
+  assert.deepEqual(missing, [],
+    "a file the filesystem contains but the scan's own list omits is invisible to every absence class below");
+});
 
 test("absence: the committed corpus is non-empty and every fixture parses (the scan cannot pass vacuously)", () => {
   const { fixtures, scanned } = corpusScan();
