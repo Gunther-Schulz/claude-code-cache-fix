@@ -26,14 +26,28 @@ The 2026-08-08 list ranked entries whose premises nobody had re-checked; this
 one ranks entries that were.
 
 (ii) **The IRREVERSIBLE partition is EMPTY for the THIRD consecutive
-derivation, which the rubric itself says is a decision to surface rather than a
-result to record.** Probed, not inherited: no candidate presented itself — the
-capture-eviction and leak-gate hazards that populated it all week are shipped or
-not approaching, and no entry names a hazard whose failure mode is genuinely
-undoable AND whose trigger rate is measured. Per the partition's own text ("If a
-third pass finds it empty, the partition has stopped earning its place at the
-top and that is a rubric decision to put to the operator"), that question is now
-live and is NOT settled here.
+derivation, and it STAYS — settled here, not escalated.** Probed, not inherited:
+no candidate presented itself, and no entry names a hazard whose failure mode is
+genuinely undoable AND whose trigger rate is measured.
+**The escalation clause the 2026-08-08 pass wrote ("a third empty pass means the
+partition has stopped earning its place at the top — a rubric decision to put to
+the operator") is WITHDRAWN, and the way it survived is the more useful half.**
+It read as rule text and was cited as "the partition's own text" by the next
+derivation — this one — which never checked where it lived. It lives nowhere but
+that session's own ranking block: `docs/dev-loop.md`'s partition text says
+nothing about emptiness. A session's aside, inherited as authority, is the
+label-over-body drift the grounding rules name, and one grep settled it.
+**Why emptiness cannot grade this partition at all.** It guards a SILENT,
+irreversible failure — a capture id or an origin IP reaching public git history,
+whose remediation precedent in this repo's `CLAUDE.md` is destroying and
+recreating a host. The corpus rule is explicit: an entry guarding a silent
+failure is never ablated, because quiet weeks cannot grade it; only an entry
+whose absence is LOUD may be toggled on non-firing evidence. Three empty passes
+are therefore evidence about the world (those hazards are handled or not
+approaching), never evidence against the guard. The partition's cost while empty
+is one probe per derivation; the cost of not having it is unbounded and
+unrecoverable, and it is exactly the asymmetry that put it above the cost
+ordering in the first place.
 
 (iii) **The false-verdict partition holds 21 of 86 — a quarter of the list —
 so REACH does the ordering, exactly as the 2026-08-08 pass concluded.** The
@@ -59,11 +73,13 @@ re-derivation is not finished until the tool has run:
 
 ### Irreversible — evidence or history that cannot be undone
 
-**EMPTY for the third consecutive derivation, and this time that emptiness is
-itself the finding** — see input (ii). The admission test is unchanged for
-whatever enters next: the failure mode must be genuinely UNDOABLE — public git
-history, or evidence already being deleted — AND the trigger rate measured
-rather than imagined.
+**EMPTY for the third consecutive derivation, and it STAYS AT THE TOP** — see
+input (ii): this partition guards a silent, irreversible failure, and non-firing
+cannot grade such a guard. Do not re-open the question on a fourth empty pass;
+the answer does not change with the count, because the count is not the
+evidence. The admission test is unchanged for whatever enters next: the failure
+mode must be genuinely UNDOABLE — public git history, or evidence already being
+deleted — AND the trigger rate measured rather than imagined.
 
 ### Instruments that lied — Tier A: feeds EVENT DISPOSITION
 
