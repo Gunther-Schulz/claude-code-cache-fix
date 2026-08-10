@@ -73,11 +73,46 @@ const CORPUS = join(REPO, "test", "fixtures", "harvested");
  */
 const isRequest = (rec) => Array.isArray(rec?.body?.messages);
 
+// Which top-level names in CORPUS git actually TRACKS — a tracked-file
+// question answered by the tracking system, never by what happens to sit on
+// this machine's disk (BACKLOG "the fixture-verdict mutation population is
+// DIRECTORY-derived, so the suite covers a different corpus on every
+// machine"). Measured 2026-08-06: a 46 MB pin deliberately excluded via
+// `.git/info/exclude` (machine-local, never committed) was picked up anyway
+// because the old population came from readdirSync — "walked 4" here,
+// "walked 3" on any other checkout, CI included, with nothing saying so.
+// Top-level only, matching this file's existing (non-recursive) scope —
+// widening to recurse into subdirectories like rowpins/ is a different,
+// already-booked entry and out of scope here.
+function trackedTopLevelJsonNames() {
+  const out = execFileSync("git", ["-C", REPO, "ls-files", "--", "test/fixtures/harvested"], {
+    encoding: "utf-8",
+  });
+  const names = new Set();
+  for (const line of out.split("\n")) {
+    if (!line) continue;
+    const rel = line.slice("test/fixtures/harvested/".length);
+    if (!rel || rel.includes("/") || !rel.endsWith(".json")) continue; // top-level only
+    names.add(rel);
+  }
+  return names;
+}
+
 /** Fixtures this tool can replay at all — discovered, never named. */
 function replayableFixtures() {
+  const tracked = trackedTopLevelJsonNames();
+  const untracked = [];
   const out = [];
   for (const name of readdirSync(CORPUS).sort()) {
     if (!name.endsWith(".json")) continue;
+    if (!tracked.has(name)) {
+      // Present on disk, absent from git: a local experiment, an excluded
+      // pin, a stray copy. REPORTED (see the console line below), never
+      // silently walked — a local-only fixture would let one machine's
+      // suite prove something no other checkout, CI included, can prove.
+      untracked.push(name);
+      continue;
+    }
     let doc;
     try {
       doc = JSON.parse(readFileSync(join(CORPUS, name), "utf-8"));
@@ -88,6 +123,11 @@ function replayableFixtures() {
     if (typeof doc?.header?.range?.n !== "number") continue;
     if (!Array.isArray(doc?.records) || !doc.records.some(isRequest)) continue;
     out.push({ name, path: join(CORPUS, name), doc });
+  }
+  if (untracked.length) {
+    console.log(
+      `fixture-verdict-identity: ${tracked.size} tracked, ${untracked.length} untracked ignored: ${untracked.join(", ")}`,
+    );
   }
   return out;
 }
@@ -309,4 +349,40 @@ test("(4) REFLEXIVITY — a dump with no mitigation row at the pinned range end 
   const d = firstDivergence(withEndRow, dump);
   assert.ok(d, "a cut that lost the pinned pair's own row is still a divergence");
   assert.match(`${d.where}`, /894/, `the report names the lost row: ${JSON.stringify(d)}`);
+});
+
+// --- (5) the population is git-TRACKED, not directory-listed ---
+//
+// BACKLOG "the fixture-verdict mutation population is DIRECTORY-derived, so
+// the suite covers a different corpus on every machine". Plants a real,
+// replayable, UNTRACKED fixture directly into CORPUS (the property this
+// class needs is "present on disk, absent from git", which only the real
+// directory can carry — a scratch copy elsewhere would not exercise
+// `trackedTopLevelJsonNames()` at all) and re-invokes the same
+// `replayableFixtures()` the module-load population above already ran,
+// proving both that the plant is EXCLUDED from the walked count and that its
+// name is REPORTED rather than silently dropped.
+test("(5) an untracked fixture on disk is excluded from the walked population and named in the report", () => {
+  assert.ok(FIXTURES.length > 0, "control: the tracked population is non-empty before planting anything");
+  const plantName = "zzz-untracked-fixture-verdict-identity-bite.json";
+  const plantPath = join(CORPUS, plantName);
+  writeFileSync(plantPath, JSON.stringify(FIXTURES[0].doc));
+  try {
+    const lines = [];
+    const origLog = console.log;
+    console.log = (s) => lines.push(s);
+    let replayed;
+    try {
+      replayed = replayableFixtures();
+    } finally {
+      console.log = origLog;
+    }
+    assert.equal(replayed.length, FIXTURES.length,
+      "the untracked plant must not widen the walked population");
+    assert.ok(!replayed.some((f) => f.name === plantName), "the plant itself must not appear in the population");
+    assert.ok(lines.some((l) => l.includes("untracked ignored") && l.includes(plantName)),
+      `the report must name the ignored plant, not stay silent: ${JSON.stringify(lines)}`);
+  } finally {
+    rmSync(plantPath, { force: true });
+  }
 });
