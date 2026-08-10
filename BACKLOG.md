@@ -324,6 +324,32 @@ ENOSPC misattribution with its wrong first explanation left in.
   deliberately NOT part of the bar — they are retained so a later
   lineage-aware consumer can find them, and a contract defined over them would
   be filter-derived again.
+  **MECHANISM SETTLED 2026-08-10, at the desk, because the paragraph above is
+  not decision-complete at implementation grain and briefing it would have
+  handed that gap to the executing tier.** "Narrow the comparison to the
+  busting conversation" does not survive contact with `compareReplayVerdicts`:
+  it compares AGGREGATES parsed from a replay — total pairs, violation lines,
+  census class tallies — and `runCensus` reports a tally over the whole file,
+  not per conversation. Scoping it would mean teaching `replay.mjs` to emit a
+  per-conversation breakdown, which widens the write set to the file the
+  bounded pin only consumes.
+  The cheaper mechanism is a CONTENT check, and it is strictly stronger against
+  the defect that motivated this entry. From the RAW capture — independent of
+  `boundedKeep`, which is the whole point — compute
+  `S = { ordinals i <= m : conversationOf(record_i) === conversationOf(target) }`.
+  Then assert the pin holds a REAL (non-placeholder) record at every ordinal in
+  S. A retention filter that drops a member of the busting conversation now
+  fails on evidence the filter had no hand in producing, and the existing
+  verdict comparison stays as a second, weaker check rather than being torn
+  out.
+  What this establishes, stated exactly so it is not over-read: the busting
+  conversation is COMPLETE in the pin. The lineage-related records remain
+  outside the bar, deliberately — they are retained for a later lineage-aware
+  consumer, and a contract defined over them would be filter-derived again,
+  which is the defect this entry exists to remove.
+  Under the sabotage below, S is computed from the capture and does not move
+  while the pin loses a third of its records, so the check goes red — which is
+  the property the current one lacks.
   Verifier, red-first, and the arrangement is ALREADY RUN and recorded above:
   re-apply the same every-third-record sabotage and the check must go RED
   (target-conversation pairs differ), where today it returns `diffs: []`.
