@@ -1076,6 +1076,44 @@ const asCompact = (e) => (e.inHash ? e : compactEntry(e));
 // above), and a second tool restating the rule is how the two drift.
 export const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
 
+// LINEAGE: a second, DIFFERENT relation over the same compact-entry inHash
+// array, answering a different question than conversationOf. conversationOf
+// answers cache identity — will these two requests hit the same prefix — and
+// stays exactly as it is; it is not touched, loosened, or re-tuned here.
+// lineageOverlap/sameLineage answer "was this the same conversation before
+// Claude Code rebuilt its history": on capture s-captureAT ord 715 the
+// target's messages[0] matched NONE of its predecessors (conversationOf
+// pairs none of them), while those same predecessors shared 97.1 / 97.3 /
+// 97.7 / 98.1 / 98.5% of the target's messages by content, and an unrelated
+// 1-message co-tenant sidecar at ord 714 shared 0%. Neither relation
+// replaces the other; a consumer needing cache identity still uses
+// conversationOf, and no consumer re-derives either relation inline — three
+// confident wrong answers in this repo already came from hand-rolled
+// identity.
+//
+// Both take SETS of inHash, not arrays, on both sides — including the
+// denominator — because the wire can repeat byte-identical messages, and
+// counting a repeat twice would let a padded array inflate the ratio past 1.
+//
+// 0.5 sits far from both measured clusters (0% co-tenant, 97%+ true
+// predecessor) rather than being tuned to either edge; a future case
+// landing between them is a finding about the class, not a reason to tune
+// the number.
+export const LINEAGE_THRESHOLD = 0.5;
+
+export function lineageOverlap(a, b) {
+  const setA = new Set(a.inHash ?? []);
+  const setB = new Set(b.inHash ?? []);
+  if (setA.size === 0 || setB.size === 0) return 0;
+  let shared = 0;
+  for (const h of setA) if (setB.has(h)) shared++;
+  return shared / Math.min(setA.size, setB.size);
+}
+
+export function sameLineage(a, b, threshold = LINEAGE_THRESHOLD) {
+  return lineageOverlap(a, b) >= threshold;
+}
+
 // The threat-matrix coverage note ("hidden duplicate request", CC#78420,
 // v2.1.209+) was answered 2026-07-29 by a throwaway python scan over raw
 // capture bytes ("adjacent byte-identical bodies: one instance total ...
