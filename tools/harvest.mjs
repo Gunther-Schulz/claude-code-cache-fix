@@ -5,6 +5,12 @@
 // Usage:
 //   node tools/harvest.mjs [--captures DIR] [--out DIR] [--ledger FILE]
 //                          [--dry-run] [--json]
+//   node tools/harvest.mjs --captures DIR --pin <key> <n>..<m> [--bounded]
+//     --bounded keeps only the busting request's own conversation and its
+//     sameLineage union, dropping the rest as ordinal-preserving
+//     placeholders — for a late event in a large capture, where the
+//     unbounded default's full 0..m prefix would freeze hundreds of MB.
+//     See the "--pin --bounded" section below.
 //
 // The problem it solves. Live captures are the only source of real CC
 // behaviour, and they are transient: measured 2026-07-28, one day of use
@@ -96,7 +102,7 @@ import { createHash } from "node:crypto";
 import { hostname } from "node:os";
 import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
-import { censusPair } from "./replay.mjs";
+import { censusPair, compactEntry, conversationOf, sameLineage } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -569,6 +575,7 @@ function parseArgs(argv) {
     json: false,
     pinKey: null,
     pinRange: null,
+    bounded: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -580,6 +587,8 @@ function parseArgs(argv) {
     else if (a === "--pin") {
       args.pinKey = argv[++i];
       args.pinRange = argv[++i];
+    } else if (a === "--bounded") {
+      args.bounded = true;
     } else {
       process.stderr.write(`unexpected argument: ${a}\n`);
       process.exit(2);
@@ -677,6 +686,172 @@ export async function pinRange(capturePath, m) {
   return records;
 }
 
+// --- --pin --bounded: freeze only the busting conversation's own state ---
+//
+// BACKLOG.md "READY (small) — harvest --pin cannot freeze a LATE event in a
+// LARGE capture, which is exactly when the expensive busts happen": pinRange
+// above is correct and does not scale — measured 2026-08-10, a late event at
+// n=1048/1049 in a 592 MB / 2065-record capture would have frozen roughly
+// 300 MB into public git history, an order of magnitude past the largest
+// existing tracked pin.
+//
+// pinRange's full 0..m prefix exists to keep insertion-normalization's
+// PER-CONVERSATION canonical state in sync (see pinRange's own header
+// comment above) — but that state is keyed per conversation
+// (conversationOf, the same identity replay.mjs's grouping uses), so a
+// record belonging to a DIFFERENT conversation contributes nothing to the
+// busting conversation's own trajectory and is safe to drop. The bound is
+// therefore per-conversation, unioned with everything `sameLineage` relates
+// to the busting request — the case where CC has rebuilt the conversation's
+// own history, so the busting request's `conversationOf` (its own
+// messages[0] hash) has no predecessor in the capture at all even though
+// its later messages are 97%+ identical to an earlier, differently-keyed
+// request. Both `conversationOf` and `sameLineage` are replay.mjs's own
+// primitives (compactEntry's inHash), imported rather than restated — a
+// second implementation of an identity or divergence test is the
+// confident-wrong-answer shape dev-loop.md already names three times over.
+//
+// Two passes, neither buffering the whole file. Pass 1 (below,
+// locateBoundedTarget) streams the capture once to find the target record
+// at ordinal m and build just enough of a compact entry — fed only
+// `inMsgs`, since conversationOf/sameLineage read nothing else — to answer
+// identity questions about it. Pass 2 (pinRangeBounded) streams the capture
+// AGAIN: boot and outcome records always travel (no message bodies, so
+// nothing to filter and they are what makes gate resolution and fidelity
+// data still work); a request record is scrubbed and kept when its own
+// conversationOf matches the target's OR sameLineage relates it to the
+// target, and REPLACED — never simply dropped — otherwise.
+//
+// Replacement rather than omission is deliberate: dropping a record would
+// shift every ordinal after it, and the pin's own self-verification
+// (verifyPin, below) reads violation lines by ordinal ("prevN->n") against
+// the SAME range of the raw source capture — an ordinal that no longer
+// lines up desyncs that comparison silently. boundedPlaceholder below is
+// the stand-in.
+
+// A dropped request's stand-in: occupies its ordinal without carrying any
+// real conversation content. Exactly one user message whose text embeds the
+// ordinal makes `messages[0]` UNIQUE per placeholder, so `conversationOf`
+// makes every placeholder its own singleton conversation — replay's
+// per-conversation grouping can never pair it with anything, real or
+// synthetic, which is what keeps it contributing zero pairs, zero stability
+// violations and zero census classes. `sid`/`key` deliberately do NOT go
+// through `sidToken` (which produces an indistinguishable `s-<hash>` token
+// identical in shape to real traffic) — "bounded-placeholder-<ordinal>" is
+// unmistakable as synthetic on sight, which is the header note's own
+// promise (see runPin's `boundedNote` below) made good at the record level.
+function boundedPlaceholder(ordinal, ts) {
+  return {
+    ts: ts ?? null,
+    sid: `bounded-placeholder-${ordinal}`,
+    key: `bounded-placeholder-${ordinal}`,
+    headers: { "anthropic-beta": null },
+    body: {
+      model: null,
+      system: null,
+      tools: undefined,
+      messages: [
+        {
+          role: "user",
+          content:
+            `BOUNDED PIN PLACEHOLDER: the record at ordinal ${ordinal} was outside the ` +
+            "busting request's own conversation and its sameLineage union, and was " +
+            "dropped. This is synthetic content, not captured traffic — see this " +
+            "fixture's header.boundedNote.",
+        },
+      ],
+    },
+  };
+}
+
+// Pass 1: stream the capture once to find the request record at ordinal m
+// and build its compact identity (inMsgs only — the fields compactEntry
+// needs for conversationOf/sameLineage; everything else it accepts default
+// gracefully, since neither primitive reads them). Never buffers records
+// before m.
+async function locateBoundedTarget(capturePath, m) {
+  let count = 0;
+  for await (const line of readLines(capturePath)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot" || rec.type === "outcome") continue;
+    if (count++ === m) {
+      const inMsgs = Array.isArray(rec.body?.messages) ? rec.body.messages : [];
+      return compactEntry({ inMsgs });
+    }
+  }
+  throw new Error(`capture ${capturePath} has only ${count} request record(s), cannot pin through m=${m}`);
+}
+
+// The retention decision itself, factored out so pinRangeBounded and
+// writeCapturePrefixBounded (verifyPin's bounded-aware live side, below)
+// share ONE rule rather than two hand-rolled copies that could drift apart
+// — the confident-wrong-answer shape dev-loop.md names repeatedly.
+function boundedKeep(rec, target, targetCid) {
+  const inMsgs = Array.isArray(rec.body?.messages) ? rec.body.messages : [];
+  const entry = compactEntry({ inMsgs });
+  const cid = conversationOf(entry);
+  return (cid !== null && cid === targetCid) || sameLineage(entry, target);
+}
+
+// Pass 2: stream the capture again, scrubbing and keeping boot/outcome
+// records and every request whose conversation or lineage relates it to the
+// target, replacing every other request with a placeholder that occupies
+// its ordinal. Identity is computed on the RAW (unscrubbed) record — cheaper
+// than scrubbing every candidate just to test identity, and equivalent: the
+// scrub's own text tokenization is a deterministic function of content
+// (scrubRecord's header comment, "PRESERVED: equality of equal texts"), so
+// the SET-based relations conversationOf/sameLineage read are identical
+// whichever side of the scrub they are computed on.
+export async function pinRangeBounded(capturePath, m) {
+  const target = await locateBoundedTarget(capturePath, m);
+  const targetCid = conversationOf(target);
+
+  const records = [];
+  let count = 0;
+  let reached = false;
+  let kept = 0;
+  let placeholders = 0;
+  for await (const line of readLines(capturePath)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot") {
+      records.push(scrubBootRecord(rec));
+      continue;
+    }
+    if (rec.type === "outcome") {
+      records.push(scrubOutcomeRecord(rec));
+      continue;
+    }
+    const idx = count++;
+    if (boundedKeep(rec, target, targetCid)) {
+      records.push(scrubRecord(rec));
+      kept++;
+    } else {
+      records.push(boundedPlaceholder(idx, rec.ts));
+      placeholders++;
+    }
+    if (idx === m) {
+      reached = true;
+      break;
+    }
+  }
+  if (!reached) {
+    throw new Error(`capture ${capturePath} has only ${count} request record(s), cannot pin through m=${m}`);
+  }
+  return { records, kept, placeholders };
+}
+
 // --- pin self-verification: a pin is a claim until it is replayed ---
 //
 // docs/dev-loop.md, "The scrub destroys CONTENT PREDICATES — a pin is
@@ -734,6 +909,57 @@ export async function writeCapturePrefix(capturePath, m, outPath) {
     ws.write(line + "\n");
     if (rec.type === "boot" || rec.type === "outcome") continue;
     if (count++ === m) {
+      reached = true;
+      break;
+    }
+  }
+  await new Promise((resolve) => ws.end(resolve));
+  return { requests: count, reached };
+}
+
+// The live side of a BOUNDED pin's self-verification. Comparing a bounded
+// pin against the unfiltered writeCapturePrefix above answers the wrong
+// question: the bound deliberately drops every request outside the busting
+// conversation and its lineage union, so on an interleaved multi-tenant
+// capture the RAW full prefix's census counts pairs the pin was never
+// claiming to hold — that is the bound working as designed, not a
+// reproduction failure, and comparing against it makes every bounded pin
+// read as a divergence regardless of scrub fidelity.
+//
+// So this applies the SAME retention rule (boundedKeep, the one
+// pinRangeBounded uses) to the RAW capture — same kept/placeholder shape,
+// same ordinals, RAW bytes instead of scrubbed ones — which isolates the
+// question unbounded verifyPin already asks (did the scrub preserve
+// fidelity for what was retained) from the bound's own, deliberate
+// narrowing. A record placeholder here uses the same synthetic
+// boundedPlaceholder as the pin side; there is nothing to leak, since it
+// carries no captured bytes on either side.
+export async function writeCapturePrefixBounded(capturePath, m, outPath) {
+  const target = await locateBoundedTarget(capturePath, m);
+  const targetCid = conversationOf(target);
+
+  const ws = createWriteStream(outPath, { flags: "w" });
+  let count = 0;
+  let reached = false;
+  for await (const line of readLines(capturePath)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot" || rec.type === "outcome") {
+      ws.write(line + "\n");
+      continue;
+    }
+    const idx = count++;
+    if (boundedKeep(rec, target, targetCid)) {
+      ws.write(line + "\n");
+    } else {
+      ws.write(JSON.stringify(boundedPlaceholder(idx, rec.ts)) + "\n");
+    }
+    if (idx === m) {
       reached = true;
       break;
     }
@@ -863,14 +1089,25 @@ function runReplay(jsonlPath) {
  * Replay the written pin and the same prefix of its source capture, and
  * report what the pin fails to reproduce. Returns the clause list plus the
  * numbers a reader needs to see that something WAS compared.
+ *
+ * The pin's own header says whether it is bounded (`header.bounded`) — read
+ * before choosing the live-side builder, never re-derived from the record
+ * shape, so the two stay in lockstep with whatever wrote the pin. Bounded
+ * pins compare against writeCapturePrefixBounded's SAME-filter live side
+ * (see its header comment); unbounded pins keep the plain full-prefix
+ * comparison, unchanged.
  */
 export async function verifyPin(capturePath, pinPath, m) {
   const scratch = await tmpDir("cache-fix-pin-verify-");
   try {
     const liveJsonl = join(scratch, "live.jsonl");
     const pinJsonl = join(scratch, "pin.jsonl");
-    await writeCapturePrefix(capturePath, m, liveJsonl);
-    const { records } = JSON.parse(await readFile(pinPath, "utf-8"));
+    const { header, records } = JSON.parse(await readFile(pinPath, "utf-8"));
+    if (header?.bounded) {
+      await writeCapturePrefixBounded(capturePath, m, liveJsonl);
+    } else {
+      await writeCapturePrefix(capturePath, m, liveJsonl);
+    }
     await writeFile(pinJsonl, records.map((r) => JSON.stringify(r)).join("\n") + "\n");
     const live = runReplay(liveJsonl);
     const pin = runReplay(pinJsonl);
@@ -901,9 +1138,15 @@ async function runPin(args) {
     process.exit(2);
   }
 
-  let records;
+  let records, boundedInfo = null;
   try {
-    records = await pinRange(capturePath, m);
+    if (args.bounded) {
+      const res = await pinRangeBounded(capturePath, m);
+      records = res.records;
+      boundedInfo = { kept: res.kept, placeholders: res.placeholders };
+    } else {
+      records = await pinRange(capturePath, m);
+    }
   } catch (err) {
     process.stderr.write(`${err.message}\n`);
     process.exit(1);
@@ -919,7 +1162,13 @@ async function runPin(args) {
         "tests replay every request from index 0 in order because " +
         "insertion-normalization's per-conversation canonical state is " +
         "stateful (see tools/harvest.mjs runPin's header comment). n..m " +
-        "names the pair under test, not a truncation point.",
+        "names the pair under test, not a truncation point." +
+        (boundedInfo
+          ? " BOUNDED: records outside the busting request's own conversation " +
+            "and its sameLineage union were replaced by placeholders (see " +
+            "boundedNote below) — the FULL PREFIX claim above is true of the " +
+            "unbounded mode only."
+          : ""),
       harvestedAt: new Date().toISOString(),
       sanitizer:
         "tools/harvest.mjs scrubRecord + rebaseTimestamps. TOKENIZED: every " +
@@ -937,6 +1186,24 @@ async function runPin(args) {
         "accepted: token lengths, paragraph counts, intra-fixture timing " +
         "deltas. Verified, not asserted: test/harvest-scrub-relations.test.mjs " +
         "walks this file and re-checks each absence class mechanically.",
+      ...(boundedInfo
+        ? {
+            bounded: true,
+            boundedTarget: m,
+            boundedKept: boundedInfo.kept,
+            boundedPlaceholders: boundedInfo.placeholders,
+            boundedNote:
+              "Records outside the busting request's own conversation " +
+              "(conversationOf) and its sameLineage union (LINEAGE_THRESHOLD " +
+              "= 0.5, tools/replay.mjs) were replaced with synthetic " +
+              "placeholder request records that occupy the same ordinal: " +
+              "sid/key start with 'bounded-placeholder-<ordinal>' (never the " +
+              "s-<hash> shape real traffic carries) and body.messages holds " +
+              "exactly one user message whose text names the dropped ordinal " +
+              "and states plainly that it is not real traffic. A placeholder " +
+              "is its own singleton conversation and pairs with nothing.",
+          }
+        : {}),
     },
     records,
   });
@@ -951,8 +1218,11 @@ async function runPin(args) {
     await mkdir(args.out, { recursive: true });
     await writeFile(outPath, JSON.stringify(fixture, null, 2) + "\n");
   }
+  const boundedSuffix = boundedInfo
+    ? ` — bounded: ${boundedInfo.kept} kept, ${boundedInfo.placeholders} placeholder(s)`
+    : "";
   process.stdout.write(
-    `pinned ${records.length} record(s), range ${n}..${m} (full prefix from 0), to ${outPath}` +
+    `pinned ${records.length} record(s), range ${n}..${m} (full prefix from 0)${boundedSuffix}, to ${outPath}` +
       `${args.dryRun ? " (dry run)" : ""}\n`,
   );
 
