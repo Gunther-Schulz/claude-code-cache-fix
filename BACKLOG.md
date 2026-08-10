@@ -3521,6 +3521,29 @@ ENOSPC misattribution with its wrong first explanation left in.
   format change touches neither state KEYS nor freeze logic, so the restart is
   cache-transparent.
 
+- **READY (small) — 22 orphaned `worktree-agent-*` branches survive their
+  worktrees, and nothing prunes them.** Measured 2026-08-10 while cleaning up
+  after two integrated lanes: `git worktree remove` deletes the checkout and
+  leaves the BRANCH, so every dispatch that ever got a worktree has left a ref
+  behind. `git branch` currently lists 22 of them plus 3 `wt/*` and 4
+  `backup/*-pre-rewrite`.
+  Why it is worth a line rather than a one-off deletion: it grows monotonically
+  with dispatch volume, it makes `git branch` unreadable exactly when someone is
+  looking for a real branch under pressure, and — the load-bearing reason — a
+  stale lane branch can carry content that was deliberately removed from
+  `main`. That is not hypothetical here: this same session rewrote a commit
+  message carrying a real session UUID, and the two rewrite-safety branches held
+  the pre-scrub commit until they were explicitly deleted. A leak retracted from
+  `main` and left alive on an orphan branch is retracted from nothing.
+  Design, decided: a prune step that deletes a `worktree-agent-*` branch whose
+  worktree is gone AND whose tip is an ancestor of `main` (i.e. integrated), and
+  REPORTS rather than deletes any whose tip is not — an unintegrated lane branch
+  is unfinished work, not litter, and the two must never be confused.
+  Verifier, both directions: over the current 22, every deleted branch's tip is
+  reachable from `main` afterwards, and a synthetic lane branch with an
+  unmerged commit survives the prune and is named in its report.
+  Consumer tier **3 (backlog and process)**.
+
 - **READY (small) — `lintRowStatus` fires on prose that DESCRIBES a status
   assertion, and it caught its own closure entry within the hour.** Instrument-
   positive, unplanted, 2026-08-10: the entry closing the row-status check
