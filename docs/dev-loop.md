@@ -2120,6 +2120,51 @@ paid for on 2026-07-30 (587k event: journal said index 867, raw said
   the record's problem until the instrument is shown wrong — it is not
   reconciled by adjusting the instrument.
 
+## A field can be a default, not a measurement
+
+Same failure one level down from "a checker has three answers, not two"
+(above): that rule governs CHECKERS, this one governs the FIELDS they
+read. A field's value is a measurement only where the writer wrote one —
+the zero of an unwritten field and the zero of a measured absence are the
+same bytes, and only the writer's own definition distinguishes them. Five
+instances in one session, each read according to the field's NAME before
+its definition was read, each producing a confident wrong statement:
+
+- `mtok` — read as "no prefix matched"; it is the missed portion AS READ
+  from the transcript diagnostic and defaults to 0 when that read never
+  happened. Disproof was in the ledger: one event booked three times reads
+  `mtok` 0, 0, 182,728.
+- `pinned` — read as the size of the pin store, so a 9->4 transition
+  looked like state loss; it is a per-request count of pins APPLIED
+  (`insertion-normalization.mjs`, `pinned: applied`), which alternates
+  with CC's own oscillation and means nothing about retention.
+- `rebilledBytes` — read as the cost; it prices from the divergence index
+  while the wire prices from the last written breakpoint.
+- `readCapture`'s index — read as the request ordinal; it counts every
+  non-blank LINE.
+- `cause: other` — the one case already documented (FORK-NOTES) as a
+  degraded default; what makes the class visible is that the same shape
+  was undocumented on every sibling field above.
+
+**The harder half: a BOOLEAN encoded by key PRESENCE is unreadable from a
+single record, because it shows no value at all.** `prefix-diff` writes
+`record.crossTenant = true` and OMITS the field entirely when false
+(`prefix-diff.mjs:1095`). Reading the raw event log, a session saw two
+very different `msgs` shapes sitting under one key with no marker on
+either, concluded the tool was pooling two conversations into one
+baseline, and told the operator so — who correctly asked for it to be
+booked rather than accepted on the spot. It was wrong: 475 persisted
+records DO carry `crossTenant`, and the ones without it are correctly
+unmarked. An absent boolean and an unemitted boolean are the same bytes,
+exactly as an unwritten 0 and a measured 0 are — the reader must
+establish that the writer emits the field AT ALL before reading its
+absence as `false`. `grep -c '"crossTenant"' <file>` against the total
+record count is the one-command check, and it is what settled this
+instance.
+
+Rule, before trusting any field's zero, `false`, or absence: read the
+writer's own definition of when it writes — never the field's name.
+
 ## Rule out ourselves — attribution starts at our own event logs
 
 The pipeline is not only an instrument; it is a live ACTOR that mutates
