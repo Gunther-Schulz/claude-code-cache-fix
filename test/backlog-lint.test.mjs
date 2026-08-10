@@ -241,12 +241,32 @@ test("CLI: the historical blocker-4 duplicate (line 1318) is a documented non-ma
   assert.deepEqual(lintText(dup.body), [], "same-entry rule correctly does not fire on it");
 });
 
-test("CLI: zero false fires on the current BACKLOG.md", () => {
-  const { code, out } = runTool([join(REPO, "BACKLOG.md")]);
+// FROZEN, not live: per BACKLOG.md, "a test asserting 'zero false fires on
+// the real CURRENT BACKLOG.md' is anchored to live, mutating state, and
+// decays into a false alarm by construction" -- found 2026-08-10 when this
+// exact test went red at a push boundary on ordinary prose written that
+// same hour. The zero-false-fire property is still worth pinning (it is
+// the over-firing control every lane in this file needs); the defect was
+// the ANCHOR, not the assertion. `ZERO_FALSE_FIRE_REF` is this session's
+// own base commit -- immutable, always reachable from this worktree.
+const ZERO_FALSE_FIRE_REF = "3bc6a72";
+
+test("CLI: zero false fires -- FROZEN at 3bc6a72 (suite-blocking; never the live file)", () => {
+  const frozen = gitShow(ZERO_FALSE_FIRE_REF, "BACKLOG.md");
+  const { code, out } = runTool(["-"], frozen);
   assert.equal(code, 0);
   const warnLines = out.split("\n").filter((l) => l.startsWith("WARN backlog-header"));
-  assert.deepEqual(warnLines, [], "current file must be clean");
+  assert.deepEqual(warnLines, [], "the frozen reference must be clean");
   assert.match(out, /backlog-lint: clean/);
+});
+
+// REPORT only -- never fails the suite. This is the "human" consumer the
+// requesting entry asks for: a live read for whoever is watching, with no
+// assertion that could go red on ordinary same-session prose.
+test("REPORT (never fails the suite): header lane over the LIVE current BACKLOG.md", () => {
+  const { out } = runTool([join(REPO, "BACKLOG.md")]);
+  const warnLines = out.split("\n").filter((l) => l.startsWith("WARN backlog-header"));
+  console.log(`live BACKLOG.md header-lane WARN count: ${warnLines.length}`);
 });
 
 test("CLI: defaults to the repo's own BACKLOG.md with no argument", () => {
@@ -1178,14 +1198,27 @@ test("row-status lane: GREEN — the fixed lane is silent on the same real entry
   assert.equal(hit, undefined, "the quoted row-26 title citation must not read as a live claim");
 });
 
-test("row-status lane: zero false fires on the real current BACKLOG.md", () => {
+// FROZEN, not live -- same rule and same ZERO_FALSE_FIRE_REF as the header
+// lane's sibling test above. The matrix itself is not pinned: `matrixRow`
+// reads whatever is at `MATRIX_PATH` today, which is correct here (a
+// row-status CLAIM inside the frozen backlog text is judged against the
+// matrix's CURRENT understanding, not a stale one) -- only the BACKLOG.md
+// side of the comparison needs freezing, since that is the side whose
+// ordinary prose growth caused the original false alarm.
+test("row-status lane: zero false fires -- FROZEN at 3bc6a72", () => {
+  const frozen = gitShow(ZERO_FALSE_FIRE_REF, "BACKLOG.md");
+  const findings = lintRowStatus(frozen, MATRIX_PATH);
+  assert.deepEqual(findings, [], `expected none, got:\n${findings.map((f) => `line=${f.line} row=${f.row}`).join("\n")}`);
+});
+
+// REPORT only -- never fails the suite.
+test("REPORT (never fails the suite): row-status lane over the LIVE current BACKLOG.md", () => {
   const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
   const findings = lintRowStatus(current, ROW_STATUS_FILE);
   console.log(
     "row-status findings on current BACKLOG.md:\n" +
       findings.map((f) => `line=${f.line} row=${f.row} label=${f.label} asserted=${f.asserted} actual=${f.actual ?? f.reason}`).join("\n"),
   );
-  assert.deepEqual(findings, []);
 });
 
 // --- Section 6: the premise-true-but-work-remaining lane --------------------
