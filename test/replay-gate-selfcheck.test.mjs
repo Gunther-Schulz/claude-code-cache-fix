@@ -280,6 +280,51 @@ test("stability: BITE — the identical divergence WITHOUT telemetry stays a vio
   assert.equal(x.length, 0);
 });
 
+// A third shape guard, BACKLOG "the stability exemption for a
+// first-appearance relocation must assert what it does NOT currently
+// cover": the SAME telemetry-backed first-appearance relocation, but the
+// forwarded tools[] also changed across the pair — the 216,060-token real
+// event this condition exists for, where the relocation itself was free
+// twelve times and cost everything the thirteenth, because that one also
+// flipped tools[]. Condition 3 (firstAppearance) is satisfied; the added
+// condition 4 (prefixAboveMessages.ourToolsIdentical) is not, so this must
+// stay a violation and the violation record must carry the tools flip.
+test("stability: BITE — a first-appearance relocation whose tools[] ALSO flipped stays a violation", () => {
+  const a = [user("u0"), asst("a1")];
+  const bIn = [user("u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const bOut = [user("RELOCATED-SKILLS-PREPENDED-u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const pair = [
+    entry(0, a, a, { outTools: [{ name: "x" }] }),
+    entry(1, bIn, bOut, {
+      freshSessionSortStats: { relocated: [{ type: "skills", firstAppearance: true }], targetIndex: 0 },
+      outTools: [{ name: "y" }],
+    }),
+  ];
+  const v = findStabilityViolations(pair);
+  assert.equal(v.length, 1, "a first-appearance relocation must not be exempted when tools[] also flipped");
+  assert.equal(v[0].prefixAboveMessages.ourToolsIdentical, false,
+    "the violation record names the tools flip, per prefixAboveMessages");
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
+// The control for the bite above: the identical telemetry with tools[]
+// held identical across the pair must still exempt — condition 4 denies
+// only the tools-flip case, never a genuinely free relocation.
+test("stability: control — the same relocation with tools[] IDENTICAL still exempts", () => {
+  const a = [user("u0"), asst("a1")];
+  const bIn = [user("u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const bOut = [user("RELOCATED-SKILLS-PREPENDED-u0"), asst("CC-ADDED-SCATTERED-SKILLS-BLOCK")];
+  const pair = [
+    entry(0, a, a, { outTools: [{ name: "x" }] }),
+    entry(1, bIn, bOut, {
+      freshSessionSortStats: { relocated: [{ type: "skills", firstAppearance: true }], targetIndex: 0 },
+      outTools: [{ name: "x" }],
+    }),
+  ];
+  assert.equal(findStabilityViolations(pair).length, 0);
+  assert.equal(findStabilityExemptions(pair).length, 1);
+});
+
 // A second shape guard: telemetry present but reporting a RECURRING type
 // (firstAppearance: false) — the extension itself distinguishes this from
 // the deliberate one-time bust, and the checker must respect that.

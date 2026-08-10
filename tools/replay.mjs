@@ -218,18 +218,32 @@ function adjustedInHash(e) {
 //   1. the CURRENT entry (the one whose output changed) carries the
 //      telemetry at all, and
 //   2. its targetIndex equals the violation's outDiv (the change landed
-//      exactly where the extension says it relocated to), and
-//   3. at least one relocated block is reported as a first appearance.
+//      exactly where the extension says it relocated to),
+//   3. at least one relocated block is reported as a first appearance, and
+//   4. the forwarded tools[] held byte-identical across the pair
+//      (prefix.ourToolsIdentical) — condition 3 alone is a true statement
+//      about the deliberate messages[0] cost and says nothing about the
+//      prefix level ABOVE messages, where a first-appearance relocation can
+//      ALSO land (BACKLOG "the stability exemption for a first-appearance
+//      relocation must assert what it does NOT currently cover" — the
+//      216,060-token event this condition exists for: twelve free
+//      relocations held tools[] intact, the costly one did not, and nothing
+//      before this checked the difference). Consult prefixAboveMessages
+//      (row 25) rather than re-derive a tools comparison here.
 // Never re-derived from outDiv/shape alone — mirrors suppressedIndices'
 // "never a re-derived guess" discipline. A relocation reported WITHOUT
-// telemetry (a stale build) or reported as a RECURRING (non-first-
-// appearance) relocation both stay violations — the second guards against
-// exempting a genuine repeat/thrash at the same index.
-function freshSessionSortExemption(cur, outDiv) {
+// telemetry (a stale build), reported as a RECURRING (non-first-appearance)
+// relocation, or landing alongside a tools[] flip all stay violations — a
+// violation record already carries prefixAboveMessages, so denying the
+// exemption on condition 4 leaves both facts (the relocation candidate via
+// exemptBasis-shaped data below, and the tools flip via the record itself)
+// visible to a reader rather than silently folded into an unexplained red.
+function freshSessionSortExemption(cur, outDiv, prefix) {
   const stats = cur.freshSessionSortStats;
   if (!stats || stats.targetIndex !== outDiv) return null;
   const hit = (stats.relocated ?? []).find((r) => r.firstAppearance);
   if (!hit) return null;
+  if (!prefix || prefix.ourToolsIdentical !== true) return null;
   return { type: hit.type, targetIndex: stats.targetIndex };
 }
 
@@ -419,7 +433,7 @@ function scanGroup(entries) {
         // expensive item open).
         prefixAboveMessages: prefixAboveMessages(prev, cur),
       };
-      const relocation = freshSessionSortExemption(cur, outDiv);
+      const relocation = freshSessionSortExemption(cur, outDiv, record.prefixAboveMessages);
       const resetWipe = relocation ? null : resetWipesAdditionsExemption(prev, cur, bar, ccSame);
       const stranded = relocation || resetWipe
         ? null
