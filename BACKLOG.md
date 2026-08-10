@@ -874,13 +874,35 @@ ENOSPC misattribution with its wrong first explanation left in.
 - **PARKED 2026-08-10 — the fork's ENTIRE operational corpus is public, and
   nothing about the upstream relationship requires it to be.** Raised by the
   operator while settling the quote question, and it reaches much further than
-  quotes. Measured the same day: `FORK-NOTES.md`, `BACKLOG.md` (760K),
-  `docs/directives` (52 files), `docs/code-reviews` (217), `docs/audits` (9),
-  `docs/runbooks` (5), `docs/release-tests` (4) — ~289 fork-only documents,
-  ~3.5 MB of working prose — plus 229 files under `test/fixtures/harvested`,
-  all world-readable. By this fork's OWN convention none of it ever appears in
-  an upstream PR slice; it is public only because it shares a tracked tree with
-  code that is.
+  quotes.
+  **FIRST COUNT WAS WRONG, and the error is the one this repo keeps naming.**
+  It reported "~289 fork-only documents, ~3.5 MB" by taking the fork-only
+  DIRECTORY list out of `CLAUDE.local.md` and summing whole directories — a
+  label read as its own body, never checked against the world. Re-derived
+  mechanically (`comm -23` of `git ls-files` against
+  `git ls-tree -r upstream/main`): 405 of 901 tracked files are absent from
+  upstream, but 318 are under `test/`, 33 under `tools/` and 2 under
+  `proxy/` — fork-only CODE, which is candidate upstream contribution and
+  belongs in public. Of the 217 files in `docs/code-reviews`, 206 are
+  UPSTREAM'S OWN, inherited by the fork; only 11 are ours. Same shape in
+  `docs/directives`: 52 present, 23 fork-only.
+  **The real private-candidate set is 52 files, 1.7 MB** — `BACKLOG.md`,
+  `FORK-NOTES.md`, 23 directives, 11 code-review reports, 9 audits, 5
+  runbooks, `docs/dev-loop.md`, `docs/CONSUMER-SETUP.md` — roughly a sixth of
+  what the first count claimed, which changes this from a migration into a
+  move.
+  **It is NOT a clean split, and that is the design question.** Several
+  fork-only directives document features that were upstreamed
+  (`proxy-deferred-tool-rewrite.md`, `proxy-insertion-normalization.md`,
+  `proxy-output-guard.md`), so they read as contribution material rather than
+  operator notes. Proposed rule, mechanical enough to apply without
+  re-litigating each file: a fork-only doc stays PUBLIC only if it documents
+  code that has been or will be upstreamed, or is cited by an upstream PR;
+  everything describing how the OPERATOR works — backlog, runbooks, handoffs,
+  session takeovers, dispatch reports, threat evidence, audits — goes private.
+  Checked rather than assumed: across the three OPEN upstream PRs the only
+  fork-only doc referenced in any PR body is `docs/dev-loop.md` (one
+  reference), so exactly one file is load-bearing for a live contribution.
   **Why it is public is an accident of GitHub, not a decision:** a fork
   inherits its parent's visibility and cannot be made private. The operator's
   private material already has a home — `Gunther-Schulz/dotfiles` is private —
