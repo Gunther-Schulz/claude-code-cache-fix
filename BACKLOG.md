@@ -620,10 +620,30 @@ ENOSPC misattribution with its wrong first explanation left in.
   are ordinary co-tenancy (`docs/dev-loop.md` alone is named by sixteen entries)
   and a guard that fires on non-defects trains the override reflex that kills it.
   The join already exists: `filesNamed` per entry, which the census emits.
-  **Verifier, red-first over an immutable reference and a TRUE positive rather
-  than a planted one:** run it against `508a006` — the commit that retired the
-  state-key entry — and it must surface the verdict-count entry as a candidate.
-  That pairing is real history and reproduces forever. Control against
+  **VERIFIER CORRECTED 2026-08-10 — the designated true positive was UNREACHABLE
+  BY CONSTRUCTION, found by the lane that built the tool.** `508a006` is a
+  BACKLOG-only bookkeeping commit; the work that invalidated the verdict-count
+  entry shipped in `13278fa`. And that entry can never surface at all: its only
+  file-shaped citation is `cache-fix/CLAUDE.local.md:91`, a dotfiles path this
+  repo keeps untracked by design, so no commit here can ever report it touched.
+  The pairing was booked without being dry-run — the briefed-known-positive
+  defect, committed by this entry's own author.
+  **The reachable positive is the class's SECOND measured instance:** `2e088df`
+  (which gave `/health` its `extensions[]` field) touches `proxy/server.mjs`, and
+  the still-open gates-blindness entry cites `proxy/server.mjs:577-581`. Measured
+  after the desk fix below: 3 candidates, that entry among them. Red-first
+  pairing, reproduces from history forever.
+  **A DEFECT THE DESK FOUND THAT THE LANE'S VERIFIER COULD NOT:** the join
+  compared whole backtick tokens against git paths, so every entry citing a LINE
+  (`foo.mjs:12`, `foo.mjs:577-581`) was invisible — the tool answered 0
+  candidates on the very instance it exists for. That is the `path:line` shape
+  `docs/dev-loop.md` already records, and it UNDER-reports, the dangerous
+  direction. Fixed at the desk: `citedPath` strips only a trailing line-or-range
+  suffix. The lane could not have caught it, because the one positive the brief
+  gave it was the unreachable one.
+  Original verifier text, kept because its failure is the lesson: run it against
+  `508a006` — the commit that retired the state-key entry — and it must
+  surface the verdict-count entry as a candidate. Control against
   over-firing: it must NOT surface entries whose only overlap is a file the
   closing commit did not touch.
   Done when a closed entry cannot be committed without its neighbour

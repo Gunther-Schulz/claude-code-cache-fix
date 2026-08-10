@@ -56,6 +56,21 @@ export const DEFAULT_BACKLOG = join(REPO_ROOT, "BACKLOG.md");
 // `censusGrade` not recognising them as one of these three tokens.
 export const OPEN_GRADES = new Set(["READY", "PARKED", "OPEN"]);
 
+// A citation is a PATH plus, very often, where in it to look — `foo.mjs:12`,
+// `foo.mjs:577-581`. git names paths and nothing else, so a whole-token
+// comparison silently answers "no such file" for every entry that cited a
+// line, which is the direction that under-reports: the tool goes quiet
+// exactly where the entry was most specific about what it depends on.
+// Measured 2026-08-10 at the desk, on the class's own second instance: commit
+// 2e088df touches `proxy/server.mjs`, the gates-blindness entry cites
+// `proxy/server.mjs:577-581`, and the join returned 0 candidates. This is the
+// `path:line` shape docs/dev-loop.md already records under "A liveness or
+// resolution check asks 'does this resolve', never 'does this resolve AS THE
+// TYPE I expected'", where a trailing citation made three live files read as
+// dead. Only a trailing line or line-range suffix is stripped, so a real path
+// containing a colon is left alone.
+export const citedPath = (tok) => tok.replace(/:\d+(?:-\d+)?$/, "");
+
 // ---------------------------------------------------------------------------
 // I/O boundary: git and the filesystem. Both return a uniform
 // { ok, ...payload } / { ok: false, proof } shape so the pure core below
@@ -113,7 +128,7 @@ export function findCandidates(touched, entries) {
   const candidates = [];
   for (const e of entries) {
     if (!OPEN_GRADES.has(e.grade)) continue;
-    const shared = e.files.filter((f) => touchedSet.has(f));
+    const shared = e.files.filter((f) => touchedSet.has(citedPath(f)));
     if (shared.length) candidates.push({ line: e.line, headline: e.headline, files: shared });
   }
   return candidates;
