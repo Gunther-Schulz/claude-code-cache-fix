@@ -43,6 +43,12 @@ import {
   findEditPositions,
   lastBreakpointAtOrBefore,
 } from "../tools/replay.mjs";
+// Namespace import for findBornLargeStarts: at the moment these bites were
+// written the export did not exist, and a static named import of a missing
+// export fails the WHOLE module at ESM link time — every other bite in this
+// 100+-test file would go red too, proving only that the export was new
+// (dev-loop.md, "Adding a check"). A namespace import always links.
+import * as replayMod from "../tools/replay.mjs";
 import { buildDescriptionChangeMessage } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 
 const user = (t) => ({ role: "user", content: [{ type: "text", text: t }] });
@@ -2525,4 +2531,63 @@ test("conservation: BITE — an EXEMPTION never carries the flag, because it had
     assert.equal(x.declarationsUnavailable, undefined,
       "an exemption is granted BY a declaration; flagging it would be incoherent");
   }
+});
+
+// --- findBornLargeStarts (BACKLOG "born-large conversation starts become a
+// census class") ---
+//
+// A conversation whose FIRST-EVER request already carries a deep message
+// array, rather than growing there through ordinary turns. Report-only —
+// not itself a defect — so these bites check the CLASSIFICATION, never an
+// exit code.
+
+const bigMsgs = (n, seed) => Array.from({ length: n }, (_, i) => user(`${seed}${i}`));
+
+test("bornLargeStarts: BITE — a conversation whose first request is deep classifies, a small one does not", () => {
+  const small = entry(0, [user("hello")], [user("hello")], { id: "req-small", inSystem: [{ text: "sys" }] });
+  const big = entry(1, bigMsgs(60, "big-"), bigMsgs(60, "big-"), { id: "req-big", inSystem: [{ text: "sys" }] });
+  const rows = replayMod.findBornLargeStarts([small, big]);
+  assert.equal(rows.length, 1, "only the >=50-message opener classifies");
+  assert.equal(rows[0].n, 1);
+  assert.equal(rows[0].id, "req-big");
+  assert.equal(rows[0].msgs, 60);
+  assert.equal(rows[0].comparandN, null, "no earlier born-large start in this capture");
+});
+
+test("bornLargeStarts: a SECOND born-large start is compared against the first, not against its immediate predecessor", () => {
+  const first = entry(0, bigMsgs(60, "a-"), bigMsgs(60, "a-"), { id: "req-A", inSystem: [{ text: "sys v1" }] });
+  // An unrelated small conversation sits BETWEEN the two born-large starts —
+  // the comparand must skip it, not read it as "the previous request".
+  const between = entry(1, [user("between")], [user("between")], { id: "req-mid", inSystem: [{ text: "sys v1" }] });
+  const second = entry(2, bigMsgs(80, "b-"), bigMsgs(80, "b-"), {
+    id: "req-B", inSystem: [{ text: "sys v2, a longer prompt than the first" }],
+  });
+  const rows = replayMod.findBornLargeStarts([first, between, second]);
+  assert.equal(rows.length, 2);
+  assert.equal(rows[1].comparandN, 0, "compared against the first born-large start, skipping the small conversation");
+  assert.equal(rows[1].systemHashHeld, false, "the system prompt text differs across the pair");
+  assert.equal(rows[1].sysSubRotated, true, "the first system block's own sub-key rotated");
+  assert.ok(rows[1].systemCharDelta > 0, "the second prompt is longer");
+});
+
+test("bornLargeStarts: BITE — with the grouping key forced constant, distinct conversations look like one and nothing classifies twice", () => {
+  const a = entry(0, bigMsgs(60, "a-"), bigMsgs(60, "a-"), { id: "req-A", inSystem: [{ text: "sys" }] });
+  const b = entry(1, bigMsgs(70, "b-"), bigMsgs(70, "b-"), { id: "req-B", inSystem: [{ text: "sys" }] });
+  // Mutation: force both entries' msgs[0] identical, so conversationOf (the
+  // grouping key) reads them as ONE conversation — the second is then a
+  // continuation, not a first appearance, and must not classify.
+  a.inMsgs[0] = user("shared-first-message");
+  b.inMsgs = [user("shared-first-message"), ...b.inMsgs.slice(1)];
+  b.outMsgs = b.inMsgs;
+  const rows = replayMod.findBornLargeStarts([a, b]);
+  assert.equal(rows.length, 1, "forcing one shared identity must suppress the second row — an over-firing guard");
+});
+
+test("bornLargeStarts: control — a conversation born SMALL that later grows deep never classifies", () => {
+  const start = entry(0, [user("hi")], [user("hi")], { id: "req-start", inSystem: [{ text: "sys" }] });
+  const grown = entry(1, [user("hi"), ...bigMsgs(59, "g-")], [user("hi"), ...bigMsgs(59, "g-")], {
+    id: "req-grown", inSystem: [{ text: "sys" }],
+  });
+  const rows = replayMod.findBornLargeStarts([start, grown]);
+  assert.equal(rows.length, 0, "ordinary growth through turns is not a born-large start");
 });

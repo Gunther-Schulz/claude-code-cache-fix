@@ -979,6 +979,11 @@ export function compactEntry(e) {
     // gate can run on a 1 GB capture at all.
     inSystem: sha(JSON.stringify(e.inSystem ?? null)),
     outSystem: sha(JSON.stringify(e.outSystem ?? null)),
+    // The byte length behind inSystem's hash — a number, not a body, same
+    // no-bodies-retained discipline as inBytes/outBytes. findBornLargeStarts
+    // is the consumer (BACKLOG "born-large conversation starts become a
+    // census class" — its own "system char delta" field).
+    inSystemBytes: JSON.stringify(e.inSystem ?? null).length,
     // The FIRST system block's sub-key, by the extensions' own keying
     // (systemPromptSubKey, imported — never restated). This is the component
     // of resolveInsertionSessionKey that rotates when CC swaps its identity
@@ -2893,6 +2898,54 @@ export function findSuccessions(entries) {
   return out;
 }
 
+// A conversation that is BORN large — its first-ever request already carries
+// a deep message array — rather than growing there through ordinary turns.
+// BACKLOG "born-large conversation starts become a census class": the
+// classification has been hand-derived TWICE already (the parked
+// resume-boundary classifier, and the step-0 probe that closed the /resume
+// item) — the closing-gate-Q3 shape where the next instance gets
+// re-derived instead of recognized.
+//
+// REPORT, never a gate: a born-large start is not itself a defect (the 449
+// -msg live known positive cost nothing extra once measured), it is a class
+// worth COUNTING so its rate stops being anecdotal.
+//
+// One row per first-seen conversationSubKey (`inConvKey` — the row-26
+// digest, never a hand-rolled identity) whose first request carries >= 50
+// messages. Compared against the MOST RECENT EARLIER born-large start in
+// the same capture (not the immediately preceding request, which is usually
+// an unrelated conversation) — the three fields the step-0 probe proved
+// informative: did the whole system prompt hash hold, did its first block's
+// sub-key rotate (inSysSub — the same field the key-rotation exemption
+// reads), and how many characters did the system prompt grow or shrink by.
+const BORN_LARGE_THRESHOLD = 50;
+
+export function findBornLargeStarts(entries) {
+  const compact = entries.map(asCompact);
+  const seenConv = new Set();
+  const rows = [];
+  let comparand = null;
+  for (const e of compact) {
+    const cid = conversationOf(e);
+    if (cid === null) continue;
+    if (seenConv.has(cid)) continue;
+    seenConv.add(cid); // first appearance of this conversation, whatever its size
+    if (e.msgs < BORN_LARGE_THRESHOLD) continue;
+    rows.push({
+      n: e.n,
+      id: e.id ?? null,
+      ts: e.ts,
+      msgs: e.msgs,
+      comparandN: comparand ? comparand.n : null,
+      systemHashHeld: comparand ? comparand.inSystem === e.inSystem : null,
+      sysSubRotated: comparand ? comparand.inSysSub !== e.inSysSub : null,
+      systemCharDelta: comparand ? e.inSystemBytes - comparand.inSystemBytes : null,
+    });
+    comparand = e;
+  }
+  return rows;
+}
+
 // --- Content conservation: the fifth gate ---
 //
 // NAME COLLISION, stated once so neither reader is misled: `classifyFidelity`
@@ -4284,6 +4337,7 @@ async function main() {
   // pair tally (BACKLOG "the census cannot see OUR OWN pipeline rotating the
   // conversation identity").
   const identityRotations = args.census ? findIdentityRotations(stability) : null;
+  const bornLargeStarts = args.census ? findBornLargeStarts(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
   // Always computed, not census-gated: this is the check whose absence let a
@@ -4467,7 +4521,7 @@ async function main() {
     const censusJson = census
       ? { ...census, tally: Object.fromEntries(census.tally), examples: Object.fromEntries(census.examples) }
       : null;
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census: censusJson, toolsDeltas, identityRotations, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census: censusJson, toolsDeltas, identityRotations, bornLargeStarts, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
