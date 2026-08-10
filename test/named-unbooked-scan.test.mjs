@@ -78,7 +78,7 @@ const TOOL = join(REPO, "tools/named-unbooked-scan.mjs");
 //
 // `os.userInfo().homedir`, NOT `os.homedir()` / `homedir()`: this suite's
 // own `npm test` entrypoint globally redirects HOME to a sandboxed temp
-// directory (tools/test-config-root.mjs, `--import`-ed before any test file
+// directory (tools/suite-config-root.mjs, `--import`-ed before any test file
 // loads) specifically so tests never touch the operator's real `~/.claude`
 // config or state. `os.homedir()` reads that overridden HOME and resolves
 // inside the sandbox, where no transcript exists — hit for real while

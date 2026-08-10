@@ -11,7 +11,7 @@ import { homedir } from "node:os";
 // The tripwire: under the node test runner (NODE_TEST_CONTEXT — set by node in
 // every --test child process, absent everywhere else) an un-isolated call
 // throws instead of resolving to the operator's live ~/.claude. The isolation
-// harness (tools/test-config-root.mjs) rides `npm test` via --import, and
+// harness (tools/suite-config-root.mjs) rides `npm test` via --import, and
 // test/config-root-isolation.test.mjs guards whole-suite bypasses — but a bare
 // single-file `node --test test/<file>.mjs`, the natural diagnostic
 // invocation, bypassed both silently and is exactly how state files leaked
@@ -31,7 +31,7 @@ export function claudeHome() {
     throw new Error(
       "claudeHome() under the test runner without an isolated config root — this call would "
         + "write into the operator's live ~/.claude. Run `npm test`, or for a single file: "
-        + "`node --test --import ./tools/test-config-root.mjs <file>`.",
+        + "`node --test --import ./tools/suite-config-root.mjs <file>`.",
     );
   }
   return process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");

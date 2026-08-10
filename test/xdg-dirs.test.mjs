@@ -35,7 +35,7 @@
 //
 // ISOLATION: `HOME` is overridden per case rather than `XDG_DATA_HOME` /
 // `XDG_STATE_HOME`, deliberately. That is this repo's established idiom
-// (tools/test-config-root.mjs sets HOME for the whole suite, and eight test
+// (tools/suite-config-root.mjs sets HOME for the whole suite, and eight test
 // files override it per case), and it exercises the DEFAULT branch of the
 // resolver — the branch production actually takes, since neither XDG variable
 // is set in a stock login shell. The explicit-variable branch gets its own
@@ -51,7 +51,7 @@ import { resolveRoot } from "../proxy/xdg-dirs.mjs";
 // `finally` around a returned promise restores the environment BEFORE the
 // async body runs, so every case would silently measure the SUITE's home
 // instead of its own. Caught by the first red run naming two temp homes on
-// adjacent lines — the same shape tools/test-config-root.mjs records.
+// adjacent lines — the same shape tools/suite-config-root.mjs records.
 async function withHome(fn) {
   const home = tmpDirSync("cache-fix-xdg-pin-");
   const saved = {

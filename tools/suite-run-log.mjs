@@ -134,7 +134,7 @@ const REPO_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
  * @param {string[]} passthroughArgs forwarded verbatim after the isolation
  *   import, so `npm test -- test/foo.test.mjs` keeps working exactly as it
  *   did before this wrapper existed (a real, used pattern — see the
- *   comment in tools/test-config-root.mjs and this repo's own PR reviews).
+ *   comment in tools/suite-config-root.mjs and this repo's own PR reviews).
  * @returns {Promise<never>} never resolves; always process.exit()s.
  */
 export function run(passthroughArgs = []) {
@@ -147,7 +147,7 @@ export function run(passthroughArgs = []) {
     [
       "--test",
       "--import",
-      join(REPO_ROOT, "tools", "test-config-root.mjs"),
+      join(REPO_ROOT, "tools", "suite-config-root.mjs"),
       ...passthroughArgs,
     ],
     { cwd: REPO_ROOT, stdio: ["inherit", "pipe", "pipe"] },

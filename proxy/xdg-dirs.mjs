@@ -73,7 +73,7 @@ import { claudeHome } from "./claude-home.mjs";
 // signals count as isolated, and they are named here because the brief left
 // the naming to this module:
 //
-//   CACHE_FIX_TEST_HOME  set by the suite harness (tools/test-config-root.mjs)
+//   CACHE_FIX_TEST_HOME  set by the suite harness (tools/suite-config-root.mjs)
 //                        when it mints the temp HOME. Because the roots below
 //                        default to $HOME/.local/..., a redirected HOME
 //                        already isolates them — but only once the ambient
@@ -102,7 +102,7 @@ function assertIsolated(what) {
     throw new Error(
       `${what}() under the test runner without an isolated XDG root — this call would `
         + "write into the operator's live ~/.local. Run `npm test`, or for a single file: "
-        + "`node --test --import ./tools/test-config-root.mjs <file>`.",
+        + "`node --test --import ./tools/suite-config-root.mjs <file>`.",
     );
   }
 }

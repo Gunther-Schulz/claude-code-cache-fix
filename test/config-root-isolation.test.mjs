@@ -7,7 +7,7 @@
 // only visible to someone who thinks to count files afterwards.
 //
 // WHY A GUARD AND NOT JUST THE HARNESS. The isolation lives in
-// `tools/test-config-root.mjs`, wired through the `npm test` script. That
+// `tools/suite-config-root.mjs`, wired through the `npm test` script. That
 // covers the pre-push hook and anyone typing `npm test` — and NOT a bare
 // `node --test`, which is what a developer reaches for to run one file, and
 // which is exactly how this leaked on 2026-08-05: eight relocation-memory
@@ -42,8 +42,8 @@ test("BITE — the suite runs with an isolated config root, or it says so", () =
   assert.ok(
     marker || explicit,
     "no isolated config root — this run would write into the operator's live ~/.claude. "
-      + "Run the suite as `npm test` (which loads tools/test-config-root.mjs), or for a single "
-      + "file: `node --test --import ./tools/test-config-root.mjs <file>`.",
+      + "Run the suite as `npm test` (which loads tools/suite-config-root.mjs), or for a single "
+      + "file: `node --test --import ./tools/suite-config-root.mjs <file>`.",
   );
   if (!explicit) {
     assert.ok(

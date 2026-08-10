@@ -23,15 +23,21 @@
 // this one the same way it shadows the real home, and a file that sets
 // CLAUDE_CONFIG_DIR still wins outright.
 //
-// Wired as `node --test --import ./tools/test-config-root.mjs` (package.json),
+// Wired as `node --test --import ./tools/suite-config-root.mjs` (package.json),
 // so it runs once per test-file process before any test module loads. Neither
 // variable is touched when it is already set — this supplies the DEFAULT and
 // never overrides a deliberate choice.
 //
-// It lives in `tools/` rather than `test/` because node's runner treats every
-// file under `test/` as a test file: from there it was ALSO executed as a
-// (zero-assertion) test, inflating the suite count by one and reading in the
-// output as if the harness bootstrap were a test that passed.
+// It lives in `tools/` rather than `test/`, and is named `suite-*` rather than
+// `test-*`. Node's default `--test` discovery is TWO independent rules, not
+// one: every file under a `test/` directory at any depth, AND every file
+// anywhere in the scanned tree matching `test-*` / `*-test.*` / `*_test.*` /
+// `*.test.*` / `test.*`. Moving this file out of `test/` satisfied only the
+// first rule — its former name, `tools/test-config-root.mjs`, still matched
+// the second, so it was executed as a zero-assertion "test" on every run
+// regardless (confirmed live: `✔ tools/test-config-root.mjs` in `npm test`
+// output). Renamed to `suite-config-root.mjs`, which matches neither
+// discovery pattern (measured against node v26.4.0 by probe).
 import { rmSync } from "node:fs";
 import { tmpDirSync } from "./tmpdir.mjs";
 
