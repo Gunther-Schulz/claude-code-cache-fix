@@ -1020,6 +1020,64 @@ ENOSPC misattribution with its wrong first explanation left in.
   Verifier: the deployed overlay carries the three lines, and the doctor's
   content-drift check on `DEPLOYED_COPIES` stays green.
 
+- **READY (small) — `backlog-neighbours` joins on FILES, so a premise refuted
+  inside ANOTHER ENTRY is invisible to it; add the IDENTIFIER join.** Booked
+  2026-08-10, from the miss it would have caught the same hour. `cf0592d`
+  recorded a rotation measurement in the `capturePairResult` entry which
+  refuted the retention rule of the bounded-`--pin` entry — a conversation-only
+  filter that drops the very predecessor it was meant to freeze. Nothing
+  flagged it; it surfaced only because the two entries were read together at
+  dispatch time, an hour later, by hand. `tools/backlog-neighbours.mjs` exists
+  for exactly this class ("closing an entry can invalidate a DIFFERENT open
+  entry", its header) and could not see it. Its join is a commit's touched
+  FILES against entries' backticked file tokens, and this commit touched only
+  `BACKLOG.md`. **Run today, it returns TEN candidates and the bounded-`--pin`
+  entry is not among them** — the ten are the entries that happen to cite
+  `BACKLOG.md` by name, i.e. the ones ABOUT backlog tooling. So the failure is
+  not an empty result, which would at least look like one: it is a populated,
+  plausible report selected by a naming convention that is uncorrelated with
+  who shares the moved premise. A reader gets ten dispositions to fill and the
+  one that mattered is absent.
+  Design, decided: a SECOND join in the same report, at one grain finer.
+  When a commit changes `BACKLOG.md` itself, diff which ENTRIES its bodies
+  changed, and list every still-open entry sharing a backticked camelCase
+  IDENTIFIER token with them — same report shape, same blank disposition slot
+  (still-valid / premise-corrected / now-unnecessary), same three-answer
+  discipline, still a REPORT and never a gate. The file join is untouched.
+  **Measured before building, on this tree (2026-08-10), because a join is
+  worth nothing if it fires on everything or on nothing:** over the 116 open
+  entries there are 194 distinct backticked camelCase identifiers, 44 of them
+  shared by more than one entry, and the widest is shared by SEVEN. That is
+  report-sized, unlike the file join's own worst case (`docs/dev-loop.md` is
+  named by sixteen entries, which its header already calls out as the reason
+  it is not a gate). One entry cites a disproportionate share of all
+  identifiers and will appear in most lists — name it in the output rather
+  than special-casing it.
+  Verifier, red-first, with a live known positive rather than a constructed
+  one: run the new join over `cf0592d`. It must list the bounded-`--pin` entry
+  as a neighbour of the `capturePairResult` entry via `conversationOf` — the
+  miss above, reproduced. RED against the OLD implementation was RUN, not
+  assumed: `node tools/backlog-neighbours.mjs cf0592d` today prints TEN
+  `shared=BACKLOG.md` candidates and none of them is the bounded-`--pin`
+  entry. Re-run after THIS entry was written it prints ELEVEN — this entry
+  joined the candidate set, because it cites `BACKLOG.md`, while the entry
+  that actually shares the moved premise still does not appear. The count
+  tracks how many entries are ABOUT backlog tooling and is uncorrelated with
+  the premise, which is the defect stated as a measurement. (Candidate LINE
+  numbers are deliberately not recorded: they shift on every insertion, and an
+  entry about stale cross-entry evidence should not ship a stale view of its
+  own.) BASELINE, so
+  the red is not vacuous: those ten prove the tool RAN and joined — this is a
+  wrong-population result, not a dead command — and the file join must still
+  return its own candidates on a commit touching a CODE file, unchanged by this
+  work. Second positive, already planted: `sameLineage` appears in exactly the
+  two entries of the lineage chain and in no others, so it is a two-member
+  class the join must reproduce exactly.
+  Done-criterion: both joins in one report, the `cf0592d` reproduction pasted,
+  suite green.
+  Write boundary: `tools/backlog-neighbours.mjs`, `test/backlog-neighbours.test.mjs`.
+  Consumer tier **3 (backlog and process)**.
+
 - **READY (small) — the LINEAGE relation, as a shared primitive in
   `replay.mjs`, ahead of BOTH its consumers.** Split out 2026-08-10 from the
   `capturePairResult` entry above, when re-reading the bounded-`--pin` entry's

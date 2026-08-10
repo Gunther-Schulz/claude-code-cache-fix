@@ -1675,6 +1675,27 @@ Two rules, both learned the expensive way:
    commit was integrated). State the arrangement AND its proof, not the
    arrangement alone.
 
+   **AND THE COMMONEST WAY TO COLLAPSE THE SPLIT IS THE IMPORT LINE.** A
+   red-first run over a not-yet-written export is the standard arrangement in
+   this repo, and a STATIC NAMED import of a nonexistent export
+   (`import { newThing } from "../tools/x.mjs"`) fails the whole module at ESM
+   LINK time, before a single bite runs. Every test in the file goes red at
+   once, including the ones that exercise only the OLD code — so the run reads
+   as a total failure and proves nothing about which half the new expectations
+   actually broke. The discriminating split is the arrangement's entire value:
+   the pre-existing bites must PASS while the new ones fail, or the baseline
+   was never demonstrated (the "old runs against old, vacuously" trap in
+   mirror). Use a namespace import — `import * as mod`, destructured after —
+   which always links, leaves a missing export as `undefined`, and fails each
+   bite at its OWN call site. Recorded 2026-08-10 by the lineage-primitive
+   lane, which hit it and deviated correctly (3 pass / 7 fail against the
+   unmodified module, exactly the predicted split); the same trap is already
+   named in `test/bust-triage-attribution.test.mjs`'s own header, i.e. the
+   class had recurred once before reaching this file. One corollary, from the
+   same lane: two halves of one edge case belong in two `test()` blocks, not
+   one — a throw in the first assertion hides whether the second ever ran, and
+   that is the same split collapsing at a smaller grain.
+
    **A bite for a rule quantified with `.some()` needs exactly ONE candidate in
    its fixture.** Same day, same lane: a prune+create fixture carried a 2-block
    host, the SECOND block's carrier count rose 0->1 on its own, that satisfied
