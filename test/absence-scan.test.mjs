@@ -144,6 +144,21 @@ test("the LEDGER is exempt from ONE class, not from the file", () => {
   assert.deepEqual([...exemptClasses(`${CORPUS}/pinned-s-4b6a435234bf-26-28.json`)], []);
 });
 
+test("this test file itself is exempt from capture-uuid ONLY, not a full skip", () => {
+  // The 2026-08-10 companion to the two exemptions above: SOURCE_UUID_ALLOWLIST
+  // below carries ~15 deliberately synthetic UUIDs, and scanSourceText's
+  // capture-uuid fix (same day) now flags every one of them on a git-range
+  // scan of this file unless exempted here — noise, not signal, because THIS
+  // file's own roster test ("source: every UUID...") independently
+  // re-verifies every UUID it carries against that same allowlist on every
+  // `npm test` run. Class-scoped: capture-key-prefix (and everything else)
+  // still applies.
+  const self = "test/absence-scan.test.mjs";
+  assert.deepEqual([...exemptClasses(self)], ["capture-uuid"]);
+  assert.equal(isAllowlisted(self), false,
+    "isAllowlisted means exempt from EVERY class — this file is not, only from one");
+});
+
 test("a capture UUID planted into the LEDGER is still caught", () => {
   // The bite for the narrowing: the class the exemption does NOT cover must
   // fire on the exempt file.

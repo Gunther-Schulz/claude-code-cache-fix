@@ -86,6 +86,23 @@ export const ALLOWLIST = [
     pattern: /(^|\/)test\/fixtures\/harvested\/rowpins\/[^/]*\.json$/,
     classes: ["live-timestamp"],
   },
+  // test/absence-scan.test.mjs's own SOURCE_UUID_ALLOWLIST holds ~15
+  // deliberately synthetic UUIDs (fixture seeds, a roster of every one this
+  // repo's own source is allowed to carry) that scanSourceText's capture-uuid
+  // check (2026-08-10 fix: "a full UUID in a commit message was invisible to
+  // the scanner") now flags on every touch of this file — correct behaviour
+  // in general, redundant noise here specifically, because this exact file
+  // is ALSO the home of a dedicated roster test ("source: every UUID in a
+  // tracked SOURCE_SCANNABLE file is on the synthetic allowlist") that
+  // independently re-verifies every UUID this file carries against that same
+  // roster, on every `npm test` run — the second pre-push layer. Exempting
+  // capture-uuid here trades nothing: a genuinely NEW, unlisted UUID landing
+  // in this file still fails that roster test. Class-scoped, not a full
+  // skip — capture-key-prefix and every other class still applies.
+  {
+    pattern: /(^|\/)test\/absence-scan\.test\.mjs$/,
+    classes: ["capture-uuid"],
+  },
 ];
 
 // An `allowlisted` list entry, tagged by which ROUTE produced it — a
