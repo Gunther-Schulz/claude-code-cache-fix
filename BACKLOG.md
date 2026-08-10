@@ -1243,6 +1243,32 @@ ENOSPC misattribution with its wrong first explanation left in.
   from this pass (the 45 unreadable ledger lines' writer; the missing ledger
   query surface).
 
+- **READY (small) — RE-SCOPED 2026-08-10 after a batch lane correctly REFUSED
+  it: the write boundary was wrong, and it was wrong because I derived it from
+  the entry's backticked file citations.** The lane was briefed with
+  "`tools/gate-live.mjs` and its tests" and halted rather than renaming half a
+  symbol: `gate-live.mjs` only READS `m.rebilledBytes`; the name is PRODUCED in
+  `tools/replay.mjs` (assigned :1497, :1868, :2774). Renaming only the consumer
+  breaks the read silently — the exact failure this repo's dependents-search
+  convention exists to prevent, and the lane cited that convention as its reason.
+  **The real dependents set, searched rather than inferred**
+  (`grep -rn rebilledBytes`, excluding `node_modules`, `.git` and `BACKLOG.md`):
+  **65 sites across 10 files** — `tools/replay.mjs` 17, `test/gate-live.test.mjs`
+  11, `test/replay-gate-selfcheck.test.mjs` 9, `test/mitigation-output-form.test.mjs`
+  7, `tools/gate-live.mjs` 3, `tools/fixture-verdict-identity.mjs` 3,
+  `test/fixture-verdict-identity.test.mjs` 2, `test/replay-edit-anchor.test.mjs` 1,
+  `test/insertion-suppression.test.mjs` 1. A boundary of "gate-live and its
+  tests" covered 14 of 65.
+  Decision: ONE lane over all ten files, not a re-split — a symbol rename that
+  lands in two commits is a broken read between them.
+  **The general defect, which is the part worth keeping:** an entry's backticked
+  file citations are a FLOOR, not a boundary. This backlog's own merge entry
+  says so in writing — it is why the 36/11 tooling count is recorded as a floor
+  — and I derived a write boundary from those citations anyway, one entry later.
+  The mechanical fix is cheap and is now the rule for any rename dispatch: grep
+  the entry's key SYMBOL and use the hit set as the boundary, never the entry's
+  prose citations.
+  Original entry follows.
 - **READY (small) — `rebilledBytes` still emits the understated number under
   the intuitive NAME, while the corrected figure hides behind a longer one.**
   Booked 2026-08-08 as the named residual of the fix above. The lane added
@@ -3463,6 +3489,17 @@ ENOSPC misattribution with its wrong first explanation left in.
   Trigger to unpark: any change to either pair, or the next time the tie bite
   above is extended registry-wide.
 
+- **READY (small) — RE-SCOPED 2026-08-10, same refusal shape as the
+  `rebilledBytes` entry above and the same cause.** The batch lane was briefed
+  with "`tools/local-stamp.mjs`, `test/local-stamp.test.mjs'" and halted: the
+  design requires editing `proxy/server.mjs` and `preload.mjs`, neither in that
+  boundary, and it could not add tests asserting behaviour at unconverted sites
+  without landing a red suite. Correct refusal — a test written to pass against
+  a half-converted tree is a test that pins the half-conversion.
+  Decision: the boundary is the design's own named sites (`proxy/server.mjs:51`,
+  `preload.mjs:1396`) plus `tools/local-stamp.mjs` and its tests, in one lane.
+  Same general lesson as above: the entry's file citations were a floor.
+  Original entry follows.
 - **READY (small) — the both-zones class recurs PAST the eleven-file boundary
   the shipped entry drew, at two measured sites.** `proxy/server.mjs:51` and
   `preload.mjs:1396` are both `[${new Date().toISOString()}] ...` human-facing
@@ -3481,6 +3518,45 @@ ENOSPC misattribution with its wrong first explanation left in.
   format change touches neither state KEYS nor freeze logic, so the restart is
   cache-transparent.
 
+- **DONE 2026-08-10 (`dcba443`, `5631334`) — the leak scan could not see a UUID
+  in a COMMIT MESSAGE, and had not been able to for its whole life.** Found by
+  the batch lane the hard way: it cited a real session UUID in a doc AND in its
+  own commit message, the doc hit was caught immediately by the roster test, and
+  chasing why the commit-message hit was NOT caught exposed the structural gap.
+  The mechanism, and it is the assurance-wider-than-its-predicate shape exactly:
+  `scanSourceText` MATCHED full UUIDs and then SUPPRESSED them, deferring to
+  "the capture-uuid class" — but that class only ever ran inside `scanDocument`,
+  over JSON values. Source text never reached it. So the deferral pointed at a
+  consumer that never fired, and the suppression read as delegation while being
+  deletion. Verified directly before the fix: `scanSourceText` over a string
+  carrying a full session UUID returned ZERO findings.
+  This sat under the pre-push hook, at the irreversible boundary, which is the
+  one place a cleanness claim has to be true — and `docs/dev-loop.md` already
+  records a real prior leak through an earlier scrubber into a public PR.
+  Fix: `scanSourceText` reports `capture-uuid` directly instead of suppressing.
+  Red-first with its baseline stated, via stash: 37/39 pass WITHOUT the fix, and
+  the two failures are exactly the two tests that should fail; 39/39 with it.
+  The fix then flagged 13 pre-existing SYNTHETIC UUIDs in the suite's own roster
+  file — legitimate, and noise on every future touch. Closed with a
+  CLASS-SCOPED allowlist entry (`capture-uuid` only, that one file), not a
+  whole-file skip: that file's own roster test independently re-verifies every
+  UUID it carries on every `npm test`, so the exemption is one the mechanism
+  itself checks rather than one taken on trust.
+  Desk-verified end to end, on the real history rather than a fixture: the scan
+  over the outgoing range reported the leak by commit and line; after the
+  message was rewritten it reported clean; and the SAME invocation still fires
+  on the preserved pre-rewrite branch. The last of those three is what makes
+  the clean readable — a clean scan and a broken scan print the same word.
+
+- **DONE 2026-08-10 (`92fdffc`) — and writing the pin found a live bug, which
+  is the argument for coverage work in one line.** The per-call table's `#`
+  header was one character narrower than every data row's own prefix, so every
+  row was misaligned permanently, independent of timestamp width. Re-scoped by
+  the lane to design point (c) only, with its reason: points (a) and (b) are
+  already pinned by `test/tool-output-stamps.test.mjs`'s ARM1/ARM2, so building
+  them again would have been a second instrument sharing one author's blind
+  spot. Red-first by hand: fix reverted, test fails 49 !== 48; restored, passes.
+  Original entry follows.
 - **READY (small) — `cost-report.mjs` had ZERO test coverage before `82372db`
   and still has none.** Measured by the lane: `grep -rl cost-report test/`
   returned nothing. Its timestamp changes in `82372db` (three display sites, two
@@ -3781,6 +3857,27 @@ ENOSPC misattribution with its wrong first explanation left in.
   to it, since that paragraph is where a reader currently learns the class from
   a single instance.
 
+- **DONE 2026-08-10 (`cf8843f`, scrubbed in `a3f141c`) — and the lane
+  REPRODUCED the entry's own incident rather than re-describing it, which is
+  where the leak came from.** New step 4 in the "Rule out the instrument"
+  ladder, naming the three known sibling pairs: `cold-events.mjs` vs worktime,
+  `replay.mjs --census` vs `reminder-migration-census.mjs`, `bust-triage` vs
+  dossier.
+  The reproduction, against this entry's own named 2026-08-07T01:00:55Z stamp:
+  the live transcript was still on disk, `cold-events.mjs` was run over it, and
+  the same disagreement worktime's ledger shows was confirmed — cc=335933
+  flagged there, not flagged by `cold-events.mjs`, because its own 66-row dedup
+  changes the `prev_ctx` chain the predicate reads. That is a mechanism, not a
+  coincidence, and it is what the new rung teaches.
+  **The cost, recorded because it is the durable part:** reproducing against a
+  real transcript put a real session UUID into the doc and into the commit
+  message. The doc was caught by the roster test within one suite run and
+  scrubbed; the message needed a history rewrite before any push, and chasing
+  why the message hit was NOT caught exposed a structural hole in the scanner
+  itself (its own entry, above). Reproduction is the right method AND it walks
+  evidence across the publication boundary — the two are not in tension only if
+  the scrub runs before the push, which is exactly where this repo puts it.
+  Original entry follows.
 - **READY (small) — `docs/dev-loop.md`: when an instrument surprises you, run
   the SIBLING implementation before reasoning about the defect.** The corpus
   carries this as principle ("divergence between two independently built
@@ -5628,6 +5725,13 @@ ENOSPC misattribution with its wrong first explanation left in.
   The doc still lists 4 verdicts (unchanged, so the entry stands), but the
   real count is now 7, not the `six` this entry cites — KEY-FLIP, shipped by
   n=76's own work, was never counted.
+- **DONE 2026-08-10 (`b77d8b8`) — two lines now, where one word used to cover
+  two different facts.** `skipped (all classes): <path>` for a whole-file skip,
+  `exempt <class,...>: <path>` for a class-scoped drop. Verifier as this entry
+  named it: `formatAllowlistLine` over a skip entry and over an exempt entry
+  now differ, and the existing LEDGER test was updated to assert the new form
+  rather than left asserting the old one.
+  Original entry follows.
 - **READY (small) — `absence-scan`'s `allowlisted:` line cannot distinguish a
   whole-file SKIP from a class-scoped DROP, which is exactly the distinction the
   2026-08-05 narrowing was made to create.** Noticed 2026-08-08 while scanning
@@ -6148,6 +6252,19 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **3 (backlog and process)** — it mis-informs the reader of an
   entry, and its measured cost so far is one wasted dispatch.
 
+- **DONE 2026-08-10 (`2d07e74`) — and the entry's own number had rotted, which
+  the lane caught by measuring instead of inheriting.** `main()` is refactored
+  into an exported `sweep()` and wired into `gate-live.mjs` WARN-only under the
+  status field `xdgWriterGuard`, matching this entry's "non-blocking at first"
+  design. The sweep is red at **38**, not the 34 recorded here — the tree moved
+  between the entry being written and being executed, the ordinary stored-brief
+  rot, and it would have shipped as a wrong assertion had the lane trusted the
+  entry over the tree.
+  Two tests, and the second is the one that matters: the sweep over the real
+  tree is non-zero today, AND planting one fresh violation moves the count by
+  exactly one. A non-zero count alone is satisfied by a sweep that returns a
+  constant.
+  Original entry follows.
 - **READY (small) — `tools/xdg-writer-guard.mjs` is red at 34 and its `main()`
   is wired to no consumer; and the reason recorded in this backlog for why
   `npm test` stays green is FALSE.** Booked 2026-08-10 from the public-surface
