@@ -226,6 +226,137 @@ test("D1 gate 1: the OLD key is COMPUTABLE at both stateful extensions' read poi
   }
 });
 
+// --- D1 STATE CONTINUITY: the bite that discharges the row-3 declaration -----
+//
+// The restart D1 needs changes state keys for two extensions, so row 3 says it
+// is NOT cache-transparent. Measured 2026-08-10 19:32Z, `restart-exposure
+// --window-min 60`: 8 live sessions, ~817k tokens if forwarded bytes change for
+// them. Dual-read's claim is that the true figure is ZERO — and that claim is
+// falsifiable rather than a pricing argument, which is what this bite is for:
+// state written under the OLD rotated key must still be FOUND after the carrier
+// change. If it is not, ~817k is the real number.
+//
+// Red-first arrangement, and it is a MUTATION rather than a revert because the
+// condition under test is a new branch: disable the fallback (pass no carrier
+// AND read only the new key) and the same arrangement must MISS. The pair is
+// what makes it discriminating — a hit alone would also be produced by a
+// fixture whose two keys happen to be equal, which is precisely why the
+// unrotated case is asserted separately below.
+
+import { mkdir, writeFile } from "node:fs/promises";
+import { resolveToolRewriteSessionKey } from "../proxy/extensions/deferred-tool-rewrite.mjs";
+import { PRE_PIPELINE_CONV, OLD_KEY_HIT } from "../proxy/extensions/message-hash.mjs";
+
+// The loader's own filename builder (`deferred-tool-rewrite.mjs:205`). Named
+// here rather than guessed: the first draft of this bite wrote
+// `-deferred-tools.json`, which no loader reads, and it would have reported a
+// MISS for a reason that is not the defect — the arrangement failing silently
+// instead of the code.
+const deferredStateFile = (key) => `${key}-deferred-tool-canon.json`;
+
+/**
+ * Runs the real pipeline over the row-26 fixture against a scratch state dir,
+ * returning the ctx so a caller can read what the dual-read did.
+ */
+async function runWithState(scratch) {
+  return withEnv(
+    {
+      CACHE_FIX_INSERTION_NORMALIZE: "1",
+      CACHE_FIX_TOOL_REWRITE: "1",
+      CACHE_FIX_SNAPSHOT_DIR: scratch,
+    },
+    async () => {
+      const exts = await loadExtensions(EXT_DIR, EXT_CONFIG);
+      const ctx = makeCtx(bodyWithBlockAwayFromZero());
+      await runOnRequest(ctx, exts);
+      return ctx;
+    },
+  );
+}
+
+test("D1 state continuity: a baseline on disk under the OLD rotated key IS found — the row-3 declaration's discharge", async () => {
+  const scratch = await tmpDir("d1-continuity-hit-");
+
+  // Derive the OLD (rotated) key the way the pipeline will, by running once
+  // against an empty dir and reading the carrier the run published. Deriving it
+  // from the extension's own resolver rather than restating the hash keeps this
+  // from being a second implementation of the identity.
+  const probe = await runWithState(await tmpDir("d1-continuity-derive-"));
+  const preConv = probe.meta?.[PRE_PIPELINE_CONV];
+  assert.match(String(preConv), HEX16, "the carrier must be published by fresh-session-sort");
+  const rotatedBody = probe.body; // post-pipeline: messages[0] carries the relocated block
+  const oldKey = resolveToolRewriteSessionKey(probe.headers, rotatedBody);
+  const newKey = resolveToolRewriteSessionKey(probe.headers, rotatedBody, preConv);
+  assert.notEqual(oldKey, newKey, "arrangement: the rotated and pre-pipeline keys must differ, or there is nothing to bridge");
+
+  // Plant a baseline under the OLD key only — exactly the on-disk state a live
+  // conversation carries into the restart that ships D1.
+  await mkdir(scratch, { recursive: true });
+  await writeFile(
+    join(scratch, deferredStateFile(oldKey)),
+    JSON.stringify({ tools: [{ name: "Read", description: "d", input_schema: { type: "object", properties: {} } }], additions: [] }),
+  );
+
+  const ctx = await runWithState(scratch);
+  assert.equal(
+    ctx.meta?.[OLD_KEY_HIT],
+    true,
+    "the dual-read must FALL BACK to the rotated key and find the planted baseline; without this the D1 restart re-baselines every live conversation and the ~817k figure is real",
+  );
+});
+
+// The SECOND consumer, and it gets its own bite rather than riding the first.
+// Both extensions set the same `OLD_KEY_HIT` flag, so a single planted file
+// cannot tell which one found it — the bite above plants only a
+// deferred-tool-canon and therefore measures only that consumer. This repo's
+// own history is the argument: `conversationSubKey` lives in message-hash.mjs
+// precisely because insertion-normalization got a keying fix and
+// deferred-tool-rewrite "had the same key and did not get the fix"
+// (deferred-tool-rewrite.mjs:275-279). A shared idea with one tested consumer
+// is one tested consumer.
+const insertionStateFile = (key) => `${key}-insertion-canon.json`;
+
+test("D1 state continuity: insertion-normalization's OWN fallback finds its old-key canonical too", async () => {
+  const scratch = await tmpDir("d1-continuity-insertion-");
+
+  const probe = await runWithState(await tmpDir("d1-continuity-ins-derive-"));
+  const preConv = probe.meta?.[PRE_PIPELINE_CONV];
+  assert.match(String(preConv), HEX16, "the carrier must be published");
+  const oldKey = resolveInsertionSessionKey(probe.headers, probe.body.messages, probe.body.system);
+  const newKey = resolveInsertionSessionKey(probe.headers, probe.body.messages, probe.body.system, preConv);
+  assert.notEqual(oldKey, newKey, "arrangement: insertion's two keys must differ");
+
+  await mkdir(scratch, { recursive: true });
+  // loadCanonical requires an `entries` array AND a matching `mode`; a wrong
+  // mode returns null, which would read as "the fallback failed" when in fact
+  // the fixture was unloadable. Plain mode, since CACHE_FIX_VOLATILE_PIN is unset.
+  await writeFile(
+    join(scratch, insertionStateFile(oldKey)),
+    JSON.stringify({ mode: "plain", entries: [{ hash: "synthetic-entry", role: "user" }] }),
+  );
+
+  const ctx = await runWithState(scratch);
+  assert.equal(
+    ctx.meta?.[OLD_KEY_HIT],
+    true,
+    "insertion-normalization must fall back to its own rotated key; nothing here plants a deferred-tool canonical, so only its own fallback can set this",
+  );
+});
+
+test("D1 state continuity: with nothing planted the fallback does NOT report a hit — the discriminating half", async () => {
+  const scratch = await tmpDir("d1-continuity-miss-");
+  await mkdir(scratch, { recursive: true });
+  const ctx = await runWithState(scratch);
+  // Same arrangement, one variable removed. A hit here would mean the flag
+  // tracks "the fallback was attempted" rather than "the old state was found",
+  // which would make the bite above unfalsifiable.
+  assert.notEqual(
+    ctx.meta?.[OLD_KEY_HIT],
+    true,
+    "an empty state dir has no old-key state to find, so the fallback must report no hit",
+  );
+});
+
 test("D1 gate 1: both read points rotate to the SAME key — one fallback value serves both consumers", async () => {
   const { ins, def } = await keysAtReadPoints(bodyWithBlockAwayFromZero());
   // Load-bearing for the SHAPE of the fallback. If these ever differ, "the old

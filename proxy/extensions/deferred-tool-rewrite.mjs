@@ -102,7 +102,7 @@ import { join } from "node:path";
 // filename builder). The XDG root resolver is a different thing entirely.
 import { statePath as xdgStatePath } from "../xdg-dirs.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
-import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
+import { hashMessageContent, conversationSubKey, PRE_PIPELINE_CONV, OLD_KEY_HIT } from "./message-hash.mjs";
 import { systemPromptSubKey } from "./insertion-normalization.mjs";
 import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 import { createHash } from "node:crypto";
@@ -277,9 +277,15 @@ async function appendTelemetry(dir, sessionKey, record, fs) {
 // conversationSubKey living in message-hash.mjs rather than in either
 // extension — a second copy is a second truth, and the second consumer
 // learning the lesson late is exactly what happened here.
-export function resolveToolRewriteSessionKey(headers, body) {
+// `convOverride` is D1's pre-pipeline conversation identity (matrix row 26).
+// Same contract as `resolveInsertionSessionKey`'s: present, it replaces the
+// locally computed value; absent, behaviour is byte-identical to before D1.
+// This extension is row 26's more expensive consumer — losing its baseline
+// forwards CC's raw array where it had been forwarding the frozen order, which
+// diverges the prefix ABOVE messages and re-bills everything below it.
+export function resolveToolRewriteSessionKey(headers, body, convOverride = null) {
   const sid = headers ? resolveSessionId(headers) : null;
-  const conv = conversationSubKey(body?.messages);
+  const conv = convOverride ?? conversationSubKey(body?.messages);
   if (sid) return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(body?.system)}-${conv}`;
   const model = typeof body?.model === "string" ? body.model : "unknown";
   return `c-${model}-${conv}`;
@@ -683,11 +689,32 @@ export default {
     const fs = DEFAULT_FS;
     const headers = ctx.headers || null;
     const sessionId = headers ? resolveSessionId(headers) : null;
-    const sessionKey = resolveToolRewriteSessionKey(headers, body);
+    // D1 DUAL-READ (matrix row 26, operator GO 2026-08-10). Read under the
+    // pre-pipeline identity, fall back to the rotated one ONCE, always WRITE
+    // under the new one. Losing the baseline here is what row 26 measured at
+    // 216,060 tokens: `no-baseline` forwards CC's raw array where the held
+    // frozen order was being forwarded, so the prefix diverges above messages.
+    const preConv = ctx.meta?.[PRE_PIPELINE_CONV] ?? null;
+    const sessionKey = resolveToolRewriteSessionKey(headers, body, preConv);
+    const rotatedKey = resolveToolRewriteSessionKey(headers, body);
 
     try {
       const incomingTools = body.tools;
-      const prior = await loadState(dir, sessionKey, fs);
+      let prior = await loadState(dir, sessionKey, fs);
+      // The BRIDGE, named as one. RETIREMENT TRIGGER: identical to
+      // insertion-normalization's, and deliberately the same window so the two
+      // retire together rather than leaving one half-migrated — remove this
+      // fallback once `d1OldKeyFallbackHit` has been absent from the event logs
+      // for SEVEN CONSECUTIVE DAYS. `gate-live` surfaces the count per capture;
+      // a sustained zero there is what discharges it, never an impression that
+      // "everything has migrated by now".
+      if (prior === null && rotatedKey !== sessionKey) {
+        prior = await loadState(dir, rotatedKey, fs);
+        if (prior !== null) {
+          ctx.meta = ctx.meta || {};
+          ctx.meta[OLD_KEY_HIT] = true;
+        }
+      }
       let result = classifyToolChange(incomingTools, prior?.tools ?? null);
 
       const announceOk = supportsToolAddition(body?.model);

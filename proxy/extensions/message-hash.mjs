@@ -45,6 +45,27 @@ export function hashMessageContent(msg) {
 // The general rule this keeps re-teaching: an identity computed more cheaply
 // than the thing it identifies will collide, and the collision presents as
 // churn rather than as a bug.
+// --- D1 / threat-matrix row 26: the pre-pipeline conversation identity -------
+//
+// `conversationSubKey` is a function of `messages[0]`, and every stateful
+// extension calls it on the body as it reaches THEM — which is AFTER
+// `fresh-session-sort` (order 250) may have prepended a relocated block into
+// `messages[0]`. The identity is then computed over bytes WE invented, so our
+// own mitigation rotates the key its downstream consumers key on and destroys
+// their state (matrix row 26, measured twice: 216,060 and ~124,331 cache_creation
+// tokens).
+//
+// The fix is to compute the identity ONCE, before the first mutating extension,
+// and hand it down. These two names are exported from here — beside the function
+// whose result they carry — for the reason stated below `resolveInsertionSessionKey`:
+// a second copy of a shared idea is a second truth, and the second consumer
+// learning the lesson late is exactly how row 26's sibling defect happened.
+//
+// PRE_PIPELINE_CONV: `ctx.meta` field carrying the identity as of order 250.
+// OLD_KEY_HIT: set by any consumer whose dual-read fell back to the rotated key.
+export const PRE_PIPELINE_CONV = "prePipelineConv";
+export const OLD_KEY_HIT = "d1OldKeyFallbackHit";
+
 export function conversationSubKey(messages) {
   const first = Array.isArray(messages) ? messages[0] : null;
   if (!first) return "empty";

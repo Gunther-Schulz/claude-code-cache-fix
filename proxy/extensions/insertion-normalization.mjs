@@ -140,7 +140,7 @@ import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { statePath } from "../xdg-dirs.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
-import { hashMessageContent, conversationSubKey } from "./message-hash.mjs";
+import { hashMessageContent, conversationSubKey, PRE_PIPELINE_CONV, OLD_KEY_HIT } from "./message-hash.mjs";
 import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 const DEFAULT_FS = { readFile, writeFile, rename, appendFile, mkdir };
@@ -245,9 +245,14 @@ export function systemPromptSubKey(system) {
 // conversationSubKey now lives in message-hash.mjs — deferred-tool-rewrite
 // needs the identical function, and a second copy is a second truth.
 
-export function resolveInsertionSessionKey(headers, messages, system) {
+// `convOverride` is D1's pre-pipeline conversation identity (matrix row 26):
+// when present it REPLACES the locally computed one, which is the whole point —
+// the local computation runs over an array `fresh-session-sort` may already have
+// mutated. Absent or null, behaviour is byte-identical to before D1, so every
+// existing caller and test is unaffected.
+export function resolveInsertionSessionKey(headers, messages, system, convOverride = null) {
   const sid = headers ? resolveSessionId(headers) : null;
-  const conv = conversationSubKey(messages);
+  const conv = convOverride ?? conversationSubKey(messages);
   if (sid) {
     return `s-${sid.replace(/[^A-Za-z0-9_-]/g, "_")}-${systemPromptSubKey(system)}-${conv}`;
   }
@@ -1897,12 +1902,33 @@ export default {
     const fs = DEFAULT_FS;
     const headers = ctx.headers || null;
     const sessionId = headers ? resolveSessionId(headers) : null;
-    const sessionKey = resolveInsertionSessionKey(headers, messages, body.system);
+    // D1 DUAL-READ (matrix row 26, operator GO 2026-08-10). Read under the
+    // pre-pipeline identity; fall back to the rotated one ONCE; always WRITE
+    // under the new one, so a conversation migrates on its first request after
+    // the restart and never writes to two buckets.
+    const preConv = ctx.meta?.[PRE_PIPELINE_CONV] ?? null;
+    const sessionKey = resolveInsertionSessionKey(headers, messages, body.system, preConv);
+    const rotatedKey = resolveInsertionSessionKey(headers, messages, body.system);
 
     try {
       const pin = isPinEnabled();
       const mode = pin ? "pin" : "plain";
-      const prior = await loadCanonical(dir, sessionKey, fs, mode);
+      let prior = await loadCanonical(dir, sessionKey, fs, mode);
+      // The BRIDGE, and it is named as one. RETIREMENT TRIGGER: this fallback
+      // goes away once `d1OldKeyFallbackHit` is absent from the event logs for
+      // SEVEN CONSECUTIVE DAYS — a window chosen to outlast the longest resumed
+      // session observed here, since a conversation that has not spoken since
+      // before the migration is exactly what the fallback exists for. Anything
+      // shorter retires the bridge while a live session still needs it.
+      // Counting instrument: the `oldKeyFallback` field written below, which
+      // `gate-live` surfaces per capture — a zero there is what discharges this.
+      if (prior === null && rotatedKey !== sessionKey) {
+        prior = await loadCanonical(dir, rotatedKey, fs, mode);
+        if (prior !== null) {
+          ctx.meta = ctx.meta || {};
+          ctx.meta[OLD_KEY_HIT] = true;
+        }
+      }
       const result = pin ? classifyPinned(messages, prior) : classifyInsertion(messages, prior);
 
       // Apply whatever the classifier produced, rather than keying on the

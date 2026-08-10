@@ -6,6 +6,7 @@ import { join } from "node:path";
 // filename builder). The XDG root resolver is a different thing entirely.
 import { statePath as xdgStatePath } from "../xdg-dirs.mjs";
 import { resolveInsertionSessionKey } from "./insertion-normalization.mjs";
+import { conversationSubKey, PRE_PIPELINE_CONV } from "./message-hash.mjs";
 import { writeFileOwnerOnly } from "./write-owner-only.mjs";
 
 const SR = "<system-reminder>\n";
@@ -371,6 +372,26 @@ export default {
     // would hoist an in-place block to the front of messages[0] and flip
     // index 0 for no reason.
     const convKey = resolveInsertionSessionKey(ctx.headers, body.messages, body.system);
+
+    // D1 CARRIER (threat-matrix row 26). Published HERE, on the line that
+    // already computes this identity, because this extension is the only reason
+    // the identity ever rotates: it files its own memory under the PRE-relocation
+    // identity (that asymmetry is row 26's signature), while every downstream
+    // stateful extension recomputes the same function over the array this
+    // extension is about to mutate. Publishing the pre-mutation value lets them
+    // key on the same bucket this extension already uses.
+    //
+    // Placed immediately after the computation and BEFORE every branch below on
+    // purpose: the relocate path is not the only exit, and a carrier set on some
+    // paths only would give consumers a key that appears and disappears within
+    // one conversation — worse than no carrier at all.
+    //
+    // Coupling to this extension being ENABLED is correct rather than a
+    // limitation: with no relocation there is no rotation, so a consumer that
+    // finds no carrier and computes locally gets the identical value.
+    ctx.meta = ctx.meta || {};
+    ctx.meta[PRE_PIPELINE_CONV] = conversationSubKey(body.messages);
+
     const remembered = await recallMemory(convKey);
 
     if (!hasScatteredBlocks && !remembered) {
