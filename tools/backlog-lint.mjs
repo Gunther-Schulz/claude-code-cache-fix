@@ -884,6 +884,35 @@ function formatCitationFinding(f) {
 // checked against the same claimed status — a simplification the entries
 // observed to date do not violate, named rather than hidden.
 
+// QUOTED-MENTION exemption. Same declared-exemption shape
+// `lintCorrectionPlacement` already carries (a backtick-quoted marker is a
+// citation of the term, not a claim), widened to double-quoted spans too:
+// this corpus also quotes another entry's TITLE with `"…"` (a MERGED-into
+// reference, an operator quote), and a `row N` citation sitting inside that
+// quoted title is being CITED — what the title SAYS — never asserted as a
+// live claim about the row. Real motivating instance, found live at
+// `90576cf` (BACKLOG.md line 481-482 there): an entry titled `MERGED into
+// "kill the relocation-induced conversation-key rotation (threat matrix row
+// 26)"` sits in the same SENTENCE (by this file's own sentence splitter) as
+// an unrelated "a CLOSED grade vocabulary" a few lines later, and the row
+// citation — inside the quoted title — read as a claim that row 26 is
+// CLOSED. A backtick-only exemption would not have silenced it: the quoting
+// there is double-quote, not backtick, so both forms are checked. Spans a
+// newline (`[\s\S]`, non-greedy) — this corpus wraps quoted titles across
+// lines exactly as it wraps bold prose (BOLD_SPAN, above).
+const QUOTE_SPAN = /"([\s\S]*?)"|`([\s\S]*?)`/g;
+
+function isQuotedSpanContext(body, index) {
+  QUOTE_SPAN.lastIndex = 0;
+  let m;
+  while ((m = QUOTE_SPAN.exec(body))) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    if (index >= start && index < end) return true;
+  }
+  return false;
+}
+
 const ROW_CITATION = /\brow\s+(\d+)\b/gi;
 // KNOWN- excluded too: `bust-triage.mjs`'s own VERDICT_BY_KIND emits
 // "KNOWN-OPEN" as a compound term, and a bare `\bOPEN\b` matches the OPEN
@@ -927,9 +956,11 @@ export function lintRowStatus(text, matrixPath = DEFAULT_MATRIX) {
       ROW_STATUS_WORD.lastIndex = 0;
       const wordMatch = ROW_STATUS_WORD.exec(sentence);
       if (!wordMatch) continue;
+      if (isQuotedSpanContext(entry.body, start + wordMatch.index)) continue;
       const claimedKind = statusKind(wordMatch[1]);
       if (claimedKind === null) continue; // not in the matrix's own vocabulary
       for (const rm of rowMatches) {
+        if (isQuotedSpanContext(entry.body, start + rm.index)) continue; // cited, not asserted
         const n = Number(rm[1]);
         const row = rowOf(n);
         if (!row || row.kind === null) continue; // no row, or the row's own status is unreadable

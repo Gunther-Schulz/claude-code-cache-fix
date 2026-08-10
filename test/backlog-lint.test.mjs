@@ -797,6 +797,59 @@ test("row-status lane: scoped to `## Open`", () => {
   assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
 });
 
+// --- Quoted-mention exemption: the real motivating instance, frozen -------
+//
+// Definitions from BACKLOG.md, "`lintRowStatus` fires on prose that
+// DESCRIBES a status assertion": a `row N` citation or a status word sitting
+// inside a quoted span (backtick OR double-quote — this corpus uses both)
+// is a CITATION, not a claim, mirroring `lintCorrectionPlacement`'s existing
+// backtick-only exemption but widened to the quoting form the real instance
+// actually used.
+//
+// Real instance, found live 2026-08-10 at `90576cf` (the dispatcher's push
+// gate): an entry titled `MERGED into "kill the relocation-induced
+// conversation-key rotation (threat matrix row 26)"` sits in the same
+// SENTENCE (by this file's own sentence splitter — no `[.!?]\s+` boundary
+// falls between them) as unrelated prose reading "a CLOSED grade
+// vocabulary" a few lines later. The row-26 citation is inside the
+// DOUBLE-QUOTED title, not asserting anything about row 26's live status.
+const ROW26_MERGE_REF = "90576cf";
+
+test("row-status lane: RED-FIRST — row 26's quoted title citation, real instance at 90576cf, against the OLD (pre-exemption) rule", () => {
+  const historical = gitShow(ROW26_MERGE_REF, "BACKLOG.md");
+  // Reproduce the OLD rule directly (no quoted-span exemption at all) to
+  // prove the red is not vacuous: same ROW_CITATION/ROW_STATUS_WORD/
+  // sentence-split shape as the fixed lane, minus the exemption this entry
+  // adds. If this stays green, the exemption is not what silences the fire.
+  const ROW_CITATION_OLD = /\brow\s+(\d+)\b/gi;
+  const ROW_STATUS_WORD_OLD = /(?<!NOT\s)(?<!KNOWN-)\b(RE-OPENED|OPEN|CLOSED|MITIGATED|OBSERVED|ACCEPTED)\b/g;
+  const SENTENCE_SPLIT_OLD = /(?<=[.!?])\s+(?=[A-Z0-9*`(])/;
+  const openStart = historical.match(/^## Open\b.*$/m);
+  assert.ok(openStart, "the frozen fixture must carry a '## Open' heading");
+  const afterOpen = historical.slice(openStart.index + openStart[0].length);
+  const section = afterOpen.split(/\n## /)[0];
+  const entries = splitEntries(section);
+  const target = entries.find((e) => /MERGED into .kill the relocation-induced/.test(e.header));
+  assert.ok(target, "the row-26 merge entry must exist in the frozen fixture");
+  let oldFired = false;
+  for (const sentence of target.body.split(SENTENCE_SPLIT_OLD)) {
+    ROW_CITATION_OLD.lastIndex = 0;
+    const rowHit = ROW_CITATION_OLD.exec(sentence);
+    if (!rowHit) continue;
+    ROW_STATUS_WORD_OLD.lastIndex = 0;
+    const wordHit = ROW_STATUS_WORD_OLD.exec(sentence);
+    if (wordHit) oldFired = true;
+  }
+  assert.equal(oldFired, true, "RED baseline: the old rule (no quoted-span exemption) must fire on this real entry");
+});
+
+test("row-status lane: GREEN — the fixed lane is silent on the same real entry at 90576cf", () => {
+  const historical = gitShow(ROW26_MERGE_REF, "BACKLOG.md");
+  const findings = lintRowStatus(historical, MATRIX_PATH);
+  const hit = findings.find((f) => f.row === 26 && /MERGED into/.test(f.entry));
+  assert.equal(hit, undefined, "the quoted row-26 title citation must not read as a live claim");
+});
+
 test("row-status lane: zero false fires on the real current BACKLOG.md", () => {
   const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
   const findings = lintRowStatus(current, MATRIX_PATH);
