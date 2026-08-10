@@ -97,11 +97,6 @@ deleted — AND the trigger rate measured rather than imagined.
 A lie here mis-files the class, and every mitigation designed afterwards is
 designed against the wrong evidence.
 
-2. **One reader owns the schemas this repo writes, throwing on an unknown field
-   instead of returning `null`.** A wrong-namespace read returns a number
-   byte-identical to a right one; measured at two confidently wrong answers
-   reaching the operator in a single bust walk.
-   <!-- entry: "one reader owns the schemas of everything this repo writes" -->
 3. **`capturePairResult` picks the busting conversation.** Declared Tier 1. Pick
    the wrong conversation and the class is mis-filed before any other check runs.
    <!-- entry: "`capturePairResult`'s conversation identity is the busting" -->
@@ -260,46 +255,6 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
-
-- **READY — one reader owns the schemas of everything this repo writes, and it
-  THROWS on an unknown field instead of returning `null`.** Supersedes the
-  narrower "normalize two field names" framing in the parked 213k entry's item
-  (d): the defect is not two spellings, it is that every consumer hand-parses.
-  Measured 2026-08-10: one bust walk ran ~8 ad-hoc `jq` probes over four
-  formats this repo writes, and two returned confidently wrong answers by
-  querying one schema with another's names — `usage.cacheRead` (capture
-  `outcome`) vs `cache_read_input_tokens` (`usage.jsonl`); `msgs` (prefix-diff
-  events) vs `messageCountPrev/Now` (prefix-diff last-state). Both reached the
-  operator as fact before being caught. A missing check is silent; a
-  hand-rolled read returns a NUMBER indistinguishable from a correct one.
-  Design (decided): `tools/logs.mjs`, one module, four format readers — capture
-  request records, capture `outcome` records, `usage.jsonl`, prefix-diff
-  events + last-state — each exposing normalized accessors over BOTH on-disk
-  spellings. The on-disk names do NOT change: `proxy/stream.mjs:21-22` and
-  `proxy/extensions/usage-log.mjs:187-188` are wire/schema writers with the
-  whole capture corpus behind them, and renaming either makes every archived
-  capture unreadable by the new reader — a bigger version of the bug being
-  fixed. Reader is strict: an unknown field name throws, naming the field and
-  the format, never returns `undefined`.
-  Companion scope lint, same shape as the existing xdg scope check
-  (`test/` already proves the form): a known schema's raw field names must not
-  appear outside `tools/logs.mjs` and the writers named above; a new call site
-  that hand-parses fails the bite.
-  Verifier, red-first, anchored to immutable references — the two real wrong
-  reads, replayed: asking a capture `outcome` record for
-  `cache_read_input_tokens`, and a prefix-diff EVENT row for
-  `messageCountPrev`, must THROW under the reader while both correct spellings
-  return the right numbers on the same records. Over-firing control: a record
-  legitimately missing an optional field returns its declared default and does
-  not throw, declared IN the test as data. Known positive from real data, not
-  planted: the 04:40:39Z outcome must read `cacheRead=15603`,
-  `cacheCreation=213429` through the reader.
-  Done-criterion: both throws demonstrated red before the reader exists (or, if
-  the module must exist first, one named accessor disabled at a time per the
-  module-load-red rule), controls green, scope lint green, full suite green.
-  Write boundary: `tools/logs.mjs`, `test/logs*.test.mjs`. No `proxy/` change,
-  so no pin bump and no restart. `bust-triage`'s adoption is a SEPARATE entry —
-  this one ships the reader and its lint only.
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
@@ -11392,3 +11347,82 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   recovered at the next read; ranked accordingly, not promoted for being
   annoying.
   <!-- entry: "backlog-lint's enumeration exemption is SLASH-ONLY" -->
+
+- **DONE `f7e52dd` + `4c9ae88` + `17e0a14` (2026-08-10) — `tools/logs.mjs`, one
+  strict reader owning the schemas of every format this repo writes.** Six
+  readers, each a Proxy that THROWS "unknown field X for format Y" on any name
+  outside its schema and defaults only schema-marked-optional fields;
+  `cacheReadOf`/`cacheCreationOf`/`messageCountsOf` normalize the two spellings
+  per concept. Both motivating wrong reads — the ones that reached the operator
+  as fact in one bust walk — are pinned as bites and were verified at the desk
+  by executing the reader, not by reading the report: asking a capture OUTCOME
+  record for `cache_read_input_tokens` and a prefix-diff EVENT row for
+  `messageCountPrev` both throw naming field AND format, while
+  `usage.cacheRead`/`cacheCreation` return the frozen 15603 / 213429.
+  Evidence frozen rather than live-read: the brief's known positive lived in a
+  ROTATING capture, so it is hand-placed into `test/fixtures/logs-schemas.json`
+  and the test never reads the captures directory.
+  **Desk findings the lane did not have.** (i) Its companion scope lint shipped
+  as a PREDICATE that nothing ran over the tree — honestly reported in its own
+  slot (g), and the same shape as `tools/xdg-writer-guard.mjs`, which sits red
+  at 34 while `npm test` is green. `4c9ae88` gives it the real tree plus a
+  declared inventory of PATHS (never a count): `tools/cost-report.mjs` EXEMPT
+  with a `mustMatch` the check re-verifies so a drifted exemption fails loudly,
+  `tools/cold-events.mjs` KNOWN-OPEN as a genuine hand-parse awaiting adoption.
+  Instrument-positive both ways — a planted hand-parse fails the sweep, a
+  drifted exemption is reported as stale — because an inventory that happens to
+  match is indistinguishable from a sweep that cannot fire.
+  (ii) The fixture's `sid` placeholders were synthetic but UUID-SHAPED, and the
+  pre-push absence-scan blocked on all four. My own hygiene pass had read every
+  value and confirmed none was real; the guard enforces the stricter property —
+  not "is this a real id" but "is this shaped like one" — and on a public
+  history that is the right bar. Repaired at the DATA (`17e0a14`), not by an
+  allowlist entry or `--no-verify`: neither escape was needed once the bytes
+  stopped being UUID-shaped.
+  **Named limitation carried forward, not silently solved:** the scope lint
+  covers only the camelCase capture/prefix-diff spellings. `usage.jsonl`'s
+  snake_case names are ALSO Anthropic's own wire vocabulary (they appear in raw
+  API responses and CC transcripts), so a text pattern cannot tell "reads our
+  usage.jsonl" from "reads a live API response" — separating them needs
+  parse-site provenance. Adoption into `bust-triage` and other consumers
+  remains its own entry.
+  ORIGINAL ENTRY:
+- **(shipped) READY — one reader owns the schemas of everything this repo writes, and it
+  THROWS on an unknown field instead of returning `null`.** Supersedes the
+  narrower "normalize two field names" framing in the parked 213k entry's item
+  (d): the defect is not two spellings, it is that every consumer hand-parses.
+  Measured 2026-08-10: one bust walk ran ~8 ad-hoc `jq` probes over four
+  formats this repo writes, and two returned confidently wrong answers by
+  querying one schema with another's names — `usage.cacheRead` (capture
+  `outcome`) vs `cache_read_input_tokens` (`usage.jsonl`); `msgs` (prefix-diff
+  events) vs `messageCountPrev/Now` (prefix-diff last-state). Both reached the
+  operator as fact before being caught. A missing check is silent; a
+  hand-rolled read returns a NUMBER indistinguishable from a correct one.
+  Design (decided): `tools/logs.mjs`, one module, four format readers — capture
+  request records, capture `outcome` records, `usage.jsonl`, prefix-diff
+  events + last-state — each exposing normalized accessors over BOTH on-disk
+  spellings. The on-disk names do NOT change: `proxy/stream.mjs:21-22` and
+  `proxy/extensions/usage-log.mjs:187-188` are wire/schema writers with the
+  whole capture corpus behind them, and renaming either makes every archived
+  capture unreadable by the new reader — a bigger version of the bug being
+  fixed. Reader is strict: an unknown field name throws, naming the field and
+  the format, never returns `undefined`.
+  Companion scope lint, same shape as the existing xdg scope check
+  (`test/` already proves the form): a known schema's raw field names must not
+  appear outside `tools/logs.mjs` and the writers named above; a new call site
+  that hand-parses fails the bite.
+  Verifier, red-first, anchored to immutable references — the two real wrong
+  reads, replayed: asking a capture `outcome` record for
+  `cache_read_input_tokens`, and a prefix-diff EVENT row for
+  `messageCountPrev`, must THROW under the reader while both correct spellings
+  return the right numbers on the same records. Over-firing control: a record
+  legitimately missing an optional field returns its declared default and does
+  not throw, declared IN the test as data. Known positive from real data, not
+  planted: the 04:40:39Z outcome must read `cacheRead=15603`,
+  `cacheCreation=213429` through the reader.
+  Done-criterion: both throws demonstrated red before the reader exists (or, if
+  the module must exist first, one named accessor disabled at a time per the
+  module-load-red rule), controls green, scope lint green, full suite green.
+  Write boundary: `tools/logs.mjs`, `test/logs*.test.mjs`. No `proxy/` change,
+  so no pin bump and no restart. `bust-triage`'s adoption is a SEPARATE entry —
+  this one ships the reader and its lint only.
