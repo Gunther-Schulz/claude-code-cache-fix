@@ -1329,8 +1329,55 @@ ENOSPC misattribution with its wrong first explanation left in.
   upstream-error-log.mjs, rate-limit-log.mjs. session-mirror-writer.mjs's
   contract sentence is now at lines 7-9, not 8-9. The core defect (stale
   ~/.claude comments) is unfixed and the entry stands.
-- **MEASURED 2026-08-10 (`c54b61c`, pending integration) — the check exists now,
-  and its REACH is the number to carry, not its verdict.** `lintCitations` ships
+- **READY (small) — `lintCitations` can READ only 3% of the citations it
+  checks, and nothing in its output says so twice.** Split out 2026-08-10 from
+  the citation entry at its closure, deliberately as its own bullet rather than
+  as a tail on a DONE body — burying it there is the exact late-correction
+  defect the same bundle just measured 16 times.
+  Measured: 74 citations checked, MATCH 2, DRIFTED 0, BROKEN-PATH 0,
+  COULD-NOT-CHECK 72. The check anchors on a tight cite-then-quote idiom
+  (`path:line` immediately followed by the quoted expression) and most
+  citations in this file do not use it. The COULD-NOT-CHECK bucket is why the
+  limit is visible at all; the risk is a later reader summarising the run as
+  "0 drifted".
+  Design, undecided — this is the open question, not a settled plan: raise reach
+  by adding a second anchoring idiom, or by a convention that new citations
+  adopt the tight form. Neither is chosen.
+  Verifier, BOTH halves required: MATCH+DRIFTED rises AND false-fires stay at
+  zero. Not one or the other — a looser anchor buys reach by inventing pairings,
+  and that failure is already measured here at 20 false DRIFTED in the check's
+  own first draft.
+  Consumer tier **3 (backlog and process)**.
+
+- **READY (small) — dispose of the 16 late corrections `lintCorrectionPlacement`
+  found.** Split out 2026-08-10 from the correction-placement entry at its
+  closure. The check is built and its class is proven; what is open is the
+  16 named entries themselves — each carries a correction below its own head, so
+  each contradicts itself for anyone who stops at the header.
+  Per entry, one of two dispositions: fold the correction into the entry's head,
+  or establish that this one is legitimately tail-shaped and say why. The
+  positions run 56%-95% into their entries, so none is marginal.
+  This is a BATCH candidate by construction — 16 items, one file, no shared
+  design decision between them, and the lane that takes it dispositions all 16
+  by number.
+  Verifier: re-run `node tools/backlog-lint.mjs`; the correction lane's count
+  falls by the number folded, and every entry not folded is named with its
+  reason. A count that falls further than the number folded means a correction
+  was deleted rather than moved, which is the failure to watch for.
+  Consumer tier **3 (backlog and process)**.
+
+- **DONE 2026-08-10 (`2e53a01`) — the check ships with FOUR answers, and the
+  fourth is what keeps it honest.** `lintCitations` reports MATCH / DRIFTED /
+  BROKEN-PATH / COULD-NOT-CHECK, runs in the default `backlog-lint` pass with
+  no new flag, and is REPORT-only. Red-first over an immutable reference:
+  `fe78c94~1`'s BACKLOG.md against today's `tools/bust-triage.mjs` returns
+  DRIFTED 749->754 and 760->765; the current file returns MATCH.
+  Its reach is small and is split out above as its own entry rather than left as
+  a tail here. Verified at the desk by re-running the whole-file accounting
+  myself: 74 checked, MATCH 2, DRIFTED 0, BROKEN-PATH 0, COULD-NOT-CHECK 72 —
+  identical to the lane's report.
+  Original body follows.
+- **The reach measurement, kept in place:** `lintCitations` ships
   with four answers (MATCH / DRIFTED / BROKEN-PATH / COULD-NOT-CHECK) and its
   whole-file accounting over the current file reads: **74 citations checked,
   MATCH 2, DRIFTED 0, BROKEN-PATH 0, COULD-NOT-CHECK 72.**
@@ -1530,6 +1577,22 @@ ENOSPC misattribution with its wrong first explanation left in.
   outside-`## Open` bullets, and the five `(shipped) READY` bullets. Done when
   `backlog-lint` fails on each of the three and the SessionStart count equals
   `grep -c '^- \*\*READY'` over `## Open`.
+- **DONE 2026-08-10 (`2e53a01`) — and it reuses `bust-triage`'s own vocabulary
+  rather than minting a second one.** `lintRowStatus` checks a `row N` +
+  status-word sentence against the live `robustness-threat-matrix.md`, importing
+  `statusKind`/`matrixRow` from `tools/bust-triage.mjs` — two instruments that
+  would otherwise disagree about what a status word means now share one.
+  Red-first: real matrix row 4 (`OPEN — RE-OPENED 2026-07-31`) against a
+  constructed "row 4 is CLOSED" fires; "row 4 is OPEN" is silent. Deviation the
+  lane named rather than hid: the positive pairs a CONSTRUCTED sentence with the
+  REAL committed matrix file, because an exhaustive search over all 360 commits
+  touching BACKLOG.md found no historical entry literally asserting row 4
+  CLOSED before the re-open — so no real positive exists to search for, and the
+  search was run before the construction rather than instead of it.
+  A real bug surfaced in its dry run: the check matched bare `OPEN` inside
+  `bust-triage`'s own `KNOWN-OPEN` compound verdict. Fixed with a `KNOWN-`
+  lookbehind. Clean on the current corpus, desk-verified.
+  Original body follows.
 - **READY (small) — the succession rule's computable slice: an entry that
   ASSERTS a matrix row's status is a dependent nothing re-reads.** The rule
   itself is judgment-shaped and stays prose (dev-loop, "A finding never lands
@@ -5953,6 +6016,35 @@ ENOSPC misattribution with its wrong first explanation left in.
   derivation).
   <!-- entry: "a lane whose worktree is RECLAIMED lands in the shared main checkout" -->
 
+- **DONE 2026-08-10 (`2e53a01` + `2676523`) — and the second commit is the
+  interesting one: the check shipped with HALF its design removed, on evidence.**
+  This entry specified two signals — a shipped-commit citation, and a split-out
+  phrase. Built as specified, the split-out signal returned **5 findings, 5
+  false**: this corpus uses "split out of/into" overwhelmingly for entry
+  LINEAGE (a big entry deliberately split into sub-entries, tracked both
+  directions), not for "my remainder is done, handed elsewhere". No phrasing
+  separates them, so it was REMOVED rather than thresholded — a threshold that
+  silences today's five is the same check waiting for a sixth. The lane
+  returned the 5/5 as a question instead of tuning it away, which is why the
+  decision was available to make.
+  A WARN-only check that is wrong every time it speaks is worse than absent: it
+  trains the reader to discount the reds from the three checks sharing its
+  output. That is the cost this entry's own "report and not a gate" reasoning
+  was already aiming at, one step further along.
+  **This entry's named verifier is satisfied, and I ran it myself rather than
+  booking the claim** — the entry says: run it over `BACKLOG.md` at `633256b`,
+  where the coverage-walk entry was still READY with its own commits in its
+  body, and it must flag exactly that entry. My run:
+  `WARN backlog-premise line=677 signals=shipped-commit:7827c4e`, one finding,
+  that entry. Clean on the current corpus in the same tool version — so the
+  clean is a live check reporting nothing, not a dead one, which is the only
+  reading a zero supports on its own.
+  The self-match exclusion is CHECKED, not hardcoded: the commit token must sit
+  inside a sentence-initial bold run, reusing `isSentenceInitialBoldContext`
+  already defined in the same file. This entry narrates its own positive in
+  plain prose, which is exactly what the exclusion catches — no line numbers,
+  which rot here within the hour.
+  Original body follows.
 - **READY — a derivation asks whether an entry's PREMISE is true and never
   whether WORK REMAINS, and the two come apart silently.** Measured 2026-08-10,
   within an hour of the first retirement pass, by the ranking that pass fed: the
@@ -5991,8 +6083,16 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **3 (backlog and process)** — it mis-orders work and inflates
   every count read from this file, and it is recovered at the next derivation.
 
-- **INSTRUMENT-POSITIVE 2026-08-10 (`c54b61c`, pending integration): the class
-  is real and it is SIXTEEN, measured rather than asserted.**
+- **DONE 2026-08-10 (`2e53a01`) — built, with its over-firing control proven in
+  the same run.** `lintCorrectionPlacement` flags the first correction marker
+  past the first third of an entry; backtick-quoted mentions are exempt. It
+  fires on 16 real entries and stays SILENT on the `bust-appears` DONE entry
+  whose correction sits inside its own header — so it separates a correction
+  folded into the head from one appended below it, which is the whole
+  distinction. Desk-verified: my own run returns the same 16.
+  The disposition of those 16 is split out above as its own entry.
+  Original body follows.
+- **The instrument-positive, kept in place:**
   `lintCorrectionPlacement` flags the first correction marker (PREMISE
   CORRECTED / RE-GRADED / CORRECTED / WITHDRAWN) appearing past the first third
   of an entry; backtick-quoted mentions are exempt. Over the current file it
