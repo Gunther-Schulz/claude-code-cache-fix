@@ -321,6 +321,40 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY (small, operator-side — DECISION ATTACHED) — `CLAUDE.local.md`
+  carries a SECOND index over the runbook lanes, and it is now stale by four
+  of seven.** Measured 2026-08-10 late-evening at the desk, after both new
+  lanes landed: `node tools/runbook-lane-index.mjs` reports "7 index row(s), 7
+  runbook file(s) on disk" with zero orphans and zero dead pointers — the
+  dev-loop router is complete — and four `CLAUDE.local.md STALE LIST` findings
+  (`runtime-anomaly`, `session-close`, `ship-proxy-change`,
+  `upstream-pr-slice`). The list was already stale by two before today; the two
+  new lanes made it four.
+  **The recommendation is to DELETE the inline list, not to sync it**, and the
+  basis is `~/.claude/runbook-format.md`'s own rule: there is exactly ONE
+  router per repo, because "minting a second one beside it creates two lists
+  over the same lanes that drift apart within hours" — which is precisely the
+  observed history here. `CLAUDE.local.md`'s own sentence already concedes it
+  ("**The index is `docs/dev-loop.md` … — read that, not this line**, which is
+  a pointer and will go stale first"), so the file is carrying a list it tells
+  its reader not to trust. Syncing it buys four green findings and re-arms the
+  same drift on the next lane.
+  Why this is not just done: the file is the operator's overlay, DEPLOYED from
+  dotfiles `cache-fix/CLAUDE.local.md` — edited there, never here — and its
+  deletion changes what `runbook-lane-index`'s CHECK 2b measures. That second
+  half is the real work: with no inline list the check must report
+  NOT-APPLICABLE, not COULD-NOT-VERIFY, or it converts a deliberate removal
+  into a permanent unverifiable — and today COULD-NOT-VERIFY is exactly what
+  it already reports in every worktree, where the untracked file is absent, so
+  the two states are currently indistinguishable.
+  Write boundary: dotfiles `cache-fix/CLAUDE.local.md` (the list), then
+  `tools/runbook-lane-index.mjs` + `test/runbook-lane-index.test.mjs` (CHECK
+  2b's third answer). Verifier, red-first: with the list removed, the check
+  must report not-applicable while a PLANTED partial list still reports STALE
+  LIST — both arms, or the removal has simply silenced the check.
+  Consumer tier **2**. Loop stage: VERIFY.
+  <!-- entry: "CLAUDE.local.md carries a second index over the runbook lanes" -->
+
 - **PARKED 2026-08-10 late-evening — `s-captureAT` ROTATED OUT, and it took
   the only recorded instance of `capturePairResult`'s red case with it.**
   Measured, with a positive control so the zero means something: the alias
