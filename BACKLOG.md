@@ -2006,6 +2006,26 @@ ENOSPC misattribution with its wrong first explanation left in.
   the standing rate — that is a separate measurement over more captures, and it
   is not what caused this event.
 
+- **READY (small) — `named-unbooked-scan` is referenced by nothing but itself.**
+  Measured immediately after it shipped: `grep -n "named-unbooked-scan"` across
+  `BACKLOG.md`, `docs/runbooks/*.md`, `docs/dev-loop.md` and `tools/*.mjs`
+  returns hits in ONE file — the tool's own source. No runbook step invokes it,
+  no lane names it, nothing schedules it. It is a mechanism with no trigger,
+  which is the state the class it detects is about: the check against
+  named-and-unbooked was itself named and unwired within the hour of being
+  built, by the session that built it.
+  Design (decided): the session-close lane owns it —
+  `docs/runbooks/session-close.md` gains a numbered step running it over the
+  session's own transcript with `--until HEAD`, and the step carries
+  `[GRADUATE -> a Stop-hook runs it without anyone remembering]`, because a
+  runbook step still depends on someone reading the runbook, which is the same
+  dependency that produced the defect. Report-only, as the tool already is.
+  Verifier: `grep -n "named-unbooked-scan" docs/runbooks/session-close.md`
+  returns the step and its GRADUATE marker; running the step by hand over this
+  session's transcript prints its examined-count line rather than a bare
+  verdict. Done-criterion: both, suite green.
+  Write boundary: `docs/runbooks/session-close.md`.
+
 - **READY — no instrument reads the BILLING side, so the only ground truth we
   have about whether the cache held is unread.** Measured 2026-08-10:
   `grep -c usage tools/gate-live.mjs` → 0; `bust-triage` reads none;
