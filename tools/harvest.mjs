@@ -753,11 +753,36 @@ function boundedPlaceholder(ordinal, ts) {
       messages: [
         {
           role: "user",
-          content:
+          // TOKENIZED, exactly like every other content string this tool
+          // writes — through `scrubText`, the same function the scrub itself
+          // uses, never a hand-built token.
+          //
+          // WHY, measured 2026-08-10 at the push boundary: this body used to be
+          // the raw sentence below, and the first bounded pin ever committed was
+          // BLOCKED by the pre-push hygiene scan with 99 `raw-content` findings —
+          // every one of them this tool's own placeholder. The mechanism could
+          // not produce a committable fixture, which is its entire purpose, and
+          // nothing caught it because the feature was proven at its own bench
+          // and never carried to the boundary.
+          //
+          // The tempting repair was an exemption in the scanner. That is the
+          // symptom-site fix: it widens what the hygiene guard accepts, forever,
+          // to accommodate a writer that should not have emitted raw prose into
+          // a content field in the first place. The corpus invariant is that
+          // EVERY content string is a token; a placeholder is not entitled to an
+          // exception to it, and the guard stays universal.
+          //
+          // The token is still distinct per ordinal (the ordinal is inside the
+          // hashed text), which is what keeps each placeholder its own singleton
+          // conversation. The human-readable explanation lives in the fixture
+          // header's `boundedNote`, once, where a reader actually meets it —
+          // rather than 212 times inside the records.
+          content: scrubText(
             `BOUNDED PIN PLACEHOLDER: the record at ordinal ${ordinal} was outside the ` +
-            "busting request's own conversation and its sameLineage union, and was " +
-            "dropped. This is synthetic content, not captured traffic — see this " +
-            "fixture's header.boundedNote.",
+              "busting request's own conversation and its sameLineage union, and was " +
+              "dropped. This is synthetic content, not captured traffic — see this " +
+              "fixture's header.boundedNote.",
+          ),
         },
       ],
     },
@@ -1299,9 +1324,14 @@ async function runPin(args) {
               "placeholder request records that occupy the same ordinal: " +
               "sid/key start with 'bounded-placeholder-<ordinal>' (never the " +
               "s-<hash> shape real traffic carries) and body.messages holds " +
-              "exactly one user message whose text names the dropped ordinal " +
-              "and states plainly that it is not real traffic. A placeholder " +
-              "is its own singleton conversation and pairs with nothing.",
+              "exactly one user message whose content is a TOKENIZED " +
+              "placeholder sentence naming the dropped ordinal — tokenized " +
+              "through the same scrub every other content string here goes " +
+              "through, so this corpus has no raw-prose exception anywhere and " +
+              "the pre-push hygiene scan needs no exemption to accept a bounded " +
+              "pin. The token differs per ordinal, so a placeholder is its own " +
+              "singleton conversation and pairs with nothing. This note is the " +
+              "only place the sentence is readable, deliberately.",
           }
         : {}),
     },

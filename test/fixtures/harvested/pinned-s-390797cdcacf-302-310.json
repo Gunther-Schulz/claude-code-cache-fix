@@ -7,13 +7,13 @@
     },
     "replayFrom": 0,
     "note": "records holds the FULL prefix 0..m, not just n..m: the real-pair tests replay every request from index 0 in order because insertion-normalization's per-conversation canonical state is stateful (see tools/harvest.mjs runPin's header comment). n..m names the pair under test, not a truncation point. BOUNDED: records outside the busting request's own conversation and its sameLineage union were replaced by placeholders (see boundedNote below) — the FULL PREFIX claim above is true of the unbounded mode only.",
-    "harvestedAt": "2000-01-01T00:35:09.471Z",
+    "harvestedAt": "2000-01-01T00:40:42.356Z",
     "sanitizer": "tools/harvest.mjs scrubRecord + rebaseTimestamps. TOKENIZED: every text, per '\\n\\n' segment, as t_<sha12>_<len> (tool schemas dropped; <system-reminder> WRAPPERS survive verbatim around a tokenized inner text); every nested payload (block.data, block.source.data, any >64-char string under source) as data_<sha10>; thinking signatures as sig_<sha10>; conversation keys and sids as s-<sha12>, the same token the filename carries. REBASED: every timestamp onto 2000-01-01T00:00:00.000Z + its original delta from this fixture's earliest instant. PRESERVED (this is what the fixture is FOR): equality of equal texts, the '\\n\\n' join and paragraph-prefix relations, tool_use_id/id pairing, message and block ordering, and timestamp ordering and spacing within the fixture. RESIDUAL, accepted: token lengths, paragraph counts, intra-fixture timing deltas. Verified, not asserted: test/harvest-scrub-relations.test.mjs walks this file and re-checks each absence class mechanically.",
     "bounded": true,
     "boundedTarget": 310,
     "boundedKept": 99,
     "boundedPlaceholders": 212,
-    "boundedNote": "Records outside the busting request's own conversation (conversationOf) and its sameLineage union (LINEAGE_THRESHOLD = 0.5, tools/replay.mjs) were replaced with synthetic placeholder request records that occupy the same ordinal: sid/key start with 'bounded-placeholder-<ordinal>' (never the s-<hash> shape real traffic carries) and body.messages holds exactly one user message whose text names the dropped ordinal and states plainly that it is not real traffic. A placeholder is its own singleton conversation and pairs with nothing."
+    "boundedNote": "Records outside the busting request's own conversation (conversationOf) and its sameLineage union (LINEAGE_THRESHOLD = 0.5, tools/replay.mjs) were replaced with synthetic placeholder request records that occupy the same ordinal: sid/key start with 'bounded-placeholder-<ordinal>' (never the s-<hash> shape real traffic carries) and body.messages holds exactly one user message whose content is a TOKENIZED placeholder sentence naming the dropped ordinal — tokenized through the same scrub every other content string here goes through, so this corpus has no raw-prose exception anywhere and the pre-push hygiene scan needs no exemption to accept a bounded pin. The token differs per ordinal, so a placeholder is its own singleton conversation and pairs with nothing. This note is the only place the sentence is readable, deliberately."
   },
   "records": [
     {
@@ -47,7 +47,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 0 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_08b5462ada07_232"
           }
         ]
       }
@@ -65,7 +65,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 1 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d104ced001af_232"
           }
         ]
       }
@@ -183,7 +183,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 3 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_5f5b01c2efd5_232"
           }
         ]
       }
@@ -258,7 +258,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 4 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f6a8bdbaa271_232"
           }
         ]
       }
@@ -445,7 +445,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 6 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f78f9a95236f_232"
           }
         ]
       }
@@ -660,7 +660,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 8 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9d7b681eeed7_232"
           }
         ]
       }
@@ -10709,7 +10709,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 27 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_cf655b8d4ca5_233"
           }
         ]
       }
@@ -11659,7 +11659,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 29 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_2c576c740509_233"
           }
         ]
       }
@@ -12637,7 +12637,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 31 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_31782a4884e5_233"
           }
         ]
       }
@@ -13648,7 +13648,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 33 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ddfc6c1ba5e5_233"
           }
         ]
       }
@@ -15781,7 +15781,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 36 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_56a1d44e4402_233"
           }
         ]
       }
@@ -15818,7 +15818,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 37 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d0cf07edf825_233"
           }
         ]
       }
@@ -23017,7 +23017,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 44 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ef56c77beb7f_233"
           }
         ]
       }
@@ -24368,7 +24368,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 46 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_549d7eaaa68f_233"
           }
         ]
       }
@@ -24405,7 +24405,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 47 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_94cdd5ddb4a4_233"
           }
         ]
       }
@@ -24442,7 +24442,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 48 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_38a549cd1480_233"
           }
         ]
       }
@@ -24479,7 +24479,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 49 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_b5102c3246b7_233"
           }
         ]
       }
@@ -24516,7 +24516,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 50 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_97b438765efa_233"
           }
         ]
       }
@@ -24553,7 +24553,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 51 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_632372113a3f_233"
           }
         ]
       }
@@ -24590,7 +24590,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 52 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_686910842609_233"
           }
         ]
       }
@@ -24627,7 +24627,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 53 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_863214fc9d53_233"
           }
         ]
       }
@@ -24664,7 +24664,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 54 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ea3215e78d40_233"
           }
         ]
       }
@@ -24701,7 +24701,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 55 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_a63748f39c4d_233"
           }
         ]
       }
@@ -26105,7 +26105,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 57 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9efd488715ba_233"
           }
         ]
       }
@@ -26123,7 +26123,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 58 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f8c0818ca0d9_233"
           }
         ]
       }
@@ -26179,7 +26179,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 59 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_4c5dcdc69c59_233"
           }
         ]
       }
@@ -26216,7 +26216,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 60 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_0f3244577ce8_233"
           }
         ]
       }
@@ -26234,7 +26234,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 61 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_333f8f668f99_233"
           }
         ]
       }
@@ -26290,7 +26290,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 62 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_fe943b912fc9_233"
           }
         ]
       }
@@ -26327,7 +26327,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 63 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_12beeba5ac55_233"
           }
         ]
       }
@@ -26364,7 +26364,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 64 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_782131b259f2_233"
           }
         ]
       }
@@ -26382,7 +26382,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 65 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ad1736cf6f02_233"
           }
         ]
       }
@@ -26419,7 +26419,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 66 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_0be6264821e3_233"
           }
         ]
       }
@@ -26456,7 +26456,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 67 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_676af454c05f_233"
           }
         ]
       }
@@ -26512,7 +26512,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 68 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_7d0ffd4998fe_233"
           }
         ]
       }
@@ -26549,7 +26549,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 69 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_37bb813d83be_233"
           }
         ]
       }
@@ -26586,7 +26586,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 70 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_6d8787969358_233"
           }
         ]
       }
@@ -27991,7 +27991,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 72 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_53b081918ebf_233"
           }
         ]
       }
@@ -28066,7 +28066,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 73 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_0de5936a9c10_233"
           }
         ]
       }
@@ -29546,7 +29546,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 75 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f68bfeea9dc7_233"
           }
         ]
       }
@@ -29583,7 +29583,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 76 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_a9f8f18073f3_233"
           }
         ]
       }
@@ -29601,7 +29601,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 77 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3580cbb88121_233"
           }
         ]
       }
@@ -29619,7 +29619,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 78 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d69e5edc62ea_233"
           }
         ]
       }
@@ -29637,7 +29637,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 79 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_bc80d0a1660a_233"
           }
         ]
       }
@@ -32661,7 +32661,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 82 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_de92dc9eb87f_233"
           }
         ]
       }
@@ -32717,7 +32717,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 83 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ecd19e7ad9e0_233"
           }
         ]
       }
@@ -37483,7 +37483,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 87 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_2498a6ca2e35_233"
           }
         ]
       }
@@ -37520,7 +37520,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 88 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c7d13210846b_233"
           }
         ]
       }
@@ -39222,7 +39222,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 90 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d24fca7c65dd_233"
           }
         ]
       }
@@ -40948,7 +40948,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 92 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_5b7feffd3ed1_233"
           }
         ]
       }
@@ -42679,7 +42679,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 94 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_bd2798ebd726_233"
           }
         ]
       }
@@ -42735,7 +42735,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 95 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_6565b236c13c_233"
           }
         ]
       }
@@ -44495,7 +44495,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 97 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c60d3a645a01_233"
           }
         ]
       }
@@ -44551,7 +44551,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 98 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3f90e8b019e1_233"
           }
         ]
       }
@@ -44588,7 +44588,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 99 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_382cc7d48ecf_233"
           }
         ]
       }
@@ -44625,7 +44625,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 100 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_274d43c07634_234"
           }
         ]
       }
@@ -51915,7 +51915,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 105 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_cf55120cf3e0_234"
           }
         ]
       }
@@ -53847,7 +53847,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 107 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_013992cf6cd9_234"
           }
         ]
       }
@@ -53903,7 +53903,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 108 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3aba7e196011_234"
           }
         ]
       }
@@ -53940,7 +53940,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 109 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_917f4bfaa244_234"
           }
         ]
       }
@@ -55905,7 +55905,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 111 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c0c964847d35_234"
           }
         ]
       }
@@ -55942,7 +55942,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 112 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ce89296a2028_234"
           }
         ]
       }
@@ -55960,7 +55960,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 113 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9ce15e0c4457_234"
           }
         ]
       }
@@ -57981,7 +57981,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 115 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_98d0a009908b_234"
           }
         ]
       }
@@ -60030,7 +60030,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 117 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_b75a247591e6_234"
           }
         ]
       }
@@ -60067,7 +60067,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 118 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f0d9ccb38337_234"
           }
         ]
       }
@@ -60104,7 +60104,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 119 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_5db72b392df2_234"
           }
         ]
       }
@@ -62185,7 +62185,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 121 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_347688fbfb53_234"
           }
         ]
       }
@@ -62222,7 +62222,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 122 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e2eea3e466fd_234"
           }
         ]
       }
@@ -66422,7 +66422,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 125 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_7631f15532fa_234"
           }
         ]
       }
@@ -68592,7 +68592,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 127 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c31e7f4667ad_234"
           }
         ]
       }
@@ -68648,7 +68648,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 128 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9da0b881ac49_234"
           }
         ]
       }
@@ -68666,7 +68666,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 129 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_bd63fbd94841_234"
           }
         ]
       }
@@ -68722,7 +68722,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 130 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c1adfe4799ea_234"
           }
         ]
       }
@@ -70925,7 +70925,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 132 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_93a5ca76f1ee_234"
           }
         ]
       }
@@ -70943,7 +70943,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 133 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9d3b0fca3ce6_234"
           }
         ]
       }
@@ -70999,7 +70999,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 134 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f214f414cb05_234"
           }
         ]
       }
@@ -71017,7 +71017,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 135 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_73b0da75d059_234"
           }
         ]
       }
@@ -73253,7 +73253,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 137 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_a017defef288_234"
           }
         ]
       }
@@ -73290,7 +73290,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 138 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_47df66d6ea5d_234"
           }
         ]
       }
@@ -75559,7 +75559,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 140 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_83613274c7c2_234"
           }
         ]
       }
@@ -75615,7 +75615,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 141 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_77de88294207_234"
           }
         ]
       }
@@ -75633,7 +75633,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 142 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3257197e445a_234"
           }
         ]
       }
@@ -75670,7 +75670,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 143 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_4b5d290b2e4f_234"
           }
         ]
       }
@@ -77991,7 +77991,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 145 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ba4878b5b7ba_234"
           }
         ]
       }
@@ -78009,7 +78009,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 146 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_412d1352ccb4_234"
           }
         ]
       }
@@ -80372,7 +80372,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 148 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_4317518a7b9c_234"
           }
         ]
       }
@@ -80390,7 +80390,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 149 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_28a7e4093311_234"
           }
         ]
       }
@@ -80446,7 +80446,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 150 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_a8feffa5c1e9_234"
           }
         ]
       }
@@ -80483,7 +80483,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 151 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_95fdb8d75b7e_234"
           }
         ]
       }
@@ -80520,7 +80520,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 152 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_8b156ad783e0_234"
           }
         ]
       }
@@ -82892,7 +82892,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 154 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_505b7d41b4bb_234"
           }
         ]
       }
@@ -82910,7 +82910,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 155 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_07d81255aa9e_234"
           }
         ]
       }
@@ -82966,7 +82966,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 156 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_fcb954b8a49a_234"
           }
         ]
       }
@@ -85329,7 +85329,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 158 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9f84c4591693_234"
           }
         ]
       }
@@ -85366,7 +85366,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 159 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_cdc0f7d352ac_234"
           }
         ]
       }
@@ -85441,7 +85441,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 160 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f254524c461d_234"
           }
         ]
       }
@@ -85478,7 +85478,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 161 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_5265e6fba07b_234"
           }
         ]
       }
@@ -87893,7 +87893,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 163 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_30f0593e4763_234"
           }
         ]
       }
@@ -87911,7 +87911,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 164 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_baf24b97373c_234"
           }
         ]
       }
@@ -87986,7 +87986,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 165 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_49aa12420244_234"
           }
         ]
       }
@@ -88004,7 +88004,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 166 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_308320c4dd3e_234"
           }
         ]
       }
@@ -90433,7 +90433,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 168 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_b948276e68fd_234"
           }
         ]
       }
@@ -90527,7 +90527,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 169 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_51efb298d28d_234"
           }
         ]
       }
@@ -90564,7 +90564,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 170 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_dd8a83cb85a7_234"
           }
         ]
       }
@@ -90601,7 +90601,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 171 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_50325873905d_234"
           }
         ]
       }
@@ -95592,7 +95592,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 174 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_4a4e6fe7d47d_234"
           }
         ]
       }
@@ -100723,7 +100723,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 177 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9162c36f6c03_234"
           }
         ]
       }
@@ -100760,7 +100760,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 178 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_526829f4b620_234"
           }
         ]
       }
@@ -103404,7 +103404,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 180 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_be044274864a_234"
           }
         ]
       }
@@ -106085,7 +106085,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 182 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_019f1419561b_234"
           }
         ]
       }
@@ -106122,7 +106122,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 183 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_989f53c62bd3_234"
           }
         ]
       }
@@ -106140,7 +106140,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 184 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_392cad2202b2_234"
           }
         ]
       }
@@ -108881,7 +108881,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 186 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_13ba8693bdcc_234"
           }
         ]
       }
@@ -114377,7 +114377,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 189 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9c6cb76ff0f0_234"
           }
         ]
       }
@@ -117183,7 +117183,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 191 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_07c8c3697717_234"
           }
         ]
       }
@@ -125792,7 +125792,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 195 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_a260bb4e7d08_234"
           }
         ]
       }
@@ -125810,7 +125810,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 196 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_4b881dbc52a7_234"
           }
         ]
       }
@@ -125866,7 +125866,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 197 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_15f92fe66a81_234"
           }
         ]
       }
@@ -125903,7 +125903,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 198 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d542be559336_234"
           }
         ]
       }
@@ -125940,7 +125940,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 199 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_cbeab617aa53_234"
           }
         ]
       }
@@ -125977,7 +125977,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 200 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_8046a1da925c_234"
           }
         ]
       }
@@ -126014,7 +126014,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 201 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ae9c88185ec1_234"
           }
         ]
       }
@@ -126032,7 +126032,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 202 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_66760b2ccdb2_234"
           }
         ]
       }
@@ -126050,7 +126050,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 203 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_06f62a382ee3_234"
           }
         ]
       }
@@ -129062,7 +129062,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 205 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e6fd03b766bf_234"
           }
         ]
       }
@@ -129080,7 +129080,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 206 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_778d7265c6a3_234"
           }
         ]
       }
@@ -129136,7 +129136,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 207 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_fdb0ba972da0_234"
           }
         ]
       }
@@ -129154,7 +129154,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 208 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_7a4634fc8c43_234"
           }
         ]
       }
@@ -129210,7 +129210,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 209 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_7dd1dac746d0_234"
           }
         ]
       }
@@ -129228,7 +129228,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 210 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_493dc02646a9_234"
           }
         ]
       }
@@ -132249,7 +132249,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 212 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_54c96e9011c4_234"
           }
         ]
       }
@@ -132267,7 +132267,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 213 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_17a2d9a21dc9_234"
           }
         ]
       }
@@ -132323,7 +132323,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 214 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_8b11f321afbd_234"
           }
         ]
       }
@@ -132360,7 +132360,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 215 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3e340be2116e_234"
           }
         ]
       }
@@ -132378,7 +132378,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 216 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_844036da076b_234"
           }
         ]
       }
@@ -132434,7 +132434,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 217 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ae259d2f3a8a_234"
           }
         ]
       }
@@ -132452,7 +132452,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 218 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_fd52bcb571ac_234"
           }
         ]
       }
@@ -132489,7 +132489,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 219 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_31f1888e5879_234"
           }
         ]
       }
@@ -135548,7 +135548,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 221 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f8f1bf169f1a_234"
           }
         ]
       }
@@ -141684,7 +141684,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 224 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_74be7c2daae7_234"
           }
         ]
       }
@@ -141740,7 +141740,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 225 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_1ea79c6fc47b_234"
           }
         ]
       }
@@ -141758,7 +141758,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 226 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_0569f9c11fe9_234"
           }
         ]
       }
@@ -141814,7 +141814,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 227 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c66945403f96_234"
           }
         ]
       }
@@ -141832,7 +141832,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 228 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9cdab293a017_234"
           }
         ]
       }
@@ -141869,7 +141869,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 229 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d7822b15b8a2_234"
           }
         ]
       }
@@ -144978,7 +144978,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 231 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_5a27f45b2e24_234"
           }
         ]
       }
@@ -145053,7 +145053,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 232 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3bb5c2da3d73_234"
           }
         ]
       }
@@ -145090,7 +145090,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 233 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ef1efa1ee27b_234"
           }
         ]
       }
@@ -145146,7 +145146,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 234 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_1a8a463847d1_234"
           }
         ]
       }
@@ -145164,7 +145164,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 235 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3716dc46a281_234"
           }
         ]
       }
@@ -145201,7 +145201,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 236 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_dc9565339a24_234"
           }
         ]
       }
@@ -145257,7 +145257,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 237 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_aee97edbea78_234"
           }
         ]
       }
@@ -145275,7 +145275,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 238 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c0a4fbb611d9_234"
           }
         ]
       }
@@ -145312,7 +145312,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 239 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_8ddc1d3f3e02_234"
           }
         ]
       }
@@ -145349,7 +145349,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 240 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_1d38aed02356_234"
           }
         ]
       }
@@ -145405,7 +145405,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 241 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_251496e4e50e_234"
           }
         ]
       }
@@ -145423,7 +145423,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 242 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_37d7e3144174_234"
           }
         ]
       }
@@ -145479,7 +145479,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 243 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_b7622eab3823_234"
           }
         ]
       }
@@ -148626,7 +148626,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 245 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_7602b4fcfe2d_234"
           }
         ]
       }
@@ -148701,7 +148701,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 246 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d50dfe5db516_234"
           }
         ]
       }
@@ -148719,7 +148719,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 247 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_0103555488fd_234"
           }
         ]
       }
@@ -148756,7 +148756,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 248 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_5267c8a34c90_234"
           }
         ]
       }
@@ -148793,7 +148793,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 249 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_6a5bd475bf3a_234"
           }
         ]
       }
@@ -148849,7 +148849,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 250 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_fe74e4c1f9d9_234"
           }
         ]
       }
@@ -152034,7 +152034,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 252 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e274d8b05a9e_234"
           }
         ]
       }
@@ -152052,7 +152052,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 253 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_bd41f46f9283_234"
           }
         ]
       }
@@ -152146,7 +152146,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 254 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e4ab28008e26_234"
           }
         ]
       }
@@ -152164,7 +152164,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 255 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ba633a1527df_234"
           }
         ]
       }
@@ -155448,7 +155448,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 257 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_2972f2e683d6_234"
           }
         ]
       }
@@ -155485,7 +155485,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 258 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_21276ff18525_234"
           }
         ]
       }
@@ -158759,7 +158759,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 260 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_bbcd8cd677b1_234"
           }
         ]
       }
@@ -158796,7 +158796,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 261 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d3381e34a11d_234"
           }
         ]
       }
@@ -158833,7 +158833,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 262 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_105b7751803b_234"
           }
         ]
       }
@@ -158870,7 +158870,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 263 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_eb8f333756ea_234"
           }
         ]
       }
@@ -158888,7 +158888,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 264 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f4465cc19fee_234"
           }
         ]
       }
@@ -158944,7 +158944,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 265 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_da7e7a9eb88d_234"
           }
         ]
       }
@@ -162276,7 +162276,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 267 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_6f2afd6cdc0a_234"
           }
         ]
       }
@@ -162294,7 +162294,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 268 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3ef24167cdd4_234"
           }
         ]
       }
@@ -165685,7 +165685,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 270 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c8f0c72305e3_234"
           }
         ]
       }
@@ -165703,7 +165703,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 271 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_57b496a6c3d9_234"
           }
         ]
       }
@@ -165740,7 +165740,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 272 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_b3a01a8bc383_234"
           }
         ]
       }
@@ -165777,7 +165777,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 273 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_b2a9c2186f88_234"
           }
         ]
       }
@@ -165795,7 +165795,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 274 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_16a27c2deebf_234"
           }
         ]
       }
@@ -165870,7 +165870,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 275 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e3a61fc3de45_234"
           }
         ]
       }
@@ -165888,7 +165888,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 276 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_66973c616ca4_234"
           }
         ]
       }
@@ -169279,7 +169279,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 278 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d4b42b431feb_234"
           }
         ]
       }
@@ -169335,7 +169335,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 279 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_13d6d7d4b891_234"
           }
         ]
       }
@@ -172754,7 +172754,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 281 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e8061e658a25_234"
           }
         ]
       }
@@ -172772,7 +172772,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 282 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_d60ea9f4c4e3_234"
           }
         ]
       }
@@ -172828,7 +172828,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 283 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_b3e1cb4adf27_234"
           }
         ]
       }
@@ -172865,7 +172865,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 284 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_1e05dae11eee_234"
           }
         ]
       }
@@ -172902,7 +172902,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 285 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_f1d4813224f1_234"
           }
         ]
       }
@@ -172939,7 +172939,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 286 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_1fa63f7567c4_234"
           }
         ]
       }
@@ -176386,7 +176386,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 288 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e561c4f2bd16_234"
           }
         ]
       }
@@ -176442,7 +176442,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 289 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_300b4ea6ce1d_234"
           }
         ]
       }
@@ -179941,7 +179941,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 291 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_be3ca1d34e42_234"
           }
         ]
       }
@@ -179959,7 +179959,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 292 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3c2c24edc785_234"
           }
         ]
       }
@@ -183509,7 +183509,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 294 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_7ecafe439605_234"
           }
         ]
       }
@@ -187078,7 +187078,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 296 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_0fa6cc75d208_234"
           }
         ]
       }
@@ -187115,7 +187115,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 297 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_3c33d87fce96_234"
           }
         ]
       }
@@ -187133,7 +187133,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 298 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_64563ab5081d_234"
           }
         ]
       }
@@ -187189,7 +187189,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 299 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_e82f76be59f1_234"
           }
         ]
       }
@@ -187207,7 +187207,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 300 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_28cfb8c1e7cd_234"
           }
         ]
       }
@@ -187263,7 +187263,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 301 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c32e420ac7d9_234"
           }
         ]
       }
@@ -190817,7 +190817,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 303 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_47d61dff6c3e_234"
           }
         ]
       }
@@ -190854,7 +190854,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 304 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_71718cfe3072_234"
           }
         ]
       }
@@ -190910,7 +190910,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 305 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_8c36b50aa132_234"
           }
         ]
       }
@@ -190928,7 +190928,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 306 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_5edc59b701cb_234"
           }
         ]
       }
@@ -190965,7 +190965,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 307 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_ada4b32124e7_234"
           }
         ]
       }
@@ -190983,7 +190983,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 308 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_c6e71e9d70b6_234"
           }
         ]
       }
@@ -191001,7 +191001,7 @@
         "messages": [
           {
             "role": "user",
-            "content": "BOUNDED PIN PLACEHOLDER: the record at ordinal 309 was outside the busting request's own conversation and its sameLineage union, and was dropped. This is synthetic content, not captured traffic — see this fixture's header.boundedNote."
+            "content": "t_9525c86e83e0_234"
           }
         ]
       }

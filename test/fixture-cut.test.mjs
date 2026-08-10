@@ -66,7 +66,39 @@ const FIXTURES = replayableFixtures();
 // Guard the guard: with an empty population every assertion below would pass
 // by never running.
 assert.ok(FIXTURES.length > 0, "no fixture in the corpus declares header.replayFrom + header.range — discovery or corpus is broken");
-const PAIR = FIXTURES[0];
+
+/** True when nothing ahead of `range.n` is a REQUEST record — i.e. the whole
+ *  prefix is boot/outcome, which is what makes it fully droppable. */
+const hasInertPrefixOnly = (f) => {
+  const ords = ordinalsOf(f.doc.records, f.doc.header.replayFrom);
+  return ords.slice(0, ords.indexOf(f.doc.header.range.n)).every((o) => o === null);
+};
+
+// PAIR was `FIXTURES[0]` — the ALPHABETICALLY FIRST fixture — until 2026-08-10,
+// when a newly committed bounded pin sorted ahead of every existing one and
+// case (1) went red: it asserts that a prefix of purely inert records is FULLY
+// droppable, and that premise silently assumed a fixture whose real prefix is
+// empty. The bounded pin's prefix is 600 real request records, so the cut
+// correctly dropped 75 of them and the test read that as a defect.
+//
+// The red was a finding about THIS TEST, not about the fixture and not about
+// fixture-cut: sort order is not a property anyone maintains, and this is the
+// same one-entry hazard `fixture-verdict-identity` already carries a note about
+// (it mutation-tests whichever pin sorts first). Selection is now by the
+// PROPERTY each case needs, still discovered rather than named, and each case
+// says out loud which population it walked.
+const INERT_PREFIX = FIXTURES.filter(hasInertPrefixOnly);
+assert.ok(
+  INERT_PREFIX.length > 0,
+  "no fixture's prefix ahead of range.n is free of request records — case (1) needs one, " +
+    "and a corpus without one is a finding rather than a reason to relax the case",
+);
+// Measured 2026-08-10 over the 7 replayable fixtures: exactly ONE qualifies
+// (0 request records in its prefix; the others carry 69 to 892). So this case
+// is guarded at a single fixture — stated rather than left implicit, because
+// that is the fact the alphabetical selection was hiding: it looked like a
+// corpus-wide case and was always a one-fixture case.
+const PAIR = INERT_PREFIX[0];
 
 /**
  * Original capture ordinal per record, per the FORMAT's own documented
