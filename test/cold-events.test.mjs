@@ -29,6 +29,15 @@ import {
   DEFAULT_LEDGER_PATH,
   COLD_TTL_SEC,
 } from "../tools/cold-events.mjs";
+// Namespace import for the --rows-mode exports (`inWindow`, `toRowRecord`,
+// `rowsForOutput`): a static named import of a binding that does not exist
+// yet throws SyntaxError at MODULE LOAD, which would fail every pre-existing
+// test in this file too — not the red-first split the brief asks for (the
+// new bites fail, the old ones still pass). A namespace import degrades a
+// missing export to `undefined` at the property access instead, so the
+// import survives against the unmodified tool and each new bite goes red on
+// its own assertion.
+import * as coldEvents from "../tools/cold-events.mjs";
 
 // A transcript-shaped usage row. `input` defaults to 0 so a test can state
 // prev_ctx as cc+cr and read the threshold arithmetic straight off the call.
@@ -251,4 +260,125 @@ test("ledgerLines emits events before totals, one JSON object per line", () => {
   assert.equal(lines.length, 2);
   assert.equal(JSON.parse(lines[0]).type, "cold-event");
   assert.equal(JSON.parse(lines[1]).type, "cold-totals");
+});
+
+// --- --rows mode (BACKLOG: "a TRANSCRIPT query instrument") ---
+
+async function captureStderr(fn) {
+  const chunks = [];
+  const orig = process.stderr.write;
+  process.stderr.write = (chunk) => { chunks.push(chunk.toString()); return true; };
+  try { return { result: await fn(), stderr: () => chunks.join("") }; }
+  finally { process.stderr.write = orig; }
+}
+
+// A single real transcript line, so a `--rows`/`--since` usage-error test
+// exercises the OLD code's real read path too (rather than tripping only the
+// pre-existing "no inputs" exit, which both old and new code return 2 for —
+// that would pass red-first for the wrong reason).
+const transcriptLine = () => JSON.stringify({
+  timestamp: "2026-07-30T10:00:00.000Z",
+  requestId: "req_x",
+  sessionId: "S",
+  message: { model: "m", usage: { cache_creation_input_tokens: 1, cache_read_input_tokens: 1, input_tokens: 1 } },
+});
+
+test("--rows and --json are a usage error: exit 2, and the message names the conflict", async () => {
+  const dir = await tmpDir("cold-events-");
+  try {
+    const f = join(dir, "t.jsonl");
+    await writeFile(f, transcriptLine() + "\n");
+    const { result, stderr } = await captureStderr(() =>
+      main(["node", "cold-events.mjs", "--rows", "--json", f]));
+    assert.equal(result, 2);
+    assert.match(stderr(), /--rows/);
+    assert.match(stderr(), /--json/);
+    assert.match(stderr(), /exclusive/i);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("an unparseable --since is a usage error: exit 2, message names --since", async () => {
+  const dir = await tmpDir("cold-events-");
+  try {
+    const f = join(dir, "t.jsonl");
+    await writeFile(f, transcriptLine() + "\n");
+    const { result, stderr } = await captureStderr(() =>
+      main(["node", "cold-events.mjs", "--rows", "--since", "not-a-date", f]));
+    assert.equal(result, 2);
+    assert.match(stderr(), /--since/);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("inWindow: both --since/--until bounds are inclusive at their exact edges", () => {
+  const since = Date.parse("2026-08-07T01:00:00.000Z");
+  const until = Date.parse("2026-08-07T02:00:00.000Z");
+  assert.equal(coldEvents.inWindow("2026-08-07T01:00:00.000Z", since, until), true);
+  assert.equal(coldEvents.inWindow("2026-08-07T02:00:00.000Z", since, until), true);
+  assert.equal(coldEvents.inWindow("2026-08-07T00:59:59.999Z", since, until), false);
+  assert.equal(coldEvents.inWindow("2026-08-07T02:00:00.001Z", since, until), false);
+});
+
+test("inWindow: a row with no ts is excluded once a bound is given, included when neither is", () => {
+  const since = Date.parse("2026-08-07T01:00:00.000Z");
+  assert.equal(coldEvents.inWindow(null, since, undefined), false);
+  assert.equal(coldEvents.inWindow(null, undefined, Date.parse("2026-08-07T02:00:00.000Z")), false);
+  assert.equal(coldEvents.inWindow(null, undefined, undefined), true);
+});
+
+test("duplicate requestId rows collapse to one row in scanRows(...).rows and raise dropped", () => {
+  const dup = (i) => row({ id: "req_A", ts: `2026-07-30T10:00:0${i}.000Z`, cc: 100, cr: 900 });
+  const result = scanRows([dup(1), dup(2), dup(3)]);
+  assert.ok(Array.isArray(result.rows), "scanRows(...).rows must exist (the docstring divergence)");
+  assert.equal(result.rows.length, 1);
+  assert.equal(result.dropped, 2);
+  assert.equal(result.rows[0].id, "req_A");
+});
+
+test("scanRows(...).rows is the deduped set, window-unfiltered, not just events/totals", () => {
+  // Two distinct conversations, no duplicates: rows must carry every surviving
+  // row, not just the ones that crossed the cold-rewrite threshold.
+  const a = row({ key: "a-conv", id: "r1", ts: "2026-07-30T10:00:00.000Z", cc: 1, cr: 1 });
+  const b = row({ key: "b-conv", id: "r2", ts: "2026-07-30T11:00:00.000Z", cc: 2, cr: 2 });
+  const result = scanRows([a, b]);
+  assert.equal(result.rows.length, 2);
+  assert.deepEqual(result.rows.map((r) => r.id).sort(), ["r1", "r2"]);
+});
+
+test("toRowRecord: ctx equals cc + cr + input on an emitted row", () => {
+  const r = row({ cc: 111, cr: 222, input: 333 });
+  const emitted = coldEvents.toRowRecord(r);
+  assert.equal(emitted.ctx, 111 + 222 + 333);
+});
+
+test("normalizeRow: messageId and stopReason survive from a constructed transcript entry", () => {
+  const r = normalizeRow({
+    timestamp: "2026-07-30T10:00:00.000Z",
+    requestId: "req_1",
+    sessionId: "S",
+    message: {
+      id: "msg_abc123",
+      model: "m",
+      stop_reason: "end_turn",
+      usage: { cache_creation_input_tokens: 1, cache_read_input_tokens: 1, input_tokens: 1 },
+    },
+  });
+  assert.equal(r.messageId, "msg_abc123");
+  assert.equal(r.stopReason, "end_turn");
+});
+
+test("normalizeRow: messageId and stopReason are null for a capture outcome record", () => {
+  const r = normalizeRow({
+    ts: "2026-08-01T09:19:58.840Z",
+    type: "outcome",
+    id: "2edf0680-572",
+    key: "s-synthkey01",
+    model: "claude-haiku-4-5-20251001",
+    usage: { cacheRead: 11, cacheCreation: 22, inputTokens: 534, outputTokens: 1 },
+  });
+  assert.equal(r.messageId, null);
+  assert.equal(r.stopReason, null);
 });

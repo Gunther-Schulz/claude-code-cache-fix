@@ -50,6 +50,14 @@
 //   node tools/cold-events.mjs <file...>              # scan, print to stdout
 //   node tools/cold-events.mjs --out <path> <file...> # append to a ledger
 //   node tools/cold-events.mjs --json <file...>       # machine-readable
+//   node tools/cold-events.mjs --rows <file...>       # one deduped API call
+//     per line, JSONL, sorted by ts. `--rows` and `--json` are mutually
+//     exclusive output modes (exit 2 if both are given). Optional
+//     `--since <ISO>` / `--until <ISO>` window the rows (inclusive both
+//     ends, by the row's own `ts`); an unparseable bound is a usage error.
+//     THE TRANSCRIPT QUERY INSTRUMENT (BACKLOG): this is the mode that
+//     replaces the recurring hand-rolled `jq` walk over
+//     `~/.claude/projects/**/<sid>.jsonl`.
 //
 // `--out` is REQUIRED to write anything. The live ledger path is exported as
 // DEFAULT_LEDGER_PATH for the eventual proxy-side wiring and is never the
@@ -107,6 +115,11 @@ export function normalizeRow(rec, fallbackKey = null) {
       input: u.inputTokens ?? 0,
       src: "capture",
       grain: "session",
+      // A capture outcome record carries no assistant-message envelope, so
+      // neither field exists at this tap — null, not omitted, so a --rows
+      // consumer sees the same key set from either source branch.
+      messageId: null,
+      stopReason: null,
     };
   }
 
@@ -121,6 +134,11 @@ export function normalizeRow(rec, fallbackKey = null) {
     // tool-use leg — the 2026-07-30 fable dispatch has 38 rows for 12 API
     // calls, and summing them triples the cost. requestId is the API call.
     id: rec.requestId ?? rec.message?.id ?? null,
+    // The message's OWN id — distinct from `id` above, which prefers
+    // requestId (the API-call handle) and falls back to this only when no
+    // requestId exists. Kept separately because a --rows consumer joining
+    // against the transcript by message id needs the field requestId hid.
+    messageId: rec.message?.id ?? null,
     ts: rec.timestamp ?? null,
     model: rec.message?.model ?? null,
     cc: u.cache_creation_input_tokens ?? 0,
@@ -133,6 +151,7 @@ export function normalizeRow(rec, fallbackKey = null) {
     // to be re-joined against the transcript to learn what the API said.
     apiCause: rec.message?.diagnostics?.cache_miss_reason?.type ?? null,
     mtok: rec.message?.diagnostics?.cache_miss_reason?.cache_missed_input_tokens ?? null,
+    stopReason: rec.message?.stop_reason ?? null,
   };
 }
 
@@ -162,11 +181,13 @@ export function scanRows(rows, options = {}) {
   const byKey = new Map();
   let dropped = 0;
   const seen = new Set();
+  const dedupedRows = [];
   for (const r of rows) {
     if (!r) continue;
     const handle = `${r.key}#${r.id ?? ""}`;
     if (r.id && seen.has(handle)) { dropped++; continue; }
     if (r.id) seen.add(handle);
+    dedupedRows.push(r);
     if (!byKey.has(r.key)) byKey.set(r.key, []);
     byKey.get(r.key).push(r);
   }
@@ -233,7 +254,7 @@ export function scanRows(rows, options = {}) {
   }
   totals.sort((a, b) => b.processed - a.processed);
   events.sort((a, b) => String(a.ts ?? "").localeCompare(String(b.ts ?? "")));
-  return { events, totals, dropped };
+  return { events, totals, rows: dedupedRows, dropped };
 }
 
 /** Ledger form: one JSON object per line, events then totals. */
@@ -267,17 +288,121 @@ export function renderReport(result, inputs) {
   return out.join("\n") + "\n";
 }
 
+/**
+ * --rows window predicate. `since`/`until` are epoch-ms (or undefined for an
+ * unbounded side); both bounds are INCLUSIVE. A row with no `ts` is excluded
+ * the moment either bound is given — an unstamped row cannot prove it falls
+ * inside a window, and silently keeping it would read like a match — and
+ * included when neither bound narrows the query at all.
+ */
+export function inWindow(ts, since, until) {
+  if (since === undefined && until === undefined) return true;
+  if (!ts) return false;
+  const t = Date.parse(ts);
+  if (Number.isNaN(t)) return false;
+  if (since !== undefined && t < since) return false;
+  if (until !== undefined && t > until) return false;
+  return true;
+}
+
+// Vocabulary mapping for --rows: the tool's own row spelling (left, what
+// normalizeRow already emits and what `totals`/`events` above already use)
+// against the transcript's spelling (right, what a reader coming from
+// `~/.claude/projects/**/<sid>.jsonl` or the BACKLOG entry would search for).
+// Emitted field names are the LEFT column on purpose — this repo has paid
+// twice this week for one quantity carrying two spellings, and events/totals
+// already committed to the left column first.
+//   ts        <- message.timestamp
+//   key       (conversation grouping key; no transcript equivalent)
+//   sid       <- sessionId
+//   id        <- requestId (falls back to message.id when absent)
+//   messageId <- message.id
+//   model     <- message.model
+//   cc        <- message.usage.cache_creation_input_tokens
+//   cr        <- message.usage.cache_read_input_tokens
+//   input     <- message.usage.input_tokens
+//   ctx       <- cc + cr + input (not a transcript field; scanRows' own sum)
+//   apiCause  <- message.diagnostics.cache_miss_reason.type
+//   mtok      <- message.diagnostics.cache_miss_reason.cache_missed_input_tokens
+//   stopReason <- message.stop_reason
+//   src, grain (this tool's own provenance/grouping labels; no transcript equivalent)
+export function toRowRecord(r) {
+  return {
+    ts: r.ts ?? null,
+    key: r.key,
+    sid: r.sid ?? null,
+    id: r.id ?? null,
+    messageId: r.messageId ?? null,
+    model: r.model ?? null,
+    cc: r.cc,
+    cr: r.cr,
+    input: r.input,
+    ctx: r.cc + r.cr + r.input,
+    apiCause: r.apiCause ?? null,
+    mtok: r.mtok ?? null,
+    stopReason: r.stopReason ?? null,
+    src: r.src,
+    grain: r.grain,
+  };
+}
+
+/**
+ * Deduped rows -> the --rows CLI's emission list: windowed (both bounds
+ * inclusive, see `inWindow`), mapped through the tool's own vocabulary, and
+ * sorted by `ts` ascending with `key` as tie-break.
+ */
+export function rowsForOutput(rows, { since, until } = {}) {
+  return rows
+    .filter((r) => inWindow(r.ts, since, until))
+    .map(toRowRecord)
+    .sort((a, b) => {
+      const byTs = String(a.ts ?? "").localeCompare(String(b.ts ?? ""));
+      return byTs !== 0 ? byTs : String(a.key).localeCompare(String(b.key));
+    });
+}
+
 export async function main(argv) {
   const args = argv.slice(2);
   const json = args.includes("--json");
+  const rowsMode = args.includes("--rows");
   const outI = args.indexOf("--out");
   const out = outI >= 0 ? args[outI + 1] : null;
-  const inputs = args.filter((a, i) =>
-    !a.startsWith("--") && !(outI >= 0 && i === outI + 1));
+  const sinceI = args.indexOf("--since");
+  const sinceRaw = sinceI >= 0 ? args[sinceI + 1] : null;
+  const untilI = args.indexOf("--until");
+  const untilRaw = untilI >= 0 ? args[untilI + 1] : null;
+  const valueSlots = new Set(
+    [outI, sinceI, untilI].filter((i) => i >= 0).map((i) => i + 1));
+  const inputs = args.filter((a, i) => !a.startsWith("--") && !valueSlots.has(i));
+
+  if (rowsMode && json) {
+    process.stderr.write(
+      "cold-events: --rows and --json are mutually exclusive output modes — pick one\n");
+    return 2;
+  }
+
+  let since, until;
+  if (sinceRaw != null) {
+    const t = Date.parse(sinceRaw);
+    if (Number.isNaN(t)) {
+      process.stderr.write(`cold-events: --since is not a parseable date: ${sinceRaw}\n`);
+      return 2;
+    }
+    since = t;
+  }
+  if (untilRaw != null) {
+    const t = Date.parse(untilRaw);
+    if (Number.isNaN(t)) {
+      process.stderr.write(`cold-events: --until is not a parseable date: ${untilRaw}\n`);
+      return 2;
+    }
+    until = t;
+  }
 
   if (!inputs.length) {
     process.stderr.write(
-      "usage: node tools/cold-events.mjs [--out <ledger>] [--json] <usage-jsonl...>\n" +
+      "usage: node tools/cold-events.mjs [--out <ledger>] [--json | --rows] " +
+      "[--since <ISO>] [--until <ISO>] <usage-jsonl...>\n" +
       "  inputs: CC transcripts (~/.claude/projects/**) or proxy captures\n" +
       `  live ledger path (wiring only, never written here): ${DEFAULT_LEDGER_PATH}\n`);
     return 2;
@@ -307,6 +432,19 @@ export async function main(argv) {
     if (existsSync(out)) await appendFile(out, body);
     else await writeFile(out, body);
   }
+
+  if (rowsMode) {
+    // Dropped duplicates go to STDERR, never into the JSONL — stdout stays
+    // machine-clean for a consumer piping this into `jq` or a file.
+    if (result.dropped) {
+      process.stderr.write(`cold-events: ${result.dropped} duplicate transcript row(s) dropped\n`);
+    }
+    for (const r of rowsForOutput(result.rows, { since, until })) {
+      process.stdout.write(JSON.stringify(r) + "\n");
+    }
+    return 0;
+  }
+
   process.stdout.write(json ? JSON.stringify(result, null, 2) + "\n" : renderReport(result, inputs));
   return 0;
 }
