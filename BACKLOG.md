@@ -171,7 +171,7 @@ once the class above is right.
 corpus pointers, and the 69 entries below — they keep their existing relative
 order, which is what ranking a head rather than the whole list means.
 
-## Handoff — 2026-08-08 midday. Rewritten, not appended; a stale one reads as authoritative.
+## Handoff — 2026-08-10 evening. Rewritten, not appended; a stale one reads as authoritative.
 
 The 2026-08-07 handoff is REPLACED. Its content is discharged and not repeated.
 
@@ -180,11 +180,52 @@ instruction the entries lack.** Build ORDER is deliberately absent — it is
 derived at build time, and the block above is BANNER-MARKED STALE with the
 re-derivation booked as a READY entry.
 
-**State (afternoon pass — supersedes the midday state above).** All three repos
-clean and pushed: fork, dotfiles, and `claude-worktime`. No `proxy/**` change
-this pass, so no pin bump and no restart. Two busts walked to disposition
-(below); the `claude-worktime` false-❄ items SHIPPED (`8bfc385`) and their
-entries there are marked shipped, so that cross-repo pointer is discharged.
+**STATE 2026-08-10 evening — THE FORK IS COMMITTED BUT NOT PUSHED, AND THE
+PUSH IS BLOCKED BY A GUARD. This is the first thing to deal with.**
+
+`git log origin/main..main` is 7 commits. `git push` is DENIED by the
+unbooked-subagent-commit guard, naming two of them:
+
+    347d477  census: emit identityRotation …          Co-Authored-By: Claude Sonnet 5
+    e9a374b  Add --bounded mode to harvest --pin …     Co-Authored-By: Claude Sonnet 5
+
+A commit counts as unbooked when it carries a `Co-Authored-By: Claude` trailer
+with no `Claude-Session:` trailer. Both are SUBAGENT commits belonging to
+session `…01R9jUauuFcnSPMSjx1ALPUp`, whose dispatcher owns them — subagents
+commit unpushed by design and the dispatcher pushes after verifying. The
+session that wrote this handoff (`…0185hkJZrFiq8xfMkH8GHFiw`) deliberately did
+NOT use `PUSH_UNBOOKED_SUBAGENT_OK=1`: an override taken for another writer's
+unverified work is the habit that kills a guard.
+
+**So the next action here is that dispatcher verifying its two commits and
+pushing the branch.** Everything else is behind them, including a shipped
+guard fix. The tree was green at the exact HEAD that was pushed-attempted
+(`npm test`: 2654 tests, 2649 pass, 0 fail, 5 skipped).
+
+`dotfiles` is clean and pushed (its own peer session carried `7530895` out).
+No `proxy/**` change this pass, so no pin bump and no restart is owed.
+
+**What this session shipped, so it is not re-derived.** A full public-surface
+and systems review, its findings booked as entries below rather than left in
+chat. Four stale claims corrected in `docs/dev-loop.md` (a citation to a path
+that never existed; a "BOOKED AND UNBUILT" line stale 29 minutes after it was
+written; `gate-status.json`'s refuted "steady state"; the scrub's falsified
+length-vector rationale). The fork's git history scanned end to end for the
+first time — 712 fork-only commits, 1752 blobs, one real published PNG and a
+reversible id mapping, NO other-session conversation text. A guard defect
+found and fixed (`a449d9a`): the full-UUID shape was deferred to a roster that
+did not walk `BACKLOG.md`, so writing the FULL id disabled the guard that
+catches the SHORT one.
+
+**Three decisions are now MADE and must not be re-opened without new
+evidence** — each carries what would re-open it, in its own entry: git history
+ACCEPT (no rewrite); the scrub's length-vector residual ACCEPT-AND-REWRITE;
+the public-surface split UNTRACK IN PLACE at LOW priority.
+
+**The operator's publication bar is now a written rule**, in
+`CLAUDE.local.md` (deployed from dotfiles): no content from any session other
+than cache-fix's own dev chat reaches the public tree; tool names are fine.
+Read it before touching fixtures or writing about captures.
 
 **What is BROKEN rather than merely unbuilt — read before trusting anything:**
 nothing is known-broken in the running fork. Two DOC-level falsehoods are live
@@ -5969,6 +6010,72 @@ ENOSPC misattribution with its wrong first explanation left in.
   does not read the alias convention as bureaucracy.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "git history scanned: one published PNG, one reversible id mapping, no chat text" -->
+
+- **READY — an instrument that separates MITIGATION-WORKED from
+  MITIGATION-RAN. Today three instruments all report engagement and none
+  reports outcome, so a live question had two surviving readings and nothing
+  to decide between them.** Part B seed 2 of the 2026-08-10 review, booked
+  because the review closed without reaching it and an unbooked seed dies
+  with the session that read it.
+  The observed case: a 263k bust triaged to a clean attribution, and the
+  mitigation question could not be answered at all. `mutatedBy` proves an
+  extension RAN. `absorptionMisses` returned 0. The wire still showed the
+  array growing. Reading A — the mitigation worked and the growth is the
+  API's own price. Reading B — the mitigation ran and did nothing. Both fit
+  every number available.
+  **The class, stated so it is not re-learned per instance:** a counter of
+  invocations is a liveness probe, not an outcome probe, and a zero from a
+  miss-counter is the non-event shape — a dead detector returns it too. The
+  stack has several of these and they read as outcome evidence because they
+  sit beside outcome questions.
+  Design (decided): the outcome instrument is a COUNTERFACTUAL, not another
+  counter — replay the same pair with the extension disabled and diff the
+  wire bytes against the mitigated run. `tools/replay.mjs` already replays a
+  serving config, so this is a second config and a diff, not new machinery.
+  Reading A predicts a difference; reading B predicts byte-identity. That is
+  the discriminating measurement the two readings lacked.
+  Verifier, red-first: run it on the 263k case, where the answer is currently
+  unknown — and BEFORE trusting either result, run it on a pair whose outcome
+  is already known (a mitigation whose effect is measured), because a
+  counterfactual harness that silently replays the same config twice returns
+  byte-identity for both readings and looks like reading B.
+  Consumer tier **1 (event disposition)** — it decides whether a matrix row
+  is mitigated.
+  <!-- entry: "an instrument that separates mitigation-worked from mitigation-ran" -->
+
+- **ANSWERED 2026-08-10, not booked as open — "guards firing on legitimate
+  work: reproducible discipline or luck?" It is discipline, and the sample is
+  now four, including one failure the original two did not show.** Part B
+  seed 5 of the review. Recorded because the question was asked and an
+  unrecorded answer gets re-asked.
+  The four instances, each with what the repair was: (1) the leak scan
+  blocking on synthetic-but-UUID-shaped placeholders — repaired AT THE DATA,
+  making the synthetics unmistakable; (2) a scope lint false-positiving on a
+  coincidental identifier — repaired with a self-verifying declared
+  exemption; (3) 2026-08-10, the capture-key-prefix hook denying a legitimate
+  BACKLOG.md write that carried real ids — a CORRECT fire, repaired at the
+  data by claiming aliases; (4) 2026-08-10, `tools/MANUAL-COMPACT.md`'s
+  upstream-owned session id — repaired with a declared allowlist entry
+  carrying its provenance, verified with `git show upstream/main:<file>`.
+  **The pattern is real: every repair was at the DATA or in a NAMED, verified
+  exemption, and none softened a predicate or reached for an override.** That
+  is the shape the corpus prescribes, and four for four is not luck.
+  **The failure the original two hid, and it is why this is worth recording
+  rather than celebrating:** a guard can also over-SUPPRESS, and that direction
+  produces no false fire to notice. `FULL_UUID_HEAD` suppressed the short-key
+  class whenever a line carried a full UUID, deferring to a roster that did
+  not walk the file — silent, and it took a real leak to surface (fixed,
+  `a449d9a`). So the discipline is proven on the fire direction only. The
+  standing question this leaves: **for every suppression clause in a guard,
+  what proves its deferral target actually covers the suppressed domain?**
+  `a449d9a` answered that for one clause by importing the predicate instead
+  of restating it; nothing yet asks it of the others.
+  Design (decided, small): a test that enumerates suppression clauses in
+  `tools/` guards and asserts each names a target the suite exercises. Where
+  that is not mechanizable, the clause carries the assertion inline, as
+  `FULL_UUID_HEAD` now does.
+  Consumer tier **2 (feeds the gates)**.
+  <!-- entry: "guards firing on legitimate work: discipline, and the suppression direction it misses" -->
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED, current state is the first entry
 

@@ -421,6 +421,13 @@ const SOURCE_UUID_ALLOWLIST = new Set([
 // capture ids right now. Those are not findings while they stay untracked,
 // and they become findings the moment anyone commits them, which is exactly
 // when this test should fire.
+//
+// Measured rather than assumed, because the first draft of this comment said
+// they were "one `git add` away": `git check-ignore` says all three ARE
+// ignored, so a plain `git add` cannot stage them and only `-f` would. The
+// exposure is smaller than the sentence claimed. Kept as the reason for the
+// tracked-only filter anyway — the filter is what makes this test silent on
+// them today and loud the moment the ignore rule stops covering a file.
 test("source: every UUID in a tracked SOURCE_SCANNABLE file is on the synthetic allowlist", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
   // The scanner's OWN predicate, imported rather than restated: this roster is
