@@ -1932,6 +1932,85 @@ ENOSPC misattribution with its wrong first explanation left in.
   booked rather than worked around. UNBLOCKS as soon as that guard fix lands;
   the edit itself is a two-minute rewrite.
 
+- **PARKED (provisional — investigation still open, operator flagged that these
+  gradings may be revised) — the 2026-08-10 04:40:39Z 213k event and the
+  instrument failures the walk exposed.** One entry rather than seven, because
+  the walk is not finished and splitting it now would freeze a shape that is
+  still moving. Missing evidence that closes the parking: the census row for
+  the FABLE pair spanning 04:40:24.015 -> 04:40:37.944 (msgs 110 -> 113). If it
+  reads `splice/insert-mid`, this event is row 1 / row 4 economics and the entry
+  becomes KNOWN-OPEN, not a new class.
+  **What IS measured (executed output, not reasoning).** A real bust: the fable
+  main thread went `cr=224187 cc=1148` (04:40:24) -> `cr=15603 cc=213429`
+  (04:40:37) -> `cr=229032 cc=1153` (04:41:04), and 15603+213429=229032
+  exactly — the prefix was discarded, rebuilt in full, then read in full. The
+  ~15.6k survivor is tools+system alone, the signature row 4 already records at
+  `cache_read 15,214 / cache_creation 123,032`. NOT OURS by the gate's own
+  verdict: `replay.mjs --gates-from-capture --census` over the capture exits 0
+  with 0 stability and 0 safety violations across 281 same-conversation pairs /
+  31 conversations, 10 of 10 declared gates. Tools (14), system (11316 ch),
+  sysBlocks (3) and `messages[0]` (73456 ch) are byte-stable across the bust, so
+  it is not tools_changed and not a system-prompt change. Same capture:
+  `mitigation: 1/8 mitigable events absorbed (13%)`, ~0.5 MB passed through.
+  **Instrument findings, each with its basis.**
+  (a) `bust-triage` selected the pair `n=97->99` at 04:40:43/47 — SONNET
+  subagent traffic — while the busting request was FABLE at 04:40:37.944. It
+  picks by time proximity to the worktime event (04:40:50) and is blind to
+  `model`, so every "append-only / unchanged / toolsMatch:true" the walk
+  collected described a conversation that never busted. Distinct from the
+  booked `capturePairResult` messages[0]-identity entry: that one mis-pairs
+  WITHIN a conversation, this one selects the wrong conversation entirely.
+  (b) `bust-triage` never reads the `outcome` records in the same capture file,
+  though they carry `usage.cacheRead`/`cacheCreation` per request — the numbers
+  that identified the class in one command after the walk had already run.
+  (c) `replay.mjs` already prints `CROSS-TENANT=baseline belongs to another
+  conversation on this session id … NOT evidence of a bust`; `bust-triage`
+  consults none of it.
+  (d) The same quantity carries different names in different files:
+  `usage.cacheRead` (capture outcome) vs `cache_read_input_tokens`
+  (`usage.jsonl`); `msgs` (prefix-diff events) vs `messageCountPrev/Now`
+  (prefix-diff last-state). Querying one schema with the other's names returns
+  `null`, which reads as "no data" — three vacuous reads in one session, two of
+  them reported to the operator before being caught.
+  (e) `grep`-ing a capture JSONL by timestamp matches timestamps inside message
+  CONTENT, not the record's own `.ts`. Committed here, returned false rows;
+  the correct form filters on `.ts` in jq.
+  (f) `gate-live` keeps finding ROWS but not what attributes them: of this
+  morning's three conservation reds, the 34-row capture was already evicted, so
+  that finding can no longer be attributed at all.
+  **Not established, deliberately unstated as fact:** that the 213k was a
+  `splice/insert-mid` (consistent with the +3 message step and the class present
+  in this capture, but the specific pair's row is unread); and whether
+  insertion-normalization's 1/8 absorption on this capture is a regression or
+  the standing rate.
+
+- **READY (small) — the succession rule's computable slice: an entry that
+  ASSERTS a matrix row's status is a dependent nothing re-reads.** The rule
+  itself is judgment-shaped and stays prose (dev-loop, "A finding never lands
+  alone"), but one slice is a byte comparison: entries routinely say "row N is
+  OPEN" / "row N is mitigated" in their own words, and the row's status text
+  moves without them. The runbook already names the trap — "a row NAMED is not a
+  row READ" — and today's walk hit it from the other side, where row 4's text
+  carried the answer an entry had not absorbed.
+  Design (decided): extend `tools/backlog-lint.mjs` rather than add a file (the
+  extend-before-writing rule; it already owns entry-scoped parsing and the
+  `- **` to next `- **` boundary). New WARN class: an entry citing `row N`
+  within a sentence that also carries a status word (OPEN / RE-OPENED / CLOSED /
+  MITIGATED / OBSERVED / ACCEPTED) is checked against that row's actual status
+  cell in `docs/directives/robustness-threat-matrix.md`; a mismatch names the
+  entry, the asserted status, and the row's current one. Status vocabulary comes
+  from the matrix's own cells, read as data, never a hardcoded list — the
+  seven-value vocabulary is exactly what `bust-triage` already collapses wrongly.
+  Verifier, red-first against an immutable reference: `git show` an entry from
+  before row 4's 2026-07-31 RE-OPENED edit that asserts the row CLOSED, run the
+  lint over that pair, and it must name the entry. Over-firing controls, both
+  required green: an entry citing `row N` with no status claim must stay silent,
+  and an entry whose asserted status matches the current cell must stay silent.
+  Done-criterion: red demonstrated on the historical pair with the command and
+  its output pasted, both controls green, full suite green, lint wired WARN-only
+  into the daily sweep as the existing header class already is.
+  Write boundary: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
+
 - **READY (small) — a comment claiming a `{ todo }` marker exists is checkable
   against the runner, and nothing checks it.** `c3481d1` fixed three such
   claims by hand in one file; the class is "prose about a test contradicting

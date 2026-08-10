@@ -594,6 +594,66 @@ concern gone". Those are different questions, and today the first was YES while
 the second was NO. Resolved-there is a prompt to re-read our own entry's premise
 against the world; it is never a discharge on its own.
 
+### A finding never lands alone — it RE-GRADES its dependents, in succession
+
+MANDATE (operator, 2026-08-10): *"each piece always informs the other and needs
+to be updated in succession as things change."* Written as a rule because the
+session that prompted it had already booked its findings once and had the grades
+wrong within the hour.
+
+**The rule.** Evidence that lands does two jobs, and only the first is
+instinctive. It records a new fact — and it re-grades every item that rested on
+the fact it replaced: backlog entries, matrix rows, runbook steps, tool designs,
+and the DISPOSITION of the event being walked. Both happen in the same act. "I
+will keep it in mind" is the third exit this file already forbids one level
+down: the new fact gets a carrier and the stale dependents keep theirs, which is
+worse than never having booked, because now two carriers disagree and both look
+current.
+
+**Why booking alone does not cover it.** Booking is aimed at the NEW fact, and
+the new fact is the one thing nobody will forget while it is in hand. The damage
+is in the OLD entries that are still written down as current — nothing points at
+them, no check reads them, and their grade was decided against evidence that no
+longer holds. The asymmetry from the CLOSING rule above applies unchanged: a
+dependent wrongly left open costs one re-read; a dependent wrongly left CLOSED
+or wrongly graded READY leaves every future list carrying a decision made on a
+dead premise.
+
+**Measured, 2026-08-10, inside one investigation.** A 213k bust walk produced,
+in order: a verdict of UNCLASSIFIED from `bust-triage`; an attribution of
+COULD-NOT-ATTRIBUTE; a conclusion that the event was a benign model switch; a
+proposal to book seven separate instrument findings. Every one of those was
+superseded before the session ended — the UNCLASSIFIED came from the tool
+reading a sonnet subagent while a fable thread busted; the model-switch story
+inverted main thread and subagent; and row 4's existing text carried the
+event's own signature (`cache_read 15,214 / cache_creation 123,032`, the same
+tools+system-only survivor), which converted a suspected NEW CLASS into a
+probable KNOWN-OPEN and collapsed seven proposed entries into one parked entry
+whose grade explicitly says it may move again. The seven-entry booking would
+have been written, pushed, and wrong, and nothing downstream would ever have
+re-read it.
+
+**The three questions, asked at every landing, not at closing.** (1) What did I
+believe ten minutes ago that this just killed? (2) What is written down — here,
+in BACKLOG, in the matrix, in a runbook — that still asserts it? (3) Does the
+EVENT's own disposition change? The second is the one that needs a search rather
+than a memory: the dependents that break are the ones that reached the premise
+without citing it by name, which is the search-reach problem this file's
+grounding rules already describe.
+
+**What this does NOT demand,** so it stays a rule rather than a tax. It does not
+require re-verifying every fact an investigation touched — only what CITED the
+premise that moved. It does not forbid booking early; it requires the booking to
+carry its own provisionality, which is cheap: name the missing evidence that
+would re-grade it, the way a PARKED entry already must. And a grade that survives
+the re-check is not wasted work — it is the only version of that grade anyone
+can trust.
+
+**The tell that succession was skipped** is computable and worth watching for:
+one session's output containing a premise and a conclusion drawn from it that
+contradict each other, or a booking whose grade predates the last piece of
+evidence the same session gathered. Both appeared here.
+
 **Group by conversation before comparing anything.** One session-id header
 carries the main thread, every subagent, and CC's own sidecar calls. Comparing
 across them makes tenant switches look like churn. This artifact produced
