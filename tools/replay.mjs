@@ -1176,6 +1176,23 @@ export function findIdentityRotations(entries) {
 // predecessor) rather than being tuned to either edge; a future case
 // landing between them is a finding about the class, not a reason to tune
 // the number.
+//
+// WHAT THE min() DENOMINATOR COSTS A CONSUMER THAT RETAINS BY LINEAGE, and
+// it is not what the ratio's shape suggests. Because the denominator is
+// min(|A|,|B|) (see lineageOverlap below), a SMALL early message set clears
+// this threshold on a handful of shared messages exactly as easily as a
+// large late one does on nearly all of them. So a conversation does not
+// merely acquire a lineage neighbourhood near the bust — it can carry one
+// across its WHOLE growth, and a bounded retention keyed on
+// conversationOf-OR-sameLineage sizes with that identity CHURN rather than
+// with "a target plus a few neighbours".
+// Measured 2026-08-10 by the harvest --pin --bounded lane, on s-captureAT at
+// ord 715: the union arm kept 251 real records, because that conversation's
+// overlap against the target ran from 0.60 at ord 5 (a tiny message set
+// sharing a handful of messages) to 0.98 near ord 715 — every value above
+// the threshold. That is the union working as specified, not a defect; it is
+// stated here so the next reader predicts the sizing at the definition
+// instead of rediscovering it per instance.
 export const LINEAGE_THRESHOLD = 0.5;
 
 export function lineageOverlap(a, b) {
