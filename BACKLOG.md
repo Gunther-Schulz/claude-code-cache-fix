@@ -1329,6 +1329,30 @@ ENOSPC misattribution with its wrong first explanation left in.
   upstream-error-log.mjs, rate-limit-log.mjs. session-mirror-writer.mjs's
   contract sentence is now at lines 7-9, not 8-9. The core defect (stale
   ~/.claude comments) is unfixed and the entry stands.
+- **MEASURED 2026-08-10 (`c54b61c`, pending integration) — the check exists now,
+  and its REACH is the number to carry, not its verdict.** `lintCitations` ships
+  with four answers (MATCH / DRIFTED / BROKEN-PATH / COULD-NOT-CHECK) and its
+  whole-file accounting over the current file reads: **74 citations checked,
+  MATCH 2, DRIFTED 0, BROKEN-PATH 0, COULD-NOT-CHECK 72.**
+  **Read that as 2 of 74, never as "citations are fine".** A zero in the DRIFTED
+  column over a corpus the instrument can only READ 3% of certifies the 3%, and
+  the honest COULD-NOT-CHECK answer is the only reason that is visible at all —
+  a two-answer check would have printed "0 drifted" and been believed. This is
+  the reach shape the corpus names: the basis satisfies the claim's form while
+  answering a narrower question, and every sentence stays true.
+  Why the reach is small: the check anchors on a tight cite-then-quote idiom
+  (`path:line` immediately followed by the quoted expression), and most
+  citations in this file simply do not use it. That is a fact about the corpus,
+  not a defect in the check — and it was found by DRY RUN, after a first draft
+  that looked correct from its definition alone produced 20 false DRIFTED on
+  real data.
+  What remains open, and it is the real work: raising reach past 3% needs a
+  second anchoring idiom, or a convention that new citations adopt the tight
+  form. Neither is decided. Verifier for any such change: the MATCH+DRIFTED
+  count rises while false-fires stay at zero — both halves, since a looser
+  anchor buys reach by inventing pairings, which is exactly the 20-false-DRIFTED
+  failure already measured here.
+  Original entry follows.
 - **READY (small) — a backlog entry that cites `file:line` has no check that
   the line still holds what it quotes, and citations outlived their source six
   times in one session.** Measured 2026-08-10 across the retirement pass and
@@ -5967,6 +5991,24 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **3 (backlog and process)** — it mis-orders work and inflates
   every count read from this file, and it is recovered at the next derivation.
 
+- **INSTRUMENT-POSITIVE 2026-08-10 (`c54b61c`, pending integration): the class
+  is real and it is SIXTEEN, measured rather than asserted.**
+  `lintCorrectionPlacement` flags the first correction marker (PREMISE
+  CORRECTED / RE-GRADED / CORRECTED / WITHDRAWN) appearing past the first third
+  of an entry; backtick-quoted mentions are exempt. Over the current file it
+  returns **16 findings, spot-checked and all real** — genuine late-appended
+  corrections, each one a body that contradicts its own head for anyone who
+  stops at the head.
+  Its over-firing control is part of the same run and matters as much as the
+  16: the `bust-appears` DONE entry, whose correction sits inside its own
+  header at line 2 of 13, stays SILENT. So the check separates a correction
+  that was folded into the head from one appended below it, which is the whole
+  distinction the class is about.
+  This entry no longer needs to argue the class exists. What it needs is the
+  disposition of the 16 — fold each correction into its entry's head, or
+  establish that some of them are legitimately tail-shaped. That is prose work
+  over 16 named entries and it is a BATCH candidate by construction.
+  Original entry follows.
 - **READY (small) — a correction APPENDED to the end of an entry is invisible to
   everyone who reads the entry's head, and this repo's own entries are long
   enough that the head is what gets read.** Measured 2026-08-10, and it cost a
