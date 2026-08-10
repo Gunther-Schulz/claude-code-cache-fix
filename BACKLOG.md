@@ -5009,8 +5009,291 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **3 (backlog and process)** — it mis-informs the reader of an
   entry, and its measured cost so far is one wasted dispatch.
 
-## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
-## current state is the first entry
+- **READY (small) — `tools/xdg-writer-guard.mjs` is red at 34 and its `main()`
+  is wired to no consumer; and the reason recorded in this backlog for why
+  `npm test` stays green is FALSE.** Booked 2026-08-10 from the public-surface
+  and systems review. The wiring half is already named inside the bucket-(d)
+  entry above as "a second item hiding inside this one" — which is the shape
+  that never ships, so it is precipitated out here.
+  **The correction matters more than the item.** That entry says
+  "`test/xdg-writer-guard.test.mjs` exercises the PREDICATE on synthetic
+  content and never runs it over the real tree". Verified in the artifact and
+  it is wrong: `:35` runs `execFileSync("git", ["show", <ref>:<path>])` against
+  real git history, `:97-98` reads `tools/usage-to-dashboard-ndjson.mjs`, and
+  `:115` reads `tools/gate-live.mjs`. The test reads real bytes. What is
+  unwired is only the **full-tree sweep entrypoint** — `main()` — which no
+  test, gate or hook calls. I asserted the synthetic-only version myself
+  first, inheriting it from a brief, and a dispatched census contradicted me;
+  reading the file settled it. The class name survived
+  (predicate-tested, deployment-untested); the instance attribution did not,
+  and the correction makes the fix an order of magnitude cheaper — wire one
+  entrypoint, do not rewrite a test.
+  Design (decided): give `main()` a consumer, NON-blocking at first because it
+  over-fires on the 9 someone-else's-path hits — a `gate-live` sweep line, the
+  same reporting slot the backlog lint uses, so a red is visible daily without
+  training the override reflex. It goes blocking only after the ~20 real stale
+  claims are repaired and the 9 are a declared, self-verifying exemption the
+  guard itself checks.
+  Verifier, red-first: run the wired consumer at the current commit and
+  confirm it reports non-zero (34 today — the baseline is already red, which
+  is stated because a mutate-and-revert proof over an always-red baseline
+  proves nothing); then plant one fresh stale claim and confirm the count
+  moves by exactly one.
+  Consumer tier **2 (feeds the gates)**.
+  <!-- entry: "xdg-writer-guard main() is wired to no consumer" -->
+
+- **READY — nothing in this repo distinguishes a checker that WORKS from a
+  checker that is CALLED, so `npm test` green is not evidence that any
+  instrument runs on real data.** Booked 2026-08-10; this is the structural
+  finding under the review's seed observation 1, which asked whether a
+  manifest of checkers-and-consumers beats case-by-case discovery.
+  **Measured, not asserted.** A census over the stack classified **49
+  mechanisms: REAL 13, SYNTHETIC-ONLY 16, MANUAL-ONLY 15, NO-CONSUMER 1** —
+  31 of 49 never touch real data unattended. `npm test` at the same commit:
+  2620 tests, 2615 pass, 0 fail, 5 skipped. The suite proves mechanisms WORK.
+  Nothing proves they are USED, and the two failures are indistinguishable
+  from inside the suite.
+  **Why prose will not close this.** The rule is already written in this
+  file, in `docs/dev-loop.md`, and it has been re-learned at least three times
+  this month (the scope lint, the xdg guard, the absorption check). Each
+  instance was caught by a human reading a report, which is exactly the
+  recognition step that fails mid-flight.
+  Design (decided): a derived meta-test, not a hand-maintained manifest — a
+  hand-written list of checkers goes stale the first time someone adds one,
+  which is the same label-over-body defect the checkers exist to catch.
+  Enumerate executable checkers from the tree the way
+  `test/logs-schemas.test.mjs:340-420` enumerates sources
+  (`git ls-files tools` filtered to modules exporting a `main` or having a
+  CLI entry), and assert each appears in at least one CONSUMER position:
+  a `package.json` script, a `gate-live` invocation, a git hook, a systemd
+  unit, or a test that calls its entrypoint over real tree data. Unreached
+  checkers are a KNOWN-OPEN inventory **by path, never by count** — a count
+  stops validating the day it legitimately grows.
+  `test/logs-schemas.test.mjs:340-420` is the template in every respect and
+  should be read before writing this: real sweep, self-verifying `mustMatch`
+  exemption, a planted-case instrument-positive AND a real-file
+  instrument-positive, `assert.ok(files.length > 50)` so a dead enumerator
+  cannot pass as a clean sweep.
+  Verifier, red-first: the meta-test must go red on `xdg-writer-guard.mjs`
+  TODAY (it is the known positive, unwired at this commit); wiring it must
+  turn that one row green while the rest of the inventory stays put.
+  Consumer tier **2 (feeds the gates)**.
+  <!-- entry: "nothing distinguishes a checker that works from one that is called" -->
+
+- **READY — `gate-status.json` grows without bound, the doc that says
+  otherwise is why nobody noticed, and the fix is to SPLIT it, not to prune
+  it.** Measured 2026-08-10: **571,997 bytes** against the ~200 KB
+  `docs/dev-loop.md` recorded as a steady state (2.9x); **103 rows** against
+  **70 captures on disk**; **41 of 103 rows name a capture that is gone**
+  (negative control: the other 62 resolve, so the orphan count is not a
+  matcher artifact). `grep -nE 'prune|MAX_ROWS|retain' tools/gate-live.mjs`
+  returns nothing. Rows do not track the capture count — the file is
+  monotonic in cumulative captures ever seen.
+  The doc's sentence has been corrected in place (`docs/dev-loop.md`, the
+  "Never Read that status file whole" block), because a load-bearing measured
+  number that is 2.9x stale is what makes the growth invisible.
+  **The inversion is the design.** Those 41 orphaned rows are precisely what
+  closing-gate question 2 demands of a recurring producer: evidence that
+  outlived its capture. Pruning them to shrink the file would delete the
+  answer to the question the gate exists to ask. Split instead: a small
+  `gate-status.json` snapshot (ok / failing / current rows) that the doctor
+  and `jq` read, plus an append-only `gate-evidence.jsonl` that nobody `Read`s
+  whole and nothing prunes.
+  Verifier: after the split, `stat -c%s` on the snapshot stays under the Read
+  tool's cap across a week of gate runs while the evidence file's line count
+  strictly increases; and the 41 currently-orphaned rows survive the
+  migration (count them before and after — a migration that "cleans up" is
+  the failure mode).
+  Consumer tier **2 (feeds the gates)**.
+  <!-- entry: "gate-status.json grows without bound; split it, do not prune it" -->
+
+- **READY (small) — `backlog-lint` reports clean on a `## ` heading split
+  across two lines, and 82 entries were filed under a phantom section because
+  of it.** Found and repaired 2026-08-10. `BACKLOG.md` carried
+  `## Upstream PR round — booked 2026-08-05; the round below is CLOSED,` on
+  one line and `## current state is the first entry` on the next: ONE logical
+  heading, TWO `## ` lines, so every section-scoped parser saw two sections
+  and 82 entries sat under a heading that is a sentence fragment.
+  `node tools/backlog-lint.mjs BACKLOG.md` → `backlog-lint: clean`, before and
+  after. The heading is now joined; the lint gap is not.
+  Design (decided): add a predicate to `backlog-lint` — a `## ` line whose
+  text begins lowercase, or whose predecessor `## ` line ends in a comma or
+  conjunction, is a WRAPPED-HEADING finding. Both halves, because either
+  alone is escapable.
+  Verifier, red-first, and the baseline is stated: the lint is GREEN on the
+  current file, so re-introduce the exact two-line form from
+  `git show HEAD:BACKLOG.md` and confirm the new predicate fires on it; then
+  confirm it stays silent on every other `## ` heading in the file (the
+  over-fire half — a lint that flags legitimate headings trains the override
+  reflex).
+  Consumer tier **3 (backlog and process)**.
+  <!-- entry: "backlog-lint reports clean on a heading split across two lines" -->
+
+- **READY (small, POINTER — the fix site is `dotfiles`) — the session-start
+  line reports `127 open item(s)` from `## Open` alone, while the file holds
+  337 entries across five sections, and the rendered line carries no
+  qualifier.** Measured 2026-08-10 by section:
+  `## Open` **128**, `## Done` 93, `## Upstream PR round` 82,
+  `## Parked decisions` 29, `## From the closing-gate sweep` 5.
+  `session-scan.py:29` (dotfiles) declares the `## Open` scope in its
+  docstring — the code is honest; the OUTPUT is the paraphrase. A reader sees
+  a whole-file count. This is the label-over-body class pointed at our own
+  instrument: the scope is true, stated, and invisible at the point of use.
+  Design (decided): the rendered line names its scope —
+  `backlog (BACKLOG.md): 128 open item(s) [## Open only; 209 more in 4 other
+  sections]`. Cheaper and more honest than widening the scan.
+  **Owed write, not done, and the reason is stated rather than silent:** the
+  fix site is `session-scan.py` in the `dotfiles` repo, whose working copy was
+  reported carrying ~50 unpushed commits from a peer session. One writer per
+  working copy — writing this entry into another writer's tree is the
+  collision the dispatch rules forbid. The dotfiles-side booking is
+  OUTSTANDING and this pointer does not discharge it; a pointer whose consumer
+  never loads this file is decorative.
+  Consumer tier **3 (backlog and process)**.
+  <!-- entry: "session-start line reports ## Open only, unqualified" -->
+
+- **READY — `tools/logs.mjs` shipped as "one strict reader owning every
+  on-disk schema" and has ZERO adopters; 14 tools still hand-parse the
+  formats it owns.** Measured 2026-08-10, the day it landed
+  (`f7e52dd` + `4c9ae88` + `17e0a14`). Importers of `tools/logs.mjs`:
+  `tools/logs.mjs` itself and `test/logs-schemas.test.mjs` — nothing else.
+  `grep -lE 'gate-status|usage\.jsonl|-events\.jsonl|captures/' tools/*.mjs`
+  → **14 files**.
+  The module is correct and tested. It simply does not yet do the job it was
+  built for, and `docs/dev-loop.md:100-105` describes it in the present tense
+  as though it does — which is how a mechanism becomes a paraphrase of itself.
+  This is the same shape as the xdg-guard entry above and is the second
+  instance behind the checker-consumer meta-test; both are listed because the
+  meta-test will not migrate call sites.
+  Design (decided): migrate the 14 hand-parsers to `logs.mjs` one commit per
+  file, then let the existing scope lint go BLOCKING on the schema field
+  names appearing outside the owner. Order matters — the lint before the
+  migration is a guard that fires on legitimate work 14 times.
+  Verifier: after each migration commit the sweep in
+  `test/logs-schemas.test.mjs:340-420` moves exactly one path out of its
+  KNOWN-OPEN inventory; the inventory is by path, so the count cannot drift
+  silently.
+  Consumer tier **2 (feeds the gates)**.
+  <!-- entry: "tools/logs.mjs shipped with zero adopters" -->
+
+- **READY — the scrub's length-vector residual was accepted on a premise the
+  operator's 2026-08-10 bar falsifies, so the acceptance has to be re-derived
+  rather than inherited.** `docs/dev-loop.md` recorded the residual —
+  paragraph count, per-paragraph lengths, and cross-text sharing of identical
+  paragraphs — as "Accepted here (operator, 2026-07-31) because this
+  deployment runs local and controlled and **commits only its own traffic's
+  fixtures**". The proxy fronts every Claude Code session on this machine, so
+  the captures behind those fixtures are other projects' conversations. The
+  exemption's own next clause — "anyone harvesting NON-local or third-party
+  traffic should re-make that judgment ... length vectors can fingerprint
+  known public texts" — describes this deployment. It was written as a
+  warning to someone else.
+  **The operator's bar, stated 2026-08-10:** cache-fix's own dev chat in
+  public is acceptable; content from any OTHER session is not. Tool names are
+  explicitly acceptable (same day) — inventory, not content.
+  **Content measured clean against that bar across all 249 tracked fixture
+  files**, every probe red-first against a planted positive: message text is
+  hash tokens throughout; 1,323 image blocks all tokenized, **0** base64
+  payloads; 34,053 of 34,054 thinking blocks empty, the one non-empty block
+  synthetic and labelled; **0** non-structural object keys across 249 tracked
+  and 176 untracked-and-staged files; 0 foreign filesystem paths; 249/249
+  readable, zero could-not-verify. The prose corpus yielded exactly one
+  conversation-shaped quote and it is the harness string "The user sent a new
+  message while you were working:".
+  So the residual is SHAPE, never content: nobody reconstructs a conversation
+  from it, but for a session that pasted a known public document the vector
+  can confirm which one.
+  **This entry is the DECISION, and it is the operator's**: accept the shape
+  residual under the new bar with a rationale that is true, or change the
+  scrub granularity. The recommendation attached is ACCEPT-AND-REWRITE — the
+  granularity is what makes the fixtures useful as replay input, and
+  quantising paragraph lengths would degrade the corpus to defeat an attack
+  nobody has evidence of. What is not defensible is leaving the falsified
+  sentence standing; it has been rewritten in place already, marked as an open
+  accepted risk pointing here.
+  Consumer tier **1 (event disposition)** — it governs what may be published.
+  <!-- entry: "the length-vector acceptance rests on a falsified premise" -->
+
+- **READY (small) — the operator's publication bar is not written down
+  anywhere a mechanism can read, and its computable slice is not enforced.**
+  Booked 2026-08-10, the day the bar was first stated. The bar: **no content
+  from any session other than cache-fix's own dev chat reaches the public
+  tree**; tool names are acceptable.
+  Every check that currently defends it was run BY HAND this session. When
+  the next session harvests, nothing re-runs them.
+  Design (decided), splitting computable from judgment exactly where the
+  post-incident rule says to. Computable, and it goes into `absence-scan.mjs`
+  (already a pre-push hook, so it sits before the irreversible boundary):
+  a base64 run of ≥256 chars; a non-empty `thinking`/`redacted_thinking`
+  body; an absolute `/home/<user>/...` path outside this repo and the known
+  XDG roots; a canonical UUID in content or filename; the harness markers
+  (`<system-reminder>`, "The user sent a new message while you were
+  working:"). Each of the five ships with its own planted-positive fixture in
+  the test — five reds, not one, because red certifies the class that fired,
+  never the instrument's reach.
+  Judgment remainder, staying prose with the operator as backstop: whether a
+  given residual string is other-session content or this repo's own
+  vocabulary. The 2026-08-10 pass had to classify 3,012 distinct residual
+  strings by hand and every one turned out to be this repo's census
+  vocabulary, sanitizer provenance notes, or test scaffolding — that
+  classification is not mechanizable and should not be faked.
+  The bar itself belongs in `CLAUDE.local.md` (the operator overlay, which is
+  where fork conventions live and which every session in this repo loads),
+  stated in one line, with the mechanism named beside it.
+  Verifier: the five planted-positive fixtures each turn `absence-scan` red in
+  isolation, and the whole current tree stays green — the over-fire half.
+  Consumer tier **1 (event disposition)**.
+  <!-- entry: "the operator's publication bar is not written down or enforced" -->
+
+- **READY — the public-surface split: UNTRACK IN PLACE, do not move the
+  files; and two of the four premises the decision was built on are refuted.**
+  Booked 2026-08-10 from the review of `FABLE-BRIEF-public-surface-and-systems-
+  review.md`. The proposal was to move ~33 fork-only documents into a private
+  `cache-fix-ops` repo.
+  **Refuted premise 1 — "6 merged, 3 open" upstream PRs.** Real count:
+  **10 merged, 3 open, 1 closed** (`gh pr list --repo
+  cnighswonger/claude-code-cache-fix --author Gunther-Schulz --state all`).
+  **Refuted premise 2 — decision #2, "`docs/dev-loop.md` stays public because
+  an open upstream PR body references it".** Only **#276** references it, and
+  its own line reads "Optional — happy to drop it if you'd rather keep docs
+  lean." Zero PR-body hits for BACKLOG / FORK-NOTES / runbooks / audits /
+  matrix. The stated basis for keeping dev-loop public does not hold — it
+  should stay public for a different and stronger reason: **82 of its
+  citations sit in `tools/`, which #276 upstreams.**
+  **The permalink probe, executed with a negative control**, and it cuts both
+  ways: a file deleted in `76658d8` is still served at its parent SHA
+  `7553466` — raw HTTP **200**, blob page HTTP **200** — while the same path
+  at `main` is HTTP **404**. So moving files buys nothing retroactively; only
+  the forward write stream changes. Decision #4 (no history rewrite) already
+  accepted that, but the move was being priced as if it bought more.
+  **The measured cost of moving.** 144 citations in PUBLIC source would dangle
+  into a private repo; 12 of the 94 citing files already exist in upstream's
+  tree. `tools/bust-triage.mjs:77` hardcodes the threat matrix path and
+  degrades SILENTLY: probed with a positive control, `matrixRow(4, <real>)`
+  returns the row and `matrixRow(4, <moved>)` returns `null`;
+  `eventWalks(<real>)` returns 5 and `eventWalks(<moved>)` returns 0 — every
+  event becomes UNCLASSIFIED with no error. `required-reading-gate.py` is
+  **fail-open by design** (its own docstring: roster absent → ALLOW, SILENT),
+  so moving `FORK-NOTES.md` silently disables half the gate.
+  **What the operator's bar does to this whole question: it largely dissolves
+  it.** The 120 MB of fixtures — the largest and most alarming part of the
+  public surface — measure clean (entry above). The 52 fork-only documents are
+  cache-fix dev chat by construction, which the bar explicitly permits. The
+  33-file move solves a problem that does not exist.
+  Design (recommended, operator's call): **untrack in place.** Make
+  `cache-fix-ops` the HOME and deploy back to the same in-tree paths through
+  the existing `DEPLOYED_COPIES` mechanism in dotfiles' `bootstrap/manifest.py`
+  — the same mechanism that already deploys `CLAUDE.local.md` and
+  `.claude/required-reading.json` here. Every path stays where every tool,
+  citation and gate expects it; nothing dangles; nothing degrades silently.
+  Use a TRACKED `.gitignore`, not `.git/info/exclude` — the latter does not
+  travel to a fresh clone, which is the whole failure mode being guarded
+  against.
+  Priority: LOW now, by the bar. It is cheap and can be done whenever.
+  Consumer tier **1 (event disposition)**.
+  <!-- entry: "public-surface split: untrack in place, do not move the files" -->
+
+## Upstream PR round — booked 2026-08-05; the round below is CLOSED, current state is the first entry
 
 **STATE AS OF 2026-08-05 21:00Z, read from the API rather than from this
 file's history — the entries below record what WE did, not what upstream

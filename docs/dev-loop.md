@@ -101,8 +101,16 @@ one-liner.
 get ONE reader that owns their schemas and THROWS on an unknown field name
 rather than returning `null`; tools import it instead of parsing, and a scope
 lint keeps a schema's field names from appearing outside it (the shape
-`test/xdg-scope` already uses). Then the wrong-namespace read fails loudly at
-the moment it is written, which is the only moment it is cheap.
+`test/logs-schemas.test.mjs:340-420` already uses — a real `git ls-files`
+sweep, a self-verifying exemption, two instrument-positives, and a KNOWN-OPEN
+inventory by path rather than by count). Then the wrong-namespace read fails
+loudly at the moment it is written, which is the only moment it is cheap.
+
+Citation corrected 2026-08-10: this line named `test/xdg-scope`, which has
+never existed (`git grep xdg-scope` returns exactly one hit — this sentence).
+The nearest real files are `tools/xdg-writer-guard.mjs` and
+`test/xdg-writer-guard.test.mjs`, and neither is the shape being described.
+A citation to a nonexistent path is the lucky case: reading falsifies it.
 
 **One — an event that maps to no existing threat-matrix row is UNCLASSIFIED.**
 Stop and mint the row; that is the alarm the matrix's convergence note relies
@@ -680,7 +688,14 @@ session RECOGNISING the situation, and recognition is exactly what fails
 mid-flight inside an unrelated analysis, which is where both of this day's
 misses happened. This file already says so — the named-and-unbooked tell "is
 computable" and belongs in the session-close lane, diffed against the session's
-own commits. That scanner is BOOKED AND UNBUILT, and the class has recurred at
+own commits. That scanner SHIPPED as `tools/named-unbooked-scan.mjs`
+(`d7845e4`, 2026-08-10 07:55:39) — and this sentence said "BOOKED AND UNBUILT"
+for 29 minutes after it was true, because it was written at 07:26:35 in
+`e80b54b` and nothing re-graded it when the tool landed. It sits inside the
+section titled "A finding never lands alone — it RE-GRADES its dependents",
+which is the whole point: the rule was stated and the same paragraph violated
+it the same morning. Corrected 2026-08-10.
+The class this scanner covers has recurred at
 `:2374`, `:4245`, `:5200`, `:5214` of BACKLOG and twice more today, every
 instance converted by an operator question rather than by a mechanism. The
 lesson is not that the procedure needed sharpening. It is that a booked-unbuilt
@@ -1697,12 +1712,27 @@ Two rules, both learned the expensive way:
    tell you.
 
    **Never `Read` that status file whole — query it with `jq`.** It carries
-   one fully-detailed row per capture (~33 fields), so it sits at roughly
-   200 KB / ~60k tokens and stays there: rows track the capture count, and
-   captures rotate, so this is a steady state rather than growth something
-   will eventually prune. That is ~2.4x the Read tool's 25k-token cap, so a
-   whole-file Read spends 25k tokens to deliver a third of the file plus a
-   paging notice. Two sessions have each paid that before switching to `jq`.
+   one fully-detailed row per capture (~33 fields). A whole-file Read blows
+   past the Read tool's 25k-token cap and spends the whole budget to deliver a
+   fraction of the file plus a paging notice. Two sessions have each paid that
+   before switching to `jq`.
+
+   **The "steady state" claim that used to sit here is REFUTED, and it is the
+   reason nobody built pruning.** It read: "roughly 200 KB / ~60k tokens and
+   stays there: rows track the capture count, and captures rotate, so this is
+   a steady state rather than growth something will eventually prune."
+   Measured 2026-08-10: **571,997 bytes, 2.9x the stated figure; 103 rows
+   against 70 captures on disk; 41 of the 103 rows name a capture that is
+   gone** (negative control: the other 62 resolve, so the orphan count is not
+   an artifact of the matcher). `grep -nE 'prune|MAX_ROWS|retain' tools/gate-live.mjs`
+   returns nothing. Rows do NOT track the capture count — the file is
+   monotonic in cumulative captures ever seen, and it grows forever.
+   **Do not read that as "add pruning".** Those 41 orphaned rows are exactly
+   what closing-gate question 2 asks a recurring producer to keep: evidence
+   that outlived its capture. The design is to SPLIT the artifact — a small
+   status snapshot the doctor reads, and a growing evidence ledger nobody
+   `Read`s whole — not to delete the evidence to shrink the snapshot. Booked
+   in `BACKLOG.md`.
    `jq -r '.ok, .failing, (.rows[]|select(.exit!=0)|.file)'` answers the
    usual question for a few hundred bytes.
 
@@ -1760,11 +1790,36 @@ structure preserved exactly) and therefore committable. Scrub granularity is
 per-`"\n\n"`-segment (relation-preserving — see
 `docs/directives/scrub-relation-preservation-directive.md`): tokens expose
 paragraph count, per-paragraph lengths, and cross-text sharing of identical
-paragraphs, never content bytes. Accepted here (operator, 2026-07-31) because
-this deployment runs local and controlled and commits only its own traffic's
-fixtures; anyone harvesting NON-local or third-party traffic should re-make
-that judgment before committing fixtures publicly — length vectors can
-fingerprint known public texts. Ledgers are
+paragraphs, never content bytes.
+
+**The 2026-07-31 acceptance of that residual rested on a premise that is
+false, and the falsification is worth more than the acceptance.** The
+recorded rationale was: accepted "because this deployment runs local and
+controlled and **commits only its own traffic's fixtures**". The proxy fronts
+EVERY Claude Code session on this machine, so the captures behind these
+fixtures are other projects' conversations, not this repo's. The exemption's
+own next clause — "anyone harvesting NON-local or third-party traffic should
+re-make that judgment before committing fixtures publicly, because length
+vectors can fingerprint known public texts" — describes this deployment. It
+was written as a warning to someone else.
+
+**The operator's bar, stated 2026-08-10 and now the governing rule here:**
+cache-fix's own dev chat reaching the public tree is acceptable; **content
+from any OTHER session must not**. Tool names are explicitly acceptable
+(operator, same day) — they are inventory, not content. What the bar covers
+is chat in and chat out: message text, model reasoning, image payloads,
+filesystem and project identity.
+
+Measured against that bar 2026-08-10 across all 249 tracked fixture files,
+every probe run red-first against a planted positive first: message text is
+hash tokens throughout; 1,323 image blocks all tokenized with **0** base64
+payloads; 34,053 of 34,054 thinking blocks empty and the one non-empty block
+synthetic and labelled; **0** non-structural object keys across the 249
+tracked and the 176 untracked-and-staged files; 0 foreign filesystem paths;
+249/249 readable, zero could-not-verify. **The content bar is met in the
+current tree.** The length vector is the one residual that survives it, and it
+is now an OPEN accepted risk whose justification has to be re-derived rather
+than inherited — booked in `BACKLOG.md`. Ledgers are
 per-machine (`LEDGER-<host>.json`); novelty is judged against every sibling
 ledger, so N machines share one deduplicated corpus with no coordination.
 
