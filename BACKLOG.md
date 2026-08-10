@@ -339,6 +339,13 @@ ENOSPC misattribution with its wrong first explanation left in.
   (`backlog-lint` report lane).
   Realizing write-boundary: `tools/bust-triage.mjs`,
   `docs/runbooks/bust-appears.md`, `tools/backlog-lint.mjs` (+ tests).
+  **PROCEDURE HALF SHIPPED 2026-08-10, same session as the booking** (the
+  one-question test convicted the split — the runbook edit cost what booking
+  it cost): the KNOWN-OPEN terminal now mandates the both-carriers append
+  with the GRADUATE marker pointing here. What REMAINS this entry's build:
+  the mechanized halves — the row-id join as entry data, `bust-triage`'s
+  KNOWN-OPEN output line, and the `backlog-lint` WARN for an OPEN row with
+  no entry carrying its id.
   Done-criterion: the next KNOWN-OPEN walk's booking shows the entry
   datapoint appended in the same session as the walk, no operator prompt in
   between. Consumer tier **1**. Loop stage: MITIGATE (its feeding edge).
@@ -371,10 +378,15 @@ ENOSPC misattribution with its wrong first explanation left in.
   real bust on an absorbed class must chain to "verified absorbed" with
   zero operator prompts.
   Realizing write-boundary: `docs/runbooks/bust-appears.md` + the dev-loop
-  index row's terminal-state column. Done-criterion: one real bust report
-  runs the chain to either a shipped mitigation or a stop at a NAMED
-  operator decision, and the operator's only inputs were the report and
-  the decisions. Consumer tier **1**. Loop stage: MITIGATE.
+  index row's terminal-state column.
+  **BUILT 2026-08-10, same session** — the forward-edge section is in the
+  runbook and the index row's terminal column carries it. The entry stays
+  OPEN on its done-criterion alone, which only a live event can satisfy:
+  one real bust report runs the chain to either a shipped mitigation or a
+  stop at a NAMED operator decision, with the operator's only inputs being
+  the report and the decisions. First candidate: the next row-4 or row-26
+  instance after those mitigations build. Consumer tier **1**. Loop
+  stage: MITIGATE.
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly

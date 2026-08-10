@@ -15,7 +15,7 @@ behind any step.
 
 | the event | the line | ends at |
 |---|---|---|
-| a threshold bust appears (❄, operator, or `bust-triage --list`) | `runbooks/bust-appears.md` | mitigated / parked with its named missing piece / controlled-cause / upstream-filed |
+| a threshold bust appears (❄, operator, or `bust-triage --list`) | `runbooks/bust-appears.md` | a SHIPPED mitigation verified absorbing, or a named forward-edge stop over the disposition: mitigated / parked with its named missing piece / controlled-cause / upstream-filed |
 | the daily sweep reports a finding, nobody present | `runbooks/sweep-finding.md` | regression / known-open / non-defect / instrument-defect / new-class / could-not-verify |
 | the proxy's own detectors log an anomaly (429, 5xx, auth, retry storm) | `runbooks/runtime-anomaly.md` | the sweep's six, plus open-booked |
 | an upstream PR gets a review round | `runbooks/upstream-pr-round.md` | round answered, pushed, comment posted |

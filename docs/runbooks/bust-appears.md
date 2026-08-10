@@ -347,8 +347,59 @@ the two is how a bust gets closed by having been looked at.
 
 A bust that maps to an existing OPEN row is another INSTANCE of that
 row, not a new investigation — name the row and increment its
-evidence. A bust that maps to nothing is UNCLASSIFIED: stop, and mint
+evidence **in BOTH carriers: the matrix cell AND the row's booked
+mitigation entry in BACKLOG.md** (one line: cost, UTC stamp, capture
+alias). The entry is what the build-order derivation reads — a
+datapoint that lands only in the matrix keeps the ranking's
+measured-cost signal stale, which is how weeks of walks produced a
+perfect record and an unpromoted mitigation (operator finding,
+2026-08-10). If the row has NO booked mitigation entry, that absence
+is itself booked before the walk closes.
+`[GRADUATE -> bust-triage's KNOWN-OPEN verdict prints the row's booked
+entry (headline) and the instance cost line to append; BACKLOG ready
+— "a walk on a KNOWN-OPEN row is a dead end"]`
+A bust that maps to nothing is UNCLASSIFIED: stop, and mint
 the row. That is the alarm the matrix's convergence note relies on.
+
+## The disposition is not the exit — the forward edge
+
+Added 2026-08-10 (operator: the goal of this repo is shipped
+mitigations, and every walk was ending at the matrix). After the
+disposition, the walk CONTINUES while each next link is
+decision-complete, and stops only at a NAMED halt — a gate red, a
+missing decision, or a genuine operator call. Ending at the
+disposition without naming which link stopped you is the dead end
+this section removes.
+
+1. **Entry datapoint** (previous section) — the row's mitigation
+   entry carries the instance.
+2. **Re-ask the entry's dispatchability, now, against the current
+   world.** READY and decision-complete → the walk continues into the
+   build (dispatch or desk per the routing corpus); no operator
+   prompt is owed for work the rules already settle. Blocked → the
+   walk's close names the blocking decision or missing evidence, and
+   a decision that is genuinely the operator's goes to them as a
+   numbered question WITH a recommendation — never as a silent stall.
+3. **The build's own gates, unchanged and binding:** a normalization
+   passes the byte-match census
+   (`tools/reminder-migration-census.mjs`) with zero MISMATCH;
+   replay/gate green under the SERVING config; red-first proven on
+   the instance's own frozen evidence (or synthetic where the class
+   is text-predicated — the pin measurement settled that synthetic is
+   the correct arrangement there, not a compromise).
+4. **Ship via `docs/runbooks/ship-proxy-change.md`** — row-3
+   declaration where state keys or freeze logic move, pin bump,
+   restart at a stated session boundary.
+5. **Post-restart verification closes the loop:** the gate run over
+   fresh traffic, and the next instance of the class named ABSORBED
+   (`findAbsorptionMisses` asks exactly that) — "the mitigation ran"
+   and "the mitigation absorbed" remain different claims.
+
+The standing guards are this chain's stop rules, not obstacles to it:
+no mitigation designed before the attribution verdict; MISMATCH
+blocks; cost never gates mitigation; restarts only at session
+boundaries. What the chain forbids is the SILENT stop — a walk that
+ends "interesting, filed" when the next link was executable.
 
 ## Limits (the box)
 
@@ -385,7 +436,10 @@ the row. That is the alarm the matrix's convergence note relies on.
 Close with: each bust and its terminal state; the attribution for
 each (ours / CC's) with the evidence that settled it; what was frozen
 and whether the freeze was verified to reproduce; the matrix rows
-written or incremented; the backlog items booked; and — explicitly —
+written or incremented; the backlog items booked — including the
+mitigation entry each instance datapoint was appended to, or the
+booking of its absence; **which forward-edge link the walk stopped
+at, and why, where it did not reach a ship**; and — explicitly —
 which claims in the report were never executed by anything. A
 building-heavy stretch verifies most of its claims as a byproduct; a
 pure investigation verifies none unless it says so.
