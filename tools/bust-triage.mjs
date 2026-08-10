@@ -59,13 +59,17 @@ import { tmpDirSync } from "./tmpdir.mjs";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { dataPath, statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
-import { join } from "node:path";
-import { censusPair, compactEntry, findEditPositions, findBlockMigrations } from "./replay.mjs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { spawn } from "node:child_process";
+import { censusPair, compactEntry, findEditPositions, findBlockMigrations,
+         firstDivergence, attributionOf } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
 import { localSuffix, withLocalStamps } from "./local-stamp.mjs";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
 const CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
   || legacyReadPath(dataPath("captures"), "cache-fix-captures");
@@ -1501,6 +1505,135 @@ export function sameEvent(ledgerCause, transcriptType) {
                 (ledgerCause === b && transcriptType === a));
 }
 
+// --- Attribution: OURS vs CC's, via the primitive replay.mjs already computes ---
+//
+// docs/dev-loop.md, "No mitigation is DESIGNED before the attribution verdict
+// exists": a bust walk carries an ATTRIBUTION line with three answers and no
+// default (OURS / CC's / COULD-NOT-ATTRIBUTE-with-its-computed-reason), and
+// it IMPORTS replay.mjs's primitive (`attributionOf`) rather than re-deriving
+// it. Two parts, because the two halves have very different costs:
+//
+// PART ONE is free. `pair.before`/`pair.after` are this tool's own captured
+// requests, and captures are PRE-pipeline by construction (request-capture
+// runs at order 60, ahead of every mutating extension — dev-loop.md,
+// "Captures are PRE-pipeline ... a divergence present in the raw capture is
+// Claude Code's; one absent there is OURS"). So if CC's own raw messages did
+// not change AT ALL between the pair (a pure append — `attributionOf`'s
+// `inDiv === null` branch), nothing upstream explains a forwarded
+// divergence, and the answer is OURS without needing anything else.
+//
+// PART TWO is not free, and is why this needs a second tool rather than a
+// second expression. Knowing whether OUR forwarded output diverged EARLIER
+// than CC's own bytes did (the case `inDiv` alone cannot decide) needs the
+// REAL forwarded array, and that only exists behind the full, STATEFUL
+// extension pipeline: insertion-normalization and deferred-tool-rewrite
+// carry per-conversation state built by every request before this one, so
+// replaying just the two requests in this pair (with no prior state) would
+// produce a DIFFERENT forwarded body than the one actually sent — the exact
+// reason replay.mjs's own attribution pass (`replayThrough`, its "Naive
+// attribution ... does not work for stateful extensions" comment) replays
+// the WHOLE corpus rather than one pair. The only trustworthy source is
+// therefore a full corpus replay from the session's first request, which is
+// exactly what `replay.mjs --census` already does — its `--json` output
+// already carries `violations` (findStabilityViolations: the general-purpose
+// "did our output diverge earlier than CC's input" check) with real
+// `inDiv`/`outDiv`. This reuses that computation as a subprocess, the same
+// pattern `gate-live.mjs` already runs daily (`runChild`/`replayArgs`) — a
+// local copy rather than an import, because gate-live.mjs's helpers are
+// shaped for its own scheduled-sweep status file, and coupling a manual,
+// single-event tool to a daily sweep's module is the wrong direction of
+// dependency.
+
+const CENSUS_HEAP_CAP_MB = 2048; // mirrors gate-live.mjs's CHILD_HEAP_CAP_MB
+// — same replay child, same OOM-vs-regression discriminator (that file's own
+// comment: a replay that truly streams needs nowhere near this cap; one that
+// silently regressed into retaining its input dies against it instead of
+// OOMing the machine).
+const REPLAY = join(__dirname, "replay.mjs");
+
+function runChild(args) {
+  return new Promise((resolve) => {
+    const child = spawn("node", args, { stdio: ["ignore", "pipe", "pipe"] });
+    let out = "";
+    let err = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (err += d));
+    child.on("error", (e) => resolve({ code: -1, out: "", err: String(e?.message ?? e) }));
+    child.on("close", (code) => resolve({ code, out, err }));
+  });
+}
+
+/**
+ * The replayed census's `violations` rows for one session's capture — the
+ * ONLY source of a real forwarded-side divergence index (see the section
+ * header above for why). The exit CODE is not the signal: replay.mjs exits
+ * non-zero whenever it finds a stability violation, which is the EXPECTED
+ * outcome here — this tool exists to triage a bust that already happened.
+ * The JSON is the signal, same discipline as gate-live.mjs's summariseCensus.
+ * Three ordered checks, never a guessed disjunction: the capture must exist,
+ * the child must produce output, and the output must parse to JSON carrying
+ * a `violations` array. Returns `{ok:true, violations}` or `{ok:false,
+ * reason}`.
+ */
+async function replayedViolations(capturePath) {
+  if (!existsSync(capturePath)) {
+    return { ok: false, reason: `capture file ${capturePath} does not exist — cannot replay it` };
+  }
+  const res = await runChild(
+    [`--max-old-space-size=${CENSUS_HEAP_CAP_MB}`, REPLAY, capturePath, "--json", "--census"]);
+  if (res.code === -1) {
+    return { ok: false, reason: `replay subprocess failed to start: ${res.err}` };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(res.out);
+  } catch {
+    return { ok: false,
+             reason: `replay subprocess exited ${res.code} with no parseable JSON output` +
+                     (res.err ? ` — stderr: ${res.err.trim().split("\n").slice(-4).join(" / ")}` : "") };
+  }
+  if (!Array.isArray(parsed.violations)) {
+    return { ok: false, reason: "replay's --census --json output carried no `violations` array" };
+  }
+  return { ok: true, violations: parsed.violations };
+}
+
+/**
+ * OURS / CC's / COULD-NOT-ATTRIBUTE for one triaged pair. `sid` and
+ * `capturesDir` locate the same capture file `capturePairResult` already
+ * read, so the replay below sees exactly the traffic this pair came from.
+ */
+export async function computeAttribution(sid, pair, capturesDir = CAPTURES) {
+  const inDiv = firstDivergence(pair.before.body.messages, pair.after.body.messages);
+  if (inDiv === null) {
+    return { verdict: "OURS",
+             reason: "CC's own raw captured messages are identical/append-only between this pair " +
+                     "(captures are PRE-pipeline) — nothing upstream explains a forwarded " +
+                     "divergence, so it originates with us" };
+  }
+  if (pair.before.ord == null || pair.after.ord == null) {
+    return { verdict: "COULD-NOT-ATTRIBUTE",
+             reason: "this pair carries no request ordinal to match against the replayed census" };
+  }
+  const capturePath = join(capturesDir, `s-${sid}-requests.jsonl`);
+  const rv = await replayedViolations(capturePath);
+  if (!rv.ok) {
+    return { verdict: "COULD-NOT-ATTRIBUTE", reason: rv.reason };
+  }
+  const row = rv.violations.find((v) => v.n === pair.after.ord && v.prevN === pair.before.ord);
+  if (!row) {
+    return { verdict: "CC's",
+             reason: `CC's own raw bytes diverged at index ${inDiv}, and the replayed census recorded ` +
+                     "no stability violation for this pair (our forwarded output never diverged " +
+                     "earlier than CC's own bytes did), so the divergence is CC's" };
+  }
+  const ours = attributionOf(row.inDiv, row.outDiv);
+  return { verdict: ours ? "OURS" : "CC's",
+           reason: `replayed census: forwarded divergence at outDiv=${row.outDiv}, CC's own bytes ` +
+                   `${row.ccIdenticalAtOutDiv ? "identical" : "also changed"} there ` +
+                   `(inDiv=${row.inDiv ?? "append-only"})` };
+}
+
 export async function triage(bust) {
   const steps = [];
   const tc = transcriptCause(bust.s, bust.cc);
@@ -1546,7 +1679,9 @@ export async function triage(bust) {
     // present, covered the window, and the pairing step still returned
     // nothing. A guessed reason reads exactly like a measured one.
     steps.push({ step: "capture", ok: false, detail: res.detail });
-    return { bust, steps, verdict: "UNVERIFIABLE", why: res.detail, unverifiable: res.code };
+    return { bust, steps, verdict: "UNVERIFIABLE", why: res.detail, unverifiable: res.code,
+             attribution: { verdict: "COULD-NOT-ATTRIBUTE",
+                             reason: `no capture pair to classify — ${res.detail}` } };
   }
   const pair = { before: res.before, after: res.after };
   // Both numbers, and which is which: `n=` is the MESSAGE COUNT, the pin
@@ -1560,6 +1695,17 @@ export async function triage(bust) {
     : "";
   steps.push({ step: "capture", ok: true,
                detail: `${pair.before.ts} -> ${pair.after.ts}, n=${pair.before.body.messages.length}->${pair.after.body.messages.length}${ords}` });
+
+  // Attribution — OURS / CC's / COULD-NOT-ATTRIBUTE, per docs/dev-loop.md's
+  // gate ("No mitigation is DESIGNED before the attribution verdict exists").
+  // Computed unconditionally, right after the pair is known, and threaded
+  // into every return point below: attribution answers "whose bytes moved",
+  // a question orthogonal to which matrix row (or walk, or KEY-FLIP) the
+  // event lands on, so it is never withheld because the rest of the walk
+  // takes some other path.
+  const attribution = await computeAttribution(bust.s, pair, CAPTURES);
+  steps.push({ step: "attribution", ok: attribution.verdict !== "COULD-NOT-ATTRIBUTE",
+               detail: `${attribution.verdict} — ${attribution.reason}` });
 
   // State-key check (BACKLOG: "bust-triage reports a state-key CHANGE
   // across the pair as its own line"). Read right after `pair` is known so
@@ -1656,7 +1802,8 @@ export async function triage(bust) {
              why: `this pair's two requests ran under DIFFERENT extension state keys ` +
                   `(...${sk.before.key.slice(-16)} -> ...${sk.after.key.slice(-16)}) — no continuous ` +
                   `instance for a matrix row's status to have absorbed across, so any row-based ` +
-                  `verdict here (even MITIGATED) would describe the wrong population` };
+                  `verdict here (even MITIGATED) would describe the wrong population`,
+             attribution };
   }
 
   // Two axes, in order: the message census first (it is the more specific
@@ -1683,23 +1830,27 @@ export async function triage(bust) {
         return { bust, steps, verdict: "STATUS-UNREADABLE",
                  why: `the matrix walk "${walk.title}" dispositions this cause as ` +
                       `"${walk.disposition}", which is in no state this tool recognises — ` +
-                      `read the walk, then add the state to STATUS_RULES` };
+                      `read the walk, then add the state to STATUS_RULES`,
+                 attribution };
       }
       return { bust, steps, verdict: VERDICT_BY_KIND[kind],
                why: `matrix event walk "${walk.title}" (${kind}): ` +
-                    `${walk.reason ?? walk.disposition}` };
+                    `${walk.reason ?? walk.disposition}`,
+               attribution };
     }
   }
   if (rowN === null) {
     return { bust, steps, verdict: "UNCLASSIFIED",
              why: `census class "${cls}" maps to no threat-matrix row, and the transcript cause ` +
                   `${tc?.type ? `"${tc.type}" ` : "is absent, so it "}adds none — and no matrix ` +
-                  `event walk dispositions it either — a class nothing currently covers` };
+                  `event walk dispositions it either — a class nothing currently covers`,
+             attribution };
   }
   const row = matrixRow(rowN);
   if (!row) {
     return { bust, steps, verdict: "UNCLASSIFIED",
-             why: `mapped to matrix row ${rowN}, but that row could not be read` };
+             why: `mapped to matrix row ${rowN}, but that row could not be read`,
+             attribution };
   }
   if (row.kind === null) {
     // The third answer, at the status level: a row matched, but its state is
@@ -1708,12 +1859,14 @@ export async function triage(bust) {
     // ISOLATED"; it stops the reader instead.
     return { bust, steps, verdict: "STATUS-UNREADABLE",
              why: `matrix row ${rowN}'s status is in no state this tool recognises — ` +
-                  `read the row: ${row.status}` };
+                  `read the row: ${row.status}`,
+             attribution };
   }
   return {
     bust, steps,
     verdict: VERDICT_BY_KIND[row.kind],
     why: `matrix row ${rowN} (${row.kind}): ${row.status}`,
+    attribution,
   };
 }
 
@@ -1959,6 +2112,7 @@ async function main(argv) {
     process.stdout.write(`  ${s.ok ? "OK  " : "WARN"}  ${s.step.padEnd(11)} ${withLocalStamps(s.detail)}\n`);
   }
   process.stdout.write(`\n  VERDICT: ${r.verdict}\n  ${r.why}\n`);
+  process.stdout.write(`\n  ATTRIBUTION: ${r.attribution.verdict}\n  ${r.attribution.reason}\n`);
   if (r.verdict === "UNCLASSIFIED") {
     process.stdout.write(
       "\n  An unclassified bust is a NEW CLASS until shown otherwise. Book it as a\n" +

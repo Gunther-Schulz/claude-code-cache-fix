@@ -99,6 +99,30 @@ export function firstDivergence(a, b) {
   return null;
 }
 
+// THE attribution primitive (docs/dev-loop.md, "No mitigation is DESIGNED
+// before the attribution verdict exists" / "Captures are PRE-pipeline ...
+// a divergence present in the raw capture is Claude Code's; one absent
+// there is OURS"): if CC's own arrays are identical at the index where OUR
+// forwarded output first diverges, nothing upstream changed there and the
+// divergence is ours. `inDiv` and `outDiv` are both `firstDivergence`
+// results over a prev/cur pair — `inDiv` on the raw input side, `outDiv` on
+// the forwarded side — so the two positions share one coordinate space and
+// are safe to compare directly. `inDiv === null` means CC's own history was
+// a pure append (nothing of its EXISTING content changed anywhere), which
+// can never explain a forwarded divergence; a non-null `inDiv` that lands
+// at or before `outDiv` means CC's own bytes had already moved by the point
+// ours did, so the forwarded change merely reflects a real CC edit rather
+// than originating with us.
+// `outDiv` is assumed non-null — a pair with no forwarded divergence has
+// nothing to attribute, and every caller establishes that before reaching
+// here (findAbsorptionMisses guards it with `if (outDiv === null) continue`
+// before this is ever called; any other caller must apply the same guard,
+// since a null `outDiv` here would incorrectly compare against `Infinity`
+// via `inDiv > outDiv`, i.e. `n > null` coercing to `n > 0`).
+export function attributionOf(inDiv, outDiv) {
+  return inDiv === null || inDiv > outDiv;
+}
+
 // Conversation identity. Co-tenant traffic (subagents, title-generation)
 // shares the session-id header and therefore the capture key, but starts
 // from a different first message. Comparing across those is the
@@ -1609,10 +1633,10 @@ export function findAbsorptionMisses(entries) {
         forwardedDivergence: outDiv,
         inputDivergence: inDiv,
         cacheControlOnly,
-        // The attribution, stated rather than left to the reader: if CC's own
-        // arrays are identical at the index where ours diverge, nothing
-        // upstream changed there and the divergence is ours.
-        ours: inDiv === null || inDiv > outDiv,
+        // The attribution, stated rather than left to the reader: see
+        // `attributionOf`'s definitional comment (this file, near
+        // `firstDivergence`) for what this means and why.
+        ours: attributionOf(inDiv, outDiv),
         movedFresh: st.movedFresh ?? 0,
         action: cur.action ?? null,
       });
