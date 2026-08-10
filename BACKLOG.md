@@ -309,6 +309,73 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY — a walk on a KNOWN-OPEN row is a dead end: the datapoint lands in
+  the matrix and the row's booked mitigation entry accrues nothing, which is
+  how weeks of bust reports produced a perfect record and zero new wire
+  behavior.** Booked 2026-08-10 (operator: "the whole goal of this repo is
+  to build more mitigations... I expected something to land in the backlog,
+  not just in the threat matrix"). The loop's MITIGATE stage has no forward
+  edge from a walk: `bust-appears` terminals are all dispositions; for a row
+  whose mitigation is already booked, the walk ends by appending to the
+  matrix CELL while the backlog ENTRY's measured-cost basis goes stale — so
+  the ranking's cost signal under-promotes exactly the items the busts keep
+  paying for, on top of the already-diagnosed brief-race starvation.
+  Design, decided, two halves sharing one join: (a) mitigation-bearing
+  entries carry their matrix ROW ID as data (the realizing-boundary lesson
+  one field over — the row↔entry join must be data, not prose; today it is
+  derivable only by reading bodies). (b) `bust-triage`'s KNOWN-OPEN verdict
+  gains one output line: the row's booked mitigation entry (headline, via
+  the join) and the instance's cost — and the runbook's KNOWN-OPEN terminal
+  gains the matching step: append the instance datapoint TO THAT ENTRY
+  (cost, capture stamp, one line), which keeps the entry's signal-2 basis
+  current so the next derivation promotes it on evidence instead of
+  memory. A row with NO booked mitigation already stops the walk as
+  UNCLASSIFIED-adjacent; unchanged.
+  Verifier, red-first: tonight's row-4 walk (`e18c299`'s frozen evidence)
+  replayed through the new output must name the canonicalization entry and
+  its cost line — today it names only the row; a constructed walk on a row
+  with no entry-join must say so rather than guess. Lint half: a matrix row
+  in OPEN status with no entry carrying its row id is a WARN
+  (`backlog-lint` report lane).
+  Realizing write-boundary: `tools/bust-triage.mjs`,
+  `docs/runbooks/bust-appears.md`, `tools/backlog-lint.mjs` (+ tests).
+  Done-criterion: the next KNOWN-OPEN walk's booking shows the entry
+  datapoint appended in the same session as the walk, no operator prompt in
+  between. Consumer tier **1**. Loop stage: MITIGATE (its feeding edge).
+
+- **READY — the bust-to-mitigation chain: one runbook continuation so an
+  operator bust report can run A-Z to a shipped mitigation without the
+  operator re-prompting each stage.** Booked 2026-08-10 (operator: "an A-Z
+  solution starting with me posting a new bust to an opus session and it
+  doing everything until we land with a restart of the proxy that has a new
+  mitigation"). The stages ALL exist as lanes today; what is missing is the
+  chain: `bust-appears` ends at disposition, and nothing says CONTINUE when
+  the next step is decision-complete. Design, decided — an extension of
+  `bust-appears` (amendment, not a new lane): after the disposition, walk
+  forward while each next link is decision-complete, stopping ONLY at a
+  named operator decision or a gate red: disposition → (entry datapoint,
+  the sibling entry above) → if the row's mitigation entry is READY,
+  dispatch/build it → census byte-match gate where it is a normalization →
+  replay/gate green → ship via `ship-proxy-change.md` (row-3 declaration,
+  pin bump, session-boundary restart) → post-restart verification (gates
+  over fresh traffic; the absorbed class named). The existing guards stay
+  binding and are the chain's stop rules: no mitigation designed before
+  the attribution verdict; MISMATCH blocks; restart only at a stated
+  session boundary; genuine decisions (state-key calls, scope widenings)
+  surface to the operator as a numbered round with recommendations — the
+  chain makes stopping EXPLICIT (which link, why, what un-sticks it)
+  instead of silently ending at the matrix.
+  Verifier: dry-run the chain on paper against row 4's current state — it
+  must stop at exactly two named links (canonicalization unbuilt: the
+  build; the census gate) and at no unnamed ones; after row 26 ships, a
+  real bust on an absorbed class must chain to "verified absorbed" with
+  zero operator prompts.
+  Realizing write-boundary: `docs/runbooks/bust-appears.md` + the dev-loop
+  index row's terminal-state column. Done-criterion: one real bust report
+  runs the chain to either a shipped mitigation or a stop at a NAMED
+  operator decision, and the operator's only inputs were the report and
+  the decisions. Consumer tier **1**. Loop stage: MITIGATE.
+
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
