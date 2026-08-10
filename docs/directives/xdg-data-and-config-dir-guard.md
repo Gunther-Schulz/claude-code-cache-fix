@@ -52,8 +52,12 @@ convention.
   work trains the override reflex that kills it.
 
 **Verifier, red-first and mandatory.** The check must go RED on the live machine
-TODAY: `~/.claude/` currently holds at least nine `cache-fix-*` entries plus
-whatever else has accumulated, and the red must list them. Then: adding one of
+TODAY (as of this directive's 2026-08-07 date — the fork-side migration this
+directive motivated (Part 3, BACKLOG's XDG accounting) has since moved most of
+those entries under XDG paths; re-measure the current count rather than
+inheriting "at least nine" — this "TODAY:" is a snapshot, not a standing
+claim): `~/.claude/` held at least nine `cache-fix-*` entries plus
+whatever else had accumulated at write time, and the red must list them. Then: adding one of
 them to the allow-set must turn exactly that one green (proving the allow-set is
 consulted per entry, not as a switch), and a synthetic `~/.claude/junk-data.json`
 in a temp HOME must be flagged (proving the check is not merely matching the

@@ -81,7 +81,7 @@ stateful-UNPERSISTED class; neither extension is in that class.
 
 | Extension | Verdict | Evidence |
 |---|---|---|
-| `insertion-normalization.mjs` | stateful-persisted ✓ | Canonical identity list written to `~/.claude/cache-fix-snapshots/<key>-insertion-canon.json` via atomic tmp+rename (`saveCanonical`, lines 142-148) and reloaded on every request (`loadCanonical`, lines 130-140) before classification runs. A restart re-reads this file, so the classifier's decision for the next request is unaffected by the restart. Directive asked only to "verify the reload path against a real restart in tests" — covered by `test/proxy-restart-transparent.test.mjs`'s insertion-normalization case (see below). |
+| `insertion-normalization.mjs` | stateful-persisted ✓ | Canonical identity list written to `<key>-insertion-canon.json` under the snapshots dir (`statePath("snapshots")` — the XDG state dir; this row originally cited `~/.claude/cache-fix-snapshots/`, the pre-migration location, corrected here since this document is cited as a live authority, not frozen history — see BACKLOG "the XDG accounting's EXCLUDED-BY-GENRE bucket") via atomic tmp+rename (`saveCanonical`, lines 142-148) and reloaded on every request (`loadCanonical`, lines 130-140) before classification runs. A restart re-reads this file, so the classifier's decision for the next request is unaffected by the restart. Directive asked only to "verify the reload path against a real restart in tests" — covered by `test/proxy-restart-transparent.test.mjs`'s insertion-normalization case (see below). |
 
 ## Finding outside the directive's named scope: `mid-history-breakpoint-ladder.mjs` contradicts its own "persisted ✓" claim
 
