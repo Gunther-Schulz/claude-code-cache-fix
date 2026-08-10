@@ -40,6 +40,7 @@
 import { existsSync, statSync, mkdirSync, renameSync, readdirSync, chmodSync, appendFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { homedir } from "node:os";
+import { pathToFileURL } from "node:url";
 
 import { xdgData, xdgState } from "../proxy/xdg-dirs.mjs";
 
@@ -52,7 +53,11 @@ const CLAUDE = process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude");
 // Split rule, stated so a reader can check the assignment rather than trust
 // it: unrecoverable if lost -> DATA; regenerable, or merely expensive to
 // lose -> STATE.
-const TABLE = [
+// Exported so tools/lane-sweep.mjs can reuse this repo's own ALREADY-derived
+// enumeration of "every path this project writes under claudeHome()" (three
+// correction rounds, 16 -> 24, per the file header) rather than re-deriving a
+// second, independently-wrong producer list.
+export const TABLE = [
   // --- DATA: unrecoverable if lost ---
   ["data", "cache-fix-captures", "captures", "the evidence corpus; the alias registry naming its members already lives in this root"],
   ["data", "cache-fix-ca", "ca", "private keys; losing them re-issues a CA every client must re-trust"],
@@ -110,7 +115,10 @@ const TABLE = [
 // that had silently diverged.
 //
 // Three answers, and COULD-NOT-VERIFY is folded into neither of the others.
-const OWNERS = [
+// Exported for the same reason as TABLE — `spec` (the owning module's
+// import path) is what tools/lane-sweep.mjs's producer-vs-reader check uses
+// to ask "does any OTHER tool import from the module that owns this path".
+export const OWNERS = [
   ["captures", "../proxy/extensions/request-capture.mjs", (m) => m.getCaptureDir()],
   ["ca", "../proxy/config.mjs", (m) => m.default.caDir],
   ["snapshots", "../proxy/extensions/prefix-diff.mjs", (m) => m.getSnapshotDir()],
@@ -171,15 +179,15 @@ const OWNERS = [
 // "CLOSING is established against the WORLD, never against a document that
 // says it is closed" — the document here would have been a log file, and
 // this avoids depending on one existing at all).
-function neverWritten(name) {
+function neverWritten(name, roots) {
   const row = TABLE.find(([, , newName]) => newName === name);
   if (!row) return false; // no TABLE row names this owner; never guess
-  return planOne(row).reason === "neither present — nothing was ever written here";
+  return planOne(row, roots).reason === "neither present — nothing was ever written here";
 }
 
 /** One miss, classified. `detail` is the reason the real read already computed. */
-function classifyMiss(name, detail) {
-  if (neverWritten(name)) {
+function classifyMiss(name, detail, roots) {
+  if (neverWritten(name, roots)) {
     return {
       name,
       state: "never-written",
@@ -189,7 +197,7 @@ function classifyMiss(name, detail) {
   return { name, state: "not-arrived", detail };
 }
 
-async function verify() {
+async function verify(roots) {
   const results = [];
   for (const [name, spec, pick, why] of OWNERS) {
     if (!spec) {
@@ -223,10 +231,11 @@ async function verify() {
     // This is a containment test against the roots the owner itself resolves
     // through, not a reconstruction of the expected path: the verifier still
     // never builds the string it is checking.
-    if (!resolved.startsWith(ROOTS.data) && !resolved.startsWith(ROOTS.state)) {
+    if (!resolved.startsWith(roots.data) && !resolved.startsWith(roots.state)) {
       results.push(classifyMiss(
         name,
         `${resolved} — the owner resolved OUTSIDE both XDG roots (legacy fallback still in effect)`,
+        roots,
       ));
       continue;
     }
@@ -238,16 +247,21 @@ async function verify() {
       if (st.isDirectory()) readdirSync(resolved);
       results.push({ name, state: "arrived", detail: resolved });
     } catch (err) {
-      results.push(classifyMiss(name, `${resolved} — ${err.code || err.message}`));
+      results.push(classifyMiss(name, `${resolved} — ${err.code || err.message}`, roots));
     }
   }
   return results;
 }
 
-const ROOTS = { data: xdgData(), state: xdgState() };
+async function main() {
+  // Resolved only when actually running as a script — importing this module
+  // for its TABLE/OWNERS data (tools/lane-sweep.mjs does exactly that) must
+  // not trigger XDG root resolution, which throws under the test runner
+  // without an isolated root (proxy/xdg-dirs.mjs, assertIsolated).
+  const roots = { data: xdgData(), state: xdgState() };
 
 if (process.argv.includes("--verify")) {
-  const results = await verify();
+  const results = await verify(roots);
   const V = {
     arrived: "arrived",
     "not-arrived": "NOT-ARRIVED",
@@ -286,12 +300,12 @@ if (process.argv.includes("--verify")) {
   // the datum worth keeping — and written into the state root so the record
   // travels with the thing it describes.
   try {
-    mkdirSync(ROOTS.state, { recursive: true, mode: 0o700 });
+    mkdirSync(roots.state, { recursive: true, mode: 0o700 });
     appendFileSync(
-      join(ROOTS.state, "xdg-verify-log.jsonl"),
+      join(roots.state, "xdg-verify-log.jsonl"),
       JSON.stringify({
         at: new Date().toISOString(),
-        roots: ROOTS,
+        roots,
         counts: {
           arrived: n("arrived"),
           notArrived: n("not-arrived"),
@@ -321,73 +335,14 @@ if (process.argv.includes("--help") || process.argv.includes("-h")) {
   process.exit(0);
 }
 
-function deviceOf(path) {
-  // The device of the nearest EXISTING ancestor: a destination directory that
-  // does not exist yet still lands on whatever filesystem holds its parent.
-  let p = path;
-  for (;;) {
-    if (existsSync(p)) return statSync(p).dev;
-    const up = dirname(p);
-    if (up === p) return null;
-    p = up;
-  }
-}
-
-function isEmptyDir(path) {
-  try {
-    return readdirSync(path).length === 0;
-  } catch {
-    return false;
-  }
-}
-
-/** One path's verdict. `state` is exactly one of moved | already-done | could-not. */
-function planOne([rootKey, legacyName, newName, why]) {
-  const src = join(CLAUDE, legacyName);
-  const dst = join(ROOTS[rootKey], newName);
-  const row = { rootKey, legacyName, newName, why, src, dst };
-
-  const srcExists = existsSync(src);
-  const dstExists = existsSync(dst);
-
-  if (!srcExists && dstExists) return { ...row, state: "already-done", reason: "destination present, source gone" };
-  if (!srcExists && !dstExists) return { ...row, state: "already-done", reason: "neither present — nothing was ever written here" };
-
-  if (dstExists) {
-    const dstIsDir = statSync(dst).isDirectory();
-    if (!dstIsDir || !isEmptyDir(dst)) {
-      return {
-        ...row,
-        state: "could-not",
-        reason: "destination already exists and is non-empty — refusing to merge two stores; resolve by hand",
-      };
-    }
-  }
-
-  const srcDev = deviceOf(src);
-  const dstDev = deviceOf(dst);
-  if (srcDev === null || dstDev === null) {
-    return { ...row, state: "could-not", reason: "could not stat a device for source or destination" };
-  }
-  if (srcDev !== dstDev) {
-    return {
-      ...row,
-      state: "could-not",
-      reason: `cross-device (src dev ${srcDev}, dst dev ${dstDev}) — rename(2) cannot span filesystems and a silent multi-GB copy is not acceptable`,
-    };
-  }
-
-  return { ...row, state: "moved", reason: null };
-}
-
-const rows = TABLE.map(planOne);
+const rows = TABLE.map((row) => planOne(row, roots));
 
 // --- Apply ---------------------------------------------------------------
 if (apply) {
   // 0700 on both roots: `ca/` holds private keys, and the state root carries
   // full request/response telemetry. Applied to the ROOT, and re-applied to
   // `ca/` after the move so a permissive source mode is not inherited.
-  for (const root of Object.values(ROOTS)) mkdirSync(root, { recursive: true, mode: 0o700 });
+  for (const root of Object.values(roots)) mkdirSync(root, { recursive: true, mode: 0o700 });
 
   for (const row of rows) {
     if (row.state !== "moved") continue;
@@ -442,3 +397,70 @@ if (couldNot > 0) {
 }
 
 process.exit(couldNot > 0 ? 1 : 0);
+}
+
+// Run only when invoked as a script — importing this module for TABLE/OWNERS
+// (tools/lane-sweep.mjs does exactly that) must not execute the CLI, the same
+// rule tools/replay.mjs's own footer states for the same reason.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
+
+function deviceOf(path) {
+  // The device of the nearest EXISTING ancestor: a destination directory that
+  // does not exist yet still lands on whatever filesystem holds its parent.
+  let p = path;
+  for (;;) {
+    if (existsSync(p)) return statSync(p).dev;
+    const up = dirname(p);
+    if (up === p) return null;
+    p = up;
+  }
+}
+
+function isEmptyDir(path) {
+  try {
+    return readdirSync(path).length === 0;
+  } catch {
+    return false;
+  }
+}
+
+/** One path's verdict. `state` is exactly one of moved | already-done | could-not. */
+function planOne([rootKey, legacyName, newName, why], roots) {
+  const src = join(CLAUDE, legacyName);
+  const dst = join(roots[rootKey], newName);
+  const row = { rootKey, legacyName, newName, why, src, dst };
+
+  const srcExists = existsSync(src);
+  const dstExists = existsSync(dst);
+
+  if (!srcExists && dstExists) return { ...row, state: "already-done", reason: "destination present, source gone" };
+  if (!srcExists && !dstExists) return { ...row, state: "already-done", reason: "neither present — nothing was ever written here" };
+
+  if (dstExists) {
+    const dstIsDir = statSync(dst).isDirectory();
+    if (!dstIsDir || !isEmptyDir(dst)) {
+      return {
+        ...row,
+        state: "could-not",
+        reason: "destination already exists and is non-empty — refusing to merge two stores; resolve by hand",
+      };
+    }
+  }
+
+  const srcDev = deviceOf(src);
+  const dstDev = deviceOf(dst);
+  if (srcDev === null || dstDev === null) {
+    return { ...row, state: "could-not", reason: "could not stat a device for source or destination" };
+  }
+  if (srcDev !== dstDev) {
+    return {
+      ...row,
+      state: "could-not",
+      reason: `cross-device (src dev ${srcDev}, dst dev ${dstDev}) — rename(2) cannot span filesystems and a silent multi-GB copy is not acceptable`,
+    };
+  }
+
+  return { ...row, state: "moved", reason: null };
+}
