@@ -321,6 +321,95 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **PARKED 2026-08-10 late-evening — `s-captureAT` ROTATED OUT, and it took
+  the only recorded instance of `capturePairResult`'s red case with it.**
+  Measured, with a positive control so the zero means something: the alias
+  registry resolves `s-captureAT` to a filename that is present in ZERO
+  locations under `~/.local/share/cache-fix` and `~/.local/state/cache-fix`,
+  while the identical probe run for `s-captureAU` returns 1. Not a matcher
+  artifact — the capture is gone.
+  **What this kills, enumerated rather than felt.** The `capturePairResult`
+  entry's RED (`--at 2026-08-08T11:46:36Z`, the total `messages[0]` rebuild at
+  ord 715) lived in AT and is now unreproducible. Its CONTROL
+  (`--at 2026-08-08T12:18:15Z`) lives in AU, which survives at 292 MB. So the
+  entry's hard-ordering chain — lineage primitive, then bounded pin, then
+  FREEZE BOTH CASES, then ship — cannot complete as written: there is nothing
+  left to freeze on the red side. This is the anchored-to-mutating-state
+  defect `docs/dev-loop.md` already names, realized on a booked verifier while
+  the ranking was reading that entry as blocked-but-live.
+  **What survives, and it is the more useful half.** A replacement live
+  positive for the neighbouring `identityRotation` class EXISTS in a surviving
+  capture: a census replay over `s-captureAU` at the desk today (serving gate
+  set, from `/health`) reports *"identity rotations (row 26 — our own
+  pipeline, raw vs forwarded): 325 requests served under a rotated identity, 6
+  rotation transitions"*, first transition row `n=31
+  ts=2026-08-08T11:55:14.000Z`, with non-classifying neighbours available as
+  negatives. So the row-26 chain's "the live arm does not exist" blocker is
+  dischargeable against AU rather than dead.
+  Named missing evidence, which is what keeps this PARKED rather than READY: a
+  surviving capture carrying a `capturePairResult` PAIRING FAILURE — a request
+  whose `messages[0]` matches none of its predecessors while a lineage
+  neighbour exists. AU has rotations; whether it has that specific shape is
+  unmeasured. The measurement is mechanical (replay `--census` over the
+  surviving captures, look for a transition whose `conversationOf` search
+  finds no predecessor) and is the first thing the next session on this entry
+  should run — if it finds one, this converts to READY and the
+  `capturePairResult` entry is re-anchored to it; if it does not, the entry's
+  verifier has to be rebuilt from a synthetic case and that is a design
+  decision, not a lookup.
+  Loop stage: ATTRIBUTE. Consumer tier **1**.
+  <!-- entry: "s-captureAT rotated out, taking capturePairResult's red case" -->
+
+- **READY (small) — the daily sweep COMPUTES the identityRotation numbers
+  every morning and drops them on the floor, which is why the paragraph above
+  had no rows to fall back on.** Found 2026-08-10 late-evening while checking
+  whether AT's loss was recoverable. `gate-live` passes `--census` to every
+  replay child (`tools/gate-live.mjs:132`) and `replay --json` emits
+  `identityRotations` in its payload (`tools/replay.mjs:4123`), so the numbers
+  exist on every sweep — and the persisted row's key set contains no rotation
+  field of any kind (read from `jq -r '.rows[0]|keys_unsorted|join(",")'` over
+  the live status file), while `grep -n 'identityRotation' tools/gate-live.mjs`
+  returns nothing. That is the closing gate's question 2 for a RECURRING
+  producer, unanswered: the mechanism does not write out what proves its own
+  findings, and the captures behind them rotate — measured cost, the entry
+  above.
+  It is also the SECOND instance of a defect this file documents about itself:
+  `gate-live.mjs:476-483`'s own comment says the departure census "computed
+  them for every capture and dropped them on the floor".
+  Design, decided: `["identityRotationRows", parsed.identityRotations]` in the
+  `persistRows` list (whose three-answer semantics — `null` for never emitted,
+  `[]` for a measured zero — stay untouched), plus a labelled summary
+  `row.identityRotations = {requests, transitions}` in the `toolsDeltas` style,
+  both numbers named because reporting either alone invites the other's
+  question. A REPORT: `rowIsClean` does not move.
+  Verifier, red-first: the key set above is the red. True positive available:
+  `s-captureAU` must come back `{requests: 325, transitions: 6}`.
+  _IN FLIGHT 2026-08-10 late-evening — dispatched to sonnet in a worktree._
+  Write boundary: `tools/gate-live.mjs`, `test/gate-live.test.mjs`.
+  Consumer tier **2 (feeds the gates)**. Loop stage: SEE.
+  <!-- entry: "the daily sweep drops the identityRotation numbers" -->
+
+- **READY (small) — a dispatched worktree does NOT carry the main clone's
+  untracked files, so a verifier baseline computed at the desk can be
+  unreproducible in the lane that was briefed with it.** Found 2026-08-10 by
+  the ship-proxy-change lane, which reported it rather than bridging it.
+  `CLAUDE.local.md` is untracked and git-excluded here by design, so in a
+  worktree `tools/runbook-lane-index.mjs` reports its CHECK 2b as
+  `CLAUDE.local.md list COULD-NOT-VERIFY (absent or no inline list)` — the
+  three-answer discipline working correctly — and the lane therefore measured a
+  5-finding baseline where the desk had cited 7. Both numbers were right about
+  their own tree.
+  The checker is not the defect; the BRIEF is. Design, decided: a dispatcher
+  writing a baseline into a brief states which tree it was measured in, and any
+  baseline that depends on an untracked file is either recomputed by the lane
+  in ITS tree or checked by the dispatcher at integration (which is what
+  happened here — the desk re-ran it in the main clone and got the predicted
+  8 = 7 + 1 new STALE LIST row). The portable half belongs in the
+  `dispatch-guards` plugin's `dev-notes/dispatch-OBSERVATIONS.md`, not here.
+  Verifier: a brief-time check that flags a cited baseline command whose output
+  depends on a git-excluded path. Consumer tier **3**. Loop stage: VERIFY.
+  <!-- entry: "a dispatched worktree does not carry untracked files" -->
+
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
