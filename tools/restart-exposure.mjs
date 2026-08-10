@@ -25,17 +25,82 @@
 // requests contain it; without one, every live session is listed and the
 // total is the worst case.
 //
+// `--match` is TEXT — a substring or pattern in the tail bytes — and an
+// extension-behaviour change's affected class is usually STRUCTURAL: "a
+// conversation where a suppression is firing with nothing restoring the
+// block" is a predicate over canonical state and forwarded bytes, not over
+// text, and no text pattern can state it (BACKLOG.md, "`restart-exposure
+// --match` takes a TEXT predicate"). `--match-class <name>` answers that
+// case: it runs the real pipeline (`replay.mjs --gates-from-capture`, so it
+// always replays the gates the capture's OWN boot records declare rather
+// than the caller's ambient defaults — dev-loop, "Replay the configuration
+// that is SERVING, not the defaults") over each live session's own capture
+// and asks whether it CURRENTLY carries a conservation violation of the
+// named kind. The vocabulary is `replay.mjs`'s own conservation kinds
+// (`suppressed-without-copy` / `invented` / `lost`), not a new one — a
+// session either passes both filters when both are given, or the one that
+// was given.
+//
 // A session counts as LIVE when its capture has been appended to within the
 // window (default 30 min). Reading the tail of each capture rather than the
-// whole file keeps this fast on a 900 MB corpus.
+// whole file keeps `--match` fast on a 900 MB corpus; `--match-class`
+// necessarily replays the WHOLE capture (conservation state accumulates
+// per-conversation across the file), so it only ever runs on sessions that
+// already passed the cheap live-window filter.
 //
 // Usage:
-//   node tools/restart-exposure.mjs [--window-min N] [--match <regex>] [--json]
+//   node tools/restart-exposure.mjs [--window-min N] [--match <regex>]
+//     [--match-class suppressed-without-copy|invented|lost] [--json]
 
 import { readdirSync, statSync, openSync, readSync, closeSync } from "node:fs";
-import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 import { localSuffix } from "./local-stamp.mjs";
+
+// Overridable for tests only, same idiom as `CACHE_FIX_CAPTURE_DIR` etc.:
+// exercising `--match-class`'s WIRING (subprocess call, exit-code-as-signal
+// handling, JSON class matching) does not need the real multi-minute
+// pipeline replay — that logic carries its own red-first-proven suite
+// (test/conservation-exemptions.test.mjs, test/replay-gate-selfcheck.test.mjs).
+// Production never sets this.
+const REPLAY_TOOL = process.env.CACHE_FIX_REPLAY_TOOL_PATH
+  || join(dirname(fileURLToPath(import.meta.url)), "replay.mjs");
+
+// The gate's own vocabulary (tools/replay.mjs, `conservationViolations`) —
+// restated here as a closed set so an unrecognised `--match-class` fails
+// loudly instead of silently matching nothing.
+export const CONSERVATION_CLASSES = ["suppressed-without-copy", "invented", "lost"];
+
+/**
+ * Does this capture CURRENTLY carry a conservation violation of the named
+ * kind? Spawns the real CLI rather than importing `replay.mjs`'s internals:
+ * `main()` there is unexported and reads `process.argv` directly, and the
+ * conservation checker needs the full per-conversation replay state
+ * `main()` builds while walking the file — there is no smaller reusable
+ * piece. `--gates-from-capture` resolves the gates from the capture's own
+ * boot records, so this needs no separate query of the serving config.
+ */
+export function matchesConservationClass(capturePath, kind) {
+  let out;
+  try {
+    out = execFileSync(
+      process.execPath,
+      [REPLAY_TOOL, capturePath, "--gates-from-capture", "--json"],
+      { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    );
+  } catch (err) {
+    // replay.mjs sets process.exitCode = 1 whenever it finds ANY violation —
+    // conservation included — so a non-zero exit is the EXPECTED shape for a
+    // session that does carry the class, not a real failure. stdout still
+    // carries the report; only a JSON parse failure below is a real error.
+    if (typeof err.stdout !== "string") throw err;
+    out = err.stdout;
+  }
+  const report = JSON.parse(out);
+  return Array.isArray(report.conservation) && report.conservation.some((v) => v.kind === kind);
+}
 
 const CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
   || legacyReadPath(dataPath("captures"), "cache-fix-captures");
@@ -101,7 +166,9 @@ export function contextChars(rec) {
   return n;
 }
 
-export function scanLive(dir, { windowMin = 30, match = null, now = Date.now(), tail = 4 << 20 } = {}) {
+export function scanLive(dir, {
+  windowMin = 30, match = null, matchClass = null, now = Date.now(), tail = 4 << 20,
+} = {}) {
   const cutoff = now - windowMin * 60_000;
   const rows = [];
   let files;
@@ -131,12 +198,18 @@ export function scanLive(dir, { windowMin = 30, match = null, now = Date.now(), 
     // change affects has to be present in the recent prefix to be re-billed,
     // and reading 900 MB to be sure is not worth the wait before a restart.
     if (match && !match.test(chunk)) continue;
+    // `matchClass` is a STRUCTURAL predicate and cannot be answered from the
+    // tail — it replays the whole capture. Applied last, and only to rows
+    // that already passed the cheap filters above, since it is the
+    // expensive one.
+    if (matchClass && !matchesConservationClass(path, matchClass)) continue;
     rows.push({
       capture: f,
       lastActivity: new Date(st.mtimeMs).toISOString(),
       messages: Array.isArray(rec.body?.messages) ? rec.body.messages.length : null,
       chars: contextChars(rec),
       matched: !!match,
+      matchedClass: matchClass || null,
     });
   }
   rows.sort((a, b) => b.chars - a.chars);
@@ -150,22 +223,35 @@ function main(argv) {
     return i >= 0 ? Number(args[i + 1]) : dflt;
   };
   const matchArg = args.indexOf("--match") >= 0 ? args[args.indexOf("--match") + 1] : null;
+  const matchClassArg = args.indexOf("--match-class") >= 0 ? args[args.indexOf("--match-class") + 1] : null;
   const windowMin = num("--window-min", 30);
   const match = matchArg ? new RegExp(matchArg) : null;
 
-  const { rows, dir, unreadable } = scanLive(CAPTURES, { windowMin, match });
+  if (matchClassArg && !CONSERVATION_CLASSES.includes(matchClassArg)) {
+    process.stderr.write(
+      `restart-exposure: unknown --match-class "${matchClassArg}" — one of `
+        + `${CONSERVATION_CLASSES.join(", ")}\n`,
+    );
+    return 2;
+  }
+
+  const { rows, dir, unreadable } = scanLive(CAPTURES, { windowMin, match, matchClass: matchClassArg });
   if (unreadable) {
     process.stderr.write(`restart-exposure: cannot read ${dir}\n`);
     return 2;
   }
   if (args.includes("--json")) {
-    process.stdout.write(JSON.stringify({ windowMin, match: matchArg, rows }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ windowMin, match: matchArg, matchClass: matchClassArg, rows }, null, 2) + "\n");
     return 0;
   }
   const total = rows.reduce((a, r) => a + r.chars, 0);
+  const predicateNote = [
+    matchArg ? `matching /${matchArg}/` : null,
+    matchClassArg ? `carrying a "${matchClassArg}" conservation violation` : null,
+  ].filter(Boolean).join(" and ");
   process.stdout.write(
     `live sessions in the last ${windowMin} min` +
-    (matchArg ? ` matching /${matchArg}/` : "") + `: ${rows.length}\n`);
+    (predicateNote ? ` ${predicateNote}` : "") + `: ${rows.length}\n`);
   for (const r of rows) {
     process.stdout.write(
       `  ${r.capture.slice(0, 14)}…  ${String(r.messages ?? "?").padStart(5)} msgs  ` +
@@ -174,11 +260,11 @@ function main(argv) {
   }
   process.stdout.write(
     `\nworst case if a restart changes forwarded bytes for these: ~${(total / 4 / 1000).toFixed(0)}k tokens\n`);
-  if (!matchArg) {
+  if (!matchArg && !matchClassArg) {
     process.stdout.write(
-      "no --match given, so this is EVERY live session — pass the predicate for\n" +
-      "your change to narrow it. A restart that changes nothing on the wire\n" +
-      "costs none of this.\n");
+      "no --match or --match-class given, so this is EVERY live session — pass\n" +
+      "a predicate for your change to narrow it. A restart that changes nothing\n" +
+      "on the wire costs none of this.\n");
   }
   return 0;
 }
