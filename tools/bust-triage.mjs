@@ -1627,11 +1627,45 @@ export async function computeAttribution(sid, pair, capturesDir = CAPTURES) {
                      "no stability violation for this pair (our forwarded output never diverged " +
                      "earlier than CC's own bytes did), so the divergence is CC's" };
   }
-  const ours = attributionOf(row.inDiv, row.outDiv);
-  return { verdict: ours ? "OURS" : "CC's",
-           reason: `replayed census: forwarded divergence at outDiv=${row.outDiv}, CC's own bytes ` +
-                   `${row.ccIdenticalAtOutDiv ? "identical" : "also changed"} there ` +
-                   `(inDiv=${row.inDiv ?? "append-only"})` };
+  return attributionFromRow(row);
+}
+
+/**
+ * The verdict carried by ONE replayed-census violation row.
+ *
+ * `findStabilityViolations` emits a row only under `outDiv !== null && outDiv
+ * < (inDiv ?? Infinity)` (replay.mjs's `scanGroup`) — which IS
+ * `attributionOf(inDiv, outDiv) === true`, spelled with the same two
+ * quantities the row then carries. So every row that source can produce is
+ * OURS, and a "CC's" alternative on this path would be a predicate no input
+ * could falsify: unprovable, not merely unproven, and it would read as a live
+ * discriminator to anyone auditing the three-answer contract.
+ *
+ * Measured 2026-08-10, on synthetic pairs fed to the real
+ * `findStabilityViolations`, instrument-positive first: outDiv=1 < inDiv=3
+ * emitted 1 row and an append-only input emitted 1 row (both attributionOf
+ * true), while the "CC's" shape — inDiv=1 < outDiv=3 — emitted 0 rows. The
+ * CC's verdict therefore reaches the caller only via the no-row branch above,
+ * where it is computed from real evidence.
+ *
+ * The invariant is CHECKED rather than assumed. A row contradicting its own
+ * producer's emission guard means the two sides have drifted apart, and the
+ * honest answer to "whose divergence is this" is then COULD-NOT-ATTRIBUTE with
+ * the contradiction named — never a verdict inferred from a broken premise.
+ */
+export function attributionFromRow(row) {
+  if (!attributionOf(row.inDiv, row.outDiv)) {
+    return { verdict: "COULD-NOT-ATTRIBUTE",
+             reason: `the replayed census emitted a violation row that contradicts its own ` +
+                     `emission guard (inDiv=${row.inDiv} is at or before outDiv=${row.outDiv}, ` +
+                     `so this pair should not have been recorded as a violation at all) — ` +
+                     `replay.mjs's scanGroup and this reader have drifted apart, and no ` +
+                     `attribution follows from a broken premise` };
+  }
+  return { verdict: "OURS",
+           reason: `replayed census: our forwarded output diverged at outDiv=${row.outDiv}, ahead of ` +
+                   `CC's own bytes (inDiv=${row.inDiv ?? "append-only"}), and CC's byte at that index ` +
+                   `is ${row.ccIdenticalAtOutDiv ? "identical" : "also changed"} across the pair` };
 }
 
 export async function triage(bust) {

@@ -42,7 +42,8 @@ import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { computeAttribution } from "../tools/bust-triage.mjs";
+import { computeAttribution, attributionFromRow } from "../tools/bust-triage.mjs";
+import { findStabilityViolations, attributionOf } from "../tools/replay.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = join(REPO, "tools", "bust-triage.mjs");
@@ -96,6 +97,81 @@ test("BITE — a raw divergence whose capture cannot be replayed is COULD-NOT-AT
       assert.equal(r.verdict, "COULD-NOT-ATTRIBUTE");
       assert.match(r.reason, /does not exist — cannot replay it/);
     });
+});
+
+// --- attributionFromRow: the row-level verdict, and the invariant under it ---
+//
+// The costly path's row-found branch used to read `ours ? "OURS" : "CC's"`,
+// which presents as a live discriminator and is a constant: a violation row is
+// emitted only under `outDiv !== null && outDiv < (inDiv ?? Infinity)`
+// (replay.mjs's scanGroup), i.e. exactly `attributionOf(inDiv, outDiv) ===
+// true`. RED, before this change (2026-08-10, new expectations run against the
+// OLD expression copied verbatim out of bust-triage.mjs at commit 28d5022):
+// the baseline row (inDiv=3, outDiv=1) returned OURS — green, so the red below
+// is specific rather than an always-red check — while the invariant-break row
+// (inDiv=1, outDiv=3) returned "CC's" where COULD-NOT-ATTRIBUTE was wanted.
+//
+// The first bite below is the one that automates the MECHANISM rather than the
+// symptom: it re-derives, from the real `findStabilityViolations`, that the
+// "CC's" shape is unemittable — so if scanGroup's emission guard ever widens,
+// this goes red at the guard rather than at some future misattributed bust.
+
+test("BITE — the census cannot emit a row that attributionOf calls CC's (the invariant, re-derived)", () => {
+  const m = (t) => ({ role: "user", content: t });
+  const [A, B, B2, Bn, C, D, D2, E] =
+    ["A", "B", "B2", "Bn", "C", "D", "D2", "E"].map(m);
+  const mk = (n, inMsgs, outMsgs) => ({
+    n, ts: `t${n}`, key: "s-probe", inMsgs, outMsgs,
+    inTools: [], outTools: [], action: "pass", resetReason: null, stats: {},
+  });
+
+  // Instrument-positive FIRST, both OURS shapes — without these a zero on the
+  // CC's shape below is indistinguishable from a probe that can never emit.
+  const oursFirst = findStabilityViolations([
+    mk(1, [A, B, C, D, E], [A, B, C, D, E]),
+    mk(2, [A, B, C, D2, E], [A, B2, C, D, E]),   // outDiv=1 < inDiv=3
+  ]);
+  assert.equal(oursFirst.length, 1, "our-output-diverged-first must emit a row");
+  assert.equal(attributionOf(oursFirst[0].inDiv, oursFirst[0].outDiv), true);
+
+  const appendOnly = findStabilityViolations([
+    mk(1, [A, B, C], [A, B, C]),
+    mk(2, [A, B, C, D], [A, B2, C, D]),          // inDiv=null
+  ]);
+  assert.equal(appendOnly.length, 1, "append-only input with a forwarded divergence must emit a row");
+  assert.equal(attributionOf(appendOnly[0].inDiv, appendOnly[0].outDiv), true);
+
+  // The CC's shape: CC's own bytes move at index 1, ours only at index 3.
+  const ccFirst = findStabilityViolations([
+    mk(1, [A, B, C, D, E], [A, Bn, C, D, E]),
+    mk(2, [A, B2, C, D, E], [A, Bn, C, D2, E]), // inDiv=1 < outDiv=3
+  ]);
+  assert.deepEqual(ccFirst, [],
+    "a pair whose raw side diverged FIRST is not a stability violation, so no row " +
+    "reaching attributionFromRow can ever carry a CC's verdict");
+});
+
+test("BITE — a real census row is OURS, with outDiv and inDiv in the reason", () => {
+  const r = attributionFromRow({ inDiv: 3, outDiv: 1, ccIdenticalAtOutDiv: true });
+  assert.equal(r.verdict, "OURS");
+  assert.match(r.reason, /outDiv=1/);
+  assert.match(r.reason, /inDiv=3/);
+  assert.match(r.reason, /identical/);
+});
+
+test("BITE — an append-only row names append-only rather than printing null", () => {
+  const r = attributionFromRow({ inDiv: null, outDiv: 2, ccIdenticalAtOutDiv: true });
+  assert.equal(r.verdict, "OURS");
+  assert.match(r.reason, /inDiv=append-only/);
+  assert.doesNotMatch(r.reason, /inDiv=null/);
+});
+
+test("BITE — a row contradicting its own producer's guard is COULD-NOT-ATTRIBUTE, not a verdict", () => {
+  const r = attributionFromRow({ inDiv: 1, outDiv: 3, ccIdenticalAtOutDiv: false });
+  assert.equal(r.verdict, "COULD-NOT-ATTRIBUTE",
+    "an invariant break must not be resolved into OURS or CC's");
+  assert.match(r.reason, /contradicts its own/);
+  assert.match(r.reason, /inDiv=1 is at or before outDiv=3/);
 });
 
 // --- END-TO-END: the CLI's own ATTRIBUTION line, over the real extension pipeline ---
