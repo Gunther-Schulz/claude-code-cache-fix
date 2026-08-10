@@ -30,6 +30,14 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
 import { pinRange, pinRangeBounded, parseReplayVerdicts, sidToken } from "../tools/harvest.mjs";
+// Namespace import for the bounded-pin CONTENT check (BACKLOG.md "applies
+// the retention filter to its own reference side") — its exports do not
+// exist on the unmodified tool yet. A static named import of a not-yet-
+// existing export fails the whole module at LINK time (ESM), which would
+// collapse every other test in this file into the same false failure; a
+// namespace import defers the missing-export failure to the individual call
+// site that uses it, so the real pass/fail split stays readable.
+import * as harvestMod from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -263,4 +271,126 @@ test("harvest --pin --bounded CLI: header records bounded:true, the target ordin
     /placeholder/i.test(fixture.header.boundedNote) && /not.*real|synthetic/i.test(fixture.header.boundedNote),
     "the header names the placeholder convention so a reader cannot mistake one for real traffic",
   );
+});
+
+// --- bounded pin CONTENT check: is the busting conversation COMPLETE? ------
+//
+// BACKLOG.md "READY (BLOCKING the bounded pin's fidelity claim) — verifyPin
+// on a BOUNDED pin applies the retention filter to its own reference side,
+// so it cannot fail for the defect it exists to catch. PROVEN by sabotage,
+// not argued." compareReplayVerdicts builds its live side with
+// writeCapturePrefixBounded, which applies boundedKeep — the SAME retention
+// function the pin itself was built with — so both sides drop the same
+// records and a filter defect is invisible by construction (measured at the
+// desk: boundedKeep sabotaged to drop every third kept record still
+// returned `diffs: []`, 188 pairs -> 125 on both sides). The fix is a
+// CONTENT check computed independently of boundedKeep: S = the ordinals
+// whose own conversationOf matches the busting request's, straight from the
+// raw capture, and the pin must hold a real record at every one of them.
+//
+// These bites test the mechanism directly (bustingConversationOrdinals,
+// missingBustingOrdinals) with constructed inputs — no real captures.
+
+test("bounded pin content check: S is the busting conversation's own ordinals, excluding the sameLineage-only union", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-");
+  const capture = await writeBigCapture(dir);
+  const ordinals = await harvestMod.bustingConversationOrdinals(capture, BIG_TARGET_M);
+  assert.deepEqual(
+    [...ordinals].sort((a, b) => a - b),
+    [0, 4],
+    "T_early (0) and the target itself (4) share conversationOf with the target; L_rebuilt (3) is lineage-only " +
+      "(sameLineage relates it, but its OWN conversationOf differs) and must not be in S — the scope statement",
+  );
+});
+
+test("bounded pin content check: a complete pin (unsabotaged retention) passes — no missing ordinals", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-");
+  const capture = await writeBigCapture(dir);
+  const { records } = await pinRangeBounded(capture, BIG_TARGET_M);
+  const ordinals = await harvestMod.bustingConversationOrdinals(capture, BIG_TARGET_M);
+  const missing = harvestMod.missingBustingOrdinals(records, ordinals);
+  assert.deepEqual(missing, [], "pinRangeBounded keeps every busting-conversation member for real, unsabotaged");
+});
+
+test("bounded pin content check: a pin literally missing a busting-conversation ordinal (record absent) fails, named", () => {
+  const ordinals = new Set([0, 4]);
+  // records array covers ordinals 0..3 only — ordinal 4 has no entry at all,
+  // simulating a pin whose array is short (a defect elsewhere in the chain).
+  const requests = [
+    { sid: "s-real00000000" },
+    { sid: "bounded-placeholder-1" },
+    { sid: "bounded-placeholder-2" },
+    { sid: "s-lineage000000" },
+  ];
+  const missing = harvestMod.missingBustingOrdinals(requests, ordinals);
+  assert.deepEqual(missing, [4], "ordinal 4 has no record at all in the pin and must be named as missing");
+});
+
+test("bounded pin content check: a pin holding a PLACEHOLDER at a busting-conversation ordinal fails, named", () => {
+  const ordinals = new Set([0, 4]);
+  const requests = [
+    { sid: "bounded-placeholder-0" }, // defect: ordinal 0 is a real busting member but was replaced
+    { sid: "bounded-placeholder-1" },
+    { sid: "bounded-placeholder-2" },
+    { sid: "s-lineage000000" },
+    { sid: "s-target0000aa" },
+  ];
+  const missing = harvestMod.missingBustingOrdinals(requests, ordinals);
+  assert.deepEqual(missing, [0], "ordinal 0 holds a placeholder despite being in S and must be named");
+});
+
+test("bounded pin content check: a lineage-only record dropped from the pin does NOT fail — the scope statement, asserted not assumed", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-");
+  const capture = await writeBigCapture(dir);
+  const { records } = await pinRangeBounded(capture, BIG_TARGET_M);
+  const ordinals = await harvestMod.bustingConversationOrdinals(capture, BIG_TARGET_M);
+  // Simulate a hypothetical NARROWER retention (busting conversation only,
+  // no sameLineage union) by placeholdering ordinal 3 (L_rebuilt,
+  // lineage-only) — this is explicitly NOT the defect the check exists to
+  // catch; lineage-related records sit outside the bar by design.
+  const requests = requestOnly(records);
+  const narrowed = records.map((r) =>
+    r === requests[3]
+      ? { ts: r.ts, sid: "bounded-placeholder-3", key: "bounded-placeholder-3", headers: r.headers, body: { model: null, system: null, messages: [] } }
+      : r,
+  );
+  const missing = harvestMod.missingBustingOrdinals(narrowed, ordinals);
+  assert.deepEqual(missing, [], "L_rebuilt (lineage-only, ordinal 3) is outside S by design; its absence must not fail the check");
+});
+
+// --- wiring: verifyPin surfaces the clause in its established voice --------
+
+test("verifyPin: a bounded pin missing a busting-conversation member reports it, naming the ordinal", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-verify-");
+  const capture = await writeBigCapture(dir);
+  const { records } = await pinRangeBounded(capture, BIG_TARGET_M);
+  const requests = requestOnly(records);
+  // Sabotage exactly as a broken boundedKeep would: drop the real
+  // predecessor (ordinal 0, T_early — a genuine busting-conversation member)
+  // in favor of a placeholder, leaving everything else correct.
+  const sabotagedRecords = records.map((r) =>
+    r === requests[0]
+      ? { ts: r.ts, sid: "bounded-placeholder-0", key: "bounded-placeholder-0", headers: r.headers, body: { model: null, system: null, messages: [] } }
+      : r,
+  );
+  const pinPath = join(dir, "sabotaged-pin.json");
+  await writeFile(
+    pinPath,
+    JSON.stringify({ header: { bounded: true }, records: sabotagedRecords }, null, 2) + "\n",
+  );
+  const { diffs } = await harvestMod.verifyPin(capture, pinPath, BIG_TARGET_M);
+  const joined = diffs.join("; ");
+  assert.match(joined, /busting conversation incomplete/, `verifyPin must report the content-check clause: ${joined}`);
+  assert.match(joined, /\b0\b/, `the clause must name ordinal 0: ${joined}`);
+});
+
+test("verifyPin: a complete bounded pin never reports the busting-completeness clause", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-verify-");
+  const capture = await writeBigCapture(dir);
+  const { records } = await pinRangeBounded(capture, BIG_TARGET_M);
+  const pinPath = join(dir, "complete-pin.json");
+  await writeFile(pinPath, JSON.stringify({ header: { bounded: true }, records }, null, 2) + "\n");
+  const { diffs } = await harvestMod.verifyPin(capture, pinPath, BIG_TARGET_M);
+  const joined = diffs.join("; ");
+  assert.doesNotMatch(joined, /busting conversation incomplete/, `an unsabotaged bounded pin must not trip the content check: ${joined}`);
 });

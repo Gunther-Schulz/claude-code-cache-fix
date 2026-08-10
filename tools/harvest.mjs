@@ -968,6 +968,88 @@ export async function writeCapturePrefixBounded(capturePath, m, outPath) {
   return { requests: count, reached };
 }
 
+// --- bounded pin content check: is the busting conversation COMPLETE? ---
+//
+// BACKLOG.md "READY (BLOCKING the bounded pin's fidelity claim) — verifyPin
+// on a BOUNDED pin applies the retention filter to its own reference side,
+// so it cannot fail for the defect it exists to catch. PROVEN by sabotage,
+// not argued." writeCapturePrefixBounded above applies boundedKeep to build
+// its reference side — the SAME retention function pinRangeBounded used to
+// build the pin itself — so both sides drop the same records and a defect
+// in boundedKeep is invisible to compareReplayVerdicts by construction.
+// Measured 2026-08-10: boundedKeep sabotaged to drop every third record it
+// should keep still returned `diffs: []` (188 pairs -> 125 on both sides) —
+// a pin that had silently lost a third of its evidence got a clean bill of
+// health.
+//
+// This is a CONTENT check instead, and it is independent of boundedKeep on
+// purpose — that is the entire point. From the RAW capture, compute
+//   S = { ordinals i <= m : conversationOf(record_i) === conversationOf(target) }
+// directly (never by calling boundedKeep, which also admits sameLineage
+// matches), then assert the pin holds a REAL record — never a
+// boundedPlaceholder stand-in — at every ordinal in S. A retention filter
+// that drops a member of the busting conversation now fails on evidence the
+// filter had no hand in producing, which is exactly the property
+// compareReplayVerdicts lacks here.
+//
+// Scope, stated exactly so it is not over-read (BACKLOG, same entry): this
+// establishes that the BUSTING CONVERSATION is complete in the pin.
+// Lineage-related records (sameLineage matches whose own conversationOf
+// differs from the target's) are deliberately NOT part of S — they are
+// retained so a later lineage-aware consumer can find them, and a contract
+// defined over them would be filter-derived again, which is exactly the
+// defect this check removes.
+export async function bustingConversationOrdinals(capturePath, m) {
+  const target = await locateBoundedTarget(capturePath, m);
+  const targetCid = conversationOf(target);
+  const ordinals = new Set();
+  let count = 0;
+  for await (const line of readLines(capturePath)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot" || rec.type === "outcome") continue;
+    const idx = count++;
+    const inMsgs = Array.isArray(rec.body?.messages) ? rec.body.messages : [];
+    const cid = conversationOf(compactEntry({ inMsgs }));
+    if (cid !== null && cid === targetCid) ordinals.add(idx);
+    if (idx === m) break;
+  }
+  return ordinals;
+}
+
+// A record is the boundedPlaceholder stand-in, never real traffic, iff its
+// sid carries the prefix boundedPlaceholder mints — deliberately not
+// sidToken's `s-<hash>` shape real traffic carries (boundedPlaceholder's own
+// header comment).
+const isPlaceholderRecord = (rec) => typeof rec?.sid === "string" && rec.sid.startsWith("bounded-placeholder-");
+
+// request-only, ordinal-ordered view of a pin's `records` array. Boot and
+// outcome records travel in the same flat array (pinRangeBounded's own
+// header comment) but consume no ordinal, so indexing `records` directly by
+// request ordinal is off by however many boot/outcome records precede it —
+// the same filter test/harvest-pin-bounded.test.mjs's own `requestOnly`
+// helper uses.
+const requestRecords = (records) => records.filter((r) => r.type !== "boot" && r.type !== "outcome");
+
+// Which ordinals in `ordinals` (S, above) are missing from the pin's
+// `records` or hold a placeholder there — NAMED, not merely counted, so the
+// message says what was lost rather than that something was (BACKLOG, same
+// entry).
+export function missingBustingOrdinals(records, ordinals) {
+  const requests = requestRecords(records);
+  const missing = [];
+  for (const i of [...ordinals].sort((a, b) => a - b)) {
+    const rec = requests[i];
+    if (!rec || isPlaceholderRecord(rec)) missing.push(i);
+  }
+  return missing;
+}
+
 // Timestamps are REBASED by the scrub onto a fixed epoch, so they differ
 // between the two sides by design and say nothing about reproduction.
 // Everything else on a violation/exemption line is an ordinal or a reason
@@ -1111,7 +1193,25 @@ export async function verifyPin(capturePath, pinPath, m) {
     await writeFile(pinJsonl, records.map((r) => JSON.stringify(r)).join("\n") + "\n");
     const live = runReplay(liveJsonl);
     const pin = runReplay(pinJsonl);
-    return { live, pin, ...compareReplayVerdicts(live, pin) };
+    const verdictCmp = compareReplayVerdicts(live, pin);
+    const diffs = [...verdictCmp.diffs];
+    // The content check (bustingConversationOrdinals / missingBustingOrdinals,
+    // above) is the PRIMARY signal for a bounded pin: it catches a
+    // retention-filter defect the verdict comparison cannot, by construction
+    // (see that section's header comment). Its clause leads; the verdict
+    // comparison stays as the existing, weaker second check — it still
+    // catches things this one does not (BACKLOG, same entry).
+    if (header?.bounded) {
+      const ordinals = await bustingConversationOrdinals(capturePath, m);
+      const missing = missingBustingOrdinals(records, ordinals);
+      if (missing.length) {
+        diffs.unshift(
+          `busting conversation incomplete in the bounded pin: ${missing.length} of ` +
+            `${ordinals.size} member ordinal(s) missing or placeholder — ordinal(s) ${missing.join(", ")}`,
+        );
+      }
+    }
+    return { live, pin, diffs, unreadable: verdictCmp.unreadable };
   } finally {
     await rm(scratch, { recursive: true, force: true });
   }
