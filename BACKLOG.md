@@ -1118,6 +1118,38 @@ ENOSPC misattribution with its wrong first explanation left in.
   actually running.
   Consumer tier **3 (backlog and process)**.
 
+- **READY — `backlog-lanes.mjs`: lane derivation becomes a mechanical join,
+  and a READY entry missing its realizing boundary becomes a finding.**
+  Booked 2026-08-10 (operator GO) from the lane-plan derivation itself: 63 of
+  100 READY entries cited no file — they name functions or nothing — so
+  grouping them into lanes was a judgment pass over ~6600 lines of prose that
+  one session failed at and another did by hand. The hand derivation
+  (`docs/directives/backlog-lane-plan-2026-08-10.md`) is the prototype; the
+  mechanism is the deliverable (closing gate Q1). The global half is minted:
+  the corpus's ready grade now includes the realizing write-boundary (dotfiles
+  `88a3580`); this entry is its computable half here.
+  Design, decided: (a) `tools/backlog-lanes.mjs`, a REPORT and never a gate —
+  consumes `censusEntries`, resolves each READY entry's realizing boundary
+  from its backticked citations (noise-list for dispatcher-owned carriers:
+  `BACKLOG.md`, `docs/dev-loop.md`; `proxy/**` classifies deployment-coupled;
+  operator/cross-repo grade markers classify holds), computes connected
+  components over shared boundary files, and emits: merge lanes, disjoint
+  batch candidates, desk set, holds, and UNRESOLVED (no boundary derivable —
+  the queue for boundary-slot repair). (b) In `backlog-lint`'s report lanes:
+  a READY entry with no resolvable boundary is a WARN finding (advisory, per
+  that tool's own posture; the grade stays prose-governed).
+  Verifier, red-first: run over `3b37ece:BACKLOG.md` (frozen derivation-time
+  state) must report ~63 UNRESOLVED and reproduce the hand plan's two largest
+  components (the backlog-tooling family; replay + fixture-verdict) —
+  divergence tool-vs-hand is a finding about one of them, adjudicated in the
+  entry bodies. Lint red on a planted boundary-less READY entry; known
+  positive on a citing one.
+  Write boundary: `tools/backlog-lanes.mjs` (new), `tools/backlog-lint.mjs`,
+  `test/backlog-lanes.test.mjs` — L1's write set; the entry joins L1.
+  Done-criterion: red-first run over the frozen ref recorded; lint fires on
+  the plant; the NEXT lane-plan derivation cites the tool's output instead of
+  a hand census. Consumer tier **3 (backlog and process)**.
+
 - **READY (small) — `DOTFILES-BRIEF-inherited-items.md` sits untracked at the
   repo root and needs a disposal, not a mention.** Written 2026-08-10 on
   operator request ("if any of the open items are work for the dotfiles repo,

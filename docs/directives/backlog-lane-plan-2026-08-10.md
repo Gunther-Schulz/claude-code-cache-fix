@@ -365,3 +365,15 @@ Accounting, against the measured census rather than against this plan's
 arithmetic: **94 READY** = 70 + 5 + 9 + 10. Derivation of the 94 from the
 derivation-time 100: −7 closed, +1 booked today. Every entry appears in
 exactly one lane.
+
+## ADDENDUM 2026-08-10 (desk) — one member added to L1
+
+`backlog-lanes.mjs` (lane derivation as a mechanical join + the
+boundary-missing lint) is booked and joins **L1** — its write set is exactly
+L1's boundary (`backlog-lint.mjs` + a new sibling + tests). L1 is 19 with
+it; the running total moves 94 → 95 (+1 booked, nothing closed by this
+addendum). Rationale and the global rule it descends from (the corpus's
+ready grade now requires a realizing write-boundary, dotfiles `88a3580`)
+are in the entry. If L1 has already dispatched when this is read, the entry
+waits for L1's integration rather than opening a second writer on the
+family.
