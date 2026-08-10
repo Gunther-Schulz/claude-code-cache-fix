@@ -637,7 +637,13 @@ function printTextReport(results, summary, ratesData, adminSummary) {
   if (results.length <= 50) {
     console.log('─── Per-Call Breakdown ─────────────────────────────────────────────────────────');
     console.log(
-      '  #'.padEnd(5) +
+      // Width 6, matching the row prefix below (`  ${i+1 padStart(2)}  `,
+      // always 6 chars for the 1..50 range this table renders) — width 5
+      // here shoved every column one character right of its header on
+      // every row, unconditionally (found while pinning the Timestamp
+      // column's both-zones width, BACKLOG "cost-report.mjs had ZERO test
+      // coverage").
+      '  #'.padEnd(6) +
       'Timestamp'.padEnd(43) +
       'Model'.padEnd(10) +
       'Input'.padStart(10) +
