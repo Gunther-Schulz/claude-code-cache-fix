@@ -355,6 +355,33 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **2**. Loop stage: VERIFY.
   <!-- entry: "CLAUDE.local.md carries a second index over the runbook lanes" -->
 
+- **READY (small) — `tools/backlog-order.mjs` parses `process.argv` at IMPORT
+  time and `process.exit(2)`s on an argument it does not recognise, so it
+  cannot be imported as a library at all.** Found 2026-08-10 by the
+  identifier-join lane, which was instructed to reuse the shared `## Open`
+  boundary lookup and correctly refused: importing `splitOpen` would have made
+  `backlog-neighbours` exit 2 on its own commit-ish argument
+  (`backlog-order.mjs:41-58`, no `import.meta.url` guard). The lane duplicated
+  ~10 lines instead and said why — the right call at its tier, and the third
+  copy of that boundary lookup (`backlog-lint`'s private `censusOpenSection`
+  and `backlog-order`'s `splitOpen` are the other two, a duplication
+  `backlog-order`'s own comment already notes).
+  This is the entrypoint-guard class an earlier commit measured across ten
+  tools, arriving with a consumer: the missing guard here has now cost a real
+  duplication rather than a hypothetical one.
+  Design, decided: guard `backlog-order.mjs`'s CLI behind
+  `import.meta.url === pathToFileURL(process.argv[1]).href` (the shape
+  `backlog-neighbours.mjs:202` already uses), then collapse the three copies of
+  the `## Open` slice onto one exported pure function.
+  Verifier, red-first and one command: `node -e 'import("./tools/backlog-order.mjs")'`
+  run with an extra argv token must currently exit 2 and must exit 0 after —
+  and the collapse is done when `grep -c "## Open" ` over the three files finds
+  one implementation, not three.
+  Write boundary: `tools/backlog-order.mjs`, `tools/backlog-lint.mjs`,
+  `tools/backlog-neighbours.mjs` + their tests. Consumer tier **3**.
+  Loop stage: VERIFY.
+  <!-- entry: "backlog-order parses argv at import time" -->
+
 - **PARKED 2026-08-10 late-evening — `s-captureAT` ROTATED OUT, and it took
   the only recorded instance of `capturePairResult`'s red case with it.**
   Measured, with a positive control so the zero means something: the alias
@@ -394,7 +421,28 @@ ENOSPC misattribution with its wrong first explanation left in.
   Loop stage: ATTRIBUTE. Consumer tier **1**.
   <!-- entry: "s-captureAT rotated out, taking capturePairResult's red case" -->
 
-- **READY (small) — the daily sweep COMPUTES the identityRotation numbers
+- **DONE 2026-08-10 (`a30d08d`, subagent commit — dispatched, verified and
+  integrated by this desk) — the rows and the labelled pair now ride out of
+  the sweep.** `["identityRotationRows", parsed.identityRotations]` sits in the
+  `persistRows` loop beside `relocDepartureRows` (`tools/gate-live.mjs:491`)
+  and `row.identityRotations = {requests, transitions}` at `:565`.
+  The lane's red-first was a real discriminating split, not a module-load
+  failure: against the UNMODIFIED module its three new bites failed while the
+  36 pre-existing ones passed, and 39/0 after. Its true positive is the live
+  one this desk had measured independently — `s-captureAU` came back
+  `{requests: 325, transitions: 6}` with `identityRotationRowsTruncated: 325`
+  (200 persisted, `ROW_CAP`) and first row `n=31 ts=2026-08-08T11:55:14.000Z
+  transition=true`, matching the hand replay exactly.
+  Desk checks, run on the artifact rather than read from the report: both
+  sites confirmed in the integrated tree, and `rowIsClean` is untouched by the
+  diff — a rotation count cannot make a row dirty, which is what keeps this a
+  REPORT.
+  **Residual, and it is the honest one: the LIVE status file does not carry
+  the field yet.** The sweep this desk kicked at 20:53 local ran the
+  pre-integration code, so the first status file with rotation rows in it is
+  the next scheduled run. Nothing to fix — stated so the next reader does not
+  read a fieldless row as a refutation.
+  Original header: **the daily sweep COMPUTES the identityRotation numbers
   every morning and drops them on the floor, which is why the paragraph above
   had no rows to fall back on.** Found 2026-08-10 late-evening while checking
   whether AT's loss was recoverable. `gate-live` passes `--census` to every
@@ -418,7 +466,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   question. A REPORT: `rowIsClean` does not move.
   Verifier, red-first: the key set above is the red. True positive available:
   `s-captureAU` must come back `{requests: 325, transitions: 6}`.
-  _IN FLIGHT 2026-08-10 late-evening — dispatched to sonnet in a worktree._
   Write boundary: `tools/gate-live.mjs`, `test/gate-live.test.mjs`.
   Consumer tier **2 (feeds the gates)**. Loop stage: SEE.
   <!-- entry: "the daily sweep drops the identityRotation numbers" -->
@@ -685,7 +732,28 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **2 (feeds the gates)** — it is a guard in front of a
   correctness obligation. Unranked (booked after the derivation).
 
-- **READY (small) — `backlog-neighbours` joins on FILES, so a premise refuted
+- **DONE 2026-08-10 (`9c1284b`, subagent commit — dispatched, verified and
+  integrated by this desk) — the identifier join lands and the original miss
+  reproduces on demand.** Verified at the desk by running the frozen
+  arrangement myself rather than reading the report:
+  `node tools/backlog-neighbours.mjs cf0592d <git show cf0592d:BACKLOG.md>`
+  now prints the same 9 file-join rows (now marked `via=file`) PLUS
+  `CANDIDATE line=1017 via=identifier shared=conversationOf` — the
+  bounded-`--pin` entry, the exact neighbour the file join could not see — in
+  a 7-row identifier population, report-sized as predicted. The lane's own red
+  matched the desk's baseline exactly (9, none of them 1017), and its two
+  mutations (identifier regex widened to `/.*/`; changed-entry exclusion
+  dropped) each reddened only their targeted bites.
+  **The entry's stale numbers were caught before they were built on**, which is
+  why they are recorded here: the live-tree baseline had drifted from ten to
+  nineteen since booking (it tracks how many entries are ABOUT backlog tooling,
+  which is the defect stated as a measurement), and the second planted positive
+  — `sameLineage` as a two-member OPEN class — had dissolved, three of its four
+  citing entries having gone DONE the same day. The red was re-anchored to a
+  commit-frozen image instead, which is the durable form.
+  Deviation worth keeping: the lane refused to import `splitOpen` from
+  `tools/backlog-order.mjs` and said why — see the entry directly below.
+  Original header: **`backlog-neighbours` joins on FILES, so a premise refuted
   inside ANOTHER ENTRY is invisible to it; add the IDENTIFIER join.** Booked
   2026-08-10, from the miss it would have caught the same hour. `cf0592d`
   recorded a rotation measurement in the `capturePairResult` entry which
