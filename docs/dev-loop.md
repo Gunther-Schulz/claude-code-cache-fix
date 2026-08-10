@@ -963,9 +963,9 @@ Order that works, cheapest first:
    already flagged — the difference between the two (a `requestId` dedup
    one has and the other lacks) WAS the defect and its remedy, in a single
    step, after reasoning alone had already produced two wrong mechanisms.
-   Reproduced 2026-08-10 against the same stamp (session
-   `s-06636dd1-fdd2-4463-9cb2-e3f515609495`, `2026-08-07T01:00:55Z`,
-   `cc=335933`): worktime's ledger still records a cold hit there;
+   Reproduced 2026-08-10 against the same stamp (session `06636dd1-…`,
+   `2026-08-07T01:00:55Z`, `cc=335933`): worktime's ledger still records
+   a cold hit there;
    `node tools/cold-events.mjs` over that session's transcript reports
    `66 duplicate transcript row(s) dropped` and does not flag that row at
    all (its one detected event, at `03:31:59.585Z`, is a different, later
