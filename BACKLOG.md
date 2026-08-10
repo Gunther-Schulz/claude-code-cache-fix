@@ -1881,6 +1881,39 @@ ENOSPC misattribution with its wrong first explanation left in.
   todo test reports neither pass nor fail, so the markers were removed once the
   defects were fixed. A todo left standing is a bite that guards nothing.
 
+- **DONE `c3481d1` (2026-08-10) — the header no longer claims defects that
+  `f9ec558` fixed, and the same staleness had TWO siblings further down the
+  file.** Unblocked by the dotfiles guard fix `025b95f` (dotfiles
+  `BACKLOG.md:592` DONE, `LEDGER.md:106`), verified live here before editing
+  rather than read off that entry: a `//`-carrying command ran, and the
+  guard's own documented positive (`ls /`) still returned
+  `deny: path '/' is outside allowed directories` — so the green was the fix
+  and not a disabled hook.
+  **Desk work beyond the booked design.** (a) The citations were kept per the
+  design, and each of the seven line numbers was CHECKED still to point at its
+  site (`f9ec558` repaired at the emit boundary, not in those lines) rather
+  than kept on the assumption that a fix elsewhere leaves them alone.
+  (b) Reading the whole file instead of only the named block found two more
+  stale claims of the same class: the dossier ARM 1 comment called step 3 "the
+  KNOWN gap, isolated into its own `{ todo }` test below" when no todo test
+  exists, and the NAMED GAP block still read as unadjudicated while
+  `f9ec558`'s single `withLocalStamps` pass at dossier's render return covers
+  the step 2 / step 4 rows (they are still UNEXERCISED — that part was true
+  and is now stated as the two missing fixtures).
+  **The booked verifier was wrong, which is the fire-rate datapoint.**
+  `grep -n "todo"` returning nothing is not achievable and should not be: three
+  surviving mentions NARRATE the marker's removal, and deleting them would
+  destroy the record the header exists to carry. A keyword verifier cannot
+  separate a claim about the present from a description of the past. The
+  load-bearing check is the suite's own `todo 0` (2514 tests, 0 fail), which is
+  a measurement rather than a text match — this is the "an entry's verifier is
+  a claim, probe it before building against it" class, third recorded instance.
+  **Closing gate.** q1 — the mechanizable slice is booked as the entry
+  immediately below; q2 n/a, the evidence is committed source, not a rotating
+  capture; q3 no new census class, this is a doc-staleness class the census
+  does not see; q4 no instrument change rode along and none was needed — the
+  bites themselves were untouched, only the prose about them.
+  ORIGINAL ENTRY:
 - **READY (small, BLOCKED on a guard fix) — `test/tool-output-stamps.test.mjs`s
   header is now STALE and actively false.** It still says ARM 1 is red on this
   tree on purpose and that two assertions are todo-marked; `f9ec558` fixed the
@@ -1898,6 +1931,33 @@ ENOSPC misattribution with its wrong first explanation left in.
   2026-08-08 and handed to the dotfiles session. Correcting the header was
   booked rather than worked around. UNBLOCKS as soon as that guard fix lands;
   the edit itself is a two-minute rewrite.
+
+- **READY (small) — a comment claiming a `{ todo }` marker exists is checkable
+  against the runner, and nothing checks it.** `c3481d1` fixed three such
+  claims by hand in one file; the class is "prose about a test contradicting
+  the test", and it is silent by construction — the suite is green either way,
+  so only a human reading the header ever finds it. The judgment half (is this
+  sentence a claim about the present or a description of the past?) stays
+  prose; the computable slice is the marker itself.
+  Design (decided): one bite, in the SHAPE the same file already proves works —
+  `test/tool-output-stamps.test.mjs:243-259` pins "exactly the one known
+  `--json` mention" and fails when a new one appears. Same move over the test
+  tree: collect (a) every `test/*.mjs` whose COMMENT text contains `{ todo }`
+  and (b) every file with a real todo-marked test declaration, and assert the
+  two sets match a mapping declared IN the test as data. A file narrating a
+  removed marker is listed as a known comment-only mention with its reason;
+  a NEW mention anywhere fails until someone classifies it. That is the
+  declared-exemption form dev-loop mandates, not a softened regex — the check
+  never has to decide what a sentence means, only that somebody classified it.
+  Verifier: red-first against an IMMUTABLE reference, not the working tree —
+  `git checkout c3481d1^ -- test/tool-output-stamps.test.mjs`, print
+  `git diff --stat HEAD` as proof the old blob is really in place, and the bite
+  must fire NAMING that file (its header claimed `{ todo }`; the runner reports
+  0 todo tests). Over-firing control: at `c3481d1` and later the bite is green
+  with the three narrating mentions classified.
+  Done-criterion: red demonstrated with the old blob in place and the diffstat
+  pasted, control green, full suite green.
+  Write boundary: one new file under `test/`. No `tools/` change.
 
 - **(shipped) READY — the both-zones class has no mechanism at the ALTITUDE the defect
   lives at: the printed output.** `82372db` fixed the sites a human found by
