@@ -87,10 +87,12 @@ buildable, and they sit in item 0's decision round.
 
 Removal-only, per this block's own rule; the survivors keep their numbers so a
 rank stays a stable reference. **Removed as DONE: 1** (`verifyPin`'s bounded
-red, `ce975c5`), **3** and **9** (`identityRotation`'s digest and its
+red, `ce975c5`), **8** (the `backlog-neighbours` identifier join, `9c1284b`,
+shipped this evening — anchor removed the moment it closed, which is the guard
+`backlog-order` fires at the push boundary), **3** and **9** (`identityRotation`'s digest and its
 transition count, both `a68a8af`), **6** (the intermittent-test runner
 persistence), **10** (the `LINEAGE_THRESHOLD` sizing note, `baf3fa3`). What
-remains ranked is 2, 4, 5, 7, 8 — and the loop-stage paragraph below still
+remains ranked is 2, 4, 5 and 7 — and the loop-stage paragraph below still
 holds unchanged: the one MITIGATE item is still item 5 and still not
 dispatchable. **Item 2's three-link chain is now two-thirds discharged** (the
 lineage primitive and the bounded pin both landed, the latter with its fidelity
@@ -143,20 +145,6 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
 
 ### 4. Tier C: feeds the BACKLOG and the process
 
-8. **`backlog-neighbours` joins on FILES**, so a premise refuted inside another
-   entry is invisible to it — the miss that happened here today, with its red
-   already run.
-   _IN FLIGHT 2026-08-10 late-evening — dispatched to sonnet in a worktree.
-   Its red was RE-MEASURED at the desk against an immutable reference before
-   the brief shipped, because the entry's own baseline had decayed: against
-   the live `BACKLOG.md` the file join now returns 19 candidates, not the ten
-   the entry records, and the entry's second planted positive (`sameLineage`
-   as a two-member open class) no longer exists — three of its four citing
-   entries are now DONE. The durable arrangement is
-   `node tools/backlog-neighbours.mjs cf0592d <git show cf0592d:BACKLOG.md>`:
-   9 candidates, all `shared=BACKLOG.md`, and line 1017 of that frozen image
-   — the entry sharing the moved premise via `conversationOf` — absent._
-   <!-- entry: "backlog-neighbours` joins on FILES" -->
 
 ### The unranked ~99
 
@@ -320,176 +308,6 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
-
-- **READY (small, operator-side — DECISION ATTACHED) — `CLAUDE.local.md`
-  carries a SECOND index over the runbook lanes, and it is now stale by four
-  of seven.** Measured 2026-08-10 late-evening at the desk, after both new
-  lanes landed: `node tools/runbook-lane-index.mjs` reports "7 index row(s), 7
-  runbook file(s) on disk" with zero orphans and zero dead pointers — the
-  dev-loop router is complete — and four `CLAUDE.local.md STALE LIST` findings
-  (`runtime-anomaly`, `session-close`, `ship-proxy-change`,
-  `upstream-pr-slice`). The list was already stale by two before today; the two
-  new lanes made it four.
-  **The recommendation is to DELETE the inline list, not to sync it**, and the
-  basis is `~/.claude/runbook-format.md`'s own rule: there is exactly ONE
-  router per repo, because "minting a second one beside it creates two lists
-  over the same lanes that drift apart within hours" — which is precisely the
-  observed history here. `CLAUDE.local.md`'s own sentence already concedes it
-  ("**The index is `docs/dev-loop.md` … — read that, not this line**, which is
-  a pointer and will go stale first"), so the file is carrying a list it tells
-  its reader not to trust. Syncing it buys four green findings and re-arms the
-  same drift on the next lane.
-  Why this is not just done: the file is the operator's overlay, DEPLOYED from
-  dotfiles `cache-fix/CLAUDE.local.md` — edited there, never here — and its
-  deletion changes what `runbook-lane-index`'s CHECK 2b measures. That second
-  half is the real work: with no inline list the check must report
-  NOT-APPLICABLE, not COULD-NOT-VERIFY, or it converts a deliberate removal
-  into a permanent unverifiable — and today COULD-NOT-VERIFY is exactly what
-  it already reports in every worktree, where the untracked file is absent, so
-  the two states are currently indistinguishable.
-  Write boundary: dotfiles `cache-fix/CLAUDE.local.md` (the list), then
-  `tools/runbook-lane-index.mjs` + `test/runbook-lane-index.test.mjs` (CHECK
-  2b's third answer). Verifier, red-first: with the list removed, the check
-  must report not-applicable while a PLANTED partial list still reports STALE
-  LIST — both arms, or the removal has simply silenced the check.
-  Consumer tier **2**. Loop stage: VERIFY.
-  <!-- entry: "CLAUDE.local.md carries a second index over the runbook lanes" -->
-
-- **READY (small) — `tools/backlog-order.mjs` parses `process.argv` at IMPORT
-  time and `process.exit(2)`s on an argument it does not recognise, so it
-  cannot be imported as a library at all.** Found 2026-08-10 by the
-  identifier-join lane, which was instructed to reuse the shared `## Open`
-  boundary lookup and correctly refused: importing `splitOpen` would have made
-  `backlog-neighbours` exit 2 on its own commit-ish argument
-  (`backlog-order.mjs:41-58`, no `import.meta.url` guard). The lane duplicated
-  ~10 lines instead and said why — the right call at its tier, and the third
-  copy of that boundary lookup (`backlog-lint`'s private `censusOpenSection`
-  and `backlog-order`'s `splitOpen` are the other two, a duplication
-  `backlog-order`'s own comment already notes).
-  This is the entrypoint-guard class an earlier commit measured across ten
-  tools, arriving with a consumer: the missing guard here has now cost a real
-  duplication rather than a hypothetical one.
-  Design, decided: guard `backlog-order.mjs`'s CLI behind
-  `import.meta.url === pathToFileURL(process.argv[1]).href` (the shape
-  `backlog-neighbours.mjs:202` already uses), then collapse the three copies of
-  the `## Open` slice onto one exported pure function.
-  Verifier, red-first and one command: `node -e 'import("./tools/backlog-order.mjs")'`
-  run with an extra argv token must currently exit 2 and must exit 0 after —
-  and the collapse is done when `grep -c "## Open" ` over the three files finds
-  one implementation, not three.
-  Write boundary: `tools/backlog-order.mjs`, `tools/backlog-lint.mjs`,
-  `tools/backlog-neighbours.mjs` + their tests. Consumer tier **3**.
-  Loop stage: VERIFY.
-  <!-- entry: "backlog-order parses argv at import time" -->
-
-- **PARKED 2026-08-10 late-evening — `s-captureAT` ROTATED OUT, and it took
-  the only recorded instance of `capturePairResult`'s red case with it.**
-  Measured, with a positive control so the zero means something: the alias
-  registry resolves `s-captureAT` to a filename that is present in ZERO
-  locations under `~/.local/share/cache-fix` and `~/.local/state/cache-fix`,
-  while the identical probe run for `s-captureAU` returns 1. Not a matcher
-  artifact — the capture is gone.
-  **What this kills, enumerated rather than felt.** The `capturePairResult`
-  entry's RED (`--at 2026-08-08T11:46:36Z`, the total `messages[0]` rebuild at
-  ord 715) lived in AT and is now unreproducible. Its CONTROL
-  (`--at 2026-08-08T12:18:15Z`) lives in AU, which survives at 292 MB. So the
-  entry's hard-ordering chain — lineage primitive, then bounded pin, then
-  FREEZE BOTH CASES, then ship — cannot complete as written: there is nothing
-  left to freeze on the red side. This is the anchored-to-mutating-state
-  defect `docs/dev-loop.md` already names, realized on a booked verifier while
-  the ranking was reading that entry as blocked-but-live.
-  **What survives, and it is the more useful half.** A replacement live
-  positive for the neighbouring `identityRotation` class EXISTS in a surviving
-  capture: a census replay over `s-captureAU` at the desk today (serving gate
-  set, from `/health`) reports *"identity rotations (row 26 — our own
-  pipeline, raw vs forwarded): 325 requests served under a rotated identity, 6
-  rotation transitions"*, first transition row `n=31
-  ts=2026-08-08T11:55:14.000Z`, with non-classifying neighbours available as
-  negatives. So the row-26 chain's "the live arm does not exist" blocker is
-  dischargeable against AU rather than dead.
-  Named missing evidence, which is what keeps this PARKED rather than READY: a
-  surviving capture carrying a `capturePairResult` PAIRING FAILURE — a request
-  whose `messages[0]` matches none of its predecessors while a lineage
-  neighbour exists. AU has rotations; whether it has that specific shape is
-  unmeasured. The measurement is mechanical (replay `--census` over the
-  surviving captures, look for a transition whose `conversationOf` search
-  finds no predecessor) and is the first thing the next session on this entry
-  should run — if it finds one, this converts to READY and the
-  `capturePairResult` entry is re-anchored to it; if it does not, the entry's
-  verifier has to be rebuilt from a synthetic case and that is a design
-  decision, not a lookup.
-  Loop stage: ATTRIBUTE. Consumer tier **1**.
-  <!-- entry: "s-captureAT rotated out, taking capturePairResult's red case" -->
-
-- **DONE 2026-08-10 (`a30d08d`, subagent commit — dispatched, verified and
-  integrated by this desk) — the rows and the labelled pair now ride out of
-  the sweep.** `["identityRotationRows", parsed.identityRotations]` sits in the
-  `persistRows` loop beside `relocDepartureRows` (`tools/gate-live.mjs:491`)
-  and `row.identityRotations = {requests, transitions}` at `:565`.
-  The lane's red-first was a real discriminating split, not a module-load
-  failure: against the UNMODIFIED module its three new bites failed while the
-  36 pre-existing ones passed, and 39/0 after. Its true positive is the live
-  one this desk had measured independently — `s-captureAU` came back
-  `{requests: 325, transitions: 6}` with `identityRotationRowsTruncated: 325`
-  (200 persisted, `ROW_CAP`) and first row `n=31 ts=2026-08-08T11:55:14.000Z
-  transition=true`, matching the hand replay exactly.
-  Desk checks, run on the artifact rather than read from the report: both
-  sites confirmed in the integrated tree, and `rowIsClean` is untouched by the
-  diff — a rotation count cannot make a row dirty, which is what keeps this a
-  REPORT.
-  **Residual, and it is the honest one: the LIVE status file does not carry
-  the field yet.** The sweep this desk kicked at 20:53 local ran the
-  pre-integration code, so the first status file with rotation rows in it is
-  the next scheduled run. Nothing to fix — stated so the next reader does not
-  read a fieldless row as a refutation.
-  Original header: **the daily sweep COMPUTES the identityRotation numbers
-  every morning and drops them on the floor, which is why the paragraph above
-  had no rows to fall back on.** Found 2026-08-10 late-evening while checking
-  whether AT's loss was recoverable. `gate-live` passes `--census` to every
-  replay child (`tools/gate-live.mjs:132`) and `replay --json` emits
-  `identityRotations` in its payload (`tools/replay.mjs:4123`), so the numbers
-  exist on every sweep — and the persisted row's key set contains no rotation
-  field of any kind (read from `jq -r '.rows[0]|keys_unsorted|join(",")'` over
-  the live status file), while `grep -n 'identityRotation' tools/gate-live.mjs`
-  returns nothing. That is the closing gate's question 2 for a RECURRING
-  producer, unanswered: the mechanism does not write out what proves its own
-  findings, and the captures behind them rotate — measured cost, the entry
-  above.
-  It is also the SECOND instance of a defect this file documents about itself:
-  `gate-live.mjs:476-483`'s own comment says the departure census "computed
-  them for every capture and dropped them on the floor".
-  Design, decided: `["identityRotationRows", parsed.identityRotations]` in the
-  `persistRows` list (whose three-answer semantics — `null` for never emitted,
-  `[]` for a measured zero — stay untouched), plus a labelled summary
-  `row.identityRotations = {requests, transitions}` in the `toolsDeltas` style,
-  both numbers named because reporting either alone invites the other's
-  question. A REPORT: `rowIsClean` does not move.
-  Verifier, red-first: the key set above is the red. True positive available:
-  `s-captureAU` must come back `{requests: 325, transitions: 6}`.
-  Write boundary: `tools/gate-live.mjs`, `test/gate-live.test.mjs`.
-  Consumer tier **2 (feeds the gates)**. Loop stage: SEE.
-  <!-- entry: "the daily sweep drops the identityRotation numbers" -->
-
-- **READY (small) — a dispatched worktree does NOT carry the main clone's
-  untracked files, so a verifier baseline computed at the desk can be
-  unreproducible in the lane that was briefed with it.** Found 2026-08-10 by
-  the ship-proxy-change lane, which reported it rather than bridging it.
-  `CLAUDE.local.md` is untracked and git-excluded here by design, so in a
-  worktree `tools/runbook-lane-index.mjs` reports its CHECK 2b as
-  `CLAUDE.local.md list COULD-NOT-VERIFY (absent or no inline list)` — the
-  three-answer discipline working correctly — and the lane therefore measured a
-  5-finding baseline where the desk had cited 7. Both numbers were right about
-  their own tree.
-  The checker is not the defect; the BRIEF is. Design, decided: a dispatcher
-  writing a baseline into a brief states which tree it was measured in, and any
-  baseline that depends on an untracked file is either recomputed by the lane
-  in ITS tree or checked by the dispatcher at integration (which is what
-  happened here — the desk re-ran it in the main clone and got the predicted
-  8 = 7 + 1 new STALE LIST row). The portable half belongs in the
-  `dispatch-guards` plugin's `dev-notes/dispatch-OBSERVATIONS.md`, not here.
-  Verifier: a brief-time check that flags a cited baseline command whose output
-  depends on a git-excluded path. Consumer tier **3**. Loop stage: VERIFY.
-  <!-- entry: "a dispatched worktree does not carry untracked files" -->
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
@@ -731,6 +549,176 @@ ENOSPC misattribution with its wrong first explanation left in.
   the vacuous-green shape.
   Consumer tier **2 (feeds the gates)** — it is a guard in front of a
   correctness obligation. Unranked (booked after the derivation).
+
+- **READY (small, operator-side — DECISION ATTACHED) — `CLAUDE.local.md`
+  carries a SECOND index over the runbook lanes, and it is now stale by four
+  of seven.** Measured 2026-08-10 late-evening at the desk, after both new
+  lanes landed: `node tools/runbook-lane-index.mjs` reports "7 index row(s), 7
+  runbook file(s) on disk" with zero orphans and zero dead pointers — the
+  dev-loop router is complete — and four `CLAUDE.local.md STALE LIST` findings
+  (`runtime-anomaly`, `session-close`, `ship-proxy-change`,
+  `upstream-pr-slice`). The list was already stale by two before today; the two
+  new lanes made it four.
+  **The recommendation is to DELETE the inline list, not to sync it**, and the
+  basis is `~/.claude/runbook-format.md`'s own rule: there is exactly ONE
+  router per repo, because "minting a second one beside it creates two lists
+  over the same lanes that drift apart within hours" — which is precisely the
+  observed history here. `CLAUDE.local.md`'s own sentence already concedes it
+  ("**The index is `docs/dev-loop.md` … — read that, not this line**, which is
+  a pointer and will go stale first"), so the file is carrying a list it tells
+  its reader not to trust. Syncing it buys four green findings and re-arms the
+  same drift on the next lane.
+  Why this is not just done: the file is the operator's overlay, DEPLOYED from
+  dotfiles `cache-fix/CLAUDE.local.md` — edited there, never here — and its
+  deletion changes what `runbook-lane-index`'s CHECK 2b measures. That second
+  half is the real work: with no inline list the check must report
+  NOT-APPLICABLE, not COULD-NOT-VERIFY, or it converts a deliberate removal
+  into a permanent unverifiable — and today COULD-NOT-VERIFY is exactly what
+  it already reports in every worktree, where the untracked file is absent, so
+  the two states are currently indistinguishable.
+  Write boundary: dotfiles `cache-fix/CLAUDE.local.md` (the list), then
+  `tools/runbook-lane-index.mjs` + `test/runbook-lane-index.test.mjs` (CHECK
+  2b's third answer). Verifier, red-first: with the list removed, the check
+  must report not-applicable while a PLANTED partial list still reports STALE
+  LIST — both arms, or the removal has simply silenced the check.
+  Consumer tier **2**. Loop stage: VERIFY.
+  <!-- entry: "CLAUDE.local.md carries a second index over the runbook lanes" -->
+
+- **READY (small) — `tools/backlog-order.mjs` parses `process.argv` at IMPORT
+  time and `process.exit(2)`s on an argument it does not recognise, so it
+  cannot be imported as a library at all.** Found 2026-08-10 by the
+  identifier-join lane, which was instructed to reuse the shared `## Open`
+  boundary lookup and correctly refused: importing `splitOpen` would have made
+  `backlog-neighbours` exit 2 on its own commit-ish argument
+  (`backlog-order.mjs:41-58`, no `import.meta.url` guard). The lane duplicated
+  ~10 lines instead and said why — the right call at its tier, and the third
+  copy of that boundary lookup (`backlog-lint`'s private `censusOpenSection`
+  and `backlog-order`'s `splitOpen` are the other two, a duplication
+  `backlog-order`'s own comment already notes).
+  This is the entrypoint-guard class an earlier commit measured across ten
+  tools, arriving with a consumer: the missing guard here has now cost a real
+  duplication rather than a hypothetical one.
+  Design, decided: guard `backlog-order.mjs`'s CLI behind
+  `import.meta.url === pathToFileURL(process.argv[1]).href` (the shape
+  `backlog-neighbours.mjs:202` already uses), then collapse the three copies of
+  the `## Open` slice onto one exported pure function.
+  Verifier, red-first and one command: `node -e 'import("./tools/backlog-order.mjs")'`
+  run with an extra argv token must currently exit 2 and must exit 0 after —
+  and the collapse is done when `grep -c "## Open" ` over the three files finds
+  one implementation, not three.
+  Write boundary: `tools/backlog-order.mjs`, `tools/backlog-lint.mjs`,
+  `tools/backlog-neighbours.mjs` + their tests. Consumer tier **3**.
+  Loop stage: VERIFY.
+  <!-- entry: "backlog-order parses argv at import time" -->
+
+- **PARKED 2026-08-10 late-evening — `s-captureAT` ROTATED OUT, and it took
+  the only recorded instance of `capturePairResult`'s red case with it.**
+  Measured, with a positive control so the zero means something: the alias
+  registry resolves `s-captureAT` to a filename that is present in ZERO
+  locations under `~/.local/share/cache-fix` and `~/.local/state/cache-fix`,
+  while the identical probe run for `s-captureAU` returns 1. Not a matcher
+  artifact — the capture is gone.
+  **What this kills, enumerated rather than felt.** The `capturePairResult`
+  entry's RED (`--at 2026-08-08T11:46:36Z`, the total `messages[0]` rebuild at
+  ord 715) lived in AT and is now unreproducible. Its CONTROL
+  (`--at 2026-08-08T12:18:15Z`) lives in AU, which survives at 292 MB. So the
+  entry's hard-ordering chain — lineage primitive, then bounded pin, then
+  FREEZE BOTH CASES, then ship — cannot complete as written: there is nothing
+  left to freeze on the red side. This is the anchored-to-mutating-state
+  defect `docs/dev-loop.md` already names, realized on a booked verifier while
+  the ranking was reading that entry as blocked-but-live.
+  **What survives, and it is the more useful half.** A replacement live
+  positive for the neighbouring `identityRotation` class EXISTS in a surviving
+  capture: a census replay over `s-captureAU` at the desk today (serving gate
+  set, from `/health`) reports *"identity rotations (row 26 — our own
+  pipeline, raw vs forwarded): 325 requests served under a rotated identity, 6
+  rotation transitions"*, first transition row `n=31
+  ts=2026-08-08T11:55:14.000Z`, with non-classifying neighbours available as
+  negatives. So the row-26 chain's "the live arm does not exist" blocker is
+  dischargeable against AU rather than dead.
+  Named missing evidence, which is what keeps this PARKED rather than READY: a
+  surviving capture carrying a `capturePairResult` PAIRING FAILURE — a request
+  whose `messages[0]` matches none of its predecessors while a lineage
+  neighbour exists. AU has rotations; whether it has that specific shape is
+  unmeasured. The measurement is mechanical (replay `--census` over the
+  surviving captures, look for a transition whose `conversationOf` search
+  finds no predecessor) and is the first thing the next session on this entry
+  should run — if it finds one, this converts to READY and the
+  `capturePairResult` entry is re-anchored to it; if it does not, the entry's
+  verifier has to be rebuilt from a synthetic case and that is a design
+  decision, not a lookup.
+  Loop stage: ATTRIBUTE. Consumer tier **1**.
+  <!-- entry: "s-captureAT rotated out, taking capturePairResult's red case" -->
+
+- **DONE 2026-08-10 (`a30d08d`, subagent commit — dispatched, verified and
+  integrated by this desk) — the rows and the labelled pair now ride out of
+  the sweep.** `["identityRotationRows", parsed.identityRotations]` sits in the
+  `persistRows` loop beside `relocDepartureRows` (`tools/gate-live.mjs:491`)
+  and `row.identityRotations = {requests, transitions}` at `:565`.
+  The lane's red-first was a real discriminating split, not a module-load
+  failure: against the UNMODIFIED module its three new bites failed while the
+  36 pre-existing ones passed, and 39/0 after. Its true positive is the live
+  one this desk had measured independently — `s-captureAU` came back
+  `{requests: 325, transitions: 6}` with `identityRotationRowsTruncated: 325`
+  (200 persisted, `ROW_CAP`) and first row `n=31 ts=2026-08-08T11:55:14.000Z
+  transition=true`, matching the hand replay exactly.
+  Desk checks, run on the artifact rather than read from the report: both
+  sites confirmed in the integrated tree, and `rowIsClean` is untouched by the
+  diff — a rotation count cannot make a row dirty, which is what keeps this a
+  REPORT.
+  **Residual, and it is the honest one: the LIVE status file does not carry
+  the field yet.** The sweep this desk kicked at 20:53 local ran the
+  pre-integration code, so the first status file with rotation rows in it is
+  the next scheduled run. Nothing to fix — stated so the next reader does not
+  read a fieldless row as a refutation.
+  Original header: **the daily sweep COMPUTES the identityRotation numbers
+  every morning and drops them on the floor, which is why the paragraph above
+  had no rows to fall back on.** Found 2026-08-10 late-evening while checking
+  whether AT's loss was recoverable. `gate-live` passes `--census` to every
+  replay child (`tools/gate-live.mjs:132`) and `replay --json` emits
+  `identityRotations` in its payload (`tools/replay.mjs:4123`), so the numbers
+  exist on every sweep — and the persisted row's key set contains no rotation
+  field of any kind (read from `jq -r '.rows[0]|keys_unsorted|join(",")'` over
+  the live status file), while `grep -n 'identityRotation' tools/gate-live.mjs`
+  returns nothing. That is the closing gate's question 2 for a RECURRING
+  producer, unanswered: the mechanism does not write out what proves its own
+  findings, and the captures behind them rotate — measured cost, the entry
+  above.
+  It is also the SECOND instance of a defect this file documents about itself:
+  `gate-live.mjs:476-483`'s own comment says the departure census "computed
+  them for every capture and dropped them on the floor".
+  Design, decided: `["identityRotationRows", parsed.identityRotations]` in the
+  `persistRows` list (whose three-answer semantics — `null` for never emitted,
+  `[]` for a measured zero — stay untouched), plus a labelled summary
+  `row.identityRotations = {requests, transitions}` in the `toolsDeltas` style,
+  both numbers named because reporting either alone invites the other's
+  question. A REPORT: `rowIsClean` does not move.
+  Verifier, red-first: the key set above is the red. True positive available:
+  `s-captureAU` must come back `{requests: 325, transitions: 6}`.
+  Write boundary: `tools/gate-live.mjs`, `test/gate-live.test.mjs`.
+  Consumer tier **2 (feeds the gates)**. Loop stage: SEE.
+  <!-- entry: "the daily sweep drops the identityRotation numbers" -->
+
+- **READY (small) — a dispatched worktree does NOT carry the main clone's
+  untracked files, so a verifier baseline computed at the desk can be
+  unreproducible in the lane that was briefed with it.** Found 2026-08-10 by
+  the ship-proxy-change lane, which reported it rather than bridging it.
+  `CLAUDE.local.md` is untracked and git-excluded here by design, so in a
+  worktree `tools/runbook-lane-index.mjs` reports its CHECK 2b as
+  `CLAUDE.local.md list COULD-NOT-VERIFY (absent or no inline list)` — the
+  three-answer discipline working correctly — and the lane therefore measured a
+  5-finding baseline where the desk had cited 7. Both numbers were right about
+  their own tree.
+  The checker is not the defect; the BRIEF is. Design, decided: a dispatcher
+  writing a baseline into a brief states which tree it was measured in, and any
+  baseline that depends on an untracked file is either recomputed by the lane
+  in ITS tree or checked by the dispatcher at integration (which is what
+  happened here — the desk re-ran it in the main clone and got the predicted
+  8 = 7 + 1 new STALE LIST row). The portable half belongs in the
+  `dispatch-guards` plugin's `dev-notes/dispatch-OBSERVATIONS.md`, not here.
+  Verifier: a brief-time check that flags a cited baseline command whose output
+  depends on a git-excluded path. Consumer tier **3**. Loop stage: VERIFY.
+  <!-- entry: "a dispatched worktree does not carry untracked files" -->
 
 - **DONE 2026-08-10 (`9c1284b`, subagent commit — dispatched, verified and
   integrated by this desk) — the identifier join lands and the original miss
