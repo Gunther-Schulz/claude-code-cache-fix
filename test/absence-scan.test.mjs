@@ -18,13 +18,14 @@
 import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync, rmSync, readdirSync, readFileSync } from "node:fs";
 import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId } from "../tools/absence-scan.mjs";
+import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId,
+         SOURCE_SCANNABLE, SCANNABLE } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -382,32 +383,68 @@ const SOURCE_UUID_ALLOWLIST = new Set([
   "00000000-0000-4000-8000-c4f1efb22222", // gate-live cc-version test's swept session, sibling of ...22220
   "00000000-0000-4000-8000-c4f1efb22223", // gate-live cc-version test's NOT-swept session, sibling of ...22220
   "abcd1234-5678-90ab-cdef-1234567890ab", // the "e.g." 8-4-4-4-12 format sample in proxy-jsonl-session-mirror.md
+  // UPSTREAM'S OWN, byte-identical in `upstream/main:tools/MANUAL-COMPACT.md`
+  // (verified 2026-08-10 by `git show upstream/main:<file> | grep -c`). It is
+  // a real-looking session id pasted as example output in upstream's manual-
+  // compact walkthrough, inherited by the fork. Listed rather than scrubbed:
+  // it is not ours, editing it would diverge a file we carry unchanged, and
+  // it is already published from upstream's own repository. Became visible
+  // only when the walk widened below — `tools/` was collected with the `.mjs`
+  // extension, so no `.md` under it was ever read.
+  "db11f377-4ca8-4fc3-9b6d-1069da58c1b2",
 ]);
 
-test("source: every UUID in test/, tools/, proxy/ and docs/ is on the synthetic allowlist", () => {
+// WIDENED 2026-08-10, from a hand-enumerated four-root walk to the tracked
+// tree. The old walk was `test/*.mjs`, `tools/*.mjs`, `proxy/**.mjs`,
+// `docs/**.md` — 603 files, and it reached NO root-level `.md` and no `.md`
+// under `tools/`. That left `BACKLOG.md` and `FORK-NOTES.md` unchecked, which
+// are the two fork-only root documents and the two that discuss captures most
+// (BACKLOG.md alone carries ~185 alias citations).
+//
+// Why that was load-bearing rather than untidy: `tools/absence-scan.mjs`'s
+// `FULL_UUID_HEAD` SUPPRESSES the short-key class on any line containing a
+// full 8-4-4-4-12 UUID, deferring that shape to "the source-UUID roster the
+// suite already walks" — this test. For a file the roster did not walk, the
+// deferral pointed at nobody: writing the FULL id disabled the guard that
+// catches the SHORT one. Measured on the real scanner:
+// `scanContent("… dc3f8071-8555-…", "BACKLOG.md")` -> 0 findings, while the
+// short form on the same file -> 1. Found by leaking a real published session
+// id into BACKLOG.md while writing the backlog entry about that very class;
+// a grep on the diff caught it, no mechanism did.
+//
+// `git ls-files` rather than a wider readdir, for three reasons: it cannot
+// silently miss a new directory the way a hand-listed root set does; it is
+// the same tree-derived enumeration `test/logs-schemas.test.mjs:340` uses, so
+// the repo has one way of asking "every source file"; and it excludes
+// UNTRACKED files, which is correct — untracked scratch is not published, and
+// three root-level dossier files on this machine carry real registered
+// capture ids right now. Those are not findings while they stay untracked,
+// and they become findings the moment anyone commits them, which is exactly
+// when this test should fire.
+test("source: every UUID in a tracked SOURCE_SCANNABLE file is on the synthetic allowlist", () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), "..");
-  const files = [];
-  const collect = (dir, ext) => {
-    for (const e of readdirSync(join(root, dir), { withFileTypes: true })) {
-      const rel = join(dir, e.name);
-      if (e.isDirectory()) {
-        // test/ and tools/ are flat; proxy/ and docs/ are not.
-        if (dir.startsWith("proxy") || dir.startsWith("docs")) collect(rel, ext);
-        continue;
-      }
-      if (e.name.endsWith(ext)) files.push(rel);
-    }
-  };
-  collect("test", ".mjs");
-  collect("tools", ".mjs");
-  collect("proxy", ".mjs");
-  collect("docs", ".md");
+  // The scanner's OWN predicate, imported rather than restated: this roster is
+  // what tools/absence-scan.mjs's FULL_UUID_HEAD defers the full-UUID shape to,
+  // so the two sets must be the same set. Importing makes that structural
+  // instead of a promise in a comment.
+  const files = execFileSync("git", ["ls-files"], { cwd: root, encoding: "utf8" })
+    .split("\n").filter(Boolean)
+    .filter((f) => SOURCE_SCANNABLE.test(f) && !SCANNABLE.test(f));
   // Guard the guard: a walk that collected nothing from a root would pass
   // this test while checking that root not at all — the silent scope collapse
-  // a rename or a moved directory causes.
+  // a rename or a moved directory causes. The repo ROOT is in the list because
+  // its absence is the defect this widening repairs, and a plain
+  // `files.length > 0` would not have caught it.
   for (const root_ of ["test", "tools", "proxy", "docs"]) {
-    assert.ok(files.some((f) => f.startsWith(root_ + sep)), `the walk collected no file under ${root_}/`);
+    assert.ok(files.some((f) => f.startsWith(root_ + "/")), `the walk collected no file under ${root_}/`);
   }
+  assert.ok(files.some((f) => !f.includes("/")), "the walk collected no root-level file");
+  assert.ok(files.includes("BACKLOG.md"), "BACKLOG.md is not in the walk — the file this widening exists for");
+  assert.ok(files.length > 500, `the walk must enumerate the tree, got ${files.length} files`);
+  // The deferral's own precondition, asserted rather than assumed: every file
+  // the scanner routes to scanSourceText must be in this roster.
+  assert.ok(files.some((f) => f.endsWith(".md")) && files.some((f) => f.endsWith(".mjs")),
+            "the roster lost an extension SOURCE_SCANNABLE still matches");
   const uuidRe = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g;
   const offenders = [];
   for (const rel of files) {

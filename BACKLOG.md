@@ -1292,6 +1292,78 @@ ENOSPC misattribution with its wrong first explanation left in.
   body that refers to another entry. Instrument-positive available today: the
   lineage chain's three entries reference each other positionally right now.
 
+- **READY (BLOCKING the bounded pin's fidelity claim) — `verifyPin` on a
+  BOUNDED pin applies the retention filter to its own reference side, so it
+  cannot fail for the defect it exists to catch. PROVEN by sabotage, not
+  argued.** Booked 2026-08-10 at integration of `--bounded`. The lane surfaced
+  the mechanism as a question rather than settling it at its own tier, which is
+  exactly right; the answer is that the mechanism is wrong.
+  What it does today: for `header.bounded`, the live side is built by
+  `writeCapturePrefixBounded`, which applies `boundedKeep` — the SAME retention
+  function the pin was built with. Both sides therefore drop the same records,
+  and any defect in the filter is invisible by construction. This is the
+  same-parentage failure the corpus names: the expectation pins the very thing
+  it should catch.
+  **The measurement, run at the desk before booking.** Baseline on
+  `s-captureAW` 1048..1049: bounded pin 19,686,465 bytes vs a streamed source
+  prefix of 610,897,526 (**3.22%**), `verifyPin` live 188 pairs / pin 188 /
+  `diffs: []`. Then `boundedKeep` was sabotaged to drop every THIRD record it
+  should keep, and the same command re-run: pin 12.93 MB, live **125** pairs /
+  pin 125 / **`diffs: []` again**. A pin that had silently lost a third of its
+  evidence got a clean bill of health, and the pair count fell 188 -> 125 with
+  nothing flagging it. `tools/harvest.mjs` was restored from a byte copy
+  immediately after (verified: empty `git diff`, zero `SABOTAGE` occurrences).
+  **What this does and does not invalidate, because the distinction is the
+  useful part.** The SIZE claim stands — 3.22% is a measurement of the artifact
+  and was reproduced independently at the desk. The FIDELITY claim does not:
+  "identical verdicts at a fraction of the bytes" is established by this check
+  and by nothing else, so as of `e9a374b` the bounded mode ships with its size
+  proven and its fidelity unproven. No bounded pin gets committed as a fixture
+  until this is fixed.
+  Design, decided: the live side goes back to the UNFILTERED prefix
+  (`writeCapturePrefix`), and the COMPARISON is narrowed instead of the input —
+  both sides restricted to the BUSTING CONVERSATION, identified by
+  `conversationOf` of the target record itself. That identity comes from the
+  capture, not from `boundedKeep`, which is the whole point: the reference
+  stops being filter-derived. The lineage-related conversations are
+  deliberately NOT part of the bar — they are retained so a later
+  lineage-aware consumer can find them, and a contract defined over them would
+  be filter-derived again.
+  Verifier, red-first, and the arrangement is ALREADY RUN and recorded above:
+  re-apply the same every-third-record sabotage and the check must go RED
+  (target-conversation pairs differ), where today it returns `diffs: []`.
+  Unsabotaged, the primary case must still return no divergence. Both arms on
+  one capture, one command each.
+  Done-criterion: sabotage red, clean run green, and the entry above re-graded
+  from "size proven, fidelity unproven".
+  Write boundary: `tools/harvest.mjs`, `test/harvest-pin-bounded.test.mjs`.
+  Consumer tier **1 (event disposition)** — every frozen pin's trustworthiness
+  reads through this check.
+
+- **READY (small) — a bounded pin's SIZE scales with the busting
+  conversation's identity CHURN, which the design note does not say and the
+  first real measurement contradicts.** Measured 2026-08-10 by the
+  `--bounded` lane. The `capturePairResult` entry's framing implies a target
+  plus a few neighbours; the real RED2 union arm on `s-captureAT` ord 715 came
+  back at **251 real records**, because that conversation's `conversationOf`
+  churned REPEATEDLY across its whole growth rather than once near the end —
+  `lineageOverlap` runs from 0.60 (ord 5, a tiny message set sharing a handful
+  of messages) up to 0.98 (near ord 715), every one of them above the 0.5
+  threshold. That is the union working as specified, not a defect: a small
+  early message set clears a ratio threshold on a few shared messages just as
+  easily as a large late one does on nearly all of them, because the
+  denominator is `min(|A|,|B|)`.
+  Design, decided: state it where the number lives, not where it was
+  discovered — a note beside `LINEAGE_THRESHOLD` in `tools/replay.mjs` naming
+  the min-denominator consequence, so the next reader meets it at the
+  definition instead of per-instance. No behaviour change: the threshold is
+  NOT retuned, per its own entry ("a future case landing between the clusters
+  is a finding about the class, not a reason to tune the number").
+  Verifier: the note cites the measured 0.60-0.98 spread and the 251-record
+  outcome. Done when a reader of `LINEAGE_THRESHOLD` can predict the sizing
+  behaviour without running it.
+  Write boundary: `tools/replay.mjs`. Consumer tier **3**.
+
 - **READY (small) — the LINEAGE relation, as a shared primitive in
   `replay.mjs`, ahead of BOTH its consumers.** Split out 2026-08-10 from the
   `capturePairResult` entry above, when re-reading the bounded-`--pin` entry's
@@ -5591,7 +5663,65 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "public-surface split: untrack in place, do not move the files" -->
 
-- **READY (BLOCKING for the publication bar) — `absence-scan` cannot see
+- **DONE `<this commit>` (2026-08-10) — the full-UUID shape was deferred to a
+  roster that did not walk the file, so writing the FULL id disabled the guard
+  that catches the SHORT one. Roster widened to the scanner's own predicate;
+  the two now import the same regex.**
+  **MECHANISM CORRECTED, and the first version of this entry was wrong in a
+  way worth keeping visible.** It claimed "`absence-scan` cannot see PROSE —
+  both byte-level classes fire only on parsed JSON values". That is false.
+  `tools/absence-scan.mjs:355-361` routes a source file to `scanSourceText`
+  DELIBERATELY, applying the short-key class alone, and `:395-408` carries the
+  measured rationale for excluding the UUID and b64 classes from source files
+  (dozens of legitimate synthetics in tests and docs; a guard that fires on
+  legitimate work trains the override reflex). I graded a considered design as
+  an oversight because I read the behaviour and not the reasons beside it —
+  the wrongness claim needs the DEFINITION, not just the reproduction, and the
+  definition was one screen up in the same file.
+  **What actually survived, and it is sharper than the original claim.**
+  `FULL_UUID_HEAD` (`:441`) suppresses the short-key finding on any line
+  containing a full 8-4-4-4-12 UUID, deferring that shape to "the source-UUID
+  roster the suite already walks" (`test/absence-scan.test.mjs:387`). That
+  roster walked `test/*.mjs`, `tools/*.mjs`, `proxy/**.mjs`, `docs/**.md` —
+  599 files, and NO root-level `.md`, no `.md` under `tools/`, no tracked
+  `.sh`/`.py`/`.yml`. So for `BACKLOG.md` and `FORK-NOTES.md` — the two
+  fork-only root documents, and the ones that discuss captures most — the
+  deferral pointed at nobody, and writing the full form actively DISABLED the
+  short-key guard on that line. Two sentences of one spec disagreeing.
+  Measured, both arms: `scanContent("… <full id>", "BACKLOG.md")` -> 0
+  findings; the short form on the same file -> 1.
+  **Fix shipped.** The roster now enumerates `git ls-files` filtered through
+  `SOURCE_SCANNABLE` and `SCANNABLE`, both newly EXPORTED from the scanner and
+  IMPORTED by the test rather than restated — the deferral's target is now the
+  same set as its domain by construction, and narrowing one narrows the other.
+  646 files, up from 599. `git ls-files` rather than a wider readdir also
+  excludes untracked scratch, which is correct: three root-level dossier files
+  on this machine carry real registered capture ids right now, and they are
+  not findings while untracked and become findings the moment anyone commits
+  them.
+  **Red-first, arrangement named:** the new expectations were run against the
+  OLD walk in place (same directory, so paths resolve; only the walk reverted)
+  and failed on `the walk collected no root-level file`, 35 other tests
+  passing — so the red is the new assertion, not a broken copy. An earlier
+  attempt to prove this from a scratchpad copy failed for path reasons and was
+  discarded rather than reported as the red. Over-fire half: 0 offenders
+  across all 646 files, `npm test` 2648 tests / 2643 pass / 0 fail.
+  **One allowlist entry added, and it is NOT ours:**
+  `tools/MANUAL-COMPACT.md` carries a real-looking session id as example
+  output, byte-identical in `upstream/main` (verified with
+  `git show upstream/main:<file> | grep -c`). Inherited, already published
+  from upstream's own repository, listed with that provenance rather than
+  scrubbed — editing it would diverge a file we carry unchanged. I nearly
+  scrubbed it as a live fork leak; the same "measure whose artifact it is
+  first" check that cut the public-surface count by six caught it.
+  **The scope line was the other half and is corrected too.** It reported
+  every non-corpus file as getting "byte-level classes only (b64-run,
+  capture-uuid)" — false in both halves for a source file: those classes never
+  run on it, and the one that does (`capture-key-prefix`) went unnamed. It now
+  reports the two regimes separately and names the roster that owns the full
+  shape. An assurance wider than its predicate is what stops anyone checking
+  it.
+  Superseded text follows: **`absence-scan` cannot see
   PROSE. Both of its byte-level classes fire only on parsed JSON values, so a
   session UUID or an image payload written into any `.md` file passes the
   pre-push guard untouched — and its own scope line says the opposite.**

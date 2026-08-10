@@ -357,7 +357,7 @@ export function scanContent(text, file) {
   if (SOURCE_SCANNABLE.test(file) && !SCANNABLE.test(file)) {
     const r = scanSourceText(text, file);
     return { findings: [...scanName(file), ...r.findings], seen: zeroSeen(),
-             scanned: 0, degraded: r.degraded, partial: true };
+             scanned: 0, degraded: r.degraded, partial: true, sourceOnly: true };
   }
   const findings = [...scanName(file)];
   const seen = zeroSeen();
@@ -380,7 +380,7 @@ export function scanContent(text, file) {
     for (const n of CLASS_NAMES) seen[n] += r.seen[n];
     scanned += r.scanned;
   });
-  return { findings, seen, scanned, degraded, partial: !inCorpus(file) };
+  return { findings, seen, scanned, degraded, partial: !inCorpus(file), sourceOnly: false };
 }
 
 /** Scan a file from disk. */
@@ -390,7 +390,7 @@ export function scanFile(file) {
 
 // --- git range mode ----------------------------------------------------------
 
-const SCANNABLE = /\.jsonl?$/i;
+export const SCANNABLE = /\.jsonl?$/i;
 
 // Source files get scanned too, but for exactly ONE thing.
 //
@@ -412,7 +412,7 @@ const SCANNABLE = /\.jsonl?$/i;
 // counting what it still missed — 30 tracked .sh/.yml/.py/.txt/.bats/
 // .template and extensionless files that NOTHING scanned. Measured cost of
 // including them: 0 findings.
-const SOURCE_SCANNABLE = /(\.(mjs|cjs|js|md|sh|bash|zsh|ya?ml|py|txt|bats|template|toml|cfg|conf|env)$|^[^.]+$|\/[^./]+$)/i;
+export const SOURCE_SCANNABLE = /(\.(mjs|cjs|js|md|sh|bash|zsh|ya?ml|py|txt|bats|template|toml|cfg|conf|env)$|^[^.]+$|\/[^./]+$)/i;
 
 // `s-` + exactly 8 hex, bounded on both sides. The 12-hex tokenized form is
 // the SANITIZED shape and must not match — that distinction is the whole
@@ -441,8 +441,21 @@ const SHORT_KEY_EXEMPT = [
 // The head of a full 8-4-4-4-12 UUID is not a short key — it is a UUID, and
 // the UUID class owns that shape. Without this the two classes double-report
 // the same string, and a synthetic UUID in a test (governed by the source-UUID
-// roster the suite already walks) reads as a capture-key leak. Measured: this
-// was one of exactly two false fires over 545 source files.
+// roster the suite walks) reads as a capture-key leak. Measured: this was one
+// of exactly two false fires over 545 source files.
+//
+// THIS LINE IS A DEFERRAL, and until 2026-08-10 it deferred to nobody for part
+// of its own domain. Suppressing here is only sound if every file reaching
+// this function is covered by that roster. It was not: the roster walked
+// `test/*.mjs`, `tools/*.mjs`, `proxy/**.mjs`, `docs/**.md`, while this
+// function runs over everything SOURCE_SCANNABLE matches — so for BACKLOG.md,
+// FORK-NOTES.md, tools/*.md and every tracked .sh/.py/.yml, writing the FULL
+// id silently disabled the short-key guard on that line and no roster picked
+// it up. Repaired by making the roster walk `git ls-files` filtered through
+// SOURCE_SCANNABLE — the same predicate, exported and imported rather than
+// restated, because two sentences that must agree should not be two
+// sentences. If you narrow SOURCE_SCANNABLE, the roster narrows with it; if
+// you widen it, the roster widens and will tell you what it found.
 const FULL_UUID_HEAD = /(^|[^0-9a-f])s?-?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 /**
@@ -527,6 +540,7 @@ export function scanGitRange(oldRef, newRef) {
   const seen = zeroSeen();
   let scanned = 0;
   let partial = 0;
+  let partialSource = 0;
   for (const file of files) {
     if (isAllowlisted(file)) {
       allowlisted.push(file);
@@ -545,6 +559,7 @@ export function scanGitRange(oldRef, newRef) {
     for (const n of CLASS_NAMES) seen[n] += r.seen[n];
     scanned += r.scanned;
     if (r.partial) partial++;
+    if (r.sourceOnly) partialSource++;
     degraded.push(...r.degraded.map((d) => `${file}: ${d}`));
   }
 
@@ -567,7 +582,7 @@ export function scanGitRange(oldRef, newRef) {
     findings.push(...r.findings);
   }
 
-  return { findings, seen, scanned, degraded, allowlisted, files, partial,
+  return { findings, seen, scanned, degraded, allowlisted, files, partial, partialSource,
            messages: messages.length };
 }
 
@@ -597,6 +612,7 @@ export function scanAtRef(ref, paths) {
   const allowlisted = [];
   const degraded = [];
   let partial = 0;
+  let partialSource = 0;
   for (const file of paths) {
     if (isAllowlisted(file)) {
       allowlisted.push(file);
@@ -617,9 +633,10 @@ export function scanAtRef(ref, paths) {
     if (kept.length < r.findings.length) allowlisted.push(file);
     findings.push(...kept);
     if (r.partial) partial++;
+    if (r.sourceOnly) partialSource++;
     degraded.push(...r.degraded.map((d) => `${file}: ${d}`));
   }
-  return { findings, allowlisted, degraded, partial };
+  return { findings, allowlisted, degraded, partial, partialSource };
 }
 
 // --- CLI ---------------------------------------------------------------------
@@ -631,14 +648,30 @@ const USAGE = `usage:
 
 exit 0 = clean, 2 = findings, 1 = internal error`;
 
-function report(out, { findings, allowlisted = [], degraded = [], partial = 0 }) {
+function report(out, { findings, allowlisted = [], degraded = [], partial = 0, partialSource = 0 }) {
   for (const p of allowlisted) out(`allowlisted: ${p}`);
   for (const d of degraded) out(`degraded: ${d}`);
   // Never silence about what was only half-checked (docs/dev-loop.md, "A
   // checker has THREE answers").
   if (partial) {
-    out(`scope: ${partial} file(s) outside test/fixtures/harvested/ — byte-level classes only ` +
-        `(${CLASSES.filter((c) => c.scope === "any").map((c) => c.name).join(", ")})`);
+    // CORRECTED 2026-08-10. This line used to report every non-corpus file as
+    // getting "byte-level classes only (b64-run, capture-uuid)". For a SOURCE
+    // file that is false in both halves: the classes named never run on it
+    // (scanContent routes it to scanSourceText above), and the one class that
+    // does run — capture-key-prefix — was not named. The assurance was wider
+    // than its predicate, which is what stops anyone checking it: a reader
+    // saw two leak classes covering their markdown and there was one.
+    const anyClasses = CLASSES.filter((c) => c.scope === "any").map((c) => c.name).join(", ");
+    const jsonPartial = partial - partialSource;
+    if (jsonPartial > 0) {
+      out(`scope: ${jsonPartial} JSON file(s) outside test/fixtures/harvested/ — ` +
+          `value-level classes only (${anyClasses})`);
+    }
+    if (partialSource > 0) {
+      out(`scope: ${partialSource} source file(s) — capture-key-prefix only; ` +
+          `the full 8-4-4-4-12 shape is covered by test/absence-scan.test.mjs's ` +
+          `tracked-tree UUID roster, not here`);
+    }
   }
   for (const f of findings) {
     const extra = f.run ? ` run=${f.run}` : "";
@@ -687,6 +720,7 @@ function main(argv) {
     const allowlisted = [];
     const degraded = [];
     let partial = 0;
+  let partialSource = 0;
     for (const file of args) {
       if (isAllowlisted(file)) {
         allowlisted.push(file);
@@ -700,9 +734,10 @@ function main(argv) {
       if (kept.length < r.findings.length) allowlisted.push(file);
       findings.push(...kept);
       if (r.partial) partial++;
+    if (r.sourceOnly) partialSource++;
       degraded.push(...r.degraded.map((d) => `${file}: ${d}`));
     }
-    result = { findings, allowlisted, degraded, partial };
+    result = { findings, allowlisted, degraded, partial, partialSource };
   }
   report(out, result);
   if (result.findings.length) {
