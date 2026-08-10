@@ -2006,6 +2006,34 @@ ENOSPC misattribution with its wrong first explanation left in.
   the standing rate — that is a separate measurement over more captures, and it
   is not what caused this event.
 
+- **READY (small) — a brief that dispatches committing work into THIS repo must
+  state both trailers, or the dispatcher's push bounces.** Measured 2026-08-10:
+  the brief gave the executor `Co-Authored-By: Claude sonnet-5 …` and nothing
+  else; this repo's pre-push guard treats a commit carrying
+  `Co-Authored-By: Claude ` WITHOUT a `Claude-Session:` trailer as an unbooked
+  subagent commit and refuses the push. The commit WAS booked — full report
+  received, verified at the desk, a defect found and fixed — so the audited
+  override was correct, but the bounce was avoidable and the override is a habit
+  worth not training. Dispatch skill §1 already says guarded write paths
+  pre-name their gate; this is the repo-specific fact that rule needs to be
+  applied here, and it lives nowhere a brief-writer looks.
+  Design (decided): `CLAUDE.md`'s verify section gains one line under the
+  existing push discipline — briefs dispatching work that commits here state
+  BOTH trailers verbatim, `Co-Authored-By: Claude <model> <noreply@…>` and
+  `Claude-Session: <url>`, because the guard reads the pair, not either alone.
+  Stated as the repo fact, not as a brief template, so it holds for any brief
+  form.
+  Verifier: a scratch commit carrying only the Co-Authored-By trailer must be
+  refused by the guard, and the same commit with both trailers must pass —
+  run in a throwaway clone, never against this working tree.
+  Done-criterion: both runs' output pasted, line present in CLAUDE.md.
+  Write boundary: `CLAUDE.md`.
+  **Provenance worth keeping: this entry exists because
+  `tools/named-unbooked-scan.mjs` flagged it on its FIRST real run**, over the
+  session that built it, on the sentence "worth carrying forward" — the exact
+  phrase-class it was built for, naming a defect its own author had left in
+  prose one message earlier.
+
 - **READY (small) — `named-unbooked-scan` is referenced by nothing but itself.**
   Measured immediately after it shipped: `grep -n "named-unbooked-scan"` across
   `BACKLOG.md`, `docs/runbooks/*.md`, `docs/dev-loop.md` and `tools/*.mjs`

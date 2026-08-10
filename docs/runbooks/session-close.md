@@ -70,15 +70,27 @@ continue-or-restart decision at depth. It is not "the work looks done"
    backgrounded check nobody awaited.
    `[GRADUATE -> the computable half of this lane; BACKLOG ready]`
 
-5. **Sweep your OWN output for named-and-unbooked.** Not "did I miss
-   anything" — that is unanswerable by feel. The failure mode is
-   NAMED-and-unbooked: on 2026-08-06 four findings were spotted,
-   correctly described in prose, and stalled there until the operator
-   converted them, because naming a gap feels like delivering it. Reread
-   the session's own replies for gap-language — "we should", "worth
-   booking", "the gap is", "I'd carry forward", "worth watching" — and
-   require each to resolve to a commit, a backlog entry, or a file
-   change made in this session.
+5. **Sweep your OWN output for named-and-unbooked — by RUNNING the
+   check, not by rereading.** Not "did I miss anything", which is
+   unanswerable by feel. The failure mode is NAMED-and-unbooked: on
+   2026-08-06 four findings were spotted, correctly described in prose,
+   and stalled there until the operator converted them, because naming a
+   gap feels like delivering it.
+
+   ```sh
+   T=$(ls -t ~/.claude/projects/-home-g-dev-vendor-claude-code-cache-fix/*.jsonl | head -1)
+   node tools/named-unbooked-scan.mjs --transcript "$T" --until HEAD
+   ```
+
+   It scans this session's own assistant output for gap-language and for
+   messages enumerating two or more of the session's OWN errors, then
+   requires each hit to resolve to a commit, a BACKLOG entry, or a file
+   change in the same session. Unresolved hits are the list to walk. It
+   REPORTS and never blocks — the phrasing is common in ordinary
+   explanation, so expect false fires and read the output as a list, not
+   a verdict. Its examined-count line is part of the answer: a run
+   reporting nothing over zero messages is the failure this repo hits
+   most often.
    **Two known holes in this step, both measured 2026-08-07 and both now
    covered elsewhere — read them as limits on what step 5 proves, not as
    work to redo here.** It scans REPLIES only, so a gap named inside a
@@ -89,7 +101,12 @@ continue-or-restart decision at depth. It is not "the work looks done"
    lost outright if the session dies first. The reply half is booked as a
    Stop hook in the dotfiles backlog; the file-prose half belongs to the
    `backlog-lint` lane in this repo's own backlog.
-   `[GRADUATE -> the named-and-unbooked check; BACKLOG ready]`
+   `[GRADUATE -> a Stop hook runs this without anyone reading the runbook]`
+   — the close-scoped half is now mechanized, and the residual is the
+   trigger: a step in a runbook still depends on someone opening the
+   runbook, which is the same dependency that produced the defect. The
+   scan's own first finding was itself: built 2026-08-10 and referenced
+   by nothing but its own source until a grep was run for it.
 
 6. **Re-read numbers this session committed into durable artifacts.**
    Later evidence revises earlier claims, and the artifact does not
