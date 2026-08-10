@@ -56,21 +56,38 @@ continue-or-restart decision at depth. It is not "the work looks done"
    later committed into a ranked artifact was wrong.
    `[GRADUATE -> the computable half of this lane; BACKLOG ready]`
 
-3. **Both repos, not one.** `git status --short` and
+3. **Re-run the SessionStart scan and resolve every non-silent part of the
+   attention line.** The line is silent when clean by construction — a no-op
+   on a healthy session — and costs one command otherwise. For each
+   non-silent part (`N behind upstream`, `N READY, oldest Nd`, a gate-red
+   once it ships), require it to resolve to (a) an action taken this
+   session, (b) a booked entry, or (c) an explicit "not this session,
+   because —". A signal that has been on since session start with no
+   disposition step is wallpaper, not evidence of nothing — a doorbell that
+   fires correctly and is never answered trains the reader to stop hearing
+   it. Measured 2026-08-06: `attention: 25 behind upstream (as of last
+   fetch) | 33 READY, oldest 1d` rendered unresolved for ~8 hours, because
+   the event-inventory step above and the git-state step below both walk
+   past it — neither asks what the standing signals were saying, so the one
+   signal that was on the whole time was the one thing not walked.
+   `[GRADUATE -> a parse plus a set difference against the session's own
+   commits; no judgment beyond option (c)'s reason. BACKLOG ready]`
+
+4. **Both repos, not one.** `git status --short` and
    `git log --oneline origin/<branch>..<branch>` in the fork AND in
    dotfiles. Deployment coupling means a session often writes to both,
    and the second is the one that gets forgotten. Unpushed commits are
    already covered by the dotfiles Stop hook — do not re-implement that
    check here, but do read what it says.
 
-4. **Anything still running or armed.** Background agents without a
+5. **Anything still running or armed.** Background agents without a
    booked report (silence is never success — demand it, never book it);
    a `ScheduleWakeup` still scheduled; worktrees carrying dangling
    rebase state (`.git/rebase-merge`, `.git/rebase-apply`); a
    backgrounded check nobody awaited.
    `[GRADUATE -> the computable half of this lane; BACKLOG ready]`
 
-5. **Sweep your OWN output for named-and-unbooked — by RUNNING the
+6. **Sweep your OWN output for named-and-unbooked — by RUNNING the
    check, not by rereading.** Not "did I miss anything", which is
    unanswerable by feel. The failure mode is NAMED-and-unbooked: on
    2026-08-06 four findings were spotted, correctly described in prose,
@@ -92,7 +109,7 @@ continue-or-restart decision at depth. It is not "the work looks done"
    reporting nothing over zero messages is the failure this repo hits
    most often.
    **Two known holes in this step, both measured 2026-08-07 and both now
-   covered elsewhere — read them as limits on what step 5 proves, not as
+   covered elsewhere — read them as limits on what step 6 proves, not as
    work to redo here.** It scans REPLIES only, so a gap named inside a
    backlog entry's own prose is invisible to it by construction (observed:
    an entry ending "that is a separate item, not this one", which booked
@@ -108,7 +125,7 @@ continue-or-restart decision at depth. It is not "the work looks done"
    scan's own first finding was itself: built 2026-08-10 and referenced
    by nothing but its own source until a grep was run for it.
 
-6. **Re-read numbers this session committed into durable artifacts.**
+7. **Re-read numbers this session committed into durable artifacts.**
    Later evidence revises earlier claims, and the artifact does not
    update itself. Measured 2026-08-06: a build-order block was committed
    saying "four busts, 1,124,000 tokens" when the tool's own output had
@@ -116,7 +133,7 @@ continue-or-restart decision at depth. It is not "the work looks done"
    from what was printed. A number in a ranked artifact is load-bearing
    for whoever reads it next.
 
-7. **Decisions taken in conversation with no carrier.** The tell is a
+8. **Decisions taken in conversation with no carrier.** The tell is a
    sentence like "we agreed X", "I'll carry that forward", or "that's
    for the other session" with no commit, entry, or file behind it. Two
    of 2026-08-06's losses were exactly this shape. Deciding NOT to do
@@ -124,9 +141,9 @@ continue-or-restart decision at depth. It is not "the work looks done"
    anything small, booking costs about what doing it costs, so the
    postponement refutes itself (dev-loop, rule three).
 
-8. **The backlog closes DISPATCHABLE — every open entry executable by
+9. **The backlog closes DISPATCHABLE — every open entry executable by
    someone who is not you, in the repo where the work happens, without
-   asking anyone a question.** Steps 5 to 7 catch findings that were
+   asking anyone a question.** Steps 6 to 8 catch findings that were
    never booked. This catches the opposite and less visible failure: an
    entry that IS booked, reads complete, carries its grade and its
    verifier — and cannot be executed. Two shapes, both measured
@@ -208,7 +225,7 @@ continue-or-restart decision at depth. It is not "the work looks done"
    half is computable; whether a given entry is genuinely blocked is
    not, so the lint flags and the operator backstops. BACKLOG ready]`
 
-9. **Answer the three closing questions** from the operator corpus, each
+10. **Answer the three closing questions** from the operator corpus, each
    against its evidence rather than from feel: anything missing (against
    the enumeration above), anything learned (against the session's
    incident and correction list), how was it routed (against the turn
@@ -243,9 +260,9 @@ same failure one level up — the queue looks full and is not moving.
   failures are opposite and equally common at this moment.
 - **Do not treat a clean checker as a clean session.** Every mechanical
   check can pass while a decision made an hour ago exists nowhere. That
-  gap is the whole reason for steps 5 to 7.
+  gap is the whole reason for steps 6 to 8.
 - **Do not take an operator decision yourself in order to satisfy step
-  8.** The repair for a question parked in the queue is to ASK it, not
+  9.** The repair for a question parked in the queue is to ASK it, not
   to answer it — silently picking is the failure the entry's author
   correctly avoided, and re-introducing it at close is worse, because
   by then it is buried in a close-out rather than stated in a reply. If
