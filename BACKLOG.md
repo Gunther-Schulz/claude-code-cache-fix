@@ -94,7 +94,6 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
    reach on this list — every frozen pin's trustworthiness reads through it,
    and the freeze is how evidence survives capture rotation at all.
    _DISPATCHABLE — design decided, red-first arrangement already run_
-   <!-- entry: "applies the retention filter" -->
 2. **`capturePairResult` picks the busting conversation.** Tier 1 by consumer:
    pick the wrong conversation and the class is mis-filed before any other
    check runs. Design settled today by measuring the rotation; two of its three
@@ -105,7 +104,6 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
    its rows cannot be joined to the event logs recording the same rotation —
    12-char whole-message hash against the proxy's 16-char content-only one.
    _DISPATCHABLE_
-   <!-- entry: "measures the right EVENT" -->
 4. **A frozen evidence archive whose own cited numbers are not in it.** Found
    by sending a lane to reproduce two claims and having both fail; the source
    transcript was never frozen, only a derived view beside it.
@@ -144,7 +142,6 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
 9. **`identityRotation` counts a persistent STATE as if it were an event**, so
    its 40% is not the rotation rate row 26 asks for.
    _DISPATCHABLE_
-   <!-- entry: "counts a persistent STATE" -->
 10. **A bounded pin's size scales with identity CHURN**, which no note says and
     the first real measurement contradicted.
     _DISPATCHABLE_
@@ -313,80 +310,6 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
-- **READY (BLOCKING the bounded pin's fidelity claim) — `verifyPin` on a
-  BOUNDED pin applies the retention filter to its own reference side, so it
-  cannot fail for the defect it exists to catch. PROVEN by sabotage, not
-  argued.** Booked 2026-08-10 at integration of `--bounded`. The lane surfaced
-  the mechanism as a question rather than settling it at its own tier, which is
-  exactly right; the answer is that the mechanism is wrong.
-  What it does today: for `header.bounded`, the live side is built by
-  `writeCapturePrefixBounded`, which applies `boundedKeep` — the SAME retention
-  function the pin was built with. Both sides therefore drop the same records,
-  and any defect in the filter is invisible by construction. This is the
-  same-parentage failure the corpus names: the expectation pins the very thing
-  it should catch.
-  **The measurement, run at the desk before booking.** Baseline on
-  `s-captureAW` 1048..1049: bounded pin 19,686,465 bytes vs a streamed source
-  prefix of 610,897,526 (**3.22%**), `verifyPin` live 188 pairs / pin 188 /
-  `diffs: []`. Then `boundedKeep` was sabotaged to drop every THIRD record it
-  should keep, and the same command re-run: pin 12.93 MB, live **125** pairs /
-  pin 125 / **`diffs: []` again**. A pin that had silently lost a third of its
-  evidence got a clean bill of health, and the pair count fell 188 -> 125 with
-  nothing flagging it. `tools/harvest.mjs` was restored from a byte copy
-  immediately after (verified: empty `git diff`, zero `SABOTAGE` occurrences).
-  **What this does and does not invalidate, because the distinction is the
-  useful part.** The SIZE claim stands — 3.22% is a measurement of the artifact
-  and was reproduced independently at the desk. The FIDELITY claim does not:
-  "identical verdicts at a fraction of the bytes" is established by this check
-  and by nothing else, so as of `e9a374b` the bounded mode ships with its size
-  proven and its fidelity unproven. No bounded pin gets committed as a fixture
-  until this is fixed.
-  Design, decided: the live side goes back to the UNFILTERED prefix
-  (`writeCapturePrefix`), and the COMPARISON is narrowed instead of the input —
-  both sides restricted to the BUSTING CONVERSATION, identified by
-  `conversationOf` of the target record itself. That identity comes from the
-  capture, not from `boundedKeep`, which is the whole point: the reference
-  stops being filter-derived. The lineage-related conversations are
-  deliberately NOT part of the bar — they are retained so a later
-  lineage-aware consumer can find them, and a contract defined over them would
-  be filter-derived again.
-  **MECHANISM SETTLED 2026-08-10, at the desk, because the paragraph above is
-  not decision-complete at implementation grain and briefing it would have
-  handed that gap to the executing tier.** "Narrow the comparison to the
-  busting conversation" does not survive contact with `compareReplayVerdicts`:
-  it compares AGGREGATES parsed from a replay — total pairs, violation lines,
-  census class tallies — and `runCensus` reports a tally over the whole file,
-  not per conversation. Scoping it would mean teaching `replay.mjs` to emit a
-  per-conversation breakdown, which widens the write set to the file the
-  bounded pin only consumes.
-  The cheaper mechanism is a CONTENT check, and it is strictly stronger against
-  the defect that motivated this entry. From the RAW capture — independent of
-  `boundedKeep`, which is the whole point — compute
-  `S = { ordinals i <= m : conversationOf(record_i) === conversationOf(target) }`.
-  Then assert the pin holds a REAL (non-placeholder) record at every ordinal in
-  S. A retention filter that drops a member of the busting conversation now
-  fails on evidence the filter had no hand in producing, and the existing
-  verdict comparison stays as a second, weaker check rather than being torn
-  out.
-  What this establishes, stated exactly so it is not over-read: the busting
-  conversation is COMPLETE in the pin. The lineage-related records remain
-  outside the bar, deliberately — they are retained for a later lineage-aware
-  consumer, and a contract defined over them would be filter-derived again,
-  which is the defect this entry exists to remove.
-  Under the sabotage below, S is computed from the capture and does not move
-  while the pin loses a third of its records, so the check goes red — which is
-  the property the current one lacks.
-  Verifier, red-first, and the arrangement is ALREADY RUN and recorded above:
-  re-apply the same every-third-record sabotage and the check must go RED
-  (target-conversation pairs differ), where today it returns `diffs: []`.
-  Unsabotaged, the primary case must still return no divergence. Both arms on
-  one capture, one command each.
-  Done-criterion: sabotage red, clean run green, and the entry above re-graded
-  from "size proven, fidelity unproven".
-  Write boundary: `tools/harvest.mjs`, `test/harvest-pin-bounded.test.mjs`.
-  Consumer tier **1 (event disposition)** — every frozen pin's trustworthiness
-  reads through this check.
-
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
@@ -501,43 +424,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**. Unranked (booked after the
   derivation); a Tier A head candidate at the next one.
   <!-- entry: "capturePairResult's conversation identity is the busting request's own messages[0]" -->
-
-- **READY (small) — `identityRotation` measures the right EVENT with the
-  wrong DIGEST, so its rows cannot be joined to the event logs that record the
-  same rotation.** Surfaced 2026-08-10 by the lane that built it, as a question
-  rather than a unilateral predicate change — correctly. The class fires
-  exactly on its named positive and stays silent on its named negative, both
-  verified live; what does not line up are the row's `rawId`/`fwdId` STRINGS.
-  `replay.mjs`'s `sha()` (`:87-89`) truncates to **12** hex chars over
-  `JSON.stringify` of the WHOLE message object, `role` included;
-  `conversationSubKey`/`hashMessageContent`
-  (`proxy/extensions/message-hash.mjs:16-24,48-63`) truncates to **16** over
-  `msg.content` ONLY. Two primitives over one conceptual quantity, never shown
-  equivalent, so by construction a census row can never print the digest the
-  insertion-normalization event log recorded for the same request — the desk's
-  own verification of this class had to compute the second primitive by hand
-  to check the first.
-  **Why this is a definition problem and not a formatting one.** What counts as
-  "the conversation identity our extensions key on" is defined by
-  `conversationSubKey`, because that is the function the proxy actually keys
-  on. A near-twin computed over a different input shape can disagree with it —
-  a `role` change on `messages[0]` fires our class and moves no real key — and
-  nothing downstream would notice, since no consumer compares the two.
-  Design, decided: the row carries the REAL identity. Retain `inConvKey` and
-  `outConvKey` on the compact entry — two short strings per ENTRY, not per
-  message, which is cheaper than the per-message arrays already retained
-  beside them — computed by importing `conversationSubKey` itself, never a
-  re-implementation (`tools/harvest.mjs` already imports across the
-  `proxy/` boundary, so the direction is established). The stripped-twin
-  predicate stays as the cheap pre-filter; the digests reported become the
-  proxy's own.
-  Verifier, red-first, live positive already in hand: the row for
-  `s-captureAT` at 2026-08-08T09:58:50.626Z must print
-  `496b188f5f435920` -> `a20843f8616f3866`, the pair the desk verified twice
-  and the event log recorded, where today it prints two 12-char digests
-  matching neither. The negative at 09:58:46.362Z must stay silent.
-  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
-  Consumer tier **1 (event disposition)**.
 
 - **READY (small) — a FROZEN evidence archive whose own cited numbers are not
   in it, and nothing said so for three days.** Found 2026-08-10 by the lane
@@ -755,29 +641,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   body that refers to another entry. Instrument-positive available today: the
   lineage chain's three entries reference each other positionally right now.
 
-- **READY (small) — `identityRotation` counts a persistent STATE as if it were
-  an event, so its 40% is not the rate row 26 asks about.** Measured
-  2026-08-10 on `s-captureAT`: **298 of 738 requests** classify. The lane's
-  reading, which the code supports: `fresh-session-sort`'s relocation is a
-  persistent per-session mutation — once it fires for a conversation, EVERY
-  subsequent request in that conversation carries the relocated block, and a
-  per-REQUEST predicate re-fires on each one. So 298 is "requests served under
-  a rotated identity", while row 26's open question is "how often does a
-  rotation OCCUR", and the two differ by roughly the length of each affected
-  conversation.
-  Design, decided: keep the per-request rows (they are the honest per-request
-  fact and the join surface for a cost question), and add a TRANSITION count
-  beside them — a rotation is NEW when the conversation's raw identity has not
-  been seen rotating before in this capture. Report both, labelled, because
-  reporting either alone invites the other's question.
-  Verifier: over `s-captureAT` the per-request count stays 298 and the
-  transition count is materially smaller; both printed, neither derivable from
-  the other by the reader guessing. Done when the daily sweep's number cannot
-  be read as a rotation rate without saying which of the two it is.
-  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
-  Consumer tier **3** — it mis-describes a count rather than mis-classifying an
-  event.
-
 - **READY (small) — a bounded pin's SIZE scales with the busting
   conversation's identity CHURN, which the design note does not say and the
   first real measurement contradicts.** Measured 2026-08-10 by the
@@ -801,6 +664,191 @@ ENOSPC misattribution with its wrong first explanation left in.
   outcome. Done when a reader of `LINEAGE_THRESHOLD` can predict the sizing
   behaviour without running it.
   Write boundary: `tools/replay.mjs`. Consumer tier **3**.
+
+- **DONE 2026-08-10 (`ce975c5`) — and the red is the same sabotage that
+  exposed it, now caught.** `verifyPin` gained `bustingConversationOrdinals` /
+  `missingBustingOrdinals` as its LEADING clause for bounded pins, computing S
+  from the raw capture via `conversationOf` alone — never via `boundedKeep`,
+  which is the entire point. The old verdict comparison stays as the second,
+  weaker check.
+  The measured arms, from the lane and matching this entry's own recorded
+  numbers: unsabotaged, `pin verified: reproduces the live verdicts over
+  records 0..1049 — 188 same-conversation pair(s)`, no clause fired. With
+  `boundedKeep` sabotaged to drop every third kept record, the pin's kept count
+  fell 189 -> 126 and the new clause fired — *"busting conversation incomplete
+  in the bounded pin: 63 of 189 member ordinal(s) missing or placeholder"*, all
+  63 named — **while the old comparison alone still reported 125 live vs 125
+  pinned**, i.e. it would have printed `diffs: []` exactly as this entry
+  described. The defect and its catch, in one run.
+  Sabotage reverted and PROVEN reverted: zero `SABOTAGE` hits, and the residual
+  diff is the feature only.
+  Residual, surfaced by the lane and recorded rather than booked: the new check
+  streams the raw capture 0..m independently of `writeCapturePrefixBounded`'s
+  own pass, so a bounded `--pin` run now costs roughly two passes, measured at
+  ~41-47 s against a ~30 s estimate — plausibly capture GROWTH (2046 records
+  now against the 2065 cited when this entry was written) rather than the added
+  pass, and not isolated. Not a defect; a number to re-read if verify time ever
+  becomes the constraint.
+  **The bounded pin's FIDELITY claim is now established** — the size claim
+  (3.22%) never depended on this — so freezing a bounded pin as a committed
+  fixture is unblocked, which in turn unblocks `capturePairResult`.
+  Original header: **`verifyPin` on a
+  BOUNDED pin applies the retention filter to its own reference side, so it
+  cannot fail for the defect it exists to catch. PROVEN by sabotage, not
+  argued.** Booked 2026-08-10 at integration of `--bounded`. The lane surfaced
+  the mechanism as a question rather than settling it at its own tier, which is
+  exactly right; the answer is that the mechanism is wrong.
+  What it does today: for `header.bounded`, the live side is built by
+  `writeCapturePrefixBounded`, which applies `boundedKeep` — the SAME retention
+  function the pin was built with. Both sides therefore drop the same records,
+  and any defect in the filter is invisible by construction. This is the
+  same-parentage failure the corpus names: the expectation pins the very thing
+  it should catch.
+  **The measurement, run at the desk before booking.** Baseline on
+  `s-captureAW` 1048..1049: bounded pin 19,686,465 bytes vs a streamed source
+  prefix of 610,897,526 (**3.22%**), `verifyPin` live 188 pairs / pin 188 /
+  `diffs: []`. Then `boundedKeep` was sabotaged to drop every THIRD record it
+  should keep, and the same command re-run: pin 12.93 MB, live **125** pairs /
+  pin 125 / **`diffs: []` again**. A pin that had silently lost a third of its
+  evidence got a clean bill of health, and the pair count fell 188 -> 125 with
+  nothing flagging it. `tools/harvest.mjs` was restored from a byte copy
+  immediately after (verified: empty `git diff`, zero `SABOTAGE` occurrences).
+  **What this does and does not invalidate, because the distinction is the
+  useful part.** The SIZE claim stands — 3.22% is a measurement of the artifact
+  and was reproduced independently at the desk. The FIDELITY claim does not:
+  "identical verdicts at a fraction of the bytes" is established by this check
+  and by nothing else, so as of `e9a374b` the bounded mode ships with its size
+  proven and its fidelity unproven. No bounded pin gets committed as a fixture
+  until this is fixed.
+  Design, decided: the live side goes back to the UNFILTERED prefix
+  (`writeCapturePrefix`), and the COMPARISON is narrowed instead of the input —
+  both sides restricted to the BUSTING CONVERSATION, identified by
+  `conversationOf` of the target record itself. That identity comes from the
+  capture, not from `boundedKeep`, which is the whole point: the reference
+  stops being filter-derived. The lineage-related conversations are
+  deliberately NOT part of the bar — they are retained so a later
+  lineage-aware consumer can find them, and a contract defined over them would
+  be filter-derived again.
+  **MECHANISM SETTLED 2026-08-10, at the desk, because the paragraph above is
+  not decision-complete at implementation grain and briefing it would have
+  handed that gap to the executing tier.** "Narrow the comparison to the
+  busting conversation" does not survive contact with `compareReplayVerdicts`:
+  it compares AGGREGATES parsed from a replay — total pairs, violation lines,
+  census class tallies — and `runCensus` reports a tally over the whole file,
+  not per conversation. Scoping it would mean teaching `replay.mjs` to emit a
+  per-conversation breakdown, which widens the write set to the file the
+  bounded pin only consumes.
+  The cheaper mechanism is a CONTENT check, and it is strictly stronger against
+  the defect that motivated this entry. From the RAW capture — independent of
+  `boundedKeep`, which is the whole point — compute
+  `S = { ordinals i <= m : conversationOf(record_i) === conversationOf(target) }`.
+  Then assert the pin holds a REAL (non-placeholder) record at every ordinal in
+  S. A retention filter that drops a member of the busting conversation now
+  fails on evidence the filter had no hand in producing, and the existing
+  verdict comparison stays as a second, weaker check rather than being torn
+  out.
+  What this establishes, stated exactly so it is not over-read: the busting
+  conversation is COMPLETE in the pin. The lineage-related records remain
+  outside the bar, deliberately — they are retained for a later lineage-aware
+  consumer, and a contract defined over them would be filter-derived again,
+  which is the defect this entry exists to remove.
+  Under the sabotage below, S is computed from the capture and does not move
+  while the pin loses a third of its records, so the check goes red — which is
+  the property the current one lacks.
+  Verifier, red-first, and the arrangement is ALREADY RUN and recorded above:
+  re-apply the same every-third-record sabotage and the check must go RED
+  (target-conversation pairs differ), where today it returns `diffs: []`.
+  Unsabotaged, the primary case must still return no divergence. Both arms on
+  one capture, one command each.
+  Done-criterion: sabotage red, clean run green, and the entry above re-graded
+  from "size proven, fidelity unproven".
+  Write boundary: `tools/harvest.mjs`, `test/harvest-pin-bounded.test.mjs`.
+  Consumer tier **1 (event disposition)** — every frozen pin's trustworthiness
+  reads through this check.
+
+- **DONE 2026-08-10 (`a68a8af`) — the rows now carry the proxy's OWN identity,
+  so a census row and an insertion-normalization event log line finally name
+  the same string.** `compactEntry` gained `inConvKey`/`outConvKey`, computed
+  by IMPORTING `conversationSubKey` from `proxy/extensions/message-hash.mjs` —
+  never a re-implementation — while the cheap stripped-twin predicate stays
+  exactly as it was as the pre-filter. Verified at the desk by re-running the
+  census myself rather than reading the report: the row prints
+  `n=38 ts=2026-08-08T09:58:50.626Z [transition] raw=496b188f5f435920 ->
+  forwarded=a20843f8616f3866`, the pair this session had already established
+  twice by an independent path, and the neighbouring request 4 s earlier still
+  produces no row. Corroborated in the same output by the gate's own
+  attribution line for that pair,
+  `fresh-session-sort:first-appearance-relocation (mcp)`.
+  Original header: **`identityRotation` measures the right EVENT with the
+  wrong DIGEST, so its rows cannot be joined to the event logs that record the
+  same rotation.** Surfaced 2026-08-10 by the lane that built it, as a question
+  rather than a unilateral predicate change — correctly. The class fires
+  exactly on its named positive and stays silent on its named negative, both
+  verified live; what does not line up are the row's `rawId`/`fwdId` STRINGS.
+  `replay.mjs`'s `sha()` (`:87-89`) truncates to **12** hex chars over
+  `JSON.stringify` of the WHOLE message object, `role` included;
+  `conversationSubKey`/`hashMessageContent`
+  (`proxy/extensions/message-hash.mjs:16-24,48-63`) truncates to **16** over
+  `msg.content` ONLY. Two primitives over one conceptual quantity, never shown
+  equivalent, so by construction a census row can never print the digest the
+  insertion-normalization event log recorded for the same request — the desk's
+  own verification of this class had to compute the second primitive by hand
+  to check the first.
+  **Why this is a definition problem and not a formatting one.** What counts as
+  "the conversation identity our extensions key on" is defined by
+  `conversationSubKey`, because that is the function the proxy actually keys
+  on. A near-twin computed over a different input shape can disagree with it —
+  a `role` change on `messages[0]` fires our class and moves no real key — and
+  nothing downstream would notice, since no consumer compares the two.
+  Design, decided: the row carries the REAL identity. Retain `inConvKey` and
+  `outConvKey` on the compact entry — two short strings per ENTRY, not per
+  message, which is cheaper than the per-message arrays already retained
+  beside them — computed by importing `conversationSubKey` itself, never a
+  re-implementation (`tools/harvest.mjs` already imports across the
+  `proxy/` boundary, so the direction is established). The stripped-twin
+  predicate stays as the cheap pre-filter; the digests reported become the
+  proxy's own.
+  Verifier, red-first, live positive already in hand: the row for
+  `s-captureAT` at 2026-08-08T09:58:50.626Z must print
+  `496b188f5f435920` -> `a20843f8616f3866`, the pair the desk verified twice
+  and the event log recorded, where today it prints two 12-char digests
+  matching neither. The negative at 09:58:46.362Z must stay silent.
+  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
+  Consumer tier **1 (event disposition)**.
+
+- **DONE 2026-08-10 (`a68a8af`) — and the two numbers differ by 40x, which is
+  the whole point.** Each row carries `transition`, true only the first time a
+  `(key, rawId)` pair is seen rotating; `--census` prints both, labelled.
+  Measured on `s-captureAT`, reproduced at the desk: **298 requests served
+  under a rotated identity, 7 rotation transitions.** Row 26 asked how often a
+  rotation OCCURS and would have been answered "298" — a number about
+  conversation LENGTH, not about the event. Residual, named by the lane and
+  left open rather than papered over: the 7 has no second instrument behind it.
+  A cheap cross-check exists — that session's insertion-normalization logs
+  carry 12 distinct state keys, and transitions must not exceed distinct keys —
+  but it was not run, so 7 is single-sourced.
+  Original header: **`identityRotation` counts a persistent STATE as if it were
+  an event, so its 40% is not the rate row 26 asks about.** Measured
+  2026-08-10 on `s-captureAT`: **298 of 738 requests** classify. The lane's
+  reading, which the code supports: `fresh-session-sort`'s relocation is a
+  persistent per-session mutation — once it fires for a conversation, EVERY
+  subsequent request in that conversation carries the relocated block, and a
+  per-REQUEST predicate re-fires on each one. So 298 is "requests served under
+  a rotated identity", while row 26's open question is "how often does a
+  rotation OCCUR", and the two differ by roughly the length of each affected
+  conversation.
+  Design, decided: keep the per-request rows (they are the honest per-request
+  fact and the join surface for a cost question), and add a TRANSITION count
+  beside them — a rotation is NEW when the conversation's raw identity has not
+  been seen rotating before in this capture. Report both, labelled, because
+  reporting either alone invites the other's question.
+  Verifier: over `s-captureAT` the per-request count stays 298 and the
+  transition count is materially smaller; both printed, neither derivable from
+  the other by the reader guessing. Done when the daily sweep's number cannot
+  be read as a rotation rate without saying which of the two it is.
+  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
+  Consumer tier **3** — it mis-describes a count rather than mis-classifying an
+  event.
 
 - **DONE 2026-08-10 (`f01175b` pushed `e483acc..f01175b`, 12 commits) — the
   guard half was discharged by verification and the publication half by an
