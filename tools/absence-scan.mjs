@@ -88,6 +88,30 @@ export const ALLOWLIST = [
   },
 ];
 
+// An `allowlisted` list entry, tagged by which ROUTE produced it — a
+// whole-file SKIP (isAllowlisted: true, the file is never scanned at all) or
+// a class-scoped DROP (the file WAS scanned, and only some of its findings
+// were excused). Both used to render as one `allowlisted: <path>` line,
+// which could not tell a reader whether a reported file had been scanned at
+// all — exactly the distinction the 2026-08-05 narrowing (isAllowlisted
+// above) was made to create, and lost again the moment both routes printed
+// identically (BACKLOG "absence-scan's allowlisted: line cannot distinguish
+// a whole-file SKIP from a class-scoped DROP").
+export const skipEntry = (path) => ({ path, route: "skip" });
+export const exemptEntry = (path, exempt) => ({ path, route: "exempt", classes: [...exempt].sort() });
+
+/** The printed line for one allowlist entry — exported so the two routes'
+ * output can be proven to differ without a real `classes: "all"` ALLOWLIST
+ * entry (there is deliberately none today) and without touching this file's
+ * own ALLOWLIST at test time (this repo's convention: no self-mutating test
+ * over tools/ — see test/tool-output-stamps.test.mjs's quota-analysis
+ * section). */
+export function formatAllowlistLine(entry) {
+  return entry.route === "skip"
+    ? `skipped (all classes): ${entry.path}`
+    : `exempt ${entry.classes.join(",")}: ${entry.path}`;
+}
+
 /** The class names a path is exempt from — empty when it is exempt from none. */
 export function exemptClasses(path) {
   const p = String(path).replace(/\\/g, "/");
@@ -543,7 +567,7 @@ export function scanGitRange(oldRef, newRef) {
   let partialSource = 0;
   for (const file of files) {
     if (isAllowlisted(file)) {
-      allowlisted.push(file);
+      allowlisted.push(skipEntry(file));
       continue;
     }
     const text = git(["show", `${newRef}:${file}`]);
@@ -554,7 +578,7 @@ export function scanGitRange(oldRef, newRef) {
     // nobody considered when the exemption was written.
     const exempt = exemptClasses(file);
     const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
-    if (kept.length < r.findings.length) allowlisted.push(file);
+    if (kept.length < r.findings.length) allowlisted.push(exemptEntry(file, exempt));
     findings.push(...kept);
     for (const n of CLASS_NAMES) seen[n] += r.seen[n];
     scanned += r.scanned;
@@ -615,7 +639,7 @@ export function scanAtRef(ref, paths) {
   let partialSource = 0;
   for (const file of paths) {
     if (isAllowlisted(file)) {
-      allowlisted.push(file);
+      allowlisted.push(skipEntry(file));
       continue;
     }
     let text;
@@ -630,7 +654,7 @@ export function scanAtRef(ref, paths) {
     // "exempt" in this file, not three.
     const exempt = exemptClasses(file);
     const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
-    if (kept.length < r.findings.length) allowlisted.push(file);
+    if (kept.length < r.findings.length) allowlisted.push(exemptEntry(file, exempt));
     findings.push(...kept);
     if (r.partial) partial++;
     if (r.sourceOnly) partialSource++;
@@ -649,7 +673,12 @@ const USAGE = `usage:
 exit 0 = clean, 2 = findings, 1 = internal error`;
 
 function report(out, { findings, allowlisted = [], degraded = [], partial = 0, partialSource = 0 }) {
-  for (const p of allowlisted) out(`allowlisted: ${p}`);
+  // Two distinct lines, never one: a whole-file SKIP was never scanned at
+  // all, while a class-scoped EXEMPT was scanned and only some of its
+  // findings excused — a reader auditing "allowlisted:" lines before a
+  // commit needs to tell those apart (BACKLOG "absence-scan's allowlisted:
+  // line cannot distinguish...").
+  for (const a of allowlisted) out(formatAllowlistLine(a));
   for (const d of degraded) out(`degraded: ${d}`);
   // Never silence about what was only half-checked (docs/dev-loop.md, "A
   // checker has THREE answers").
@@ -723,7 +752,7 @@ function main(argv) {
   let partialSource = 0;
     for (const file of args) {
       if (isAllowlisted(file)) {
-        allowlisted.push(file);
+        allowlisted.push(skipEntry(file));
         continue;
       }
       const r = scanFile(file);
@@ -731,7 +760,7 @@ function main(argv) {
       // "exempt" in this file, not two.
       const exempt = exemptClasses(file);
       const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
-      if (kept.length < r.findings.length) allowlisted.push(file);
+      if (kept.length < r.findings.length) allowlisted.push(exemptEntry(file, exempt));
       findings.push(...kept);
       if (r.partial) partial++;
     if (r.sourceOnly) partialSource++;

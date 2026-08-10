@@ -25,7 +25,8 @@ import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId,
-         SOURCE_SCANNABLE, SCANNABLE } from "../tools/absence-scan.mjs";
+         SOURCE_SCANNABLE, SCANNABLE, skipEntry, exemptEntry, formatAllowlistLine,
+         CLASS_NAMES } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -243,11 +244,48 @@ test("CLI: an exempt path is scanned, and only its exempt CLASS is dropped", () 
       { ...SEEDED["capture-uuid"], ts: "2026-08-05T09:10:03.000Z" });
     const r = run([led], dir);
     assert.equal(r.status, 2, r.stdout + r.stderr);
-    assert.match(r.stdout, /^allowlisted: /m, "the file is still named as partly exempt");
+    assert.match(r.stdout, /^exempt live-timestamp: /m,
+      "the file is named as a class-scoped DROP (scanned, one class excused) — never as a whole-file skip");
+    assert.ok(!/^skipped \(all classes\): /m.test(r.stdout),
+      "a class-scoped drop must not also print the whole-file-skip line");
     assert.match(r.stdout, /FINDING capture-uuid/, "the class it is NOT exempt from fires");
     assert.ok(!r.stdout.includes("FINDING live-timestamp"),
       "the class it IS exempt from stays quiet — its watermarks are its content");
   });
+});
+
+// ---------------------------------------------------------------------------
+// BACKLOG "absence-scan's allowlisted: line cannot distinguish a whole-file
+// SKIP from a class-scoped DROP" — the two routes rendered one identical
+// `allowlisted: <path>` line until this fix. Proven at the line-rendering
+// level (formatAllowlistLine) rather than by adding a real `classes: "all"`
+// ALLOWLIST entry: there is deliberately none today, and mutating this
+// file's own ALLOWLIST at test time would violate the repo's no-self-
+// mutating-tools-tests convention (test/tool-output-stamps.test.mjs,
+// quota-analysis section).
+// ---------------------------------------------------------------------------
+
+test("RED-FIRST: a whole-file skip and a class-scoped exempt render two DIFFERENT lines for the same path", () => {
+  const skip = formatAllowlistLine(skipEntry("test/fixtures/harvested/whatever.json"));
+  const exempt = formatAllowlistLine(exemptEntry("test/fixtures/harvested/whatever.json", new Set(["live-timestamp"])));
+  assert.notEqual(skip, exempt,
+    "a whole-file SKIP and a class-scoped DROP must not render identically — that is the defect this entry fixes");
+  assert.equal(skip, "skipped (all classes): test/fixtures/harvested/whatever.json");
+  assert.equal(exempt, "exempt live-timestamp: test/fixtures/harvested/whatever.json");
+});
+
+test("skipEntry corresponds to a classes: \"all\" match (or coincidental full class coverage) — the case isAllowlisted() treats as a true whole-file skip", () => {
+  // exemptEntry with EVERY class name also reads as a full skip in practice
+  // (isAllowlisted's own "coincidental full coverage" branch), but the two
+  // entry constructors are still distinguishable at the rendering level —
+  // route is what main()/scanGitRange()/scanAtRef() actually observed
+  // (isAllowlisted() true vs. false-but-some-findings-dropped), not a
+  // re-derivation from the class set.
+  const allClasses = new Set(CLASS_NAMES);
+  const line = formatAllowlistLine(exemptEntry("x.json", allClasses));
+  assert.equal(line, `exempt ${CLASS_NAMES.slice().sort().join(",")}: x.json`);
+  assert.notEqual(line, formatAllowlistLine(skipEntry("x.json")),
+    "even full class coverage via the exempt route reads differently from the skip route — route is tracked, not inferred");
 });
 
 test("CLI: an exempt path with only exempt findings still exits 0", () => {
