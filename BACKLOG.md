@@ -784,6 +784,25 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "9 commits unpushed; push denied by the unbooked-subagent guard" -->
 
+- **READY (small) — `DOTFILES-BRIEF-inherited-items.md` sits untracked at the
+  repo root and needs a disposal, not a mention.** Written 2026-08-10 on
+  operator request ("if any of the open items are work for the dotfiles repo,
+  give me a brief for another session"), excluded via `.git/info/exclude`
+  because this repo is public and the brief names guard internals. It covers
+  the eleven `(operator-side, dotfiles)` and POINTER entries plus the two
+  writes the closing review session left owed, and it POINTS at their bodies
+  rather than copying them.
+  It is spent the moment that session reports back. Disposal, decided by the
+  same reasoning the review brief's own entry used: DELETE rather than move to
+  `docs/directives/` — unlike that one it is a routing document with no
+  findings of its own, every claim in it is a pointer to an entry that
+  outlives it, and publishing guard internals buys nothing. Deleting an
+  untracked file is irreversible with no git copy, so it is a confirm-first
+  act, not an assume-one.
+  Trigger: the dotfiles session reports, or the last of its eleven entries
+  closes. Done-criterion: the file is gone and each closed pointer entry
+  carries its dotfiles commit ref.
+
 - **READY — the READY grade asserts INTENT TO BUILD, 110 entries carry it, and
   the operator's read is that they will never be finished. He is right, and the
   count is not the defect — the GRADE is.** Raised 2026-08-10 by the operator
