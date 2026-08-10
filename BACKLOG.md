@@ -49,6 +49,32 @@ anchor is REMOVED rather than re-pointed, per this block's own removal-only
 rule; the entry is graded DONE in `## Open`.
 
 
+### Loop-stage composition — the fifth signal, applied to this head
+
+Added to the rubric hours after this block was derived, on an operator
+question, and this head is its first test. **It fails the first clause and
+therefore owes the second.**
+
+Nine of the ten ranked items advance SEE / ATTRIBUTE / VERIFY. Exactly one
+advances MITIGATE — item 5, the pre-pipeline conversation identity, row 26's
+actual fix — and it is **not dispatchable**: DESK, deployment-coupled, and its
+migration half (state already on disk under rotated keys) is explicitly
+undecided.
+
+So, per the rule: **no MITIGATE-stage item is dispatchable today, and the
+decision that would change that is the migration strategy for existing
+per-key state.** That is one design call, it is the operator's or the desk's
+rather than an executor's, and until it is made the loop's payload cannot
+ship no matter how many instruments improve. Naming it here is the point —
+an all-instrument head is defensible for a phase and indefensible as a
+standing condition, and the way it becomes standing is nobody writing this
+paragraph.
+
+The measured backdrop, same day: of 100 READY entries, 36 cite a `tools/`
+file and 11 cite a `proxy/` one. The queue was ~3:1 tooling before any
+ranking ran, so the head's composition is downstream of what gets BOOKED, not
+only of how it gets ordered.
+
 ### 1. Irreversible — evidence or history that cannot be undone
 
 Empty this pass, and that is a RESULT rather than an omission. The leak class
@@ -809,6 +835,50 @@ ENOSPC misattribution with its wrong first explanation left in.
   remote.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "9 commits unpushed; push denied by the unbooked-subagent guard" -->
+
+- **READY — the backlog is heavily MERGEABLE by realizing file, and the
+  measurement that suggested otherwise was my own weak instrument.** Raised
+  2026-08-10 by the operator on both counts: *"i wonder what the rest are?"*
+  and *"a lot of the tooling ones could be heavily merged, no?"* Both answered
+  by measuring, and the first answer corrects a number this session had already
+  published.
+  **The correction first, because the earlier claim was under-evidenced.** This
+  session reported "36 cite a `tools/` file, 11 cite a `proxy/` file, so the
+  queue is ~3:1 tooling". The predicate was a backticked FILE PATH, and **63 of
+  100 entries cite neither** — not because they are not tool work, but because
+  they name a FUNCTION instead: `capturePairResult`, `rebilledBytes`,
+  `findAbsorptionMisses`, the frozen-archive entry, three `bust-triage` row
+  entries. So 36 and 11 are FLOORS, the 3:1 ratio is not established, and the
+  honest statement is that the tooling share is at least 36% and probably far
+  higher. The direction of the operator's original intuition survives; the
+  number I attached to it does not. Same shape as this repo's standing warning:
+  a pattern-scoped count certifies the pattern, not the class.
+  **The merge finding, which is the actionable half.** Counting entries by the
+  `tools/` file they name: `replay.mjs` **6**, `backlog-lint.mjs` **6**,
+  `harvest.mjs` 3, `backlog-order.mjs` 3, `bust-triage.mjs` 3,
+  `cold-events.mjs` 2, `gate-live.mjs` 2, `lane-sweep.mjs` 2. And the
+  backlog-tooling FAMILY — `backlog-lint` + `backlog-order` +
+  `backlog-neighbours` + `backlog-index` — is **11 entries against four files
+  that already import each other** (`backlog-neighbours` and `backlog-order`
+  both consume `backlog-lint`'s `censusEntries`).
+  Design, decided: **bundle by realizing file, not by topic.** Dispatch
+  discipline already says items sharing a file must serialize, so a shared file
+  is not a reason to queue them — it is a reason to make them ONE lane with one
+  red-first arrangement and one integration. The backlog-tooling family is the
+  first bundle and the largest: up to 11 entries, one write set, one suite run.
+  `replay.mjs`'s six and `harvest.mjs`'s three are the next two, though both
+  files have lanes in flight right now and the bundle waits for them.
+  **What this does NOT claim.** Bundling reduces LANES and integration cost; it
+  does not reduce the work, and an entry that is merely adjacent is not merged
+  by being in the same lane. The merge is real only where the entries share a
+  red-first arrangement or a single design decision — otherwise it is a
+  convoy, which is fine but should be called that.
+  Verifier: after the first bundle, the count of entries naming that file drops
+  by the number closed, and each closed entry carries the same commit ref —
+  which is also the check that the bundle did not quietly drop one.
+  Done-criterion: the backlog-tooling family is one lane and its entries close
+  together or return with a stated reason why one could not.
+  Consumer tier **3 (backlog and process)**.
 
 - **READY (small) — `DOTFILES-BRIEF-inherited-items.md` sits untracked at the
   repo root and needs a disposal, not a mention.** Written 2026-08-10 on

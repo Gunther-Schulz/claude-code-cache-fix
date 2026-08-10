@@ -255,6 +255,64 @@ over evidence:
    and a cheap item at the top of a list is usually there because ranking it
    honestly was harder than building it.
 
+**A FIFTH SIGNAL, and it is the one this rubric was missing entirely:
+which LOOP STAGE does the item advance?** Added 2026-08-10 on an operator
+question — *"how are we prioritising the backlog? it may be a tough call
+between mitigation-related and tooling-related"* — and the honest answer,
+checked structurally rather than by impression, was that the rubric has no
+such signal at all. Signals 1-4 are cost, silence, cheapness and hard
+ordering; the three partitions cover irreversibility, lying instruments, and
+reach. **None of them references what the work is FOR.** `FORK-NOTES.md`
+carries the trajectory test — name the loop stage an item advances (SEE /
+ATTRIBUTE / MITIGATE / VERIFY / RETIRE) — and it fires at INTAKE, in a
+different file, wired to nothing at ranking time.
+
+**Measured the same hour, over the 100 READY entries.** 36 cite a `tools/`
+file; 11 cite a `proxy/` file; 10 are deployment-coupled. (An indicator, not
+a classification — an entry can cite both, and the citation is a proxy for
+the real question.) The derived head that day was **nine instrument items to
+one mitigation**, and the single mitigation — row 26's actual fix — sat fifth
+inside Tier A.
+
+**Two mechanisms produce that, and neither is anyone's error:**
+
+- **The third partition is self-reinforcing.** It promotes instruments that
+  produced a measured false verdict, and false verdicts are found by
+  EXERCISING instruments. So a day spent on instruments generates the
+  evidence that promotes more instrument work. Nothing corrects it, because
+  every individual promotion is correctly argued.
+- **DISPATCHABLE structurally favours tooling, invisibly.** A tool change is
+  self-contained. A mitigation needs a design decision, a pin bump, a restart
+  at a stated session boundary, and a row-3 transparency declaration — so it
+  is systematically harder to make decision-complete, and it loses the
+  ready-to-brief race without ever being ranked lower. The queue fills with
+  what is easy to brief, which is not the same as what is worth doing.
+
+**Why instrument-first is still right, and where it stops being right.** An
+instrument that lies corrupts the evidence every mitigation is designed from;
+this file's own attribution gate exists because a session nearly designed a
+mitigation for our own regression. That argument is sound as a PHASE and
+false as a permanent order. The operator pays tokens for busts, not for
+instruments, and a loop whose payload never ships has optimised its own
+measurement apparatus.
+
+**So the signal, and it is a COMPOSITION rule rather than another partition** —
+partitions that admit a third of the list stop ordering anything, which this
+rubric has already learned once. Every entry names its loop stage, the same
+five the trajectory test uses. Then: **a derived head contains at least one
+MITIGATE-stage item whenever one is decision-complete, and when none is, the
+derivation says so in one line and names what would make the nearest one
+ready.** That second clause is the load-bearing half — on the day this was
+written the nearest mitigation was DESK, deployment-coupled and
+design-undecided, so an honest derivation reports "no MITIGATE item is
+dispatchable, and here is the decision that would change that" rather than
+silently shipping an all-instrument head.
+
+The check is cheap and reads off facts the entries already carry, the same
+property signal 1 has. It is not a quota: one item, or an explicit statement
+that none qualifies. What it forbids is the head going all-instrument without
+anybody noticing.
+
 **A SECOND PARTITION, alongside signal 1: an irreversible failure mode ranks
 above the cost ordering, not inside it.** Added 2026-08-06 (second derivation
 pass, operator GO the same day, after the alternative — leaving the rubric
