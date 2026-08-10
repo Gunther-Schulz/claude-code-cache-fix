@@ -636,27 +636,16 @@ against the world; it is never a discharge on its own.
 ### A finding never lands alone — it RE-GRADES its dependents, in succession
 
 MANDATE (operator, 2026-08-10): *"each piece always informs the other and needs
-to be updated in succession as things change."* Written as a rule because the
-session that prompted it had already booked its findings once and had the grades
-wrong within the hour.
+to be updated in succession as things change."*
 
-**The rule.** Evidence that lands does two jobs, and only the first is
-instinctive. It records a new fact — and it re-grades every item that rested on
-the fact it replaced: backlog entries, matrix rows, runbook steps, tool designs,
-and the DISPOSITION of the event being walked. Both happen in the same act. "I
-will keep it in mind" is the third exit this file already forbids one level
-down: the new fact gets a carrier and the stale dependents keep theirs, which is
-worse than never having booked, because now two carriers disagree and both look
-current.
-
-**Why booking alone does not cover it.** Booking is aimed at the NEW fact, and
-the new fact is the one thing nobody will forget while it is in hand. The damage
-is in the OLD entries that are still written down as current — nothing points at
-them, no check reads them, and their grade was decided against evidence that no
-longer holds. The asymmetry from the CLOSING rule above applies unchanged: a
-dependent wrongly left open costs one re-read; a dependent wrongly left CLOSED
-or wrongly graded READY leaves every future list carrying a decision made on a
-dead premise.
+**The rule itself is GLOBAL and already binds — nothing here restates it.**
+Both halves are in the operator corpus: the enumeration half ("new evidence that
+kills a premise does not revoke what was derived from it: plans and conclusions
+built on the old premise execute stale unless enumerated and re-derived from the
+current record", Fixing) and the disposal half ("do it now or book it; there is
+no third exit" — naming a gap feels like delivering it, so the check is against
+the record, never the feeling, Accretion). What follows is only what is local:
+the precedent, and why having the rule was not enough.
 
 **Measured, 2026-08-10, inside one investigation.** A 213k bust walk produced,
 in order: a verdict of UNCLASSIFIED from `bust-triage`; an attribution of
@@ -672,32 +661,31 @@ whose grade explicitly says it may move again. The seven-entry booking would
 have been written, pushed, and wrong, and nothing downstream would ever have
 re-read it.
 
-**The three questions, asked at every landing, not at closing.** (1) What did I
-believe ten minutes ago that this just killed? (2) What is written down — here,
-in BACKLOG, in the matrix, in a runbook — that still asserts it? (3) Does the
-EVENT's own disposition change? The second is the one that needs a search rather
-than a memory: the dependents that break are the ones that reached the premise
-without citing it by name, which is the search-reach problem this file's
-grounding rules already describe.
+**Scope, so it is a rule and not a tax:** only what CITED the premise that moved
+gets re-checked, and booking early stays fine provided the booking carries its
+own provisionality — name the missing evidence that would re-grade it, the way a
+PARKED entry already must.
 
-**What this does NOT demand,** so it stays a rule rather than a tax. It does not
-require re-verifying every fact an investigation touched — only what CITED the
-premise that moved. It does not forbid booking early; it requires the booking to
-carry its own provisionality, which is cheap: name the missing evidence that
-would re-grade it, the way a PARKED entry already must. And a grade that survives
-the re-check is not wasted work — it is the only version of that grade anyone
-can trust.
+**It failed on its own first day, at the disposal step.** The session that wrote
+the paragraphs above then NAMED two stale dependents in a reply — both event
+runbooks open on `bust-triage`, a tool it had measured unreliable hours earlier
+for the exact event that enters them — and booked neither. The operator caught
+it. A re-grade that exists only as a sentence in a reply is indistinguishable,
+one session later, from never having noticed.
 
-**The enumeration is not the delivery — each dependent gets a carrier in the
-same act.** This is the global corpus's no-third-exit rule ("do it now or book
-it"; naming a gap feels like delivering it, so the check is against the record,
-never the feeling) aimed at succession specifically, and it is written out here
-because it failed on this rule's own first day: the session that wrote the
-paragraphs above then NAMED two stale dependents in a reply — both event
-runbooks open on `bust-triage`, a tool measured unreliable hours earlier for the
-exact event that enters them — and booked neither. The operator caught it. A
-re-grade that exists only as a sentence in a reply is indistinguishable, one
-session later, from never having noticed.
+**Why having the rule was not enough — the part worth keeping.** Both halves
+were already written, at the right level, and a second copy one level down
+changed nothing: prose rules have no firing moment, so they depend on the
+session RECOGNISING the situation, and recognition is exactly what fails
+mid-flight inside an unrelated analysis, which is where both of this day's
+misses happened. This file already says so — the named-and-unbooked tell "is
+computable" and belongs in the session-close lane, diffed against the session's
+own commits. That scanner is BOOKED AND UNBUILT, and the class has recurred at
+`:2374`, `:4245`, `:5200`, `:5214` of BACKLOG and twice more today, every
+instance converted by an operator question rather than by a mechanism. The
+lesson is not that the procedure needed sharpening. It is that a booked-unbuilt
+mechanism keeps billing us, which is exactly what the ranking rubric's third
+partition says and the reason it exists.
 
 **The tell that succession was skipped** is computable and worth watching for:
 one session's output containing a premise and a conclusion drawn from it that
