@@ -316,6 +316,68 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY — a ship-a-proxy-change runbook: the deploy discipline exists in
+  three homes and no lane, and D1 is its first consumer.** Booked 2026-08-10
+  (operator question "do we have good procedures to handle service restart?"
+  — answered by inventory: `docs/runbooks/` has five lanes, none for
+  deployment; the discipline is scattered across FORK-NOTES' restart section,
+  CLAUDE.local.md's deployment-coupling block, and matrix row 3). D1 is about
+  to ship several `proxy/**` changes, each owing the full sequence, and a
+  fresh context today reconstructs it from three files or misses a step.
+  Design, decided: an INTENT workflow (dev-loop's runbook taxonomy), written
+  for a fresh context, consolidating — not restating — the three homes by
+  pointer where the reasoning lives there: (1) row-3 declaration owed?
+  (state keys / freeze logic — stated BEFORE the restart); (2) session
+  boundary confirmed; (3) commit+push; (4) pin bump in dotfiles
+  (`git rev-parse --short HEAD:proxy` → `CACHE_FIX_PROXY_TREE_PIN`) —
+  doc/tools-only commits skip 4-7; (5) `systemctl --user restart
+  cache-fix-proxy` + `/health` gates check; (6) gate run (`systemctl --user
+  start cache-fix-gate`); (7) doctor's three answers agree. Hand steps carry
+  `[GRADUATE -> …]` per the staging-area rule. The upstream catch-up merge
+  (restart-and-repin, FORK-NOTES procedure) ENTERS this lane as a caller,
+  which retires the borderline prose block from being the only carrier.
+  Realizing write-boundary: `docs/runbooks/ship-proxy-change.md` (new) +
+  the dev-loop "Which line are you on" index row + `.claude/`
+  required-reading untouched.
+  Verifier, red-first: the runbook-format checker / lane index check must
+  fail on the missing index row before it is added (the lanes-backfill
+  entry's machinery); dry-run the lane against the LAST shipped proxy
+  change's commit trail and require every step to map to an artifact that
+  exists (the pin bump commit, the restart timestamp, the gate verdict).
+  Done-criterion: D1's first proxy ship executes from the runbook without
+  consulting FORK-NOTES or CLAUDE.local.md for sequence, and the lane ends
+  at a named terminal state (shipped / aborted-with-reason).
+  Consumer: D1 and every future proxy ship. Loop stage: VERIFY.
+
+- **READY — an upstream-PR-slice runbook: the highest-hygiene procedure in
+  the repo has a sketch, a tool, and no lane.** Booked 2026-08-10 (same
+  operator question, PR half). What exists: FORK-NOTES' "Upstream-PR plan
+  (when ready)" sketch (cut `feat/<topic>` from main, per-topic slices,
+  attach forensics), `tools/slice-preflight.mjs` (does a test file still
+  LOAD in its slice — built from the 2026-07-30 wave-2 load failures), the
+  fork-only-files list (CLAUDE.local.md), and the publication bar. What is
+  missing is the LANE: the ordered sequence a fresh context runs to produce
+  one reviewable upstream PR without leaking fork-only content — and the
+  stakes are public git history, where the remediation precedent is
+  destroy-and-recreate.
+  Design, decided: an intent workflow consolidating: (1) topic chosen from
+  the slice plan, cut from main; (2) fork-only exclusion sweep (the list is
+  data — the runbook names its home, never copies it); (3) slice-preflight
+  over every mapped test file; (4) the absence-scan / hygiene gates run
+  against the SLICE, not the branch it came from; (5) upstream PR body form
+  (attribution footer per upstream's CLAUDE.md, forensics attachment);
+  (6) the review-round handoff into `upstream-pr-round.md`, which already
+  exists and stays the receiving lane.
+  Realizing write-boundary: `docs/runbooks/upstream-pr-slice.md` (new) +
+  the dev-loop index row.
+  Verifier, red-first: run the exclusion sweep step against a deliberately
+  mis-mapped slice containing one fork-only file (planted) — the lane must
+  refuse; slice-preflight's own red is its existing test. Done-criterion:
+  the first real upstream slice ships through the lane end to end, and the
+  sketch paragraph in FORK-NOTES is replaced by a pointer to the runbook.
+  Consumer: the post-drain upstream-PR phase. Loop stage: RETIRE (posting
+  verified mechanisms back is the loop's retirement arm).
+
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
