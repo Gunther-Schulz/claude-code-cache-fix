@@ -92,6 +92,36 @@ const PROJECT_DIR = join(userInfo().homedir, ".claude", "projects", "-home-g-dev
 const CLASS1_MARKER = "Two mistakes worth carrying forward as conduct, not rules";
 const CLASS2_MARKER = "My own instruments misfired three times tonight";
 
+// The first record's own `timestamp`, which is what orders transcripts by
+// when the session HAPPENED — never file mtime, which a copy or a rsync
+// rewrites without the session having changed.
+function firstRecordTimestamp(raw) {
+  for (const line of raw.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const ts = JSON.parse(line)?.timestamp;
+      if (ts) return ts;
+    } catch { /* a partial line is not a record */ }
+  }
+  return "";
+}
+
+// EVERY match, then the OLDEST — never readdir's first.
+//
+// These needles are sentences ABOUT this check, so any later session that
+// discusses it contains them too: the agent that built this file quoted the
+// class-1 sentence into its closing report, that report landed in the
+// dispatcher's own transcript, and within the hour the archive held TWO
+// matches. Readdir order then selected the derivative one, and both class-1
+// bites failed against a conversation that merely QUOTED the sentence rather
+// than naming a gap in it. The bites passed in the agent's worktree and failed
+// at the desk an hour later, from the same code over a changed archive.
+//
+// The ORIGINAL is the oldest match by first-record timestamp — a derivative
+// can only be younger than what it quotes. `assertOriginalTranscript` below
+// pins the resulting choice to its expected day, so a future archive that
+// breaks this assumption fails loudly here instead of reappearing as an
+// unexplained red in the bites.
 function findTranscriptContaining(needle) {
   let files;
   try {
@@ -99,6 +129,7 @@ function findTranscriptContaining(needle) {
   } catch {
     return null;
   }
+  const matches = [];
   for (const f of files) {
     const path = join(PROJECT_DIR, f);
     let raw;
@@ -107,9 +138,11 @@ function findTranscriptContaining(needle) {
     } catch {
       continue;
     }
-    if (raw.includes(needle)) return path;
+    if (raw.includes(needle)) matches.push({ path, firstTs: firstRecordTimestamp(raw) });
   }
-  return null;
+  if (matches.length === 0) return null;
+  matches.sort((a, b) => a.firstTs.localeCompare(b.firstTs));
+  return matches[0].path;
 }
 
 const CLASS1_TRANSCRIPT = findTranscriptContaining(CLASS1_MARKER);
@@ -130,6 +163,26 @@ if (!CLASS2_TRANSCRIPT) {
     `RED-FIRST class 2 transcript not found under ${PROJECT_DIR} (searched for the three-misfire paragraph) — ` +
       "this machine's own ~/.claude/projects history is required for this suite's red-first proof.",
   );
+}
+
+// The selection itself is a bite, not an assumption. Without it a wrong pick
+// reappears as an unexplained red in the red-first bites below — which is
+// exactly how it presented the first time, costing a desk run to diagnose.
+// Declared as data the test checks: each red-first case names the DAY its
+// original session ran, and the chosen transcript must start on that day.
+const EXPECTED_ORIGINAL_DAY = [
+  { label: "class 1 ('conduct, not rules')", path: CLASS1_TRANSCRIPT, day: "2026-08-06" },
+  { label: "class 2 (three-misfire paragraph)", path: CLASS2_TRANSCRIPT, day: "2026-08-07" },
+];
+
+for (const { label, path, day } of EXPECTED_ORIGINAL_DAY) {
+  test(`transcript selection: ${label} resolves to its ORIGINAL session, not a later one quoting it`, () => {
+    const firstTs = firstRecordTimestamp(readFileSync(path, "utf8"));
+    assert.equal(firstTs.slice(0, 10), day,
+      `selected ${path}, which starts ${firstTs} — expected a session starting ${day}. ` +
+      "A younger transcript matched the needle and sorted first: the needle is a sentence ABOUT " +
+      "this check, so sessions discussing it also contain it.");
+  });
 }
 
 function runTool(args) {
