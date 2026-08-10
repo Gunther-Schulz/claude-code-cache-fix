@@ -90,10 +90,17 @@ import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+// Reused rather than re-derived: `statusKind`/`matrixRow` are the matrix's
+// own status-vocabulary reader (dev-loop's rule against a second
+// implementation of one identity — three confident wrong answers in this
+// repo already came from hand-rolled versions of exactly this kind of
+// primitive). Read-only import; this file does not own bust-triage.mjs.
+import { statusKind, matrixRow } from "./bust-triage.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
 export const DEFAULT_BACKLOG = join(REPO_ROOT, "BACKLOG.md");
+const DEFAULT_MATRIX = join(REPO_ROOT, "docs/directives/robustness-threat-matrix.md");
 
 const ENTRY_START = /^- \*\*/;
 const HEADER_GRADE = /^- \*\*(OPEN\/HOT|OPEN|READY|HOT)\b/;
@@ -668,6 +675,423 @@ export function censusText(text, { sinceRef, oldText } = {}) {
   return [...rows, "", ...summary, ...since].join("\n") + "\n";
 }
 
+// ==========================================================================
+// Citation drift lane (default pass) — a backlog entry that cites `file:line`
+// ==========================================================================
+//
+// Why this exists: on 2026-08-10 the `capturePairResult` entry cited
+// `tools/bust-triage.mjs:749` and `:760`; a later commit inserted an
+// attribution section above both sites and they silently became `:754` and
+// `:765`. The entry survived only because it QUOTED the expression beside
+// each number — a bare `:749` still reads as a plausible site even though it
+// now points somewhere else. See BACKLOG.md, "a backlog entry that cites
+// `file:line` has no check that".
+//
+// SCOPE: `## Open` only (censusOpenSection, above) — `## Done` citations are
+// a historical record of the state AT CLOSING TIME and must not be
+// rewritten, per the entry that requested this check.
+//
+// A citation is either FULL (`` `path:NNN` ``, path rooted at one of
+// PATH_ROOTS — ranges/lists like `path:a-b` are out of scope, a named limit
+// rather than a silent one: this check answers "is line NNN still what it
+// says", which a range does not state precisely enough to check) or BARE
+// (`` `:NNN` ``, resolved against the nearest preceding FULL citation in the
+// same entry — this corpus's own continuation idiom). Its ANCHOR is the next
+// backtick span within the following two lines that is not itself
+// citation-shaped — the quoted expression the entry puts beside the number
+// specifically so a reader (and this check) can tell whether the number
+// still means what it says.
+//
+// FOUR answers, never two (dev-loop's three-answer rule, plus the
+// correction the requesting entry itself records: an ABSENT FILE is its own
+// finding, never folded into "could not check" — that would silently
+// swallow a real positive):
+//   MATCH            the cited line contains the anchor text.
+//   DRIFTED          it does not; the anchor was found elsewhere in the file
+//                     (new line named) or nowhere in it (named as such).
+//   BROKEN-PATH      the cited file does not exist.
+//   COULD-NOT-CHECK  the cited line is past EOF, there is no anchor to check
+//                     against, or (bare form) no preceding path citation
+//                     exists in this entry to resolve it against.
+//
+// Every citation checked is returned, MATCH included — the whole-population
+// accounting the absence rule requires (a report that only lists problems
+// cannot be told apart from one that silently skipped most of the corpus).
+
+const CITATION_TOKEN = /`(?:([\w./-]+):(\d+)|:(\d+))`/g;
+const CITATION_EXPR = /`([^`\n]+)`/g;
+
+function isCitationShapedToken(s) {
+  return /^[\w./-]+:\d+$/.test(s) || /^:\d+$/.test(s);
+}
+
+// The anchor is TIGHTLY adjacent — only whitespace/newlines and at most one
+// opening paren may sit between the citation's closing backtick and the
+// anchor's opening one ("within the following two lines" turned out too
+// loose on real content: measured on the first dry run against the current
+// BACKLOG.md, a citation followed a few words later by an UNRELATED
+// backtick span — a second symbol's name, cited for a DIFFERENT nearby
+// citation — paired as if it were this citation's own quoted line and
+// produced a false DRIFTED. The corpus's real anchoring idiom (the
+// `capturePairResult` entry this lane exists for) is
+// `` `path:NNN`\n  (`quoted expression`) `` — citation, optional
+// prose-free "(", then the anchor, with nothing else between. Requiring
+// that adjacency is what tells "the next thing quoted is THIS citation's
+// own line" apart from "the next thing quoted is some other citation's
+// label mentioned nearby". A citation with prose before its nearest
+// backtick span (a name, a clause, another citation) has no anchor by this
+// rule and is COULD-NOT-CHECK, which is the honest answer: this lane
+// verifies the specific idiom, not every citation in the file.
+function findCitationAnchor(body, afterIndex) {
+  let i = afterIndex;
+  while (i < body.length && /\s/.test(body[i])) i++;
+  if (body[i] === "(") i++;
+  if (body[i] !== "`") return null;
+  CITATION_EXPR.lastIndex = 0;
+  const m = CITATION_EXPR.exec(body.slice(i));
+  if (!m || m.index !== 0) return null;
+  const t = m[1].trim();
+  return t && !isCitationShapedToken(t) ? t : null;
+}
+
+// Default resolvers hit the real filesystem, exactly like the pointer lane's
+// REAL_ENV. Injectable so bites can pin the RULE against synthetic content
+// without a fixture repo, and mutate one named condition at a time.
+const CITATION_REAL_ENV = {
+  pathExists: (p) => existsSync(join(REPO_ROOT, p)),
+  readLines: (p) => readFileSync(join(REPO_ROOT, p), "utf8").split("\n"),
+};
+
+// Lints `path:line` citations inside `## Open`. `env` overrides the
+// resolvers (see CITATION_REAL_ENV) — the same injection idiom lintPointers
+// already uses above.
+export function lintCitations(text, env = {}) {
+  const { pathExists, readLines } = { ...CITATION_REAL_ENV, ...env };
+  const section = censusOpenSection(text);
+  if (!section) return [];
+  const findings = [];
+
+  for (const entry of splitEntries(section.body)) {
+    const title = entry.header.replace(/^- \*\*/, "").trim().slice(0, 80);
+    let lastPath = null;
+    CITATION_TOKEN.lastIndex = 0;
+    let m;
+    while ((m = CITATION_TOKEN.exec(entry.body))) {
+      const full = m[0];
+      const fullPath = m[1];
+      const fullLine = m[2];
+      const bareLine = m[3];
+      const line = section.lineOffset + lineOf(entry.body, m.index, entry.startLine);
+      let path;
+      let citedLine;
+
+      if (fullPath !== undefined) {
+        if (!PATH_ROOTS.some((r) => fullPath.startsWith(r))) continue; // out of scope for this lane
+        path = fullPath;
+        citedLine = Number(fullLine);
+        lastPath = path;
+      } else {
+        citedLine = Number(bareLine);
+        if (!lastPath) {
+          findings.push({
+            line, file: null, citedLine, verdict: "COULD-NOT-CHECK", entry: title,
+            detail: "bare form with no preceding path citation in this entry",
+          });
+          continue;
+        }
+        path = lastPath;
+      }
+
+      const anchor = findCitationAnchor(entry.body, m.index + full.length);
+      if (anchor === null) {
+        findings.push({
+          line, file: path, citedLine, verdict: "COULD-NOT-CHECK", entry: title,
+          detail: "no quoted expression to anchor on",
+        });
+        continue;
+      }
+      if (!pathExists(path)) {
+        findings.push({
+          line, file: path, citedLine, verdict: "BROKEN-PATH", entry: title, anchor,
+          detail: "cited file does not exist",
+        });
+        continue;
+      }
+      const fileLines = readLines(path);
+      if (citedLine < 1 || citedLine > fileLines.length) {
+        findings.push({
+          line, file: path, citedLine, verdict: "COULD-NOT-CHECK", entry: title, anchor,
+          detail: `line past EOF (file has ${fileLines.length} lines)`,
+        });
+        continue;
+      }
+      const actual = fileLines[citedLine - 1].trim();
+      if (actual.includes(anchor)) {
+        findings.push({ line, file: path, citedLine, verdict: "MATCH", entry: title, anchor });
+        continue;
+      }
+      const newIdx = fileLines.findIndex((l) => l.trim().includes(anchor));
+      findings.push({
+        line, file: path, citedLine, verdict: "DRIFTED", entry: title, anchor,
+        newLine: newIdx >= 0 ? newIdx + 1 : null,
+        detail: newIdx >= 0 ? `now at line ${newIdx + 1}` : "not found elsewhere in file",
+      });
+    }
+  }
+  return findings;
+}
+
+export const CITATION_VERDICTS = ["MATCH", "DRIFTED", "BROKEN-PATH", "COULD-NOT-CHECK"];
+
+function formatCitationFinding(f) {
+  const bits = [`line=${f.line}`, `verdict=${f.verdict}`, `file=${f.file ?? "-"}`, `cited=${f.citedLine}`];
+  if (f.newLine) bits.push(`found=${f.newLine}`);
+  if (f.detail) bits.push(`reason="${f.detail}"`);
+  bits.push(`entry="${f.entry}"`);
+  return `WARN backlog-citation ${bits.join(" ")}`;
+}
+
+// ==========================================================================
+// Row-status drift lane (default pass) — an entry asserts a matrix row's
+// status, and nothing re-reads the row
+// ==========================================================================
+//
+// Why this exists: entries routinely say "row N is OPEN" / "row N is
+// CLOSED" in their own words, and the row's actual status in
+// docs/directives/robustness-threat-matrix.md moves without them — the
+// dev-loop's "a row NAMED is not a row READ" trap, hit from the writing
+// side this time. See BACKLOG.md, "the succession rule's computable slice:
+// an entry that".
+//
+// SCOPE: `## Open` only, same boundary as the citation lane above.
+//
+// The literal words this repo's entries actually use to assert a row's
+// status (named by the backlog entry that requested this check) are OPEN,
+// RE-OPENED, CLOSED, MITIGATED, OBSERVED, ACCEPTED — matched only OUTSIDE a
+// "NOT " negation, the same guard the header lane's VERIF_WORD already uses
+// for "NOT-VERIFIED" (a bold "ROW 4 IS NOT CLOSED" agrees with an OPEN row;
+// without the guard it would misread as a claim of MITIGATED). A matched
+// word is classified into the matrix's own KIND vocabulary via `statusKind`
+// (imported from bust-triage.mjs, never re-derived), so "CLOSED" and
+// "MITIGATED" both read as the claim the matrix itself would make, and the
+// vocabulary that decides a MATCH is read live from the matrix file, never
+// hardcoded here.
+//
+// A finding fires when a SENTENCE containing a `row N` citation also
+// contains one of those words (outside the negation), and the classified
+// claim disagrees with `matrixRow(n).kind` read live from the matrix.
+// Multiple `row N` citations inside one status-bearing sentence are each
+// checked against the same claimed status — a simplification the entries
+// observed to date do not violate, named rather than hidden.
+
+const ROW_CITATION = /\brow\s+(\d+)\b/gi;
+// KNOWN- excluded too: `bust-triage.mjs`'s own VERDICT_BY_KIND emits
+// "KNOWN-OPEN" as a compound term, and a bare `\bOPEN\b` matches the OPEN
+// inside it (a word boundary sits right after the hyphen) — found on the
+// first dry run against the current file, where an entry quoting
+// `bust-triage`'s own verdict ("the entry becomes KNOWN-OPEN") read as an
+// assertion that the row is OPEN.
+const ROW_STATUS_WORD = /(?<!NOT\s)(?<!KNOWN-)\b(RE-OPENED|OPEN|CLOSED|MITIGATED|OBSERVED|ACCEPTED)\b/g;
+// A workable sentence boundary for this corpus's prose: `.`/`!`/`?` followed
+// by whitespace and then a capital, digit, `*` (bold) or backtick. Both
+// sides of the split are zero-width, so `parts.join("")` reconstructs `body`
+// exactly and each part's offset is just the running length total.
+const SENTENCE_SPLIT = /(?<=[.!?])\s+(?=[A-Z0-9*`(])/;
+
+function sentencesOf(body) {
+  const out = [];
+  let start = 0;
+  for (const part of body.split(SENTENCE_SPLIT)) {
+    out.push({ text: part, start });
+    start += part.length;
+  }
+  return out;
+}
+
+// Lints `row N` status assertions inside `## Open` against the matrix.
+export function lintRowStatus(text, matrixPath = DEFAULT_MATRIX) {
+  const section = censusOpenSection(text);
+  if (!section) return [];
+  const findings = [];
+  const rowCache = new Map();
+  const rowOf = (n) => {
+    if (!rowCache.has(n)) rowCache.set(n, matrixRow(n, matrixPath));
+    return rowCache.get(n);
+  };
+
+  for (const entry of splitEntries(section.body)) {
+    const title = entry.header.replace(/^- \*\*/, "").trim().slice(0, 80);
+    for (const { text: sentence, start } of sentencesOf(entry.body)) {
+      const rowMatches = [...sentence.matchAll(ROW_CITATION)];
+      if (!rowMatches.length) continue;
+      ROW_STATUS_WORD.lastIndex = 0;
+      const wordMatch = ROW_STATUS_WORD.exec(sentence);
+      if (!wordMatch) continue;
+      const claimedKind = statusKind(wordMatch[1]);
+      if (claimedKind === null) continue; // not in the matrix's own vocabulary
+      for (const rm of rowMatches) {
+        const n = Number(rm[1]);
+        const row = rowOf(n);
+        if (!row || row.kind === null) continue; // no row, or the row's own status is unreadable
+        if (row.kind !== claimedKind) {
+          const line = section.lineOffset + lineOf(entry.body, start + rm.index, entry.startLine);
+          findings.push({
+            line, entry: title, row: n,
+            asserted: wordMatch[1], assertedKind: claimedKind,
+            actual: row.status.slice(0, 80), actualKind: row.kind,
+          });
+        }
+      }
+    }
+  }
+  return findings;
+}
+
+function formatRowStatusFinding(f) {
+  return `WARN backlog-rowstatus line=${f.line} row=${f.row} asserted=${f.asserted}(${f.assertedKind}) actual="${f.actual}"(${f.actualKind}) entry="${f.entry}"`;
+}
+
+// ==========================================================================
+// Premise-true-but-work-remaining lane (default pass)
+// ==========================================================================
+//
+// Why this exists: a retirement pass can verify every FACT in a READY entry
+// and still overstate the queue, because premise-truth and work-remaining
+// are independent — a `tools/coverage-walk.mjs` graduation entry (frozen at
+// `633256b`) was STILL-TRUE and entirely done, its own body citing the
+// shipped commits (`7827c4e`, `b94d118`) and splitting its one remaining
+// piece into another entry, yet the retirement pass still counted it as
+// queued work. See BACKLOG.md, "a derivation asks whether an entry's
+// PREMISE is true and never".
+//
+// REPORT only, by design: an entry legitimately cites a commit that shipped
+// ADJACENT work, so this is a flag for a human read, never an auto-re-grade
+// — a guard firing on legitimate work trains the override reflex that kills
+// it.
+//
+// SCOPE: `## Open`, READY-graded bullets only — a PARKED/OPEN/HOT entry does
+// not carry a "ready to build" claim to overstate.
+//
+// Two independent computable signals, either one is enough to flag:
+//   - a backtick-quoted commit-shaped hex token within ~60 characters of a
+//     SHIPPED/CLOSED/DONE word — "cites its own commit refs as shipped".
+//   - a "split into/out" phrase — the remainder was handed to a different
+//     bullet. Narrowed to just this phrase on the first dry run against the
+//     real corpus: the wider draft also matched bare "another entry" /
+//     "separate entry", and this backlog cross-references other entries
+//     constantly in prose unrelated to any remainder ("a premise refuted
+//     inside ANOTHER ENTRY is invisible to it" — about a DIFFERENT defect
+//     entirely). "split into/out" is what the real motivating case
+//     (`633256b`'s coverage-walk entry: "(3) split out", "split into its
+//     own entry below") actually says.
+
+const READY_HEADER = /^- \*\*READY\b/;
+const SHIP_WORD = /\b(SHIPPED|CLOSED|DONE)\b/;
+const COMMIT_CITATION = /`([0-9a-f]{7,12})`/g;
+const SPLIT_OUT_PHRASE = /\bsplit (?:into|out)\b/i;
+const SHIP_PROXIMITY = 60;
+
+// Same discipline as the pointer lane's HEX_TOKEN: require both a digit and
+// an a-f letter, which is what tells a short SHA apart from an all-letter or
+// all-digit word without resolving it against git (this lane never shells
+// out — a REPORT over a whole file must not pay a git-probe cost per hit).
+function findShippedCommitCitation(body) {
+  COMMIT_CITATION.lastIndex = 0;
+  let m;
+  while ((m = COMMIT_CITATION.exec(body))) {
+    if (!/[0-9]/.test(m[1]) || !/[a-f]/.test(m[1])) continue;
+    const start = Math.max(0, m.index - SHIP_PROXIMITY);
+    const end = Math.min(body.length, m.index + m[0].length + SHIP_PROXIMITY);
+    if (SHIP_WORD.test(body.slice(start, end))) return m[1];
+  }
+  return null;
+}
+
+export function lintPremiseTrue(text) {
+  const section = censusOpenSection(text);
+  if (!section) return [];
+  const findings = [];
+  for (const entry of splitEntries(section.body)) {
+    if (!READY_HEADER.test(entry.header)) continue;
+    const commit = findShippedCommitCitation(entry.body);
+    const split = SPLIT_OUT_PHRASE.test(entry.body);
+    if (!commit && !split) continue;
+    const signals = [];
+    if (commit) signals.push(`shipped-commit:${commit}`);
+    if (split) signals.push("split-out-phrase");
+    findings.push({
+      line: section.lineOffset + entry.startLine,
+      header: entry.header.replace(/^- \*\*/, "").trim().slice(0, 80),
+      signals,
+    });
+  }
+  return findings;
+}
+
+function formatPremiseTrueFinding(f) {
+  return `WARN backlog-premise line=${f.line} signals=${f.signals.join(",")} header="${f.header}"`;
+}
+
+// ==========================================================================
+// Late-correction lane (default pass)
+// ==========================================================================
+//
+// Why this exists: a correction appended to the END of an entry is invisible
+// to a reader who stops at the head, which is how a bulk correction pass
+// cost a wasted dispatch — the dispatcher read the head, asserted the
+// pre-correction premise, briefed a lane from it, and the lane caught the
+// contradiction only because it read the WHOLE entry. See BACKLOG.md, "a
+// correction APPENDED to the end of an entry is invisible to".
+//
+// SCOPE: `## Open`. Fires on the FIRST correction marker in an entry body
+// being past the first THIRD of the entry's own length (by character
+// offset) — a long entry may legitimately narrate several corrections in
+// sequence, so only the first one's lateness is judged; that is also what
+// keeps this a REPORT rather than a gate (a narrated correction referring
+// back to an earlier one is legitimate work, not a defect).
+//
+// A marker inside inline backticks is a CITATION of the term, not a claim —
+// this repo's own entry proposing this check quotes `PREMISE CORRECTED`
+// (twice) as a literal string and must not flag on itself, the same
+// backtick-is-a-citation convention the citation and pointer lanes above
+// already use.
+
+const CORRECTION_MARKER = /\b(PREMISE CORRECTED|RE-GRADED|CORRECTED|WITHDRAWN)\b/g;
+
+function isBacktickQuoted(body, index, length) {
+  return body[index - 1] === "`" && body[index + length] === "`";
+}
+
+export function lintCorrectionPlacement(text) {
+  const section = censusOpenSection(text);
+  if (!section) return [];
+  const findings = [];
+  for (const entry of splitEntries(section.body)) {
+    CORRECTION_MARKER.lastIndex = 0;
+    let m;
+    let first = null;
+    while ((m = CORRECTION_MARKER.exec(entry.body))) {
+      if (isBacktickQuoted(entry.body, m.index, m[0].length)) continue;
+      first = m;
+      break;
+    }
+    if (!first) continue;
+    const position = first.index / entry.body.length;
+    if (position <= 1 / 3) continue;
+    findings.push({
+      line: section.lineOffset + lineOf(entry.body, first.index, entry.startLine),
+      header: entry.header.replace(/^- \*\*/, "").trim().slice(0, 80),
+      marker: first[1],
+      position: Math.round(position * 100),
+    });
+  }
+  return findings;
+}
+
+function formatCorrectionFinding(f) {
+  return `WARN backlog-correction line=${f.line} marker="${f.marker}" position=${f.position}% header="${f.header}"`;
+}
+
 function readInput(pathArg) {
   if (pathArg === "-") return readFileSync(0, "utf8");
   return readFileSync(pathArg ?? DEFAULT_BACKLOG, "utf8");
@@ -712,6 +1136,45 @@ function main(argv) {
     findings.length
       ? `backlog-lint: ${findings.length} stale header(s) — WARN only, review BACKLOG.md\n`
       : "backlog-lint: clean\n",
+  );
+
+  // The four `## Open`-scoped report lanes below run in every default
+  // invocation (no flag), per the citation lane's own done-criterion: "the
+  // check runs inside backlog-lint's existing pass (no new entry point)".
+  // All four are REPORT-only — WARN lines plus a summary with every bucket
+  // named, even at zero, so "clean" and "could not check" stay distinguishable.
+
+  const citations = lintCitations(text);
+  for (const f of citations) {
+    if (f.verdict !== "MATCH") process.stdout.write(`${formatCitationFinding(f)}\n`);
+  }
+  const citationCounts = CITATION_VERDICTS.map(
+    (v) => `${v}=${citations.filter((f) => f.verdict === v).length}`,
+  ).join(" ");
+  process.stdout.write(`backlog-citations: ${citations.length} checked — REPORT only — ${citationCounts}\n`);
+
+  const rowStatus = lintRowStatus(text);
+  for (const f of rowStatus) process.stdout.write(`${formatRowStatusFinding(f)}\n`);
+  process.stdout.write(
+    rowStatus.length
+      ? `backlog-rowstatus: ${rowStatus.length} finding(s) — REPORT only\n`
+      : "backlog-rowstatus: clean\n",
+  );
+
+  const premiseTrue = lintPremiseTrue(text);
+  for (const f of premiseTrue) process.stdout.write(`${formatPremiseTrueFinding(f)}\n`);
+  process.stdout.write(
+    premiseTrue.length
+      ? `backlog-premise: ${premiseTrue.length} finding(s) — REPORT only\n`
+      : "backlog-premise: clean\n",
+  );
+
+  const corrections = lintCorrectionPlacement(text);
+  for (const f of corrections) process.stdout.write(`${formatCorrectionFinding(f)}\n`);
+  process.stdout.write(
+    corrections.length
+      ? `backlog-correction: ${corrections.length} finding(s) — REPORT only\n`
+      : "backlog-correction: clean\n",
   );
 
   if (wantPointers) {

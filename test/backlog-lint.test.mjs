@@ -33,10 +33,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { lintText, lintPointers, splitEntries } from "../tools/backlog-lint.mjs";
+import {
+  lintText, lintPointers, splitEntries,
+  lintCitations, lintRowStatus, lintPremiseTrue, lintCorrectionPlacement,
+} from "../tools/backlog-lint.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = join(REPO, "tools/backlog-lint.mjs");
@@ -46,6 +50,19 @@ const HISTORICAL_REF = "40c11b2";
 // `git stash list` was empty. Read via `git show` at test time, per this
 // file's standing idiom — historical prose never gets pasted here.
 const PRE_STASH_FIX_REF = "6f415e8~1";
+// The citation lane's red-first fixture: the state BEFORE `fe78c94`
+// corrected the `capturePairResult` entry's stale `:749`/`:760` citations to
+// `:754`/`:765`. Read via `git show` at test time.
+const PRE_CITATION_FIX_REF = "fe78c94~1";
+// The premise-true and correction-placement lanes' shared red-first fixture:
+// the backlog state one retirement pass produced on 2026-08-10, frozen
+// before any further edits. Carries both a STILL-TRUE-BUT-DONE entry (the
+// coverage-walk graduation, citing `7827c4e`/`b94d118` and its own
+// split-out third part) and a LATE-CORRECTION entry (the runbook-caveat
+// entry, correction ~80% in) plus a real EARLY-correction control (the
+// bust-appears DONE entry, correction inside its own header).
+const RETIREMENT_PASS_REF = "633256b";
+const MATRIX_PATH = join(REPO, "docs/directives/robustness-threat-matrix.md");
 
 function runTool(args, input) {
   try {
@@ -526,4 +543,395 @@ test("per-class counts are printed with zeros stated", () => {
   for (const label of ["STASH-REF", "PATH-DEAD", "REF-DEAD", "ABS-PATH"]) {
     assert.match(line, new RegExp(`${label}=0`), `${label} must be stated even at zero`);
   }
+});
+
+// --- Section 4: the citation-drift lane ------------------------------------
+//
+// Definitions from BACKLOG.md, "a backlog entry that cites `file:line` has
+// no check that": a citation is FULL (`` `path:NNN` ``) or BARE
+// (`` `:NNN` ``, resolved against the nearest preceding full citation in the
+// same entry). Its ANCHOR is the quoted expression tightly beside it. FOUR
+// answers, never two: MATCH, DRIFTED, BROKEN-PATH, COULD-NOT-CHECK.
+
+const CIT_FILES = {
+  "tools/sample.mjs": ["line0", "const cid = 1;", "line2", "line3", "if (x) continue;"],
+};
+const CIT_STUB = {
+  pathExists: (p) => p in CIT_FILES,
+  readLines: (p) => CIT_FILES[p],
+};
+
+test("citation lane: MATCH when the cited line contains the anchor", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** See `tools/sample.mjs:2`",
+    "  (`const cid = 1;`) directly.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "MATCH");
+});
+
+test("citation lane: DRIFTED when the anchor moved, and the new line is named", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** See `tools/sample.mjs:1`",
+    "  (`const cid = 1;`) directly.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "DRIFTED");
+  assert.equal(findings[0].newLine, 2);
+});
+
+test("citation lane: DRIFTED with no elsewhere-match names that too", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** See `tools/sample.mjs:1`",
+    "  (`this text is nowhere in the file`) directly.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "DRIFTED");
+  assert.equal(findings[0].newLine, null);
+});
+
+test("citation lane: BROKEN-PATH when the cited file does not exist", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** See `tools/missing.mjs:3`",
+    "  (`whatever`) directly.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "BROKEN-PATH");
+});
+
+test("citation lane: COULD-NOT-CHECK when there is no anchor to check against", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** See `tools/sample.mjs:2` in passing, no quote follows.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "COULD-NOT-CHECK");
+});
+
+test("citation lane: COULD-NOT-CHECK when the cited line is past EOF", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** See `tools/sample.mjs:99`",
+    "  (`whatever`) directly.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "COULD-NOT-CHECK");
+  assert.match(findings[0].detail, /past EOF/);
+});
+
+test("citation lane: BARE form resolves against the nearest preceding full citation", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** First `tools/sample.mjs:2`",
+    "  (`const cid = 1;`) fixes it, and `:5`",
+    "  (`if (x) continue;`) tests it.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 2);
+  assert.equal(findings[1].file, "tools/sample.mjs");
+  assert.equal(findings[1].citedLine, 5);
+  assert.equal(findings[1].verdict, "MATCH");
+});
+
+test("citation lane: a BARE form with no preceding path citation is COULD-NOT-CHECK", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Only a bare `:5`",
+    "  (`whatever`) here, nothing full before it.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "COULD-NOT-CHECK");
+});
+
+test("citation lane: scoped to `## Open` — a `## Done` citation is invisible", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — unrelated.** Nothing here.",
+    "",
+    "## Done", "",
+    "- **RESOLVED — a thing.** See `tools/sample.mjs:1`",
+    "  (`this drifted but must not be seen`) directly.",
+  ].join("\n");
+  assert.deepEqual(lintCitations(doc, CIT_STUB), []);
+});
+
+test("citation lane: a nearby but non-adjacent backtick span is not mistaken for the anchor", () => {
+  // The false-fire this lane's anchor rule was tightened against on the
+  // first dry run against the real corpus: a second citation's own label a
+  // few words later must not be read as the first citation's quoted line.
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** `helperName()` (`tools/sample.mjs:1`) and",
+    "  `otherName()` (`tools/sample.mjs:3`) both matter.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 2);
+  for (const f of findings) assert.equal(f.verdict, "COULD-NOT-CHECK");
+});
+
+test("citation lane: red-first against the pre-correction BACKLOG.md, green against the corrected text", () => {
+  const historical = gitShow(PRE_CITATION_FIX_REF, "BACKLOG.md");
+  const red = lintCitations(historical).filter(
+    (f) => f.file === "tools/bust-triage.mjs" && (f.citedLine === 749 || f.citedLine === 760),
+  );
+  console.log(
+    "citation red-first findings:\n" +
+      red.map((f) => `cited=${f.citedLine} verdict=${f.verdict} newLine=${f.newLine}`).join("\n"),
+  );
+  assert.equal(red.length, 2, "both stale citations must be checked");
+  for (const f of red) assert.equal(f.verdict, "DRIFTED");
+  const byCited = Object.fromEntries(red.map((f) => [f.citedLine, f.newLine]));
+  assert.equal(byCited[749], 754, "the cid-assignment site now lives at :754");
+  assert.equal(byCited[760], 765, "the cid-comparison site now lives at :765");
+
+  // Filtered to the `capturePairResult` entry itself: the citation-lint
+  // entry (below it) ALSO mentions `:754`/`:765` in prose narrating this
+  // very correction, with no adjacent anchor — correctly COULD-NOT-CHECK,
+  // not a second MATCH, and not what this control is pinning.
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const green = lintCitations(current).filter(
+    (f) =>
+      f.file === "tools/bust-triage.mjs" &&
+      (f.citedLine === 754 || f.citedLine === 765) &&
+      /capturePairResult.*conversation identity/.test(f.entry),
+  );
+  assert.equal(green.length, 2, "the corrected citations must still be checked");
+  for (const f of green) assert.equal(f.verdict, "MATCH");
+});
+
+test("citation lane: a citation at a line that never moved is MATCH, not a false DRIFTED", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — control.** `tools/sample.mjs:2`",
+    "  (`const cid = 1;`) never moved.",
+  ].join("\n");
+  const findings = lintCitations(doc, CIT_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].verdict, "MATCH");
+});
+
+// --- Section 5: the row-status lane -----------------------------------------
+//
+// Definitions from BACKLOG.md, "the succession rule's computable slice: an
+// entry that": a sentence citing `row N` alongside one of
+// OPEN/RE-OPENED/CLOSED/MITIGATED/OBSERVED/ACCEPTED (outside a NOT-negation)
+// is checked against `matrixRow(n).kind`, read live via `statusKind` —
+// never a second hardcoded vocabulary. `docs/directives/robustness-threat-
+// matrix.md` at HEAD is real, committed data (row 4 currently reads
+// "OPEN — RE-OPENED 2026-07-31"); an exhaustive search of BACKLOG.md's full
+// history (`git log -p --all -- BACKLOG.md`, every "row 4" occurrence
+// checked for a nearby status word) found no historical entry literally
+// asserting "row 4 CLOSED" before the 2026-07-31 re-open, so the RED case
+// below pairs a constructed sentence (mirroring this corpus's real phrasing)
+// against the real, current matrix file rather than a historical BACKLOG.md
+// snapshot — named here rather than silently substituted.
+
+test("row-status lane: fires when the asserted status disagrees with the live matrix (row 4, real matrix data)", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Row 4 is CLOSED, so this can proceed.",
+  ].join("\n");
+  const findings = lintRowStatus(doc, MATRIX_PATH);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].row, 4);
+  assert.equal(findings[0].asserted, "CLOSED");
+  assert.equal(findings[0].actualKind, "OPEN");
+});
+
+test("row-status lane: control — an assertion matching the live matrix stays silent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Row 4 is OPEN, matching the matrix.",
+  ].join("\n");
+  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+});
+
+test("row-status lane: control — a row citation with no status word stays silent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** See row 4 for the mechanism.",
+  ].join("\n");
+  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+});
+
+test("row-status lane: a NOT-negated status word does not count as the claim", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** ROW 4 IS NOT CLOSED, on this instance.",
+  ].join("\n");
+  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+});
+
+test("row-status lane: bust-triage's own KNOWN-OPEN verdict word is not read as a row OPEN claim", () => {
+  // Regression pin for the false fire the first dry run against the real
+  // corpus produced: "the entry becomes KNOWN-OPEN" is bust-triage's own
+  // VERDICT_BY_KIND vocabulary (a compound term), never a claim that the
+  // cited row is OPEN.
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** If this holds, this event is row 1 economics and",
+    "  the entry becomes KNOWN-OPEN, not a new class.",
+  ].join("\n");
+  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+});
+
+test("row-status lane: scoped to `## Open`", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — unrelated.** Nothing here.",
+    "",
+    "## Done", "",
+    "- **RESOLVED — a thing.** Row 4 is CLOSED here too.",
+  ].join("\n");
+  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+});
+
+test("row-status lane: zero false fires on the real current BACKLOG.md", () => {
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const findings = lintRowStatus(current, MATRIX_PATH);
+  console.log(
+    "row-status findings on current BACKLOG.md:\n" +
+      findings.map((f) => `line=${f.line} row=${f.row} asserted=${f.asserted} actualKind=${f.actualKind}`).join("\n"),
+  );
+  assert.deepEqual(findings, []);
+});
+
+// --- Section 6: the premise-true-but-work-remaining lane --------------------
+//
+// Definitions from BACKLOG.md, "a derivation asks whether an entry's
+// PREMISE is true and never": a READY entry whose body carries a
+// backtick-quoted commit-shaped hex token near a SHIPPED/CLOSED/DONE word,
+// or a "split into/out" phrase, is flagged for a human read — never
+// auto-re-graded. The real motivating case is the `tools/coverage-walk.mjs`
+// graduation entry, frozen at `633256b`: STILL-TRUE (every fact holds) and
+// entirely done (parts 1-2 shipped at `7827c4e`/`b94d118`, part 3 split into
+// its own entry), yet still graded READY.
+
+test("premise-true lane: fires on the real coverage-walk entry (frozen at 633256b)", () => {
+  const historical = gitShow(RETIREMENT_PASS_REF, "BACKLOG.md");
+  const findings = lintPremiseTrue(historical);
+  const hit = findings.find((f) => /graduate the coverage walk/.test(f.header));
+  console.log("premise-true finding on the frozen positive: " + (hit ? JSON.stringify(hit) : "NONE"));
+  assert.ok(hit, "the coverage-walk entry must be flagged");
+  assert.ok(
+    hit.signals.some((s) => s === "shipped-commit:7827c4e" || s === "shipped-commit:b94d118"),
+    "must name a shipped commit it cites for its own parts",
+  );
+});
+
+test("premise-true lane: control — an entry with no shipped-commit or split-out signal stays silent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing still fully open.** Depends on work that landed",
+    "  elsewhere; nothing here claims this entry's own remainder is done.",
+  ].join("\n");
+  assert.deepEqual(lintPremiseTrue(doc), []);
+});
+
+test("premise-true lane: fires on a shipped-commit citation from the definition", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Part (1) SHIPPED (`7827c4e`), the rest remains.",
+  ].join("\n");
+  const findings = lintPremiseTrue(doc);
+  assert.equal(findings.length, 1);
+  assert.deepEqual(findings[0].signals, ["shipped-commit:7827c4e"]);
+});
+
+test("premise-true lane: fires on a split-out phrase from the definition", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** The remainder was split into its own entry below.",
+  ].join("\n");
+  const findings = lintPremiseTrue(doc);
+  assert.equal(findings.length, 1);
+  assert.deepEqual(findings[0].signals, ["split-out-phrase"]);
+});
+
+test("premise-true lane: scoped to READY headers only", () => {
+  const doc = [
+    "## Open", "",
+    "- **PARKED — a thing.** SHIPPED (`7827c4e`) here too, but not READY.",
+  ].join("\n");
+  assert.deepEqual(lintPremiseTrue(doc), []);
+});
+
+// --- Section 7: the late-correction-placement lane --------------------------
+//
+// Definitions from BACKLOG.md, "a correction APPENDED to the end of an
+// entry is invisible to": the FIRST correction marker (PREMISE CORRECTED /
+// RE-GRADED / CORRECTED / WITHDRAWN) in an entry, outside inline backticks,
+// is flagged if it sits past the first third of the entry's own length. The
+// real motivating case (frozen at `633256b`) is the "both event runbooks
+// open on a tool measured unreliable" entry, whose correction sits at line
+// 29 of 36 (~80% in); the same snapshot also carries a genuine EARLY
+// correction (a DONE entry whose "CORRECTED ON EXECUTION" sits inside its
+// own header, ~line 2 of 13) that must NOT flag.
+
+test("correction-placement lane: fires on the real runbook-caveat entry (frozen at 633256b, correction well past the first third)", () => {
+  const historical = gitShow(RETIREMENT_PASS_REF, "BACKLOG.md");
+  const findings = lintCorrectionPlacement(historical);
+  const hit = findings.find((f) => /event runbooks open on a tool/.test(f.header));
+  console.log("correction-placement finding on the frozen positive: " + (hit ? JSON.stringify(hit) : "NONE"));
+  assert.ok(hit, "the runbook-caveat entry must be flagged");
+  assert.ok(hit.position > 33, "the correction must be past the first third");
+});
+
+test("correction-placement lane: control — a real EARLY correction in the same snapshot stays silent", () => {
+  const historical = gitShow(RETIREMENT_PASS_REF, "BACKLOG.md");
+  const findings = lintCorrectionPlacement(historical);
+  const falsePositive = findings.find((f) => /bust-appears\.md.*checks the tool's conversation/.test(f.header));
+  assert.equal(falsePositive, undefined, "an early correction must not flag");
+});
+
+test("correction-placement lane: control — a marker inside inline backticks is a citation, not a claim (this repo's own proposing entry)", () => {
+  // This repo's own entry proposing this check quotes `PREMISE CORRECTED`
+  // as a literal string, twice, and must not flag on itself.
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const findings = lintCorrectionPlacement(current);
+  const selfHit = findings.find((f) => /correction APPENDED to the end/.test(f.header));
+  assert.equal(selfHit, undefined, "a backtick-quoted marker must not self-fire");
+});
+
+test("correction-placement lane: fires on a synthetic late correction from the definition", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** " + "filler ".repeat(30),
+    "  **CORRECTED 2026-01-01, late in the entry.**",
+  ].join("\n");
+  const findings = lintCorrectionPlacement(doc);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].marker, "CORRECTED");
+});
+
+test("correction-placement lane: an early correction (right after the header) stays silent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing. CORRECTED 2026-01-01 right away.**",
+    "  " + "filler ".repeat(30),
+  ].join("\n");
+  assert.deepEqual(lintCorrectionPlacement(doc), []);
+});
+
+test("correction-placement lane: scoped to `## Open`", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — unrelated.** Nothing here.",
+    "",
+    "## Done", "",
+    "- **RESOLVED — a thing.** " + "filler ".repeat(30),
+    "  **CORRECTED 2026-01-01, late, but out of scope.**",
+  ].join("\n");
+  assert.deepEqual(lintCorrectionPlacement(doc), []);
 });
