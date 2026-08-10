@@ -6101,6 +6101,35 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **2 (feeds the gates)**.
   <!-- entry: "guards firing on legitimate work: discipline, and the suppression direction it misses" -->
 
+- **READY (small) — dispose of `FABLE-BRIEF-public-surface-and-systems-review.md`
+  at the repo root: it is a spent brief, and its own header's reason for
+  existing untracked has expired.** Booked 2026-08-10 by the session that
+  executed it, because naming a loose end is not disposing of it.
+  The file says it is "UNTRACKED on purpose — it argues about what to
+  un-publish, so it does not publish itself while that decision is open." That
+  decision is now CLOSED (untrack-in-place, LOW priority — its own entry
+  above), and every finding the brief commissioned is booked: Part A as the
+  public-surface entry, Part B seeds 1/4/6 as the checker-consumer,
+  derived-view and record-drift entries, seed 2 as the mitigation-outcome
+  instrument, seed 3 shipped by `e9a374b`, seed 5 answered in its own entry.
+  So the brief is spent, not pending.
+  Design (decided): MOVE it to `docs/directives/`, do not delete. Two reasons,
+  and the second is why this is an entry rather than an act. (1) File roles:
+  `docs/directives/` is where persisted briefs of substantial dispatched work
+  live, and this is one. (2) Deleting an untracked file is IRREVERSIBLE — git
+  holds no copy — and it is the operator's own input document, not this
+  session's artifact. An irreversible act on someone else's file is exactly
+  the kind that gets confirmed rather than assumed.
+  Note before moving: `docs/directives/` is TRACKED and this repo is public,
+  so the move publishes it. Read it against the publication bar first
+  (`CLAUDE.local.md`) — it quotes measurements and PR counts, and a spot check
+  found no capture ids in it, but the check belongs to whoever moves it, not
+  to this entry. If it fails that read, delete instead and record which.
+  Done when: the file is under `docs/directives/` and committed, or deleted
+  with the reason recorded in this entry's closure line.
+  Consumer tier **3 (backlog and process)**.
+  <!-- entry: "dispose of the spent FABLE-BRIEF at the repo root" -->
+
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED, current state is the first entry
 
 **STATE AS OF 2026-08-05 21:00Z, read from the API rather than from this
