@@ -6,170 +6,132 @@ SYSTEM items — code, PRs, investigations, upstream threads — live here.
 Fork-only file, excluded from PR slices like FORK-NOTES.md. One item per
 bullet, evidence pointer included.
 
-## Build order — RE-DERIVED 2026-08-10 evening (second derivation of the day)
+## Build order — RE-DERIVED 2026-08-10 late (THIRD derivation of the day)
 
-Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`
-("Build order is DERIVED at build time"), over the **89 `- **READY` bullets
-under `## Open`** as of this derivation — counted with the header test
-(`awk '/^## Done/{exit} /^- \*\*READY/{c++}'`), not carried in prose, because
-the morning derivation stated 86 where the file held 91.
-**Re-derive rather than edit** — patching this list re-creates the
-stored-priority problem one level up.
+Not a stored priority: recomputed from the rubric in `docs/dev-loop.md`, over
+the **110 `- **READY` bullets under `## Open`** as of this derivation, counted
+with the header test (`awk '/^## Done/{exit} /^- \*\*READY/{c++}'`), never
+carried in prose. **Re-derive rather than edit.**
 
-**STALE AS OF 2026-08-10 15:5x — a THIRD derivation is owed, and this note is
-here instead of a patch because the rubric forbids the patch.** Three things
-moved under it since it was written, all inside one session: the state-key
-FLIP was ATTRIBUTED and its anchor is removed above (it turned out to be row 26
-with its cause confirmed, and it spawned two successors, one of which blocks
-the other); the transcript instrument SHIPPED (`b0adb93`) and its anchor is
-removed above — removal only,
-which is why the numbering now skips; `capturePairResult`'s design was SETTLED
-(`cf0592d`), so its "DESK — design NOT decided" grade is wrong in both halves,
-and it is now BLOCKED behind a three-link chain (lineage primitive -> bounded
-`--pin` -> freeze) rather than takeable-with-context; and four entries booked
-today are unranked. A fresh session should read the item-2 grade as void and
-re-derive before choosing, not follow this order.
-**And the cadence itself is a finding, noted rather than acted on:** this would
-be the day's THIRD derivation, each superseded within hours by that day's own
-work landing. That is the list being consumed as designed, not the form
-failing — but a ranking that needs re-deriving every few hours is paying for
-itself in re-derivation, and the question of whether the block should rank only
-the HEAD few items belongs in the next pass.
+**Why a third derivation the same day, stated because two in a day was already
+flagged as churn.** The second one is stale in four specific ways, each of them
+an event rather than an opinion: two of its anchors completed and were removed
+(the state-key FLIP attribution, the transcript instrument); its item 2's grade
+says "design NOT decided" when the design was settled hours later and the item
+is now BLOCKED behind a three-link chain; ~21 net new entries are unranked; and
+a hard blocker was booked ahead of everything.
 
-**Why a second derivation the same day, and it is not churn.** The morning
-list was written before the day's work. Four of its anchors shipped and were
-removed; more importantly TWO entries booked during the day were
-decision-complete and UNRANKED, so the ranking no longer described what a
-fresh session should do first. One of them carries the largest measured cost
-on the whole list and the only one measured today. A ranking that omits the
-day's best-evidenced item is stale in the way this block exists to prevent.
+**The cadence finding, kept because it is about the METHOD and not about
+today.** Three derivations in one day, each superseded within hours by that
+day's own output, is a ranking paying for itself in re-derivation. The response
+is in this block's shape, not in doing it less often: it ranks a HEAD of eleven
+and says plainly that the other ~99 are unranked. A long ranked list is what
+decays fastest, because every item below the few you actually take is a
+prediction nobody tested.
 
-**Each item now carries a DESK / DISPATCHABLE / PARTIAL grade**, which is new
-and is the point of this pass. The grade answers the handoff question the
-ranking alone could not: a fresh session can take any DISPATCHABLE item
-straight to a brief, while a DESK item needs judgment before a brief exists —
-and the morning list's HEAD was a DESK item, so a fresh session following it
-would have opened on an undecided design fork. The grade is read off the
-entry's own markers (design decided / verifier named / done-criterion or write
-boundary), not from memory.
+**Grades** (unchanged from the second pass, they earned their keep): DESK needs
+judgment before a brief exists; DISPATCHABLE goes straight to a brief;
+BLOCKED names what must land first; PARTIAL is decision-incomplete and says
+where.
 
-This pass SUPERSEDES the 2026-08-08 afternoon derivation, which ranked 33 of 81
-entries. Four inputs moved it, each with the check that established it:
+### 0. Gated on an operator decision — not build work, but it blocks the rest
 
-(i) **The population was re-established rather than inherited.** The first
-retirement pass this repo has run (operator trigger: the READY count read as
-implausibly large)
-dispositioned all 92 READY entries against the world — four read-only lanes
-probing each entry's load-bearing premise, every disposition made at the desk
-from their executed output. Eight retired, two proposed drops REJECTED, ten
-premises corrected, one merge. 92 -> 83, then +3 booked from the pass itself.
-The 2026-08-08 list ranked entries whose premises nobody had re-checked; this
-one ranks entries that were.
+**11 commits are unpushed and `git push` is DENIED by the unbooked-subagent
+guard.** The guard half is DISCHARGED: it cites subagent commits `347d477` and
+`e9a374b`, this session dispatched both, and both were verified in the artifact
+— diffs read, suites run, the instruments exercised directly, and `e9a374b`'s
+verifier additionally sabotage-probed. The override is the guard's own
+audit-visible path for exactly that state.
+What remains is not the guard: the stack sits on top of `8b77c4f`, whose commit
+message maps where already-public leaks are in history, and publishing it is an
+operator call that has been surfaced and not yet answered. **Nothing below can
+be pushed until that is settled**, so this is item 0 rather than item 1.
+<!-- entry: "the unbooked-subagent-commit guard" -->
 
-(ii) **The IRREVERSIBLE partition is EMPTY for the THIRD consecutive
-derivation, and it STAYS — settled here, not escalated.** Probed, not inherited:
-no candidate presented itself, and no entry names a hazard whose failure mode is
-genuinely undoable AND whose trigger rate is measured.
-**The escalation clause the 2026-08-08 pass wrote ("a third empty pass means the
-partition has stopped earning its place at the top — a rubric decision to put to
-the operator") is WITHDRAWN, and the way it survived is the more useful half.**
-It read as rule text and was cited as "the partition's own text" by the next
-derivation — this one — which never checked where it lived. It lives nowhere but
-that session's own ranking block: `docs/dev-loop.md`'s partition text says
-nothing about emptiness. A session's aside, inherited as authority, is the
-label-over-body drift the grounding rules name, and one grep settled it.
-**Why emptiness cannot grade this partition at all.** It guards a SILENT,
-irreversible failure — a capture id or an origin IP reaching public git history,
-whose remediation precedent in this repo's `CLAUDE.md` is destroying and
-recreating a host. The corpus rule is explicit: an entry guarding a silent
-failure is never ablated, because quiet weeks cannot grade it; only an entry
-whose absence is LOUD may be toggled on non-firing evidence. Three empty passes
-are therefore evidence about the world (those hazards are handled or not
-approaching), never evidence against the guard. The partition's cost while empty
-is one probe per derivation; the cost of not having it is unbounded and
-unrecoverable, and it is exactly the asymmetry that put it above the cost
-ordering in the first place.
+### 1. Irreversible — evidence or history that cannot be undone
 
-(iii) **The false-verdict partition holds 21 of 86 — a quarter of the list —
-so REACH does the ordering, exactly as the 2026-08-08 pass concluded.** The
-admission test was re-run over the census rather than carried: 24 entries
-carried a measured wrong verdict with a consumer, three of those were retired by
-the pass, 21 remain. Tier is read OFF the entry where it declares one.
+Empty this pass, and that is a RESULT rather than an omission. The leak class
+that put items here was closed today and the closure was verified end to end by
+planting a synthetic id in a tracked file and watching the suite go red. The
+publication-bar and untrack-in-place questions are live but operator-gated, not
+buildable, and they sit in item 0's decision round.
 
-(iv) **Only 10 of 86 entries declare their consumer tier, and that is a finding
-about the entries.** The rubric wants the tier read off the entry as a fact it
-already states; for 76 it is not stated, so this pass read the entry body to
-place it. Every future derivation pays that cost again until entries carry the
-declaration — which is why the tier line is now part of what a new entry writes.
+### 2. Instruments that LIED — Tier A: feeds EVENT DISPOSITION
 
-**FILE ORDER IS THE CARRIER.** The `## Open` section below is in this ranking's
-order, so the SessionStart hook's injected head IS the ranked head. A
-re-derivation is not finished until the tool has run:
+Ordered by REACH — how much downstream evidence the lie corrupts.
 
-    node tools/backlog-order.mjs --check   # exit 1 = file order has drifted
-    node tools/backlog-order.mjs           # apply it
-
-**Partition order**, unchanged and for its stated reason: irreversibility first
-(empty), then the false-verdict partition ordered by REACH, then cost.
-
-### Irreversible — evidence or history that cannot be undone
-
-**EMPTY for the third consecutive derivation, and it STAYS AT THE TOP** — see
-input (ii): this partition guards a silent, irreversible failure, and non-firing
-cannot grade such a guard. Do not re-open the question on a fourth empty pass;
-the answer does not change with the count, because the count is not the
-evidence. The admission test is unchanged for whatever enters next: the failure
-mode must be genuinely UNDOABLE — public git history, or evidence already being
-deleted — AND the trigger rate measured rather than imagined.
-
-### Instruments that lied — Tier A: feeds EVENT DISPOSITION
-
-A lie here mis-files the class, and every mitigation designed afterwards is
-designed against the wrong evidence.
-
-2. **`capturePairResult` picks the busting conversation.** Declared Tier 1: pick the wrong conversation and the class is mis-filed before any other check runs, which is the widest reach on this list. It drops below item 1 only because item 1 is dispatchable today and this is not — reach still argues for it, and a session with context to spend should take it.
-   _DESK — the entry says "Design NOT decided"; the identity-vs-predecessor fork must be settled by judgment before any brief exists_
-   <!-- entry: "`capturePairResult`'s conversation identity is the busting" -->
-4. **Billing and verdict join by timestamp proximity, not by request id** — the same proximity heuristic that picked the wrong conversation this week.
+1. **`verifyPin` cannot fail for the defect it exists to catch, on bounded
+   pins.** Measured by sabotage today, not argued: with `boundedKeep` dropping
+   every third record it should keep, both sides lost the same records, the
+   pair count fell 188 -> 125, and the check still returned `diffs: []`. Widest
+   reach on this list — every frozen pin's trustworthiness reads through it,
+   and the freeze is how evidence survives capture rotation at all.
+   _DISPATCHABLE — design decided, red-first arrangement already run_
+   <!-- entry: "applies the retention filter" -->
+2. **`capturePairResult` picks the busting conversation.** Tier 1 by consumer:
+   pick the wrong conversation and the class is mis-filed before any other
+   check runs. Design settled today by measuring the rotation; two of its three
+   blockers have now landed (the lineage primitive, the bounded pin).
+   _BLOCKED — needs item 1, then both verifier cases frozen_
+   <!-- entry: "capturePairResult's conversation identity is the busting" -->
+3. **`identityRotation` reports the right event under the wrong digest**, so
+   its rows cannot be joined to the event logs recording the same rotation —
+   12-char whole-message hash against the proxy's 16-char content-only one.
    _DISPATCHABLE_
-   <!-- entry: "billing and verdict are written by two extensions with no" -->
-6. **The ❄ detector fires on `cc` alone, so GROWTH is booked as LOSS.** Tier A by consumer, but operator-side in `claude-worktime` — ranked here so its position is honest, not because this repo builds it.
-   _PARTIAL — and cross-repo; the body belongs in that repo_
-   <!-- entry: "the ❄ detector fires on `cc` alone, so GROWTH" -->
+   <!-- entry: "measures the right EVENT" -->
+4. **A frozen evidence archive whose own cited numbers are not in it.** Found
+   by sending a lane to reproduce two claims and having both fail; the source
+   transcript was never frozen, only a derived view beside it.
+   _PARTIAL — the archive is operator-side data, so the write boundary is
+   split; the convention half (cite the FILE, not the directory) is decided_
+   <!-- entry: "a FROZEN evidence archive whose own cited numbers" -->
+5. **Give the downstream stateful extensions the PRE-PIPELINE conversation
+   identity.** Row 26's actual fix, and today's attribution named it: the
+   extension that keys pre-mutation never rotates. **Its blocker cleared this
+   session** — the gating class shipped and went red on the real defect.
+   _DESK, deployment-coupled — the design's migration half (state already on
+   disk under rotated keys) is explicitly not decided, and it touches state
+   KEYS, so row 3's restart-transparency declaration is owed before it ships_
+   <!-- entry: "give the downstream stateful extensions the PRE-PIPELINE" -->
 
-### Tier B: feeds the GATES
+### 3. Tier B: feeds the GATES
 
-A lie here passes a broken mitigation — expensive and loud, and it only matters
-once the class above is right.
-
-7. **`rebilledBytes` emits the understated number under the intuitive name.** 
-   _PARTIAL — design and verifier present, done-criterion not_
-   <!-- entry: "`rebilledBytes` still emits the understated number under" -->
-8. **Bucket (d) of the XDG accounting.** RE-MEASURED 2026-08-10: `tools/xdg-writer-guard.mjs` is red at 34, of which 9 correctly name someone else's path and ~20 are real stale claims about our own artifacts — the entry's "STILL-WRONG 17" was two days old. The guard is also wired to NOTHING, which is a second item hiding inside this one.
-   _PARTIAL — repair set now measured but not triaged item by item_
-   <!-- entry: "bucket (d) of the XDG accounting" -->
-9. **The required-reading gate guards `Write`/`Edit` and not a script.** 
-   _PARTIAL — design and verifier present_
-   <!-- entry: "the required-reading gate guards `Write`/`Edit` and NOT a" -->
-
-### Tier C: feeds the BACKLOG and the process
-
-10. **A backlog entry that cites `file:line` has no check that the line still holds what it quotes.** Booked and sharpened 2026-08-10 from six drifts in one session, one of them LOAD-BEARING (a BROKEN-PATH under the argument that sets our whole upstream-PR strategy). Ranks above its sibling below because its criterion has already been dry-run against real cases and corrected once — the sibling's has not.
-   _DISPATCHABLE — four answers, red-first against a frozen reference_
-   <!-- entry: "a backlog entry that cites `file:line` has no check that" -->
-11. **A derived VIEW of this backlog outlives its source.** Same class as item 10 and a CANDIDATE MERGE with it at the next retirement pass — kept separate here because merging is a retirement-pass act, not a ranking act.
+6. **The suite has at least one intermittent test and the runner discards the
+   evidence to name it.** One failure in four runs of one commit today, with
+   the documented ENOSPC class excluded by checking `df` rather than assuming.
+   It gates every push, so a red that vanishes on re-run trains the retry
+   reflex.
    _DISPATCHABLE_
-   <!-- entry: "a derived VIEW of this backlog outlives its source" -->
-12. **The READY count every session reads at startup is wrong.** Now carrying a third measured instance: this block's own previous derivation stated its population as 86 where the file held 91.
-   _PARTIAL — verifier and boundary present_
-   <!-- entry: "the READY count every session reads at startup is 66" -->
-13. **The succession rule's computable slice.** 
+   <!-- entry: "the suite has at least one INTERMITTENT test" -->
+7. **The required-reading gate guards `Write`/`Edit` and not a third tool.**
    _DISPATCHABLE_
-   <!-- entry: "the succession rule's computable slice" -->
+   <!-- entry: "the required-reading gate guards" -->
 
-**Not ranked, deliberately:** upstream PR work, the operator-side dotfiles and
-corpus pointers, and the 69 entries below — they keep their existing relative
-order, which is what ranking a head rather than the whole list means.
+### 4. Tier C: feeds the BACKLOG and the process
+
+8. **`backlog-neighbours` joins on FILES**, so a premise refuted inside another
+   entry is invisible to it — the miss that happened here today, with its red
+   already run.
+   _DISPATCHABLE_
+   <!-- entry: "backlog-neighbours` joins on FILES" -->
+9. **`identityRotation` counts a persistent STATE as if it were an event**, so
+   its 40% is not the rotation rate row 26 asks for.
+   _DISPATCHABLE_
+   <!-- entry: "counts a persistent STATE" -->
+10. **A bounded pin's size scales with identity CHURN**, which no note says and
+    the first real measurement contradicted.
+    _DISPATCHABLE_
+    <!-- entry: "a bounded pin's SIZE scales with the busting" -->
+
+### The unranked ~99
+
+Deliberately unranked, and named so the silence is not read as a verdict. The
+rubric's own guard applies: **an item nobody can rank is a finding about the
+item** — if its evidence supports none of signals 2-4 it is not
+decision-complete, and the gap is in the entry rather than in this list. A
+session with capacity beyond the head above re-derives over the tail rather
+than reading down from here.
+
 
 ## Handoff — 2026-08-10 evening. Rewritten, not appended; a stale one reads as authoritative.
 
@@ -324,7 +286,8 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
-- **READY (do this first) — 9 commits are unpushed and `git push` is DENIED by
+- **READY (do this first) — 11 commits are unpushed (was 9 when booked; the
+  count is re-read, never carried) and `git push` is DENIED by
   the unbooked-subagent-commit guard.** Booked 2026-08-10 evening by the
   closing session so it is visible at SESSION START, not only in the handoff:
   the session-start hook injects READY bullets from this section, and the
@@ -347,6 +310,54 @@ ENOSPC misattribution with its wrong first explanation left in.
   remote.
   Consumer tier **1 (event disposition)**.
   <!-- entry: "9 commits unpushed; push denied by the unbooked-subagent guard" -->
+
+- **READY (BLOCKING the bounded pin's fidelity claim) — `verifyPin` on a
+  BOUNDED pin applies the retention filter to its own reference side, so it
+  cannot fail for the defect it exists to catch. PROVEN by sabotage, not
+  argued.** Booked 2026-08-10 at integration of `--bounded`. The lane surfaced
+  the mechanism as a question rather than settling it at its own tier, which is
+  exactly right; the answer is that the mechanism is wrong.
+  What it does today: for `header.bounded`, the live side is built by
+  `writeCapturePrefixBounded`, which applies `boundedKeep` — the SAME retention
+  function the pin was built with. Both sides therefore drop the same records,
+  and any defect in the filter is invisible by construction. This is the
+  same-parentage failure the corpus names: the expectation pins the very thing
+  it should catch.
+  **The measurement, run at the desk before booking.** Baseline on
+  `s-captureAW` 1048..1049: bounded pin 19,686,465 bytes vs a streamed source
+  prefix of 610,897,526 (**3.22%**), `verifyPin` live 188 pairs / pin 188 /
+  `diffs: []`. Then `boundedKeep` was sabotaged to drop every THIRD record it
+  should keep, and the same command re-run: pin 12.93 MB, live **125** pairs /
+  pin 125 / **`diffs: []` again**. A pin that had silently lost a third of its
+  evidence got a clean bill of health, and the pair count fell 188 -> 125 with
+  nothing flagging it. `tools/harvest.mjs` was restored from a byte copy
+  immediately after (verified: empty `git diff`, zero `SABOTAGE` occurrences).
+  **What this does and does not invalidate, because the distinction is the
+  useful part.** The SIZE claim stands — 3.22% is a measurement of the artifact
+  and was reproduced independently at the desk. The FIDELITY claim does not:
+  "identical verdicts at a fraction of the bytes" is established by this check
+  and by nothing else, so as of `e9a374b` the bounded mode ships with its size
+  proven and its fidelity unproven. No bounded pin gets committed as a fixture
+  until this is fixed.
+  Design, decided: the live side goes back to the UNFILTERED prefix
+  (`writeCapturePrefix`), and the COMPARISON is narrowed instead of the input —
+  both sides restricted to the BUSTING CONVERSATION, identified by
+  `conversationOf` of the target record itself. That identity comes from the
+  capture, not from `boundedKeep`, which is the whole point: the reference
+  stops being filter-derived. The lineage-related conversations are
+  deliberately NOT part of the bar — they are retained so a later
+  lineage-aware consumer can find them, and a contract defined over them would
+  be filter-derived again.
+  Verifier, red-first, and the arrangement is ALREADY RUN and recorded above:
+  re-apply the same every-third-record sabotage and the check must go RED
+  (target-conversation pairs differ), where today it returns `diffs: []`.
+  Unsabotaged, the primary case must still return no divergence. Both arms on
+  one capture, one command each.
+  Done-criterion: sabotage red, clean run green, and the entry above re-graded
+  from "size proven, fidelity unproven".
+  Write boundary: `tools/harvest.mjs`, `test/harvest-pin-bounded.test.mjs`.
+  Consumer tier **1 (event disposition)** — every frozen pin's trustworthiness
+  reads through this check.
 
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
@@ -462,6 +473,306 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**. Unranked (booked after the
   derivation); a Tier A head candidate at the next one.
   <!-- entry: "capturePairResult's conversation identity is the busting request's own messages[0]" -->
+
+- **READY (small) — `identityRotation` measures the right EVENT with the
+  wrong DIGEST, so its rows cannot be joined to the event logs that record the
+  same rotation.** Surfaced 2026-08-10 by the lane that built it, as a question
+  rather than a unilateral predicate change — correctly. The class fires
+  exactly on its named positive and stays silent on its named negative, both
+  verified live; what does not line up are the row's `rawId`/`fwdId` STRINGS.
+  `replay.mjs`'s `sha()` (`:87-89`) truncates to **12** hex chars over
+  `JSON.stringify` of the WHOLE message object, `role` included;
+  `conversationSubKey`/`hashMessageContent`
+  (`proxy/extensions/message-hash.mjs:16-24,48-63`) truncates to **16** over
+  `msg.content` ONLY. Two primitives over one conceptual quantity, never shown
+  equivalent, so by construction a census row can never print the digest the
+  insertion-normalization event log recorded for the same request — the desk's
+  own verification of this class had to compute the second primitive by hand
+  to check the first.
+  **Why this is a definition problem and not a formatting one.** What counts as
+  "the conversation identity our extensions key on" is defined by
+  `conversationSubKey`, because that is the function the proxy actually keys
+  on. A near-twin computed over a different input shape can disagree with it —
+  a `role` change on `messages[0]` fires our class and moves no real key — and
+  nothing downstream would notice, since no consumer compares the two.
+  Design, decided: the row carries the REAL identity. Retain `inConvKey` and
+  `outConvKey` on the compact entry — two short strings per ENTRY, not per
+  message, which is cheaper than the per-message arrays already retained
+  beside them — computed by importing `conversationSubKey` itself, never a
+  re-implementation (`tools/harvest.mjs` already imports across the
+  `proxy/` boundary, so the direction is established). The stripped-twin
+  predicate stays as the cheap pre-filter; the digests reported become the
+  proxy's own.
+  Verifier, red-first, live positive already in hand: the row for
+  `s-captureAT` at 2026-08-08T09:58:50.626Z must print
+  `496b188f5f435920` -> `a20843f8616f3866`, the pair the desk verified twice
+  and the event log recorded, where today it prints two 12-char digests
+  matching neither. The negative at 09:58:46.362Z must stay silent.
+  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
+  Consumer tier **1 (event disposition)**.
+
+- **READY (small) — a FROZEN evidence archive whose own cited numbers are not
+  in it, and nothing said so for three days.** Found 2026-08-10 by the lane
+  building the transcript instrument, which was sent to reproduce two claims
+  against `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`
+  and could reproduce NEITHER — correctly reporting both as gaps rather than
+  tuning the tool until the numbers appeared. Re-run independently at the desk,
+  same result both times:
+  - the "01:00 session" numbers (`cc` 335,933 / `cr` 39,711) are real and ARE
+    frozen — in `event-windows.jsonl`, a DERIVED worktime log sitting beside
+    the tar. The raw CC transcript they were computed from is NOT in
+    `transcripts-2026-08-07.tar.gz`: no file among its 24 carries
+    `"sessionId":"06636dd1-…"`. The id appears eight times in the tar's PATH
+    names — as a scratchpad DIRECTORY belonging to that session, whose
+    transcripts have their own, different session ids. A name-shaped match in
+    the wrong namespace, which is the coordinate-space confusion `dev-loop`
+    already collects, arriving inside an evidence archive.
+  - the `previous_message_not_found` timestamps (03:31:59Z / 03:32:01Z) appear
+    NOWHERE in the archive — not in the tar, not in `cold-rows-all.jsonl`, not
+    in `event-windows.jsonl`. The archive does hold two real ones, at
+    2026-08-06T16:41:37.941Z and 2026-08-06T23:59:10.461Z. The cited pair most
+    likely came from the worktime LEDGER (the neighbouring entry discusses a
+    contradictory-class pair at 2026-08-07T03:32:02Z in ledger vocabulary —
+    booked twice, `hit`/`idle` then `cost`/`resume`), i.e. a verifier that
+    silently crossed two sources.
+  **Why this is the closing gate's question 2 failing in the field, not a
+  filing error.** The archive was created BY a design pass, on the day of the
+  measurement, precisely so the claims would stay checkable after rotation. It
+  froze the derived views and left the source out — so the entry read as
+  evidence-backed for three days while the evidence for half of it did not
+  exist, and the only reason anyone found out is that a lane was sent to
+  reproduce it rather than to trust it.
+  Design, decided, two halves — the second is the one that generalises:
+  (1) the archive gains an INVENTORY it does not currently have: one
+  `MANIFEST.jsonl` listing every file with its size, its sha256, and for a
+  transcript the session ids actually INSIDE it (never the ones in its path).
+  (2) A verifier that cites a frozen archive names the FILE inside it that
+  carries the number, not the directory — `<archive>/event-windows.jsonl` is a
+  checkable citation, `<archive>/` is a gesture. The convention costs a path
+  segment and is what would have caught this at write time.
+  Verifier, red-first, with the positive already in hand: build the manifest
+  and assert it lists no `sessionId` for 06636dd1 while
+  `event-windows.jsonl` does carry `cc` 335,933 — the exact split this finding
+  is. RED against the old state is that no manifest exists at all, so the
+  question "is the source in here?" is answerable only by extracting 24 files
+  and grepping, which is what it cost today.
+  Done-criterion: the manifest exists, the transcript entry above cites file
+  paths rather than the directory, and both facts above are readable without
+  extracting the tar.
+  Write boundary: the archive directory (operator-side data, not this repo's
+  tree) plus this repo's citing entries. **Consumer tier 1 (event
+  disposition)** — a frozen archive is what every later attribution re-reads,
+  and one that silently lacks its source sends the re-reader to a wrong
+  conclusion or to no conclusion at all.
+
+- **READY — give the downstream stateful extensions the PRE-PIPELINE
+  conversation identity; the fix already exists in-tree and only one extension
+  uses it.** Booked 2026-08-10 from the same attribution. Row 26's defect is
+  that `insertion-normalization` (order 395) and `deferred-tool-rewrite`
+  (order 425) key their per-conversation state on `conversationSubKey` of the
+  body AS THEY RECEIVE IT — i.e. over `messages[0]` bytes that
+  `fresh-session-sort` (order 250) may have just invented. `fresh-session-sort`
+  itself does NOT have this problem, and that is the whole design input:
+  `fresh-session-sort.mjs:373` computes its memory key by calling
+  `resolveInsertionSessionKey` on `body.messages` BEFORE its own relocation
+  runs, so its identity is stable under its own edit. Corroborated on disk —
+  the only `*-fresh-sort-relocated.json` present sits under the pre-mutation
+  suffix, none under the rotated one.
+  Design, NOT yet decided, and this is named rather than hand-waved: the shape
+  is "capture the conversation identity once, at the pipeline's entry, and let
+  every stateful extension read THAT" — but where it is carried (a `ctx` field
+  set before the first mutating extension is the obvious candidate), and what
+  happens to state already on disk under rotated keys, are open. The migration
+  half is the one that bites: existing per-key files are named by the rotated
+  identity, and a change to the key scheme touches state KEYS, which is exactly
+  the threat-matrix row-3 condition under which a restart is NOT
+  cache-transparent and must state its declaration before it ships.
+  **HARD ORDERING CONSTRAINT (rubric signal 1): blocked on the
+  `identityRotation` census class above.** A check that only goes red against
+  the current defect has to be demonstrated red BEFORE the fix removes the
+  defect, or it ships having never gone red on anything — and this fix's whole
+  effect is to make rotations stop mattering, which would leave the class
+  permanently green and unproven.
+  Consumer tier **1 (event disposition)**. Deployment-coupled: `proxy/` change,
+  needs the dotfiles pin bump and a restart, at a stated session boundary.
+
+- **READY (small) — the suite has at least one INTERMITTENT test, and the
+  runner throws away the evidence needed to name it.** Observed 2026-08-10 at
+  `e9a374b`: four consecutive full runs of ONE commit returned 2642 pass / **1
+  fail**, then 2643 / 0, then 2643 / 0, then (with another lane integrated)
+  2649 / 0. The documented environment class was EXCLUDED rather than assumed:
+  `df` reported `/tmp` at **3% used, 30 GB free**, so this is not the 2026-08-08
+  ENOSPC shape, which is the first suspect this repo tells you to check.
+  **The failing test was never identified, and that is the actual defect.** The
+  run streamed to a terminal, the summary counters were read, and by the time
+  the failure mattered the output was gone; two further runs were spent on
+  greps against output that no longer existed. The suite gates every push, so
+  an intermittent failure that vanishes on re-run trains precisely the retry
+  reflex that a red result must never train.
+  Design, decided, two halves. (1) The runner persists each run's full output
+  to a per-run file under the repo's scratch convention and prints the path in
+  its summary line, so a transient red is diagnosable after the fact instead of
+  re-run away. (2) The pre-push hook keeps its own last-failure output for the
+  same reason — it is the run most likely to be transient and least likely to
+  be watched.
+  Verifier, red-first: with the persistence in place, force one failure, then
+  confirm the named file contains the failing test's name and diff AFTER a
+  subsequent green run has overwritten the console. Today no such file exists,
+  which is the red.
+  NOT fixed on notice, and named rather than left implicit: the flake itself
+  stays UNIDENTIFIED until the mechanism exists to catch it, so this entry
+  buys the diagnosis, not the fix. If the same counter split recurs before
+  then, capture the log by redirection first.
+  Write boundary: `package.json`, `tools/git-hooks/pre-push`.
+  Consumer tier **2 (feeds the gates)**.
+
+- **READY (small) — the required-reading gate guards `Write`/`Edit` and NOT a
+  script, so the session's first write can bypass it entirely.** Measured
+  2026-08-10 by walking into it: this session's phase-1 edit rewrote
+  `BACKLOG.md` from a `node` script run through `Bash`, moving 74 bullets, and
+  the PreToolUse gate that is supposed to deny the first write until
+  `docs/dev-loop.md` and `FORK-NOTES.md` have been Read never fired — it keys on
+  the Write/Edit tool names. No harm here (both files had been Read, which is
+  why this is a gate finding and not an incident), and that is exactly what makes
+  it worth booking: the guarded route was taken by accident, not by design.
+  This is the entry-path table in `docs/dev-loop.md` ("a mechanism that guards
+  one route is not a guard") with a fifth row, and the same shape as the
+  `npm test` vs `node --test` row already in it: the protected thing is reachable
+  by a second route, the second route is silent, and every instance reads as
+  working because the route someone happened to take was the guarded one.
+  Design, decided: the gate matches on the WRITE EFFECT, not the tool name — add
+  a Bash lane that fires when a command's argv would write a repo file (a
+  redirect, a `tee`, an interpreter invocation with a script that writes), or, if
+  that predicate is too loose to keep near-zero false fires, invert it: make the
+  reading obligation a precondition of the SESSION rather than of the first
+  Write, satisfied once and checked cheaply thereafter. The judgment-shaped
+  remainder stays prose with the operator as backstop — the corpus rule on
+  mechanisms earning their slot only where the trigger is computable.
+  Verifier, red-first and permanently runnable: in a scratch clone with the
+  reading unsatisfied, run `node -e 'require("fs").appendFileSync("BACKLOG.md","x")'`
+  through Bash — it must be DENIED, and the identical run after the two Reads must
+  be allowed. Both arms required; today only the second is observable, which is
+  the vacuous-green shape.
+  Consumer tier **2 (feeds the gates)** — it is a guard in front of a
+  correctness obligation. Unranked (booked after the derivation).
+
+- **READY (small) — `backlog-neighbours` joins on FILES, so a premise refuted
+  inside ANOTHER ENTRY is invisible to it; add the IDENTIFIER join.** Booked
+  2026-08-10, from the miss it would have caught the same hour. `cf0592d`
+  recorded a rotation measurement in the `capturePairResult` entry which
+  refuted the retention rule of the bounded-`--pin` entry — a conversation-only
+  filter that drops the very predecessor it was meant to freeze. Nothing
+  flagged it; it surfaced only because the two entries were read together at
+  dispatch time, an hour later, by hand. `tools/backlog-neighbours.mjs` exists
+  for exactly this class ("closing an entry can invalidate a DIFFERENT open
+  entry", its header) and could not see it. Its join is a commit's touched
+  FILES against entries' backticked file tokens, and this commit touched only
+  `BACKLOG.md`. **Run today, it returns TEN candidates and the bounded-`--pin`
+  entry is not among them** — the ten are the entries that happen to cite
+  `BACKLOG.md` by name, i.e. the ones ABOUT backlog tooling. So the failure is
+  not an empty result, which would at least look like one: it is a populated,
+  plausible report selected by a naming convention that is uncorrelated with
+  who shares the moved premise. A reader gets ten dispositions to fill and the
+  one that mattered is absent.
+  Design, decided: a SECOND join in the same report, at one grain finer.
+  When a commit changes `BACKLOG.md` itself, diff which ENTRIES its bodies
+  changed, and list every still-open entry sharing a backticked camelCase
+  IDENTIFIER token with them — same report shape, same blank disposition slot
+  (still-valid / premise-corrected / now-unnecessary), same three-answer
+  discipline, still a REPORT and never a gate. The file join is untouched.
+  **Measured before building, on this tree (2026-08-10), because a join is
+  worth nothing if it fires on everything or on nothing:** over the 116 open
+  entries there are 194 distinct backticked camelCase identifiers, 44 of them
+  shared by more than one entry, and the widest is shared by SEVEN. That is
+  report-sized, unlike the file join's own worst case (`docs/dev-loop.md` is
+  named by sixteen entries, which its header already calls out as the reason
+  it is not a gate). One entry cites a disproportionate share of all
+  identifiers and will appear in most lists — name it in the output rather
+  than special-casing it.
+  Verifier, red-first, with a live known positive rather than a constructed
+  one: run the new join over `cf0592d`. It must list the bounded-`--pin` entry
+  as a neighbour of the `capturePairResult` entry via `conversationOf` — the
+  miss above, reproduced. RED against the OLD implementation was RUN, not
+  assumed: `node tools/backlog-neighbours.mjs cf0592d` today prints TEN
+  `shared=BACKLOG.md` candidates and none of them is the bounded-`--pin`
+  entry. Re-run after THIS entry was written it prints ELEVEN — this entry
+  joined the candidate set, because it cites `BACKLOG.md`, while the entry
+  that actually shares the moved premise still does not appear. The count
+  tracks how many entries are ABOUT backlog tooling and is uncorrelated with
+  the premise, which is the defect stated as a measurement. (Candidate LINE
+  numbers are deliberately not recorded: they shift on every insertion, and an
+  entry about stale cross-entry evidence should not ship a stale view of its
+  own.) BASELINE, so
+  the red is not vacuous: those ten prove the tool RAN and joined — this is a
+  wrong-population result, not a dead command — and the file join must still
+  return its own candidates on a commit touching a CODE file, unchanged by this
+  work. Second positive, already planted: `sameLineage` appears in exactly the
+  two entries of the lineage chain and in no others, so it is a two-member
+  class the join must reproduce exactly.
+  Done-criterion: both joins in one report, the `cf0592d` reproduction pasted,
+  suite green.
+  Write boundary: `tools/backlog-neighbours.mjs`, `test/backlog-neighbours.test.mjs`.
+  Consumer tier **3 (backlog and process)**.
+  **Second, smaller finding from the same hour, same file, booked here rather
+  than as its own entry because the mechanism is the same lint:** cross-entry
+  references in this file are written POSITIONALLY — "the entry above", "split
+  out from the entry below" — and `tools/backlog-order.mjs` PHYSICALLY REORDERS
+  entries on every derivation. Four such references were written today and all
+  four still happened to hold after a reorder ran minutes later, which is luck
+  and not a property. When one breaks it breaks silently: the sentence stays
+  grammatical and points at whatever entry now occupies the position. The file
+  already carries the durable handle — each entry's `<!-- entry: "…" -->`
+  anchor — so the rule is that a cross-entry reference names the headline, and
+  the check is a `backlog-lint` report flagging positional words in an entry
+  body that refers to another entry. Instrument-positive available today: the
+  lineage chain's three entries reference each other positionally right now.
+
+- **READY (small) — `identityRotation` counts a persistent STATE as if it were
+  an event, so its 40% is not the rate row 26 asks about.** Measured
+  2026-08-10 on `s-captureAT`: **298 of 738 requests** classify. The lane's
+  reading, which the code supports: `fresh-session-sort`'s relocation is a
+  persistent per-session mutation — once it fires for a conversation, EVERY
+  subsequent request in that conversation carries the relocated block, and a
+  per-REQUEST predicate re-fires on each one. So 298 is "requests served under
+  a rotated identity", while row 26's open question is "how often does a
+  rotation OCCUR", and the two differ by roughly the length of each affected
+  conversation.
+  Design, decided: keep the per-request rows (they are the honest per-request
+  fact and the join surface for a cost question), and add a TRANSITION count
+  beside them — a rotation is NEW when the conversation's raw identity has not
+  been seen rotating before in this capture. Report both, labelled, because
+  reporting either alone invites the other's question.
+  Verifier: over `s-captureAT` the per-request count stays 298 and the
+  transition count is materially smaller; both printed, neither derivable from
+  the other by the reader guessing. Done when the daily sweep's number cannot
+  be read as a rotation rate without saying which of the two it is.
+  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
+  Consumer tier **3** — it mis-describes a count rather than mis-classifying an
+  event.
+
+- **READY (small) — a bounded pin's SIZE scales with the busting
+  conversation's identity CHURN, which the design note does not say and the
+  first real measurement contradicts.** Measured 2026-08-10 by the
+  `--bounded` lane. The `capturePairResult` entry's framing implies a target
+  plus a few neighbours; the real RED2 union arm on `s-captureAT` ord 715 came
+  back at **251 real records**, because that conversation's `conversationOf`
+  churned REPEATEDLY across its whole growth rather than once near the end —
+  `lineageOverlap` runs from 0.60 (ord 5, a tiny message set sharing a handful
+  of messages) up to 0.98 (near ord 715), every one of them above the 0.5
+  threshold. That is the union working as specified, not a defect: a small
+  early message set clears a ratio threshold on a few shared messages just as
+  easily as a large late one does on nearly all of them, because the
+  denominator is `min(|A|,|B|)`.
+  Design, decided: state it where the number lives, not where it was
+  discovered — a note beside `LINEAGE_THRESHOLD` in `tools/replay.mjs` naming
+  the min-denominator consequence, so the next reader meets it at the
+  definition instead of per-instance. No behaviour change: the threshold is
+  NOT retuned, per its own entry ("a future case landing between the clusters
+  is a finding about the class, not a reason to tune the number").
+  Verifier: the note cites the measured 0.60-0.98 spread and the 251-record
+  outcome. Done when a reader of `LINEAGE_THRESHOLD` can predict the sizing
+  behaviour without running it.
+  Write boundary: `tools/replay.mjs`. Consumer tier **3**.
 
 - **READY (small) — billing and verdict are written by two extensions with no
   join key, so the join is by TIMESTAMP, which is how today's walk mis-joined.**
@@ -647,36 +958,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   upstream-error-log.mjs, rate-limit-log.mjs. session-mirror-writer.mjs's
   contract sentence is now at lines 7-9, not 8-9. The core defect (stale
   ~/.claude comments) is unfixed and the entry stands.
-- **READY (small) — the required-reading gate guards `Write`/`Edit` and NOT a
-  script, so the session's first write can bypass it entirely.** Measured
-  2026-08-10 by walking into it: this session's phase-1 edit rewrote
-  `BACKLOG.md` from a `node` script run through `Bash`, moving 74 bullets, and
-  the PreToolUse gate that is supposed to deny the first write until
-  `docs/dev-loop.md` and `FORK-NOTES.md` have been Read never fired — it keys on
-  the Write/Edit tool names. No harm here (both files had been Read, which is
-  why this is a gate finding and not an incident), and that is exactly what makes
-  it worth booking: the guarded route was taken by accident, not by design.
-  This is the entry-path table in `docs/dev-loop.md` ("a mechanism that guards
-  one route is not a guard") with a fifth row, and the same shape as the
-  `npm test` vs `node --test` row already in it: the protected thing is reachable
-  by a second route, the second route is silent, and every instance reads as
-  working because the route someone happened to take was the guarded one.
-  Design, decided: the gate matches on the WRITE EFFECT, not the tool name — add
-  a Bash lane that fires when a command's argv would write a repo file (a
-  redirect, a `tee`, an interpreter invocation with a script that writes), or, if
-  that predicate is too loose to keep near-zero false fires, invert it: make the
-  reading obligation a precondition of the SESSION rather than of the first
-  Write, satisfied once and checked cheaply thereafter. The judgment-shaped
-  remainder stays prose with the operator as backstop — the corpus rule on
-  mechanisms earning their slot only where the trigger is computable.
-  Verifier, red-first and permanently runnable: in a scratch clone with the
-  reading unsatisfied, run `node -e 'require("fs").appendFileSync("BACKLOG.md","x")'`
-  through Bash — it must be DENIED, and the identical run after the two Reads must
-  be allowed. Both arms required; today only the second is observable, which is
-  the vacuous-green shape.
-  Consumer tier **2 (feeds the gates)** — it is a guard in front of a
-  correctness obligation. Unranked (booked after the derivation).
-
 - **READY (small) — a backlog entry that cites `file:line` has no check that
   the line still holds what it quotes, and citations outlived their source six
   times in one session.** Measured 2026-08-10 across the retirement pass and
@@ -932,37 +1213,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
   Consumer tier **1 (event disposition)**.
 
-- **READY — give the downstream stateful extensions the PRE-PIPELINE
-  conversation identity; the fix already exists in-tree and only one extension
-  uses it.** Booked 2026-08-10 from the same attribution. Row 26's defect is
-  that `insertion-normalization` (order 395) and `deferred-tool-rewrite`
-  (order 425) key their per-conversation state on `conversationSubKey` of the
-  body AS THEY RECEIVE IT — i.e. over `messages[0]` bytes that
-  `fresh-session-sort` (order 250) may have just invented. `fresh-session-sort`
-  itself does NOT have this problem, and that is the whole design input:
-  `fresh-session-sort.mjs:373` computes its memory key by calling
-  `resolveInsertionSessionKey` on `body.messages` BEFORE its own relocation
-  runs, so its identity is stable under its own edit. Corroborated on disk —
-  the only `*-fresh-sort-relocated.json` present sits under the pre-mutation
-  suffix, none under the rotated one.
-  Design, NOT yet decided, and this is named rather than hand-waved: the shape
-  is "capture the conversation identity once, at the pipeline's entry, and let
-  every stateful extension read THAT" — but where it is carried (a `ctx` field
-  set before the first mutating extension is the obvious candidate), and what
-  happens to state already on disk under rotated keys, are open. The migration
-  half is the one that bites: existing per-key files are named by the rotated
-  identity, and a change to the key scheme touches state KEYS, which is exactly
-  the threat-matrix row-3 condition under which a restart is NOT
-  cache-transparent and must state its declaration before it ships.
-  **HARD ORDERING CONSTRAINT (rubric signal 1): blocked on the
-  `identityRotation` census class above.** A check that only goes red against
-  the current defect has to be demonstrated red BEFORE the fix removes the
-  defect, or it ships having never gone red on anything — and this fix's whole
-  effect is to make rotations stop mattering, which would leave the class
-  permanently green and unproven.
-  Consumer tier **1 (event disposition)**. Deployment-coupled: `proxy/` change,
-  needs the dotfiles pin bump and a restart, at a stated session boundary.
-
 - **DONE 2026-08-10 — ANSWERED, and the answer is that the flip is OURS. The
   entry's own premise ("the class is row 26 but this instance has no cause")
   was half wrong: it IS row 26, cause and all.** The varying input is named at
@@ -1026,60 +1276,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   input is named at field granularity, or the entry is re-graded PARKED with
   that named as the missing evidence.
   <!-- entry: "attribute the state-key FLIP that disarmed row 1's mitigation" -->
-
-- **READY (small) — a FROZEN evidence archive whose own cited numbers are not
-  in it, and nothing said so for three days.** Found 2026-08-10 by the lane
-  building the transcript instrument, which was sent to reproduce two claims
-  against `~/.local/share/claude-worktime/cold-design-evidence-2026-08-07/`
-  and could reproduce NEITHER — correctly reporting both as gaps rather than
-  tuning the tool until the numbers appeared. Re-run independently at the desk,
-  same result both times:
-  - the "01:00 session" numbers (`cc` 335,933 / `cr` 39,711) are real and ARE
-    frozen — in `event-windows.jsonl`, a DERIVED worktime log sitting beside
-    the tar. The raw CC transcript they were computed from is NOT in
-    `transcripts-2026-08-07.tar.gz`: no file among its 24 carries
-    `"sessionId":"06636dd1-…"`. The id appears eight times in the tar's PATH
-    names — as a scratchpad DIRECTORY belonging to that session, whose
-    transcripts have their own, different session ids. A name-shaped match in
-    the wrong namespace, which is the coordinate-space confusion `dev-loop`
-    already collects, arriving inside an evidence archive.
-  - the `previous_message_not_found` timestamps (03:31:59Z / 03:32:01Z) appear
-    NOWHERE in the archive — not in the tar, not in `cold-rows-all.jsonl`, not
-    in `event-windows.jsonl`. The archive does hold two real ones, at
-    2026-08-06T16:41:37.941Z and 2026-08-06T23:59:10.461Z. The cited pair most
-    likely came from the worktime LEDGER (the neighbouring entry discusses a
-    contradictory-class pair at 2026-08-07T03:32:02Z in ledger vocabulary —
-    booked twice, `hit`/`idle` then `cost`/`resume`), i.e. a verifier that
-    silently crossed two sources.
-  **Why this is the closing gate's question 2 failing in the field, not a
-  filing error.** The archive was created BY a design pass, on the day of the
-  measurement, precisely so the claims would stay checkable after rotation. It
-  froze the derived views and left the source out — so the entry read as
-  evidence-backed for three days while the evidence for half of it did not
-  exist, and the only reason anyone found out is that a lane was sent to
-  reproduce it rather than to trust it.
-  Design, decided, two halves — the second is the one that generalises:
-  (1) the archive gains an INVENTORY it does not currently have: one
-  `MANIFEST.jsonl` listing every file with its size, its sha256, and for a
-  transcript the session ids actually INSIDE it (never the ones in its path).
-  (2) A verifier that cites a frozen archive names the FILE inside it that
-  carries the number, not the directory — `<archive>/event-windows.jsonl` is a
-  checkable citation, `<archive>/` is a gesture. The convention costs a path
-  segment and is what would have caught this at write time.
-  Verifier, red-first, with the positive already in hand: build the manifest
-  and assert it lists no `sessionId` for 06636dd1 while
-  `event-windows.jsonl` does carry `cc` 335,933 — the exact split this finding
-  is. RED against the old state is that no manifest exists at all, so the
-  question "is the source in here?" is answerable only by extracting 24 files
-  and grepping, which is what it cost today.
-  Done-criterion: the manifest exists, the transcript entry above cites file
-  paths rather than the directory, and both facts above are readable without
-  extracting the tar.
-  Write boundary: the archive directory (operator-side data, not this repo's
-  tree) plus this repo's citing entries. **Consumer tier 1 (event
-  disposition)** — a frozen archive is what every later attribution re-reads,
-  and one that silently lacks its source sends the re-reader to a wrong
-  conclusion or to no conclusion at all.
 
 - **DONE 2026-08-10 (`b0adb93`) as to the INSTRUMENT; its verifier was
   wrong about the evidence and is corrected below rather than left to be
@@ -1285,239 +1481,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   fork-side record of it. Consumer: the next dotfiles session.
   Verifier: the deployed overlay carries the three lines, and the doctor's
   content-drift check on `DEPLOYED_COPIES` stays green.
-
-- **READY (small) — `backlog-neighbours` joins on FILES, so a premise refuted
-  inside ANOTHER ENTRY is invisible to it; add the IDENTIFIER join.** Booked
-  2026-08-10, from the miss it would have caught the same hour. `cf0592d`
-  recorded a rotation measurement in the `capturePairResult` entry which
-  refuted the retention rule of the bounded-`--pin` entry — a conversation-only
-  filter that drops the very predecessor it was meant to freeze. Nothing
-  flagged it; it surfaced only because the two entries were read together at
-  dispatch time, an hour later, by hand. `tools/backlog-neighbours.mjs` exists
-  for exactly this class ("closing an entry can invalidate a DIFFERENT open
-  entry", its header) and could not see it. Its join is a commit's touched
-  FILES against entries' backticked file tokens, and this commit touched only
-  `BACKLOG.md`. **Run today, it returns TEN candidates and the bounded-`--pin`
-  entry is not among them** — the ten are the entries that happen to cite
-  `BACKLOG.md` by name, i.e. the ones ABOUT backlog tooling. So the failure is
-  not an empty result, which would at least look like one: it is a populated,
-  plausible report selected by a naming convention that is uncorrelated with
-  who shares the moved premise. A reader gets ten dispositions to fill and the
-  one that mattered is absent.
-  Design, decided: a SECOND join in the same report, at one grain finer.
-  When a commit changes `BACKLOG.md` itself, diff which ENTRIES its bodies
-  changed, and list every still-open entry sharing a backticked camelCase
-  IDENTIFIER token with them — same report shape, same blank disposition slot
-  (still-valid / premise-corrected / now-unnecessary), same three-answer
-  discipline, still a REPORT and never a gate. The file join is untouched.
-  **Measured before building, on this tree (2026-08-10), because a join is
-  worth nothing if it fires on everything or on nothing:** over the 116 open
-  entries there are 194 distinct backticked camelCase identifiers, 44 of them
-  shared by more than one entry, and the widest is shared by SEVEN. That is
-  report-sized, unlike the file join's own worst case (`docs/dev-loop.md` is
-  named by sixteen entries, which its header already calls out as the reason
-  it is not a gate). One entry cites a disproportionate share of all
-  identifiers and will appear in most lists — name it in the output rather
-  than special-casing it.
-  Verifier, red-first, with a live known positive rather than a constructed
-  one: run the new join over `cf0592d`. It must list the bounded-`--pin` entry
-  as a neighbour of the `capturePairResult` entry via `conversationOf` — the
-  miss above, reproduced. RED against the OLD implementation was RUN, not
-  assumed: `node tools/backlog-neighbours.mjs cf0592d` today prints TEN
-  `shared=BACKLOG.md` candidates and none of them is the bounded-`--pin`
-  entry. Re-run after THIS entry was written it prints ELEVEN — this entry
-  joined the candidate set, because it cites `BACKLOG.md`, while the entry
-  that actually shares the moved premise still does not appear. The count
-  tracks how many entries are ABOUT backlog tooling and is uncorrelated with
-  the premise, which is the defect stated as a measurement. (Candidate LINE
-  numbers are deliberately not recorded: they shift on every insertion, and an
-  entry about stale cross-entry evidence should not ship a stale view of its
-  own.) BASELINE, so
-  the red is not vacuous: those ten prove the tool RAN and joined — this is a
-  wrong-population result, not a dead command — and the file join must still
-  return its own candidates on a commit touching a CODE file, unchanged by this
-  work. Second positive, already planted: `sameLineage` appears in exactly the
-  two entries of the lineage chain and in no others, so it is a two-member
-  class the join must reproduce exactly.
-  Done-criterion: both joins in one report, the `cf0592d` reproduction pasted,
-  suite green.
-  Write boundary: `tools/backlog-neighbours.mjs`, `test/backlog-neighbours.test.mjs`.
-  Consumer tier **3 (backlog and process)**.
-  **Second, smaller finding from the same hour, same file, booked here rather
-  than as its own entry because the mechanism is the same lint:** cross-entry
-  references in this file are written POSITIONALLY — "the entry above", "split
-  out from the entry below" — and `tools/backlog-order.mjs` PHYSICALLY REORDERS
-  entries on every derivation. Four such references were written today and all
-  four still happened to hold after a reorder ran minutes later, which is luck
-  and not a property. When one breaks it breaks silently: the sentence stays
-  grammatical and points at whatever entry now occupies the position. The file
-  already carries the durable handle — each entry's `<!-- entry: "…" -->`
-  anchor — so the rule is that a cross-entry reference names the headline, and
-  the check is a `backlog-lint` report flagging positional words in an entry
-  body that refers to another entry. Instrument-positive available today: the
-  lineage chain's three entries reference each other positionally right now.
-
-- **READY (BLOCKING the bounded pin's fidelity claim) — `verifyPin` on a
-  BOUNDED pin applies the retention filter to its own reference side, so it
-  cannot fail for the defect it exists to catch. PROVEN by sabotage, not
-  argued.** Booked 2026-08-10 at integration of `--bounded`. The lane surfaced
-  the mechanism as a question rather than settling it at its own tier, which is
-  exactly right; the answer is that the mechanism is wrong.
-  What it does today: for `header.bounded`, the live side is built by
-  `writeCapturePrefixBounded`, which applies `boundedKeep` — the SAME retention
-  function the pin was built with. Both sides therefore drop the same records,
-  and any defect in the filter is invisible by construction. This is the
-  same-parentage failure the corpus names: the expectation pins the very thing
-  it should catch.
-  **The measurement, run at the desk before booking.** Baseline on
-  `s-captureAW` 1048..1049: bounded pin 19,686,465 bytes vs a streamed source
-  prefix of 610,897,526 (**3.22%**), `verifyPin` live 188 pairs / pin 188 /
-  `diffs: []`. Then `boundedKeep` was sabotaged to drop every THIRD record it
-  should keep, and the same command re-run: pin 12.93 MB, live **125** pairs /
-  pin 125 / **`diffs: []` again**. A pin that had silently lost a third of its
-  evidence got a clean bill of health, and the pair count fell 188 -> 125 with
-  nothing flagging it. `tools/harvest.mjs` was restored from a byte copy
-  immediately after (verified: empty `git diff`, zero `SABOTAGE` occurrences).
-  **What this does and does not invalidate, because the distinction is the
-  useful part.** The SIZE claim stands — 3.22% is a measurement of the artifact
-  and was reproduced independently at the desk. The FIDELITY claim does not:
-  "identical verdicts at a fraction of the bytes" is established by this check
-  and by nothing else, so as of `e9a374b` the bounded mode ships with its size
-  proven and its fidelity unproven. No bounded pin gets committed as a fixture
-  until this is fixed.
-  Design, decided: the live side goes back to the UNFILTERED prefix
-  (`writeCapturePrefix`), and the COMPARISON is narrowed instead of the input —
-  both sides restricted to the BUSTING CONVERSATION, identified by
-  `conversationOf` of the target record itself. That identity comes from the
-  capture, not from `boundedKeep`, which is the whole point: the reference
-  stops being filter-derived. The lineage-related conversations are
-  deliberately NOT part of the bar — they are retained so a later
-  lineage-aware consumer can find them, and a contract defined over them would
-  be filter-derived again.
-  Verifier, red-first, and the arrangement is ALREADY RUN and recorded above:
-  re-apply the same every-third-record sabotage and the check must go RED
-  (target-conversation pairs differ), where today it returns `diffs: []`.
-  Unsabotaged, the primary case must still return no divergence. Both arms on
-  one capture, one command each.
-  Done-criterion: sabotage red, clean run green, and the entry above re-graded
-  from "size proven, fidelity unproven".
-  Write boundary: `tools/harvest.mjs`, `test/harvest-pin-bounded.test.mjs`.
-  Consumer tier **1 (event disposition)** — every frozen pin's trustworthiness
-  reads through this check.
-
-- **READY (small) — a bounded pin's SIZE scales with the busting
-  conversation's identity CHURN, which the design note does not say and the
-  first real measurement contradicts.** Measured 2026-08-10 by the
-  `--bounded` lane. The `capturePairResult` entry's framing implies a target
-  plus a few neighbours; the real RED2 union arm on `s-captureAT` ord 715 came
-  back at **251 real records**, because that conversation's `conversationOf`
-  churned REPEATEDLY across its whole growth rather than once near the end —
-  `lineageOverlap` runs from 0.60 (ord 5, a tiny message set sharing a handful
-  of messages) up to 0.98 (near ord 715), every one of them above the 0.5
-  threshold. That is the union working as specified, not a defect: a small
-  early message set clears a ratio threshold on a few shared messages just as
-  easily as a large late one does on nearly all of them, because the
-  denominator is `min(|A|,|B|)`.
-  Design, decided: state it where the number lives, not where it was
-  discovered — a note beside `LINEAGE_THRESHOLD` in `tools/replay.mjs` naming
-  the min-denominator consequence, so the next reader meets it at the
-  definition instead of per-instance. No behaviour change: the threshold is
-  NOT retuned, per its own entry ("a future case landing between the clusters
-  is a finding about the class, not a reason to tune the number").
-  Verifier: the note cites the measured 0.60-0.98 spread and the 251-record
-  outcome. Done when a reader of `LINEAGE_THRESHOLD` can predict the sizing
-  behaviour without running it.
-  Write boundary: `tools/replay.mjs`. Consumer tier **3**.
-
-- **READY (small) — `identityRotation` measures the right EVENT with the
-  wrong DIGEST, so its rows cannot be joined to the event logs that record the
-  same rotation.** Surfaced 2026-08-10 by the lane that built it, as a question
-  rather than a unilateral predicate change — correctly. The class fires
-  exactly on its named positive and stays silent on its named negative, both
-  verified live; what does not line up are the row's `rawId`/`fwdId` STRINGS.
-  `replay.mjs`'s `sha()` (`:87-89`) truncates to **12** hex chars over
-  `JSON.stringify` of the WHOLE message object, `role` included;
-  `conversationSubKey`/`hashMessageContent`
-  (`proxy/extensions/message-hash.mjs:16-24,48-63`) truncates to **16** over
-  `msg.content` ONLY. Two primitives over one conceptual quantity, never shown
-  equivalent, so by construction a census row can never print the digest the
-  insertion-normalization event log recorded for the same request — the desk's
-  own verification of this class had to compute the second primitive by hand
-  to check the first.
-  **Why this is a definition problem and not a formatting one.** What counts as
-  "the conversation identity our extensions key on" is defined by
-  `conversationSubKey`, because that is the function the proxy actually keys
-  on. A near-twin computed over a different input shape can disagree with it —
-  a `role` change on `messages[0]` fires our class and moves no real key — and
-  nothing downstream would notice, since no consumer compares the two.
-  Design, decided: the row carries the REAL identity. Retain `inConvKey` and
-  `outConvKey` on the compact entry — two short strings per ENTRY, not per
-  message, which is cheaper than the per-message arrays already retained
-  beside them — computed by importing `conversationSubKey` itself, never a
-  re-implementation (`tools/harvest.mjs` already imports across the
-  `proxy/` boundary, so the direction is established). The stripped-twin
-  predicate stays as the cheap pre-filter; the digests reported become the
-  proxy's own.
-  Verifier, red-first, live positive already in hand: the row for
-  `s-captureAT` at 2026-08-08T09:58:50.626Z must print
-  `496b188f5f435920` -> `a20843f8616f3866`, the pair the desk verified twice
-  and the event log recorded, where today it prints two 12-char digests
-  matching neither. The negative at 09:58:46.362Z must stay silent.
-  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
-  Consumer tier **1 (event disposition)**.
-
-- **READY (small) — `identityRotation` counts a persistent STATE as if it were
-  an event, so its 40% is not the rate row 26 asks about.** Measured
-  2026-08-10 on `s-captureAT`: **298 of 738 requests** classify. The lane's
-  reading, which the code supports: `fresh-session-sort`'s relocation is a
-  persistent per-session mutation — once it fires for a conversation, EVERY
-  subsequent request in that conversation carries the relocated block, and a
-  per-REQUEST predicate re-fires on each one. So 298 is "requests served under
-  a rotated identity", while row 26's open question is "how often does a
-  rotation OCCUR", and the two differ by roughly the length of each affected
-  conversation.
-  Design, decided: keep the per-request rows (they are the honest per-request
-  fact and the join surface for a cost question), and add a TRANSITION count
-  beside them — a rotation is NEW when the conversation's raw identity has not
-  been seen rotating before in this capture. Report both, labelled, because
-  reporting either alone invites the other's question.
-  Verifier: over `s-captureAT` the per-request count stays 298 and the
-  transition count is materially smaller; both printed, neither derivable from
-  the other by the reader guessing. Done when the daily sweep's number cannot
-  be read as a rotation rate without saying which of the two it is.
-  Write boundary: `tools/replay.mjs`, `test/replay-identity-rotation.test.mjs`.
-  Consumer tier **3** — it mis-describes a count rather than mis-classifying an
-  event.
-
-- **READY (small) — the suite has at least one INTERMITTENT test, and the
-  runner throws away the evidence needed to name it.** Observed 2026-08-10 at
-  `e9a374b`: four consecutive full runs of ONE commit returned 2642 pass / **1
-  fail**, then 2643 / 0, then 2643 / 0, then (with another lane integrated)
-  2649 / 0. The documented environment class was EXCLUDED rather than assumed:
-  `df` reported `/tmp` at **3% used, 30 GB free**, so this is not the 2026-08-08
-  ENOSPC shape, which is the first suspect this repo tells you to check.
-  **The failing test was never identified, and that is the actual defect.** The
-  run streamed to a terminal, the summary counters were read, and by the time
-  the failure mattered the output was gone; two further runs were spent on
-  greps against output that no longer existed. The suite gates every push, so
-  an intermittent failure that vanishes on re-run trains precisely the retry
-  reflex that a red result must never train.
-  Design, decided, two halves. (1) The runner persists each run's full output
-  to a per-run file under the repo's scratch convention and prints the path in
-  its summary line, so a transient red is diagnosable after the fact instead of
-  re-run away. (2) The pre-push hook keeps its own last-failure output for the
-  same reason — it is the run most likely to be transient and least likely to
-  be watched.
-  Verifier, red-first: with the persistence in place, force one failure, then
-  confirm the named file contains the failing test's name and diff AFTER a
-  subsequent green run has overwritten the console. Today no such file exists,
-  which is the red.
-  NOT fixed on notice, and named rather than left implicit: the flake itself
-  stays UNIDENTIFIED until the mechanism exists to catch it, so this entry
-  buys the diagnosis, not the fix. If the same counter split recurs before
-  then, capture the log by redirection first.
-  Write boundary: `package.json`, `tools/git-hooks/pre-push`.
-  Consumer tier **2 (feeds the gates)**.
 
 - **READY (small) — the LINEAGE relation, as a shared primitive in
   `replay.mjs`, ahead of BOTH its consumers.** Split out 2026-08-10 from the
