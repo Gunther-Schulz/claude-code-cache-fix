@@ -22,6 +22,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -317,4 +318,123 @@ test("KNOWN LIMITATION: tools/cost-report.mjs false-positives — a coincidental
   const result = checkLogsSchemaScope("tools/cost-report.mjs", content);
   assert.equal(result.inScope, true);
   assert.ok(result.violations.length > 0, "documents the false positive rather than asserting an unverified clean bill");
+});
+
+// ---------------------------------------------------------------------------
+// THE SWEEP — the half the entry actually asked for: "a new call site that
+// hand-parses fails the bite".
+//
+// A predicate exercised only on synthetic strings answers nothing about THIS
+// repo. That is a checker wired to no consumer, and it is a shape this repo
+// keeps re-learning: `tools/xdg-writer-guard.mjs` sits red at 34 violations
+// while `npm test` is green, because its test exercises the predicate and
+// never runs it over the tree (measured 2026-08-10).
+//
+// The inventory is PATHS, never a COUNT — a blocking assert on a hardcoded
+// number stops validating anything the day the number legitimately moves.
+// Two declared categories, each VERIFIED by the check rather than trusted:
+//
+//   EXEMPT     — a measured false positive. The repair for a guard that fires
+//                on legitimate work is a declared exemption the guard itself
+//                verifies (the legitimate case named in data it checks), never
+//                a softened predicate and never an override habit. `mustMatch`
+//                is what makes it self-verifying: if the exempted line stops
+//                being the thing the exemption describes, this fails loudly
+//                instead of blanketing whatever moved in underneath it.
+//   KNOWN-OPEN — a REAL hand-parse the lint correctly catches, left standing
+//                because adopting the reader is a SEPARATE booked entry.
+//                Inventoried so a known backlog can never read as a clean
+//                tree, and so a NEW hand-parse still fails.
+// ---------------------------------------------------------------------------
+
+const SWEEP_EXEMPT = [{
+  path: "tools/cost-report.mjs",
+  // Measured false positive: the file names "usage.jsonl" as its own default
+  // input (signal 1) and, ~140 lines away, binds a LOCAL variable `cacheRead`
+  // to a dollar rate parsed out of Anthropic's pricing-page HTML (signal 2).
+  // No JSONL parsing is anywhere near it. Separating this precisely needs
+  // parse-site provenance an AST would give and a text pattern cannot.
+  mustMatch: /parseFloat\(match\[\d+\]\)|cache_read:\s*cacheRead/,
+  reason: "pricing-page dollar rate coincidentally named cacheRead",
+}];
+
+const SWEEP_KNOWN_OPEN = [{
+  path: "tools/cold-events.mjs",
+  reason: "genuine captureOutcome hand-parse (u.cacheRead/u.cacheCreation); " +
+          "adopting tools/logs.mjs here is a separate booked entry",
+}];
+
+// Pure so a planted file can be fed straight in — the instrument-positive
+// below depends on not needing the real filesystem to prove the sweep fires.
+export function classifySweep(files) {
+  const exemptByPath = new Map(SWEEP_EXEMPT.map((e) => [e.path, e]));
+  const knownOpen = new Set(SWEEP_KNOWN_OPEN.map((e) => e.path));
+  const unexpected = [];
+  const staleExemptions = [];
+  for (const { path, content } of files) {
+    const { inScope, violations } = checkLogsSchemaScope(path, content);
+    if (!inScope || violations.length === 0) continue;
+    const exempt = exemptByPath.get(path);
+    if (exempt) {
+      // Self-verification: the exemption must still describe a line that is
+      // actually there. An exemption that no longer matches is not a pass.
+      if (!violations.some((v) => exempt.mustMatch.test(v.text))) {
+        staleExemptions.push({ path, reason: exempt.reason });
+      }
+      continue;
+    }
+    if (knownOpen.has(path)) continue;
+    unexpected.push({ path, violations });
+  }
+  return { unexpected, staleExemptions };
+}
+
+function trackedSourceFiles() {
+  const out = execFileSync("git", ["ls-files", "tools", "proxy"], {
+    cwd: REPO_ROOT, encoding: "utf8",
+  });
+  return out.split("\n").filter((p) => p.endsWith(".mjs")).map((path) => ({
+    path, content: readFileSync(join(REPO_ROOT, path), "utf-8"),
+  }));
+}
+
+test("SWEEP: no hand-parse of our schemas outside the owners, beyond the declared inventory", () => {
+  const files = trackedSourceFiles();
+  assert.ok(files.length > 50, `the sweep must actually enumerate the tree, got ${files.length} files`);
+  const { unexpected, staleExemptions } = classifySweep(files);
+  assert.deepEqual(staleExemptions, [],
+    "a declared exemption no longer matches the line it describes — re-verify it, never widen it");
+  assert.deepEqual(
+    unexpected.map((u) => u.path), [],
+    "a file outside the declared inventory hand-parses one of our schemas: " +
+    JSON.stringify(unexpected, null, 2),
+  );
+});
+
+test("INSTRUMENT-POSITIVE: the sweep fires on a planted new hand-parse", () => {
+  const planted = {
+    path: "tools/planted-consumer.mjs",
+    content: [
+      "// reads the capture's -requests.jsonl by hand",
+      "const cr = rec.usage.cacheRead ?? 0;",
+    ].join("\n"),
+  };
+  const { unexpected } = classifySweep([planted]);
+  assert.equal(unexpected.length, 1, "a brand-new hand-parse must fail the sweep");
+  assert.equal(unexpected[0].path, "tools/planted-consumer.mjs");
+});
+
+test("INSTRUMENT-POSITIVE: a stale declared exemption is itself a failure", () => {
+  const drifted = {
+    path: "tools/cost-report.mjs",
+    // Still trips both signals, but the exempted SHAPE is gone — this must
+    // not ride out under the exemption.
+    content: [
+      "// default input: usage.jsonl",
+      "const cacheRead = row.usage.cacheRead;",
+    ].join("\n"),
+  };
+  const { staleExemptions, unexpected } = classifySweep([drifted]);
+  assert.equal(staleExemptions.length, 1, "the exemption must stop covering a line it no longer describes");
+  assert.deepEqual(unexpected, [], "and it is reported as a stale exemption, not as an unexpected file");
 });
