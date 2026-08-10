@@ -3142,9 +3142,50 @@ ENOSPC misattribution with its wrong first explanation left in.
   the standing rate — that is a separate measurement over more captures, and it
   is not what caused this event.
 
-- **WITHDRAWN 2026-08-10, SAME DAY, BY MEASUREMENT — the premise is dead and
-  the recommended fix would push the guard BACKWARDS. Read this before the
-  original body below; the handoff brief carries the same correction.**
+- **DONE 2026-08-10 (dotfiles `7f4d0f3`) — the entry's DIAGNOSIS was right, its
+  preferred FIX was refuted, and the handoff is what produced the repair.
+  Read this before the original body below.**
+  **My own first withdrawal of this entry, written an hour earlier, was wrong
+  about the mechanism and is corrected here** — it is left described rather than
+  deleted because the error is the instructive part. I integrated a sonnet
+  lane's commit `eab030a` carrying `Co-Authored-By: Claude Sonnet 5` and NO
+  `Claude-Session:` — the exact shape this entry says bounces — and the push
+  went through clean. I read the guard, found a booking half, and concluded the
+  criterion had been "replaced the same day" independently of us, so the entry
+  had simply been overtaken. Wrong: the dotfiles session shipped that booking
+  half `7f4d0f3` IN RESPONSE TO THIS HANDOFF, hours before my push. The
+  observation was sound; the causal story I attached to it was invented, and it
+  happened to make our own handoff invisible. A true observation with a
+  fabricated mechanism reads exactly like a finding.
+  **What they measured, with the instrument shown live on a known positive
+  first** (`_ist_subagent_trailer` at :752 and :823 of the pre-fix file):
+  `git show 7f4d0f3^:git/hooks/pre-push` carries NEITHER `_ist_gebucht` NOR
+  `RECORD_PFADE`, and its block text read *"a commit counts as unbooked if it
+  carries `Co-Authored-By: Claude ` but no `Claude-Session:`"* — trailer shape
+  alone. So at booking time this entry was exactly right: EVERY subagent commit
+  bounced, booked or not, and the override was the only exit. That is the cost
+  the entry recorded, and it was real.
+  **`7f4d0f3` shipped the entry's option (b)** — the one it listed as weaker: a
+  commit clears if its SHA is cited in a record carrier at the pushed tip. That
+  is why `eab030a` passed; I had cited it in the entry closing its work.
+  **Option (a) — mandate both trailers in every dispatching brief — is REFUTED,
+  not merely overtaken, and the reason is sharper than the one I gave.** Writing
+  `Claude-Session:` into subagent commits makes them indistinguishable from desk
+  commits *to the very predicate that detects them*. It would have SILENCED the
+  guard. The pre-fix file predicted this about itself at :742 — "blind
+  direction, fail-open: should subagent commits ever get their own
+  `Claude-Session:` trailer, this guard no longer sees them" — and the
+  prediction is what the entry's own preferred fix would have fulfilled.
+  The audit-trail question this entry raised against option (b) is answered by
+  the booking carrier, not by the trailer.
+  **The durable lesson, and it generalizes past this guard:** a proposed fix
+  that makes the checked party write the label the checker reads is not a fix,
+  it is a silencer — and it reads as tightening. Carrying both trailers stays
+  harmless; it is no longer what decides a push. What decides it is booking the
+  integrated commit's sha in the record carrier, which this repo's conventions
+  already required for unrelated reasons.
+  Audit with bases: dotfiles `BACKLOG.md` pointer-set entry (`6303111`) and the
+  dotfiles `LEDGER.md` entry in `9aa3d91`.
   The entry claimed the machine's pre-push guard refuses a commit carrying
   `Co-Authored-By: Claude ` without a `Claude-Session:` trailer, and concluded
   that briefs should mandate both trailers.
@@ -5745,7 +5786,25 @@ ENOSPC misattribution with its wrong first explanation left in.
   recovered at the next derivation. Unranked (booked after the derivation).
   <!-- entry: "a POINTER entry's liveness lives in ANOTHER repo" -->
 
-- **PARKED [HANDED OFF 2026-08-10 — dispatch-guards brief] (small) — a lane whose worktree is RECLAIMED lands in the shared main
+- **READY (small) — HALF (1) CAME BACK TO US 2026-08-10; half (2) stays with
+  the dispatch-guards session. The scope below is now the dispatcher-side
+  procedure ONLY.** Their disposition, with the instrument shown live on a known
+  positive first (`shared` matches 13x and 10x across the two skills): `shared
+  checkout` and `whole suite` both return ZERO hits across the plugin, so
+  nothing there states this coupling today. The single `reclaim` hit is a
+  DIFFERENT 2026-08-05 incident — an unused SESSION worktree auto-reclaimed
+  mid-run kills Bash outright — and `worktree_doctor.py` covers a third, the
+  16-worktree destructive sweep. Neither is this class.
+  So half (2), the Write-boundaries sentence, is theirs and is the half they
+  judge worth building. **Half (1) is unwritten and is ours: the dispatcher
+  probes `git worktree list` for the lane's worktree BEFORE acknowledging its
+  first report**, because a reclaimed worktree means the lane has been writing
+  into the shared checkout and its in-progress red will block the next unrelated
+  push. Verifier: the probe names a lane whose worktree is absent while the lane
+  is still reporting — exercised against a real reclaimed worktree, not a
+  reasoned-about one.
+  Original entry follows unchanged.
+- **PARKED [SUPERSEDED — see above] (small) — a lane whose worktree is RECLAIMED lands in the shared main
   checkout, and its in-progress red then blocks the DISPATCHER's unrelated
   push.** Measured 2026-08-08 afternoon, end to end. A lane was dispatched with
   worktree isolation; the worktree did not survive, and the lane correctly
@@ -7868,6 +7927,15 @@ then the queued ones. Work the items in that order.
   `--cold --all` filter is `hit or cost or resume` (3 resume records are
   live in the ledger) — the done-criterion is the superset's.
 
+- **PARKED — park basis RE-CONFIRMED 2026-08-10 by an independent sweep, which
+  is the only thing that could have unparked it.** The dispatch-guards session
+  swept both repos' records since the park for an incident in either direction —
+  a message claiming absent content, or a warn-only hook misfiring — and found
+  NONE. Its cited mitigation has moved 0.1.12 -> 0.10.13, i.e. more cover than
+  this entry knew about, but still not the incident its trigger names. Gap
+  stated rather than assumed: incidents outside that sweep's read scope were not
+  visible to it, so this is "no evidence found", never "no evidence exists".
+  Stays parked, missing evidence unchanged.
 - **PARKED — commit-claim guard (commit-msg hook, warn-only): a message
   naming a file/symbol absent from the staged diff.** Evidence, twice in
   two days in THIS repo: acc0814's message claimed a BACKLOG.md edit the
