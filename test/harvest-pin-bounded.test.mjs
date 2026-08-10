@@ -38,6 +38,11 @@ import { pinRange, pinRangeBounded, parseReplayVerdicts, sidToken } from "../too
 // namespace import defers the missing-export failure to the individual call
 // site that uses it, so the real pass/fail split stays readable.
 import * as harvestMod from "../tools/harvest.mjs";
+// The publication-boundary bites below IMPORT the real hygiene classes rather
+// than re-deriving a token regex here. A second implementation of the corpus
+// invariant is exactly the hand-rolled-identity error dev-loop.md warns
+// about, and it would drift from the scanner that actually gates the push.
+import { CLASSES, scanDocument } from "../tools/absence-scan.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -393,4 +398,72 @@ test("verifyPin: a complete bounded pin never reports the busting-completeness c
   const { diffs } = await harvestMod.verifyPin(capture, pinPath, BIG_TARGET_M);
   const joined = diffs.join("; ");
   assert.doesNotMatch(joined, /busting conversation incomplete/, `an unsabotaged bounded pin must not trip the content check: ${joined}`);
+});
+
+// --- the PUBLICATION boundary: a bounded pin must be committable -------------
+//
+// WHY THESE EXIST. `--bounded` shipped proven at its own bench and was never
+// carried to the boundary it exists to serve: the first bounded pin ever
+// committed (`e18c299`) was blocked by the pre-push hygiene scan with 212
+// `raw-content` findings, every one of them this tool's own placeholder body,
+// which was raw prose in a `content` field. The writer was fixed in `9464ac0`
+// (the sentence now goes through `scrubText`, and the repair was deliberately
+// made at the writer rather than as a scanner exemption) — and nothing was
+// left behind that would catch the same regression on the NEXT bounded pin.
+// The whole mechanism's purpose is to produce a fixture that can be committed,
+// so "is its output committable" is the one property its tests must assert.
+//
+// Both bites read the corpus invariant off the SCANNER (`raw-content`), and
+// both assert the class's DOMAIN before its verdict: a zero from a class that
+// never applied is indistinguishable from a zero that means something, which
+// is the failure shape absence-scan's own per-class `seen` counter exists for.
+//
+// Red-first, against an immutable reference rather than live tree state:
+//   git checkout 813debe -- tools/harvest.mjs   # 9464ac0^, raw placeholder
+// Both bites go red there while every other bite in this file stays green;
+// `813debe` already carries `bustingConversationOrdinals` and
+// `missingBustingOrdinals`, so the placeholder body is the only variable.
+
+const RAW_CONTENT = CLASSES.filter((c) => c.name === "raw-content");
+
+test("bounded pin: the PLACEHOLDER body is tokenized — the class that blocked e18c299 finds nothing", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-hygiene-");
+  const capture = await writeBigCapture(dir);
+  const { records, placeholders } = await pinRangeBounded(capture, BIG_TARGET_M);
+
+  const placeholderRecords = records.filter((r) => String(r.sid ?? "").startsWith("bounded-placeholder-"));
+  assert.equal(placeholders, 2, "arrangement: this capture must really produce placeholders");
+  assert.equal(placeholderRecords.length, placeholders, "every placeholder must be findable by its sid");
+
+  const { findings, seen } = scanDocument({ records: placeholderRecords }, { classes: RAW_CONTENT });
+  // DOMAIN before verdict — one applied string per placeholder body, minimum.
+  assert.ok(
+    seen["raw-content"] >= placeholders,
+    `raw-content must APPLY to every placeholder body or the zero below is vacuous; it applied ${seen["raw-content"]} time(s) for ${placeholders} placeholder(s)`,
+  );
+  assert.deepEqual(
+    findings.map((f) => f.path),
+    [],
+    "a placeholder body is a token like every other content string; raw prose here is what blocked the first bounded pin at the push boundary",
+  );
+});
+
+test("bounded pin: EVERY content string in the fixture is a token, placeholders and kept records alike", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-hygiene-");
+  const capture = await writeBigCapture(dir);
+  const { records } = await pinRangeBounded(capture, BIG_TARGET_M);
+
+  const { findings, seen } = scanDocument({ records }, { classes: RAW_CONTENT });
+  // The kept records carry real (here synthetic) message text, so the domain
+  // is strictly larger than the placeholder count — if it is not, the pin is
+  // not carrying the conversation it claims to and the verdict means nothing.
+  assert.ok(
+    seen["raw-content"] > 2,
+    `the whole-pin scan must cover kept-record content too, not just the 2 placeholders; it applied ${seen["raw-content"]} time(s)`,
+  );
+  assert.deepEqual(
+    findings.map((f) => f.path),
+    [],
+    "the corpus invariant is that every content string is a token — this is the property that makes a pin publishable",
+  );
 });
