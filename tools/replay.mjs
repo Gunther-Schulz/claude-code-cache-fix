@@ -904,9 +904,11 @@ export function compactEntry(e) {
     // interchangeable: this one preserves the container (stripCacheControlDeep
     // above), so a moved breakpoint hashes equal here while a row-4 container
     // flip does not. Read by findAbsorptionMisses' `cacheControlOnly` and by
-    // nothing else. One hash string per message, the same order of retention
-    // as the three arrays above it — no bodies, so the 2 GB child cap is
-    // unaffected.
+    // findIdentityRotations (row 26's census class — index [0] against
+    // inHashNoCC[0] is the conversation identity comparison, raw vs
+    // forwarded), and by nothing else. One hash string per message, the same
+    // order of retention as the three arrays above it — no bodies, so the
+    // 2 GB child cap is unaffected.
     outHashNoCC: outMsgs.map((m) => sha(JSON.stringify(stripCacheControlDeep(m)))),
     // Byte length per FORWARDED message, the output-side twin of inBytes —
     // what lets rebilledOutBytes be priced without retaining a message body.
@@ -1075,6 +1077,40 @@ const asCompact = (e) => (e.inHash ? e : compactEntry(e));
 // alternatives are silently wrong on interleaved traffic (see the note
 // above), and a second tool restating the rule is how the two drift.
 export const conversationOf = (e) => (e.inHash.length ? e.inHash[0] : null);
+
+// findIdentityRotations — threat-matrix row 26's census class: OUR OWN
+// pipeline changing the conversation identity between the raw captured
+// request and the body we forward. Per-REQUEST, deliberately NOT the
+// pair-based shape findToolsDeltas (above) follows: a rotation compares what
+// left the pipeline against what entered THIS SAME request, never one
+// request against another.
+//
+// The predicate is the cache_control-STRIPPED twins, never inHash/outHash.
+// The proxy's own key function (hashMessageContent, message-hash.mjs:16-24)
+// strips cache_control per block before hashing, so inHash[0]/outHash[0]
+// change on every moved breakpoint — constant traffic — while the real
+// conversation identity (what conversationSubKey computes) has not moved at
+// all. Using the unstripped hashes here is exactly how this class would ship
+// firing on every moved breakpoint (BACKLOG, booked and retracted the same
+// day) rather than on the pipeline actually rotating identity.
+//
+// A rotation is not itself a defect — BACKLOG 2026-08-10: eleven of row 26's
+// twelve measured rotations cost nothing — so this is a CLASS and a COUNT for
+// the census, never a gate failure.
+export function findIdentityRotations(entries) {
+  const rows = [];
+  for (const raw of entries) {
+    const e = asCompact(raw);
+    // Absent identities are not rotations: an empty raw or forwarded array
+    // means there is nothing to compare, not that the comparison differed.
+    if (e.inHashNoCC.length === 0 || e.outHashNoCC.length === 0) continue;
+    const rawId = e.inHashNoCC[0];
+    const fwdId = e.outHashNoCC[0];
+    if (rawId === fwdId) continue;
+    rows.push({ n: e.n, ts: e.ts, key: e.key, rawId, fwdId });
+  }
+  return rows.sort((a, b) => a.n - b.n);
+}
 
 // LINEAGE: a second, DIFFERENT relation over the same compact-entry inHash
 // array, answering a different question than conversationOf. conversationOf
@@ -3856,6 +3892,10 @@ async function main() {
   // requiring the reader to cross-reference the boot record by hand.
   if (census) census.gateSource = formatGateSource(gateSource);
   const toolsDeltas = args.census ? findToolsDeltas(stability) : null;
+  // Row 26's census class — per-request, so it never joins runCensus's own
+  // pair tally (BACKLOG "the census cannot see OUR OWN pipeline rotating the
+  // conversation identity").
+  const identityRotations = args.census ? findIdentityRotations(stability) : null;
   const mitigation = args.census ? findMitigationGaps(stability) : null;
   const edits = args.census ? findEditPositions(stability) : null;
   // Always computed, not census-gated: this is the check whose absence let a
@@ -4022,7 +4062,7 @@ async function main() {
   }
 
   if (args.json) {
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census, toolsDeltas, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census, toolsDeltas, identityRotations, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -4385,6 +4425,17 @@ async function main() {
       process.stdout.write(`\nduplicate-request pairs (adjacent, byte-identical): ${duplicateRequests.length}\n`);
       for (const d of duplicateRequests.slice(0, 8)) {
         process.stdout.write(`    n=${d.prevN}->${d.n} msgs=${d.msgs} ${d.ts}\n`);
+      }
+    }
+    if (identityRotations) {
+      // Row 26's census class: our OWN pipeline rotating the conversation
+      // identity between the raw capture and the forwarded body. A rotation
+      // is not itself a defect (eleven of row 26's twelve measured instances
+      // cost nothing) — this is a rate, not a gate, so nothing here fails
+      // the run.
+      process.stdout.write(`\nidentity rotations (row 26 — our own pipeline, raw vs forwarded): ${identityRotations.length}\n`);
+      for (const r of identityRotations.slice(0, 20)) {
+        process.stdout.write(`    n=${r.n} ts=${r.ts} raw=${r.rawId} -> forwarded=${r.fwdId}\n`);
       }
     }
     if (pinSummary) {
