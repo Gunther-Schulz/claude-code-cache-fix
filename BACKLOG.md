@@ -510,7 +510,72 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**. Deployment-coupled: `proxy/` change,
   needs the dotfiles pin bump and a restart, at a stated session boundary.
 
-- **READY (small) — the suite has at least one INTERMITTENT test, and the
+- **READY (small, IN FLIGHT 2026-08-10) — a file outside `test/` whose NAME
+  matches node's `--test` discovery glob is EXECUTED as a test, and one is in
+  the tree right now.** Found 2026-08-10 by the suite-output lane, which hit it
+  as a live defect rather than reasoning about it: its first helper was named
+  `tools/test-runner.mjs`, node's own discovery swept it in, spawned it in its
+  own subprocess with `argv[1]` set to that file — which is `isMain` — and its
+  unguarded top level recursively launched ANOTHER full suite. It was reported
+  as a passing "test" in 108 ms while the nested run was still in flight.
+  **The definition, measured rather than recalled** (probe against the installed
+  node v26.4.0: candidate filenames planted in a scratch tree, `node --test`
+  run, discovery observed). Executed: `test-*.{js,mjs,cjs}`, `*-test.*`,
+  `*_test.*`, `*.test.*`, `test.*`, and every file under a directory named
+  `test/` at any depth. Not executed: `footest.mjs`, `testfoo.mjs`,
+  `suite-run-log.mjs`. Discovery does NOT descend into `node_modules` or into
+  any dot-directory — which is why `.claude/worktrees/` never contributed.
+  **The live instance, and the docstring it refutes.** `tools/test-config-root.mjs`
+  matches `test-*` and is executed as a zero-assertion test on every run —
+  confirmed in today's actual output, the line `✔ tools/test-config-root.mjs`
+  among the results. That file's own docstring says it lives in `tools/` rather
+  than `test/` *because* node runs everything under `test/`, "from there it was
+  ALSO executed as a (zero-assertion) test, inflating the suite count by one".
+  The stated remedy never achieved its stated purpose: the move left it inside
+  the `test-*` prefix rule, so it kept being executed and the count stayed
+  inflated. A mechanism's own words about itself, refuted by its body — the
+  paraphrase-drift shape, at the docstring grain.
+  Design, decided: RENAME rather than exempt (`tools/suite-config-root.mjs`,
+  parallel to `suite-run-log.mjs`), so the guard ships with zero exemptions and
+  a closed class; then a source guard in the shape of
+  `test/no-raw-mkdtemp.test.mjs`'s CLASS 1, walking the tree with node's own
+  scan rules.
+  Verifier, red-first with its baseline: the guard is green on the unmutated
+  tree FIRST, then a planted `tools/test-plant.mjs` and a planted
+  `tools/foo-test.mjs` are each NAMED by a red — two patterns, because one
+  proven live does not certify the others. Suite arithmetic is stated, not
+  rounded: the count drops by exactly 1 as the renamed file leaves the glob.
+  Write boundary: `tools/test-config-root.mjs` (renamed), `package.json`,
+  `tools/suite-run-log.mjs`, `proxy/claude-home.mjs`, `proxy/xdg-dirs.mjs`,
+  three `test/` files carrying the old path, and the new guard.
+  Consumer tier **2 (feeds the gates)**.
+
+- **DONE 2026-08-10 (`eab030a`) — the diagnosis is bought; the flake is still
+  unidentified, exactly as this entry said it would be.** `tools/suite-run-log.mjs`
+  now backs `npm test`: it spawns the real runner, tees output live to the
+  console AND to a per-run file under this fork's XDG state root
+  (`statePath("test-runs")`, never `~/.claude`), prints the path
+  UNCONDITIONALLY — green or red, so a green run is available to diff against a
+  later red one — preserves the child's exit code, and prunes to the newest 10
+  per label. Half (2) landed too: `tools/git-hooks/pre-push` shares the same
+  naming and retention through the module's CLI, with a `/tmp` fallback for the
+  standalone-copy case `test/pre-push-hook.test.mjs` builds.
+  Red-first, with its baseline stated: today's pre-change run left NO persisted
+  output anywhere (`find` over both XDG roots, empty before and after). After
+  the change, a planted always-failing test's name and diff survive in the FIRST
+  run's file after a later green run overwrote the console. The pre-push failure
+  path was exercised end to end without pushing — a dangling `git commit-tree`
+  object carrying a planted failure, fed to the hook on crafted stdin; hook
+  exits 1, REFUSES, and both persisted logs name the planted test. Verified at
+  the desk by re-running `npm test` myself on the integrated commit: 2664/2659
+  pass/0 fail/5 skipped, path printed, 2963-line log on disk.
+  **The lane found a second defect while building this one, and it is the more
+  valuable half.** Its first helper was named `tools/test-runner.mjs` — which
+  matches node's OWN `--test` discovery glob, so node spawned the helper AS a
+  test, its unguarded top level ran, and it recursively launched another full
+  suite. Renaming out of the glob closed it. That class has a live in-tree
+  instance and its own entry now.
+  Original header: **the suite has at least one INTERMITTENT test, and the
   runner throws away the evidence needed to name it.** Observed 2026-08-10 at
   `e9a374b`: four consecutive full runs of ONE commit returned 2642 pass / **1
   fail**, then 2643 / 0, then 2643 / 0, then (with another lane integrated)
@@ -921,11 +986,47 @@ ENOSPC misattribution with its wrong first explanation left in.
   by being in the same lane. The merge is real only where the entries share a
   red-first arrangement or a single design decision — otherwise it is a
   convoy, which is fine but should be called that.
+  **BATCHING is the second axis, and it is the one that touches the COUNT.**
+  Added 2026-08-10 on the operator's decision — *"so let's not only look for
+  merge opportunity but also BATCH opportunities"* — after this entry's own
+  arithmetic showed merging moving zero: today's 111 -> 96 came from re-grading
+  eleven handed-off dotfiles entries and from three closures plus two parkings,
+  and the merge bundle contributed nothing because it was still in flight.
+  Merge and batch are different relations and must not be conflated. MERGE
+  groups entries that SHARE a realizing file — they must serialize anyway, so
+  one lane costs one integration instead of six. BATCH groups entries whose
+  realizing files are DISJOINT — nothing forces them together, and that is
+  precisely why one lane can close all of them in a single pass without a
+  single serialization point.
+  Measured, 2026-08-10, over the 33 `READY (small)` entries by extracting each
+  entry's backticked file citations (scratch enumerator; the predicate is a
+  backticked path, so an entry naming only a FUNCTION contributes no file — the
+  same floor caveat this entry already records above). Four batches fall out:
+  - **Disposals and doc-only, no code**: the two spent briefs at the repo root,
+    the frozen-archive entry, the `{ todo }` marker claim, the matrix-lint
+    suite-time entry, the `row=none` disposition entry, the timestamp-correlator
+    entry. Seven entries, no shared file, no build.
+  - **One-file tools, each a different file**: `local-stamp`, `cost-report`,
+    `xdg-writer-guard`, `gate-live`, `absence-scan`, `cold-events`. Six
+    entries; `gate-live` appears twice, which is a merge INSIDE the batch.
+  - **`tools/replay.mjs`**: three entries, one file — a merge, not a batch.
+  - **`tools/backlog-lint.mjs`**: five entries, one file — a merge, and BLOCKED
+    while a lane holds that file.
+  Design, decided: a batch lane takes its entries as a numbered list with one
+  write boundary per entry, and its report dispositions EVERY entry — closed,
+  or returned with the reason. The failure this guards against is the convoy
+  that quietly drops its tail; the per-entry disposition is what makes a
+  dropped entry visible rather than merely absent.
+  Batch verifier: after a batch lane, each of its entries carries the SAME
+  commit ref or an explicit non-closure reason, and the open count falls by the
+  number closed — the first measurement in this repo where a lane's cost and
+  the count actually move together.
   Verifier: after the first bundle, the count of entries naming that file drops
   by the number closed, and each closed entry carries the same commit ref —
   which is also the check that the bundle did not quietly drop one.
   Done-criterion: the backlog-tooling family is one lane and its entries close
-  together or return with a stated reason why one could not.
+  together or return with a stated reason why one could not; and at least one
+  BATCH lane has run, its entries dispositioned one by one.
   Consumer tier **3 (backlog and process)**.
 
 - **READY (small) — `DOTFILES-BRIEF-inherited-items.md` sits untracked at the
