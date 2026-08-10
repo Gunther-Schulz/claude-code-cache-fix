@@ -1863,6 +1863,69 @@ function formatHeadingWrapFinding(f) {
 }
 
 // ==========================================================================
+// Closure-mints-a-second-bullet lane (default pass) — BLOCKING, not advisory
+// ==========================================================================
+//
+// Why this exists: a closure is booked by PREPENDING a `DONE`/`RESOLVED`
+// bullet that ends "Original entry follows." (or "Original body follows.")
+// and leaving the original bullet in place — with its `READY` grade token
+// untouched. One work item, two bullets, and every consumer that counts
+// grade tokens counts the second as open forever. See BACKLOG.md, "the
+// closure convention mints a SECOND bullet and leaves the".
+//
+// A finding fires when a top-level bullet graded DONE or RESOLVED has a
+// body matching `/Original (entry|body) follows/i` AND the IMMEDIATELY
+// FOLLOWING top-level bullet still carries a `READY` grade — naming both
+// line numbers. BLOCKING (unlike every other lane in this file): a stale
+// READY duplicate silently over-counts the open queue every session, which
+// is the exact failure the rest of this file's lanes exist to catch
+// elsewhere — this one is load-bearing enough to fail the build.
+//
+// The one false-fire class this predicate cannot see on its own: a genuine
+// RE-SCOPE prepend, which also ends with the same "Original ... follows"
+// phrase but is legitimately still READY itself (two live examples in this
+// file: the `rebilledBytes` and `local-stamp` pairs). Keying on the
+// PREPEND bullet's OWN grade is the declared exemption the guard itself
+// verifies: a prepend graded READY is a re-scope, never a closure, whatever
+// its next-bullet neighbour reads.
+//
+// SCOPE: the whole file (`splitEntries(text)`, unscoped), same as the
+// header lane above — a closure can be booked in `## Done` just as easily
+// as in `## Open`, and the duplicate it leaves behind is the defect
+// wherever it sits.
+
+const CLOSURE_GRADE = /^- \*\*\(?(DONE|RESOLVED)\b/;
+const RESCOPE_GRADE = /^- \*\*\(?READY\b/;
+const ORIGINAL_FOLLOWS = /Original (entry|body) follows/i;
+
+export function lintClosureDuplicate(text) {
+  const entries = splitEntries(text);
+  const findings = [];
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (RESCOPE_GRADE.test(entry.header)) continue; // a READY prepend is a re-scope, never a closure
+    if (!CLOSURE_GRADE.test(entry.header)) continue;
+    if (!ORIGINAL_FOLLOWS.test(entry.body)) continue;
+    const next = entries[i + 1];
+    if (!next || !RESCOPE_GRADE.test(next.header)) continue;
+    findings.push({
+      closureLine: entry.startLine,
+      originalLine: next.startLine,
+      closureHeader: entry.header.replace(/^- \*\*/, "").trim().slice(0, 80),
+      originalHeader: next.header.replace(/^- \*\*/, "").trim().slice(0, 80),
+    });
+  }
+  return findings;
+}
+
+function formatClosureDuplicateFinding(f) {
+  return (
+    `BLOCK backlog-closure-duplicate closure_line=${f.closureLine} original_line=${f.originalLine} ` +
+    `closure="${f.closureHeader}" original="${f.originalHeader}"`
+  );
+}
+
+// ==========================================================================
 // Boundary classification (default pass) — shared with tools/backlog-lanes.mjs
 // ==========================================================================
 //
@@ -2110,6 +2173,17 @@ function main(argv) {
       : "backlog-heading-wrap: clean\n",
   );
 
+  // BLOCKING, unlike every lane above: a closure duplicate silently
+  // over-counts the open queue every session, so this one fails the build
+  // rather than warning past it.
+  const closureDuplicates = lintClosureDuplicate(text);
+  for (const f of closureDuplicates) process.stdout.write(`${formatClosureDuplicateFinding(f)}\n`);
+  process.stdout.write(
+    closureDuplicates.length
+      ? `backlog-closure-duplicate: ${closureDuplicates.length} finding(s) — BLOCKING\n`
+      : "backlog-closure-duplicate: clean\n",
+  );
+
   if (wantPointers) {
     const pointers = lintPointers(text);
     for (const f of pointers) {
@@ -2138,7 +2212,12 @@ function main(argv) {
       `backlog-ready-bar: ${readyBar.length} finding(s) — REPORT only — ${readyBarCounts}\n`,
     );
   }
-  return 0; // WARN-only: never fails the build.
+  // Every lane above this point is WARN-only (exit 0 always); the closure-
+  // duplicate lane is the one exception and is what can make this non-zero.
+  // (Integration 2026-08-14: main's unconditional `return 0` stood here and
+  // the merge left it ABOVE this line, making the blocking return dead code —
+  // the CLI printed BLOCK and exited 0. Caught by the lane's own CLI bite.)
+  return closureDuplicates.length ? 1 : 0;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {

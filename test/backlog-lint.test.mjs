@@ -47,7 +47,7 @@ import {
   lintText, lintPointers, splitEntries,
   lintCitations, lintRowStatus, ROW_STATUS_LABELS, lintPremiseTrue, lintCorrectionPlacement,
   lintBoundary, realizingBoundary, realizingBoundaryFiles, isDeploymentCoupled, isHold, NOISE_FILES,
-  lintHeadingWrap,
+  lintHeadingWrap, lintClosureDuplicate,
 } from "../tools/backlog-lint.mjs";
 // Namespace import for the two lanes new to this dispatch (lintReadyBar,
 // READY_BAR_LABELS). Per dev-loop.md's ESM-namespace-import rule: a STATIC
@@ -1200,14 +1200,14 @@ test("row-status lane: GREEN — the fixed lane is silent on the same real entry
 
 // FROZEN, not live -- same rule and same ZERO_FALSE_FIRE_REF as the header
 // lane's sibling test above. The matrix itself is not pinned: `matrixRow`
-// reads whatever is at `MATRIX_PATH` today, which is correct here (a
+// reads whatever is at `ROW_STATUS_FILE` today, which is correct here (a
 // row-status CLAIM inside the frozen backlog text is judged against the
 // matrix's CURRENT understanding, not a stale one) -- only the BACKLOG.md
 // side of the comparison needs freezing, since that is the side whose
 // ordinary prose growth caused the original false alarm.
 test("row-status lane: zero false fires -- FROZEN at 3bc6a72", () => {
   const frozen = gitShow(ZERO_FALSE_FIRE_REF, "BACKLOG.md");
-  const findings = lintRowStatus(frozen, MATRIX_PATH);
+  const findings = lintRowStatus(frozen, ROW_STATUS_FILE);
   assert.deepEqual(findings, [], `expected none, got:\n${findings.map((f) => `line=${f.line} row=${f.row}`).join("\n")}`);
 });
 
@@ -2318,4 +2318,95 @@ test("CLI: backlog-heading-wrap lane runs in the default pass", () => {
   const { code, out } = runTool(["-"], "## Open\n\n- **READY — a thing.** Body.\n");
   assert.equal(code, 0);
   assert.match(out, /^backlog-heading-wrap: clean$/m);
+});
+
+// ==========================================================================
+// Section: closure-mints-a-second-bullet lane -- BLOCKING, not advisory
+// ==========================================================================
+//
+// Definitions from BACKLOG.md, "the closure convention mints a SECOND
+// bullet and leaves the": a DONE/RESOLVED bullet whose body matches
+// "Original (entry|body) follows" and whose IMMEDIATELY FOLLOWING bullet
+// still carries a READY grade is a finding, blocking the build. A prepend
+// bullet graded READY itself is a genuine re-scope, exempt.
+
+test("lintClosureDuplicate: RED-FIRST -- fires on a synthetic closure duplicate from the definition", () => {
+  const doc = [
+    "## Open", "",
+    "- **DONE 2026-08-10 (`abc1234`) — closed.** Original entry follows.",
+    "- **READY — the original.** Body text.",
+  ].join("\n");
+  const findings = lintClosureDuplicate(doc);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].closureLine, 3);
+  assert.equal(findings[0].originalLine, 4);
+});
+
+test("lintClosureDuplicate: RESOLVED closures are caught too, not only DONE", () => {
+  const doc = [
+    "## Open", "",
+    "- **RESOLVED 2026-08-10 — closed.** Original body follows.",
+    "- **READY — the original.** Body text.",
+  ].join("\n");
+  assert.equal(lintClosureDuplicate(doc).length, 1);
+});
+
+test("lintClosureDuplicate: CONTROL -- a genuine re-scope prepend (itself graded READY) is exempt", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY (small) — RE-SCOPED 2026-08-10.** Original entry follows.",
+    "- **READY — the narrowed remainder.** Body text.",
+  ].join("\n");
+  assert.deepEqual(lintClosureDuplicate(doc), []);
+});
+
+test("lintClosureDuplicate: CONTROL -- a properly re-graded original (no longer READY) does not fire", () => {
+  const doc = [
+    "## Open", "",
+    "- **DONE 2026-08-10 (`abc1234`) — closed.** Original entry follows.",
+    "- **DONE (original entry, superseded by the closure above) — a thing.** Body text.",
+  ].join("\n");
+  assert.deepEqual(lintClosureDuplicate(doc), []);
+});
+
+test("lintClosureDuplicate: a DONE bullet with no 'Original ... follows' phrase does not fire", () => {
+  const doc = [
+    "## Open", "",
+    "- **DONE 2026-08-10 (`abc1234`) — closed, no duplicate left behind.** Body text.",
+    "- **READY — unrelated other work.** Body text.",
+  ].join("\n");
+  assert.deepEqual(lintClosureDuplicate(doc), []);
+});
+
+test("lintClosureDuplicate: RED-FIRST over the real frozen 3b37ece ref -- exactly the six named pairs", () => {
+  const historical = gitShow("3b37ece", "BACKLOG.md");
+  const findings = lintClosureDuplicate(historical);
+  console.log(
+    "3b37ece closure-duplicate pairs:\n" +
+      findings.map((f) => `${f.closureLine}->${f.originalLine} "${f.originalHeader}"`).join("\n"),
+  );
+  assert.equal(findings.length, 6, "the entry's own red-first measurement names exactly six pairs");
+});
+
+test("lintClosureDuplicate: GREEN -- the current BACKLOG.md reports zero", () => {
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  assert.deepEqual(lintClosureDuplicate(current), []);
+});
+
+test("CLI: a closure-duplicate finding is BLOCKING (non-zero exit), unlike every other lane in this file", () => {
+  const doc = [
+    "## Open", "",
+    "- **DONE 2026-08-10 (`abc1234`) — closed.** Original entry follows.",
+    "- **READY — the original.** Body text.",
+  ].join("\n");
+  const { code, out } = runTool(["-"], doc);
+  assert.equal(code, 1);
+  assert.match(out, /^BLOCK backlog-closure-duplicate /m);
+  assert.match(out, /^backlog-closure-duplicate: 1 finding\(s\) — BLOCKING$/m);
+});
+
+test("CLI: backlog-closure-duplicate lane is clean and exit 0 on ordinary content", () => {
+  const { code, out } = runTool(["-"], "## Open\n\n- **READY — a thing.** Body.\n");
+  assert.equal(code, 0);
+  assert.match(out, /^backlog-closure-duplicate: clean$/m);
 });

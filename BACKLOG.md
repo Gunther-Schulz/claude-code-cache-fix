@@ -3662,30 +3662,6 @@ hook, whose fork-side contract line shipped this session.
   question than it was booked with: which conversation does each of those two
   readings belong to? Settle it by reading the transcript, never by quoting
   either document.
-- **DONE 2026-08-11 (`7555177`) — the section prints unconditionally, and the desk graded it on evidence the lane never used.** Dispatched to sonnet from this entry; integrated after the desk ran a check outside the lane's own set (dev-loop, "verify with something the lane did not run"): a plain text `replay.mjs` run — no `--census` — over the row-4 pin frozen earlier today prints `absorption misses (…): 0` immediately after the relocated-block departures block. That is the entry's zero-line requirement, observed on a real committed capture rather than on the lane's synthetic arms. The lane's own arms were both driven through the REAL `insertion-normalization` extension (1 comparable pair each, never zero) rather than through fabricated stats, and it committed no fixture file — the fixtures are generated inline, which keeps the scrub question from arising at all.
-  **The brief was WRONG about its own candidate fixture and the lane caught it, which is the useful record.** It named `rowpin-…-absorptionMiss.json` as a likely red arm; that file is untracked (so it never reached the worktree) AND the whole `rowpin-*` family is a single-row evidence-PIN snapshot — `schema: "rowpin/1"`, `{row, sides, checks, provenance}` — not a `{header, records}` replayable capture. Two different objects under one directory and one naming convention. The dispatcher had graded the line "unverified", which is why it was correctable instead of load-bearing; had it been asserted, the lane would have built against a file shape that cannot feed `replay.mjs` at all.
-  Original entry follows, RE-GRADED rather than left at READY.
-- **READY — `findAbsorptionMisses` runs on every replay and prints on none.**
-  `docs/dev-loop.md` says it "now asks it on every run — not behind
-  `--census`, because the whole point is that nobody knew to look". True of the
-  COMPUTATION (`replay.mjs:3082`); the rows reach a human only via `--json`
-  (`replay.mjs:3195`) or `gate-live`'s status file. The text report — the
-  route `docs/runbooks/bust-appears.md` step 4 tells a human to run during a
-  bust walk — has no absorption section at all, not even a zero line. Measured
-  2026-08-06 on s-captureAM: 1 miss existed and the text run never mentioned
-  it; it surfaced only because `relocDepartures` happened to name the same
-  pair by a different check. One-route guard shape, and the doc claims a reach
-  the code does not have.
-  Design: print the section unconditionally with its count (zero included, per
-  the three-answer rule), each row carrying the three numbers the check exists
-  for — absorbed-at, forwarded divergence, `ours`. Verifier: a fixture with a
-  known miss must show the row in plain `--census` output, and a fixture with
-  none must print an explicit `0`.
-  While there: the dev-loop sentence gets corrected in the same commit — it is
-  the sentence that made the gap invisible.
-  Anchor: tools/replay.mjs
-  Write-set: tools/replay.mjs, test/absorption-miss.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/absorption-miss.test.mjs
 
 - **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — a non-executable hook is SKIPPED BY GIT
   IN SILENCE, so one `chmod` disables the machine's last gate with no error
@@ -12706,6 +12682,31 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-11 (`7555177`) — the section prints unconditionally, and the desk graded it on evidence the lane never used.** Dispatched to sonnet from this entry; integrated after the desk ran a check outside the lane's own set (dev-loop, "verify with something the lane did not run"): a plain text `replay.mjs` run — no `--census` — over the row-4 pin frozen earlier today prints `absorption misses (…): 0` immediately after the relocated-block departures block. That is the entry's zero-line requirement, observed on a real committed capture rather than on the lane's synthetic arms. The lane's own arms were both driven through the REAL `insertion-normalization` extension (1 comparable pair each, never zero) rather than through fabricated stats, and it committed no fixture file — the fixtures are generated inline, which keeps the scrub question from arising at all.
+  **The brief was WRONG about its own candidate fixture and the lane caught it, which is the useful record.** It named `rowpin-…-absorptionMiss.json` as a likely red arm; that file is untracked (so it never reached the worktree) AND the whole `rowpin-*` family is a single-row evidence-PIN snapshot — `schema: "rowpin/1"`, `{row, sides, checks, provenance}` — not a `{header, records}` replayable capture. Two different objects under one directory and one naming convention. The dispatcher had graded the line "unverified", which is why it was correctable instead of load-bearing; had it been asserted, the lane would have built against a file shape that cannot feed `replay.mjs` at all.
+  Original entry follows, RE-GRADED rather than left at READY.
+  **Original entry, as booked (body kept, grade retired — the closure above is the live fact):** `findAbsorptionMisses` ran on every replay and printed on none.
+  `docs/dev-loop.md` says it "now asks it on every run — not behind
+  `--census`, because the whole point is that nobody knew to look". True of the
+  COMPUTATION (`replay.mjs:3082`); the rows reach a human only via `--json`
+  (`replay.mjs:3195`) or `gate-live`'s status file. The text report — the
+  route `docs/runbooks/bust-appears.md` step 4 tells a human to run during a
+  bust walk — has no absorption section at all, not even a zero line. Measured
+  2026-08-06 on s-captureAM: 1 miss existed and the text run never mentioned
+  it; it surfaced only because `relocDepartures` happened to name the same
+  pair by a different check. One-route guard shape, and the doc claims a reach
+  the code does not have.
+  Design: print the section unconditionally with its count (zero included, per
+  the three-answer rule), each row carrying the three numbers the check exists
+  for — absorbed-at, forwarded divergence, `ours`. Verifier: a fixture with a
+  known miss must show the row in plain `--census` output, and a fixture with
+  none must print an explicit `0`.
+  While there: the dev-loop sentence gets corrected in the same commit — it is
+  the sentence that made the gap invisible.
+  Anchor: tools/replay.mjs
+  Write-set: tools/replay.mjs, test/absorption-miss.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/absorption-miss.test.mjs
 
 - **CLOSED 2026-08-14 (operator decision) — row 2, the idle-TTL keepalive, is
   NOT BUILT: matrix row 2 goes ACCEPTED and a 1h-idle bust triages
