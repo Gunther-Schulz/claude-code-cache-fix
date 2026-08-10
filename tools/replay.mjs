@@ -927,6 +927,12 @@ export function compactEntry(e) {
     // related to conversation STRUCTURE, and that relation was derived by a
     // throwaway script before it lived here.
     inLastHuman: inMsgs.reduce((acc, m, i) => (isHumanTurn(m) ? i : acc), -1),
+    // Per-message marker, one boolean per raw input message: does it carry
+    // CC's own suggestion-mode scaffolding instruction (isSuggestionModeBlock
+    // above)? Computed here for the same reason inLastHuman is — compact
+    // entries carry no content, so a marker over content must be captured at
+    // compaction time or not at all.
+    inSuggestionMode: inMsgs.map(isSuggestionModeBlock),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
     // cache_control-stripped twin of outHash, for findMitigationGaps'
     // outputForm ONLY (see outputContentHash above) — never read by the
@@ -1662,6 +1668,26 @@ export async function excerptsForAsks(file, asks) {
   }));
 }
 
+// CC's own suggestion-mode scaffolding turn: a constant leading bracket line
+// it emits verbatim, "[SUGGESTION MODE: Suggest what the user might
+// naturally type next into Claude Code.]" (BACKLOG "the suggestion-mode
+// variant fork is a census class"). Measured on the live corpus: CC issues
+// two variants of one conversation at the same array index, alternating
+// between the real user turn and this instruction, with identical
+// messages[0]/system/tools/model — so conversationOf groups the pair and a
+// consecutive-pair check reads it as a prefix divergence, though neither
+// side is the other's predecessor and nothing our mitigations could absorb
+// (both variants are CC's own bytes). Computed at compaction time because
+// the census itself sees only hashes.
+function isSuggestionModeBlock(m) {
+  if (m?.role !== "user") return false;
+  const c = m.content;
+  const startsWithMarker = (t) => typeof t === "string" && t.trimStart().startsWith("[SUGGESTION MODE:");
+  if (typeof c === "string") return startsWithMarker(c);
+  if (!Array.isArray(c)) return false;
+  return c.some((b) => b?.type === "text" && startsWithMarker(b.text));
+}
+
 // A message the human actually typed: user role carrying at least one text
 // block that is neither a tool_result nor a tagged injection (reminders,
 // notifications, caveats all start with "<"). Computed at compaction time
@@ -1814,6 +1840,19 @@ export function findAbsorptionMisses(entries) {
         ours: attributionOf(inDiv, outDiv),
         movedFresh: st.movedFresh ?? 0,
         action: cur.action ?? null,
+        // BACKLOG "the suggestion-mode variant fork is a census class": at
+        // the input divergence point, does either side carry CC's own
+        // suggestion-mode scaffolding turn? Two variants of one conversation
+        // diverging there is CC alternating instructions, not a failed
+        // absorption — nothing our mitigations could touch, since both
+        // sides are CC's own bytes. `false`, never `null`, when inDiv is
+        // null (append-only) — there is no divergence index to inspect, and
+        // that is a definite "no", not an unmeasured case.
+        // `?.` guards an entry built without inSuggestionMode (a
+        // compact-shaped test fixture bypassing compactEntry): absent marker
+        // data reads as "not this class", never a thrown error.
+        suggestionVariant: inDiv !== null &&
+          (prev.inSuggestionMode?.[inDiv] === true || cur.inSuggestionMode?.[inDiv] === true),
       });
     }
   }

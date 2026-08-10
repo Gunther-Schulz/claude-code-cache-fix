@@ -209,6 +209,65 @@ test("no fresh absorption means no row, however badly the prefix diverged", () =
   assert.deepEqual(rows, [], "re-fire only, no fresh recognition — not this check's row");
 });
 
+// --- suggestionVariant: BACKLOG "the suggestion-mode variant fork is a
+// census class" ---
+//
+// The REFIRE_SHAPE pair already satisfies every precondition
+// findAbsorptionMisses checks for (a claimed fresh absorption, an input
+// divergence, an output divergence inside it) — the live 34-row corpus this
+// entry measured is exactly six of those rows explained by CC alternating
+// between the real user turn and its own suggestion-mode scaffolding
+// instruction at the SAME index, never a failed absorption. Marking that
+// class needs only inSuggestionMode on the entries at the divergence index
+// (inDiv=7 in REFIRE_SHAPE) — nothing else about the shape changes.
+const SUGGESTION_MARKER = "[SUGGESTION MODE: Suggest what the user might naturally type next into Claude Code.]";
+
+test("suggestionVariant fires when the divergence index carries CC's own scaffolding marker on either side", () => {
+  const [prev, cur] = REFIRE_SHAPE();
+  // inDiv is 7 (REFIRE_SHAPE's own comment: "CC diverges at 7"); mark it on
+  // cur only, the alternating shape the live corpus shows.
+  cur.inSuggestionMode = new Array(cur.inHash.length).fill(false);
+  cur.inSuggestionMode[7] = true;
+  const [row] = findAbsorptionMisses([prev, cur]);
+  assert.equal(row.inputDivergence, 7, "control: this is still the REFIRE_SHAPE divergence index");
+  assert.equal(row.suggestionVariant, true);
+});
+
+test("suggestionVariant stays false on the plain REFIRE_SHAPE — no marker anywhere", () => {
+  const [row] = findAbsorptionMisses(REFIRE_SHAPE());
+  assert.equal(row.suggestionVariant, false,
+    "the ordinary bust shape must not be classified as the benign fork");
+});
+
+test("suggestionVariant does not fire when the marker sits at a DIFFERENT index than the divergence", () => {
+  const [prev, cur] = REFIRE_SHAPE();
+  cur.inSuggestionMode = new Array(cur.inHash.length).fill(false);
+  cur.inSuggestionMode[3] = true; // nowhere near inDiv=7
+  const [row] = findAbsorptionMisses([prev, cur]);
+  assert.equal(row.suggestionVariant, false);
+});
+
+test("suggestionVariant is false, not thrown, on an entry with no inSuggestionMode at all", () => {
+  // Every OTHER bite in this file constructs entries this way (compactEntry
+  // bypassed, hash-only) — the field must degrade to false, never throw.
+  const rows = findAbsorptionMisses(REFIRE_SHAPE());
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].suggestionVariant, false);
+});
+
+test("BITE — compactEntry actually populates inSuggestionMode from real message content", () => {
+  const real = { role: "user", content: [{ type: "text", text: "what happens next?" }] };
+  const scaffold = { role: "user", content: [{ type: "text", text: SUGGESTION_MARKER }] };
+  const mixedContainer = { role: "user", content: [{ type: "text", text: "preamble" }, { type: "text", text: SUGGESTION_MARKER }] };
+  const notUser = { role: "assistant", content: [{ type: "text", text: SUGGESTION_MARKER }] };
+  const e = compactEntry({ n: 1, ts: "t", key: "k", inMsgs: [real, scaffold, mixedContainer, notUser], outMsgs: [] });
+  assert.deepEqual(e.inSuggestionMode, [false, true, true, false],
+    "a real turn is false; the marker fires however many other blocks share the message; " +
+    "the SAME text on an assistant-role message is not CC's own scaffolding turn and must not fire");
+});
+
+// --- formatAbsorptionMisses: the text-report rendering (BACKLOG
+// "findAbsorptionMisses runs on every replay and prints on none") ---
 // --- The TEXT report — BACKLOG "READY — `findAbsorptionMisses` runs on
 // every replay and prints on none" ---
 //
