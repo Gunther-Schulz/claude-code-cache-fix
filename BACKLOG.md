@@ -2174,7 +2174,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)**, inherited from the two entries that
   consume it.
 
-- **READY (small) — `harvest --pin` cannot freeze a LATE event in a LARGE
+- **DONE (`e9a374b`, `ce975c5`, both ancestors of this base) — the design in this entry had ALREADY SHIPPED before the lane that was dispatched to build it opened. Returned by L5 on its premise re-read; desk-verified independently — `pinRangeBounded`, `boundedKeep` (the conversationOf-OR-sameLineage union this entry specifies) and the `--bounded` CLI flag are all live in `tools/harvest.mjs`, and `test/harvest-pin-bounded.test.mjs` covers every clause including the union discriminator. The entry is the stored-brief rot the routing rule names: its grade recorded decision-completeness as of the day it was written and nothing re-graded it when the work landed. — `harvest --pin` cannot freeze a LATE event in a LARGE
   capture, which is exactly when the expensive busts happen.** `--pin n..m`
   always writes every record from 0 through m (deliberately: replay from 0 is
   what keeps insertion-normalization's per-conversation canonical state in
@@ -2511,7 +2511,22 @@ ENOSPC misattribution with its wrong first explanation left in.
   rows whose walks live in datapoint sections — which is most of them, and is
   what keeps the check from firing on the whole table.
 
-- **READY — the 2026-08-07 01:00:55Z 336k event reads UNCLASSIFIED, and its
+- **READY — the lane plan derived write boundaries from entry PROSE, and eight of twenty-one dispositioned members came back because the realizing file was somewhere else.** Measured 2026-08-10 across wave 1 of the backlog drain, from the lanes' own returns rather than from impression: L8 returned 5 of 9, L7 4 of 7, L4 1 of 3, L5 0 of 2 on this ground. None was a design failure and every refusal was correct.
+  **The mechanism, and it is the dispatcher's rather than the lanes':** the plan grouped entries by reading their bodies and inferring which file each would land in. An entry that says what is WRONG without saying WHERE THE FIX LANDS hides its collisions until brief time, and a boundary inferred from backticked citations is a FLOOR, not a boundary — this backlog already said so in writing, and the derivation did it anyway, for the third time in one day.
+  **What it cost, priced rather than asserted:** eight lane-members spent a premise re-read and a refusal instead of a build, plus one near-miss — one lane edited ten deployment-coupled extension files and a co-lane's tool before catching the breach against its own brief, and reverted before committing (desk-verified: none of its three commits carries any of those paths). A boundary the plan states wrongly is a boundary the executor discovers by walking into it.
+  **This is the WRITER half of a defect whose reader half is already booked.** The lane-derivation tool booked in `406bf0e` mechanizes the JOIN — resolve each READY entry's boundary, group by connected components, WARN on boundary-less entries. That closes the derivation. It does not close this: the entries themselves still do not carry the slot, so the join has nothing to read for most of them, and the derivation-time ref scores roughly 63 UNRESOLVED against it.
+  Design, decided: a pass over the READY set adding the realizing write-boundary slot to every entry lacking one, taken from the entry's own design where that is unambiguous and marked UNRESOLVED where it is not — a VISIBLE unresolved is the deliverable, not a defect. It is a BACKLOG.md convention-and-content change, so it is the desk's and never a lane's.
+  Verifier, red-first, anchored to an immutable ref so it cannot decay: the lane-derivation tool over the derivation-time ref reports its ~63 UNRESOLVED, and over the tree at the commit closing this entry reports zero UNRESOLVED among READY entries, with the residue named per entry rather than summarised as a count.
+  Realizing write-boundary: `BACKLOG.md` (desk-only). Ordering: depends on the lane-derivation tool existing first. Consumer tier **3 (backlog and process)**. Loop stage: none directly — it repairs the scheduling machinery every other stage is dispatched from.
+
+- **READY — a booked verifier names a live capture as its calibration evidence and NOTHING pins it at booking time; two entries have now lost theirs.** Measured 2026-08-10 by the read-only evidence lane, which could not execute either design because the data was already gone. One entry's motivating pair is off disk, never pinned; another's five backing captures are all gone — searched across the whole cache-fix data tree and the committed fixtures, zero hits. Not "about to expire": already expired. The corpus also shrank from 89 captures to 58 in the same window.
+  **What makes this a class and not two accidents:** an entry is booked with a red-first arrangement pointing at live, mutating state; the arrangement is correct on the day it is written; the capture rotates on a quadratic clock, oldest-mtime-first — which takes the QUIET session first, and a session goes quiet exactly when it stops being traffic and starts being evidence. Nothing in the booking path notices. This repo already carries the rule that a red-first arrangement is anchored to an immutable reference; what it lacks is anything that CHECKS that at the moment a booking is written.
+  **The correction to the obvious repair, and it is the load-bearing half:** the answer is NOT to find a substitute calibration case. `docs/dev-loop.md` is explicit — a check whose motivating case dissolves does not get a substitute found for it, because it would ship having never gone red on a real defect. An entry whose calibration evidence expired is therefore not re-armable by shopping for a fresh instance; it is re-armable only by capturing and pinning the NEXT live occurrence, which makes the pin the deliverable and the fix the thing that waits.
+  Design, decided, in two halves. MECHANISM: `backlog-lint` gains a check that an entry citing a capture ALIAS in its verifier resolves that alias against the alias registry and against committed fixtures, and WARNs when it resolves to neither — computable with near-zero false fires, since an alias is a closed vocabulary. PROCEDURE: an entry whose verifier names a live capture pins it in the same action that books it, and where the class cannot survive the scrub (literal-text predicates) the entry says so rather than pretending the pin carries it.
+  Verifier, red-first: the two entries above are permanent real positives at this commit — the check must WARN on both and stay silent on entries whose cited aliases still resolve. Both arms required; a check that warns on everything is the non-defect firing this repo already collects.
+  Realizing write-boundary: `tools/backlog-lint.mjs` + `test/backlog-lint*.test.mjs` for the mechanism half (the backlog-tooling lane's set); `BACKLOG.md` for the procedure half (desk). Consumer tier **1 (event disposition)** — it governs whether a mitigation's evidence still exists when someone goes to build it.
+
+- **DONE 2026-08-10 — ANSWERED as a NON-DEFECT, by direct read of the transcript. The sequence is textbook GROWTH with full read-conservation (cc=39711/cr=0 -> cc=39711/cr=0 -> cc=335933/cr=39711 -> cc=1237/cr=375644, and 375644 = 39711+335933). `bust-triage`'s five-diagnostic read is byte-exact correct; the flagged record carries `diagnostics:null`. ATTRIBUTION: n/a — no divergence on either side; this is the ❄ firing on cache_creation alone, an INSTRUMENT property, not a bust. The threat matrix's sentence that no `cache_miss_reason` exists anywhere in the session is FALSE whole-transcript (five exist) and TRUE only for the flagged record — a scope overreach, re-booked below as an L2 matrix correction. — the 2026-08-07 01:00:55Z 336k event reads UNCLASSIFIED, and its
   transcript diagnostic does not join to the ledger record.** Surfaced
   2026-08-07 by `22b8c05`, which turned a non-answer into a finding: with the
   request selection fixed, the walk reaches a real pair (`n=2->4`) and the
@@ -2888,7 +2903,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   Verifier: with a planted marker, the CLI's own output must name the gate it
   will fail, and the assertion must quote that phrase so the two cannot drift.
 
-- **READY — `test/harvest-scrub-relations.test.mjs` reads
+- **DONE 2026-08-10 (`4a0d5f6`) — and the reach is LARGER than either the entry or the lane said. `committedFixtures()` now walks recursively, plus a reachability guard so the NEXT subdirectory cannot hide the same way. L5 reported 210 newly-scanned files, matching `git ls-files`; measured at the desk on the integrated tree the scan's real new domain is 385 files (406 on the filesystem against 21 non-recursively), of which 177 are UNTRACKED — the two-coordinate-spaces split, and the untracked half is the better half, since those are exactly the fixtures staged for the next commit. Desk boundary probe: a planted `.json` in a fresh nested subdirectory is reached and scanned, green — correct, not a gap. — `test/harvest-scrub-relations.test.mjs` reads
   `test/fixtures/harvested` NON-recursively, so the standing corpus check
   cannot see `rowpins/`.** Found 2026-08-07 by the lane that created the
   subdirectory (`e787960`). Reader half: recurse — a one-line change, and the
@@ -3277,7 +3292,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   same shape as the writer-side guard at cost rank 1 — a generator-stopper, not
   another sweep.
 
-- **READY — the census header promises MISMATCH bodies "printed in full"; the
+- **DONE 2026-08-10 (`3991a00`) — `rejectedCandidate` carries `.text` beside `.chars`, and a MISMATCH row prints its full reconstruction and the rejected candidate untruncated under `--verbose`; default output unchanged. Red-first with its baseline: the unmodified code failed on "the row's full reconstruction must be printed under --verbose", the row having printed lengths only. — the census header promises MISMATCH bodies (the
   code prints lengths only, and three consumers believed the sentence.** Found
   2026-08-07 by the byteGate lane, which needed the bodies and discovered the
   tool cannot produce them.
@@ -4028,7 +4043,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   quiet stamp and the output must say so in words. A run that prints
   nothing at all is a failing run.
 
-- **READY — `docs/dev-loop.md`: a FIELD can be a default rather than a
+- **DONE 2026-08-10 (`a5a9b54`), prose half only, which is what this member is. — `docs/dev-loop.md`: a FIELD can be a default rather than a
   measurement, and 0 is where the two are indistinguishable. FIVE instances in
   one session.** The file already teaches that a number names its tap point and
   its unit; it does not teach that a number may not be a number at all. Each of
@@ -4643,7 +4658,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   pattern or path IS the instrument, and its reach is the claim's basis. Both
   were caught by their own authors; neither was caught by a mechanism.
 
-- **READY — the close-out lane inventories EVENTS and not SIGNALS, so a
+- **DONE 2026-08-10 (`963e6b2`) — a runbook procedure step in `session-close.md`, carrying its `[GRADUATE]` marker rather than pretending to be mechanized. — the close-out lane inventories EVENTS and not SIGNALS, so a
   doorbell that fires on every single turn can go a whole session
   undispositioned.** Found 2026-08-06 by asking "what else did we miss?"
   after the lane had already reported CLOSED. Measured on this session:
@@ -4822,7 +4837,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   the cited fact does not.**
   The extract markers are at docs/dev-loop.md:1348 and :1422, not 728/802. The
   file grew under the citation.
-- **READY — an index check for the runbook lane system, and it must be built
+- **PARTLY DONE 2026-08-10 (`087d435`) — `tools/runbook-lane-index.mjs` + its test ship checks 2 and 3 of the four this entry names; CHECK 4 (every index row names a detection channel) is NOT built and stays READY below, because its red is entangled with an unbuilt TRIGGER-column schema and filling that in would have been a silent design decision at the executing tier. On its first real run the tool found two live STALE markers (`bust-appears.md:236`, `sweep-finding.md:93`) and reproduced the real 3-of-5 runbook-list staleness — an instrument earning its keep on contact. — an index check for the runbook lane system, and it must be built
   BEFORE the two reds above.** Peer session's design, adopted: build it split,
   with checks 2 and 3 domain-free so they are not this repo's private tooling,
   plus a fourth condition — **every index row names a detection channel**, i.e.
@@ -5766,7 +5781,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   is the trigger: revisit after the lane has been run on a materially changed
   BACKLOG.md a few times.
 
-- **READY — the byte-gate's MISMATCH rows have no way OUT of the census, so
+- **DONE 2026-08-10 (`0dd7e56`) for the CENSUS half; the gate-live wiring is carved out and re-booked below. `--json --verbose` exports `mismatchRows` verbatim, capped at 200 with `mismatchRowsTruncated`. Red-first: unmodified code failed `mismatchRows must be an array; got: undefined`. The cap bite found a defect NEITHER entry named and it is the serious one — `process.exit(await main(...))` truncated its own large stdout write mid-JSON (146KB came back `SyntaxError: Unterminated string`), pre-existing and invisible until a payload got big enough. Fixed in the same commit with `process.exitCode`. — the byte-gate's MISMATCH rows have no way OUT of the census, so
   the sweep cannot persist them (tools/-only).** Surfaced by the row-persistence
   lane as a returned question, not filled by it: the six other per-gate row
   arrays now ride the status file, but the byte gate is a SECOND child
@@ -6661,7 +6676,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **2 (feeds the gates)**.
   <!-- entry: "tools/logs.mjs shipped with zero adopters" -->
 
-- **READY — the scrub's length-vector residual was accepted on a premise the
+- **DONE (no commit — verified ALREADY DONE against the file rather than assumed) — `docs/dev-loop.md:1921-1950` already carries the accept-and-rewrite text this entry asks for. L8 read the current bytes before concluding, which is the closing-against-the-world rule doing its job in the cheap direction. — the scrub's length-vector residual was accepted on a premise the
   operator's 2026-08-10 bar falsifies, so the acceptance has to be re-derived
   rather than inherited.** `docs/dev-loop.md` recorded the residual —
   paragraph count, per-paragraph lengths, and cross-text sharing of identical
