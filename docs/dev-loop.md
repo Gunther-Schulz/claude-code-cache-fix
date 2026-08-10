@@ -20,6 +20,7 @@ behind any step.
 | the proxy's own detectors log an anomaly (429, 5xx, auth, retry storm) | `runbooks/runtime-anomaly.md` | the sweep's six, plus open-booked |
 | an upstream PR gets a review round | `runbooks/upstream-pr-round.md` | round answered, pushed, comment posted |
 | the operator signals the session is ending | `runbooks/session-close.md` | closed — every context-resident fact on disk in its consumer's carrier, every open backlog entry executable without asking anyone a question, and `continue from backlog` sufficient as the next session's whole instruction; or each exception named as dropped |
+| a session is about to ship a change touching `proxy/**` (or ride the same lane for a doc/tools-only commit) | `runbooks/ship-proxy-change.md` | shipped / aborted-with-reason |
 
 Why these exist at all (operator, 2026-08-06): the method and the closing gate
 were both written down, and how completely an event got handled still depended
