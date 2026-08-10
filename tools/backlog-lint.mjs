@@ -1814,6 +1814,55 @@ export function lintReadyBar(text, env = {}) {
   return findings;
 }
 
+// Heading-wrap lane (default pass) — a `## ` heading split across two lines
+// ==========================================================================
+//
+// Why this exists: `BACKLOG.md` carried
+// `## Upstream PR round — booked 2026-08-05; the round below is CLOSED,` on
+// one line and `## current state is the first entry` on the next: ONE
+// logical heading, TWO `## ` lines, so every section-scoped parser
+// (`censusOpenSection`, `backlog-order.mjs`'s `splitOpen`) saw two sections
+// and 82 entries sat under a heading that is a sentence fragment. See
+// BACKLOG.md, "`backlog-lint` reports clean on a `## ` heading split".
+//
+// A `## ` heading is a WRAPPED-HEADING finding when EITHER half fires (both
+// checked, because either alone is escapable): its own text begins
+// lowercase (a continuation can never legitimately open a NEW heading with a
+// lowercase letter), or the IMMEDIATELY PRECEDING `## ` heading's text ends
+// in a comma or a bare conjunction (`and`/`or`/`but`) — a heading does not
+// end mid-sentence.
+
+const HEADING_LINE = /^## (.*)$/;
+const STARTS_LOWERCASE = /^[a-z]/;
+const ENDS_COMMA_OR_CONJUNCTION = /(,|\b(?:and|or|but)\b)\s*$/i;
+
+export function lintHeadingWrap(text) {
+  const lines = text.split("\n");
+  const headings = [];
+  lines.forEach((line, i) => {
+    const m = HEADING_LINE.exec(line);
+    if (m) headings.push({ line: i + 1, text: m[1] });
+  });
+  const findings = [];
+  for (let i = 0; i < headings.length; i++) {
+    const h = headings[i];
+    const startsLower = STARTS_LOWERCASE.test(h.text.trim());
+    const prevEndsBad = i > 0 && ENDS_COMMA_OR_CONJUNCTION.test(headings[i - 1].text);
+    if (startsLower || prevEndsBad) {
+      const reasons = [];
+      if (prevEndsBad) reasons.push("predecessor-ends-comma-or-conjunction");
+      if (startsLower) reasons.push("starts-lowercase");
+      findings.push({ line: h.line, text: h.text.slice(0, 80), reasons });
+    }
+  }
+  return findings;
+}
+
+function formatHeadingWrapFinding(f) {
+  return `WARN backlog-heading-wrap line=${f.line} reasons=${f.reasons.join(",")} text="${f.text}"`;
+}
+
+// ==========================================================================
 // Boundary classification (default pass) — shared with tools/backlog-lanes.mjs
 // ==========================================================================
 //
@@ -2051,6 +2100,14 @@ function main(argv) {
     boundaryless.length
       ? `backlog-boundary: ${boundaryless.length} finding(s) — REPORT only\n`
       : "backlog-boundary: clean\n",
+  );
+
+  const headingWraps = lintHeadingWrap(text);
+  for (const f of headingWraps) process.stdout.write(`${formatHeadingWrapFinding(f)}\n`);
+  process.stdout.write(
+    headingWraps.length
+      ? `backlog-heading-wrap: ${headingWraps.length} finding(s) — REPORT only\n`
+      : "backlog-heading-wrap: clean\n",
   );
 
   if (wantPointers) {

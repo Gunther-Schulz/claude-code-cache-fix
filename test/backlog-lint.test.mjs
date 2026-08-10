@@ -47,6 +47,7 @@ import {
   lintText, lintPointers, splitEntries,
   lintCitations, lintRowStatus, ROW_STATUS_LABELS, lintPremiseTrue, lintCorrectionPlacement,
   lintBoundary, realizingBoundary, realizingBoundaryFiles, isDeploymentCoupled, isHold, NOISE_FILES,
+  lintHeadingWrap,
 } from "../tools/backlog-lint.mjs";
 // Namespace import for the two lanes new to this dispatch (lintReadyBar,
 // READY_BAR_LABELS). Per dev-loop.md's ESM-namespace-import rule: a STATIC
@@ -2223,4 +2224,65 @@ test("CLI: backlog-boundary lane runs in the default pass, zeros stated", () => 
   const { code, out } = runTool(["-"], "## Open\n\n- **READY — real.** Cites `tools/backlog-lint.mjs`.\n");
   assert.equal(code, 0);
   assert.match(out, /^backlog-boundary: clean$/m);
+});
+
+// ==========================================================================
+// Section: heading-wrap lane -- a `## ` heading split across two lines
+// ==========================================================================
+//
+// Definitions from BACKLOG.md, "`backlog-lint` reports clean on a `## `
+// heading split": a `## ` heading is WRAPPED when its own text starts
+// lowercase, or the immediately preceding `## ` heading's text ends in a
+// comma or a bare conjunction (and/or/but). Both checked, either alone is
+// escapable.
+
+test("lintHeadingWrap: RED-FIRST -- the real split reconstructed from the requesting entry's own quote", () => {
+  // Quoted exactly as BACKLOG.md's own entry records the pre-fix two-line
+  // form (the join happened before this lane existed, so there is no clean
+  // single commit to `git show` the split state from -- the entry itself is
+  // the record, and this reconstructs it byte-for-byte from that quote).
+  const doc = [
+    "## Upstream PR round — booked 2026-08-05; the round below is CLOSED,",
+    "## current state is the first entry",
+    "",
+    "- **READY — a thing.** Body.",
+  ].join("\n");
+  const findings = lintHeadingWrap(doc);
+  assert.equal(findings.length, 1, "the second heading line is the wrapped continuation");
+  assert.equal(findings[0].line, 2);
+  assert.deepEqual(findings[0].reasons.sort(), ["predecessor-ends-comma-or-conjunction", "starts-lowercase"].sort());
+});
+
+test("lintHeadingWrap: GREEN -- the current (joined) BACKLOG.md is clean", () => {
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  assert.deepEqual(lintHeadingWrap(current), []);
+});
+
+test("lintHeadingWrap: over-fire control -- an ordinary heading sequence stays silent", () => {
+  const doc = [
+    "## Build order — some prose.",
+    "## Open",
+    "## Done — closures.",
+  ].join("\n");
+  assert.deepEqual(lintHeadingWrap(doc), []);
+});
+
+test("lintHeadingWrap: starts-lowercase alone (no comma predecessor) still fires", () => {
+  const doc = ["## First heading here", "## lowercase continuation"].join("\n");
+  const findings = lintHeadingWrap(doc);
+  assert.equal(findings.length, 1);
+  assert.deepEqual(findings[0].reasons, ["starts-lowercase"]);
+});
+
+test("lintHeadingWrap: predecessor-ends-comma alone (next starts uppercase) still fires", () => {
+  const doc = ["## First heading ends with a comma,", "## Second Heading Capitalized"].join("\n");
+  const findings = lintHeadingWrap(doc);
+  assert.equal(findings.length, 1);
+  assert.deepEqual(findings[0].reasons, ["predecessor-ends-comma-or-conjunction"]);
+});
+
+test("CLI: backlog-heading-wrap lane runs in the default pass", () => {
+  const { code, out } = runTool(["-"], "## Open\n\n- **READY — a thing.** Body.\n");
+  assert.equal(code, 0);
+  assert.match(out, /^backlog-heading-wrap: clean$/m);
 });
