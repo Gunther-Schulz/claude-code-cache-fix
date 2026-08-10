@@ -948,7 +948,29 @@ Order that works, cheapest first:
    probe. This line exists because the same comparison was hand-derived by
    throwaway script three times in one day; the throwaway probe is the tell
    that a check is missing.
-4. **Only then look at the bytes.** Print the diverging index from both
+4. **Cross-check against a known SIBLING implementation, if one exists.**
+   Divergence between two independently built measurements of the same
+   quantity is the cheap reach detector (the operator corpus's own
+   grounding rule) — this repo is unusually rich in them, so before
+   reaching for the bytes, ask whether one already exists and run it.
+   Named pairs, so the step is executable rather than aspirational:
+   `tools/cold-events.mjs` vs claude-worktime's own cold-rewrite detector;
+   `tools/replay.mjs --census` vs `tools/reminder-migration-census.mjs` on
+   container migrations; `tools/bust-triage.mjs` vs `tools/dossier.mjs` on
+   row lookup, which the runbook already treats as a disagreement source.
+   Measured 2026-08-07: a 336k ❄ was diagnosed by running
+   `tools/cold-events.mjs` over the same transcript worktime's ledger had
+   already flagged — the difference between the two (a `requestId` dedup
+   one has and the other lacks) WAS the defect and its remedy, in a single
+   step, after reasoning alone had already produced two wrong mechanisms.
+   Reproduced 2026-08-10 against the same stamp (session
+   `s-06636dd1-fdd2-4463-9cb2-e3f515609495`, `2026-08-07T01:00:55Z`,
+   `cc=335933`): worktime's ledger still records a cold hit there;
+   `node tools/cold-events.mjs` over that session's transcript reports
+   `66 duplicate transcript row(s) dropped` and does not flag that row at
+   all (its one detected event, at `03:31:59.585Z`, is a different, later
+   rewrite) — the same sibling disagreement, on demand, three days later.
+5. **Only then look at the bytes.** Print the diverging index from both
    sides and read what is actually there.
 
 Whenever a step of this list gets answered by hand twice, that is the signal
