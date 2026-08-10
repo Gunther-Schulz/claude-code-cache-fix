@@ -324,6 +324,30 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY (do this first) — 9 commits are unpushed and `git push` is DENIED by
+  the unbooked-subagent-commit guard.** Booked 2026-08-10 evening by the
+  closing session so it is visible at SESSION START, not only in the handoff:
+  the session-start hook injects READY bullets from this section, and the
+  `## Handoff` section is not on that path. A blocker whose carrier the reader
+  never loads is not persisted.
+  The guard names two commits — `347d477` (census: emit identityRotation) and
+  `e9a374b` (harvest --pin --bounded). Both carry `Co-Authored-By: Claude
+  Sonnet 5` with no `Claude-Session:` trailer, which is what "unbooked" means.
+  They are SUBAGENT commits of session `…01R9jUauuFcnSPMSjx1ALPUp`; subagents
+  commit unpushed by design and the DISPATCHER pushes after verifying in the
+  artifact.
+  Done when: that dispatcher has verified its two commits and `git push origin
+  main` succeeds, leaving `git log origin/main..main` empty.
+  **Do NOT reach for `PUSH_UNBOOKED_SUBAGENT_OK=1`** unless you are that
+  dispatcher and have verified them — an override taken for another writer's
+  unverified work is the habit that kills a guard, and the closing session
+  declined it for exactly that reason.
+  The tree was green at the attempted push (`npm test`: 2654 / 2649 pass / 0
+  fail / 5 skipped), so nothing else stands between these commits and the
+  remote.
+  Consumer tier **1 (event disposition)**.
+  <!-- entry: "9 commits unpushed; push denied by the unbooked-subagent guard" -->
+
 - **READY — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
