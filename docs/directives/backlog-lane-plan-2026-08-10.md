@@ -299,3 +299,69 @@ label survivable either way.
   this working copy at 2026-08-10T16:15Z. Before dispatching L6 (and before
   trusting any small entry's open status), check that lane's closing report
   and closures — some L6 members may already be done or in flight.
+
+---
+
+## MEMBERSHIP RE-CHECK 2026-08-10 (the executing session, before wave 1)
+
+The check this plan's own head demands, run rather than assumed. Method:
+every member headline resolved against a fresh `backlog-lint --census` by
+TEXT, not by line number (`scratchpad/resolve.mjs`, 100/100 resolved); the
+`batch-six-smalls` closing commits read (`ff5824c`, `910fb8e`, `12f40b4`);
+the two flagged entries probed against the world.
+
+**Seven members were already closed and are struck.** Six of them were
+invisible to the derivation census because of a defect in the CLOSURE
+CONVENTION, now booked and repaired: a closure prepends a `DONE` bullet and
+leaves the ORIGINAL bullet graded `READY`, so one finished item is counted
+open forever. Enumerated red-first (6 over `3b37ece:BACKLOG.md`, 2 after four
+hand re-grades, 0 after all six) — the true open count is **94**, not 100.
+
+| lane | member | disposition |
+|---|---|---|
+| L1 | the succession rule's computable slice | CLOSED `2e53a01` |
+| L1 | a derivation asks whether an entry's PREMISE is true | CLOSED `2e53a01`+`2676523` |
+| L3 | the LINEAGE relation as a shared primitive | CLOSED `d8bb9b6` — desk-verified: exports at `tools/replay.mjs:1179-1191`, 10/10 bites pass, `conversationOf` untouched |
+| L6 | `cost-report.mjs` had ZERO test coverage | CLOSED `92fdffc` |
+| L6 | `absence-scan`'s `allowlisted:` line | CLOSED `b77d8b8` |
+| L7 | `tools/xdg-writer-guard.mjs` is red at 34 | CLOSED `2d07e74` — **including** the `gate-live` wiring half this plan carved out for L10; that carve is void |
+| L8 | when an instrument surprises you, run the SIBLING | CLOSED `cf8843f` |
+
+**Three members MOVE, each on a realizing-file resolution the derivation did
+not make:**
+
+- The `local-stamp` pair (L6 member 4) was RE-SCOPED by the batch lane's
+  correct refusal: its boundary is now `proxy/server.mjs:51` and
+  `preload.mjs:1396`. That is `proxy/**`, so it is deployment-coupled and
+  moves **L6 → D1**.
+- `git stash`/`pop` across a `git mv` (L6 member 9) realizes in
+  `test/logs-schemas.test.mjs`, which L7 owns. Moves **L6 → L7**.
+- `rebilledBytes` (L10 member 2) was RE-SCOPED to 65 sites across 10 files
+  including `tools/replay.mjs` and four `test/replay-*`/fixture-verdict
+  suites. It was already wave 2; the re-scope confirms rather than changes
+  that, and hardens it — L10 may not start until L3 has integrated.
+
+**Two premise re-reads run at the desk rather than delegated,** because both
+were flagged and both gate a lane's first act:
+
+- `capturePairResult` (L2 member 1): its stated blockers both landed
+  (`ce975c5`, `a68a8af`, plus `d8bb9b6`), and its red arrangement STILL
+  REPRODUCES — re-run today, `VERDICT: UNVERIFIABLE` /
+  `ATTRIBUTION: COULD-NOT-ATTRIBUTE`, selected request at ord 715, n=555,
+  "18 request(s) in this capture and none earlier", byte-for-byte the entry's
+  recorded red. Its four cited sites were re-read and all four are exact
+  (`tools/bust-triage.mjs:754`, `:765`, `:1261`, `:1276`). DISPATCHABLE, and
+  its red is runnable TODAY — the capture behind it is on a rotation clock, so
+  L2 runs that arm first.
+- The lineage entry (L3 member 3): DONE, above.
+
+**Corrected lane sizes.** Wave 1: L1 17 + 1 new (the closure double-grade
+check, booked today — realizing file `tools/backlog-lint.mjs`, already L1's
+boundary) = **18**; L2 8; L3 13; L4 3; L5 2; L6 7; L7 7; L8 9; L9 3 — **70**.
+Wave 2: L10 5. Desk: D1 7 + the `local-stamp` pair (two bullets, one work
+item) = 9. Holds: D2 10, unchanged.
+
+Accounting, against the measured census rather than against this plan's
+arithmetic: **94 READY** = 70 + 5 + 9 + 10. Derivation of the 94 from the
+derivation-time 100: −7 closed, +1 booked today. Every entry appears in
+exactly one lane.

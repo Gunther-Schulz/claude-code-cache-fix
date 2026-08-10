@@ -1613,6 +1613,48 @@ ENOSPC misattribution with its wrong first explanation left in.
   outside-`## Open` bullets, and the five `(shipped) READY` bullets. Done when
   `backlog-lint` fails on each of the three and the SessionStart count equals
   `grep -c '^- \*\*READY'` over `## Open`.
+- **READY (small) — the closure convention mints a SECOND bullet and leaves the
+  first graded READY, so a closed item is counted OPEN forever; six were live in
+  this file today.** The WRITER half of the grade-marker entry above, and a
+  mechanism that entry never named. A closure is booked here by PREPENDING a
+  `DONE` bullet that ends "Original entry follows." and leaving the original
+  bullet in place — with its `READY` grade token untouched. One work item, two
+  bullets, and every consumer that counts grade tokens counts the second as open.
+  Measured 2026-08-10 at `3b37ece`, red-first with its baseline stated: a probe
+  over `git show 3b37ece:BACKLOG.md` (unmodified) reported **6** — the
+  succession-rule slice, `cost-report` coverage, the dev-loop sibling rung,
+  `absence-scan`'s allowlist line, the premise-true derivation, and
+  `xdg-writer-guard`'s sweep — and over the same file after four had been
+  re-graded by hand it reported **2**, so the count moved by exactly the four
+  changed. The probe discriminates rather than returning a constant, which a
+  single non-zero run could not have shown.
+  **What it costs, measured rather than argued:** all six were closed by lanes
+  earlier the same day, and four were still carried as live members of the lane
+  plan derived hours afterwards. The bill is a lane dispatched against work
+  already finished.
+  **What put it out of reach, and it is still running:** nothing re-grades the
+  original bullet, and the booking session cannot see the drift, because the
+  `DONE` bullet it has just written reads as the closure. The reader-side fix in
+  the entry above (a header test on the first token) makes the count honest
+  about the TOKEN; it cannot see that two bullets are one item.
+  Design, decided: `tools/backlog-lint.mjs` gains a check — a top-level bullet
+  graded `DONE` or `RESOLVED` whose body matches `/Original (entry|body)
+  follows/i` and whose IMMEDIATELY FOLLOWING top-level bullet still carries a
+  `READY` grade is a finding, naming both line numbers. Blocking, not advisory.
+  The one false-fire class is a genuine RE-SCOPE, and the predicate cannot see
+  it: a re-scope prepend carries a `READY` grade itself (two live examples in
+  this file, the `rebilledBytes` and `local-stamp` pairs), so keying on the
+  PREPEND's grade is what separates a closure from a re-scope. That is the
+  declared exemption the guard itself verifies, not a softened predicate.
+  Verifier, red-first with its baseline, anchored to an IMMUTABLE reference so
+  the arrangement cannot decay into a false green: run the check over
+  `git show 3b37ece:BACKLOG.md` — it must name exactly the six pairs above — and
+  over the tree at the commit closing this entry, where it must report zero. A
+  commit range, never a working copy.
+  Realizing file: `tools/backlog-lint.mjs`, `test/backlog-lint*.test.mjs`.
+  Consumer tier **3 (backlog and process)**. Loop stage: none directly — it
+  repairs the machinery every other stage is scheduled from.
+
 - **DONE 2026-08-10 (`2e53a01`) — and it reuses `bust-triage`'s own vocabulary
   rather than minting a second one.** `lintRowStatus` checks a `row N` +
   status-word sentence against the live `robustness-threat-matrix.md`, importing
@@ -1632,7 +1674,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   `bust-triage`'s own `KNOWN-OPEN` compound verdict. Fixed with a `KNOWN-`
   lookbehind. Clean on the current corpus, desk-verified.
   Original body follows.
-- **READY (small) — the succession rule's computable slice: an entry that
+- **DONE (original entry, superseded by the closure directly above) — the succession rule's computable slice: an entry that
   ASSERTS a matrix row's status is a dependent nothing re-reads.** The rule
   itself is judgment-shaped and stays prose (dev-loop, "A finding never lands
   alone"), but one slice is a byte comparison: entries routinely say "row N is
@@ -1979,7 +2021,35 @@ ENOSPC misattribution with its wrong first explanation left in.
   Verifier: the deployed overlay carries the three lines, and the doctor's
   content-drift check on `DEPLOYED_COPIES` stays green.
 
-- **READY (small) — the LINEAGE relation, as a shared primitive in
+- **DONE 2026-08-10 (`d8bb9b6`) — the primitive landed ahead of both its
+  consumers exactly as this entry required, and the first one is already built
+  on it.** `LINEAGE_THRESHOLD = 0.5`, `lineageOverlap(a, b)` and
+  `sameLineage(a, b)` are exported from `tools/replay.mjs:1179-1191`, and
+  `test/replay-lineage.test.mjs` carries 10 bites: `node --test
+  test/replay-lineage.test.mjs` returns `pass 10 / fail 0`, executed at the desk
+  2026-08-10, including the threshold-boundary pair (exactly 0.5 is true, just
+  below is false) and the order-independence bite.
+  The done-criterion's SECOND half was checked rather than assumed:
+  `conversationOf` is unchanged and no existing caller of it was touched — the
+  cache identity was not bent to make the lineage relation fit, which was the
+  whole design point.
+  First consumer live already: `tools/harvest.mjs` imports `sameLineage` from
+  `replay.mjs` (`:105`) and its bounded-pin keep set is the busting
+  conversation unioned with everything `sameLineage` relates (`:799`) — the
+  reuse this entry's "no consumer re-derives either inline" clause exists to
+  produce. Second consumer, `capturePairResult`'s lineage fallback, is the
+  entry above and is UNBLOCKED by this: its red arrangement was re-run at the
+  desk 2026-08-10 and still reproduces (`VERDICT: UNVERIFIABLE` /
+  `ATTRIBUTION: COULD-NOT-ATTRIBUTE`, the selected request at ord 715, n=555,
+  "18 request(s) in this capture and none earlier"), so the entry is
+  dispatchable with a runnable red today.
+  Desk-verified independently of any lane's report: the exports were read at
+  their lines and the bites executed here.
+  Original entry follows, RE-GRADED rather than left at `READY` — a closure
+  that leaves its original bullet graded READY is the double-count defect
+  booked under the grade-marker entry above.
+
+- **DONE (original entry, superseded by the closure directly above) — the LINEAGE relation, as a shared primitive in
   `replay.mjs`, ahead of BOTH its consumers.** Split out 2026-08-10 from the
   `capturePairResult` entry above, when re-reading the bounded-`--pin` entry's
   premises against the world showed the two could not both be right in the
@@ -3636,7 +3706,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   them again would have been a second instrument sharing one author's blind
   spot. Red-first by hand: fix reverted, test fails 49 !== 48; restored, passes.
   Original entry follows.
-- **READY (small) — `cost-report.mjs` had ZERO test coverage before `82372db`
+- **DONE (original entry, superseded by the closure directly above) — `cost-report.mjs` had ZERO test coverage before `82372db`
   and still has none.** Measured by the lane: `grep -rl cost-report test/`
   returned nothing. Its timestamp changes in `82372db` (three display sites, two
   of them pass-through, plus a `padEnd 28→43` column widening) are verified only
@@ -3957,7 +4027,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   evidence across the publication boundary — the two are not in tension only if
   the scrub runs before the push, which is exactly where this repo puts it.
   Original entry follows.
-- **READY (small) — `docs/dev-loop.md`: when an instrument surprises you, run
+- **DONE (original entry, superseded by the closure directly above) — `docs/dev-loop.md`: when an instrument surprises you, run
   the SIBLING implementation before reasoning about the defect.** The corpus
   carries this as principle ("divergence between two independently built
   measurements of the same quantity is the cheap reach detector"); the dev-loop
@@ -5811,7 +5881,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   now differ, and the existing LEDGER test was updated to assert the new form
   rather than left asserting the old one.
   Original entry follows.
-- **READY (small) — `absence-scan`'s `allowlisted:` line cannot distinguish a
+- **DONE (original entry, superseded by the closure directly above) — `absence-scan`'s `allowlisted:` line cannot distinguish a
   whole-file SKIP from a class-scoped DROP, which is exactly the distinction the
   2026-08-05 narrowing was made to create.** Noticed 2026-08-08 while scanning
   today's sweep pins before committing them: three files reported `allowlisted:`
@@ -6228,7 +6298,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   plain prose, which is exactly what the exclusion catches — no line numbers,
   which rot here within the hour.
   Original body follows.
-- **READY — a derivation asks whether an entry's PREMISE is true and never
+- **DONE (original entry, superseded by the closure directly above) — a derivation asks whether an entry's PREMISE is true and never
   whether WORK REMAINS, and the two come apart silently.** Measured 2026-08-10,
   within an hour of the first retirement pass, by the ranking that pass fed: the
   coverage-walk entry was probed STILL-TRUE — correctly, every fact in it holds —
@@ -6344,7 +6414,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   exactly one. A non-zero count alone is satisfied by a sweep that returns a
   constant.
   Original entry follows.
-- **READY (small) — `tools/xdg-writer-guard.mjs` is red at 34 and its `main()`
+- **DONE (original entry, superseded by the closure directly above) — `tools/xdg-writer-guard.mjs` is red at 34 and its `main()`
   is wired to no consumer; and the reason recorded in this backlog for why
   `npm test` stays green is FALSE.** Booked 2026-08-10 from the public-surface
   and systems review. The wiring half is already named inside the bucket-(d)
