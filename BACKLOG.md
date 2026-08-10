@@ -5666,8 +5666,23 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **1 (event disposition)** — it governs what may be published.
   <!-- entry: "the length-vector acceptance rests on a falsified premise" -->
 
-- **READY (small) — the operator's publication bar is not written down
-  anywhere a mechanism can read, and its computable slice is not enforced.**
+- **PARTLY DONE 2026-08-10 — the bar is now written down and one of its five
+  predicates is enforced; three remain.**
+  **Shipped:** the bar itself is in `CLAUDE.local.md` (dotfiles
+  `cache-fix/CLAUDE.local.md`, commit `7530895`, deployed and pushed) — stated
+  in one line with the load-bearing fact under it, the 2026-08-10 measurement,
+  the enforcement split, and the note that git history is not covered.
+  **Also shipped, by a different route than this entry predicted:** the
+  canonical-UUID predicate. `a449d9a` widened the source-UUID roster to every
+  tracked SOURCE_SCANNABLE file, so a session id in any tracked source file or
+  document now fails `npm test`. That is stronger than the `absence-scan`
+  predicate proposed below and supersedes it — one owner for the shape, not
+  two.
+  **Still open, and the entry is READY for exactly these:** the base64-run,
+  non-empty-thinking, and foreign-path predicates over source files, plus the
+  harness-marker one. Each ships with its own planted-positive fixture — four
+  reds, not one, because red certifies the class that fired.
+  Original entry follows.
   Booked 2026-08-10, the day the bar was first stated. The bar: **no content
   from any session other than cache-fix's own dev chat reaches the public
   tree**; tool names are acceptable.
@@ -5785,6 +5800,19 @@ ENOSPC misattribution with its wrong first explanation left in.
   short-key guard on that line. Two sentences of one spec disagreeing.
   Measured, both arms: `scanContent("… <full id>", "BACKLOG.md")` -> 0
   findings; the short form on the same file -> 1.
+  **CONFIRMED END-TO-END by a second session, 2026-08-10, by planting rather
+  than by reading** — the component measurements above establish the roster's
+  WIDTH, and this establishes that the chain from a real edit to a blocked push
+  actually closes. A synthetic full UUID appended to tracked `FORK-NOTES.md`
+  turned the roster bite RED ("unlisted UUID(s) in source — a capture
+  identifier in a public tree, or a new synthetic missing from the allowlist"),
+  35 pass / 1 fail; the repo's pre-push hook runs the full suite, so that red
+  is a blocked push. `FORK-NOTES.md` was restored from a byte copy in the same
+  command (empty `git diff`, zero occurrences remaining). Worth recording
+  because the scan ITSELF still reports `absence-scan: clean` on that file —
+  checked directly, exit 0 — so the guard that stops the leak is the suite, not
+  the scanner, and anyone reading only the scanner's own output would conclude
+  the opposite.
   **Fix shipped.** The roster now enumerates `git ls-files` filtered through
   `SOURCE_SCANNABLE` and `SCANNABLE`, both newly EXPORTED from the scanner and
   IMPORTED by the test rather than restated — the deferral's target is now the
