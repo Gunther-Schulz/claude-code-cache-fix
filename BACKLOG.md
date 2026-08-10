@@ -4917,6 +4917,46 @@ ENOSPC misattribution with its wrong first explanation left in.
   recovered at the next derivation, but it corrupted three separate readings in
   one session. Unranked (booked after the derivation).
 
+- **READY — closing an entry can invalidate a DIFFERENT open entry, and nothing
+  re-reads the neighbours when work ships.** Measured 2026-08-10 by the
+  retirement pass, twice, from real history: the state-key entry shipped
+  `KEY-FLIP`, which made a second entry's cited verdict count (`six`) wrong — the
+  real number is seven, and the second entry was not touched; and `/health`
+  gaining an `extensions[]` field from unrelated work dissolved half of the
+  gates-blindness entry's premise. Both survived as plausible, decision-complete
+  text until a lane probed them directly, which is the failure mode: the entry
+  reads perfectly and is quietly about a world that moved.
+  **Why the existing rules do not catch it.** The ranking rubric's signal 1
+  handles the opposite sign — items that must PRECEDE others or their motivating
+  case dissolves — which is about ordering, not about re-reading afterwards. The
+  succession rule in `docs/dev-loop.md` is scoped to new EVIDENCE killing a
+  premise; our own shipped implementation does not read as evidence arriving, it
+  reads as progress, so the trigger never fires on it. Neither is wrong; both
+  are aimed one step away.
+  **The firing moment is computable, which is what makes this mechanizable at
+  all:** an entry going to a closed grade WITH a commit ref is a discrete,
+  observable event, unlike the judgment-shaped conditions this file usually has
+  to leave as prose.
+  Design, decided — `tools/backlog-neighbours.mjs`, a REPORT and never a gate:
+  given a commit that closes an entry, list every still-open entry naming a file
+  that commit touched, and require a one-line disposition per candidate —
+  still-valid / premise-corrected / now-unnecessary. Report, because most hits
+  are ordinary co-tenancy (`docs/dev-loop.md` alone is named by sixteen entries)
+  and a guard that fires on non-defects trains the override reflex that kills it.
+  The join already exists: `filesNamed` per entry, which the census emits.
+  **Verifier, red-first over an immutable reference and a TRUE positive rather
+  than a planted one:** run it against `508a006` — the commit that retired the
+  state-key entry — and it must surface the verdict-count entry as a candidate.
+  That pairing is real history and reproduces forever. Control against
+  over-firing: it must NOT surface entries whose only overlap is a file the
+  closing commit did not touch.
+  Done when a closed entry cannot be committed without its neighbour
+  dispositions, and the two 2026-08-10 pairs both appear in a dry run over
+  history.
+  Consumer tier **3 (backlog and process)** — it mis-files entries and is
+  recovered at the next derivation, but it left two stale premises standing in
+  decision-complete text, which is where it does real damage.
+
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED,
 ## current state is the first entry
 
