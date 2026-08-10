@@ -1608,13 +1608,16 @@ ENOSPC misattribution with its wrong first explanation left in.
   status-word sentence against the live `robustness-threat-matrix.md`, importing
   `statusKind`/`matrixRow` from `tools/bust-triage.mjs` — two instruments that
   would otherwise disagree about what a status word means now share one.
-  Red-first: real matrix row 4 (`OPEN — RE-OPENED 2026-07-31`) against a
-  constructed "row 4 is CLOSED" fires; "row 4 is OPEN" is silent. Deviation the
+  Red-first: the real matrix row is paired against a constructed sentence
+  asserting the opposite status, which fires, and against one asserting the
+  true status, which is silent. (Stated without quoting either sentence — the
+  check reads a quoted example as a claim, which it proved on this very
+  paragraph; its own entry is above.) Deviation the
   lane named rather than hid: the positive pairs a CONSTRUCTED sentence with the
   REAL committed matrix file, because an exhaustive search over all 360 commits
-  touching BACKLOG.md found no historical entry literally asserting row 4
-  CLOSED before the re-open — so no real positive exists to search for, and the
-  search was run before the construction rather than instead of it.
+  touching BACKLOG.md found no historical entry that ever asserted the closed
+  status for that row before its re-open — so no real positive exists to search
+  for, and the search was run before the construction rather than instead of it.
   A real bug surfaced in its dry run: the check matched bare `OPEN` inside
   `bust-triage`'s own `KNOWN-OPEN` compound verdict. Fixed with a `KNOWN-`
   lookbehind. Clean on the current corpus, desk-verified.
@@ -3517,6 +3520,49 @@ ENOSPC misattribution with its wrong first explanation left in.
   cache-fix-proxy`. Row-3 declaration, stated before the restart: a log-line
   format change touches neither state KEYS nor freeze logic, so the restart is
   cache-transparent.
+
+- **READY (small) — `lintRowStatus` fires on prose that DESCRIBES a status
+  assertion, and it caught its own closure entry within the hour.** Instrument-
+  positive, unplanted, 2026-08-10: the entry closing the row-status check
+  narrated its red-first case — a constructed sentence naming a matrix row
+  together with a status word — and the check read the narration as the claim.
+  Blocked a push. (This entry is itself written around the trigger rather than
+  through it, which is the workaround the fix below exists to retire: prose that
+  has to avoid its own subject is prose the checker is dictating.)
+  This is the check-fires-on-a-non-defect shape the corpus names, and the
+  repair it prescribes is a declared exemption the guard itself verifies, never
+  a softened predicate. `lintCorrectionPlacement`, built by the same lane in the
+  same commit, already exempts backtick-quoted mentions; `lintRowStatus` does
+  not, so the two disagree about whether quoting a thing counts as asserting it.
+  Design, decided: `lintRowStatus` takes the same quoted-mention exemption its
+  sibling already has, sharing one predicate rather than growing a second.
+  Verifier, red-first with its baseline: the exemption is added, the closure
+  entry's original narrating sentence is restored, and the check stays silent on
+  it while STILL firing on the constructed positive the entry's own test uses.
+  Both halves — an exemption that silences the real positive too is not an
+  exemption, it is a disabled check.
+
+- **READY (small) — a test asserting "zero false fires on the real CURRENT
+  BACKLOG.md" is anchored to live, mutating state, and decays into a false alarm
+  by construction.** Found 2026-08-10 when it went red at the push boundary on
+  ordinary prose written that same hour. The corpus states the rule directly:
+  acceptance criteria anchored to live, mutating state decay into false alarms;
+  frozen into a fixed reference they stay re-runnable. This test re-reads a file
+  that changes several times an hour, so every future editor inherits a red
+  whose cause is their own wording.
+  What makes it worth fixing rather than deleting: the zero-false-fire property
+  IS the thing worth pinning — it is the over-firing control, and the same lane's
+  other checks each carry one. The defect is the ANCHOR, not the assertion.
+  Design, decided: pin the control to a FROZEN snapshot (a committed fixture, or
+  a named historical SHA the way `lintPremiseTrue`'s positive uses `633256b`),
+  and keep a separate REPORT-only run over the live file that never fails the
+  suite. Two consumers, two anchors: the suite gets an immutable one, the human
+  gets the live one.
+  Applies to any sibling check written the same way — check all four lanes'
+  tests for a live-file assertion while in there.
+  Verifier: edit `BACKLOG.md` prose in a way that would have tripped the old
+  test, and the suite stays green while the report line appears.
+  Consumer tier **2 (feeds the gates)**.
 
 - **DONE 2026-08-10 (`dcba443`, `5631334`) — the leak scan could not see a UUID
   in a COMMIT MESSAGE, and had not been able to for its whole life.** Found by
