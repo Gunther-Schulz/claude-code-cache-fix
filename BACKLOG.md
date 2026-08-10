@@ -1647,7 +1647,33 @@ ENOSPC misattribution with its wrong first explanation left in.
   (`git show upstream/main:<file> | grep -F "<exact text>"` per item, not by a
   file-ownership guess).
   Counts: **STILL-WRONG 17**, all confirmed fork-only — the file is absent from
-  upstream, or the text has no upstream match. **UPSTREAM-OWNED 29 locations /
+  upstream, or the text has no upstream match.
+  **RE-MEASURED 2026-08-10 (operator question: "does our design violate
+  upstream?"), and the 17 above is STALE.** `node tools/xdg-writer-guard.mjs`
+  is RED at 34 violations today. Partitioned by whose artifact the citation
+  names: 9 cite SOMEONE ELSE'S path (`~/.claude/projects/**` = Claude Code's
+  own transcripts; `anthropic-proxy-logs/` = fgrosswig's dashboard) and are
+  CORRECT — that is the guard's own documented KNOWN LIMITATION, "the
+  predicate has no notion of whose artifact", not a new finding. The other 25
+  name OUR artifacts; of those, 3 are the guard's own explanatory header and
+  at least one is a deliberate contrast (`usage-to-dashboard-ndjson.mjs:142`,
+  "both defaults are XDG state paths, NOT ~/.claude"), so the true repair set
+  is ~20 and is NOT yet triaged item by item.
+  Spot-checked 3 of 25 against the code, stale 3 for 3 — comment vs the
+  function directly under it: `proxy/server.mjs:13` says "writes to
+  ~/.claude/cache-fix-debug.log" while `:25` returns `statePath("debug.log")`;
+  `tools/cost-report.mjs:6` says "reads ... at ~/.claude/usage.jsonl" while
+  `:32` calls `legacyReadPath(statePath('usage.jsonl'), …)`;
+  `proxy/extensions/usage-log.mjs:1` says "append ... to ~/.claude/usage.jsonl"
+  while the module imports `statePath`.
+  **The guard is RED and BLOCKS NOTHING.** `npm test` is green at the same
+  commit: `test/xdg-writer-guard.test.mjs` exercises the PREDICATE on
+  synthetic content and never runs it over the real tree, so the 34 sit in a
+  tool nobody's pipeline calls. Wiring it is a separate decision from the
+  repair (it cannot go blocking while it over-fires on the 9 above), and it
+  is exactly the shape this repo keeps re-learning: a checker that passes
+  review, reports honestly, and is wired to no consumer.
+ **UPSTREAM-OWNED 29 locations /
   ~32 occurrences**, confirmed byte-identical in `upstream/main` right now.
   CORRECT ~45. EXCLUDED 3 files. The headline dropped from 49 to 17 purely by
   asking who owns the file — and the earlier figure of 65 contained false
