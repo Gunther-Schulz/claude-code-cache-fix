@@ -21,10 +21,12 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 
 import {
   readCaptureRequest,
@@ -389,17 +391,71 @@ export function classifySweep(files) {
   return { unexpected, staleExemptions };
 }
 
-function trackedSourceFiles() {
-  const out = execFileSync("git", ["ls-files", "tools", "proxy"], {
-    cwd: REPO_ROOT, encoding: "utf8",
+// BACKLOG (moved-in entry) — "git stash/pop across a git mv desyncs the
+// index, and this sweep reports it as an unrelated ENOENT". `git ls-files`
+// reads the INDEX, not the working tree: a stash `pop` that splits a rename
+// into a staged ADD (new path) plus an UNSTAGED DELETE (old path still
+// indexed, physically gone from disk) leaves `git ls-files` still naming the
+// old path, so a plain `readFileSync` throws a bare ENOENT that names a file
+// nobody touched, in a test about something else. Reproduced directly
+// (no real stash needed — the same index state, minimally): `git mv a b`
+// then `git reset -- a` re-stages a's DELETE half away while a stays gone
+// from disk; `git ls-files` then lists both `a` and `b`, and `git status
+// --porcelain -- a` prints ` D a` (unstaged delete: indexed, absent from
+// the working tree) — the signature this classifier keys on.
+//
+// Three-answer verdict, not two: readable / INDEX-DESYNC (the git-status
+// signature above — recoverable by re-staging the one path, never `-A`) /
+// MISSING (unreadable with no desync signature — a real, unexplained
+// absence, investigated rather than assumed).
+function classifyUnreadableTrackedPath(path, repoRoot = REPO_ROOT) {
+  const out = execFileSync("git", ["status", "--porcelain", "--", path], {
+    cwd: repoRoot, encoding: "utf8",
   });
-  return out.split("\n").filter((p) => p.endsWith(".mjs")).map((path) => ({
-    path, content: readFileSync(join(REPO_ROOT, path), "utf-8"),
-  }));
+  const line = out.split("\n").find((l) => l.length > 0) || "";
+  // Porcelain short format is "XY <path>": X = index vs HEAD, Y = worktree
+  // vs index. Y === "D" with the path still in the index (it is, or
+  // `git ls-files` would not have named it) is exactly the split-rename
+  // shape: indexed, deleted on disk, not yet staged.
+  if (line[1] === "D") return { status: "index-desync", gitStatusLine: line };
+  return { status: "missing", gitStatusLine: line || "(no git status output for this path)" };
+}
+
+// `repoRoot`/`dirs` are parameterized (default: this repo's tools+proxy) so
+// the RED test below can run the exact same function against an isolated
+// scratch repo rather than a second, drifting reimplementation.
+function trackedSourceFiles(repoRoot = REPO_ROOT, dirs = ["tools", "proxy"]) {
+  const out = execFileSync("git", ["ls-files", ...dirs], {
+    cwd: repoRoot, encoding: "utf8",
+  });
+  const paths = out.split("\n").filter((p) => p.endsWith(".mjs"));
+  const files = [];
+  const problems = [];
+  for (const path of paths) {
+    let content;
+    try {
+      content = readFileSync(join(repoRoot, path), "utf-8");
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+      problems.push({ path, ...classifyUnreadableTrackedPath(path, repoRoot) });
+      continue;
+    }
+    files.push({ path, content });
+  }
+  return { files, problems };
 }
 
 test("SWEEP: no hand-parse of our schemas outside the owners, beyond the declared inventory", () => {
-  const files = trackedSourceFiles();
+  const { files, problems } = trackedSourceFiles();
+  const desynced = problems.filter((p) => p.status === "index-desync");
+  assert.deepEqual(desynced, [],
+    "git ls-files names a path this sweep cannot read, and git status shows it deleted-but-still-indexed " +
+    "(a split git mv/stash pop, most likely) — re-stage the deletion on the named path(s), never `-A`, then " +
+    "re-run: " + JSON.stringify(desynced, null, 2));
+  const stillMissing = problems.filter((p) => p.status !== "index-desync");
+  assert.deepEqual(stillMissing, [],
+    "a tracked path is unreadable with no index-desync signature — a real, unexplained absence: " +
+    JSON.stringify(stillMissing, null, 2));
   assert.ok(files.length > 50, `the sweep must actually enumerate the tree, got ${files.length} files`);
   const { unexpected, staleExemptions } = classifySweep(files);
   assert.deepEqual(staleExemptions, [],
@@ -409,6 +465,64 @@ test("SWEEP: no hand-parse of our schemas outside the owners, beyond the declare
     "a file outside the declared inventory hand-parses one of our schemas: " +
     JSON.stringify(unexpected, null, 2),
   );
+});
+
+// ---------------------------------------------------------------------------
+// RED-FIRST: the split-index shape itself (BACKLOG "git stash/pop across a
+// git mv desyncs the index"). Built in an isolated scratch git repo — the
+// smallest reproduction of a stash-pop split rename, per the entry's own
+// finding, is `git mv a b` followed by `git reset -- a`: the delete half of
+// the rename is unstaged while `a` stays physically gone, which is the exact
+// index state a split stash pop leaves behind. No real `git stash` needed to
+// prove the classifier; the classifier keys on the index/worktree state, not
+// on how it was produced.
+// ---------------------------------------------------------------------------
+
+function makeScratchGitRepo() {
+  const dir = tmpDirSync("logs-schemas-index-desync-");
+  const run = (...args) => execFileSync("git", args, { cwd: dir, encoding: "utf8" });
+  run("init", "-q");
+  run("config", "user.email", "t@t.test");
+  run("config", "user.name", "t");
+  writeFileSync(join(dir, "a.mjs"), "// a\n");
+  run("add", "a.mjs");
+  run("commit", "-q", "-m", "init");
+  return { dir, run };
+}
+
+test("RED: a split rename (git mv + reset, the stash-pop shape) makes a.mjs unreadable via git ls-files, and git status shows it deleted-but-indexed", () => {
+  const { dir, run } = makeScratchGitRepo();
+  run("mv", "a.mjs", "b.mjs");
+  run("reset", "-q", "--", "a.mjs");
+  const lsFiles = run("ls-files").split("\n").filter(Boolean);
+  assert.ok(lsFiles.includes("a.mjs"), "git ls-files must still name the old path — that is the defect's precondition");
+  assert.throws(
+    () => readFileSync(join(dir, "a.mjs"), "utf-8"),
+    /ENOENT/,
+    "a.mjs must be genuinely unreadable — physically moved to b.mjs by the mv",
+  );
+  const status = execFileSync("git", ["status", "--porcelain", "--", "a.mjs"], { cwd: dir, encoding: "utf8" });
+  assert.match(status, /^ D a\.mjs/, "git status must show the unstaged-delete signature this classifier keys on");
+});
+
+test("RED->GREEN, the actual fix function: trackedSourceFiles() classifies the split rename as index-desync, names b.mjs as readable, and throws nothing", () => {
+  const { dir, run } = makeScratchGitRepo();
+  run("mv", "a.mjs", "b.mjs");
+  run("reset", "-q", "--", "a.mjs");
+  const { files, problems } = trackedSourceFiles(dir, ["."]);
+  assert.deepEqual(
+    problems,
+    [{ path: "a.mjs", status: "index-desync", gitStatusLine: " D a.mjs" }],
+    "the real pipeline function must classify this by name, not throw the bare ENOENT the pre-fix version did",
+  );
+  assert.deepEqual(files.map((f) => f.path), ["b.mjs"], "the readable file must still come through untouched");
+});
+
+test("GREEN: classifyUnreadableTrackedPath(...) never runs on a clean index — a clean tracked file is simply readable", () => {
+  const { dir } = makeScratchGitRepo();
+  assert.doesNotThrow(() => readFileSync(join(dir, "a.mjs"), "utf-8"));
+  const status = execFileSync("git", ["status", "--porcelain", "--", "a.mjs"], { cwd: dir, encoding: "utf8" });
+  assert.equal(status, "", "a clean index has nothing to report for a.mjs");
 });
 
 test("INSTRUMENT-POSITIVE: the sweep fires on a planted new hand-parse", () => {
