@@ -478,7 +478,48 @@ ENOSPC misattribution with its wrong first explanation left in.
   and one that silently lacks its source sends the re-reader to a wrong
   conclusion or to no conclusion at all.
 
-- **READY — give the downstream stateful extensions the PRE-PIPELINE
+- **DONE 2026-08-10 — MERGED into "kill the relocation-induced conversation-key
+  rotation (threat matrix row 26)": one fix, two entries, and the LATER one
+  re-opened a decision the earlier one had already made.** (Graded `DONE` and
+  not `MERGED` deliberately: lane L1 is building a CLOSED grade vocabulary over
+  this file right now, and minting a seventh token mid-flight would hand its
+  new check a false positive on its first run.) Found at D1's
+  dispatch check by reading both bodies together. They describe the same change
+  to the same two extensions; this entry says the carrier is "NOT yet decided …
+  a `ctx` field set before the first mutating extension is the obvious
+  candidate", while the older entry has already decided exactly that
+  (`ctx.meta`, computed before order 250) and carries a named synthetic-fixture
+  verifier and a row-3 declaration this one lacks. That is the
+  one-phenomenon-two-names shape `docs/dev-loop.md` collects, with the harm
+  running the unusual way round: the newer booking was LESS decision-complete
+  and would have handed a desk round an open design question that was already
+  closed one entry over.
+  **Three things travel to the surviving entry and are not lost:**
+  (1) the design input — `fresh-session-sort.mjs:373` computes its memory key
+  by calling `resolveInsertionSessionKey` on `body.messages` BEFORE its own
+  relocation runs, so its identity is stable under its own edit; that asymmetry
+  is the bug's signature.
+  (2) the on-disk corroboration — the only `*-fresh-sort-relocated.json`
+  present sits under the pre-mutation suffix, none under the rotated one.
+  (3) **the HARD ORDERING CONSTRAINT (rubric signal 1), which is the load-bearing
+  one:** blocked on the `identityRotation` census class, because a check that
+  only goes red against the current defect must be demonstrated red BEFORE the
+  fix removes it — and this fix's whole effect is to make rotations stop
+  mattering, which would leave the class permanently green and unproven.
+  Status of that blocker, checked in the world rather than inherited:
+  `findIdentityRotations` EXISTS in `tools/replay.mjs` (`:3939`, `:4471-4489`,
+  shipped in `a68a8af`), so the class is no longer absent — but its entry's
+  done-criterion (the live positive/negative pair reproduced in a bite, and the
+  count in the daily sweep) is open and is in lane L3's hands this wave. The
+  constraint is therefore PARTLY discharged, not discharged; D1 does not ship
+  until L3 reports.
+  **The one decision that genuinely remains open in either entry** is the one
+  this entry named and the older one does not address: what happens to state
+  already on disk under rotated keys. It is at the operator, surfaced
+  2026-08-10 with a recommendation, and the answer lands in the surviving entry.
+  Original entry follows.
+
+- **DONE (original entry, superseded by the merge directly above) — give the downstream stateful extensions the PRE-PIPELINE
   conversation identity; the fix already exists in-tree and only one extension
   uses it.** Booked 2026-08-10 from the same attribution. Row 26's defect is
   that `insertion-normalization` (order 395) and `deferred-tool-rewrite`
