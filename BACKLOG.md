@@ -110,14 +110,21 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
    _PARTIAL — the archive is operator-side data, so the write boundary is
    split; the convention half (cite the FILE, not the directory) is decided_
    <!-- entry: "a FROZEN evidence archive whose own cited numbers" -->
-5. **Give the downstream stateful extensions the PRE-PIPELINE conversation
-   identity.** Row 26's actual fix, and today's attribution named it: the
-   extension that keys pre-mutation never rotates. **Its blocker cleared this
-   session** — the gating class shipped and went red on the real defect.
-   _DESK, deployment-coupled — the design's migration half (state already on
-   disk under rotated keys) is explicitly not decided, and it touches state
-   KEYS, so row 3's restart-transparency declaration is owed before it ships_
-   <!-- entry: "give the downstream stateful extensions the PRE-PIPELINE" -->
+5. **Resolve the conversation sub-key ONCE from the raw body and have both
+   stateful extensions read it.** Row 26's actual fix. The rank is unchanged;
+   only its ENTRY changed, because the two entries that carried this work were
+   merged 2026-08-10 (they were one fix, and the newer one had re-opened a
+   decision the older had already made). This anchor now names the SURVIVING
+   entry — the merged-away one is graded DONE, and a completed item holding a
+   rank is what `backlog-order`'s guard blocks, which is how this was caught:
+   it went red at the push boundary on the same commit that did the merge.
+   _DESK, deployment-coupled — the migration half (state already on disk under
+   rotated keys) is the one open decision and is at the operator; it touches
+   state KEYS, so row 3's restart-transparency declaration is owed before it
+   ships. Its hard-ordering blocker is PARTLY discharged: the gating census
+   class exists in `tools/replay.mjs`, its done-criterion is in a running
+   lane's hands._
+   <!-- entry: "kill the relocation-induced conversation-key rotation" -->
 
 ### 3. Tier B: feeds the GATES
 
