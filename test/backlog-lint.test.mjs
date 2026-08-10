@@ -234,6 +234,136 @@ test("does NOT fire on an undated DONE — the date is what makes it a grade cla
   assert.deepEqual(lintText(doc), [], "prose use of the word is not a resolution");
 });
 
+// --- Section 2b: the widened marker exemption ------------------------------
+//
+// Widens the exemption from slash-adjacency to two structural shapes (see
+// BACKLOG.md, "backlog-lint's enumeration exemption is SLASH-ONLY"):
+//   ENUMERATION CONTEXT — a marker word inside a run of 2+ ALL-CAPS terms
+//   describes the terms themselves, not the entry's status.
+//   SUB-CLAIM SCOPE — a dated resolution inside a sentence-initial bold run
+//   or a "Superseded" section resolves a NAMED SUB-CLAIM, not the entry.
+//
+// The real historical instance that pins the boundary of the enumeration
+// widening: "BUILT + VERIFIED + PUSHED same day (78940a0: 7/7 …)" at
+// commit 40c11b2 (the MERGED-reminder-standalone entry, one of Section 2's
+// four required true positives) is a genuine "+"-joined ALL-CAPS run and
+// MUST still fire — Section 1's existing "fires on an OPEN/HOT header
+// whose body carries VERIFIED (un-negated)" test above pins this same
+// shape from the definition, and doubles as the regression pin for "a run
+// joined ONLY by + never counts as an enumeration" once this section's
+// widened exemption lands.
+
+test("does not fire on a comma-joined enumeration of an unrelated status vocabulary sharing a marker word", () => {
+  // DECLARED/RUNNING/VERIFIED is this repo's real doctor three-answer-gate
+  // vocabulary (docs/runbooks/sweep-finding.md) — VERIFIED collides with
+  // this tool's marker set by coincidence, not by claiming resolution.
+  const doc = [
+    "- **READY — the sweep's own three-answer gate.** The three answers —",
+    "  DECLARED, RUNNING, VERIFIED — must all agree before the verdict means",
+    "  anything; this entry is about wiring that check, not about being done.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("does not fire on a vs-joined enumeration of an unrelated status vocabulary sharing a marker word", () => {
+  const doc = [
+    "- **OPEN — comparing two verdict schemes.** The gate compares DECLARED",
+    "  vs RUNNING vs VERIFIED before a verdict counts, which is the",
+    "  three-answer discipline this entry is scoping, not claiming done.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("does not fire on an and-joined enumeration of an unrelated status vocabulary sharing a marker word", () => {
+  const doc = [
+    "- **READY — the gate's agreement rule.** The gate needs DECLARED and",
+    "  RUNNING and VERIFIED to agree before anything downstream trusts the",
+    "  verdict; nothing here is a claim that this entry itself is done.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("does not fire on a SPACE-PADDED slash-joined enumeration — the adjacency-only guard's exact gap", () => {
+  // The historically-measured false fire: a padded separator puts a SPACE
+  // next to the marker, escaping a guard that inspects only the adjacent
+  // character (the THIRD FIRE in the BACKLOG.md entry this widens).
+  const doc = [
+    "- **HOT — the sweep's own verdict discipline.** DECLARED / RUNNING /",
+    "  VERIFIED must agree before the sweep's verdict means anything; this",
+    "  entry documents that rule, it does not claim to be resolved by it.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("still does not fire on the same vocabulary tight-slash-joined (regression against the old exemption)", () => {
+  const doc = [
+    "- **OPEN/HOT — doctor's three-answer check, referenced here.** A",
+    "  DECLARED/RUNNING/VERIFIED mismatch is what the sweep's COULD-NOT-VERIFY",
+    "  bucket exists for — this entry only cites the concept.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("does not fire on the tool's own marker-word enumeration mixing '+' across two slash groups", () => {
+  // The original motivating false fire, restated (never pasted literally
+  // into BACKLOG.md itself — see that entry's own warning about self-firing
+  // on its own example text).
+  const doc = [
+    "- **READY — backlog header lint.** WARN-only: flag an entry whose",
+    "  header grade is OPEN/READY/HOT while the SAME entry's body carries a",
+    "  dated resolution marker (RESOLVED/FIXED/BUILT + VERIFIED/CLASS",
+    "  CLOSED).",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("sub-claim scope: a sentence-initial bold run naming a sub-claim clears a dated RESOLVED inside it", () => {
+  const doc = [
+    "- **READY — the fork-only accounting still needs a recheck.** Grounding",
+    "  text about the discrepancy spans this whole first sentence, closing",
+    "  the header's own bold run right here.",
+    "  **Three-way README contradiction — RESOLVED 2026-08-08 by `bbc1213`,",
+    "  and the paragraph below is kept only as the input that produced the",
+    "  decision.** The operator's call was made and is recorded elsewhere.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("sub-claim scope: text after a literal Superseded label clears a dated marker inside that section", () => {
+  const doc = [
+    "- **READY — the fork-only accounting still needs a recheck.** Grounding",
+    "  text about the discrepancy.",
+    "  Superseded text: the original count was RESOLVED 2026-07-01 by an",
+    "  earlier probe that the current numbers have since overtaken.",
+    "",
+    "  The live question is unchanged and still open.",
+  ].join("\n");
+  assert.deepEqual(lintText(doc), []);
+});
+
+test("sub-claim scope does NOT clear a mid-sentence (non-sentence-initial) bold RESOLVED — inline emphasis is not a sub-claim", () => {
+  const doc = [
+    "- **OPEN/HOT — a live item.** Body opens plainly, no bold here yet.",
+    "  The fix landed and the count reads **RESOLVED 2026-08-01** inline,",
+    "  emphasized for the reader but not naming any separate sub-claim —",
+    "  this is the entry's own status, just typeset with emphasis.",
+  ].join("\n");
+  const findings = lintText(doc);
+  assert.equal(findings.length, 1, "mid-sentence bold emphasis must not be read as sub-claim scope");
+  assert.equal(findings[0].marker, "RESOLVED");
+});
+
+test("sub-claim scope does NOT exempt the entry's own header bold run — only a LATER bold span can scope a sub-claim", () => {
+  const doc = [
+    "- **READY — the VERIFIED count needs a recheck.** Body prose is",
+    "  unrelated to any resolution; it only discusses methodology and open",
+    "  questions.",
+  ].join("\n");
+  const findings = lintText(doc);
+  assert.equal(findings.length, 1, "the header's own bold run is the entry's status claim, never a sub-claim");
+  assert.equal(findings[0].marker, "VERIFIED");
+});
+
 // --- Section 3: the pointer-liveness lane ---------------------------------
 //
 // Definitions these bites are written FROM (not from the implementation):

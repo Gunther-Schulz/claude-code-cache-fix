@@ -20,20 +20,42 @@
 //
 // A finding fires when BOTH hold:
 //   (1) the header opens with a grade of OPEN, READY, HOT, or OPEN/HOT.
-//   (2) the entry's body contains, as PROSE (not as an enumeration of the
-//       marker words themselves — see below), either
+//   (2) the entry's body contains, as a claim about the ENTRY (not as an
+//       enumeration of the marker words themselves, and not scoped to a
+//       named sub-claim inside a still-open entry — see below), either
 //         - a dated resolution word (RESOLVED, FIXED, or BUILT) with a
 //           YYYY-MM-DD date within ~40 characters of it, or
 //         - a verification word (VERIFIED or CLASS CLOSED), the un-negated
 //           form only (NOT-VERIFIED reads as still-open, not resolved).
 //
-// The "as prose, not as an enumeration" guard exists because this file's
-// own backlog entry describes its marker words as a slash-joined list
-// ("RESOLVED/FIXED/BUILT + VERIFIED/CLASS CLOSED") — a literal match
-// without the guard self-fires on that entry the moment it lands in
-// BACKLOG.md. Excluding marker words immediately adjacent to a "/" clears
-// that false fire without narrowing the real prose instances, all of which
-// use "+", "same day", or plain adjacency instead of slashes.
+// Two exemptions keep a marker word's PRESENCE from being read as the
+// entry's STATUS (both from the same root cause — a marker's presence is
+// not always what it means):
+//
+//   ENUMERATION CONTEXT — this file's own backlog entry describes its
+//   marker words as a slash-joined list ("RESOLVED/FIXED/BUILT +
+//   VERIFIED/CLASS CLOSED"), and other entries name unrelated status
+//   vocabularies that happen to share a word ("DECLARED/RUNNING/
+//   VERIFIED", the doctor's three-answer gate triple) — a literal match
+//   without a guard self-fires on prose describing terms of art, not
+//   claiming resolution. Keyed on the RUN's structure (isEnumerationContext,
+//   below), never on the single adjacent character — a padded separator
+//   ("DECLARED / RUNNING / VERIFIED") escapes an adjacency-only guard by
+//   putting a space next to the marker. "+" alone does not qualify a run:
+//   this corpus's real completion idiom chains bare actions with "+"
+//   ("BUILT + VERIFIED + PUSHED same day (78940a0: 7/7 …)", a real
+//   historical true positive) and that must keep firing, so a run counts as
+//   an enumeration only when it ALSO contains one of the other four
+//   separators (/, `,`, vs, and) — "+" is how this corpus joins two
+//   already-listed GROUPS, never a standalone joiner between bare words.
+//
+//   SUB-CLAIM SCOPE — a dated resolution can record that one NAMED
+//   SUB-CLAIM inside a still-open entry was resolved, without the entry
+//   itself being resolved. Two structural tells, both about WHERE the
+//   marker sits, never about its own wording: a SENTENCE-INITIAL bold run
+//   (`**…**` opening a new sentence or paragraph, never the entry's own
+//   header bold run — that one IS the entry's status claim), or text after
+//   a literal "Superseded" label, up to the next paragraph break.
 //
 // This is WARN-only: it never fails a build. Exit code is always 0; the
 // findings are the payload, one line each on stdout, prefixed
@@ -76,19 +98,105 @@ export const DEFAULT_BACKLOG = join(REPO_ROOT, "BACKLOG.md");
 const ENTRY_START = /^- \*\*/;
 const HEADER_GRADE = /^- \*\*(OPEN\/HOT|OPEN|READY|HOT)\b/;
 
-// Marker word must not be part of a slash-joined enumeration (the guard
-// described above), and the verification word must not be negated.
-const RES_WORD = /(?<!\/)\b(RESOLVED|FIXED|BUILT)\b(?!\/)/g;
+// Marker words themselves (the exemptions below decide whether a match
+// counts — see the header comment).  The verification word must not be
+// negated ("NOT-VERIFIED" reads as still-open, not resolved).
+const RES_WORD = /\b(RESOLVED|FIXED|BUILT)\b/g;
 // DONE grades entries here as freely as RESOLVED does, but it needs the
 // LINE-INITIAL constraint the others do not: this corpus writes qualified
 // sub-steps ("ATTRIBUTE DONE <date>") inside entries that are correctly
 // still open, and a bare match would fire on those — a guard firing on
 // legitimate work is the failure that trains the override reflex. Only a
-// DONE that opens its own line is claiming the ENTRY is done.
+// DONE that opens its own line is claiming the ENTRY is done. It shares
+// `findDatedResolution`'s loop below, so the same two exemptions apply to
+// it too — consistent with the same root cause, though DONE never had the
+// slash-adjacency exemption these two replace and no known real instance
+// has needed either one.
 const DONE_LINE = /^[ \t]*(DONE)\b/gm;
-const VERIF_WORD = /(?<!\/)(?<!NOT[- ])\b(VERIFIED|CLASS CLOSED)\b(?!\/)/g;
+const VERIF_WORD = /(?<!NOT[- ])\b(VERIFIED|CLASS CLOSED)\b/g;
 const DATE = /\d{4}-\d{2}-\d{2}/;
 const DATE_PROXIMITY = 40;
+
+// ==========================================================================
+// Marker exemptions — see the header comment for what each one is for.
+// ==========================================================================
+
+// ENUMERATION CONTEXT. A term is one or two ALL-CAPS words ("VERIFIED",
+// "CLASS CLOSED"); a run is two or more terms joined by any of the five
+// separators. A run only counts as an enumeration if it contains at least
+// one of the four STRONG separators — "+" alone (bare word chained to bare
+// word, no /, `,`, vs, or and anywhere in the run) never qualifies, which is
+// what keeps "BUILT + VERIFIED + PUSHED same day (…)" firing while clearing
+// "RESOLVED/FIXED/BUILT + VERIFIED/CLASS CLOSED" (two slash groups joined
+// by "+", each already qualifying on its own).
+// Whitespace tolerance is `\s`, not `[ \t]`: this corpus line-wraps bold
+// and plain prose alike, so a padded separator or a two-word term can fall
+// across a line break ("DECLARED / RUNNING /\n  VERIFIED must agree").
+const CAPS_TERM = "[A-Z]{2,}(?:\\s+[A-Z]{2,})?";
+const ANY_SEP = "(?:\\/|,|\\+|\\bvs\\b|\\band\\b)";
+const STRONG_SEP = /\/|,|\bvs\b|\band\b/;
+const ENUM_RUN = new RegExp(`${CAPS_TERM}(?:\\s*${ANY_SEP}\\s*${CAPS_TERM})+`, "g");
+
+function isEnumerationContext(body, start, end) {
+  ENUM_RUN.lastIndex = 0;
+  let m;
+  while ((m = ENUM_RUN.exec(body))) {
+    const runEnd = m.index + m[0].length;
+    if (start >= m.index && end <= runEnd && STRONG_SEP.test(m[0])) return true;
+  }
+  return false;
+}
+
+// SUB-CLAIM SCOPE. A bold span is `**…**`, spanning newlines (this corpus
+// wraps bold prose across lines). The entry's OWN header bold run — the
+// first bold span in the body, since the body includes the header line —
+// is never sub-claim scope; only a LATER bold span counts, and only when
+// it is SENTENCE-INITIAL (opens the body, or is immediately preceded, past
+// trailing spaces/tabs, by a newline or sentence-ending punctuation) — an
+// inline bold emphasis mid-sentence is not naming a sub-claim.
+const BOLD_SPAN = /\*\*([\s\S]*?)\*\*/g;
+// A literal "Superseded" label scopes everything from itself to the next
+// paragraph break (or entry end) as retired input, never a live claim.
+const SUPERSEDED = /\bsuperseded\b/gi;
+const PARAGRAPH_BREAK = /\n[ \t]*\n/g;
+
+function isSentenceInitialBoldContext(body, index) {
+  BOLD_SPAN.lastIndex = 0;
+  let m;
+  let isHeaderSpan = true;
+  while ((m = BOLD_SPAN.exec(body))) {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const header = isHeaderSpan;
+    isHeaderSpan = false;
+    if (header) continue;
+    if (index < start || index >= end) continue;
+    const before = body.slice(0, start).replace(/[ \t]+$/, "");
+    if (before.length === 0 || /[\n.!?]$/.test(before)) return true;
+  }
+  return false;
+}
+
+function isSupersededContext(body, index) {
+  SUPERSEDED.lastIndex = 0;
+  let m;
+  while ((m = SUPERSEDED.exec(body))) {
+    if (m.index >= index) continue; // the label must precede the marker
+    PARAGRAPH_BREAK.lastIndex = m.index;
+    const brk = PARAGRAPH_BREAK.exec(body);
+    const sectionEnd = brk ? brk.index : body.length;
+    if (index >= m.index && index < sectionEnd) return true;
+  }
+  return false;
+}
+
+function isExemptMarker(body, start, end) {
+  return (
+    isEnumerationContext(body, start, end) ||
+    isSentenceInitialBoldContext(body, start) ||
+    isSupersededContext(body, start)
+  );
+}
 
 function findDatedResolution(body) {
   for (const re of [RES_WORD, DONE_LINE]) {
@@ -97,7 +205,9 @@ function findDatedResolution(body) {
     while ((m = re.exec(body))) {
       const start = Math.max(0, m.index - DATE_PROXIMITY);
       const end = Math.min(body.length, m.index + m[0].length + DATE_PROXIMITY);
-      if (DATE.test(body.slice(start, end))) return m[1];
+      if (DATE.test(body.slice(start, end)) && !isExemptMarker(body, m.index, m.index + m[0].length)) {
+        return m[1];
+      }
     }
   }
   return null;
@@ -105,8 +215,11 @@ function findDatedResolution(body) {
 
 function findVerification(body) {
   VERIF_WORD.lastIndex = 0;
-  const m = VERIF_WORD.exec(body);
-  return m ? m[1] : null;
+  let m;
+  while ((m = VERIF_WORD.exec(body))) {
+    if (!isExemptMarker(body, m.index, m.index + m[0].length)) return m[1];
+  }
+  return null;
 }
 
 // Splits text into [{ startLine (1-based), header, body }] per top-level
