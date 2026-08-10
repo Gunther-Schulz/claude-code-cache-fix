@@ -1,0 +1,320 @@
+// logs-schemas — tests for tools/logs.mjs, the reader that owns the schemas
+// of every format this repo writes (BACKLOG.md, "READY — one reader owns
+// the schemas of everything this repo writes, and it THROWS on an unknown
+// field instead of returning `null`").
+//
+// The two required red-first bites replay the two REAL wrong reads that
+// reached the operator as fact on 2026-08-10, in one bust walk, before
+// being caught: a capture OUTCOME record asked for `cache_read_input_tokens`
+// (usage.jsonl's spelling), and a prefix-diff EVENT row asked for
+// `messageCountPrev` (`-diff.json`'s spelling).
+//
+// RED-FIRST PROOF (see the shipping commit's report for the pasted
+// transcript): the module did not exist before this file, so an import-time
+// "no export" failure would have been a VACUOUS red per dev-loop.md's
+// module-load-red rule. Instead each of the two required THROW bites was
+// proven red by disabling its accessor one at a time (the `throw
+// unknownFieldError(...)` line in tools/logs.mjs temporarily replaced with
+// `return undefined`), the bite shown to fail, then the accessor restored.
+// BASELINE, run before this file existed: `npm test` — 2588 tests, 2584
+// pass, 0 fail, 4 skipped.
+
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+
+import {
+  readCaptureRequest,
+  readCaptureOutcome,
+  readUsageLogRecord,
+  readPrefixDiffEvent,
+  readPrefixDiffDiff,
+  readPrefixDiffLast,
+  prefixDiffTenant,
+  cacheReadOf,
+  cacheCreationOf,
+  messageCountsOf,
+} from "../tools/logs.mjs";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = join(__dirname, "..");
+const fixtures = JSON.parse(readFileSync(join(__dirname, "fixtures/logs-schemas.json"), "utf-8"));
+
+// ---------------------------------------------------------------------------
+// Required red-first bite 1: OUTCOME record asked for usage.jsonl's spelling.
+// ---------------------------------------------------------------------------
+
+test("THROW: a capture OUTCOME record asked for cache_read_input_tokens (usage.jsonl's spelling)", () => {
+  const view = readCaptureOutcome(fixtures.captureOutcome);
+  assert.throws(
+    () => view.cache_read_input_tokens,
+    /unknown field "cache_read_input_tokens" for format "captureOutcome"/,
+  );
+});
+
+test("THROW: the same OUTCOME record's usage object asked for cache_read_input_tokens too", () => {
+  const view = readCaptureOutcome(fixtures.captureOutcome);
+  assert.throws(
+    () => view.usage.cache_read_input_tokens,
+    /unknown field "cache_read_input_tokens" for format "captureOutcome\.usage"/,
+  );
+});
+
+test("CORRECT: the same OUTCOME record's own spelling (usage.cacheRead/cacheCreation) returns the right numbers", () => {
+  const view = readCaptureOutcome(fixtures.captureOutcome);
+  assert.equal(view.usage.cacheRead, 15603);
+  assert.equal(view.usage.cacheCreation, 213429);
+});
+
+// ---------------------------------------------------------------------------
+// Required red-first bite 2: prefix-diff EVENT row asked for -diff.json's
+// spelling.
+// ---------------------------------------------------------------------------
+
+test("THROW: a prefix-diff EVENT row asked for messageCountPrev (-diff.json's spelling)", () => {
+  const view = readPrefixDiffEvent(fixtures.prefixDiffEvent);
+  assert.throws(
+    () => view.messageCountPrev,
+    /unknown field "messageCountPrev" for format "prefixDiffEvent"/,
+  );
+});
+
+test("THROW: the same EVENT row asked for messageCountNow too", () => {
+  const view = readPrefixDiffEvent(fixtures.prefixDiffEvent);
+  assert.throws(
+    () => view.messageCountNow,
+    /unknown field "messageCountNow" for format "prefixDiffEvent"/,
+  );
+});
+
+test("CORRECT: the same EVENT row's own spelling (msgs, parsed via messageCountsOf) returns the right numbers", () => {
+  const view = readPrefixDiffEvent(fixtures.prefixDiffEvent);
+  assert.equal(view.msgs, "3->4");
+  assert.deepEqual(messageCountsOf(view), { prev: 3, now: 4 });
+});
+
+test("CORRECT: a -diff.json record's own spelling returns the same numbers directly", () => {
+  const view = readPrefixDiffDiff(fixtures.prefixDiffDiff);
+  assert.equal(view.messageCountPrev, 3);
+  assert.equal(view.messageCountNow, 4);
+  assert.deepEqual(messageCountsOf(view), { prev: 3, now: 4 });
+});
+
+// ---------------------------------------------------------------------------
+// Known positive, real data (not planted): the frozen 04:40:39.598Z outcome.
+// ---------------------------------------------------------------------------
+
+test("KNOWN POSITIVE: the frozen 04:40:39.598Z outcome reads cacheRead=15603, cacheCreation=213429", () => {
+  assert.equal(fixtures.captureOutcome.ts, "2026-08-10T04:40:39.598Z");
+  const view = readCaptureOutcome(fixtures.captureOutcome);
+  assert.equal(view.usage.cacheRead, 15603);
+  assert.equal(view.usage.cacheCreation, 213429);
+  assert.equal(cacheReadOf(view), 15603);
+  assert.equal(cacheCreationOf(view), 213429);
+});
+
+// ---------------------------------------------------------------------------
+// Over-firing control: a record legitimately missing an OPTIONAL field
+// returns its declared default and does NOT throw.
+// ---------------------------------------------------------------------------
+
+const USAGE_LOG_OPTIONAL_FIELDS = [
+  "requested_model", "model_mismatch", "qoverage_util", "qrepresentative_claim",
+  "org_id", "overage_disabled_reason", "request_id", "agent_id", "agent_id_source",
+];
+
+test("over-firing control: usageLogMinimal genuinely omits every optional field (declared as data, not asserted by feel)", () => {
+  for (const f of USAGE_LOG_OPTIONAL_FIELDS) {
+    assert.ok(!(f in fixtures.usageLogMinimal), `fixture must genuinely omit "${f}" for this control to mean anything`);
+  }
+});
+
+test("over-firing control: reading a missing optional field returns its declared default, no throw", () => {
+  const view = readUsageLogRecord(fixtures.usageLogMinimal);
+  assert.equal(view.requested_model, null);
+  assert.equal(view.model_mismatch, false);
+  assert.equal(view.qoverage_util, null);
+  assert.equal(view.qrepresentative_claim, null);
+  assert.equal(view.org_id, null);
+  assert.equal(view.overage_disabled_reason, null);
+  assert.equal(view.request_id, null);
+  assert.equal(view.agent_id, null);
+  assert.equal(view.agent_id_source, null);
+});
+
+test("over-firing control, positive half: the SAME optional fields, when genuinely present, return the real value", () => {
+  const view = readUsageLogRecord(fixtures.usageLogFull);
+  assert.equal(view.org_id, "EXAMPLE-ORG-HASH");
+  assert.equal(view.request_id, "req_EXAMPLE11111111111111111");
+  assert.equal(view.model_mismatch, false);
+  assert.equal(view.qoverage_util, 0.1);
+});
+
+test("required fields on usageLogMinimal still read correctly (the control does not mask required fields)", () => {
+  const view = readUsageLogRecord(fixtures.usageLogMinimal);
+  assert.equal(view.cache_read_input_tokens, 500);
+  assert.equal(view.cache_creation_input_tokens, 1000);
+  assert.equal(cacheReadOf(view), 500);
+  assert.equal(cacheCreationOf(view), 1000);
+});
+
+// ---------------------------------------------------------------------------
+// Cross-format normalization — the incident's positive half: one accessor
+// name, correct on either on-disk spelling.
+// ---------------------------------------------------------------------------
+
+test("cacheReadOf/cacheCreationOf normalize the SAME concept across captureOutcome and usageLog", () => {
+  const outcome = readCaptureOutcome(fixtures.captureOutcome);
+  const usage = readUsageLogRecord(fixtures.usageLogFull); // mirrors the same real values
+  assert.equal(cacheReadOf(outcome), 15603);
+  assert.equal(cacheReadOf(usage), 15603);
+  assert.equal(cacheCreationOf(outcome), 213429);
+  assert.equal(cacheCreationOf(usage), 213429);
+});
+
+test("cacheReadOf throws on a format it does not normalize", () => {
+  const event = readPrefixDiffEvent(fixtures.prefixDiffEvent);
+  assert.throws(() => cacheReadOf(event), /has no mapping for format "prefixDiffEvent"/);
+});
+
+test("messageCountsOf throws on a format it does not normalize (prefixDiffLast has no \"prev\" of its own)", () => {
+  const last = readPrefixDiffLast(fixtures.prefixDiffLast);
+  assert.throws(() => messageCountsOf(last), /has no mapping for format "prefixDiffLast"/);
+});
+
+// ---------------------------------------------------------------------------
+// captureRequest and prefixDiffLast/tenant — basic strictness, both readers.
+// ---------------------------------------------------------------------------
+
+test("captureRequest: known fields read correctly, unknown fields throw at both levels", () => {
+  const view = readCaptureRequest(fixtures.captureRequest);
+  assert.equal(view.body.model, "claude-example-5");
+  assert.equal(view.body.max_tokens, 1);
+  assert.throws(() => view.usage, /unknown field "usage" for format "captureRequest"/);
+  assert.throws(() => view.body.cacheRead, /unknown field "cacheRead" for format "captureRequest\.body"/);
+});
+
+test("prefixDiffLast/prefixDiffTenant: known fields read correctly, unknown fields throw, an unknown tenant id is undefined (data, not a schema violation)", () => {
+  const last = readPrefixDiffLast(fixtures.prefixDiffLast);
+  assert.equal(last.lastTenant, "EXAMPLE-TENANT-0001");
+  const tenant = prefixDiffTenant(last, last.lastTenant);
+  assert.equal(tenant.messageCount, 4);
+  assert.throws(
+    () => tenant.messageCountPrev,
+    /unknown field "messageCountPrev" for format "prefixDiffLast\.tenant"/,
+  );
+  assert.equal(prefixDiffTenant(last, "NO-SUCH-TENANT"), undefined);
+});
+
+// ---------------------------------------------------------------------------
+// Companion scope lint (mirrors test/xdg-writer-guard.test.mjs's form): a
+// known schema's raw field names must not appear outside tools/logs.mjs and
+// the writer files named in its header comment.
+// ---------------------------------------------------------------------------
+
+const LOGS_SCHEMA_OWNERS = new Set([
+  "tools/logs.mjs",
+  "proxy/stream.mjs",
+  "proxy/extensions/usage-log.mjs",
+  "proxy/extensions/prefix-diff.mjs",
+  "proxy/extensions/request-capture.mjs",
+]);
+
+// Distinctive enough to grep safely — generic names like "model" or "ts"
+// would false-positive across the whole repo. Restricted to the camelCase
+// capture/prefix-diff spellings, which are NOT also part of Anthropic's own
+// wire vocabulary. usage.jsonl's snake_case field names
+// (cache_read_input_tokens etc.) are deliberately EXCLUDED: they are also
+// the literal field names of Anthropic's own `usage` object as it appears
+// in a raw API response or a CC transcript, so a text pattern alone cannot
+// tell "reads our usage.jsonl" from "reads a live API response" — scoping
+// that precisely needs parse-site provenance, out of scope here.
+const SCHEMA_FIELD_PATTERN = /\b(cacheRead|cacheCreation|ephemeral1h|ephemeral5m|messageCountPrev|messageCountNow)\b/;
+
+// A second, independent signal: the file must also name one of the on-disk
+// paths these formats actually live at. Two signals, not one — a lone
+// field-name hit already produces a documented false positive below (the
+// KNOWN LIMITATION test).
+const DISK_PATH_PATTERN = /-requests\.jsonl|usage\.jsonl/;
+
+function isLogsSchemaOwner(relPath) {
+  return LOGS_SCHEMA_OWNERS.has(relPath);
+}
+
+function checkLogsSchemaScope(relPath, content) {
+  if (isLogsSchemaOwner(relPath)) return { inScope: false, violations: [] };
+  if (!DISK_PATH_PATTERN.test(content)) return { inScope: false, violations: [] };
+  const lines = content.split("\n");
+  const violations = [];
+  lines.forEach((line, i) => {
+    if (SCHEMA_FIELD_PATTERN.test(line)) violations.push({ line: i + 1, text: line.trim() });
+  });
+  return { inScope: true, violations };
+}
+
+test("scope: an owner file is out of scope regardless of citations", () => {
+  const content = [
+    'import { statePath } from "../xdg-dirs.mjs";',
+    "// writes usage.jsonl records",
+    "export function f() { return { cacheRead: 1 }; }",
+  ].join("\n");
+  assert.equal(checkLogsSchemaScope("tools/logs.mjs", content).inScope, false);
+});
+
+test("scope: a non-owner file with the path AND a schema field name is in scope and flagged", () => {
+  const content = [
+    "// reads ~/.local/state/cache-fix/usage.jsonl by hand",
+    "const cr = row.cacheRead ?? 0;",
+  ].join("\n");
+  const result = checkLogsSchemaScope("tools/fake-consumer.mjs", content);
+  assert.equal(result.inScope, true);
+  assert.equal(result.violations.length, 1);
+  assert.equal(result.violations[0].line, 2);
+});
+
+test("scope: a field-name hit with NO disk-path mention is out of scope (the field name alone proves nothing)", () => {
+  const content = "const cacheRead = 12; // just a local variable, no file read in sight";
+  assert.equal(checkLogsSchemaScope("tools/unrelated.mjs", content).inScope, false);
+});
+
+test("scope: a disk-path mention with NO schema field name is in scope but silent", () => {
+  const content = "// this tool reads usage.jsonl but never touches its cache fields";
+  const result = checkLogsSchemaScope("tools/unrelated2.mjs", content);
+  assert.equal(result.inScope, true);
+  assert.deepEqual(result.violations, []);
+});
+
+// INSTRUMENT-POSITIVE: the pattern must be shown catching a REAL file before
+// any zero from it is trusted — a pattern that could never match returns
+// exactly what a true absence returns.
+test("INSTRUMENT-POSITIVE: tools/cold-events.mjs — a real, live, unambiguous hand-parse of the captureOutcome schema", () => {
+  const content = readFileSync(join(REPO_ROOT, "tools/cold-events.mjs"), "utf-8");
+  const result = checkLogsSchemaScope("tools/cold-events.mjs", content);
+  assert.equal(result.inScope, true, "cold-events.mjs names -requests.jsonl in its own header comment — must be in scope");
+  const lines = content.split("\n");
+  assert.ok(
+    result.violations.some((v) => /u\.cacheCreation|u\.cacheRead/.test(lines[v.line - 1])),
+    "must catch the real rec.usage.cacheRead/cacheCreation hand-parse in normalizeRow's captureOutcome branch",
+  );
+});
+
+// KNOWN LIMITATION, surfaced rather than silently avoided: the two-signal
+// predicate still false-positives when a file legitimately mentions
+// "usage.jsonl" (in a doc comment or default-path constant) AND separately
+// uses one of the schema's field-name identifiers for something entirely
+// unrelated. Measured real instance: tools/cost-report.mjs names
+// "usage.jsonl" as its own default input source, and ~140 lines away uses a
+// LOCAL VARIABLE named `cacheRead` to hold a dollar rate parsed out of
+// Anthropic's pricing-page HTML — no JSONL parsing anywhere near it. Fixing
+// this precisely needs parse-site provenance (which JSON.parse call
+// produced the variable), which a text pattern cannot see; that is a real
+// gap in THIS LINT, not a defect in cost-report.mjs, and it is named here
+// rather than hidden behind an untested "should be clean" claim.
+test("KNOWN LIMITATION: tools/cost-report.mjs false-positives — a coincidental cacheRead variable near an unrelated usage.jsonl mention", () => {
+  const content = readFileSync(join(REPO_ROOT, "tools/cost-report.mjs"), "utf-8");
+  const result = checkLogsSchemaScope("tools/cost-report.mjs", content);
+  assert.equal(result.inScope, true);
+  assert.ok(result.violations.length > 0, "documents the false positive rather than asserting an unverified clean bill");
+});

@@ -1,0 +1,178 @@
+{
+  "_comment": "Hand-placed, CONSTRUCTED fixtures for test/logs-schemas.test.mjs — built from known-safe parts per the dispatch brief, not scrubbed from a live capture. Every id/sid/key/requestId/tenant field is an obviously-synthetic placeholder. The one exception is captureOutcome: its ts and usage.cacheRead/usage.cacheCreation values are frozen VERBATIM from a real record read live on 2026-08-10 (proxy captures rotate oldest-mtime-first, so a live-directory read decays into a false alarm) — those three values are the brief's named known positive and carry no session-identifying information themselves.",
+
+  "captureRequest": {
+    "ts": "2026-08-10T04:16:00.000Z",
+    "id": "EXAMPLE-ID-0001",
+    "sid": "EXAMPLE-SID-00000000-0000-0000-0000-000000000000",
+    "key": "s-EXAMPLE0000",
+    "headers": {
+      "anthropic-beta": "example-beta-token-set",
+      "session-id": null
+    },
+    "body": {
+      "model": "claude-example-5",
+      "max_tokens": 1,
+      "messages": [
+        { "role": "user", "content": "example request content" }
+      ],
+      "metadata": {
+        "user_id": "EXAMPLE-METADATA-OPAQUE-STRING"
+      }
+    }
+  },
+
+  "captureOutcome": {
+    "ts": "2026-08-10T04:40:39.598Z",
+    "type": "outcome",
+    "id": "EXAMPLE-ID-0002",
+    "key": "s-EXAMPLE0001",
+    "requestId": "req_EXAMPLE00000000000000000",
+    "model": "claude-example-5",
+    "usage": {
+      "cacheRead": 15603,
+      "cacheCreation": 213429,
+      "inputTokens": 2,
+      "outputTokens": 2,
+      "ephemeral1h": 213429,
+      "ephemeral5m": 0
+    },
+    "outSha": "deadbeefdeadbeef",
+    "outBytes": 600000,
+    "ms": 1500
+  },
+
+  "usageLogFull": {
+    "v": 1,
+    "ts": "2026-08-10T05:00:00.000Z",
+    "sid": "EXAMPLE-SID-11111111-1111-1111-1111-111111111111",
+    "model": "claude-example-5",
+    "speed": "normal",
+    "service_tier": "standard",
+    "input_tokens": 2,
+    "output_tokens": 2,
+    "cache_creation_input_tokens": 213429,
+    "cache_read_input_tokens": 15603,
+    "ephemeral_1h_input_tokens": 213429,
+    "ephemeral_5m_input_tokens": 0,
+    "web_search_requests": 0,
+    "q5h": 12.5,
+    "q7d": 40.2,
+    "q5h_reset": 1723276800,
+    "q7d_reset": 1723536000,
+    "qstatus": "ok",
+    "qoverage": "none",
+    "qclaim": "none",
+    "qfallback_pct": 0,
+    "cache_hit_rate": 0.986,
+    "q5h_delta": 0.3,
+    "q7d_delta": 1.1,
+    "requested_model": "claude-example-5",
+    "model_mismatch": false,
+    "qoverage_util": 0.1,
+    "qrepresentative_claim": "example-claim",
+    "org_id": "EXAMPLE-ORG-HASH",
+    "overage_disabled_reason": "example-reason",
+    "request_id": "req_EXAMPLE11111111111111111",
+    "agent_id": "EXAMPLE-AGENT-ID",
+    "agent_id_source": "cc_header"
+  },
+
+  "usageLogMinimal": {
+    "v": 1,
+    "ts": "2026-08-10T05:05:00.000Z",
+    "sid": "EXAMPLE-SID-22222222-2222-2222-2222-222222222222",
+    "model": "claude-example-5",
+    "speed": "normal",
+    "service_tier": "standard",
+    "input_tokens": 3,
+    "output_tokens": 4,
+    "cache_creation_input_tokens": 1000,
+    "cache_read_input_tokens": 500,
+    "ephemeral_1h_input_tokens": 1000,
+    "ephemeral_5m_input_tokens": 0,
+    "web_search_requests": 0,
+    "q5h": 5.0,
+    "q7d": 20.0,
+    "q5h_reset": 1723276800,
+    "q7d_reset": 1723536000,
+    "qstatus": "ok",
+    "qoverage": "none",
+    "qclaim": "none",
+    "qfallback_pct": 0,
+    "cache_hit_rate": 0.33,
+    "q5h_delta": 0,
+    "q7d_delta": 0
+  },
+
+  "prefixDiffEvent": {
+    "ts": "2026-08-10T06:00:12.000Z",
+    "prevTs": "2026-08-10T05:59:54.000Z",
+    "key": "s-EXAMPLE00002",
+    "sid": "EXAMPLE-SID-33333333-3333-3333-3333-333333333333",
+    "view": "forwarded@10",
+    "causes": ["messages@2(user)"],
+    "systemMatch": true,
+    "toolsMatch": true,
+    "msgs": "3->4",
+    "chain": {
+      "first": 2,
+      "role": "user",
+      "appendOnly": true,
+      "prevContent": "EXAMPLE PREVIOUS TURN TEXT",
+      "nowContent": "EXAMPLE CURRENT TURN TEXT"
+    },
+    "params": [],
+    "system": [],
+    "tools": [],
+    "betaHeader": null,
+    "windows": { "head": 1, "markers": 0, "tail": 1 }
+  },
+
+  "prefixDiffDiff": {
+    "timestamp": "2026-08-10T06:00:12.000Z",
+    "prevTimestamp": "2026-08-10T05:59:54.000Z",
+    "toolsMatch": true,
+    "systemMatch": true,
+    "messageCountPrev": 3,
+    "messageCountNow": 4,
+    "prefixDiffs": [],
+    "tailDiffs": [],
+    "markerDiffs": [],
+    "markerCount": 0,
+    "systemBlockDiffs": [],
+    "toolDiffs": [],
+    "paramDiffs": [],
+    "messageChain": {
+      "firstDivergentIndex": -1,
+      "commonLength": 3,
+      "prevLength": 3,
+      "nowLength": 4,
+      "appendOnly": true,
+      "divergentRole": null
+    },
+    "divergentPrev": null,
+    "divergentNow": null,
+    "betaHeaderDiff": null
+  },
+
+  "prefixDiffLast": {
+    "tenants": {
+      "EXAMPLE-TENANT-0001": {
+        "timestamp": "2026-08-10T06:00:12.000Z",
+        "messageCount": 4,
+        "toolsHash": "EXAMPLE-TOOLS-HASH",
+        "systemHash": "EXAMPLE-SYSTEM-HASH",
+        "params": [],
+        "systemBlocks": [],
+        "toolsDetail": [],
+        "messageHashes": [],
+        "prefixMessages": [],
+        "tailMessages": [],
+        "markerMessages": [],
+        "betaHeader": null
+      }
+    },
+    "lastTenant": "EXAMPLE-TENANT-0001"
+  }
+}
