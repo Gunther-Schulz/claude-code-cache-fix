@@ -829,7 +829,24 @@ ENOSPC misattribution with its wrong first explanation left in.
   `conversationSubKey` over the RAW captured body differs from the same
   function over the body as it reaches order 395. `replay.mjs` already runs
   the real pipeline over recorded traffic, so both snapshots are in hand at the
-  point the census runs; nothing new needs replaying. A rotation is not by
+  point the census runs; nothing new needs replaying — they are already on
+  every compact entry as `inHash` (raw) and `outHash` (forwarded), built by
+  the same `sha(JSON.stringify(m))` primitive on both sides
+  (`replay.mjs:876`, `:898`).
+  **The predicate is the cache_control-STRIPPED twins, and getting this wrong
+  is how the class would ship firing on non-defects.** Use
+  `inHashNoCC[0] !== outHashNoCC[0]`, not `inHash[0] !== outHash[0]`. The
+  proxy's real key function strips `cache_control` per block before hashing
+  (`message-hash.mjs:16-24`, via `hashMessageContent`), so a moved BREAKPOINT
+  changes `inHash[0]` while changing the actual conversation identity not at
+  all — and breakpoints move constantly. The stripped twins already exist for
+  a neighbouring reason (`inHashNoCC` at `:885`, `outHashNoCC` just after
+  `:898`), so this costs an index, not a mechanism. Named caveat, not to be
+  papered over: `stripCacheControlDeep` and `hashMessageContent`'s per-block
+  strip are two implementations of one intent and have not been shown
+  equivalent — so the bite set carries a constructed cache_control-ONLY
+  difference that must NOT classify, which is the case that would expose a
+  divergence between them. A rotation is not by
   itself a defect (it is row 26's precondition, and eleven of row 26's twelve
   measured rotations cost nothing), so this ships as a CLASS and a count, never
   as a gate failure — a check firing on a non-defect trains the override reflex
