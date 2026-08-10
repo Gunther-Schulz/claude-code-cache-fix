@@ -802,6 +802,26 @@ ENOSPC misattribution with its wrong first explanation left in.
   Trigger: the dotfiles session reports, or the last of its eleven entries
   closes. Done-criterion: the file is gone and each closed pointer entry
   carries its dotfiles commit ref.
+  **HANDED OFF 2026-08-10 — and the eleven entries were RE-GRADED, which is the
+  half that would otherwise have been a mention.** They carried `READY`, and
+  `READY` asserts this session intends to build them; once the brief was passed
+  on that was false, and a false grade is the exact defect the grade-split entry
+  below names. They now read `PARKED [HANDED OFF 2026-08-10]`, which is the
+  closed vocabulary's honest fit: PARKED requires a named trigger and these have
+  one — **the dotfiles session reporting back**. Stated once here rather than
+  copied into eleven bodies, because a shared fact with eleven homes drifts in
+  ten of them.
+  READY fell **111 -> 100** on that re-grade alone, and that number is worth
+  reading carefully: nothing was built and nothing was dropped. The count was
+  simply wrong before, in the direction the operator had already spotted by
+  eye. Selection was by GRADE MARKER — `(operator-side, dotfiles`,
+  `(operator-side, corpus`, and the two POINTER spellings naming that repo —
+  never by the word "dotfiles", which also appears in cache-fix entries that
+  are merely deployment-coupled and stay ours. One further match was left
+  alone: an entry already graded `IN FLIGHT` since 2026-08-06, dispatched
+  elsewhere and not this brief's to re-grade.
+  Re-grading them is NOT a discharge. Each still owes its closure here with the
+  dotfiles commit ref, which is what the pointer entries exist for.
 
 - **READY — the READY grade asserts INTENT TO BUILD, 110 entries carry it, and
   the operator's read is that they will never be finished. He is right, and the
@@ -2164,7 +2184,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   second instance (231 records, replays green over 103 pairs), so it is
   worth keeping either way.
 
-- **READY (operator-side, dotfiles) — a non-executable hook is SKIPPED BY GIT
+- **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — a non-executable hook is SKIPPED BY GIT
   IN SILENCE, so one `chmod` disables the machine's last gate with no error
   anywhere.** Found 2026-08-06 by the leak-gate lane, against itself, and it is
   the more valuable half of that work: a neutralised copy of the push hook was
@@ -2330,7 +2350,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   identifier in a file inside `rowpins/`, run the suite, and require red;
   today it passes green, which is the defect.
 
-- **READY (operator-side, dotfiles) — the reorder collapses the READY-age
+- **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — the reorder collapses the READY-age
   signal, which is the measured case `session-scan.py` asked for before
   re-opening first-appearance dating.** `_entry_times` dates entries by
   `git blame`, and the docstring names its own residual explicitly: "an entry
@@ -2399,7 +2419,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   figure has been wrong for every session since `8e58988` — a live wrong number,
   not a latent one. It is the reason this jumped the queue.
 
-- **READY (operator-side, dotfiles — POINTER; body belongs in that repo) — the
+- **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles — POINTER; body belongs in that repo) — the
   doctor has no three-answer verdict for the sweep's new `rowPins` fields.**
   Booked 2026-08-07 with `e787960`, which added per-row `rowPins` plus a sweep
   rollup `{captures, written, unchanged, rejected, unverifiable, conflicts,
@@ -3110,7 +3130,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   disposition rests on. Unranked (booked after the derivation).
   <!-- entry: "capturePairResult may select a DIFFERENT pair than the census walk" -->
 
-- **READY (small, operator-side, dotfiles — POINTER) — `doctor` has no verdict
+- **PARKED [HANDED OFF 2026-08-10] (small, operator-side, dotfiles — POINTER) — `doctor` has no verdict
   over the live EXTENSION set, so six extensions run undeclared and nothing
   says so.** Booked 2026-08-08 as the half of the activation-gate entry that
   lands in the dotfiles repo and therefore outside this tree's write boundary.
@@ -3142,7 +3162,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   `/health` that cannot be reached is COULD-NOT-VERIFY, never a pass.
   <!-- entry: "doctor has no verdict over the live EXTENSION set" -->
 
-- **READY (small, operator-side, dotfiles) — nothing checks that a
+- **PARKED [HANDED OFF 2026-08-10] (small, operator-side, dotfiles) — nothing checks that a
   declared-public remote is STILL public.** Booked 2026-08-08 as the named limit
   of the entry above. `OEFFENTLICHE_REMOTES` is a human claim the hook trusts:
   a repo made private later keeps being treated as published, and its bytes
@@ -3780,7 +3800,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   Red-first: tonight's block reproduced, then green, and a capture id planted in
   a file the branch DOES touch must still block.
 
-- **READY (operator-side, dotfiles) — one status file now has TWO definitions of
+- **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — one status file now has TWO definitions of
   "how old is the sweep", and they can disagree by design.** Surfaced 2026-08-06
   by the agent that built the gate-red doorbell, as a returned gap rather than a
   silent choice — the good outcome, and worth noting as such. The hook
@@ -4263,7 +4283,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   git rather than from a date written in the entry — a hand-written date is a
   label over its own body and will drift from the commit that added it.
 
-- **READY (operator-side, corpus — NOT this repo) — two corpus edits agreed
+- **PARKED [HANDED OFF 2026-08-10] (operator-side, corpus — NOT this repo) — two corpus edits agreed
   2026-08-06 and handed to another session; booked here because chat is not a
   carrier.** Both come from one measured failure: a dispatch brief written from
   a settled six-decision round dropped decision 5 (the cross-repo boundary),
@@ -5154,7 +5174,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   reads STATUS-UNREADABLE — a stop-here on a walk that needs no stopping, which
   is the exact defect the CONTROLLED-CAUSE entry just closed one token over.
 
-- **READY (small, operator-side, dotfiles) — `cache-fix/CLAUDE.local.md:91`
+- **PARKED [HANDED OFF 2026-08-10] (small, operator-side, dotfiles) — `cache-fix/CLAUDE.local.md:91`
   lists FOUR verdicts and there are now six.** Found 2026-08-07 by the enum
   lane's dependents search, which is the reason that search is a convention: a
   value-set change breaks its documented consumers silently. The file is
@@ -5285,7 +5305,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   or a push that visibly stalls). The number above is the trigger to compare
   against.
 
-- **READY (small, POINTER — body belongs in the dotfiles/harness repo) — a
+- **PARKED [HANDED OFF 2026-08-10] (small, POINTER — body belongs in the dotfiles/harness repo) — a
   path-restriction hook read a REGEX as a filesystem path and denied the
   command.** Measured 2026-08-08: `restrict-bash-paths.py` blocked a lane's
   probe because the grep PATTERN it carried was `/home/[a-z]+/\.claude` — a
@@ -5683,7 +5703,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   Consumer tier **3 (backlog and process)**.
   <!-- entry: "backlog-lint reports clean on a heading split across two lines" -->
 
-- **READY (small, POINTER — the fix site is `dotfiles`) — the session-start
+- **PARKED [HANDED OFF 2026-08-10] (small, POINTER — the fix site is `dotfiles`) — the session-start
   line reports `127 open item(s)` from `## Open` alone, while the file holds
   337 entries across five sections, and the rendered line carries no
   qualifier.** Measured 2026-08-10 by section:
@@ -6184,7 +6204,7 @@ then did with it, and four of them have since merged.**
 | #278 | REVIEW_REQUIRED, **mergeStateStatus DIRTY** | **US — entry below** |
 | #295 | CLOSED tonight, premise falsified | done |
 
-- **READY (operator-side, dotfiles) — a worktree without `node_modules`
+- **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — a worktree without `node_modules`
   should fail loudly at doctor time, not as a 900 s fake hang.** Measured
   2026-08-05: four of fifteen worktrees (pr2, pr5, pr6, pr7) had no
   `node_modules`, symlinked the same day. The runbook has said to symlink at
