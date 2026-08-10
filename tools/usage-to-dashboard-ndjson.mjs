@@ -21,7 +21,7 @@
  *
  * # What this tool does
  *
- * Reads `~/.claude/usage.jsonl` (our interceptor's per-call log) and
+ * Reads `statePath('usage.jsonl')` (our interceptor's per-call log, XDG state dir) and
  * translates each entry into a minimal-but-compatible record in the shape
  * his dashboard expects under `~/.claude/anthropic-proxy-logs/*.ndjson`.
  * The output file follows the convention `proxy-YYYY-MM-DD.ndjson`, one

@@ -3,7 +3,7 @@
  * cost-report — Calculate Claude API costs from usage telemetry.
  *
  * Input sources (in priority order):
- *   1. Default: reads interceptor usage log at ~/.claude/usage.jsonl
+ *   1. Default: reads interceptor usage log at statePath('usage.jsonl') (XDG state dir; falls back to a legacy ~/.claude path if that is the only one present — see legacyReadPath)
  *   2. --file / -f: any JSONL file (SDK output, proxy captures, etc.)
  *   3. --sim-log: extract from simulation logs (Token telemetry: {...} lines)
  *   4. stdin: pipe JSON-lines from any source
@@ -73,7 +73,7 @@ function printUsage() {
 cost-report — Calculate Claude API costs from usage telemetry.
 
 Usage:
-  node cost-report.mjs                                   From interceptor log (~/.claude/usage.jsonl)
+  node cost-report.mjs                                   From interceptor log (statePath('usage.jsonl'), XDG state dir)
   node cost-report.mjs --date 2026-04-08                 Filter to a specific date
   node cost-report.mjs --since 2h                        Filter to last N hours/minutes
   node cost-report.mjs --file <path>                     From any JSONL file
@@ -83,7 +83,7 @@ Usage:
   node cost-report.mjs --update-rates                    Refresh bundled rates
 
 Input sources (checked in order):
-  Default              Reads ~/.claude/usage.jsonl (written by the interceptor)
+  Default              Reads statePath('usage.jsonl'), the XDG state dir (written by the interceptor)
   --file, -f <path>    Any JSONL file (SDK output, proxy captures, etc.)
   --sim-log <path>     Extract from simulation logs (Token telemetry lines)
   stdin                Pipe JSON-lines from any source

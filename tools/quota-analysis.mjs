@@ -91,7 +91,7 @@ Usage:
   quota-analysis [options]
 
 Options:
-  -f, --file <path>      JSONL file to read (default: ~/.claude/usage.jsonl)
+  -f, --file <path>      JSONL file to read (default: statePath('usage.jsonl'), XDG state dir)
   -s, --since <duration> Filter to last N hours/days (e.g. 24h, 3d, 7d)
       --format <fmt>     Output format: text (default), json, markdown
       --json             Shorthand for --format json

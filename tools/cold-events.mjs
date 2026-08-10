@@ -42,7 +42,7 @@
 // Sources, both already written by this machine — no new tap needed:
 //   - CC transcripts  ~/.claude/projects/**/<sid>.jsonl and
 //                     **/subagents/agent-*.jsonl   (message.usage per call)
-//   - proxy captures  ~/.claude/cache-fix-captures/<key>-requests.jsonl
+//   - proxy captures  dataPath("captures")/<key>-requests.jsonl (XDG data dir)
 //                     (`type:"outcome"` records: request-capture.mjs writes
 //                     cacheRead/cacheCreation/inputTokens per response)
 //
