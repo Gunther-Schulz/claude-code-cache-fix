@@ -959,10 +959,9 @@ function formatRowStatusFinding(f) {
 // and still overstate the queue, because premise-truth and work-remaining
 // are independent — a `tools/coverage-walk.mjs` graduation entry (frozen at
 // `633256b`) was STILL-TRUE and entirely done, its own body citing the
-// shipped commits (`7827c4e`, `b94d118`) and splitting its one remaining
-// piece into another entry, yet the retirement pass still counted it as
-// queued work. See BACKLOG.md, "a derivation asks whether an entry's
-// PREMISE is true and never".
+// shipped commits (`7827c4e`, `b94d118`), yet the retirement pass still
+// counted it as queued work. See BACKLOG.md, "a derivation asks whether an
+// entry's PREMISE is true and never".
 //
 // REPORT only, by design: an entry legitimately cites a commit that shipped
 // ADJACENT work, so this is a flag for a human read, never an auto-re-grade
@@ -972,34 +971,51 @@ function formatRowStatusFinding(f) {
 // SCOPE: `## Open`, READY-graded bullets only — a PARKED/OPEN/HOT entry does
 // not carry a "ready to build" claim to overstate.
 //
-// Two independent computable signals, either one is enough to flag:
-//   - a backtick-quoted commit-shaped hex token within ~60 characters of a
-//     SHIPPED/CLOSED/DONE word — "cites its own commit refs as shipped".
-//   - a "split into/out" phrase — the remainder was handed to a different
-//     bullet. Narrowed to just this phrase on the first dry run against the
-//     real corpus: the wider draft also matched bare "another entry" /
-//     "separate entry", and this backlog cross-references other entries
-//     constantly in prose unrelated to any remainder ("a premise refuted
-//     inside ANOTHER ENTRY is invisible to it" — about a DIFFERENT defect
-//     entirely). "split into/out" is what the real motivating case
-//     (`633256b`'s coverage-walk entry: "(3) split out", "split into its
-//     own entry below") actually says.
+// ONE computable signal, not two: a backtick-quoted commit-shaped hex token
+// within ~60 characters of a SHIPPED/CLOSED/DONE word — "cites its own
+// commit refs as shipped". The second signal this lane shipped with
+// ("split into/out") was REMOVED (operator decision, first dry run against
+// the real corpus): it matched entry-LINEAGE prose (a big entry
+// deliberately split into sub-entries, tracked both directions — "split
+// out FROM the entry above", "SPLIT OUT INTO its own entry below") far more
+// often than "my own remainder is done and handed elsewhere", the one case
+// the phrase was meant to catch, and the phrase alone cannot tell the two
+// apart. 5 real occurrences, 5 false fires — a threshold could have hidden
+// today's five without fixing the class, so the signal is gone rather than
+// narrowed.
+//
+// The surviving signal still self-matches on THIS repo's own entry
+// proposing this check ("a derivation asks whether an entry's PREMISE is
+// true and never"), which narrates the coverage-walk positive in PLAIN
+// PROSE ("parts (1) and (2) shipped (`7827c4e`, `b94d118`)") — the same two
+// commit hashes, the same word "shipped". The real positive states its
+// claim differently: `633256b`'s coverage-walk entry carries it inside a
+// SENTENCE-INITIAL BOLD RUN ("**PARTLY SHIPPED 2026-08-08 —
+// `7827c4e`...**"), this repo's own convention for a claim about the entry
+// itself (the same structural tell `isSentenceInitialBoldContext`, above,
+// already uses for the header lane's SUB-CLAIM SCOPE — reused here rather
+// than re-derived, and verified by the check itself: a citation NOT in such
+// a span does not count, so a hardcoded line number is never needed to
+// exclude this entry from flagging itself).
 
 const READY_HEADER = /^- \*\*READY\b/;
 const SHIP_WORD = /\b(SHIPPED|CLOSED|DONE)\b/;
 const COMMIT_CITATION = /`([0-9a-f]{7,12})`/g;
-const SPLIT_OUT_PHRASE = /\bsplit (?:into|out)\b/i;
 const SHIP_PROXIMITY = 60;
 
 // Same discipline as the pointer lane's HEX_TOKEN: require both a digit and
 // an a-f letter, which is what tells a short SHA apart from an all-letter or
 // all-digit word without resolving it against git (this lane never shells
 // out — a REPORT over a whole file must not pay a git-probe cost per hit).
+// The commit token itself must sit inside a sentence-initial bold run (see
+// the header comment above) — a claim ABOUT the entry, never prose
+// describing what some OTHER entry's body says.
 function findShippedCommitCitation(body) {
   COMMIT_CITATION.lastIndex = 0;
   let m;
   while ((m = COMMIT_CITATION.exec(body))) {
     if (!/[0-9]/.test(m[1]) || !/[a-f]/.test(m[1])) continue;
+    if (!isSentenceInitialBoldContext(body, m.index)) continue;
     const start = Math.max(0, m.index - SHIP_PROXIMITY);
     const end = Math.min(body.length, m.index + m[0].length + SHIP_PROXIMITY);
     if (SHIP_WORD.test(body.slice(start, end))) return m[1];
@@ -1014,15 +1030,11 @@ export function lintPremiseTrue(text) {
   for (const entry of splitEntries(section.body)) {
     if (!READY_HEADER.test(entry.header)) continue;
     const commit = findShippedCommitCitation(entry.body);
-    const split = SPLIT_OUT_PHRASE.test(entry.body);
-    if (!commit && !split) continue;
-    const signals = [];
-    if (commit) signals.push(`shipped-commit:${commit}`);
-    if (split) signals.push("split-out-phrase");
+    if (!commit) continue;
     findings.push({
       line: section.lineOffset + entry.startLine,
       header: entry.header.replace(/^- \*\*/, "").trim().slice(0, 80),
-      signals,
+      signals: [`shipped-commit:${commit}`],
     });
   }
   return findings;

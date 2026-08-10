@@ -812,11 +812,28 @@ test("row-status lane: zero false fires on the real current BACKLOG.md", () => {
 // Definitions from BACKLOG.md, "a derivation asks whether an entry's
 // PREMISE is true and never": a READY entry whose body carries a
 // backtick-quoted commit-shaped hex token near a SHIPPED/CLOSED/DONE word,
-// or a "split into/out" phrase, is flagged for a human read — never
-// auto-re-graded. The real motivating case is the `tools/coverage-walk.mjs`
-// graduation entry, frozen at `633256b`: STILL-TRUE (every fact holds) and
-// entirely done (parts 1-2 shipped at `7827c4e`/`b94d118`, part 3 split into
-// its own entry), yet still graded READY.
+// INSIDE a sentence-initial bold run (a claim about the entry itself, this
+// repo's own convention — the same structural tell the header lane's
+// SUB-CLAIM SCOPE already uses), is flagged for a human read — never
+// auto-re-graded.
+//
+// The lane originally shipped a second signal ("split into/out" phrase),
+// REMOVED (operator decision) after the first dry run against the real
+// corpus found it false-fired 5/5: the phrase reads as entry LINEAGE in
+// this backlog ("split out FROM the entry above") far more often than "my
+// own remainder is done", and no threshold separates the two. Only the
+// shipped-commit signal ships.
+//
+// The real motivating case is the `tools/coverage-walk.mjs` graduation
+// entry, frozen at `633256b`: STILL-TRUE (every fact holds) and entirely
+// done, its own body stating "**PARTLY SHIPPED 2026-08-08 — `7827c4e`...**"
+// as a sentence-initial bold claim, yet still graded READY.
+//
+// This repo's OWN entry proposing the check (the one these tests exercise)
+// narrates that same positive in PLAIN PROSE — "parts (1) and (2) shipped
+// (`7827c4e`, `b94d118`)", no bold — which is what the sentence-initial-bold
+// requirement excludes; the exclusion is exercised directly below rather
+// than trusted by inspection.
 
 test("premise-true lane: fires on the real coverage-walk entry (frozen at 633256b)", () => {
   const historical = gitShow(RETIREMENT_PASS_REF, "BACKLOG.md");
@@ -824,13 +841,10 @@ test("premise-true lane: fires on the real coverage-walk entry (frozen at 633256
   const hit = findings.find((f) => /graduate the coverage walk/.test(f.header));
   console.log("premise-true finding on the frozen positive: " + (hit ? JSON.stringify(hit) : "NONE"));
   assert.ok(hit, "the coverage-walk entry must be flagged");
-  assert.ok(
-    hit.signals.some((s) => s === "shipped-commit:7827c4e" || s === "shipped-commit:b94d118"),
-    "must name a shipped commit it cites for its own parts",
-  );
+  assert.deepEqual(hit.signals, ["shipped-commit:7827c4e"]);
 });
 
-test("premise-true lane: control — an entry with no shipped-commit or split-out signal stays silent", () => {
+test("premise-true lane: control — an entry with no shipped-commit signal stays silent", () => {
   const doc = [
     "## Open", "",
     "- **READY — a thing still fully open.** Depends on work that landed",
@@ -839,30 +853,59 @@ test("premise-true lane: control — an entry with no shipped-commit or split-ou
   assert.deepEqual(lintPremiseTrue(doc), []);
 });
 
-test("premise-true lane: fires on a shipped-commit citation from the definition", () => {
+test("premise-true lane: fires on a shipped-commit citation in a sentence-initial bold claim, from the definition", () => {
   const doc = [
     "## Open", "",
-    "- **READY — a thing.** Part (1) SHIPPED (`7827c4e`), the rest remains.",
+    "- **READY — a thing.** Grounding text opens the entry, closing the",
+    "  header's own bold run right here.",
+    "  **PARTLY SHIPPED 2026-08-08 — `7827c4e`, the rest remains.**",
   ].join("\n");
   const findings = lintPremiseTrue(doc);
   assert.equal(findings.length, 1);
   assert.deepEqual(findings[0].signals, ["shipped-commit:7827c4e"]);
 });
 
-test("premise-true lane: fires on a split-out phrase from the definition", () => {
+test("premise-true lane: a shipped-commit citation in plain (non-bold) prose describing what the body says does NOT fire — the real self-match this exclusion was built for", () => {
+  // The shape of this repo's own proposing entry: narrating, in plain
+  // prose, what ANOTHER entry's body states — not a bold claim about THIS
+  // entry. Same two facts (word "shipped", a commit hash) as the true
+  // positive above, deliberately, to pin the discriminator rather than the
+  // topic.
   const doc = [
     "## Open", "",
-    "- **READY — a thing.** The remainder was split into its own entry below.",
+    "- **READY — a thing about a DIFFERENT entry.** Its own body says parts",
+    "  (1) and (2) shipped (`7827c4e`, `b94d118`) and the rest was handled",
+    "  elsewhere — quoted here only as the record of what happened there.",
   ].join("\n");
-  const findings = lintPremiseTrue(doc);
-  assert.equal(findings.length, 1);
-  assert.deepEqual(findings[0].signals, ["split-out-phrase"]);
+  assert.deepEqual(lintPremiseTrue(doc), []);
+});
+
+test("premise-true lane: the exclusion is verified against this repo's own current entry, not assumed", () => {
+  // Direct proof that the self-match the operator flagged (BACKLOG.md line
+  // ~5653 as of this writing — a line number that rots, so this test never
+  // asserts one) is gone: the whole current file produces zero findings for
+  // an entry whose header matches this check's own proposing text.
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const findings = lintPremiseTrue(current);
+  const selfHit = findings.find((f) => /PREMISE is true and never/.test(f.header));
+  assert.equal(selfHit, undefined, "the check's own proposing entry must not flag itself");
+});
+
+test("premise-true lane: a shipped-commit citation inside the entry's OWN header bold run does not count as a later sub-claim", () => {
+  // isSentenceInitialBoldContext excludes the header's own bold span by
+  // design (the header lane's existing rule, reused here) — named so a
+  // future reader does not mistake the absence for an oversight.
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing already SHIPPED in `7827c4e`, one part remains.**",
+  ].join("\n");
+  assert.deepEqual(lintPremiseTrue(doc), []);
 });
 
 test("premise-true lane: scoped to READY headers only", () => {
   const doc = [
     "## Open", "",
-    "- **PARKED — a thing.** SHIPPED (`7827c4e`) here too, but not READY.",
+    "- **PARKED — a thing.** **SHIPPED 2026-01-01 — `7827c4e`, done.** Not READY.",
   ].join("\n");
   assert.deepEqual(lintPremiseTrue(doc), []);
 });
