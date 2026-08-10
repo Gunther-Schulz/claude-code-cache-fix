@@ -462,37 +462,44 @@ const SHORT_KEY_EXEMPT = [
   /s-4b6a4352/,
 ];
 
-// The head of a full 8-4-4-4-12 UUID is not a short key — it is a UUID, and
-// the UUID class owns that shape. Without this the two classes double-report
-// the same string, and a synthetic UUID in a test (governed by the source-UUID
-// roster the suite walks) reads as a capture-key leak. Measured: this was one
-// of exactly two false fires over 545 source files.
+// A line carrying a full 8-4-4-4-12 UUID is not a short key — it is a UUID,
+// and the UUID class (`capture-uuid`, exported above as `UUID`) owns that
+// shape. `scanSourceText` checks for it FIRST and reports under that class
+// name, never `capture-key-prefix`, so the two classes never double-report
+// the same string.
 //
-// THIS LINE IS A DEFERRAL, and until 2026-08-10 it deferred to nobody for part
-// of its own domain. Suppressing here is only sound if every file reaching
-// this function is covered by that roster. It was not: the roster walked
-// `test/*.mjs`, `tools/*.mjs`, `proxy/**.mjs`, `docs/**.md`, while this
-// function runs over everything SOURCE_SCANNABLE matches — so for BACKLOG.md,
-// FORK-NOTES.md, tools/*.md and every tracked .sh/.py/.yml, writing the FULL
-// id silently disabled the short-key guard on that line and no roster picked
-// it up. Repaired by making the roster walk `git ls-files` filtered through
-// SOURCE_SCANNABLE — the same predicate, exported and imported rather than
-// restated, because two sentences that must agree should not be two
-// sentences. If you narrow SOURCE_SCANNABLE, the roster narrows with it; if
-// you widen it, the roster widens and will tell you what it found.
-const FULL_UUID_HEAD = /(^|[^0-9a-f])s?-?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-
+// UNTIL 2026-08-10 this was the opposite — a SUPPRESSION (`FULL_UUID_HEAD`)
+// that dropped the line rather than reclassifying it, deferring detection to
+// "the source-UUID roster the suite already walks"
+// (test/absence-scan.test.mjs). That deferral held for TRACKED FILES once the
+// roster was repaired to walk `git ls-files` filtered through
+// SOURCE_SCANNABLE — every file reaching this function is covered by it. It
+// never held for COMMIT MESSAGES: `scanGitRange`'s `rangeMessages` calls this
+// same function on message text that is never a tracked file, so no
+// `git ls-files` roster, however complete, can ever reach it. Measured the
+// same day, one investigation later: a session citing this very defect's own
+// history wrote a full session UUID directly into a commit message, and
+// `scanSourceText` reported it clean — the deferral pointing at a roster that
+// structurally cannot see commit text. Reclassifying instead of suppressing
+// covers both populations with one predicate: files stay caught (now at the
+// cheap git-range layer too, not only by the slower full-suite roster test)
+// and commit messages — uncovered until now — are caught for the first time.
 /**
- * The short-key class over a source file's raw bytes. Line-granular so a
+ * The short-key class over a source file's raw bytes — and, inline, the
+ * capture-uuid class for the same text, since this is the ONLY scan a
+ * commit message ever receives (see the comment above). Line-granular so a
  * finding can name where without echoing what — same discipline as every
  * other finding here: class, file, position, length, never the match.
  */
 export function scanSourceText(text, file) {
   const findings = [];
   text.split("\n").forEach((line, i) => {
+    if (UUID.test(line)) {
+      findings.push(finding("capture-uuid", line, { file, path: `line ${i + 1}` }));
+      return;
+    }
     if (!SHORT_KEY.test(line)) return;
     if (SHORT_KEY_EXEMPT.some((re) => re.test(line))) return;
-    if (FULL_UUID_HEAD.test(line)) return;
     findings.push(finding("capture-key-prefix", line, { file, path: `line ${i + 1}` }));
   });
   return { findings, degraded: [] };
@@ -697,9 +704,15 @@ function report(out, { findings, allowlisted = [], degraded = [], partial = 0, p
           `value-level classes only (${anyClasses})`);
     }
     if (partialSource > 0) {
-      out(`scope: ${partialSource} source file(s) — capture-key-prefix only; ` +
-          `the full 8-4-4-4-12 shape is covered by test/absence-scan.test.mjs's ` +
-          `tracked-tree UUID roster, not here`);
+      // CORRECTED 2026-08-10, same day: this used to say the full 8-4-4-4-12
+      // shape was "covered by test/absence-scan.test.mjs's tracked-tree UUID
+      // roster, not here" — true when written, and it stopped being true the
+      // moment scanSourceText started reclassifying (rather than suppressing)
+      // a full-UUID line under capture-uuid, inline, right here. The roster
+      // remains a second, independent check over tracked files; it is no
+      // longer the ONLY one.
+      out(`scope: ${partialSource} source file(s) — capture-key-prefix and ` +
+          `capture-uuid only; the other classes need a JSON document`);
     }
   }
   for (const f of findings) {

@@ -616,8 +616,18 @@ test("the shapes that are NOT a short key stay silent", () => {
     "a model version string contains the shape by coincidence");
   assert.deepEqual(hit("grep -oE 's-[0-9a-f]{8}' | grep -v 's-20240229'", "docs/x.md"), [],
     "and it appears BARE in prose describing the pattern itself");
-  assert.deepEqual(hit('key: "s-11111111-2222-3333-4444-555555555555"'), [],
-    "the head of a full UUID belongs to the UUID class, not this one");
+  // CORRECTED 2026-08-10, same day as the fix it tests: this used to assert
+  // `[]` (no finding at ALL) with a comment claiming "the head of a full UUID
+  // belongs to the UUID class, not this one" — true in intent, and the
+  // assertion never checked it, because until this fix nothing ever ran the
+  // UUID class on source text. It passed by accident: 0 findings looks
+  // identical to "correctly reclassified" and to "silently dropped" from
+  // outside this one test. Reuses the suite's own FAKE_UUID (already on
+  // SOURCE_UUID_ALLOWLIST) rather than a fresh literal, so this file never
+  // writes a second UUID-shaped string a synthetic-content guard has to
+  // re-classify.
+  assert.deepEqual(hit(`key: "s-${FAKE_UUID}"`), ["capture-uuid"],
+    "the head of a full UUID belongs to the UUID class, not capture-key-prefix");
   assert.deepEqual(hit("pinned-s-4b6a4352-26-28.json"), [],
     "this repo's own synthetic fixture token");
 });
@@ -669,6 +679,36 @@ test("the short-key class reaches every text file type, not just .mjs and .md", 
 // SCRUB commit that names the value it scrubbed. Observed live and caught by
 // eye. Message bytes are as permanent in a public repo as file bytes, and no
 // file-content scan will ever see them.
+
+// RED-FIRST proof for absence-scan.mjs's scanSourceText fix (2026-08-10):
+// until this fix, a FULL UUID in a commit message passed `scanSourceText`
+// clean — the short-key class deferred it to "the UUID class", and nothing
+// ever ran the UUID class over commit-message text (only over JSON document
+// VALUES, via scanDocument). The sibling test below proves the short-prefix
+// class that was already working; this proves the class that was silently
+// absent — a full UUID is what a real session id actually looks like, and a
+// commit message is never a tracked file a `git ls-files` roster
+// (test/absence-scan.test.mjs's own "source: every UUID..." test) can ever
+// reach.
+test("git-range: a FULL UUID in a COMMIT MESSAGE is caught too — no roster can ever reach a message", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "a.md"), "clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "base");
+    const base = g("rev-parse", "HEAD");
+    writeFileSync(join(dir, "a.md"), "still clean\n");
+    g("add", "-A");
+    // The file is clean; only the MESSAGE carries the identifier, and it is
+    // the FULL 8-4-4-4-12 shape.
+    g("commit", "-qm", `session ${FAKE_UUID} busted`);
+    const r = run(["--git-range", `${base}..HEAD`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING capture-uuid {2}commit /,
+      "a full UUID in a commit message must be caught under capture-uuid, not silently dropped");
+    assert.ok(!r.stdout.includes("0123abcd"), "and must not echo the identifier");
+  });
+});
 
 test("git-range: a capture id in a COMMIT MESSAGE is caught", () => {
   withTemp((dir) => {
