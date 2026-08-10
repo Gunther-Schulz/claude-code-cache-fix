@@ -19,13 +19,12 @@
 // assertion below (a NOTE is printed at all) failed, and the run named the
 // 12:20:13Z bust with no marking whatsoever.
 
-import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildSyntheticHome } from "../tools/synthetic-home.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = join(REPO, "tools", "bust-triage.mjs");
@@ -34,16 +33,21 @@ const CONTROLLED_AT = "2026-08-05T17:22:36Z";       // the ❄ the reader saw
 const BUST_AT = "2026-08-05T12:20:13Z";             // the older, unrelated bust
 const sec = (iso) => Math.floor(Date.parse(iso) / 1000);
 
+// RE-POINTED at the shared synthetic-HOME builder (BACKLOG.md, "the
+// synthetic-HOME pattern is the only way to drive this repo's CLIs, and it
+// is currently re-invented per test") — this file's own hand-rolled
+// fakeHome() used to build exactly this ledger by hand; the shared builder
+// produces the byte-identical file at the byte-identical path, verified by
+// this file's own suite staying green (see the closing report for the
+// before/after transcript).
 /** A HOME whose worktime ledger holds exactly the motivating two events. */
 function fakeHome() {
-  const home = tmpDirSync("bt-at-");
-  const dir = join(home, ".local/share/claude-worktime");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "activity.jsonl"), [
-    { type: "cold", k: "hit", t: sec(BUST_AT), s: "SBUST001", cc: 76000, cause: "messages_changed" },
-    { type: "cold", k: "resume", t: sec(CONTROLLED_AT), s: "SCTRL001", cc: 408000, cause: "resume" },
-  ].map((r) => JSON.stringify(r)).join("\n") + "\n");
-  return home;
+  return buildSyntheticHome({
+    ledger: [
+      { type: "cold", k: "hit", t: sec(BUST_AT), s: "SBUST001", cc: 76000, cause: "messages_changed" },
+      { type: "cold", k: "resume", t: sec(CONTROLLED_AT), s: "SCTRL001", cc: 408000, cause: "resume" },
+    ],
+  });
 }
 
 const run = (home, args) => execFileSync(process.execPath, [TOOL, ...args],

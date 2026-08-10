@@ -46,13 +46,12 @@
 // CONTROLLED-CAUSE (row 27's cell led with `ACCEPT` until 2026-08-07 solely
 // to stay readable). Asserting today's KNOWN-OPEN would pin the workaround.
 
-import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { buildSyntheticHome } from "../tools/synthetic-home.mjs";
 
 import { ttlSeconds, wireTtlSeconds, idleExpiry } from "../tools/bust-triage.mjs";
 
@@ -86,20 +85,29 @@ function captureLines({ ctx, ttl, edited, beforeTs, afterTs }) {
   ].join("\n") + "\n";
 }
 
+// RE-POINTED at the shared synthetic-HOME builder (BACKLOG.md, "the
+// synthetic-HOME pattern is the only way to drive this repo's CLIs, and it
+// is currently re-invented per test"). This file's own hand-rolled
+// fakeHome() used to write captures at the LEGACY `.claude/cache-fix-captures`
+// path, which `bust-triage.mjs` only reached via its one-transition
+// `legacyReadPath` fallback (a `CacheFixLegacyPathWarning` fired on every
+// run here, proof the fallback was doing real work). The shared builder
+// writes to the XDG path directly — the location a migrated machine
+// actually has — which is also production's PREFERRED path, so this both
+// modernizes the fixture and removes a warning that was never the point of
+// the test. Verified by this file's own suite staying green with identical
+// verdicts (see the closing report for the before/after transcript).
 /** A HOME carrying one cold-hit record and the capture pair behind it. */
 function fakeHome({ at, sid, gap, ctx, cc, cause, ttl = "1h", edited = true }) {
-  const home = tmpDirSync("bt-idle-");
-  const wt = join(home, ".local/share/claude-worktime");
-  const caps = join(home, ".claude/cache-fix-captures");
-  mkdirSync(wt, { recursive: true });
-  mkdirSync(caps, { recursive: true });
-  writeFileSync(join(wt, "activity.jsonl"),
-    JSON.stringify({ type: "cold", k: "hit", t: sec(at), s: sid, gap, ctx, cc, cause }) + "\n");
   const afterTs = new Date((sec(at) - 5) * 1000).toISOString();
   const beforeTs = new Date((sec(at) - 5 - gap) * 1000).toISOString();
-  writeFileSync(join(caps, `s-${sid}-requests.jsonl`),
-    captureLines({ ctx, ttl, edited, beforeTs, afterTs }));
-  return home;
+  return buildSyntheticHome({
+    ledger: [{ type: "cold", k: "hit", t: sec(at), s: sid, gap, ctx, cc, cause }],
+    captures: [{
+      sid,
+      lines: captureLines({ ctx, ttl, edited, beforeTs, afterTs }).trimEnd().split("\n"),
+    }],
+  });
 }
 
 const run = (home, args) => execFileSync(process.execPath, [TOOL, ...args],
