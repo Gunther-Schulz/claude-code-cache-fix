@@ -46,6 +46,7 @@ import * as matrixStatus from "../tools/matrix-status.mjs";
 import {
   lintText, lintPointers, splitEntries,
   lintCitations, lintRowStatus, ROW_STATUS_LABELS, lintPremiseTrue, lintCorrectionPlacement,
+  lintBoundary, realizingBoundary, realizingBoundaryFiles, isDeploymentCoupled, isHold, NOISE_FILES,
 } from "../tools/backlog-lint.mjs";
 // Namespace import for the two lanes new to this dispatch (lintReadyBar,
 // READY_BAR_LABELS). Per dev-loop.md's ESM-namespace-import rule: a STATIC
@@ -2114,4 +2115,112 @@ test("READY-bar: the row-anchor bound comes from the MATRIX, so the newest row r
   assert.equal(findings[0].label, "ANCHOR-UNRESOLVED");
   assert.match(findings[0].proof, /read from the matrix/,
     "and the reason says where the bound came from");
+});
+
+// ==========================================================================
+// Section: boundary classification -- shared with tools/backlog-lanes.mjs
+// ==========================================================================
+//
+// Definitions from BACKLOG.md, "`backlog-lanes.mjs`: lane derivation
+// becomes a mechanical join, and a READY entry missing its realizing
+// boundary becomes a finding": a READY entry with no resolvable
+// write-boundary (after noise removal, deployment-coupling, and hold
+// classification) is a WARN finding.
+
+test("realizingBoundary: strips the noise carriers (BACKLOG.md, docs/dev-loop.md)", () => {
+  assert.deepEqual(realizingBoundary(["BACKLOG.md", "tools/backlog-lint.mjs", "docs/dev-loop.md"]), [
+    "tools/backlog-lint.mjs",
+  ]);
+});
+
+test("realizingBoundaryFiles: rejects glob, regex, and absolute-path shaped tokens", () => {
+  const out = realizingBoundaryFiles([
+    "docs/runbooks/*.md",
+    "'gate-status|usage\\.jsonl'",
+    "/home/g/dev/Gunther-Schulz/dotfiles/BACKLOG.md",
+    "tools/backlog-lint.mjs",
+  ]);
+  assert.deepEqual(out, ["tools/backlog-lint.mjs"]);
+});
+
+test("realizingBoundaryFiles: rejects a citation to a file that does not exist", () => {
+  assert.deepEqual(realizingBoundaryFiles(["tools/this-file-does-not-exist-anywhere.mjs"]), []);
+});
+
+test("realizingBoundaryFiles: strips a trailing line citation before checking existence", () => {
+  assert.deepEqual(realizingBoundaryFiles(["tools/backlog-lint.mjs:100"]), ["tools/backlog-lint.mjs"]);
+  assert.deepEqual(realizingBoundaryFiles(["tools/backlog-lint.mjs:100-110"]), ["tools/backlog-lint.mjs"]);
+});
+
+test("isDeploymentCoupled: true only for a proxy/** file", () => {
+  assert.equal(isDeploymentCoupled(["proxy/server.mjs"]), true);
+  assert.equal(isDeploymentCoupled(["tools/backlog-lint.mjs"]), false);
+});
+
+test("isHold: a POINTER entry (censusEntries' .pointer field) is a hold", () => {
+  assert.equal(isHold({ pointer: "pointer", rawFirstLine: "- **READY — a thing.**" }), true);
+});
+
+test("isHold: an (operator-side marker is a hold even without POINTER", () => {
+  assert.equal(
+    isHold({ pointer: "-", rawFirstLine: "- **READY (operator-side, dotfiles) — a thing.**" }),
+    true,
+  );
+});
+
+test("isHold: an ordinary entry is not a hold", () => {
+  assert.equal(isHold({ pointer: "-", rawFirstLine: "- **READY — a thing.**" }), false);
+});
+
+test("lintBoundary: a READY entry with no resolvable boundary is a WARN finding", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — no real file cited.** Cites `does-not-exist.mjs` only.",
+  ].join("\n");
+  const findings = lintBoundary(doc);
+  assert.equal(findings.length, 1);
+});
+
+test("lintBoundary: a READY entry citing a real file is silent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — real file.** Cites `tools/backlog-lint.mjs`.",
+  ].join("\n");
+  assert.deepEqual(lintBoundary(doc), []);
+});
+
+test("lintBoundary: a DESK (proxy/**) entry is not flagged as boundary-less", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — deployment-coupled.** Cites `proxy/server.mjs`.",
+  ].join("\n");
+  assert.deepEqual(lintBoundary(doc), []);
+});
+
+test("lintBoundary: a HOLD (POINTER) entry is not flagged as boundary-less", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY (POINTER — body belongs elsewhere) — cross-repo.** No local file.",
+  ].join("\n");
+  assert.deepEqual(lintBoundary(doc), []);
+});
+
+test("lintBoundary: a non-READY entry is never flagged", () => {
+  const doc = [
+    "## Open", "",
+    "- **PARKED — no file cited.** Waiting on a decision.",
+  ].join("\n");
+  assert.deepEqual(lintBoundary(doc), []);
+});
+
+test("lintBoundary: RED-FIRST over the real frozen 3b37ece ref (a true positive, not planted)", () => {
+  const historical = gitShow("3b37ece", "BACKLOG.md");
+  const findings = lintBoundary(historical);
+  assert.ok(findings.length > 30, `expected a substantial UNRESOLVED count on the frozen ref, got ${findings.length}`);
+});
+
+test("CLI: backlog-boundary lane runs in the default pass, zeros stated", () => {
+  const { code, out } = runTool(["-"], "## Open\n\n- **READY — real.** Cites `tools/backlog-lint.mjs`.\n");
+  assert.equal(code, 0);
+  assert.match(out, /^backlog-boundary: clean$/m);
 });

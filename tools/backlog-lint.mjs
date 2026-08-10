@@ -1814,6 +1814,109 @@ export function lintReadyBar(text, env = {}) {
   return findings;
 }
 
+// Boundary classification (default pass) — shared with tools/backlog-lanes.mjs
+// ==========================================================================
+//
+// Why this lives HERE rather than in backlog-lanes.mjs: that tool consumes
+// `censusEntries`, defined in this file, so putting the classification
+// primitives there too would make backlog-lint import backlog-lanes for this
+// lane — a cycle. This file is the lower-level module every backlog-*
+// tool already imports FROM (backlog-order, backlog-neighbours); the
+// dependency direction stays one-way.
+//
+// See BACKLOG.md, "`backlog-lanes.mjs`: lane derivation becomes a mechanical
+// join, and a READY entry missing its realizing boundary becomes a finding."
+// A READY entry's realizing write-boundary is its backtick file citations
+// (`censusFiles`, via `censusEntries`'s `.files`), minus the dispatcher-owned
+// noise carriers every entry is free to cite without saying anything about
+// which lane it belongs in.
+
+export const NOISE_FILES = new Set(["BACKLOG.md", "docs/dev-loop.md"]);
+
+// `censusFiles`'s extraction is deliberately loose (backtick + `/` + `.`,
+// or a tracked extension) — right for a citation-drift census, wrong for a
+// LANE-JOIN key: dry-running the join against real content found glob
+// patterns (`docs/runbooks/*.md`), regex literals
+// (`'gate-status|usage\.jsonl|...'`), machine-absolute and cross-repo paths
+// (`/home/g/dev/.../dotfiles/...`, `~/.local/share/...`), and prose quoting
+// this repo's OWN report-line format (`shared=BACKLOG.md`) — none of them a
+// real write boundary, and left unfiltered they transitively merged two
+// named-separately components (the backlog-tooling family; replay +
+// gate-live) into one via a handful of shared glob/regex tokens. A boundary
+// token is disqualified outright on SHAPE (glob/regex/absolute-path
+// characters), same idiom as the pointer lane's `disqualified()` above;
+// what survives shape must also RESOLVE — exist as a real file in this
+// repo's tree, after stripping a trailing `:N`/`:N-N` line citation
+// (`backlog-neighbours.mjs`'s `citedPath` convention) — which is what
+// drops `shared=BACKLOG.md` and `HEAD:BACKLOG.md` (no such path) without
+// a special case.
+const BOUNDARY_TOKEN_BAD_CHARS = /[*|\\'<>]/;
+const BOUNDARY_LINE_CITATION = /:\d+(?:[-,]\d+)*$/;
+
+// The default existence predicate reads the LIVE working tree, which is right
+// for the daily pass and WRONG for any count taken over a frozen ref: a file
+// added or deleted since that ref moves the count without the ref changing a
+// byte. That is a premise the check cannot pin from outside, so it is
+// injectable — a caller grading a historical BACKLOG passes an `exists` built
+// from that ref's own tree (`git ls-tree -r --name-only <ref>`) and gets a
+// count that is reproducible by construction. Added 2026-08-14 at integration,
+// after the frozen-ref assertion in test/backlog-lanes.test.mjs went red
+// reading 36 against its recorded 42 — a red nobody planted, and the artifact
+// rather than the test was what it was about.
+const liveExists = (path) => existsSync(join(REPO_ROOT, path));
+
+export function realizingBoundaryFiles(files, { exists = liveExists } = {}) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of files) {
+    if (BOUNDARY_TOKEN_BAD_CHARS.test(raw)) continue;
+    if (raw.startsWith("/") || raw.startsWith("~")) continue; // absolute/home -- machine- or cross-repo
+    const path = raw.replace(BOUNDARY_LINE_CITATION, "");
+    if (!exists(path)) continue;
+    if (seen.has(path)) continue;
+    seen.add(path);
+    out.push(path);
+  }
+  return out;
+}
+
+// Deployment-coupled: cites a `proxy/**` file, which needs the desk round
+// (pin bump + restart discipline), never a plain lane.
+export function isDeploymentCoupled(files) {
+  return files.some((f) => f.startsWith("proxy/"));
+}
+
+// Operator/cross-repo hold: a POINTER entry (already computed by
+// `censusEntries`'s `.pointer` field) or an "(operator-side" grade marker —
+// its work happens elsewhere, so no boundary file in THIS repo bounds it.
+export function isHold(entry) {
+  return entry.pointer === "pointer" || /\(operator-side/i.test(entry.rawFirstLine);
+}
+
+// The entry's realizing write-boundary: its file citations, shape-and-
+// existence filtered (`realizingBoundaryFiles`, above) and then stripped of
+// the dispatcher-owned noise carriers every entry is free to cite without
+// saying anything about which lane it belongs in.
+export function realizingBoundary(files, opts = {}) {
+  return realizingBoundaryFiles(files, opts).filter((f) => !NOISE_FILES.has(f));
+}
+
+// A READY entry is UNRESOLVED when it is not a hold, not deployment-coupled,
+// and its realizing boundary (after noise removal) is empty — the "63 of 100
+// cited no file" case the requesting entry measured by hand.
+export function lintBoundary(text, opts = {}) {
+  const findings = [];
+  for (const e of censusEntries(text)) {
+    if (e.grade !== "READY") continue;
+    if (isHold(e)) continue;
+    const boundary = realizingBoundary(e.files, opts);
+    if (isDeploymentCoupled(boundary)) continue;
+    if (boundary.length) continue;
+    findings.push({ line: e.line, headline: e.headline });
+  }
+  return findings;
+}
+
 export const READY_BAR_LABELS = [
   "MISSING-ANCHOR",
   "MISSING-WRITE-SET",
@@ -1825,6 +1928,10 @@ export const READY_BAR_LABELS = [
 
 function formatReadyBarFinding(f) {
   return `WARN backlog-ready-bar line=${f.line} ${f.label} token="${f.token}" entry="${f.title}" proof=${f.proof}`;
+}
+
+function formatBoundaryFinding(f) {
+  return `WARN backlog-boundary line=${f.line} no-resolvable-boundary headline="${f.headline}"`;
 }
 
 function readInput(pathArg) {
@@ -1938,6 +2045,13 @@ function main(argv) {
         ` — REPORT only\n`,
     );
   }
+  const boundaryless = lintBoundary(text);
+  for (const f of boundaryless) process.stdout.write(`${formatBoundaryFinding(f)}\n`);
+  process.stdout.write(
+    boundaryless.length
+      ? `backlog-boundary: ${boundaryless.length} finding(s) — REPORT only\n`
+      : "backlog-boundary: clean\n",
+  );
 
   if (wantPointers) {
     const pointers = lintPointers(text);
