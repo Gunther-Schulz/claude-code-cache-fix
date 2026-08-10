@@ -34,7 +34,7 @@ judgment before a brief exists; DISPATCHABLE goes straight to a brief;
 BLOCKED names what must land first; PARTIAL is decision-incomplete and says
 where.
 
-### 0. Gated on an operator decision — not build work, but it blocks the rest
+### 0. CLEARED 2026-08-10, hours after this block was written
 
 **11 commits are unpushed and `git push` is DENIED by the unbooked-subagent
 guard.** The guard half is DISCHARGED: it cites subagent commits `347d477` and
@@ -42,11 +42,12 @@ guard.** The guard half is DISCHARGED: it cites subagent commits `347d477` and
 — diffs read, suites run, the instruments exercised directly, and `e9a374b`'s
 verifier additionally sabotage-probed. The override is the guard's own
 audit-visible path for exactly that state.
-What remains is not the guard: the stack sits on top of `8b77c4f`, whose commit
-message maps where already-public leaks are in history, and publishing it is an
-operator call that has been surfaced and not yet answered. **Nothing below can
-be pushed until that is settled**, so this is item 0 rather than item 1.
-<!-- entry: "the unbooked-subagent-commit guard" -->
+The publication half was the real gate — the stack sat on `8b77c4f`, whose
+message maps where already-public leaks are in history — and it was answered by
+an explicit operator GO. **Pushed: `e483acc..f01175b`, 12 commits.** The rank
+anchor is REMOVED rather than re-pointed, per this block's own removal-only
+rule; the entry is graded DONE in `## Open`.
+
 
 ### 1. Irreversible — evidence or history that cannot be undone
 
@@ -285,31 +286,6 @@ states the real system cannot produce, extract-then-validate probes, and the
 ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
-
-- **READY (do this first) — 11 commits are unpushed (was 9 when booked; the
-  count is re-read, never carried) and `git push` is DENIED by
-  the unbooked-subagent-commit guard.** Booked 2026-08-10 evening by the
-  closing session so it is visible at SESSION START, not only in the handoff:
-  the session-start hook injects READY bullets from this section, and the
-  `## Handoff` section is not on that path. A blocker whose carrier the reader
-  never loads is not persisted.
-  The guard names two commits — `347d477` (census: emit identityRotation) and
-  `e9a374b` (harvest --pin --bounded). Both carry `Co-Authored-By: Claude
-  Sonnet 5` with no `Claude-Session:` trailer, which is what "unbooked" means.
-  They are SUBAGENT commits of session `…01R9jUauuFcnSPMSjx1ALPUp`; subagents
-  commit unpushed by design and the DISPATCHER pushes after verifying in the
-  artifact.
-  Done when: that dispatcher has verified its two commits and `git push origin
-  main` succeeds, leaving `git log origin/main..main` empty.
-  **Do NOT reach for `PUSH_UNBOOKED_SUBAGENT_OK=1`** unless you are that
-  dispatcher and have verified them — an override taken for another writer's
-  unverified work is the habit that kills a guard, and the closing session
-  declined it for exactly that reason.
-  The tree was green at the attempted push (`npm test`: 2654 / 2649 pass / 0
-  fail / 5 skipped), so nothing else stands between these commits and the
-  remote.
-  Consumer tier **1 (event disposition)**.
-  <!-- entry: "9 commits unpushed; push denied by the unbooked-subagent guard" -->
 
 - **READY (BLOCKING the bounded pin's fidelity claim) — `verifyPin` on a
   BOUNDED pin applies the retention filter to its own reference side, so it
@@ -773,6 +749,86 @@ ENOSPC misattribution with its wrong first explanation left in.
   outcome. Done when a reader of `LINEAGE_THRESHOLD` can predict the sizing
   behaviour without running it.
   Write boundary: `tools/replay.mjs`. Consumer tier **3**.
+
+- **DONE 2026-08-10 (`f01175b` pushed `e483acc..f01175b`, 12 commits) — the
+  guard half was discharged by verification and the publication half by an
+  explicit operator GO ("you can push, you are the only one here").** The
+  guard cited subagent commits `347d477` and `e9a374b`; this session
+  dispatched both and verified both in the artifact — diffs read, suites run,
+  the instruments exercised directly, and `e9a374b`'s verifier additionally
+  sabotage-probed — so the audit-visible override was the guard's own path for
+  that state, not a bypass of it. The second half was never the guard: the
+  stack sat on `8b77c4f`, whose message maps where already-public leaks are,
+  and that was surfaced twice as an operator decision and held until answered.
+  Original header: **11 commits are unpushed and `git push` is DENIED by
+  the unbooked-subagent-commit guard.** Booked 2026-08-10 evening by the
+  closing session so it is visible at SESSION START, not only in the handoff:
+  the session-start hook injects READY bullets from this section, and the
+  `## Handoff` section is not on that path. A blocker whose carrier the reader
+  never loads is not persisted.
+  The guard names two commits — `347d477` (census: emit identityRotation) and
+  `e9a374b` (harvest --pin --bounded). Both carry `Co-Authored-By: Claude
+  Sonnet 5` with no `Claude-Session:` trailer, which is what "unbooked" means.
+  They are SUBAGENT commits of session `…01R9jUauuFcnSPMSjx1ALPUp`; subagents
+  commit unpushed by design and the DISPATCHER pushes after verifying in the
+  artifact.
+  Done when: that dispatcher has verified its two commits and `git push origin
+  main` succeeds, leaving `git log origin/main..main` empty.
+  **Do NOT reach for `PUSH_UNBOOKED_SUBAGENT_OK=1`** unless you are that
+  dispatcher and have verified them — an override taken for another writer's
+  unverified work is the habit that kills a guard, and the closing session
+  declined it for exactly that reason.
+  The tree was green at the attempted push (`npm test`: 2654 / 2649 pass / 0
+  fail / 5 skipped), so nothing else stands between these commits and the
+  remote.
+  Consumer tier **1 (event disposition)**.
+  <!-- entry: "9 commits unpushed; push denied by the unbooked-subagent guard" -->
+
+- **READY — the READY grade asserts INTENT TO BUILD, 110 entries carry it, and
+  the operator's read is that they will never be finished. He is right, and the
+  count is not the defect — the GRADE is.** Raised 2026-08-10 by the operator
+  looking at the number ("110 is so much, I really see problems with ever
+  finishing them"). Measured the same hour rather than argued: 12 entries
+  closed that day against ~33 booked, READY 89 -> 110, about **2.75:1**. The
+  repo's retirement trigger (3:1 over a +30% stretch) had NOT fired, so the
+  rule says nothing is owed — and the rule is answering a different question
+  than the one asked. Retirement removes what is overtaken; it does not make a
+  110-item queue honest.
+  **The diagnosis.** `READY` is defined as decision-complete AND dispatchable,
+  so a file carrying 110 of them asserts an intention to build 110 things. That
+  is false, and everyone reading it knows it is false, which is the specific
+  harm: a grade nobody believes stops carrying information, and the head of the
+  list becomes indistinguishable from its tail. Today's third derivation
+  already worked around this by hand — it ranked ELEVEN and said the other ~99
+  are unranked — which is the shape of the fix arriving as a workaround.
+  Design, decided: **split the grade.** `READY` keeps its current meaning and
+  is reserved for the derived head — queued work someone intends to take.
+  Everything else that is decision-complete but unscheduled becomes
+  `DESIGNED`: the same body, the same verifier, the same done-criterion,
+  explicitly NOT a commitment. Nothing is dropped and nothing is downgraded in
+  substance — the record stays complete, which is what booking exists for,
+  while the queue becomes a number that means something.
+  Consequences to carry in the same change, each already a live consumer:
+  `tools/backlog-lint.mjs` (grade vocabulary and census), the session-start
+  hook (it injects READY bullets, and injecting 110 is why a fresh session
+  opens on noise), `tools/backlog-order.mjs` (rank anchors must resolve to
+  READY, so promotion to the head becomes an explicit act), and the retirement
+  trigger's ratio, which should then read against DESIGNED rather than READY.
+  **The standing rule this implies, stated so the split does not silently
+  re-fill:** a finding is booked `DESIGNED` by default; it becomes `READY` only
+  by a derivation putting it in the head. Booking stays as cheap as it is today
+  — that is deliberate and is not what is being traded away.
+  Verifier, red-first: after the split, the session-start hook's injected list
+  is the derived head and nothing else (today it is 110 lines); `backlog-lint`
+  fails a `READY` bullet carrying no rank anchor; and the count the operator
+  reads at startup is the queue, not the archive.
+  Done-criterion: READY count equals the derived head's size, DESIGNED carries
+  the rest, and no entry lost a field in the move.
+  Write boundary: `BACKLOG.md`, `tools/backlog-lint.mjs`,
+  `tools/backlog-order.mjs`, plus the dotfiles-side session-start hook (a
+  POINTER — that body belongs in the dotfiles repo).
+  Consumer tier **3 (backlog and process)** — it mis-describes the queue rather
+  than mis-classifying an event, but it is read at the start of every session.
 
 - **READY (small) — billing and verdict are written by two extensions with no
   join key, so the join is by TIMESTAMP, which is how today's walk mis-joined.**
