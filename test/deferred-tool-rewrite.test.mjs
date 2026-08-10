@@ -958,6 +958,93 @@ test("a SUPPORTED model still gets the announcement (the gate is not a kill swit
         (m) => m.role === "system" && Array.isArray(m.content) && m.content.some((b) => b.type === "tool_addition"),
       );
       assert.equal(injected.length, 1, "opus must keep the mitigation");
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.announcedNames, ["SendMessage"]);
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.passthrough, []);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// =============================================================================
+// DECISION SURFACING — the ground truth threat-matrix row 6 asked for:
+// announced (tool_addition block, defer_loading) vs passed through into
+// tools[] with no announcement at all, and why. `mutatedBy` (replay.mjs)
+// proves the extension ran; these fields are what it decided.
+// =============================================================================
+
+test("onRequest: a new tool on an un-allowlisted model is a PASSTHROUGH, reason model-not-allowlisted", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-passthrough-model" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      const base = { system: [], messages: [u1], model: "claude-sonnet-5" };
+      await runExt({ ...base, tools: [tool("Read")] }, { headers, dir });
+      const ctx = await runExt(
+        { ...base, tools: [tool("Read"), tool("SendMessage")] },
+        { headers, dir },
+      );
+      assert.equal(ctx.meta.deferredToolRewriteStats.action, "rewrite");
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.announcedNames, []);
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.passthrough, [
+        { name: "SendMessage", reason: "model-not-allowlisted" },
+      ]);
+      // The other half of the same claim: the tool really did enter tools[]
+      // with no announcement to explain it — indistinguishable from what an
+      // unmitigated forward would have produced.
+      assert.equal(ctx.body.tools.some((t) => t.name === "SendMessage"), true);
+      assert.equal((ctx.body.messages || []).length, 1, "no tool_addition message injected");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("onRequest: a new tool with no message to anchor to is a PASSTHROUGH, reason no-anchor-message", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-passthrough-anchor" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      // messages: [] on both requests — conversationSubKey("empty") keeps
+      // them the same conversation (message-hash.mjs), and there is no
+      // message at all to anchor an announcement after.
+      const base = { system: [], messages: [], model: "claude-opus-5" };
+      await runExt({ ...base, tools: [tool("Read")] }, { headers, dir });
+      const ctx = await runExt(
+        { ...base, tools: [tool("Read"), tool("SendMessage")] },
+        { headers, dir },
+      );
+      assert.equal(ctx.meta.deferredToolRewriteStats.action, "rewrite");
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.announcedNames, []);
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.passthrough, [
+        { name: "SendMessage", reason: "no-anchor-message" },
+      ]);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("onRequest: no new tool names → announcedNames/passthrough are EMPTY ARRAYS, never absent", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-decision-empty" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const u1 = { role: "user", content: [{ type: "text", text: "turn 1" }] };
+      const base = { system: [], messages: [u1], model: "claude-opus-5" };
+      await runExt({ ...base, tools: [tool("Read"), tool("Bash")] }, { headers, dir });
+      // Reorder only — action "rewrite" (classifyToolChange pins first-seen
+      // order as a side effect of the held/removed-name machinery; see its
+      // own comment), but newNames is empty: nothing to announce or pass
+      // through.
+      const ctx = await runExt({ ...base, tools: [tool("Bash"), tool("Read")] }, { headers, dir });
+      assert.equal(ctx.meta.deferredToolRewriteStats.action, "rewrite");
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.newNames, []);
+      assert.ok("announcedNames" in ctx.meta.deferredToolRewriteStats, "field present, not omitted");
+      assert.ok("passthrough" in ctx.meta.deferredToolRewriteStats, "field present, not omitted");
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.announcedNames, []);
+      assert.deepEqual(ctx.meta.deferredToolRewriteStats.passthrough, []);
     });
   } finally {
     await rm(dir, { recursive: true, force: true });

@@ -1045,6 +1045,16 @@ export function findToolsDeltas(entries) {
         heldStable,
         count: `${p.inTools.count}->${c.inTools.count}`,
         outCount: `${p.outTools.count}->${c.outTools.count}`,
+        // deferred-tool-rewrite's own DECISION for this pair — `mutatedBy`
+        // proves it ran, this says what it did (threat-matrix row 6's NAMED
+        // MISSING EVIDENCE, the n=372->373 residue). Keyed off `c` (the
+        // newer request), since that is where an incoming tools[] delta
+        // gets classified. null only when the extension produced no stats
+        // at all this request (gate off, empty tools[], or an unhandled
+        // error) — an object with empty announcedNames/passthrough arrays
+        // means it ran and had nothing new to decide about, and the two
+        // must stay distinguishable rather than both reading as absent.
+        deferredToolRewriteStats: c.deferredToolRewriteStats ?? null,
       });
     }
   }

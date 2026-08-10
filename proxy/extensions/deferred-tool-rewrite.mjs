@@ -763,6 +763,32 @@ export default {
         ]);
       }
 
+      // The DECISION this request made about every genuinely new tool name,
+      // surfaced rather than left implicit in the branch above — the ground
+      // truth threat-matrix row 6 asked for and `mutatedBy` cannot answer
+      // (it proves the extension ran, never what it decided). A new name
+      // either gets announced (tool_addition block, defer_loading:true, the
+      // documented mid-conversation contract) or it enters tools[] with no
+      // announcement at all — indistinguishable on the wire from what an
+      // unmitigated pass-through would have produced. `willAnnounce` mirrors
+      // the gating condition immediately above byte-for-byte so the two
+      // cannot drift apart.
+      const newNames = result.newNames ?? [];
+      const willAnnounce = canAnnounce && result.action === "rewrite" && newNames.length > 0;
+      const announcedNames = willAnnounce ? newNames : [];
+      // announceOk false -> the model gate (no allowlisted channel at all);
+      // announceOk true but canAnnounce false -> messages[] was empty, so
+      // there was nothing to anchor the announcement to. These are the only
+      // two ways to reach this branch (canAnnounce === announceOk &&
+      // messages-present), so the reason is never ambiguous.
+      const passthrough =
+        result.action === "rewrite" && newNames.length > 0 && !willAnnounce
+          ? newNames.map((name) => ({
+              name,
+              reason: announceOk ? "no-anchor-message" : "model-not-allowlisted",
+            }))
+          : [];
+
       // The description absorb's other half: the canonical tools[] goes on
       // the wire unchanged (below), so the new prose has to reach the model
       // here or not at all. Anchored after the current last message like an
@@ -831,6 +857,12 @@ export default {
         reason: result.reason ?? null,
         injected: additions.length,
         reanchored: reanchored.filter((r) => r.anchorHash).length,
+        // Always present, [] when nothing of the kind happened this
+        // request — never omitted, so "ran and decided nothing" stays
+        // distinguishable from "never ran" (ctx.meta.deferredToolRewriteStats
+        // itself absent) one level up, at any consumer that reads this object.
+        announcedNames,
+        passthrough,
         ...(result.descriptionChanges
           ? { descriptionChangedNames: result.descriptionChanges.map((c) => c.name) }
           : {}),

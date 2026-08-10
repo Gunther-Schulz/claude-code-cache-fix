@@ -1072,6 +1072,72 @@ test("toolsDeltas: forwarded tools[] fully steady across an incoming reorder rea
   assert.equal(d.heldStable, true, "the shared-name subset IS the whole forwarded array here, and it is untouched");
 });
 
+// --- deferred-tool-rewrite's own decision, surfaced beside heldStable/outCount ---
+//
+// Threat-matrix row 6's NAMED MISSING EVIDENCE: `mutatedBy` proves the
+// extension ran, never what it decided. These pin the row's
+// `deferredToolRewriteStats` field to the NEWER request (`c`) of the pair —
+// where an incoming delta actually gets classified — and to the
+// empty-vs-absent distinction the extension's own stats object now
+// guarantees (proxy/extensions/deferred-tool-rewrite.mjs).
+
+test("toolsDeltas: the row carries deferred-tool-rewrite's own decision, keyed off the NEWER request", () => {
+  const toolA = tool("A");
+  const toolB = tool("B");
+  const decision = {
+    action: "rewrite",
+    newNames: ["B"],
+    heldNames: [],
+    reason: null,
+    injected: 1,
+    reanchored: 0,
+    announcedNames: ["B"],
+    passthrough: [],
+  };
+  const p = entry(1, conv, conv, { inTools: [toolA], outTools: [toolA], deferredToolRewriteStats: null });
+  const c = entry(2, conv, conv, { inTools: [toolA, toolB], outTools: [toolA, toolB], deferredToolRewriteStats: decision });
+  const [d] = findToolsDeltas([p, c]);
+  assert.ok(d, "an added tool must register as a tools[] delta");
+  assert.deepEqual(d.deferredToolRewriteStats, decision, "the row reads the NEWER (c) entry's decision, not the older one");
+});
+
+test("toolsDeltas: BITE — a PASSTHROUGH (new name, no announcement) is visible on the row, not silently absorbed into a green heldStable", () => {
+  const toolA = tool("A");
+  const toolB = tool("B");
+  const decision = {
+    action: "rewrite",
+    newNames: ["B"],
+    heldNames: [],
+    reason: null,
+    injected: 0,
+    reanchored: 0,
+    announcedNames: [],
+    passthrough: [{ name: "B", reason: "model-not-allowlisted" }],
+  };
+  const p = entry(1, conv, conv, { inTools: [toolA], outTools: [toolA] });
+  const c = entry(2, conv, conv, { inTools: [toolA, toolB], outTools: [toolA, toolB], deferredToolRewriteStats: decision });
+  const [d] = findToolsDeltas([p, c]);
+  assert.ok(d);
+  // heldStable is TRUE here (A, the shared name, round-tripped untouched) —
+  // exactly the shape that made the n=372->373 residue easy to misread as
+  // "the mitigation worked". The decision field is what tells the two apart.
+  assert.equal(d.heldStable, true);
+  assert.deepEqual(d.deferredToolRewriteStats.passthrough, [{ name: "B", reason: "model-not-allowlisted" }]);
+  assert.deepEqual(d.deferredToolRewriteStats.announcedNames, []);
+});
+
+test("toolsDeltas: the extension never running this request reads as null, distinct from an empty decision", () => {
+  const toolA = tool("A");
+  const toolB = tool("B");
+  const p = entry(1, conv, conv, { inTools: [toolA], outTools: [toolA] });
+  // No deferredToolRewriteStats key at all on `c` — the gate-off /
+  // extension-absent case (compactEntry defaults it to null).
+  const c = entry(2, conv, conv, { inTools: [toolA, toolB], outTools: [toolA, toolB] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.ok(d);
+  assert.equal(d.deferredToolRewriteStats, null, "absent stats must read as null, never as an empty-but-present object");
+});
+
 // --- Block-migration FLAP ---
 //
 // A one-way block migration is absorbable by the volatile pin. An
