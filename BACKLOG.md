@@ -295,8 +295,28 @@ ENOSPC misattribution with its wrong first explanation left in.
   re-deriving it: a second implementation of a divergence or identity test has
   produced a confident wrong answer here three times, and this is the one place
   a wrong answer sends us to fix the wrong system.
-  Verifier, red-first, both polarities available today and both anchored to
-  frozen evidence rather than to live captures: the 638k pair
+  **VERIFIER DURABILITY CORRECTED 2026-08-10, by probing it before dispatching:
+  the arrangement is NOT frozen, and it cannot be made frozen by pinning.** The
+  claim below ("anchored to frozen evidence rather than to live captures") is
+  false in both directions. Measured: the 638k walk runs today and emits no
+  ATTRIBUTION line — that is the red, live — but its evidence is the live capture
+  pair `n=305->311`, not a fixture. Freezing was attempted with the exact command
+  `bust-triage` prints (`harvest --pin s-captureAS 370..372`) and the pin's own
+  verifier answered `pinned, but does NOT reproduce: stability exemptions live=1
+  pin=0`, naming an unrelated `fresh-session-sort:first-appearance-relocation
+  (mcp)` pair at `n=111->113`. A pin carries the full prefix from record 0 by
+  construction, so narrowing the range cannot exclude that pair; and the class is
+  the one `docs/dev-loop.md` already documents — `fresh-session-sort`'s
+  predicates read literal TEXT, which the scrub replaces with hash tokens. The
+  fixture was deleted rather than committed, per the same-verdict precedent.
+  **Consequence for scheduling, which is why this sits at the top of the entry:**
+  the red-first case lives only as long as the capture does. Eviction is
+  oldest-mtime-first; as of 2026-08-10 the corpus holds 92 captures with the
+  oldest at 2026-08-07 03:55, so this one is not next in line — but the
+  arrangement decays rather than waits, and a session that finds it gone must
+  re-derive a red case instead of declaring the check unbuildable.
+  Verifier, red-first, both polarities available today (original text, with its
+  frozen-evidence claim now refuted above): the 638k pair
   (`2026-08-08T09:48:53Z`, hand-attributed to CC's `replace/edit` mid-history)
   must come back **CC's**; and a pair whose forwarded bytes diverge earlier than
   CC's — the stability-violation shape `replay.mjs` already annotates
