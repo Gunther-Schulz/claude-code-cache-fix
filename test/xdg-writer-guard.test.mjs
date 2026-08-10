@@ -26,7 +26,9 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-import { importsXdgHelpers, findViolations, checkFile } from "../tools/xdg-writer-guard.mjs";
+import { importsXdgHelpers, findViolations, checkFile, sweep, defaultFiles } from "../tools/xdg-writer-guard.mjs";
+import { tmpDirSync } from "../tools/tmpdir.mjs";
+import { writeFileSync } from "node:fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -189,4 +191,38 @@ test("NOT exempt by enclosing function name: a plain function with the same cita
   ].join("\n");
   const result = checkFile("tools/fake4.mjs", content);
   assert.equal(result.violations.length, 1);
+});
+
+// ---------------------------------------------------------------------------
+// The wired consumer (BACKLOG "xdg-writer-guard main() is wired to no
+// consumer") — `sweep()` is what gate-live.mjs now imports and calls every
+// day, so it is proven here rather than only through the CLI's main().
+// RED-FIRST: the baseline over the real tree is already non-zero (the known
+// stale claims); a mutate-and-revert proof over an always-red baseline would
+// prove nothing, so this states that baseline result before touching it.
+// ---------------------------------------------------------------------------
+
+test("sweep(): the real default file set is non-zero today — the baseline gate-live's sweep now reads", () => {
+  const { violations, readErrors } = sweep();
+  assert.deepEqual(readErrors, [], "every default file must be readable");
+  assert.ok(violations.length > 0, "the real tree still carries stale ~/.claude citations (currently unfixed)");
+  for (const v of violations) {
+    assert.equal(typeof v.path, "string");
+    assert.equal(typeof v.line, "number");
+  }
+});
+
+test("sweep(): planting one fresh stale claim moves the count by exactly one", () => {
+  const before = sweep(defaultFiles()).violations.length;
+  const dir = tmpDirSync("xdg-writer-guard-plant-");
+  const planted = join(dir, "planted.mjs");
+  writeFileSync(
+    planted,
+    [
+      'import { statePath } from "../proxy/xdg-dirs.mjs";',
+      "// this freshly-planted module still writes to ~/.claude/planted.jsonl today.",
+    ].join("\n"),
+  );
+  const after = sweep([...defaultFiles(), planted]).violations.length;
+  assert.equal(after, before + 1, "the wired consumer must move by exactly the one planted violation");
 });

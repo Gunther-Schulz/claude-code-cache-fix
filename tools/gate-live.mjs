@@ -1257,6 +1257,28 @@ async function main() {
     backlogLint = null;
   }
 
+  // xdg-writer-guard sweep (WARN-only for now — BACKLOG "xdg-writer-guard
+  // main() is wired to no consumer"): the writer-side check that a module
+  // importing statePath()/dataPath() carries no unlabelled citation of the
+  // old, pre-XDG home-directory path. Non-blocking by design, same as the
+  // backlog lint above: the real tree still carries stale claims and a
+  // handful of true THIRD-PARTY path citations the predicate cannot yet
+  // tell apart from staleness (see the guard's own KNOWN LIMITATION
+  // comment) — a hard gate here would fire on legitimate work and train
+  // the override reflex. It goes blocking only once those are repaired
+  // down to a declared, self-verifying exemption.
+  let xdgWriterGuard = null;
+  try {
+    const { sweep } = await import("./xdg-writer-guard.mjs");
+    const { violations } = sweep();
+    xdgWriterGuard = violations.length;
+    for (const v of violations) {
+      process.stderr.write(`WARN xdg-writer-guard ${v.path}:${v.line}: ${v.text}\n`);
+    }
+  } catch {
+    xdgWriterGuard = null;
+  }
+
   // Temp-directory leftovers. BLOCKING, unlike the backlog lint above, because
   // the failure it reports is silent by construction: on 2026-08-08 the leaked
   // directories filled a 31 GB tmpfs and broke unrelated tooling machine-wide
@@ -1309,6 +1331,7 @@ async function main() {
     absorption: summariseAbsorption(rows),
     rowPins: reduceRowPins(rows),
     backlogLint,
+    xdgWriterGuard,
     rows,
   };
   await mkdir(dirname(args.status), { recursive: true });

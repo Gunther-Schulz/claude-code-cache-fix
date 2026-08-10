@@ -189,7 +189,11 @@ export function checkFile(path, content) {
 
 // --- CLI ---------------------------------------------------------------
 
-function defaultFiles() {
+/** The default file set: every `.mjs` under `proxy/` and `tools/`, from `git
+ * ls-files` rather than a directory walk so an untracked scratch file never
+ * enters the sweep. Exported so a caller (the CLI below, or another
+ * consumer's own bite) can extend it rather than re-deriving it. */
+export function defaultFiles() {
   const out = execFileSync(
     "git",
     ["ls-files", "proxy/*.mjs", "proxy/**/*.mjs", "tools/*.mjs"],
@@ -198,29 +202,46 @@ function defaultFiles() {
   return out.split("\n").filter(Boolean);
 }
 
-function main() {
+/** Run the full sweep over `files` (default: `defaultFiles()`) and return
+ * `{ violations, readErrors }` rather than printing — the single place the
+ * check logic runs, so the CLI below and any other consumer (the gate-live
+ * sweep, BACKLOG "xdg-writer-guard main() is wired to no consumer") read the
+ * same result instead of a second reimplementation drifting from this one.
+ * `violations` entries carry `path` alongside the `{ line, text }` `findViolations`
+ * already returns, since a multi-file sweep needs to say WHICH file. */
+export function sweep(files = defaultFiles()) {
   const repoRoot = new URL("..", import.meta.url).pathname;
-  const args = process.argv.slice(2);
-  const files = args.length ? args : defaultFiles();
-  let violationCount = 0;
+  const violations = [];
+  const readErrors = [];
   for (const rel of files) {
     const full = rel.startsWith("/") ? rel : repoRoot + rel;
     let content;
     try {
       content = readFileSync(full, "utf-8");
     } catch (e) {
-      console.error(`xdg-writer-guard: cannot read ${rel}: ${e.message}`);
+      readErrors.push({ path: rel, message: e.message });
       continue;
     }
     const result = checkFile(rel, content);
     for (const v of result.violations) {
-      violationCount++;
-      console.error(`${rel}:${v.line}: ~/.claude citation outside a labelled legacy context: ${v.text}`);
+      violations.push({ path: rel, line: v.line, text: v.text });
     }
   }
-  if (violationCount > 0) {
+  return { violations, readErrors };
+}
+
+function main() {
+  const args = process.argv.slice(2);
+  const { violations, readErrors } = sweep(args.length ? args : undefined);
+  for (const e of readErrors) {
+    console.error(`xdg-writer-guard: cannot read ${e.path}: ${e.message}`);
+  }
+  for (const v of violations) {
+    console.error(`${v.path}:${v.line}: ~/.claude citation outside a labelled legacy context: ${v.text}`);
+  }
+  if (violations.length > 0) {
     console.error(
-      `xdg-writer-guard: ${violationCount} violation(s). A module using statePath()/dataPath() must not `
+      `xdg-writer-guard: ${violations.length} violation(s). A module using statePath()/dataPath() must not `
         + "also claim its artifact lives under ~/.claude, outside a function or comment block naming "
         + "\"legacy\".",
     );
