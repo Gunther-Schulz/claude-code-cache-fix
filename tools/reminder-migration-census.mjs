@@ -343,7 +343,10 @@ export function analysePair(before, after) {
       const verdict = classify(recon, s.text);
       if (verdict === "EXACT") { best = { verdict, ...s }; break; }
       if (verdict === "EXTENDED") { if (!best) best = { verdict, ...s }; continue; }
-      if (!best && !rejectedCandidate && !hostUnlocated) rejectedCandidate = { j: s.j, chars: s.text.length };
+      // `text` rides alongside `chars` so a MISMATCH row can print the actual
+      // rejected bytes under --verbose (BACKLOG "the census header promises
+      // MISMATCH bodies 'printed in full'"), not just their length.
+      if (!best && !rejectedCandidate && !hostUnlocated) rejectedCandidate = { j: s.j, chars: s.text.length, text: s.text };
     }
     const offset = best && hj !== null && hj >= 0 ? best.j - hj : null;
     if (best) {
@@ -1253,6 +1256,21 @@ async function main(argv) {
       if (d.verdict === "EXTENDED") {
         const extra = extendedRemainder(d.recon, d.text);
         process.stdout.write(`             extra: ${JSON.stringify(extra.slice(0, 120))}\n`);
+      }
+      // Header promise (:46-47 as of this comment): every MISMATCH "is a hole
+      // in the rule and is printed in full, because these are what would
+      // silently move a bust." Gated behind --verbose (unlike EXTENDED's
+      // `extra:`, which is a 120-char preview shown at any verbosity) because
+      // it is the full byte-gate hole, not a taste of one, and printed
+      // UNTRUNCATED for the same reason — a truncated hole is a smaller claim
+      // than the header makes. Prints the reconstruction always; the actually
+      // considered-and-rejected standalone only when one exists (BACKLOG "the
+      // census header promises MISMATCH bodies 'printed in full'").
+      if (d.verdict === "MISMATCH" && verbose) {
+        process.stdout.write(`             recon: ${JSON.stringify(d.recon)}\n`);
+        if (d.rejectedCandidate) {
+          process.stdout.write(`             candidate: ${JSON.stringify(d.rejectedCandidate.text)}\n`);
+        }
       }
     }
     if (!verbose && show.length > 5) {
