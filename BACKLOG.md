@@ -8500,6 +8500,28 @@ then the queued ones. Work the items in that order.
   fix's design. The only open half left is the first one above:
   distinct CC behaviour, or the same one at a different lifecycle
   point.
+  **DATAPOINT 2026-08-10 late-evening, appended under the KNOWN-OPEN
+  forward-edge rule that shipped hours earlier — the first walk to
+  discharge it, in the same session as the walk and without an
+  operator prompt, which is that rule's own done-criterion.**
+  `❄ 305k messages_changed`, 18:49:59Z (20:49 local), this repo's own
+  dev session, pair n=220->231. ATTRIBUTION **CC's** (raw bytes
+  diverged at index 46; no stability violation on the replayed pair).
+  Census `replace/edit`, row-4 container migration at host 46,
+  EXTENDED/MERGED-STANDALONE, `edit@47 of 230 [anchor-183]`, ~35 kB of
+  moved text re-billing 305k tokens. Five block migrations rode along,
+  two of them cross-message joins (`46+47->47`, `74+75->75`).
+  **Evidence FROZEN and replay-proven**, which is what makes this a
+  datapoint rather than a memory: `pinned-s-390797cdcacf-302-310.json`
+  (bounded, 611 records, 99 kept / 212 placeholders, 6.0 MB) reproduces
+  `n=302->310 edit@47 of 230 [anchor-183]` with all five migrations.
+  **What it adds to THIS entry's open half:** the anchor distance. Both
+  of today's row-4 instances sit >30 messages from the human anchor —
+  the census's own "NOT the known reminder-anchoring class" callout —
+  so the lifecycle-point question above now has two same-day
+  measurements pointing at the same answer, and any canonicalization
+  designed here has to state which of the two shapes it covers before
+  it reaches the byte-match gate.
 
 - **OPEN (attributed 2026-08-02, fix serialized behind a running
   read-only dispatch) — conservation gate fires on
