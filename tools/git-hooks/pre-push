@@ -104,16 +104,30 @@ for sha in $PUSH_SHAS; do
   # ERR_MODULE_NOT_FOUND and two tests appear to hang ~900 s.
   [ -d "$REPO/node_modules" ] && ln -s "$REPO/node_modules" "$WTROOT/t/node_modules"
 
-  if ! (cd "$WTROOT/t" && npm test) >/tmp/pre-push-suite.$$.log 2>&1; then
+  # A durable path in this fork's XDG state dir, not /tmp — an intermittent
+  # red is the run least likely to be watched, so its evidence must outlive
+  # the shell PID that produced it (BACKLOG.md, "the suite has at least one
+  # INTERMITTENT test"). Shares naming/retention with the npm-test wrapper
+  # via tools/suite-run-log.mjs; falls back to a $$ -scoped /tmp path only if
+  # that helper itself cannot run (e.g. this hook file copied standalone into
+  # a fixture repo without the rest of the tree — see test/pre-push-hook.
+  # test.mjs), so a broken helper never blocks the push decision on an
+  # unrelated failure.
+  SUITE_LOG="$(cd "$REPO" && node tools/suite-run-log.mjs next-path pre-push "$$" 2>/dev/null)"
+  [ -n "$SUITE_LOG" ] || SUITE_LOG="/tmp/pre-push-suite.$$.log"
+
+  if ! (cd "$WTROOT/t" && npm test) >"$SUITE_LOG" 2>&1; then
     echo "pre-push: REFUSED — full suite is red AT THE PUSHED COMMIT $short." >&2
     echo "pre-push: (your working tree is not what was tested; this is the" >&2
     echo "pre-push:  commit you are publishing). Tail of the run:" >&2
-    tail -25 "/tmp/pre-push-suite.$$.log" >&2
-    echo "pre-push: full log: /tmp/pre-push-suite.$$.log" >&2
+    tail -25 "$SUITE_LOG" >&2
+    echo "pre-push: full log (kept — this is the last-failure record): $SUITE_LOG" >&2
     echo "pre-push: deliberate WIP push: git push --no-verify (state it)." >&2
+    (cd "$REPO" && node tools/suite-run-log.mjs prune pre-push >/dev/null 2>&1) || true
     exit 1
   fi
-  rm -f "/tmp/pre-push-suite.$$.log"
+  rm -f "$SUITE_LOG"
+  (cd "$REPO" && node tools/suite-run-log.mjs prune pre-push >/dev/null 2>&1) || true
   cleanup
   WTROOT=""
 done
