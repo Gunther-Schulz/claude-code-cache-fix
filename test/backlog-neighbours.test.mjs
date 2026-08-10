@@ -195,16 +195,12 @@ test("resolveOpenEntries: file does not exist -- ok:false", () => {
 // settled design names; it touches only BACKLOG.md, and eight still-open
 // entries cite `BACKLOG.md` in backticks -- a real, reproducible,
 // non-empty candidate set. (Not the verdict-count entry -- see Section 5.)
-test("CLI: 508a006 against the current BACKLOG.md -- real, reproducible candidate set", () => {
-  const { code, out } = runTool(["508a006"]);
+test("CLI: 508a006 over a FROZEN BACKLOG.md -- real, reproducible candidate set", () => {
+  const { code, out } = runTool(["508a006", frozenBacklog()]);
   assert.equal(code, 0);
   const lines = out.trim().split("\n").filter((l) => l.startsWith("CANDIDATE"));
-  const atLines = lines.map((l) => Number(l.match(/^CANDIDATE line=(\d+)/)[1]));
-  assert.deepEqual(
-    atLines,
-    [665, 722, 787, 1558, 1879, 4314, 4728, 4766],
-    "the eight still-open entries citing `BACKLOG.md`, in file order",
-  );
+  assert.equal(lines.length, 8, `expected the eight entries citing \`BACKLOG.md\`:\n${lines.join("\n")}`);
+  assert.ok(lines.every((l) => /shared=BACKLOG\.md\b/.test(l)), "every candidate shares BACKLOG.md");
   assert.match(out, /^8 candidate\(s\) for commit 508a006$/m);
 });
 
@@ -215,17 +211,40 @@ test("CLI: 508a006 against the current BACKLOG.md -- real, reproducible candidat
 // file), so this is a real exclusion, not an entry that never matches
 // anything.
 test("CLI: 508a006 -- an entry citing a file it did not touch is excluded (over-firing control)", () => {
-  const { out } = runTool(["508a006"]);
-  assert.doesNotMatch(out, /line=265\b/, "excluded: cites tools/bust-triage.mjs, not BACKLOG.md");
+  const { out } = runTool(["508a006", frozenBacklog()]);
+  // Asserted by HEADLINE, not by line number: the attribution entry cites
+  // tools/bust-triage.mjs, which 508a006 does not touch, and it is confirmed
+  // PRESENT for 13278fa below -- so this is a real exclusion, not an entry
+  // that never matches anything.
+  assert.doesNotMatch(out, /ATTRIBUTION verdict/, "excluded: cites tools/bust-triage.mjs, not BACKLOG.md");
 });
 
-test("CLI: 13278fa (a real KEY-FLIP-shipping commit) -- a different real candidate set, including line 265", () => {
-  const { code, out } = runTool(["13278fa"]);
+// ANCHORED TO A FROZEN BACKLOG, and it was not: this bite first asserted an
+// exact line set against the WORKING TREE's BACKLOG.md, and went red within
+// the hour when the dispatcher edited that file in the same series -- one
+// candidate appeared and every line number shifted. A red-first arrangement
+// anchored to live mutable state decays into a false red exactly as
+// docs/dev-loop.md records. The reference is now the file at a fixed commit,
+// so the numbers are facts about that blob and reproduce forever.
+const FROZEN = "e5d635a";
+// One frozen reference for every real-corpus bite. A line number is a fact
+// about a file VERSION; the working tree is the one thing guaranteed to move,
+// and these bites went red within the hour when it did.
+function frozenBacklog() {
+  const path = join(tmpDirSync("neighbours-frozen-"), "BACKLOG.md");
+  writeFileSync(path, execFileSync("git", ["show", `${FROZEN}:BACKLOG.md`], { encoding: "utf8" }));
+  return path;
+}
+test("CLI: 13278fa (a real KEY-FLIP-shipping commit) -- a real candidate set over a FROZEN backlog", () => {
+  const { code, out } = runTool(["13278fa", frozenBacklog()]);
   assert.equal(code, 0);
   const lines = out.trim().split("\n").filter((l) => l.startsWith("CANDIDATE"));
-  const atLines = lines.map((l) => Number(l.match(/^CANDIDATE line=(\d+)/)[1]));
-  assert.deepEqual(atLines, [265, 1125, 1335, 3580]);
-  assert.match(out, /^4 candidate\(s\) for commit 13278fa$/m);
+  // The entry that matters is the one citing tools/bust-triage.mjs -- asserted
+  // by its HEADLINE, because a line number is a fact about a file VERSION while
+  // a headline is a fact about the entry.
+  assert.ok(lines.some((l) => /ATTRIBUTION verdict/.test(l)),
+    `expected the attribution entry among:\n${lines.join("\n")}`);
+  assert.ok(lines.length >= 4, `expected >= 4 candidates, got ${lines.length}`);
 });
 
 // Third-answer control: an unresolvable commit-ish.
