@@ -19,9 +19,13 @@ import { tmpDir } from "../tools/tmpdir.mjs";
 // subprocess and never touch these bindings, but a broken export on this
 // module must not fail the WHOLE file at ESM link time and take the
 // pre-existing bites down with it (a named import of a missing binding is a
-// SyntaxError before a single test runs).
+// SyntaxError before a single test runs). The same property is what let the
+// formatAbsorptionMisses bites below be written red against a build where
+// that export did not exist: they failed at their own call site rather than
+// at link time.
 import * as replayModule from "../tools/replay.mjs";
 const { findAbsorptionMisses, compactEntry } = replayModule;
+const replay = replayModule;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "..", "tools", "replay.mjs");
@@ -317,4 +321,37 @@ test("BITE — a fixture with NO absorption miss prints an explicit 0 line", asy
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+// --- formatAbsorptionMisses: the same section, asserted at the RENDER level
+// rather than through the CLI (BACKLOG "findAbsorptionMisses runs on every
+// replay and prints on none") ---
+//
+// The CLI bites above prove a human running the plain replay sees the
+// section. These two prove the RENDERING's content without spawning a
+// pipeline run, which is what makes a wording or field regression cheap to
+// catch. Integration note (2026-08-14): the exported renderer arrived on a
+// lane branch while main had already landed the same section INLINE, with a
+// richer row (the `[cache_control marker only]` tag) and different wording.
+// Resolved by keeping ONE renderer — main's content, moved into the lane's
+// exported function — so these expectations assert the SHIPPED strings
+// (`absorbedAt=`, the "mitigation ran" headline), not the lane's originals.
+// Two renderers is what the naive merge produced, and it printed the section
+// twice.
+
+test("formatAbsorptionMisses shows the row, with its three numbers, on a known miss", () => {
+  const rows = findAbsorptionMisses(REFIRE_SHAPE());
+  assert.equal(rows.length, 1, "control: REFIRE_SHAPE is a known positive");
+  const text = replay.formatAbsorptionMisses(rows);
+  assert.match(text, /absorption misses \(the mitigation ran but the forwarded pair still diverged within its claimed reach\): 1/);
+  assert.match(text, /n=1->2/);
+  assert.match(text, /absorbedAt=\[7\]/, "the FRESH index, not the re-fire at 2");
+  assert.match(text, /forwardedDivergence=6/);
+  assert.match(text, /ours=true/);
+});
+
+test("formatAbsorptionMisses prints an explicit 0 on a fixture with none — never silence", () => {
+  const text = replay.formatAbsorptionMisses([]);
+  assert.match(text, /absorption misses \([^)]*\): 0/);
+  assert.doesNotMatch(text, /n=/, "no rows means no row lines, not a suppressed section");
 });
