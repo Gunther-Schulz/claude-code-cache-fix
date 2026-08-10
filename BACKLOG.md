@@ -1200,6 +1200,24 @@ ENOSPC misattribution with its wrong first explanation left in.
   **(shipped) READY`, invisible to a `^- \*\*READY` grep but counted by the
   hook's substring rule. They are now in `## Done`. See the merge note: this
   entry and the NARRATIVE-grade-token entry are one defect.
+  **MERGED 2026-08-10 by the retirement pass — this entry ABSORBS the
+  narrative-grade-token entry, because the pass proved them one defect with
+  one verifier.** The other entry's writer half (nothing stops a bullet
+  opening with a story instead of a grade) and this entry's writer half (READY
+  bullets outside the ranking carrier) are the same failure: the GRADE MARKER
+  in a bullet's first token is the only thing every consumer reads, and
+  nothing enforces its vocabulary. The pass added a THIRD variant neither
+  entry named — five bullets reading `- **(shipped) READY`, which a `^-
+  \*\*READY` grep misses while the hook's substring rule counts them, so the
+  two known counters disagreed in OPPOSITE directions on the same five
+  bullets. Merged design, one check in `tools/backlog-lint.mjs`: every
+  top-level bullet's first token must come from a closed grade vocabulary, and
+  no bullet carrying a READY grade may sit outside `## Open`. Red-first on
+  three real positives now permanently available in `## Done` at this commit
+  rather than on planted cases — the nine substring-only extras, the five
+  outside-`## Open` bullets, and the five `(shipped) READY` bullets. Done when
+  `backlog-lint` fails on each of the three and the SessionStart count equals
+  `grep -c '^- \*\*READY'` over `## Open`.
 - **READY — `backlog-order.mjs`'s anchor namespace is the whole BULLET BODY, so
   an entry that QUOTES another entry's title breaks the ranking tool.** Hit
   2026-08-06 evening, first use after the tool shipped, by ordinary work: an
@@ -4654,52 +4672,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   exactly what the three-answer design in the module header was built to avoid.
   <!-- entry: "delete legacyReadPath and its 26 call sites" -->
 
-- **READY (small) — a bullet whose grade token is a NARRATIVE word hides live,
-  decision-complete work from every READY-based count, including the one this
-  ranking is derived over.** Found 2026-08-08 afternoon by the re-derivation,
-  and only because it was reading BODIES: two entries carried live work under
-  the grades `CORRECTED WITHIN THE HOUR` and `DOWNGRADED`, and the second's own
-  body says "It stays READY" a few lines under a header that does not say so.
-  Both were re-graded in this entry's commit. What is NOT fixed is the writer:
-  nothing stops the next session opening a bullet with a story instead of a
-  grade, and the failure is silent in the way that matters — the entry reads
-  perfectly and simply never appears in a list.
-  **The class, stated so it is not re-learned as a one-off:** the grade is a
-  LABEL over its own body, and a narrative first word is a label that stopped
-  describing the body the moment a re-grade was written in prose rather than in
-  the header. Every consumer that greps `^- \*\*READY` — the SessionStart
-  injection, the ranking population, any survey — inherits the drift.
-  Design, decided: the `--census` mode being built on `tools/backlog-lint.mjs`
-  already buckets every grade token and lists the UNCLASSIFIED ones. Extend it
-  so the NARRATIVE buckets (anything outside the live-grade set
-  READY/OPEN/HOT/PARKED and the resolution set) emit a WARN naming the line —
-  a non-zero count there means live work is invisible to every consumer, which
-  is a finding, not a statistic.
-  Verifier, red-first, anchored to immutable refs so it cannot decay: run it
-  over `git show b7ae5aa:BACKLOG.md` and it must name the two bullets the hand
-  scan found — the `CORRECTED WITHIN THE HOUR` XDG-ownership entry and the
-  `DOWNGRADED` tool-adjacency entry; run it over this commit and it must be
-  silent on both.
-  **CORRECTED WITHIN THE HOUR by the census's first real run, and the
-  correction is the point: the class is 26, not 2.** The paragraph above was
-  written from a HAND scan, and the hand scan was the pattern — it reached the
-  two bullets I happened to read and stopped. `backlog-lint.mjs --census` over
-  `b7ae5aa` reports `UNCLASSIFIED=25`, and over HEAD `UNCLASSIFIED=26` — the
-  26th being the `OVERTAKEN` grade I invented three edits earlier, which is the
-  instrument firing on its own dispatcher within minutes of landing. So the
-  number in a claim about a class is the instrument's, never the reader's.
-  What the 26 are is NOT yet classified and that is the remaining work: most
-  look archival by shape (`HANDOFF`, `BUST`, `GATE-RED TRIAGED`, `MOVED`,
-  `FINDING`) and are fine as history, but at least `OPEN-BOOKED`,
-  `QUEUED THIS SESSION` and `IN FLIGHT` name live work that no READY-based
-  count can see. Done-criterion, sharpened: every one of the 26 carries an
-  individual verdict — live-work-mis-graded, or archival-and-correct — and the
-  WARN then fires only on the first class. A count without that split would
-  train the override reflex on its first run.
-  Consumer tier **3 (backlog and process)** — it mis-files entries and is
-  recovered at the next derivation. Ranked at the next derivation, not here.
-  <!-- entry: "a bullet whose grade token is a NARRATIVE word hides live" -->
-
 - **READY — `CacheFixConfigDirDivergenceWarning`: tell a user who has set
   `CLAUDE_CONFIG_DIR` that our roots deliberately do NOT follow it, and where
   they actually resolve.** Booked 2026-08-08 afternoon at the request of the
@@ -8036,6 +8008,59 @@ no entry was dropped — the move is relocation only, verified by header-multise
 Grade tokens moved: DONE, (DONE …), (shipped) READY, RESOLVED, CLOSED, BUILT, SHIPPED,
 RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
 
+- **MERGED 2026-08-10 (was READY) (small) — a bullet whose grade token is a NARRATIVE word hides live,
+  decision-complete work from every READY-based count, including the one this
+  ranking is derived over.** Found 2026-08-08 afternoon by the re-derivation,
+  and only because it was reading BODIES: two entries carried live work under
+  the grades `CORRECTED WITHIN THE HOUR` and `DOWNGRADED`, and the second's own
+  body says "It stays READY" a few lines under a header that does not say so.
+  Both were re-graded in this entry's commit. What is NOT fixed is the writer:
+  nothing stops the next session opening a bullet with a story instead of a
+  grade, and the failure is silent in the way that matters — the entry reads
+  perfectly and simply never appears in a list.
+  **The class, stated so it is not re-learned as a one-off:** the grade is a
+  LABEL over its own body, and a narrative first word is a label that stopped
+  describing the body the moment a re-grade was written in prose rather than in
+  the header. Every consumer that greps `^- \*\*READY` — the SessionStart
+  injection, the ranking population, any survey — inherits the drift.
+  Design, decided: the `--census` mode being built on `tools/backlog-lint.mjs`
+  already buckets every grade token and lists the UNCLASSIFIED ones. Extend it
+  so the NARRATIVE buckets (anything outside the live-grade set
+  READY/OPEN/HOT/PARKED and the resolution set) emit a WARN naming the line —
+  a non-zero count there means live work is invisible to every consumer, which
+  is a finding, not a statistic.
+  Verifier, red-first, anchored to immutable refs so it cannot decay: run it
+  over `git show b7ae5aa:BACKLOG.md` and it must name the two bullets the hand
+  scan found — the `CORRECTED WITHIN THE HOUR` XDG-ownership entry and the
+  `DOWNGRADED` tool-adjacency entry; run it over this commit and it must be
+  silent on both.
+  **CORRECTED WITHIN THE HOUR by the census's first real run, and the
+  correction is the point: the class is 26, not 2.** The paragraph above was
+  written from a HAND scan, and the hand scan was the pattern — it reached the
+  two bullets I happened to read and stopped. `backlog-lint.mjs --census` over
+  `b7ae5aa` reports `UNCLASSIFIED=25`, and over HEAD `UNCLASSIFIED=26` — the
+  26th being the `OVERTAKEN` grade I invented three edits earlier, which is the
+  instrument firing on its own dispatcher within minutes of landing. So the
+  number in a claim about a class is the instrument's, never the reader's.
+  What the 26 are is NOT yet classified and that is the remaining work: most
+  look archival by shape (`HANDOFF`, `BUST`, `GATE-RED TRIAGED`, `MOVED`,
+  `FINDING`) and are fine as history, but at least `OPEN-BOOKED`,
+  `QUEUED THIS SESSION` and `IN FLIGHT` name live work that no READY-based
+  count can see. Done-criterion, sharpened: every one of the 26 carries an
+  individual verdict — live-work-mis-graded, or archival-and-correct — and the
+  WARN then fires only on the first class. A count without that split would
+  train the override reflex on its first run.
+  Consumer tier **3 (backlog and process)** — it mis-files entries and is
+  recovered at the next derivation. Ranked at the next derivation, not here.
+  <!-- entry: "a bullet whose grade token is a NARRATIVE word hides live" -->
+
+  **MERGED 2026-08-10 into the READY-count entry (`the READY count every
+  session reads at startup is 66 where 57 exist`), which now carries the
+  combined design and a red-first arrangement over three real positives
+  instead of two separate ones.** Merged rather than left parallel because
+  both halves are closed by ONE check over the grade vocabulary; kept as a
+  record so the reasoning is not re-derived. No content was dropped in the
+  merge — the class statement above travelled into the absorbing entry.
 - **RETIRED 2026-08-10 (was READY) (small, BLOCKED on a guard fix) — `test/tool-output-stamps.test.mjs`s
   header is now STALE and actively false.** It still says ARM 1 is red on this
   tree on purpose and that two assertions are todo-marked; `f9ec558` fixed the
