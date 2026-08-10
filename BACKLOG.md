@@ -1364,6 +1364,40 @@ ENOSPC misattribution with its wrong first explanation left in.
   must report their true ages; the reverted implementation could not be
   falsified before because no such case existed. Done when the age on the
   attention line survives a reorder unchanged.
+  **RE-GRADED 2026-08-10 by the retirement pass, and the decided design above is
+  now the EXPENSIVE option. The measured case this entry asked for arrived, far
+  larger than the two-entry one recorded above, and it was self-inflicted:**
+  commit `8e58988` (the Open/Done split) moved 74 bullets, and git rendered it as
+  a whole-file rewrite. Measured over all 92 READY headers at their indexed
+  lines: **42 of 92 now blame to `8e58988`** — they read as booked today, their
+  real ages gone. That is the predicted damage at 46% of the list rather than at
+  two entries, and it hit the ranked head hardest, exactly as this entry said it
+  would.
+  **The cheap fix was probed and it is TOTAL: `git blame -M -C` returns 42 -> 0.**
+  Same 92 lines, same commit, one command apart: without move detection 42 blame
+  to the reorder commit, with `-M -C` **zero** do, and the distribution goes flat
+  across the original booking commits (spot-check, entry n=5 at line 706: plain
+  `80839806 2026-08-07`, with `-M -C` `23079f09 2026-08-07`). The hook does not
+  pass either flag — `session-scan.py:218` is
+  `_git_out(root, "blame", "--line-porcelain", "--", name)`, and the docstring
+  four lines above it names this exact residual while the call does nothing about
+  it.
+  **Corrected design, replacing the one above:** add `-M -C` to that call first,
+  because it closes the MEASURED case (verbatim block moves recorded as
+  delete-plus-add) at two flags against a reimplementation. Stated honestly, it
+  is not a full substitute: `-M -C` follows a line that moved UNCHANGED, so an
+  entry whose header is REWORDED still dates to the reword. First-appearance
+  dating remains the complete answer and stays booked as the residual — but it is
+  no longer the first move, and shipping it before the two flags would spend the
+  larger cost to buy the same measured case.
+  Verifier, red-first and permanently runnable (an immutable commit range, not
+  live tree state): over the 92 header lines at `8e58988`, plain blame must
+  report 42 hits on `8e58988` and `-M -C` must report 0. Both numbers reproduce
+  today and will reproduce next year.
+  **What this cost, recorded because the pass caused it:** the SessionStart
+  attention line derives entry age from the same blame call, so its `oldest Nd`
+  figure has been wrong for every session since `8e58988` — a live wrong number,
+  not a latent one. It is the reason this jumped the queue.
 
 - **READY (operator-side, dotfiles — POINTER; body belongs in that repo) — the
   doctor has no three-answer verdict for the sweep's new `rowPins` fields.**
