@@ -1189,6 +1189,31 @@ Two blind spots, both found by planting rather than by reading, both closed
   Message bytes are as permanent as file bytes and no content scan sees them.
   Scoped to the range being pushed — over a whole branch it reports commits
   already public, which is a gate that cannot pass.
+  **Correction, 2026-08-10 (`dcba443`): the range scan existed and was BLIND,
+  which is worse than absent.** `scanSourceText` MATCHED full UUIDs and then
+  SUPPRESSED them, deferring to "the capture-uuid class" — a class that only
+  ever ran inside `scanDocument`, over JSON values. Source text never reached
+  it, so the deferral pointed at a consumer that never fired and the
+  suppression read as delegation while being deletion. Measured before the
+  fix: `scanSourceText` over a string carrying a full session UUID returned
+  ZERO findings. Found only because a real leak into a commit message went
+  uncaught while the same UUID in a doc was caught within one suite run — the
+  DIFFERENCE between the two is what exposed it, not either result alone.
+  The general shape, and it is the reason to re-read any "handled elsewhere"
+  branch you own: a suppression naming its downstream handler is unfalsifiable
+  from the suppression site. Whether that handler ever receives the input is a
+  separate question, and nobody asks it, because the code reads as routing.
+
+- **Cite real magnitudes freely; never cite a raw identifier — including in a
+  "reproduced it" note.** Added 2026-08-10 from the incident above. Verifying a
+  backlog entry's own historical incident against real transcripts is exactly
+  the work this repo wants, and it walks real bytes across the publication
+  boundary while doing it. Timestamps, byte counts, row counts, context sizes:
+  cite them, they are the evidence. Session and capture IDs: never raw, in a
+  file OR a commit message, however evidentiary the note feels — captures are
+  named by ALIAS (below), and a "reproduced against the real thing" preamble is
+  the exact context in which citing the raw id feels like rigor rather than
+  like a leak. That feeling is the tell, not a licence.
 
 ### The written rule is NARROWER than the enforced one — this is the gap
 
