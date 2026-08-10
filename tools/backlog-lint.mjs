@@ -1926,6 +1926,65 @@ function formatClosureDuplicateFinding(f) {
 }
 
 // ==========================================================================
+// READY-outside-Open lane (default pass) — the WRITER half of "the READY
+// count every session reads at startup"
+// ==========================================================================
+//
+// Why this exists: the SessionStart hook counts READY bullets under
+// `## Open` only, and file order under `## Open` is the ranking carrier
+// (`backlog-order.mjs`); a `- **READY` bullet sitting OUTSIDE `## Open` (a
+// stray addition under a later section, e.g. `## Upstream PR round`) is
+// unrankable and invisible to the startup count by construction, and
+// nothing stops the next one from landing there. See BACKLOG.md, "the
+// READY count every session reads at startup is 66". This lane is
+// deliberately SCOPED to the READY-outside-Open shape only — the sibling
+// vocabulary problem the same entry also names (a bullet opening
+// `- **(shipped) READY`, invisible to a header-anchored grep but counted
+// by a substring rule) needs a hand-surveyed CLOSED grade vocabulary this
+// lane does not attempt, and is named as a gap rather than guessed at.
+//
+// A finding fires when a top-level bullet's header matches `^- \*\*\(?READY\b`
+// and its line falls OUTSIDE the `## Open` section (before its start line,
+// or at/after the next `## ` line).
+
+const READY_HEADER_ANYWHERE = /^- \*\*\(?READY\b/;
+
+function openSectionLineRange(text) {
+  const lines = text.split("\n");
+  const head = lines.findIndex((l) => l.startsWith("## Open"));
+  if (head < 0) return null;
+  let tail = lines.length; // 0-indexed exclusive bound: next `## ` line, or EOF
+  for (let i = head + 1; i < lines.length; i++) {
+    if (lines[i].startsWith("## ")) {
+      tail = i;
+      break;
+    }
+  }
+  // head/tail are 0-indexed; splitEntries' startLine is 1-based (0-indexed
+  // line k is 1-based line k+1), so content spans 1-based [head+2, tail+1).
+  return { startLine: head + 2, endLine: tail + 1 };
+}
+
+export function lintReadyOutsideOpen(text) {
+  const range = openSectionLineRange(text);
+  const findings = [];
+  for (const entry of splitEntries(text)) {
+    if (!READY_HEADER_ANYWHERE.test(entry.header)) continue;
+    const inside = range && entry.startLine >= range.startLine && entry.startLine < range.endLine;
+    if (inside) continue;
+    findings.push({
+      line: entry.startLine,
+      headline: entry.header.replace(/^- \*\*/, "").trim().slice(0, 80),
+    });
+  }
+  return findings;
+}
+
+function formatReadyOutsideOpenFinding(f) {
+  return `WARN backlog-ready-outside-open line=${f.line} headline="${f.headline}"`;
+}
+
+// ==========================================================================
 // Boundary classification (default pass) — shared with tools/backlog-lanes.mjs
 // ==========================================================================
 //
@@ -2182,6 +2241,14 @@ function main(argv) {
     closureDuplicates.length
       ? `backlog-closure-duplicate: ${closureDuplicates.length} finding(s) — BLOCKING\n`
       : "backlog-closure-duplicate: clean\n",
+  );
+
+  const readyOutsideOpen = lintReadyOutsideOpen(text);
+  for (const f of readyOutsideOpen) process.stdout.write(`${formatReadyOutsideOpenFinding(f)}\n`);
+  process.stdout.write(
+    readyOutsideOpen.length
+      ? `backlog-ready-outside-open: ${readyOutsideOpen.length} finding(s) — REPORT only\n`
+      : "backlog-ready-outside-open: clean\n",
   );
 
   if (wantPointers) {

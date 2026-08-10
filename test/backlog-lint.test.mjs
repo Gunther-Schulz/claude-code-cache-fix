@@ -47,7 +47,7 @@ import {
   lintText, lintPointers, splitEntries,
   lintCitations, lintRowStatus, ROW_STATUS_LABELS, lintPremiseTrue, lintCorrectionPlacement,
   lintBoundary, realizingBoundary, realizingBoundaryFiles, isDeploymentCoupled, isHold, NOISE_FILES,
-  lintHeadingWrap, lintClosureDuplicate,
+  lintHeadingWrap, lintClosureDuplicate, lintReadyOutsideOpen,
 } from "../tools/backlog-lint.mjs";
 // Namespace import for the two lanes new to this dispatch (lintReadyBar,
 // READY_BAR_LABELS). Per dev-loop.md's ESM-namespace-import rule: a STATIC
@@ -2409,4 +2409,73 @@ test("CLI: backlog-closure-duplicate lane is clean and exit 0 on ordinary conten
   const { code, out } = runTool(["-"], "## Open\n\n- **READY — a thing.** Body.\n");
   assert.equal(code, 0);
   assert.match(out, /^backlog-closure-duplicate: clean$/m);
+});
+
+// ==========================================================================
+// Section: READY-outside-Open lane -- the WRITER half of "the READY count
+// every session reads at startup"
+// ==========================================================================
+
+test("lintReadyOutsideOpen: RED-FIRST -- a READY bullet under a LATER section is flagged", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — inside, fine.** Body.",
+    "",
+    "## Upstream PR round", "",
+    "- **READY — a stray addition here.** Body.",
+  ].join("\n");
+  const findings = lintReadyOutsideOpen(doc);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].headline, /stray addition/);
+});
+
+test("lintReadyOutsideOpen: a READY bullet BEFORE `## Open` (e.g. under `## Build order`) is also flagged", () => {
+  const doc = [
+    "## Build order", "",
+    "- **READY — should not be here.** Body.",
+    "",
+    "## Open", "",
+    "- **READY — the real one.** Body.",
+  ].join("\n");
+  const findings = lintReadyOutsideOpen(doc);
+  assert.equal(findings.length, 1);
+  assert.match(findings[0].headline, /should not be here/);
+});
+
+test("lintReadyOutsideOpen: CONTROL -- non-READY bullets outside `## Open` are not this lane's business", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — inside.** Body.",
+    "",
+    "## Done", "",
+    "- **DONE 2026-08-10 (`abc1234`) — shipped.** Body.",
+  ].join("\n");
+  assert.deepEqual(lintReadyOutsideOpen(doc), []);
+});
+
+test("lintReadyOutsideOpen: a `(shipped) READY` prefix is out of THIS lane's narrow scope (named gap, not silently swallowed)", () => {
+  // Scoped deliberately: this lane catches the header-anchored `- **READY`
+  // shape only, per its own header comment -- the sibling vocabulary
+  // problem (a bullet opening with a narrative word before READY) is a
+  // named gap, not something this bite pretends to cover.
+  const doc = [
+    "## Open", "",
+    "- **READY — inside.** Body.",
+    "",
+    "## Done", "",
+    "- **(shipped) READY — outside, wrong prefix shape.** Body.",
+  ].join("\n");
+  assert.deepEqual(lintReadyOutsideOpen(doc), [], "documents the scope boundary, not a false negative");
+});
+
+test("lintReadyOutsideOpen: RED-FIRST over the real current BACKLOG.md -- a true, unplanted positive", () => {
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const findings = lintReadyOutsideOpen(current);
+  assert.ok(findings.length > 0, "expected at least one real READY-outside-Open bullet in the current file");
+});
+
+test("CLI: backlog-ready-outside-open lane runs in the default pass", () => {
+  const { code, out } = runTool(["-"], "## Open\n\n- **READY — a thing.** Body.\n");
+  assert.equal(code, 0);
+  assert.match(out, /^backlog-ready-outside-open: clean$/m);
 });
