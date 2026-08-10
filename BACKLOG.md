@@ -3142,6 +3142,43 @@ ENOSPC misattribution with its wrong first explanation left in.
   the standing rate — that is a separate measurement over more captures, and it
   is not what caused this event.
 
+- **WITHDRAWN 2026-08-10, SAME DAY, BY MEASUREMENT — the premise is dead and
+  the recommended fix would push the guard BACKWARDS. Read this before the
+  original body below; the handoff brief carries the same correction.**
+  The entry claimed the machine's pre-push guard refuses a commit carrying
+  `Co-Authored-By: Claude ` without a `Claude-Session:` trailer, and concluded
+  that briefs should mandate both trailers.
+  **What refuted it:** I integrated a sonnet lane's commit `eab030a` carrying
+  `Co-Authored-By: Claude Sonnet 5` and NO `Claude-Session:` — exactly the
+  shape the entry says bounces — and the push went through clean. No bounce, no
+  override. The result was surprising, so the guard got READ rather than
+  reasoned about (`dotfiles/git/hooks/pre-push`, its own header comment).
+  **The criterion was replaced the same day.** Primary is now a MARK —
+  `is_marked(sha, …)`, written by a recorder module the checked party does not
+  control — followed by a BOOKING check (`_ist_gebucht`: the commit's sha
+  appears in the repo's record carrier). `eab030a` passed because I had cited
+  it in the BACKLOG entry closing its work. The trailer test survives only as
+  the FALLBACK, reached when the mark store cannot be loaded. A repo with no
+  record carrier now WARNS and names instead of blocking, because the old
+  fallback blocked in every foreign repo on this machine — where the finding is
+  unresolvable by booking, so the override was the only exit, training the
+  override reflex that kills a guard.
+  **Why the guard's author moved:** the blind direction the old criterion had
+  predicted about itself arrived — of three subagent commits in one wave, one
+  carried a `Claude-Session:` and two did not, and no brief had asked for it.
+  A label the CHECKED PARTY writes itself is worse than one that merely drifts.
+  So mandating both trailers in every brief aims at the fallback and
+  re-entrenches exactly that self-written label. Not to be built.
+  What survives, and it is the useful half: the coupling now load-bearing at
+  integration time is that **the dispatcher books the integrated commit's sha
+  in the repo's record carrier** — which this repo's own conventions already
+  require for unrelated reasons, and which is what silently made today's push
+  legal. Carrying both trailers stays harmless; it is no longer what decides.
+  This is the stored-brief rot shape the corpus names, caught live: the FIX
+  stayed plausible while the DIAGNOSIS under it was refuted elsewhere, by a
+  change to a file in another repo that nothing here reads.
+  Original entry follows, unchanged, because the correction is the more useful
+  artifact.
 - **PARKED [HANDED OFF 2026-08-10 — dispatch-guards brief] (small) — a brief that dispatches committing work into THIS repo must
   state both trailers, or the dispatcher's push bounces.** Measured 2026-08-10:
   the brief gave the executor `Co-Authored-By: Claude sonnet-5 …` and nothing
