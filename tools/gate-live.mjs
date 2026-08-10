@@ -481,6 +481,14 @@ function summarise(file, bytes, res) {
     // still INTACT") is a corpus question by construction: no single capture
     // settles it, and the captures that would settle it rotate away first.
     ["relocDepartureRows", parsed.relocDepartures],
+    // Row 26's census class (replay.mjs findIdentityRotations): our own
+    // pipeline rotating the conversation identity between the raw capture
+    // and the forwarded body. Same defect as relocDepartureRows one line up
+    // — --census already computes this on every sweep (replayArgs above)
+    // and the sweep dropped it on the floor, so the only recorded positive
+    // for this class was a hand replay against a capture that then rotated
+    // out before anything persisted its rows.
+    ["identityRotationRows", parsed.identityRotations],
   ]) persistRows(row, field, source);
   // The pin BODIES ride out of this function on the row and are removed by
   // main() the moment they have been written — they are message bytes, and
@@ -542,6 +550,21 @@ function summarise(file, bytes, res) {
       leaked: deltas.length - forwardedStable,
       heldStable,
       heldUnstable: deltas.length - heldStable,
+    };
+  }
+  // Row 26's labelled pair (replay.mjs printer, findIdentityRotations):
+  // reporting either number alone invites the other's question, because
+  // they answer different things. `requests` counts requests SERVED under
+  // a rotated identity — fresh-session-sort's relocation is a persistent
+  // per-session mutation, so it tracks CONVERSATION LENGTH, not how often
+  // a rotation happens. `transitions` counts rotation EVENTS — row 26's
+  // actual open question, and the one `requests` alone cannot answer. This
+  // split was re-worked once already after one number got read as the
+  // other (BACKLOG "counts a persistent STATE"); do not collapse it back.
+  if (Array.isArray(parsed.identityRotations)) {
+    row.identityRotations = {
+      requests: parsed.identityRotations.length,
+      transitions: parsed.identityRotations.filter((r) => r.transition).length,
     };
   }
   return row;

@@ -689,7 +689,7 @@ test("BITE — at the cap there is no truncation marker: the marker's presence M
 // a reader consults first, so it gets the same three answers as the rest.
 const ROW_FIELDS = ["stabilityRows", "stabilityExemptRows", "conservationRows",
                     "conservationExemptRows", "sequenceRows", "orderRows",
-                    "absorptionMissRows", "relocDepartureRows"];
+                    "absorptionMissRows", "relocDepartureRows", "identityRotationRows"];
 
 test("BITE — a child that produced no verdict carries an error, never empty row arrays", () => {
   // The three-answer rule at the row level: empty arrays on a run that
@@ -717,9 +717,55 @@ test("BITE — a field the child never emitted is null, an EMPTY array is a meas
   const measured = summarise("c.jsonl", 10, json({
     report: [{ n: 0 }], violations: [], exemptions: [], safety: [], conservation: [],
     conservationExemptions: [], sequence: [], orderViolations: [], absorptionMisses: [],
-    relocDepartures: [],
+    relocDepartures: [], identityRotations: [],
   }));
   for (const f of ROW_FIELDS) assert.deepEqual(measured[f], [], `${f}: a real zero is []`);
+  // The labelled-pair summary follows the same three-answer discipline: a
+  // measured empty array is BOTH numbers at zero, never an absent summary
+  // field standing in for "nothing to report".
+  assert.deepEqual(measured.identityRotations, { requests: 0, transitions: 0 },
+    "an empty measured array is a real zero pair, not an absent summary");
+  assert.ok(!("identityRotations" in old), "identityRotations summary is absent when the child never emitted the field");
+});
+
+// --- Row 26: identityRotations carried out of the daily sweep ---
+//
+// --census already computes this on every sweep (replayArgs); before this,
+// the sweep discarded it — the same defect the relocDepartureRows comment
+// documents for its own class. Two things must be persisted: the rows
+// themselves (identityRotationRows, the three-answer field) and the labelled
+// pair (row.identityRotations: requests vs transitions) so a reader never
+// has to re-derive one from the other.
+
+test("BITE — identityRotations: a mix of transitions and repeats persists both rows and the labelled pair", () => {
+  const identityRotations = [
+    { n: 5, ts: "t1", key: "k", rawId: "r1", fwdId: "f1", transition: true },
+    { n: 9, ts: "t2", key: "k", rawId: "r1", fwdId: "f1", transition: false },
+    { n: 31, ts: "t3", key: "k2", rawId: "r2", fwdId: "f2", transition: true },
+  ];
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], safety: [], identityRotations,
+  }));
+  assert.deepEqual(row.identityRotationRows, identityRotations,
+    "verbatim from the child, like relocDepartureRows — the sweep records, it does not reshape");
+  assert.deepEqual(row.identityRotations, { requests: 3, transitions: 2 },
+    "requests = every row served under a rotated identity; transitions = only the first occurrence per (key, rawId)");
+});
+
+test("BITE — identityRotations: a truncated row list still reports the FULL summary pair", () => {
+  // ROW_CAP truncation bounds the persisted evidence, never the count the
+  // labelled pair reports — the same split conservationRows already proves
+  // (truncated rows, untruncated `row.conservation` count).
+  const many = Array.from({ length: 250 }, (_, n) => ({
+    n, ts: `t${n}`, key: "k", rawId: `r${n}`, fwdId: `f${n}`, transition: true,
+  }));
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }], safety: [], identityRotations: many,
+  }));
+  assert.equal(row.identityRotationRows.length, 200, "the bound holds");
+  assert.equal(row.identityRotationRowsTruncated, 250, "pre-truncation total is stated beside the array");
+  assert.deepEqual(row.identityRotations, { requests: 250, transitions: 250 },
+    "the labelled pair is computed from the full population, not the capped slice");
 });
 
 test("a sweep with absorption misses is still CLEAN — the check reports, it does not gate", async () => {
