@@ -341,10 +341,17 @@ ENOSPC misattribution with its wrong first explanation left in.
   from hand-rolled identity) and must land in the shared primitive, not as a
   local patch.
   **Dependency the fix must carry:** `pairEditContext`
-  (`tools/bust-triage.mjs:1271`) deliberately reuses the SAME test to stay
-  consistent with `capturePairResult`'s notion of "same conversation". A fix at
-  749/760 updates that call site in the same change, or the two disagree about
-  which requests are one conversation — a silent split-brain inside one tool.
+  (`tools/bust-triage.mjs:1261`, its shared identity test at `:1276`)
+  deliberately reuses the SAME test to stay consistent with
+  `capturePairResult`'s notion of "same conversation". A fix at 754/765
+  updates that call site in the same change, or the two disagree about which
+  requests are one conversation — a silent split-brain inside one tool.
+  (Citations re-checked 2026-08-10: `:1271` named a `for await` line, not
+  `pairEditContext`. Found while READING this entry to work it — the same
+  day's neighbour-driven correction above had fixed only the two citations
+  the report quoted and left these, which is the reach failure the citation
+  checker is booked to end: a correction scoped to what the instrument
+  pointed at, in an entry where the same numbers appear twice more.)
   Verifier, red-first, available today: `--at 2026-08-08T11:46:36Z` must stop
   returning `no-pair-in-conversation` and reach a row; `--at 2026-08-08T12:18:15Z`
   (a stable-identity pair) must be UNCHANGED, which is the control that stops a
@@ -797,12 +804,46 @@ ENOSPC misattribution with its wrong first explanation left in.
   compare. Reuse `backlog-neighbours`'s `citedPath` for the split rather than a
   second regex; that function exists because this exact namespace confusion
   already cost a silent zero-candidate run.
-  Three answers, never two: MATCH; DRIFTED — the quoted expression is elsewhere
-  in the file, reported WITH its new line number, which makes the report a
-  patch rather than a complaint; COULD-NOT-CHECK (file absent, line past EOF,
-  or no quoted expression to anchor on) naming which check failed. A citation
+  Reach requirement, measured 2026-08-10: the check must also catch the BARE
+  continuation form (`` `:760` `` on its own, meaning "the same file, line
+  760"), not only the full `path:line` token. A `grep -o` for
+  `tools/bust-triage.mjs:[0-9]*` over this file found four citations and
+  MISSED every bare one — including the two that were actually stale. An
+  instrument that under-reports exactly where entries are most compact is the
+  zero-hit-read-as-absence shape, so the bare form is part of the scope, not
+  a follow-up. Resolve a bare `:NNN` against the nearest preceding full path
+  citation in the same entry.
+  SCOPE: `## Open` only. `## Done` citations are historical records of the
+  state at closing time and must NOT be rewritten — one drifted example is
+  already in there (`tools/bust-triage.mjs:553` for `stateKeyFlip`, now at
+  `:557`), and correcting it would falsify the record it exists to keep.
+  FOUR answers, never two — and the count is four because dry-running the
+  criterion split one of them (below): MATCH; DRIFTED — the quoted expression
+  is elsewhere in the file, reported WITH its new line number, which makes the
+  report a patch rather than a complaint; BROKEN-PATH — the cited file does not
+  exist; COULD-NOT-CHECK — line past EOF, or no quoted expression to anchor
+  on — naming which check failed. A citation
   with no quoted expression is COULD-NOT-CHECK by construction and never a
   pass — the whole point is that a bare number cannot be validated.
+  **Correction to this design, 2026-08-10, found by dry-running it:** an
+  ABSENT FILE is its own finding (BROKEN-PATH), NOT a COULD-NOT-CHECK. The
+  first draft above filed it under could-not-check, which would have swallowed
+  a real positive silently — the exact failure mode the three-answer rule
+  exists to prevent, written into the criterion itself. Caught because the
+  criterion was dry-run against cases already in hand rather than booked
+  unexercised. COULD-NOT-CHECK keeps only: line past EOF, and no quoted
+  expression to anchor on.
+  **Dry run over `## Open`, the instrument-positive for this entry** (same
+  day, 33 distinct `path:line` citations resolved against their files):
+  1 BROKEN-PATH — `proxy/extensions/session-mirror-writer.mjs:8-9`, where no
+  `extensions/` copy exists and the real file is `proxy/session-mirror-writer.mjs`
+  (lines 8-9 correct there). That one is load-bearing: the entry citing it
+  argues the XDG relocation REVERSES upstream's stated design rather than
+  adding a missing convention, which sets the whole upstream-PR strategy. The
+  substantive claim survived the check — the sentence is byte-identical in
+  `upstream/main` at those lines, verified by `diff` — so the defect was the
+  path alone, corrected in place. That is the shape this check is for: a
+  citation wrong in a way that leaves every sentence around it true.
   Verifier, red-first, against a FROZEN reference so the case cannot decay the
   way `3acdcd5` had to repair: run the check over the pre-correction backlog
   (`git show <the commit before today's correction>:BACKLOG.md`) against
@@ -1613,7 +1654,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   positives too (`tools/cache_analysis.py`'s two hits re-verified CORRECT: an
   explicitly commented legacy fallback, not a stale claim).
   **The finding that outranks the counts, and it is definition-level:**
-  `proxy/extensions/session-mirror-writer.mjs:8-9` carries the sentence "the
+  `proxy/session-mirror-writer.mjs:8-9` carries the sentence "the
   established convention is all proxy artifacts live under `~/.claude/`" — and
   that sentence is byte-identical in `upstream/main`. It is not a fork mistake
   we failed to clean up; it is UPSTREAM'S OWN STATED DESIGN, inherited
