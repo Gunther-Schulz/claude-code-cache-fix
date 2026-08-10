@@ -1360,7 +1360,7 @@ export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowE
   // "no evidence" shape a genuine absence returns — say so explicitly
   // instead.
   if (pair?.crossesRotation) {
-    return { edit: null, blockMigrations: [] };
+    return { edit: null, blockMigrations: [], strongerNeighbour: null };
   }
   const f = join(capturesDir, `s-${sid}-requests.jsonl`);
   if (!existsSync(f)) return null;
@@ -1377,9 +1377,39 @@ export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowE
     if (ring.length > windowEntries) ring.shift();
   }
   if (ring.length < 2) return null;
-  const edit = findEditPositions(ring).find((e) => e.n === afterOrd && e.prevN === beforeOrd) ?? null;
-  const blockMigrations = findBlockMigrations(ring).filter((b) => b.n === afterOrd && b.prevN === beforeOrd);
-  return { edit, blockMigrations };
+  const rows = findEditPositions(ring);
+  const edit = rows.find((e) => e.n === afterOrd && e.prevN === beforeOrd) ?? null;
+  const allMigs = findBlockMigrations(ring);
+  const blockMigrations = allMigs.filter((b) => b.n === afterOrd && b.prevN === beforeOrd);
+  // NEIGHBOUR CHECK (BACKLOG "capturePairResult may select a DIFFERENT pair
+  // than the census walk calls the bust"). `capturePairResult`'s selection
+  // rule (documented, unchanged by this fix — see its own header) can name a
+  // real, benign replace/edit pair while a same-conversation NEIGHBOUR in
+  // this same window is the actual busting transition: measured live
+  // (s-captureAM), the selected ord 260->261 was `anchorDelta +0` while the
+  // matrix's own hand walk named ord 265->266 (`anchorDelta -48`, inside a
+  // 20-leg FLAP) as the real one. Every row `findEditPositions`/
+  // `findBlockMigrations` compute for this window is a real, independently-
+  // scored candidate; a neighbour outscoring the selected pair on either of
+  // the entry's two named signals — a larger |anchorDelta|, or a FLAP where
+  // the selected pair has none — is surfaced rather than left for a reader
+  // to find by re-deriving this same window by hand.
+  const selectedAbsAnchor = edit?.anchorDelta == null ? -1 : Math.abs(edit.anchorDelta);
+  const selectedHasFlap = blockMigrations.some((b) => b.flap);
+  let strongerNeighbour = null;
+  for (const row of rows) {
+    if (row.n === afterOrd && row.prevN === beforeOrd) continue; // the selected pair itself
+    const absAnchor = row.anchorDelta == null ? -1 : Math.abs(row.anchorDelta);
+    const rowFlap = allMigs.some((b) => b.n === row.n && b.prevN === row.prevN && b.flap);
+    if (absAnchor <= selectedAbsAnchor && !(rowFlap && !selectedHasFlap)) continue;
+    // Keep the strongest candidate — largest |anchorDelta| first, a FLAP
+    // breaking ties, the entry's own two signals in the order it names them.
+    const curAbs = strongerNeighbour ? Math.abs(strongerNeighbour.anchorDelta ?? -1) : -1;
+    if (!strongerNeighbour || absAnchor > curAbs || (absAnchor === curAbs && rowFlap && !strongerNeighbour.flap)) {
+      strongerNeighbour = { n: row.n, prevN: row.prevN, anchorDelta: row.anchorDelta, flap: rowFlap };
+    }
+  }
+  return { edit, blockMigrations, strongerNeighbour };
 }
 
 // Presentation only, for the `edit-anchor` triage step below. replay.mjs's
@@ -1896,6 +1926,22 @@ export async function triage(bust) {
       steps.push({ step: "edit-anchor", ok: false,
                    detail: "could not resolve anchor/blockMigration evidence for this replace/edit pair " +
                            "(capture window unavailable, or this transition named no row inside it)" });
+    }
+    // BACKLOG "capturePairResult may select a DIFFERENT pair than the census
+    // walk calls the bust" — the selection basis (capturePairResult's own
+    // documented rule: nearest plausible request to the ledger stamp,
+    // unchanged by this fix) is what the pair/capture steps above already
+    // state; this step is only the DISAGREEMENT flag; silent when the
+    // selected pair IS the strongest same-conversation candidate.
+    if (ec?.strongerNeighbour) {
+      const sn = ec.strongerNeighbour;
+      const snAnchor = sn.anchorDelta === null ? "no-human-anchor"
+        : `anchor${sn.anchorDelta >= 0 ? "+" : ""}${sn.anchorDelta}`;
+      steps.push({ step: "neighbour-check", ok: false,
+                   detail: `selected pair ord ${pair.before.ord}->${pair.after.ord} is NOT the strongest same-conversation ` +
+                           `candidate — ord ${sn.prevN}->${sn.n} scores stronger [${snAnchor}]` +
+                           `${sn.flap ? " [FLAP]" : ""}; every evidence line above is computed on the SELECTED ` +
+                           `pair only` });
     }
   }
 

@@ -103,6 +103,6 @@ test("pairEditContext returns explicit no-evidence for a crossesRotation pair, n
   assert.equal(pair.ok, true);
   assert.equal(pair.crossesRotation, true);
   const ec = await pairEditContext("lin0004", pair, dir);
-  assert.deepEqual(ec, { edit: null, blockMigrations: [] },
+  assert.deepEqual(ec, { edit: null, blockMigrations: [], strongerNeighbour: null },
     "a rotation-crossing pair must return explicit no-evidence, not attempt a cid window");
 });
