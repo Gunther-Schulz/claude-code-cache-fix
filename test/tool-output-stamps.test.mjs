@@ -43,44 +43,47 @@
 // other class: bust-triage, dossier, gate-live, restart-exposure,
 // cost-report, quota-analysis, usage-to-dashboard-ndjson.
 //
-// FOUND STILL-WRONG while building this check (verified LIVE by running the
-// tool over a fixture and reading its actual stdout — dev-loop.md, "CLOSING
-// is established against the WORLD, never against a document that says it
-// is closed" — not asserted from reading the source or trusting 82372db's
-// own commit message that the sweep was complete):
+// FOUND STILL-WRONG while building this check, and FIXED in `f9ec558` — the
+// two sites below were live defects on this tree when the check first ran,
+// which is this file's own red-first proof. Both were verified LIVE by
+// running the tool over a fixture and reading its actual stdout (dev-loop.md,
+// "CLOSING is established against the WORLD, never against a document that
+// says it is closed") — not asserted from reading the source or trusting
+// 82372db's own commit message that the sweep was complete. The citations
+// stay because they are the evidence that this check works; they are written
+// in the past tense because the defects are gone, and every line number below
+// still points at its site (`f9ec558` repaired at the emit boundary, not by
+// editing these lines).
 //
 //   82372db's message says it "converts two 'pattern is not the class'
 //   pass-through sites the toISOString sweep alone would have missed"
 //   (quota-analysis's Time range, cost-report's per-call columns) — but its
 //   grep-based sweep missed a THIRD, identical-shape instance:
 //   `capturePairResult` in tools/bust-triage.mjs (the "capture" triage
-//   step) prints `pair.before.ts` / `pair.after.ts` and the computed `span`
+//   step) printed `pair.before.ts` / `pair.after.ts` and the computed `span`
 //   RAW, never calling `localSuffix`, at four sites: tools/bust-triage.mjs
 //   :702/713-714 (window-not-covered), :720-721 (no-candidate), :774-775
 //   (no-pair-in-conversation), and :1562 (the success path — the "OK
 //   capture" line printed on every clean triage). tools/dossier.mjs's
-//   `step3Bytes` (:167) reads the same pair and prints it the same raw way,
+//   `step3Bytes` (:167) read the same pair and printed it the same raw way,
 //   in what the file's own header comment calls "the dossier body a person
-//   reads" (tools/dossier.mjs:82) — so it is not a diagnostic-only path,
-//   it is the working artifact's own body.
+//   reads" (tools/dossier.mjs:82) — so it was not a diagnostic-only path,
+//   it was the working artifact's own body.
 //
-//   ARM 1 below is RED on this tree, on purpose, for bust-triage's and
-//   dossier's capture-step output — reproduced against live fixtures further
-//   down, not asserted from reading the source. That is this check doing its
-//   job, not a bug in the check: 82372db's own "suite green" premise did not
-//   hold for these two files, and the check that would have shown that
-//   before now did not exist — which is exactly why this file exists. Fixing
-//   it means wrapping four call sites in tools/bust-triage.mjs and one in
-//   tools/dossier.mjs with the same `localSuffix` pattern 82372db already
-//   used everywhere else in both files — outside this dispatch's write
-//   boundary (`tools/` is off limits here), so the two assertions that would
-//   fail are marked `{ todo }`: NODE'S TEST RUNNER STILL RUNS THEM AND
-//   PRINTS THE FULL FAILURE (nothing is hidden or asserted-away), it just
-//   does not fail the process exit code — the honest middle ground between
-//   silencing a live finding (forbidden: "repairing the test to restore the
-//   expected red converts a live finding into a silenced instrument") and
-//   leaving the whole suite red for a defect outside this file's own write
-//   boundary. See the closing dispatch report for the exact citations.
+//   ARM 1 went RED on both of those — reproduced against live fixtures
+//   further down, not asserted from reading the source. That was this check
+//   doing its job, not a bug in the check: 82372db's own "suite green"
+//   premise did not hold for these two files, and the check that would have
+//   shown it did not exist, which is exactly why this file exists.
+//
+//   `f9ec558` repaired them at the single TEXT emit site in each tool
+//   (`withLocalStamps`, local-stamp.mjs) rather than inside the composed
+//   `span` string, which `--json` reads verbatim — one call per tool covers
+//   every stamp beneath it. The two assertions carried `{ todo }` while
+//   `tools/` sat outside the authoring lane's write boundary; the markers
+//   were removed with the fix, because a todo test reports neither pass nor
+//   fail and a todo left standing guards nothing. Both are plain, gating
+//   bites now.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -287,10 +290,11 @@ test("dossier ARM 1 — the rendered dossier BODY (the file, not just stdout) �
     // fixture is broken and every assertion below is vacuous.
     assert.match(body, /## 1\. Magnitude.*PRESENT/, `step 1 not PRESENT: ${body}`);
     // Only the step-1 line and the header/requested-stamp lines are asserted
-    // clean here — step 3 (capture pair) is the KNOWN gap, isolated into its
-    // own `{ todo }` test below so this test stays a real, gating check on
-    // the parts of the file that ARE clean rather than being swallowed by
-    // the one part that is not.
+    // clean here — step 3 (capture pair) was the KNOWN gap when this file was
+    // written and got its own isolated bite below, so this test stayed a real
+    // gating check on the parts that were already clean instead of being
+    // swallowed by the one part that was not. `f9ec558` fixed step 3; the
+    // split stays because the two bites name different sites on a red run.
     const withoutStep3 = body.split("## 3.")[0];
     assertLocalPaired("dossier body (steps 1-2, header)", withoutStep3);
   });
@@ -318,8 +322,12 @@ test("dossier ARM 1 — step 3 (capture pair) carries both zones",
 // prefix-diff event-log format (SNAPSHOTS dir) or the CC transcript format
 // (PROJECTS dir), so both evidence classes render ABSENT in the fixture
 // above rather than PRESENT. Whether those table rows are in-scope for the
-// both-zones policy (a data table vs. narrative prose) was not adjudicated
-// here — surfaced for the dispatcher rather than silently assumed either way.
+// both-zones policy (a data table vs. narrative prose) was surfaced for the
+// dispatcher rather than silently assumed either way, and adjudicated IN
+// scope: `f9ec558`'s single `withLocalStamps` pass at dossier's render return
+// covers them along with step 3. They are still not EXERCISED here — that
+// needs the two missing fixtures named above, which is what would turn this
+// note into a bite.
 
 // ─────────────────────────────────────────────────────────────────────────
 // 3. gate-live — every path is redirectable, so a real sweep runs entirely
