@@ -96,8 +96,14 @@ test("CONTROL — the nine existing kinds map exactly as they did", () => {
   for (const [kind, verdict] of Object.entries(before)) {
     assert.equal(VERDICT_BY_KIND[kind], verdict, `mapping for ${kind} changed`);
   }
-  assert.equal(Object.keys(VERDICT_BY_KIND).length, 10,
-    "exactly one value was added; anything else is a different change");
+  // 10 at this commit (the nine above + CONTROLLED); a later, separately
+  // booked entry ("a walk whose disposition is NOT-OURS or NON-DEFECT with
+  // row=none would read STATUS-UNREADABLE") added exactly two more —
+  // NOT-OURS and NON-DEFECT — bringing the live total to 12. This control
+  // still pins that THIS test's own nine mappings are untouched; the count
+  // itself necessarily moves as the vocabulary is deliberately widened.
+  assert.equal(Object.keys(VERDICT_BY_KIND).length, 12,
+    "the nine mappings above plus CONTROLLED, NOT-OURS and NON-DEFECT — any other count is an unscoped change");
 });
 
 // CONTROL — the status tokens the nine kinds are recognised by, still read

@@ -944,6 +944,17 @@ const STATUS_RULES = [
   [/^DOCUMENTED\b/, "DOCUMENTED"],
   [/^COVERED\b/, "COVERED"],
   [/^N\/A\b/, "NOT-APPLICABLE"],
+  // WALK-INDEX disposition tokens (BACKLOG: "a walk whose disposition is
+  // NOT-OURS or NON-DEFECT with row=none would read STATUS-UNREADABLE") —
+  // the exact defect the CONTROLLED-CAUSE token above was added to close,
+  // one token over. Both are already live vocabulary in this repo:
+  // NOT-OURS already appears in two `row=4` WALK-INDEX lines (harmless
+  // there — a row match never reaches this function), and NON-DEFECT is
+  // `docs/runbooks/sweep-finding.md`'s own terminal-state word. Neither
+  // was reachable for a `row=none` walk until now, which made a walk that
+  // needs no stopping stop anyway.
+  [/^NOT-OURS\b/, "NOT-OURS"],
+  [/^NON-DEFECT\b/, "NON-DEFECT"],
 ];
 
 export function statusKind(status) {
@@ -1004,6 +1015,13 @@ export const VERDICT_BY_KIND = {
   DOCUMENTED: "KNOWN-OPEN",
   COVERED: "KNOWN-OPEN",
   "NOT-APPLICABLE": "KNOWN-OPEN",
+  // Self-named, like CONTROLLED -> CONTROLLED-CAUSE: both are already this
+  // repo's own established words (WALK-INDEX's own NOT-OURS; NON-DEFECT
+  // from `docs/runbooks/sweep-finding.md`'s terminal-state vocabulary), so
+  // there is no richer existing name to fold them into the way CONTROLLED
+  // borrowed CONTROLLED-CAUSE from bust-appears.md.
+  "NOT-OURS": "NOT-OURS",
+  "NON-DEFECT": "NON-DEFECT",
 };
 
 /** A status cell -> the verdict a reader acts on. The unmatched case is a
