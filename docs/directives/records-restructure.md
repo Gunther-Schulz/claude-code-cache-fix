@@ -103,8 +103,12 @@ Also re-verify the D1 backlog entry (~line 391 region claims vs shipped state).
   `READY` (scheduled head only, cap ~10), `RECORD` (decision-complete memory,
   not scheduled), `PARKED` (unchanged).
 - Mechanical demotion: every current `- **READY` entry not selected for the
-  head becomes `- **RECORD (ex-READY 2026-08-11)` — one pass, no re-grading
-  by reading, bodies untouched. Nothing is dropped.
+  head becomes `- **RECORD (ex-READY 2026-08-11)` and MOVES to a new
+  `## Record` section below `## Open` — one pass, no re-grading by reading,
+  bodies untouched, nothing dropped. Same file (in-file greps and quoted
+  fragments keep resolving), but `## Open` shrinks to the head + PARKED, so
+  the banner hook, the lint, and every session's state read stop paying for
+  14k lines of memory.
 - Head selection is derived per dev-loop "Build order is DERIVED at build
   time" (with its MITIGATE-composition rule), from the Phase 1 status file's
   OPEN/RESIDUAL rows first. Selection is the executing session's judgment;
@@ -121,6 +125,12 @@ Also re-verify the D1 backlog entry (~line 391 region claims vs shipped state).
   demotion pass: it must fire on known instances (the unresolved-write-set
   entries the 2026-08-11 census enumerated); paste the fire.
 
+- Queryability example (the ten-second state read this buys):
+  `jq '[to_entries[] | select(.value.status=="OPEN" or
+  .value.status=="RESIDUAL")] | from_entries'
+  docs/directives/robustness-threat-matrix.status.json` — the build board;
+  swap the filter for the non-buildable family.
+
 ## Phase 3 — records-vs-world reconciliation in the daily lane
 
 Add to the sweep path (gate-live or a sibling invoked beside it, executing
@@ -128,10 +138,39 @@ session's placement call within `tools/`): matrix-status checker invariants +
 backlog-lint over the head, so records drift shows up in the morning sweep,
 not in archaeology. This rides Phase 1+2's tools; it is wiring, not new logic.
 
+## Phase 4 — one-command state report
+
+`tools/state-report.mjs`: the answer to the operator's "what's the state?",
+which on 2026-08-11 took a desk session two hours of archaeology. One
+invocation, read-only, prints:
+
+- matrix: per-enum counts + the OPEN/RESIDUAL rows with evidence dates
+  (reads the Phase 1 status file);
+- backlog: READY head with entry ages, PARKED count, Record count (reads
+  the Phase 2 sections);
+- verification: last gate verdict + stamp, and whether the serving pin
+  matches `HEAD:proxy` (reuse the existing DECLARED/RUNNING/VERIFIED
+  three-answer machinery — import, don't re-derive);
+- repo: unpushed commits (`origin/main..main`), `rescue/*` tags, dangling
+  commits from `git fsck` not reachable from a `rescue/*` tag, prunable
+  worktrees (`git worktree list --porcelain`), and the count + age range of
+  untracked files under `test/fixtures/harvested/` — the accumulation is
+  574 files today with no established commit cadence; printing the number
+  every time is what forces that policy question when it matters, without
+  this directive asserting a policy gap it did not verify.
+
+Red-first: on the pre-restructure tree the report must reproduce this
+session's hand-established facts — flag the rescue tag, the untracked count,
+the pin state — before its zeros are believed. Sweep wiring (via Phase 3):
+non-zero dangling-unrescued commits and a stale-worktree count are FAIL
+lines in the sweep, not prose. Consumer: session start (candidate for the
+required-reading inject's banner) and the operator directly.
+
 ## Order, boundaries, exits
 
-- Order: Phase 0 → 1 → 2 → 3, each committed separately (pathspec commits;
-  574 untracked harvest files are present in the tree — never `git add -A`).
+- Order: Phase 0 → 1 → 2 → 3 → 4, each committed separately (pathspec
+  commits; 574 untracked harvest files are present in the tree — never
+  `git add -A`).
 - OPERATOR decisions, not covered here: whether to push
   `rescue/unit-2b-dc8c475` (publishes a pre-publication-bar fixture; run
   `tools/absence-scan.mjs` over it first if yes); and ratifying the READY cap
