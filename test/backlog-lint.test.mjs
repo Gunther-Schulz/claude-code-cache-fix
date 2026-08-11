@@ -33,13 +33,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 
 import {
   lintText, lintPointers, splitEntries,
-  lintCitations, lintRowStatus, lintPremiseTrue, lintCorrectionPlacement,
+  lintCitations, lintRowStatus, ROW_STATUS_LABELS, lintPremiseTrue, lintCorrectionPlacement,
 } from "../tools/backlog-lint.mjs";
 // Namespace import for the two lanes new to this dispatch (lintReadyBar,
 // READY_BAR_LABELS). Per dev-loop.md's ESM-namespace-import rule: a STATIC
@@ -70,7 +71,19 @@ const PRE_CITATION_FIX_REF = "fe78c94~1";
 // entry, correction ~80% in) plus a real EARLY-correction control (the
 // bust-appears DONE entry, correction inside its own header).
 const RETIREMENT_PASS_REF = "633256b";
-const MATRIX_PATH = join(REPO, "docs/directives/robustness-threat-matrix.md");
+// The row-status lane's data source since the records-restructure directive
+// (phase 1) moved status off the matrix's prose: the status FILE, never
+// `robustness-threat-matrix.md`. Named distinctly from a hypothetical
+// "MATRIX_PATH" so the rename does not read as the same thing under a new
+// label.
+const ROW_STATUS_FILE = join(REPO, "docs/directives/robustness-threat-matrix.status.json");
+
+function tmpRowStatusFile(rows) {
+  const dir = tmpDirSync("backlog-lint-rowstatus-");
+  const p = join(dir, "status.json");
+  writeFileSync(p, JSON.stringify({ _: "doc", ...rows }));
+  return p;
+}
 // The frozen base ref this dispatch was scoped against — the READY-bar and
 // UNREACHABLE-OBJECT lanes' immutable accounting target (dispatch brief,
 // "ACCOUNTING over the immutable ref, not the live file").
@@ -888,35 +901,38 @@ test("citation lane: a citation at a line that never moved is MATCH, not a false
 // Definitions from BACKLOG.md, "the succession rule's computable slice: an
 // entry that": a sentence citing `row N` alongside one of
 // OPEN/RE-OPENED/CLOSED/MITIGATED/OBSERVED/ACCEPTED (outside a NOT-negation)
-// is checked against `matrixRow(n).kind`, read live via `statusKind` —
-// never a second hardcoded vocabulary. `docs/directives/robustness-threat-
-// matrix.md` at HEAD is real, committed data (row 4 currently reads
-// "OPEN — RE-OPENED 2026-07-31"); an exhaustive search of BACKLOG.md's full
-// history (`git log -p --all -- BACKLOG.md`, every "row 4" occurrence
-// checked for a nearby status word) found no historical entry literally
-// asserting "row 4 CLOSED" before the 2026-07-31 re-open, so the RED case
-// below pairs a constructed sentence (mirroring this corpus's real phrasing)
-// against the real, current matrix file rather than a historical BACKLOG.md
-// snapshot — named here rather than silently substituted.
+// is checked against the row's STATUS FILE entry (`readRowStatus`,
+// matrix-status.mjs), via the claim vocabulary `CLAIM_COMPATIBILITY` — never
+// a second hardcoded vocabulary. THIS IS A RE-ASK, not a re-run: the
+// records-restructure directive (phase 1) moved row status off the matrix's
+// own prose and onto `docs/directives/robustness-threat-matrix.status.json`,
+// so every bite below that used to grade against `matrixRow(n).kind` now
+// grades against `readRowStatus(n).entry.status`. Row 4's real STATUS FILE
+// entry is `{ status: "OPEN", ... }` (unchanged in substance from the old
+// matrix prose "OPEN — RE-OPENED 2026-07-31" this replaces), so the RED case
+// below still pairs a constructed sentence against the real, current status
+// file rather than a historical BACKLOG.md snapshot — named here rather than
+// silently substituted, same as before.
 
-test("row-status lane: fires when the asserted status disagrees with the live matrix (row 4, real matrix data)", () => {
+test("row-status lane: fires when the asserted status disagrees with the status file (row 4, real status data)", () => {
   const doc = [
     "## Open", "",
     "- **READY — a thing.** Row 4 is CLOSED, so this can proceed.",
   ].join("\n");
-  const findings = lintRowStatus(doc, MATRIX_PATH);
+  const findings = lintRowStatus(doc, ROW_STATUS_FILE);
   assert.equal(findings.length, 1);
   assert.equal(findings[0].row, 4);
+  assert.equal(findings[0].label, "ROW-STATUS-DRIFT");
   assert.equal(findings[0].asserted, "CLOSED");
-  assert.equal(findings[0].actualKind, "OPEN");
+  assert.equal(findings[0].actual, "OPEN");
 });
 
-test("row-status lane: control — an assertion matching the live matrix stays silent", () => {
+test("row-status lane: control — an assertion matching the status file stays silent", () => {
   const doc = [
     "## Open", "",
-    "- **READY — a thing.** Row 4 is OPEN, matching the matrix.",
+    "- **READY — a thing.** Row 4 is OPEN, matching the status file.",
   ].join("\n");
-  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+  assert.deepEqual(lintRowStatus(doc, ROW_STATUS_FILE), []);
 });
 
 test("row-status lane: control — a row citation with no status word stays silent", () => {
@@ -924,7 +940,7 @@ test("row-status lane: control — a row citation with no status word stays sile
     "## Open", "",
     "- **READY — a thing.** See row 4 for the mechanism.",
   ].join("\n");
-  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+  assert.deepEqual(lintRowStatus(doc, ROW_STATUS_FILE), []);
 });
 
 test("row-status lane: a NOT-negated status word does not count as the claim", () => {
@@ -932,20 +948,92 @@ test("row-status lane: a NOT-negated status word does not count as the claim", (
     "## Open", "",
     "- **READY — a thing.** ROW 4 IS NOT CLOSED, on this instance.",
   ].join("\n");
-  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+  assert.deepEqual(lintRowStatus(doc, ROW_STATUS_FILE), []);
 });
 
 test("row-status lane: bust-triage's own KNOWN-OPEN verdict word is not read as a row OPEN claim", () => {
   // Regression pin for the false fire the first dry run against the real
   // corpus produced: "the entry becomes KNOWN-OPEN" is bust-triage's own
   // VERDICT_BY_KIND vocabulary (a compound term), never a claim that the
-  // cited row is OPEN.
+  // cited row is OPEN. Data-source-independent (the negative lookbehind
+  // excludes the word before any status-file lookup happens), re-asked
+  // against ROW_STATUS_FILE for consistency with the rest of this section.
   const doc = [
     "## Open", "",
     "- **READY — a thing.** If this holds, this event is row 1 economics and",
     "  the entry becomes KNOWN-OPEN, not a new class.",
   ].join("\n");
-  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+  assert.deepEqual(lintRowStatus(doc, ROW_STATUS_FILE), []);
+});
+
+test("row-status lane: RED-FIRST — a MITIGATED claim fires ROW-STATUS-DRIFT when the row's real status is RESIDUAL, not SHIPPED", () => {
+  // The over-claim TRIAGE_BY_STATUS (matrix-status.mjs) itself already
+  // refuses: RESIDUAL never yields MITIGATED, because a row shipped WITH a
+  // named remainder is not closed. This bite proves the SAME refusal at the
+  // backlog-lint layer, with the baseline printed in both arms.
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Row 9 is MITIGATED, so this can proceed.",
+  ].join("\n");
+
+  // BASELINE (green): the row really is SHIPPED — the claim is TRUE.
+  const shippedPath = tmpRowStatusFile({
+    9: { status: "SHIPPED", evidence: "x", date: "2026-01-01", residual: null },
+  });
+  const baseline = lintRowStatus(doc, shippedPath);
+  console.log("row-status DRIFT baseline (status=SHIPPED, expect clean):", JSON.stringify(baseline));
+  assert.deepEqual(baseline, []);
+
+  // MUTATION: flip the SAME row to RESIDUAL — a real enum value — and the
+  // claim goes from true to an over-claim.
+  const residualPath = tmpRowStatusFile({
+    9: { status: "RESIDUAL", evidence: "x", date: "2026-01-01", residual: "still open on X" },
+  });
+  const mutated = lintRowStatus(doc, residualPath);
+  console.log("row-status DRIFT mutated (status=RESIDUAL, expect 1 finding):", JSON.stringify(mutated));
+  assert.equal(mutated.length, 1);
+  assert.equal(mutated[0].label, "ROW-STATUS-DRIFT");
+  assert.equal(mutated[0].row, 9);
+  assert.equal(mutated[0].asserted, "MITIGATED");
+  assert.equal(mutated[0].actual, "RESIDUAL");
+});
+
+test("row-status lane: RED-FIRST — a row absent from the status file fires ROW-STATUS-UNCHECKABLE, never a silent skip", () => {
+  // The behaviour the leading-token removal would otherwise turn into a
+  // permanent, meaningless green (this dispatch's own motivating premise):
+  // the OLD lane silently `continue`d when the matrix row could not be
+  // parsed. This bite proves the new lane raises a finding instead.
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Row 9 is OPEN, so this can proceed.",
+  ].join("\n");
+
+  // BASELINE (green): row 9 present and OPEN — the claim is TRUE.
+  const presentPath = tmpRowStatusFile({
+    9: { status: "OPEN", evidence: "x", date: "2026-01-01", residual: null },
+  });
+  const baseline = lintRowStatus(doc, presentPath);
+  console.log("row-status UNCHECKABLE baseline (row present, expect clean):", JSON.stringify(baseline));
+  assert.deepEqual(baseline, []);
+
+  // MUTATION: disable the branch by removing row 9 from a status file that
+  // still carries OTHER rows (never emptying the file outright — that would
+  // hit the file-unreadable path with a different reason string, not this
+  // one).
+  const absentPath = tmpRowStatusFile({
+    1: { status: "SHIPPED", evidence: "x", date: "2026-01-01", residual: null },
+  });
+  const mutated = lintRowStatus(doc, absentPath);
+  console.log("row-status UNCHECKABLE mutated (row absent, expect 1 finding):", JSON.stringify(mutated));
+  assert.equal(mutated.length, 1);
+  assert.equal(mutated[0].label, "ROW-STATUS-UNCHECKABLE");
+  assert.equal(mutated[0].row, 9);
+  assert.equal(mutated[0].asserted, "OPEN");
+  assert.match(mutated[0].reason, /row 9 is not present/);
+});
+
+test("row-status lane: ROW_STATUS_LABELS names both findings this lane can raise", () => {
+  assert.deepEqual(ROW_STATUS_LABELS, ["ROW-STATUS-DRIFT", "ROW-STATUS-UNCHECKABLE"]);
 });
 
 test("row-status lane: scoped to `## Open`", () => {
@@ -956,7 +1044,7 @@ test("row-status lane: scoped to `## Open`", () => {
     "## Done", "",
     "- **RESOLVED — a thing.** Row 4 is CLOSED here too.",
   ].join("\n");
-  assert.deepEqual(lintRowStatus(doc, MATRIX_PATH), []);
+  assert.deepEqual(lintRowStatus(doc, ROW_STATUS_FILE), []);
 });
 
 // --- Quoted-mention exemption: the real motivating instance, frozen -------
@@ -1007,17 +1095,22 @@ test("row-status lane: RED-FIRST — row 26's quoted title citation, real instan
 
 test("row-status lane: GREEN — the fixed lane is silent on the same real entry at 90576cf", () => {
   const historical = gitShow(ROW26_MERGE_REF, "BACKLOG.md");
-  const findings = lintRowStatus(historical, MATRIX_PATH);
+  // Graded against TODAY's status file (ROW_STATUS_FILE), per this dispatch's
+  // brief — the historical BACKLOG.md text is what is frozen, not the data
+  // it is graded against. The quoted-span exemption fires before any
+  // `readRowStatus` lookup for row 26 happens, so this holds regardless of
+  // row 26's CURRENT status-file entry.
+  const findings = lintRowStatus(historical, ROW_STATUS_FILE);
   const hit = findings.find((f) => f.row === 26 && /MERGED into/.test(f.entry));
   assert.equal(hit, undefined, "the quoted row-26 title citation must not read as a live claim");
 });
 
 test("row-status lane: zero false fires on the real current BACKLOG.md", () => {
   const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
-  const findings = lintRowStatus(current, MATRIX_PATH);
+  const findings = lintRowStatus(current, ROW_STATUS_FILE);
   console.log(
     "row-status findings on current BACKLOG.md:\n" +
-      findings.map((f) => `line=${f.line} row=${f.row} asserted=${f.asserted} actualKind=${f.actualKind}`).join("\n"),
+      findings.map((f) => `line=${f.line} row=${f.row} label=${f.label} asserted=${f.asserted} actual=${f.actual ?? f.reason}`).join("\n"),
   );
   assert.deepEqual(findings, []);
 });

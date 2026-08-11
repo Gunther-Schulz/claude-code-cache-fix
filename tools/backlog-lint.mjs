@@ -93,17 +93,22 @@ import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-// Reused rather than re-derived: `statusKind`/`matrixRow` are the matrix's
-// own status-vocabulary reader (dev-loop's rule against a second
-// implementation of one identity — three confident wrong answers in this
-// repo already came from hand-rolled versions of exactly this kind of
-// primitive). Read-only import; this file does not own bust-triage.mjs.
-import { statusKind, matrixRow } from "./bust-triage.mjs";
+// Reused rather than re-derived: `readRowStatus`/`CLAIM_COMPATIBILITY` are
+// the status FILE's own reader and claim vocabulary (dev-loop's rule against
+// a second implementation of one identity — three confident wrong answers in
+// this repo already came from hand-rolled versions of exactly this kind of
+// primitive). Status became DATA in the records-restructure directive
+// (phase 1); this file used to read the matrix's own PROSE via `statusKind`/
+// `matrixRow` (bust-triage.mjs) and was moved onto the status file when the
+// matrix cells lost their leading tokens — the old pairing is gone from this
+// file's imports because nothing else here still calls it (grepped: only
+// the row-status lane below ever did). Read-only import; this file does not
+// own matrix-status.mjs.
+import { readRowStatus, CLAIM_COMPATIBILITY, STATUS_PATH } from "./matrix-status.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
 export const DEFAULT_BACKLOG = join(REPO_ROOT, "BACKLOG.md");
-const DEFAULT_MATRIX = join(REPO_ROOT, "docs/directives/robustness-threat-matrix.md");
 
 const ENTRY_START = /^- \*\*/;
 const HEADER_GRADE = /^- \*\*(OPEN\/HOT|OPEN|READY|HOT)\b/;
@@ -944,16 +949,27 @@ function formatCitationFinding(f) {
 // RE-OPENED, CLOSED, MITIGATED, OBSERVED, ACCEPTED — matched only OUTSIDE a
 // "NOT " negation, the same guard the header lane's VERIF_WORD already uses
 // for "NOT-VERIFIED" (a bold "ROW 4 IS NOT CLOSED" agrees with an OPEN row;
-// without the guard it would misread as a claim of MITIGATED). A matched
-// word is classified into the matrix's own KIND vocabulary via `statusKind`
-// (imported from bust-triage.mjs, never re-derived), so "CLOSED" and
-// "MITIGATED" both read as the claim the matrix itself would make, and the
-// vocabulary that decides a MATCH is read live from the matrix file, never
-// hardcoded here.
+// without the guard it would misread as a claim of MITIGATED).
+//
+// RECORDS-RESTRUCTURE UPDATE (phase 1 moved row status to DATA): a matched
+// word is now looked up in `CLAIM_COMPATIBILITY` (matrix-status.mjs) — the
+// set of enum statuses that make the claim TRUE — rather than classified
+// via the matrix's own leading-token prose (the old `statusKind`/
+// `matrixRow` pairing, retired here). A claim word absent from that table
+// (OBSERVED, under the new closed enum) is not a status claim and is
+// skipped, same as before. The row's ACTUAL status comes from
+// `readRowStatus(n)`, which reads `docs/directives/robustness-threat-
+// matrix.status.json` — never the matrix cell's prose.
 //
 // A finding fires when a SENTENCE containing a `row N` citation also
-// contains one of those words (outside the negation), and the classified
-// claim disagrees with `matrixRow(n).kind` read live from the matrix.
+// contains one of those words (outside the negation), and the row's actual
+// status (from the status file) is not in the claim's compatible set —
+// label ROW-STATUS-DRIFT. A row absent from the status file, or a status
+// file that cannot be read, is its OWN finding — label
+// ROW-STATUS-UNCHECKABLE — rather than a silent skip: the old lane silently
+// `continue`d when the matrix row could not be parsed, and that silence is
+// exactly what the matrix cells losing their leading tokens would turn into
+// a permanent, meaningless green.
 // Multiple `row N` citations inside one status-bearing sentence are each
 // checked against the same claimed status — a simplification the entries
 // observed to date do not violate, named rather than hidden.
@@ -1011,14 +1027,22 @@ function sentencesOf(body) {
   return out;
 }
 
-// Lints `row N` status assertions inside `## Open` against the matrix.
-export function lintRowStatus(text, matrixPath = DEFAULT_MATRIX) {
+// The two findings this lane can now raise. ROW-STATUS-UNCHECKABLE is the
+// THIRD ANSWER (dev-loop.md, "A checker has THREE answers"): a row this
+// status file cannot resolve is never silently skipped, because the old
+// silent-`continue` shape is exactly what the matrix cells losing their
+// leading tokens would turn into a permanent, meaningless green.
+export const ROW_STATUS_LABELS = ["ROW-STATUS-DRIFT", "ROW-STATUS-UNCHECKABLE"];
+
+// Lints `row N` status assertions inside `## Open` against the status FILE
+// (`readRowStatus`, matrix-status.mjs) — never the matrix's own prose.
+export function lintRowStatus(text, statusPath = STATUS_PATH) {
   const section = censusOpenSection(text);
   if (!section) return [];
   const findings = [];
   const rowCache = new Map();
   const rowOf = (n) => {
-    if (!rowCache.has(n)) rowCache.set(n, matrixRow(n, matrixPath));
+    if (!rowCache.has(n)) rowCache.set(n, readRowStatus(n, { statusPath }));
     return rowCache.get(n);
   };
 
@@ -1031,19 +1055,29 @@ export function lintRowStatus(text, matrixPath = DEFAULT_MATRIX) {
       const wordMatch = ROW_STATUS_WORD.exec(sentence);
       if (!wordMatch) continue;
       if (isQuotedSpanContext(entry.body, start + wordMatch.index)) continue;
-      const claimedKind = statusKind(wordMatch[1]);
-      if (claimedKind === null) continue; // not in the matrix's own vocabulary
+      const compatible = CLAIM_COMPATIBILITY[wordMatch[1]];
+      if (!compatible) continue; // not a status claim under the new enum (OBSERVED)
       for (const rm of rowMatches) {
         if (isQuotedSpanContext(entry.body, start + rm.index)) continue; // cited, not asserted
         const n = Number(rm[1]);
-        const row = rowOf(n);
-        if (!row || row.kind === null) continue; // no row, or the row's own status is unreadable
-        if (row.kind !== claimedKind) {
-          const line = section.lineOffset + lineOf(entry.body, start + rm.index, entry.startLine);
+        const line = section.lineOffset + lineOf(entry.body, start + rm.index, entry.startLine);
+        const read = rowOf(n);
+        if (!read.ok) {
+          // THE THIRD ANSWER: the row is not present, or the status file
+          // could not be read — a finding, never a silent skip.
           findings.push({
             line, entry: title, row: n,
-            asserted: wordMatch[1], assertedKind: claimedKind,
-            actual: row.status.slice(0, 80), actualKind: row.kind,
+            label: "ROW-STATUS-UNCHECKABLE",
+            asserted: wordMatch[1], reason: read.reason,
+          });
+          continue;
+        }
+        const { status } = read.entry;
+        if (!compatible.has(status)) {
+          findings.push({
+            line, entry: title, row: n,
+            label: "ROW-STATUS-DRIFT",
+            asserted: wordMatch[1], actual: status,
           });
         }
       }
@@ -1053,7 +1087,10 @@ export function lintRowStatus(text, matrixPath = DEFAULT_MATRIX) {
 }
 
 function formatRowStatusFinding(f) {
-  return `WARN backlog-rowstatus line=${f.line} row=${f.row} asserted=${f.asserted}(${f.assertedKind}) actual="${f.actual}"(${f.actualKind}) entry="${f.entry}"`;
+  if (f.label === "ROW-STATUS-UNCHECKABLE") {
+    return `WARN backlog-rowstatus line=${f.line} row=${f.row} ${f.label} asserted=${f.asserted} reason="${f.reason}" entry="${f.entry}"`;
+  }
+  return `WARN backlog-rowstatus line=${f.line} row=${f.row} ${f.label} asserted=${f.asserted} actual=${f.actual} entry="${f.entry}"`;
 }
 
 // ==========================================================================

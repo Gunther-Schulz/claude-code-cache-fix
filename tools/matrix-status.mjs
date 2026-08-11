@@ -94,6 +94,34 @@ export const TRIAGE_VERDICTS = new Set([
   "MITIGATED", "KNOWN-OPEN", "CONTROLLED-CAUSE", "UNCLASSIFIED", "UNVERIFIABLE",
 ]);
 
+// The prose CLAIM vocabulary a BACKLOG.md entry uses to assert a row's
+// status (`tools/backlog-lint.mjs`'s row-status lane) mapped to the set of
+// enum statuses that make the claim TRUE — one home for "what a status
+// means", beside TRIAGE_BY_STATUS for the same reason that table lives here
+// rather than beside its reader.
+//
+// MITIGATED/CLOSED is the STRICT claim: only SHIPPED satisfies it. RESIDUAL
+// does NOT — a row shipped WITH a named remainder is not closed, and letting
+// a "row N is MITIGATED" claim pass against RESIDUAL would be the same
+// over-claim TRIAGE_BY_STATUS above already refuses (RESIDUAL maps to
+// KNOWN-OPEN, never MITIGATED, for exactly this reason — see its own
+// comment: "our mitigation worked" is the dangerous direction to be wrong
+// in).
+//
+// OBSERVED is deliberately ABSENT from this table and is NOT a status claim
+// under the new closed enum (VALID_STATUSES, above): the OLD matrix-prose
+// vocabulary (`statusKind`, bust-triage.mjs, pre-restructure) carried an
+// OBSERVED kind — this enum does not. A sentence whose only status word is
+// OBSERVED is skipped by the reader (lintRowStatus), and the skip is
+// documented here rather than left to be rediscovered as a silent no-op.
+export const CLAIM_COMPATIBILITY = Object.freeze({
+  MITIGATED: new Set(["SHIPPED"]),
+  CLOSED: new Set(["SHIPPED"]),
+  OPEN: new Set(["OPEN", "RESIDUAL", "UNASSESSED"]),
+  "RE-OPENED": new Set(["OPEN", "RESIDUAL", "UNASSESSED"]),
+  ACCEPTED: new Set(["ACCEPTED", "DECLINED", "IMPOSSIBLE", "OUT-OF-SCOPE"]),
+});
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // The matrix's row-header shape. Rows 18-21 live in a SECOND three-column
 // table and this catches them too, which is correct — a row is a row.
