@@ -80,6 +80,9 @@
 //   node tools/backlog-lint.mjs --pointers [<path>|-]
 //                                           # ADDITIONALLY runs the
 //                                           # pointer-liveness lane (below)
+//   node tools/backlog-lint.mjs --ready-bar [<path>|-]
+//                                           # ADDITIONALLY runs the
+//                                           # READY-bar lane (below)
 //   node tools/backlog-lint.mjs --census [--since <ref>] [<path>|-]
 //                                           # emits the population census
 //                                           # (below) INSTEAD of the header
@@ -370,6 +373,10 @@ const REAL_ENV = {
   // first run. The label claims deadness; resolution is what refutes it.
   objectProbe: (t) => gitProbe(["cat-file", "-e", t]),
   refProbe: (r) => gitProbe(["rev-parse", "--verify", "--quiet", r]),
+  // UNREACHABLE-OBJECT's probe: empty stdout (exit 0) means no ref contains
+  // the object. See the UNREACHABLE-OBJECT comment below for why this is
+  // safe to gate on resolution rather than on shape.
+  reachProbe: (t) => gitProbe(["for-each-ref", "--contains", t, "--count=1"]),
 };
 
 // A token is unambiguous enough to judge. See the discipline comment above.
@@ -413,7 +420,7 @@ function inlineTokens(body) {
 // Lints pointer liveness; returns an array of finding objects. `env`
 // overrides the resolvers (see REAL_ENV).
 export function lintPointers(text, env = {}) {
-  const { pathExists, commitProbe, objectProbe, refProbe } = { ...REAL_ENV, ...env };
+  const { pathExists, commitProbe, objectProbe, refProbe, reachProbe } = { ...REAL_ENV, ...env };
   const findings = [];
 
   for (const entry of splitEntries(text)) {
@@ -461,7 +468,51 @@ export function lintPointers(text, env = {}) {
       // (an agent's pre-cherry-pick hash) becomes unreachable and can be
       // collected, so entries cite the INTEGRATED hash. That convention is
       // the mitigation; this lane is not.
-      if (HEX_TOKEN.test(token) && /[0-9]/.test(token) && /[a-f]/.test(token)) continue;
+      //
+      // UNREACHABLE-OBJECT is compatible with the lesson above for one
+      // specific reason: it never classifies by SHAPE. A hex token that does
+      // not resolve to any git object is skipped exactly as before — the
+      // 0-for-8 lesson stands unmodified, verbatim. Only a token that DOES
+      // resolve gets probed further, and its FURTHER classification (commit
+      // vs. tree/blob) is also read from git, never guessed from the token's
+      // look. The namespace question the 0-for-8 lane could not answer is
+      // answered here by RESOLUTION itself: a capture id, session id or
+      // fingerprint essentially never collides with a real object hash, so
+      // it fails `objectProbe` and is skipped, same as an unresolvable dead
+      // ref. A token that resolves is unambiguously a git object, whatever
+      // else it might have looked like. Only COMMITS are reachability-
+      // checked (`commitProbe`, peeling through a tag); trees and blobs —
+      // this corpus records deployment pins as TREE hashes (`proxy_tree
+      // 9ef42be576bd`) — are not durable-pointer claims the way a commit
+      // citation is, and are skipped silently once resolution confirms they
+      // are not commits.
+      //
+      // Named residual, not mitigated: a short (7-hex) CAPTURE ID can still
+      // collide with the PREFIX of a real object. When it does, it resolves
+      // to an unrelated object it was never meant to name — and that object
+      // is almost always reachable from some ref (most objects in a live
+      // repo are), so the collision fails SILENT rather than loud: no
+      // finding fires, and nothing distinguishes "this really is commit
+      // abc1234" from "some capture id happens to collide with abc1234".
+      // That is the same shape as the 0-for-8 lesson's own residual,
+      // one layer in: resolution narrows the false-positive rate to near
+      // zero, it does not remove it.
+      if (HEX_TOKEN.test(token) && /[0-9]/.test(token) && /[a-f]/.test(token)) {
+        const obj = objectProbe(token);
+        if (!obj.ok) continue; // does not resolve — the 0-for-8 lesson, unchanged
+        const commit = commitProbe(token);
+        if (!commit.ok) continue; // resolves, but not a commit (tree/blob) — skip silently
+        const reach = reachProbe(token);
+        if (reach.ok && reach.proof.length === 0) {
+          add(
+            "UNREACHABLE-OBJECT",
+            token,
+            `git for-each-ref --contains ${token} --count=1 -> empty (reachable from no ref)`,
+            index,
+          );
+        }
+        continue;
+      }
       if (REF_PATTERNS.some((re) => re.test(token))) {
         const probe = refProbe(token);
         if (!probe.ok) {
@@ -478,6 +529,7 @@ export const POINTER_LABELS = [
   "PATH-DEAD",
   "REF-DEAD",
   "ABS-PATH",
+  "UNREACHABLE-OBJECT",
 ];
 
 function formatPointerFinding(f) {
@@ -1135,6 +1187,137 @@ function formatCorrectionFinding(f) {
   return `WARN backlog-correction line=${f.line} marker="${f.marker}" position=${f.position}% header="${f.header}"`;
 }
 
+// ==========================================================================
+// READY-bar lane (--ready-bar) — REPORT ONLY
+// ==========================================================================
+//
+// Why this exists: the repo is declaring a THIRD backlog grade — after the
+// dispatcher's Phase 2 edit to BACKLOG.md, `- **READY` means "the scheduled
+// head" and every entry that keeps the grade must carry a checkable anchor,
+// write-set and verifier (everything that used to be READY becomes
+// `- **RECORD`). This lane is the mechanized form of that bar. It does not
+// decide which entries keep the READY grade — that edit is BACKLOG.md's,
+// outside this file's write boundary — it only checks that whatever DOES
+// carry the grade satisfies the three markers.
+//
+// SCOPE: `## Open`, READY-graded bullets only (`READY_HEADER`, already
+// defined above for the premise-true lane — reused, not re-derived). Any
+// other grade is ignored entirely.
+//
+// Each in-scope entry must carry three markers, each starting a line
+// (leading whitespace tolerated): `Anchor:`, `Write-set:`, `Verifier:`. A
+// marker's ABSENCE is its own finding (MISSING-*); a marker PRESENT but
+// unusable is a separate finding (ANCHOR-UNRESOLVED / WRITE-SET-DEAD /
+// VERIFIER-EMPTY) — the two are never folded together, since "no anchor at
+// all" and "anchor present but wrong" need different fixes from the reader.
+//
+//   Anchor:      either `row <N>` with N in 1..29 (the matrix's row range),
+//                or a repo-relative path that exists. Neither -> resolved is
+//                false and the finding is ANCHOR-UNRESOLVED.
+//   Write-set:   comma- or whitespace-separated paths (backtick-wrapping
+//                tolerated, the corpus's own citation idiom). A NOT-YET
+//                -EXISTING file under an existing directory is the normal
+//                case for new work and must not fire — only a token whose
+//                PARENT directory is itself absent is WRITE-SET-DEAD.
+//   Verifier:    any non-empty text after the marker counts; empty is
+//                VERIFIER-EMPTY.
+
+const READY_BAR_ANCHOR = /^[ \t]*Anchor:(.*)$/m;
+const READY_BAR_WRITE_SET = /^[ \t]*Write-set:(.*)$/m;
+const READY_BAR_VERIFIER = /^[ \t]*Verifier:(.*)$/m;
+const READY_BAR_ANCHOR_ROW = /^row\s+(\d+)$/i;
+const READY_BAR_MAX_ROW = 29;
+const READY_BAR_BACKTICK_TRIM = /^`+|`+$/g;
+
+// Default resolvers hit the real filesystem, same injection idiom as
+// REAL_ENV/CITATION_REAL_ENV above. `dirExists` — not `pathExists` — is what
+// WRITE-SET-DEAD needs: the FILE need not exist yet, only its parent
+// directory.
+const READY_BAR_REAL_ENV = {
+  pathExists: (p) => existsSync(join(REPO_ROOT, p)),
+  dirExists: (p) => existsSync(join(REPO_ROOT, dirname(p))),
+};
+
+function readyBarWriteSetTokens(value) {
+  return value
+    .split(/[,\s]+/)
+    .map((t) => t.replace(READY_BAR_BACKTICK_TRIM, "").trim())
+    .filter(Boolean);
+}
+
+// Lints the READY entry-quality bar. `env` overrides the resolvers (see
+// READY_BAR_REAL_ENV) — same injection idiom as lintPointers/lintCitations,
+// so each condition can be mutated one at a time.
+export function lintReadyBar(text, env = {}) {
+  const { pathExists, dirExists } = { ...READY_BAR_REAL_ENV, ...env };
+  const section = censusOpenSection(text);
+  if (!section) return [];
+  const findings = [];
+
+  for (const entry of splitEntries(section.body)) {
+    if (!READY_HEADER.test(entry.header)) continue;
+    const title = entry.header.replace(/^- \*\*/, "").trim().slice(0, 80);
+    const headerLine = section.lineOffset + entry.startLine;
+    const add = (label, token, proof, line) => findings.push({ line, title, label, token, proof });
+
+    const anchorMatch = READY_BAR_ANCHOR.exec(entry.body);
+    if (!anchorMatch) {
+      add("MISSING-ANCHOR", "Anchor", "no `Anchor:` line in the entry body", headerLine);
+    } else {
+      const value = anchorMatch[1].trim().replace(READY_BAR_BACKTICK_TRIM, "").trim();
+      const line = section.lineOffset + lineOf(entry.body, anchorMatch.index, entry.startLine);
+      const rowMatch = READY_BAR_ANCHOR_ROW.exec(value);
+      const resolved = rowMatch
+        ? Number(rowMatch[1]) >= 1 && Number(rowMatch[1]) <= READY_BAR_MAX_ROW
+        : pathExists(value);
+      if (!resolved) {
+        add(
+          "ANCHOR-UNRESOLVED",
+          value,
+          rowMatch ? `row ${rowMatch[1]} outside 1..${READY_BAR_MAX_ROW}` : `test -e ${value} -> absent`,
+          line,
+        );
+      }
+    }
+
+    const writeSetMatch = READY_BAR_WRITE_SET.exec(entry.body);
+    if (!writeSetMatch) {
+      add("MISSING-WRITE-SET", "Write-set", "no `Write-set:` line in the entry body", headerLine);
+    } else {
+      const value = writeSetMatch[1].trim();
+      const line = section.lineOffset + lineOf(entry.body, writeSetMatch.index, entry.startLine);
+      for (const token of readyBarWriteSetTokens(value)) {
+        if (!dirExists(token)) {
+          add("WRITE-SET-DEAD", token, `test -d ${dirname(token)} -> absent`, line);
+        }
+      }
+    }
+
+    const verifierMatch = READY_BAR_VERIFIER.exec(entry.body);
+    if (!verifierMatch) {
+      add("MISSING-VERIFIER", "Verifier", "no `Verifier:` line in the entry body", headerLine);
+    } else {
+      const value = verifierMatch[1].trim();
+      const line = section.lineOffset + lineOf(entry.body, verifierMatch.index, entry.startLine);
+      if (!value) add("VERIFIER-EMPTY", "Verifier", "`Verifier:` line carries no command text", line);
+    }
+  }
+  return findings;
+}
+
+export const READY_BAR_LABELS = [
+  "MISSING-ANCHOR",
+  "MISSING-WRITE-SET",
+  "MISSING-VERIFIER",
+  "ANCHOR-UNRESOLVED",
+  "WRITE-SET-DEAD",
+  "VERIFIER-EMPTY",
+];
+
+function formatReadyBarFinding(f) {
+  return `WARN backlog-ready-bar line=${f.line} ${f.label} token="${f.token}" entry="${f.title}" proof=${f.proof}`;
+}
+
 function readInput(pathArg) {
   if (pathArg === "-") return readFileSync(0, "utf8");
   return readFileSync(pathArg ?? DEFAULT_BACKLOG, "utf8");
@@ -1169,7 +1352,8 @@ function main(argv) {
   const args = argv.slice(2);
   if (args.includes("--census")) return runCensus(args);
   const wantPointers = args.includes("--pointers");
-  const pathArg = args.find((a) => a !== "--pointers");
+  const wantReadyBar = args.includes("--ready-bar");
+  const pathArg = args.find((a) => a !== "--pointers" && a !== "--ready-bar");
   const text = readInput(pathArg);
   const findings = lintText(text);
   for (const f of findings) {
@@ -1233,6 +1417,19 @@ function main(argv) {
     ).join(" ");
     process.stdout.write(
       `backlog-pointers: ${pointers.length} finding(s) — REPORT only — ${counts}\n`,
+    );
+  }
+
+  if (wantReadyBar) {
+    const readyBar = lintReadyBar(text);
+    for (const f of readyBar) {
+      process.stdout.write(`${formatReadyBarFinding(f)}\n`);
+    }
+    const readyBarCounts = READY_BAR_LABELS.map(
+      (l) => `${l}=${readyBar.filter((f) => f.label === l).length}`,
+    ).join(" ");
+    process.stdout.write(
+      `backlog-ready-bar: ${readyBar.length} finding(s) — REPORT only — ${readyBarCounts}\n`,
     );
   }
   return 0; // WARN-only: never fails the build.

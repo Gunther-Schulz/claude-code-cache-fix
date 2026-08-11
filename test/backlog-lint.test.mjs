@@ -41,6 +41,14 @@ import {
   lintText, lintPointers, splitEntries,
   lintCitations, lintRowStatus, lintPremiseTrue, lintCorrectionPlacement,
 } from "../tools/backlog-lint.mjs";
+// Namespace import for the two lanes new to this dispatch (lintReadyBar,
+// READY_BAR_LABELS). Per dev-loop.md's ESM-namespace-import rule: a STATIC
+// NAMED import of a not-yet-existing export fails the whole module at ESM
+// link time and reddens every bite vacuously, proving nothing about which
+// half broke. `lint.*` always links; a missing export reads as `undefined`
+// and fails only at its own call site, which is what makes the red-first
+// split (pre-existing bites pass, new ones fail) demonstrable at all.
+import * as lint from "../tools/backlog-lint.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = join(REPO, "tools/backlog-lint.mjs");
@@ -63,6 +71,10 @@ const PRE_CITATION_FIX_REF = "fe78c94~1";
 // bust-appears DONE entry, correction inside its own header).
 const RETIREMENT_PASS_REF = "633256b";
 const MATRIX_PATH = join(REPO, "docs/directives/robustness-threat-matrix.md");
+// The frozen base ref this dispatch was scoped against — the READY-bar and
+// UNREACHABLE-OBJECT lanes' immutable accounting target (dispatch brief,
+// "ACCOUNTING over the immutable ref, not the live file").
+const FROZEN_READY_BAR_REF = "2bf1f21";
 
 function runTool(args, input) {
   try {
@@ -396,10 +408,18 @@ test("sub-claim scope does NOT exempt the entry's own header bold run — only a
 // machine's filesystem and object store, and so a single named condition
 // can be mutated at a time (see the mutation record in the closing report).
 
+// Three resolving hex tokens, each a different UNREACHABLE-OBJECT case:
+//   abc1234  resolves, NOT a commit (models a deployment-pin TREE hash) —
+//            the pre-existing "non-commit object does not flag" control.
+//   cafe123  resolves, IS a commit, reachable from a ref — the
+//            UNREACHABLE-OBJECT negative control.
+//   dead456  resolves, IS a commit, reachable from NO ref — the
+//            UNREACHABLE-OBJECT positive.
 const STUB = {
   pathExists: (p) => p === "tools/alive.mjs",
-  objectProbe: (t) => ({ ok: t === "abc1234", proof: "" }),
-  commitProbe: (t) => ({ ok: t === "abc1234", proof: "fatal: Not a valid object name" }),
+  objectProbe: (t) => ({ ok: ["abc1234", "cafe123", "dead456"].includes(t), proof: "" }),
+  commitProbe: (t) => ({ ok: ["cafe123", "dead456"].includes(t), proof: "fatal: Not a valid object name" }),
+  reachProbe: (t) => ({ ok: true, proof: t === "cafe123" ? "refs/heads/main" : "" }),
   refProbe: (r) => ({ ok: r === "pr/alive", proof: "exit 1, no output" }),
 };
 
@@ -505,6 +525,57 @@ test("NEGATIVE: an all-letter or all-digit hex-shaped word does not flag", () =>
   // English word and from a bare date.
   const doc = ["- **READY — a thing.** The record was `defaced` on `20260805`."].join("\n");
   assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+// --- Section 3d: UNREACHABLE-OBJECT — the resolution-gated reachability
+// class, compatible with the 0-for-8 no-commit-dead-lane lesson because it
+// only classifies a token AFTER git itself has resolved it as an object.
+// Motivating instance: `dc8c475` sat reachable from no ref at all until a
+// rescue tag was minted for it by hand. A tag counts as reachable — this
+// lane checks "reachable from SOME ref", never "on main".
+
+test("UNREACHABLE-OBJECT fires when a resolving commit is reachable from no ref", () => {
+  const doc = ["- **READY — a thing.** Landed at `dead456` (pre-integration hash)."].join("\n");
+  const findings = lintPointers(doc, STUB);
+  assert.deepEqual(labelsOf(findings), ["UNREACHABLE-OBJECT"]);
+  assert.equal(findings[0].token, "dead456");
+});
+
+test("NEGATIVE: UNREACHABLE-OBJECT does not fire when the resolving commit IS reachable", () => {
+  const doc = ["- **READY — a thing.** Landed at `cafe123`, on main."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("NEGATIVE: UNREACHABLE-OBJECT does not fire on a resolving non-commit object", () => {
+  // Same token, same reasoning as the pre-existing "non-commit object"
+  // control above, restated for this class specifically: a tree never gets
+  // reachability-checked at all.
+  const doc = ["- **READY — a thing.** Deployed tree `abc1234`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("NEGATIVE: UNREACHABLE-OBJECT does not fire on a token that resolves to nothing", () => {
+  // Same token, same reasoning as the pre-existing "unresolvable short hex
+  // token" control above — the 0-for-8 lesson must survive unmodified.
+  const doc = ["- **READY — a thing.** Shipped at `9fe4d21`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("UNREACHABLE-OBJECT: red-first against the real frozen ref (2bf1f21) — real unreachable commits, no fixture needed", () => {
+  const historical = gitShow(FROZEN_READY_BAR_REF, "BACKLOG.md");
+  const unreach = lintPointers(historical).filter((f) => f.label === "UNREACHABLE-OBJECT");
+  console.log(
+    "2bf1f21 UNREACHABLE-OBJECT findings:\n" +
+      unreach.map((f) => `line=${f.line} token=${f.token} entry="${f.title}"`).join("\n"),
+  );
+  // Real positives found by hand before this bite was written: 3c4ecfa
+  // (cited twice), e4bd379, 41ed30c — each independently confirmed a real
+  // commit (`git cat-file -t`) reachable from no ref (`git for-each-ref
+  // --contains` empty) at the time this ref was frozen.
+  const tokens = new Set(unreach.map((f) => f.token));
+  assert.ok(tokens.has("3c4ecfa"), "3c4ecfa must fire — confirmed unreachable by hand");
+  assert.ok(tokens.has("e4bd379"), "e4bd379 must fire — confirmed unreachable by hand");
+  assert.ok(tokens.has("41ed30c"), "41ed30c must fire — confirmed unreachable by hand");
 });
 
 // --- Section 3c: red-first against the real pre-fix history ---------------
@@ -1030,4 +1101,212 @@ test("correction-placement lane: scoped to `## Open`", () => {
     "  **CORRECTED 2026-01-01, late, but out of scope.**",
   ].join("\n");
   assert.deepEqual(lintCorrectionPlacement(doc), []);
+});
+
+// --- Section 8: the READY-bar lane (--ready-bar) ----------------------------
+//
+// Definitions this section is written FROM: the repo is declaring a THIRD
+// backlog grade. After the dispatcher's Phase 2 edit, `- **READY` means "the
+// scheduled head" and every entry that keeps the grade must carry three
+// markers, each starting a line (leading whitespace tolerated): `Anchor:`,
+// `Write-set:`, `Verifier:`. A marker's ABSENCE (MISSING-*) and a marker
+// PRESENT but unusable (ANCHOR-UNRESOLVED / WRITE-SET-DEAD / VERIFIER-EMPTY)
+// are different findings — a reader fixing "no anchor at all" needs a
+// different action than one fixing "anchor present but wrong". Only READY
+// headers are in scope; any other grade is invisible to this lane.
+//
+// Resolvers are stubbed (never hit this machine's filesystem) so these pin
+// the RULE, not this repo's current directory layout, and so one named
+// condition can be mutated at a time.
+
+const READY_BAR_STUB = {
+  pathExists: (p) => p === "tools/alive.mjs",
+  // Models "tools/" as an existing directory and nothing else — a token
+  // under it may itself be a not-yet-existing file (the legitimate case)
+  // without WRITE-SET-DEAD firing, since only the PARENT is checked.
+  dirExists: (p) => dirname(p) === "tools",
+};
+
+// The single well-formed baseline entry — the shared NEGATIVE control for
+// all six READY-bar labels at once: if any of the six conditions fired here,
+// this assertion (zero findings) would catch it. Each label also gets its
+// own isolated POSITIVE fixture below, with the other two markers left
+// well-formed so exactly one condition can be wrong at a time (the
+// `.some()`-needs-exactly-one-candidate discipline, aimed at Write-set's
+// per-token loop but applied here to the whole three-marker check).
+function readyBarBaselineDoc(bodyExtra = "") {
+  return [
+    "## Open", "",
+    "- **READY — a thing.** Body text." + bodyExtra,
+    "  Anchor: row 4",
+    "  Write-set: tools/alive.mjs",
+    "  Verifier: npm test",
+  ].join("\n");
+}
+
+test("READY-bar: the well-formed baseline entry has zero findings (shared negative control)", () => {
+  assert.deepEqual(lint.lintReadyBar(readyBarBaselineDoc(), READY_BAR_STUB), []);
+});
+
+test("READY-bar: MISSING-ANCHOR fires when the Anchor: line is absent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Write-set: tools/alive.mjs",
+    "  Verifier: npm test",
+  ].join("\n");
+  const findings = lint.lintReadyBar(doc, READY_BAR_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "MISSING-ANCHOR");
+});
+
+test("READY-bar: MISSING-WRITE-SET fires when the Write-set: line is absent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Anchor: row 4",
+    "  Verifier: npm test",
+  ].join("\n");
+  const findings = lint.lintReadyBar(doc, READY_BAR_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "MISSING-WRITE-SET");
+});
+
+test("READY-bar: MISSING-VERIFIER fires when the Verifier: line is absent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Anchor: row 4",
+    "  Write-set: tools/alive.mjs",
+  ].join("\n");
+  const findings = lint.lintReadyBar(doc, READY_BAR_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "MISSING-VERIFIER");
+});
+
+test("READY-bar: ANCHOR-UNRESOLVED fires on a row number outside 1..29", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Anchor: row 99",
+    "  Write-set: tools/alive.mjs",
+    "  Verifier: npm test",
+  ].join("\n");
+  const findings = lint.lintReadyBar(doc, READY_BAR_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-UNRESOLVED");
+  assert.equal(findings[0].token, "row 99");
+});
+
+test("READY-bar: ANCHOR-UNRESOLVED fires on a repo-relative path that does not exist", () => {
+  // The path resolution branch — a distinct code path from the row-range
+  // branch above, so this bite must go red independently of that one.
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Anchor: tools/ghost.mjs",
+    "  Write-set: tools/alive.mjs",
+    "  Verifier: npm test",
+  ].join("\n");
+  const findings = lint.lintReadyBar(doc, READY_BAR_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-UNRESOLVED");
+  assert.equal(findings[0].token, "tools/ghost.mjs");
+});
+
+test("READY-bar: WRITE-SET-DEAD fires when a listed path's PARENT directory does not exist", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Anchor: row 4",
+    "  Write-set: ghost/newfile.mjs",
+    "  Verifier: npm test",
+  ].join("\n");
+  const findings = lint.lintReadyBar(doc, READY_BAR_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "WRITE-SET-DEAD");
+  assert.equal(findings[0].token, "ghost/newfile.mjs");
+});
+
+test("READY-bar: NEGATIVE — a not-yet-existing file under an EXISTING directory does not fire WRITE-SET-DEAD", () => {
+  // The legitimate case named in the brief: new files are the normal case
+  // for a piece of work not yet started.
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Anchor: row 4",
+    "  Write-set: tools/brand-new-file-that-does-not-exist-yet.mjs",
+    "  Verifier: npm test",
+  ].join("\n");
+  assert.deepEqual(lint.lintReadyBar(doc, READY_BAR_STUB), []);
+});
+
+test("READY-bar: VERIFIER-EMPTY fires when the Verifier: line carries no command text", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Body text.",
+    "  Anchor: row 4",
+    "  Write-set: tools/alive.mjs",
+    "  Verifier:",
+  ].join("\n");
+  const findings = lint.lintReadyBar(doc, READY_BAR_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "VERIFIER-EMPTY");
+});
+
+test("READY-bar: scoped to READY headers only — an OPEN entry with no markers stays silent", () => {
+  const doc = [
+    "## Open", "",
+    "- **OPEN — a thing with no markers at all.** Body text.",
+  ].join("\n");
+  assert.deepEqual(lint.lintReadyBar(doc, READY_BAR_STUB), []);
+});
+
+test("READY-bar: scoped to `## Open` — a READY entry under `## Done` is invisible", () => {
+  const doc = [
+    "## Open", "",
+    "- **OPEN — unrelated.** Nothing here.",
+    "",
+    "## Done", "",
+    "- **READY — a thing with no markers, but out of scope.** Body text.",
+  ].join("\n");
+  assert.deepEqual(lint.lintReadyBar(doc, READY_BAR_STUB), []);
+});
+
+test("READY-bar: CLI --ready-bar leaves the existing lanes and exit code untouched", () => {
+  const plain = runTool([join(REPO, "BACKLOG.md")]);
+  const withFlag = runTool(["--ready-bar", join(REPO, "BACKLOG.md")]);
+  assert.equal(plain.code, 0);
+  assert.equal(withFlag.code, 0);
+  assert.ok(!plain.out.includes("backlog-ready-bar"), "no READY-bar output without the flag");
+  assert.match(withFlag.out, /backlog-ready-bar:/);
+});
+
+test("READY-bar: per-class counts are printed with zeros stated", () => {
+  const { out } = runTool(
+    ["--ready-bar", "-"],
+    ["## Open", "", "- **OPEN — nothing to see.** Plain body, no READY entries."].join("\n"),
+  );
+  const line = out.split("\n").find((l) => l.startsWith("backlog-ready-bar:"));
+  for (const label of lint.READY_BAR_LABELS) {
+    assert.match(line, new RegExp(`${label}=0`), `${label} must be stated even at zero`);
+  }
+});
+
+test("READY-bar: RED-FIRST against the real frozen ref (2bf1f21) — real READY entries with no markers yet", () => {
+  const historical = gitShow(FROZEN_READY_BAR_REF, "BACKLOG.md");
+  const findings = lint.lintReadyBar(historical);
+  console.log(
+    "2bf1f21 READY-bar sample finding: " +
+      JSON.stringify(findings.find((f) => f.label === "MISSING-ANCHOR")),
+  );
+  // Every marker is a brand-new convention as of this dispatch, so every
+  // READY entry in the frozen file is missing all three — the instrument-
+  // positive this dispatch's accounting step rests on.
+  assert.ok(findings.length > 0, "the frozen ref predates the marker convention entirely");
+  const byLabel = { "MISSING-ANCHOR": 0, "MISSING-WRITE-SET": 0, "MISSING-VERIFIER": 0 };
+  for (const f of findings) if (f.label in byLabel) byLabel[f.label]++;
+  assert.ok(byLabel["MISSING-ANCHOR"] > 0);
+  assert.ok(byLabel["MISSING-WRITE-SET"] > 0);
+  assert.ok(byLabel["MISSING-VERIFIER"] > 0);
 });
