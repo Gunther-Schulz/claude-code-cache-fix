@@ -311,6 +311,36 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY (small) — thirteen `git` call sites in `tools/` still run on Node's
+  1 MB default stdout cap, and the corpus has now crossed it.** Sibling
+  enumeration for `8487b6f`, which fixed the two sites in
+  `backlog-neighbours.mjs` after `BACKLOG.md` grew past 1,048,576 bytes and
+  turned that tool into a checker reporting the truncated file as its own
+  COULD-NOT-VERIFY reason. The class is not "a tool broke": it is that a
+  SIZE threshold nobody watches flips a whole family of readers from correct to
+  confidently-wrong, one ordinary commit at a time, and the failure surfaces
+  somewhere unrelated.
+  Measured 2026-08-11: `grep -rn "execFileSync(\|execSync("` over `tools/*.mjs`
+  gives **17 call sites, 4 naming `maxBuffer`** — two of those four are the
+  ones just fixed. Every remaining site is to be classified, not blanket-
+  patched: EXPOSED (its output scales with the corpus — `git show` of a
+  BACKLOG image, a commit diff, a fixture dump), BOUNDED (`cat-file -e`,
+  `ls-files`, a name list), or ALREADY-CAPPED. Only EXPOSED sites take the cap.
+  The accounting is the deliverable — a count of patched sites without a
+  disposition for every hit is the pattern-scoped sweep this repo has shipped
+  three times believing it was complete.
+  Second half, and it is what makes this more than a sweep: every catch block
+  that renders `e.stdout` as a proof or reason has the payload-as-reason defect
+  independently of the cap. `gitProofOf` (`tools/backlog-neighbours.mjs`) is
+  the shape to reuse — extend-before-adding, one implementation.
+  Verifier, red-first, both arms: for each EXPOSED site, an input over 1 MB
+  must succeed where it previously threw (commit `ee98a99`'s `BACKLOG.md` is a
+  permanent over-cap reference), and a synthetic ENOBUFS must produce a reason
+  naming the mode with none of the payload in it.
+  Anchor: tools/backlog-neighbours.mjs
+  Write-set: tools/named-unbooked-scan.mjs, tools/state-report.mjs, tools/absence-scan.mjs, tools/backlog-lint.mjs, tools/harvest.mjs, tools/fixture-verdict-identity.mjs, tools/fixture-cut.mjs, tools/xdg-writer-guard.mjs, tools/matrix-status.mjs
+  Verifier: npm test
+
 - **PARKED — the D1 absorption counter joins two event logs on `sid` + a 5s
   window because neither log carries a shared request id.** Surfaced 2026-08-11
   by the lane that shipped the counter, as a gap rather than a decision, and it
