@@ -5104,10 +5104,19 @@ ENOSPC misattribution with its wrong first explanation left in.
   creations). "Any unabsorbed mid-history divergence pays ~full
   price" over-claimed; at least the interior system-removal class
   is free. See the reframed interior-prunes entry above.
-- **PARKED — the daily sweep has been RED at 14 of 48 captures and the banner
-  attributes it to the wrong thing.** Booked 2026-08-11 by the records-restructure
-  session, which met it while reading `gate-status.json` for phase 3's wiring and
-  is deliberately NOT walking it mid-directive.
+- **READY (RE-GRADED from PARKED 2026-08-11 at the desk; operator scheduled it as
+  the next session's FIRST item) — the daily sweep has been RED at 14 of 48
+  captures and the banner attributes it to the wrong thing.** Booked 2026-08-11 by
+  the records-restructure session, which met it while reading `gate-status.json`
+  for phase 3's wiring and is deliberately NOT walking it mid-directive.
+  **Why the PARKED grade did not hold, and it is worth naming because the entry
+  argued it well.** The named missing evidence — regression or declared-behaviour
+  conservation shape — is the WALK'S OWN OUTPUT, not an input to deciding the
+  walk. A deferral gated on evidence the deferred action itself produces is delay
+  in a spec's costume; the discriminating test is whether any outcome could flip
+  the verdict on what to do next, and none can, because the answer either way is
+  "run `sweep-finding.md`". The lane is a runbook, so the entry is
+  decision-complete by construction and always was.
   **The measurement, taken rather than recalled** (sweep started
   2026-08-11T07:55:50Z, `ok:false failing:14`, 48 captures): the discriminator is
   CONSERVATION and it separates the population completely — every one of the 14
@@ -5119,15 +5128,55 @@ ENOSPC misattribution with its wrong first explanation left in.
   not this repo's suite)", which names a service rather than a class; the failures
   are this repo's own conservation gate over this repo's own captures. A label over
   a body, one level up from the class this whole restructure is about.
-  **Missing evidence, named — this is why it is PARKED and not READY:** whether
-  this is a REGRESSION or the declared-behaviour conservation shape already triaged
-  2026-08-05. That question is answered by the walk, not by more reading, and the
-  walk has a runbook: `docs/runbooks/sweep-finding.md`, terminal states regression
-  / known-open / non-defect / instrument-defect / new-class / could-not-verify.
-  Two facts to carry into it: this repo's earlier conservation reds were a SINGLE
-  failing row (BACKLOG's own record), and 14 with per-row counts in the hundreds is
-  a different quantity; and the captures behind those rows rotate, so the evidence
-  has an expiry date — the walk freezes what it rests on before closing.
+  **CORRECTION 2026-08-11 at the desk, from a SECOND independent read of the same
+  status file — "nothing else is firing" is false, and it is the sentence that
+  would have set the walk's direction.** Re-reading the identical run (started
+  07:55:50Z, finished 08:24:43Z) row by row: conservation does fire on all 14 and
+  on none of the 34 passing rows, exactly as recorded — but ONE of the 14 also
+  carries `stability: 1`, and `absorptionMisses` is non-zero on NINE of the 14
+  (1,2,2,8,3,11,2,1,6). `safety`, `sequence`, `order` and `unparseable` are the
+  only fields that are genuinely zero throughout. Two readings of one file
+  disagreed; the discrepancy is the finding, and the shared coordinate that makes
+  the comparison mean anything is that both read the same `finished` stamp.
+  **The stability row is the part that changes the walk's priority**, because it
+  is attributed to US: `n=461->462`, `inDiv=286`, `outDiv=36`,
+  `ccIdenticalAtOutDiv: true` — CC's bytes were identical where our forwarded
+  bytes diverged, and `attribution.ext` names `deferred-tool-rewrite`. Its
+  timestamp is 2026-08-10T05:39:12Z, i.e. BEFORE that evening's D1 commits
+  (`246b61d` 21:41, `a5f1960` 21:49 local), so D1 is not a candidate cause and
+  the walk should not start there. Capture: `s-captureBC` (alias claimed
+  2026-08-11 for exactly this purpose; 3,427 requests, 3,144 pairs, ~2 GB).
+  **Evidence FROZEN before the walk rather than left to rotate, and the freeze
+  reports its own limit.** `harvest --pin … 461..462 --bounded` wrote
+  `test/fixtures/harvested/pinned-s-d8f209e4b75e-461-462.json` (888 records, 162
+  kept / 301 placeholders, 18.5 MB; `absence-scan` clean). `verifyPin` then said
+  the pin does NOT reproduce what it was pinned for, and the difference is the
+  COST half, not the identity: live reads `[prefix above messages INTACT -> the
+  whole message array re-bills]`, the pin reads `[prefix ALREADY broken above
+  messages: tools changed -> no marginal cost]`. Identity, both divergence
+  indices, the ours-attribution and the naming extension all survive; the price
+  does not. This is the scrub-destroys-content-predicates class again (the
+  `e53f873` precedent), one level up: what the scrub broke is the SEVERITY, so a
+  walk reading only the pin would classify a full-context re-bill as free.
+  **The pin is deliberately NOT committed**, and that is a decision with a reason
+  rather than an omission: it lives in the working copy, and pins do not rotate —
+  only captures do — so the expiry risk is already discharged by the file
+  existing. 18.5 MB of permanent public history for a fixture whose own verifier
+  says it is not evidence for its class is a bad trade; the walk commits it only
+  if it turns out to need it, and the untracked path above is where it is.
+  **What the walk still owes** — unchanged, and this is the work, not a blocker:
+  whether the conservation population is a REGRESSION or the declared-behaviour
+  shape already triaged 2026-08-05, and separately whether the single ours-
+  attributed stability violation is a known class. `docs/runbooks/sweep-finding.md`,
+  terminal states regression / known-open / non-defect / instrument-defect /
+  new-class / could-not-verify. Two facts to carry into it: this repo's earlier
+  conservation reds were a SINGLE failing row (BACKLOG's own record), and 14 with
+  per-row counts in the hundreds is a different quantity; and the remaining 13
+  captures rotate, so the walk freezes what it rests on before closing — the pin
+  above covers only the stability row.
+  Anchor: docs/runbooks/sweep-finding.md
+  Write-set: BACKLOG.md, docs/directives/robustness-threat-matrix.md
+  Verifier: node tools/bust-triage.mjs
 
 
 
