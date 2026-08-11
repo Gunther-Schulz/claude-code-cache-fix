@@ -248,6 +248,15 @@ test("BITE — --protect survives a retention sweep that deletes an unprotected 
   });
 });
 
+test("the protected dir is created 0700, not at the ambient umask", async () => {
+  await withCaptures(async ({ capturesDir, protectedDir, env }) => {
+    const cap = "s-zzzzmode00-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
+    await writeCapture(capturesDir, cap, 1024);
+    await run("node", [TOOL, join(capturesDir, cap), "--protect"], { env });
+    assert.equal((await stat(protectedDir)).mode & 0o777, 0o700, "the protected dir holds the same class of bytes as the registry");
+  });
+});
+
 test("BITE — re-protecting an already-linked capture is idempotent: same inode, no error, nothing new printed", async () => {
   await withCaptures(async ({ capturesDir, protectedDir, env }) => {
     const cap = "s-zzzzidemp-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
