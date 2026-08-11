@@ -455,15 +455,119 @@ export function collectRepo(opts = {}) {
 }
 
 // ==========================================================================
+// 5. lane branches — enumerated by BRANCH, never by worktree. A branch can
+//    outlive its worktree (docs/dev-loop.md, "A lane's report ends the
+//    LANE. Nothing ends the INTEGRATION" — measured 2026-08-11: an orphaned
+//    branch with real, unintegrated work and no registered worktree), so an
+//    inventory built from `git worktree list` alone cannot see it. The
+//    population is the UNION of (a) every branch registered to a worktree
+//    (`git worktree list --porcelain`, `branch refs/heads/...`) and (b)
+//    every branch matching one of this repo's two lane naming conventions
+//    (`worktree-agent-*`, the harness's native isolation; `wt/*`, the
+//    dispatch skill's manual recipe) — (a) alone misses the orphan class,
+//    (b) alone misses a lane on a branch named by neither convention.
+//
+//    RESIDUAL, named per docs/dev-loop.md's pattern-scope rule ("name one
+//    member of the class the pattern cannot match"): a lane branch named
+//    neither `worktree-agent-*` nor `wt/*`, whose worktree has already been
+//    removed, is invisible to this collector — its worktree-registration
+//    signal and its naming-convention signal are both gone. No pattern
+//    used here reaches it; only a wider enumeration (every local branch,
+//    cross-checked for divergence from main) would.
+//
+//    Outstanding/already-upstream are counted by PATCH-ID via `git cherry
+//    main <branch>` (`+` = not upstream, `-` = already upstream by
+//    patch-id), never by revision count — this repo's integration verb is
+//    cherry-pick, which rewrites every hash it touches, so a revision count
+//    over-reports (docs/dev-loop.md, the lane-integration paragraph).
+//
+//    `aggregateLaneBranches` is split out as a pure function over an
+//    already-enumerated branch list so it can be exercised against frozen
+//    fixture data (a git-free reproduction of a real, since-cleared
+//    inventory) without shelling out to git.
+// ==========================================================================
+
+const LANE_BRANCH_PATTERNS = [/^worktree-agent-/, /^wt\//];
+
+export function aggregateLaneBranches(branches) {
+  const totalOutstanding = branches.reduce((s, b) => s + b.outstanding, 0);
+  const branchesWithWork = branches.filter((b) => b.outstanding > 0).length;
+  const orphanedWithWork = branches.filter((b) => b.outstanding > 0 && !b.worktreeRegistered).length;
+  return { branchCount: branches.length, totalOutstanding, branchesWithWork, orphanedWithWork };
+}
+
+export function collectLaneBranches({ repoRoot = REPO_ROOT, mainRef = "main" } = {}) {
+  const mainCheck = runGit(["rev-parse", "--verify", mainRef], repoRoot);
+  if (!mainCheck.ok) {
+    return { ok: false, reason: `main ref '${mainRef}' does not resolve: ${mainCheck.reason}` };
+  }
+
+  const wt = runGit(["worktree", "list", "--porcelain"], repoRoot);
+  if (!wt.ok) return { ok: false, reason: `git worktree list failed: ${wt.reason}` };
+  const worktreeBranches = new Set(
+    parseWorktreePorcelain(wt.out)
+      .map((w) => w.branch)
+      .filter(Boolean)
+      .map((b) => b.replace(/^refs\/heads\//, "")),
+  );
+
+  const refsRes = runGit(["for-each-ref", "--format=%(refname:short)", "refs/heads/"], repoRoot);
+  if (!refsRes.ok) return { ok: false, reason: `git for-each-ref failed: ${refsRes.reason}` };
+  const allBranches = refsRes.out.split("\n").filter(Boolean);
+  const patternBranches = allBranches.filter((b) => LANE_BRANCH_PATTERNS.some((re) => re.test(b)));
+
+  const population = new Set([...worktreeBranches, ...patternBranches]);
+  // The primary checkout's own branch (mainRef) is always worktree-registered
+  // and is never itself a lane.
+  population.delete(mainRef);
+
+  const branches = [];
+  for (const branch of [...population].sort()) {
+    const tip = runGit(["rev-parse", "--short", branch], repoRoot);
+    if (!tip.ok) return { ok: false, reason: `git rev-parse --short ${branch} failed: ${tip.reason}` };
+
+    const mergeBaseFull = runGit(["merge-base", mainRef, branch], repoRoot);
+    if (!mergeBaseFull.ok) {
+      return { ok: false, reason: `git merge-base ${mainRef} ${branch} failed: ${mergeBaseFull.reason}` };
+    }
+    const mergeBaseShort = runGit(["rev-parse", "--short", mergeBaseFull.out.trim()], repoRoot);
+    if (!mergeBaseShort.ok) {
+      return { ok: false, reason: `git rev-parse --short <merge-base of ${branch}> failed: ${mergeBaseShort.reason}` };
+    }
+
+    const cherry = runGit(["cherry", mainRef, branch], repoRoot);
+    if (!cherry.ok) return { ok: false, reason: `git cherry ${mainRef} ${branch} failed: ${cherry.reason}` };
+    let outstanding = 0;
+    let alreadyUpstream = 0;
+    for (const line of cherry.out.split("\n")) {
+      if (line.startsWith("+")) outstanding += 1;
+      else if (line.startsWith("-")) alreadyUpstream += 1;
+    }
+
+    branches.push({
+      branch,
+      tip: tip.out.trim(),
+      mergeBase: mergeBaseShort.out.trim(),
+      outstanding,
+      alreadyUpstream,
+      worktreeRegistered: worktreeBranches.has(branch),
+    });
+  }
+
+  return { ok: true, branches, ...aggregateLaneBranches(branches) };
+}
+
+// ==========================================================================
 // Top-level collection — one pass, two renderers
 // ==========================================================================
 
-export async function collectAll({ matrix = {}, backlog = {}, verification = {}, repo = {} } = {}) {
+export async function collectAll({ matrix = {}, backlog = {}, verification = {}, repo = {}, laneBranches = {} } = {}) {
   return {
     matrix: collectMatrix(matrix),
     backlog: collectBacklog(backlog),
     verification: await collectVerification(verification),
     repo: collectRepo(repo),
+    laneBranches: collectLaneBranches(laneBranches),
   };
 }
 
@@ -588,6 +692,19 @@ function renderRepo(r) {
   return lines.join("\n");
 }
 
+function renderLaneBranches(lb) {
+  const lines = ["== lane branches =="];
+  lines.push(
+    fmtVerdict("lane branches", lb, (x) =>
+      `lane branches: ${x.branchCount} branch(es), ${x.totalOutstanding} outstanding commit(s), ` +
+      `${x.branchesWithWork} with work, ${x.orphanedWithWork} orphaned-with-work (no registered worktree)` +
+      (x.orphanedWithWork
+        ? ": " + capList(x.branches.filter((b) => b.outstanding > 0 && !b.worktreeRegistered).map((b) => b.branch))
+        : "")),
+  );
+  return lines.join("\n");
+}
+
 export function renderText(data) {
   return [
     renderMatrix(data.matrix),
@@ -597,6 +714,8 @@ export function renderText(data) {
     renderVerification(data.verification),
     "",
     renderRepo(data.repo),
+    "",
+    renderLaneBranches(data.laneBranches),
     "",
   ].join("\n");
 }

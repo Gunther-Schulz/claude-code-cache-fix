@@ -62,6 +62,8 @@ const {
   collectDanglingUnrescued,
   collectWorktrees,
   collectFixturesAccumulation,
+  collectLaneBranches,
+  aggregateLaneBranches,
   renderText,
 } = sr;
 
@@ -81,6 +83,15 @@ const MAIN_CHECKOUT = dirname(
   }).trim(),
 );
 const NONEXISTENT = "/nonexistent/path/state-report-test-does-not-exist";
+
+// The frozen live-world evidence for the lane-branch collector (part A of
+// the lane-branch-collector-and-gate-staleness brief). Captured 2026-08-11
+// before that day's integration cleared the pile it records — see the
+// fixture's own `purpose` field. Read-only: never mutated by this file.
+const LANE_BRANCH_FIXTURE = join(
+  REPO_ROOT,
+  "test/fixtures/lane-branches/inventory-2026-08-11-pre-integration.json",
+);
 
 // The two artifacts the matrix bite cross-checks, each read from its own
 // home: the prose rows and the status declarations live in different files,
@@ -417,6 +428,134 @@ test("repo collectors: unpushed count, rescue-tag reachability, untracked mtime 
 });
 
 // ==========================================================================
+// D. LANE BRANCHES (part A) — enumerated by BRANCH, never by worktree.
+//
+//    D1 is the RED-FIRST case, against the FROZEN fixture: the live world
+//    this fixture recorded is being cleared by the dispatcher's own
+//    integration work as this lane runs, so the live world is not a usable
+//    red case — the fixture is (docs/dev-loop.md, "A red-first arrangement
+//    is anchored to an IMMUTABLE reference, or it decays before it is
+//    built"). D2 is the durable, hermetic, re-runnable form: a synthetic
+//    git repo built from scratch every run. D3 is the could-not-verify arm.
+// ==========================================================================
+
+test("D1 red-first: aggregateLaneBranches over the FROZEN fixture reproduces 43/33/1, "
+  + "and the naive worktree-only enumeration structurally cannot see the orphan", () => {
+  const fixture = JSON.parse(readFileSync(LANE_BRANCH_FIXTURE, "utf8"));
+  const agg = aggregateLaneBranches(fixture.branches);
+  assert.equal(agg.branchCount, 43, "fixture branch count");
+  assert.equal(agg.totalOutstanding, 33, "fixture total outstanding (sum of `+` by patch-id)");
+  assert.equal(agg.branchesWithWork, 7, "fixture branches with outstanding > 0");
+  assert.equal(agg.orphanedWithWork, 1, "fixture orphaned-with-work count");
+
+  // The naive enumeration a `git worktree list`-only approach would produce:
+  // scoped to branches that ARE worktree-registered, it never even sees a
+  // branch whose worktree was removed, so it cannot report it as orphaned —
+  // not because the math is wrong, but because the population never
+  // contained the orphan to begin with. This is the reach gap part A exists
+  // to close, and the two results MUST differ.
+  const naivePopulation = fixture.branches.filter((b) => b.worktreeRegistered);
+  const naiveAgg = aggregateLaneBranches(naivePopulation);
+  assert.equal(naiveAgg.orphanedWithWork, 0,
+    "a worktree-only enumeration can never find an orphan by construction");
+  assert.notEqual(naiveAgg.orphanedWithWork, agg.orphanedWithWork,
+    "the union enumeration and the naive worktree-only enumeration must DIFFER on this fixture, "
+    + "or the collector is not catching the class it exists for");
+});
+
+test("D2 mechanism proof: collectLaneBranches on a synthetic git repo — registered lane, "
+  + "orphaned lane, fully-merged lane, and an already-upstream-by-cherry-pick lane", () => {
+  const dir = tmpDirSync("state-report-lanes-");
+  sh(["init", "-q", "-b", "main"], dir);
+  sh(["config", "user.email", "test@example.com"], dir);
+  sh(["config", "user.name", "State Report Test"], dir);
+  writeFileSync(join(dir, "README.md"), "init\n");
+  sh(["add", "README.md"], dir);
+  sh(["commit", "-q", "-m", "init"], dir);
+
+  // Case 1: worktree-agent-* branch, REGISTERED worktree, 2 outstanding commits.
+  const regDir = join(dir, "wt-reg");
+  sh(["worktree", "add", "-q", "-b", "worktree-agent-testreg", regDir, "main"], dir);
+  writeFileSync(join(regDir, "reg1.md"), "reg1\n");
+  sh(["add", "reg1.md"], regDir);
+  sh(["commit", "-q", "-m", "reg commit 1"], regDir);
+  writeFileSync(join(regDir, "reg2.md"), "reg2\n");
+  sh(["add", "reg2.md"], regDir);
+  sh(["commit", "-q", "-m", "reg commit 2"], regDir);
+
+  // Case 2: worktree-agent-* branch whose worktree is REMOVED after one
+  // commit — the orphan case part A exists to catch.
+  const orphanDir = join(dir, "wt-orphan");
+  sh(["worktree", "add", "-q", "-b", "worktree-agent-testorphan", orphanDir, "main"], dir);
+  writeFileSync(join(orphanDir, "orphan1.md"), "orphan1\n");
+  sh(["add", "orphan1.md"], orphanDir);
+  sh(["commit", "-q", "-m", "orphan commit"], orphanDir);
+  sh(["worktree", "remove", "--force", orphanDir], dir);
+
+  // Case 3: wt/foo/bar, fully merged (same tip as main) — 0 outstanding.
+  sh(["branch", "wt/foo/bar", "main"], dir);
+
+  // Case 4: a branch already upstream BY PATCH-ID (cherry-picked onto main)
+  // — proves `-` (alreadyUpstream) is never counted as `+` (outstanding).
+  // Main must DIVERGE before the cherry-pick, or the cherry-picked commit's
+  // parent/tree/author/committer stay byte-identical to the original and
+  // git mints the SAME commit object (same sha) instead of an equivalent
+  // one — the two must be distinct commits sharing only a patch-id for
+  // `git cherry` to have anything to compare (verified: without the
+  // divergence commit below, `wt/cherry-picked` and `main`'s tip land on
+  // the identical sha and `git cherry` reports nothing at all).
+  sh(["checkout", "-q", "-b", "tmp-source", "main"], dir);
+  writeFileSync(join(dir, "cherry.md"), "cherry content\n");
+  sh(["add", "cherry.md"], dir);
+  sh(["commit", "-q", "-m", "the cherry commit"], dir);
+  const cherrySha = sh(["rev-parse", "HEAD"], dir);
+  sh(["checkout", "-q", "main"], dir);
+  writeFileSync(join(dir, "diverge.md"), "diverge\n");
+  sh(["add", "diverge.md"], dir);
+  sh(["commit", "-q", "-m", "main diverges"], dir);
+  sh(["cherry-pick", cherrySha], dir);
+  sh(["branch", "wt/cherry-picked", cherrySha], dir);
+  sh(["branch", "-D", "tmp-source"], dir);
+
+  const res = collectLaneBranches({ repoRoot: dir });
+  assert.equal(res.ok, true, res.reason);
+
+  const byName = Object.fromEntries(res.branches.map((b) => [b.branch, b]));
+
+  assert.ok(byName["worktree-agent-testreg"], "registered lane must be enumerated");
+  assert.equal(byName["worktree-agent-testreg"].outstanding, 2);
+  assert.equal(byName["worktree-agent-testreg"].alreadyUpstream, 0);
+  assert.equal(byName["worktree-agent-testreg"].worktreeRegistered, true);
+
+  assert.ok(byName["worktree-agent-testorphan"], "orphaned lane must still be enumerated — the whole point");
+  assert.equal(byName["worktree-agent-testorphan"].outstanding, 1);
+  assert.equal(byName["worktree-agent-testorphan"].worktreeRegistered, false);
+
+  assert.ok(byName["wt/foo/bar"], "wt/* convention branch must be enumerated");
+  assert.equal(byName["wt/foo/bar"].outstanding, 0);
+
+  assert.ok(byName["wt/cherry-picked"], "cherry-picked-upstream branch must be enumerated");
+  assert.equal(byName["wt/cherry-picked"].outstanding, 0,
+    "content already upstream by patch-id must NOT count as outstanding");
+  assert.ok(byName["wt/cherry-picked"].alreadyUpstream >= 1,
+    "the cherry-picked commit must be counted as already-upstream");
+
+  const agg = aggregateLaneBranches(res.branches);
+  assert.equal(agg.totalOutstanding, 3, "2 (reg) + 1 (orphan) + 0 + 0");
+  assert.equal(agg.branchesWithWork, 2, "reg and orphan");
+  assert.equal(agg.orphanedWithWork, 1, "only the orphan lane");
+});
+
+test("D3 could-not-verify: collectLaneBranches on a non-git directory reports a reason, never zero", () => {
+  const dir = tmpDirSync("state-report-notgit-");
+  const res = collectLaneBranches({ repoRoot: dir });
+  assert.equal(res.ok, false);
+  assert.equal(typeof res.reason, "string");
+  assert.ok(res.reason.length > 0);
+  assert.equal(res.branches, undefined, "must not silently carry an empty branch list");
+});
+
+// ==========================================================================
 // Renderer sanity — the JSON and text renderers share one collected object
 // (per the file's own header comment); this just checks renderText doesn't
 // throw on a real collectMatrix/collectBacklog `ok:false` shape and prints
@@ -439,9 +578,10 @@ test("renderText prints COULD-NOT-VERIFY for a failed collector rather than thro
       worktrees: { ok: false, reason: "synthetic" },
       fixtures: { ok: false, reason: "synthetic" },
     },
+    laneBranches: { ok: false, reason: "synthetic" },
   });
   // One line per collector: matrix(1) + backlog(1) + verification's three
-  // sub-collectors(3) + repo's five sub-collectors(5) = 10.
+  // sub-collectors(3) + repo's five sub-collectors(5) + laneBranches(1) = 11.
   const occurrences = (text.match(/COULD-NOT-VERIFY/g) || []).length;
-  assert.equal(occurrences, 10, text);
+  assert.equal(occurrences, 11, text);
 });
