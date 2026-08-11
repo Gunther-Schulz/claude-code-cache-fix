@@ -2669,6 +2669,7 @@ function parseArgs(argv) {
     dumpForwarded: null,
     dumpOut: null,
     pinRows: false,
+    attributeConservation: false,
   };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -2698,6 +2699,8 @@ function parseArgs(argv) {
       else args.wipeStateAt = v;
     } else if (a === "--pin-rows") {
       args.pinRows = true;
+    } else if (a === "--attribute-conservation") {
+      args.attributeConservation = true;
     } else if (a === "--dump-forwarded") {
       args.dumpForwarded = parseDumpSpec(argv[++i] ?? "");
     } else if (a === "--dump-out") {
@@ -2711,7 +2714,7 @@ function parseArgs(argv) {
   }
   if (!args.file) {
     process.stderr.write(
-      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--dump-forwarded N:I,...] [--dump-out path] [--pin-rows] [--json]\n",
+      "usage: node tools/replay.mjs <captures.jsonl> [--env FLAG=1 ...] [--gates-from-capture] [--census] [--trace] [--restart-at N] [--wipe-state-at N] [--dump-forwarded N:I,...] [--dump-out path] [--pin-rows] [--attribute-conservation] [--json]\n",
     );
     process.exit(2);
   }
@@ -3289,6 +3292,13 @@ export function conservationViolations(e, seen, seenRewrites) {
           at: i,
           side: "in",
           declarationsUnavailable,
+          // The units the sentence is ABOUT, as data. `at` says which message;
+          // without this nothing downstream can ask which BLOCK of it, and
+          // per-stage attribution (attributeConservationRows) is exactly that
+          // question. A consumer re-deriving the set from `at` would have to
+          // re-run the whole gate to know which units were exempt — the
+          // hand-rolled-identity error one level down.
+          unaccountedHashes: unaccounted.map((u) => u.hash),
           detail: `in[${i}] (${msg?.role}): ${unaccounted.length} of ${units.length} unit(s) reconstructible from neither a forwarded block nor a forwarded join${unavailableNote}`,
         });
       }
@@ -3411,6 +3421,9 @@ export function conservationViolations(e, seen, seenRewrites) {
           at: i,
           side: "in",
           declarationsUnavailable,
+          // See the sibling field on `suppressed-without-copy` above: the row
+          // names WHICH units, so a later pass can ask which stage took them.
+          unaccountedHashes: unaccounted.map((u) => u.hash),
           detail: `in[${i}] (${msg?.role}): ${unaccounted.length} of ${units.length} unit(s) present in CC's request and in no forwarded message${unavailableNote}`,
         });
       }
@@ -3494,6 +3507,227 @@ export function findConservationViolations(entries) {
     out.push(...conservationViolations(raw, seenByGroup.get(g), rewritesByGroup.get(g)).violations);
   }
   return out.sort((a, b) => a.n - b.n);
+}
+
+// --- Per-stage attribution for the conservation gate's R-side rows ---
+//
+// THE GAP THIS FILLS. The extension bisection further down runs under
+// `if (violations.length)` — STABILITY rows only. A conservation row has
+// therefore always arrived with no answer to "which stage took the bytes", and
+// the 2026-08-11 sweep produced 1,899 of them across eleven captures. The walk
+// answered it by hand, one candidate extension's exported transform per round;
+// that is the hand method `docs/runbooks/sweep-finding.md` step 4 carries a
+// [GRADUATE] marker for, and this is where it graduates to.
+//
+// WHY NOT BISECTION, which is what the stability side does. Bisection over
+// truncated pipeline prefixes costs ~log2(35) ≈ 6 full-corpus replays and
+// assumes the effect is MONOTONE in the cut. Neither is needed here: the
+// question is per-request rather than per-pair, so a single replay that runs
+// the pipeline ONE STAGE AT A TIME — which the main loop already does, to build
+// `mutatedBy` — can watch the unit's hash disappear and name the stage exactly.
+// One corpus pass instead of six, and no monotonicity assumption to be wrong
+// about.
+//
+// WHY THE WHOLE CORPUS ANYWAY. insertion-normalization and
+// deferred-tool-rewrite build per-conversation state from every preceding
+// request, so a pass that replayed only the rowed requests would put them in a
+// state the violating run never had and attribute the difference to the wrong
+// stage — the same reason the stability attribution replays the corpus rather
+// than the offending pair.
+//
+// THREE ANSWERS, not two (docs/dev-loop.md, "a checker has THREE answers"):
+//   removed           a stage took it, and the stage is named
+//   survived-pipeline the unit is STILL on the wire when the pipeline ends, so
+//                     this replay does not reproduce the row at all: COULD NOT
+//                     VERIFY, never "clean" and never a stage's name
+//   absent-in-raw     the unit was not in the body this replay started from, so
+//                     nothing in the pipeline can have removed it — a finding
+//                     about the probe's aim, which is exactly the state in
+//                     which an instrument returns a confident wrong name
+//
+// COST, so a caller can decide rather than discover: one extra full-corpus
+// replay, and per rowed request one whole-body hash per stage plus a unit-hash
+// rebuild only on the stages that actually changed the body. It is off unless
+// `--attribute-conservation` asks for it, and `gate-live` does not pass it —
+// the daily sweep already replays every capture once and doubling that for an
+// annotation nobody reads at 04:00 is the wrong trade. A bust walk asks for it
+// on the one capture in question.
+//
+// NOT COVERED, named rather than left to be discovered: the F-side `invented`
+// kind, whose mirror question is "which stage ADDED these bytes". The 2026-08-11
+// population contains ZERO invented rows, so building it would ship a check that
+// had never gone red on a real defect. Booked in BACKLOG.md instead.
+export async function attributeConservationRows(file, rows, { loadExtensions, runOnRequest }) {
+  const targets = new Map();
+  for (const row of rows) {
+    if (!row?.unaccountedHashes?.length) continue;
+    if (!targets.has(row.n)) targets.set(row.n, []);
+    targets.get(row.n).push(row);
+  }
+  if (!targets.size) return rows;
+
+  // A FRESH state root, all three of them together — the same isolation
+  // collectPinEvidence and the stability attribution use, and for two reasons
+  // at once. State-writing extensions must not touch the live snapshot store,
+  // and this pass has to start from the same empty state the run that produced
+  // the rows started from: a pass inheriting the main replay's already-built
+  // state would put every stateful extension one corpus ahead of where it was.
+  const scratch = await tmpDir("cache-fix-cons-attr-");
+  const saved = process.env.CLAUDE_CONFIG_DIR;
+  const savedState = process.env.XDG_STATE_HOME;
+  const savedData = process.env.XDG_DATA_HOME;
+  process.env.CLAUDE_CONFIG_DIR = scratch;
+  process.env.XDG_STATE_HOME = scratch;
+  process.env.XDG_DATA_HOME = scratch;
+  try {
+  const extensions = await loadExtensions(EXT_DIR, EXT_CONFIG);
+  const mutators = extensions.filter((e) => e.onRequest);
+
+  // Per request n: hash -> { ext, reason }.
+  const verdicts = new Map();
+  let reqN = -1;
+  for await (const [, line] of readCapture(file)) {
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    // Same numbering rule as the main loop, so a verdict lands on the request
+    // index the row was reported in — the two-coordinate-spaces error this file
+    // has paid for at every other join.
+    if (rec.type === "outcome" || rec.type === "boot") continue;
+    const n = ++reqN;
+    const ctx = {
+      body: structuredClone(rec.body),
+      headers: {
+        "anthropic-beta": rec.headers?.["anthropic-beta"] ?? undefined,
+        "x-session-id": rec.headers?.["session-id"] ?? rec.sid ?? undefined,
+      },
+      meta: { route: "messages" },
+    };
+    if (!targets.has(n)) {
+      // Every request runs, for the state reason above; only the rowed ones
+      // are watched.
+      await runOnRequest(ctx, mutators);
+      continue;
+    }
+    const want = new Set(targets.get(n).flatMap((r) => r.unaccountedHashes));
+    const verdict = new Map();
+    const bodyHashes = () => {
+      const s = new Set();
+      for (const m of ctx.body?.messages ?? []) for (const u of blockUnitsFull(m)) s.add(u.hash);
+      return s;
+    };
+    // WHAT the stage did to the unit, recorded AT THE MOMENT it is found —
+    // closing-gate q2, which for a producer reading a rotating capture is the
+    // only moment the inputs still exist. Shape, never bytes: which message
+    // carried the unit, whether the message shrank or the whole message left,
+    // and the unit's own kind and size. That is enough to tell a block deletion
+    // from a dropped message from a substitution without putting one byte of
+    // another session's conversation anywhere near a tracked file.
+    const shapeOf = () => (ctx.body?.messages ?? []).map((m) => blockUnitsFull(m));
+    const locate = (units, h) => {
+      for (let i = 0; i < units.length; i++) {
+        const j = units[i].findIndex((u) => u.hash === h);
+        if (j !== -1) return { msgIndex: i, blockIndex: j, unit: units[i][j], msgUnits: units[i].length };
+      }
+      return null;
+    };
+    let present = bodyHashes();
+    for (const h of want) {
+      if (!present.has(h)) verdict.set(h, { ext: null, reason: "absent-in-raw" });
+    }
+    let live = [...want].filter((h) => !verdict.has(h));
+    let prevBody = sha(JSON.stringify(ctx.body));
+    let beforeShape = shapeOf();
+    // WHERE the unit started, and which stage first moved it. Without this the
+    // evidence names a message index in a space the ROW does not share: the row
+    // says `in[3]` (CC's raw array) and a later stage can have relocated the
+    // block long before the one that removed it, so the two numbers describe
+    // different bodies. Reading them as one is precisely the
+    // two-coordinate-spaces error docs/dev-loop.md collects — and here the
+    // relocation is not noise, it is half the mechanism.
+    const rawShape = beforeShape;
+    const rawAt = new Map(live.map((h) => [h, locate(rawShape, h)?.msgIndex ?? null]));
+    const movedBy = new Map();
+    for (const ext of mutators) {
+      await runOnRequest(ctx, [ext]);
+      if (!live.length) continue; // still running the stage, no longer watching
+      // The cheap gate first: a stage that did not change the body cannot have
+      // removed anything, and most stages do not.
+      const nowBody = sha(JSON.stringify(ctx.body));
+      if (nowBody === prevBody) continue;
+      prevBody = nowBody;
+      present = bodyHashes();
+      const still = [];
+      const afterShape = shapeOf();
+      for (const h of live) {
+        if (present.has(h)) {
+          still.push(h);
+          // A stage that RELOCATED the unit is recorded the first time it
+          // happens: the mover and the remover are routinely different
+          // extensions, and a report naming only the second one describes half
+          // an interaction.
+          if (!movedBy.has(h)) {
+            const now = locate(afterShape, h)?.msgIndex ?? null;
+            if (now !== null && now !== rawAt.get(h)) movedBy.set(h, { ext: ext.name, toMsgIndex: now });
+          }
+          continue;
+        }
+        const was = locate(beforeShape, h);
+        verdict.set(h, {
+          ext: ext.name,
+          reason: "removed",
+          movedBy: movedBy.get(h) ?? null,
+          rawMsgIndex: rawAt.get(h) ?? null,
+          evidence: was === null ? null : {
+            msgIndex: was.msgIndex,
+            blockIndex: was.blockIndex,
+            blockType: was.unit.text === null ? "non-text" : "text",
+            reminderWrapped: was.unit.wrapped,
+            chars: was.unit.text === null ? null : was.unit.text.length,
+            msgUnitsBefore: was.msgUnits,
+            // `null` where the message is gone from the body entirely, which is
+            // a different act from shrinking it and must not read as one.
+            msgUnitsAfter: afterShape[was.msgIndex]?.length ?? null,
+            bodyMsgsBefore: beforeShape.length,
+            bodyMsgsAfter: afterShape.length,
+          },
+        });
+      }
+      live = still;
+      beforeShape = afterShape;
+    }
+    for (const h of live) verdict.set(h, { ext: null, reason: "survived-pipeline" });
+    verdicts.set(n, verdict);
+  }
+
+  for (const row of rows) {
+    if (!row?.unaccountedHashes?.length) continue;
+    const verdict = verdicts.get(row.n);
+    const perUnit = row.unaccountedHashes.map((h) =>
+      verdict?.get(h) ?? { ext: null, reason: "request-not-replayed" });
+    // The row-level `ext` is the single name a reader wants, and it is only
+    // honest where every unit agrees. Units removed by DIFFERENT stages get
+    // null here with the split visible in `perUnit` — a row-level name over a
+    // disagreeing set is a label over its own body.
+    const named = [...new Set(perUnit.filter((u) => u.reason === "removed").map((u) => u.ext))];
+    row.attribution = {
+      ext: named.length === 1 && perUnit.every((u) => u.reason === "removed") ? named[0] : null,
+      perUnit,
+    };
+  }
+  return rows;
+  } finally {
+    if (saved === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = saved;
+    if (savedState === undefined) delete process.env.XDG_STATE_HOME;
+    else process.env.XDG_STATE_HOME = savedState;
+    if (savedData === undefined) delete process.env.XDG_DATA_HOME;
+    else process.env.XDG_DATA_HOME = savedData;
+    await rm(scratch, { recursive: true, force: true });
+  }
 }
 
 // Fidelity classification, pure so the population boundaries are testable.
@@ -4077,6 +4311,13 @@ async function main() {
     }
   }
 
+  // The conservation side's own attribution, off by default — see
+  // `attributeConservationRows` for why it is one corpus pass rather than the
+  // bisection above, and why the daily sweep does not ask for it.
+  if (args.attributeConservation && conservation.length) {
+    await attributeConservationRows(args.file, conservation, { loadExtensions, runOnRequest });
+  }
+
   // --- Row evidence pins ---
   //
   // Off unless asked for, because it costs a second pipeline pass over the
@@ -4248,8 +4489,34 @@ async function main() {
     process.stdout.write(
       `\ncontent-conservation violations (CC bytes neither forwarded nor accounted for): ${conservation.length}\n`,
     );
+    // The whole-population answer, printed BEFORE the twenty-row sample —
+    // twenty rows of a 1,899-row population say nothing about the class, and
+    // the class is the question a walk arrives with. Absent the flag it says
+    // so rather than printing nothing, which is the difference between "not
+    // asked" and "asked and found nothing".
+    if (conservation.length) {
+      if (!args.attributeConservation) {
+        process.stdout.write(
+          `  per-stage attribution: NOT RUN (pass --attribute-conservation; costs one extra corpus replay)\n`,
+        );
+      } else {
+        const tally = new Map();
+        for (const c of conservation) {
+          for (const u of c.attribution?.perUnit ?? [{ reason: "not-attributed" }]) {
+            const label = u.reason === "removed" ? u.ext : u.reason;
+            tally.set(label, (tally.get(label) ?? 0) + 1);
+          }
+        }
+        process.stdout.write(`  per-stage attribution, by unit (${conservation.length} row(s)):\n`);
+        for (const [label, count] of [...tally].sort((a, b) => b[1] - a[1])) {
+          process.stdout.write(`    ${label}: ${count}\n`);
+        }
+      }
+    }
     for (const c of conservation.slice(0, 20)) {
-      process.stdout.write(`  n=${c.n} ts=${c.ts} ${c.kind}: ${c.detail}\n`);
+      process.stdout.write(`  n=${c.n} ts=${c.ts} ${c.kind}: ${c.detail}`
+        + (c.attribution ? ` -> ${c.attribution.ext ?? c.attribution.perUnit.map((u) => u.reason).join(",")}` : "")
+        + `\n`);
     }
     // The population boundary, said out loud rather than left implicit: this
     // gate looks at non-assistant messages only (see its DEFINITION), and

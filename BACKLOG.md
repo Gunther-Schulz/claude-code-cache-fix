@@ -311,6 +311,119 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY 2026-08-11 — the RELOCATE-THEN-PIN content loss: CC-sent reminder
+  blocks are deleted off the wire, live, and D1 created it.** Threat-matrix
+  row 30; terminal state REGRESSION per `docs/runbooks/sweep-finding.md`, which
+  means this does NOT close here — it enters `docs/runbooks/bust-appears.md` or
+  ships on its own branch.
+  **The mechanism, isolated by execution rather than by reading.**
+  `fresh-session-sort` (order 250) relocates a reminder block its own predicates
+  claim (`isSkillsBlock`/`isHooksBlock`/`isDeferredToolsBlock`/`isMcpBlock`)
+  into `messages[0]`. `insertion-normalization` (order 395) then applies its
+  volatile pin: `pinnedForwardForm` returns `stored.m`, the message's STORED
+  FIRST-SEEN form, which predates the relocated block. The block therefore
+  reaches NO forwarded message. The model never sees it.
+  **Why it is new: D1 (`246b61d`) created it by fixing row 26.** While a
+  first-appearance relocation still rotated the conversation sub-key,
+  insertion-normalization saw a NEW conversation, reset, held no canonical, and
+  never pinned — so the block survived by accident. D1 made identity
+  pre-pipeline, the canonical now survives the relocation, and the pin eats the
+  block. Counterfactual, one variable, capture s-captureBA under the SERVING
+  gate set: pre-D1 build `44b62d9` -> **0 conservation rows, exit 0**, and
+  `--dump-forwarded 46:0` shows the MCP block present as `messages[0]` block 0;
+  today's build -> **81 rows**, block absent everywhere.
+  **Population: 750 of 750 rows across five captures carry one signature**
+  (s-captureBA 81, BD 179, BF 251, BG 125, BI 114) — `kind: lost`, `at: 3`,
+  side `in`, one unit, ZERO invented, remover `insertion-normalization`, mover
+  `fresh-session-sort`, target `messages[0]`, a 1,433-char reminder block. Seven
+  of the twelve failing captures are unexamined; that is the residual on the
+  population claim, not on the mechanism.
+  **Blast radius is all four relocatable types**, measured on the synthetic:
+  skills, deferred, hooks and mcp are destroyed alike. Bounding precondition:
+  the block's FIRST appearance must postdate the target message becoming
+  canonical — a block present at first-seen is inside `stored.m` and survives.
+  **Design (decided): teach the pin about declared relocations.**
+  `pinnedForwardForm` must not silently drop blocks another extension placed in
+  the message after first-seen. Serve `stored.m`, then RE-APPLY the relocated
+  blocks `fresh-session-sort` declared for THIS request
+  (`ctx.meta.freshSessionSortStats.relocated` + `targetIndex`) — its own
+  declaration, never a re-derived "this looks relocated" guess, which is the
+  same declared-and-verified discipline the conservation gate's clauses already
+  use. Rejected alternative, and why: reordering the two extensions so the pin
+  runs first inverts a dependency row 26 already paid for and would re-open the
+  sub-key question; the loss is a composition defect, and the composition point
+  is where it belongs.
+  **Red-first arrangement, already built and currently GREEN as a
+  characterization of the defect:** `test/relocate-then-pin-conservation.test.mjs`
+  drives the REAL pipeline over a synthetic corpus and asserts today's behaviour
+  (block absent from the forwarded array) plus the two instrument-positives that
+  keep it from passing vacuously (`relocated:["mcp"]`, `pinned > 0`). The fix
+  flips those assertions to the INVARIANT — the block IS on the wire — in the
+  SAME commit, and the flip is the red. The expectation comes from the
+  conservation gate's own R-side clause (a), never from what either extension
+  does. Do NOT convert the fixture to a harvested pin: the four predicates are
+  literal-text prefix tests and the scrub tokenizes text, so a pin reproduces
+  nothing while reporting success.
+  **Deployment-coupled**: `proxy/**` change -> dotfiles pin bump
+  (`git rev-parse --short HEAD:proxy`) + `systemctl --user restart
+  cache-fix-proxy`, stated at a session boundary. Touches neither state KEYS nor
+  freeze logic, so row 3's restart-transparency holds; say so before restarting.
+  **The interim is the operator's call and it is live** — see the report; the
+  repo's own ordering (safety outranks cache) says a correctness loss outranks
+  the billing defect reverting D1 would reinstate.
+  **Done-criterion:** the characterization assertions in
+  `test/relocate-then-pin-conservation.test.mjs` are flipped to the invariant
+  (the relocated block IS present in the forwarded array) for all four types
+  and pass, with the two instrument-positives still asserting that the
+  relocation and the pin both fired; `replay.mjs --attribute-conservation` over
+  s-captureBA reports 0 conservation rows where it reports 81 today, with that
+  output pasted; full suite green; row 30 re-graded with the shipping commit.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: proxy/extensions/insertion-normalization.mjs, test/relocate-then-pin-conservation.test.mjs, docs/directives/robustness-threat-matrix.md, BACKLOG.md
+  Verifier: node --test test/relocate-then-pin-conservation.test.mjs
+
+- **READY 2026-08-11 — the conservation attribution has no F-side (`invented`)
+  half, and no live positive exists to build one against.** Shipped this day:
+  `replay.mjs --attribute-conservation` answers "which stage REMOVED these
+  bytes" for every R-side row, with a `movedBy` naming the stage that relocated
+  the unit first. The mirror question — which stage ADDED bytes CC never sent —
+  is unbuilt, deliberately: the 2026-08-11 population contains ZERO `invented`
+  rows, so building it now would ship a check that had never gone red on a real
+  defect (dev-loop.md, "a check whose motivating case dissolves does not get a
+  substitute case found for it"). Trigger to build: the first `invented` row any
+  sweep reports. Until then this entry is the named deferral, not a gap.
+  **Design (decided):** mirror the R-side loop — track the first stage after
+  which a candidate `invented` hash APPEARS in the body, reusing the same
+  per-stage snapshot the remover side already takes, and report it on the row
+  as `attribution.perUnit[].reason = "added"`. No new pass and no new replay.
+  **Done-criterion:** an `invented` row from a real sweep names the stage that
+  added the bytes, demonstrated red-first against that real positive (never a
+  planted one) with the output pasted, plus the discrimination control that a
+  unit CC did send is not reported as added.
+  Anchor: tools/replay.mjs
+  Write-set: tools/replay.mjs, test/replay-conservation-attribution.test.mjs
+  Verifier: node --test test/replay-conservation-attribution.test.mjs
+
+- **READY 2026-08-11 — replay request ordinals and the live insertion event log
+  share no joinable coordinate, and the walk compared them by timestamp.** The
+  2026-08-11 walk refuted `insertion-normalization` by reading a live
+  `<key>-events.jsonl` record 3 ms from the row's own timestamp. Replay's
+  `report[].key` is the SESSION key; the event log's `key` is the
+  conversation-SUB-keyed form, so the two cannot be joined and the match was
+  made on time alone — across records that need not belong to the same
+  conversation. Two independent measurements only compare where they share a
+  coordinate (operator corpus, grounding). Design: `replay.mjs` emits the
+  resolved conversation sub-key per request (it already imports
+  `resolveInsertionSessionKey`), so a row joins to the log by key, not by clock.
+  Red-first: the 2026-08-11 n=46 case must join to exactly one log record, and a
+  neighbouring conversation's record 3 ms away must NOT match.
+  **Done-criterion:** a replay row carries the conversation sub-key, the n=46
+  case joins to exactly one live log record by that key, the 3 ms-away
+  neighbouring record does not match, and both results are pasted.
+  Anchor: tools/replay.mjs
+  Write-set: tools/replay.mjs, test/replay-conservation-attribution.test.mjs
+  Verifier: node --test test/replay-conservation-attribution.test.mjs
+
 - **READY 2026-08-11 — the push scan diffs range ENDPOINTS, so a
   range-interior blob — a leak committed then scrubbed or deleted within the
   same pushed series — publishes at its intermediate SHA unscanned; and a

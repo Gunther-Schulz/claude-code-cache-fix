@@ -127,12 +127,34 @@ environment resolved, `unavailable` or `empty` otherwise.
    reproduce what the gate already computed.
 
 4. **Attribute ours-vs-CC's from the PRE-pipeline capture.**
-   `[GRADUATE -> extend replay.mjs's extension bisection to conservation
-   rows; BACKLOG ready. The machinery exists (replay.mjs:3169) and is
-   pointed at stability violations only — conservation rows get no
-   attribution, which is why this step is hand-run at all. dev-loop's
-   "answered by hand twice" trigger (dev-loop.md:269) fired on 2026-08-05,
-   when this exact hand method ran over three extensions in one sitting]`
+
+   **For a CONSERVATION row this is now one command** — the former
+   `[GRADUATE]` marker here is discharged (2026-08-11):
+
+   ```sh
+   node tools/replay.mjs <capture> --attribute-conservation   # + the SERVING --env set
+   ```
+
+   Every R-side row gains an `attribution`: which stage REMOVED each
+   unaccounted unit, which stage had MOVED it there first, its raw message
+   index, and the block's shape at the moment it went. Three answers, not
+   two — `removed` names a stage, `survived-pipeline` means this replay does
+   not reproduce the row (COULD NOT VERIFY, never clean), `absent-in-raw`
+   indicts the probe's aim. It is one extra corpus replay, so it is OFF by
+   default and `gate-live` does not pass it; a walk asks for it on the one
+   capture in question. Deviation from the marker's own wording, stated:
+   it is NOT the stability side's bisection over truncated pipeline
+   prefixes (~6 corpus replays, and monotone-in-the-cut assumed). The
+   conservation question is per-REQUEST, so one pass that runs the pipeline
+   a stage at a time answers it exactly, for one replay and no assumption.
+
+   Read that first; the hand method below is now the CROSS-CHECK you run on
+   the stage it names, not the way to find the stage. Keep running it — the
+   2026-08-11 walk's attribution named `insertion-normalization`, and only
+   executing the extension's own predicates showed the removal was of a
+   block `fresh-session-sort` had relocated, which is the half a single name
+   cannot express.
+
    Captures are written by `request-capture` at extension order 60, ahead of every
    mutating extension — so a divergence present in the raw capture is Claude
    Code's, and one absent there is ours (dev-loop.md, "Standing rules"). This
@@ -147,7 +169,22 @@ environment resolved, `unavailable` or `empty` otherwise.
    with `content-strip` (run `splitSmooshedReminders` on the flagged block
    and confirm `{peeled:1}`), and 2 to `identity-normalization`'s
    `normalizeSessionStartText` (run it on the flagged text and find the
-   exact offset it rewrote). Reasoning about what an extension does from its
+   exact offset it rewrote).
+
+   **Pass the transform what it actually takes, and prove the probe
+   discriminates before reading its answer.** fresh-session-sort's
+   predicates take the block's TEXT (`isMcpBlock(text)`,
+   `fresh-session-sort.mjs:14-35`); handed the BLOCK object they return
+   `false` on every real case, silently — dev-loop.md records the same
+   wrapped-vs-unwrapped confusion costing three separate bugs, and on
+   2026-08-11 it cost a fourth, here, in this step. What caught it was the
+   CONTROL: a surviving sibling block scored `false` on every predicate too,
+   and a probe whose arms all agree has not discriminated anything
+   (dev-loop.md, "three arms agreeing IS the finding"). So every run of this
+   step carries a block the gate did NOT flag, and the answer counts only
+   once the two differ.
+
+   Reasoning about what an extension does from its
    header or its name is the same error one level down from reasoning about
    the system from its source instead of exercising it — dev-loop.md's
    worked instance of this same trap is `hook-context-normalize`, built and
