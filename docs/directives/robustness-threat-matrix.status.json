@@ -177,8 +177,8 @@
   },
   "30": {
     "status": "RESIDUAL",
-    "evidence": "test/relocate-then-pin-conservation.test.mjs",
+    "evidence": "03398e3",
     "date": "2026-08-11",
-    "residual": "FIXED 2026-08-11 and proven by DIFFERENCE on live traffic: the same three captures that reported 81/179/251 conservation rows replay to 0 under the fix, with stability and safety unchanged at 0 — the forwarded bytes changed without introducing a divergence. Residual, and it is why this is RESIDUAL rather than SHIPPED: the fix is NOT DEPLOYED — it needs the dotfiles pin bump plus a proxy restart, so production is still losing the blocks until that lands. Second residual: seven of the twelve failing captures were never examined, so the corpus-wide claim rests on five. Third: the carried-over set is stable only while fresh-session-sort's relocation memory holds it, so row 25's eviction-stranding residual now reaches this row too — an evicted memory stops declaring the block and CC's own bytes win, which is correct but untested here."
+    "residual": "SHIPPED AND SERVING 2026-08-11 (fork 03398e3; dotfiles pin ec05377; restarted 13:4xZ, verified content-to-content — /health proxy_tree 53180b0da2ee equals proxy/source-fingerprint.mjs over the deployed tree, and the pin equals HEAD:proxy). Proven by DIFFERENCE before deploy: five captures reporting 81/179/251/125/114 conservation rows replay to 0 under the fix, stability and safety unchanged at 0 on each. RESIDUAL rather than SHIPPED for three reasons, none of them the fix's correctness. (1) The post-deploy gate sweep had not finished when this was written, so the fix is verified offline against recorded traffic and NOT yet against a sweep over live post-restart traffic. (2) Seven of the twelve failing captures were never examined; the corpus claim rests on five. (3) The carried-over set is stable only while fresh-session-sort's relocation memory holds it, so row 25's eviction-stranding residual now reaches this row — an evicted memory stops declaring the block and CC's own bytes win, which is correct but untested here."
   }
 }
