@@ -116,21 +116,17 @@ Ordered by REACH — how much downstream evidence the lie corrupts.
    _PARTIAL — the archive is operator-side data, so the write boundary is
    split; the convention half (cite the FILE, not the directory) is decided_
    <!-- entry: "a FROZEN evidence archive whose own cited numbers" -->
-5. **Resolve the conversation sub-key ONCE from the raw body and have both
-   stateful extensions read it.** Row 26's actual fix. The rank is unchanged;
-   only its ENTRY changed, because the two entries that carried this work were
-   merged 2026-08-10 (they were one fix, and the newer one had re-opened a
-   decision the older had already made). This anchor now names the SURVIVING
-   entry — the merged-away one is graded DONE, and a completed item holding a
-   rank is what `backlog-order`'s guard blocks, which is how this was caught:
-   it went red at the push boundary on the same commit that did the merge.
-   _DESK, deployment-coupled — the migration half (state already on disk under
-   rotated keys) is the one open decision and is at the operator; it touches
-   state KEYS, so row 3's restart-transparency declaration is owed before it
-   ships. Its hard-ordering blocker is PARTLY discharged: the gating census
-   class exists in `tools/replay.mjs`, its done-criterion is in a running
-   lane's hands._
-   <!-- entry: "kill the relocation-induced conversation-key rotation" -->
+5. **SHIPPED 2026-08-10 (`246b61d`) — resolve the conversation sub-key ONCE
+   from the raw body and have both stateful extensions read it.** Row 26's
+   actual fix. Rank retired 2026-08-11 rather than re-pointed: the entry it
+   named is now DONE, and `backlog-order`'s guard blocks a completed item
+   holding a rank — it fired at this very edit, which is the second time this
+   one rank has been caught by that guard rather than by a reader. The anchor
+   comment is REMOVED with it, because an anchor is a join to a live bullet and
+   a dangling one fails as "matches no bullet", a different and less legible
+   red. This list is not otherwise patched: the whole order is re-derived in
+   the records-restructure Phase 2 pass, per dev-loop's rule that a derived
+   order is re-derived and never edited.
 
 ### 3. Tier B: feeds the GATES
 
@@ -557,9 +553,37 @@ ENOSPC misattribution with its wrong first explanation left in.
   and one that silently lacks its source sends the re-reader to a wrong
   conclusion or to no conclusion at all.
 
-- **READY — kill the relocation-induced conversation-key rotation (threat
-  matrix row 26): resolve the conversation sub-key ONCE from the RAW body and
-  have both stateful extensions read it.** Mechanism fully isolated 2026-08-06,
+- **DONE 2026-08-10 (`246b61d`, instrument repair `a5f1960`) — kill the
+  relocation-induced conversation-key rotation (threat matrix row 26): resolve
+  the conversation sub-key ONCE from the RAW body and have both stateful
+  extensions read it.** Re-graded 2026-08-11 at the desk: this entry stood
+  READY over work that had shipped the night before and is SERVING, which is
+  the stale-grade class the records restructure exists to end. Verified against
+  the running system, not against the commit message: `node
+  proxy/source-fingerprint.mjs` = `140351b73356` = `/health`'s `proxy_tree`
+  (unit up 2026-08-10 21:50:08 CEST), pin `ebaaf0e` = `HEAD:proxy`, carrier at
+  `fresh-session-sort.mjs:392-393`, dual-reads at
+  `insertion-normalization.mjs:1909-1911` and
+  `deferred-tool-rewrite.mjs:697-699`.
+  **RESIDUAL, and it is this entry's OWN done-criterion, only partly
+  discharged — stated rather than absorbed into the DONE.** The criterion below
+  has three parts. Part 1 (the sub-key must not rotate across the pair) is
+  covered by `test/d1-old-key-computable.test.mjs`, whose gate-1 bites measure
+  the identity at each consumer's real read point with a negative control that
+  disagrees. Parts 2 and 3 — `deferred-tool-rewrite` reporting
+  `rewrite`/`unchanged` rather than `no-baseline` on the second request, and
+  the forwarded `tools[]` byte-identical across the pair — have NO bite:
+  `grep -rln "PRE_PIPELINE_CONV\|prePipelineConv" test/ tools/` returns that
+  one file, and it asserts neither. Those two parts are the ABSORPTION
+  question, which this repo already knows no gate asks, so the gap is
+  structural rather than an oversight of the shipping lane. Its home is the
+  booked D1-retirement entry (`gate-live` snapshots pass): that entry's design
+  gains one field — a count of post-relocation `no-baseline` actions under a
+  rotated key — beside the `oldKeyFallback` count it already specifies, so one
+  pass answers both the retirement question and the absorption question.
+  Nothing here is re-derivable from the matrix cell alone; the cell carries the
+  same two residuals in its VERIFICATION ADDENDUM.
+  The original entry, unchanged below. Mechanism fully isolated 2026-08-06,
   216,060 tokens on one request; the row carries the four measured links and the
   falsification probe with its control, so nothing here needs re-deriving.
   Design, decided: `conversationSubKey` is a property of CC's conversation, so
@@ -2911,7 +2935,8 @@ ENOSPC misattribution with its wrong first explanation left in.
   Design, decided: `gate-live` gains a snapshots pass counting `oldKeyFallback:true` records and the newest such record's date, carrying `d1OldKeyFallback: {hits, newestUtc, filesScanned}` in the status file; `doctor` reads it as a third answer so a stale or unwritten count FAILS rather than reading as a silent zero. `filesScanned` is load-bearing, not decoration — a zero over zero files is this repo's could-not-verify case and must never render as clean.
   Verifier, red-first, both arms required: a scratch snapshots dir with one planted `oldKeyFallback:true` record must report `hits: 1`; the same dir without it `hits: 0` with `filesScanned` non-zero. Negative control measured and dated today so a future non-zero is a real transition rather than a first reading: the real snapshots dir reads **0 hits over 9,533 event files** at ~19:58Z.
   **A correction worth keeping, because it is the exact defect this repo names.** That control was first written here as "0 hits over 20 event files" — 20 being the count of event files TOUCHED SINCE THE RESTART (13 insertion + 7 deferred), a different population from all event files, carried across from an earlier measurement of a different quantity. Two numbers, both real, describing different sets; the wrong one read as a total. Caught by re-running the count instead of citing it, which is the whole content of "an entry that says MEASURED without the executed output beside it is making a claim in the costume of a result". It also changes the DESIGN input rather than being cosmetic: a pass over 9,533 files is not free, so the implementation scopes by mtime window (the ~20/hour figure is the honest rate) rather than scanning the directory whole — and `filesScanned` must therefore report the scoped count with its window, or a small number will read as a small corpus rather than as a narrow scope.
-  Done-criterion: the seven-day question is answerable from `gate-status.json` alone, and both extensions' comments then cite the field instead of a grep. Realizing write-boundary: `tools/gate-live.mjs` + a test, then the comment update in both extensions. Consumer tier **2 (feeds the gates)**. Loop stage: VERIFY.
+  **WIDENED 2026-08-11 at the desk, and the widening is one field in the same pass rather than a second entry.** Re-verifying the row-26 mitigation found that its own done-criterion parts 2 and 3 — `deferred-tool-rewrite` reporting `rewrite`/`unchanged` rather than `no-baseline` on a relocating request, and the forwarded `tools[]` byte-identical across the pair — are asserted by nothing (`grep -rln "PRE_PIPELINE_CONV\|prePipelineConv" test/ tools/` returns one file, which asserts neither). That is the ABSORPTION question, and the counter that looks like it answers it does not: `identityRotations.transitions` compares raw against forwarded `messages[0]` (`replay.mjs:1136-1153`), i.e. our pipeline still relocating, which D1 deliberately does not stop. The snapshots pass this entry already specifies is walking exactly the files that carry the answer, so it also emits `d1PostRelocationNoBaseline: {count, newestUtc}` — `no-baseline` actions logged under a key that rotated, which post-D1 should be ZERO and whose non-zero is the class re-opening. Same red-first shape as the `oldKeyFallback` arms and the same `filesScanned` guard: a zero over zero files is could-not-verify, never clean.
+  Done-criterion: the seven-day question AND the absorption question are answerable from `gate-status.json` alone, and both extensions' comments then cite the fields instead of a grep. Realizing write-boundary: `tools/gate-live.mjs` + a test, then the comment update in both extensions. Consumer tier **2 (feeds the gates)**. Loop stage: VERIFY.
 
 - **DATAPOINT 2026-08-10 21:57 local (19:57:07Z) — the FOURTH row-4 instance today, and the first that is NOT the far-from-anchor `replace/edit` shape.** Recorded against row 4; it re-grades the canonicalization entry's design question rather than merely incrementing a count. `❄ 321k`, statusline cause `other`, ledger AND transcript both `messages_changed / 282112` — the `other` display is the FORK-NOTES trap ("no cause available", never "causes tested and rejected"), and the real cause was on disk the whole time. This session's own capture (`s-captureBB`), pair `n=330->335`.
   ATTRIBUTION **CC's**: CC's raw bytes diverged at index 225, and the replayed census recorded no stability violation for the pair. Census **`splice/insert-mid`** (not `replace/edit`), row-4 container migration at host 225, **EXTENDED/NEW-TEXT** (not MERGED-STANDALONE), and no anchor callout — the anchor annotation rides `replace/edit` rows, so today's 3-for-3 anchor-distance signal says nothing about this instance either way.

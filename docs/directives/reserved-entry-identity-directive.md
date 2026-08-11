@@ -192,7 +192,25 @@ requires.
 
 ## Integration plan (dispatcher-owned)
 
-1. Rebase `wt/fidelity/opus` (aef760b + dc8c475) onto current `main`.
+**STEP 1 IS DISCHARGED AND ITS REFS ARE DEAD — established 2026-08-11 by
+looking, because this section reads as owed work and is not.** The
+integration happened on 2026-07-31 as `a1170a7` ("integrate units 2 + 2b
+… reconciled with the reset-path duplicate suppression"), which is an
+ancestor of `main`; step 1's collision with `5c4d70a` was reconciled
+there, exactly as predicted below. What makes this worth a correction
+rather than a shrug is that both refs step 1 names are unreachable today:
+`wt/fidelity/opus` is not a branch (`git branch -a --list '*fidelity*'`
+returns nothing), and `aef760b`, while still a live object, is contained
+in no branch. A plan citing dead refs reads as work waiting to be done.
+Measured for `dc8c475` specifically, since a `rescue/*` tag was minted for
+it on the belief that it held unintegrated work: the fixture it carries is
+byte-identical to the one `a1170a7` landed (sha256 `ca05a978…` both
+sides), and its `test/insertion-join-move.test.mjs` has **zero** lines
+absent from `a1170a7`'s version of that file. The tag preserves nothing
+unique.
+
+1. ~~Rebase `wt/fidelity/opus` (aef760b + dc8c475) onto current `main`.~~
+   DONE 2026-07-31 as `a1170a7`; refs above are dead. Kept for the record:
    Known collision, named at booking time: 5c4d70a also modified
    `resetKeepingPins` (reset-path duplicate suppression, `suppressionsR`
    declarations). Reconcile by unifying the declaration arrays — both

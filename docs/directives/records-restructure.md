@@ -16,7 +16,24 @@ independently built census instruments disagreed on collision counts because
 "which files does this entry write" is free text; and row 4's remaining
 mitigation survived only as a dangling commit (dc8c475, now held by tag
 `rescue/unit-2b-dc8c475`) because nothing checks that booked work is reachable
-from a ref. Every failure is one defect: project STATE stored as prose, so
+from a ref.
+**PREMISE CORRECTED 2026-08-11 by the executing session, and the correction
+STRENGTHENS the deliverable rather than removing it.** The dc8c475 clause is
+false as stated: that work is not unintegrated. `a1170a7` (2026-07-31,
+"integrate units 2 + 2b … reconciled with the reset-path duplicate
+suppression") is an ancestor of `main`, its fixture is byte-identical to the
+tag's (sha256 `ca05a978…` on both sides), and the tag's
+`test/insertion-join-move.test.mjs` carries **zero** lines absent from
+`a1170a7`'s. So the tag preserves nothing unique, and the operator decision it
+gated (2026-08-11: do not push) is settled on that basis rather than on the
+hygiene scan alone. The scan's 41 findings over `dc8c475~1..dc8c475` are real
+but mostly already public through `a1170a7`, which landed the identical blob on
+`main`; only the four findings in the commit MESSAGE would be new bytes. What
+survives intact is the ref-reachability CLASS the lint is being built for — and
+this correction is its first real positive: `docs/directives/reserved-entry-
+identity-directive.md` had an integration step citing `wt/fidelity/opus`
+(no such branch) and `aef760b` (contained in no branch) as work still owed,
+which is precisely a record asserting a state the refs refute. Every failure is one defect: project STATE stored as prose, so
 reading state is a judgment pass, and judgment passes drift (label-over-body,
 the grounding corpus's own class). The repo's data-with-checkers surfaces
 (fixtures, gates, absence scan, suite) produced zero such confusions the same
