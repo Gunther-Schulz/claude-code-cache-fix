@@ -311,8 +311,18 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
-- **READY 2026-08-11 — the RELOCATE-THEN-PIN content loss: CC-sent reminder
-  blocks are deleted off the wire, live, and D1 created it.** Threat-matrix
+- **DONE 2026-08-11 (fix in this session's commit; see threat-matrix row 30) — the
+  RELOCATE-THEN-PIN content loss: CC-sent reminder blocks were deleted off the
+  wire, and D1 created it. FIXED BUT NOT DEPLOYED — the serving build is still
+  `246b61d` until the dotfiles pin bump and `systemctl --user restart
+  cache-fix-proxy` land, which is the one step this entry does NOT close.**
+  Verified by difference on live traffic: s-captureBA 81 -> 0, s-captureBD
+  179 -> 0, s-captureBF 251 -> 0, s-captureBG 125 -> 0 conservation rows, with
+  stability and safety unchanged at 0 on every one — the fix changes forwarded
+  bytes without introducing a divergence. The invariant flip in
+  `test/relocate-then-pin-conservation.test.mjs` is the red-first arrangement,
+  run against the pre-fix module. Body kept below as the record.
+  **(original entry)** Threat-matrix
   row 30; terminal state REGRESSION per `docs/runbooks/sweep-finding.md`, which
   means this does NOT close here — it enters `docs/runbooks/bust-appears.md` or
   ships on its own branch.

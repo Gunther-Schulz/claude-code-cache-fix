@@ -639,10 +639,49 @@ function buildPinEntry(identity, msg) {
 // A message currently carrying a cache_control marker is never rewritten
 // — markers sit at the tail, flips live deep, and losing a marker would
 // cost more than one flip absorbs.
-function pinnedForwardForm(stored, incomingMsg) {
+// Blocks another extension DECLARED it relocated into this message, carried
+// across the pin. Threat-matrix row 30, and it is a content-loss fix rather
+// than a cache one: `fresh-session-sort` (order 250) prepends relocatable
+// reminder blocks into `messages[firstUserIdx]`, and the stored first-seen
+// form served below predates them, so serving it alone deleted bytes CC sent
+// from the wire in every request of the conversation — the model never saw
+// them. Measured across five captures, 750 of 750 conservation `lost` rows.
+//
+// STABILITY, the question this has to answer before it is allowed to add
+// anything back: does re-prepending make the forwarded `messages[0]` churn,
+// which is the exact thing the pin exists to prevent? No, and by the other
+// extension's own construction — it emits its per-conversation MEMORY rather
+// than this request's findings ("the forwarded prefix is a function of the
+// conversation, not of which blocks CC happened to include this time",
+// fresh-session-sort.mjs), so the set carried here is already stable across
+// requests. Where that memory is evicted the block simply stops being
+// declared, and CC's own bytes win — which is the pre-existing behaviour, not
+// a new one.
+//
+// DECLARED, never re-derived: the blocks arrive in the relocator's own stats.
+// A predicate re-implemented here would be a second truth about what counts
+// as relocatable, and importing the real one would close a cycle
+// (fresh-session-sort imports `resolveInsertionSessionKey` from this module).
+function withDeclaredRelocations(base, relocatedBlocks) {
+  if (!relocatedBlocks?.length) return base;
+  if (!base || !Array.isArray(base.content)) return base;
+  const present = new Set(base.content.map((b) => (typeof b?.text === "string" ? b.text : null)));
+  const missing = relocatedBlocks.filter((b) => typeof b?.text === "string" && !present.has(b.text));
+  if (!missing.length) return base;
+  // Prepended, matching where the relocator puts them: the pin's job is to
+  // hold the message's own history stable, not to re-order what another stage
+  // placed at its head.
+  return { ...base, content: [...missing.map((b) => ({ ...b })), ...base.content] };
+}
+
+function pinnedForwardForm(stored, incomingMsg, relocatedBlocks) {
   if (stored.r !== "user") return incomingMsg;
   if (hasCacheControl(incomingMsg)) return incomingMsg;
-  return stored.m ?? stripVolatileBlocks(incomingMsg);
+  const base = stored.m ?? stripVolatileBlocks(incomingMsg);
+  // Both branches need it: `stripVolatileBlocks` removes reminder-wrapped
+  // blocks, and a relocated block IS reminder-wrapped, so the no-stored-form
+  // path destroyed them just as thoroughly as the stored-form path.
+  return withDeclaredRelocations(base, relocatedBlocks);
 }
 
 // The single text a standalone-carrier message carries, or null if the message
@@ -992,8 +1031,13 @@ export function findJoinMoves({ messages, priorCanonical, matched, droppedNow, n
 //     resetting — unless the dropped total passes half the canon, which
 //     reads as a compaction, not a prune;
 //   - matched user messages forward their first-seen form.
-export function classifyPinned(messages, priorCanonical) {
+export function classifyPinned(messages, priorCanonical, relocation = null) {
   const incoming = computePinnedIdentities(messages);
+  // Which wire index the relocator prepended into, and what it put there. Null
+  // for every other index — a message nobody declared a relocation for gets
+  // exactly the behaviour it had before row 30's fix.
+  const relocatedAt = (idx) =>
+    (relocation && relocation.targetIndex === idx ? relocation.blocks : null);
   const freshEntries = () => incoming.map((e) => buildPinEntry(e, messages[e.index]));
 
   // A reset abandons the ORDER model. It must NOT abandon the PINS, and
@@ -1047,7 +1091,7 @@ export function classifyPinned(messages, priorCanonical) {
     for (const e of incoming) {
       const stored = priorByKey.get(identityKey(e));
       if (!stored) continue;
-      const fwd = pinnedForwardForm(stored, messages[e.index]);
+      const fwd = pinnedForwardForm(stored, messages[e.index], relocatedAt(e.index));
       if (fwd !== messages[e.index] && JSON.stringify(fwd) !== JSON.stringify(messages[e.index])) {
         out[e.index] = fwd;
         applied++;
@@ -1634,7 +1678,7 @@ export function classifyPinned(messages, priorCanonical) {
   // loop below uses — pinnedForwardForm for a matched pin, reserveForward for
   // a move or a re-fire — rather than read back off it.
   const { blocks: pinnedHashes, joins: pinnedJoin } = restoringHashes([
-    ...matched.map(({ ci, idx }) => pinnedForwardForm(storedAt(ci), messages[idx])),
+    ...matched.map(({ ci, idx }) => pinnedForwardForm(storedAt(ci), messages[idx], relocatedAt(idx))),
     ...joinMoves.map((mv) => reserveForward(priorCanonical[mv.ci])),
     ...refires.map((rf) => reserveForward(priorCanonical[rf.ci])),
   ]);
@@ -1713,7 +1757,7 @@ export function classifyPinned(messages, priorCanonical) {
       finalMessages.push(messages[e.index]);
       continue;
     }
-    const fwd = pinnedForwardForm(storedAt(ci), messages[e.index]);
+    const fwd = pinnedForwardForm(storedAt(ci), messages[e.index], relocatedAt(e.index));
     if (fwd !== messages[e.index] && JSON.stringify(fwd) !== JSON.stringify(messages[e.index])) {
       pinApplied++;
       finalMessages.push(fwd);
@@ -1946,7 +1990,19 @@ export default {
           ctx.meta[OLD_KEY_HIT] = true;
         }
       }
-      const result = pin ? classifyPinned(messages, prior) : classifyInsertion(messages, prior);
+      // The relocator's DECLARATION for this request, read off ctx.meta rather
+      // than re-derived: fresh-session-sort (order 250) runs before this
+      // extension (395), so by here it has already published which index it
+      // prepended into and which blocks it put there. Absent — it did not run,
+      // or relocated nothing — this is null and the pin behaves exactly as it
+      // did before threat-matrix row 30's fix.
+      const fss = ctx.meta?.freshSessionSortStats;
+      const relocation = fss && Array.isArray(fss.relocatedBlocks) && fss.relocatedBlocks.length
+        ? { targetIndex: fss.targetIndex, blocks: fss.relocatedBlocks }
+        : null;
+      const result = pin
+        ? classifyPinned(messages, prior, relocation)
+        : classifyInsertion(messages, prior);
 
       // Apply whatever the classifier produced, rather than keying on the
       // action name. A reset now returns a pinned array too (row 22): the

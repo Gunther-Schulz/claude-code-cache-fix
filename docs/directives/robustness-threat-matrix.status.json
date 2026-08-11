@@ -176,9 +176,9 @@
     "residual": "CC-side by construction — the divergence is present in the raw pre-pipeline capture, and nothing on our side can restore a prefix CC rebuilt. Mitigability stays unassessed under a standing gate: no mitigation may be designed for this row until the attribution line is emitted mechanically. Two reachable halves are named instead — PRICING the edit beforehand (restart-exposure is the right tool and cannot express this class today: it takes a TEXT predicate, booked) and BATCHING corpus and commit activity rather than spreading it across live idle sessions, since our own commits and dirty files regenerate the <env> block that invalidates every co-tenant session's cached system prefix."
   },
   "30": {
-    "status": "OPEN",
-    "evidence": "246b61d",
+    "status": "RESIDUAL",
+    "evidence": "test/relocate-then-pin-conservation.test.mjs",
     "date": "2026-08-11",
-    "residual": null
+    "residual": "FIXED 2026-08-11 and proven by DIFFERENCE on live traffic: the same three captures that reported 81/179/251 conservation rows replay to 0 under the fix, with stability and safety unchanged at 0 — the forwarded bytes changed without introducing a divergence. Residual, and it is why this is RESIDUAL rather than SHIPPED: the fix is NOT DEPLOYED — it needs the dotfiles pin bump plus a proxy restart, so production is still losing the blocks until that lands. Second residual: seven of the twelve failing captures were never examined, so the corpus-wide claim rests on five. Third: the carried-over set is stable only while fresh-session-sort's relocation memory holds it, so row 25's eviction-stranding residual now reaches this row too — an evicted memory stops declaring the block and CC's own bytes win, which is correct but untested here."
   }
 }

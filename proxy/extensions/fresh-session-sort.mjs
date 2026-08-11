@@ -523,6 +523,22 @@ export default {
       reserved: emittedTypes.filter((t) => !found.has(t)),
       rewrote: relocatedTypes,
       targetIndex: firstUserIdx,
+      // The BLOCKS, not just their types, because a downstream consumer that
+      // must not destroy them cannot identify them from a type list.
+      // insertion-normalization's volatile pin is that consumer: it serves
+      // `messages[targetIndex]`'s stored FIRST-SEEN form, which predates
+      // whatever was prepended here, and before 2026-08-11 that silently
+      // deleted these bytes off the wire entirely (threat-matrix row 30).
+      // Published as a DECLARATION so the pin carries them over by our own
+      // report rather than by re-deriving "this looks relocated" — the same
+      // discipline the conservation gate's clauses already use, and the
+      // reason this is a stats field instead of an exported predicate: this
+      // module already imports from insertion-normalization, so an import the
+      // other way would close a cycle.
+      //
+      // Copies, for the reason the memory above is copied: these objects go
+      // onto the wire and later extensions mutate them in place.
+      relocatedBlocks: toRelocate.map((b) => ({ ...b })),
     };
 
     // Last, and after the body is already correct: the persist is what makes

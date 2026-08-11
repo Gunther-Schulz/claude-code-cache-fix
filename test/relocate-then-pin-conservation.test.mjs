@@ -27,15 +27,19 @@
 //      separates this from the 2026-08-05 rewrite class (19 lost + 19 invented
 //      in 1:1, because a rewrite loses one unit and invents one).
 //
-// STATUS — read this before "fixing" the assertions. This is a CHARACTERIZATION
-// test: it pins the behaviour that is live today, and today that behaviour
-// loses conversation content. It is deliberately NOT written as the invariant
-// ("CC's block must reach the wire"), because that assertion belongs to the fix
-// and would land a red suite on main in the meantime. When the fix ships, this
-// file flips to the invariant IN THE SAME COMMIT — the flip is the fix's
-// red-first arrangement, and its expectation comes from the conservation gate's
-// own definition (replay.mjs, "Content conservation: the fifth gate", R-side
-// clause (a)), never from what either extension currently does.
+// STATUS — FIXED 2026-08-11, and this file is now the INVARIANT rather than a
+// characterization. It shipped first as a characterization of the live defect
+// (asserting the block was absent), and the flip performed here IS the fix's
+// red-first arrangement: run these assertions against the pre-fix
+// `insertion-normalization` and every one of them fails on the block being
+// missing, with the two instrument-positives still green — which is the
+// discriminating split, not a module that fails to load. The expectation comes
+// from the conservation gate's own definition (replay.mjs, "Content
+// conservation: the fifth gate", R-side clause (a)): content CC sent is present
+// in the forwarded array, byte-identically, somewhere. It does NOT come from
+// what either extension does, which is the parentage rule — an expectation
+// derived from the artifact it grades stays green on the corruption it exists
+// to catch.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -43,7 +47,7 @@ import { join } from "node:path";
 
 import { loadExtensions, runOnRequest } from "../proxy/pipeline.mjs";
 import { blockUnitsFull, conservationViolations } from "../tools/replay.mjs";
-import { isMcpBlock, isRelocatableBlock } from "../proxy/extensions/fresh-session-sort.mjs";
+import { isMcpBlock, isRelocatableBlock, fixBlockText, getBlockType } from "../proxy/extensions/fresh-session-sort.mjs";
 import { tmpDirSync } from "../tools/tmpdir.mjs";
 
 const EXT_DIR = new URL("../proxy/extensions", import.meta.url).pathname;
@@ -157,7 +161,7 @@ test("arrange — the fixture's own predicates discriminate", () => {
   assert.equal(isRelocatableBlock(PLAIN_BLOCK), false, "the control must NOT be relocatable");
 });
 
-test("CHARACTERIZATION — a relocated block is destroyed by the pin, and CC's bytes leave the wire", async () => {
+test("INVARIANT — a relocated block survives the pin, and CC's bytes stay on the wire", async () => {
   const runs = await forwardThrough([request1(), request2()]);
   const second = runs[1];
   const mcpHash = hashOfText(MCP_BLOCK);
@@ -175,8 +179,22 @@ test("CHARACTERIZATION — a relocated block is destroyed by the pin, and CC's b
     "fresh-session-sort must actually have relocated the MCP block",
   );
   assert.equal(second.meta.freshSessionSortStats?.targetIndex, 0, "relocated into message 0");
-  assert.ok((second.meta.insertionNormalizeStats?.pinned ?? 0) > 0,
-    "insertion-normalization must actually have applied a pin");
+  // The pin machinery must be ENGAGED — i.e. request 1's canonical survived and
+  // message 0 is a matched pinned entry, which is the precondition the loss
+  // needed. Asserted as state, not as `pinned > 0`: that counter was the first
+  // version of this check and it was pinned to the DEFECT's own telemetry. The
+  // fix makes the pin a legitimate no-op here (its output now equals the
+  // incoming message, so nothing is rewritten and the counter is 0), so an
+  // expectation of `> 0` would have demanded the broken behaviour forever —
+  // a same-parentage expectation, which is the trap of deriving what to expect
+  // from the artifact under test instead of from the invariant.
+  assert.notEqual(second.meta.insertionNormalizeStats?.action, "reset",
+    "request 1's canonical must have survived — a reset here means the run was stateless and proves nothing");
+  assert.equal(second.meta.insertionNormalizeStats?.canonSize, 4,
+    "all four messages are canonical, so message 0 is a matched pinned entry");
+  assert.equal(second.meta.insertionNormalizeStats?.pinned, 0,
+    "and the pin is now a NO-OP on message 0: stored form plus declared relocations "
+    + "equals what came in, so there is nothing to rewrite. This was 1 before the fix.");
   // And the three counters the 2026-08-11 walk originally read to REFUTE this
   // extension are all zero here, exactly as they were live — which is why
   // reading them was the wrong probe: a pin is none of suppressed/dropped/moved.
@@ -186,9 +204,10 @@ test("CHARACTERIZATION — a relocated block is destroyed by the pin, and CC's b
   }
 
   const forwarded = hashesOf(second.forwarded);
-  assert.equal(forwarded.has(mcpHash), false,
-    "TODAY'S BEHAVIOUR: the block CC sent is in no forwarded message. "
-    + "When the fix lands this assertion becomes `true` and this test becomes the invariant.");
+  assert.equal(forwarded.has(mcpHash), true,
+    "THE INVARIANT: a block CC sent is on the wire, byte-identically, somewhere in "
+    + "the forwarded array. Before the fix this was `false` — the pin served a stored "
+    + "first-seen form that predated the relocation and the bytes were destroyed.");
 
   // The control, and it is what keeps the claim narrow: the non-relocatable
   // reminder in the SAME conversation survives. Were it lost too, the finding
@@ -210,7 +229,7 @@ const RELOCATABLE = {
 };
 
 for (const [type, block] of Object.entries(RELOCATABLE)) {
-  test(`sibling — a late-arriving ${type} block is destroyed the same way`, async () => {
+  test(`sibling — a late-arriving ${type} block survives the same way`, async () => {
     assert.equal(isRelocatableBlock(block), true, `arrange: the ${type} block must be one the extension relocates`);
     const runs = await forwardThrough([
       request1(),
@@ -224,19 +243,23 @@ for (const [type, block] of Object.entries(RELOCATABLE)) {
     const second = runs[1];
     assert.ok((second.meta.freshSessionSortStats?.relocated ?? []).length > 0,
       "instrument-positive: the relocation must actually have fired");
-    assert.ok((second.meta.insertionNormalizeStats?.pinned ?? 0) > 0,
-      "instrument-positive: the pin must actually have fired");
-    assert.equal(hashesOf(second.forwarded).has(hashOfText(block)), false,
-      `TODAY'S BEHAVIOUR: the ${type} block CC sent reaches no forwarded message either — `
-      + "the loss is the mechanism's, not the mcp type's");
+    assert.notEqual(second.meta.insertionNormalizeStats?.action, "reset",
+      "instrument-positive: the canonical survived, so the pin path was engaged");
+    // The invariant is the conservation gate's, not byte-identity: a relocated
+    // block may reach the wire as the relocator's OWN declared rewrite of it
+    // (`deferred` and `skills` are SORTED by `fixBlockText`), and the gate's
+    // R-side clause (f) accounts for exactly that — a lost unit is excused when
+    // its own pre-image maps to a post-image present in F. Asserting raw
+    // identity here would demand that a declared, verified rewrite not happen,
+    // which is a different extension's contract and not this fix's business.
+    const onWire = hashOfText(fixBlockText(getBlockType(block), block));
+    assert.equal(hashesOf(second.forwarded).has(onWire), true,
+      `the ${type} block CC sent is on the wire too, as itself or as its declared `
+      + "rewrite — the fix is the mechanism's, not the mcp type's, exactly as the loss was");
   });
 }
 
-test("the conservation gate SEES it, with the measured live signature", async () => {
-  // The gate is the instrument the daily sweep reads, so the fixture is only
-  // evidence if the gate reports it the same way it reported the live rows:
-  // lost, one unit, and — the discriminator against the 2026-08-05 rewrite
-  // class — zero invented.
+test("the conservation gate goes quiet, and for the right reason", async () => {
   const runs = await forwardThrough([request1(), request2()]);
   const seen = new Set();
   let rows = [];
@@ -253,12 +276,12 @@ test("the conservation gate SEES it, with the measured live signature", async ()
     rows = rows.concat(r.violations);
   }
 
+  // The gate is the instrument the daily sweep reads, so the fix is only real
+  // if the gate goes quiet for the right reason: no loss AND no invention. A
+  // fix that put the bytes back by INVENTING them would clear `lost` and light
+  // `invented`, so asserting both is what separates the two.
   const lost = rows.filter((r) => r.kind === "lost");
   const invented = rows.filter((r) => r.kind === "invented");
-  assert.equal(invented.length, 0,
-    "ZERO invented is the signature: a rewrite loses one unit and invents one, this loses one and invents none");
-  assert.ok(lost.length >= 1, "the gate reports the loss");
-  assert.ok(lost.every((r) => r.side === "in"), "R-side: CC sent it, we did not forward it");
-  assert.ok(lost.some((r) => r.unaccountedHashes?.includes(hashOfText(MCP_BLOCK))),
-    "and the row names the MCP block itself as the unaccounted unit");
+  assert.deepEqual(lost, [], "no unit CC sent is unaccounted for any more");
+  assert.deepEqual(invented, [], "and nothing was invented to achieve that");
 });
