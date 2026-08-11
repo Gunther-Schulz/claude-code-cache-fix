@@ -64,6 +64,27 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    bootstrap/manifest.py; not yet booked, trigger: a second instance of the
    pin value being copied wrong or the edit landing in the wrong repo]`
 
+4b. **Enable + classify — new-gate ships only.** If the change INTRODUCES or
+   RENAMES a `CACHE_FIX_*` gate: add its `Environment=` line to
+   `cache-fix-proxy.service` and `systemctl --user daemon-reload`; classify it in
+   dotfiles `bootstrap/manifest.py` — `CACHE_FIX_GATES_ACTIVE` (with the reason)
+   or `CACHE_FIX_GATES_PARKED` — plus its `CACHE_FIX_GATE_ACCEPTANCE` entry
+   naming the probe that proved it safe to turn on.
+   **Why this is a step and not a note.** A mitigation shipped without it is
+   DORMANT: step 5's restart serves the old gate set, and step 7 then reads
+   green because all three of its answers agree on the gate's ABSENCE — the
+   three-way compare is a consistency check, so a gate missing from every
+   answer is invisible to it. Only the doctor's source-derived roster check
+   catches that, and it catches it after the fact.
+   The cheap read that decides whether this step is owed, and it is a real
+   filter rather than a glance at the diff:
+   ```sh
+   git show <commit> | grep -E '^[+-]' | grep -o 'CACHE_FIX_[A-Z_]*' | sort -u
+   ```
+   Empty means no gate token moved and the step is n/a; the filter is proven
+   able to fire on `d6647cc` (`CACHE_FIX_ALIAS_REGISTRY`), which is what makes
+   the empty result an absence rather than a filter that never matched.
+
 5. **Restart + health gates check.**
    ```sh
    systemctl --user restart cache-fix-proxy && curl -s 127.0.0.1:9801/health
@@ -95,8 +116,11 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
 
 Every run of this lane ends at one of two states:
 
-- **shipped** — every owed step (1–3, or 1–7 when `proxy/**` changed)
-  completed, with step 7's three answers agreeing.
+- **shipped** — every owed step (1–3, or 1–7 when `proxy/**` changed, with 4b
+  answered either way) completed, with step 7's three answers agreeing. A run
+  that reports "shipped" without saying whether 4b was owed has not answered
+  it: n/a is a result and silence is not, precisely because step 7 cannot see
+  the omission.
 - **aborted-with-reason** — halted at a named step, with the reason (a
   STOP signal below, an operator hold, a failed check) stated in whatever
   record this session is carrying (chat, ledger, commit message) before
