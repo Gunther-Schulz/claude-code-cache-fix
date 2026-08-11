@@ -261,11 +261,27 @@ export function collectBacklog({ backlogPath = DEFAULT_BACKLOG } = {}) {
 //    collapsing the two comparisons into one verdict.
 // ==========================================================================
 
+// The gate runs on a daily timer (07:55), so one missed run is exactly the
+// event this threshold exists to surface.
+export const GATE_STALE_THRESHOLD_HOURS = 24;
+
+// Null-safe: an absent or unparseable `finished` is its own could-not-verify
+// (`null`), never age 0 — age 0 is indistinguishable from "just finished"
+// and would silently read as fresh.
+function computeAgeHours(finished, nowMs) {
+  if (typeof finished !== "string" || finished.length === 0) return null;
+  const t = Date.parse(finished);
+  if (Number.isNaN(t)) return null;
+  return (nowMs - t) / (1000 * 60 * 60);
+}
+
 // Queries four fields plus the `records` block out of gate-live's status
 // file. Deliberately does NOT hold onto `rows` (the ~33-field-per-capture
 // array docs/dev-loop.md warns is a 25k-token trap to READ) — only the
-// fields this report prints are extracted.
-export function collectGateVerdict({ statusPath = DEFAULT_GATE_STATUS } = {}) {
+// fields this report prints are extracted. `now` is injectable so the
+// staleness math is testable without waiting real hours (default:
+// `Date.now()`, the real clock in production and CLI use).
+export function collectGateVerdict({ statusPath = DEFAULT_GATE_STATUS, now = Date.now() } = {}) {
   let obj;
   try {
     obj = JSON.parse(readFileSync(statusPath, "utf8"));
@@ -278,6 +294,7 @@ export function collectGateVerdict({ statusPath = DEFAULT_GATE_STATUS } = {}) {
     failing: obj.failing ?? null,
     captures: obj.captures ?? null,
     finished: obj.finished ?? null,
+    ageHours: computeAgeHours(obj.finished, now),
     records: obj.records ?? null,
   };
 }
@@ -627,7 +644,11 @@ function renderVerification(v) {
       v.gate,
       (r) =>
         `gate: ok=${r.gateOk} failing=${r.failing} captures=${r.captures} finished=${r.finished} ` +
-        `records=${r.records === null ? "null" : JSON.stringify(r.records)}`,
+        `ageHours=${r.ageHours === null ? "unknown" : r.ageHours.toFixed(1)} ` +
+        `records=${r.records === null ? "null" : JSON.stringify(r.records)}` +
+        (r.ageHours !== null && r.ageHours > GATE_STALE_THRESHOLD_HOURS
+          ? ` — STALE (>${GATE_STALE_THRESHOLD_HOURS}h)`
+          : ""),
     ),
   );
   lines.push(

@@ -52,6 +52,7 @@ import * as sr from "../tools/state-report.mjs";
 const {
   REPO_ROOT,
   DEFAULT_MANIFEST_PATH,
+  GATE_STALE_THRESHOLD_HOURS,
   collectMatrix,
   collectBacklog,
   collectGateVerdict,
@@ -553,6 +554,87 @@ test("D3 could-not-verify: collectLaneBranches on a non-git directory reports a 
   assert.equal(typeof res.reason, "string");
   assert.ok(res.reason.length > 0);
   assert.equal(res.branches, undefined, "must not silently carry an empty branch list");
+});
+
+// ==========================================================================
+// E. GATE-VERDICT STALENESS (part B) — red-first pair, both arms required.
+// ==========================================================================
+
+test("E1 red-first: the CURRENT (pre-change) collector carries no age signal at all", () => {
+  // This is the literal red: before `ageHours` existed, `collectGateVerdict`
+  // passed `finished` through raw with nothing computed from it — a synthetic
+  // gate-status 7 days stale collected as ok:true with no staleness anywhere
+  // in the object (BACKLOG.md's part-B entry, re-run here rather than taken
+  // on the entry's word per dev-loop.md's disproving-probe rule). Asserting
+  // the CURRENT shape carries `ageHours` pins that this defect is fixed, not
+  // that it once existed.
+  const dir = tmpDirSync("state-report-gate-red-");
+  const path = join(dir, "gate-status.json");
+  const finished7dAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  writeFileSync(path, JSON.stringify({ ok: true, failing: 0, captures: 10, finished: finished7dAgo }));
+  const res = collectGateVerdict({ statusPath: path });
+  assert.equal(res.ok, true, res.reason);
+  assert.equal(typeof res.ageHours, "number", "ageHours must be present and numeric on a valid finished timestamp");
+  assert.ok(res.ageHours > GATE_STALE_THRESHOLD_HOURS, `ageHours=${res.ageHours}`);
+});
+
+test("E2: a finished timestamp older than the threshold renders the STALE marker; "
+  + "one within it does not — the two must differ", () => {
+  const staleDir = tmpDirSync("state-report-gate-stale-");
+  const stalePath = join(staleDir, "gate-status.json");
+  const finished3dAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+  writeFileSync(stalePath, JSON.stringify({ ok: true, failing: 0, captures: 10, finished: finished3dAgo }));
+  const staleGate = collectGateVerdict({ statusPath: stalePath });
+  assert.equal(staleGate.ok, true, staleGate.reason);
+
+  const freshDir = tmpDirSync("state-report-gate-fresh-");
+  const freshPath = join(freshDir, "gate-status.json");
+  const finished1hAgo = new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString();
+  writeFileSync(freshPath, JSON.stringify({ ok: true, failing: 0, captures: 10, finished: finished1hAgo }));
+  const freshGate = collectGateVerdict({ statusPath: freshPath });
+  assert.equal(freshGate.ok, true, freshGate.reason);
+
+  const emptyVerification = (gate) => ({
+    gate,
+    pin: { ok: false, reason: "n/a" },
+    fingerprint: { ok: false, reason: "n/a" },
+  });
+  const emptyRepo = {
+    unpushed: { ok: false, reason: "n/a" },
+    rescueTags: { ok: false, reason: "n/a" },
+    dangling: { ok: false, reason: "n/a" },
+    worktrees: { ok: false, reason: "n/a" },
+    fixtures: { ok: false, reason: "n/a" },
+  };
+  const emptyRest = {
+    matrix: { ok: false, reason: "n/a" },
+    backlog: { ok: false, reason: "n/a" },
+    repo: emptyRepo,
+    laneBranches: { ok: false, reason: "n/a" },
+  };
+
+  const staleText = renderText({ ...emptyRest, verification: emptyVerification(staleGate) });
+  const staleLine = staleText.split("\n").find((l) => l.startsWith("gate:"));
+  assert.match(staleLine, /STALE/, staleLine);
+
+  const freshText = renderText({ ...emptyRest, verification: emptyVerification(freshGate) });
+  const freshLine = freshText.split("\n").find((l) => l.startsWith("gate:"));
+  assert.doesNotMatch(freshLine, /STALE/, freshLine);
+});
+
+test("E3 could-not-verify: an absent or unparseable `finished` yields ageHours:null, never age 0", () => {
+  const dir = tmpDirSync("state-report-gate-nofinished-");
+  const noFinishedPath = join(dir, "no-finished.json");
+  writeFileSync(noFinishedPath, JSON.stringify({ ok: true, failing: 0, captures: 10 }));
+  const noFinished = collectGateVerdict({ statusPath: noFinishedPath });
+  assert.equal(noFinished.ok, true, noFinished.reason);
+  assert.equal(noFinished.ageHours, null);
+
+  const badFinishedPath = join(dir, "bad-finished.json");
+  writeFileSync(badFinishedPath, JSON.stringify({ ok: true, failing: 0, captures: 10, finished: "not-a-date" }));
+  const badFinished = collectGateVerdict({ statusPath: badFinishedPath });
+  assert.equal(badFinished.ok, true, badFinished.reason);
+  assert.equal(badFinished.ageHours, null);
 });
 
 // ==========================================================================
