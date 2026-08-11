@@ -28,9 +28,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const STATUS_PATH = join(REPO, "docs/directives/robustness-threat-matrix.status.json");
@@ -272,6 +273,150 @@ test("UNKNOWN-UNDERSCORE-KEY negative control: only the documented \"_\" key pas
   const statusObj = { _: "doc", 1: fillerRow(), 2: fillerRow(), 3: fillerRow() };
   const findings = checkMatrixStatus(statusObj, [1, 2, 3], REAL_ENV);
   assert.deepEqual(findings, [], formatFindings(findings));
+});
+
+// BAD-TRIAGE: the per-row `triage` override (settled design, row 27) must
+// name a verdict from bust-triage's own vocabulary, or it silently reaches a
+// reader as an unrecognised word — the same class of failure the closed
+// status enum exists to prevent, one field over.
+test("BAD-TRIAGE: fires on a triage value outside bust-triage's verdict vocabulary", () => {
+  const statusObj = {
+    _: "doc",
+    1: fillerRow({ triage: "SORT-OF-OPEN" }),
+    2: fillerRow(),
+    3: fillerRow(),
+  };
+  const findings = checkMatrixStatus(statusObj, [1, 2, 3], REAL_ENV);
+  assert.equal(findings.length, 1, formatFindings(findings));
+  assert.equal(findings[0].label, "BAD-TRIAGE");
+  assert.equal(findings[0].row, "1");
+});
+
+test("BAD-TRIAGE negative control: a row with no triage field passes clean", () => {
+  const statusObj = { _: "doc", 1: fillerRow(), 2: fillerRow(), 3: fillerRow() };
+  const findings = checkMatrixStatus(statusObj, [1, 2, 3], REAL_ENV);
+  assert.deepEqual(findings, [], formatFindings(findings));
+});
+
+test("BAD-TRIAGE negative control: a triage value in the vocabulary passes clean", () => {
+  const statusObj = {
+    _: "doc",
+    1: fillerRow({ triage: "CONTROLLED-CAUSE" }),
+    2: fillerRow(),
+    3: fillerRow(),
+  };
+  const findings = checkMatrixStatus(statusObj, [1, 2, 3], REAL_ENV);
+  assert.deepEqual(findings, [], formatFindings(findings));
+});
+
+// --- rowTriage / readRowStatus: the reader `bust-triage.mjs` now calls -----
+//
+// A throwaway status file per bite, rather than reaching into the live one,
+// so these pin the MAPPING and not today's row content — and so the two
+// red-first arms below can mutate exactly what they name without touching
+// the real status.json.
+
+function tmpStatusFile(rows) {
+  const dir = tmpDirSync("matrix-status-row-");
+  const p = join(dir, "status.json");
+  writeFileSync(p, JSON.stringify({ _: "doc", ...rows }));
+  return p;
+}
+
+test("rowTriage: SHIPPED yields MITIGATED with no why", () => {
+  const statusPath = tmpStatusFile({
+    1: { status: "SHIPPED", evidence: "x", date: "2026-01-01", residual: null },
+  });
+  const r = ms.rowTriage(1, { statusPath });
+  assert.equal(r.ok, true);
+  assert.equal(r.verdict, "MITIGATED");
+  assert.equal(r.why, null);
+});
+
+test("rowTriage: a per-row triage override wins over the status's own base verdict, keeping the base why", () => {
+  const statusPath = tmpStatusFile({
+    27: { status: "ACCEPTED", triage: "CONTROLLED-CAUSE", evidence: "x", date: "2026-01-01", residual: "r" },
+  });
+  const r = ms.rowTriage(27, { statusPath });
+  assert.equal(r.ok, true);
+  assert.equal(r.verdict, "CONTROLLED-CAUSE", "the override wins");
+  assert.equal(r.why, "WON'T BUILD — deliberately unmitigated, cost accepted",
+    "the override does not touch `why` — ACCEPTED's own reason stays attached");
+});
+
+test("rowTriage: a row absent from the status file is ok:false, never a default verdict", () => {
+  const statusPath = tmpStatusFile({ 1: { status: "OPEN", evidence: "x", date: "2026-01-01", residual: null } });
+  const r = ms.rowTriage(97, { statusPath });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /row 97 is not present/);
+});
+
+test("rowTriage: an unreadable status file is ok:false, never a default verdict", () => {
+  const r = ms.rowTriage(1, { statusPath: join(REPO, "docs/directives/no-such-status.json") });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /status file unreadable/);
+});
+
+// --- RED-FIRST, arm 1: RESIDUAL must NOT map to MITIGATED --------------
+//
+// This is the exact defect the entry names: "our mitigation worked" is the
+// dangerous direction, and a row shipped WITH a named remainder can bust ON
+// that remainder. BASELINE printed first — a mutate-and-revert proof over an
+// already-red baseline proves nothing (dev-loop, red-first discipline).
+
+test("RED-FIRST arm 1 — baseline: RESIDUAL correctly reads KNOWN-OPEN today", () => {
+  const statusPath = tmpStatusFile({
+    1: { status: "RESIDUAL", evidence: "x", date: "2026-01-01", residual: "a real remainder" },
+  });
+  const baseline = ms.rowTriage(1, { statusPath });
+  assert.equal(baseline.ok, true);
+  assert.equal(baseline.verdict, "KNOWN-OPEN", `baseline must be KNOWN-OPEN before the mutation proof: ${JSON.stringify(baseline)}`);
+});
+
+test("RED-FIRST arm 1 — mutated: RESIDUAL forced to MITIGATED in the table goes red on the same input", () => {
+  const statusPath = tmpStatusFile({
+    1: { status: "RESIDUAL", evidence: "x", date: "2026-01-01", residual: "a real remainder" },
+  });
+  // Mutate the EXACT condition the bite names — RESIDUAL's own table entry —
+  // via the injectable `triageTable` parameter, never module internals.
+  const mutatedTable = { ...ms.TRIAGE_BY_STATUS, RESIDUAL: { verdict: "MITIGATED", why: null } };
+  const mutated = ms.rowTriage(1, { statusPath, triageTable: mutatedTable });
+  assert.equal(mutated.verdict, "MITIGATED",
+    "the mutation is confirmed live: RESIDUAL now DOES map to MITIGATED under the mutated table");
+  // The real assertion this proof exists for: production code (the default
+  // TRIAGE_BY_STATUS, no override) must never produce this.
+  const real = ms.rowTriage(1, { statusPath });
+  assert.notEqual(real.verdict, "MITIGATED",
+    "the shipped table must not exhibit the mutated table's behaviour");
+  assert.equal(real.verdict, "KNOWN-OPEN");
+});
+
+// --- RED-FIRST, arm 2: a row absent from the status file must refuse, ------
+// never fall through to a verdict ------------------------------------------
+
+test("RED-FIRST arm 2 — baseline: a present row yields a real verdict, not a refusal", () => {
+  const statusPath = tmpStatusFile({ 4: { status: "OPEN", evidence: "x", date: "2026-01-01", residual: null } });
+  const baseline = ms.rowTriage(4, { statusPath });
+  assert.equal(baseline.ok, true, `baseline must succeed before the mutation proof: ${JSON.stringify(baseline)}`);
+  assert.equal(baseline.verdict, "KNOWN-OPEN");
+});
+
+test("RED-FIRST arm 2 — mutated: disabling the presence check on a missing row turns a refusal into a fabricated verdict", () => {
+  const statusPath = tmpStatusFile({ 4: { status: "OPEN", evidence: "x", date: "2026-01-01", residual: null } });
+  // The real reader refuses row 97 (not present) — this is the guard we are
+  // proving matters, by simulating what its ABSENCE would do: a row-lookup
+  // that falls back to a NEIGHBOUR entry instead of failing closed.
+  const real = ms.rowTriage(97, { statusPath });
+  assert.equal(real.ok, false, "the shipped reader refuses a missing row");
+  // Disabled arm: read the JSON directly and fall back to row 4's entry
+  // instead of refusing — the exact shape a missing presence-check would
+  // produce, reproduced here without touching module internals.
+  const raw = JSON.parse(readFileSync(statusPath, "utf8"));
+  const fallbackEntry = raw["97"] ?? raw["4"]; // <- the disabled guard
+  const fabricated = ms.TRIAGE_BY_STATUS[fallbackEntry.status];
+  assert.ok(fabricated, "the disabled arm DOES produce a verdict for a row that does not exist");
+  assert.equal(fabricated.verdict, "KNOWN-OPEN",
+    "a missing-row guard's absence would silently hand a reader row 4's verdict for row 97 — never observed from the shipped reader, which is exactly the point");
 });
 
 // --- readRecords: the THIRD answer, which is the whole reason phase 3 wires

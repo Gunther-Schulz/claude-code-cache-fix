@@ -42,7 +42,57 @@ export const MATRIX_STATUS_LABELS = [
   "EVIDENCE-UNRESOLVED",
   "BAD-DATE",
   "UNKNOWN-UNDERSCORE-KEY",
+  "BAD-TRIAGE",
 ];
+
+// The status vocabulary's TRIAGE meaning — "what does this status mean for a
+// live bust walk" — as data, beside the vocabulary rather than beside its
+// reader (`tools/bust-triage.mjs` imports this instead of parsing a matrix
+// cell's leading token). Four of the eight are the non-buildable family and
+// each carries WHY, because collapsing "won't build" / "must not build" /
+// "can't build" / "not ours to build" back into a bare KNOWN-OPEN throws away
+// the reason the split exists (records-restructure directive, phase 1).
+//
+// Only SHIPPED yields MITIGATED. RESIDUAL must NOT: a row shipped WITH a
+// named remainder can bust ON that remainder, and "our mitigation worked" is
+// the dangerous direction to be wrong in — this tool once answered MITIGATED
+// on a live bust where nothing absorbed, by mapping a class to a ROW's
+// status rather than to what actually happened (bust-triage.mjs's own
+// `statusKind` docstring records the incident this table exists to end).
+export const TRIAGE_BY_STATUS = Object.freeze({
+  SHIPPED: Object.freeze({ verdict: "MITIGATED", why: null }),
+  RESIDUAL: Object.freeze({
+    verdict: "KNOWN-OPEN",
+    why: "shipped WITH a named remainder — this bust may BE the remainder",
+  }),
+  OPEN: Object.freeze({ verdict: "KNOWN-OPEN", why: null }),
+  UNASSESSED: Object.freeze({ verdict: "KNOWN-OPEN", why: "mitigability not assessed" }),
+  ACCEPTED: Object.freeze({
+    verdict: "KNOWN-OPEN",
+    why: "WON'T BUILD — deliberately unmitigated, cost accepted",
+  }),
+  DECLINED: Object.freeze({
+    verdict: "KNOWN-OPEN",
+    why: "MUST NOT BUILD — mitigating would suppress a legitimate bust",
+  }),
+  IMPOSSIBLE: Object.freeze({
+    verdict: "KNOWN-OPEN",
+    why: "CAN'T BUILD — physics (model-keyed cache, upstream eviction, TTL)",
+  }),
+  "OUT-OF-SCOPE": Object.freeze({
+    verdict: "KNOWN-OPEN",
+    why: "NOT OURS — the mitigation lives outside this repo",
+  }),
+});
+
+// The verdict vocabulary a per-row `triage` override may name —
+// `bust-triage.mjs`'s own vocabulary (its header comment), never a status-
+// file invention. A row whose status underdetermines its triage (row 27,
+// CONTROLLED-CAUSE) sets `triage` to one of these; `why` is NOT overridden —
+// the status's own reason stays attached, only the verdict shown changes.
+export const TRIAGE_VERDICTS = new Set([
+  "MITIGATED", "KNOWN-OPEN", "CONTROLLED-CAUSE", "UNCLASSIFIED", "UNVERIFIABLE",
+]);
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // The matrix's row-header shape. Rows 18-21 live in a SECOND three-column
@@ -120,6 +170,20 @@ export function checkMatrixStatus(statusObj, matrixRowNumbers, env = REAL_ENV) {
       findings.push({ row: key, label: "BAD-STATUS", detail: `status ${JSON.stringify(status)} is not in the closed enum` });
     }
 
+    // The optional per-row override. Present only where the status
+    // underdetermines the triage verdict (row 27, ACCEPTED but really
+    // CONTROLLED-CAUSE) — a value outside bust-triage's own vocabulary would
+    // silently reach a reader as an unrecognised verdict.
+    if ("triage" in entry) {
+      if (!TRIAGE_VERDICTS.has(entry.triage)) {
+        findings.push({
+          row: key,
+          label: "BAD-TRIAGE",
+          detail: `triage ${JSON.stringify(entry.triage)} is not in bust-triage's verdict vocabulary`,
+        });
+      }
+    }
+
     if (status === "RESIDUAL") {
       const empty =
         residual === null ||
@@ -187,6 +251,44 @@ export function readRecords({ statusPath = STATUS_PATH, matrixPath = MATRIX_PATH
 
 export function formatMatrixStatusFinding(f) {
   return `WARN matrix-status row=${f.row} ${f.label} ${f.detail}`;
+}
+
+/**
+ * Row N's raw status-file entry. THREE answers: a missing/unparseable file
+ * or a row this status file does not carry is `ok:false` with its reason —
+ * never a default entry a caller could mistake for a real one.
+ */
+export function readRowStatus(n, { statusPath = STATUS_PATH } = {}) {
+  let statusObj;
+  try {
+    statusObj = JSON.parse(readFileSync(statusPath, "utf8"));
+  } catch (e) {
+    return { ok: false, reason: `status file unreadable: ${e?.message ?? e}` };
+  }
+  const entry = statusObj[String(n)];
+  if (!entry) {
+    return { ok: false, reason: `row ${n} is not present in the status file` };
+  }
+  return { ok: true, entry };
+}
+
+/**
+ * Row N's TRIAGE verdict — the reader a live bust walk calls instead of
+ * parsing the matrix's own prose (`bust-triage.mjs`'s row-based verdict
+ * path). `triageTable` is injectable so a red-first mutation proof (RESIDUAL
+ * wrongly mapped to MITIGATED) can mutate the exact table this function
+ * reads without reaching into module internals (dev-loop, "Adding a check" —
+ * a mutation must remove the exact condition the bite names).
+ */
+export function rowTriage(n, { statusPath = STATUS_PATH, triageTable = TRIAGE_BY_STATUS } = {}) {
+  const read = readRowStatus(n, { statusPath });
+  if (!read.ok) return read;
+  const { status, triage } = read.entry;
+  const base = triageTable[status];
+  if (!base) {
+    return { ok: false, reason: `row ${n}'s status ${JSON.stringify(status)} has no triage mapping` };
+  }
+  return { ok: true, status, verdict: triage ?? base.verdict, why: base.why };
 }
 
 // `node tools/matrix-status.mjs` — exit 0 clean, 2 findings, 1 could-not-verify.

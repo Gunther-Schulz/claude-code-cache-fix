@@ -38,14 +38,23 @@
 //   CONTROLLED-CAUSE  known class with no mitigation to build: the cost is
 //                 the operator's own (an idle gap past the TTL, a resume).
 //                 A terminal disposition in runbooks/bust-appears.md, not a
-//                 softer KNOWN-OPEN — see VERDICT_BY_KIND.
+//                 softer KNOWN-OPEN — see VERDICT_BY_KIND (the walk-
+//                 disposition path) and matrix-status.mjs's TRIAGE_BY_STATUS
+//                 (the row-status path, via a per-row `triage` override).
 //   UNCLASSIFIED  no matrix row matches. THE payload of this tool: an
 //                 unrecognised class is the one thing no existing check
 //                 reports, and it is how a whole bust class stayed invisible.
 //   UNVERIFIABLE  the steps could not run (no capture pair to classify).
-//   STATUS-UNREADABLE  a row matched, but its status is in no state the
-//                 vocabulary below knows. Stop-here, with UNCLASSIFIED —
-//                 never folded into MITIGATED (see statusKind).
+//   STATUS-UNREADABLE  a row matched, but its triage could not be resolved —
+//                 either the matrix's OWN prose is in no state `statusKind`
+//                 knows (the walk-disposition-without-row path, which has no
+//                 row number to look up), or the STATUS FILE could not
+//                 answer for a numbered row (missing file, unparseable, or
+//                 the row absent from it — `matrix-status.mjs`'s `rowTriage`,
+//                 which every numbered-row verdict now resolves through
+//                 instead of the matrix's prose; STATUS IS DATA,
+//                 records-restructure directive phase 1). Stop-here, with
+//                 UNCLASSIFIED — never folded into MITIGATED.
 //   KEY-FLIP      the pair's two requests ran under DIFFERENT extension
 //                 state keys (deferred-tool-rewrite / insertion-normalization's
 //                 own per-request key) — no continuous instance for a row's
@@ -68,6 +77,7 @@ import { readLines } from "./read-lines.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
 import { localSuffix, withLocalStamps } from "./local-stamp.mjs";
+import { rowTriage } from "./matrix-status.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
@@ -1880,26 +1890,35 @@ export async function triage(bust) {
                   `event walk dispositions it either — a class nothing currently covers`,
              attribution };
   }
-  const row = matrixRow(rowN);
-  if (!row) {
-    return { bust, steps, verdict: "UNCLASSIFIED",
-             why: `mapped to matrix row ${rowN}, but that row could not be read`,
-             attribution };
-  }
-  if (row.kind === null) {
-    // The third answer, at the status level: a row matched, but its state is
-    // in no vocabulary this tool knows. Folding it into MITIGATED is what
-    // produced a false all-clear on a row reading "OBSERVED, CAUSE NOT
-    // ISOLATED"; it stops the reader instead.
+  // STATUS IS DATA (records-restructure directive, phase 1): a row's verdict
+  // is resolved by ROW NUMBER against the status file, never by re-parsing
+  // the matrix's own prose — the prose leading-token path this replaced is
+  // `statusKind`/`VERDICT_BY_KIND`/`matrixRow`, which stay in this file for
+  // their OTHER callers (the walk-disposition path just above, which has no
+  // row number to look up; `tools/backlog-lint.mjs`; this file's own
+  // `--selftest` and `--lint-matrix` structural checks) — see this file's
+  // header comment for the grep that established that.
+  const tri = rowTriage(rowN);
+  if (!tri.ok) {
+    // THREE answers, never two: a missing status file, an unparseable one,
+    // or a row this status file does not carry is a refusal, never a
+    // default verdict — the same STATUS-UNREADABLE shape the prose path
+    // used for "a row matched, but its state is in no vocabulary this tool
+    // knows", now for "a row matched, but the status file could not answer
+    // for it".
     return { bust, steps, verdict: "STATUS-UNREADABLE",
-             why: `matrix row ${rowN}'s status is in no state this tool recognises — ` +
-                  `read the row: ${row.status}`,
+             why: `matrix row ${rowN}'s triage could not be read: ${tri.reason}`,
              attribution };
   }
+  // The `why` prints alongside every verdict (see the CLI renderer below),
+  // so the non-buildable family's split — WON'T/MUST-NOT/CAN'T/NOT-OURS —
+  // reaches the reader instead of collapsing back into a bare KNOWN-OPEN.
   return {
     bust, steps,
-    verdict: VERDICT_BY_KIND[row.kind],
-    why: `matrix row ${rowN} (${row.kind}): ${row.status}`,
+    verdict: tri.verdict,
+    why: tri.why
+      ? `matrix row ${rowN} (${tri.status} — ${tri.why})`
+      : `matrix row ${rowN} (${tri.status})`,
     attribution,
   };
 }

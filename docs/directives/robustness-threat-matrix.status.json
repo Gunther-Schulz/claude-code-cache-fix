@@ -158,6 +158,7 @@
   },
   "27": {
     "status": "ACCEPTED",
+    "triage": "CONTROLLED-CAUSE",
     "evidence": "docs/directives/robustness-threat-matrix.md",
     "date": "2026-08-07",
     "residual": "Controlled cause: the entry is gone by expiry before the request is composed, and the operator initiated it by being away — the one place FORK-NOTES' 'any non-operator-initiated bust is a prevention target' does not reach. What IS a target is the MISCLASSIFICATION: such an event booked as k:hit and triaged KNOWN-OPEN row 4, inflating row 4's evidence with an instance it did not cause. The discriminator is computable from the ledger record bust-triage already reads: gap > TTL together with a surviving read (ctx - cc) of ~0 — not mtok."
