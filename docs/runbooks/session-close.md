@@ -6,6 +6,16 @@ restart decision at depth. Companion files: `docs/dev-loop.md` (the
 three binding rules and the closing gate this sits beside),
 `BACKLOG.md` (where everything caught here lands).
 
+Close-scan: node tools/named-unbooked-scan.mjs --transcript "$T" --until HEAD
+
+The line above is the machine-readable contract, opt-in by its presence: the
+dotfiles close-signal Stop-hook greps for `^Close-scan:` and demands this
+repo's scan rather than trusting a closing report's "all booked" — which was
+wrong on 2 of 4 the day that hook was booked, caught by operator challenge
+instead of by step 6 below. `$T` is the session transcript; step 6 carries the
+assignment that resolves it, and this line is that step's command verbatim, not
+a second copy to keep in sync.
+
 **What makes this different from the closing gate in dev-loop.** Those
 four questions run per CHANGE and ask whether the WORK is finished.
 This runs once per SESSION and asks a different question: is every fact
