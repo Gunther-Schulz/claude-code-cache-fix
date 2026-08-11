@@ -1280,6 +1280,44 @@ async function main() {
     backlogLint = null;
   }
 
+  // RECORDS-VS-WORLD (records-restructure phase 3). Project STATE is data now,
+  // and data with a checker only stays true if something runs the checker
+  // where nobody is present: records drift belongs in the morning sweep, not
+  // in archaeology six weeks later. Two lanes, both WARN-only for the same
+  // reason the two above are — they grade fork-side prose-adjacent artifacts,
+  // and a hard gate on the daily sweep for a records defect would block the
+  // traffic verdict for a reason that is not about traffic.
+  //
+  // THE THIRD ANSWER IS CARRIED, not flattened: `null` means could-not-verify
+  // (file absent — upstream trees have no BACKLOG.md and no status file) and
+  // is DISTINCT from `0`, which is a real measurement. A zero standing in for
+  // an unread file is the shape this repo has been bitten by repeatedly, and
+  // it is worst exactly here, on a scheduled run with no reader.
+  let records = null;
+  try {
+    const { readRecords, formatMatrixStatusFinding } = await import("./matrix-status.mjs");
+    const res = readRecords();
+    if (!res.ok) {
+      records = { matrixStatus: null, matrixStatusReason: res.reason, readyBar: null };
+      process.stderr.write(`WARN matrix-status COULD-NOT-VERIFY ${res.reason}\n`);
+    } else {
+      for (const f of res.findings) process.stderr.write(formatMatrixStatusFinding(f) + "\n");
+      records = { matrixStatus: res.findings.length, matrixRows: res.rows, counts: res.counts, readyBar: null };
+    }
+  } catch (err) {
+    records = { matrixStatus: null, matrixStatusReason: `import/read failed: ${err?.message ?? err}`, readyBar: null };
+  }
+  try {
+    const { lintReadyBar } = await import("./backlog-lint.mjs");
+    const findings = lintReadyBar(await readFile(join(__dirname, "..", "BACKLOG.md"), "utf-8"));
+    records = { ...(records ?? {}), readyBar: findings.length };
+    for (const f of findings) {
+      process.stderr.write(`WARN backlog-ready-bar line=${f.line} ${f.label} token="${f.token}"\n`);
+    }
+  } catch {
+    records = { ...(records ?? {}), readyBar: null };
+  }
+
   // xdg-writer-guard sweep (WARN-only for now — BACKLOG "xdg-writer-guard
   // main() is wired to no consumer"): the writer-side check that a module
   // importing statePath()/dataPath() carries no unlabelled citation of the
@@ -1354,6 +1392,7 @@ async function main() {
     absorption: summariseAbsorption(rows),
     rowPins: reduceRowPins(rows),
     backlogLint,
+    records,
     xdgWriterGuard,
     rows,
   };

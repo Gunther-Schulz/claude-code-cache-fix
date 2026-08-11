@@ -36,116 +36,16 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const STATUS_PATH = join(REPO, "docs/directives/robustness-threat-matrix.status.json");
 const MATRIX_PATH = join(REPO, "docs/directives/robustness-threat-matrix.md");
 
-const VALID_STATUSES = new Set([
-  "SHIPPED", "RESIDUAL", "OPEN", "DECLINED",
-  "ACCEPTED", "IMPOSSIBLE", "OUT-OF-SCOPE", "UNASSESSED",
-]);
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-// The matrix's row-header line shape (directive Phase 1, and confirmed at
-// 84babbf: exactly 29 such lines, 1..29, no gaps, no duplicates — rows
-// 18-21 live in a second three-column table and this regex catches them
-// too, which is correct).
-const MATRIX_ROW_RE = /^\| (\d+) \|/gm;
+// THE RULE LIVES IN `tools/matrix-status.mjs` SINCE PHASE 3, and this file
+// imports it rather than carrying a copy. It was defined here first, when the
+// suite was its only consumer; the daily sweep became a second one, and a
+// second implementation of one invariant is this repo's hand-rolled-identity
+// error at the rule level — two checkers that disagree and nobody able to say
+// which is right. Namespace import on purpose: a missing export then fails at
+// its own call site instead of collapsing the whole module at ESM link time.
+import * as ms from "../tools/matrix-status.mjs";
 
-function parseMatrixRowNumbers(matrixText) {
-  const rows = [];
-  let m;
-  MATRIX_ROW_RE.lastIndex = 0;
-  while ((m = MATRIX_ROW_RE.exec(matrixText))) rows.push(Number(m[1]));
-  return rows;
-}
-
-function gitObjectExists(token) {
-  try {
-    // No `^{commit}` peel — this corpus records deployment pins as TREE
-    // hashes, and peeling to commit rejects those (tools/backlog-lint.mjs's
-    // REAL_ENV comment, and dev-loop's "does this resolve" rule).
-    execFileSync("git", ["cat-file", "-e", token], {
-      cwd: REPO,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function realPathExists(p) {
-  return existsSync(join(REPO, p));
-}
-
-// Injectable resolvers, defaulted to the real ones — mirrors
-// tools/backlog-lint.mjs's REAL_ENV: one named condition mutable at a time.
-const REAL_ENV = {
-  objectResolves: gitObjectExists,
-  pathExists: realPathExists,
-};
-
-// The rule. Pure function: no I/O of its own, everything comes in via
-// `env`. Returns an array of { row, label, detail } findings — empty means
-// clean.
-function checkMatrixStatus(statusObj, matrixRowNumbers, env = REAL_ENV) {
-  const findings = [];
-  const allKeys = Object.keys(statusObj);
-  const rowKeys = allKeys.filter((k) => !k.startsWith("_"));
-  const rowKeySet = new Set(rowKeys);
-  const matrixKeySet = new Set(matrixRowNumbers.map(String));
-
-  // UNKNOWN-UNDERSCORE-KEY — scoped: only "_" itself is the documented
-  // exemption, so a future "_2" or "_note" is caught rather than silently
-  // swallowed by a wide "starts with _" skip.
-  for (const k of allKeys) {
-    if (k.startsWith("_") && k !== "_") {
-      findings.push({ row: k, label: "UNKNOWN-UNDERSCORE-KEY", detail: `unexpected underscore-prefixed key ${JSON.stringify(k)}` });
-    }
-  }
-
-  // ROW-SET-MISMATCH — one finding per missing row, one per extra row.
-  for (const n of matrixKeySet) {
-    if (!rowKeySet.has(n)) {
-      findings.push({ row: n, label: "ROW-SET-MISMATCH", detail: `matrix has row ${n}; status file does not` });
-    }
-  }
-  for (const n of rowKeySet) {
-    if (!matrixKeySet.has(n)) {
-      findings.push({ row: n, label: "ROW-SET-MISMATCH", detail: `status file has row ${n}; matrix does not` });
-    }
-  }
-
-  for (const key of rowKeys) {
-    const entry = statusObj[key] ?? {};
-    const { status, evidence, date, residual } = entry;
-
-    if (!VALID_STATUSES.has(status)) {
-      findings.push({ row: key, label: "BAD-STATUS", detail: `status ${JSON.stringify(status)} is not in the closed enum` });
-    }
-
-    if (status === "RESIDUAL") {
-      const empty = residual === null || residual === undefined
-        || (typeof residual === "string" && residual.trim() === "");
-      if (empty) {
-        findings.push({ row: key, label: "RESIDUAL-NULL", detail: `RESIDUAL row's residual is ${JSON.stringify(residual)}` });
-      }
-    }
-
-    if (status === "SHIPPED" || status === "RESIDUAL") {
-      // Tried as BOTH shapes — the file mixes commit hashes and repo paths
-      // deliberately, and neither shape is a reliable discriminator on its
-      // own (directive Phase 1).
-      const asObject = typeof evidence === "string" && env.objectResolves(evidence);
-      const asPath = typeof evidence === "string" && env.pathExists(evidence);
-      if (!asObject && !asPath) {
-        findings.push({ row: key, label: "EVIDENCE-UNRESOLVED", detail: `evidence ${JSON.stringify(evidence)} resolves as neither a git object nor a repo-relative path` });
-      }
-    }
-
-    if (typeof date !== "string" || !DATE_RE.test(date)) {
-      findings.push({ row: key, label: "BAD-DATE", detail: `date ${JSON.stringify(date)} does not match YYYY-MM-DD` });
-    }
-  }
-
-  return findings;
-}
+const { VALID_STATUSES, REAL_ENV, parseMatrixRowNumbers, checkMatrixStatus } = ms;
 
 function readRealStatus() {
   return JSON.parse(readFileSync(STATUS_PATH, "utf8"));
@@ -372,4 +272,37 @@ test("UNKNOWN-UNDERSCORE-KEY negative control: only the documented \"_\" key pas
   const statusObj = { _: "doc", 1: fillerRow(), 2: fillerRow(), 3: fillerRow() };
   const findings = checkMatrixStatus(statusObj, [1, 2, 3], REAL_ENV);
   assert.deepEqual(findings, [], formatFindings(findings));
+});
+
+// --- readRecords: the THIRD answer, which is the whole reason phase 3 wires
+// this into the sweep rather than leaving it in the suite -------------------
+//
+// The suite runs with a human present and a repo in place. `gate-live` runs at
+// 07:55 with nobody watching, on trees that may not have these files at all
+// (upstream checkouts have no BACKLOG.md and no status file). There, a zero is
+// the dangerous value: it reads exactly like "checked and clean" while meaning
+// "never looked". These three bites pin the distinction the sweep depends on.
+
+test("readRecords: over the real repo it is ok, 29 rows, zero findings", () => {
+  const res = ms.readRecords();
+  assert.equal(res.ok, true, `expected ok, got ${JSON.stringify(res)}`);
+  assert.equal(res.rows, 29);
+  assert.deepEqual(res.findings, [], formatFindings(res.findings ?? []));
+});
+
+test("readRecords: an ABSENT status file is could-not-verify, never zero findings", () => {
+  const res = ms.readRecords({ statusPath: join(REPO, "docs/directives/no-such-status.json") });
+  assert.equal(res.ok, false, "an unreadable input must not report a clean run");
+  assert.match(res.reason, /status file unreadable/);
+  assert.equal(res.findings, undefined, "there must be no finding list at all — an empty one would read as clean");
+});
+
+test("readRecords: a matrix that parses to ZERO rows is could-not-verify, not 29 extra rows", () => {
+  // The failure this pins is not hypothetical: if the row-header shape ever
+  // changes, a naive reader reports every status row as an EXTRA row — a loud
+  // instrument shouting about the wrong thing, which is how a real defect gets
+  // buried under noise nobody believes.
+  const res = ms.readRecords({ matrixPath: join(REPO, "package.json") });
+  assert.equal(res.ok, false);
+  assert.match(res.reason, /ZERO rows/);
 });
