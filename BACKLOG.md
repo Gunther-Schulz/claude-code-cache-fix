@@ -390,7 +390,32 @@ hook, whose fork-side contract line shipped this session.
   **Design (decided):** integrate per COMMIT, not per branch, each with its own
   substance check before the pick — `git show <c> --stat`, then grep main for the
   distinctive symbol it introduces; already-present means SKIP with the skip
-  recorded, not a forced pick. Order: a162 and a82e first (they unblock the
+  recorded, not a forced pick.
+  **METHOD CORRECTED 2026-08-11 evening, and the correction is load-bearing: the
+  symbol grep above is NOT SUFFICIENT and following it alone double-applies.**
+  Proven on the first real pick. `b6bfdca` ("backlog-neighbours: second join on
+  backticked camelCase IDENTIFIERs") reported its distinctive symbols ABSENT from
+  main (`CAMEL_ID`, `buildIdentifierReport`) — and `main` already implements that
+  exact join under DIFFERENT names, `CAMEL_CASE_IDENTIFIER` and
+  `extractIdentifiers`, with its own dedicated test section (12 references in
+  `test/backlog-neighbours.test.mjs`, 5 in the tool, against the lane's 4). The
+  conflict hunk is what exposed it: HEAD's side of the hunk WAS the feature. This
+  is dev-loop's own rule — an enumeration keyed on a NAME is not an enumeration
+  of the BEHAVIOUR — landing on the integration method, and a name-only check
+  would have re-applied a feature the trunk already has, under two names, with
+  two test suites asserting it.
+  **So the per-commit check is BEHAVIOUR-level:** name what the commit makes the
+  tool DO, then look for that capability on main under any name — the commit's
+  own test names are the cheapest description of it. Read HEAD's side of any
+  conflict hunk before resolving it; that side is main's answer to the same
+  question and is often the whole finding.
+  **SKIP RECORDED (not silently dropped): `b6bfdca` — superseded by main's own
+  identifier join.** Seven of a82e's eight remain.
+  **Conflict map measured so far:** `877d3bc` conflicts in
+  `tools/backlog-lint.mjs` + `test/backlog-lint.test.mjs` (main gained 6 and 9
+  commits on those two since the branch point, and 5 of a82e's commits touch
+  them), so that file pair is where this branch's real merge work sits. The
+  remaining six were not individually attempted. Order: a162 and a82e first (they unblock the
   head), then ac73, a46f, a93d. Integration verb is `cherry-pick` onto main after
   verification, never merge; the worktree is removed once its branch reports zero
   `+`. `--closures-in-live` is confirmed absent from main AND from a82e, so item
