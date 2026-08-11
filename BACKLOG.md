@@ -96,8 +96,12 @@ The ten, in order:
    only place row 26's ABSORPTION question can be answered mechanically.
 9. **`findAbsorptionMisses` runs on every replay and prints on none** — a check
    whose output nobody reads is not in front of the boundary.
-10. **No instrument reads the BILLING side** — the ground truth every cost
-    figure in this file is derived against.
+10. **Strip the verdict TOKEN from the 29 matrix status cells** — the last
+    step of the records restructure, and the only one a brief cannot carry:
+    a dry run proved the strip is a per-row JUDGMENT, not a regex (it ate
+    narrative in nine rows and failed to parse a tenth). It displaced the
+    billing-side instrument, which moved to `## Record` — stated here rather
+    than done silently, since a capped head means every promotion is a swap.
 
 Everything below the tenth is `RECORD`: same bodies, same verifiers, no
 schedule claimed. Promotion is by re-deriving this list, never by editing a
@@ -2242,38 +2246,40 @@ ENOSPC misattribution with its wrong first explanation left in.
   phrase-class it was built for, naming a defect its own author had left in
   prose one message earlier.
 
-- **READY — no instrument reads the BILLING side, so the only ground truth we
-  have about whether the cache held is unread.** Measured 2026-08-10:
-  `grep -c usage tools/gate-live.mjs` → 0; `bust-triage` reads none;
-  `replay.mjs`'s only `cacheRead` mentions are prose in comments (`:1200`,
-  `:1256`). Every gate asks a POSITIONAL question about our output against CC's
-  input; none asks whether the prefix was actually reused. The 213k walk above
-  took hours and reached UNCLASSIFIED, then resolved in one command once the
-  `outcome` records were read — records that were in the capture the whole time.
-  Design (decided): a `cacheLoss` check in `tools/gate-live.mjs`, REPORT-only
-  until its corpus-wide rate is measured (the absorption check's precedent — a
-  blocking check shipped before anyone knows how often it fires is how a guard
-  trains its reader to ignore it). Per same-conversation pair, join the capture's
-  `outcome` usage to the pair and flag: `cacheRead` falling by an order of
-  magnitude while the pair's own verdict is NO divergence. Rows carry the
-  four-request neighbourhood — ts, model, msgs, causes, appendOnly, cacheRead,
-  cacheCreation — written AT DETECTION TIME, because this is a recurring
-  producer with no closing moment and its inputs are on the eviction clock
-  (closing gate q2); a count alone would have lost today's event by tomorrow.
-  Verifier, red-first on a TRUE positive from real data, not a planted one: the
-  2026-08-10T04:40:39Z fable request must fire (`cacheRead` 224187 -> 15603,
-  `causes: []`, `appendOnly: true`). Over-firing controls, both required
-  silent and both real: the 04:40:17 pair, which DID diverge mid-history and
-  kept its cache at 220904, and the 04:41:04 pair (divergent, cr=229032) —
-  divergence without loss must never fire, or the check reports the class
-  backwards.
-  Done-criterion: red on the real positive with its output pasted, both real
-  controls green, corpus-wide rate reported over the live captures, suite green.
-  Write boundary: `tools/gate-live.mjs`, `test/gate-live*.test.mjs`. No `proxy/`
-  change, so no pin bump and no restart.
-  Anchor: tools/gate-live.mjs
-  Write-set: tools/gate-live.mjs, test/gate-live.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live.test.mjs
+- **READY — strip the verdict TOKEN from all 29 matrix status cells; the
+  status file is authoritative and the prose still carries a second copy.**
+  The last step of `docs/directives/records-restructure.md` phase 1, and the
+  only one this session did not take. Booked rather than done because a dry run
+  proved it is NOT mechanical, which is the finding: a regex over the 29 cells
+  ate narrative in nine rows (row 8's whole cell IS its verdict plus its
+  evidence ref; row 18 lost `71/71`; row 21 lost the `other`-is-a-degraded-
+  default warning that is its most load-bearing sentence), cut mid-token inside
+  filenames (row 15 `.mjs defaults…`, row 20 `.md): start fresh…`), left nine
+  unbalanced `**` spans, and failed to parse row 3 at all, whose cell contains a
+  literal `|` inside a quoted log line.
+  So the unit of work is a JUDGMENT per row — which words are verdict and which
+  are narrative — made 29 times on this repo's central record, with the cell's
+  reasoning, evidence trail and event walks preserved verbatim. A brief cannot
+  carry it because the brief would have to contain the answer.
+  **Every dependent is already re-pointed, which is what makes this safe to do
+  now and unsafe to have done earlier:** `bust-triage` resolves row verdicts
+  from the status file (`41faa48`), the daily sweep reads it (`7d9e034`), and
+  `lintRowStatus` — the last prose consumer — is in flight on
+  `wt/rowstatus-from-data`. Do NOT start until that lands, or the strip turns a
+  live checker silently green.
+  Design, decided: each cell keeps its narrative and gains the leading pointer
+  `status: see \`robustness-threat-matrix.status.json\``; the verdict token
+  leaves. Row 3 is edited by hand (its embedded pipe defeats field splitting).
+  Verifier, red-first and already built: `node tools/matrix-status.mjs` must
+  stay at 0 findings over 29 rows, `npm test` green (the row-status and
+  matrix-cells lanes are the ones that would catch a mangled cell), and a
+  row-by-row `git diff` read confirming no evidence ref, measured number or
+  event-walk sentence left with the token. Done-criterion: no cell's leading
+  span is a verdict word, and the status file is the only place a verdict
+  appears.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: docs/directives/robustness-threat-matrix.md
+  Verifier: node tools/matrix-status.mjs && npm test
 
 - **PARKED — TWO REAL order collisions exist in the loaded registry, and
   nothing says whether their relative order matters.** Measured 2026-08-08
@@ -4788,6 +4794,36 @@ Promotion is by re-deriving the head, never by editing a grade in place. An
 entry promoted to READY must satisfy the booking bar in this file's header
 (`Anchor:` / `Write-set:` / `Verifier:`), which `tools/backlog-lint.mjs
 --ready-bar` enforces.
+
+- **RECORD (ex-READY 2026-08-11, displaced from the head by the matrix prose strip) — no instrument reads the BILLING side, so the only ground truth we
+  have about whether the cache held is unread.** Measured 2026-08-10:
+  `grep -c usage tools/gate-live.mjs` → 0; `bust-triage` reads none;
+  `replay.mjs`'s only `cacheRead` mentions are prose in comments (`:1200`,
+  `:1256`). Every gate asks a POSITIONAL question about our output against CC's
+  input; none asks whether the prefix was actually reused. The 213k walk above
+  took hours and reached UNCLASSIFIED, then resolved in one command once the
+  `outcome` records were read — records that were in the capture the whole time.
+  Design (decided): a `cacheLoss` check in `tools/gate-live.mjs`, REPORT-only
+  until its corpus-wide rate is measured (the absorption check's precedent — a
+  blocking check shipped before anyone knows how often it fires is how a guard
+  trains its reader to ignore it). Per same-conversation pair, join the capture's
+  `outcome` usage to the pair and flag: `cacheRead` falling by an order of
+  magnitude while the pair's own verdict is NO divergence. Rows carry the
+  four-request neighbourhood — ts, model, msgs, causes, appendOnly, cacheRead,
+  cacheCreation — written AT DETECTION TIME, because this is a recurring
+  producer with no closing moment and its inputs are on the eviction clock
+  (closing gate q2); a count alone would have lost today's event by tomorrow.
+  Verifier, red-first on a TRUE positive from real data, not a planted one: the
+  2026-08-10T04:40:39Z fable request must fire (`cacheRead` 224187 -> 15603,
+  `causes: []`, `appendOnly: true`). Over-firing controls, both required
+  silent and both real: the 04:40:17 pair, which DID diverge mid-history and
+  kept its cache at 220904, and the 04:41:04 pair (divergent, cr=229032) —
+  divergence without loss must never fire, or the check reports the class
+  backwards.
+  Done-criterion: red on the real positive with its output pasted, both real
+  controls green, corpus-wide rate reported over the live captures, suite green.
+  Write boundary: `tools/gate-live.mjs`, `test/gate-live*.test.mjs`. No `proxy/`
+  change, so no pin bump and no restart.
 
 - **RECORD (ex-READY 2026-08-11) — a walk on a KNOWN-OPEN row is a dead end: the datapoint lands in
   the matrix and the row's booked mitigation entry accrues nothing, which is
