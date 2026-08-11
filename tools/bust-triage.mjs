@@ -1192,9 +1192,21 @@ export function idleExpiry(bust, pair) {
  * is unable to execute, so the block is absorbable (row 23); any change to
  * a schema, the set, or the order is not (row 6). Discriminating this took
  * three hand probes on the live capture — the mechanism is the deliverable.
+ *
+ * `system_changed` maps to row 24 (BACKLOG.md's own row-24 entry, half one):
+ * it is one of the three causes CC's transcript emits, and the resume /
+ * born-large class books under it — row 24's cell names the shape directly
+ * ("transcript causes `system_changed` then `messages_changed` on
+ * consecutive turns"). Unlike `tools_changed` it needs no pair-shaped
+ * discrimination: every `system_changed` bust is this row, by construction
+ * of what the row already covers. Half two of that entry — a
+ * cross-conversation "born-large" pair mode for `capturePair` itself — is
+ * deliberately NOT built here; its own red-first arrangement rested on a
+ * capture that no longer exists on disk.
  */
 export function causeToRow(cause, pair) {
   if (cause === "messages_changed") return 4;
+  if (cause === "system_changed") return 24;
   if (cause !== "tools_changed") return null;
   const b = pair?.before?.body?.tools;
   const a = pair?.after?.body?.tools;

@@ -48,6 +48,14 @@ import { fileURLToPath } from "node:url";
 
 import { eventWalks, causeToWalk, causeIsReachable, lintMatrix, NON_CAUSES }
   from "../tools/bust-triage.mjs";
+// NAMESPACE import, deliberately: this half's bites exercise `causeToRow`
+// directly (BACKLOG.md, "bust-triage cannot reach threat-matrix row 24 by
+// ANY of its three routes"), so a missing/renamed export reads as
+// `mod.causeToRow === undefined` inside the assertion rather than failing
+// the whole module at ESM link time and taking every other bite in this
+// file down with it.
+import * as triageMod from "../tools/bust-triage.mjs";
+import { parseMatrixRowNumbers } from "../tools/matrix-status.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = join(REPO, "tools", "bust-triage.mjs");
@@ -100,6 +108,37 @@ test("BITE — no cause the matrix dispositions is unreachable from this tool", 
   assert.deepEqual(unreachable, [],
     `dispositioned but unreachable — each reads as UNCLASSIFIED: ${unreachable.join(", ")}`);
   assert.deepEqual(findings, [], findings.join("\n"));
+});
+
+// --- HALF ONE of the row-24 entry (BACKLOG.md ~line 1692): the CAUSE MAP ---
+//
+// `causeToRow` maps `messages_changed` -> 4 and `tools_changed` -> 6/23 and,
+// before this pair of bites, nothing else. `system_changed` is one of the
+// three causes Claude Code's transcript emits and the one the whole
+// resume/born-large class books under (row 24's own cell: "transcript causes
+// `system_changed` then `messages_changed` on consecutive turns"). This is
+// HALF ONE only — the cross-conversation "born-large" pair mode (half two)
+// is explicitly out of scope: its red-first arrangement rested on capture
+// s-captureAL / `--at 1786038016`, which no longer exists on disk (0 hits in
+// the captures directory and in tracked fixtures), so its motivating case
+// dissolved and does not get a substitute case found for it.
+//
+// Parentage: the expected row number is checked against the matrix's OWN row
+// set (`parseMatrixRowNumbers`), not asserted as a bare literal the tool's
+// index happens to agree with — row 24 must actually exist as a matrix row
+// or this bite proves nothing.
+test("BITE — system_changed resolves to threat-matrix row 24, the same mechanism messages_changed/tools_changed already use", () => {
+  const rows = parseMatrixRowNumbers(readFileSync(MATRIX, "utf8"));
+  assert.ok(rows.includes(24), "row 24 must be a real matrix row for this bite to assert anything");
+  assert.equal(triageMod.causeToRow("system_changed", null), 24);
+});
+
+// Discrimination pair, required beside the positive above: a cause map that
+// answers "row 24" for every input is the check-fires-on-a-non-defect shape,
+// not a working map. `some_cause_nobody_walked` is the same unrelated-cause
+// probe this file already uses against `causeToWalk`, above.
+test("BITE — a cause the matrix genuinely does not disposition still resolves to nothing", () => {
+  assert.equal(triageMod.causeToRow("some_cause_nobody_walked", null), null);
 });
 
 // --- the reader half, end to end, on the live pair the entry names ---
