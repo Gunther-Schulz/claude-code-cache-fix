@@ -1461,6 +1461,18 @@ ENOSPC misattribution with its wrong first explanation left in.
   the dotfiles repo and must be edited THERE, never in this tree. So the edit
   is a dotfiles change (`cache-fix/CLAUDE.local.md`) and this entry is the
   fork-side record of it. Consumer: the next dotfiles session.
+  **THE NAMED CONSUMER CANNOT REACH IT — measured 2026-08-11, and this is the
+  decorative-naming defect rather than a scheduling delay.** A fresh dotfiles
+  session loads the dotfiles repo's own carriers, never this fork's backlog, so
+  an item whose whole realizing write lands over there sits where its reader
+  will not look. Probed: `grep -c` for this item's subject over the dotfiles
+  `BACKLOG.md` returns **0** — the consumer's own queue has no record of it,
+  and the pointer has therefore been decorative since it was written.
+  NOT fixed here on purpose: writing into a sibling repo's backlog is that
+  repo's write boundary and a peer session works there. What discharges this is
+  one entry in the dotfiles backlog carrying the four-line rule, after which
+  THIS entry becomes a pointer that resolves. Until then the item is,
+  operationally, unqueued in both repos while appearing queued in one.
   Verifier: the deployed overlay carries the three lines, and the doctor's
   content-drift check on `DEPLOYED_COPIES` stays green.
   Anchor: tools/absence-scan.mjs
@@ -1749,6 +1761,9 @@ ENOSPC misattribution with its wrong first explanation left in.
   35 return COULD-NOT-VERIFY with the reason computed. So the floor's SCOPE
   shrank and the floor remains a floor.
 
+- **HALF ONE DONE 2026-08-11 (`2af3944`), half two PARKED on expired evidence — and the desk answered the question the lane returned.** The cause map now resolves `system_changed` to row 24, so the loudest hole (UNCLASSIFIED — a class nothing watches) becomes an answer. Red-first was a pure function and therefore could not decay: 13/14 with the new bite failing `null !== 24` against the unmodified tool, 14/14 after; re-run at the desk after integration.
+  **Graded with two checks the lane did not run.** (1) Its expectation's PARENTAGE was re-executed rather than trusted: row 24's own cell in the matrix does name this shape — `system_changed` then `messages_changed` on consecutive turns — so the mapping derives from the matrix's definition, not from the tool it grades. (2) The lane returned a live question rather than settling it: row 24's status is `DECLINED`, so every `system_changed` bust now reports that, and it asked whether the whole class should read that way. Answered at the desk by reading the verdict the tool actually produces: `KNOWN-OPEN — MUST NOT BUILD — mitigating would suppress a legitimate bust`, carrying row 24's residual, which distinguishes "declined on measurement" from "unknown class". That is the intended conversion and needs no per-cause override.
+  A true-positive end-to-end probe was NOT available: `bust-triage --list` shows no `system_changed` event in the recent window (15 of 136 rows, newest first), so the class is proven at the function and unproven end to end. Named, not silently omitted.
 - **READY — `bust-triage` cannot reach threat-matrix row 24 by ANY of its three
   routes, so the whole resume / born-large class triages as UNVERIFIABLE or
   UNCLASSIFIED forever.** Measured 2026-08-06 on capture s-captureAL (the
@@ -1978,6 +1993,9 @@ ENOSPC misattribution with its wrong first explanation left in.
   question than it was booked with: which conversation does each of those two
   readings belong to? Settle it by reading the transcript, never by quoting
   either document.
+- **DONE 2026-08-11 (`7555177`) — the section prints unconditionally, and the desk graded it on evidence the lane never used.** Dispatched to sonnet from this entry; integrated after the desk ran a check outside the lane's own set (dev-loop, "verify with something the lane did not run"): a plain text `replay.mjs` run — no `--census` — over the row-4 pin frozen earlier today prints `absorption misses (…): 0` immediately after the relocated-block departures block. That is the entry's zero-line requirement, observed on a real committed capture rather than on the lane's synthetic arms. The lane's own arms were both driven through the REAL `insertion-normalization` extension (1 comparable pair each, never zero) rather than through fabricated stats, and it committed no fixture file — the fixtures are generated inline, which keeps the scrub question from arising at all.
+  **The brief was WRONG about its own candidate fixture and the lane caught it, which is the useful record.** It named `rowpin-…-absorptionMiss.json` as a likely red arm; that file is untracked (so it never reached the worktree) AND the whole `rowpin-*` family is a single-row evidence-PIN snapshot — `schema: "rowpin/1"`, `{row, sides, checks, provenance}` — not a `{header, records}` replayable capture. Two different objects under one directory and one naming convention. The dispatcher had graded the line "unverified", which is why it was correctable instead of load-bearing; had it been asserted, the lane would have built against a file shape that cannot feed `replay.mjs` at all.
+  Original entry follows, RE-GRADED rather than left at READY.
 - **READY — `findAbsorptionMisses` runs on every replay and prints on none.**
   `docs/dev-loop.md` says it "now asks it on every run — not behind
   `--census`, because the whole point is that nobody knew to look". True of the
