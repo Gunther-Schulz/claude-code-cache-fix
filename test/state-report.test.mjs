@@ -43,7 +43,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync, utimesSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync, utimesSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { tmpDirSync } from "../tools/tmpdir.mjs";
@@ -81,6 +81,12 @@ const MAIN_CHECKOUT = dirname(
   }).trim(),
 );
 const NONEXISTENT = "/nonexistent/path/state-report-test-does-not-exist";
+
+// The two artifacts the matrix bite cross-checks, each read from its own
+// home: the prose rows and the status declarations live in different files,
+// and reading one off the other would make the comparison vacuous.
+const MATRIX_MD = join(MAIN_CHECKOUT, "docs/directives/robustness-threat-matrix.md");
+const MATRIX_STATUS = join(MAIN_CHECKOUT, "docs/directives/robustness-threat-matrix.status.json");
 
 function sh(args, cwd) {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -121,11 +127,39 @@ test("reproduces: HEAD:proxy matches the dotfiles CACHE_FIX_PROXY_TREE_PIN, or c
   assert.equal(res.match, true, `local=${res.local} manifest=${res.manifestPinned}`);
 });
 
-test("reproduces: matrix has exactly 29 rows with 10 OPEN-or-RESIDUAL", () => {
+test("reproduces: matrix has exactly 30 rows with 11 OPEN-or-RESIDUAL", () => {
+  // Updated 2026-08-11 for row 30 (relocate-then-pin content loss). These two
+  // literals are a REPRODUCTION pin, not an invariant: they exist so
+  // collectMatrix is checked against the real artifact rather than against
+  // itself, and every legitimate new row moves them by construction. That is
+  // the hardcoded-count shape dev-loop.md names as a check that fires on a
+  // non-defect — it fired on this row, correctly in the sense that the numbers
+  // really did change, and uselessly in the sense that nothing was wrong. The
+  // pair below is what keeps it from being pure ceremony: the counts must agree
+  // with an INDEPENDENT count taken from the two artifacts, so a parser that
+  // silently stopped reading rows fails here even when the literals are stale.
   const res = collectMatrix();
   assert.equal(res.ok, true, res.reason);
-  assert.equal(res.totalRows, 29);
-  assert.equal(res.openResidual.length, 10);
+  assert.equal(res.totalRows, 30);
+  assert.equal(res.openResidual.length, 11);
+
+  // The independent halves. `totalRows` is the matrix PROSE's row count and
+  // `openResidual` is derived from the status JSON — two different files, so
+  // reading each from its own home is what makes the comparison mean anything
+  // (an expectation read off the artifact it grades moves with the mutant).
+  const proseRows = readFileSync(MATRIX_MD, "utf8")
+    .split("\n").filter((l) => /^\| \d+ \| /.test(l)).length;
+  assert.equal(res.totalRows, proseRows,
+    "collectMatrix's row count must equal the matrix file's own numbered rows");
+  const declared = JSON.parse(readFileSync(MATRIX_STATUS, "utf8"));
+  const openish = Object.entries(declared)
+    .filter(([k, v]) => !k.startsWith("_") && (v.status === "OPEN" || v.status === "RESIDUAL")).length;
+  assert.equal(res.openResidual.length, openish,
+    "the OPEN/RESIDUAL set must equal what the status file declares");
+  assert.equal(proseRows, Object.keys(declared).filter((k) => !k.startsWith("_")).length,
+    "every prose row is declared and every declaration has a prose row — a row minted "
+    + "without its status declaration is invisible to the state report, which is the "
+    + "silent half this bite exists to catch");
 });
 
 // ==========================================================================

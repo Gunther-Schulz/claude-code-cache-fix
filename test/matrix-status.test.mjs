@@ -93,14 +93,19 @@ test("live bite: the real status file returns zero findings against the real mat
   );
 });
 
-// --- Bite 2: the live file has exactly 29 row keys, exactly 1..29 --------
+// --- Bite 2: the live file has exactly 30 row keys, exactly 1..30 --------
+//
+// The COUNT moves with every legitimate new row (30 as of 2026-08-11, row 30 —
+// relocate-then-pin content loss). What the bite is actually for is the
+// CONTIGUITY: no gaps and no duplicates, which is the property a row minted by
+// hand can silently break and which no count alone would catch.
 
-test("live bite: the real status file has exactly rows 1..29, no gaps, no duplicates", () => {
+test("live bite: the real status file has exactly rows 1..30, no gaps, no duplicates", () => {
   const statusObj = readRealStatus();
   const rowKeys = Object.keys(statusObj).filter((k) => !k.startsWith("_"));
-  assert.equal(rowKeys.length, 29, `expected 29 row keys, got ${rowKeys.length}: ${rowKeys.sort().join(",")}`);
+  assert.equal(rowKeys.length, 30, `expected 30 row keys, got ${rowKeys.length}: ${rowKeys.sort().join(",")}`);
   const numbers = rowKeys.map(Number).sort((a, b) => a - b);
-  const expected = Array.from({ length: 29 }, (_, i) => i + 1);
+  const expected = Array.from({ length: 30 }, (_, i) => i + 1);
   assert.deepEqual(numbers, expected);
 });
 
@@ -428,10 +433,13 @@ test("RED-FIRST arm 2 — mutated: disabling the presence check on a missing row
 // the dangerous value: it reads exactly like "checked and clean" while meaning
 // "never looked". These three bites pin the distinction the sweep depends on.
 
-test("readRecords: over the real repo it is ok, 29 rows, zero findings", () => {
+test("readRecords: over the real repo it is ok, 30 rows, zero findings", () => {
+  // 30 as of 2026-08-11 (row 30). The load-bearing half is `findings` being
+  // EMPTY — a prose row without its status declaration, or the reverse, is a
+  // finding here, and that is what a new row can actually get wrong.
   const res = ms.readRecords();
   assert.equal(res.ok, true, `expected ok, got ${JSON.stringify(res)}`);
-  assert.equal(res.rows, 29);
+  assert.equal(res.rows, 30);
   assert.deepEqual(res.findings, [], formatFindings(res.findings ?? []));
 });
 
