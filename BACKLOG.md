@@ -403,6 +403,24 @@ ENOSPC misattribution with its wrong first explanation left in.
   `git cherry main <branch>`, or each remainder is NAMED with why it was
   dropped; the full suite green at the integrated HEAD; and the skip list pasted,
   since a silent skip and a lost commit are the same bytes.
+  **MEASURED 2026-08-11 evening, and it decides how big this is: the picks are
+  CONFLICTED, not clean.** Commits landed on `main` since the lanes branched at
+  `3bc6a72`, per contended file: `tools/backlog-lint.mjs` 6,
+  `test/backlog-lint.test.mjs` 9, `tools/replay.mjs` 3, `tools/bust-triage.mjs` 2,
+  `test/replay-gate-selfcheck.test.mjs` 0. So `main` evolved these files
+  independently while the lanes held their own versions, and every pick against
+  them needs the substance question answered before the conflict is resolved —
+  "did main already solve this, differently?" — which is judgment per commit, not
+  a mechanical replay. Budget it as such: 17 commits across the two blocking
+  branches, most of them conflicted.
+  **Two lanes already came home and are IN, so the count is live:** the
+  `alias-claim --protect` pair (`999a6ff`, `9e3530a`) and the row-30 eviction
+  bite (`02f6cb7`) were cherry-picked, desk-verified and pushed 2026-08-11
+  evening — those are not part of the remaining debt.
+  **Ordering note for whoever runs this:** `test/replay-gate-selfcheck.test.mjs`
+  has ZERO main-side commits, so the `modelChangedAcrossPair` exemption's test
+  half can land without waiting on a162; only its `tools/replay.mjs` half is
+  contended. That splits the head's item-1 rather than blocking it whole.
   Anchor: docs/dev-loop.md
   Write-set: (integration commits onto main; no single file — the branches' own
   file sets, listed in the entry's measurement above)
