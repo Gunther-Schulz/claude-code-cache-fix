@@ -64,8 +64,10 @@ cannot be executed by anyone. Where the class provably cannot survive the
 scrub — literal-text predicates the sanitizer tokenizes — the entry says so
 and its evidence is a SYNTHETIC fixture, which is this repo's default for
 anything bound for a public tree anyway.
-The measurement that forced it: 23 of 27 registered aliases resolve to
-nothing, and three of the ten entries in the head derived that same morning
+The measurement that forced it: 19 of 50 alias citations resolve to
+nothing (23 of 27 registered aliases have no capture left on disk; the
+citation figure is the shipped lane's, and it counts row-pin fixtures as
+resolving), and three of the ten entries in the head derived that same morning
 were un-armable by lunchtime — one of them re-verified as reproducing at the
 desk the previous day. The reader-side check (`backlog-lint` warning when a
 cited alias resolves to neither a live capture nor a committed fixture) is
@@ -129,15 +131,24 @@ grade in place.
 **CORRECTION 2026-08-11, hours after the derivation above and by measurement
 rather than by re-reading it: ranks 2, 3 and half of 4 are UN-ARMABLE, and the
 derivation could not have known.** Every registered capture alias was resolved
-against the captures directory and `git ls-files`: 23 of 27 resolve to
-nothing, and the four the head leans on (s-captureAL, s-captureAM,
-s-captureAT, s-captureAU) are all gone — instrument control run first, a
-present sid returning 1 under the identical probe. Oldest capture on disk is
-2026-08-09; the cited ones are from 2026-08-06 and 2026-08-08. Ranks 2 and 3
+against the captures directory and `git ls-files`: 23 of 27 registered aliases
+have no capture left on disk, and the four the head leans on (s-captureAL,
+s-captureAM, s-captureAT, s-captureAU) have none — oldest capture on disk is
+2026-08-09, the cited ones are from 2026-08-06 and 2026-08-08. Ranks 2 and 3
 are re-graded PARKED with their missing evidence named; rank 4 SPLIT — its
 cause-map half survived because its red is a pure function, and that is the
 whole discriminator between the half that shipped today and the half that did
 not.
+**One number in the first version of this paragraph was WRONG and is corrected
+here rather than quietly restated** (see the booked-verifier entry for the
+mechanism): the fixture half of that probe joined on the wrong rendering of a
+session id, so it reported AL and AM as having no committed evidence when both
+have four row-pin fixtures each. The re-grades stand — a row pin is a
+single-row snapshot and none of these verifiers can run on one — but they now
+rest on what the entries need rather than on a claim that nothing was kept.
+The desk's instrument control had proven the DISK arm on a known positive and
+said nothing about the fixture arm, while the sentence reporting it covered
+both.
 **The vacated slots are deliberately NOT backfilled in this pass.** Promotion
 is by re-derivation over the whole RECORD set, never by editing this list, and
 four lanes dispatched against ranks 4 (half one), 6, 8 and 9 are in flight —
@@ -300,6 +311,104 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **PARKED — the D1 absorption counter joins two event logs on `sid` + a 5s
+  window because neither log carries a shared request id.** Surfaced 2026-08-11
+  by the lane that shipped the counter, as a gap rather than a decision, and it
+  is correct to have stopped there: the durable fix writes a correlation id at
+  the point both extensions already write their records, which is a `proxy/**`
+  schema change with a pin bump and a restart, not a tools change.
+  Why the heuristic is acceptable meanwhile, stated so it is not read as a
+  known-wrong shipped counter: the correlating condition is
+  `oldKeyFallback:true`, which requires prior state to have been FOUND, so a
+  brand-new subagent conversation — the population that produced the lane's
+  169 false positives — cannot satisfy it at all. The residual is two genuinely
+  distinct events for one `sid` inside 5s.
+  MISSING EVIDENCE: a real instance where the correlation is wrong. None exists
+  in the corpus today (both counters read 0 over 994 and 190 files), so the
+  tolerance cannot be calibrated against anything — which is exactly why this
+  is parked rather than ready, and what would un-park it is the first non-zero
+  reading on either counter.
+  Anchor: proxy/extensions/insertion-normalization.mjs
+  Write-set: proxy/extensions/insertion-normalization.mjs, proxy/extensions/deferred-tool-rewrite.mjs, tools/gate-live.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live.test.mjs
+
+- **READY — THIRTY commits of lane work from 2026-08-10 evening never reached
+  `main`, and today two lanes were dispatched to rebuild parts of it.** Found
+  2026-08-11 at the desk while checking whether two returning lanes' worktrees
+  were safe to remove — not by any check, and nothing would have raised it.
+  **The measurement.** 20 worktrees are registered under
+  `.claude/worktrees/`; five carry content `main` does not have. Counted by
+  PATCH-ID (`git cherry main <branch>`), never by revision count, because
+  cherry-picking preserves content and changes the hash — a rev count called
+  eleven branches unintegrated when six of those were already merged in
+  substance. Real total: **30 commits, 2026-08-10 19:24 to 20:48**, across
+  `backlog-lint`/`backlog-lanes` (8), `replay`/fixtures (9), tooling (7),
+  `bust-triage`/matrix (5), runbooks (1).
+  **What it cost, today, before anyone knew:** a lane was dispatched this
+  morning to build the row-24 cause map — `8da5547` already did it, plus the
+  `capturePairResult` reach the same entry's half two describes. A second lane
+  was dispatched to print the absorption section — `87e0f74` already did it.
+  Both were rebuilt from scratch, verified, and integrated; the duplication is
+  the visible cost and the invisible one is that the FIRST implementations were
+  never graded, so whichever is better is unknown.
+  **It also touches a claim made earlier today.** The re-grade of the
+  `capturePairResult` identity entry says nothing pinned s-captureAT. Precisely:
+  `e53f873` DOES pin it — and its own title records that the pin does NOT
+  reproduce, which is why the entry's evidence is still gone in substance. The
+  correction matters anyway, because "no pin was taken" and "a pin was taken and
+  proved nothing" point at different repairs.
+  **The writer, since a reach failure always has one:** a lane's closing report
+  is the end of the LANE, and nothing marks the end of the INTEGRATION. The
+  dispatcher pushes after verifying, and a session that ends between those two
+  acts leaves the branch registered, the commits reachable, and no artifact
+  anywhere saying so — `git status` is clean, `git log origin/main..main` is
+  empty, and both read as done. The pile is invisible to every check this repo
+  has. It is still happening: two lanes are in flight right now under the same
+  conditions.
+  **The joke the pile is telling, and it is the ranking argument:** `39d2944`
+  in that same pile is `tools/prune-lane-branches.mjs`, built to prune orphaned
+  lane branches. The mechanism that would have surfaced this is inside the thing
+  it would have surfaced.
+  Design, decided: a check that reports every registered worktree whose branch
+  carries content `main` lacks, by patch-id, with the count and the per-branch
+  subjects — and the THREE answers, since a worktree list that cannot be read is
+  could-not-verify, never zero. Consumers: `docs/runbooks/session-close.md`
+  (a session may not close over unintegrated lane content without naming it) and
+  the doctor. First act of the implementation is to read `39d2944` and extend it
+  rather than write a rival — the extend-before-adding rule applies hardest to a
+  tool that already exists and is merely unreachable.
+  Verifier, red-first and permanent at this commit: the five branches above are
+  real positives (`git cherry` gives `+` lines today), and the branches already
+  cherry-picked are real negatives (all `-`) — a check that flags those is
+  reporting the rev-count answer and is wrong.
+  Anchor: docs/runbooks/session-close.md
+  Write-set: tools/prune-lane-branches.mjs, test/prune-lane-branches.test.mjs, docs/runbooks/session-close.md
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/prune-lane-branches.test.mjs
+
+- **READY — the 30 unintegrated commits above get a per-commit disposition:
+  integrate, supersede, or drop, each with its reason.** Split from the entry
+  above because that one is the MECHANISM and this one is the backlog of
+  content; conflating them is how the mechanism would end up gated on a large
+  judgment pass. Not dispatchable as one lane: several commits are now
+  superseded by today's re-implementations (row-24 cause map, absorption print)
+  and deciding which of two implementations survives is a desk judgment per
+  pair, not a briefable rule. What IS mechanical and rides the entry above: the
+  enumeration — branch, commit, subject, files, and whether `main` carries an
+  equivalent by patch-id.
+  Ordering constraint: the mechanism entry ships FIRST, because its red-first
+  arrangement is these five branches, and integrating them removes it.
+  **The anchor below is `BACKLOG.md` and NOT the obvious
+  `tools/prune-lane-branches.mjs`, because the READY bar refused the obvious
+  one — `ANCHOR-UNRESOLVED`, the file does not exist in this tree.** That red
+  is the entry's own thesis arriving from a direction nobody arranged: the
+  natural anchor for a lost-lane-work item is the tool a lost lane wrote, and
+  the check that grades anchors is what says so out loud. Left recorded rather
+  than silently re-anchored, since it is the cheapest possible demonstration
+  that the pile is unreachable from the tree.
+  Anchor: BACKLOG.md
+  Write-set: BACKLOG.md
+  Verifier: git cherry main <each registered lane branch> reports zero `+` lines, or each remaining `+` has a booked reason
+
 - **PARKED (RE-GRADED 2026-08-11 from READY — the red case expired between
   two derivations) — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
@@ -313,7 +422,9 @@ ENOSPC misattribution with its wrong first explanation left in.
   `test/fixtures/`, this entry is not dispatchable at any tier.
   **Why, measured at the desk 2026-08-11:** both verifier arms named below
   (s-captureAT for the red, s-captureAU for the control) are GONE — 0 hits in
-  the captures directory, 0 in `git ls-files`, against a control sid that
+  the captures directory and 0 committed fixtures, the latter RE-CHECKED with
+  `sidToken` after the first pass used a wrong join that happened to give the
+  same answer here (it did not for two sibling aliases), against a control sid that
   returned 1 under the identical probe. The oldest capture now on disk is
   2026-08-09. The entry below records the desk re-running this red on
   2026-08-10 and finding it reproduced; it had one day left. The three-link
@@ -1797,10 +1908,18 @@ ENOSPC misattribution with its wrong first explanation left in.
   unchanged.
   **SPLIT 2026-08-11 — half one DISPATCHED, half two PARKED, and the split is
   forced by the evidence rather than chosen.** The verifier quoted in the line
-  above is DEAD: s-captureAL has 0 hits in the captures directory and 0 in
-  `git ls-files` (desk measurement 2026-08-11, control sid returning 1 under
-  the identical probe; oldest capture on disk is 2026-08-09, the capture is
-  from 2026-08-06). So the `--at` arms cannot run at any tier.
+  above is DEAD: s-captureAL has 0 hits in the captures directory (desk
+  measurement 2026-08-11, control sid returning 1 under the identical probe;
+  oldest capture on disk is 2026-08-09, the capture is from 2026-08-06), so the
+  `--at` arms cannot run at any tier.
+  **CORRECTED the same day: this note first said "and 0 in `git ls-files`",
+  which was the wrong join talking.** Under `sidToken` — the hash a pinned
+  fixture is actually named by — s-captureAL has FOUR committed row-pin
+  fixtures. They do not revive the verifier, because a row pin is a single-row
+  snapshot and `--at` needs a replayable pair, so half two stays parked on
+  exactly the evidence it always needed. What the correction does change is the
+  next reader's first move: there is real frozen material for this session to
+  read, and "nothing was kept" would have stopped them looking.
   HALF ONE (the cause map, `system_changed` -> row 24) survives the loss
   because its red is a PURE-FUNCTION arrangement — `causeToRow` returning
   nothing today, asserted in `test/bust-triage-matrix-walk.test.mjs` — which
@@ -1872,6 +1991,11 @@ ENOSPC misattribution with its wrong first explanation left in.
   **3. The grade split: GO — declare the third grade.** Operator recommended it twice on principle; wave 1 supplied the measurement, and that is what moved it: FIVE independent lanes hit entries graded READY whose own bodies say the design is undecided. The false-READY defect is demonstrated at RATE, not as anecdote. This is the repo-level convention call the backlog-tooling lane correctly returned rather than took, and the linter half it returned as gated is now unblocked.
   Realizing write-boundary: `BACKLOG.md` and this repo's `CLAUDE.md` discipline section for the grade declaration (desk); the two held lane branches for decision 2; `proxy/**` plus the dotfiles pin and restart for decision 1 (deployment-coupled, row-3 declaration owed before the restart).
 
+- **TOOL HALF DONE 2026-08-11 (`46d7bc4`); the two extension comments remain, and they are deployment-coupled so they are the desk's.** `gate-live` gains `collectD1Retirement`, emitting `d1OldKeyFallback {hits, newestUtc, filesScanned, window}` and `d1PostRelocationNoBaseline {count, newestUtc, filesScanned, window}` into the status file, reusing the existing snapshots resolution and the could-not-verify convention (`filesScanned: 0` renders as null, never a clean zero). Red-first: 39 pre-existing bites pass, 9 new ones fail against the unmodified file. Dated real-corpus control: `d1OldKeyFallback {hits:0, filesScanned:994}` and `d1PostRelocationNoBaseline {count:0, filesScanned:190}` over a 24h window at 11:20:25Z — measured zeros, both denominators non-zero.
+  **The lane's mid-task correction is the part to keep, and it is this repo's own documented trap caught by an executor.** Its first design flagged a `no-baseline` whose `key` differed from the previous record under the same `sid`. Bites green, so it ran the real corpus before committing — and got `count:169` in a window where the sibling counter read 0. Cause: `sid` is the session id, shared by the main thread and every subagent, so `key` changes constantly under one busy `sid` — the group-by-conversation rule `FORK-NOTES.md` already states, arriving as a live false positive rather than as a reading. The shipped design correlates across BOTH logs (a `no-baseline` counts only where insertion-normalization's own `oldKeyFallback:true` fires for the same `sid` within 5s) and re-measures 0, consistent with its sibling. The wrong turn is recorded in the tool's header rather than erased.
+  **What that leaves open, named:** the 5s + `sid` correlation is a HEURISTIC because neither log carries a shared request id — the durable fix is a schema change in `proxy/**`, which is not this entry. Booked as its own item rather than left in the lane's report.
+  **STILL OWED on this entry, and it is the desk's because it ships a proxy tree change:** the comment update in `insertion-normalization.mjs` and `deferred-tool-rewrite.mjs` so they cite the two fields instead of asserting a grep, plus the dotfiles-side doctor reading them as a third answer. That is a `proxy/**` commit — pin bump (`git rev-parse --short HEAD:proxy`) and a restart via `docs/runbooks/ship-proxy-change.md` — and it is deliberately NOT bundled into a tools-only push.
+  Original entry follows, RE-GRADED rather than left at READY.
 - **READY (small) — D1's retirement trigger is a HAND-GREP, and a code comment in two shipped extensions asserts it is booked. This entry is what makes that comment true.** Booked 2026-08-10 immediately after the assertion was checked and found false — the named-and-unbooked class, committed one level above the very defect the same commit had just fixed, which is the useful part of the record: `a5f1960` repaired an over-wide assurance about `gate-live` and then made a second one ("Wiring it there is booked") inside the repair itself.
   **The gap.** D1's bridge retires when `oldKeyFallback` is absent from the event logs for seven consecutive days. Those events live in `~/.local/state/cache-fix/snapshots/*-{insertion,deferred-tool}-events.jsonl`; `gate-live` replays CAPTURES and never reads that directory, so the retirement question is answerable only by a hand-grep nobody will run on day seven. A trigger whose evaluation depends on someone remembering is not a trigger.
   Design, decided: `gate-live` gains a snapshots pass counting `oldKeyFallback:true` records and the newest such record's date, carrying `d1OldKeyFallback: {hits, newestUtc, filesScanned}` in the status file; `doctor` reads it as a third answer so a stale or unwritten count FAILS rather than reading as a silent zero. `filesScanned` is load-bearing, not decoration — a zero over zero files is this repo's could-not-verify case and must never render as clean.
@@ -1932,6 +2056,11 @@ ENOSPC misattribution with its wrong first explanation left in.
   **Incident the lane reported against itself, worth keeping:** a `git checkout HEAD -- <file>` intended to discard a throwaway red-first experiment also discarded a real uncommitted fix sharing that file. Caught by grep, redone, no commit affected. That is the corpus's one-command rule at a smaller grain — a revert whose scope is "the thing I just made" acts on the whole file, and the file had two authors' worth of change in it.
   Next actions, in order, none of them requiring a decision: (1) confirm or re-issue the pin; (2) verify the lane's claims in the artifact and cherry-pick its 8 commits; (3) book its 13 dispositions; (4) wave 2 (`gate-live` + billing) unblocks only after (2). Realizing write-boundary: `BACKLOG.md` (desk-only). This entry retires when (3) is done.
 
+- **MECHANISM HALF DONE 2026-08-11 (`d6647cc`) — and it corrected the desk that briefed it, which is the result worth recording.** `lintCaptureAliases` ships in `tools/backlog-lint.mjs`: every `s-capture[A-Z]+` citation anywhere in an `## Open` entry resolves against the alias registry (capture on disk) OR a committed fixture, WARNs when neither holds, exempts the pre-registry aliases from the registry's own `_burned` list, and returns the third answer — `registryPresent:false` — when the registry cannot be read, never a silent clean. Red-first: 99 pre-existing bites pass, 11 new ones fail against the unmodified tool. Real run: `scanned=50 resolved=24 unresolved=19 exempt=7`, WARNing on s-captureAT (10 citations) and s-captureAU (5) and silent on the four that resolve.
+  **The lane refused the join the brief asserted, and was right** — the brief said a fixture is named by the session id's leading hex; it is named by `sidToken`, a sha256 prefix of the same width. The lane hand-checked the asserted join against two registry entries that name their own pinned fixtures, got zero matches, found the real function, matched both, and IMPORTED it rather than reimplementing. Desk-verified independently with `sidToken` itself before this booking. Every alias figure written earlier today rests on the wrong join and is corrected above.
+  **Two desk checks the lane did not run.** Its bites inject the registry path rather than reading the machine's, which is correct for portability and means the committed suite never touches real state — so the live arms were re-run here: AT/AU warn, AV/AW/BA/BB silent. And the lane's own deviation note says the hygiene guard blocked its first attempt at UUID-shaped test placeholders; that is the guard firing on a synthetic value in a test, which is the false-fire direction this repo watches — recorded, not acted on, since the lane's workaround (non-UUID placeholders) costs nothing and the guard's reach is deliberate.
+  PROCEDURE half: DONE separately, as the READY bar's fourth clause at the top of this file.
+  Original entry follows, RE-GRADED rather than left at READY.
 - **READY — a booked verifier names a live capture as its calibration evidence and NOTHING pins it at booking time; two entries have now lost theirs.** Measured 2026-08-10 by the read-only evidence lane, which could not execute either design because the data was already gone. One entry's motivating pair is off disk, never pinned; another's five backing captures are all gone — searched across the whole cache-fix data tree and the committed fixtures, zero hits. Not "about to expire": already expired. The corpus also shrank from 89 captures to 58 in the same window.
   **What makes this a class and not two accidents:** an entry is booked with a red-first arrangement pointing at live, mutating state; the arrangement is correct on the day it is written; the capture rotates on a quadratic clock, oldest-mtime-first — which takes the QUIET session first, and a session goes quiet exactly when it stops being traffic and starts being evidence. Nothing in the booking path notices. This repo already carries the rule that a red-first arrangement is anchored to an immutable reference; what it lacks is anything that CHECKS that at the moment a booking is written.
   **The correction to the obvious repair, and it is the load-bearing half:** the answer is NOT to find a substitute calibration case. `docs/dev-loop.md` is explicit — a check whose motivating case dissolves does not get a substitute found for it, because it would ship having never gone red on a real defect. An entry whose calibration evidence expired is therefore not re-armable by shopping for a fresh instance; it is re-armable only by capturing and pinning the NEXT live occurrence, which makes the pin the deliverable and the fix the thing that waits.
@@ -1941,14 +2070,35 @@ ENOSPC misattribution with its wrong first explanation left in.
   **RE-MEASURED 2026-08-11 at the desk, and the population is far larger than
   "two entries" — this is now the rate, not the anecdote.** Every registered
   alias resolved against the captures directory and against `git ls-files`:
-  **23 of 27 resolve to NOTHING**, and only four (s-captureAV, s-captureAW,
-  s-captureBA, s-captureBB) still have a capture on disk. Instrument control,
+  **23 of 27 have no CAPTURE on disk**, and only four (s-captureAV,
+  s-captureAW, s-captureBA, s-captureBB) still do. Instrument control,
   run before the zeros were believed: a sid known present returned 1 under the
   identical probe while each cited one returned 0, so the probe discriminates
   and the absence is a measurement rather than a dead pattern. Oldest capture
   on disk is 2026-08-09; the four aliases the derived head depends on
   (s-captureAL, s-captureAM, s-captureAT, s-captureAU) are all from 2026-08-06
-  or 2026-08-08. Nothing pinned any of them.
+  or 2026-08-08.
+  **CORRECTED the same day, and the correction is worth more than the
+  measurement: the control above covered ONE of the probe's two arms while
+  being reported as if it covered both.** The disk arm was proven on a known
+  positive. The COMMITTED-FIXTURE arm was not — and it was wrong. It joined on
+  the session UUID's leading hex, while a pinned fixture is named by `sidToken`,
+  `s-` + the first 12 hex of `sha256("s-" + sid)` (`tools/harvest.mjs:252`).
+  Both renderings are `s-` followed by 12 hex, so the wrong one looks exactly
+  like the right one and returns the clean zero a true absence returns.
+  Found by the dispatched lane, which declined to trust the join the brief
+  asserted: it hand-checked it against two registry entries that name their own
+  pinned fixtures (zero matches), found the real function, and matched both.
+  Re-verified at the desk with `sidToken` itself — **AL and AM have four
+  tracked fixture files each; AT and AU have none.**
+  Corrected population, measured by the shipped lane over the real file:
+  **50 alias citations, 24 resolved, 19 unresolved, 7 exempt** (the pre-registry
+  aliases, which can never resolve and are declared rather than warned on).
+  What survives: AT and AU are genuinely gone, and they are the two the head's
+  blocked entries rest on. What changes: AL and AM resolve to ROW PINS —
+  single-row snapshots, not replayable pairs — so those entries stay parked on
+  the evidence they actually need, while no longer being examples of nothing
+  having been kept.
   **The cost landed on the same day's own derivation**, which is the part worth
   keeping: entries 2, 3 and half of 4 in the head derived 2026-08-11 were
   ranked as dispatchable and are un-armable, one of them re-verified as
@@ -2497,10 +2647,16 @@ ENOSPC misattribution with its wrong first explanation left in.
   correct either way.
   **The re-grade is a CORRECTION of this entry's own verifier sentence, not a
   change of circumstances.** It reads "red-first, on committed evidence that
-  cannot decay: s-captureAM". That capture was never committed: measured at the
-  desk 2026-08-11, s-captureAM has 0 hits in the captures directory and 0 in
-  `git ls-files`, against a control sid returning 1 under the identical probe.
-  The sentence asserted the very property that would have made it safe, which
+  cannot decay: s-captureAM". The CAPTURE is gone — 0 hits in the captures
+  directory at the desk 2026-08-11, against a control sid returning 1 under the
+  identical probe — so the verifier as written cannot run.
+  **CORRECTED the same day: this note first added "and 0 in `git ls-files`",
+  which was a wrong join (the fixture name is a `sidToken` hash, not a slice of
+  the session id).** s-captureAM has FOUR committed row-pin fixtures. They are
+  single-row snapshots and this entry's whole subject is a DISAGREEMENT between
+  two pair selections, which one row cannot exhibit — so the park stands on its
+  own terms rather than on an absence that was never true.
+  The entry's original sentence asserted the very property that would have made it safe, which
   is why nothing re-checked it — an entry saying its evidence is durable is a
   claim in the costume of a result, the same shape as CHECKED/VERIFIED without
   the output beside it.

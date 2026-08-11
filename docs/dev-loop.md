@@ -1617,6 +1617,26 @@ same predicate at real data proves it matches reality — and it is how the
 two live order collisions (350, 690) surfaced, which no planted case
 would have shown. Where the real world offers a positive, use it.
 
+**A lane's report ends the LANE. Nothing ends the INTEGRATION, and that gap is
+silent in every instrument this repo has.** Measured 2026-08-11: thirty commits
+from the previous evening's lanes sat in five registered worktrees, never
+merged — and the session that owned them left a clean `git status`, an empty
+`git log origin/main..main`, and a handoff describing the work as shipped. All
+three readings were true and none of them looks at a lane branch. The cost was
+paid the next morning, when two lanes were dispatched to rebuild work that
+already existed in that pile, and the first implementations were never graded,
+so which of each pair is better is unknown.
+Count by PATCH-ID, never by revision: `git cherry main <branch>` marks `-` for
+content already upstream, and cherry-picking — the integration verb this file
+prescribes — changes every hash it touches. A rev count called eleven branches
+unintegrated where six had landed in substance, which is the two-coordinate-
+spaces error arriving in the one place a dispatcher checks their own work.
+The obligation is one line at session close: every registered worktree's branch
+reports zero `+`, or each remainder is named. And the mechanism for it was
+itself in the pile (`tools/prune-lane-branches.mjs`), which is the shape to
+expect — the check that would surface a class of lost work is exactly the kind
+of thing a lost lane was building.
+
 **The tell that grading was skipped:** the grading commit cites only the
 lane’s evidence. If the DONE entry contains nothing the lane did not
 report, nothing independent was run — whatever else the entry says.

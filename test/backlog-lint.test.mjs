@@ -67,6 +67,11 @@ const PRE_STASH_FIX_REF = "6f415e8~1";
 // corrected the `capturePairResult` entry's stale `:749`/`:760` citations to
 // `:754`/`:765`. Read via `git show` at test time.
 const PRE_CITATION_FIX_REF = "fe78c94~1";
+// The post-correction ref: the citations are corrected here AND the entry
+// still sits in `## Open` under its old title, frozen for good. Both
+// properties are what the green half needs and neither can be true of the
+// live file forever.
+const POST_CITATION_FIX_REF = "110d5be";
 // The premise-true and correction-placement lanes' shared red-first fixture:
 // the backlog state one retirement pass produced on 2026-08-10, frozen
 // before any further edits. Carries both a STILL-TRUE-BUT-DONE entry (the
@@ -891,16 +896,42 @@ test("citation lane: red-first against the pre-correction BACKLOG.md, green agai
   // numbers in prose with no adjacent anchor, and stays COULD-NOT-CHECK,
   // which is why the DRIFTED assertion carries the weight rather than a count
   // of MATCHes on its own.
+  // THIRD anchor of the same class, and the one that guarantees a repeat:
+  // `lintCitations` scans `## Open` ONLY, so a green half that requires two
+  // MATCHes from the live file breaks the day this entry moves to Record or
+  // Done — which a backlog entry is SUPPOSED to do. Raised by a peer session
+  // reading the same failure, and it is right: nothing in this bite should
+  // depend on where an entry currently lives.
+  // So the two halves are split by what each can own forever. The
+  // must-be-checked claim runs against a FROZEN ref, where the entry's title,
+  // grade and section can never move again; the live file is asserted only on
+  // what it owes permanently — no DRIFTED at those sites — which holds whether
+  // the entry is in Open, in Record, or gone.
+  const frozen = gitShow(POST_CITATION_FIX_REF, "BACKLOG.md");
+  const frozenSrc = gitShow(POST_CITATION_FIX_REF, "tools/bust-triage.mjs").split("\n");
+  const frozenLineOf = (needle) => {
+    const idx = frozenSrc.findIndex((l) => l.includes(needle));
+    assert.ok(idx >= 0, `anchor expression absent at ${POST_CITATION_FIX_REF}: ${needle}`);
+    return idx + 1;
+  };
+  const frozenSites = [
+    frozenLineOf("const cid = JSON.stringify(after.body.messages[0])"),
+    frozenLineOf("if (JSON.stringify(r.body.messages[0]) !== cid) continue;"),
+  ];
+  const frozenGreen = lintCitations(frozen).filter(
+    (f) => f.file === "tools/bust-triage.mjs" && frozenSites.includes(f.citedLine),
+  );
+  assert.equal(frozenGreen.length, 2, "the corrected citations must be checked at the frozen ref");
+  for (const f of frozenGreen) assert.equal(f.verdict, "MATCH");
+
   const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
-  const atSites = lintCitations(current).filter(
+  const drifted = lintCitations(current).filter(
     (f) =>
       f.file === "tools/bust-triage.mjs" &&
-      (f.citedLine === cidAssign || f.citedLine === cidCompare),
+      (f.citedLine === cidAssign || f.citedLine === cidCompare) &&
+      f.verdict === "DRIFTED",
   );
-  const drifted = atSites.filter((f) => f.verdict === "DRIFTED");
-  assert.deepEqual(drifted, [], "no citation at the corrected sites may be DRIFTED");
-  const green = atSites.filter((f) => f.verdict === "MATCH");
-  assert.equal(green.length, 2, "the corrected citations must still be checked and resolve");
+  assert.deepEqual(drifted, [], "no live citation at the corrected sites may be DRIFTED");
 });
 
 test("citation lane: a citation at a line that never moved is MATCH, not a false DRIFTED", () => {
