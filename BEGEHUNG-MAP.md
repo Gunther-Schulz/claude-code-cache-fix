@@ -42,7 +42,7 @@ ancillary analytics (cost/quota tools).
 | bust-triage verdicts vs matrix reach | mechanically-guarded (partial) — status-file reader 41caught…110d5be with reds; row-24 reach shipped in drain stretch | 2026-08-11 · drain | 17/26-fold incident (2026-08-06), row-24 gap | remaining READY entry on triage reach |
 | census classes vs investigative hand-derivations | prose-covered — dev-loop closing-gate q3 | (unverified) | — | dark: no scan finds hand-classified classes the census never absorbed |
 | proxy pipeline output vs invariants | mechanically-guarded (unverified this round) — output-guard extension + gate replay; red-proofs not re-read | never (by Begehung) | — | verify red-proofs from the guard itself |
-| state-report sections vs the state they claim | mechanically-guarded (unverified) — bites in c271b49; sections' discrimination not independently reviewed | never | — | candidate round |
+| state-report sections vs the state they claim | mechanically-guarded for absent inputs (12 third-answer bites read + render test, test/state-report.test.mjs:135-227,392); STALE direction open — gate verdict carries no age (booked READY, grep "stale gate verdict"); double-read race booked RECORD | 2026-08-11 · round 2 | 2 (1 probed live, 1 code-read) | execute the staleness booking |
 | upstream PR slices vs fork-only content | prose-covered (unverified) — `slice-preflight.mjs` exists, reach unread | never | — | read what slice-preflight actually checks |
 | runbooks vs their real event sequences (missing-step class) | prose-covered — GRADUATE markers convention | 2026-08-11 · 1 runbook of 7 | 1 missing step | walk the other six against a real run each |
 | ancillary analytics (cost/quota/rates) vs operator decisions | dark | never | — | low cost? name the consumer first |
@@ -75,3 +75,30 @@ ancillary analytics (cost/quota tools).
   this round) / 11 prose-covered / 2 dark, of 20 rows. No global claim.
   Next per rotation: darkest = snapshots/telemetry event logs vs their
   consumers (never visited, new machinery).
+
+- 2026-08-11 · round 2 · row: **state-report sections vs the state they
+  claim** · why: rotation's darkest (snapshots/telemetry) is DEFERRED with
+  its reason named — an active co-writer is reshaping its consumers
+  (gate-red work, 9f02518) this hour, and findings against a moving
+  artifact arrive stale; this row is the darkest without a live writer:
+  never visited, machinery built today, and every future session's state
+  read rests on it, so wrongness is silent and lands everywhere. Lens:
+  third answers and staleness — for each section, can a could-not-read,
+  a stale input, or an absent input render as a clean or current claim?
+  Registered before the round's first search.
+  **Closed same day, yield 2:** (1) a stale gate verdict renders as
+  current — no staleness logic exists in the tool; probe EXECUTED (a
+  7-day-old green collects as `ok:true` with no age signal); booked
+  READY (small) with a discrimination pair. (2) `collectMatrix`
+  double-reads the status file against its own one-pass contract;
+  booked RECORD. Positive re-grade earned by reading the guard: the
+  absent-input direction is thoroughly red-proven (12 third-answer
+  bites + a render test), so the row's `(unverified)` is lifted for
+  that half. Lens ended on falling yield — the remaining collectors
+  (repo section) read live git state where staleness is definitionally
+  impossible.
+  Coverage after round 2: 7 mechanically-guarded (2 unverified) /
+  11 prose-covered / 2 dark, of 20 rows. No global claim. Next per
+  rotation: snapshots/telemetry row once the co-writer's gate-red
+  stretch closes; the deferral reason dissolves with their closing
+  report.

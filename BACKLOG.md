@@ -348,6 +348,42 @@ ENOSPC misattribution with its wrong first explanation left in.
   scanner pasted in the closing report), suite green, and the runbook's
   interim hand-rescan sentence replaced by a pointer to the shipped check.
 
+- **READY (small) 2026-08-11 — a stale gate verdict renders as CURRENT in
+  state-report: `collectGateVerdict` passes `finished` through raw and no
+  staleness logic exists anywhere in the tool, so a dead gate timer and a
+  healthy quiet day produce the same reassuring line.** Found by Begehung
+  round 2 (BEGEHUNG-MAP.md); probe EXECUTED at the desk 2026-08-11: a
+  synthetic gate-status.json with `finished` 7 days old collects as
+  `{ok:true, gateOk:true}` with no age signal — the reader must do date
+  arithmetic by hand, which is evidence delivery left to the human
+  (dev-loop q1). The dead-timer case is a non-event: nothing changes, so
+  only a mechanism can distinguish it. Design: collector adds `ageHours`
+  computed from `finished` (null-safe: an unparseable or absent
+  timestamp is its own could-not-verify, never age 0); renderer appends
+  ` — STALE (>24h)` past the threshold, chosen as 24h because the gate
+  is a daily timer (07:55) and one missed run is exactly the event worth
+  seeing. Red-first pair: a fixture with finished = now−3d must render
+  the STALE marker (red against the current renderer proves the defect),
+  a fixture with finished = now−1h must NOT (the discrimination arm —
+  catches a marker that fires always).
+  Anchor: tools/state-report.mjs (the session state read)
+  Write-set: tools/state-report.mjs, test/state-report.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/state-report.test.mjs
+  Done: both arms green with the pre-fix red pasted in the closing
+  report; `--json` carries `ageHours` so the two renderers stay one pass.
+
+- **RECORD (small) 2026-08-11 — `collectMatrix` reads the status file
+  TWICE: `readRecords` parses it for validation, then collectMatrix
+  parses it again for enum counts (tools/state-report.mjs:155-160), so a
+  write landing between the two reads yields counts and validation from
+  different versions — against the file's own "one collection pass"
+  contract.** Found by Begehung round 2. Milliseconds-wide race with a
+  human consumer, hence RECORD not READY. Fix shape when touched next:
+  `readRecords` returns its parsed object (or accepts one), collectMatrix
+  consumes that — one read, one home; the bite is a readRecords stub
+  whose returned object differs from the on-disk file, asserting the
+  counts follow the SAME read the validation used.
+
 - **RECORD 2026-08-11 — gh-authored public text (PR bodies, PR and issue
   comments) is an outward channel with NO mechanical scan; the covering
   discipline is prose, and this entry is the explicit prose-rest label so
