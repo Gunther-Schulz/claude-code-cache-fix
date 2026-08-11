@@ -417,6 +417,16 @@ ENOSPC misattribution with its wrong first explanation left in.
   `alias-claim --protect` pair (`999a6ff`, `9e3530a`) and the row-30 eviction
   bite (`02f6cb7`) were cherry-picked, desk-verified and pushed 2026-08-11
   evening — those are not part of the remaining debt.
+  **THE READING NOW EXISTS, which changes how this entry is worked:** the
+  lane-branch collector shipped 2026-08-11 evening and `node tools/state-report.mjs
+  --json` reports `laneBranches.{totalOutstanding, orphanedWithWork,
+  branchesWithWork}` live — 31 and 1 at the moment of writing, against 33 and 1 in
+  the frozen fixture, the difference being the three lanes integrated that
+  evening. So progress on this entry is MEASURED rather than recounted by hand,
+  and the done-criterion's "zero `+` per branch" is one command. Desk-verified
+  independently of the building lane: the two cherry-picked lanes read
+  `outstanding=0, alreadyUpstream=2` and `=1`, which a revision count would have
+  reported as still outstanding — the patch-id coordinate is real, not claimed.
   **Ordering note for whoever runs this:** `test/replay-gate-selfcheck.test.mjs`
   has ZERO main-side commits, so the `modelChangedAcrossPair` exemption's test
   half can land without waiting on a162; only its `tools/replay.mjs` half is
