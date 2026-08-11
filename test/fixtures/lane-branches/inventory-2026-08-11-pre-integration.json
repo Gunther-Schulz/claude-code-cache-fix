@@ -1,0 +1,92 @@
+{
+  "capturedAt": "2026-08-11T14:50:44Z",
+  "mainAt": "60cf17c",
+  "purpose": "frozen live evidence: the lane-branch inventory BEFORE the 2026-08-11 integration cleared it. The red case for tools/state-report.mjs lane-branch collector. Integration destroys this state, so it is frozen here per dev-loop closing-gate q2.",
+  "branches": [
+    {"branch": "worktree-agent-a04cdc7797ba104d5", "tip": "3bc6a72", "mergeBase": "3bc6a72", "outstanding": 0, "alreadyUpstream": 0, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a10fa05c9085a67e4", "tip": "d794f01", "mergeBase": "730cdda", "outstanding": 0, "alreadyUpstream": 2, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a1280272d40e194a3", "tip": "b993eba", "mergeBase": "730cdda", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a14e6149a71b2c1be", "tip": "6d9a8d3", "mergeBase": "048c329", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a162bc7ead18882ad", "tip": "e53f873", "mergeBase": "3bc6a72", "outstanding": 9, "alreadyUpstream": 0, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a1c7b25b37fe96d69", "tip": "9dea083", "mergeBase": "c0fae79", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a22236189b9f25d6f", "tip": "3baaf7a", "mergeBase": "5c88cde", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a24d19792d0c72d73", "tip": "695dff2", "mergeBase": "3bc6a72", "outstanding": 0, "alreadyUpstream": 3, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a2b1f451c8a8d6df4", "tip": "4a2bdad", "mergeBase": "7d9e034", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a3188f7b30e707124", "tip": "d185240", "mergeBase": "2bf1f21", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a46f0d2dbf29a93d7", "tip": "e89c5e7", "mergeBase": "3bc6a72", "outstanding": 7, "alreadyUpstream": 0, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a4a357536af9b2ed9", "tip": "1a4a268", "mergeBase": "8d52837", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a4bed47915947b25e", "tip": "eab1294", "mergeBase": "b3819e4", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a4ddbce3f57be5bae", "tip": "1d07836", "mergeBase": "a255a6e", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a4ee9288bdc0fb9ca", "tip": "087d435", "mergeBase": "3bc6a72", "outstanding": 0, "alreadyUpstream": 3, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a5467fe2b6ee4d765", "tip": "ca1d60d", "mergeBase": "8d52837", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a5cd2731e39b3fdeb", "tip": "83df50e", "mergeBase": "acf0871", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a6015292921793776", "tip": "3c1ee67", "mergeBase": "b3819e4", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a60fbc7960d3223c9", "tip": "5eb8758", "mergeBase": "a255a6e", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a6bf542034e833491", "tip": "8bfd19b", "mergeBase": "b3819e4", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a6c5ad371227eca7b", "tip": "9afedf8", "mergeBase": "8d52837", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a6ed2e52b4fd6b8b9", "tip": "e48017b", "mergeBase": "3f034c0", "outstanding": 2, "alreadyUpstream": 0, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a6ee340ce28343b04", "tip": "5fdfa87", "mergeBase": "84babbf", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a81f4a299c22a2c8f", "tip": "721c897", "mergeBase": "8d52837", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a82eb314485126126", "tip": "03d4502", "mergeBase": "3bc6a72", "outstanding": 8, "alreadyUpstream": 1, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a8d564215c297df88", "tip": "acf0871", "mergeBase": "acf0871", "outstanding": 0, "alreadyUpstream": 0, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-a93d5b5926262ab7c", "tip": "c485af2", "mergeBase": "db5fbfa", "outstanding": 1, "alreadyUpstream": 0, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a96b501a5be0372a0", "tip": "0dd7e56", "mergeBase": "3bc6a72", "outstanding": 0, "alreadyUpstream": 2, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-a9804dc080cb6bec8", "tip": "33428a2", "mergeBase": "2feb671", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-aa0f8209c8f7e0415", "tip": "93ef7b2", "mergeBase": "db5fbfa", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-aac004e098ba51345", "tip": "9c0d500", "mergeBase": "b7ae5aa", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-ac661dc2efd1c9462", "tip": "bb94fa4", "mergeBase": "7d9e034", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-ac73dca7ecf344d05", "tip": "224a23b", "mergeBase": "3bc6a72", "outstanding": 5, "alreadyUpstream": 0, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-accca867822517e77", "tip": "e49d1dc", "mergeBase": "c0fae79", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-ad13b83a2daed72ec", "tip": "a92ace8", "mergeBase": "3bc6a72", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-add897efb46783885", "tip": "d27b6f1", "mergeBase": "bb48443", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-ade6b83a41d013bf0", "tip": "360093a", "mergeBase": "360093a", "outstanding": 0, "alreadyUpstream": 0, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-ae411300a9a0ea8cd", "tip": "3f034c0", "mergeBase": "3f034c0", "outstanding": 0, "alreadyUpstream": 0, "worktreeRegistered": true}
+    ,
+    {"branch": "worktree-agent-af818b210ca319934", "tip": "6ccc88b", "mergeBase": "e461a77", "outstanding": 0, "alreadyUpstream": 2, "worktreeRegistered": false}
+    ,
+    {"branch": "worktree-agent-afc2401061b010669", "tip": "844b792", "mergeBase": "a255a6e", "outstanding": 1, "alreadyUpstream": 0, "worktreeRegistered": false}
+    ,
+    {"branch": "wt/description-absorb", "tip": "7f6e5a1", "mergeBase": "7f6e5a1", "outstanding": 0, "alreadyUpstream": 0, "worktreeRegistered": false}
+    ,
+    {"branch": "wt/moved-fresh", "tip": "2dfb45d", "mergeBase": "764e8a3", "outstanding": 0, "alreadyUpstream": 1, "worktreeRegistered": false}
+    ,
+    {"branch": "wt/xdg-migration", "tip": "aca9e1e", "mergeBase": "aca9e1e", "outstanding": 0, "alreadyUpstream": 0, "worktreeRegistered": false}
+  ]
+}
