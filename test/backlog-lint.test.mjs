@@ -870,19 +870,33 @@ test("citation lane: red-first against the pre-correction BACKLOG.md, green agai
   assert.equal(byCited[749], cidAssign, `the cid-assignment site now lives at :${cidAssign}`);
   assert.equal(byCited[760], cidCompare, `the cid-comparison site now lives at :${cidCompare}`);
 
-  // Filtered to the `capturePairResult` entry itself: the citation-lint
-  // entry (below it) ALSO mentions `:754`/`:765` in prose narrating this
-  // very correction, with no adjacent anchor — correctly COULD-NOT-CHECK,
-  // not a second MATCH, and not what this control is pinning.
+  // The green half asks one thing: at the two corrected sites, nothing is
+  // DRIFTED and both real citations resolve. It is NOT filtered by the
+  // entry's title any more — that filter decayed on 2026-08-11, hours after
+  // the line-number hardcoding above decayed the same way, when the entry was
+  // re-graded READY -> PARKED and its identifying phrase moved off the first
+  // line. `f.entry` is the entry's TITLE, so a title-shaped filter is
+  // anchored to the most freely edited prose in the repo, and its failure
+  // reported a defect in the tree while the tree was correct.
+  //
+  // Two decays of one bite, both in a bite whose SUBJECT is citation decay,
+  // give the general form: an expectation about a corpus must not key on any
+  // property of that corpus a normal edit changes. What is stable here is the
+  // pair of SITES (derived above from the source, not written in) and the
+  // verdicts at them — the citation-lint entry below still mentions these
+  // numbers in prose with no adjacent anchor, and stays COULD-NOT-CHECK,
+  // which is why the DRIFTED assertion carries the weight rather than a count
+  // of MATCHes on its own.
   const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
-  const green = lintCitations(current).filter(
+  const atSites = lintCitations(current).filter(
     (f) =>
       f.file === "tools/bust-triage.mjs" &&
-      (f.citedLine === cidAssign || f.citedLine === cidCompare) &&
-      /capturePairResult.*conversation identity/.test(f.entry),
+      (f.citedLine === cidAssign || f.citedLine === cidCompare),
   );
-  assert.equal(green.length, 2, "the corrected citations must still be checked");
-  for (const f of green) assert.equal(f.verdict, "MATCH");
+  const drifted = atSites.filter((f) => f.verdict === "DRIFTED");
+  assert.deepEqual(drifted, [], "no citation at the corrected sites may be DRIFTED");
+  const green = atSites.filter((f) => f.verdict === "MATCH");
+  assert.equal(green.length, 2, "the corrected citations must still be checked and resolve");
 });
 
 test("citation lane: a citation at a line that never moved is MATCH, not a false DRIFTED", () => {
