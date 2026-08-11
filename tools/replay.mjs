@@ -4210,6 +4210,29 @@ async function main() {
       }
     }
 
+    // "The mitigation ran" and "the mitigation absorbed" are different claims
+    // (docs/dev-loop.md, "What no gate asks: did the mitigation ABSORB?") —
+    // the 2026-08-05 349k bust replayed exit 0 with an absorption that FIRED
+    // and a forwarded pair that still diverged inside the region it claimed
+    // to cover. findAbsorptionMisses computes this on every run already; this
+    // is that computation's first appearance in the TEXT report (previously
+    // reachable only via --json or gate-live's status file, so a human
+    // running the plain replay during a bust walk never saw it — printed
+    // unconditionally, zero included, per the three-answer rule). Each row
+    // carries the three numbers the check exists for: where the absorption
+    // claimed to act (absorbedAt), where the forwarded pair actually
+    // diverged (forwardedDivergence), and the attribution (ours).
+    process.stdout.write(
+      `\nabsorption misses (the mitigation ran but the forwarded pair still diverged within its claimed reach): ${absorptionMisses.length}\n`,
+    );
+    for (const a of absorptionMisses.slice(0, 20)) {
+      process.stdout.write(
+        `  n=${a.prevN}->${a.n} ts=${a.ts} absorbedAt=[${a.absorbedFreshAt.join(",")}] forwardedDivergence=${a.forwardedDivergence} ours=${a.ours}` +
+          (a.cacheControlOnly === true ? " [cache_control marker only]" : "") +
+          "\n",
+      );
+    }
+
     process.stdout.write(`\ncanonical order violations (state model vs wire): ${orderViolations.length}\n`);
     for (const o of orderViolations.slice(0, 20)) {
       process.stdout.write(

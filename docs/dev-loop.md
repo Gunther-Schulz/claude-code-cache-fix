@@ -1176,6 +1176,22 @@ to act, where the forwarded pair actually diverged, and whether CC's input
 diverged there too — the last is `ours: true/false`, and it is the attribution
 that otherwise costs an afternoon.
 
+**CORRECTED 2026-08-11 — "asks it on every run" was true of the COMPUTATION
+and false of the TEXT REPORT, and it was this sentence that made the gap
+invisible.** `findAbsorptionMisses` ran on every replay from the start, but
+until now the rows reached a human only via `--json` or `gate-live`'s status
+file — the plain-text run this file itself tells a human to read during a
+bust walk (`runbooks/bust-appears.md` step 4) had no absorption section at
+all, not even a zero line (BACKLOG, "READY — `findAbsorptionMisses` runs on
+every replay and prints on none"; measured on alias s-captureAM, a real miss
+that never showed up in that text run). Fixed the same commit: the text
+report now prints the section unconditionally, zero included, with each
+row's `absorbedAt` / `forwardedDivergence` / `ours`. The lesson this leaves
+behind: "the computation runs unconditionally" and "a human reading the
+report sees it" are different claims, and a sentence that only checks the
+first reads as covering the second to its own author — the paraphrase-drift
+shape, arrived at by an assurance wider than what it actually establishes.
+
 ## The hygiene gate scans messages and every text type, not just fixtures
 
 Two blind spots, both found by planting rather than by reading, both closed

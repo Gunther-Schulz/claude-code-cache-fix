@@ -9,8 +9,22 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { writeFile, rm } from "node:fs/promises";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { tmpDir } from "../tools/tmpdir.mjs";
 
-import { findAbsorptionMisses, compactEntry } from "../tools/replay.mjs";
+// Namespace import: the CLI-level bites below spawn tools/replay.mjs as a
+// subprocess and never touch these bindings, but a broken export on this
+// module must not fail the WHOLE file at ESM link time and take the
+// pre-existing bites down with it (a named import of a missing binding is a
+// SyntaxError before a single test runs).
+import * as replayModule from "../tools/replay.mjs";
+const { findAbsorptionMisses, compactEntry } = replayModule;
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPLAY = join(__dirname, "..", "tools", "replay.mjs");
 
 // Entries in the compact shape findAbsorptionMisses consumes. `inHash[0]` is
 // the conversation identity, so both entries must share it to be paired.
@@ -189,4 +203,118 @@ test("no fresh absorption means no row, however badly the prefix diverged", () =
     entry({ n: 2, inHash: inCur, outHash: inCur, joinMoves: [2], movedFresh: 0 }),
   ]);
   assert.deepEqual(rows, [], "re-fire only, no fresh recognition — not this check's row");
+});
+
+// --- The TEXT report — BACKLOG "READY — `findAbsorptionMisses` runs on
+// every replay and prints on none" ---
+//
+// The rows above prove the FUNCTION finds misses. None of them prove a human
+// running `node tools/replay.mjs <capture>` (no --json) ever sees one — and
+// until this fix, none did: the computation ran unconditionally, the text
+// report carried no absorption section at all. So this spawns the REAL CLI
+// against a REAL pipeline run (insertion-normalization's actual join-move
+// recognition, gated on live via --env, not a fabricated `stats` object) —
+// the only way to exercise what the text report actually prints, the same
+// reasoning replay-excerpt-record-identity.test.mjs gives for spawning
+// rather than importing.
+//
+// Both fixtures are SYNTHESIZED (never a live capture, per this repo's
+// publication bar) from the inline/standalone reminder-merge shape
+// insertion-moved-fresh.test.mjs already proved produces a real, freshly
+// recognized join-move — reconstructed here rather than imported, same
+// reason that file gives: those builders are local consts there, not
+// exports.
+
+const REM = "PreToolUse:Edit hook additional context: check the date";
+const WRAPPED = `<system-reminder>\n${REM}\n</system-reminder>`;
+const NUDGE = "The task tools haven't been used recently.";
+
+const toolUse = (id, input = {}) => ({ role: "assistant", content: [{ type: "tool_use", id, name: "Edit", input }] });
+const toolResult = (id, extra = []) => ({
+  role: "user",
+  content: [{ type: "tool_result", tool_use_id: id, content: "out" }, ...extra],
+});
+const txt = (t) => ({ type: "text", text: t });
+
+// The INLINE leg CC sends first: the reminder rides inside the tool_result,
+// the nudge arrives as its own system message right after.
+const inlineLeg = (tu1Input = {}) => [
+  { role: "user", content: [txt("q1")] },
+  toolUse("tu1", tu1Input),
+  toolResult("tu1", [txt(WRAPPED)]),
+  { role: "system", content: NUDGE },
+  toolUse("tu2"),
+  toolResult("tu2"),
+  { role: "assistant", content: [txt("a")] },
+];
+
+// The STANDALONE leg: CC merges the reminder and the nudge into one message —
+// the shape insertion-normalization's join-move recognizes and substitutes
+// for, at index 3.
+const standaloneLeg = (tu1Input = {}) => [
+  { role: "user", content: [txt("q1")] },
+  toolUse("tu1", tu1Input),
+  toolResult("tu1"),
+  { role: "system", content: `${REM}\n\n${NUDGE}` },
+  toolUse("tu2"),
+  toolResult("tu2"),
+  { role: "assistant", content: [txt("a")] },
+  { role: "user", content: [txt("q2")] },
+];
+
+const reqLine = (ts, id, sid, messages) => JSON.stringify({
+  ts, id, sid, key: `s-${sid}`,
+  headers: { "anthropic-beta": null, "session-id": sid },
+  body: { model: "claude-opus-5", system: [{ type: "text", text: "sys" }], messages, tools: [{ name: "Edit", input_schema: { type: "object" } }] },
+});
+
+async function runReplay(dir, messagesB, { tu1InputA = {}, tu1InputB = {} } = {}) {
+  const file = join(dir, "capture.jsonl");
+  const lines = [
+    reqLine("2026-08-06T10:00:00.000Z", "req-A", "sid-main", inlineLeg(tu1InputA)),
+    reqLine("2026-08-06T10:00:02.000Z", "req-B", "sid-main", messagesB(tu1InputB)),
+  ];
+  await writeFile(file, lines.join("\n") + "\n");
+  const run = spawnSync(process.execPath, [
+    REPLAY, file,
+    "--env", "CACHE_FIX_INSERTION_NORMALIZE=1",
+    "--env", "CACHE_FIX_VOLATILE_PIN=1",
+  ], { encoding: "utf-8", env: { PATH: process.env.PATH } });
+  return run.stdout ?? "";
+}
+
+test("BITE — a fixture with a KNOWN absorption miss shows the row, all three numbers, in plain text", async () => {
+  const dir = await tmpDir("absorption-text-");
+  try {
+    // request B's tu1 carries an EARLIER edit (`{ edited: true }`) that the
+    // join-move machinery does not cover — a real, mechanically produced
+    // miss: the fresh recognition fires at index 3, and the forwarded pair
+    // still diverges at index 1, inside the region the absorption claimed.
+    // Empirically confirmed (this dispatch, against this exact fixture)
+    // via --json before this fix: absorbedFreshAt=[3], forwardedDivergence=1,
+    // inputDivergence=1, ours=false, action="reset"/edit-shaped.
+    const out = await runReplay(dir, standaloneLeg, { tu1InputB: { edited: true } });
+    assert.match(out, /\nabsorption misses \([^)]*\): 1\n/,
+      `expected exactly one absorption miss reported, got:\n${out}`);
+    assert.match(out, /n=0->1 ts=\S+ absorbedAt=\[3\] forwardedDivergence=1 ours=false/,
+      `expected the row to carry absorbedAt, forwardedDivergence and ours, got:\n${out}`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("BITE — a fixture with NO absorption miss prints an explicit 0 line", async () => {
+  const dir = await tmpDir("absorption-text-zero-");
+  try {
+    // Same reminder-merge shape, no earlier edit: the absorption holds the
+    // whole forwarded prefix byte-stable — the success case, confirmed via
+    // --json before this fix (absorptionMisses: [], violations: []).
+    const out = await runReplay(dir, standaloneLeg);
+    assert.match(out, /\nabsorption misses \([^)]*\): 0\n/,
+      `expected the zero-included line even though nothing missed, got:\n${out}`);
+    assert.doesNotMatch(out, /\n  n=\S+ absorbedAt=/,
+      `expected no row lines under a zero count, got:\n${out}`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 });
