@@ -556,6 +556,25 @@ ENOSPC misattribution with its wrong first explanation left in.
   Done: both arms green with the pre-fix red pasted in the closing
   report; `--json` carries `ageHours` so the two renderers stay one pass.
 
+- **READY (small) 2026-08-11 — declare the close-scan contract line in
+  `docs/runbooks/session-close.md`, so the dotfiles close-signal hook can
+  demand this repo's scan mechanically.** Companion of a dotfiles booking
+  (its BACKLOG, grep "close-signal Stop-hook"; incident: a closing
+  report's "all booked" was wrong on 2 of 4, caught by operator challenge
+  instead of by the runbook's own step 6). The hook design reads a
+  `Close-scan: <command>` line from this runbook — grep-readable, opt-in
+  by presence. This entry is the opt-in: add the line carrying the
+  runbook's existing step-6 command (`node tools/named-unbooked-scan.mjs
+  --transcript "$T" --until HEAD` — quote step 6's exact form, do not
+  restate it) near the runbook's Trigger header where a hook's grep and
+  a human's skim both land on it.
+  Anchor: docs/runbooks/session-close.md
+  Write-set: docs/runbooks/session-close.md
+  Verifier: grep -n "^Close-scan:" docs/runbooks/session-close.md
+  Done: the line present and byte-identical to step 6's command form;
+  the dotfiles hook's fire-case bite (its own entry's verifier) reads
+  this line from a fixture copy of the runbook.
+
 - **RECORD (pattern, 2 instances same day) 2026-08-11 — a bounded pin
   keeps a finding's IDENTITY and loses its COST: the outcome/billing
   records for the pinned rows stop before the range, so any severity or
