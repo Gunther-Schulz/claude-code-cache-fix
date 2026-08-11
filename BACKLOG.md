@@ -311,6 +311,58 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY 2026-08-11 — the sweep pins row evidence but freezes NOTHING when a
+  replay ERRORS, which is the one case where the input is most needed and least
+  likely to survive.** Measured this session: the 2026-08-11 12:24Z sweep
+  reported a replay-error row on s-captureBE (stderr naming `auto-1m-guard` /
+  `context-1m-2025-08-07` in outbound betas, a class that run did not have), and
+  by 13:20Z that capture had rotated off disk — the finding is now unwalkable
+  from its own evidence, inside one session's window. The gap is structural, not
+  bad luck: `--pin-rows` builds pins from the replay's JSON ROWS, and an errored
+  child produces no JSON at all, so the pin pass has nothing to ask for exactly
+  when the run failed. A gate FAILURE freezes its evidence; a gate ERROR does
+  not.
+  **Design (decided):** on a non-zero replay child that produced no parseable
+  JSON, `gate-live` pins a bounded range around the failing request — the child's
+  stderr carries the request ordinal or timestamp, and `harvest --pin --bounded`
+  already takes a range — and records the stderr verbatim in the status row. If
+  the ordinal cannot be recovered from stderr, pin the LAST successfully replayed
+  ordinal plus a window, and say in the row which of the two it did: a pin whose
+  range was guessed must not read like one that was located.
+  **Done-criterion:** a deliberately errored replay over a real capture leaves a
+  pin that reproduces the error on replay, with the pin path and the stderr in
+  the status row, demonstrated with the output pasted; and the negative control,
+  a clean run, pins nothing extra.
+  Anchor: docs/runbooks/sweep-finding.md
+  Write-set: tools/gate-live.mjs, test/gate-live-rowpins.test.mjs
+  Verifier: node --test test/gate-live-rowpins.test.mjs
+
+- **READY 2026-08-11 — a claimed alias does not protect its capture from
+  eviction, so citing evidence in a booked item does not make the evidence
+  survive.** `alias-claim.mjs` records a name for a capture; retention is
+  oldest-mtime-first and knows nothing about claims, so an entry, a matrix row
+  or an in-flight walk can name a capture that is deleted hours later — observed
+  twice now (s-captureBE this session; the 2026-08-05 absorption rows, whose 3
+  of 12 captures went within hours). The retention knob is explicitly NOT the
+  answer (dev-loop.md, closing-gate q2's corollary): it buys hours and moves the
+  same loss later.
+  **Design (decided): HARD-LINK on claim.** `alias-claim.mjs --protect` links the
+  capture into a protected directory beside the captures root. A hard link costs
+  ZERO additional bytes, and eviction's `unlink` on the original merely
+  decrements the link count — the bytes survive the rotation that deletes the
+  name. Two things the design must carry or it becomes a disk leak with a good
+  story: a protected-set CAP with its own oldest-first eviction, reported by
+  `doctor`; and a RELEASE step, so an entry reaching DONE unlinks its protection
+  (the closure verb already exists — this hangs off it). Rejected alternative:
+  copying the capture, which doubles bytes for files measured up to 2 GB here.
+  **Done-criterion:** claiming with `--protect` and then forcing a retention
+  sweep past the cap leaves the protected capture readable and the unprotected
+  one gone, with both `ls` results pasted; `doctor` reports the protected-set
+  size; releasing removes the link and the bytes go on the next sweep.
+  Anchor: tools/alias-claim.mjs
+  Write-set: tools/alias-claim.mjs, test/alias-claim.test.mjs
+  Verifier: node --test test/alias-claim.test.mjs
+
 - **DONE 2026-08-11 (fix in this session's commit; see threat-matrix row 30) — the
   RELOCATE-THEN-PIN content loss: CC-sent reminder blocks were deleted off the
   wire, and D1 created it. FIXED BUT NOT DEPLOYED — the serving build is still
