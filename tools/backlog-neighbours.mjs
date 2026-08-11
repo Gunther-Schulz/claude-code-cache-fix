@@ -110,17 +110,36 @@ export const citedPath = (tok) => tok.replace(/:\d+(?:-\d+)?$/, "");
 // Files a commit-ish touched, in this repo. `ok: false` carries git's own
 // stderr/stdout as proof — an unresolvable commit-ish (typo, wrong repo,
 // never fetched) is the COULD-NOT-VERIFY case this returns.
+// Node's execFileSync defaults maxBuffer to 1 MB and throws ENOBUFS past it,
+// with the TRUNCATED PAYLOAD sitting in `e.stdout`. Both halves bit here on
+// 2026-08-11: `BACKLOG.md` crossed 1,048,576 bytes (1,036,750 -> 1,051,748 in
+// one ordinary commit), every `git show <ref>:BACKLOG.md` started throwing,
+// and the catch below rendered the first megabyte of the file as the
+// COULD-NOT-VERIFY *reason* — a checker reporting "could not verify -- # claude
+// -code-cache-fix (fork) ...". The tool was correct on every commit before
+// that one and wrong on every commit after, with nothing in between to notice.
+// So: a cap large enough that the corpus, not the default, decides; and a
+// proof that names the failure MODE rather than echoing what it could not read.
+const GIT_MAX_BUFFER = 256 * 1024 * 1024;
+
+export function gitProofOf(e) {
+  if (e?.code === "ENOBUFS") {
+    return `git output exceeded maxBuffer (${GIT_MAX_BUFFER} bytes) — raise it; the payload is not the reason`;
+  }
+  const text = `${e?.stderr ?? ""}${e?.stdout ?? ""}`.trim();
+  return text || `exit ${e?.status ?? "?"}, no output`;
+}
+
 export function resolveTouchedFiles(commitish, cwd = REPO_ROOT) {
   try {
     const out = execFileSync(
       "git",
       ["diff-tree", "--no-commit-id", "--name-only", "-r", commitish, "--"],
-      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+      { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: GIT_MAX_BUFFER },
     );
     return { ok: true, files: out.split("\n").filter(Boolean) };
   } catch (e) {
-    const text = `${e.stderr ?? ""}${e.stdout ?? ""}`.trim();
-    return { ok: false, proof: text || `exit ${e.status ?? "?"}, no output` };
+    return { ok: false, proof: gitProofOf(e) };
   }
 }
 
@@ -270,7 +289,7 @@ export function resolveOpenEntriesWithBodiesFromPath(backlogPath) {
 // `<commit>^`) fails the same way as an unresolvable commit-ish.
 export function resolveIdentifierImages(commitish, cwd = REPO_ROOT) {
   const run = (args) =>
-    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: GIT_MAX_BUFFER });
   try {
     const after = run(["show", `${commitish}:BACKLOG.md`]);
     // Before image: existence/resolution check only. The actual line-change
@@ -280,8 +299,7 @@ export function resolveIdentifierImages(commitish, cwd = REPO_ROOT) {
     const diff = run(["diff", "--unified=0", `${commitish}^`, commitish, "--", "BACKLOG.md"]);
     return { ok: true, after, diff };
   } catch (e) {
-    const text = `${e.stderr ?? ""}${e.stdout ?? ""}`.trim();
-    return { ok: false, proof: text || `exit ${e.status ?? "?"}, no output` };
+    return { ok: false, proof: gitProofOf(e) };
   }
 }
 

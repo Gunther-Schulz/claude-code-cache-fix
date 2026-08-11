@@ -567,3 +567,36 @@ test("CLI: cf0592d over its OWN frozen image -- identifier join surfaces line=10
     `expected line=1017 sharing conversationOf among:\n${idLines.join("\n")}`,
   );
 });
+
+// --- the 1 MB cliff -------------------------------------------------------
+//
+// `BACKLOG.md` crossed Node's default 1 MB execFileSync maxBuffer on
+// 2026-08-11 (1,036,750 -> 1,051,748 bytes in one ordinary commit). Every
+// `git show <ref>:BACKLOG.md` in this tool began throwing ENOBUFS, the catch
+// rendered the truncated FILE as the COULD-NOT-VERIFY reason, and the CLI
+// default-HEAD bite above went red — the first signal, and it arrived as a
+// blocked push rather than as anything pointing at the cause.
+//
+// `ee98a99` is the commit that crossed it, so it is a permanent red case: an
+// immutable reference whose BACKLOG.md is over the default cap forever. That
+// is what this bite anchors to, per dev-loop's rule that a red-first
+// arrangement pointing at live mutable state decays before it is built.
+test("resolveIdentifierImages: a commit whose BACKLOG.md exceeds 1 MB still resolves", () => {
+  const r = neighbours.resolveIdentifierImages("ee98a99");
+  assert.equal(r.ok, true, `over-1MB image must resolve, got proof: ${r.proof}`);
+  // BYTES, not `.length` — `String.length` counts UTF-16 code units and this
+  // corpus is full of em-dashes, so the string reads ~14k SHORTER than the
+  // file and the first draft of this assertion failed against a file that is
+  // genuinely over the cap. dev-loop's "a number names its UNIT at definition
+  // time" trap, met while writing an assertion about a size in bytes.
+  assert.ok(
+    Buffer.byteLength(r.after, "utf8") > 1024 * 1024,
+    "the fixture commit must actually exceed the old cap",
+  );
+});
+
+test("gitProofOf: an ENOBUFS proof names the mode and never echoes the payload", () => {
+  const proof = neighbours.gitProofOf({ code: "ENOBUFS", stdout: "# claude-code-cache-fix (fork)\nbody" });
+  assert.match(proof, /maxBuffer/);
+  assert.doesNotMatch(proof, /cache-fix \(fork\)/, "the payload is not the reason");
+});
