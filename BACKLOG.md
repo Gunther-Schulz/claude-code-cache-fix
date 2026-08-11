@@ -311,6 +311,58 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY 2026-08-11 — the push scan diffs range ENDPOINTS, so a
+  range-interior blob — a leak committed then scrubbed or deleted within the
+  same pushed series — publishes at its intermediate SHA unscanned; and a
+  pushed annotated tag's ANNOTATION message is scanned by nothing.** Found by
+  Begehung round 1 (BEGEHUNG-MAP.md). Basis, code-read: `rangeFiles` runs
+  `git diff --name-only --diff-filter=ACMR oldRef newRef` and `scanGitRange`
+  reads every candidate at `newRef` only (tools/absence-scan.mjs:556-562,
+  the `git show` at :594), so added-then-deleted nets out of the diff and
+  modified-then-reverted is read in its final form; `rangeMessages` formats
+  COMMITS only, so a tag object's own message text reaches no scanner. The
+  cost is the guard's own founding cost: a blob is served at its commit's
+  SHA forever (probed 2026-08-10, negative control in CLAUDE.local.md), and
+  leak-then-scrub-then-push is the natural repair sequence, so the gap sits
+  exactly on the expected human path. Design: walk `git rev-list
+  oldRef..newRef` and scan each commit's added/modified blobs at that
+  commit (dedupe by blob OID so unchanged files are not re-scanned per
+  commit); for pushed `refs/tags/*`, scan the tag object's message via the
+  same text scanner (`scanSourceText`). Dispatcher note: the dotfiles
+  pre-push dispatcher hands (oldRef, newRef) per pushed ref; confirm it
+  does not filter tag refs out before the scanner sees them — if it does,
+  that half's write lands in dotfiles (its own write boundary, book there
+  per the consumer rule, do not write across).
+  Red-first pair, constructed (no live capture named, per the READY bar's
+  fourth clause): (a) a fixture range where commit A adds a file carrying a
+  synthetic capture UUID and commit B deletes it — the CURRENT scanner must
+  return clean over that range (that run is the red proving the defect),
+  the patched scanner must fire on A's blob; (b) the same shape with clean
+  content stays green; (c) an annotated tag whose message carries a
+  synthetic UUID fires, a clean annotation does not.
+  Anchor: the publication bar (CLAUDE.local.md) / tools/absence-scan.mjs
+  Write-set: tools/absence-scan.mjs, test/absence-scan.test.mjs,
+  docs/runbooks/upstream-pr-round.md (drop the interim hand-rescan line)
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/absence-scan.test.mjs
+  Done: all three red arms demonstrated (the (a) red against the unpatched
+  scanner pasted in the closing report), suite green, and the runbook's
+  interim hand-rescan sentence replaced by a pointer to the shipped check.
+
+- **RECORD 2026-08-11 — gh-authored public text (PR bodies, PR and issue
+  comments) is an outward channel with NO mechanical scan; the covering
+  discipline is prose, and this entry is the explicit prose-rest label so
+  the gap is a decision, not a dark corner.** Found by Begehung round 1.
+  What exists: the upstream-pr-round runbook's hand-greps and comment form,
+  review-before-post, and the operator-approval rule for public
+  communication. What does not: any hook in front of `gh pr create`/
+  `comment` — nothing structural stops a capture identifier pasted into a
+  PR body, and a posted comment is publishable history the moment it lands.
+  Named backstop: the runbook's grep step runs over draft comment text too,
+  plus review. Promotion trigger, named: a capture identifier or other
+  bar-covered content actually reaching a gh draft — at that point build a
+  `gh` wrapper that pipes body text through `scanSourceText` before
+  posting, red-proven on a planted body first.
+
 - **READY — the harvest LEDGER is tracked and its CORPUS is not: 574 untracked
   fixture files against a ledger 959 lines ahead of what is committed.**
   Measured 2026-08-11 at session close (the modified file is

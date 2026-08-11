@@ -90,8 +90,14 @@ When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
      reader to wave the check through.
    - **Grep the COMMIT MESSAGES too** — the second command above. A
      scrub commit that names the value in its own subject publishes it
-     exactly as permanently as a file would, and nothing else catches
-     it: `tools/absence-scan.mjs` scans file contents, never messages.
+     exactly as permanently as a file would. Since 2026-08-10
+     `tools/absence-scan.mjs` DOES scan pushed commit messages
+     (red-proof: test/absence-scan.test.mjs, "RED-FIRST proof for
+     absence-scan.mjs's scanSourceText fix" — this line claimed
+     "never messages" until 2026-08-11, outliving the guard's growth
+     by a day); the grep here stays because it runs at REVIEW time,
+     before the push boundary, and catches the wording while it is
+     still cheap to fix.
      Observed live: a dispatched agent's subject read "replace real
      capture id `s-<8hex>` …", caught at review, reworded before push.
    - **Anchor the `s-<8hex>` pattern on both sides**
@@ -108,14 +114,23 @@ When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
      in the diff will fire it — read the hit, do not widen the
      pattern.
 
-   **Known blind spot, not fixed by these greps:** `absence-scan`'s
-   `--git-range` mode filters candidates to `.json`/`.jsonl`
-   (`SCANNABLE`, tools/absence-scan.mjs:270) before any class is
-   consulted, so a capture identifier in a tracked `.mjs` or `.md`
-   passes the push hook silently — proved with a planted UUID on
-   2026-08-05. Until that is decided (BACKLOG), the greps above are
-   the only thing covering source files, so running them is not
-   optional belt-and-braces; it is the check.
+   **Blind spot CLOSED 2026-08-10, paragraph corrected 2026-08-11:**
+   this passage claimed capture identifiers in tracked `.mjs`/`.md`
+   pass the push hook silently (proved with a planted UUID
+   2026-08-05). Since 2026-08-10 `rangeFiles` also admits
+   `SOURCE_SCANNABLE` files (tools/absence-scan.mjs:456, covering
+   .mjs/.md/.sh/.py and extensionless), routed through
+   `scanSourceText` — red-proof: test/absence-scan.test.mjs, "source
+   files: the gap a planted UUID found". The greps above are now the
+   belt over that guard, not the only check — still run them: they
+   fire at review time, before the boundary.
+   **Blind spot still OPEN:** the push scan diffs the RANGE
+   ENDPOINTS and reads content at the tip, so a leak committed and
+   then scrubbed within the same pushed range publishes at the
+   intermediate SHA unscanned (booked in BACKLOG.md, grep
+   "range-interior"). Until that lands, a scrub commit inside an
+   unpushed series means: re-scan the WHOLE series by hand before
+   pushing, or squash the leak out of history first.
 6. **Push, then comment.** Every push gets a PR comment: what changed
    in response to which finding, real test counts from the run, then
    the footer:
