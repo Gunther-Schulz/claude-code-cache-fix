@@ -451,3 +451,40 @@ test("readRecords: a matrix that parses to ZERO rows is could-not-verify, not 29
   assert.equal(res.ok, false);
   assert.match(res.reason, /ZERO rows/);
 });
+
+// --- `--row N`: the one-command read ----------------------------------------
+//
+// WHY. `readRowStatus`/`rowTriage` existed as IMPORTS only, so answering "what
+// does row 24 say" from a shell meant hand-parsing the status file — and that
+// is not hypothetical: a desk read on 2026-08-11 guessed `.rows["24"]` (the
+// file is keyed at top level) and got an empty result, which reads exactly
+// like "no such row". The dev-loop's probe rule names the repair: the second
+// ad-hoc probe against a format this repo writes stops the work and builds the
+// reader. The functions were already correct; only the surface was missing, so
+// this adds a flag and re-derives nothing.
+//
+// The three-answer contract is the point of the bites: an absent row must be
+// distinguishable from a present one, in the EXIT CODE and not only in prose,
+// because a caller that reads the text will read `null` as clean.
+test("--row N prints the row's status and its triage verdict", () => {
+  const out = execFileSync(process.execPath, [join(REPO, "tools/matrix-status.mjs"), "--row", "24"], {
+    encoding: "utf8",
+  });
+  assert.match(out, /row 24/);
+  assert.match(out, /DECLINED/);
+});
+
+test("--row on a row the status file does not carry is could-not-verify, not a clean read", () => {
+  let code = 0;
+  let out = "";
+  try {
+    out = execFileSync(process.execPath, [join(REPO, "tools/matrix-status.mjs"), "--row", "97"], {
+      encoding: "utf8",
+    });
+  } catch (e) {
+    code = e.status;
+    out = String(e.stdout ?? "");
+  }
+  assert.notEqual(code, 0, "an absent row must not exit 0");
+  assert.match(out, /COULD NOT VERIFY|not present/);
+});

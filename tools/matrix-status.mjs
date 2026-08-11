@@ -320,7 +320,36 @@ export function rowTriage(n, { statusPath = STATUS_PATH, triageTable = TRIAGE_BY
 }
 
 // `node tools/matrix-status.mjs` — exit 0 clean, 2 findings, 1 could-not-verify.
+// `node tools/matrix-status.mjs --row <N>` — one row's status and triage
+// verdict, same three answers (exit 1 = could not verify). The functions below
+// were importable and correct before this flag existed; what was missing was a
+// SHELL surface, and its absence routed desk reads through hand-written `jq`
+// against a schema they had to guess — measured 2026-08-11, where a guessed
+// path returned empty and an empty read is indistinguishable from an absent
+// row. The flag re-derives nothing: it calls the same two readers `bust-triage`
+// does, so a caller cannot get a different answer than the tool that acts on it.
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  const rowFlag = process.argv.indexOf("--row");
+  if (rowFlag !== -1) {
+    const n = process.argv[rowFlag + 1];
+    const read = readRowStatus(n);
+    if (!read.ok) {
+      process.stdout.write(`matrix-status: COULD NOT VERIFY — ${read.reason}\n`);
+      process.exit(1);
+    }
+    const triage = rowTriage(n);
+    const e = read.entry;
+    process.stdout.write(
+      `row ${n}: ${e.status} (${e.date ?? "no date"})  evidence: ${e.evidence ?? "none"}\n`,
+    );
+    process.stdout.write(
+      triage.ok
+        ? `  triage: ${triage.verdict}${triage.why ? ` — ${triage.why}` : ""}\n`
+        : `  triage: COULD NOT VERIFY — ${triage.reason}\n`,
+    );
+    if (e.residual) process.stdout.write(`  residual: ${e.residual}\n`);
+    process.exit(0);
+  }
   const res = readRecords();
   if (!res.ok) {
     process.stdout.write(`matrix-status: COULD NOT VERIFY — ${res.reason}\n`);
