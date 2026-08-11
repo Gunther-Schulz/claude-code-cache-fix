@@ -339,6 +339,19 @@ const REF_PATTERNS = [/^worktree-agent-/, /^pr\//, /^wip\//, /^feature\//, /^fix
 const STASH_REF = /stash@\{\d+\}/g;
 const INLINE_CODE = /`([^`\n]+)`/g;
 const HEX_TOKEN = /^[0-9a-f]{7,12}$/;
+// UNREACHABLE-OBJECT's own bound, deliberately WIDER than HEX_TOKEN's, and
+// separate from it so the skip semantics of every other lane stay exactly as
+// they were. Found 2026-08-11 by probing the new lane's BOUNDARY rather than
+// its class (docs/dev-loop.md, "Grading a dispatched lane", move 1): at 7-12
+// a citation of a FULL 40-char sha was outside the lane's reach entirely, so
+// the guard held one route and not the other — this repo's entry-path rule,
+// landing on a guard three hours old. Widening is safe precisely because this
+// lane is RESOLUTION-gated: the corpus's 13-16-char hex tokens are
+// conversation sub-keys and state keys, none of which resolves as a git
+// object, and its one real 40-char token is a PNG content hash that resolves
+// as a BLOB and is dropped by the type gate below. Both were checked, not
+// assumed.
+const OBJECT_TOKEN = /^[0-9a-f]{7,40}$/;
 const ABS_PATH = /^\/(home|tmp)\//;
 const TRAILING_PUNCT = /[,.;:!?)\]}'"]$/;
 // This corpus cites source locations as `path:line`, `path:a-b` and
@@ -497,7 +510,7 @@ export function lintPointers(text, env = {}) {
       // That is the same shape as the 0-for-8 lesson's own residual,
       // one layer in: resolution narrows the false-positive rate to near
       // zero, it does not remove it.
-      if (HEX_TOKEN.test(token) && /[0-9]/.test(token) && /[a-f]/.test(token)) {
+      if (OBJECT_TOKEN.test(token) && /[0-9]/.test(token) && /[a-f]/.test(token)) {
         const obj = objectProbe(token);
         if (!obj.ok) continue; // does not resolve — the 0-for-8 lesson, unchanged
         const commit = commitProbe(token);

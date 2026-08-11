@@ -415,10 +415,31 @@ test("sub-claim scope does NOT exempt the entry's own header bold run — only a
 //            UNREACHABLE-OBJECT negative control.
 //   dead456  resolves, IS a commit, reachable from NO ref — the
 //            UNREACHABLE-OBJECT positive.
+// Added 2026-08-11 at integration, from probing the lane's BOUNDARY rather
+// than its class:
+//   FULL_SHA  40 chars, resolves, IS a commit, reachable from NO ref — the
+//             boundary positive. Under the original 7-12 bound this token was
+//             outside the lane's reach entirely, so a full-length citation of
+//             an unreachable commit could not fire however dead it was.
+//   CONV_KEY  16 chars, resolves to NOTHING — the widening's false-fire
+//             control, and it is the real shape the corpus carries at that
+//             length (conversation sub-keys and state keys, seven of them in
+//             BACKLOG.md today). The widening must not reach these.
+// Mixed digits AND letters on purpose: the lane requires both, and the first
+// draft of this fixture used `deadbeef…`, which is all letters — so the bite
+// went red BEFORE any mutation. That red was a finding about the FIXTURE, not
+// about the widening, and repairing it here rather than loosening the rule is
+// the whole point (a mutation that leaves a bite green, or a bite that is red
+// for a reason nobody planted, indicts the arrangement first).
+const FULL_SHA = "dead456dead456dead456dead456dead456dead4";
+const CONV_KEY = "0a3d686e8066b1e2";
 const STUB = {
   pathExists: (p) => p === "tools/alive.mjs",
-  objectProbe: (t) => ({ ok: ["abc1234", "cafe123", "dead456"].includes(t), proof: "" }),
-  commitProbe: (t) => ({ ok: ["cafe123", "dead456"].includes(t), proof: "fatal: Not a valid object name" }),
+  objectProbe: (t) => ({ ok: ["abc1234", "cafe123", "dead456", FULL_SHA].includes(t), proof: "" }),
+  commitProbe: (t) => ({
+    ok: ["cafe123", "dead456", FULL_SHA].includes(t),
+    proof: "fatal: Not a valid object name",
+  }),
   reachProbe: (t) => ({ ok: true, proof: t === "cafe123" ? "refs/heads/main" : "" }),
   refProbe: (r) => ({ ok: r === "pr/alive", proof: "exit 1, no output" }),
 };
@@ -551,6 +572,27 @@ test("NEGATIVE: UNREACHABLE-OBJECT does not fire on a resolving non-commit objec
   // control above, restated for this class specifically: a tree never gets
   // reachability-checked at all.
   const doc = ["- **READY — a thing.** Deployed tree `abc1234`."].join("\n");
+  assert.deepEqual(lintPointers(doc, STUB), []);
+});
+
+test("BOUNDARY: UNREACHABLE-OBJECT reaches a FULL 40-char sha, not only the short form", () => {
+  // The reach hole this bite closes was real and silent: `OBJECT_TOKEN` was
+  // `HEX_TOKEN` (7-12) until 2026-08-11, so a full-length citation of a
+  // reachable-from-nothing commit sailed past a lane built to catch exactly
+  // that. A guard that holds one route and not the other is not a guard.
+  const doc = [`- **READY — a thing.** Landed at \`${FULL_SHA}\` before integration.`].join("\n");
+  const findings = lintPointers(doc, STUB);
+  assert.deepEqual(labelsOf(findings), ["UNREACHABLE-OBJECT"]);
+  assert.equal(findings[0].token, FULL_SHA);
+});
+
+test("BOUNDARY CONTROL: the widening does not reach a 16-char conversation sub-key", () => {
+  // The widening's whole safety argument is that it is RESOLUTION-gated, and
+  // this is that argument executed rather than asserted: a token of exactly
+  // the shape the corpus carries at 13-16 chars resolves to no object, so it
+  // takes the same `continue` the 0-for-8 lesson installed. If this bite ever
+  // fires, the widening reached a namespace it must not.
+  const doc = [`- **READY — a thing.** State key \`${CONV_KEY}\` held across the pair.`].join("\n");
   assert.deepEqual(lintPointers(doc, STUB), []);
 });
 
