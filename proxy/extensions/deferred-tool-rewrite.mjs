@@ -704,13 +704,20 @@ export default {
       // The BRIDGE, named as one. RETIREMENT TRIGGER: identical to
       // insertion-normalization's, and deliberately the same window so the two
       // retire together rather than leaving one half-migrated — remove this
-      // fallback once `d1OldKeyFallbackHit` has been absent from the event logs
-      // for SEVEN CONSECUTIVE DAYS. The instrument is the `oldKeyFallback` field
-      // this extension writes into its own `<key>-deferred-tool-events.jsonl`
-      // (grep in insertion-normalization's twin comment); `gate-live` does not
-      // surface it today, and that is stated rather than assumed. A sustained
+      // fallback once the `oldKeyFallback: true` records this extension writes
+      // into its own `<key>-deferred-tool-events.jsonl` have been absent for
+      // SEVEN CONSECUTIVE DAYS. The instrument is `gate-live`'s
+      // `collectD1Retirement`, which walks that directory on every sweep and
+      // reports `d1OldKeyFallback { hits, newestUtc, filesScanned, window }` in
+      // `gate-status.json` (the twin comment in insertion-normalization carries
+      // the full reading rules). Read `hits` with `filesScanned` — zero files
+      // scanned is could-not-verify, not a clean zero. A sustained VERIFIED
       // zero over the window discharges the bridge — never an impression that
       // "everything has migrated by now".
+      // The same status object carries `d1PostRelocationNoBaseline`, which
+      // counts THIS extension's `no-baseline` actions correlated with an
+      // insertion-normalization fallback hit: dual-read landing on one consumer
+      // and missing on the other. Post-D1 zero; a non-zero is row 26 re-opening.
       if (prior === null && rotatedKey !== sessionKey) {
         prior = await loadState(dir, rotatedKey, fs);
         if (prior !== null) {

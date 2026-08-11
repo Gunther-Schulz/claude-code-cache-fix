@@ -1915,21 +1915,30 @@ export default {
       const mode = pin ? "pin" : "plain";
       let prior = await loadCanonical(dir, sessionKey, fs, mode);
       // The BRIDGE, and it is named as one. RETIREMENT TRIGGER: this fallback
-      // goes away once `d1OldKeyFallbackHit` is absent from the event logs for
-      // SEVEN CONSECUTIVE DAYS — a window chosen to outlast the longest resumed
-      // session observed here, since a conversation that has not spoken since
-      // before the migration is exactly what the fallback exists for. Anything
-      // shorter retires the bridge while a live session still needs it.
+      // goes away once the `oldKeyFallback: true` records it writes are absent
+      // for SEVEN CONSECUTIVE DAYS — a window chosen to outlast the longest
+      // resumed session observed here, since a conversation that has not spoken
+      // since before the migration is exactly what the fallback exists for.
+      // Anything shorter retires the bridge while a live session still needs it.
       // Counting instrument, stated as what it IS rather than what would be
-      // convenient: the `oldKeyFallback` field this extension writes into its
-      // OWN `<key>-insertion-events.jsonl`, so the retirement question is
-      //   grep -l '"oldKeyFallback":true' <snapshots>/*-insertion-events.jsonl
-      //   grep -l '"oldKeyFallback":true' <snapshots>/*-deferred-tool-events.jsonl
-      // over the window. `gate-live` does NOT surface this today — it replays
-      // captures, and these events live in the snapshots state dir, which is a
-      // different source. Wiring it there is booked; until it is, the grep above
-      // is the whole instrument, and saying otherwise would be an assurance
-      // wider than the predicate it establishes.
+      // convenient: `gate-live`'s `collectD1Retirement` walks the snapshots
+      // state dir on every sweep and reports
+      //   d1OldKeyFallback { hits, newestUtc, filesScanned, window }
+      // in `gate-status.json`, so day seven is READ off the status file instead
+      // of hand-grepped by whoever remembers. Read `hits` together with
+      // `filesScanned`: zero files scanned makes `hits` null — could-not-verify,
+      // never a clean zero — and `window` rides along because the pass is
+      // mtime-scoped, so a small number is a narrow SCOPE, not a small corpus.
+      // The name to grep for in the logs is `oldKeyFallback`; `OLD_KEY_HIT`
+      // below is the in-process `ctx.meta` key that produces it and appears in
+      // no log, so grepping the logs for THAT name returns the same zero a real
+      // absence would.
+      // Sibling counter on the same status object, and it answers the other
+      // half: `d1PostRelocationNoBaseline { count, newestUtc, filesScanned,
+      // window }` counts deferred-tool-rewrite `no-baseline` actions correlated
+      // with one of these fallback hits — dual-read succeeding on one consumer
+      // and failing on the other. Post-D1 it must read zero; a non-zero is row
+      // 26's original defect re-opening, not a new class.
       if (prior === null && rotatedKey !== sessionKey) {
         prior = await loadCanonical(dir, rotatedKey, fs, mode);
         if (prior !== null) {
