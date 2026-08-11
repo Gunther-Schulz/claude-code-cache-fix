@@ -158,114 +158,69 @@ standing fact from this correction: an entry whose verifier names a live
 capture ranks as PARKED until the pin exists, whatever its design maturity,
 because the design is not what expires.
 
-## Handoff — 2026-08-10 evening. Rewritten, not appended; a stale one reads as authoritative.
+## Handoff — 2026-08-11 evening. Rewritten, not appended; a stale one reads as authoritative.
 
-The 2026-08-07 handoff is REPLACED. Its content is discharged and not repeated.
+The 2026-08-10 handoff is REPLACED. Its content is discharged and not repeated.
 
-**The entry point is `continue from backlog`, and nothing here is an
-instruction the entries lack.** Build ORDER is deliberately absent — it is
-derived at build time, and the block above is BANNER-MARKED STALE with the
-re-derivation booked as a READY entry.
+**The entry point is `continue from backlog`, and nothing here is an instruction
+the entries lack.** Build ORDER is deliberately absent — it is derived at build
+time from `docs/dev-loop.md` ("Build order is DERIVED at build time"), and the
+`## Build order` block above is stale by construction: it predates today's
+integration and three of its ten have shipped.
 
-**STATE 2026-08-10 evening — THE FORK IS COMMITTED BUT NOT PUSHED, AND THE
-PUSH IS BLOCKED BY A GUARD. This is the first thing to deal with.**
+**STATE — the tree is clean and everything is pushed.** `git log
+origin/main..main` is empty in BOTH repos (fork and dotfiles). No background
+agents are running, no worktree carries rebase state, no wakeup is scheduled.
+The two modified tracked files (`test/fixtures/harvested/LEDGER-Siren.json` in
+the fork, `claude/settings.json` in dotfiles) were already modified at session
+start and belong to neither this session nor its work.
 
-`git log origin/main..main` is 7 commits. `git push` is DENIED by the
-unbooked-subagent-commit guard, naming two of them:
+**THE ONE BIG THING WAITING, and it is now measured rather than discovered:
+31 outstanding commits across 6 lane branches, 1 of them orphaned.** Its entry
+is in `## Open` ("five registered worktrees hold 30 commits" — the title's 30
+is the first, worktree-based count; the entry's own body carries the corrected
+43-branch/33-commit measurement and says why the two differ). Read that entry
+before touching the head: it blocks two head items, it carries the per-commit
+method, the ordering, and the sizing measurement that says the picks are
+CONFLICTED rather than clean.
 
-    347d477  census: emit identityRotation …          Co-Authored-By: Claude Sonnet 5
-    e9a374b  Add --bounded mode to harvest --pin …     Co-Authored-By: Claude Sonnet 5
+**Progress on it is one command, because the reading now exists:**
 
-A commit counts as unbooked when it carries a `Co-Authored-By: Claude` trailer
-with no `Claude-Session:` trailer. Both are SUBAGENT commits belonging to
-session `…01R9jUauuFcnSPMSjx1ALPUp`, whose dispatcher owns them — subagents
-commit unpushed by design and the dispatcher pushes after verifying. The
-session that wrote this handoff (`…0185hkJZrFiq8xfMkH8GHFiw`) deliberately did
-NOT use `PUSH_UNBOOKED_SUBAGENT_OK=1`: an override taken for another writer's
-unverified work is the habit that kills a guard.
+    node tools/state-report.mjs --json | jq .laneBranches
 
-**So the next action here is that dispatcher verifying its two commits and
-pushing the branch.** Everything else is behind them, including a shipped
-guard fix. The tree was green at the exact HEAD that was pushed-attempted
-(`npm test`: 2654 tests, 2649 pass, 0 fail, 5 skipped).
+shipped this evening. It enumerates by BRANCH, not by worktree — a branch
+outlives its worktree, which is exactly how the orphan hid — and counts by
+patch-id, so a cherry-picked lane correctly reads `outstanding=0,
+alreadyUpstream=N`. Verified live at the desk, not only on its fixture.
 
-`dotfiles` is clean and pushed (its own peer session carried `7530895` out).
-No `proxy/**` change this pass, so no pin bump and no restart is owed.
+**What is BROKEN rather than merely unbuilt — read before trusting anything.**
+Nothing is known-broken in the running fork. Three live defects are booked and
+are load-bearing premises rather than missing features:
+`tools/named-unbooked-scan.mjs` under-fires silently on the vocabulary sessions
+actually use (its own entry has the measurement, with the positive control);
+`_resetRelocationMemory` cannot evict the memory the running pipeline uses;
+and `FORK-NOTES.md` still states `deferred-tool-rewrite` is disabled while
+`/health` reports its gate ON — that sentence is a premise of the
+restart-transparency argument and its correction sits further down that file.
 
-**What this session shipped, so it is not re-derived.** A full public-surface
-and systems review, its findings booked as entries below rather than left in
-chat. Four stale claims corrected in `docs/dev-loop.md` (a citation to a path
-that never existed; a "BOOKED AND UNBUILT" line stale 29 minutes after it was
-written; `gate-status.json`'s refuted "steady state"; the scrub's falsified
-length-vector rationale). The fork's git history scanned end to end for the
-first time — 712 fork-only commits, 1752 blobs, one real published PNG and a
-reversible id mapping, NO other-session conversation text. A guard defect
-found and fixed (`a449d9a`): the full-UUID shape was deferred to a roster that
-did not walk `BACKLOG.md`, so writing the FULL id disabled the guard that
-catches the SHORT one.
-
-**Three decisions are now MADE and must not be re-opened without new
-evidence** — each carries what would re-open it, in its own entry: git history
-ACCEPT (no rewrite); the scrub's length-vector residual ACCEPT-AND-REWRITE;
-the public-surface split UNTRACK IN PLACE at LOW priority.
-
-**The operator's publication bar is now a written rule**, in
-`CLAUDE.local.md` (deployed from dotfiles): no content from any session other
-than cache-fix's own dev chat reaches the public tree; tool names are fine.
-Read it before touching fixtures or writing about captures.
-
-**What is BROKEN rather than merely unbuilt — read before trusting anything:**
-nothing is known-broken in the running fork. Two DOC-level falsehoods are live
-and booked, which is worse than unbuilt because they are load-bearing premises:
-`FORK-NOTES.md` states `deferred-tool-rewrite` is disabled in the unit while
-`/health` reports its gate ON and it logs `action=rewrite` on live traffic —
-that sentence is a premise of the restart-transparency argument; and commit
-`0ca3419`'s TITLE overstates a safety finding that the same day's later
-measurement downgraded (git history is immutable, the correction lives in the
-entry). Both have READY entries. The earlier `mkdtemp` leak and the leak scan's
-blob-granular discard remain fixed and carry loud regression signals.
-
-**Two busts, 2026-08-08 morning, both dispositioned.** 638k (`s-captureAS`,
-dotfiles project) — Claude Code's, `replace/edit` MID-HISTORY at host 274,
-attributed by diffing raw vs forwarded bodies; it re-billed because the class is
-not in `replay.mjs`'s MITIGABLE set at all, and row 4's READY canonicalization
-design is what closes it. 141k (`s-captureAT`, this repo's session) —
-`splice/insert-mid`, a class the pipeline DOES attempt, disarmed by a state-key
-flip across the pair with both sides `no-prior-canonical`; the flip's cause is
-unattributed and booked. `bust-triage` answered MITIGATED on the second, which
-is the row's status reported as a per-instance absorption claim — booked.
-Evidence for the 141k is NOT in a capture: it is the extension event logs,
-snapshotted to `~/.local/share/cache-fix/bust-evidence/2026-08-08/` (verified to
-carry both timestamps and >1 distinct key). The capture pin was taken and
-reported `does NOT reproduce`; it was deleted rather than committed.
-
-**DECIDED (operator, 2026-08-08 afternoon) — the XDG default STAYS.** The
-question below is settled and carried here only as the record: keep
-`statePath('anthropic-proxy-logs')`, because the config-directory hygiene cost
-is ours permanently (a data file under `~/.claude/` draws a permission prompt on
-every read and write, for every session and agent) while the dashboard side is
-one exported variable. What the decision actually surfaced was a DEFECT, not a
-doc gap: the pointer was already complete — `docs/dashboard-integration.md`
-documents the divergence, the shared `ANTHROPIC_PROXY_LOG_DIR`, the export
-one-liner and the `--output-dir` alternative, and both READMEs link it — but the
-tool's own `--help` claimed its defaults were `~/.claude/usage.jsonl` and
-`~/.claude/anthropic-proxy-logs`, contradicting the `statePath()` calls twenty
-lines above it, and `CACHE_FIX_USAGE_LOG` was undocumented. Fixed and verified
-by running `--help`; the interop caveat now sits in the help text where someone
-debugging an empty dashboard will actually meet it. This is another instance of
-the class the XDG accounting found sixty-five of — a doc line disagreeing with
-the `statePath()` call in its own module — so the accounting's residual is not
-yet zero.
-
-Superseded question, kept for the record: the DEFAULT was the decision — our XDG hygiene rule, or
-the consumer's directory. It has no entry because it is a question, not a work
-item — see the session-close lane on questions parked in queues.
+**Deployment: nothing owed.** No `proxy/**` change landed this session, so no
+pin bump and no restart. The gate's one red (`s-captureBC`, a stability row) is
+the measured NON-DEFECT awaiting its `modelChangedAcrossPair` exemption — the
+head item whose test-side file has ZERO main-side commits and can therefore land
+without waiting on the lane pile. That split is the cheapest way back into the
+head.
 
 **Disjoint write-sets, a fact about the files rather than a judgement** — for
 anyone dispatching in parallel:
-  `tools/bust-triage.mjs` + `test/bust-triage-*` + the matrix's row cells
-  `tools/replay.mjs` + `tools/coverage-walk.mjs` + `test/replay-gate-selfcheck*`
-  `tools/reminder-migration-census.mjs` + `test/census-*`
+  `tools/replay.mjs` + `test/replay-gate-selfcheck.test.mjs` — CONTENDED with
+  lane `worktree-agent-a162…`; serialize behind its integration
+  `tools/backlog-lint.mjs` + `test/backlog-lint.test.mjs` — CONTENDED with lane
+  `worktree-agent-a82e…`; same
+  `tools/bust-triage.mjs` + `test/bust-triage-*` — CONTENDED with lanes
+  `worktree-agent-ac73…` and the orphan `worktree-agent-afc2…`
+  `tools/state-report.mjs` + `test/state-report.test.mjs` — FREE (integrated
+  today, no lane holds it)
+  `tools/alias-claim.mjs` + `test/alias-claim.test.mjs` — FREE
   `proxy/**` — deployment-coupled: any change needs a dotfiles pin bump
   (`git rev-parse --short HEAD:proxy`) and a restart
   `BACKLOG.md` belongs to the dispatcher alone, always.
@@ -273,43 +228,84 @@ The collision surfaces NOT visible in a file list — the shared git index, the
 node_modules symlink, the alias registry, sibling-repo isolation — are in
 `docs/dev-loop.md` ("Once the order is derived, run it in PARALLEL").
 
-**Work booked in other repos, with pointers here:** the declared-public
-visibility check (dotfiles doctor), the push-gate and path-hook payload-vs-intent
-fires (the `dispatch-guards` plugin's `dev-notes/`), and the claude-worktime
-items. A peer session was active in `claude-worktime` and dotfiles today.
+**Hazard, for whoever integrates lane `worktree-agent-a46f…`:** it contains
+`tools/prune-lane-branches.mjs`, which deletes orphaned `worktree-agent-*`
+branches. The orphan `worktree-agent-afc2…` carries a real 405-insertion commit
+from 2026-08-08 with no registered worktree. Confirm the tool checks the
+outstanding count before deleting, or running it destroys work that the
+2026-08-11 freeze exists to prove was there.
 
-**Population and collision facts, measured this pass (a fact about the files,
-not a judgement).** 84 `- **READY` entries, re-grepped at close. By consumer
-tier: 26 event-disposition / 26 gates / 15 backlog-process / 17 not-instrument.
-15 carry an UNRESOLVED write-set, 8 carry NO verifier, 20 are flagged
-stale-risk — re-read a stored entry's PREMISE against the world before
-dispatching it; three entries were overtaken by reality today. Files claimed by
-2+ entries, which is what caps fan-out width: `tools/bust-triage.mjs` (9),
-`tools/replay.mjs` (8), `session-scan.py` (4), `docs/dev-loop.md` (4),
-`bootstrap/doctor.py` (3), then `fixture-verdict-identity.mjs`,
-`backlog-lint.mjs`, `README.ko.md`, `proxy/server.mjs`,
-`insertion-normalization.mjs`, the matrix (2 each). The first two alone
-serialize 17 entries. The raw census extraction is deliberately NOT stored: it
-snapshotted a file that grew +217 lines under it, and a stale extraction invites
-ranking from it — the stored-priority defect one level up. Re-run the census
-dispatch; it is one lane and ~15 minutes.
+**Evidence frozen this session:**
+`test/fixtures/lane-branches/inventory-2026-08-11-pre-integration.json` — the
+lane-branch world before integration cleared it. It is the collector's red case
+and it cannot be re-made.
 
-**The row-22 enumeration is DONE and its output is in the repo** —
-`docs/directives/success-path-only-enumeration.md`. It answers the matrix's
-nine-day-old question ("which normalization behaviours silently switch off on a
-reset"), covers every extension with per-label counts, and carries the finding
-that `extensions.json` is not the activation gate. Read it before designing any
-reset-path change.
+**What this session added to the method**, in `docs/dev-loop.md` because the
+next session inherits rules and not reasoning: the CARRIER REGISTRATION rule in
+the closing gate (question 4) — a mechanism that creates a persistent state
+carrier is unfinished until that carrier class has a collector in
+`state-report`. It sits inside the required-reading extract block, so it arrives
+at session start rather than waiting to be read. Its enumerable half is booked.
 
-**What this session added to the method**, all in `docs/dev-loop.md`, because
-the next session inherits the rules and not the reasoning: the pattern-scope
-blind spot and its ACCOUNTING mechanism (which returned 65 on its first run),
-enumeration keyed on a NAME vs a BEHAVIOUR, red-first arrangements that decay
-when the work is committed, instruments that match themselves, fixtures encoding
-states the real system cannot produce, extract-then-validate probes, and the
-ENOSPC misattribution with its wrong first explanation left in.
+**The session-start attention line, resolved part by part** (close-runbook step
+3 — a standing signal with no disposition is wallpaper, not evidence of
+nothing). `gate RED 1/25` → BOOKED: the `modelChangedAcrossPair` exemption
+entry, and the handoff paragraph above names the test-side split that lands it
+without the pile. `exit pass owed, ~56 closure markers outside the closure home`
+→ BOOKED: the `--closures-in-live` entry, which is the mechanism for exactly
+this and is blocked only on lane `worktree-agent-a82e…`. `21 READY, oldest 4d`
+→ ACTED: three shipped today and the grade set moved with them. `33 behind
+upstream` → NOT THIS SESSION, and the reason is a collision rather than
+capacity: an upstream merge rewrites the same core files the 31-commit lane pile
+is queued against, so it belongs after the pile drains, not beside it.
+
+**Work booked in other repos, with pointers here:** the dotfiles doctor's
+verdict over `alias-claim --protect-status` (booked here as an explicit POINTER
+whose own body says a pointer is not a discharge — its real home is dotfiles'
+backlog and nobody has written it there yet); the dotfiles close-signal Stop
+hook, whose fork-side contract line shipped this session.
 
 ## Open
+
+- **READY 2026-08-11 (evening) — `named-unbooked-scan` reports 0/0 on a session
+  that enumerated its own errors twice, because its vocabulary does not carry the
+  words sessions actually use.** Found at this session's own close, by refusing
+  its zero: the run examined 37 assistant messages (so it was not a
+  zero-message vacuous pass, the failure the runbook warns about) and returned
+  `GAP-LANGUAGE=0/0 SELF-CORRECTION-LIST=0/0` over a session whose closing
+  message opened a paragraph "Two of my own misses" and whose body twice listed
+  its own reach failures.
+  **Measured with a positive control, so this is a reach claim and not an
+  impression.** `ERROR_WORD_RE`
+  (`tools/named-unbooked-scan.mjs:116-118`) fires TRUE on "I was wrong about the
+  count", "that was my mistake", "the check failed" — and FALSE on every phrase
+  this session actually used: "Two of my own misses", "The branch-count reach
+  failure", "my brief asserted … a name I had taken from a comment". Two distinct
+  causes: "miss/misses" is absent from the vocabulary entirely, and
+  `\bfail(?:ed|s|ing)?\b` CANNOT match "failure" — there is no word boundary
+  between `fail` and `ure`, so the one word most likely to appear in an
+  self-reported reach defect is unmatchable by construction. Separately, 0 of the
+  6 `gap-language` phrases match "still owed", "not done", "unstarted".
+  **Why this outranks its own size:** the scan is the session-close lane's step 6
+  and the dotfiles Stop hook's payload, so its zero is read as "nothing was named
+  and left unbooked". A silent under-fire there certifies a close as clean, which
+  is the absence-wearing-a-verdict's-clothes class aimed at the instrument that
+  exists to prevent it. This session's close would have passed on it.
+  **Design (decided):** add `miss(?:es|ed)?` and `failure` to `ERROR_WORD_RE`
+  (the latter by relaxing the suffix group to `fail(?:ed|s|ing|ure|ures)?`), and
+  add "still owed", "not done", "unstarted", "left for" to the `gap-language`
+  phrases. Do NOT widen further in the same change: the runbook already expects
+  false fires here, and a phrase list that fires on ordinary explanation trains
+  its reader to discount the output — which is the same defect from the other
+  side.
+  **Done-criterion / red-first PAIR, both halves required:** this session's own
+  transcript (`7e2fadd8…`, 37 assistant messages) must go from 0 hits to ≥1
+  under the patched vocabulary — a REAL positive, not a planted one — AND a
+  transcript of a session that named no gaps must stay at 0. The two must
+  DIFFER, or the widening is a predicate that fires always.
+  Anchor: docs/runbooks/session-close.md
+  Write-set: tools/named-unbooked-scan.mjs, test/named-unbooked-scan.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/named-unbooked-scan.test.mjs
 
 - **READY 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
   the running pipeline uses, so its name promises an eviction it does not
