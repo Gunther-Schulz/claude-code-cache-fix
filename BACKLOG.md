@@ -311,6 +311,96 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY 2026-08-11 — `## Open` holds 43 DONE entries, so the live section is
+  mostly closures and a fresh context pays for all of them.** Measured this
+  session by grading every top-level bullet under `## Open`: 43 DONE against 20
+  READY, 32 PARKED and 4 OPEN. This is the exact shape the accretion rule names
+  — "never delete silently" is satisfied completely by a recorded MOVE, and a
+  DONE grade left in a live section grows the carrier without bound while
+  staying formally compliant. Two entries were moved by hand today (the
+  relocate-then-pin closure, the 2026-08-11 sweep walk); the other 43 were not,
+  and doing them one at a time is how this stays unfixed.
+  **Why it matters beyond tidiness, stated as the cost it actually imposes:**
+  `## Open` is what a restarting session reads to answer "what is live here",
+  and today two thirds of it is answered work. The grade is only information if
+  the section it sits in is not already full of its opposite.
+  **Design (decided):** a `tools/backlog-lint.mjs --closures-in-live` lane that
+  lists every top-level entry under a LIVE section whose grade token is DONE (or
+  RESOLVED/ANSWERED — the vocabulary is in the file, not invented here), REPORT
+  first so the population is measured before anything blocks; then one mechanical
+  pass moving those bodies to `## Done`, byte-untouched, in ONE commit that
+  changes no prose. Not a judgement pass: a body that is DONE moves, and any
+  entry whose grade is ambiguous is LEFT and listed, never re-graded by reading.
+  **Done-criterion:** the lane reports 43 today (the number above, which is its
+  red-first positive on real data, not a planted one); after the move it reports
+  0; `git show --stat` on the move commit shows equal insertions and deletions
+  for BACKLOG.md; and a spot-check of three moved bodies is byte-identical
+  before and after.
+  Anchor: BACKLOG.md
+  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs, BACKLOG.md
+  Verifier: node tools/backlog-lint.mjs --closures-in-live
+
+- **READY 2026-08-11 — the stability check has no `modelChangedAcrossPair` exemption, so
+  the daily sweep stays red on a measured NON-DEFECT.** Split out of the walk entry now in
+  `## Done`; it is the sweep's ONLY remaining red (14:19Z run, s-captureBC, 1 stability row).
+  The instance: `n=461->462`, `outDiv=36`, CC byte-identical there, `attribution.ext =
+  deferred-tool-rewrite`; `model` is `claude-fable-5` at n=461 and `claude-opus-4-8` at n=462,
+  and `supportsToolAddition` returns true then false, so `deferred-tool-rewrite.mjs:758`
+  (`if (!announceOk) additions = []`) empties two established additions and our forwarded array
+  moves where CC's did not. Severity measured, not argued: that request billed `cacheRead: 0,
+  cacheCreation: 633,639` — the model switch re-billed the whole prefix by itself, so our flip
+  landed in a request with no cache to lose.
+  **Design (decided):** a `modelChangedAcrossPair` exemption in `replay.mjs`'s stability check,
+  on data the check already reads — `prev.model !== cur.model` (both present) AND `ccSame ===
+  true` AND the current request's own outcome showing `cacheRead === 0`. The billing condition
+  is load-bearing AND is the retirement trigger, exactly like condition 5 of
+  `memoryStrandedByKeyRotationExemption` (`replay.mjs:295-330`): it does not assume a model
+  switch is always cold, it REQUIRES the measured coldness, so the day a switched-model request
+  reads warm the exemption stops applying and the gate re-arms with no separate monitor.
+  **Done-criterion / red-first PAIR, and both halves are required:** the real s-captureBC pair
+  goes from violation to exempt, AND a constructed pair identical except `cacheRead > 0` still
+  fires. The two must DIFFER, or the exemption is not discriminating — it would be an
+  always-exempt predicate wearing a condition's costume.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: tools/replay.mjs, test/replay-gate-selfcheck.test.mjs
+  Verifier: node --test test/replay-gate-selfcheck.test.mjs
+
+- **PARKED 2026-08-11 — the s-captureBE replay-ERROR class is unwalked and its evidence is
+  GONE.** The 12:24Z sweep reported a replay error whose stderr named `auto-1m-guard` and
+  `context-1m-2025-08-07` in outbound betas, a class the 08:24Z run did not have. The capture
+  rotated off disk during the same session (verified: zero matches in the captures dir), so the
+  instance can no longer be replayed, pinned, or attributed — this is PARKED rather than READY
+  because the missing piece is evidence, not design.
+  **Named missing evidence / promotion trigger:** the next sweep row that ERRORS with those
+  beta tokens in its stderr, on a capture still present. At that moment the walk is
+  `docs/runbooks/sweep-finding.md` from step 1 (freeze FIRST — that is the step whose skipping
+  cost this instance), and the two entries above it in this file are what stop the same loss
+  recurring: the sweep does not freeze anything on an ERROR today, and a claimed alias does not
+  protect its capture from eviction.
+  **Do not close this by re-running:** a class that does not reappear is COULD-NOT-VERIFY, not
+  a pass (`sweep-finding.md`, the box).
+
+- **READY 2026-08-11 — row 30's fix is untested on the eviction path, which is the one way its
+  carried-over set can go empty.** `insertion-normalization` now carries blocks across the pin
+  from `fresh-session-sort`'s DECLARATION (`relocatedBlocks`). That declaration is emitted from
+  the relocator's per-conversation MEMORY, and row 25 records that memory as LRU/prune-capped at
+  256 conversations — so a conversation quiet past the cap stops declaring, the pin carries
+  nothing, and CC's own bytes win. That is CORRECT behaviour and it is untested: nothing asserts
+  the fix degrades to the pre-relocation form rather than to a half-built message, and this is
+  the sole reason row 30 is RESIDUAL instead of SHIPPED.
+  **Design (decided):** extend `test/relocate-then-pin-conservation.test.mjs` with a third
+  request whose relocation memory has been evicted (call the module's exported
+  `_resetRelocationMemory`, which exists for this), and assert the forwarded message is exactly
+  CC's own incoming message — no relocated block, no stale carry-over, and the conservation gate
+  reporting neither `lost` nor `invented`.
+  **Done-criterion:** that bite passes, AND its instrument-positive shows the eviction really
+  happened (the relocation declaration is absent on the third request, present on the second) —
+  without it the case passes vacuously by never having relocated at all, which is how this same
+  fixture reported a loss ABSENT earlier today.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: test/relocate-then-pin-conservation.test.mjs
+  Verifier: node --test test/relocate-then-pin-conservation.test.mjs
+
 - **READY 2026-08-11 — the sweep pins row evidence but freezes NOTHING when a
   replay ERRORS, which is the one case where the input is most needed and least
   likely to survive.** Measured this session: the 2026-08-11 12:24Z sweep
@@ -5311,86 +5401,6 @@ ENOSPC misattribution with its wrong first explanation left in.
   creations). "Any unabsorbed mid-history divergence pays ~full
   price" over-claimed; at least the interior system-removal class
   is free. See the reframed interior-prunes entry above.
-- **READY (RE-GRADED from PARKED 2026-08-11 at the desk; operator scheduled it as
-  the next session's FIRST item) — the daily sweep has been RED at 14 of 48
-  captures and the banner attributes it to the wrong thing.** Booked 2026-08-11 by
-  the records-restructure session, which met it while reading `gate-status.json`
-  for phase 3's wiring and is deliberately NOT walking it mid-directive.
-  **Why the PARKED grade did not hold, and it is worth naming because the entry
-  argued it well.** The named missing evidence — regression or declared-behaviour
-  conservation shape — is the WALK'S OWN OUTPUT, not an input to deciding the
-  walk. A deferral gated on evidence the deferred action itself produces is delay
-  in a spec's costume; the discriminating test is whether any outcome could flip
-  the verdict on what to do next, and none can, because the answer either way is
-  "run `sweep-finding.md`". The lane is a runbook, so the entry is
-  decision-complete by construction and always was.
-  **The measurement, taken rather than recalled** (sweep started
-  2026-08-11T07:55:50Z, `ok:false failing:14`, 48 captures): the discriminator is
-  CONSERVATION and it separates the population completely — every one of the 14
-  failing rows carries `conservation > 0` (205, 308, 108, 251, … per row), and all
-  34 passing rows carry exactly 0. `stability`, `safety`, `sequence`, `order` and
-  `unparseable` are 0 on every failing row, so nothing else is firing.
-  **What the session-start banner says is different from what the data says.** The
-  banner reads "gate RED: 14/48 failing (cache-fix-proxy.service — cross-project,
-  not this repo's suite)", which names a service rather than a class; the failures
-  are this repo's own conservation gate over this repo's own captures. A label over
-  a body, one level up from the class this whole restructure is about.
-  **CORRECTION 2026-08-11 at the desk, from a SECOND independent read of the same
-  status file — "nothing else is firing" is false, and it is the sentence that
-  would have set the walk's direction.** Re-reading the identical run (started
-  07:55:50Z, finished 08:24:43Z) row by row: conservation does fire on all 14 and
-  on none of the 34 passing rows, exactly as recorded — but ONE of the 14 also
-  carries `stability: 1`, and `absorptionMisses` is non-zero on NINE of the 14
-  (1,2,2,8,3,11,2,1,6). `safety`, `sequence`, `order` and `unparseable` are the
-  only fields that are genuinely zero throughout. Two readings of one file
-  disagreed; the discrepancy is the finding, and the shared coordinate that makes
-  the comparison mean anything is that both read the same `finished` stamp.
-  **The stability row is the part that changes the walk's priority**, because it
-  is attributed to US: `n=461->462`, `inDiv=286`, `outDiv=36`,
-  `ccIdenticalAtOutDiv: true` — CC's bytes were identical where our forwarded
-  bytes diverged, and `attribution.ext` names `deferred-tool-rewrite`. Its
-  timestamp is 2026-08-10T05:39:12Z, i.e. BEFORE that evening's D1 commits
-  (`246b61d` 21:41, `a5f1960` 21:49 local), so D1 is not a candidate cause and
-  the walk should not start there. Capture: `s-captureBC` (alias claimed
-  2026-08-11 for exactly this purpose; 3,427 requests, 3,144 pairs, ~2 GB).
-  **Evidence FROZEN before the walk rather than left to rotate, and the freeze
-  reports its own limit.** `harvest --pin … 461..462 --bounded` wrote
-  `test/fixtures/harvested/pinned-s-d8f209e4b75e-461-462.json` (888 records, 162
-  kept / 301 placeholders, 18.5 MB; `absence-scan` clean). `verifyPin` then said
-  the pin does NOT reproduce what it was pinned for, and the difference is the
-  COST half, not the identity: live reads `[prefix above messages INTACT -> the
-  whole message array re-bills]`, the pin reads `[prefix ALREADY broken above
-  messages: tools changed -> no marginal cost]`. Identity, both divergence
-  indices, the ours-attribution and the naming extension all survive; the price
-  does not. This is the scrub-destroys-content-predicates class again (the
-  `e53f873` precedent), one level up: what the scrub broke is the SEVERITY, so a
-  walk reading only the pin would classify a full-context re-bill as free.
-  **The pin is deliberately NOT committed**, and that is a decision with a reason
-  rather than an omission: it lives in the working copy, and pins do not rotate —
-  only captures do — so the expiry risk is already discharged by the file
-  existing. 18.5 MB of permanent public history for a fixture whose own verifier
-  says it is not evidence for its class is a bad trade; the walk commits it only
-  if it turns out to need it, and the untracked path above is where it is.
-  **What the walk still owes** — unchanged, and this is the work, not a blocker:
-  whether the conservation population is a REGRESSION or the declared-behaviour
-  shape already triaged 2026-08-05, and separately whether the single ours-
-  attributed stability violation is a known class. `docs/runbooks/sweep-finding.md`,
-  terminal states regression / known-open / non-defect / instrument-defect /
-  new-class / could-not-verify. Two facts to carry into it: this repo's earlier
-  conservation reds were a SINGLE failing row (BACKLOG's own record), and 14 with
-  per-row counts in the hundreds is a different quantity; and the remaining 13
-  captures rotate, so the walk freezes what it rests on before closing — the pin
-  above covers only the stability row.
-  **WALKED 2026-08-11 (partial, and the split is stated rather than blurred).** Step 1 first: `harvest` run (574 -> 618 untracked fixtures), and all twelve failing captures alias-claimed so they can be named after they rotate — `s-captureBC` (stability), `s-captureBE` (the replay-error row), and BD/BF/BG/BH/BA/AW/BI/BJ/BK/BL for the conservation population.
-  **The stability row is CLOSED as NON-DEFECT, attributed end to end by execution rather than by reading.** Three independent sources agree. (1) The gate's own attribution: `n=461->462`, `outDiv=36`, CC byte-identical there, `attribution.ext = deferred-tool-rewrite`. (2) The extension's append-only event log for that conversation key: `injected` flips `2 -> 0` at exactly the violating request (log ts 05:39:12.707 against the row's 05:39:12.691), with `action: "rewrite"` and `newNames: []` on both sides — no reset, no schema change. (3) The pinned raw pair: `model` is `claude-fable-5` at n=461 and `claude-opus-4-8` at n=462. `supportsToolAddition` executed on both values returns true and false respectively (`TOOL_ADDITION_MODELS = ["claude-opus-5", "claude-fable-5"]`), so `deferred-tool-rewrite.mjs:758` — `if (!announceOk) additions = []` — empties two established additions, and the forwarded message array changes where CC's did not. That is the extension behaving exactly as designed: it must not send tool-addition announcements to a model that does not support them.
-  **The severity half is MEASURED, not argued, and it is what makes this a non-defect rather than a deferred defect.** The first `claude-opus-4-8` request on that key billed `cacheRead: 0, cacheCreation: 633,639` — the model switch re-billed the entire prefix by itself. Our byte flip landed in a request that had no cache to lose, which is the same "re-bills anyway, so this flip costs nothing marginal" reasoning condition 5 of the existing `memoryStrandedByKeyRotationExemption` already runs on (`replay.mjs:295-330`). Note the pin could NOT answer this: its outcome records stop before n=462, so the number came from the live capture — the second time today that a bounded pin kept the identity and lost the cost.
-  **Its close is therefore a declared exemption, booked here as the runbook requires (NON-DEFECT closes by an exemption the check itself verifies, never a softened predicate).** Design, decided: a `modelChangedAcrossPair` exemption in `replay.mjs`'s stability check, conditioned on data the check already reads — `prev.model !== cur.model` (both present) AND `ccSame === true` AND the current request's own outcome showing `cacheRead === 0`. The billing condition is load-bearing and is also the retirement trigger, exactly like condition 5: it does not assume "a model switch is always cold", it REQUIRES the measured coldness, so the day a switched-model request reads warm the exemption stops applying and the gate re-arms with no separate monitor. Red-first pair: the real `s-captureBC` pair must go from violation to exempt, and a constructed pair identical except `cacheRead > 0` must still fire — the two must differ, or the exemption is not discriminating.
-  **The conservation population is NOT closed, and it is NOT the 2026-08-05 class.** Uniform signature across all eleven captures and all 1,899 rows: `kind: "lost"`, `at: 3`, side `in`, a user message, exactly ONE unit lost per row, `declarationsUnavailable: false`, and ZERO `invented` rows. The 2026-08-05 triage was 19 lost + 19 invented in 1:1, because a text REWRITE loses one unit and invents one; pure loss with no invention is a whole block removed without disturbing its siblings' hashes, a different mechanism. The instrument can still emit `invented` (`replay.mjs:3451,3466`), so the zero is a measured absence rather than a vocabulary that no longer exists — though the last recorded positive for that kind is 2026-08-05 on an older build, which is the residual on this claim.
-  **Two candidate causes REFUTED by execution, which is the useful half of an unfinished attribution.** On the smallest failing capture (`s-captureBA`, n=46, `in[3]` = 5 blocks: one `tool_result`, one skill body, three `<system-reminder>` blocks): `content-strip.isBookkeepingReminder` returns false on all five, so content-strip removes nothing there; and insertion-normalization's own log at that exact request (ts 19:37:28.135 against the row's 19:37:28.132) reads `action: "reset", suppressed: 0, dropped: 0, moved: 0`. Neither extension took the unit. The next candidates are `smoosh-split` and `fresh-session-sort`, run the same way — their own exported transforms over these real blocks.
-  **Why it stopped here rather than guessing:** conservation rows get NO automatic attribution (the gate's extension bisection is pointed at stability rows only, `replay.mjs:3169`), so this is the hand method the runbook's step 4 already carries a `[GRADUATE]` marker for, and finishing it is a fresh context's job with the signature above as its starting point rather than a blank page. The replay-ERROR row (`s-captureBE`) is also unwalked; its stderr names `auto-1m-guard` / `context-1m-2025-08-07` in outbound betas, a class the 08:24 run did not have.
-  Anchor: docs/runbooks/sweep-finding.md
-  Write-set: BACKLOG.md, docs/directives/robustness-threat-matrix.md, tools/replay.mjs, test/replay-conservation.test.mjs
-  Verifier: node tools/bust-triage.mjs
 
 
 
@@ -11494,6 +11504,101 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-11 — the 2026-08-11 sweep walk, both halves dispositioned. CONSERVATION: attributed, fixed, deployed and verified live (threat-matrix row 30; conservation zero across all 25 captures in the 14:19Z sweep). STABILITY: closed NON-DEFECT, its `modelChangedAcrossPair` exemption split out as its own entry. What was still live when this closed now lives in three entries in `## Open` — the exemption, the s-captureBE replay-error class, and row 30's eviction-path bite — so nothing here needs re-reading to act. Body kept verbatim as the record, INCLUDING two sentences it got wrong, corrected immediately below rather than edited away.**
+  **CORRECTION 1 — "The conservation population is NOT closed" is superseded.** It is closed:
+  `fresh-session-sort` relocates a reminder block into `messages[0]` and
+  `insertion-normalization`'s pin then served that message's stored first-seen form over it,
+  destroying bytes CC sent. Fixed and serving (fork `03398e3`, pin `ec05377`).
+  **CORRECTION 2 — the refutation below is WRONG, and its shape is the lesson.**
+  `insertion-normalization` was cleared by reading `suppressed`/`dropped`/`moved`, all 0 — and
+  all three are structurally blind to a PIN, which read `pinned: 1` at that very request. The
+  fields were true; their reach fell short of the claim, so the walk went to `smoosh-split`
+  and `fresh-session-sort` as "next candidates" while the answer was in the extension already
+  excluded. A refutation is only as wide as the field that carries the mechanism.
+  **CORRECTION 3 — the live-log record cited as evidence could not have been joined.** Replay's
+  `key` is the SESSION key and the event log's is the conversation SUB-key, so the two were
+  matched on timestamp alone across a 3 ms gap, between records that need not share a
+  conversation. Booked separately.
+  the next session's FIRST item) — the daily sweep has been RED at 14 of 48
+  captures and the banner attributes it to the wrong thing.** Booked 2026-08-11 by
+  the records-restructure session, which met it while reading `gate-status.json`
+  for phase 3's wiring and is deliberately NOT walking it mid-directive.
+  **Why the PARKED grade did not hold, and it is worth naming because the entry
+  argued it well.** The named missing evidence — regression or declared-behaviour
+  conservation shape — is the WALK'S OWN OUTPUT, not an input to deciding the
+  walk. A deferral gated on evidence the deferred action itself produces is delay
+  in a spec's costume; the discriminating test is whether any outcome could flip
+  the verdict on what to do next, and none can, because the answer either way is
+  "run `sweep-finding.md`". The lane is a runbook, so the entry is
+  decision-complete by construction and always was.
+  **The measurement, taken rather than recalled** (sweep started
+  2026-08-11T07:55:50Z, `ok:false failing:14`, 48 captures): the discriminator is
+  CONSERVATION and it separates the population completely — every one of the 14
+  failing rows carries `conservation > 0` (205, 308, 108, 251, … per row), and all
+  34 passing rows carry exactly 0. `stability`, `safety`, `sequence`, `order` and
+  `unparseable` are 0 on every failing row, so nothing else is firing.
+  **What the session-start banner says is different from what the data says.** The
+  banner reads "gate RED: 14/48 failing (cache-fix-proxy.service — cross-project,
+  not this repo's suite)", which names a service rather than a class; the failures
+  are this repo's own conservation gate over this repo's own captures. A label over
+  a body, one level up from the class this whole restructure is about.
+  **CORRECTION 2026-08-11 at the desk, from a SECOND independent read of the same
+  status file — "nothing else is firing" is false, and it is the sentence that
+  would have set the walk's direction.** Re-reading the identical run (started
+  07:55:50Z, finished 08:24:43Z) row by row: conservation does fire on all 14 and
+  on none of the 34 passing rows, exactly as recorded — but ONE of the 14 also
+  carries `stability: 1`, and `absorptionMisses` is non-zero on NINE of the 14
+  (1,2,2,8,3,11,2,1,6). `safety`, `sequence`, `order` and `unparseable` are the
+  only fields that are genuinely zero throughout. Two readings of one file
+  disagreed; the discrepancy is the finding, and the shared coordinate that makes
+  the comparison mean anything is that both read the same `finished` stamp.
+  **The stability row is the part that changes the walk's priority**, because it
+  is attributed to US: `n=461->462`, `inDiv=286`, `outDiv=36`,
+  `ccIdenticalAtOutDiv: true` — CC's bytes were identical where our forwarded
+  bytes diverged, and `attribution.ext` names `deferred-tool-rewrite`. Its
+  timestamp is 2026-08-10T05:39:12Z, i.e. BEFORE that evening's D1 commits
+  (`246b61d` 21:41, `a5f1960` 21:49 local), so D1 is not a candidate cause and
+  the walk should not start there. Capture: `s-captureBC` (alias claimed
+  2026-08-11 for exactly this purpose; 3,427 requests, 3,144 pairs, ~2 GB).
+  **Evidence FROZEN before the walk rather than left to rotate, and the freeze
+  reports its own limit.** `harvest --pin … 461..462 --bounded` wrote
+  `test/fixtures/harvested/pinned-s-d8f209e4b75e-461-462.json` (888 records, 162
+  kept / 301 placeholders, 18.5 MB; `absence-scan` clean). `verifyPin` then said
+  the pin does NOT reproduce what it was pinned for, and the difference is the
+  COST half, not the identity: live reads `[prefix above messages INTACT -> the
+  whole message array re-bills]`, the pin reads `[prefix ALREADY broken above
+  messages: tools changed -> no marginal cost]`. Identity, both divergence
+  indices, the ours-attribution and the naming extension all survive; the price
+  does not. This is the scrub-destroys-content-predicates class again (the
+  `e53f873` precedent), one level up: what the scrub broke is the SEVERITY, so a
+  walk reading only the pin would classify a full-context re-bill as free.
+  **The pin is deliberately NOT committed**, and that is a decision with a reason
+  rather than an omission: it lives in the working copy, and pins do not rotate —
+  only captures do — so the expiry risk is already discharged by the file
+  existing. 18.5 MB of permanent public history for a fixture whose own verifier
+  says it is not evidence for its class is a bad trade; the walk commits it only
+  if it turns out to need it, and the untracked path above is where it is.
+  **What the walk still owes** — unchanged, and this is the work, not a blocker:
+  whether the conservation population is a REGRESSION or the declared-behaviour
+  shape already triaged 2026-08-05, and separately whether the single ours-
+  attributed stability violation is a known class. `docs/runbooks/sweep-finding.md`,
+  terminal states regression / known-open / non-defect / instrument-defect /
+  new-class / could-not-verify. Two facts to carry into it: this repo's earlier
+  conservation reds were a SINGLE failing row (BACKLOG's own record), and 14 with
+  per-row counts in the hundreds is a different quantity; and the remaining 13
+  captures rotate, so the walk freezes what it rests on before closing — the pin
+  above covers only the stability row.
+  **WALKED 2026-08-11 (partial, and the split is stated rather than blurred).** Step 1 first: `harvest` run (574 -> 618 untracked fixtures), and all twelve failing captures alias-claimed so they can be named after they rotate — `s-captureBC` (stability), `s-captureBE` (the replay-error row), and BD/BF/BG/BH/BA/AW/BI/BJ/BK/BL for the conservation population.
+  **The stability row is CLOSED as NON-DEFECT, attributed end to end by execution rather than by reading.** Three independent sources agree. (1) The gate's own attribution: `n=461->462`, `outDiv=36`, CC byte-identical there, `attribution.ext = deferred-tool-rewrite`. (2) The extension's append-only event log for that conversation key: `injected` flips `2 -> 0` at exactly the violating request (log ts 05:39:12.707 against the row's 05:39:12.691), with `action: "rewrite"` and `newNames: []` on both sides — no reset, no schema change. (3) The pinned raw pair: `model` is `claude-fable-5` at n=461 and `claude-opus-4-8` at n=462. `supportsToolAddition` executed on both values returns true and false respectively (`TOOL_ADDITION_MODELS = ["claude-opus-5", "claude-fable-5"]`), so `deferred-tool-rewrite.mjs:758` — `if (!announceOk) additions = []` — empties two established additions, and the forwarded message array changes where CC's did not. That is the extension behaving exactly as designed: it must not send tool-addition announcements to a model that does not support them.
+  **The severity half is MEASURED, not argued, and it is what makes this a non-defect rather than a deferred defect.** The first `claude-opus-4-8` request on that key billed `cacheRead: 0, cacheCreation: 633,639` — the model switch re-billed the entire prefix by itself. Our byte flip landed in a request that had no cache to lose, which is the same "re-bills anyway, so this flip costs nothing marginal" reasoning condition 5 of the existing `memoryStrandedByKeyRotationExemption` already runs on (`replay.mjs:295-330`). Note the pin could NOT answer this: its outcome records stop before n=462, so the number came from the live capture — the second time today that a bounded pin kept the identity and lost the cost.
+  **Its close is therefore a declared exemption, booked here as the runbook requires (NON-DEFECT closes by an exemption the check itself verifies, never a softened predicate).** Design, decided: a `modelChangedAcrossPair` exemption in `replay.mjs`'s stability check, conditioned on data the check already reads — `prev.model !== cur.model` (both present) AND `ccSame === true` AND the current request's own outcome showing `cacheRead === 0`. The billing condition is load-bearing and is also the retirement trigger, exactly like condition 5: it does not assume "a model switch is always cold", it REQUIRES the measured coldness, so the day a switched-model request reads warm the exemption stops applying and the gate re-arms with no separate monitor. Red-first pair: the real `s-captureBC` pair must go from violation to exempt, and a constructed pair identical except `cacheRead > 0` must still fire — the two must differ, or the exemption is not discriminating.
+  **The conservation population is NOT closed, and it is NOT the 2026-08-05 class.** Uniform signature across all eleven captures and all 1,899 rows: `kind: "lost"`, `at: 3`, side `in`, a user message, exactly ONE unit lost per row, `declarationsUnavailable: false`, and ZERO `invented` rows. The 2026-08-05 triage was 19 lost + 19 invented in 1:1, because a text REWRITE loses one unit and invents one; pure loss with no invention is a whole block removed without disturbing its siblings' hashes, a different mechanism. The instrument can still emit `invented` (`replay.mjs:3451,3466`), so the zero is a measured absence rather than a vocabulary that no longer exists — though the last recorded positive for that kind is 2026-08-05 on an older build, which is the residual on this claim.
+  **Two candidate causes REFUTED by execution, which is the useful half of an unfinished attribution.** On the smallest failing capture (`s-captureBA`, n=46, `in[3]` = 5 blocks: one `tool_result`, one skill body, three `<system-reminder>` blocks): `content-strip.isBookkeepingReminder` returns false on all five, so content-strip removes nothing there; and insertion-normalization's own log at that exact request (ts 19:37:28.135 against the row's 19:37:28.132) reads `action: "reset", suppressed: 0, dropped: 0, moved: 0`. Neither extension took the unit. The next candidates are `smoosh-split` and `fresh-session-sort`, run the same way — their own exported transforms over these real blocks.
+  **Why it stopped here rather than guessing:** conservation rows get NO automatic attribution (the gate's extension bisection is pointed at stability rows only, `replay.mjs:3169`), so this is the hand method the runbook's step 4 already carries a `[GRADUATE]` marker for, and finishing it is a fresh context's job with the signature above as its starting point rather than a blank page. The replay-ERROR row (`s-captureBE`) is also unwalked; its stderr names `auto-1m-guard` / `context-1m-2025-08-07` in outbound betas, a class the 08:24 run did not have.
+  Anchor: docs/runbooks/sweep-finding.md
+  Write-set: BACKLOG.md, docs/directives/robustness-threat-matrix.md, tools/replay.mjs, test/replay-conservation.test.mjs
+  Verifier: node tools/bust-triage.mjs
 
 - **DONE 2026-08-11 (fix in this session's commit; see threat-matrix row 30) — the
   RELOCATE-THEN-PIN content loss: CC-sent reminder blocks were deleted off the
