@@ -1557,6 +1557,36 @@ it, acknowledge-by-commit, within the hour).
    ran eleven gates). New state, new record fields, new gates — each lands
    with its replay handling, its ledger declaration, and its three-answer
    doctor verdict in the same change.
+   **CARRIER REGISTRATION — a mechanism that CREATES a persistent state
+   carrier is unfinished until that carrier CLASS has a collector in
+   `state-report`.** Added 2026-08-11 on operator mandate, and it is
+   question 2's recurring-producer clause one axis over: that clause asks
+   whether a producer harvests its own EVIDENCE, this one asks whether a
+   carrier registers in the INVENTORY. A carrier is anything the mechanism
+   leaves behind that outlives the run and that nobody is scheduled to
+   look at: a branch, a pin, a capture, a protection link, a booking.
+   **The failure is always the same and it is never a wrong reading — it
+   is a reading that does not exist.** Measured across one week, three
+   times: evidence rotated away while entries cited it; thirty-three
+   commits sat in lane branches while `git status`, `git log
+   origin/main..main` and a handoff all read clean; a closing report's
+   "all booked" was wrong on 2 of 4. Every one of those readings was TRUE
+   about what it looked at. The state sat outside all of them, so no
+   amount of care at the reading end would have found it — which is why
+   this is a build obligation and not a discipline.
+   **The completeness test is ENUMERABLE, which is what keeps it from
+   being a slogan:** every `tools/` mechanism that writes state outside
+   the tree either names its collector, or names why its state is not a
+   carrier — process-local, or self-expiring within the run. An
+   unclassified writer is the finding. Run the enumeration when a
+   mechanism is added, not on a schedule: a sweep of an unchanged set
+   yields nothing, and the trigger is the WRITE, not the calendar.
+   **The trap this closes, stated so the next author recognises it:** the
+   carrier's creator is never the party that misses it. Each of the three
+   above was created correctly by a mechanism doing its job, and lost by a
+   reader who had no way to know it existed. Registering the class is the
+   creator's act because the creator is the only party that knows the
+   carrier is there.
 <!-- required-reading-extract-end -->
 
 ### Cadence: the gate guards the flow, the sweep re-checks the stock

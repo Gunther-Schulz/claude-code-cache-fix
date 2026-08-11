@@ -311,6 +311,61 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
+  the running pipeline uses, so its name promises an eviction it does not
+  perform.** Found by the row-30 eviction lane PROBING the premise before
+  building on it, which is the only reason the bite it was building is not
+  vacuous. Two independent causes, both confirmed by that lane against the real
+  pipeline: (1) `loadExtensions` (`proxy/pipeline.mjs:39`) imports every
+  extension through a cache-busted URL (`?t=<counter>`), so a plainly-imported
+  `_resetRelocationMemory()` clears a Map belonging to a DIFFERENT module
+  instance than the one the pipeline runs — a silent no-op; and (2) even on the
+  same instance, `recallMemory()` falls back to disk when RAM is empty, so a
+  RAM-only reset is un-evicted by the persisted `*-fresh-sort-relocated.json`.
+  **What rested on it: nothing, and that was checked rather than assumed** —
+  `git grep _resetRelocationMemory` finds the definition plus the new test and no
+  other caller, so no prior conclusion is invalidated. The export was added for
+  exactly the purpose it cannot serve, which is why it reads as available.
+  **Design (decided):** the helper's doc comment states that it reaches only a
+  caller controlling module identity, AND gains a disk-clearing counterpart so
+  the two halves of the memory are evictable in one call. Deployment-coupled:
+  `proxy/**`, so it needs a dotfiles pin bump and a restart at a session
+  boundary; the change is memory-helper-only and touches no state KEYS or freeze
+  logic, so row 3's restart-transparency argument holds unchanged.
+  **Done-criterion:** the eviction bite in
+  `test/relocate-then-pin-conservation.test.mjs` passes using ONLY the exported
+  helper — with its current splice-and-unlink workaround removed — and goes red
+  when the helper's disk half is disabled. Both arms pasted.
+  Anchor: proxy/extensions/fresh-session-sort.mjs
+  Write-set: proxy/extensions/fresh-session-sort.mjs, test/relocate-then-pin-conservation.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/relocate-then-pin-conservation.test.mjs
+
+- **READY 2026-08-11 (evening) — enumerate every `tools/` mechanism that writes
+  state outside the tree and name its collector, or name why its state is not a
+  carrier.** The enumerable half of the carrier-registration rule minted into
+  `docs/dev-loop.md`'s closing gate (question 4) the same day. The rule's
+  completeness test is only a slogan until the enumeration has been run once and
+  its residual is a NUMBER — the same reason the XDG path accounting exists and
+  the same reason it returned 65 on its first run after three sweeps had each
+  shipped believing the class closed.
+  **Design (decided):** an exhaustive pass over `tools/*.mjs` (and any `proxy/**`
+  writer a tool drives), each writer classified into exactly one of: HAS-COLLECTOR
+  (naming it in `state-report`), NEEDS-COLLECTOR, NOT-A-CARRIER-process-local,
+  NOT-A-CARRIER-self-expiring. Every hit accounted for, zeros stated explicitly;
+  no materiality judgment at enumeration time — a writer that looks trivial is
+  still listed and the grading is the desk's.
+  **Done-criterion:** the enumeration covers every `tools/*.mjs` by path (not by
+  count), the four buckets sum to the total, and the NEEDS-COLLECTOR bucket is
+  booked as entries. It is dispatchable as an enumeration brief; the grading of
+  its buckets stays at the desk.
+  **Instrument-positive, so a zero bucket is distinguishable from a dead pass:**
+  `tools/alias-claim.mjs` is known to write a carrier (the protected-link set)
+  whose collector does not exist yet, so it MUST land in NEEDS-COLLECTOR; an
+  enumeration that does not surface it has not run.
+  Anchor: docs/dev-loop.md
+  Write-set: BACKLOG.md (the resulting entries), docs/directives/carrier-enumeration.md
+  Verifier: test -f docs/directives/carrier-enumeration.md && grep -c '^| ' docs/directives/carrier-enumeration.md
+
 - **READY 2026-08-11 (evening) — five registered worktrees hold 30 commits that
   never reached `main`, and two of them BLOCK the current head.** Measured at
   session start by patch-id (`git cherry main <branch>`, counting `+`, which is
