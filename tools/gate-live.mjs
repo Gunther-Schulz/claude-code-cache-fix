@@ -81,7 +81,7 @@ const DEFAULT_TRANSCRIPTS = join(homedir(), ".claude", "projects");
 // replay write captures of the captures, and SESSION_MIRROR would write
 // mirrors; neither transforms the request, so excluding them costs no
 // coverage, and both are named in the output so nobody reads them as tested.
-const ARTIFACT_ONLY = new Set(["CACHE_FIX_REQUEST_CAPTURE", "CACHE_FIX_SESSION_MIRROR"]);
+export const ARTIFACT_ONLY = new Set(["CACHE_FIX_REQUEST_CAPTURE", "CACHE_FIX_SESSION_MIRROR"]);
 
 export function parseUnitEnvironment(showOutput) {
   // `systemctl show -p Environment` yields one line: Environment=A=1 B=2
@@ -1574,6 +1574,18 @@ async function main() {
     // so the env var wrote "unknown" into every scheduled run's status file.
     host: hostname(),
     gates: prodEnv,
+    // The exclusion travels IN the artifact, not only on stdout. The header
+    // above says the two artifact-only gates are "named in the output so
+    // nobody reads them as tested" — true interactively and false for the
+    // scheduled run, which is the only one that writes this file, because
+    // the unit passes --quiet and that line sits behind !args.quiet. The
+    // reader that suffers is ship-proxy-change.md's step 7: it compares the
+    // unit's Environment= against /health's gates against THIS array, and a
+    // 11/11/9 spread with no explanation in the artifact is a mismatch it is
+    // forbidden to soften. With this field the compare is exact —
+    // gates + gatesExcludedArtifactOnly is the unit's set, and the two lists
+    // are disjoint.
+    gatesExcludedArtifactOnly: [...ARTIFACT_ONLY],
     gateSource: envSource,
     captures: rows.length,
     bytes: rows.reduce((a, r) => a + r.bytes, 0),

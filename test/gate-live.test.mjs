@@ -26,6 +26,7 @@ import {
   collectAbsorbed, collectCcVersions, transcriptVersions, lastFireLedgerTs,
   sidOfCapture, FIRE_CLASSES,
   summariseFireBytes, reduceFireBytes,
+  parseUnitEnvironment,
 } from "../tools/gate-live.mjs";
 // Namespace import for collectD1Retirement — deliberate, not a style choice.
 // The red-first arm of this file's own new bites runs against the
@@ -1023,4 +1024,73 @@ test("BITE — a real sweep wires both D1 fields into the status file, not only 
   assert.equal(parsed.d1OldKeyFallback.hits, 1, "the planted record was inside the seeded window");
   assert.equal(parsed.d1OldKeyFallback.filesScanned, 2);
   assert.equal(parsed.d1PostRelocationNoBaseline.count, 0, "no no-baseline candidate exists in this corpus");
+});
+
+// The two bites below exist because ship-proxy-change.md step 7 could not be
+// executed as written on a SCHEDULED run. Step 7 compares three answers —
+// the unit's Environment=, /health's gates, and this file's `gates` — and
+// forbids softening the compare. The unit and /health carry eleven gates,
+// the status file nine, and the line that explains the gap
+// ("excluded as artifact-only: …") sits behind `!args.quiet` while the
+// systemd unit runs `--quiet`. So the artifact a reader is told to compare
+// never carried its own exclusion. Measured on the 2026-08-11 12:24Z sweep.
+test("BITE — the artifact-only exclusion is exact: the kept gates and the excluded ones partition the unit's set, with no overlap", () => {
+  const unit =
+    "Environment=CACHE_FIX_FORWARD_PROXY=on CACHE_FIX_REQUEST_CAPTURE=1 " +
+    "CACHE_FIX_INSERTION_NORMALIZE=1 CACHE_FIX_SESSION_MIRROR=on " +
+    "CACHE_FIX_TOOL_REWRITE=1 SOME_OTHER_VAR=9";
+  const kept = parseUnitEnvironment(unit);
+  const excluded = [...gateLive.ARTIFACT_ONLY];
+
+  const keptKeys = kept.map((t) => t.slice(0, t.indexOf("=")));
+  // Disjointness AND union, because either alone passes on a defect the
+  // other catches: a filter that drops the two but reports an excluded list
+  // of [] is disjoint and loses them; one that reports them while also
+  // keeping them unions correctly and tests an untested gate.
+  for (const k of excluded) {
+    assert.ok(!keptKeys.includes(k), `${k} must not be in the replayed set`);
+  }
+  assert.deepEqual(
+    [...keptKeys, ...excluded].sort(),
+    ["CACHE_FIX_FORWARD_PROXY", "CACHE_FIX_INSERTION_NORMALIZE",
+     "CACHE_FIX_REQUEST_CAPTURE", "CACHE_FIX_SESSION_MIRROR",
+     "CACHE_FIX_TOOL_REWRITE"].sort(),
+    "kept + excluded must reconstruct exactly the unit's CACHE_FIX_ set — that union IS step 7's compare",
+  );
+  // The non-CACHE_FIX_ var is neither kept nor claimed as excluded; it is
+  // not a gate at all, and a step-7 reader must not see it in either list.
+  assert.ok(!keptKeys.includes("SOME_OTHER_VAR") && !excluded.includes("SOME_OTHER_VAR"));
+});
+
+test("BITE — a --quiet sweep writes the exclusion INTO the status file, which is the only artifact a scheduled run leaves", async (t) => {
+  const dir = await tmpDir("gate-exclusion-");
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const captures = join(dir, "captures");
+  const snapshots = join(dir, "snapshots");
+  const transcripts = join(dir, "projects");
+  await mkdir(captures, { recursive: true });
+  await mkdir(snapshots, { recursive: true });
+  await mkdir(transcripts, { recursive: true });
+  const status = join(dir, "status.json");
+
+  await pExecFile("node", [
+    join(REPO, "tools", "gate-live.mjs"),
+    "--captures", captures, "--status", status, "--fire-ledger", join(dir, "fire.jsonl"),
+    "--snapshots", snapshots, "--transcripts", transcripts, "--quiet",
+  ], { cwd: REPO }).catch((e) => e); // an empty-capture sweep still owes a status file
+
+  const parsed = JSON.parse(await readFile(status, "utf-8"));
+  assert.ok(
+    Array.isArray(parsed.gatesExcludedArtifactOnly),
+    "a --quiet run suppresses the stdout line; without this field the exclusion exists nowhere a step-7 reader looks",
+  );
+  assert.deepEqual(
+    parsed.gatesExcludedArtifactOnly.slice().sort(),
+    [...gateLive.ARTIFACT_ONLY].sort(),
+    "the field must report the SAME set the filter applies, not a hand-kept copy that can drift from it",
+  );
+  const keptKeys = (parsed.gates || []).map((t) => t.slice(0, t.indexOf("=")));
+  for (const k of parsed.gatesExcludedArtifactOnly) {
+    assert.ok(!keptKeys.includes(k), `${k} is claimed excluded and also reported as replayed`);
+  }
 });

@@ -106,6 +106,22 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    match before this ship's restart is trusted for production. A mismatch
    between any two makes the third meaningless too (dev-loop.md) — that is
    a finding, not a step to re-run hoping it clears.
+   **VERIFIED is the smaller set by construction, and the compare is a union,
+   not an equality.** The sweep replays two gates OFF on purpose —
+   `CACHE_FIX_REQUEST_CAPTURE` would capture the captures, `CACHE_FIX_SESSION_MIRROR`
+   would write mirrors — so `gates` carries nine where the unit carries eleven.
+   The status file names them in `gatesExcludedArtifactOnly` (added 2026-08-11
+   for this step: the stdout line that used to be the only carrier sits behind
+   `!args.quiet`, and the scheduled run passes `--quiet`, so the artifact this
+   step reads never carried its own exclusion). The exact compare:
+   ```sh
+   node -e 'const j=require(process.env.HOME+"/.local/state/cache-fix/gate-status.json");
+     console.log([...j.gates.map(g=>g.split("=")[0]), ...j.gatesExcludedArtifactOnly].sort().join("\n"))'
+   systemctl --user cat cache-fix-proxy | grep ^Environment= | sed "s/^Environment=//" | tr " " "\n" | cut -d= -f1 | sort
+   ```
+   Those two lists must be identical. A status file with no
+   `gatesExcludedArtifactOnly` predates this step — re-run the gate rather
+   than comparing nine against eleven and calling it a mismatch.
    `[GRADUATE -> a single wrapper chaining steps 5–7 (restart, /health
    check, gate run, doctor's three-answer compare) so a fresh context runs
    one command instead of four hand steps in sequence; not yet booked,
