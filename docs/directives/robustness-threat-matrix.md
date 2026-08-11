@@ -267,8 +267,24 @@ not "no gaps".
 
 ---
 
-## Row 21 — FIXED: `deferred-tool-rewrite`'s `tool_addition` injection
+## FIXED 2026-07-28 — `deferred-tool-rewrite`'s `tool_addition` injection
 ## moved between requests (a keying collision, not an injection bug)
+
+**TITLE CORRECTED 2026-08-11.** This section read `## Row 21 — FIXED: …`
+until today, and that number is from a SUPERSEDED numbering: today's row 21
+is server-side cache eviction, which has nothing to do with this. Found by
+the enumeration lane that walked every disposition-bearing passage outside
+the table — the "a disposition living in a section, invisible to a
+row-number index" failure this document's own intro records being burned by
+once already, arriving a second time as a stale LABEL rather than a missing
+one. The class this section belongs to today is **row 14's** — a keying
+collision, and its own body says so one paragraph down ("the SAME collision
+fixed in insertion-normalization hours earlier"), which is the pair row 14
+now records as one fix with two consumers. Stated as a reading, not as a
+renumbering: the old number is not resolvable from this document, and
+nothing machine-reads these headings — checked, `bust-triage` indexes only
+`WALK-INDEX:` lines inside `## Event walk` sections
+(`tools/bust-triage.mjs:1338`), so the cost was paid by human readers.
 
 Found 2026-07-28 by `tools/gate-live.mjs` on its first run under the
 PRODUCTION gate set. It had never been visible because every prior
@@ -346,10 +362,19 @@ the sub-key back to a constant turns the invariant test red.
 
 ---
 
-## Row 22 — FIXED: a reset drops VOLATILE PINNING too, so an
+## FIXED 2026-07-28 — a reset drops VOLATILE PINNING too, so an
 ## honest edit at the tail costs from 19 messages earlier
 ## (fix: resetKeepingPins — a reset abandons the ORDER model, not the pins;
 ## verified on corpus s-captureL 2 -> 0, dfed402)
+
+**TITLE CORRECTED 2026-08-11, same finding as the section above.** This read
+`## Row 22 — FIXED: …`, and that number CANNOT refer to today's row 22: this
+section is dated 2026-07-28 and row 22 (ephemeral UI turns) was created
+2026-07-31, three days later. The mechanism it records — `resetKeepingPins`,
+a reset abandoning the ORDER model rather than the pins — is the one today's
+rows 4 and 22 both cite in their own cells, so the content is live even
+though its label was not. Nothing machine-reads these headings (basis in the
+section above); the correction is for the reader.
 
 Found 2026-07-28 19:45 by `cache-fix-gate.timer` on live traffic, minutes
 after row 21 was fixed — i.e. by the mechanism, unprompted, which is what it
