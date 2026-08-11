@@ -58,9 +58,22 @@ Also re-verify the D1 backlog entry (~line 391 region claims vs shipped state).
   "residual": <string|null> }`.
 - Status enum (closed): `SHIPPED`, `RESIDUAL` (shipped with a named remainder
   — `residual` is then required non-null), `OPEN` (buildable, design pending
-  or ready), `DECLINED` (build refused on measurement — evidence names the
-  measurement), `IMPOSSIBLE` (physics: model-keyed cache, upstream eviction,
-  TTL), `OUT-OF-SCOPE` (mitigation lives outside this repo), `UNASSESSED`.
+  or ready), `DECLINED` (building would be WRONG — e.g. row 5, where
+  suppressing the delta would suppress a legitimate bust; evidence names the
+  measurement or argument), `ACCEPTED` (deliberately unmitigated,
+  operator-accepted cost — resume/compaction-class operator-initiated busts,
+  rows 10 and 20's shape), `IMPOSSIBLE` (physics: model-keyed cache, upstream
+  eviction, TTL), `OUT-OF-SCOPE` (mitigation lives outside this repo),
+  `UNASSESSED`.
+  The non-buildable family is the point of the enum: "won't build"
+  (`ACCEPTED`), "must not build" (`DECLINED`), "can't build" (`IMPOSSIBLE`)
+  and "not ours to build" (`OUT-OF-SCOPE`) are today distinguishable only by
+  reading each row's body to its deciding sentence — the 2026-08-10/11
+  misreads were exactly these collapsing into each other. After Phase 1,
+  "which rows should never get build effort, and why-class" is one jq over
+  the status file, and a session proposing work on an `ACCEPTED`/`DECLINED`/
+  `IMPOSSIBLE` row has to overturn the recorded evidence first, not a prose
+  impression.
 - `evidence` is a commit hash, a repo-relative artifact path, or a dated
   measurement pointer. For `SHIPPED`/`RESIDUAL` it MUST be a commit hash or
   artifact path that resolves.
