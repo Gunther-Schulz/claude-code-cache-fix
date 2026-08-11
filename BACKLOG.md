@@ -340,7 +340,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   the patched scanner must fire on A's blob; (b) the same shape with clean
   content stays green; (c) an annotated tag whose message carries a
   synthetic UUID fires, a clean annotation does not.
-  Anchor: the publication bar (CLAUDE.local.md) / tools/absence-scan.mjs
+  Anchor: tools/absence-scan.mjs
   Write-set: tools/absence-scan.mjs, test/absence-scan.test.mjs,
   docs/runbooks/upstream-pr-round.md (drop the interim hand-rescan line)
   Verifier: node --test --import ./tools/suite-config-root.mjs test/absence-scan.test.mjs
@@ -366,7 +366,7 @@ ENOSPC misattribution with its wrong first explanation left in.
   the STALE marker (red against the current renderer proves the defect),
   a fixture with finished = now−1h must NOT (the discrimination arm —
   catches a marker that fires always).
-  Anchor: tools/state-report.mjs (the session state read)
+  Anchor: tools/state-report.mjs
   Write-set: tools/state-report.mjs, test/state-report.test.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/state-report.test.mjs
   Done: both arms green with the pre-fix red pasted in the closing
