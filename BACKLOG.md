@@ -372,6 +372,27 @@ ENOSPC misattribution with its wrong first explanation left in.
   Done: both arms green with the pre-fix red pasted in the closing
   report; `--json` carries `ageHours` so the two renderers stay one pass.
 
+- **RECORD (pattern, 2 instances same day) 2026-08-11 — a bounded pin
+  keeps a finding's IDENTITY and loses its COST: the outcome/billing
+  records for the pinned rows stop before the range, so any severity or
+  price claim still rests on the live capture the pin exists to outlive.**
+  Both instances 2026-08-11, both on `harvest --pin --bounded` products:
+  the stability-pair pin whose own `verifyPin` reports it does not carry
+  what it was pinned for (live capture said the prefix above `messages`
+  was intact so the whole array re-bills; the pin says it was already
+  broken — identity and divergence indices survive, the price does not),
+  and the model-switch exemption's deciding number (`cacheRead: 0,
+  cacheCreation: 633,639`) which had to come from the live capture
+  because the pin's outcome records stop before n=462. The two bookings
+  above each note their instance; this entry is the pattern's carrier.
+  Promotion path, named: extend the bounded pin to include the
+  outcome/billing rows for its own pinned range (small JSON, no payload
+  bytes — the size argument against tracking pins does not apply to
+  these rows); `verifyPin`'s existing not-evidence-for-its-class report
+  is the ready-made red, going green when the pin carries its cost.
+  Until built, the working rule: a pin backing a claim whose severity is
+  a NUMBER freezes the outcome rows beside the pin in the same act.
+
 - **RECORD (small) 2026-08-11 — `collectMatrix` reads the status file
   TWICE: `readRecords` parses it for validation, then collectMatrix
   parses it again for enum counts (tools/state-report.mjs:155-160), so a
