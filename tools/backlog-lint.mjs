@@ -93,6 +93,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { homedir } from "node:os";
+// `sidToken` is the SAME identity harvest.mjs uses to name a pinned fixture
+// (`pinned-${sidToken(key)}-…`, harvest.mjs:1345) — imported rather than
+// re-derived, per dev-loop's rule against a second implementation of one
+// identity. See the capture-alias lane below for why this matters: a naive
+// re-derivation (first 12 hex chars of the raw UUID) LOOKS right and is not.
+import { sidToken } from "./harvest.mjs";
 // Reused rather than re-derived: `readRowStatus`/`CLAIM_COMPATIBILITY` are
 // the status FILE's own reader and claim vocabulary (dev-loop's rule against
 // a second implementation of one identity — three confident wrong answers in
@@ -1247,6 +1254,200 @@ function formatCorrectionFinding(f) {
 }
 
 // ==========================================================================
+// Capture-alias resolution lane (default pass) — a verifier cites a capture
+// ALIAS and nothing checks whether it still resolves to anything
+// ==========================================================================
+//
+// Why this exists: BACKLOG.md, "a booked verifier names a live capture as
+// its calibration evidence and NOTHING pins it at booking time" — measured
+// 2026-08-10, two entries' calibration evidence had already rotated off
+// disk before anyone noticed, one of them never pinned at all. This lane is
+// that entry's MECHANISM half: an alias cited anywhere in an entry's body
+// (its `Verifier:` line, or the prose around it — this repo's own real
+// instance, BACKLOG.md's `s-captureAT` ROTATED OUT paragraph, cites the
+// alias beside the verifier rather than only inside it) is resolved against
+// BOTH the alias registry (capture still on disk) and the committed
+// fixtures (harvested before it rotated); a WARN fires only when it
+// resolves to NEITHER.
+//
+// SCOPE: `## Open` only — the same boundary every other default-pass report
+// lane in this file uses (censusOpenSection). A `## Done` citation is a
+// historical record of evidence AT CLOSING TIME, not a live claim that the
+// evidence must still exist.
+//
+// THE TWO COORDINATE SPACES — found the hard way, by the grounding rule
+// that a join must fire on a KNOWN positive before a zero is trusted. The
+// registry (`~/.local/share/cache-fix/capture-aliases.json`, machine-local,
+// never tracked) names a capture by a raw session id (`sid`) or a capture
+// FILENAME (`file`, `s-<uuid>-requests.jsonl`) — both name the conversation
+// KEY `s-<uuid>` used at capture time. A committed fixture under
+// test/fixtures/harvested/ carries a DIFFERENT, scrubbed rendering of that
+// same key: `sidToken` (harvest.mjs:252) is `s-${sha256(key).hex.slice(0,
+// 12)}` — a HASH of the key, never a truncation of the raw UUID. A naive
+// "first 12 hex characters of the UUID, dashes stripped" join LOOKS right
+// (same shape: `s-` plus 12 hex characters) and is wrong — checked against
+// two aliases whose own registry NOTE already states their pinned fixture's
+// filename (`s-captureAD` -> `pinned-s-6052bdc81b48-…`, `s-captureAE` ->
+// `pinned-s-468303a4d2d0-…`), the raw-truncation join produces neither
+// token; `sidToken("s-" + sid)` — the same function harvest.mjs calls to
+// NAME the file — produces both, exactly. That is the join below.
+//
+// THREE ANSWERS, not two (dev-loop.md, "A checker has THREE answers"): a
+// missing or unreadable alias registry is COULD-NOT-VERIFY for the WHOLE
+// lane — never rendered as "every alias resolves" (a false green over a
+// registry that was never read) and never as a WARN on every citation (the
+// non-defect-firing shape this repo already collects). `registryPresent`,
+// `scanned`, `resolved`, `unresolved` and `exempt` are always reported, so a
+// zero over zero citations reads as clean and a zero over a missing
+// registry does not.
+//
+// EXEMPTION, not a defect: `s-captureA` through `s-captureAA` were assigned
+// before this registry existed and are permanently unresolvable by the
+// registry's own `_burned.aliases` list (~185 citations in tracked prose,
+// per `tools/alias-claim.mjs`'s own comment) — a documented, accepted state
+// this lane must not warn on, or it is exactly the "non-defect firing this
+// repo already collects" shape. `_burned.aliases` is DATA the registry
+// already carries for this purpose (`tools/alias-claim.mjs` reads the same
+// list to refuse re-issuing a burned name); read here rather than
+// re-enumerated, so the two never drift apart.
+//
+// A citation is any `s-capture[A-Z]+` token, word-bounded — this corpus's
+// one alias shape, closed vocabulary, near-zero false-fire risk (the
+// `_burned` exemption is what keeps the 185 historical citations from
+// flooding this lane's output).
+
+const CAPTURE_ALIAS_TOKEN = /\bs-capture([A-Z]+)\b/g;
+
+// Resolved per call, not at module load, same reasoning as
+// `tools/alias-claim.mjs`'s own `registryPath()`: a caller pointing
+// `CACHE_FIX_ALIAS_REGISTRY` at a scratch file after this module is
+// imported must be obeyed, and a value captured once at import time would
+// silently keep reading the real registry regardless.
+const dataHome = () => process.env.XDG_DATA_HOME || join(homedir(), ".local", "share");
+const defaultAliasRegistryPath = () =>
+  process.env.CACHE_FIX_ALIAS_REGISTRY ?? join(dataHome(), "cache-fix", "capture-aliases.json");
+const defaultCapturesDir = () => join(dataHome(), "cache-fix", "captures");
+
+// Every tracked path under test/fixtures/harvested/ — `git ls-files` rather
+// than a directory walk, so a fixture staged-but-uncommitted (which the
+// pre-push absence scan has not yet cleared) is not read as already safe.
+function defaultFixtureTokens() {
+  try {
+    const out = execFileSync("git", ["ls-files", "test/fixtures/harvested"], {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+    });
+    return out.split("\n").filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+// One alias's verdict against the registry doc already read. Never touches
+// the filesystem itself — `captureExists`/`fixtureTokens` are the injected
+// resolvers, same idiom as REAL_ENV/CITATION_REAL_ENV above.
+function resolveCaptureAlias(alias, doc, { captureExists, fixtureTokens }) {
+  const burned = new Set(doc._burned?.aliases ?? []);
+  if (burned.has(alias)) return { status: "exempt" };
+  const entry = doc.aliases?.[alias];
+  if (!entry) return { status: "unresolved", reason: "alias not present in the registry" };
+  const key = entry.sid
+    ? `s-${entry.sid}`
+    : entry.file
+      ? entry.file.replace(/-requests\.jsonl$/, "")
+      : null;
+  if (!key) return { status: "unresolved", reason: "registry entry carries neither sid nor file" };
+  const diskName = `${key}-requests.jsonl`;
+  const fixtureToken = sidToken(key); // "s-<sha12>" — the fixture-filename rendering
+  if (captureExists(diskName)) return { status: "resolved" };
+  if (fixtureTokens().some((f) => f.includes(fixtureToken))) return { status: "resolved" };
+  return {
+    status: "unresolved",
+    reason: `not on disk (${diskName}) and no committed fixture matches ${fixtureToken}`,
+  };
+}
+
+// Lints capture-alias resolution inside `## Open`. `env` overrides the
+// resolvers (`registryPath`, `captureExists`, `fixtureTokens`) — the same
+// injection idiom lintPointers/lintCitations/lintReadyBar already use above,
+// so red-first arms can pin the RULE against synthetic registry/fixture
+// content without touching the live machine.
+export function lintCaptureAliases(text, env = {}) {
+  const {
+    registryPath = defaultAliasRegistryPath(),
+    captureExists = (name) => existsSync(join(defaultCapturesDir(), name)),
+    fixtureTokens = defaultFixtureTokens,
+  } = env;
+
+  const citations = [];
+  const section = censusOpenSection(text);
+  if (section) {
+    for (const entry of splitEntries(section.body)) {
+      const title = entry.header.replace(/^- \*\*/, "").trim().slice(0, 80);
+      CAPTURE_ALIAS_TOKEN.lastIndex = 0;
+      let m;
+      while ((m = CAPTURE_ALIAS_TOKEN.exec(entry.body))) {
+        citations.push({
+          alias: `s-capture${m[1]}`,
+          line: section.lineOffset + lineOf(entry.body, m.index, entry.startLine),
+          entry: title,
+        });
+      }
+    }
+  }
+
+  let doc;
+  try {
+    doc = JSON.parse(readFileSync(registryPath, "utf8"));
+  } catch (e) {
+    // THE THIRD ANSWER: could-not-verify, never a silent "everything
+    // resolves" and never a WARN-storm over citations nothing could check.
+    return {
+      ok: false,
+      reason: `alias registry unreadable at ${registryPath}: ${e?.message ?? e}`,
+      registryPresent: false,
+      scanned: citations.length,
+      resolved: 0,
+      unresolved: 0,
+      exempt: 0,
+      findings: [],
+    };
+  }
+
+  let fixtureCache = null;
+  const fixtureTokensOnce = () => (fixtureCache ??= fixtureTokens());
+
+  const findings = [];
+  let resolved = 0;
+  let exempt = 0;
+  for (const c of citations) {
+    const r = resolveCaptureAlias(c.alias, doc, { captureExists, fixtureTokens: fixtureTokensOnce });
+    if (r.status === "resolved") {
+      resolved++;
+    } else if (r.status === "exempt") {
+      exempt++;
+    } else {
+      findings.push({ line: c.line, entry: c.entry, alias: c.alias, reason: r.reason });
+    }
+  }
+
+  return {
+    ok: true,
+    reason: null,
+    registryPresent: true,
+    scanned: citations.length,
+    resolved,
+    unresolved: findings.length,
+    exempt,
+    findings,
+  };
+}
+
+function formatCaptureAliasFinding(f) {
+  return `WARN backlog-capture-alias line=${f.line} alias=${f.alias} entry="${f.entry}" reason="${f.reason}"`;
+}
+
+// ==========================================================================
 // READY-bar lane (--ready-bar) — REPORT ONLY
 // ==========================================================================
 //
@@ -1462,6 +1663,21 @@ function main(argv) {
       ? `backlog-correction: ${corrections.length} finding(s) — REPORT only\n`
       : "backlog-correction: clean\n",
   );
+
+  const captureAliases = lintCaptureAliases(text);
+  if (!captureAliases.ok) {
+    process.stdout.write(
+      `backlog-capture-alias: COULD NOT VERIFY — ${captureAliases.reason} — ` +
+        `scanned=${captureAliases.scanned} registry-present=no\n`,
+    );
+  } else {
+    for (const f of captureAliases.findings) process.stdout.write(`${formatCaptureAliasFinding(f)}\n`);
+    process.stdout.write(
+      `backlog-capture-alias: scanned=${captureAliases.scanned} resolved=${captureAliases.resolved} ` +
+        `unresolved=${captureAliases.unresolved} exempt=${captureAliases.exempt} registry-present=yes` +
+        ` — REPORT only\n`,
+    );
+  }
 
   if (wantPointers) {
     const pointers = lintPointers(text);

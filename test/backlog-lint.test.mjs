@@ -37,6 +37,10 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpDirSync } from "../tools/tmpdir.mjs";
+// The SAME identity harvest.mjs uses to name a pinned fixture — imported
+// directly so the capture-alias lane's bites build fixture filenames the
+// way harvest.mjs actually does, never by re-deriving the hash by hand.
+import { sidToken } from "../tools/harvest.mjs";
 
 import {
   lintText, lintPointers, splitEntries,
@@ -1507,4 +1511,191 @@ test("READY-bar: RED-FIRST against the real frozen ref (2bf1f21) — real READY 
   assert.ok(byLabel["MISSING-ANCHOR"] > 0);
   assert.ok(byLabel["MISSING-WRITE-SET"] > 0);
   assert.ok(byLabel["MISSING-VERIFIER"] > 0);
+});
+
+// --- Section 6: capture-alias resolution lane ------------------------------
+//
+// BACKLOG.md, "a booked verifier names a live capture as its calibration
+// evidence and NOTHING pins it at booking time": an alias cited in an
+// entry's body is resolved against the alias registry (capture still on
+// disk) and against committed fixtures, WARN only when neither holds.
+//
+// TWO COORDINATE SPACES, and the join is the load-bearing part. The
+// registry names a capture by `sid` or `file` (`s-<uuid>-requests.jsonl`);
+// a committed fixture renders that same key through `sidToken`
+// (harvest.mjs:252) — `s-${sha256(key).hex.slice(0,12)}`, a HASH, never a
+// truncation of the raw UUID. Every fixture-resolving bite below builds its
+// filename with the REAL `sidToken` import above, so the join is exercised
+// with the actual production hash, not a hand-reconstructed one — the
+// grounding rule that a join must fire on a KNOWN positive before a zero is
+// trusted, applied at the unit level. Synthetic `sid` values here are
+// deliberately NOT UUID-shaped (this repo's own pre-push hygiene scan
+// blocks a genuine `capture-uuid`-shaped string in tracked prose on sight,
+// by design — CLAUDE.local.md, "The publication bar") — `resolveCaptureAlias`
+// never validates the shape, it only hashes whatever string is there, so an
+// opaque non-UUID placeholder proves the join exactly as well.
+//
+// REAL-MACHINE DATA IS DELIBERATELY NOT ASSERTED IN THIS SUITE. The alias
+// registry (~/.local/share/cache-fix/capture-aliases.json) is machine-local
+// by design and never tracked — a bite asserting a specific outcome against
+// it would pass on this machine and read differently on any other, the
+// anchored-to-live-mutable-state failure this corpus's own Fixing rules
+// warn against ("What a check anchors to must be immutable"). The
+// dispatch's required real-data POSITIVE/NEGATIVE arms were run by hand
+// instead against the live registry at this commit (real output in the
+// closing report); every bite here is injected via
+// `registryPath`/`captureExists`/`fixtureTokens`, so the suite stays green
+// and MEANINGFUL on any machine, forever.
+
+function tmpAliasRegistry(doc) {
+  const dir = tmpDirSync("backlog-lint-alias-");
+  const p = join(dir, "capture-aliases.json");
+  writeFileSync(p, JSON.stringify(doc));
+  return p;
+}
+
+const NO_ALIAS_ENV = { captureExists: () => false, fixtureTokens: () => [] };
+
+test("capture-alias lane: fires when a cited alias resolves to neither disk nor a committed fixture", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Verifier: replay s-captureXA and check the pair.",
+  ].join("\n");
+  const registryPath = tmpAliasRegistry({
+    aliases: { "s-captureXA": { sid: "fixture-sid-not-a-real-uuid-alpha", assigned: "2026-01-01" } },
+  });
+  const res = lint.lintCaptureAliases(doc, { registryPath, ...NO_ALIAS_ENV });
+  assert.equal(res.ok, true);
+  assert.equal(res.scanned, 1);
+  assert.equal(res.resolved, 0);
+  assert.equal(res.unresolved, 1);
+  assert.equal(res.findings[0].alias, "s-captureXA");
+  assert.match(res.findings[0].reason, /not on disk/);
+});
+
+test("capture-alias lane: stays silent when the alias resolves via the registry (still on disk)", () => {
+  const sid = "fixture-sid-not-a-real-uuid-beta";
+  const doc = ["## Open", "", "- **READY — a thing.** Verifier: replay s-captureXB."].join("\n");
+  const registryPath = tmpAliasRegistry({ aliases: { "s-captureXB": { sid, assigned: "2026-01-01" } } });
+  const res = lint.lintCaptureAliases(doc, {
+    registryPath,
+    captureExists: (name) => name === `s-${sid}-requests.jsonl`,
+    fixtureTokens: () => [],
+  });
+  assert.deepEqual(res.findings, []);
+  assert.equal(res.resolved, 1);
+});
+
+test("capture-alias lane: the fixture join fires on a KNOWN positive (real sidToken) and not on an absent one — discriminating pair", () => {
+  const sidPresent = "fixture-sid-not-a-real-uuid-gamma";
+  const sidAbsent = "fixture-sid-not-a-real-uuid-delta";
+  // The SAME rendering harvest.mjs writes: `pinned-${sidToken(key)}-N-M.json`.
+  const presentToken = sidToken(`s-${sidPresent}`);
+  const registryPath = tmpAliasRegistry({
+    aliases: {
+      "s-captureXC": { sid: sidPresent, assigned: "2026-01-01" },
+      "s-captureXD": { sid: sidAbsent, assigned: "2026-01-01" },
+    },
+  });
+  const doc = [
+    "## Open", "",
+    "- **READY — a thing.** Verifier: replay s-captureXC and s-captureXD.",
+  ].join("\n");
+  const res = lint.lintCaptureAliases(doc, {
+    registryPath,
+    captureExists: () => false,
+    fixtureTokens: () => [`test/fixtures/harvested/pinned-${presentToken}-1-2.json`],
+  });
+  assert.deepEqual(res.findings.map((f) => f.alias), ["s-captureXD"]);
+  assert.equal(res.resolved, 1);
+  assert.equal(res.unresolved, 1);
+});
+
+test("capture-alias lane: a burned alias (pre-registry, permanently unresolvable) is exempt, never a WARN", () => {
+  const doc = ["## Open", "", "- **OPEN — old prose.** Found on s-captureQ, still true."].join("\n");
+  const registryPath = tmpAliasRegistry({ aliases: {}, _burned: { aliases: ["s-captureQ"] } });
+  const res = lint.lintCaptureAliases(doc, { registryPath, ...NO_ALIAS_ENV });
+  assert.deepEqual(res.findings, []);
+  assert.equal(res.exempt, 1);
+  assert.equal(res.resolved, 0);
+  assert.equal(res.unresolved, 0);
+});
+
+test("capture-alias lane: an alias absent from BOTH the registry and the burned list is still a finding, never a silent skip", () => {
+  const doc = ["## Open", "", "- **READY — a thing.** See s-captureZZ for context."].join("\n");
+  const registryPath = tmpAliasRegistry({ aliases: {}, _burned: { aliases: [] } });
+  const res = lint.lintCaptureAliases(doc, { registryPath, ...NO_ALIAS_ENV });
+  assert.equal(res.findings.length, 1);
+  assert.match(res.findings[0].reason, /not present in the registry/);
+});
+
+test("capture-alias lane: scoped to `## Open` — a `## Done` citation is invisible", () => {
+  const doc = [
+    "## Open", "",
+    "- **OPEN — unrelated.** Nothing here.",
+    "",
+    "## Done", "",
+    "- **DONE — old.** Cites s-captureQQ, long gone.",
+  ].join("\n");
+  const registryPath = tmpAliasRegistry({ aliases: {}, _burned: { aliases: [] } });
+  const res = lint.lintCaptureAliases(doc, { registryPath, ...NO_ALIAS_ENV });
+  assert.equal(res.scanned, 0);
+  assert.deepEqual(res.findings, []);
+});
+
+test("capture-alias lane: does not fire on an entry that cites no alias at all", () => {
+  const doc = ["## Open", "", "- **READY — a thing.** Plain body, no capture cited."].join("\n");
+  const registryPath = tmpAliasRegistry({ aliases: {}, _burned: { aliases: [] } });
+  const res = lint.lintCaptureAliases(doc, { registryPath, ...NO_ALIAS_ENV });
+  assert.equal(res.scanned, 0);
+  assert.equal(res.resolved, 0);
+  assert.equal(res.unresolved, 0);
+  assert.deepEqual(res.findings, []);
+});
+
+test("capture-alias lane: a citation in prose beside the Verifier: line is found, not only inside it — this repo's own real shape", () => {
+  // Real instance: BACKLOG.md's `s-captureAT` ROTATED OUT paragraph cites
+  // the alias in prose above its own `Verifier:` line, not inside it.
+  const doc = [
+    "## Open", "",
+    "- **PARKED — evidence rotated.** The registry resolves s-captureXG to nothing on disk.",
+    "  Verifier: replay the pin once it exists.",
+  ].join("\n");
+  const registryPath = tmpAliasRegistry({ aliases: {}, _burned: { aliases: [] } });
+  const res = lint.lintCaptureAliases(doc, { registryPath, ...NO_ALIAS_ENV });
+  assert.equal(res.scanned, 1);
+  assert.equal(res.findings[0].alias, "s-captureXG");
+});
+
+test("capture-alias lane: THIRD ANSWER — a missing registry is COULD-NOT-VERIFY, never a silent clean and never a warn-storm", () => {
+  const doc = ["## Open", "", "- **READY — a thing.** Verifier: replay s-captureXE."].join("\n");
+  const res = lint.lintCaptureAliases(doc, {
+    registryPath: "/definitely/does/not/exist/capture-aliases.json",
+    ...NO_ALIAS_ENV,
+  });
+  assert.equal(res.ok, false);
+  assert.equal(res.registryPresent, false);
+  assert.equal(res.scanned, 1, "citations are counted before the registry is read");
+  assert.equal(res.resolved, 0);
+  assert.equal(res.unresolved, 0);
+  assert.deepEqual(res.findings, []);
+  assert.match(res.reason, /unreadable/);
+});
+
+test("capture-alias lane: THIRD ANSWER — a malformed registry file is COULD-NOT-VERIFY too", () => {
+  const dir = tmpDirSync("backlog-lint-alias-bad-");
+  const p = join(dir, "capture-aliases.json");
+  writeFileSync(p, "{ not json");
+  const doc = ["## Open", "", "- **READY — a thing.** s-captureXF."].join("\n");
+  const res = lint.lintCaptureAliases(doc, { registryPath: p, ...NO_ALIAS_ENV });
+  assert.equal(res.ok, false);
+  assert.equal(res.registryPresent, false);
+});
+
+test("capture-alias lane: runs on every default invocation (no flag) and prints its summary line", () => {
+  const { out, code } = runTool(["-"], "## Open\n\n- **READY — nothing to see.** No capture cited.\n");
+  assert.equal(code, 0);
+  const line = out.split("\n").find((l) => l.startsWith("backlog-capture-alias:"));
+  assert.ok(line, "the capture-alias lane must print a summary line on every default invocation");
+  assert.match(line, /scanned=0/);
 });
