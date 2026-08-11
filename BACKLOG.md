@@ -311,6 +311,62 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY 2026-08-11 (evening) — five registered worktrees hold 30 commits that
+  never reached `main`, and two of them BLOCK the current head.** Measured at
+  session start by patch-id (`git cherry main <branch>`, counting `+`, which is
+  the coordinate `docs/dev-loop.md` prescribes because cherry-picking rewrites
+  every hash): `worktree-agent-a162…` 9, `worktree-agent-a82e…` 8,
+  `worktree-agent-a46f…` 7, `worktree-agent-ac73…` 5, `worktree-agent-a93d…` 1.
+  All five branch from `3bc6a72` except the last (`db5fbfa`). This is the exact
+  class dev-loop.md booked this morning ("A lane's report ends the LANE. Nothing
+  ends the INTEGRATION") recurring within the day — and the mechanism for it,
+  `tools/prune-lane-branches.mjs`, is itself sitting in the pile, which is the
+  shape that entry predicted.
+  **It is NOT all lost work, and it is NOT all noise — that is what makes it
+  judgment rather than a script.** Symbol-level check with positive controls
+  (each symbol counted on the branch AND on main; a symbol scoring 0 on the
+  branch is a dead probe, reported as such rather than as an absence):
+  `findBornLargeStarts` branch 3 / main 0, `WRAPPED-HEADING` 1/0,
+  `READY-outside-Open` 2/0, bust-triage `lineage` 2/0 — genuinely unintegrated;
+  while `identityRotation` 6/6, `prevId` 14/2, `NOT-OURS` 5/1 are on main
+  already, re-implemented rather than cherry-picked, which is why patch-id
+  counts them as outstanding. A blanket cherry-pick would double-apply.
+  **Why it blocks:** the head's `modelChangedAcrossPair` entry writes
+  `tools/replay.mjs` + `test/replay-gate-selfcheck.test.mjs` (both in a162's
+  set), and the `--closures-in-live` entry writes `tools/backlog-lint.mjs` +
+  `test/backlog-lint.test.mjs` (both in a82e's set). Building either on `main`
+  today manufactures the conflict instead of resolving it.
+  **Design (decided):** integrate per COMMIT, not per branch, each with its own
+  substance check before the pick — `git show <c> --stat`, then grep main for the
+  distinctive symbol it introduces; already-present means SKIP with the skip
+  recorded, not a forced pick. Order: a162 and a82e first (they unblock the
+  head), then ac73, a46f, a93d. Integration verb is `cherry-pick` onto main after
+  verification, never merge; the worktree is removed once its branch reports zero
+  `+`. `--closures-in-live` is confirmed absent from main AND from a82e, so item
+  4 is genuinely unbuilt and lands after a82e is in.
+  **Done-criterion:** every registered worktree branch reports zero `+` under
+  `git cherry main <branch>`, or each remainder is NAMED with why it was
+  dropped; the full suite green at the integrated HEAD; and the skip list pasted,
+  since a silent skip and a lost commit are the same bytes.
+  Anchor: docs/dev-loop.md
+  Write-set: (integration commits onto main; no single file — the branches' own
+  file sets, listed in the entry's measurement above)
+  Verifier: for b in $(git worktree list --porcelain | grep '^branch ' | sed 's|branch refs/heads/||'); do echo "$(git cherry main $b | grep -c '^+')  $b"; done
+
+- **RECORD 2026-08-11 (evening) — `alias-claim --protect`'s protected-set size
+  needs a `doctor` verdict, and that half lives in DOTFILES, not here.** The
+  shipped `--protect` design (entry above, in flight) carries a capped protected
+  directory with its own oldest-first eviction; a cap nobody reports is a disk
+  commitment with no reader. This repo's side is `--protect-status`, which prints
+  `{dir, count, bytes, capBytes, entries[]}` as JSON precisely so the dotfiles
+  doctor can read it without this repo writing across a boundary.
+  **This entry is a POINTER and a pointer is not a discharge** (accretion: a named
+  reader who never loads the carrier makes the naming decorative — observed as a
+  cross-repo booking reaching its consumer only by operator relay). The real home
+  is dotfiles' own BACKLOG; until the entry exists THERE, the doctor half is
+  unbooked wherever this file says otherwise. Surfaced to the operator
+  2026-08-11 rather than written across.
+
 - **READY 2026-08-11 — `## Open` holds 43 DONE entries, so the live section is
   mostly closures and a fresh context pays for all of them.** Measured this
   session by grading every top-level bullet under `## Open`: 43 DONE against 20
