@@ -52,6 +52,25 @@ over their prose — the 2026-08-11 census found "which files does this entry
 write" was free text, and two independently built instruments disagreed on the
 collision counts because of it.
 
+**A FOURTH clause on the verifier, added 2026-08-11 — the WRITER half, since a
+reach failure always has one and fixing only the reader leaves the generator
+running.** A `Verifier:` that names a live capture — by alias, by `--at
+<stamp>`, or by any pointer into `~/.local/share/cache-fix/captures/` — books
+as **PARKED** unless the same action that writes the entry also freezes the
+evidence (`harvest --pin --bounded`, the pin committed under
+`test/fixtures/`). Not "should pin soon": READY is a claim that a fresh
+context could execute the entry, and an entry whose red case rotates away
+cannot be executed by anyone. Where the class provably cannot survive the
+scrub — literal-text predicates the sanitizer tokenizes — the entry says so
+and its evidence is a SYNTHETIC fixture, which is this repo's default for
+anything bound for a public tree anyway.
+The measurement that forced it: 23 of 27 registered aliases resolve to
+nothing, and three of the ten entries in the head derived that same morning
+were un-armable by lunchtime — one of them re-verified as reproducing at the
+desk the previous day. The reader-side check (`backlog-lint` warning when a
+cited alias resolves to neither a live capture nor a committed fixture) is
+booked separately and is what catches an entry this clause let through.
+
 ## Build order — RE-DERIVED 2026-08-11, and this time it IS the READY set
 
 Fourth derivation since 2026-08-10, and the first that is not a separate list:
@@ -106,6 +125,27 @@ The ten, in order:
 Everything below the tenth is `RECORD`: same bodies, same verifiers, no
 schedule claimed. Promotion is by re-deriving this list, never by editing a
 grade in place.
+
+**CORRECTION 2026-08-11, hours after the derivation above and by measurement
+rather than by re-reading it: ranks 2, 3 and half of 4 are UN-ARMABLE, and the
+derivation could not have known.** Every registered capture alias was resolved
+against the captures directory and `git ls-files`: 23 of 27 resolve to
+nothing, and the four the head leans on (s-captureAL, s-captureAM,
+s-captureAT, s-captureAU) are all gone — instrument control run first, a
+present sid returning 1 under the identical probe. Oldest capture on disk is
+2026-08-09; the cited ones are from 2026-08-06 and 2026-08-08. Ranks 2 and 3
+are re-graded PARKED with their missing evidence named; rank 4 SPLIT — its
+cause-map half survived because its red is a pure function, and that is the
+whole discriminator between the half that shipped today and the half that did
+not.
+**The vacated slots are deliberately NOT backfilled in this pass.** Promotion
+is by re-derivation over the whole RECORD set, never by editing this list, and
+four lanes dispatched against ranks 4 (half one), 6, 8 and 9 are in flight —
+re-deriving over a head that is about to move would produce a list stale on
+arrival. The next derivation runs after those land, and it inherits one
+standing fact from this correction: an entry whose verifier names a live
+capture ranks as PARKED until the pin exists, whatever its design maturity,
+because the design is not what expires.
 
 ## Handoff — 2026-08-10 evening. Rewritten, not appended; a stale one reads as authoritative.
 
@@ -260,10 +300,30 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
-- **READY — `capturePairResult`'s conversation identity is the busting
+- **PARKED (RE-GRADED 2026-08-11 from READY — the red case expired between
+  two derivations) — `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
   lane, which correctly refused to fix it and returned the question.
+  **MISSING EVIDENCE, named so this is a spec and not drift:** a live row-29
+  instance — an identity rotation at an idle boundary — captured and frozen by
+  `harvest --pin --bounded` AT THE MOMENT IT OCCURS, carrying both the busting
+  request and its highest-overlap lineage predecessor, plus a co-tenant sidecar
+  in the same range as the negative control. Until such a pin exists in
+  `test/fixtures/`, this entry is not dispatchable at any tier.
+  **Why, measured at the desk 2026-08-11:** both verifier arms named below
+  (s-captureAT for the red, s-captureAU for the control) are GONE — 0 hits in
+  the captures directory, 0 in `git ls-files`, against a control sid that
+  returned 1 under the identical probe. The oldest capture now on disk is
+  2026-08-09. The entry below records the desk re-running this red on
+  2026-08-10 and finding it reproduced; it had one day left. The three-link
+  chain the entry itself specifies (lineage primitive -> bounded `--pin` ->
+  freeze both cases) completed its first two links and stopped before the
+  third, and the third is the one that was time-critical — which is the
+  precise shape the booked-verifier-pins entry exists to catch.
+  Do NOT shop for a substitute capture: a check whose motivating case
+  dissolves does not get a substitute found for it (`docs/dev-loop.md`). The
+  design below stands unchanged and is complete; only its evidence is missing.
   Sites, cited rather than described: `tools/bust-triage.mjs:764`
   (`const cid = JSON.stringify(after.body.messages[0])`) fixes identity from
   the busting request, and `:775`
@@ -1720,6 +1780,23 @@ ENOSPC misattribution with its wrong first explanation left in.
   normal pair. Verifier, red-first and already in hand: `--at 1786038016` must
   go from UNVERIFIABLE to a row-24 verdict, and the 12:54:49Z control must be
   unchanged.
+  **SPLIT 2026-08-11 — half one DISPATCHED, half two PARKED, and the split is
+  forced by the evidence rather than chosen.** The verifier quoted in the line
+  above is DEAD: s-captureAL has 0 hits in the captures directory and 0 in
+  `git ls-files` (desk measurement 2026-08-11, control sid returning 1 under
+  the identical probe; oldest capture on disk is 2026-08-09, the capture is
+  from 2026-08-06). So the `--at` arms cannot run at any tier.
+  HALF ONE (the cause map, `system_changed` -> row 24) survives the loss
+  because its red is a PURE-FUNCTION arrangement — `causeToRow` returning
+  nothing today, asserted in `test/bust-triage-matrix-walk.test.mjs` — which
+  is exactly the immutable-reference property this repo requires and the reason
+  it stayed dispatchable while the rest of the entry did not. Dispatched
+  2026-08-11.
+  HALF TWO (the cross-conversation born-large pair mode) is PARKED. MISSING
+  EVIDENCE, named: a pinned resume/born-large pair — a request that is its own
+  conversation's first, with its nearest earlier same-session predecessor
+  present in the same pin — frozen by `harvest --pin --bounded` at the next
+  such walk. No substitute case is to be shopped for.
   Anchor: row 24
   Write-set: tools/bust-triage.mjs, test/bust-triage-matrix-walk.test.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-matrix-walk.test.mjs
@@ -1844,6 +1921,27 @@ ENOSPC misattribution with its wrong first explanation left in.
   Design, decided, in two halves. MECHANISM: `backlog-lint` gains a check that an entry citing a capture ALIAS in its verifier resolves that alias against the alias registry and against committed fixtures, and WARNs when it resolves to neither — computable with near-zero false fires, since an alias is a closed vocabulary. PROCEDURE: an entry whose verifier names a live capture pins it in the same action that books it, and where the class cannot survive the scrub (literal-text predicates) the entry says so rather than pretending the pin carries it.
   Verifier, red-first: the two entries above are permanent real positives at this commit — the check must WARN on both and stay silent on entries whose cited aliases still resolve. Both arms required; a check that warns on everything is the non-defect firing this repo already collects.
   Realizing write-boundary: `tools/backlog-lint.mjs` + `test/backlog-lint*.test.mjs` for the mechanism half (the backlog-tooling lane's set); `BACKLOG.md` for the procedure half (desk). Consumer tier **1 (event disposition)** — it governs whether a mitigation's evidence still exists when someone goes to build it.
+  **RE-MEASURED 2026-08-11 at the desk, and the population is far larger than
+  "two entries" — this is now the rate, not the anecdote.** Every registered
+  alias resolved against the captures directory and against `git ls-files`:
+  **23 of 27 resolve to NOTHING**, and only four (s-captureAV, s-captureAW,
+  s-captureBA, s-captureBB) still have a capture on disk. Instrument control,
+  run before the zeros were believed: a sid known present returned 1 under the
+  identical probe while each cited one returned 0, so the probe discriminates
+  and the absence is a measurement rather than a dead pattern. Oldest capture
+  on disk is 2026-08-09; the four aliases the derived head depends on
+  (s-captureAL, s-captureAM, s-captureAT, s-captureAU) are all from 2026-08-06
+  or 2026-08-08. Nothing pinned any of them.
+  **The cost landed on the same day's own derivation**, which is the part worth
+  keeping: entries 2, 3 and half of 4 in the head derived 2026-08-11 were
+  ranked as dispatchable and are un-armable, one of them re-verified as
+  reproducing at the desk on 2026-08-10 — twenty-four hours of life left at the
+  moment it was called runnable. The check this entry specifies is what would
+  have said so at booking time; the four re-grades below are its manual run.
+  A second field the mechanism should carry, from this run: the alias registry
+  is a closed vocabulary, so the resolvable FRACTION is computable and its
+  collapse (4/27) is itself the signal — a per-entry warn plus a corpus-level
+  rate, since a reader seeing one warn cannot see that the corpus has emptied.
   Anchor: tools/backlog-lint.mjs
   Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs, BACKLOG.md
   Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
@@ -2371,11 +2469,26 @@ ENOSPC misattribution with its wrong first explanation left in.
   dashboard session that runs `--watch` anyway — cheap to grab in passing, and
   it is the only site in the sweep with no executed check behind it.
 
-- **READY — `capturePairResult` may select a DIFFERENT pair than the one the
+- **PARKED (RE-GRADED 2026-08-11 from READY) — `capturePairResult` may select a
+  DIFFERENT pair than the one the
   census walk calls "the bust", and nothing says the two disagree.** Found
   2026-08-08 by the row-map lane while validating against known bytes, and it
   is the more dangerous of that lane's two findings because the output looks
   correct either way.
+  **The re-grade is a CORRECTION of this entry's own verifier sentence, not a
+  change of circumstances.** It reads "red-first, on committed evidence that
+  cannot decay: s-captureAM". That capture was never committed: measured at the
+  desk 2026-08-11, s-captureAM has 0 hits in the captures directory and 0 in
+  `git ls-files`, against a control sid returning 1 under the identical probe.
+  The sentence asserted the very property that would have made it safe, which
+  is why nothing re-checked it — an entry saying its evidence is durable is a
+  claim in the costume of a result, the same shape as CHECKED/VERIFIED without
+  the output beside it.
+  MISSING EVIDENCE, named: a pinned pair where the tool's selection and the
+  strongest bust candidate DISAGREE — the disagreement is the whole subject, so
+  a fixture with only one plausible pair tests nothing. Freeze it with
+  `harvest --pin --bounded` at the next such walk; the design below is complete
+  and unchanged.
   Measured on s-captureAM (session `c7e7cb71`): the tool's pairing selected
   **ord 260->261** — a real `replace/edit` pair in the same conversation,
   `anchorDelta +0`, benign — while the threat matrix's own hand walk names
