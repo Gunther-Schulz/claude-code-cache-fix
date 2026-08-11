@@ -260,11 +260,19 @@ ENOSPC misattribution with its wrong first explanation left in.
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
   lane, which correctly refused to fix it and returned the question.
-  Sites, cited rather than described: `tools/bust-triage.mjs:754`
+  Sites, cited rather than described: `tools/bust-triage.mjs:764`
   (`const cid = JSON.stringify(after.body.messages[0])`) fixes identity from
-  the busting request, and `:765`
+  the busting request, and `:775`
   (`if (JSON.stringify(r.body.messages[0]) !== cid) continue;`) tests every
   candidate predecessor against it.
+  **Line numbers corrected AGAIN 2026-08-11** (754 -> 764, 765 -> 775): the
+  status-file reader landed ten lines above both sites. Caught by the citation
+  lint at suite time, in the lane that caused it, before integration — which is
+  the difference between this correction and the one below: that one was found
+  by a neighbour report days later, this one by a check that blocks. The lane
+  surfaced it as a question rather than shrinking its own comment to preserve
+  an incidental byte offset, which is the right call: the citation is the
+  dependent, and the dependent moves.
   **Line numbers corrected 2026-08-10** (749 -> 754, 760 -> 765): `28d5022`
   inserted the attribution section above both sites and shifted them. Surfaced
   by `backlog-neighbours` on its first live run — the neighbour report is what

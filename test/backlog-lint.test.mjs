@@ -838,9 +838,24 @@ test("citation lane: red-first against the pre-correction BACKLOG.md, green agai
   );
   assert.equal(red.length, 2, "both stale citations must be checked");
   for (const f of red) assert.equal(f.verdict, "DRIFTED");
+  // The expected NEW lines are DERIVED from the current file, never written
+  // in. Hardcoding them ("the cid site now lives at :754") made this bite a
+  // red-first arrangement anchored to mutable state: it went red on
+  // 2026-08-11 when the status-file reader landed ten lines above both sites,
+  // reporting a defect in the tree while the real defect was in the
+  // expectation. That is the same decay class this lane exists to CATCH,
+  // one level up — so the bite now measures the sites the way a reader would.
+  const currentSrc = readFileSync(join(REPO, "tools/bust-triage.mjs"), "utf8").split("\n");
+  const lineOfExpr = (needle) => {
+    const idx = currentSrc.findIndex((l) => l.includes(needle));
+    assert.ok(idx >= 0, `anchor expression vanished from bust-triage.mjs: ${needle}`);
+    return idx + 1;
+  };
+  const cidAssign = lineOfExpr("const cid = JSON.stringify(after.body.messages[0])");
+  const cidCompare = lineOfExpr("if (JSON.stringify(r.body.messages[0]) !== cid) continue;");
   const byCited = Object.fromEntries(red.map((f) => [f.citedLine, f.newLine]));
-  assert.equal(byCited[749], 754, "the cid-assignment site now lives at :754");
-  assert.equal(byCited[760], 765, "the cid-comparison site now lives at :765");
+  assert.equal(byCited[749], cidAssign, `the cid-assignment site now lives at :${cidAssign}`);
+  assert.equal(byCited[760], cidCompare, `the cid-comparison site now lives at :${cidCompare}`);
 
   // Filtered to the `capturePairResult` entry itself: the citation-lint
   // entry (below it) ALSO mentions `:754`/`:765` in prose narrating this
@@ -850,7 +865,7 @@ test("citation lane: red-first against the pre-correction BACKLOG.md, green agai
   const green = lintCitations(current).filter(
     (f) =>
       f.file === "tools/bust-triage.mjs" &&
-      (f.citedLine === 754 || f.citedLine === 765) &&
+      (f.citedLine === cidAssign || f.citedLine === cidCompare) &&
       /capturePairResult.*conversation identity/.test(f.entry),
   );
   assert.equal(green.length, 2, "the corrected citations must still be checked");
