@@ -1034,6 +1034,198 @@ export async function collectAbsorbed(dir, sinceMs, untilMs, measurable) {
   return absorbed;
 }
 
+// --- D1 retirement instrumentation (BACKLOG "D1's retirement trigger is a HAND-GREP") ---
+//
+// D1 (matrix row 26, operator GO 2026-08-10) migrated deferred-tool-rewrite
+// and insertion-normalization to a dual-read session key: read under the
+// pre-pipeline identity, fall back to the OLD (rotated) key once, always
+// write under the new one. Both extensions already log the fallback firing —
+// `oldKeyFallback: true` in their own
+// `<key>-{insertion,deferred-tool}-events.jsonl` — but until this the
+// retirement question ("has the fallback fired in N days") was a hand-grep
+// nobody runs on day seven. This booked entry is what makes that untrue.
+//
+// Two counters, one directory pass, same mtime prefilter and the same
+// three-answer convention `collectAbsorbed` above already uses (a file not
+// touched since `sinceMs` cannot carry a line inside the window, because
+// these logs are append-only):
+//
+//   d1OldKeyFallback           how many `oldKeyFallback:true` records fired
+//                              in the window, and when the newest one was.
+//                              Sustained zero is the retirement trigger; the
+//                              operator's GO named seven consecutive days.
+//   d1PostRelocationNoBaseline the ABSORPTION question (2026-08-11
+//                              widening). Post-D1 it must read ZERO; a
+//                              non-zero is row 26's original defect
+//                              re-opening (216,060 tokens: `no-baseline`
+//                              forwarding CC's raw array where a held order
+//                              should have been forwarded).
+//
+// d1PostRelocationNoBaseline's definition went through a REVISION inside
+// this same change, worth keeping because it is the failure this repo's own
+// FORK-NOTES.md already named ("Group by conversation before comparing
+// anything... one session-id header carries the main thread, every
+// subagent... comparing across them makes tenant switches look like
+// churn"). The first cut grouped `<key>-deferred-tool-events.jsonl` records
+// by `sid` alone and flagged a `no-baseline` action whose `key` differed
+// from that sid's immediately preceding record — plausible, and WRONG:
+// measured against this machine's real snapshots dir (2026-08-11, ~19:15
+// local), it read `count: 169` in a 24 h window where `d1OldKeyFallback`
+// read `hits: 0` in the SAME window. `sid` is the Claude Code SESSION id,
+// shared by the main thread and every subagent/background call, so
+// different `key`s appear under one `sid` constantly — that is ordinary
+// multi-tenant traffic, not a rotation. Sampling the live corpus confirmed
+// it directly: this repo's own dev session's `sid` carried dozens of
+// distinct subagent `key`s within minutes, none of them a relocation.
+//
+// The corrected definition CORRELATES ACROSS THE TWO LOGS instead of
+// walking one log's key history, and it is sound for a structural reason:
+// insertion-normalization (order 395) and deferred-tool-rewrite (order 425)
+// process the SAME request a few extension calls apart in one pipeline
+// pass, so when insertion-normalization's OWN dual-read fallback succeeds —
+// `oldKeyFallback:true` in `<key>-insertion-events.jsonl`, which only fires
+// when relocation genuinely occurred AND prior state was actually found —
+// that is PROOF this specific request's conversation just relocated. If
+// deferred-tool-rewrite's `no-baseline` for the same `sid` lands within a
+// tight time tolerance of that proof, dual-read succeeded on one consumer
+// and failed on the other for the same event — exactly the asymmetric
+// absorption failure this counter exists to catch, and not merely "two
+// different conversations happened to be busy at once" (ordinary co-tenancy
+// never produces `oldKeyFallback:true`, because that requires prior state
+// to actually be found — a brand-new subagent conversation has none).
+// `D1_CORRELATION_TOLERANCE_MS` is generous relative to one request's
+// handling time and far tighter than the multi-second gaps observed between
+// UNRELATED records under one busy `sid` in the live corpus, but it is a
+// heuristic over timestamps rather than a shared request id — neither log
+// carries one — so it is named here as a residual, bounded approximation
+// rather than a proven-exact join.
+//
+// Both counters carry the three-answer convention the rest of this sweep
+// uses: `filesScanned: 0` (nothing in the window, or the directory is not
+// there) makes `hits`/`count` `null` — COULD-NOT-VERIFY, never a clean `0`.
+// For `d1PostRelocationNoBaseline`, that extends to its correlation input:
+// zero insertion-events files scanned means the fallback-proof signal is
+// structurally unavailable, so a "0" there would be unverifiable too, not
+// clean. `window` rides on both objects so a small number reads as a narrow
+// SCOPE rather than a small corpus — the BACKLOG entry's own correction
+// ("0 hits over 20 event files" was 20 TOUCHED files, not the 9,533-file
+// population).
+const D1_SUFFIXES = ["-insertion-events.jsonl", "-deferred-tool-events.jsonl"];
+const D1_CORRELATION_TOLERANCE_MS = 5000;
+
+export async function collectD1Retirement(dir, sinceMs, untilMs) {
+  const window = { sinceUtc: new Date(sinceMs).toISOString(), untilUtc: new Date(untilMs).toISOString() };
+
+  let names;
+  try {
+    names = await readdir(dir);
+  } catch {
+    // Not-there and empty-of-recent-files are the SAME shape from here (see
+    // collectAbsorbed's identical comment): both must read as
+    // could-not-verify, never as a measured zero.
+    return {
+      d1OldKeyFallback: { hits: null, newestUtc: null, filesScanned: 0, window },
+      d1PostRelocationNoBaseline: { count: null, newestUtc: null, filesScanned: 0, window },
+    };
+  }
+
+  let filesScanned = 0; // both suffixes — d1OldKeyFallback's scope
+  let deferredScanned = 0; // deferred-tool-events files — the no-baseline population
+  let insertionScanned = 0; // insertion-events files — the fallback-proof population
+  let fallbackHits = 0;
+  let fallbackNewestMs = null;
+  let fallbackNewestUtc = null;
+  const insertionFallbackBySid = new Map(); // sid -> [tMs...], insertion-events oldKeyFallback:true only
+  const noBaselineCandidates = []; // {sid, tMs, ts} from deferred-tool-events, in-window no-baseline actions
+
+  for (const name of names) {
+    const suffix = D1_SUFFIXES.find((s) => name.endsWith(s));
+    if (!suffix) continue;
+    const full = join(dir, name);
+    let st;
+    try {
+      st = await stat(full);
+    } catch {
+      continue; // a file that vanished between readdir and stat scans as absent, not as a hit
+    }
+    if (st.mtimeMs < sinceMs) continue;
+    filesScanned++;
+    const isDeferred = suffix === "-deferred-tool-events.jsonl";
+    if (isDeferred) deferredScanned++;
+    else insertionScanned++;
+
+    let text;
+    try {
+      text = await readFile(full, "utf-8");
+    } catch {
+      continue; // an unreadable file already counted toward filesScanned; it just contributes no lines
+    }
+    for (const line of text.split("\n")) {
+      if (!line) continue;
+      let rec;
+      try {
+        rec = JSON.parse(line);
+      } catch {
+        continue; // a torn tail line is not a fire; the next sweep sees the whole file
+      }
+      const tMs = Date.parse(rec?.ts ?? "");
+      if (Number.isNaN(tMs)) continue;
+      if (rec.oldKeyFallback === true) {
+        if (tMs >= sinceMs && tMs < untilMs) {
+          fallbackHits++;
+          if (fallbackNewestMs === null || tMs > fallbackNewestMs) {
+            fallbackNewestMs = tMs;
+            fallbackNewestUtc = rec.ts;
+          }
+        }
+        // The correlation proof is insertion-normalization's OWN successful
+        // fallback specifically — not deferred-tool-rewrite's, which is the
+        // very signal missing on the failure path this counter looks for.
+        if (!isDeferred && typeof rec.sid === "string") {
+          if (!insertionFallbackBySid.has(rec.sid)) insertionFallbackBySid.set(rec.sid, []);
+          insertionFallbackBySid.get(rec.sid).push(tMs);
+        }
+      }
+      if (
+        isDeferred && rec.action === "no-baseline" &&
+        typeof rec.sid === "string" && tMs >= sinceMs && tMs < untilMs
+      ) {
+        noBaselineCandidates.push({ sid: rec.sid, tMs, ts: rec.ts });
+      }
+    }
+  }
+
+  let noBaselineHits = 0;
+  let noBaselineNewestMs = null;
+  let noBaselineNewestUtc = null;
+  for (const c of noBaselineCandidates) {
+    const proofTimes = insertionFallbackBySid.get(c.sid);
+    if (!proofTimes) continue;
+    const correlated = proofTimes.some((t) => Math.abs(t - c.tMs) <= D1_CORRELATION_TOLERANCE_MS);
+    if (!correlated) continue;
+    noBaselineHits++;
+    if (noBaselineNewestMs === null || c.tMs > noBaselineNewestMs) {
+      noBaselineNewestMs = c.tMs;
+      noBaselineNewestUtc = c.ts;
+    }
+  }
+
+  return {
+    d1OldKeyFallback: {
+      hits: filesScanned === 0 ? null : fallbackHits,
+      newestUtc: fallbackHits > 0 ? fallbackNewestUtc : null,
+      filesScanned,
+      window,
+    },
+    d1PostRelocationNoBaseline: {
+      count: deferredScanned === 0 || insertionScanned === 0 ? null : noBaselineHits,
+      newestUtc: noBaselineHits > 0 ? noBaselineNewestUtc : null,
+      filesScanned: deferredScanned,
+      window,
+    },
+  };
+}
+
 // --- CC version, per sweep ---
 //
 // Operator refinement (1): a retirement's basis is "0 raw occurrences across
@@ -1359,10 +1551,24 @@ async function main() {
     process.stderr.write(`COULD NOT VERIFY tmp-leftovers: ${tmpLeftovers.reason}\n`);
   }
 
+  // `finished` and the fire-ledger window are computed here, ahead of the
+  // status object, rather than after writing it (as this used to run):
+  // the D1 retirement pass below needs the same [windowFrom, finished)
+  // window `collectAbsorbed` already uses for the fire ledger, and its
+  // result rides on the STATUS file (BACKLOG "carrying d1OldKeyFallback...
+  // in the status file"), which is written before the fire ledger is
+  // touched. Moving the read up changes no behaviour — lastFireLedgerTs
+  // depends on nothing computed below it — it only makes the value
+  // available to both consumers instead of duplicating it.
+  const finished = new Date().toISOString();
+  const prevTs = await lastFireLedgerTs(args.fireLedger);
+  const windowFrom = prevTs ?? new Date(Date.parse(finished) - FIRE_FIRST_WINDOW_H * 3600_000).toISOString();
+  const d1Retirement = await collectD1Retirement(args.snapshots, Date.parse(windowFrom), Date.parse(finished));
+
   const status = {
     version: 1,
     started,
-    finished: new Date().toISOString(),
+    finished,
     code,
     // os.hostname(), not $HOSTNAME: systemd user units export no HOSTNAME,
     // so the env var wrote "unknown" into every scheduled run's status file.
@@ -1394,6 +1600,13 @@ async function main() {
     backlogLint,
     records,
     xdgWriterGuard,
+    // D1's retirement (seven-day zero on the fallback) and absorption
+    // (row 26's re-opening signature) questions, answered from the
+    // snapshots event logs — see collectD1Retirement above. Neither is a
+    // capture-derived row, so both live at sweep level like backlogLint
+    // and records above rather than per-row.
+    d1OldKeyFallback: d1Retirement.d1OldKeyFallback,
+    d1PostRelocationNoBaseline: d1Retirement.d1PostRelocationNoBaseline,
     rows,
   };
   await mkdir(dirname(args.status), { recursive: true });
@@ -1401,9 +1614,7 @@ async function main() {
 
   // The fire ledger: one line per sweep, appended (never rewritten) so the
   // series a retirement rests on cannot be edited by a later run.
-  const fireTs = status.finished;
-  const prevTs = await lastFireLedgerTs(args.fireLedger);
-  const windowFrom = prevTs ?? new Date(Date.parse(fireTs) - FIRE_FIRST_WINDOW_H * 3600_000).toISOString();
+  const fireTs = finished;
   const { raw: fireRaw, partial } = reduceFireRaw(rows);
   const { savedBytes, leakedBytes } = reduceFireBytes(rows);
   const measurable = absorbedMeasurable(prodEnv, envSource);

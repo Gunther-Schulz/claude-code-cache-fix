@@ -27,6 +27,15 @@ import {
   sidOfCapture, FIRE_CLASSES,
   summariseFireBytes, reduceFireBytes,
 } from "../tools/gate-live.mjs";
+// Namespace import for collectD1Retirement — deliberate, not a style choice.
+// The red-first arm of this file's own new bites runs against the
+// UNMODIFIED tools/gate-live.mjs, where this export does not exist yet. A
+// named import of a missing export throws a SyntaxError at ESM link time,
+// which would redden every OTHER bite in this file too; a namespace import
+// only fails where the missing member is actually READ, so the split stays
+// discriminating (dispatch brief, "a missing export does not fail the
+// module at ESM link time").
+import * as gateLive from "../tools/gate-live.mjs";
 
 const json = (o) => ({ code: 0, out: JSON.stringify(o), err: "" });
 
@@ -781,4 +790,237 @@ test("a sweep with absorption misses is still CLEAN — the check reports, it do
   assert.deepEqual(Object.keys(s).sort(),
     ["cacheControlOnly", "cacheControlUnknown", "captures", "ours", "total"],
     "no pass/fail field: a reader decides, the sweep does not");
+});
+
+// --- D1 retirement instrumentation (BACKLOG "D1's retirement trigger is a
+// HAND-GREP", widened 2026-08-11 with the absorption counter) -------------
+//
+// Two questions, both answered from `<key>-{insertion,deferred-tool}-events.jsonl`
+// in the snapshots dir, never from the capture corpus:
+//   d1OldKeyFallback            has the dual-read bridge's fallback fired —
+//                               the seven-day-zero retirement trigger.
+//   d1PostRelocationNoBaseline  did a session whose key just rotated land on
+//                               `no-baseline` anyway — row 26's original
+//                               216,060-token defect re-opening.
+// Both carry the three-answer convention: `filesScanned: 0` means
+// could-not-verify (null), never a clean zero.
+//
+// d1PostRelocationNoBaseline is correlated ACROSS the two logs (see the big
+// comment on collectD1Retirement for why the first, single-log `sid`-history
+// design was measurably wrong): a `no-baseline` in deferred-tool-events only
+// counts when insertion-events proves the SAME `sid` genuinely relocated —
+// its own `oldKeyFallback:true` — within a tight timestamp tolerance. The
+// bites below cover both directions: the correlated case counts, and the
+// bare co-tenancy case (key churn under one `sid`, no relocation proof at
+// all) — the exact shape that produced 169 false hits against this
+// machine's real corpus — does NOT.
+
+test("BITE — d1OldKeyFallback: a planted oldKeyFallback:true record reports hits:1, its own timestamp, and a scanned scope", async (t) => {
+  const dir = await snapshotDirWith({
+    "s-key-a-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", key: "key-a", sid: "sid-1", action: "unchanged", newNames: [], heldNames: [], injected: 0 }),
+      JSON.stringify({ ts: "2026-08-02T10:00:05.000Z", key: "key-a", sid: "sid-1", action: "reset", reason: "tool-schema-changed", oldKeyFallback: true, oldKey: "key-old" }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  assert.deepEqual(
+    { hits: r.d1OldKeyFallback.hits, newestUtc: r.d1OldKeyFallback.newestUtc },
+    { hits: 1, newestUtc: "2026-08-02T10:00:05.000Z" },
+  );
+  assert.ok(r.d1OldKeyFallback.filesScanned > 0, "the planted file itself must count toward scope");
+});
+
+test("BITE — d1OldKeyFallback: no fallback record is a measured hits:0, not could-not-verify, once files are in scope", async (t) => {
+  const dir = await snapshotDirWith({
+    "s-key-a-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", key: "key-a", sid: "sid-1", action: "unchanged", newNames: [], heldNames: [], injected: 0 }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  assert.equal(r.d1OldKeyFallback.hits, 0);
+  assert.equal(r.d1OldKeyFallback.newestUtc, null);
+  assert.ok(r.d1OldKeyFallback.filesScanned > 0, "the file was actually read, not skipped");
+});
+
+test("BITE — d1OldKeyFallback and d1PostRelocationNoBaseline: an absent or empty snapshots dir is COULD-NOT-VERIFY, never a clean zero", async (t) => {
+  const emptyDir = await tmpDir("d1-empty-");
+  t.after(() => rm(emptyDir, { recursive: true, force: true }));
+  const absentDir = join(emptyDir, "not-here");
+
+  for (const dir of [emptyDir, absentDir]) {
+    const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+    assert.equal(r.d1OldKeyFallback.hits, null, `${dir} must not read as a measured zero`);
+    assert.equal(r.d1OldKeyFallback.filesScanned, 0);
+    assert.equal(r.d1PostRelocationNoBaseline.count, null, `${dir} must not read as a measured zero`);
+    assert.equal(r.d1PostRelocationNoBaseline.filesScanned, 0);
+  }
+});
+
+test("BITE — d1PostRelocationNoBaseline: a no-baseline CORRELATED with insertion-normalization's own relocation proof (same sid, close ts) reports count:1", async (t) => {
+  const dir = await snapshotDirWith({
+    // insertion-normalization's dual-read succeeded for this session — proof
+    // that this request's conversation genuinely relocated.
+    "s-conv-a-insertion-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:00.500Z", key: "conv-a-new", sid: "sid-1", action: "normalized", oldKeyFallback: true, oldKey: "conv-a-old" }),
+    ].join("\n") + "\n",
+    // deferred-tool-rewrite's dual-read did NOT: no-baseline, same request
+    // (same sid, timestamp a few hundred ms apart — the same pipeline pass).
+    "s-key-new-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:00.750Z", key: "key-new", sid: "sid-1", action: "no-baseline", newNames: [], heldNames: [] }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  assert.deepEqual(
+    { count: r.d1PostRelocationNoBaseline.count, newestUtc: r.d1PostRelocationNoBaseline.newestUtc },
+    { count: 1, newestUtc: "2026-08-02T10:00:00.750Z" },
+  );
+});
+
+test("BITE — d1PostRelocationNoBaseline: deferred-tool-rewrite's OWN successful fallback does not count — the failure is the OTHER consumer's, and no-baseline never co-occurs with it on one record", async (t) => {
+  const dir = await snapshotDirWith({
+    "s-key-new-deferred-tool-events.jsonl": [
+      // D1 working as designed on THIS consumer: the fallback found the old
+      // state, so the action is "unchanged"/"rewrite", never "no-baseline" —
+      // classifyToolChange returns no-baseline iff prior is null, and a
+      // successful fallback means prior was found.
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", key: "key-new", sid: "sid-1", action: "unchanged", newNames: [], heldNames: [], oldKeyFallback: true, oldKey: "key-old" }),
+    ].join("\n") + "\n",
+    // A companion insertion-events file, otherwise irrelevant, so this test
+    // measures a real "no candidate at all" zero rather than the
+    // could-not-verify state the empty-corpus tests already cover.
+    "s-key-new-insertion-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", key: "key-new", sid: "sid-1", action: "append-only", inserted: 0 }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  assert.equal(r.d1PostRelocationNoBaseline.count, 0, "no no-baseline candidate exists at all in this corpus, and both logs were scanned");
+});
+
+test("BITE — d1PostRelocationNoBaseline: ORDINARY CO-TENANCY (one sid, many keys from concurrent subagents, no relocation proof) does NOT count — the negative control for the false-positive this counter's first design produced", async (t) => {
+  // Reproduces the shape measured against this machine's real snapshots dir
+  // (2026-08-11): one busy `sid` cycling through many distinct subagent
+  // `key`s, none of them a relocation. No insertion-events file exists at
+  // all here — there is no relocation proof anywhere in the corpus — so
+  // every no-baseline below must go uncounted however many keys the sid
+  // touches.
+  const dir = await snapshotDirWith({
+    "s-sub-1-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", key: "sub-1", sid: "sid-1", action: "no-baseline", newNames: [], heldNames: [] }),
+    ].join("\n") + "\n",
+    "s-sub-2-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:04.000Z", key: "sub-2", sid: "sid-1", action: "no-baseline", newNames: [], heldNames: [] }),
+    ].join("\n") + "\n",
+    "s-sub-3-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:08.000Z", key: "sub-3", sid: "sid-1", action: "no-baseline", newNames: [], heldNames: [] }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  // No insertion-events file was scanned, so the correlation input is
+  // structurally absent — could-not-verify, not a clean zero (the same
+  // three-answer rule as everywhere else in this pass).
+  assert.equal(r.d1PostRelocationNoBaseline.count, null,
+    "three key-changing no-baseline records under one sid, zero relocation proof — must read could-not-verify, never a measured zero that happens to be right");
+});
+
+test("BITE — d1PostRelocationNoBaseline: co-tenancy stays uncounted even WHEN a real relocation proof exists elsewhere in the same window, for a DIFFERENT sid", async (t) => {
+  const dir = await snapshotDirWith({
+    // A genuine relocation, sid-2 — must not leak into sid-1's count.
+    "s-conv-b-insertion-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T11:00:00.000Z", key: "conv-b-new", sid: "sid-2", action: "normalized", oldKeyFallback: true, oldKey: "conv-b-old" }),
+    ].join("\n") + "\n",
+    // sid-1's ordinary subagent churn — same shape as the co-tenancy test
+    // above, now WITH insertion-events files present in the corpus (so
+    // filesScanned/insertionScanned are non-zero and the answer is a real
+    // measured zero, not could-not-verify).
+    "s-sub-1-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:00.000Z", key: "sub-1", sid: "sid-1", action: "no-baseline", newNames: [], heldNames: [] }),
+    ].join("\n") + "\n",
+    "s-sub-2-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-02T10:00:04.000Z", key: "sub-2", sid: "sid-1", action: "no-baseline", newNames: [], heldNames: [] }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  assert.equal(r.d1PostRelocationNoBaseline.count, 0,
+    "sid-2's proof must not correlate against sid-1's unrelated no-baseline records");
+});
+
+test("BITE — both D1 counters only count records inside [sinceMs, untilMs), even though the files that carry them are in scope", async (t) => {
+  const dir = await snapshotDirWith({
+    "s-conv-a-insertion-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-01T10:00:00.000Z", key: "conv-a-new", sid: "sid-1", action: "normalized", oldKeyFallback: true, oldKey: "conv-a-old" }),
+    ].join("\n") + "\n",
+    "s-key-new-deferred-tool-events.jsonl": [
+      // Both records are dated BEFORE the requested window, even though the
+      // files themselves have a recent mtime and are scanned.
+      JSON.stringify({ ts: "2026-08-01T10:00:00.500Z", key: "key-new", sid: "sid-1", action: "no-baseline" }),
+      JSON.stringify({ ts: "2026-08-01T10:00:01.000Z", key: "key-new", sid: "sid-1", action: "unchanged", oldKeyFallback: true, oldKey: "key-old" }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  assert.equal(r.d1OldKeyFallback.hits, 0, "the fallback records exist but are dated outside the window");
+  assert.equal(r.d1PostRelocationNoBaseline.count, 0, "the correlated pair exists but the no-baseline record is dated outside the window");
+  assert.ok(r.d1OldKeyFallback.filesScanned > 0, "the files were still scanned — mtime is recent even though the recorded ts is old");
+});
+
+test("BITE — the emitted window names the requested scope, on both fields, even over an empty corpus", async (t) => {
+  const dir = await tmpDir("d1-window-");
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-02T00:00:00Z"), Date.parse("2026-08-03T00:00:00Z"));
+  const expected = { sinceUtc: "2026-08-02T00:00:00.000Z", untilUtc: "2026-08-03T00:00:00.000Z" };
+  assert.deepEqual(r.d1OldKeyFallback.window, expected);
+  assert.deepEqual(r.d1PostRelocationNoBaseline.window, expected);
+});
+
+test("BITE — a real sweep wires both D1 fields into the status file, not only the fire ledger", async (t) => {
+  const dir = await tmpDir("d1-sweep-");
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const captures = join(dir, "captures");
+  const snapshots = join(dir, "snapshots");
+  const transcripts = join(dir, "projects");
+  await mkdir(captures, { recursive: true });
+  await mkdir(snapshots, { recursive: true });
+  await mkdir(transcripts, { recursive: true });
+  const ledger = join(dir, "fire.jsonl");
+  const status = join(dir, "status.json");
+
+  // One planted fallback record, recent mtime, dated now-ish so it lands
+  // inside the sweep's own first (seeded) window regardless of when this
+  // test runs. A second, unrelated insertion-events file keeps
+  // insertionScanned non-zero so d1PostRelocationNoBaseline reads a real
+  // measured zero rather than could-not-verify.
+  await writeFile(
+    join(snapshots, "s-key-a-deferred-tool-events.jsonl"),
+    JSON.stringify({ ts: new Date().toISOString(), key: "key-a", sid: "sid-1", action: "reset", oldKeyFallback: true, oldKey: "key-old" }) + "\n",
+  );
+  await writeFile(
+    join(snapshots, "s-key-a-insertion-events.jsonl"),
+    JSON.stringify({ ts: new Date().toISOString(), key: "key-a", sid: "sid-1", action: "append-only", inserted: 0 }) + "\n",
+  );
+
+  await pExecFile("node", [
+    join(REPO, "tools", "gate-live.mjs"),
+    "--captures", captures, "--status", status, "--fire-ledger", ledger,
+    "--snapshots", snapshots, "--transcripts", transcripts, "--quiet",
+  ], { cwd: REPO }).catch((e) => e); // an empty-capture sweep still owes a status file
+
+  const parsed = JSON.parse(await readFile(status, "utf-8"));
+  assert.ok("d1OldKeyFallback" in parsed, "the status file is doctor's read surface — the field belongs there, not only the fire ledger");
+  assert.ok("d1PostRelocationNoBaseline" in parsed);
+  assert.equal(parsed.d1OldKeyFallback.hits, 1, "the planted record was inside the seeded window");
+  assert.equal(parsed.d1OldKeyFallback.filesScanned, 2);
+  assert.equal(parsed.d1PostRelocationNoBaseline.count, 0, "no no-baseline candidate exists in this corpus");
 });
