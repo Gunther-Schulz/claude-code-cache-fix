@@ -311,6 +311,38 @@ ENOSPC misattribution with its wrong first explanation left in.
 
 ## Open
 
+- **READY — the harvest LEDGER is tracked and its CORPUS is not: 574 untracked
+  fixture files against a ledger 959 lines ahead of what is committed.**
+  Measured 2026-08-11 at session close (the modified file is
+  `LEDGER-<host>.json`, whose oldest superseded entry dates to 2026-08-08, so
+  this has been true for three days across many sessions). The twice-daily
+  timer writes fixtures and updates the ledger; nothing commits either, so the
+  tracked ledger claims harvests whose fixtures exist only on this machine.
+  **Why this is not "just run `git add`".** Two rules collide and the collision
+  is the decision: fixtures bound for a public tree are SYNTHESIZED by default
+  and a harvested one is an exception justified by evidence value, and the
+  operator's publication bar has a judgment remainder no scan covers (is a
+  residual string this repo's own vocabulary or another session's content).
+  574 files is not a judgment anyone can make by inspection at the end of a
+  session, and the absence scan clears only the computable slice.
+  **The silent half, which is what makes it READY rather than housekeeping:**
+  novelty is judged AGAINST the ledger. A ledger that has recorded a shape as
+  harvested suppresses re-harvesting it, so an uncommitted corpus plus a
+  committed ledger means the next machine to read this repo believes it holds
+  evidence it does not have — the label-over-body drift with the body on one
+  laptop.
+  Design, decided: `harvest` gains a `--corpus-status` verdict (tracked-ledger
+  entries whose fixture file is untracked or absent, with counts and the three
+  answers), the doctor reads it, and the disposition of the current 574 is a
+  separate operator-facing pass — commit the ones whose evidence value is
+  stated, drop the rest, and record which.
+  Verifier, red-first, available now: today's tree is the positive (574
+  untracked against a modified ledger); a tree whose fixtures are all committed
+  must report zero.
+  Anchor: tools/harvest.mjs
+  Write-set: tools/harvest.mjs, test/harvest-corpus-status.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/harvest-corpus-status.test.mjs
+
 - **READY (small) — thirteen `git` call sites in `tools/` still run on Node's
   1 MB default stdout cap, and the corpus has now crossed it.** Sibling
   enumeration for `8487b6f`, which fixed the two sites in
