@@ -20,16 +20,37 @@
 // idempotent per capture — re-running for a capture that already has an alias
 // returns the SAME alias and burns nothing.
 //
-//   node tools/alias-claim.mjs <capture-file|session-id> [--note "<why>"]
+//   node tools/alias-claim.mjs <capture-file|session-id> [--note "<why>"] [--protect]
 //   node tools/alias-claim.mjs --show <capture-file|session-id>
+//   node tools/alias-claim.mjs --release <capture-file|session-id>
+//   node tools/alias-claim.mjs --protect-status
 //
 // The registry is machine-local by nature (mode 0600, never tracked): it holds
 // precisely the bytes the convention keeps out of git. It lives under XDG data
 // (`~/.local/share/cache-fix/capture-aliases.json`), NOT under `~/.claude/`.
+//
+// `--protect` hard-links the claimed capture into a sibling `captures-protected`
+// dir so retention's oldest-mtime-first eviction (proxy/extensions/
+// request-capture.mjs, `sweepCaptureDir`) cannot delete its bytes — a claim
+// alone records a NAME, and retention knows nothing about names. See
+// BACKLOG.md, "a claimed alias does not protect its capture from eviction",
+// for why (copying was rejected: captures here run to ~2GB).
 
-import { readFileSync, writeFileSync, mkdirSync, openSync, closeSync, unlinkSync, statSync, chmodSync } from "node:fs";
-import { basename, dirname } from "node:path";
+import {
+  readFileSync,
+  writeFileSync,
+  mkdirSync,
+  openSync,
+  closeSync,
+  unlinkSync,
+  statSync,
+  chmodSync,
+  linkSync,
+  readdirSync,
+} from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { dataPath } from "../proxy/xdg-dirs.mjs";
 
 // HOME IS XDG DATA, NOT `~/.claude/`. The registry is machine-local data
 // belonging to this repo's tooling; it is not Claude Code configuration and only
@@ -49,6 +70,31 @@ const LEGACY_REGISTRY = () => `${homedir()}/.claude/cache-fix-capture-aliases.js
 const registryPath = () =>
   process.env.CACHE_FIX_ALIAS_REGISTRY ?? `${dataHome()}/cache-fix/capture-aliases.json`;
 const lockPath = () => `${registryPath()}.lock`;
+
+// The captures root, resolved EXACTLY the way request-capture.mjs resolves it
+// (`CACHE_FIX_CAPTURE_DIR` override, else the XDG data path) — imported from
+// its owning resolver (`proxy/xdg-dirs.mjs`) rather than reimplemented, so the
+// two never diverge. Per call, same reason as registryPath above.
+export function getCaptureDir() {
+  return process.env.CACHE_FIX_CAPTURE_DIR || dataPath("captures");
+}
+
+// A SIBLING of the resolved captures root, deliberately — not a path built
+// from dataHome() independently. A test that points CACHE_FIX_CAPTURE_DIR at
+// a scratch root gets the protected dir inside that same scratch root for
+// free, and a hard link across filesystems is impossible, so "sibling of the
+// real captures dir" is also the only placement a hard link can ever reach.
+// `CACHE_FIX_PROTECTED_DIR` overrides outright when a caller needs to place
+// it somewhere else.
+export function getProtectedDir() {
+  return process.env.CACHE_FIX_PROTECTED_DIR || join(dirname(getCaptureDir()), "captures-protected");
+}
+
+function getProtectedMaxBytes(env = process.env) {
+  const raw = parseInt(env.CACHE_FIX_PROTECTED_MAX_MB ?? "4096", 10);
+  const mb = Number.isFinite(raw) && raw > 0 ? raw : 4096;
+  return mb * 1024 * 1024;
+}
 
 // A lock older than this is presumed abandoned (a killed agent, a crashed run).
 // Deliberately short: every holder does one read and one write of a few KB.
@@ -183,6 +229,18 @@ export function lookup(doc, key) {
   return null;
 }
 
+// Shared by every mutator (claim, protect, release, cap-eviction): the
+// registry's write side, extracted so a claim, a protection, and a drop can
+// never diverge in how they persist the document.
+function writeRegistry(doc) {
+  const path = registryPath();
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`, { mode: 0o600 });
+  try {
+    chmodSync(path, 0o600);
+  } catch {}
+}
+
 export async function claim(capture, note) {
   const key = captureKeyOf(capture);
   return withLock(() => {
@@ -197,28 +255,234 @@ export async function claim(capture, note) {
       assigned: new Date().toISOString().slice(0, 10),
       ...(note ? { note } : {}),
     };
-    const path = registryPath();
-    mkdirSync(dirname(path), { recursive: true });
-    writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`, { mode: 0o600 });
-    try {
-      chmodSync(path, 0o600);
-    } catch {}
+    writeRegistry(doc);
     return { alias, claimed: true };
   });
 }
 
+// Oldest-protection-first eviction of the PROTECTED set, mirroring
+// sweepCaptureDir's own oldest-mtime-first shape but ordered by the
+// registry's `protectedAt` where present (a hard link has no reliable mtime
+// of its own once a second name references the same inode) and by the link's
+// own mtime otherwise. Mutates `doc` in place; the caller persists it.
+//
+// Never silent: a dropped protection is exactly the loss this whole entry
+// exists to prevent, so it prints a WARNING naming the alias and the file,
+// and it is recorded in the registry (`protectionDroppedAt`) rather than
+// only spoken to stderr — the same "a mechanism claiming safety must leave
+// the evidence that it was tested" shape the corollary in dev-loop.md names
+// for a retention knob.
+function enforceProtectedCap(doc) {
+  const protectedDir = getProtectedDir();
+  let files;
+  try {
+    files = readdirSync(protectedDir);
+  } catch {
+    return;
+  }
+  const entries = [];
+  for (const f of files) {
+    let st;
+    try {
+      st = statSync(join(protectedDir, f));
+    } catch {
+      continue;
+    }
+    if (!st.isFile()) continue;
+    const alias = lookup(doc, f);
+    const protectedAt = alias ? doc.aliases[alias]?.protectedAt : null;
+    const sortKey = protectedAt ? Date.parse(protectedAt) : st.mtimeMs;
+    entries.push({ f, alias, size: st.size, sortKey });
+  }
+  const maxBytes = getProtectedMaxBytes();
+  let total = entries.reduce((a, e) => a + e.size, 0);
+  if (total <= maxBytes) return;
+  entries.sort((a, b) => a.sortKey - b.sortKey);
+  for (const e of entries) {
+    if (total <= maxBytes) break;
+    try {
+      unlinkSync(join(protectedDir, e.f));
+    } catch {
+      continue; // vanished already — nothing to drop or to warn about
+    }
+    total -= e.size;
+    process.stderr.write(
+      `alias-claim: WARNING — protected-set cap exceeded (${maxBytes} bytes) — dropped protection for ` +
+        `${e.alias ?? "(unaliased)"} (${e.f})\n`,
+    );
+    if (e.alias && doc.aliases[e.alias]) {
+      doc.aliases[e.alias].protectionDroppedAt = new Date().toISOString();
+    }
+  }
+}
+
+/** Hard-link a claimed capture into the protected dir. Requires an existing
+ * claim (claim it first) — protect names an alias in the registry, so there
+ * must already be one to name.
+ *
+ * EXDEV, ENOENT, or any other link() failure is LOUD: it throws, and the
+ * caller's registry write never happens, so the claim survives without
+ * `protectedAt` rather than silently degrading to an unprotected claim that
+ * LOOKS protected. No copy fallback, ever — captures here run to ~2GB.
+ */
+export async function protect(capture) {
+  const key = captureKeyOf(capture);
+  return withLock(() => {
+    const doc = readRegistry();
+    const alias = lookup(doc, key);
+    if (!alias) throw new Error(`protect: ${key} has no alias — claim it first`);
+    const src = join(getCaptureDir(), key);
+    const protectedDir = getProtectedDir();
+    mkdirSync(protectedDir, { recursive: true, mode: 0o700 });
+    try {
+      chmodSync(protectedDir, 0o700);
+    } catch {}
+    const dest = join(protectedDir, key);
+    let alreadyLinked = false;
+    try {
+      linkSync(src, dest);
+    } catch (e) {
+      if (e.code === "EEXIST") {
+        let srcStat, destStat;
+        try {
+          srcStat = statSync(src);
+          destStat = statSync(dest);
+        } catch (statErr) {
+          throw new Error(`protect: EEXIST at ${dest}, and comparing it to ${src} failed (${statErr.code}): ${statErr.message}`);
+        }
+        if (srcStat.dev === destStat.dev && srcStat.ino === destStat.ino) {
+          alreadyLinked = true; // same inode — idempotent, nothing new to print
+        } else {
+          throw new Error(
+            `protect: EEXIST — ${dest} already exists and is a DIFFERENT file than ${src} ` +
+              `(dev/ino ${destStat.dev}/${destStat.ino} vs ${srcStat.dev}/${srcStat.ino}) — refusing to overwrite`,
+          );
+        }
+      } else {
+        throw new Error(`protect: link failed (${e.code ?? "unknown"}) ${src} -> ${dest}: ${e.message}`);
+      }
+    }
+    if (!alreadyLinked) {
+      doc.aliases[alias].protectedAt = new Date().toISOString();
+      delete doc.aliases[alias].protectionDroppedAt;
+      delete doc.aliases[alias].releasedAt;
+    }
+    enforceProtectedCap(doc);
+    writeRegistry(doc);
+    return { alias, key, alreadyLinked };
+  });
+}
+
+/** Unlink a capture's protected copy and clear its protection. Releasing
+ * something never protected (or already released/dropped by the cap) is
+ * not an error — it is its own answer, the three-answers discipline this
+ * file already uses for `--show`.
+ */
+export async function release(capture) {
+  const key = captureKeyOf(capture);
+  return withLock(() => {
+    const doc = readRegistry();
+    const alias = lookup(doc, key);
+    const entry = alias ? doc.aliases[alias] : null;
+    const isProtected = Boolean(entry?.protectedAt) && !entry.releasedAt && !entry.protectionDroppedAt;
+    if (!isProtected) return { released: false, key, alias };
+    const dest = join(getProtectedDir(), key);
+    try {
+      unlinkSync(dest);
+    } catch (e) {
+      if (e.code !== "ENOENT") throw e;
+    }
+    delete entry.protectedAt;
+    entry.releasedAt = new Date().toISOString();
+    writeRegistry(doc);
+    return { released: true, key, alias };
+  });
+}
+
+/** The protected set as it exists on disk right now — for the dotfiles
+ * doctor to read the protected-set size without this repo writing into
+ * that repo. Reads only; never mutates.
+ */
+export function protectStatus() {
+  const dir = getProtectedDir();
+  const capBytes = getProtectedMaxBytes();
+  let files;
+  try {
+    files = readdirSync(dir);
+  } catch {
+    return { dir, count: 0, bytes: 0, capBytes, entries: [] };
+  }
+  const doc = readRegistry();
+  const entries = [];
+  let bytes = 0;
+  for (const f of files) {
+    let st;
+    try {
+      st = statSync(join(dir, f));
+    } catch {
+      continue;
+    }
+    if (!st.isFile()) continue;
+    const alias = lookup(doc, f);
+    bytes += st.size;
+    entries.push({
+      alias: alias ?? null,
+      file: f,
+      bytes: st.size,
+      protectedAt: alias ? (doc.aliases[alias]?.protectedAt ?? null) : null,
+    });
+  }
+  return { dir, count: entries.length, bytes, capBytes, entries };
+}
+
+const USAGE =
+  "usage: alias-claim.mjs <capture-file|session-id> [--note \"<why>\"] [--protect]\n" +
+  "       alias-claim.mjs --show <capture-file|session-id>\n" +
+  "       alias-claim.mjs --release <capture-file|session-id>\n" +
+  "       alias-claim.mjs --protect-status\n";
+
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
+
+  if (args[0] === "--protect-status") {
+    process.stdout.write(`${JSON.stringify(protectStatus())}\n`);
+    process.exit(0);
+  }
+
+  if (args[0] === "--release") {
+    const capture = args[1];
+    if (!capture) {
+      process.stderr.write(USAGE);
+      process.exit(2);
+    }
+    const result = await release(capture);
+    // Three answers, not two — same discipline as --show: releasing something
+    // that was never protected (or already released/dropped) is not an error.
+    if (!result.released) {
+      process.stdout.write("NOT PROTECTED\n");
+      process.exit(1);
+    }
+    process.stdout.write(`released ${result.alias} (${result.key})\n`);
+    process.exit(0);
+  }
+
   const show = args[0] === "--show";
   const rest = show ? args.slice(1) : args;
   const noteAt = rest.indexOf("--note");
   const note = noteAt >= 0 ? rest[noteAt + 1] : undefined;
-  const capture = rest.filter((a, i) => noteAt < 0 || (i !== noteAt && i !== noteAt + 1))[0];
+  const protectFlag = rest.includes("--protect");
+  // Every flag this parser knows about is stripped from the positional
+  // stream before the capture argument is picked — the same rule --note
+  // already follows, restated here because a flag left in would either be
+  // parsed as the capture (burning an alias with no unclaim path) or would
+  // shift the positional index and swallow the real capture argument.
+  const capture = rest.filter((a, i) => {
+    if (noteAt >= 0 && (i === noteAt || i === noteAt + 1)) return false;
+    if (a === "--protect") return false;
+    return true;
+  })[0];
   if (!capture) {
-    process.stderr.write(
-      "usage: alias-claim.mjs <capture-file|session-id> [--note \"<why>\"]\n" +
-        "       alias-claim.mjs --show <capture-file|session-id>\n",
-    );
+    process.stderr.write(USAGE);
     process.exit(2);
   }
   const key = captureKeyOf(capture);
@@ -234,6 +498,17 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     process.stdout.write(`${held}\n`);
   } else {
     const { alias, claimed } = await claim(capture, note);
-    process.stdout.write(`${alias}${claimed ? "" : "  (already held)"}\n`);
+    let suffix = claimed ? "" : "  (already held)";
+    if (protectFlag) {
+      try {
+        const p = await protect(capture);
+        suffix += p.alreadyLinked ? "  (already protected)" : "  (protected)";
+      } catch (e) {
+        process.stdout.write(`${alias}${suffix}\n`);
+        process.stderr.write(`alias-claim: ${e.message}\n`);
+        process.exit(1);
+      }
+    }
+    process.stdout.write(`${alias}${suffix}\n`);
   }
 }
