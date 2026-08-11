@@ -1,0 +1,177 @@
+{
+  "_": "STATUS IS DATA; the matrix keeps the reasoning. One object per threat-matrix row, keyed by row number. Populated 2026-08-11 by reading each row's BODY to its deciding sentence, never its leading token — the misread that produced this file. `date` is the date of the DECIDING EVIDENCE, not of this write, so a stale verdict is visible as an old date. Enum and rules: docs/directives/records-restructure.md, phase 1. Checker: test/matrix-status.test.mjs. The build board is `jq '[to_entries[]|select(.value.status==\"OPEN\" or .value.status==\"RESIDUAL\")]|from_entries' docs/directives/robustness-threat-matrix.status.json`.",
+  "1": {
+    "status": "RESIDUAL",
+    "evidence": "proxy/extensions/insertion-normalization.mjs",
+    "date": "2026-07-28",
+    "residual": "NEAR-ZERO, not zero. The cell's leading clause still names the bookmark ladder as the mitigated half; that mechanism was RETIRED 2026-07-28 (matrix section 'Bookmark-ladder disposition — REVERSED', measured: the ladder itself produced 57 stability violations). What carries the class today is insertion-normalization alone, and the insertions that still bust are rows 4 and 22's classes."
+  },
+  "2": {
+    "status": "OPEN",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-07-27",
+    "residual": "Phase-3 keepalive candidate: needs idle-detection plus an opt-in, and is cost-positive only if the operator returns. No design decided, so it is buildable-but-undesigned rather than blocked."
+  },
+  "3": {
+    "status": "RESIDUAL",
+    "evidence": "docs/audits/restart-state-audit.md",
+    "date": "2026-07-31",
+    "residual": "Restart transparency is STRONGLY SUPPORTED, NOT PROVEN by the cell's own words: one live observation, with code changing alongside it that happened to be output-neutral on that traffic. The standing exception is unchanged and is a live obligation, not a caveat — a change touching state KEYS or freeze logic is NOT cache-transparent and owes its row-3 declaration BEFORE the restart (exercised 2026-08-10 by D1, row 26)."
+  },
+  "4": {
+    "status": "OPEN",
+    "evidence": "059aae3",
+    "date": "2026-08-10",
+    "residual": "Root cause of the disarming half is fixed (059aae3: suppression now runs on the reset path). What is open is the canonicalization build, booked READY. Two facts bound it: the class arrived in TWO shapes on 2026-08-10 — three instances replace/edit / MERGED-STANDALONE / >30 from the human anchor, and a fourth splice/insert-mid / NEW-TEXT — and a rule tuned on the first has no defined behaviour on the second; and the RATE is unmeasured, the row carrying four instances from one day of one machine and no denominator."
+  },
+  "5": {
+    "status": "DECLINED",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-07-27",
+    "residual": "Building would be wrong, and the cell says so in one line: a /reload-plugins mid-session is a TRUE content change, so suppressing the delta would suppress a legitimate bust. Known volatile fields are already covered by fingerprint-strip, identity-normalization and cc-version-normalize; the remainder is honest."
+  },
+  "6": {
+    "status": "RESIDUAL",
+    "evidence": "6fc397d",
+    "date": "2026-08-10",
+    "residual": "The mitigation ships (deferred-tool-rewrite holds tools[] byte-stable; heldStable rides every sweep since 813edc8) and the tools-ONLY isolation this row asked for since 2026-07-27 finally arrived 2026-08-10. Three things stay open: the original 2026-07-27 12:47:56 event still carries TWO independent causes and no tools-only delta was ever isolated for it; the 2026-08-10 isolation rests on ONE pin; and `passthrough` has never been observed non-empty on real traffic, so its two reason branches are proven reachable by constructed bites only."
+  },
+  "7": {
+    "status": "SHIPPED",
+    "evidence": "proxy/extensions/sort-stabilization.mjs",
+    "date": "2026-07-28",
+    "residual": null
+  },
+  "8": {
+    "status": "SHIPPED",
+    "evidence": "fc432bf",
+    "date": "2026-07-27",
+    "residual": null
+  },
+  "9": {
+    "status": "RESIDUAL",
+    "evidence": "proxy/extensions/image-strip.mjs",
+    "date": "2026-07-27",
+    "residual": "CLOSED-PRESUMED, and the presumption is the remainder: no measured instance and no regression fixture. The cell's own condition stands — add one fixture if an image-bearing session ever shows a mid-history image diff."
+  },
+  "10": {
+    "status": "ACCEPTED",
+    "evidence": "docs/dev-loop.md",
+    "date": "2026-07-28",
+    "residual": "Honest bust, operator-initiated (/rc from session start; compaction unavoidable at the window limit). Settled by replay: compaction is a NEW conversation, the prefix changes at index 0, so no cached bytes survive by construction. Standing obligation: normalization rule 3 must keep passing these through, which is regression-tested."
+  },
+  "11": {
+    "status": "IMPOSSIBLE",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-07-27",
+    "residual": "The cache is model-keyed, so a model switch re-bills by construction — nothing on our side can hold a prefix across it. The cell's own wording is ACCEPTED (rare, deliberate), which is the same disposition read from the operator's side. Attribution exists: worktime cause=model."
+  },
+  "12": {
+    "status": "UNASSESSED",
+    "evidence": "proxy/extensions/thinking-block-sanitize.mjs",
+    "date": "2026-07-27",
+    "residual": "No measured instance, so there is nothing to assess mitigability against; thinking-block-sanitize covers the known shapes. The alarm signature is named and is the trigger to re-open: prefix-diff cause=messages@N(assistant) with no insertion."
+  },
+  "13": {
+    "status": "SHIPPED",
+    "evidence": "proxy/extensions/deferred-tool-rewrite.mjs",
+    "date": "2026-07-28",
+    "residual": null
+  },
+  "14": {
+    "status": "SHIPPED",
+    "evidence": "5a7093d",
+    "date": "2026-07-28",
+    "residual": null
+  },
+  "15": {
+    "status": "RESIDUAL",
+    "evidence": "proxy/extensions/ttl-management.mjs",
+    "date": "2026-07-27",
+    "residual": "Shipped before the row was written (TTL_SUBAGENT via detectRequestType), then pinned to 5m by operator decision via unit env. Two remainders the cell names: subagent-scoped telemetry (small), and an UNBRIDGED VERIFICATION GAP — no captured-traffic confirmation that subagent requests arrive without an explicit ttl, because the snapshot format drops ttl fields."
+  },
+  "16": {
+    "status": "OUT-OF-SCOPE",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-07-27",
+    "residual": "The mitigation lives outside this repo: an operator hook already catches the fallback reroute and stops the session. This repo's half is attribution only (worktime cause=model)."
+  },
+  "17": {
+    "status": "OUT-OF-SCOPE",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-07-27",
+    "residual": "N/A for this operator's profile (fable sessions); the row exists as a note so the class is not re-derived."
+  },
+  "18": {
+    "status": "SHIPPED",
+    "evidence": "323af49",
+    "date": "2026-07-28",
+    "residual": null
+  },
+  "19": {
+    "status": "SHIPPED",
+    "evidence": "proxy/extensions/deferred-tool-rewrite.mjs",
+    "date": "2026-07-28",
+    "residual": "Covered as serialization by row 13's hold — the definition stays in the array and permission enforcement is harness-side at call time, so holding is semantically safe."
+  },
+  "20": {
+    "status": "ACCEPTED",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-07-27",
+    "residual": "Documented rather than mitigated: the system prompt embeds cwd/platform/git state, so resuming a session on another machine is a guaranteed full re-read. The operating rule is start fresh on the new machine, never resume expecting a warm cache."
+  },
+  "21": {
+    "status": "IMPOSSIBLE",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-07-27",
+    "residual": "Upstream capacity eviction: no local attribution is possible and no local mitigation exists. The standing trap is recorded in the cell and binds any reader — `other`/`unavailable` is a DEGRADED DEFAULT, never a tested-and-rejected verdict, so an undiagnosed bust belongs in an unattributed bucket and must not be closed onto this row."
+  },
+  "22": {
+    "status": "ACCEPTED",
+    "evidence": "docs/directives/success-path-only-enumeration.md",
+    "date": "2026-08-11",
+    "residual": "Settled 2026-08-11. The promoted question that kept this row open — which normalization behaviours silently switch off on a reset — is answered by the cited artifact, and its top finding (validateToolAdjacency runs on no reset path) is booked separately. The original prune-bust mechanism is a MEASURED NON-EVENT (classifyPrune, 404d5fc: 10 of 12 pure-tail prunes produced zero miss events). What remains parked is mitigability of the suggestion-mode turns themselves, blocked on pruning-boundary stability — those turns carry ordinary user/assistant roles, so holding them out on a text match risks dropping real conversation, and safety outranks cache. Re-open on either a cost attributable to the injection/prune cycle ALONE, or a boundary predicate better than a text prefix."
+  },
+  "23": {
+    "status": "OPEN",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-08-02",
+    "residual": "Mitigability answered YES with its safety boundary stated: identical input_schema guarantees the model cannot emit a call the client cannot execute, so a stale DESCRIPTION is safe where a stale SCHEMA is not, and the new text still reaches the model in-band through the announcement machinery. Closes on a shipped extension plus a live non-event."
+  },
+  "24": {
+    "status": "DECLINED",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-08-05",
+    "residual": "The messages-layer mitigation is REFUSED ON MEASUREMENT (2026-08-05, corpus-wide), and the row's own bound is that mid-session corpus edits are FREE — only the resume pays. The system-prompt half is NOT declined and NOT to be built yet: pinning a stale SYSTEM prompt is a far stronger claim than a stale tool description, and the cell forbids building either remaining half before the volatile-identifier root cause is settled. Durable evidence is a SYNTHETIC fixture, booked — the walk's findings rest on a literal text predicate the scrub destroys, so a pin would replay green and prove nothing."
+  },
+  "25": {
+    "status": "RESIDUAL",
+    "evidence": "65d0455",
+    "date": "2026-08-05",
+    "residual": "The fix is proven live, and proven by DIFFERENCE rather than by a green: the same capture replays with exactly two stability violations under the pre-fix build (76658d8) and clean under the shipped one. Residual, PARKED: eviction stranding — the relocation memory is LRU/prune-capped at 256 conversations, so a conversation quiet past both caps loses its block with the prefix INTACT, which is the original full-cost flip. Promotion evidence is named: a costly departure row whose predecessor declared relocated."
+  },
+  "26": {
+    "status": "RESIDUAL",
+    "evidence": "246b61d",
+    "date": "2026-08-11",
+    "residual": "Shipped and SERVING (verified 2026-08-11 content-to-content: proxy source fingerprint 140351b73356 == /health proxy_tree; pin ebaaf0e == HEAD:proxy). Two remainders. (1) THE BRIDGE: the old-key dual-read retires after seven consecutive days with zero oldKeyFallback records; measured 2026-08-11, zero across the snapshots dir over 110 event files written since the restart, so the instrument is live rather than dead; earliest discharge 2026-08-17. (2) ABSORPTION IS UNASSERTED: no bite covers the entry's own criterion that a relocating request serves rewrite/unchanged instead of no-baseline with forwarded tools[] byte-identical, and identityRotations.transitions does NOT answer it — that counter compares raw against forwarded messages[0], i.e. our pipeline still relocating, which this fix deliberately does not stop. Home for both: the booked gate-live snapshots pass."
+  },
+  "27": {
+    "status": "ACCEPTED",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-08-07",
+    "residual": "Controlled cause: the entry is gone by expiry before the request is composed, and the operator initiated it by being away — the one place FORK-NOTES' 'any non-operator-initiated bust is a prevention target' does not reach. What IS a target is the MISCLASSIFICATION: such an event booked as k:hit and triaged KNOWN-OPEN row 4, inflating row 4's evidence with an instance it did not cause. The discriminator is computable from the ledger record bust-triage already reads: gap > TTL together with a surviving read (ctx - cc) of ~0 — not mtok."
+  },
+  "28": {
+    "status": "SHIPPED",
+    "evidence": "403dde9",
+    "date": "2026-08-07",
+    "residual": null
+  },
+  "29": {
+    "status": "UNASSESSED",
+    "evidence": "docs/directives/robustness-threat-matrix.md",
+    "date": "2026-08-08",
+    "residual": "CC-side by construction — the divergence is present in the raw pre-pipeline capture, and nothing on our side can restore a prefix CC rebuilt. Mitigability stays unassessed under a standing gate: no mitigation may be designed for this row until the attribution line is emitted mechanically. Two reachable halves are named instead — PRICING the edit beforehand (restart-exposure is the right tool and cannot express this class today: it takes a TEXT predicate, booked) and BATCHING corpus and commit activity rather than spreading it across live idle sessions, since our own commits and dirty files regenerate the <env> block that invalidates every co-tenant session's cached system prefix."
+  }
+}
