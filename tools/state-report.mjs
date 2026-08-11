@@ -40,6 +40,7 @@ import { homedir } from "node:os";
 import { readRecords, STATUS_PATH, MATRIX_PATH, VALID_STATUSES } from "./matrix-status.mjs";
 import {
   censusEntries,
+  censusOpenSection,
   splitEntries,
   lintReadyBar,
   DEFAULT_BACKLOG,
@@ -79,27 +80,19 @@ function runGit(args, cwd) {
 
 // `## <heading>` section extractor, generic over the heading text.
 //
-// DEVIATION, named rather than silent (see the closing report): the
-// grounding basis names `censusOpenSection` as an import from
-// backlog-lint.mjs, but that function is NOT exported there (verified by
-// running this file and reading the ImportError) — only `censusEntries`,
-// `splitEntries`, `lintReadyBar` and `DEFAULT_BACKLOG` are. This file's
-// write boundary is exactly `tools/state-report.mjs` +
-// `test/state-report.test.mjs`; adding the missing `export` to
-// backlog-lint.mjs is outside it, so it cannot be fixed at the source here.
+// SECTION EXTRACTION, and the history is worth keeping because it is the
+// short version of this repo's whole boundary rule. This file was built with
+// a LOCAL copy of `censusOpenSection`'s algorithm, because that function was
+// not exported — the lane that wrote it refused to trust the copy silently
+// and cross-checked entry counts against the real `censusEntries` instead,
+// then returned the gap. The dispatcher exported the real function (see its
+// definition comment in backlog-lint.mjs) and this now calls it: privacy did
+// not prevent a second copy of a shared boundary, it only made the copy the
+// path of least resistance.
 //
-// This helper's algorithm is DELIBERATELY IDENTICAL, line for line, to
-// `censusOpenSection`'s own (head = the matching heading line, tail = the
-// next `## ` line or EOF) — copying it is exactly the class of re-derivation
-// the grounding basis warns against (two tools silently disagreeing about
-// where `## Open` starts and ends is a defect this repo has already paid
-// for). The mitigation is not "trust the copy": `collectBacklog` below
-// cross-checks this function's `## Open` extraction against the REAL
-// `censusEntries` (which uses the real, un-exported `censusOpenSection`
-// internally) by comparing entry counts, and fails LOUDLY (`ok:false`) the
-// moment the two diverge, rather than silently drifting. For `## Record`
-// there is no second implementation to drift from, so no cross-check is
-// needed there.
+// `## Record` has no second implementation to agree with, so the generic
+// helper below still serves it — one boundary definition per section, each
+// with exactly one owner.
 function extractSection(text, headingPrefix) {
   const lines = text.split("\n");
   const head = lines.findIndex((l) => l.startsWith(headingPrefix));
@@ -211,15 +204,15 @@ export function collectBacklog({ backlogPath = DEFAULT_BACKLOG } = {}) {
     return { ok: false, reason: `backlog unreadable: ${e?.message ?? e}` };
   }
 
-  // `census` is the AUTHORITATIVE `## Open` read (real censusOpenSection,
-  // internal to backlog-lint.mjs). `openBody` is this file's own
-  // stand-in extraction (see the DEVIATION comment on `extractSection`
-  // above) used only to recover each entry's raw body for age extraction,
-  // which census rows do not carry. The length check below is the
-  // loud-failure cross-check that mitigates the deviation: if the two
-  // implementations of the `## Open` boundary ever disagree, this fails
-  // rather than silently using a wrong section slice.
-  const openBody = extractSection(text, "## Open");
+  // ONE reader for this boundary: `censusOpenSection` is backlog-lint's own,
+  // now imported rather than copied. `censusEntries` uses the same function
+  // internally, so the count check below can no longer catch a DRIFT between
+  // two implementations — there is only one. It is kept as a cheap invariant
+  // on the pair (a body slice that yields a different entry count than the
+  // census would mean the two are reading different text, which is worth
+  // failing loudly on) and it costs nothing.
+  const openSection = censusOpenSection(text);
+  const openBody = openSection === null ? null : openSection.body ?? openSection;
   if (openBody === null) return { ok: false, reason: "no `## Open` section found in backlog" };
 
   const census = censusEntries(text);

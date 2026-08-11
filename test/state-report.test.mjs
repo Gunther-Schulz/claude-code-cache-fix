@@ -44,7 +44,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync, utimesSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { tmpDirSync } from "../tools/tmpdir.mjs";
 import * as sr from "../tools/state-report.mjs";
@@ -68,7 +68,18 @@ const {
 // The SHARED main checkout — see the header comment above for why the
 // untracked-fixture reproduction needs it explicitly while the other three
 // reproductions work against this test process's own (worktree) REPO_ROOT.
-const MAIN_CHECKOUT = "/home/g/dev/vendor/claude-code-cache-fix";
+// DERIVED rather than hardcoded (desk, at
+// integration). The lane wrote this as an absolute machine path, which fails
+// two ways at once: it is one operator's filesystem layout committed to a
+// PUBLIC repo, and it silently stops testing anywhere else. Git already knows
+// the answer — every worktree shares one common git dir, so its parent IS the
+// main checkout, from inside a worktree or from the checkout itself.
+const MAIN_CHECKOUT = dirname(
+  execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+  }).trim(),
+);
 const NONEXISTENT = "/nonexistent/path/state-report-test-does-not-exist";
 
 function sh(args, cwd) {
@@ -86,9 +97,12 @@ test("reproduces: rescue/unit-2b-dc8c475 is a live rescue tag", () => {
   assert.ok(res.tags.includes("rescue/unit-2b-dc8c475"), `tags: ${JSON.stringify(res.tags)}`);
 });
 
-test("reproduces: test/fixtures/harvested/ carries >500 untracked files (main checkout)", () => {
+test("reproduces: test/fixtures/harvested/ carries >500 untracked files (main checkout)", (t) => {
+  // A bare `return` here USED to stand in for could-not-verify, and node:test
+  // scores that as a PASS — the exact shape this repo collects: an absence of
+  // evidence wearing a verdict's clothes. `t.skip` says what happened.
   if (!existsSync(MAIN_CHECKOUT)) {
-    // Genuinely a different machine layout — could-not-verify, not a failure.
+    t.skip(`main checkout not present at ${MAIN_CHECKOUT} — could not verify`);
     return;
   }
   const res = collectFixturesAccumulation({ repoRoot: MAIN_CHECKOUT });

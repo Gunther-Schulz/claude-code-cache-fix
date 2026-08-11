@@ -636,7 +636,16 @@ function censusHeadline(firstLine) {
 // ones. Boundary matches `tools/backlog-order.mjs`'s `splitOpen` exactly
 // (head = first `## Open` line, tail = next `## ` line or EOF) — the two
 // tools must never silently disagree about where this section is.
-function censusOpenSection(text) {
+//
+// EXPORTED 2026-08-11, and the reason is the sentence directly above it. A
+// third consumer arrived (`tools/state-report.mjs`, records-restructure phase
+// 4) and found this un-exported, which leaves a builder exactly two options:
+// re-derive the boundary — the drift this comment forbids — or stop. The lane
+// stopped and returned the question, which is the right conduct and also the
+// evidence that a shared boundary definition kept private is a defect rather
+// than an encapsulation choice: privacy here does not prevent the second copy,
+// it only makes the second copy the path of least resistance.
+export function censusOpenSection(text) {
   const lines = text.split("\n");
   const head = lines.findIndex((l) => l.startsWith("## Open"));
   if (head < 0) return null;
