@@ -620,6 +620,40 @@ test("UNREACHABLE-OBJECT: red-first against the real frozen ref (2bf1f21) — re
   assert.ok(tokens.has("41ed30c"), "41ed30c must fire — confirmed unreachable by hand");
 });
 
+// The live half of the READY bar, added by the desk at the Phase 2 commit
+// (the lane that built the lane deliberately did NOT add it: the file it
+// grades was about to be restructured under it, and a bite asserting a count
+// over a file scheduled to change is an arrangement with an expiry date).
+//
+// This is what makes the booking bar a GATE rather than a report: `--ready-bar`
+// exits 0 by design, so nothing would have blocked a non-compliant READY
+// booking; the suite runs on every pre-push, and this bite is where a new
+// READY entry without its Anchor/Write-set/Verifier stops.
+//
+// Discriminating by construction rather than by hope: the same predicate is
+// proven to FIRE on the pre-restructure file two lines down — 268 findings at
+// 2bf1f21 against 0 here — so a green from this bite cannot be the green of a
+// dead check.
+test("READY-bar: the LIVE BACKLOG.md is clean — the booking bar, enforced", () => {
+  const live = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const findings = lint.lintReadyBar(live);
+  assert.deepEqual(
+    findings.map((f) => `${f.label} line=${f.line} ${f.token}`),
+    [],
+    "every READY entry must carry Anchor:, Write-set: and Verifier: — see BACKLOG.md's Grades header",
+  );
+});
+
+test("READY-bar: the same predicate FIRES on the pre-restructure file — this bite's own positive control", () => {
+  const historical = gitShow(FROZEN_READY_BAR_REF, "BACKLOG.md");
+  const findings = lint.lintReadyBar(historical);
+  assert.ok(
+    findings.length > 100,
+    `expected the pre-restructure file to be full of bar violations, got ${findings.length} — ` +
+      "if this ever goes to zero the predicate has died and the live bite above means nothing",
+  );
+});
+
 // --- Section 3c: red-first against the real pre-fix history ---------------
 
 test("the pre-fix BACKLOG.md carries the dead stash pointer this lane exists for", () => {
