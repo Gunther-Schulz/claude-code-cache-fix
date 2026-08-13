@@ -1745,13 +1745,13 @@ test("capture-alias lane: runs on every default invocation (no flag) and prints 
 // section except the closure home (`## Done`, matched by prefix since its
 // header carries a parenthetical restating the accretion rule). A bullet's
 // grade token is classified against this file's OWN closure vocabulary
-// (censusGrade's CENSUS_GRADE_SET, already shared with --census): CLOSURE
-// (DONE, RESOLVED, FIXED, BUILT — the same words RES_WORD/DONE_LINE already
-// treat as a completed-entry claim), NOT-CLOSURE (READY, OPEN, HOT,
-// OPEN/HOT, PARKED), AMBIGUOUS (every other recognized token — PARTLY,
-// CORRECTED, DOWNGRADED as of this file's current vocabulary), or
-// COULD-NOT-VERIFY (censusGrade's own UNCLASSIFIED — no recognized grade
-// word at the header at all). Only CLOSURE and AMBIGUOUS print as findings.
+// (censusGrade's CENSUS_GRADE_SET, already shared with --census) into
+// CLOSURE / NOT-CLOSURE / AMBIGUOUS / COULD-NOT-VERIFY — see
+// CLOSURE_GRADE_SET / NOT_CLOSURE_GRADE_SET / AMBIGUOUS_GRADE_SET in
+// tools/backlog-lint.mjs for the current, sampled-and-dated membership
+// (widened 2026-08-13 by the vocabulary-closing pass; Section 10 below pins
+// the two words whose sampled body reversed the word-shape call). Only
+// CLOSURE and AMBIGUOUS print as findings.
 //
 // The frozen ref below is this dispatch's own base commit — an immutable
 // snapshot, never the live working-copy BACKLOG.md, which a co-writer is
@@ -1778,10 +1778,9 @@ function closuresDoc() {
     "  Body text.",
     "- **PARKED — still open, must not fire.**",
     "  Body text.",
-    "- **PARTLY DONE — recognized but not resolvable either way.**",
+    "- **PARTLY DONE — a stated remainder, not resolvable as a closure.**",
     "  Body text.",
-    "- **ANSWERED 2026-08-10 — a real corpus closure word outside",
-    "  CENSUS_GRADE_SET; this lane's own named blind spot.**",
+    "- **ANSWERED 2026-08-10 — declared a closure word 2026-08-13.**",
     "  Body text.",
     "",
     "## Parked decisions", "",
@@ -1803,11 +1802,15 @@ test("closures-in-live: classifies the four buckets from the definition — CLOS
   assert.equal(byHeadline["BUILT 2026-08-10 — fourth closure spelling.**"], "CLOSURE");
   assert.equal(byHeadline["READY — still open, must not fire.**"], "NOT-CLOSURE");
   assert.equal(byHeadline["PARKED — still open, must not fire.**"], "NOT-CLOSURE");
-  assert.equal(byHeadline["PARTLY DONE — recognized but not resolvable either way.**"], "AMBIGUOUS");
   assert.equal(
-    byHeadline["ANSWERED 2026-08-10 — a real corpus closure word outside"],
-    "COULD-NOT-VERIFY",
-    "ANSWERED is not in CENSUS_GRADE_SET — this lane's named blind spot, never silently read as NOT-CLOSURE",
+    byHeadline["PARTLY DONE — a stated remainder, not resolvable as a closure.**"],
+    "NOT-CLOSURE",
+    "PARTLY was AMBIGUOUS before the 2026-08-13 vocabulary-closing pass — its own body always states a remainder",
+  );
+  assert.equal(
+    byHeadline["ANSWERED 2026-08-10 — declared a closure word 2026-08-13.**"],
+    "CLOSURE",
+    "ANSWERED was COULD-NOT-VERIFY (outside CENSUS_GRADE_SET) before the 2026-08-13 vocabulary-closing pass",
   );
 });
 
@@ -1835,7 +1838,10 @@ test("closures-in-live: a decorative `- **` bullet in a non-entry section (## Gr
 test("closures-in-live: closuresInLiveText prints WARN lines for CLOSURE and AMBIGUOUS only, a bucket summary with zeros stated, and the ## Open-scoped CLOSURE count", () => {
   const out = lint.closuresInLiveText(closuresDoc());
   const warnLines = out.split("\n").filter((l) => l.startsWith("WARN backlog-closure-in-live"));
-  // 4 CLOSURE (## Open) + 1 AMBIGUOUS (## Open) + 1 CLOSURE (## Parked decisions) = 6.
+  // 5 CLOSURE (## Open: DONE/RESOLVED/FIXED/BUILT/ANSWERED) + 0 AMBIGUOUS
+  // (## Open) + 1 CLOSURE (## Parked decisions) = 6. ANSWERED and PARTLY
+  // moved buckets in the 2026-08-13 vocabulary-closing pass (ANSWERED
+  // COULD-NOT-VERIFY -> CLOSURE, PARTLY AMBIGUOUS -> NOT-CLOSURE).
   assert.equal(warnLines.length, 6);
   assert.ok(!warnLines.some((l) => l.includes("bucket=NOT-CLOSURE")), "NOT-CLOSURE never prints as a WARN line");
   assert.ok(
@@ -1844,13 +1850,13 @@ test("closures-in-live: closuresInLiveText prints WARN lines for CLOSURE and AMB
   );
   const summary = out.split("\n").find((l) => l.startsWith("backlog-closures-in-live:"));
   assert.ok(summary, "a summary line must always print, even with findings present");
-  assert.match(summary, /CLOSURE=5/); // 4 under ## Open + 1 under ## Parked decisions
-  assert.match(summary, /AMBIGUOUS=1/);
-  assert.match(summary, /NOT-CLOSURE=3/); // ## Grades' decorative READY, plus READY + PARKED under ## Open
-  assert.match(summary, /COULD-NOT-VERIFY=1/); // ANSWERED, plus the ## Grades decorative bullet is NOT-CLOSURE not this bucket
+  assert.match(summary, /CLOSURE=6/); // 5 under ## Open (incl. ANSWERED) + 1 under ## Parked decisions
+  assert.match(summary, /AMBIGUOUS=0/);
+  assert.match(summary, /NOT-CLOSURE=4/); // ## Grades' decorative READY, plus READY + PARKED + PARTLY under ## Open
+  assert.match(summary, /COULD-NOT-VERIFY=0/);
   const openLine = out.split("\n").find((l) => l.startsWith("backlog-closures-in-live-open:"));
   assert.ok(openLine, "the ## Open-scoped CLOSURE count must print on its own line");
-  assert.match(openLine, /CLOSURE=4/);
+  assert.match(openLine, /CLOSURE=5/);
 });
 
 test("closures-in-live: zeros are stated explicitly, not omitted, when a bucket has no members", () => {
@@ -1893,21 +1899,25 @@ test("closures-in-live: RED-FIRST against the real frozen ref — DONE alone rep
   );
 });
 
-test("closures-in-live: the real frozen ref's CLOSURE bucket is 45, not 43 — a FINDING about the entry, not a predicate to tune down", () => {
+test("closures-in-live: the real frozen ref's CLOSURE bucket is 46, not 43 — a FINDING about the entry, not a predicate to tune down", () => {
   // The requesting entry's own design paragraph states the closure
   // vocabulary as "DONE (or RESOLVED/ANSWERED)", but its HEADLINE number
   // (43) came from an earlier manual tally that used a narrower four-way
-  // split (DONE/READY/PARKED/OPEN) and never counted RESOLVED-headed
-  // entries at all. Two RESOLVED entries sit under ## Open in this ref
-  // (lines 2278 and 2321) and both are closures by the entry's own stated
-  // vocabulary. This lane implements the DESIGN sentence, not the
-  // headline arithmetic — never widened to force 43 back into view.
+  // split (DONE/READY/PARKED/OPEN) and never counted RESOLVED- or
+  // ANSWERED-headed entries at all. Two RESOLVED entries sit under ## Open
+  // in this ref (lines 2278 and 2321) and both are closures by the entry's
+  // own stated vocabulary; ANSWERED joined CLOSURE_GRADE_SET on 2026-08-13
+  // (previously COULD-NOT-VERIFY — see the frozen-ref ANSWERED bite below),
+  // adding the one real ANSWERED-headed entry under ## Open. This lane
+  // implements the DESIGN sentence, not the headline arithmetic — never
+  // widened to force 43 back into view.
   const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
   const rows = lint.closuresInLiveEntries(text).filter((r) => r.section.startsWith("## Open"));
   const closures = rows.filter((r) => r.classification === "CLOSURE");
-  assert.equal(closures.length, 45);
+  assert.equal(closures.length, 46);
   assert.equal(closures.filter((r) => r.grade === "DONE").length, 43);
   assert.equal(closures.filter((r) => r.grade === "RESOLVED").length, 2);
+  assert.equal(closures.filter((r) => r.grade === "ANSWERED").length, 1);
 });
 
 test("closures-in-live: INSTRUMENT-POSITIVE PAIR against the real frozen ref — a genuine closure fires, a genuine still-open entry does not", () => {
@@ -1927,17 +1937,19 @@ test("closures-in-live: INSTRUMENT-POSITIVE PAIR against the real frozen ref —
   );
 });
 
-test("closures-in-live: a real class member this predicate CANNOT match — ANSWERED is outside CENSUS_GRADE_SET and reads as COULD-NOT-VERIFY, not CLOSURE", () => {
+test("closures-in-live: a real ANSWERED-headed entry classifies CLOSURE, since the 2026-08-13 vocabulary-closing pass — previously COULD-NOT-VERIFY", () => {
+  // Before 2026-08-13, ANSWERED sat outside CENSUS_GRADE_SET entirely, so a
+  // real closed-in-substance entry read as COULD-NOT-VERIFY rather than
+  // CLOSURE — this lane's own named blind spot at the time. The vocabulary-
+  // closing pass sampled ANSWERED's body and confirmed it as an unambiguous
+  // completion, so it now joins CLOSURE_GRADE_SET and this real entry
+  // reclassifies accordingly.
   const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
   const rows = lint.closuresInLiveEntries(text).filter((r) => r.section.startsWith("## Open"));
   const answered = rows.find((r) => r.headline.startsWith("ANSWERED 2026-08-10, not booked as open"));
   assert.ok(answered, "the real ANSWERED-headed entry at line 5439 of the frozen ref must still be scanned");
   assert.equal(answered.line, 5439);
-  assert.equal(
-    answered.classification,
-    "COULD-NOT-VERIFY",
-    "ANSWERED is not in CENSUS_GRADE_SET — a real closed-in-substance entry this lane cannot classify as CLOSURE",
-  );
+  assert.equal(answered.classification, "CLOSURE");
 });
 
 // RECORD is one of the three grades BACKLOG.md's `## Grades` declares, and it
@@ -2002,4 +2014,55 @@ test("closures-in-live: a header wrapped in a leading paren — `- **(DONE — �
     "CLOSURE",
     "a naive `^- \\*\\*WORD` regex misses this shape; censusGrade's own paren-stripping must not be lost",
   );
+});
+
+// --- Section 10: grade-vocabulary closing (2026-08-13) ----------------------
+//
+// BACKLOG.md's own RECORD entry ("the backlog declares THREE grades and uses
+// THIRTY-THREE") measured 33 distinct grade words on top-level bullets
+// against 3 declared, and named the prerequisite: closing the vocabulary is
+// a judgment pass over 33 WORDS, not over 300 entries. The dispatcher sampled
+// a real header per undeclared word and classified each; this section pins
+// the two words whose sampled BODY reversed the obvious word-shape call —
+// the two a future editor is most likely to "fix" back by reading only the
+// word — plus one newly-closed word, each against the real frozen ref rather
+// than a synthetic fixture (the same real-known-positive rule the RECORD/
+// paren-wrap bites above already follow).
+
+test('closures-in-live: a real COMMITTED-headed entry classifies NOT-CLOSURE, not CLOSURE — its own body reads "due", an obligation still outstanding despite the word', () => {
+  const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
+  const rows = lint.closuresInLiveEntries(text);
+  const row = rows.find((r) => r.headline.startsWith("COMMITTED on PR #272 and #273 threads"));
+  assert.ok(row, "the real COMMITTED-headed entry at line 10339 of the frozen ref must still be scanned");
+  assert.equal(row.line, 10339);
+  assert.equal(row.grade, "COMMITTED");
+  assert.equal(
+    row.classification,
+    "NOT-CLOSURE",
+    "COMMITTED reads as a closure word by shape, but this entry's own body says the deliverable is still DUE — sampled and reclassified 2026-08-13",
+  );
+});
+
+test('closures-in-live: a real PARTLY-headed entry classifies NOT-CLOSURE, not AMBIGUOUS — "PARTLY DONE" states a remainder in its own header', () => {
+  const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
+  const rows = lint.closuresInLiveEntries(text);
+  const row = rows.find((r) => r.headline.startsWith("PARTLY DONE — `docs/runbooks/session-close.md` SHIPPED"));
+  assert.ok(row, "the real PARTLY-headed entry at line 3478 of the frozen ref must still be scanned");
+  assert.equal(row.line, 3478);
+  assert.equal(row.grade, "PARTLY");
+  assert.equal(
+    row.classification,
+    "NOT-CLOSURE",
+    "PARTLY DONE headers state a stated remainder in their own body — open, not closed, and never ambiguous",
+  );
+});
+
+test("closures-in-live: a real SHIPPED-headed entry classifies CLOSURE — one of the vocabulary's newly declared closure words", () => {
+  const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
+  const rows = lint.closuresInLiveEntries(text);
+  const row = rows.find((r) => r.headline.startsWith("SHIPPED fork-side 2026-08-05"));
+  assert.ok(row, "the real SHIPPED-headed entry at line 8820 of the frozen ref must still be scanned");
+  assert.equal(row.line, 8820);
+  assert.equal(row.grade, "SHIPPED");
+  assert.equal(row.classification, "CLOSURE");
 });

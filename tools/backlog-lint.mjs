@@ -604,13 +604,27 @@ function formatPointerFinding(f) {
 // A declared grade missing from the instrument that reads grades is the
 // "a finding never lands alone — it RE-GRADES its dependents" case: minting
 // the grade and not widening its reader left a number that looked like a
-// measurement and was an artifact. Undeclared closure-shaped words seen in
-// the corpus (ANSWERED, CLOSED, SHIPPED, RETIRED, COMMITTED, MERGED,
-// ACCEPTED, DROPPED) are deliberately NOT added here — those are a
-// vocabulary decision, not a declaration this list is behind on.
+// measurement and was an artifact.
+//
+// The remaining 24 words below were added 2026-08-13, closing the vocabulary
+// against BACKLOG.md's own RECORD entry ("the backlog declares THREE grades
+// and uses THIRTY-THREE"): a full census of top-level `- **WORD` bullets in
+// live sections found 33 distinct grade words against 3 declared, and the
+// entry names the prerequisite as a judgment pass over the 33 WORDS, not
+// over the 300+ entries carrying them — done once here rather than left as
+// the standing gap that made `--closures-in-live`'s COULD-NOT-VERIFY bucket
+// unreadable as a population count. Each word was sampled against a real
+// header before being placed; two sampled bodies reversed the obvious
+// word-shape call (COMMITTED and the HALF/PARTLY/TOOL/MECHANISM family — see
+// NOT_CLOSURE_GRADE_SET below), which is why this was a body-read pass and
+// not a word list typed from memory.
 const CENSUS_GRADES = [
   "READY", "RECORD", "OPEN", "HOT", "OPEN/HOT", "PARKED", "DONE", "RESOLVED",
   "FIXED", "BUILT", "PARTLY", "CORRECTED", "DOWNGRADED",
+  "CLOSED", "DROPPED", "SHIPPED", "ANSWERED", "RETIRED", "HANDOFF", "BUST",
+  "FINDING", "NEW", "CANDIDATE", "INCIDENT", "DATAPOINT", "CORROBORATION",
+  "QUEUED", "UNDISPOSITIONED", "COMMITTED", "DECISION", "DECISIONS",
+  "REFRAMED", "HALF", "TOOL", "MECHANISM", "IN", "ECONNRESET",
 ];
 const CENSUS_GRADE_SET = new Set(CENSUS_GRADES);
 const CENSUS_GRADE_TOKEN = /^([A-Z]+(?:\/[A-Z]+)?)/;
@@ -799,23 +813,31 @@ export function censusText(text, { sinceRef, oldText } = {}) {
 // Grade classification reuses this file's OWN closure vocabulary rather
 // than a list invented for this lane. `censusGrade` (above, already shared
 // with `--census`) extracts each top-level bullet's header grade token
-// against `CENSUS_GRADE_SET`; this lane buckets that token four ways:
-//   CLOSURE          — DONE, RESOLVED, FIXED, BUILT: the exact word set
-//                       this file's own header-lint (RES_WORD, DONE_LINE,
-//                       far above) already treats as a completed-entry
-//                       claim, applied here to the entry's HEADER instead
-//                       of a claim inside its body.
+// against `CENSUS_GRADE_SET`; this lane buckets that token four ways (word
+// sets below are CLOSURE_GRADE_SET / NOT_CLOSURE_GRADE_SET / AMBIGUOUS_
+// GRADE_SET, defined a few lines down — read those for the current,
+// sampled-and-dated membership rather than this summary, which restates
+// them for orientation only):
+//   CLOSURE          — DONE, RESOLVED, FIXED, BUILT — this file's own
+//                       header-lint (RES_WORD, DONE_LINE, far above)
+//                       already treats these as a completed-entry claim,
+//                       applied here to the entry's HEADER instead of a
+//                       claim inside its body — plus, since the 2026-08-13
+//                       vocabulary-closing pass, every other word a real
+//                       sampled body confirmed as an unambiguous completion
+//                       (CLOSED, DROPPED, SHIPPED, ANSWERED, RETIRED).
 //   NOT-CLOSURE       — READY, OPEN, HOT, OPEN/HOT (HEADER_GRADE's own
-//                       still-open vocabulary), plus PARKED (the accretion
+//                       still-open vocabulary), PARKED (the accretion
 //                       module: a parked entry carries its own named
-//                       missing evidence — it is not closed).
-//   AMBIGUOUS         — every other CENSUS_GRADE_SET token (PARTLY,
-//                       CORRECTED, DOWNGRADED as of this file's current
-//                       vocabulary) — derived as "whatever CENSUS_GRADES
-//                       is not CLOSURE or NOT-CLOSURE", so a grade word
-//                       added to CENSUS_GRADES later lands here by
-//                       construction instead of silently vanishing from
-//                       every bucket. Listed, never re-graded by reading.
+//                       missing evidence — it is not closed), and every
+//                       other sampled word whose body shows live work or a
+//                       stated remainder rather than a completion.
+//   AMBIGUOUS         — every other CENSUS_GRADE_SET token — derived as
+//                       "whatever CENSUS_GRADES is not CLOSURE or
+//                       NOT-CLOSURE", so a grade word added to CENSUS_GRADES
+//                       later lands here by construction instead of
+//                       silently vanishing from every bucket. Listed, never
+//                       re-graded by reading.
 //   COULD-NOT-VERIFY  — censusGrade returns UNCLASSIFIED: no recognized
 //                       grade token at the header at all (this also
 //                       catches this lane's own blind spot — a real closed
@@ -831,7 +853,17 @@ export function censusText(text, { sinceRef, oldText } = {}) {
 
 const CLOSURE_HOME_PREFIX = "## Done";
 const OPEN_SECTION_PREFIX = "## Open";
-const CLOSURE_GRADE_SET = new Set(["DONE", "RESOLVED", "FIXED", "BUILT"]);
+// Widened 2026-08-13 alongside CENSUS_GRADES, from the same sampling pass —
+// five words joined CLOSURE (CLOSED, DROPPED, BUILT stays, SHIPPED,
+// ANSWERED, RETIRED) whose sampled bodies read as unambiguous completions.
+// DROPPED is a closure because a recorded deliberate drop is an exit of
+// equal standing — the accretion module states this explicitly ("Items
+// leave by commit ref or by a deliberate one-line drop — an exit of equal
+// standing, not a failure").
+const CLOSURE_GRADE_SET = new Set([
+  "DONE", "RESOLVED", "CLOSED", "DROPPED", "BUILT", "FIXED", "SHIPPED",
+  "ANSWERED", "RETIRED",
+]);
 // RECORD added 2026-08-13, in the same change that added it to CENSUS_GRADES
 // above — and it is the DEPENDENT that change moved rather than a second
 // instance of it. Widening CENSUS_GRADES alone reclassified all 92 live
@@ -843,9 +875,33 @@ const CLOSURE_GRADE_SET = new Set(["DONE", "RESOLVED", "FIXED", "BUILT"]);
 // reader is asked to judge. Found by re-running the lane after the first
 // edit, not by grepping for dependents — a dependent that reaches the change
 // through a derived set carries no mark to search for.
-const NOT_CLOSURE_GRADE_SET = new Set(["READY", "RECORD", "OPEN", "HOT", "OPEN/HOT", "PARKED"]);
+//
+// Widened again 2026-08-13, same sampling pass as CLOSURE above. Two of
+// these reverse what the word alone suggests, which is the whole reason a
+// body-read was required instead of a vocabulary guess:
+// - COMMITTED reads "COMMITTED on PR #272 and #273 threads: week-of-soak
+//   summary, **due**" — an obligation still outstanding, not a closure.
+// - HALF, TOOL, MECHANISM (plus PARTLY, already declared) are each headers
+//   of the shape "X HALF DONE …" with a stated remainder in the same
+//   sentence — open, not closed, and never AMBIGUOUS either, since the body
+//   states which half is done and which is not rather than leaving it
+//   undecidable.
+// The rest (HANDOFF, BUST, FINDING, NEW, CANDIDATE, INCIDENT, DATAPOINT,
+// CORROBORATION, QUEUED, UNDISPOSITIONED, IN, ECONNRESET) are unresolved-
+// work markers by their own vocabulary — none reads as a completion claim.
+const NOT_CLOSURE_GRADE_SET = new Set([
+  "READY", "RECORD", "PARKED", "OPEN", "HOT", "OPEN/HOT", "PARTLY", "HALF",
+  "TOOL", "MECHANISM", "IN", "QUEUED", "UNDISPOSITIONED", "NEW", "FINDING",
+  "BUST", "INCIDENT", "CANDIDATE", "HANDOFF", "DATAPOINT", "CORROBORATION",
+  "ECONNRESET", "COMMITTED",
+]);
 // Derived, not restated: everything CENSUS_GRADES carries that is neither
-// CLOSURE nor NOT-CLOSURE.
+// CLOSURE nor NOT-CLOSURE. As of the 2026-08-13 widening above, that is
+// CORRECTED, DOWNGRADED, DECISION, DECISIONS, REFRAMED — five words the
+// dispatcher's sampling pass found genuinely undecidable from their bodies,
+// left here on purpose for a human to judge rather than hardcoded, so a word
+// added to CENSUS_GRADES later without a CLOSURE/NOT-CLOSURE call lands here
+// by construction instead of silently vanishing from every bucket.
 const AMBIGUOUS_GRADE_SET = new Set(
   CENSUS_GRADES.filter((g) => !CLOSURE_GRADE_SET.has(g) && !NOT_CLOSURE_GRADE_SET.has(g)),
 );
