@@ -1817,6 +1817,58 @@ logged `action=reset, movedFresh=0`, so it was skipped for having claimed
 nothing. Correct behaviour, different mechanism — caught before it shipped as
 a "coverage hole in the absorption check", which it is not.
 
+### Row 4 datapoint — 2026-08-13 14:14:23Z + 14:22:17Z (16:14 + 16:22 local): two instances in ONE session, 490k total, both attributed CC's — and the two are DIFFERENT sub-shapes of the row
+
+Capture `s-captureBN`. Both `messages_changed`, both `census=replace/edit`,
+both `VERDICT: KNOWN-OPEN → row 4`, both `ATTRIBUTION: CC's` — computed by
+`bust-triage` importing `replay.mjs`'s primitive, and in both cases the
+replayed census recorded no stability violation for the pair, so our
+forwarded output never diverged earlier than CC's own bytes did.
+
+| | 14:14:23Z | 14:22:17Z |
+|---|---|---|
+| re-billed | 225k (`191035` in transcript) | 265k (`224970`) |
+| pair | `n=115->118` | `n=188->188` |
+| CC diverged at | index 110 | index 135 |
+| edit-anchor | `edit@110 of 117 [anchor+0]` | `edit@136 of 187 [anchor-48]` |
+| container migration | **none** | **row-4 migration at host 135 (EXTENDED/MERGED-STANDALONE)**, plus `inline->standalone 142->143` and `176->178` |
+| flap | none | `FLAP reverses n=166->167, 2 req` — twice |
+
+**Why recording both matters rather than one line saying "two more row-4
+hits".** They separate on the row's own discriminator. The first sits
+exactly ON the human anchor (`anchor+0`) with no container migration; the
+second is 48 messages off-anchor WITH one, and `bust-triage` says so in as
+many words — `>30 from the human anchor: NOT the known reminder-anchoring
+class`. So one is the anchored shape the row's existing evidence is built
+from, and the other is the off-anchor shape the row keeps re-encountering.
+The anchor distances are also exactly the measurement the PARKED "row 4 rate
+re-measure" entry names in its unpark trigger (mid-history `replace/edit`
+counts WITH anchor distances); two instances are not the corpus sweep that
+trigger asks for, so it stays parked — recorded here so the next sweep does
+not start from zero.
+
+**The freeze FAILED and is recorded as failed, not as done.** Both
+`harvest --pin` runs (ranges `169..170` and `127..128`) self-reported
+`pinned, but does NOT reproduce: stability exemptions live=1 pin=0`. Read
+the reach of that sentence before trusting it in either direction: the
+exemption it names is `n=25->27 fresh-session-sort:first-appearance-
+relocation (mcp)`, which is an unrelated pair far from either event — so the
+self-check is TRUE and its stated reason is NARROWER than "your event is
+missing", the same shape recorded at 2026-08-08 where a pin's honest
+`does NOT reproduce` was correct for a reason narrower than the truth.
+What is established: the fixtures are raw structure and are kept. What is
+NOT established: that either row-4 event survives in them. Row 4's class is
+container migration, which is TEXT-predicated, and the scrub destroys
+text-predicate classes by construction — so the durable evidence for this
+class is a SYNTHETIC fixture, not these pins. Nobody should read
+`pinned-…-169-170.json` as evidence for this datapoint.
+
+**Not a new investigation, per the runbook** — a bust mapping to an existing
+OPEN row is another instance of that row. No mitigation is designed off
+these two: the attribution is CC's, row 4 is already OPEN with its own
+booked entries, and what these add is instance evidence and the anchor
+distances above.
+
 ### Row 1 / Row 26 datapoint — 2026-08-08 09:59:53Z (11:59 local): a 141k bust where the mitigation was ARMED and had no baseline, and the triage called it MITIGATED
 
 Capture `s-captureAT`, this repo's own dev session. Census
