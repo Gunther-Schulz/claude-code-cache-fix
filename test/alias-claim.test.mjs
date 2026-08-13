@@ -17,7 +17,7 @@
 import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { readFile, writeFile, rm, stat, mkdir, readdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,6 +34,7 @@ import * as aliasClaim from "../tools/alias-claim.mjs";
 
 const run = promisify(execFile);
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "alias-claim.mjs");
+const REPO_ROOT = dirname(dirname(TOOL));
 
 const withRegistry = async (fn) => {
   const dir = await tmpDir("alias-claim-");
@@ -588,4 +589,136 @@ test("BITE — --releasable CLI: an actually-protected alias reports RELEASABLE 
     assert.match(stdout, new RegExp(`RELEASABLE \\(1\\): ${alias}`));
     assert.match(stdout, /HELD \(0\)/);
   });
+});
+
+// A REAL-DATA discriminating pair, pinned to a FROZEN ref rather than the
+// live working tree — the live file moves under a running suite (the
+// dispatcher's own desk check landed a 50-line section above s-captureBM's
+// citation during this lane's earlier live run, which is the live
+// demonstration that a ref must be frozen, same idiom as
+// test/backlog-lint.test.mjs's CLOSURES_FROZEN_REF). At 375bf82,
+// BACKLOG.md carries 49 distinct s-capture* aliases, 28 of which form
+// prefix pairs — verified independently before writing this assertion
+// (`grep -o 's-capture[A-Z]\+' | sort -u | wc -l`, and by hand for the
+// prefix relation): `s-captureA` alone is a literal PREFIX of 20 co-present
+// aliases (AB, AC, AD, AE, AG, AH, AL, AM, AN, AO, AP, AQ, AS, AT, AU, AV,
+// AW, AX, AY, AZ), `s-captureB` of 8 more (BA, BB, BC, BD, BE, BF, BG, BM).
+// An unanchored substring scan for `s-captureA` therefore over-counts by
+// 12.6x (101 vs 8) — not a contrived fixture number, the real file's own
+// shape. The failure direction this pins: an unanchored match makes nearly
+// every alias read as cited-in-a-live-section forever, so `--releasable`
+// would never report RELEASABLE, protections would never be released, the
+// protected-set cap would fill, and its own oldest-first eviction would
+// then drop protections SILENTLY — the exact loss this mechanism exists to
+// prevent.
+test("BITE — real-data pair at a frozen ref: anchored (8) vs unanchored (101) citations of s-captureA MUST differ", async () => {
+  const { stdout: text } = await run("git", ["show", "375bf82:BACKLOG.md"], {
+    cwd: REPO_ROOT,
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  const unanchoredHits = (text.match(/s-captureA/g) ?? []).length;
+  const anchoredHits = (text.match(/(?<![A-Za-z])s-captureA(?![A-Za-z])/g) ?? []).length;
+  assert.equal(unanchoredHits, 101, "the unanchored count at this frozen ref");
+  assert.equal(anchoredHits, 8, "the anchored count at this frozen ref");
+  assert.notEqual(anchoredHits, unanchoredHits, "a discriminating instrument must disagree somewhere");
+
+  // And releasableReport itself, fed the real text, uses the anchored
+  // count — a synthetic "protected" s-captureA lands in HELD (its real
+  // citations span the Open/Record/Upstream-PR-round/Parked sections plus
+  // one under Done, so not every citation is under Done), never RELEASABLE
+  // via the unanchored 101 and never UNCITED via missing the real 8.
+  const doc = {
+    aliases: { "s-captureA": { file: "irrelevant-requests.jsonl", protectedAt: "2026-08-13T00:00:00.000Z" } },
+  };
+  const report = aliasClaim.releasableReport(text, doc);
+  assert.deepEqual(report.HELD, ["s-captureA"]);
+  assert.deepEqual(report.RELEASABLE, []);
+  assert.deepEqual(report.UNCITED, []);
+});
+
+// --- The anchoring, red-proven on REAL data rather than a fixture ----------
+//
+// The lane that built `--releasable` justified its anchored matcher from a
+// fixture it wrote. The corpus supplies a far stronger positive, and the rule
+// is to use it where reality offers one rather than a planted case.
+//
+// Measured at the frozen ref below: 49 distinct aliases are cited in
+// BACKLOG.md and 28 of them form PREFIX PAIRS, because the allocator runs
+// s-captureA..Z then s-captureAA, s-captureAB, … So `s-captureA` is a literal
+// prefix of ten-plus live alias names, and an unanchored substring test counts
+// every one of their citations as its own: 101 hits against 8 real ones.
+//
+// Why that is load-bearing and not tidiness — the failure direction: under an
+// unanchored match nearly every protected alias reads as cited-in-a-live-
+// section, so everything reports HELD forever, protections are never
+// released, the 4 GiB protected-set cap fills, and the cap's own
+// oldest-protection-first eviction then DROPS protections silently. An
+// unanchored substring test would have quietly disarmed the mechanism this
+// whole loop exists to build.
+//
+// The assertion is on the HIT COUNT, not on the bucket, and that is deliberate.
+// Measured at this same ref: NO alias in the corpus changes bucket under
+// anchoring, because every alias carrying a prefix-extension also has at least
+// one genuine citation in a live section. A bucket-level assertion would
+// therefore pass under both matchers — could-not-verify wearing verified's
+// clothes. The count is what discriminates.
+//
+// Anchored to a FROZEN REF, never the live file: BACKLOG.md moved by exactly
+// 50 lines under the building lane's own feet during its run, which is the
+// demonstration rather than the hypothetical.
+const ANCHORING_FROZEN_REF = "375bf82";
+
+function backlogAt(ref) {
+  return execFileSync("git", ["show", `${ref}:BACKLOG.md`], {
+    cwd: join(dirname(fileURLToPath(import.meta.url)), ".."),
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024, // BACKLOG.md is ~1.1 MB; the 1 MB default ENOBUFSes
+  });
+}
+
+// LINES, not MATCHES — and the distinction cost a red run here, in the bite
+// written to demonstrate exactly this class. `citationLineIndices` returns one
+// index per matching LINE; the desk measurement that motivated this bite
+// counted regex MATCHES across the text. At this ref the two differ on both
+// sides: 7 lines / 8 matches anchored, 90 lines / 101 matches unanchored. Both
+// figures are true and they answer different questions, which is the whole
+// point of the rule they violate — name the space each number is in, at the
+// point where they meet. The function's own space is lines, so that is what
+// this asserts.
+test("BITE — anchored citation matching on the REAL corpus: s-captureA is 7 LINES, not the 90 a substring test sees", () => {
+  const lines = backlogAt(ANCHORING_FROZEN_REF).split("\n");
+  const anchored = aliasClaim.citationLineIndices("s-captureA", lines);
+  const unanchored = lines.filter((l) => l.includes("s-captureA")).length;
+
+  assert.equal(anchored.length, 7, "s-captureA is cited on 7 lines at this frozen ref");
+  assert.equal(unanchored, 90, "an unanchored substring test sees 90 lines — the prefix-extensions' citations");
+  assert.notEqual(
+    anchored.length,
+    unanchored,
+    "the two MUST differ, or the anchoring is not doing anything and this bite proves nothing",
+  );
+});
+
+// THREE quantities live here and they are easy to collapse into one number —
+// which is exactly what happened while this bite was being written: "28 prefix
+// pairs" was asserted as if it counted AFFECTED ALIASES, and it counts
+// (prefix, extension) TUPLES. Two different spaces under one figure, the
+// error dev-loop.md names as "say which space each number is in, at the point
+// where they meet". Each is asserted separately below, named.
+test("BITE — the prefix hazard, with each quantity named: 49 cited, 28 pair-tuples, 2 aliases actually at risk", () => {
+  const text = backlogAt(ANCHORING_FROZEN_REF);
+  const cited = [...new Set(text.match(/s-capture[A-Z]+/g) ?? [])];
+  const tuples = cited.flatMap((a) => cited.filter((b) => b !== a && b.startsWith(a)).map((b) => [a, b]));
+  const atRisk = [...new Set(tuples.map(([a]) => a))].sort();
+
+  assert.equal(cited.length, 49, "distinct aliases cited at this ref");
+  assert.equal(tuples.length, 28, "(prefix, extension) PAIRS — not the number of affected aliases");
+  assert.deepEqual(atRisk, ["s-captureA", "s-captureB"], "only two aliases are a prefix of another; each is a prefix of many");
+
+  // s-captureB is a prefix of s-captureBM — the alias that is protected RIGHT
+  // NOW. So the hazard is not hypothetical-in-principle: the moment
+  // s-captureB is protected, an unanchored matcher counts s-captureBM's
+  // citation as evidence for s-captureB and holds it forever.
+  assert.ok(cited.includes("s-captureBM"), "the currently-protected alias is cited at this ref");
+  assert.ok("s-captureBM".startsWith("s-captureB"), "and it extends one of the two at-risk aliases");
 });

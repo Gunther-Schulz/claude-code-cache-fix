@@ -496,7 +496,15 @@ function isCurrentlyProtected(entry) {
 // a prefix match in an equality's costume; anchor the terminator"). Aliases
 // are always `s-capture[A-Z]+`, so no regex-escaping is needed for the
 // literal itself.
-function citationLineIndices(alias, lines) {
+// Exported for its test rather than restated there: the anchoring is the
+// load-bearing part and the discriminating quantity is the HIT COUNT, which
+// no public bucket assertion can reach — measured 2026-08-13 at ref 375bf82,
+// no alias in the corpus changes BUCKET under anchoring, because every alias
+// with a prefix-extension also has at least one genuine citation in a live
+// section. So a bucket-level bite would pass under both the anchored and the
+// unanchored matcher, which is the "could-not-verify passing as verified"
+// shape; the count separates them 8 vs 101.
+export function citationLineIndices(alias, lines) {
   const re = new RegExp(`(?<![A-Za-z])${alias}(?![A-Za-z])`);
   const hits = [];
   for (let i = 0; i < lines.length; i++) if (re.test(lines[i])) hits.push(i);
