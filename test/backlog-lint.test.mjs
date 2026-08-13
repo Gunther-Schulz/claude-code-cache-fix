@@ -112,7 +112,14 @@ function runTool(args, input) {
 }
 
 function gitShow(ref, path) {
-  return execFileSync("git", ["show", `${ref}:${path}`], { cwd: REPO, encoding: "utf8" });
+  // maxBuffer raised past Node's 1 MB default: BACKLOG.md alone is past
+  // 1.05 MB as of the closures-in-live frozen ref below, and every prior
+  // caller here happened to read a smaller historical slice.
+  return execFileSync("git", ["show", `${ref}:${path}`], {
+    cwd: REPO,
+    encoding: "utf8",
+    maxBuffer: 16 * 1024 * 1024,
+  });
 }
 
 // --- Section 1: the rule, against synthetic content -----------------------
@@ -1729,4 +1736,206 @@ test("capture-alias lane: runs on every default invocation (no flag) and prints 
   const line = out.split("\n").find((l) => l.startsWith("backlog-capture-alias:"));
   assert.ok(line, "the capture-alias lane must print a summary line on every default invocation");
   assert.match(line, /scanned=0/);
+});
+
+// --- Section 9: closures-in-live census (--closures-in-live) ----------------
+//
+// Definitions this section is written FROM: the requesting entry ("`## Open`
+// holds 43 DONE entries", BACKLOG.md) — LIVE means every top-level `## `
+// section except the closure home (`## Done`, matched by prefix since its
+// header carries a parenthetical restating the accretion rule). A bullet's
+// grade token is classified against this file's OWN closure vocabulary
+// (censusGrade's CENSUS_GRADE_SET, already shared with --census): CLOSURE
+// (DONE, RESOLVED, FIXED, BUILT — the same words RES_WORD/DONE_LINE already
+// treat as a completed-entry claim), NOT-CLOSURE (READY, OPEN, HOT,
+// OPEN/HOT, PARKED), AMBIGUOUS (every other recognized token — PARTLY,
+// CORRECTED, DOWNGRADED as of this file's current vocabulary), or
+// COULD-NOT-VERIFY (censusGrade's own UNCLASSIFIED — no recognized grade
+// word at the header at all). Only CLOSURE and AMBIGUOUS print as findings.
+//
+// The frozen ref below is this dispatch's own base commit — an immutable
+// snapshot, never the live working-copy BACKLOG.md, which a co-writer is
+// editing concurrently in this same clone (dev-loop.md's rule: a red-first
+// arrangement anchored to live mutable state decays before it is built).
+
+const CLOSURES_FROZEN_REF = "7f745af";
+
+function closuresDoc() {
+  return [
+    "## Grades", "",
+    "- **READY** — decorative definition bullet, not a real entry.",
+    "",
+    "## Open", "",
+    "- **DONE 2026-08-10 (`abc1234`) — closure sitting in a live section.**",
+    "  Body text.",
+    "- **RESOLVED 2026-08-10 — also a closure by this file's own vocabulary.**",
+    "  Body text.",
+    "- **FIXED 2026-08-10 — third closure spelling.**",
+    "  Body text.",
+    "- **BUILT 2026-08-10 — fourth closure spelling.**",
+    "  Body text.",
+    "- **READY — still open, must not fire.**",
+    "  Body text.",
+    "- **PARKED — still open, must not fire.**",
+    "  Body text.",
+    "- **PARTLY DONE — recognized but not resolvable either way.**",
+    "  Body text.",
+    "- **ANSWERED 2026-08-10 — a real corpus closure word outside",
+    "  CENSUS_GRADE_SET; this lane's own named blind spot.**",
+    "  Body text.",
+    "",
+    "## Parked decisions", "",
+    "- **RESOLVED 2026-08-01 — a closure sitting in a DIFFERENT live section.**",
+    "  Body text.",
+    "",
+    "## Done — closures, one home", "",
+    "- **DONE 2026-08-09 — already home, must be invisible to this lane.**",
+    "  Body text.",
+  ].join("\n");
+}
+
+test("closures-in-live: classifies the four buckets from the definition — CLOSURE, NOT-CLOSURE, AMBIGUOUS, COULD-NOT-VERIFY", () => {
+  const rows = lint.closuresInLiveEntries(closuresDoc());
+  const byHeadline = Object.fromEntries(rows.map((r) => [r.headline, r.classification]));
+  assert.equal(byHeadline["DONE 2026-08-10 (`abc1234`) — closure sitting in a live section.**"], "CLOSURE");
+  assert.equal(byHeadline["RESOLVED 2026-08-10 — also a closure by this file's own vocabulary.**"], "CLOSURE");
+  assert.equal(byHeadline["FIXED 2026-08-10 — third closure spelling.**"], "CLOSURE");
+  assert.equal(byHeadline["BUILT 2026-08-10 — fourth closure spelling.**"], "CLOSURE");
+  assert.equal(byHeadline["READY — still open, must not fire.**"], "NOT-CLOSURE");
+  assert.equal(byHeadline["PARKED — still open, must not fire.**"], "NOT-CLOSURE");
+  assert.equal(byHeadline["PARTLY DONE — recognized but not resolvable either way.**"], "AMBIGUOUS");
+  assert.equal(
+    byHeadline["ANSWERED 2026-08-10 — a real corpus closure word outside"],
+    "COULD-NOT-VERIFY",
+    "ANSWERED is not in CENSUS_GRADE_SET — this lane's named blind spot, never silently read as NOT-CLOSURE",
+  );
+});
+
+test("closures-in-live: the closure home (## Done) is excluded entirely — not CLOSURE, not any other bucket", () => {
+  const rows = lint.closuresInLiveEntries(closuresDoc());
+  const inClosureHome = rows.find((r) => r.headline.startsWith("DONE 2026-08-09"));
+  assert.equal(inClosureHome, undefined, "an entry already in ## Done must not appear in the population at all");
+});
+
+test("closures-in-live: LIVE is derived from every top-level `## ` section, not hardcoded to `## Open` — a closure under `## Parked decisions` is caught too", () => {
+  const rows = lint.closuresInLiveEntries(closuresDoc());
+  const row = rows.find((r) => r.headline.startsWith("RESOLVED 2026-08-01"));
+  assert.ok(row, "a closure sitting under a live section other than ## Open must be found");
+  assert.equal(row.classification, "CLOSURE");
+  assert.equal(row.section, "## Parked decisions");
+});
+
+test("closures-in-live: a decorative `- **` bullet in a non-entry section (## Grades) is graded, not skipped, and does not false-fire", () => {
+  const rows = lint.closuresInLiveEntries(closuresDoc());
+  const decorative = rows.find((r) => r.section === "## Grades");
+  assert.ok(decorative, "the decorative bullet under ## Grades is still a top-level `- **` and is scanned");
+  assert.equal(decorative.classification, "NOT-CLOSURE", "its token is READY, which is not a closure");
+});
+
+test("closures-in-live: closuresInLiveText prints WARN lines for CLOSURE and AMBIGUOUS only, a bucket summary with zeros stated, and the ## Open-scoped CLOSURE count", () => {
+  const out = lint.closuresInLiveText(closuresDoc());
+  const warnLines = out.split("\n").filter((l) => l.startsWith("WARN backlog-closure-in-live"));
+  // 4 CLOSURE (## Open) + 1 AMBIGUOUS (## Open) + 1 CLOSURE (## Parked decisions) = 6.
+  assert.equal(warnLines.length, 6);
+  assert.ok(!warnLines.some((l) => l.includes("bucket=NOT-CLOSURE")), "NOT-CLOSURE never prints as a WARN line");
+  assert.ok(
+    !warnLines.some((l) => l.includes("bucket=COULD-NOT-VERIFY")),
+    "COULD-NOT-VERIFY never prints as a WARN line — it is population, stated only in the summary",
+  );
+  const summary = out.split("\n").find((l) => l.startsWith("backlog-closures-in-live:"));
+  assert.ok(summary, "a summary line must always print, even with findings present");
+  assert.match(summary, /CLOSURE=5/); // 4 under ## Open + 1 under ## Parked decisions
+  assert.match(summary, /AMBIGUOUS=1/);
+  assert.match(summary, /NOT-CLOSURE=3/); // ## Grades' decorative READY, plus READY + PARKED under ## Open
+  assert.match(summary, /COULD-NOT-VERIFY=1/); // ANSWERED, plus the ## Grades decorative bullet is NOT-CLOSURE not this bucket
+  const openLine = out.split("\n").find((l) => l.startsWith("backlog-closures-in-live-open:"));
+  assert.ok(openLine, "the ## Open-scoped CLOSURE count must print on its own line");
+  assert.match(openLine, /CLOSURE=4/);
+});
+
+test("closures-in-live: zeros are stated explicitly, not omitted, when a bucket has no members", () => {
+  const doc = ["## Open", "", "- **READY — nothing here is a closure.**", "  Body text."].join("\n");
+  const out = lint.closuresInLiveText(doc);
+  const summary = out.split("\n").find((l) => l.startsWith("backlog-closures-in-live:"));
+  assert.match(summary, /CLOSURE=0/);
+  assert.match(summary, /AMBIGUOUS=0/);
+  assert.match(summary, /COULD-NOT-VERIFY=0/);
+  const openLine = out.split("\n").find((l) => l.startsWith("backlog-closures-in-live-open:"));
+  assert.match(openLine, /CLOSURE=0/);
+});
+
+test("closures-in-live: CLI --closures-in-live suppresses the normal header-lint output and the other report lanes", () => {
+  const { out, code } = runTool(["--closures-in-live"], closuresDoc());
+  assert.equal(code, 0);
+  assert.ok(!out.includes("backlog-lint:"), "the header-lint summary line must not print under --closures-in-live");
+  assert.ok(!out.includes("backlog-citations:"), "the citation lane must not print under --closures-in-live");
+  assert.ok(out.includes("backlog-closures-in-live:"));
+  assert.ok(out.includes("backlog-closures-in-live-open:"));
+});
+
+test("closures-in-live: CLI reads a path argument, not only stdin", () => {
+  const dir = tmpDirSync("backlog-lint-closures-");
+  const p = join(dir, "backlog.md");
+  writeFileSync(p, closuresDoc());
+  const { out, code } = runTool(["--closures-in-live", p]);
+  assert.equal(code, 0);
+  assert.match(out, /CLOSURE=5/);
+});
+
+test("closures-in-live: RED-FIRST against the real frozen ref — DONE alone reproduces the requesting entry's own headline number (43) under ## Open", () => {
+  const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
+  const rows = lint.closuresInLiveEntries(text).filter((r) => r.section.startsWith("## Open"));
+  const doneCount = rows.filter((r) => r.grade === "DONE").length;
+  assert.equal(
+    doneCount,
+    43,
+    "the requesting entry's own measurement ('43 DONE entries') pins the DONE-only count exactly",
+  );
+});
+
+test("closures-in-live: the real frozen ref's CLOSURE bucket is 45, not 43 — a FINDING about the entry, not a predicate to tune down", () => {
+  // The requesting entry's own design paragraph states the closure
+  // vocabulary as "DONE (or RESOLVED/ANSWERED)", but its HEADLINE number
+  // (43) came from an earlier manual tally that used a narrower four-way
+  // split (DONE/READY/PARKED/OPEN) and never counted RESOLVED-headed
+  // entries at all. Two RESOLVED entries sit under ## Open in this ref
+  // (lines 2278 and 2321) and both are closures by the entry's own stated
+  // vocabulary. This lane implements the DESIGN sentence, not the
+  // headline arithmetic — never widened to force 43 back into view.
+  const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
+  const rows = lint.closuresInLiveEntries(text).filter((r) => r.section.startsWith("## Open"));
+  const closures = rows.filter((r) => r.classification === "CLOSURE");
+  assert.equal(closures.length, 45);
+  assert.equal(closures.filter((r) => r.grade === "DONE").length, 43);
+  assert.equal(closures.filter((r) => r.grade === "RESOLVED").length, 2);
+});
+
+test("closures-in-live: INSTRUMENT-POSITIVE PAIR against the real frozen ref — a genuine closure fires, a genuine still-open entry does not", () => {
+  const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
+  const out = lint.closuresInLiveText(text);
+  // A real closure sitting in ## Open (line 1094 of the frozen ref).
+  assert.match(
+    out,
+    /line=1094 bucket=CLOSURE grade=DONE section="## Open" entry="DONE 2026-08-10 \(`246b61d`/,
+  );
+  // The requesting entry itself is headed READY and must never fire — it is
+  // the entry that DEFINES this lane, so it firing on itself would be the
+  // sharpest possible false positive.
+  assert.ok(
+    !out.includes('entry="READY 2026-08-11 — `## Open` holds 43 DONE entries'),
+    "the requesting entry (graded READY) must not be reported as a closure",
+  );
+});
+
+test("closures-in-live: a real class member this predicate CANNOT match — ANSWERED is outside CENSUS_GRADE_SET and reads as COULD-NOT-VERIFY, not CLOSURE", () => {
+  const text = gitShow(CLOSURES_FROZEN_REF, "BACKLOG.md");
+  const rows = lint.closuresInLiveEntries(text).filter((r) => r.section.startsWith("## Open"));
+  const answered = rows.find((r) => r.headline.startsWith("ANSWERED 2026-08-10, not booked as open"));
+  assert.ok(answered, "the real ANSWERED-headed entry at line 5439 of the frozen ref must still be scanned");
+  assert.equal(answered.line, 5439);
+  assert.equal(
+    answered.classification,
+    "COULD-NOT-VERIFY",
+    "ANSWERED is not in CENSUS_GRADE_SET — a real closed-in-substance entry this lane cannot classify as CLOSURE",
+  );
 });

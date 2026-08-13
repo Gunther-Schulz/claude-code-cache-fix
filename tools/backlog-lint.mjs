@@ -88,6 +88,11 @@
 //                                           # (below) INSTEAD of the header
 //                                           # lint; suppresses the normal
 //                                           # output
+//   node tools/backlog-lint.mjs --closures-in-live [<path>|-]
+//                                           # emits the closures-in-live
+//                                           # census (below) INSTEAD of the
+//                                           # header lint; suppresses the
+//                                           # normal output. REPORT only.
 
 import { existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
@@ -759,6 +764,140 @@ export function censusText(text, { sinceRef, oldText } = {}) {
   const summary = censusSummaryLines(entries);
   const since = sinceRef ? censusSinceLines(entries, oldText, sinceRef) : [];
   return [...rows, "", ...summary, ...since].join("\n") + "\n";
+}
+
+// ==========================================================================
+// Closures-in-live census (--closures-in-live) — REPORT ONLY
+// ==========================================================================
+//
+// Why this exists: BACKLOG.md's own accretion rule declares `## Done` the
+// closure home — "closure lives in exactly ONE carrier" — and by
+// 2026-08-11 `## Open` alone held 43 entries whose own grade already said
+// DONE, paying every fresh context that opens the file for closures that
+// should have moved. This lane is the measurement half of that entry's
+// design: it REPORTS the population before anything moves; the mechanical
+// move pass is a separate, later act on a file this lane does not write.
+//
+// LIVE means every top-level `## ` section except the closure home —
+// derived from the file's own `^## ` headers (splitSections, below), never
+// a restated section list: a restated list cannot age loudly, and this
+// file gains sections.
+//
+// Grade classification reuses this file's OWN closure vocabulary rather
+// than a list invented for this lane. `censusGrade` (above, already shared
+// with `--census`) extracts each top-level bullet's header grade token
+// against `CENSUS_GRADE_SET`; this lane buckets that token four ways:
+//   CLOSURE          — DONE, RESOLVED, FIXED, BUILT: the exact word set
+//                       this file's own header-lint (RES_WORD, DONE_LINE,
+//                       far above) already treats as a completed-entry
+//                       claim, applied here to the entry's HEADER instead
+//                       of a claim inside its body.
+//   NOT-CLOSURE       — READY, OPEN, HOT, OPEN/HOT (HEADER_GRADE's own
+//                       still-open vocabulary), plus PARKED (the accretion
+//                       module: a parked entry carries its own named
+//                       missing evidence — it is not closed).
+//   AMBIGUOUS         — every other CENSUS_GRADE_SET token (PARTLY,
+//                       CORRECTED, DOWNGRADED as of this file's current
+//                       vocabulary) — derived as "whatever CENSUS_GRADES
+//                       is not CLOSURE or NOT-CLOSURE", so a grade word
+//                       added to CENSUS_GRADES later lands here by
+//                       construction instead of silently vanishing from
+//                       every bucket. Listed, never re-graded by reading.
+//   COULD-NOT-VERIFY  — censusGrade returns UNCLASSIFIED: no recognized
+//                       grade token at the header at all (this also
+//                       catches this lane's own blind spot — a real closed
+//                       entry whose header uses a word CENSUS_GRADE_SET
+//                       does not carry, e.g. "RETIRED" or "CLOSED", reads
+//                       as UNCLASSIFIED and lands here rather than being
+//                       silently read as NOT-CLOSURE).
+//
+// Only CLOSURE and AMBIGUOUS rows print as findings — those are the two
+// buckets a reader must act on or judge; NOT-CLOSURE and COULD-NOT-VERIFY
+// are population, stated as summary counts only (zeros included), never
+// folded into "not a closure".
+
+const CLOSURE_HOME_PREFIX = "## Done";
+const OPEN_SECTION_PREFIX = "## Open";
+const CLOSURE_GRADE_SET = new Set(["DONE", "RESOLVED", "FIXED", "BUILT"]);
+const NOT_CLOSURE_GRADE_SET = new Set(["READY", "OPEN", "HOT", "OPEN/HOT", "PARKED"]);
+// Derived, not restated: everything CENSUS_GRADES carries that is neither
+// CLOSURE nor NOT-CLOSURE.
+const AMBIGUOUS_GRADE_SET = new Set(
+  CENSUS_GRADES.filter((g) => !CLOSURE_GRADE_SET.has(g) && !NOT_CLOSURE_GRADE_SET.has(g)),
+);
+const CLOSURE_BUCKETS = ["CLOSURE", "AMBIGUOUS", "NOT-CLOSURE", "COULD-NOT-VERIFY"];
+
+function closureClassify(token) {
+  if (CLOSURE_GRADE_SET.has(token)) return "CLOSURE";
+  if (NOT_CLOSURE_GRADE_SET.has(token)) return "NOT-CLOSURE";
+  if (AMBIGUOUS_GRADE_SET.has(token)) return "AMBIGUOUS";
+  return "COULD-NOT-VERIFY"; // censusGrade's own UNCLASSIFIED, reused as-is
+}
+
+// Splits text into top-level `## ` sections — generalizes censusOpenSection
+// (above) from one named section to every one, same boundary rule (head =
+// the `## X` line, tail = the next `^## ` line or EOF).
+function splitSections(text) {
+  const lines = text.split("\n");
+  const starts = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].startsWith("## ")) starts.push(i);
+  }
+  return starts.map((start, idx) => {
+    const end = idx + 1 < starts.length ? starts[idx + 1] : lines.length;
+    return {
+      name: lines[start].trim(),
+      body: lines.slice(start + 1, end).join("\n"),
+      lineOffset: start + 1,
+      isClosureHome: lines[start].startsWith(CLOSURE_HOME_PREFIX),
+    };
+  });
+}
+
+// One row per top-level bullet in every LIVE section (closure home
+// excluded). Exported so the bites can pin the population directly.
+export function closuresInLiveEntries(text) {
+  const rows = [];
+  for (const section of splitSections(text)) {
+    if (section.isClosureHome) continue;
+    for (const e of splitEntries(section.body)) {
+      const grade = censusGrade(e.header);
+      rows.push({
+        section: section.name,
+        line: section.lineOffset + e.startLine,
+        grade,
+        classification: closureClassify(grade),
+        headline: censusHeadline(e.header),
+      });
+    }
+  }
+  return rows;
+}
+
+function formatClosuresInLiveFinding(r) {
+  return (
+    `WARN backlog-closure-in-live line=${r.line} bucket=${r.classification} ` +
+    `grade=${r.grade} section="${r.section.slice(0, 60)}" entry="${r.headline}"`
+  );
+}
+
+// The full closures-in-live report text: one WARN line per CLOSURE or
+// AMBIGUOUS row, a whole-file bucket summary (every bucket named, zeros
+// stated), and the `## Open`-scoped CLOSURE count on its own line — the
+// number the requesting entry's done-criterion pins.
+export function closuresInLiveText(text) {
+  const rows = closuresInLiveEntries(text);
+  const findingRows = rows.filter((r) => r.classification === "CLOSURE" || r.classification === "AMBIGUOUS");
+  const lines = findingRows.map(formatClosuresInLiveFinding);
+  const counts = CLOSURE_BUCKETS.map(
+    (b) => `${b}=${rows.filter((r) => r.classification === b).length}`,
+  ).join(" ");
+  lines.push(`backlog-closures-in-live: ${findingRows.length} finding(s) — REPORT only — ${counts}`);
+  const openClosures = rows.filter(
+    (r) => r.section.startsWith(OPEN_SECTION_PREFIX) && r.classification === "CLOSURE",
+  ).length;
+  lines.push(`backlog-closures-in-live-open: CLOSURE=${openClosures} (## Open section only)`);
+  return lines.join("\n") + "\n";
 }
 
 // ==========================================================================
@@ -1608,9 +1747,20 @@ function runCensus(args) {
   return 0;
 }
 
+// --closures-in-live suppresses the normal header-lint output and emits the
+// closures-in-live census instead (per the CLI usage comment at the top of
+// this file). Same never-throws-past-this-function contract as runCensus.
+function runClosuresInLive(args) {
+  const rest = args.filter((a) => a !== "--closures-in-live");
+  const text = readInput(rest[0]);
+  process.stdout.write(closuresInLiveText(text));
+  return 0;
+}
+
 function main(argv) {
   const args = argv.slice(2);
   if (args.includes("--census")) return runCensus(args);
+  if (args.includes("--closures-in-live")) return runClosuresInLive(args);
   const wantPointers = args.includes("--pointers");
   const wantReadyBar = args.includes("--ready-bar");
   const pathArg = args.find((a) => a !== "--pointers" && a !== "--ready-bar");
