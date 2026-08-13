@@ -24,6 +24,13 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { captureKeyOf, nextAlias, claim, lookup } from "../tools/alias-claim.mjs";
+// Namespace import for the not-yet-existing `--releasable` export, kept
+// SEPARATE from the named import above on purpose (dev-loop.md, "Adding a
+// check" — a static named import of a missing export fails the whole module
+// at ESM link time and every bite goes red at once, proving nothing about
+// which half broke). This form always links; a missing export reads as
+// `undefined` and each new bite fails at its own call site instead.
+import * as aliasClaim from "../tools/alias-claim.mjs";
 
 const run = promisify(execFile);
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "alias-claim.mjs");
@@ -428,4 +435,157 @@ test("the protected dir defaults to a SIBLING of the resolved captures root when
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+// --releasable — the reader half of BACKLOG.md, "`alias-claim --protect`
+// cannot be made the default until `--release` is wired". `--release`
+// exists and works; nothing tells the tool a protection is no longer
+// needed. This lane REPORTS ONLY (never releases) whether every citation of
+// a currently-protected alias sits under the closure home ("## Done").
+//
+// THE DISCRIMINATING PAIR — the done-criterion itself: an alias cited only
+// under "## Done" must report RELEASABLE, and the SAME alias with one
+// additional citation in a live section must report HELD. A predicate that
+// cannot separate those two separates nothing.
+test("BITE — releasableReport: RELEASABLE only when EVERY citation sits under the Done section (discriminating pair)", () => {
+  const doc = {
+    aliases: {
+      "s-captureZZ": {
+        file: "s-zzzzrelsa-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-13T00:00:00.000Z",
+      },
+    },
+  };
+  const doneOnly =
+    "## Open\n" +
+    "- an unrelated entry, no mention of the alias here\n" +
+    "## Done — closures, one home\n" +
+    "- closed entry citing s-captureZZ\n";
+  const doneWithLiveCitation =
+    "## Open\n" +
+    "- a still-open entry citing s-captureZZ\n" +
+    "## Done — closures, one home\n" +
+    "- closed entry also citing s-captureZZ\n";
+
+  const releasedOnce = aliasClaim.releasableReport(doneOnly, doc);
+  assert.deepEqual(releasedOnce.RELEASABLE, ["s-captureZZ"]);
+  assert.deepEqual(releasedOnce.HELD, []);
+
+  const stillHeld = aliasClaim.releasableReport(doneWithLiveCitation, doc);
+  assert.deepEqual(stillHeld.HELD, ["s-captureZZ"]);
+  assert.deepEqual(stillHeld.RELEASABLE, []);
+});
+
+// THE THIRD ANSWER. An alias cited nowhere is not evidence the protection is
+// spent — it is absence of evidence, and the two must not be collapsed
+// (grounding module, "the three-answers discipline"). UNCITED is its own
+// bucket, and it must never fall into RELEASABLE.
+test("BITE — releasableReport: a protected alias cited nowhere is UNCITED, never RELEASABLE", () => {
+  const doc = {
+    aliases: {
+      "s-captureYY": {
+        file: "s-zzzzuncit-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-13T00:00:00.000Z",
+      },
+    },
+  };
+  const text = "## Open\n- nothing about it here\n## Done — closures\n- nor here\n";
+  const report = aliasClaim.releasableReport(text, doc);
+  assert.deepEqual(report.UNCITED, ["s-captureYY"]);
+  assert.deepEqual(report.RELEASABLE, []);
+  assert.deepEqual(report.HELD, []);
+});
+
+// A citation is ANCHORED, not a rendered-text substring test — matching the
+// grounding module's paraphrase-drift rule directly: `s-captureA` is a
+// literal PREFIX of `s-captureAB`, so an unanchored `.includes()` would
+// silently count a citation of a DIFFERENT alias as evidence for this one.
+test("BITE — releasableReport: a citation is ANCHORED — s-captureA does not match inside s-captureAB", () => {
+  const doc = {
+    aliases: {
+      "s-captureA": {
+        file: "s-zzzzanchr-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-13T00:00:00.000Z",
+      },
+    },
+  };
+  const text = "## Open\n- only s-captureAB is mentioned here\n## Done\n";
+  const report = aliasClaim.releasableReport(text, doc);
+  assert.deepEqual(report.UNCITED, ["s-captureA"], "a prefix match would have wrongly bucketed this as cited");
+});
+
+// Only the CURRENTLY protected set is graded — a claimed-but-never-protected
+// alias, and one whose protection was already released or cap-dropped, are
+// both out of scope for this lane (the operator's `--release` is the one
+// act that changes that, never this report).
+test("BITE — releasableReport: only currently-protected aliases are graded", () => {
+  const doc = {
+    aliases: {
+      "s-captureQQ": { file: "s-zzzzq1-requests.jsonl" }, // claimed, never protected
+      "s-captureQR": {
+        file: "s-zzzzq2-requests.jsonl",
+        protectedAt: "2026-08-01T00:00:00.000Z",
+        releasedAt: "2026-08-12T00:00:00.000Z",
+      }, // released
+      "s-captureQS": {
+        file: "s-zzzzq3-requests.jsonl",
+        protectedAt: "2026-08-01T00:00:00.000Z",
+        protectionDroppedAt: "2026-08-12T00:00:00.000Z",
+      }, // cap-evicted
+    },
+  };
+  const text = "## Open\n- s-captureQQ s-captureQR s-captureQS all cited\n## Done\n";
+  const report = aliasClaim.releasableReport(text, doc);
+  assert.deepEqual(report.RELEASABLE, []);
+  assert.deepEqual(report.HELD, []);
+  assert.deepEqual(report.UNCITED, []);
+  assert.deepEqual(report["COULD-NOT-VERIFY"], []);
+});
+
+// An unreadable backlog is COULD-NOT-VERIFY for every protected alias — not
+// a guess, and not silently empty (dev-loop.md, "a tool's could-not-verify
+// REASON is a claim, and it is computed or it is a guess").
+test("BITE — releasableReport: an unreadable backlog reports COULD-NOT-VERIFY for every protected alias", () => {
+  const doc = {
+    aliases: {
+      "s-captureXX": {
+        file: "s-zzzzunread-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-13T00:00:00.000Z",
+      },
+    },
+  };
+  const report = aliasClaim.releasableReport(null, doc);
+  assert.deepEqual(report["COULD-NOT-VERIFY"], ["s-captureXX"]);
+  assert.deepEqual(report.RELEASABLE, []);
+  assert.deepEqual(report.HELD, []);
+  assert.deepEqual(report.UNCITED, []);
+});
+
+test("BITE — --releasable CLI: exit 0 always, all four buckets printed with zeros stated explicitly", async () => {
+  await withRegistry(async (reg) => {
+    const dir = dirname(reg);
+    const backlogPath = join(dir, "fake-backlog.md");
+    await writeFile(backlogPath, "## Open\n- nothing here\n## Done — closures\n- nothing here either\n");
+    const env = { ...process.env, CACHE_FIX_ALIAS_REGISTRY: reg };
+    const { stdout } = await run("node", [TOOL, "--releasable", backlogPath], { env });
+    assert.match(stdout, /RELEASABLE \(0\)/);
+    assert.match(stdout, /HELD \(0\)/);
+    assert.match(stdout, /UNCITED \(0\)/);
+    assert.match(stdout, /COULD-NOT-VERIFY \(0\)/);
+  });
+});
+
+test("BITE — --releasable CLI: an actually-protected alias reports RELEASABLE when only Done cites it", async () => {
+  await withCaptures(async ({ capturesDir, dir, env }) => {
+    const cap = "s-zzzzclirel-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
+    await writeCapture(capturesDir, cap, 1024);
+    const claimOut = (await run("node", [TOOL, join(capturesDir, cap), "--protect"], { env })).stdout.trim();
+    assert.match(claimOut, /\(protected\)/);
+    const alias = claimOut.split(/\s/)[0];
+    const backlogPath = join(dir, "fake-backlog.md");
+    await writeFile(backlogPath, `## Open\n- unrelated\n## Done — closures\n- closed entry citing ${alias}\n`);
+    const { stdout } = await run("node", [TOOL, "--releasable", backlogPath], { env });
+    assert.match(stdout, new RegExp(`RELEASABLE \\(1\\): ${alias}`));
+    assert.match(stdout, /HELD \(0\)/);
+  });
 });

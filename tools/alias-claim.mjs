@@ -50,7 +50,11 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
+import { fileURLToPath } from "node:url";
 import { dataPath } from "../proxy/xdg-dirs.mjs";
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+export const DEFAULT_BACKLOG = join(REPO_ROOT, "BACKLOG.md");
 
 // HOME IS XDG DATA, NOT `~/.claude/`. The registry is machine-local data
 // belonging to this repo's tooling; it is not Claude Code configuration and only
@@ -435,17 +439,137 @@ export function protectStatus() {
   return { dir, count: entries.length, bytes, capBytes, entries };
 }
 
+// --releasable — the READER half of BACKLOG.md, "`alias-claim --protect`
+// cannot be made the default until `--release` is wired": nothing tells the
+// tool a protection is no longer needed. This is a REPORT, never a gate —
+// it releases nothing; the operator's `--release <capture>` stays the one
+// act that does. See BACKLOG.md, RECORD 2026-08-13, "alias-claim --protect
+// cannot be made the default until --release is wired and the cap is
+// re-sized".
+//
+// Four buckets, all reported with zeros stated explicitly (the under-report
+// principle: silence is not a valid answer). RELEASABLE — protected, cited,
+// every citation sits under the closure home ("## Done"). HELD — protected,
+// cited, at least one citation in a LIVE section. UNCITED — protected, cited
+// NOWHERE. COULD-NOT-VERIFY — the backlog could not be read. UNCITED is
+// deliberately never folded into RELEASABLE: absence of a citation is
+// absence of evidence, not evidence the protection is spent (the
+// three-answers discipline this file already applies to --show and
+// --release, one level up).
+
+/** Split BACKLOG.md-shaped text into its top-level ("## ") sections. A line
+ * before the first such header belongs to no section (treated as live,
+ * never as Done, by the caller). Detection derives from the file's OWN
+ * headers — never a hardcoded section list — so the file gaining a section
+ * needs no change here.
+ */
+export function parseSections(text) {
+  const lines = text.split("\n");
+  const sections = [];
+  let current = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^## /.test(lines[i])) {
+      if (current) {
+        current.end = i;
+        sections.push(current);
+      }
+      current = { heading: lines[i], start: i, end: lines.length };
+    }
+  }
+  if (current) sections.push(current);
+  return { lines, sections };
+}
+
+// Mirrors the `isProtected` check `release()` computes inline (above) —
+// duplicated rather than extracted, deliberately: this lane must not touch
+// `release()`'s body, and a 3-line boolean is cheaper to duplicate once,
+// with a pointer, than to risk coupling two functions this entry says stay
+// untouched.
+function isCurrentlyProtected(entry) {
+  return Boolean(entry?.protectedAt) && !entry.releasedAt && !entry.protectionDroppedAt;
+}
+
+// A citation is ANCHORED, never a rendered-text substring test: `s-captureA`
+// is a literal PREFIX of `s-captureAB`, so an unanchored `.includes()` would
+// count a citation of one alias as evidence for another — the exact
+// paraphrase-drift shape the operator corpus names ("a substring test... is
+// a prefix match in an equality's costume; anchor the terminator"). Aliases
+// are always `s-capture[A-Z]+`, so no regex-escaping is needed for the
+// literal itself.
+function citationLineIndices(alias, lines) {
+  const re = new RegExp(`(?<![A-Za-z])${alias}(?![A-Za-z])`);
+  const hits = [];
+  for (let i = 0; i < lines.length; i++) if (re.test(lines[i])) hits.push(i);
+  return hits;
+}
+
+function sectionFor(lineIdx, sections) {
+  return sections.find((s) => lineIdx >= s.start && lineIdx < s.end) ?? null;
+}
+
+/** For every currently-protected alias in `doc`, which bucket does it fall
+ * in against `backlogText`? `backlogText === null` means the backlog could
+ * not be read — every protected alias reports COULD-NOT-VERIFY rather than
+ * a guess (dev-loop.md: "a tool's could-not-verify REASON is a claim, and
+ * it is computed or it is a guess"). Pure and read-only: no mutation, no
+ * filesystem access — the CLI wrapper below does the reading.
+ */
+export function releasableReport(backlogText, doc) {
+  const buckets = { RELEASABLE: [], HELD: [], UNCITED: [], "COULD-NOT-VERIFY": [] };
+  const protectedAliases = Object.entries(doc?.aliases ?? {}).filter(([, entry]) => isCurrentlyProtected(entry));
+  if (backlogText == null) {
+    for (const [alias] of protectedAliases) buckets["COULD-NOT-VERIFY"].push(alias);
+    return buckets;
+  }
+  const { lines, sections } = parseSections(backlogText);
+  for (const [alias] of protectedAliases) {
+    const hits = citationLineIndices(alias, lines);
+    if (hits.length === 0) {
+      buckets.UNCITED.push(alias);
+      continue;
+    }
+    const allUnderDone = hits.every((i) => {
+      const sec = sectionFor(i, sections);
+      return Boolean(sec) && sec.heading.startsWith("## Done");
+    });
+    buckets[allUnderDone ? "RELEASABLE" : "HELD"].push(alias);
+  }
+  return buckets;
+}
+
 const USAGE =
   "usage: alias-claim.mjs <capture-file|session-id> [--note \"<why>\"] [--protect]\n" +
   "       alias-claim.mjs --show <capture-file|session-id>\n" +
   "       alias-claim.mjs --release <capture-file|session-id>\n" +
-  "       alias-claim.mjs --protect-status\n";
+  "       alias-claim.mjs --protect-status\n" +
+  "       alias-claim.mjs --releasable [<backlog-path>]\n";
 
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   const args = process.argv.slice(2);
 
   if (args[0] === "--protect-status") {
     process.stdout.write(`${JSON.stringify(protectStatus())}\n`);
+    process.exit(0);
+  }
+
+  if (args[0] === "--releasable") {
+    const backlogPath = args[1] || DEFAULT_BACKLOG;
+    const doc = readRegistry();
+    let text = null;
+    try {
+      text = readFileSync(backlogPath, "utf-8");
+    } catch (e) {
+      process.stderr.write(
+        `alias-claim: --releasable could not read ${backlogPath} (${e.code ?? "unknown"}): ${e.message}\n`,
+      );
+    }
+    const buckets = releasableReport(text, doc);
+    // Report only — exit 0 always, this is not a gate. Every bucket prints,
+    // zeros stated explicitly, so a silent bucket cannot be misread as an
+    // unrun check.
+    for (const name of ["RELEASABLE", "HELD", "UNCITED", "COULD-NOT-VERIFY"]) {
+      process.stdout.write(`${name} (${buckets[name].length}): ${buckets[name].join(", ") || "(none)"}\n`);
+    }
     process.exit(0);
   }
 
