@@ -430,6 +430,48 @@ hook, whose fork-side contract line shipped this session.
   hypothesis); disabled must show `ttl:"1h"` surviving from CC's input. If
   both arms agree the extension is not the mutator and the hypothesis dies
   there — which is a result, not a failure.
+  **RE-GRADED 2026-08-13, same session, ~20 minutes after booking — the
+  headline above is DEMOTED and the word "only" in it is withdrawn.** Two
+  things landed after it was written, and neither needed the forwarded
+  measurement to bite.
+  *One — the intermittency argument, which is decisive on its own.*
+  `cache-control-normalize` has no per-request variation available to it: it
+  is order 400, always enabled, and its one early exit is
+  `markerCount === 0`, which never fires here because CC places a marker on
+  the last user message of every request in the window (measured, 22 of 22).
+  So it rewrites the tail marker identically on EVERY request — and only 6
+  of roughly 200 requests in that session missed. A mechanism that behaves
+  the same on all of them cannot be the discriminator between the ones that
+  hit and the ones that did not. The TTL-expiry route is closed separately
+  by arithmetic: a 5-minute entry cannot expire across the 11-second and
+  13-second gaps actually observed before the busts.
+  *Two — the header measurement came back NEGATIVE.* `anthropic-beta` is
+  byte-identical across every busting pair, and carries
+  `extended-cache-ttl-2025-04-11`, `prompt-caching-scope-2026-01-05` and
+  `cache-diagnosis-2026-04-07` on the warm predecessor and the busting
+  request alike (capture lines 1874–1886, 1913, 1915). The suspicion that a
+  dropped beta header explained it dies there, at the pre-pipeline tap.
+  *And a premise the entry leaned on was already contradicted in our own
+  source.* `tools/replay.mjs:1740-1752` states this repo's measured model:
+  the API keys its cache on CONTENT and reads a `cache_control` marker as
+  the designation of a WRITE POINT, so a marker moving as the conversation
+  grows re-bills nothing — with a corpus measurement behind it. Under that
+  model a marker's own value is not the cache key, which is exactly what the
+  ttl story needed it to be. That comment predates this walk by a week and
+  went unread until after the entry was booked; reading the code the entry
+  was about would have cost less than writing it.
+  **What the entry is still worth, at its reduced weight:** the forwarded
+  layer genuinely has never been read, the measurement is cheap, and a
+  NEGATIVE result there is what converts "nothing we send explains it" from
+  an inference into a measurement. Keep it as a completeness check, not as
+  the leading candidate.
+  **Where that leaves the class: everything CC sends is identical and our
+  own logs are clean, so the honest disposition is COULD-NOT-ATTRIBUTE
+  pending the forwarded read** — body identical on ten top-level keys,
+  messages append-only, markers identical including ttl, headers identical,
+  extension event logs showing a stable state key and a constant `rewrite`
+  action across the burst. That is the state in which the corpus forbids
+  designing a mitigation, and it is why none is designed here.
   **Do not design a mitigation off this entry.** The attribution gate binds:
   if the forwarded tail marker turns out to keep `ttl:"1h"`, the class is
   not ours and the walk returns to COULD-NOT-ATTRIBUTE with the downgrade
