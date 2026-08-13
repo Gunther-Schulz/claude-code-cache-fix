@@ -660,9 +660,38 @@ hook, whose fork-side contract line shipped this session.
   `exit`, throws, `process.exit()`, SIGINT/SIGTERM/SIGHUP — should have run.
   That makes the measurement below MORE valuable, not less: the two
   survivors per run are unexplained by the module's own accepted exception.
-  **Deliberately not chased further at the desk.** The next step is the
-  instrumented run already named, not another hypothesis; guessing at it
-  twice in one session is how a blocker becomes a rabbit hole.
+  **THIRD occurrence, and the producer is now LOCALIZED — this is the
+  cheapest thing anyone could have done and it was not done for two rounds.**
+  The blocker fired a third time (4 roots past threshold). Instead of reaping
+  again, `ls` INSIDE the leaked roots: **every single one contains exactly one
+  `cache-fix-replay-*` child and nothing else**, across all 12 present at the
+  time (6 pairs, timestamps matching six suite runs one-for-one). So the
+  leaker is not "two unknown producers" — it is `replay.mjs`, spawned as a
+  child, twice per suite run.
+  **What that rules in and out.** The child DID use `tools/tmpdir.mjs` (the
+  root exists and carries the module's own `cache-fix-replay-` prefix inside
+  it), so `ensureRunRoot` ran and `process.on("exit", removeRunRoot)` was
+  registered. `grep -n "kill\|SIGTERM\|timeout\|abort\|signal"
+  tools/gate-live.mjs` returns exactly one hit, a comment — **gate-live sends
+  no signal to its replay children**. So the child was not killed by its
+  parent, and its exit handler did not run. That leaves paths where node runs
+  no exit handlers at all: a V8 OOM abort under the heap cap gate-live passes
+  (`SIGABRT`, handlers skipped) is the leading candidate, and an uncaught
+  native-level crash is the other. Both are NAMED as candidates, neither is
+  measured.
+  **Why the remaining step is now small and worth doing.** The measurement
+  shrinks from "instrument the whole suite" to: run one replay child the way
+  gate-live runs it, on a capture big enough to approach the cap, and read
+  its exit status and signal. If it aborts on OOM, the fix is a decision
+  about the cap or about the child reporting its own failure — and the sweep
+  currently reads CLEAN while two of its children died, which is the more
+  serious half: a clean verdict over children that aborted is a false green,
+  not a tidiness problem.
+  **Deliberately not chased further at the desk.** The next step is that
+  one-child run, not another hypothesis; guessing at it twice in one session
+  is how a blocker becomes a rabbit hole. Reaped by hand three times today
+  (18, then 4-past-threshold, then all 12 dead-owner roots) purely to ship
+  unrelated work.
   Trigger to re-grade: that measurement's output.
   Loop stage: VERIFY.
   Anchor: tools/tmpdir.mjs
