@@ -1975,3 +1975,31 @@ test("closures-in-live: RECORD — a DECLARED grade — classifies as NOT-CLOSUR
   // still fail here.
   assert.equal(rows.filter((r) => r.classification === "CLOSURE").length, 0);
 });
+
+// Why this exists: a desk cross-check counted CLOSURE=103 against this
+// lane's own report and CLOSURE=91 against a naive `^- \*\*(DONE|RESOLVED|
+// FIXED|BUILT)\b` line regex over the live file — a 12-entry gap. Diffed by
+// line number (never by count alone, since two wrong totals can coincide):
+// every one of the 12 is a real closure headed `- **(DONE — …)**` or
+// `- **(DONE, see above) — …**` — a leading `(` before the grade word (e.g.
+// BACKLOG.md:8677, :11625 as of 2026-08-13). `censusGrade`'s own stripping
+// (`if (rest.startsWith("(")) rest = rest.slice(1);`, far above) already
+// handles this; a naive `^- \*\*WORD` regex does not. This is a real find,
+// not a predicate bug — pinned here so a future edit cannot silently drop
+// the paren-stripping and still look correct against a smaller fixture.
+test("closures-in-live: a header wrapped in a leading paren — `- **(DONE — …)**` — still classifies as CLOSURE", () => {
+  const text = [
+    "## Parked decisions",
+    "",
+    "- **(DONE, see above) — a closure whose grade word is paren-wrapped.**",
+    "  Body text.",
+  ].join("\n");
+  const rows = lint.closuresInLiveEntries(text);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].grade, "DONE");
+  assert.equal(
+    rows[0].classification,
+    "CLOSURE",
+    "a naive `^- \\*\\*WORD` regex misses this shape; censusGrade's own paren-stripping must not be lost",
+  );
+});
