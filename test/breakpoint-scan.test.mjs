@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { findMarkers, hasScannableBody, skipReason, buildRow } from "../tools/breakpoint-scan.mjs";
+import { findMarkers, findMarkerValues, hasScannableBody, skipReason, buildRow } from "../tools/breakpoint-scan.mjs";
 import { tmpDir } from "../tools/tmpdir.mjs";
 
 const cc = { cache_control: { type: "ephemeral" } };
+const ccTtl = { cache_control: { type: "ephemeral", ttl: "1h" } };
 
 // A synthetic body with cache_control markers at four KNOWN positions:
 // system[0], tools[3], and two different messages[i].content[j] blocks.
@@ -83,6 +84,74 @@ test("findMarkers: object-form system and a message-level marker", () => {
   };
   const markers = findMarkers({ body });
   assert.deepEqual(markers, ["system", "messages[0]"]);
+});
+
+// --- findMarkerValues (--values mode) ---
+//
+// findMarkers alone reports LOCATION only. Two markers at different
+// locations can carry different cache_control VALUES (e.g. one missing a
+// `ttl` the other has) and findMarkers cannot tell them apart — that gap is
+// exactly what --values exists to close.
+
+test("findMarkerValues: two markers with different cache_control values are reported distinctly", () => {
+  const body = {
+    system: [{ type: "text", text: "sys-0", ...cc }],
+    tools: [{ name: "t0", input_schema: {}, ...ccTtl }],
+    messages: [],
+  };
+  const values = findMarkerValues({ body });
+  assert.deepEqual(values, [
+    { loc: "system[0]", cache_control: { type: "ephemeral" } },
+    { loc: "tools[0]", cache_control: { type: "ephemeral", ttl: "1h" } },
+  ]);
+});
+
+test("findMarkerValues: a value collapsed to match its neighbor is caught (mutation-detection check)", () => {
+  // Same fixture as above, but tools[0]'s ttl is dropped — the mutation
+  // that drove the red run described in the report: a marker whose VALUE
+  // silently downgrades relative to another marker at a DIFFERENT
+  // location is exactly what a location-only report (findMarkers) cannot
+  // see, and is the real-world case this flag was built to answer
+  // (does our own cache-control write carry the ttl CC's own markers do?).
+  const body = {
+    system: [{ type: "text", text: "sys-0", ...cc }],
+    tools: [{ name: "t0", input_schema: {}, cache_control: { type: "ephemeral" } }], // ttl dropped
+    messages: [],
+  };
+  const values = findMarkerValues({ body });
+  assert.deepEqual(values, [
+    { loc: "system[0]", cache_control: { type: "ephemeral" } },
+    { loc: "tools[0]", cache_control: { type: "ephemeral" } }, // NOT {type:"ephemeral",ttl:"1h"}
+  ]);
+  // And the ORIGINAL (ttl-carrying) expectation now fails against this
+  // body, which is the point of the fixture: a value assertion that can't
+  // fail proves nothing.
+  assert.notDeepEqual(values, [
+    { loc: "system[0]", cache_control: { type: "ephemeral" } },
+    { loc: "tools[0]", cache_control: { type: "ephemeral", ttl: "1h" } },
+  ]);
+});
+
+test("buildRow: --values absent reproduces the pre-flag row exactly, no key added", () => {
+  const rec = { ts: "2026-08-13T11:33:00.000Z", sid: "s-test", body: fixtureBody() };
+  const bare = buildRow(rec, 1);
+  const emptyOpts = buildRow(rec, 1, {});
+  const explicitFalse = buildRow(rec, 1, { values: false });
+  assert.deepEqual(bare, emptyOpts);
+  assert.deepEqual(bare, explicitFalse);
+  assert.equal("markerValues" in bare, false);
+  assert.deepEqual(Object.keys(bare), ["ts", "line", "sid", "markers", "markerCount", "nMessages", "lastUserIndex"]);
+});
+
+test("buildRow: --values adds markerValues alongside the unchanged markers field", () => {
+  const rec = { ts: "2026-08-13T11:33:00.000Z", sid: "s-test", body: fixtureBody() };
+  const row = buildRow(rec, 1, { values: true });
+  assert.deepEqual(row.markers, ["system[0]", "tools[3]", "messages[0].content[0]:user", "messages[2].content[1]:user"]);
+  assert.deepEqual(
+    row.markerValues.map((m) => m.loc),
+    row.markers,
+  );
+  assert.deepEqual(row.markerValues[0], { loc: "system[0]", cache_control: { type: "ephemeral" } });
 });
 
 test("findMarkers: no markers present returns an empty array, not a false absence", () => {
@@ -198,4 +267,37 @@ test("CLI: mixed record kinds are scanned or skipped correctly, and --since/--un
   assert.match(stderr, /boot=1/);
   assert.match(stderr, /outcome=1/);
   assert.match(stderr, /parse-error=1/);
+});
+
+test("CLI: --values adds markerValues to each row; absent, the row is byte-identical to before the flag existed", async () => {
+  const dir = await tmpDir("breakpoint-scan-test-");
+  const file = join(dir, "values.jsonl");
+  const record = {
+    ts: "2026-08-13T11:33:00.000Z",
+    sid: "s-a",
+    body: {
+      system: [{ type: "text", text: "s", ...cc }],
+      tools: [{ name: "t0", input_schema: {}, ...ccTtl }],
+      messages: [{ role: "user", content: [{ type: "text", text: "x" }] }],
+    },
+  };
+  await writeFile(file, JSON.stringify(record) + "\n");
+
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const run = promisify(execFile);
+  const toolPath = new URL("../tools/breakpoint-scan.mjs", import.meta.url).pathname;
+
+  const noValues = await run("node", [toolPath, file, "--json"]);
+  const rowNoValues = JSON.parse(noValues.stdout.trim());
+  assert.equal("markerValues" in rowNoValues, false);
+  assert.deepEqual(Object.keys(rowNoValues), ["ts", "line", "sid", "markers", "markerCount", "nMessages", "lastUserIndex"]);
+
+  const withValues = await run("node", [toolPath, file, "--json", "--values"]);
+  const rowWithValues = JSON.parse(withValues.stdout.trim());
+  assert.deepEqual(rowWithValues.markers, ["system[0]", "tools[0]"]); // unchanged, still present
+  assert.deepEqual(rowWithValues.markerValues, [
+    { loc: "system[0]", cache_control: { type: "ephemeral" } },
+    { loc: "tools[0]", cache_control: { type: "ephemeral", ttl: "1h" } },
+  ]);
 });
