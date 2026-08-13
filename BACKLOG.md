@@ -398,6 +398,31 @@ hook, whose fork-side contract line shipped this session.
   rather than deciding anything. The undeclared closure-shaped words
   (ANSWERED, CLOSED, SHIPPED, RETIRED, COMMITTED, MERGED, ACCEPTED, DROPPED)
   are the operator's call and were left alone.
+  **The measuring instrument itself shipped today and is booked here:
+  `6ee63de`** (the `--closures-in-live` lane: REPORT-only, sections derived
+  from the file's own `^## ` headers, four buckets with zeros stated, red-first
+  split of 12 fail / 110 pass with the pre-existing bites passing, pinned
+  against frozen ref `7f745af` rather than the live file) and **`850f273`**
+  (a regression bite for the paren-wrapped header shape).
+  **`850f273` also settles a desk-vs-lane disagreement, and the LANE was
+  right.** The desk cross-checked the lane's whole-file CLOSURE=103 against a
+  naive `^- \*\*(DONE|RESOLVED|FIXED|BUILT)\b` line regex and got 91, and
+  reported that 12-entry gap to the operator as the lane's number needing
+  explanation. It was the DESK's regex that was short: 12 real closures are
+  headed `- **(DONE …)**` with a leading paren, which `censusGrade`'s own
+  paren-stripping handles and a naive line scan does not. Re-measured:
+  91 + 12 = 103 exactly. The lesson is the one this file already collects from
+  the other direction — a hand-rolled read returns a NUMBER, and a number from
+  a pattern that cannot match the whole class is byte-identical to a right
+  one. Mutation-proven: disabling the paren-stripping reddens exactly that one
+  bite (123 pass / 1 fail); restored, 124/124.
+  **Process note, recorded because the record is the only place it survives:**
+  `850f273` was committed by the closures lane AFTER its closing report was
+  booked and AFTER it had been told its lane was closed — the post-report
+  write the dispatch rules forbid (a defect found later is REPORTED, never
+  edited). The content is correct and desk-verified, so it stands rather than
+  being reverted to punish the process; but the lane was resumed by the very
+  message that closed it, which is the mechanism to watch, not the agent.
   Loop stage: RETIRE. Anchor: BACKLOG.md
   Write-set: BACKLOG.md (the `## Grades` section), tools/backlog-lint.mjs
   Verifier: node tools/backlog-lint.mjs --closures-in-live
