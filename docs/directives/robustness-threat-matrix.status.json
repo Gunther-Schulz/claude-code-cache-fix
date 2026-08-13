@@ -133,10 +133,10 @@
     "residual": "Settled 2026-08-11. The promoted question that kept this row open — which normalization behaviours silently switch off on a reset — is answered by the cited artifact, and its top finding (validateToolAdjacency runs on no reset path) is booked separately. The original prune-bust mechanism is a MEASURED NON-EVENT (classifyPrune, 404d5fc: 10 of 12 pure-tail prunes produced zero miss events). What remains parked is mitigability of the suggestion-mode turns themselves, blocked on pruning-boundary stability — those turns carry ordinary user/assistant roles, so holding them out on a text match risks dropping real conversation, and safety outranks cache. Re-open on either a cost attributable to the injection/prune cycle ALONE, or a boundary predicate better than a text prefix."
   },
   "23": {
-    "status": "OPEN",
-    "evidence": "docs/directives/robustness-threat-matrix.md",
-    "date": "2026-08-02",
-    "residual": "Mitigability answered YES with its safety boundary stated: identical input_schema guarantees the model cannot emit a call the client cannot execute, so a stale DESCRIPTION is safe where a stale SCHEMA is not, and the new text still reaches the model in-band through the announcement machinery. Closes on a shipped extension plus a live non-event."
+    "status": "RESIDUAL",
+    "evidence": "fd87e12",
+    "date": "2026-08-13",
+    "residual": "SHIPPED fd87e12 (description-absorbed: canonical block forwarded on a description-only delta, new prose announced in-band, name/schema/set/order still take the honest reset) and DEMONSTRATED ABSORBING live 2026-08-13: 114 description-absorbed firings across 2 sessions produced ZERO uncontrolled re-bills. 83 of 114 have no cold event within +/-180s. The 31 that do all cluster around ONE event in one session (cc=308201, written twice 3s apart as cause=other and cause=resume), and the other session's only re-bill in its entire ledger history is cause=compact -- both CONTROLLED causes that rebuild the prefix by construction, which no mitigation can absorb. REMAINDER, which is why this is RESIDUAL and not SHIPPED: (1) the evidence is a PROXY -- absence of a nearby cold event -- not the direct positive, which is the absorbing request's own cacheRead>0; (2) the denominator is 2 sessions on one machine, firings dated 2026-08-06 and 2026-08-10, so the RATE is unmeasured exactly as row 4's is; (3) the +/-180s window is inherited from this matrix's own prior join and is not itself validated -- counting any type:cold record instead of cc+cause-bearing ones moves the near-count from 31 to 54 without changing the verdict, since the extra matches are k:gauge context samples, not re-bills."
   },
   "24": {
     "status": "DECLINED",
