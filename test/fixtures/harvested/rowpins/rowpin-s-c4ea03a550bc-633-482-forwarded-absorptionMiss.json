@@ -1,0 +1,96 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-c4ea03a550bc",
+  "n": 633,
+  "prevN": 630,
+  "index": 482,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-08T11:16:53.448Z",
+  "row": {
+    "n": 633,
+    "prevN": 630,
+    "absorbedFreshAt": [
+      485,
+      495
+    ],
+    "forwardedDivergence": 482,
+    "inputDivergence": 484,
+    "cacheControlOnly": false,
+    "ours": true,
+    "movedFresh": 2,
+    "action": "normalized",
+    "keyToken": "s-c4ea03a550bc"
+  },
+  "sides": {
+    "cur": {
+      "n": 633,
+      "rawLen": 500,
+      "forwardedLen": 485,
+      "outBodySha": "20592fd81be02286",
+      "forwardedSha": "03cfeeebbc16",
+      "rawSha": "4a1d576775f2",
+      "forwardedPresentInRawAt": 497,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "03cfeeebbc16",
+      "firstPassRawSha": "4a1d576775f2",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-c4ea03a550bc",
+      "idToken": "s-b5f14d2b63b9",
+      "forwarded": {
+        "role": "user",
+        "content": "t_b46c8bda6255_671"
+      },
+      "raw": {
+        "role": "user",
+        "content": "t_a8a877f1e6d3_304"
+      }
+    },
+    "prev": {
+      "n": 630,
+      "rawLen": 497,
+      "forwardedLen": 483,
+      "outBodySha": "46bb13f41963f788",
+      "forwardedSha": "1beb17b013a9",
+      "rawSha": "4a1d576775f2",
+      "forwardedPresentInRawAt": 496,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "1beb17b013a9",
+      "firstPassRawSha": "4a1d576775f2",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-c4ea03a550bc",
+      "idToken": "s-e6419288e8ab",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_b46c8bda6255_671",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": "t_a8a877f1e6d3_304"
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

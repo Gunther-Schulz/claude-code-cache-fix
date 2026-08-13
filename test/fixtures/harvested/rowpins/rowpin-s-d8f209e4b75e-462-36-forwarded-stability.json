@@ -1,0 +1,211 @@
+{
+  "schema": "rowpin/1",
+  "family": "stability",
+  "key": "s-d8f209e4b75e",
+  "n": 462,
+  "prevN": 461,
+  "index": 36,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-10T05:39:12.691Z",
+  "row": {
+    "n": 462,
+    "prevN": 461,
+    "inDiv": 286,
+    "outDiv": 36,
+    "ccIdenticalAtOutDiv": true,
+    "prefixAboveMessages": {
+      "ourToolsIdentical": true,
+      "ourSystemIdentical": true,
+      "ccToolsIdentical": true,
+      "ccSystemIdentical": true,
+      "intact": true
+    },
+    "attribution": {
+      "ext": "deferred-tool-rewrite",
+      "outDiv": 36
+    },
+    "keyToken": "s-d8f209e4b75e"
+  },
+  "sides": {
+    "cur": {
+      "n": 462,
+      "rawLen": 303,
+      "forwardedLen": 289,
+      "outBodySha": "fdabfec47e790fdd",
+      "forwardedSha": "52a340943349",
+      "rawSha": "52a340943349",
+      "forwardedPresentInRawAt": 36,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "52a340943349",
+      "firstPassRawSha": "52a340943349",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-d8f209e4b75e",
+      "idToken": "s-845d50676b40",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_62b6bbafff"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_3a8bcb6688"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_016DTrtoisRVKthm241eroKU",
+            "name": "TaskCreate",
+            "input": {
+              "subject": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01X8rDNcDYpx1wimUDLV7x4Y",
+            "name": "TaskCreate",
+            "input": {
+              "subject": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_62b6bbafff"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_3a8bcb6688"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_016DTrtoisRVKthm241eroKU",
+            "name": "TaskCreate",
+            "input": {
+              "subject": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01X8rDNcDYpx1wimUDLV7x4Y",
+            "name": "TaskCreate",
+            "input": {
+              "subject": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 461,
+      "rawLen": 302,
+      "forwardedLen": 290,
+      "outBodySha": "6f863a8885a5f5df",
+      "forwardedSha": "02686ede2f05",
+      "rawSha": "52a340943349",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "02686ede2f05",
+      "firstPassRawSha": "52a340943349",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-d8f209e4b75e",
+      "idToken": "s-85040ea73e53",
+      "forwarded": {
+        "role": "system",
+        "content": [
+          {
+            "type": "tool_addition",
+            "tool": {
+              "type": "tool_reference",
+              "name": "TaskCreate"
+            }
+          },
+          {
+            "type": "tool_addition",
+            "tool": {
+              "type": "tool_reference",
+              "name": "TaskUpdate"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_62b6bbafff"
+          },
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_3a8bcb6688"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_016DTrtoisRVKthm241eroKU",
+            "name": "TaskCreate",
+            "input": {
+              "subject": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01X8rDNcDYpx1wimUDLV7x4Y",
+            "name": "TaskCreate",
+            "input": {
+              "subject": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

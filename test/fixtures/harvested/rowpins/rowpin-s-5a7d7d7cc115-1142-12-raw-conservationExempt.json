@@ -1,0 +1,130 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-5a7d7d7cc115",
+  "n": 1142,
+  "prevN": null,
+  "index": 12,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-10T10:51:13.440Z",
+  "row": {
+    "n": 1142,
+    "kind": "lost",
+    "at": 12,
+    "side": "in",
+    "exemptReason": "content-strip:declared-strip",
+    "detail": "in[12] (user): 1 of 8 unit(s) exempt — 0 re-derived from fresh-session-sort's own rewrite and verified in F, 1 accepted by content-strip's own predicates, 0 re-derived from identity-normalization's own SessionStart substitution and verified in F",
+    "keyToken": "s-5a7d7d7cc115"
+  },
+  "sides": {
+    "cur": {
+      "n": 1142,
+      "rawLen": 34,
+      "forwardedLen": 34,
+      "outBodySha": "ca3bbffd93378802",
+      "forwardedSha": "19eb4553fe66",
+      "rawSha": "735388892721",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "19eb4553fe66",
+      "firstPassRawSha": "735388892721",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-5a7d7d7cc115",
+      "idToken": "s-b9c8942fa09d",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_012xxoh9KQmHbdGvLWHGy5bT",
+            "type": "tool_result",
+            "content": "t_6bfb4fc84314_34389"
+          },
+          {
+            "tool_use_id": "toolu_01PaUgiZ4ZDSUa3p3y6o4tDa",
+            "type": "tool_result",
+            "content": "t_6c610545e0e1_16505"
+          },
+          {
+            "tool_use_id": "toolu_01Uq41iqnvCdXZMh1okfwaVM",
+            "type": "tool_result",
+            "content": "t_4ab922397f6d_30147"
+          },
+          {
+            "tool_use_id": "toolu_01KRVfX7Jy4RS6vBdEu8XPkj",
+            "type": "tool_result",
+            "content": "t_c8a90aa1cc91_4827"
+          },
+          {
+            "tool_use_id": "toolu_017MVnrfXhTNhrduxgDUMbQU",
+            "type": "tool_result",
+            "content": "t_b1e97c4243cd_28915"
+          },
+          {
+            "tool_use_id": "toolu_01VG1YSwGLT4RPHQNZju8W8i",
+            "type": "tool_result",
+            "content": "t_dcb15fa1f9dc_8578"
+          },
+          {
+            "type": "text",
+            "text": "t_0c9631554ef6_183"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_012xxoh9KQmHbdGvLWHGy5bT",
+            "type": "tool_result",
+            "content": "t_6bfb4fc84314_34389"
+          },
+          {
+            "tool_use_id": "toolu_01PaUgiZ4ZDSUa3p3y6o4tDa",
+            "type": "tool_result",
+            "content": "t_6c610545e0e1_16505"
+          },
+          {
+            "tool_use_id": "toolu_01Uq41iqnvCdXZMh1okfwaVM",
+            "type": "tool_result",
+            "content": "t_4ab922397f6d_30147"
+          },
+          {
+            "tool_use_id": "toolu_01KRVfX7Jy4RS6vBdEu8XPkj",
+            "type": "tool_result",
+            "content": "t_c8a90aa1cc91_4827"
+          },
+          {
+            "tool_use_id": "toolu_017MVnrfXhTNhrduxgDUMbQU",
+            "type": "tool_result",
+            "content": "t_b1e97c4243cd_28915"
+          },
+          {
+            "tool_use_id": "toolu_01VG1YSwGLT4RPHQNZju8W8i",
+            "type": "tool_result",
+            "content": "t_dcb15fa1f9dc_8578"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_d7b1e0351111_421\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_0c9631554ef6_183"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

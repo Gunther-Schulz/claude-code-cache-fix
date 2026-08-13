@@ -1,0 +1,139 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-371913dc62a3",
+  "n": 1185,
+  "prevN": 1124,
+  "index": 534,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-10T12:04:49.190Z",
+  "row": {
+    "n": 1185,
+    "prevN": 1124,
+    "absorbedFreshAt": [
+      541
+    ],
+    "forwardedDivergence": 534,
+    "inputDivergence": 540,
+    "cacheControlOnly": false,
+    "ours": true,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-371913dc62a3"
+  },
+  "sides": {
+    "cur": {
+      "n": 1185,
+      "rawLen": 548,
+      "forwardedLen": 537,
+      "outBodySha": "2e09bf85929dc486",
+      "forwardedSha": "8076a100f63b",
+      "rawSha": "f45277491296",
+      "forwardedPresentInRawAt": 545,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "8076a100f63b",
+      "firstPassRawSha": "f45277491296",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-371913dc62a3",
+      "idToken": "s-734acdb4340f",
+      "forwarded": {
+        "role": "user",
+        "content": "t_8802bf458b11_806"
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_f799973d5c"
+          },
+          {
+            "type": "text",
+            "text": "t_c4de3a059265_78\n\nt_3772339803a6_194"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01MuKsmq5iTksyU2Q7KaMDPL",
+            "name": "Write",
+            "input": {
+              "file_path": "REDACTED",
+              "content": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 1124,
+      "rawLen": 546,
+      "forwardedLen": 535,
+      "outBodySha": "f8d65a24390669c0",
+      "forwardedSha": "94562f1b8d67",
+      "rawSha": "f45277491296",
+      "forwardedPresentInRawAt": 545,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "94562f1b8d67",
+      "firstPassRawSha": "f45277491296",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-371913dc62a3",
+      "idToken": "s-f249d1e4598c",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_8802bf458b11_806",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_f799973d5c"
+          },
+          {
+            "type": "text",
+            "text": "t_c4de3a059265_78\n\nt_3772339803a6_194"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01MuKsmq5iTksyU2Q7KaMDPL",
+            "name": "Write",
+            "input": {
+              "file_path": "REDACTED",
+              "content": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

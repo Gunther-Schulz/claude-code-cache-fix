@@ -1,0 +1,104 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-8e7b87956b4b",
+  "n": 696,
+  "prevN": 694,
+  "index": 357,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-08T12:24:16.916Z",
+  "row": {
+    "n": 696,
+    "prevN": 694,
+    "absorbedFreshAt": [
+      357
+    ],
+    "forwardedDivergence": 357,
+    "inputDivergence": 356,
+    "cacheControlOnly": true,
+    "ours": false,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-8e7b87956b4b"
+  },
+  "sides": {
+    "cur": {
+      "n": 696,
+      "rawLen": 367,
+      "forwardedLen": 360,
+      "outBodySha": "dc967de00e57a408",
+      "forwardedSha": "73cc437c9b89",
+      "rawSha": "22cca6691373",
+      "forwardedPresentInRawAt": 364,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "73cc437c9b89",
+      "firstPassRawSha": "22cca6691373",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-8e7b87956b4b",
+      "idToken": "s-3db7b46e8920",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01VFHsgJtBbhN5oiwMqAFtja",
+            "type": "tool_result",
+            "content": "t_8395dca5f26e_84\n\nt_1961f6ff7683_57\n\nt_c4b32d1be1a8_372",
+            "is_error": false
+          }
+        ]
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_e054884be797_319\n\nt_a1aa171c75c0_492\n\nt_ce3d62f0d68c_1256"
+      }
+    },
+    "prev": {
+      "n": 694,
+      "rawLen": 365,
+      "forwardedLen": 358,
+      "outBodySha": "57a7a509e1625cf2",
+      "forwardedSha": "8d3739cbcb18",
+      "rawSha": "90d86d48902a",
+      "forwardedPresentInRawAt": 364,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "8d3739cbcb18",
+      "firstPassRawSha": "90d86d48902a",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-8e7b87956b4b",
+      "idToken": "s-1bca499cbad9",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01VFHsgJtBbhN5oiwMqAFtja",
+            "type": "tool_result",
+            "content": "t_8395dca5f26e_84\n\nt_1961f6ff7683_57\n\nt_c4b32d1be1a8_372",
+            "is_error": false,
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_a1aa171c75c0_492\n\nt_ce3d62f0d68c_1256"
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-8e7b87956b4b",
+  "n": 594,
+  "prevN": 588,
+  "index": 284,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-08T12:12:19.485Z",
+  "row": {
+    "n": 594,
+    "prevN": 588,
+    "absorbedFreshAt": [
+      284
+    ],
+    "forwardedDivergence": 284,
+    "inputDivergence": 283,
+    "cacheControlOnly": true,
+    "ours": false,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-8e7b87956b4b"
+  },
+  "sides": {
+    "cur": {
+      "n": 594,
+      "rawLen": 292,
+      "forwardedLen": 287,
+      "outBodySha": "d8e4bd4fc593d167",
+      "forwardedSha": "b78e9b936a94",
+      "rawSha": "1c4e81d03c5a",
+      "forwardedPresentInRawAt": 289,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "b78e9b936a94",
+      "firstPassRawSha": "1c4e81d03c5a",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-8e7b87956b4b",
+      "idToken": "s-6f4476369498",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01DbgVn1QHMQeTNupk9ViYNV",
+            "type": "tool_result",
+            "content": "t_8f70d8aa9e4b_709",
+            "is_error": false
+          }
+        ]
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_e054884be797_319\n\nt_ee9c003b38d1_294\n\nt_4d5f4c582b11_228"
+      }
+    },
+    "prev": {
+      "n": 588,
+      "rawLen": 290,
+      "forwardedLen": 285,
+      "outBodySha": "e8171adbf4b7809b",
+      "forwardedSha": "e1ebaa84f8c9",
+      "rawSha": "e187cf3d5527",
+      "forwardedPresentInRawAt": 289,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "e1ebaa84f8c9",
+      "firstPassRawSha": "e187cf3d5527",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-8e7b87956b4b",
+      "idToken": "s-f805628d637a",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01DbgVn1QHMQeTNupk9ViYNV",
+            "type": "tool_result",
+            "content": "t_8f70d8aa9e4b_709",
+            "is_error": false,
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_ee9c003b38d1_294\n\nt_4d5f4c582b11_228"
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

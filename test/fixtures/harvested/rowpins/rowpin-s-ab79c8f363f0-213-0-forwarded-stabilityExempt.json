@@ -1,0 +1,150 @@
+{
+  "schema": "rowpin/1",
+  "family": "stabilityExempt",
+  "key": "s-ab79c8f363f0",
+  "n": 213,
+  "prevN": 211,
+  "index": 0,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-11T12:38:03.834Z",
+  "row": {
+    "n": 213,
+    "prevN": 211,
+    "inDiv": 1,
+    "outDiv": 0,
+    "ccIdenticalAtOutDiv": true,
+    "prefixAboveMessages": {
+      "ourToolsIdentical": true,
+      "ourSystemIdentical": true,
+      "ccToolsIdentical": true,
+      "ccSystemIdentical": true,
+      "intact": true
+    },
+    "exemptReason": "fresh-session-sort:first-appearance-relocation",
+    "exemptBasis": {
+      "type": "mcp",
+      "targetIndex": 0
+    },
+    "keyToken": "s-ab79c8f363f0"
+  },
+  "sides": {
+    "cur": {
+      "n": 213,
+      "rawLen": 5,
+      "forwardedLen": 5,
+      "outBodySha": "b265082e8b247d86",
+      "forwardedSha": "4dbe9ce0a4b6",
+      "rawSha": "7d86b1e70c82",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [
+        "mcp"
+      ],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "4dbe9ce0a4b6",
+      "firstPassRawSha": "7d86b1e70c82",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-ab79c8f363f0",
+      "idToken": "s-55566121fd7e",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_efc10f176ece_371\n\nt_1f6e8c4e77d3_92\n\nt_63820dbe24b9_244\n\nt_f25d372d70c8_309\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_bbe429b5385b_132\n\nt_6b33137550c2_74\n\nt_b2ac2271023e_145\n\nt_82ef10a2c97c_468\n\nt_41d711098639_23\n\nt_d3f509b42fbe_3113\n\nt_27cd1de83076_80\n\nt_1d00530b6296_262\n\nt_7a90d93646f7_2740\n\nt_ac00fb9dc43b_56\n\nt_6b990d7934c4_5695\n\nt_f266be9e021e_73\n\nt_f72933e1e897_201\n\nt_115c0af6bd85_1930\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d42d8ed4e13e_177\n\nt_ac7daa3cd3bd_479\n\nt_8a1d8c58e3e2_12\n\nt_7cbb459e41f6_307\n\nt_76c6f185a277_77\n\nt_b07a8c2b99f5_746\n\nt_8946fd1eded4_51\n\nt_2dd6cded2c0d_511\n\nt_ff6c336bf848_64\n\nt_15147a6daf33_1034\n\nt_a8735311f128_19\n\nt_367b7f4063b8_210\n\nt_c85b37e04a00_14\n\nt_6024af0895fe_111\n\nt_39abc5238aad_1935"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_0402c22e246e_130\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_bbe429b5385b_132\n\nt_6b33137550c2_74\n\nt_b2ac2271023e_145\n\nt_82ef10a2c97c_468\n\nt_41d711098639_23\n\nt_d3f509b42fbe_3113\n\nt_27cd1de83076_80\n\nt_1d00530b6296_262\n\nt_7a90d93646f7_2740\n\nt_ac00fb9dc43b_56\n\nt_6b990d7934c4_5695\n\nt_f266be9e021e_73\n\nt_f72933e1e897_201\n\nt_115c0af6bd85_1930\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d42d8ed4e13e_177\n\nt_ac7daa3cd3bd_479\n\nt_8a1d8c58e3e2_12\n\nt_7cbb459e41f6_307\n\nt_76c6f185a277_77\n\nt_b07a8c2b99f5_746\n\nt_8946fd1eded4_51\n\nt_2dd6cded2c0d_511\n\nt_ff6c336bf848_64\n\nt_15147a6daf33_1034\n\nt_a8735311f128_19\n\nt_367b7f4063b8_210\n\nt_c85b37e04a00_14\n\nt_6024af0895fe_111\n\nt_39abc5238aad_1935"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_0402c22e246e_130\n</system-reminder>"
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 211,
+      "rawLen": 2,
+      "forwardedLen": 2,
+      "outBodySha": "dc4755bbcd4cf689",
+      "forwardedSha": "7d86b1e70c82",
+      "rawSha": "7d86b1e70c82",
+      "forwardedPresentInRawAt": 0,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "7d86b1e70c82",
+      "firstPassRawSha": "7d86b1e70c82",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-ab79c8f363f0",
+      "idToken": "s-3b4e6ef22cdf",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_bbe429b5385b_132\n\nt_6b33137550c2_74\n\nt_b2ac2271023e_145\n\nt_82ef10a2c97c_468\n\nt_41d711098639_23\n\nt_d3f509b42fbe_3113\n\nt_27cd1de83076_80\n\nt_1d00530b6296_262\n\nt_7a90d93646f7_2740\n\nt_ac00fb9dc43b_56\n\nt_6b990d7934c4_5695\n\nt_f266be9e021e_73\n\nt_f72933e1e897_201\n\nt_115c0af6bd85_1930\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d42d8ed4e13e_177\n\nt_ac7daa3cd3bd_479\n\nt_8a1d8c58e3e2_12\n\nt_7cbb459e41f6_307\n\nt_76c6f185a277_77\n\nt_b07a8c2b99f5_746\n\nt_8946fd1eded4_51\n\nt_2dd6cded2c0d_511\n\nt_ff6c336bf848_64\n\nt_15147a6daf33_1034\n\nt_a8735311f128_19\n\nt_367b7f4063b8_210\n\nt_c85b37e04a00_14\n\nt_6024af0895fe_111\n\nt_39abc5238aad_1935"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_0402c22e246e_130\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_bbe429b5385b_132\n\nt_6b33137550c2_74\n\nt_b2ac2271023e_145\n\nt_82ef10a2c97c_468\n\nt_41d711098639_23\n\nt_d3f509b42fbe_3113\n\nt_27cd1de83076_80\n\nt_1d00530b6296_262\n\nt_7a90d93646f7_2740\n\nt_ac00fb9dc43b_56\n\nt_6b990d7934c4_5695\n\nt_f266be9e021e_73\n\nt_f72933e1e897_201\n\nt_115c0af6bd85_1930\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d42d8ed4e13e_177\n\nt_ac7daa3cd3bd_479\n\nt_8a1d8c58e3e2_12\n\nt_7cbb459e41f6_307\n\nt_76c6f185a277_77\n\nt_b07a8c2b99f5_746\n\nt_8946fd1eded4_51\n\nt_2dd6cded2c0d_511\n\nt_ff6c336bf848_64\n\nt_15147a6daf33_1034\n\nt_a8735311f128_19\n\nt_367b7f4063b8_210\n\nt_c85b37e04a00_14\n\nt_6024af0895fe_111\n\nt_39abc5238aad_1935"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_0402c22e246e_130\n</system-reminder>"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

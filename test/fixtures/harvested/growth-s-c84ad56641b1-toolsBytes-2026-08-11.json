@@ -1,0 +1,210 @@
+{
+  "key": "s-c84ad56641b1",
+  "field": "toolsBytes",
+  "oldBytes": 41694,
+  "newBytes": 52584,
+  "watermark": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_2719b7a469d9_57",
+        "bytes": 82
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_f9de624097de_668",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h",
+          "scope": "global"
+        },
+        "bytes": 1310
+      },
+      {
+        "type": "text",
+        "text": "t_ee43af373985_94\n\nt_3fcd2b200896_357\n\nt_972441535793_520\n\nt_5db7179f598c_921\n\nt_d7c52f4d19b7_994\n\nt_29fce5f8c810_22\n\nt_9d350c0bcba0_228\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_d747a9419e26_133\n\nt_9856a95edb9c_280\n\nt_4e4e48fb23ce_277\n\nt_1881540cc600_964\n\nt_d162dc83864d_371\n\nt_2471c0f22493_678\n\nt_4e27137a37aa_909\n\nt_6fb4d55b437b_334\n\nt_c2fb2e4e1fc1_121\n\nt_46a24a6f7d26_231\n\nt_39889d2a4bcf_37\n\nt_534371e266da_170\n\nt_cef1f7a85a52_25\n\nt_e3643abc56c4_254\n\nt_63820dbe24b9_244\n\nt_14d40c631950_223\n\nt_c638dc41e2c9_16\n\nt_7823f712a64c_145\n\nt_2cf09c2685ae_189\n\nt_77f2b419da36_24\n\nt_7714657a3a3d_398\n\nt_f2bac342a08d_21\n\nt_2339865de74a_747\n\nt_4253559b9fc3_126\n\nt_a93d60d59f44_31\n\nt_a2a7a153f4ab_463\n\nt_df2c4155da8c_195\n\nt_f0c9f9b0c97d_34\n\nt_659744940aac_263\n\nt_2a99788243f0_464\n\nt_e6e02b2c94e7_157\n\nt_96b5a06eb124_20\n\nt_afd105088016_53\n\nt_5aa6d37c7ef2_24\n\nt_804f6139f2b0_15\n\nt_65f751ce6a31_652",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        "bytes": 13102
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 3484
+      },
+      {
+        "name": "Artifact",
+        "bytes": 10821
+      },
+      {
+        "name": "Bash",
+        "bytes": 2984
+      },
+      {
+        "name": "Edit",
+        "bytes": 993
+      },
+      {
+        "name": "Read",
+        "bytes": 1617
+      },
+      {
+        "name": "ReportFindings",
+        "bytes": 2206
+      },
+      {
+        "name": "ScheduleWakeup",
+        "bytes": 4660
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 2817
+      },
+      {
+        "name": "SendUserFile",
+        "bytes": 2654
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "TaskGet",
+        "bytes": 1068
+      },
+      {
+        "name": "TaskList",
+        "bytes": 1815
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 668
+      }
+    ]
+  },
+  "newest": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_2719b7a469d9_57",
+        "bytes": 82
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_f9de624097de_668",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h",
+          "scope": "global"
+        },
+        "bytes": 1310
+      },
+      {
+        "type": "text",
+        "text": "t_ee43af373985_94\n\nt_3fcd2b200896_357\n\nt_972441535793_520\n\nt_5db7179f598c_921\n\nt_d7c52f4d19b7_994\n\nt_29fce5f8c810_22\n\nt_9d350c0bcba0_228\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_d747a9419e26_133\n\nt_9856a95edb9c_280\n\nt_4e4e48fb23ce_277\n\nt_1881540cc600_964\n\nt_d162dc83864d_371\n\nt_2471c0f22493_678\n\nt_4e27137a37aa_909\n\nt_6fb4d55b437b_334\n\nt_c2fb2e4e1fc1_121\n\nt_46a24a6f7d26_231\n\nt_39889d2a4bcf_37\n\nt_534371e266da_170\n\nt_cef1f7a85a52_25\n\nt_e3643abc56c4_254\n\nt_63820dbe24b9_244\n\nt_14d40c631950_223\n\nt_c638dc41e2c9_16\n\nt_7823f712a64c_145\n\nt_2cf09c2685ae_189\n\nt_77f2b419da36_24\n\nt_7714657a3a3d_398\n\nt_f2bac342a08d_21\n\nt_2339865de74a_747\n\nt_4253559b9fc3_126\n\nt_a93d60d59f44_31\n\nt_a2a7a153f4ab_463\n\nt_df2c4155da8c_195\n\nt_f0c9f9b0c97d_34\n\nt_659744940aac_263\n\nt_2a99788243f0_464\n\nt_e6e02b2c94e7_157\n\nt_96b5a06eb124_20\n\nt_afd105088016_53\n\nt_5aa6d37c7ef2_24\n\nt_804f6139f2b0_15\n\nt_65f751ce6a31_652",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        "bytes": 13102
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 3484
+      },
+      {
+        "name": "Artifact",
+        "bytes": 10821
+      },
+      {
+        "name": "Bash",
+        "bytes": 2984
+      },
+      {
+        "name": "Edit",
+        "bytes": 993
+      },
+      {
+        "name": "Monitor",
+        "bytes": 7771
+      },
+      {
+        "name": "Read",
+        "bytes": 1617
+      },
+      {
+        "name": "ReportFindings",
+        "bytes": 2206
+      },
+      {
+        "name": "ScheduleWakeup",
+        "bytes": 4660
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 2817
+      },
+      {
+        "name": "SendUserFile",
+        "bytes": 2654
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "TaskGet",
+        "bytes": 1068
+      },
+      {
+        "name": "TaskList",
+        "bytes": 1815
+      },
+      {
+        "name": "TaskOutput",
+        "bytes": 1596
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "Write",
+        "bytes": 668
+      },
+      {
+        "name": "mcp__coolify__application",
+        "bytes": 1996
+      },
+      {
+        "name": "mcp__coolify__deploy",
+        "bytes": 302
+      },
+      {
+        "name": "mcp__coolify__env_vars",
+        "bytes": 1323
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "mcp__coolify__list_applications",
+        "bytes": 282
+      }
+    ]
+  }
+}

@@ -1,0 +1,150 @@
+{
+  "schema": "rowpin/1",
+  "family": "stabilityExempt",
+  "key": "s-c84ad56641b1",
+  "n": 281,
+  "prevN": 279,
+  "index": 0,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-11T12:47:56.240Z",
+  "row": {
+    "n": 281,
+    "prevN": 279,
+    "inDiv": 1,
+    "outDiv": 0,
+    "ccIdenticalAtOutDiv": true,
+    "prefixAboveMessages": {
+      "ourToolsIdentical": true,
+      "ourSystemIdentical": true,
+      "ccToolsIdentical": true,
+      "ccSystemIdentical": true,
+      "intact": true
+    },
+    "exemptReason": "fresh-session-sort:first-appearance-relocation",
+    "exemptBasis": {
+      "type": "mcp",
+      "targetIndex": 0
+    },
+    "keyToken": "s-c84ad56641b1"
+  },
+  "sides": {
+    "cur": {
+      "n": 281,
+      "rawLen": 5,
+      "forwardedLen": 5,
+      "outBodySha": "6a9cc3d4ce9b84cd",
+      "forwardedSha": "649e4e34000d",
+      "rawSha": "722c08e1b95d",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [
+        "mcp"
+      ],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "649e4e34000d",
+      "firstPassRawSha": "722c08e1b95d",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-c84ad56641b1",
+      "idToken": "s-2d620d09bc03",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_efc10f176ece_371\n\nt_1f6e8c4e77d3_92\n\nt_63820dbe24b9_244\n\nt_f25d372d70c8_309\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_a7f90d8004bd_114\n\nt_c30fe63c115f_35\n\nt_4cb3f4fe57b2_185\n\nt_78d66c981e0f_2800\n\nt_c759ea7eab1b_986\n\nt_4d6e503efc47_171\n\nt_224151ad8806_1296\n\nt_23dd3032927b_3621\n\nt_690783af3087_353\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d35e52d5c064_166\n\nt_d9155044a0aa_653\n\nt_8acaecd3c753_929\n\nt_4fac972e8f47_1326\n\nt_aa55238bb287_152\n\nt_f1627c55576d_1737\n\nt_bb16f68b254f_1030\n\nt_7decfa87907e_1182\n\nt_d9f38e283f82_1326"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_8c4772998ba4_129\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_a7f90d8004bd_114\n\nt_c30fe63c115f_35\n\nt_4cb3f4fe57b2_185\n\nt_78d66c981e0f_2800\n\nt_c759ea7eab1b_986\n\nt_4d6e503efc47_171\n\nt_224151ad8806_1296\n\nt_23dd3032927b_3621\n\nt_690783af3087_353\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d35e52d5c064_166\n\nt_d9155044a0aa_653\n\nt_8acaecd3c753_929\n\nt_4fac972e8f47_1326\n\nt_aa55238bb287_152\n\nt_f1627c55576d_1737\n\nt_bb16f68b254f_1030\n\nt_7decfa87907e_1182\n\nt_d9f38e283f82_1326"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_8c4772998ba4_129\n</system-reminder>"
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 279,
+      "rawLen": 2,
+      "forwardedLen": 2,
+      "outBodySha": "e7cc520239971c28",
+      "forwardedSha": "722c08e1b95d",
+      "rawSha": "722c08e1b95d",
+      "forwardedPresentInRawAt": 0,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "722c08e1b95d",
+      "firstPassRawSha": "722c08e1b95d",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-c84ad56641b1",
+      "idToken": "s-14a24e0f9e38",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_a7f90d8004bd_114\n\nt_c30fe63c115f_35\n\nt_4cb3f4fe57b2_185\n\nt_78d66c981e0f_2800\n\nt_c759ea7eab1b_986\n\nt_4d6e503efc47_171\n\nt_224151ad8806_1296\n\nt_23dd3032927b_3621\n\nt_690783af3087_353\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d35e52d5c064_166\n\nt_d9155044a0aa_653\n\nt_8acaecd3c753_929\n\nt_4fac972e8f47_1326\n\nt_aa55238bb287_152\n\nt_f1627c55576d_1737\n\nt_bb16f68b254f_1030\n\nt_7decfa87907e_1182\n\nt_d9f38e283f82_1326"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_8c4772998ba4_129\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_fe5e78e5ab25_5985\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_7ebabf60a2a0_17935\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_4e15d20cf457_7438\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_4a7bc294bdcb_3589\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_85149bf2dad0_3522\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_67456117b865_8583\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_c2fabf84dd7c_1338\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_45f705ea8220_9231\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_e1233ed843a1_3921\n\nt_a7f90d8004bd_114\n\nt_c30fe63c115f_35\n\nt_4cb3f4fe57b2_185\n\nt_78d66c981e0f_2800\n\nt_c759ea7eab1b_986\n\nt_4d6e503efc47_171\n\nt_224151ad8806_1296\n\nt_23dd3032927b_3621\n\nt_690783af3087_353\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_d35e52d5c064_166\n\nt_d9155044a0aa_653\n\nt_8acaecd3c753_929\n\nt_4fac972e8f47_1326\n\nt_aa55238bb287_152\n\nt_f1627c55576d_1737\n\nt_bb16f68b254f_1030\n\nt_7decfa87907e_1182\n\nt_d9f38e283f82_1326"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_8c4772998ba4_129\n</system-reminder>"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

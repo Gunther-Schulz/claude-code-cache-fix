@@ -1,0 +1,156 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-6c06b549c2c1",
+  "n": 1247,
+  "prevN": 1244,
+  "index": 794,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-08T08:22:53.799Z",
+  "row": {
+    "n": 1247,
+    "prevN": 1244,
+    "absorbedFreshAt": [
+      821
+    ],
+    "forwardedDivergence": 794,
+    "inputDivergence": 820,
+    "cacheControlOnly": true,
+    "ours": true,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-6c06b549c2c1"
+  },
+  "sides": {
+    "cur": {
+      "n": 1247,
+      "rawLen": 833,
+      "forwardedLen": 797,
+      "outBodySha": "b348d23a6df7b09e",
+      "forwardedSha": "cc2e738992d3",
+      "rawSha": "f77999584a9d",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "cc2e738992d3",
+      "firstPassRawSha": "f77999584a9d",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-6c06b549c2c1",
+      "idToken": "s-bfdc8401e7a9",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_015pjJ7sRTq6ke16ZcGWPXet",
+            "type": "tool_result",
+            "content": "t_a9d1243f28dd_133",
+            "is_error": false
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_e054884be797_319\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_2f949dc32c"
+          },
+          {
+            "type": "text",
+            "text": "t_427d1df9a07c_139"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01Vp7wpCA7pB7sM6iN8MFbCc",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 1244,
+      "rawLen": 830,
+      "forwardedLen": 795,
+      "outBodySha": "d6d5a1fe17a1262d",
+      "forwardedSha": "aac9eb678abd",
+      "rawSha": "f77999584a9d",
+      "forwardedPresentInRawAt": 829,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "aac9eb678abd",
+      "firstPassRawSha": "f77999584a9d",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-6c06b549c2c1",
+      "idToken": "s-3ff7ae7f6596",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_015pjJ7sRTq6ke16ZcGWPXet",
+            "type": "tool_result",
+            "content": "t_a9d1243f28dd_133",
+            "is_error": false
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_e054884be797_319\n</system-reminder>",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_2f949dc32c"
+          },
+          {
+            "type": "text",
+            "text": "t_427d1df9a07c_139"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01Vp7wpCA7pB7sM6iN8MFbCc",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

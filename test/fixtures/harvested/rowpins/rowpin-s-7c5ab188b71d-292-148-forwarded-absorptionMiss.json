@@ -1,0 +1,139 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-7c5ab188b71d",
+  "n": 292,
+  "prevN": 289,
+  "index": 148,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-08T12:10:00.528Z",
+  "row": {
+    "n": 292,
+    "prevN": 289,
+    "absorbedFreshAt": [
+      155
+    ],
+    "forwardedDivergence": 148,
+    "inputDivergence": 154,
+    "cacheControlOnly": false,
+    "ours": true,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-7c5ab188b71d"
+  },
+  "sides": {
+    "cur": {
+      "n": 292,
+      "rawLen": 160,
+      "forwardedLen": 151,
+      "outBodySha": "6d613ceda1a24036",
+      "forwardedSha": "ef4251a2e5a8",
+      "rawSha": "e15cd9e8cfed",
+      "forwardedPresentInRawAt": 157,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "ef4251a2e5a8",
+      "firstPassRawSha": "e15cd9e8cfed",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-7c5ab188b71d",
+      "idToken": "s-239be7745def",
+      "forwarded": {
+        "role": "user",
+        "content": "t_5c93fa2c4226_754"
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_bfbace9aff"
+          },
+          {
+            "type": "text",
+            "text": "t_c8ce7c0b4205_146"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01VKJmNVLF76dt7iuZBjjZz4",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    },
+    "prev": {
+      "n": 289,
+      "rawLen": 158,
+      "forwardedLen": 149,
+      "outBodySha": "23cd2dfe275ef646",
+      "forwardedSha": "bd3da53b1065",
+      "rawSha": "e15cd9e8cfed",
+      "forwardedPresentInRawAt": 157,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "bd3da53b1065",
+      "firstPassRawSha": "e15cd9e8cfed",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-7c5ab188b71d",
+      "idToken": "s-d1b6e3fd9489",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_5c93fa2c4226_754",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_bfbace9aff"
+          },
+          {
+            "type": "text",
+            "text": "t_c8ce7c0b4205_146"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_01VKJmNVLF76dt7iuZBjjZz4",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

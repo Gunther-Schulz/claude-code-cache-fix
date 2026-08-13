@@ -1,0 +1,98 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservation",
+  "key": "s-e7532657bcc2",
+  "n": 116,
+  "prevN": null,
+  "index": 3,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-11T09:27:40.060Z",
+  "row": {
+    "n": 116,
+    "kind": "lost",
+    "at": 3,
+    "side": "in",
+    "declarationsUnavailable": false,
+    "detail": "in[3] (user): 1 of 5 unit(s) present in CC's request and in no forwarded message",
+    "keyToken": "s-e7532657bcc2"
+  },
+  "sides": {
+    "cur": {
+      "n": 116,
+      "rawLen": 12,
+      "forwardedLen": 12,
+      "outBodySha": "fcac8c9c27513dbd",
+      "forwardedSha": "03611358c506",
+      "rawSha": "2758e1ed2ecb",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [
+        "mcp"
+      ],
+      "firstPassForwardedSha": "03611358c506",
+      "firstPassRawSha": "2758e1ed2ecb",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-e7532657bcc2",
+      "idToken": "s-359259a33b6c",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01V8QQotisv1GGZ5dn5Jkhpj",
+            "content": "t_94ea2b79e486_41"
+          },
+          {
+            "type": "text",
+            "text": "t_b951ba982293_128\n\nt_bece8f76a9d3_69\n\nt_b9da52742da0_228\n\nt_493c10114732_315\n\nt_243a973c3bea_674\n\nt_5f5a883f8d54_26\n\nt_fd49bcba697e_114\n\nt_f2831e2893ef_2985\n\nt_5bb065b9bc8f_65\n\nt_2ac09a117e73_508\n\nt_38296186880b_316\n\nt_248a92cbf615_59\n\nt_afa464632483_304\n\nt_fbd1a011a42c_669\n\nt_96f79655efdd_372\n\nt_0d59096d4cf0_26\n\nt_5de1dc8b9fb3_424\n\nt_f0d815b96408_28\n\nt_5d65939d6a4b_318\n\nt_9a59d8e86055_258\n\n"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_6062ea14a87c_2881\n\nt_4965b25f1f82_133\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_452989d4ef8d_19\n\nt_65f8e48b5e00_48\n\nt_715875fbcf1b_53\n\nt_4be48da88475_138\n\nt_a48140d21fe8_104\n\nt_999781b4ea20_170\n\nt_a61b43ded97e_269\n\nt_ee514317b91b_109\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "toolu_01V8QQotisv1GGZ5dn5Jkhpj",
+            "content": "t_94ea2b79e486_41"
+          },
+          {
+            "type": "text",
+            "text": "t_b951ba982293_128\n\nt_bece8f76a9d3_69\n\nt_b9da52742da0_228\n\nt_493c10114732_315\n\nt_243a973c3bea_674\n\nt_5f5a883f8d54_26\n\nt_fd49bcba697e_114\n\nt_f2831e2893ef_2985\n\nt_5bb065b9bc8f_65\n\nt_2ac09a117e73_508\n\nt_38296186880b_316\n\nt_248a92cbf615_59\n\nt_afa464632483_304\n\nt_fbd1a011a42c_669\n\nt_96f79655efdd_372\n\nt_0d59096d4cf0_26\n\nt_5de1dc8b9fb3_424\n\nt_f0d815b96408_28\n\nt_5d65939d6a4b_318\n\nt_9a59d8e86055_258\n\n"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_6062ea14a87c_2881\n\nt_4965b25f1f82_133\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_efc10f176ece_371\n\nt_1f6e8c4e77d3_92\n\nt_63820dbe24b9_244\n\nt_f25d372d70c8_309\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_452989d4ef8d_19\n\nt_65f8e48b5e00_48\n\nt_715875fbcf1b_53\n\nt_4be48da88475_138\n\nt_a48140d21fe8_104\n\nt_999781b4ea20_170\n\nt_a61b43ded97e_269\n\nt_ee514317b91b_109\n</system-reminder>"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

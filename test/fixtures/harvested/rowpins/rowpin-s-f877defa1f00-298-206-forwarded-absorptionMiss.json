@@ -1,0 +1,105 @@
+{
+  "schema": "rowpin/1",
+  "family": "absorptionMiss",
+  "key": "s-f877defa1f00",
+  "n": 298,
+  "prevN": 296,
+  "index": 206,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-08T09:32:00.537Z",
+  "row": {
+    "n": 298,
+    "prevN": 296,
+    "absorbedFreshAt": [
+      206
+    ],
+    "forwardedDivergence": 206,
+    "inputDivergence": 152,
+    "cacheControlOnly": false,
+    "ours": false,
+    "movedFresh": 1,
+    "action": "normalized",
+    "keyToken": "s-f877defa1f00"
+  },
+  "sides": {
+    "cur": {
+      "n": 298,
+      "rawLen": 213,
+      "forwardedLen": 209,
+      "outBodySha": "86cfa0c763e1df78",
+      "forwardedSha": "45e8daa6cc14",
+      "rawSha": "1527d8cfd28d",
+      "forwardedPresentInRawAt": 210,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "45e8daa6cc14",
+      "firstPassRawSha": "1527d8cfd28d",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-f877defa1f00",
+      "idToken": "s-81eff8344270",
+      "forwarded": {
+        "role": "user",
+        "content": "t_351444457404_754"
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_fb2be61b071b_459\n\nt_d7b1e0351111_421"
+      }
+    },
+    "prev": {
+      "n": 296,
+      "rawLen": 208,
+      "forwardedLen": 207,
+      "outBodySha": "4bb274d290d74d6a",
+      "forwardedSha": "82dc5fc9b833",
+      "rawSha": "ea38b683a2d2",
+      "forwardedPresentInRawAt": 207,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "82dc5fc9b833",
+      "firstPassRawSha": "ea38b683a2d2",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-f877defa1f00",
+      "idToken": "s-d56df83dd6c9",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_351444457404_754",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_af14a4aece"
+          },
+          {
+            "type": "text",
+            "text": "t_fdaa96ea78e3_61\n\nt_931ab054a54b_2261\n\nt_2e8951a01f45_572\n\nt_4f3fc5eeeab4_64\n\nt_a4ee664eda41_22"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
