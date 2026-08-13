@@ -267,6 +267,142 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **RECORD 2026-08-13 — `gate-live`'s new LOCATED error-pin path has no
+  PRODUCER: `replay.mjs` emits no ordinal marker to stderr, so every error pin
+  in production is GUESSED.** The error-pin lane shipped today (`fc174b6`)
+  implements the entry's design exactly — LOCATED when the child's stderr
+  carries an `n=<num>` marker, GUESSED (a window around the capture's last
+  known ordinal) when it does not, never conflated. **The entry's design
+  premise is false and this is the finding, not the fix:** its sentence "the
+  child's stderr carries the request ordinal or timestamp" does not hold.
+  Measured two independent ways. The lane forced two real `replay.mjs` crashes
+  and read the stderr: no ordinal, and no timestamp either. The desk
+  corroborated structurally: `grep -nE "stderr\.write|console\.error"
+  tools/replay.mjs` returns 11 writes, NONE carrying `n=`, an ordinal, or a
+  timestamp (instrument-positive: the same pattern matches, e.g. `:2650`,
+  `:2680`, `:2695`). Behaviour and structure agree, which is why this is
+  stated rather than suspected.
+  **This is the WRITER half of a reach failure** (`docs/dev-loop.md`: a
+  finding stated as "X cannot reach Y" names only the READER, and something
+  is still putting Y out of reach). The reader is built and correct; the
+  producer does not exist. Until it does, the LOCATED branch is wired to
+  nothing real — it has never fired on a genuine stderr and cannot.
+  **Design (decided):** `replay.mjs` writes `n=<ordinal>` to stderr on the
+  request it is processing when it dies — the cheapest form is a
+  single-variable current-ordinal written into an uncaught-exception /
+  fatal path, not per-request logging. Then gate-live's LOCATED branch has a
+  real shape to match.
+  **Done-criterion / red-first PAIR, both halves required:** a forced crash
+  on a real capture produces a status row reading LOCATED with the correct
+  ordinal, AND the same forced crash with the marker suppressed still reads
+  GUESSED — the two must DIFFER, or the branch is not discriminating and a
+  guessed range would read like a located one, which is the exact clause the
+  original design called load-bearing.
+  Loop stage: ATTRIBUTE. Anchor: docs/runbooks/sweep-finding.md
+  Write-set: tools/replay.mjs, tools/gate-live.mjs, test/gate-live-rowpins.test.mjs
+  Verifier: node --test test/gate-live-rowpins.test.mjs
+  <!-- entry: "replay.mjs emits no ordinal marker so LOCATED never fires" -->
+
+- **RECORD 2026-08-13 — 687 evidence pins, 29.6 MB, sit UNTRACKED in the
+  working tree: the anti-rotation mechanism works at the write step and stops
+  at the commit step.** Measured today: 687 untracked files under
+  `test/fixtures/harvested/` (684 rowpins + 3 pinned/growth), dated 2026-08-10
+  through 2026-08-13, against 210 tracked rowpins. The daily sweep writes them
+  faithfully — that is closing-gate question 2's recurring-producer clause
+  working — and `gate-live` deliberately never commits ("committing is a human
+  act here"). Nobody has. They are durable only until someone runs
+  `git clean`, invisible to a fresh clone, and any entry citing them would find
+  nothing.
+  **The publication gate is GREEN on all 687**, red-proven first: a planted
+  session UUID was caught (`FINDING capture-uuid`, exit 2), the pile returned
+  `absence-scan: clean`, exit 0, with the `live-timestamp` class-scoped
+  exemptions that are documented. So the blocker is not hygiene.
+  **The carrier has no collector, and the enumeration entry as written cannot
+  find it.** `state-report` collects unpushed commits, rescue tags, dangling
+  objects, lane branches, the gate verdict, the deployment pin and the
+  fingerprint — and nothing for uncommitted evidence pins. The booked
+  enumeration entry ("enumerate every `tools/` mechanism that writes state
+  OUTSIDE the tree") is scoped to a LOCATION while the defect is a CLASS: pins
+  are written INSIDE the tree, so that pass would return clean and miss all
+  687 — the pattern-scoped-sweep blind spot `docs/dev-loop.md` already
+  collects, arriving in the entry meant to close carrier gaps. The closing
+  gate's own definition names "a pin" as a carrier explicitly.
+  **Two halves, and the second is the durable one.** (1) An operator decision
+  on committing the existing 687 (surfaced 2026-08-13; irreversible, public,
+  bulk-publishes scrubbed other-session-derived fixtures whose SHAPE residual
+  is an open accepted risk — desk recommendation: commit). (2) Widen the
+  enumeration entry's scope from "outside the tree" to "any carrier the
+  mechanism leaves behind", with these 687 as its instrument-positive: an
+  enumeration that does not surface them has not run.
+  Loop stage: SEE. Anchor: docs/dev-loop.md
+  Write-set: BACKLOG.md (the enumeration entry's scope line), tools/state-report.mjs
+  Verifier: node tools/state-report.mjs --json | grep -c untrackedPins
+  <!-- entry: "687 evidence pins uncommitted, carrier with no collector" -->
+
+- **RECORD 2026-08-13 — `alias-claim --protect` cannot be made the default
+  until `--release` is wired and the cap is re-sized; both are measured, not
+  argued.** `--protect` shipped 2026-08-11 and works (desk-verified today with
+  a discriminating pair: link count 1 unprotected vs 2 protected; unlink both
+  originals and the unprotected capture is gone while the protected one is
+  readable and byte-identical). It had **zero uses** until today, because the
+  one paragraph telling an author how to claim taught the command without the
+  flag — fixed in `338ae82`, and the first real use followed within the hour.
+  **Why default-on is NOT the next step, with the numbers.** The cap is 4 GiB
+  (`CACHE_FIX_PROTECTED_MAX_MB`, default 4096). Live captures measure median
+  160 MB, mean 309 MB, max 1.9 GB across 39 files totalling 11.8 GB; three
+  individual captures each exceed half the cap. And `--release` exists in the
+  tool but is wired to NOTHING — `git grep -- "--release"` outside
+  `tools/alias-claim.mjs` and its tests returns only the doc line added today,
+  so no closure verb unlinks a protection. Default-on against an undrained
+  4 GiB cap fills it within a handful of claims and starts dropping the very
+  protections the mechanism exists to keep, which is the failure wearing the
+  fix's costume.
+  **Build order, decided:** wire `--release` to the closure verb first (an
+  entry reaching DONE unlinks its protection), THEN re-ask the default. The
+  cap re-size is an operator decision on disk, surfaced 2026-08-13 with the
+  distribution above; the desk recommendation is to leave the cap and wire
+  release, since a drained set rarely approaches it.
+  Loop stage: VERIFY. Anchor: tools/alias-claim.mjs
+  Write-set: tools/alias-claim.mjs, test/alias-claim.test.mjs, docs/dev-loop.md
+  Verifier: node --test test/alias-claim.test.mjs
+  <!-- entry: "protect default blocked on release wiring and cap size" -->
+
+- **RECORD 2026-08-13 — the backlog declares THREE grades and uses
+  THIRTY-THREE; every instrument that reads grades picks a different subset,
+  which is why three of them disagreed today.** Measured over top-level
+  `- **WORD` bullets in live sections (everything outside `## Done`): 312
+  bullets carrying 33 distinct grade words — RECORD 92, DONE 55, PARKED 45,
+  RESOLVED 33, READY 31, HANDOFF 10, OPEN 10, BUST 4, PARTLY 3, then FINDING,
+  NEW, CANDIDATE, CLOSED, BUILT at 2, and nineteen words appearing exactly
+  once (HALF, DECISIONS, TOOL, DATAPOINT, MECHANISM, CORROBORATION, IN,
+  QUEUED, UNDISPOSITIONED, INCIDENT, DECISION, ANSWERED, DROPPED, SHIPPED,
+  REFRAMED, FIXED, COMMITTED, ECONNRESET, RETIRED).
+  **The disagreement reconciles exactly, which is what makes this measurable
+  rather than a complaint.** The session-start banner's predicate is
+  `{DONE, DROPPED}` on top-level bullets outside `## Done` = **56**
+  (= DONE 55 + DROPPED 1). `--closures-in-live`'s is
+  `{DONE, RESOLVED, FIXED, BUILT}` = 103 whole-file, 45 under `## Open`. The
+  requesting entry's headline was 43 (DONE alone, `## Open` only) — and its
+  own tally "43 DONE against 20 READY, 32 PARKED and 4 OPEN" totals 99 against
+  a section holding **145**, so it undercounted itself by 46 and never counted
+  RESOLVED despite its own design sentence naming it.
+  **Consequence, and it is why no move has run:** a mechanical move keyed on
+  ANY subset of an undeclared vocabulary moves some closures, leaves others,
+  and reports success — leaving the carrier non-compliant behind a clean
+  verdict, on a 15,000-line load-bearing file. The prerequisite is closing the
+  vocabulary: a judgment pass over 33 WORDS, not over 300 entries. That is the
+  cheap half and it makes the move mechanical.
+  **Already done, and deliberately only this:** RECORD was missing from BOTH
+  lists that read grades and is now in both (`9ad432a`) — it is a DECLARED
+  grade, so adding it aligned an instrument with the file's own declaration
+  rather than deciding anything. The undeclared closure-shaped words
+  (ANSWERED, CLOSED, SHIPPED, RETIRED, COMMITTED, MERGED, ACCEPTED, DROPPED)
+  are the operator's call and were left alone.
+  Loop stage: RETIRE. Anchor: BACKLOG.md
+  Write-set: BACKLOG.md (the `## Grades` section), tools/backlog-lint.mjs
+  Verifier: node tools/backlog-lint.mjs --closures-in-live
+  <!-- entry: "33 grade words against 3 declared, vocabulary must close first" -->
+
 - **READY 2026-08-11 (evening) — `named-unbooked-scan` reports 0/0 on a session
   that enumerated its own errors twice, because its vocabulary does not carry the
   words sessions actually use.** Found at this session's own close, by refusing
@@ -470,6 +606,20 @@ hook, whose fork-side contract line shipped this session.
   is dotfiles' own BACKLOG; until the entry exists THERE, the doctor half is
   unbooked wherever this file says otherwise. Surfaced to the operator
   2026-08-11 rather than written across.
+  **RESOLVED 2026-08-13 — the entry EXISTS there, checked in the other repo
+  rather than assumed from this one.** `dotfiles/BACKLOG.md:147`, graded READY
+  2026-08-11, and it is decision-complete on its own terms: a verdict function
+  in `bootstrap/doctor.py` running `alias-claim --protect-status` in the fork
+  checkout, grading ok with count/bytes-vs-cap, WARN at ≥75% fill (because the
+  eviction that follows silently drops protection — the loss the mechanism
+  exists to close), and WARN-with-reason on unreadable or absent output rather
+  than a silent skip. Its own done-criterion already includes "the fork's
+  pointer entry re-pointed here so it resolves", which this paragraph
+  discharges from our side.
+  So the pointer now resolves and the doctor half is booked where its consumer
+  reads. Nothing further is owed in THIS repo — and note the check was reading
+  the other repo's file, not this entry's own claim about it, which is the
+  distinction the paragraph above was written to enforce.
 
 - **READY 2026-08-11 — `## Open` holds 43 DONE entries, so the live section is
   mostly closures and a fresh context pays for all of them.** Measured this
@@ -586,32 +736,6 @@ hook, whose fork-side contract line shipped this session.
   Anchor: docs/runbooks/sweep-finding.md
   Write-set: tools/gate-live.mjs, test/gate-live-rowpins.test.mjs
   Verifier: node --test test/gate-live-rowpins.test.mjs
-
-- **READY 2026-08-11 — a claimed alias does not protect its capture from
-  eviction, so citing evidence in a booked item does not make the evidence
-  survive.** `alias-claim.mjs` records a name for a capture; retention is
-  oldest-mtime-first and knows nothing about claims, so an entry, a matrix row
-  or an in-flight walk can name a capture that is deleted hours later — observed
-  twice now (s-captureBE this session; the 2026-08-05 absorption rows, whose 3
-  of 12 captures went within hours). The retention knob is explicitly NOT the
-  answer (dev-loop.md, closing-gate q2's corollary): it buys hours and moves the
-  same loss later.
-  **Design (decided): HARD-LINK on claim.** `alias-claim.mjs --protect` links the
-  capture into a protected directory beside the captures root. A hard link costs
-  ZERO additional bytes, and eviction's `unlink` on the original merely
-  decrements the link count — the bytes survive the rotation that deletes the
-  name. Two things the design must carry or it becomes a disk leak with a good
-  story: a protected-set CAP with its own oldest-first eviction, reported by
-  `doctor`; and a RELEASE step, so an entry reaching DONE unlinks its protection
-  (the closure verb already exists — this hangs off it). Rejected alternative:
-  copying the capture, which doubles bytes for files measured up to 2 GB here.
-  **Done-criterion:** claiming with `--protect` and then forcing a retention
-  sweep past the cap leaves the protected capture readable and the unprotected
-  one gone, with both `ls` results pasted; `doctor` reports the protected-set
-  size; releasing removes the link and the bytes go on the next sweep.
-  Anchor: tools/alias-claim.mjs
-  Write-set: tools/alias-claim.mjs, test/alias-claim.test.mjs
-  Verifier: node --test test/alias-claim.test.mjs
 
 - **READY 2026-08-11 — the conservation attribution has no F-side (`invented`)
   half, and no live positive exists to build one against.** Shipped this day:
@@ -943,17 +1067,60 @@ hook, whose fork-side contract line shipped this session.
   Write-set: BACKLOG.md
   Verifier: git cherry main <each registered lane branch> reports zero `+` lines, or each remaining `+` has a booked reason
 
-- **PARKED (RE-GRADED 2026-08-11 from READY — the red case expired between
-  two derivations) — `capturePairResult`'s conversation identity is the busting
+- **RECORD (UN-PARKED 2026-08-13 — the named missing evidence now EXISTS and is
+  frozen; re-graded from PARKED, which it had been since 2026-08-11) —
+  `capturePairResult`'s conversation identity is the busting
   request's own `messages[0]`, so the pairing instrument goes BLIND exactly
   when the class it would observe fires.** Found 2026-08-08 by the row-map
   lane, which correctly refused to fix it and returned the question.
-  **MISSING EVIDENCE, named so this is a spec and not drift:** a live row-29
-  instance — an identity rotation at an idle boundary — captured and frozen by
-  `harvest --pin --bounded` AT THE MOMENT IT OCCURS, carrying both the busting
-  request and its highest-overlap lineage predecessor, plus a co-tenant sidecar
-  in the same range as the negative control. Until such a pin exists in
-  `test/fixtures/`, this entry is not dispatchable at any tier.
+  **THE EVIDENCE, replacing the missing-evidence block this entry carried for
+  two days.** A surviving instance of the exact named class was found
+  2026-08-13 and FROZEN the same hour, so the three-link chain this entry
+  specifies (lineage primitive -> bounded `--pin` -> freeze both cases)
+  completed for the first time; last time it stopped before link three and the
+  capture rotated out within a day.
+  - **The instance**, in capture `s-captureBM` (claimed AND `--protect`ed, so
+    retention cannot take it): ordinal `n=13` at `2026-08-13T10:15:23.189Z`,
+    19 messages, whose `messages[0]` matches NO predecessor in the capture —
+    checked against every one of `n=0..12`, not merely its neighbours — while
+    its lineage predecessor `n=10` at `2026-08-11T17:19:04.040Z` (16 messages,
+    ~41h earlier) shares 14 of 16 messages, overlap **0.875**, well above
+    `LINEAGE_THRESHOLD` 0.5. Both halves hold: no predecessor by identity, a
+    lineage neighbour by overlap.
+  - **Verified twice, independently.** The finding lane imported
+    `conversationOf` / `lineageOverlap` / `sameLineage` from `replay.mjs`
+    rather than re-deriving them, and self-tested its predicate on three
+    constructed controls before reading any capture (search half fires,
+    failure half fires, zero-overlap negative does not). The desk then
+    re-derived it from the raw file by TIMESTAMP — no shared code, no imports
+    — and got the identical four numbers.
+  - **The pin**: `test/fixtures/harvested/pinned-s-2474f17f818d-10-13.json`,
+    100 KB, `harvest --pin --bounded`, self-verified as reproducing the live
+    verdicts over 6 compared pairs (a pair COUNT, per the rule that a pin
+    check reporting no pair count has checked nothing). Confirmed to carry the
+    event itself and not merely to exist: in the pin, `messages[0]` still
+    differs and the overlap is still **14/16 = 0.875**, byte-identical to the
+    live measurement — the rotation is structural, so it survives the scrub.
+    Absence-scan clean.
+  - **The capture is THIS REPO'S OWN dev session**, which matters twice: the
+    rotation is our own ~41h resume boundary, and under the operator's
+    publication bar our own dev chat in the public tree is explicitly fine, so
+    this pin carries no other-session question at all.
+  **DESK CAVEAT, and it changes the verifier rather than the design.**
+  `bust-triage --at 2026-08-13T10:15:23.189Z` does NOT reach the pairing code
+  on this instance: it resolves to `CONTROLLED(resume)` and answers "a
+  controlled cause is a cost you caused, not a bust", short-circuiting first.
+  Calling `capturePairResult(sid, ts)` directly also fails to exercise it —
+  the function runs its OWN request selection and returned ord 190->198 for
+  both the instance stamp and a control stamp, i.e. the two arms agreed, which
+  indicts the probe and not the finding. So the fix's red-first arrangement
+  must drive the pairing predicate against THIS NAMED PAIR from the pin, never
+  through `bust-triage --at` and never through `capturePairResult`'s selector,
+  or it ships having never gone red on anything.
+  **Grade note:** RECORD rather than READY because READY is the scheduled head
+  capped at ten and membership is DERIVED (`## Grades`); this entry is now
+  decision-complete and armed, and whether it enters the head is the next
+  build-order derivation's call, not this booking's.
   **Why, measured at the desk 2026-08-11:** both verifier arms named below
   (s-captureAT for the red, s-captureAU for the control) are GONE — 0 hits in
   the captures directory and 0 committed fixtures, the latter RE-CHECKED with
@@ -1197,6 +1364,22 @@ hook, whose fork-side contract line shipped this session.
   `capturePairResult` entry is re-anchored to it; if it does not, the entry's
   verifier has to be rebuilt from a synthetic case and that is a design
   decision, not a lookup.
+  **RESOLVED 2026-08-13 — the measurement was run and the answer is FOUND.**
+  The prescribed lookup was executed smallest-first over the live corpus and
+  returned a positive: a request whose `messages[0]` matches none of its
+  predecessors while a lineage neighbour sits at 0.875 overlap. It is frozen
+  as `test/fixtures/harvested/pinned-s-2474f17f818d-10-13.json` and its
+  capture is `--protect`ed; full evidence, the two independent verifications
+  and the desk caveat live in the `capturePairResult` entry above, which is
+  now re-anchored to it exactly as this paragraph prescribed. So the branch
+  this entry left open resolves to its FIRST arm: no synthetic rebuild is
+  needed and no design decision is owed.
+  **Coverage, stated because a positive does not excuse it:** the hunt stopped
+  on the first solidly-evidenced instance, as briefed — 13 of 39 captures,
+  smallest-first, ~77 MB of an 11.8 GB corpus (33% by count, ~0.6% by bytes).
+  The other 26 captures are UNCOVERED, not zero. That is sufficient for this
+  entry, whose question was existence, and it is NOT a base rate: nothing here
+  measures how often the class fires.
   Loop stage: ATTRIBUTE. Consumer tier **1**.
   <!-- entry: "s-captureAT rotated out, taking capturePairResult's red case" -->
 
@@ -15490,3 +15673,53 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   (`findToolsDeltas` row only), their tests. Touches `proxy/` — so a dotfiles pin
   bump plus `systemctl --user restart cache-fix-proxy` rides along, and the
   restart is cache-transparent (no state KEYS or freeze logic touched).
+
+- **DONE 2026-08-13 (`999a6ff`, `9e3530a` — shipped 2026-08-11; graded and
+  moved here 2026-08-13) — a claimed alias now DOES protect its capture from
+  eviction.** Moved from `## Open`, where it had sat graded READY for two days
+  after shipping — the closure-without-an-exit shape the accretion rule names,
+  and the reason the session-start banner reads "exit pass owed". Body kept
+  verbatim below as the record.
+  **DESK CHECK, run independently of the lane that built it** (the convention:
+  a DONE grading names the desk check and its result, or says plainly that the
+  lane's evidence was taken as sufficient). Not the lane's tests — a live
+  end-to-end with a DISCRIMINATING pair: two real captures in a scratch root,
+  one claimed plain and one claimed `--protect`. Link counts before eviction:
+  **1** unprotected, **2** protected. Then both originals unlinked, which is
+  what `sweepCaptureDir` does. Result: the captures dir is empty (0 entries)
+  and the protected capture is still readable and `cmp`-identical to its
+  source. The two DIFFER, which is what makes it a proof rather than a
+  demonstration that something happened.
+  **Residual, booked as its own entry rather than left here:** the flag reached
+  ZERO uses in its first two days because the doc that teaches claiming taught
+  it without the flag (fixed `338ae82`; first real use followed within the
+  hour). `--release` is wired to nothing and the 4 GiB cap is small against a
+  corpus whose captures run to 1.9 GB — see "protect default blocked on release
+  wiring and cap size" in `## Open`. Neither blocks this closure: the shipped
+  thing does what it says.
+  ORIGINAL BODY (verbatim): **READY 2026-08-11 — a claimed alias does not protect its capture from
+  eviction, so citing evidence in a booked item does not make the evidence
+  survive.** `alias-claim.mjs` records a name for a capture; retention is
+  oldest-mtime-first and knows nothing about claims, so an entry, a matrix row
+  or an in-flight walk can name a capture that is deleted hours later — observed
+  twice now (s-captureBE this session; the 2026-08-05 absorption rows, whose 3
+  of 12 captures went within hours). The retention knob is explicitly NOT the
+  answer (dev-loop.md, closing-gate q2's corollary): it buys hours and moves the
+  same loss later.
+  **Design (decided): HARD-LINK on claim.** `alias-claim.mjs --protect` links the
+  capture into a protected directory beside the captures root. A hard link costs
+  ZERO additional bytes, and eviction's `unlink` on the original merely
+  decrements the link count — the bytes survive the rotation that deletes the
+  name. Two things the design must carry or it becomes a disk leak with a good
+  story: a protected-set CAP with its own oldest-first eviction, reported by
+  `doctor`; and a RELEASE step, so an entry reaching DONE unlinks its protection
+  (the closure verb already exists — this hangs off it). Rejected alternative:
+  copying the capture, which doubles bytes for files measured up to 2 GB here.
+  **Done-criterion:** claiming with `--protect` and then forcing a retention
+  sweep past the cap leaves the protected capture readable and the unprotected
+  one gone, with both `ls` results pasted; `doctor` reports the protected-set
+  size; releasing removes the link and the bytes go on the next sweep.
+  Anchor: tools/alias-claim.mjs
+  Write-set: tools/alias-claim.mjs, test/alias-claim.test.mjs
+  Verifier: node --test test/alias-claim.test.mjs
+
