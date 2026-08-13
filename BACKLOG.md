@@ -342,6 +342,28 @@ hook, whose fork-side contract line shipped this session.
   the hypothesis needed does not happen, and a `cache_read` of 0 cannot be
   explained by losing the fallback: the system-level entries should still
   have hit. The hypothesis is dead in its strong form.
+  **The basis for "busting and warm alike", stated because the obvious basis
+  is unsound and was nearly used.** The tempting join is timestamp
+  proximity, and it is WRONG here — transcript stamps are assistant-message
+  COMPLETION times against the capture's request-START times, so 5 of the 6
+  bust stamps have no capture row within seconds and only stamp #1 lands
+  within 122 ms (coincidence, not a match). The claim does not rest on that
+  join and does not need it. It rests on EXHAUSTIVE ACCOUNTING over the
+  window: 22 scanned + 993 outside-window + 927 skipped (boot 1, outcome
+  926) = 1942 = every non-blank line read, so no request in
+  11:32:00–11:35:30Z escaped the scan. Busts #1–#5 fall inside that window
+  by their own timestamps, therefore they ARE among the 22 — whichever rows
+  they are — and all 22 carry the same three-marker layout. Set membership,
+  not a join. Bust #6 (11:37:09Z) is outside the window and remains
+  unmeasured.
+  **A residual on that scan, booked rather than waved past:** the rows were
+  never grouped by CONVERSATION — see the entry below — so this argument is
+  about all traffic in the window, not about one conversation's traffic.
+  That is sufficient for the refutation (every member has the property) and
+  is NOT sufficient for any claim about how the layout EVOLVES, which is why
+  Q4's "advances by exactly 2 per request" is recorded as an observation
+  over an ungrouped sequence rather than as a property of the busting
+  conversation.
   **What the refutation does NOT settle, which is now the open question.**
   `cache_read` 0 means even the `tools`+`system` prefix missed, while both
   compare equal. The next discriminator is the marker VALUE rather than its
@@ -369,6 +391,53 @@ hook, whose fork-side contract line shipped this session.
   capture's clock.
   Loop stage: ATTRIBUTE. Anchor: proxy/extensions/cache-control-normalize.mjs
   <!-- entry: "georgendorf 6-bust burst — layout refuted, ttl value open" -->
+
+- **READY 2026-08-13 — `breakpoint-scan` does not group by CONVERSATION, so
+  every sequence it prints can silently interleave the main thread, its
+  subagents and CC's sidecars.** Surfaced by the lane that built it, in its
+  own honest-residue slot, not by a reviewer. It reports `sid`, which is the
+  session-id HEADER — and `FORK-NOTES.md` and `docs/dev-loop.md` both state
+  that one session id carries the main thread, every subagent and CC's own
+  background calls. dev-loop's standing rule is explicit: "Group by
+  conversation before comparing anything… This artifact produced false
+  results six separate times in one day, including in the gate itself",
+  where adjacent-line pairing reported 0 violations on a 602-request capture
+  while a single-conversation slice of the same session reported 2.
+  **It already showed up in the first real run.** Of 22 rows, 21 form a
+  smooth `nMessages` growth (161→163→166→…→203) and ONE sits at
+  `nMessages=1` with a lone `system[0]` marker. The lane called that a
+  different co-tenant conversation on STRUCTURAL grounds — the reset shape —
+  and said plainly it had not verified a conversation identity. That is the
+  right call and it is exactly the judgement a grouping key would have made
+  mechanical.
+  **Why this is not merely cosmetic:** the tool's most natural use is
+  reading a SEQUENCE (does the tail marker advance, does the layout drift),
+  and a sequence is meaningless across tenants. The refutation it produced
+  today survives only because that argument was re-based on exhaustive
+  window accounting instead of on the sequence — see the RECORD entry above.
+  The next user will not necessarily notice they need to do that.
+  **Design, decided:** emit a `conversationId` per row using the repo's own
+  identity function rather than a new one — `conversationSubKey` /
+  `conversationOf` from `replay.mjs`, per `bust-appears.md` step 9 ("never
+  hand-roll identity in a probe… an identity computed more cheaply than the
+  thing it identifies will collide"). Add `--by-conversation` to group the
+  output; default output stays byte-identical so no existing caller changes.
+  Do NOT re-derive a first-message hash locally — `cache-sim.mjs` has one and
+  a third implementation is the collision this repo has already paid for
+  three times.
+  Red-first arrangement, and the two must DIFFER: a synthetic capture with
+  two interleaved conversations must produce two groups with the correct
+  rows in each; the same fixture read WITHOUT grouping must show the
+  interleaved (wrong) sequence. A change where both readings agree has not
+  demonstrated grouping.
+  Done: the two bites above pass, the live capture's `nMessages=1` outlier
+  lands in its own group rather than inside the main sequence, and this
+  entry moves to `## Done` with its commit ref.
+  Loop stage: ATTRIBUTE.
+  Anchor: tools/breakpoint-scan.mjs
+  Write-set: tools/breakpoint-scan.mjs, test/breakpoint-scan.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/breakpoint-scan.test.mjs
+  <!-- entry: "breakpoint-scan does not group by conversation" -->
 
 - **PARKED 2026-08-13 — the `/tmp` run-root leak is BACK: every full-suite
   run leaks exactly 2 roots, including runs that PASS, and the guard's
