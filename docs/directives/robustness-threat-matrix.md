@@ -1856,12 +1856,22 @@ relocation (mcp)`, which is an unrelated pair far from either event — so the
 self-check is TRUE and its stated reason is NARROWER than "your event is
 missing", the same shape recorded at 2026-08-08 where a pin's honest
 `does NOT reproduce` was correct for a reason narrower than the truth.
-What is established: the fixtures are raw structure and are kept. What is
-NOT established: that either row-4 event survives in them. Row 4's class is
-container migration, which is TEXT-predicated, and the scrub destroys
-text-predicate classes by construction — so the durable evidence for this
-class is a SYNTHETIC fixture, not these pins. Nobody should read
-`pinned-…-169-170.json` as evidence for this datapoint.
+What is established: the fixtures are raw structure. What is NOT
+established: that either row-4 event survives in them.
+
+**Both pins were then DROPPED rather than committed, and that is a decision
+with a reason, not an omission.** They measured 7.5 MB and 4.5 MB — 12 MB
+of permanent PUBLIC history, since this repo's history cannot be retracted.
+Against that, their evidentiary value for this datapoint is not merely
+unproven but structurally unlikely: row 4's class is container migration,
+which is TEXT-predicated, and this file's own rule already says the scrub
+destroys text-predicate classes by construction, so "structural classes
+survive the scrub and are worth the megabytes; text-predicate classes do
+not, and their durable evidence is a SYNTHETIC fixture". Paying 12 MB of
+irreversible public storage for a fixture the repo's own rule predicts is
+empty would have been buying the appearance of frozen evidence. The drop is
+the recorded exit; the durable evidence for this class remains synthetic,
+and the numbers in the table above are this datapoint's basis.
 
 **Not a new investigation, per the runbook** — a bust mapping to an existing
 OPEN row is another instance of that row. No mitigation is designed off
