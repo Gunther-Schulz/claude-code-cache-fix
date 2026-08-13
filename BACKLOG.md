@@ -29,6 +29,56 @@ calling the rest unranked.
   booking exists for. Lives in `## Record`.
 - **PARKED** — unchanged: blocked, carrying its named missing evidence.
 
+### The CLOSURE vocabulary — declared 2026-08-13, because it was being used undeclared
+
+The three grades above are what an entry is BOOKED as. They are not what the
+file actually contains: measured 2026-08-13 over top-level bullets in live
+sections, **312 entries carry 33 distinct grade words**. That gap is not
+untidiness, it is why instruments disagree — each one picks a different subset
+of an undeclared vocabulary and every count is defensible and different. Three
+of them disagreed on one day: the session-start banner's `{DONE, DROPPED}`
+predicate said 56 (= DONE 55 + DROPPED 1, reconciled exactly), the
+`--closures-in-live` lane's said 103, and this file's own entry claimed 43.
+
+**A mechanical closure move keyed on any subset moves some closures, leaves
+others, and reports success** — which is why no move ran until this section
+existed. The prerequisite was never a bigger pass over 300 entries; it was a
+judgment pass over 33 WORDS.
+
+The grading below was made by SAMPLING a real header for each word, not by
+reading the words. Two sampled bodies reversed the obvious call, which is the
+whole argument for sampling: `COMMITTED` reads *"COMMITTED on PR #272 and #273
+threads: week-of-soak summary, **due**"* — an outstanding obligation, not a
+closure; and `PARTLY` / `HALF` / `TOOL` / `MECHANISM` are all *"X HALF DONE …"*
+headers with a stated remainder still live.
+
+**CLOSURE — the body says the work is finished; these move to `## Done`:**
+`DONE`, `RESOLVED`, `CLOSED`, `DROPPED`, `BUILT`, `FIXED`, `SHIPPED`,
+`ANSWERED`, `RETIRED`. (`DROPPED` counts: a recorded deliberate drop is an exit
+of equal standing, not a failure — the accretion rule says so outright.)
+
+**OPEN — declared grades plus every word whose body shows live work or a stated
+remainder; these stay put:** `READY`, `RECORD`, `PARKED`, `OPEN`, `HOT`,
+`OPEN/HOT`, `PARTLY`, `HALF`, `TOOL`, `MECHANISM`, `IN`, `QUEUED`,
+`UNDISPOSITIONED`, `NEW`, `FINDING`, `BUST`, `INCIDENT`, `CANDIDATE`,
+`HANDOFF`, `DATAPOINT`, `CORROBORATION`, `ECONNRESET`, `COMMITTED`.
+
+**AMBIGUOUS — listed for a human, never moved by machine:** `CORRECTED`,
+`DOWNGRADED`, `DECISION`, `DECISIONS`, `REFRAMED`. These are genuinely
+undecidable from their own bodies. Leaving them is the cheap side of the
+asymmetry this file already states: an item wrongly left OPEN costs one
+re-read, an item wrongly CLOSED leaves every future list, because the sentence
+that closed it is exactly the thing that stops anyone looking again. **Where a
+body is ambiguous the grading is OPEN, on purpose.**
+
+Two things this section is NOT. It is not a licence to invent grade words —
+new entries take one of the three booked grades, and this vocabulary exists to
+read the corpus AS IT IS, not to bless it. And several of these "grades" are
+not grades at all but the first word of a prose header (`TOOL HALF DONE …`,
+`MECHANISM HALF DONE …`); they are classified OPEN because that is what their
+bodies say, and re-heading them is separate work, deliberately not bundled
+here.
+
 **The booking bar, and it applies to READY only.** A READY entry carries three
 markers, each on its own line, and `node tools/backlog-lint.mjs --ready-bar`
 enforces them:
