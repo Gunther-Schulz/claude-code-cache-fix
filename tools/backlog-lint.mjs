@@ -595,8 +595,21 @@ function formatPointerFinding(f) {
 // The closed grade vocabulary. Order here is the order the summary line
 // prints buckets in — UNCLASSIFIED last, since it is the "recognized
 // nothing" bucket rather than a grade word this corpus actually writes.
+// RECORD added 2026-08-13. It is one of the THREE grades BACKLOG.md's own
+// `## Grades` section declares (READY / RECORD / PARKED, minted 2026-08-11),
+// and this list was never widened when it was — so the census read all 92
+// live RECORD entries as UNCLASSIFIED, and every instrument built on
+// `censusGrade` inherited that: the `--closures-in-live` lane shipped the
+// same day reported COULD-NOT-VERIFY=158, of which 92 were simply this.
+// A declared grade missing from the instrument that reads grades is the
+// "a finding never lands alone — it RE-GRADES its dependents" case: minting
+// the grade and not widening its reader left a number that looked like a
+// measurement and was an artifact. Undeclared closure-shaped words seen in
+// the corpus (ANSWERED, CLOSED, SHIPPED, RETIRED, COMMITTED, MERGED,
+// ACCEPTED, DROPPED) are deliberately NOT added here — those are a
+// vocabulary decision, not a declaration this list is behind on.
 const CENSUS_GRADES = [
-  "READY", "OPEN", "HOT", "OPEN/HOT", "PARKED", "DONE", "RESOLVED",
+  "READY", "RECORD", "OPEN", "HOT", "OPEN/HOT", "PARKED", "DONE", "RESOLVED",
   "FIXED", "BUILT", "PARTLY", "CORRECTED", "DOWNGRADED",
 ];
 const CENSUS_GRADE_SET = new Set(CENSUS_GRADES);
@@ -819,7 +832,18 @@ export function censusText(text, { sinceRef, oldText } = {}) {
 const CLOSURE_HOME_PREFIX = "## Done";
 const OPEN_SECTION_PREFIX = "## Open";
 const CLOSURE_GRADE_SET = new Set(["DONE", "RESOLVED", "FIXED", "BUILT"]);
-const NOT_CLOSURE_GRADE_SET = new Set(["READY", "OPEN", "HOT", "OPEN/HOT", "PARKED"]);
+// RECORD added 2026-08-13, in the same change that added it to CENSUS_GRADES
+// above — and it is the DEPENDENT that change moved rather than a second
+// instance of it. Widening CENSUS_GRADES alone reclassified all 92 live
+// RECORD entries from COULD-NOT-VERIFY to AMBIGUOUS (measured: 158 -> 66 and
+// 4 -> 96, the same 92 both ways), because this set is a second list and
+// AMBIGUOUS is derived as "in CENSUS_GRADES but in neither of the other two".
+// RECORD is a DECLARED, definitively-open grade (`## Grades`: "decision-
+// complete memory, not scheduled"), so it belongs here, not in a bucket a
+// reader is asked to judge. Found by re-running the lane after the first
+// edit, not by grepping for dependents — a dependent that reaches the change
+// through a derived set carries no mark to search for.
+const NOT_CLOSURE_GRADE_SET = new Set(["READY", "RECORD", "OPEN", "HOT", "OPEN/HOT", "PARKED"]);
 // Derived, not restated: everything CENSUS_GRADES carries that is neither
 // CLOSURE nor NOT-CLOSURE.
 const AMBIGUOUS_GRADE_SET = new Set(

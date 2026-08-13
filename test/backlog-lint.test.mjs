@@ -1939,3 +1939,39 @@ test("closures-in-live: a real class member this predicate CANNOT match — ANSW
     "ANSWERED is not in CENSUS_GRADE_SET — a real closed-in-substance entry this lane cannot classify as CLOSURE",
   );
 });
+
+// RECORD is one of the three grades BACKLOG.md's `## Grades` declares, and it
+// was missing from BOTH lists this lane reads — CENSUS_GRADES (so censusGrade
+// returned UNCLASSIFIED) and NOT_CLOSURE_GRADE_SET (so widening only the first
+// moved all 92 live RECORD entries into AMBIGUOUS instead). Measured on the
+// live file 2026-08-13: COULD-NOT-VERIFY 158 -> 66 and AMBIGUOUS 4 -> 96 after
+// the first edit, then NOT-CLOSURE 86 -> 178 after the second — the same 92
+// each time. Both halves are asserted because each was independently wrong,
+// and the AMBIGUOUS half is the one that fails QUIETLY: a declared open grade
+// sitting in the bucket a reader is asked to JUDGE reads as ordinary backlog
+// noise, where UNCLASSIFIED at least announces that nothing was measured.
+test("closures-in-live: RECORD — a DECLARED grade — classifies as NOT-CLOSURE, not AMBIGUOUS and not COULD-NOT-VERIFY", () => {
+  const text = [
+    "## Open",
+    "",
+    "- **RECORD 2026-08-11 — decision-complete memory, not scheduled.** Body.",
+    "  Anchor: BACKLOG.md",
+    "",
+    "## Done — closures, one home",
+    "",
+    "- **DONE 2026-08-01 (`abc1234`) — a closure in its home.** Body.",
+    "",
+  ].join("\n");
+  const rows = lint.closuresInLiveEntries(text);
+  const record = rows.find((r) => r.headline.startsWith("RECORD 2026-08-11"));
+  assert.ok(record, "the RECORD-headed entry under a live section must be scanned");
+  assert.equal(
+    record.classification,
+    "NOT-CLOSURE",
+    "RECORD is declared open in `## Grades` — it must never read as a closure, as ambiguous, or as unclassifiable",
+  );
+  // The discriminating half: the closure in the closure HOME is not reported
+  // at all, so a predicate that simply labelled everything NOT-CLOSURE would
+  // still fail here.
+  assert.equal(rows.filter((r) => r.classification === "CLOSURE").length, 0);
+});

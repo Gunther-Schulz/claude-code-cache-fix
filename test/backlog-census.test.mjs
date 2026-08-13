@@ -50,7 +50,7 @@
 // first mutation arm below.
 //
 // Summary (derived from the ten rows above):
-//   grades: READY=3 OPEN=1 HOT=1 OPEN/HOT=1 PARKED=1 DONE=1 RESOLVED=1
+//   grades: READY=3 RECORD=0 OPEN=1 HOT=1 OPEN/HOT=1 PARKED=1 DONE=1 RESOLVED=1
 //           FIXED=0 BUILT=0 PARTLY=0 CORRECTED=0 DOWNGRADED=0 UNCLASSIFIED=1
 //   UNCLASSIFIED bullets: 27
 //   READY without anchor: 2   (lines 13, 16)
@@ -141,7 +141,7 @@ test("censusText: the fixture's exact rows and summary", () => {
     "32\tOPEN/HOT\t-\t-\t-\t\tOPEN/HOT — double grade example.** Watch this closely; no files.",
     "34\tRESOLVED\t-\t-\t-\t\tRESOLVED — old work closed out.** Already resolved 2026-01-01, no",
     "",
-    "# grades: READY=3 OPEN=1 HOT=1 OPEN/HOT=1 PARKED=1 DONE=1 RESOLVED=1 FIXED=0 BUILT=0 PARTLY=0 CORRECTED=0 DOWNGRADED=0 UNCLASSIFIED=1",
+    "# grades: READY=3 RECORD=0 OPEN=1 HOT=1 OPEN/HOT=1 PARKED=1 DONE=1 RESOLVED=1 FIXED=0 BUILT=0 PARTLY=0 CORRECTED=0 DOWNGRADED=0 UNCLASSIFIED=1",
     "# UNCLASSIFIED bullets: 27",
     "# READY without anchor: 2",
     "# READY without verifier: 2",
