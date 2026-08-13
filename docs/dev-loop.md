@@ -412,6 +412,66 @@ that keeps this honest is the one the partition already carries: an instrument
 whose output nothing booked consumes is not in the partition at all, so
 "tier 3" is never a parking space — it is a claim that something reads it.
 
+### The head is MITIGATION-LED — the instrument partition is scoped, not unconditional
+
+MANDATE (operator, 2026-08-13): *"refocus to mitigations over instrument work
+but not blindly but with judgement."* This section is the judgement half; the
+refocus without it is just a different blind rule.
+
+**The rubric already contained the argument and lost the fight anyway.** The
+paragraph above states it outright — instrument-first "is sound as a PHASE and
+false as a permanent order", and "the operator pays tokens for busts, not for
+instruments". The fifth signal was then written as a FLOOR: at least one
+MITIGATE item in the head. A floor of one is what produced the nine-to-one head
+it was written to prevent. Meanwhile the third partition ranks every
+measured-lying instrument ABOVE the cost ordering, and it admits a third of the
+list. So the composition rule asked for one mitigation and the partition
+supplied nine instruments above it, and both were followed correctly.
+
+**The change, and it is a scoping rule rather than a reversal.** The sound core
+of instrument-first is narrow: *do not design a mitigation using an instrument
+whose output that mitigation depends on.* The unbounded version — any lying
+instrument outranks any mitigation — does not follow from it. So:
+
+- **The head LEADS with a MITIGATE-stage item whenever one is
+  decision-complete.** Not "contains one": leads with one.
+- **An instrument item outranks that mitigation only when the instrument is
+  UPSTREAM of it** — when its output is evidence that mitigation's design or
+  verification actually reads. The entry already names its consumer, so this
+  is read off the entries, not judged fresh at ranking time; it is the same
+  property signal 1 has.
+- **Every other lying instrument keeps its partition rank relative to other
+  instruments, and sits below the led mitigation.** It is still promoted over
+  cost-ordered work — it just no longer outranks the payload.
+
+**What this deliberately does NOT relax, because "mitigations first" is the
+exact pressure under which these get skipped.** All of them still bind, and a
+mitigation failing any of them is not eligible to lead:
+
+- no mitigation is designed before the ATTRIBUTION verdict exists, and
+  COULD-NOT-ATTRIBUTE blocks the next step (this is not a formality — on
+  2026-08-13 two consecutive desk hypotheses for one bust class were built up
+  and refuted, and either would have shipped a fix for a cause that did not
+  exist);
+- a normalization passes the byte-match census with zero MISMATCH;
+- red-first on the instance's own evidence, synthetic where the class is
+  text-predicated;
+- the sibling and entry-path enumerations at ship time.
+
+**The failure mode of THIS rule, named so it is recognisable.** Instrument-first
+existed because an instrument that lies corrupts the evidence every mitigation
+is designed from, and that risk is real. The tell that the tilt has gone too
+far is a shipped mitigation later found to have been designed on an instrument
+whose defect was already booked and outranked by it. One such instance re-opens
+the phase question for the class involved — it does not repeal this section,
+and it is not the same thing as a mitigation that simply turned out not to work.
+
+**Why a floor was the wrong shape and a lead is the right one.** A floor is
+satisfied by the weakest qualifying item, so it exerts no pressure on the other
+nine slots; a lead is satisfied only by the item a reader sees first, which is
+the slot that actually gets worked. The rest of the ordering is untouched — this
+changes which item is at the top, not how the tail is sorted.
+
 Two rules that keep this from rotting. **An item nobody can rank is a finding
 about the item** — if its evidence does not support any of signals 2–4, it is
 not decision-complete and the gap is in the entry, not in the rubric. And
