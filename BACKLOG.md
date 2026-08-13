@@ -370,6 +370,67 @@ hook, whose fork-side contract line shipped this session.
   Loop stage: ATTRIBUTE. Anchor: proxy/extensions/cache-control-normalize.mjs
   <!-- entry: "georgendorf 6-bust burst — layout refuted, ttl value open" -->
 
+- **PARKED 2026-08-13 — the `/tmp` run-root leak is BACK: every full-suite
+  run leaks exactly 2 roots, including runs that PASS, and the guard's
+  one-hour threshold is a blind window a pushing session refills faster than
+  it drains.** `docs/dev-loop.md` claimed "Measured after: a full suite
+  leaves ZERO" — corrected today in the same commit as this entry, because
+  it is false.
+  **The measurement, by counting roots against the runs that made them:**
+  six consecutive `pre-push` full-suite runs (16:07, 16:08, 16:09, 16:15,
+  16:16, 16:20 local) left exactly TWO `/tmp/cache-fix-run-<pid>-*` roots
+  each — twelve, every owning pid dead. The pair from the 16:20 run, which
+  PASSED and pushed, is identical to the five from failing runs, so this is
+  not a failure path and not a kill path peculiar to red suites. Separately,
+  25 roots dating 12:21–13:17 had already accumulated past the one-hour
+  threshold and BLOCKED a push via `gate-live`'s `tmpLeftovers` — which is
+  how this was found: the guard fired, nobody read the doc line.
+  **Why it matters more than 12 directories.** `tmpLeftovers` only fails on
+  roots older than an hour, so a session pushing repeatedly stays under the
+  threshold while the pile grows; the doc line then tells the next reader
+  there is nothing to look for. `dev-loop.md`'s own ENOSPC precedent is
+  where that ends: 31,108 dirs, `/tmp` at 100%, unrelated tooling broken
+  machine-wide, and a suite returning 0/3/95/525/528 failures across five
+  runs of one commit.
+  **First step is DIAGNOSIS, not a reaper — the fix must not be a
+  `rm -rf` on a schedule**, which would delete a live run's root and
+  reintroduce the failure `tmpdir.mjs` deliberately avoids ("never deletes
+  anything it did not create"). Identify the two producers per run (the
+  `npm test` parent and the `gate-live` subprocess are the candidates, from
+  the pre-push command line, unverified) and establish why their exit
+  handler does not fire. SIGKILL is the leading hypothesis and is NAMED as
+  unmeasured: the registered list is exit/throw/SIGINT/SIGTERM/SIGHUP, and
+  SIGKILL is untrappable, so a hard kill would leak exactly this way — but
+  a passing run should not be killed at all, which is the fact that
+  hypothesis has to explain.
+  Red-first arrangement, and the two must DIFFER: instrument the producers
+  to record root creation and removal, run the full suite once, and assert
+  the created set equals the removed set. Today that assertion must FAIL
+  naming 2 roots; after the fix it must pass — and a run that is
+  deliberately SIGKILLed must still show the discrepancy, so the check is
+  not silently satisfied by removing the instrumentation.
+  **NAMED MISSING EVIDENCE — why this is PARKED and not READY, which the
+  booking bar caught and it was right to.** The entry was first written
+  READY, and the fix's design is precisely what is NOT decided: the repair
+  for "the handler is never registered in the child" is a different change
+  from "the handler is registered and SIGKILL bypasses it", and nothing here
+  distinguishes them. What unparks it is one measurement, and it is
+  decision-complete on its own: instrument root creation and removal in
+  `tools/tmpdir.mjs`, run `npm test` once, and report the created set minus
+  the removed set together with which process created each survivor. That
+  names the two producers and says whether their handler ran at all.
+  Red executed 2026-08-13, so the premise is not a recollection —
+  `for d in /tmp/cache-fix-run-*; do … kill -0 "$pid" …; done | sort`
+  returned twelve roots, all `dead`, in six timestamp pairs matching the six
+  pre-push runs one-for-one (16:07:24/25, 16:08:12/13, 16:09:07/08,
+  16:15:36/37, 16:16:53/55, 16:20:04/06); the 16:20 pair is the run that
+  passed and pushed.
+  Trigger to re-grade: that measurement's output.
+  Loop stage: VERIFY.
+  Anchor: tools/tmpdir.mjs
+  Write-set: tools/tmpdir.mjs, tools/gate-live.mjs, docs/dev-loop.md
+  <!-- entry: "tmp run-root leak returned, 2 per suite run including passes" -->
+
 - **READY 2026-08-13 — the READY-bar's `Anchor:` resolver rejects a
   `path:line` citation as a dead path, which is the SECOND recorded instance
   of a class this repo has already paid for.** `lintReadyBar` resolves a

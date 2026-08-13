@@ -802,6 +802,26 @@ deliberately never deletes anything it did not create, so it is a helper and
 not a reaper. `gate-live` carries `tmpLeftovers` and FAILS on run roots older
 than an hour whose creating process is dead, so the leak cannot come back
 quietly. Measured after: a full suite leaves ZERO.
+**CORRECTED 2026-08-13 — "a full suite leaves ZERO" is FALSE today, and the
+sentence before it ("the leak cannot come back quietly") is what let it sit.**
+Measured by counting run roots against the runs that made them: six
+consecutive `pre-push` full-suite runs left exactly TWO `/tmp/cache-fix-run-*`
+roots each, twelve in total, every owning pid dead — and the pair from the
+run that PASSED and pushed leaked identically to the five that failed, so
+this is not a failure path. Before that, 25 roots dating from 12:21 to 13:17
+had accumulated far enough to trip `tmpLeftovers` and block a push, which is
+how it was found: by the guard firing, not by anyone reading this line.
+The guard is therefore doing its job and the FIXED claim above is doing
+harm — `tmpLeftovers` only fires past ONE HOUR, so a session pushing
+repeatedly refills the pile inside the guard's own blind window and the
+sentence here tells the next reader there is nothing to look for. That is
+the exact route back to the ENOSPC incident this paragraph opens with.
+What is NOT yet established: WHICH two producers per run, and why their
+exit handler does not fire (SIGKILL is the obvious candidate, since the
+handler list above covers exit/throw/SIGINT/SIGTERM/SIGHUP and not SIGKILL
+— named as a hypothesis, unmeasured). Booked in BACKLOG.md with that as its
+first step; hand-cleaning the roots is the symptom fix and was taken to
+unblock a push, while the generator is still running.
 **Two numbers here were wrong and are corrected, because the ranking read
 them.** "One full-suite run leaves thousands" was never measured: a full run
 leaked **113**, confirmed by two independent instruments (a marker-based `find`
