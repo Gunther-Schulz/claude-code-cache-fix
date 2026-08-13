@@ -392,6 +392,55 @@ hook, whose fork-side contract line shipped this session.
   Loop stage: ATTRIBUTE. Anchor: proxy/extensions/cache-control-normalize.mjs
   <!-- entry: "georgendorf 6-bust burst — layout refuted, ttl value open" -->
 
+- **READY 2026-08-13 — the capture join (outcome -> request) is not
+  mechanized anywhere, so every bust walk re-derives it by hand, and the
+  last one cost 6-7 ad-hoc probes against schemas this repo itself
+  writes.** Surfaced by the lane that needed it, in its own deviations slot:
+  it self-reported blowing through `docs/dev-loop.md`'s "the SECOND ad-hoc
+  probe against a format this repo already writes stops the investigation"
+  threshold while working out how to connect an API request id to a capture
+  record. The rule names exactly this tell — the throwaway probe is the
+  signal a tool is missing — and the honest self-report is what makes it
+  actionable rather than invisible.
+  **The join, established and verified by that lane, so it is not
+  re-derived here:** an `outcome` record's `requestId` (the `req_…` the CC
+  transcript also carries) -> that outcome record's short `id` -> the
+  request record's own `id`. Confirmed 1:1 on a real pair (short id
+  `13857504-932`: exactly two hits in the capture, one request record, one
+  outcome record), and instance-positive across all six targets, where
+  `outcome.usage.cacheCreation` matched the transcript's `cc` EXACTLY on
+  6 of 6 — which is what proves the join landed on the right request rather
+  than on a same-size coincidence.
+  **Why this outranks its own small size.** `bust-triage` currently selects
+  the busting request by TIME PROXIMITY, which is measurably wrong: it is
+  the documented 2026-08-10 defect (a sonnet pair returned for a fable
+  bust), it picked a pair 51 s off the event during today's walk, and the
+  runbook's step 0 already carries a `[GRADUATE]` marker over the same
+  ground. Timestamps cannot join these two artifacts at all — transcript
+  stamps are response-COMPLETION times and capture stamps are request-START
+  times — so this is not a better heuristic than proximity, it is the
+  correct join replacing a wrong one.
+  **Design, decided:** one exported helper, `joinOutcomeToRequest`, living
+  beside the other capture readers, taking a `req_…` id and returning the
+  request record's line and id, or a stated could-not-verify — never a
+  nearest-match fallback, which is the failure being removed. `bust-triage`
+  consumes it for pair selection; `--at` keeps working for events with no
+  transcript request id, but says which path it used.
+  Red-first arrangement, and the two must DIFFER: on the 2026-08-13 11:33:46Z
+  event the helper must return the request record whose outcome carries
+  `cacheCreation=246636`, while the current time-proximity path returns a
+  pair 51 s earlier — the two must not agree, or the change is inert. A
+  `req_…` id absent from the capture must return could-not-verify, NOT the
+  nearest record.
+  Done: the two bites above pass; `bust-triage` on the 2026-08-13 events
+  reports the joined pair rather than the proximate one; this entry moves to
+  `## Done` with its commit ref.
+  Loop stage: ATTRIBUTE.
+  Anchor: tools/bust-triage.mjs
+  Write-set: tools/bust-triage.mjs, test/bust-triage-at-substitution.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-at-substitution.test.mjs
+  <!-- entry: "capture outcome-to-request join is not mechanized" -->
+
 - **READY 2026-08-13 — `breakpoint-scan` does not group by CONVERSATION, so
   every sequence it prints can silently interleave the main thread, its
   subagents and CC's sidecars.** Surfaced by the lane that built it, in its
