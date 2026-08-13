@@ -317,6 +317,59 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **RECORD 2026-08-13 — the 6-bust burst in the Georgendorf session is NOT a
+  breakpoint-layout change, and the desk hypothesis that said it was is
+  REFUTED. `cache_control` marker layout is byte-identical across warm and
+  cold requests.** Six full-context rewrites (`cache_read` exactly 0) between
+  11:33:46Z and 11:37:09Z, ~1.51 M tokens re-billed, session ddd83862,
+  model `claude-fable-5`, context ~247k. Prefix-diff records `system: match`,
+  `tools: match` and a pure message append at every one of them.
+  **The desk hypothesis, stated so the refutation is checkable:**
+  `cache-control-normalize` (order 400, live) strips every user-message
+  `cache_control` and re-applies ONE at the last user message's last block;
+  the desk argued this collapses CC's multi-breakpoint scheme to a single
+  tail breakpoint, removing the fallback that makes a partial hit possible,
+  which would explain `cache_read` being exactly 0 rather than
+  tools+system-sized.
+  **What the measurement says (`tools/breakpoint-scan.mjs`, built for this,
+  `c32a74a`; 22 requests scanned in 11:32:00–11:35:30Z, all markerCount>=1,
+  so not a dead instrument).** CC's RAW pre-pipeline layout is the same three
+  markers on every single request, busting and warm alike:
+  `system[1]`, `system[2]`, and one rolling marker at the last message's
+  `content[0]`. Two of those three sit in `body.system`, which
+  `cache-control-normalize` does not touch — it filters `msg.role === "user"`
+  only. So the stable front breakpoints SURVIVE our pipeline, the collapse
+  the hypothesis needed does not happen, and a `cache_read` of 0 cannot be
+  explained by losing the fallback: the system-level entries should still
+  have hit. The hypothesis is dead in its strong form.
+  **What the refutation does NOT settle, which is now the open question.**
+  `cache_read` 0 means even the `tools`+`system` prefix missed, while both
+  compare equal. The next discriminator is the marker VALUE rather than its
+  location: `cache-control-normalize` writes `{ type: "ephemeral" }` with no
+  `ttl` field, so if CC's own markers carry `ttl: "1h"` the rewritten tail
+  marker is a TTL DOWNGRADE, and a differing ttl makes a different cache
+  entry. `breakpoint-scan` records locations only, not values — extending it
+  to carry each marker's `cache_control` object is the measurement, raw vs
+  post-pipeline. Note the upstream sweep already surfaced
+  `anthropics/claude-code#81967`, titled for tools-array mutation AND TTL
+  downgrade during a session; that is a prompt to check, never a discharge.
+  **Instrument note for whoever runs it:** the forwarded body is NOT
+  obtainable from `session-mirrors/` — that file is a per-message
+  CC-transcript envelope with no `body.messages`/`system`/`tools` (measured:
+  2446 records, 0 scannable). The desk brief asserted otherwise and was
+  wrong. The post-pipeline body comes from REPLAYING the capture under the
+  serving config (`replay.mjs`, or `cache-sim.mjs --pipeline`), not from a
+  persisted artifact — nothing persists a post-pipeline body by design,
+  since `request-capture` is deliberately PRE-pipeline at order 60.
+  **Join hazard, measured:** transcript stamps are assistant-message
+  COMPLETION times and capture stamps are request-START times, so 5 of the 6
+  bust stamps have no capture row at a matching timestamp and a
+  nearest-neighbour join is wrong. Join on the request id the transcript
+  already carries (`req_…`), or via the prefix-diff ledger, which shares the
+  capture's clock.
+  Loop stage: ATTRIBUTE. Anchor: proxy/extensions/cache-control-normalize.mjs
+  <!-- entry: "georgendorf 6-bust burst — layout refuted, ttl value open" -->
+
 - **READY 2026-08-13 — the untracked-fixture ACCUMULATION guard lost its
   assertion when its defect got fixed, and nothing now watches the class.**
   `test/state-report.test.mjs`'s red-first reproduction asserted
@@ -11983,6 +12036,10 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-13 — `tools/breakpoint-scan.mjs`: this repo had no reader for `cache_control` breakpoint LAYOUT, and a bust walk needed one (`c32a74a`, sonnet dispatch, verified at the desk).** Reports, per request in a capture, every `cache_control` location under a fixed grammar (`system[i]` / `tools[i]` / `messages[i].content[j]:role` / `messages[i]`), plus `nMessages` and `lastUserIndex`; `--since`/`--until`/`--json`; streams through `tools/read-lines.mjs` (the 839 MB capture would otherwise blow the heap — that reader's header documents the measured 3.27 GB failure). Schema-tolerant: non-request records are counted as skipped BY REASON, never folded into a zero.
+  **Red-first, and it discriminates:** the lane moved a marker from `tools[3]` to `tools[2]` in its own fixture and the assertion went red naming the moved marker, then reverted byte-identical and went green. Desk-verified independently: `node --test --import ./tools/suite-config-root.mjs test/breakpoint-scan.test.mjs` → 9/9 pass. Instrument-positive on real data before any zero was believed: 22 requests scanned, every one `markerCount >= 1`.
+  Its first finding refuted the hypothesis it was built to test — see the RECORD entry in `## Open` ("georgendorf 6-bust burst"). Two brief defects it surfaced are recorded there too: the session-mirror is not a forwarded-body artifact, and transcript/capture stamps are different clocks.
 
 - **DONE 2026-08-13 — the backlog grade vocabulary is CLOSED: `CENSUS_GRADES` widened from 13 words to 37 (`3331397`).** Each new word was sampled against a real header before being classified into `CLOSURE_GRADE_SET` / `NOT_CLOSURE_GRADE_SET` / the derived AMBIGUOUS set; per the commit message, COMMITTED and the HALF/TOOL/MECHANISM family reversed the obvious word-shape call because their own bodies state an outstanding obligation, which is why it was a body-read pass rather than a word list typed from memory. Reconciliation over this file, all four buckets summing to 354 before and after: CLOSURE 103->110, AMBIGUOUS 4->3, NOT-CLOSURE 181->216, COULD-NOT-VERIFY 66->25, with all 45 moved entries accounted for. Touches `tools/backlog-lint.mjs`, `test/backlog-lint.test.mjs`, `test/backlog-census.test.mjs`. This is the prerequisite the RECORD entry at `## Open` ("the backlog declares THREE grades and uses THIRTY-THREE") named for the mechanical closure MOVE — the vocabulary judgment pass. The move itself has not run, so that entry stays live.
   **Booking provenance, stated because it is not the author's own.** Booked 2026-08-13 by the cache-bust session, which met the commit only as a push-guard block: it is a subagent commit from an earlier session today whose SHA sat in no record carrier. The basis for every number above is the commit message and `git show --stat`; the desk did NOT re-run its tests or re-measure the buckets. A later session re-reading this entry should treat the reconciliation figures as the author's claim, not as desk-verified.
