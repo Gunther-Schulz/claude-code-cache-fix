@@ -370,6 +370,44 @@ hook, whose fork-side contract line shipped this session.
   Loop stage: ATTRIBUTE. Anchor: proxy/extensions/cache-control-normalize.mjs
   <!-- entry: "georgendorf 6-bust burst — layout refuted, ttl value open" -->
 
+- **READY 2026-08-13 — the READY-bar's `Anchor:` resolver rejects a
+  `path:line` citation as a dead path, which is the SECOND recorded instance
+  of a class this repo has already paid for.** `lintReadyBar` resolves a
+  non-`row N` anchor with a bare `pathExists(value)`
+  (`tools/backlog-lint.mjs:1751`), so `Anchor: tools/state-report.mjs:427`
+  reports `ANCHOR-UNRESOLVED — test -e tools/state-report.mjs:427 -> absent`
+  while the file is live. Measured today, on a real booking, by its author.
+  **Why this is a guard defect and not just a convention violation.** The
+  convention is a bare path — 12 live READY entries follow it — so the guard
+  is right that the entry departed from it, and WRONG about why: it reports
+  the file as absent when the file exists and the anchor is strictly MORE
+  precise than the convention asks. That is the check firing on legitimate
+  work, which trains the override reflex the corpus names, and it is the
+  same shape `docs/dev-loop.md` already records under "A liveness or
+  resolution check asks 'does this resolve', never 'does this resolve AS THE
+  TYPE I expected'" — where a trailing `path:line` citation made three live
+  files read as dead. The lesson was written down and the fix landed in the
+  POINTER lane only; this resolver never got it.
+  **Design, decided:** before `pathExists`, strip a trailing `:<digits>`
+  (and `:<digits>:<digits>`) and resolve the path part; keep reporting the
+  ORIGINAL value in the finding so a genuinely dead path still names what
+  the author wrote. Do NOT accept arbitrary suffixes — the strip is anchored
+  to digits precisely so a file whose name really ends in `:foo` is not
+  silently rescued, which is the widening the dev-loop's own corollary warns
+  against.
+  Red-first arrangement, and the two must DIFFER: `Anchor:
+  tools/state-report.mjs:427` currently fires ANCHOR-UNRESOLVED and must go
+  silent after the change; `Anchor: tools/does-not-exist.mjs:427` must STILL
+  fire, naming the full original value. A change that silences both has
+  removed the check rather than fixed it.
+  Done: both bites above pass, `node tools/backlog-lint.mjs` stays clean on
+  the live file, and this entry moves to `## Done` with its commit ref.
+  Loop stage: VERIFY.
+  Anchor: tools/backlog-lint.mjs
+  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
+  <!-- entry: "ready-bar anchor resolver rejects path:line citations" -->
+
 - **READY 2026-08-13 — the untracked-fixture ACCUMULATION guard lost its
   assertion when its defect got fixed, and nothing now watches the class.**
   `test/state-report.test.mjs`'s red-first reproduction asserted
@@ -407,7 +445,8 @@ hook, whose fork-side contract line shipped this session.
   that same file at 1 day old (the two must differ, or the guard is unproven
   whatever it asserts); the real main checkout passes; and this entry moves
   to `## Done` with the commit ref.
-  Loop stage: VERIFY. Anchor: tools/state-report.mjs:427
+  Loop stage: VERIFY.
+  Anchor: tools/state-report.mjs
   Write-set: test/state-report.test.mjs, tools/state-report.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/state-report.test.mjs
   <!-- entry: "untracked-fixture accumulation guard needs an age threshold" -->
