@@ -1263,7 +1263,7 @@ out of git. (It sat under `~/.claude/` until 2026-08-07, where the harness's
 sensitive-path protection — which keys on the directory's SHAPE, not on what
 the file is — raised a permission prompt on every read and write, for every
 session and every agent. Tool DATA does not belong in a config directory; the
-move removed the prompt without touching a security control.) **Claim it with `node tools/alias-claim.mjs <capture> --note "…"`,
+move removed the prompt without touching a security control.) **Claim it with `node tools/alias-claim.mjs <capture> --note "…" --protect`,
 not by hand** — "take the next unused alias" is a read-modify-write, and it
 collided the first day three lanes ran in parallel (two briefs, one alias, one
 registered): an alias resolving to two captures is wrong in a way no reader can
@@ -1271,6 +1271,30 @@ detect. The tool is exclusive and idempotent per capture. Claim it at the moment
 tracked prose and record it there. Entries that cite an alias also quote the
 timestamps and request ordinals they rest on, which is the join of last resort:
 aliases A..AA predate the registry and can no longer be resolved at all.
+
+**`--protect` is part of the claim, not an option on it — and this line is
+here because leaving it out is how the flag reached zero uses.** A claim
+records a NAME; retention evicts by oldest mtime and knows nothing about
+names, so an unprotected claim is a label over bytes that leave on their own
+schedule. `--protect` hard-links the capture into a sibling
+`captures-protected/` dir: zero additional bytes, and eviction's `unlink` on
+the original merely decrements the link count, so the bytes survive the
+rotation that deletes the name. Release it when the entry closes
+(`--release`); `--protect-status` prints the protected set's size against its
+cap.
+**Measured 2026-08-13, and it is the entry-path shape this file already
+collects.** The mechanism shipped 2026-08-11 (`999a6ff`, `9e3530a`) and was
+correct. This paragraph — the one place an author is told how to claim —
+taught the command WITHOUT the flag; `git grep -- "--protect"` over the whole
+tracked tree hit `BACKLOG.md` and `test/alias-claim.test.mjs` and NOTHING
+under `docs/` (instrument-positive: the same pattern returns 8 hits in
+`tools/alias-claim.mjs`, so the zero is a measurement and not a dead
+pattern); and `~/.local/share/cache-fix/captures-protected/` did not exist:
+**zero uses in the two days since it shipped**, while two entries were parked
+in that same window for evidence that had rotated away. The guard existed and
+the documented route went around it. A mitigation whose only invocation is a
+flag nobody is told to pass is not shipped, it is available — and the
+difference is invisible from the commit that built it.
 
 A fourth, found by asking what the first three did NOT cover: the allowlist
 was PATH-wide. A file named in it was skipped entirely, so an exemption
