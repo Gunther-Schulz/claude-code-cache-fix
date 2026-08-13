@@ -47,10 +47,17 @@ import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
 import { scrubMessage, sidToken } from "./harvest.mjs";
 import { staleRunRoots } from "./tmpdir.mjs";
 import { localSuffix } from "./local-stamp.mjs";
+// Shared backpressure-safe line reader (tools/read-lines.mjs's own header:
+// a naive readline iterator queues unboundedly once the consumer awaits,
+// measured peaking at 3+ GB on a live capture). Reused rather than
+// re-derived for the error-pin path's capture scan below, the same reason
+// every other reader in this tree imports it.
+import { readLines } from "./read-lines.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
 const CENSUS = join(__dirname, "reminder-migration-census.mjs");
+const HARVEST = join(__dirname, "harvest.mjs");
 // Captures and snapshots are READ here, so they consult the legacy
 // `~/.claude/` location and warn loudly if that is where the data still is.
 // Status and fire ledger are WRITTEN here, so they never fall back — a writer
@@ -396,10 +403,149 @@ export async function writeRowPins(pins, dir) {
   return out;
 }
 
+// --- Error-path pinning: freeze evidence when a replay child ERRORS ---
+//
+// BACKLOG.md "READY 2026-08-11 — the sweep pins row evidence but freezes
+// NOTHING when a replay ERRORS, which is the one case where the input is
+// most needed and least likely to survive": `row.pinsPending` (the "Row
+// evidence pins" section above) is built from the replay child's own JSON
+// rows, and an errored child produces no JSON at all — so the row that most
+// needs a frozen artifact is exactly the one the pin pass has nothing to
+// ask for. Measured this session: a replay-error row's capture rotated off
+// disk within one session's window, making the finding unwalkable from its
+// own evidence.
+//
+// This pins a BOUNDED range (`harvest --pin --bounded`, spawned as a child
+// — the same pattern replay.mjs and the census already run as children of
+// this sweep) around wherever the failure can be placed, and records which
+// of two ways it got there: LOCATED, from an explicit `n=<num>` ordinal
+// marker in the child's own stderr (replay.mjs's own convention for naming
+// a request throughout its printed output); or GUESSED, centered on the
+// last request ordinal known to exist in the capture, when no marker is
+// present. A guessed range must not read like a located one, so both the
+// row and this section's own callers carry which it was.
+const ERROR_PIN_WINDOW = 20;
+
+/** Count REQUEST records in a capture — boot/outcome records consume no
+ * ordinal, the same counting rule harvest.mjs's own `pinRange` uses (see
+ * its header comment: a second definition of this rule is exactly the
+ * hand-rolled-identity error dev-loop.md warns about, so this restates the
+ * RULE, never imports harvest.mjs's internal loop, which also scrubs and
+ * retains every record — wasted work for a count). Streamed via the shared
+ * backpressure-safe reader; only reached on the error path, so its cost is
+ * paid rarely. */
+async function countCaptureRequests(capturePath) {
+  let count = 0;
+  for await (const line of readLines(capturePath)) {
+    if (!line.trim()) continue;
+    let rec;
+    try {
+      rec = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    if (rec.type === "boot" || rec.type === "outcome") continue;
+    count++;
+  }
+  return count;
+}
+
+/** A window around `ordinal`, clamped to the capture's real extent when
+ * known (`maxOrdinal`) — never asking harvest.mjs to pin past the records
+ * that actually exist, which fails loudly rather than freezing anything. */
+export function boundedRangeAround(ordinal, maxOrdinal) {
+  const upper = Number.isInteger(maxOrdinal) ? maxOrdinal : ordinal + ERROR_PIN_WINDOW;
+  const n = Math.max(0, ordinal - ERROR_PIN_WINDOW);
+  const m = Math.max(n, Math.min(ordinal + ERROR_PIN_WINDOW, upper));
+  return { n, m };
+}
+
+/** Where to center the pin, and whether that placement is LOCATED or
+ * GUESSED. Pure and exported so the parsing half is testable without
+ * spawning a real sweep. `lastOkOrdinal` is the caller's already-computed
+ * "last request ordinal present in the capture" (null when even that could
+ * not be measured) — the closest available stand-in for "last successfully
+ * replayed", since a crashed child leaves no partial progress record of its
+ * own to read (its `--json` output is written whole, at the very end, or
+ * not at all).
+ */
+export function planErrorPin(stderr, lastOkOrdinal, maxOrdinal) {
+  const nMatch = /\bn=(\d+)\b/.exec(String(stderr ?? ""));
+  if (nMatch) {
+    const ordinal = Number(nMatch[1]);
+    return {
+      located: true,
+      guessed: false,
+      ordinal,
+      basis: "stderr n= marker",
+      range: boundedRangeAround(ordinal, maxOrdinal),
+    };
+  }
+  const known = Number.isInteger(lastOkOrdinal) && lastOkOrdinal >= 0;
+  const ordinal = known ? lastOkOrdinal : 0;
+  return {
+    located: false,
+    guessed: true,
+    ordinal,
+    basis: known
+      ? "no n= marker in stderr — guessed from the capture's last request ordinal"
+      : "no n= marker in stderr and no known ordinal — guessed from 0",
+    range: boundedRangeAround(ordinal, maxOrdinal),
+  };
+}
+
+const runHarvestPin = (key, range, captureDir, outDir) =>
+  runChild([
+    HARVEST,
+    "--captures", captureDir,
+    "--pin", key, `${range.n}..${range.m}`,
+    "--bounded",
+    ...(outDir ? ["--out", outDir] : []),
+  ]);
+
+/** On an errored replay: pin a bounded range around wherever the failure
+ * can be placed, and record LOCATED vs GUESSED. Never throws — a pin
+ * failure is recorded on the row, the same stance `writeRowPins` already
+ * takes for its own writes, because a failed pin must not abort a
+ * multi-capture sweep. `outDir` follows `harvest.mjs`'s own default
+ * (`test/fixtures/harvested`) when omitted, matching the existing rowpins
+ * convention of writing straight into the tracked fixtures tree for a
+ * human to review and commit.
+ */
+export async function pinErrorRow(file, captureDir, stderr, outDir) {
+  const key = file.replace(/-requests\.jsonl$/, "");
+  const capturePath = join(captureDir, file);
+  let total = null;
+  try {
+    total = await countCaptureRequests(capturePath);
+  } catch {
+    /* leave null — the guess falls back to ordinal 0, unclamped */
+  }
+  const lastOk = total != null && total > 0 ? total - 1 : null;
+  const plan = planErrorPin(stderr, lastOk, lastOk);
+  const res = await runHarvestPin(key, plan.range, captureDir, outDir);
+  return {
+    located: plan.located,
+    guessed: plan.guessed,
+    basis: plan.basis,
+    ordinal: plan.ordinal,
+    range: plan.range,
+    exit: res.code,
+    stdout: res.out.trim(),
+  };
+}
+
 function summarise(file, bytes, res) {
   const row = { file, bytes, exit: res.code };
   if (res.code === -1) {
     row.error = res.err;
+    // Verbatim, under its own key — `row.error` keeps its existing shape
+    // unchanged (rowIsClean, the verdict line below, and the dotfiles
+    // doctor all read it) because other readers depend on it; this key
+    // exists because a truncated tail can bury the real cause behind
+    // repeated benign output (measured: a row's last-4-lines were all
+    // auto-1m-guard warnings, not the crash that produced them).
+    row.stderrFull = res.err;
     return row;
   }
   let parsed = null;
@@ -410,6 +556,7 @@ function summarise(file, bytes, res) {
     // throw. This is the case the whole job exists for, so it is recorded
     // verbatim rather than smoothed into a count of zero.
     row.error = (res.err.trim().split("\n").slice(-4).join("\n") || "no JSON output");
+    row.stderrFull = res.err;
     return row;
   }
   row.requests = parsed.report?.length ?? 0;
@@ -1338,6 +1485,11 @@ function parseArgs(argv) {
     snapshots: DEFAULT_SNAPSHOTS,
     transcripts: DEFAULT_TRANSCRIPTS,
     rowpins: DEFAULT_ROWPINS,
+    // null means "let harvest.mjs use its own default" (test/fixtures/harvested),
+    // the same tree DEFAULT_ROWPINS already writes into — overridable so a
+    // verification run can redirect error pins to scratch without touching
+    // the tracked fixtures tree.
+    errorPins: null,
     quiet: false,
   };
   for (let i = 2; i < argv.length; i++) {
@@ -1348,6 +1500,7 @@ function parseArgs(argv) {
     else if (a === "--snapshots") args.snapshots = argv[++i];
     else if (a === "--transcripts") args.transcripts = argv[++i];
     else if (a === "--rowpins") args.rowpins = argv[++i];
+    else if (a === "--error-pins") args.errorPins = argv[++i];
     else if (a === "--quiet") args.quiet = true;
     else {
       process.stderr.write(`unexpected argument: ${a}\n`);
@@ -1410,6 +1563,22 @@ async function main() {
       row.rowPins = null;
     }
     delete row.pinsPending;
+    // The row that most needs frozen evidence is the one the pin pass above
+    // had nothing to build from: an errored child with no parseable JSON.
+    // BACKLOG.md "the sweep pins row evidence but freezes NOTHING when a
+    // replay ERRORS". Same failure stance as the row-pin write above — a
+    // failed error-pin is recorded on the row, never lets the sweep abort.
+    if (row.error) {
+      try {
+        row.errorPin = await pinErrorRow(f, args.captures, row.stderrFull, args.errorPins);
+      } catch (e) {
+        row.errorPin = { error: String(e?.message ?? e) };
+      }
+    }
+    // row.stderrFull stays on the row and is written to the status file
+    // verbatim — that IS the fix (BACKLOG "records the stderr verbatim in
+    // the status row"), unlike the pin BODIES above, which are message
+    // bytes and never belong there.
     rows.push(row);
     if (!args.quiet) {
       const verdict = row.error
@@ -1432,6 +1601,14 @@ async function main() {
               (p.unverifiable ? `, ${p.unverifiable} unverifiable` : "") +
               (p.conflicts.length ? `, ${p.conflicts.length} CONFLICT (same row, different bytes — not overwritten)` : "") +
               "\n",
+        );
+      }
+      if (row.errorPin) {
+        const ep = row.errorPin;
+        process.stdout.write(
+          ep.error
+            ? `  error pin: COULD NOT WRITE — ${ep.error}\n`
+            : `  error pin: ${ep.located ? "LOCATED" : "GUESSED"} range ${ep.range.n}..${ep.range.m} (${ep.basis}), harvest exit ${ep.exit}\n`,
         );
       }
     }
