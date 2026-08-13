@@ -317,6 +317,48 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **READY 2026-08-13 — the untracked-fixture ACCUMULATION guard lost its
+  assertion when its defect got fixed, and nothing now watches the class.**
+  `test/state-report.test.mjs`'s red-first reproduction asserted
+  `count > 500` untracked files under `test/fixtures/harvested/`. `dc6c234`
+  committed 713 of them, so the count is 0 against 945 tracked and the
+  assertion went red for the correct reason — its defect stopped
+  reproducing. Re-graded the same day to a collector-liveness bite (the
+  collector must read the real main checkout, and the mtime range must be
+  populated in BOTH directions — present iff `count > 0`), which keeps
+  `collectFixturesAccumulation` exercised against live-world shape but
+  asserts NOTHING about accumulation.
+  **Why the obvious repair is wrong and was declined at the desk.**
+  `count === 0` fires on legitimate in-flight state: `harvest.mjs` runs twice
+  daily and writes pins here, so untracked files exist between a harvest and
+  the commit that keeps them. A guard red in that window is the
+  check-that-fires-on-a-non-defect shape, and it trains the override reflex
+  that kills the guard — the same failure the dev-loop names.
+  **The design, decided: guard on AGE, not on count.** An untracked pin
+  younger than a harvest cycle is in-flight; one that has survived a week is
+  accumulation, which is the actual defect (687 pins / 29.6 MB sat untracked
+  until `dc6c234`). So: FAIL when any untracked file under
+  `test/fixtures/harvested/` has an mtime older than 7 days.
+  `collectFixturesAccumulation` already returns `oldestMtime`, so the
+  predicate is one comparison and needs no new collector.
+  **The 7 days is the one knob an operator may want to move** — it is a
+  false-fire/latency trade, not a correctness constant. Anything from 2 to 14
+  days is defensible; below ~2 days it starts catching ordinary weekend
+  in-flight state.
+  Red-first arrangement: `touch -d '8 days ago'` an untracked file in a
+  SYNTHETIC repo fixture (never the real checkout) and assert the guard goes
+  red naming it; assert it stays green with the same file at 1 day old. The
+  two must DIFFER — a guard both states satisfy is unproven.
+  Done: the age guard exists and DISCRIMINATES — on a synthetic repo fixture
+  it goes red naming an untracked pin backdated 8 days, and stays green with
+  that same file at 1 day old (the two must differ, or the guard is unproven
+  whatever it asserts); the real main checkout passes; and this entry moves
+  to `## Done` with the commit ref.
+  Loop stage: VERIFY. Anchor: tools/state-report.mjs:427
+  Write-set: test/state-report.test.mjs, tools/state-report.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/state-report.test.mjs
+  <!-- entry: "untracked-fixture accumulation guard needs an age threshold" -->
+
 - **RECORD 2026-08-13 — `gate-live`'s new LOCATED error-pin path has no
   PRODUCER: `replay.mjs` emits no ordinal marker to stderr, so every error pin
   in production is GUESSED.** The error-pin lane shipped today (`fc174b6`)

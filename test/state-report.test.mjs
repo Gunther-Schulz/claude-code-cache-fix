@@ -115,7 +115,28 @@ test("reproduces: rescue/unit-2b-dc8c475 is a live rescue tag", () => {
   assert.ok(res.tags.includes("rescue/unit-2b-dc8c475"), `tags: ${JSON.stringify(res.tags)}`);
 });
 
-test("reproduces: test/fixtures/harvested/ carries >500 untracked files (main checkout)", (t) => {
+// SPENT REPRODUCTION, re-graded 2026-08-13. This asserted `count > 500` — the
+// live accumulation of untracked evidence pins under test/fixtures/harvested/
+// (687 pins, 29.6 MB, per the RECORD entry that motivated it). That defect is
+// FIXED: `dc6c234` committed 713 of them, and the untracked count is now 0
+// against 945 tracked. So the assertion went red for the one reason a
+// red-first reproduction is SUPPOSED to go red — its defect stopped
+// reproducing — and repairing it back to green by restoring the old number
+// would have been converting a live finding into a silenced instrument.
+//
+// It is deliberately NOT re-pointed at `count === 0`. `harvest.mjs` runs twice
+// daily and writes pins here, so untracked files legitimately exist between a
+// harvest and the commit that keeps them; a zero-assert would fire on that
+// window and train the override reflex — the check-that-fires-on-a-non-defect
+// shape this repo's dev-loop names. The accumulation guard wants a THRESHOLD
+// (a count, or a max age for an untracked pin), and picking that number is a
+// desk/operator decision, booked in BACKLOG.md rather than invented here.
+//
+// What remains is worth keeping: the collector exercised against the REAL
+// checkout rather than only against synthetic dirs (its two synthetic bites
+// live at "third answer: ... nonexistent repoRoot" and in the renderText
+// section). That is what catches the collector breaking on live-world shape.
+test("collectFixturesAccumulation reads the real main checkout (accumulation threshold: booked, not asserted)", (t) => {
   // A bare `return` here USED to stand in for could-not-verify, and node:test
   // scores that as a PASS — the exact shape this repo collects: an absence of
   // evidence wearing a verdict's clothes. `t.skip` says what happened.
@@ -125,8 +146,16 @@ test("reproduces: test/fixtures/harvested/ carries >500 untracked files (main ch
   }
   const res = collectFixturesAccumulation({ repoRoot: MAIN_CHECKOUT });
   assert.equal(res.ok, true, res.reason);
-  assert.ok(res.count > 500, `count was ${res.count}, expected >500`);
-  assert.ok(res.oldestMtime && res.newestMtime, "mtime range must be populated for a non-empty count");
+  assert.ok(Number.isInteger(res.count) && res.count >= 0, `count was ${res.count}, expected a non-negative integer`);
+  // The mtime range is populated exactly when there is something to range over
+  // — asserted in BOTH directions so a collector that always returns a range,
+  // or never returns one, is caught rather than passing on whichever branch
+  // today's checkout happens to take.
+  if (res.count > 0) {
+    assert.ok(res.oldestMtime && res.newestMtime, "mtime range must be populated for a non-empty count");
+  } else {
+    assert.ok(!res.oldestMtime && !res.newestMtime, "mtime range must be absent for an empty count");
+  }
 });
 
 test("reproduces: HEAD:proxy matches the dotfiles CACHE_FIX_PROXY_TREE_PIN, or could-not-verify if absent", () => {
