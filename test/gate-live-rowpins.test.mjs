@@ -116,13 +116,40 @@ test("BITE — a spawn error (-1) also carries stderrFull", () => {
   assert.equal(row.stderrFull, "spawn node ENOENT");
 });
 
-test("BITE — a clean run carries no stderrFull", () => {
-  const row = summarise("c.jsonl", 10, {
+// REWRITTEN 2026-08-13 at the desk. The original bite asserted only
+// `row.stderrFull === undefined` on a clean run with `err: ""` — and it passed
+// against the UNMODIFIED code too, because `stderrFull` did not exist there
+// either. An assertion both the correct and the pre-fix behaviour satisfy is
+// unproven whatever it asserts; the lane caught this itself when re-reading its
+// own captured output and reported the split as 10 red, not 11.
+//
+// Two changes make it discriminate. The clean arm now carries NON-EMPTY stderr,
+// so an implementation that set `stderrFull` unconditionally — the realistic
+// regression — fires it, where `err: ""` could not tell the two apart. And the
+// arms are asserted to DIFFER in one test, which is the separation the check
+// was always about: something-happened vs nothing-happened is not the question,
+// WHICH outcome happened is.
+test("BITE — stderrFull is verbatim on an ERRORED run and absent on a clean one (the two must DIFFER)", () => {
+  const clean = summarise("c.jsonl", 10, {
     code: 0,
     out: JSON.stringify({ report: [{ n: 0 }], violations: [], safety: [], sequence: [], orderViolations: [] }),
-    err: "",
+    err: "a benign warning nobody should freeze evidence over\n",
   });
-  assert.equal(row.stderrFull, undefined);
+  const errored = summarise("c.jsonl", 10, {
+    code: 134,
+    out: "",
+    err: "line1\nline2\nline3\nline4\nline5\nFATAL ERROR: Reached heap limit\n",
+  });
+
+  assert.equal(clean.stderrFull, undefined, "a clean run carries no stderrFull even when stderr is non-empty");
+  assert.equal(typeof errored.stderrFull, "string", "an errored run carries the stderr verbatim");
+  assert.notEqual(clean.stderrFull, errored.stderrFull, "the two arms must differ, or the check separates nothing");
+
+  // The verbatim half, which is the whole reason stderrFull exists beside
+  // row.error: row.error keeps only the last four lines, so a cause buried
+  // above repeated benign warnings is exactly what it drops.
+  assert.ok(errored.stderrFull.includes("line1"), "stderrFull keeps what row.error's last-4 window drops");
+  assert.ok(!errored.error.includes("line1"), "row.error keeps its existing last-4 shape for existing readers");
 });
 
 // --- Real end-to-end: a deliberately errored replay leaves a pin that -----
