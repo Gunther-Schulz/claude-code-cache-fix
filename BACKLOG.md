@@ -637,6 +637,32 @@ hook, whose fork-side contract line shipped this session.
   pre-push runs one-for-one (16:07:24/25, 16:08:12/13, 16:09:07/08,
   16:15:36/37, 16:16:53/55, 16:20:04/06); the 16:20 pair is the run that
   passed and pushed.
+  **SECOND OCCURRENCE, same session, 2026-08-13 ~17:35 local — it blocked a
+  push again, 40 minutes after the first cleanup, and this is now a
+  RECURRING BLOCKER rather than a latent risk.** 18 roots had aged past the
+  threshold (26 present in total) and `gate-live`'s
+  `real: a clean sweep over the same capture pins no error evidence at all`
+  failed the pre-push suite on `FAIL tmp-leftovers: 18 run root(s)`. The
+  entry predicted exactly this — "a session pushing repeatedly refills the
+  pile inside the guard's own blind window" — so the prediction is confirmed
+  rather than merely plausible. Cost so far: two push cycles, both on work
+  that had nothing to do with the leak.
+  **One hypothesis ELIMINATED, recorded so the next pass does not re-walk
+  it.** `tools/tmpdir.mjs`'s own DEFINITION accepts one residue case:
+  SIGKILL, "which runs no code at all". The obvious story was therefore that
+  the suite deliberately hard-kills spawned children (it has bites like
+  "a gate that died is an error"), making the residue BY DESIGN and the real
+  defect the guard firing on it an hour later. That story is not supported:
+  `grep -rn SIGKILL test/ tools/` returns four hits and NONE of them kills a
+  node child in the main suite — two are `tmpdir.mjs`'s own prose, two are
+  in the `gh-auth-status-shim` bats tests. So the residue is not
+  explained-away design behaviour, and the exit handler — which covers
+  `exit`, throws, `process.exit()`, SIGINT/SIGTERM/SIGHUP — should have run.
+  That makes the measurement below MORE valuable, not less: the two
+  survivors per run are unexplained by the module's own accepted exception.
+  **Deliberately not chased further at the desk.** The next step is the
+  instrumented run already named, not another hypothesis; guessing at it
+  twice in one session is how a blocker becomes a rabbit hole.
   Trigger to re-grade: that measurement's output.
   Loop stage: VERIFY.
   Anchor: tools/tmpdir.mjs
