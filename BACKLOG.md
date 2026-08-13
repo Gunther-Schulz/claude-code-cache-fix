@@ -392,6 +392,58 @@ hook, whose fork-side contract line shipped this session.
   Loop stage: ATTRIBUTE. Anchor: proxy/extensions/cache-control-normalize.mjs
   <!-- entry: "georgendorf 6-bust burst — layout refuted, ttl value open" -->
 
+- **READY 2026-08-13 — MEASURE THE FORWARDED TTL: CC sends `ttl:"1h"` on
+  every marker and `cache-control-normalize` rewrites the tail marker to
+  `{ type: "ephemeral" }` with no `ttl`. If that reaches the wire we are
+  downgrading a 1-hour breakpoint to 5 minutes on every request. This is
+  the last unmeasured layer of the Georgendorf burst and the only remaining
+  candidate that is OURS.** This is the decisive next step of the walk in
+  the RECORD entry above; nothing else in the raw body varies.
+  **What is already measured, so the next lane does not redo it.** Across
+  all six busting pairs, at the raw pre-pipeline tap: `model`, `system`,
+  `tools`, `metadata`, `max_tokens`, `thinking`, `context_management`,
+  `fallbacks`, `output_config` and `stream` all IDENTICAL to the
+  predecessor; messages `append-only` (`censusPair`); marker VALUES
+  identical including `ttl:"1h"` on all three. The single differing
+  top-level key is `diagnostics.previous_message_id`, same length both
+  sides, which changes on every request busting or not. So CC changed
+  nothing that could invalidate a prefix — and the request still read ZERO.
+  **The unmeasured layer, stated precisely.** `cache-control-normalize.mjs`
+  (order 400, live) strips every `cache_control` from user messages and
+  re-applies `{ type: "ephemeral" }` — literal, no `ttl` — at the last user
+  message's last block (`:53-56`). CC's marker there carried
+  `{"type":"ephemeral","ttl":"1h"}`. Nobody has read what we actually
+  forward. `prefix-diff` recording `system: match / tools: match` does NOT
+  answer it: that compares our forwarded body to our PREVIOUS forwarded
+  body, so a mutation we apply identically every request is invisible to it
+  by construction — a stable wrong value matches a stable wrong value.
+  **Design, decided:** replay the six pairs through the SERVING config and
+  run `breakpoint-scan --values` on the pipeline OUTPUT, not on the capture.
+  The serving gates come from `/health`, never from defaults — a green
+  verdict over the wrong configuration is worse than no verdict. There is
+  no persisted post-pipeline body by design (`request-capture` is order 60,
+  deliberately pre-pipeline), so the body must be produced by replay
+  (`replay.mjs`, or `cache-sim.mjs --pipeline`).
+  Red-first arrangement, and the two must DIFFER: run the same pair with
+  `cache-control-normalize` DISABLED and with it enabled. Enabled must show
+  the tail marker's `ttl` absent (or show it preserved, which kills the
+  hypothesis); disabled must show `ttl:"1h"` surviving from CC's input. If
+  both arms agree the extension is not the mutator and the hypothesis dies
+  there — which is a result, not a failure.
+  **Do not design a mitigation off this entry.** The attribution gate binds:
+  if the forwarded tail marker turns out to keep `ttl:"1h"`, the class is
+  not ours and the walk returns to COULD-NOT-ATTRIBUTE with the downgrade
+  eliminated. Only a measured downgrade licenses a fix.
+  Done: the forwarded marker values for all six pairs are recorded beside
+  the raw ones in `bust-evidence/2026-08-13/`; the disabled-vs-enabled arms
+  are both run and DIFFER or provably do not; the RECORD entry above is
+  re-graded with the verdict; this entry moves to `## Done` with its ref.
+  Loop stage: ATTRIBUTE.
+  Anchor: proxy/extensions/cache-control-normalize.mjs
+  Write-set: tools/breakpoint-scan.mjs, test/breakpoint-scan.test.mjs
+  Verifier: node tools/gate-live.mjs
+  <!-- entry: "measure the forwarded ttl on the georgendorf burst" -->
+
 - **READY 2026-08-13 — the capture join (outcome -> request) is not
   mechanized anywhere, so every bust walk re-derives it by hand, and the
   last one cost 6-7 ad-hoc probes against schemas this repo itself
@@ -12254,6 +12306,10 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-13 — `breakpoint-scan --values`: marker locations now carry their `cache_control` OBJECTS, and the first run settled the question it was built for (`5b87f32`, sonnet dispatch, desk-verified 14/14).** `findMarkers` and the new `findMarkerValues` both delegate to one `scanMarkers(body)` helper so the two cannot drift; with `--values` absent the output keeps the same seven keys in the same order, asserted by its own bite. Red-first: the lane broke `findMarkerValues` to strip everything but `type`, went RED 12/14 naming both affected tests, restored byte-identical, GREEN 14/14 — all three runs executed, not summarized.
+  **What it measured, and it is the load-bearing half.** On all six busting pairs, CC's own markers carry `{"type":"ephemeral","ttl":"1h","scope":"global"}` at `system[1]` and `{"type":"ephemeral","ttl":"1h"}` at `system[2]` and at the rolling tail marker — IDENTICAL on the predecessor and the busting request, every pair. So CC sends a 1-hour TTL and does not change it at the bust. That is what makes the forwarded layer the open question rather than a hunch: `cache-control-normalize.mjs:53-56` rewrites the tail marker to `{ type: "ephemeral" }` with NO `ttl`, which — if it reaches the wire — is a 1h→5m downgrade WE introduce. Unmeasured at the forwarded tap; booked in `## Open`.
+  **The join is this commit's other deliverable**, though the helper is not built: `outcome.requestId → outcome.id → request.id`, verified 1:1 and instance-positive 6/6 against transcript `cc`. Booked as its own entry in `## Open` because the lane also self-reported the ad-hoc-probe-count violation that produced it.
 
 - **DONE 2026-08-13 — `tools/breakpoint-scan.mjs`: this repo had no reader for `cache_control` breakpoint LAYOUT, and a bust walk needed one (`c32a74a`, sonnet dispatch, verified at the desk).** Reports, per request in a capture, every `cache_control` location under a fixed grammar (`system[i]` / `tools[i]` / `messages[i].content[j]:role` / `messages[i]`), plus `nMessages` and `lastUserIndex`; `--since`/`--until`/`--json`; streams through `tools/read-lines.mjs` (the 839 MB capture would otherwise blow the heap — that reader's header documents the measured 3.27 GB failure). Schema-tolerant: non-request records are counted as skipped BY REASON, never folded into a zero.
   **Red-first, and it discriminates:** the lane moved a marker from `tools[3]` to `tools[2]` in its own fixture and the assertion went red naming the moved marker, then reverted byte-identical and went green. Desk-verified independently: `node --test --import ./tools/suite-config-root.mjs test/breakpoint-scan.test.mjs` → 9/9 pass. Instrument-positive on real data before any zero was believed: 22 requests scanned, every one `markerCount >= 1`.
