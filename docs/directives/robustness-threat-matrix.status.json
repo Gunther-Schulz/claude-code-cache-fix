@@ -21,8 +21,8 @@
   "4": {
     "status": "OPEN",
     "evidence": "059aae3",
-    "date": "2026-08-10",
-    "residual": "Root cause of the disarming half is fixed (059aae3: suppression now runs on the reset path). What is open is the canonicalization build, booked READY. Two facts bound it: the class arrived in TWO shapes on 2026-08-10 — three instances replace/edit / MERGED-STANDALONE / >30 from the human anchor, and a fourth splice/insert-mid / NEW-TEXT — and a rule tuned on the first has no defined behaviour on the second; and the RATE is unmeasured, the row carrying four instances from one day of one machine and no denominator."
+    "date": "2026-08-13",
+    "residual": "BLOCKED at the byte-match census as of 2026-08-13, which is a harder state than the previous 'canonicalization build, booked READY'. Full-corpus run (41/41 captures, 0 UNREADABLE, 15737 same-conversation pairs): 483 EXACT / 54 EXTENDED (all MERGED-STANDALONE, 0 NEW-TEXT) / 12 DROPPED / 16 MISMATCH. The tool's own verdict is 'DO NOT SHIP as-is' -- any MISMATCH means the canonical form differs from CC's and normalizing would MOVE the bust rather than absorb it. The placement half fails independently: over the 483 EXACT rows the standalone-minus-host offset takes 20 distinct values (+1 on 457, then 19 others out to +110), and the tool prints 'MORE THAN ONE PLACEMENT -- a mitigation cannot pick an index that is right every time'; correct bytes at the wrong index diverge the prefix just the same. Both prior bounding facts still stand and are now joined by a third: the class has two shapes and a rule tuned on one has no defined behaviour on the other; the RATE is unmeasured; and the canonical rule as designed does not hold on 16 real occurrences. Unread residue: only 1 of the 16 MISMATCH rows appears in default output (2026-08-11T16:36:32.829Z host=3 recon=5376ch rejected=10014ch) -- the other 15 need --verbose and are what decides whether the 16 are one shape or several."
   },
   "5": {
     "status": "DECLINED",

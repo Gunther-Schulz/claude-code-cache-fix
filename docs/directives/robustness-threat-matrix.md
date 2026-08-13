@@ -1817,6 +1817,54 @@ logged `action=reset, movedFresh=0`, so it was skipped for having claimed
 nothing. Correct behaviour, different mechanism — caught before it shipped as
 a "coverage hole in the absorption check", which it is not.
 
+### Row 4 datapoint — 2026-08-13: the byte-match census BLOCKS the canonicalization. 16 MISMATCH over the full corpus, and the placement is not single-valued either
+
+**The gate ran over the whole corpus for the first time in this form and it
+says DO NOT SHIP.** `node tools/reminder-migration-census.mjs` over all 41
+captures: `read 41/41 capture(s), 0 UNREADABLE, 38 with pairs, 261
+conversation(s), 15737 same-conversation pair(s)`. Zero unreadable, so the
+run PASSES the criterion that makes its other numbers mean anything.
+
+| class | count | share |
+|---|---|---|
+| EXACT — canonical rule reproduces CC byte-for-byte | 483 | 85.5% |
+| EXTENDED — CC's later form carries MORE (54 MERGED-STANDALONE, **0 NEW-TEXT**) | 54 | 9.6% |
+| DROPPED — blocks vanished, rule not exercised | 12 | 2.1% |
+| **MISMATCH — rule does not hold; "every one is a hole"** | **16** | **2.8%** |
+
+The tool's own verdict, quoted rather than summarised: *"DO NOT SHIP as-is —
+MISMATCH occurrences mean the canonical form differs from CC's own, so
+normalizing would move the bust rather than absorb it (threat matrix,
+Byte-match test)."* That is this repo's mandatory pre-ship gate for any
+NORMALIZATION, and 16 is not zero, so the canonicalization is BLOCKED — not
+delayed, blocked, until either the rule changes or those 16 are explained.
+
+**The second half of the gate fails independently, and it is the harder
+one.** The placement distribution over the 483 EXACT rows is
+`+1 → 457`, then `+4 → 4`, `+8 → 3`, `+9 → 2`, `+6 → 2`, and fifteen further
+single-count offsets (`+7, +11, +13, +14, +24, +32, +34, +35, +43, +44, +66,
++73, +79, +88, +110`). The tool prints its own conclusion: *"MORE THAN ONE
+PLACEMENT — a mitigation cannot pick an index that is right every time."*
+Correct bytes at the wrong index diverge the prefix just as thoroughly, so a
+rule that nails 457 of 483 placements and misses 26 has 26 holes even where
+its BYTES are perfect. Both halves of this gate are load-bearing and this
+design currently fails both.
+
+**Message-count drops:** 33 total — 11 PURE-TAIL-PRUNE, 22
+INTERIOR-DIVERGENT, **0 UNANCHORED** (11+22 = 33, so the zero is derived, not
+assumed). Worst interior rows re-bill nearly the whole conversation:
+`n=666→659 breaks@3 re-bills 656/659`, `n=122→120 breaks@3 re-bills 117/120`,
+`n=92→91 breaks@3 re-bills 88/91`.
+
+**Honest residue on this datapoint.** Only ONE of the 16 MISMATCH rows is in
+the default output — `MISMATCH 2026-08-11T16:36:32.829Z host=3 blocks=3
+recon=5376ch rejected=10014ch` — the other 15 need `--verbose`, which was not
+run. So the CLASS is established and the population is counted, while the
+individual 15 are unread. Reading them is the next step and it is what
+decides whether the 16 are one shape or several; a rule repaired against one
+of them repairs nothing if they are several, which is the same
+tuned-on-the-first-shape trap row 4's own status entry already names.
+
 ### Row 23 datapoint — 2026-08-13: the mitigation was shipped on 2026-08-02 and nobody had asked whether it ABSORBED. It did: 114 firings, zero uncontrolled re-bills
 
 **The row was OPEN for eleven days for the wrong reason.** Its closing rule
