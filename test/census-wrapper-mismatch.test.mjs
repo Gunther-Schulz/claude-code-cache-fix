@@ -192,3 +192,65 @@ test("the UNRELATED diagnostic reports the wrapper ARITHMETIC, not just the labe
   assert.equal(typeof f.unrelatedDiag.wrappedDivOffset, "number",
     "where the wrapped reconstruction and the candidate part company");
 });
+
+// NEGATIVE CONTROL for the `trimEnd` tolerance (operator, 2026-08-14).
+//
+// `canonicalWrapped` now normalizes each block's TRAILING WHITESPACE away
+// before joining, which is what closed this class — and a tolerance inside a
+// comparison is exactly the thing that can quietly absorb the NEXT, different
+// one-byte class. So the tolerance owes a control in the other direction: a
+// divergence of one byte INSIDE a block must still fail, or the sub-classifier
+// has stopped discriminating and would report every future mechanism as
+// "wrapper-retained, accounted for".
+//
+// The fixture carries two blocks so the finding stays MISMATCH: the first
+// migrates verbatim (which is what satisfies `anyCreated` — with no surviving
+// block the pair classifies DROPPED and answers a different question), while
+// the second differs by a single character inside the wrapper. Nothing about
+// the trailing whitespace is changed, so the tolerance is live and cannot be
+// credited with the result either way.
+//
+// PROVEN TO DISCRIMINATE, and the two arms that FAILED to redden it are worth
+// more than the one that did. Widening `canonicalWrapped` — truncating each
+// block to 40 chars, then stripping every lowercase letter — left this control
+// GREEN both times, because `classify` normalizes only the RECONSTRUCTION and
+// compares it against CC's bytes verbatim: a one-sided reconstruction can only
+// fail to match, never absorb. It reddens under exactly one mutation shape,
+// letter-stripping applied INSIDE `classify` to BOTH sides, with the other six
+// bites still green. So `trimEnd` is not a tolerance in the two-sided sense at
+// all — it is a prediction of the bytes CC emits, checked exactly — and the way
+// this class could actually start hiding the next one is a normalization that
+// touches the candidate side. That is what this control watches.
+test("NEGATIVE CONTROL — one byte changed INSIDE a block still fails under the trimEnd tolerance", () => {
+  const INNER_C = "third synthetic block, deterministic, not capture bytes";
+  const INNER_C_MUTATED = INNER_C.replace("third", "thind"); // one character, same length
+  assert.equal(INNER_C_MUTATED.length, INNER_C.length, "the mutation is one byte, not a length change");
+  assert.notEqual(INNER_C_MUTATED, INNER_C);
+
+  const hostId = "t_host_inner_byte_001";
+  const cHead = { role: "user", content: [{ type: "text", text: "conversation head, inner-byte control" }] };
+  const cHost = {
+    role: "user",
+    content: [
+      { type: "tool_result", tool_use_id: hostId },
+      { type: "text", text: wrapNl(INNER_A) },   // trailing newline present: the tolerance is live
+      { type: "text", text: wrapNl(INNER_C) },
+    ],
+  };
+  const cEcho = { role: "user", content: [{ type: "tool_result", tool_use_id: hostId }] };
+  // CC's standalone: block A verbatim (so `anyCreated` holds), block C with the
+  // single mutated byte. Joined the way the corpus says CC joins.
+  const candidate = { role: "system", content: `${wrap(INNER_A)}\n\n${wrap(INNER_C_MUTATED)}` };
+
+  const findings = analysePair(
+    { body: { messages: [cHead, cHost] } },
+    { body: { messages: [cHead, cEcho, candidate] } });
+  assert.equal(findings.length, 1);
+  const f = findings[0];
+
+  assert.equal(f.verdict, "MISMATCH", "precondition: anyCreated holds, so this is a rule failure not a DROP");
+  assert.equal(f.mismatchSub, "UNRELATED",
+    "a one-byte difference inside a block must NOT be absorbed by the trailing-whitespace tolerance");
+  assert.equal(f.wrapped, null, "no wrapped hit may be recorded for it");
+  assert.ok(f.unrelatedDiag, "and it carries the arithmetic that says why");
+});
