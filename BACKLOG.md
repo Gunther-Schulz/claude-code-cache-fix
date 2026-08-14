@@ -121,20 +121,36 @@ across 6 lane branches) is discharged — see `## Done`, "THE PILE IS DRAINED".
 time (`docs/dev-loop.md`); the `## Build order` block above is stale by
 construction and three of its ten have shipped since.
 
-**ONE THING WAS IN FLIGHT WHEN THIS WAS WRITTEN, and it is the first thing to
-do.** A gate sweep was started at ~16:20Z to produce the VERIFIED answer for
-today's proxy ship and had not finished. It is step 6 of
-`docs/runbooks/ship-proxy-change.md`; step 7 (the DECLARED/RUNNING/VERIFIED
-three-way compare) is UNRUN and is what certifies the restart for production.
-Run step 7 from the runbook — it carries the exact two commands and the union
-rule (VERIFIED is the smaller set by construction; the two artifact-only
-exclusions are named in the status file). Expect TWELVE gates declared now,
-not eleven: `CACHE_FIX_COALESCE_SIDECAR` joined today.
-Two reds in the 12:36Z sweep were pre-existing and attributed, so do not read
-them as new: one capture ENOENT (evicted mid-run, a replay error, not a
-finding) and `tmpLeftovers: 4` (this session's own suite runs — the leak that
-caused it is FIXED today, so a non-zero count in the new sweep is a fresh
-finding rather than the known one).
+**THE SHIP IS CLOSED — step 7 ran and PASSED, so nothing about today's
+restart is outstanding.** Sweep finished 16:46:26Z: `ok: true`, 57 captures,
+**0 failing**, `backlogLint: 0`. The three-way compare is exact — DECLARED
+(unit `Environment=`) and VERIFIED (`gates` + `gatesExcludedArtifactOnly`)
+are identical member-for-member, TWELVE each including
+`CACHE_FIX_COALESCE_SIDECAR`, and the sweep's code stamp
+(`proxyTree e3db067017ca`) equals the running fingerprint, so VERIFIED
+describes the build that is serving.
+**`tmpLeftovers: 0`** — the re-armed signal reading clean on a real sweep,
+which is the run-root leak fix confirmed at the altitude it lives at. Both
+reds of the 12:36Z sweep are gone (the ENOENT capture and the four leftover
+roots).
+ONE NUMBER CARRIES NO VERDICT, deliberately: `rowPins.conflicts: 63` ("same
+row, different bytes — not overwritten"). The fire ledger does not carry
+`rowPins`, so there is no prior-sweep value to compare against — it is
+neither called new nor called normal here, and the first pass that wants it
+should establish a baseline rather than read this number alone.
+The duplicate counts in this sweep are PRE-FLIP traffic by construction
+(`doubleBilledStreaks: 55` over 114 streaks), so they are the baseline for
+row 31's done-criterion, not a reading of it.
+
+**THE FIRST THING TO DO IS UPSTREAM-FACING, and it is overdue rather than
+new.** Two PR review rounds have been open in OUR court since 2026-08-06 —
+eight days — and no one saw them because the doorbell has a writer and no
+reader. Details and the ordered queue: the two `## Open` entries booked
+2026-08-14 whose titles start "the PR-round doorbell has a WRITER" and
+"our own public comment on CC #78420". Read those before opening anything
+new upstream.
+NOTHING GOES PUBLIC WITHOUT OPERATOR GO. Draft, then ask. That binds every
+PR comment, issue comment and new issue below.
 
 **STATE — everything is pushed in both repos.** Fork `main` at the
 backlog-closures commit; dotfiles `main` at the acceptance addendum. `git log
@@ -191,6 +207,113 @@ now means some child DIED HARD and is a finding about that child.
 
 
 ## Open
+
+- **RECORD 2026-08-14 — the PR-round doorbell has a WRITER and no READER, and
+  that cost eight days of silence on two open rounds.** RECORD and not READY
+  on purpose: the realizing write is a hook in the dotfiles repo, outside this
+  repo's boundary, so the dispatchable entry lives THERE (booked same day) and
+  this is the fork-side record of why it exists. An entry graded READY here
+  would be dispatchable by nobody — its write-set resolves to no path in this
+  repo, which the READY bar catches and did. `tools/pr-rounds.mjs`
+  runs, works, and writes its verdict to the XDG state root; its own header
+  says the reader belongs in dotfiles' session-start attention line and was
+  out of that member's reach. Nobody built it. Measured today: `--dry-run`
+  reports rounds open on **#276 since 2026-08-06T12:58:37Z** and **#306 since
+  2026-08-06T19:41:40Z** — the ball in our court for eight days, while three
+  sessions' handoffs said nothing about either.
+  **This is the failure the writer was built to prevent**, recorded in its own
+  header from 2026-08-06: a hand `gh pr list` found #273 merged 42 minutes
+  earlier and a round open on #278 for 33 minutes, "both invisible to the
+  session, whose own handoff still read 'the ball is with upstream'". The
+  writer fixed the measurement and not the noticing.
+  Design, decided (it is the writer's own stated design, not a new one): the
+  reader is a SessionStart attention line in dotfiles' `claude/hooks/`,
+  reading the writer's JSON under the same three states the gate-red doorbell
+  already uses — count when >0, silent at zero, `stale` when `finished` is
+  older than ~3h, silent when the file is absent. A timer runs the writer
+  hourly.
+  Done-criterion: a session opened with a round outstanding SEES it in its
+  first screen without anyone running `gh`.
+  Realizing boundary: the dotfiles repo (hook + timer), booked THERE as well —
+  this entry is the fork-side record of why, and it retires when the dotfiles
+  entry does.
+  Loop stage: VERIFY.
+  Anchor: tools/pr-rounds.mjs
+  Realizing boundary: the dotfiles repo — hook plus a user timer.
+  <!-- entry: "pr-round doorbell has a writer and no reader" -->
+
+- **PARKED 2026-08-14 — our own public comment on CC #78420 says the duplicate
+  does NOT reproduce here, and row 31 then measured 47 of them. The two cannot
+  both be right, and the public one is ours.** Posted 2026-07-29 on
+  `anthropics/claude-code#78420`: "across 3,446 requests in seven session
+  captures spanning three days: one adjacent-identical instance
+  (retry-shaped, isolated), no doubling pattern" — offered as a negative data
+  point for scoping. Row 31 (matrix, 2026-08-14) measured **118 duplicate
+  streaks, 62 double-billed, 47 of them one class**: byte-identical adjacent
+  same-conversation sidecar pairs, 6-25 ms apart, both answered, both charged.
+  **The shapes differ and that is NOT the resolution.** #78420 is a doubled
+  conversation PREFIX with `cache_read ≈ 2.00×`; row 31 is a duplicate
+  single-message sidecar. But the PREDICATE our comment reported on — adjacent
+  byte-identical request bodies within a session — is the one row 31 found 47
+  of. So the comment's number is at best incomplete for the claim it was
+  offered as.
+  **Why this outranks filing anything new:** a claim shipped as fact in a
+  public thread is rested on by its readers, and correcting it is owed whether
+  or not we ever post again. It is also the reason nothing should be posted
+  there until it is explained — a correction that arrives beside an
+  unexplained contradiction reads as noise.
+  NAMED MISSING EVIDENCE — the three candidate explanations, none measured:
+  (a) the July corpus was 7 captures with few session starts, so the class had
+  few chances to appear; (b) the July probe's adjacency was defined
+  differently from the census's same-conversation adjacency; (c) CC changed
+  between 2.1.220 and 2.1.221. The July captures are rotated, but TRACKED
+  FIXTURES from that period survive, so (a) and (b) are answerable offline and
+  (c) is answerable from the version stamps in the boot records.
+  Trigger to re-grade: that measurement, run over the July-era fixtures.
+  Loop stage: ATTRIBUTE.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: a probe over test/fixtures/harvested/, then a drafted correction
+  comment (operator GO before posting)
+  <!-- entry: "our public 78420 comment contradicts row 31" -->
+
+- **READY 2026-08-14 — CC #82642 got an independent second measurement today;
+  ours would make it a third platform, and the measurement is short.**
+  `anthropics/claude-code#82642` (PreToolUse denials discard `decisionReason`)
+  is ours, filed 2026-07-30. Today another user posted a corroboration from a
+  different platform: 48,404 `PreToolUse:Bash` attachments across 601
+  transcripts on macOS — `allow` 47,081, `ask` 1,279, **`deny` 0** — against
+  132 denials visible only as error tool-results, and on one hook's 92
+  denials the `allow` rows sitting on those same calls belong to a DIFFERENT
+  hook in the chain, so a denied call reads as decided by someone else.
+  **Why ours adds something rather than repeating:** different OS (linux),
+  and this machine's guards deny regularly and deliberately — the
+  dispatch-guards set has fired denies this week that we can point at. Same
+  parse over `~/.claude/projects/**/*.jsonl` here gives the third data point,
+  and a version stamp newer than either existing one.
+  **Design, decided:** one pass over `~/.claude/projects/**/*.jsonl` that
+  reports three counts and nothing derived — `PreToolUse:*` attachments,
+  decisions parsed out of each attachment's `stdout` grouped by kind
+  (`allow`/`ask`/`deny`/empty), and denials visible only as `tool_result`
+  error text. Grouped by hook name as well as in total, because the macOS
+  comment's sharpest finding is per-hook: an `allow` from one hook in the
+  chain sits on a call another hook denied. It ships as a script under
+  `tools/` rather than a scratch one-liner — a probe used twice graduates
+  there, and this is the second time this repo has parsed that tree.
+  Done-criterion: the three counts measured on this machine, the parse stated
+  so a reader can re-run it, drafted as a comment.
+  **Red-first, and the positive control is already on disk:** this session's
+  own fused-push denial (`dispatch-guards/push-claim-reminder`, 2026-08-14)
+  is a known deny — the parse must SEE that call among the denials-visible-
+  only-as-text, or it is measuring nothing. A zero over an unproven parse is
+  the absence-read-as-clean shape.
+  OPERATOR GO BEFORE POSTING — draft only.
+  Loop stage: SEE.
+  Anchor: tools/
+  Write-set: tools/ (the probe), plus the comment draft
+  Verifier: the probe's own output on this machine, with the known-deny
+  positive control named above appearing in it
+  <!-- entry: "add our linux numbers to CC 82642" -->
+
 
 - **PARKED 2026-08-14 — row 31's mitigation is LIVE but its done-criterion is
   not measured yet, and the measurement is a two-sided one that a casual read
