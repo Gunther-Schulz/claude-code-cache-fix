@@ -31,6 +31,12 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
+// Namespace import, deliberately: the `between` bite below calls
+// `census.messageKinds` directly (unit-level, no subprocess) so that against
+// the pre-change tool it fails at ITS OWN CALL SITE — "census.messageKinds is
+// not a function" — rather than only on an assertion value, the same
+// stronger-red shape this file's header docstring already asks for.
+import * as census from "../tools/reminder-migration-census.mjs";
 
 const TOOL = new URL("../tools/reminder-migration-census.mjs", import.meta.url).pathname;
 
@@ -114,6 +120,67 @@ test("no verdict change — --json without --verbose carries no placementRows ke
     "placementRows is verbose-gated, matching mismatchRows/duplicateRows/volatileRows");
 });
 
+// --- `between`, the seventh field: what sat between the host and its
+// standalone (row 4's placement half, PARKED 2026-08-14; BACKLOG) -----------
+//
+// Two derivation rules are already refuted by measurement (tail anchoring,
+// predecessor-length anchoring), both computed from the six fields a
+// placement row already carried — this is why the next hypothesis needs a
+// seventh field rather than a re-run of either refuted one.
+
+const BETWEEN_HOST_ID = "t_host_between_001";
+
+test("RED-FIRST — a placement row's `between` vector names the intervening messages' role+kind, in wire order", () => {
+  const bHead = { role: "user", content: [{ type: "text", text: "conversation head, between-bite, synthetic" }] };
+  const bHost = {
+    role: "user",
+    content: [
+      { type: "tool_result", tool_use_id: BETWEEN_HOST_ID },
+      { type: "text", text: wrap(INNER) },
+    ],
+  };
+  const before2 = { body: { messages: [bHead, bHost] } };
+
+  // AFTER: [head, hostEcho, toolUseFiller, toolResultFiller, reminderFiller,
+  // standalone] — three intervening messages, three DIFFERENT kinds, at
+  // indices 2,3,4 strictly between hostIndexAfter(1) and standaloneIndex(5).
+  const hostEcho2 = { role: "user", content: [{ type: "tool_result", tool_use_id: BETWEEN_HOST_ID }] };
+  const toolUseFiller = { role: "assistant", content: [{ type: "tool_use", id: "toolu_between_1", name: "Bash", input: {} }] };
+  const toolResultFiller = { role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_between_unrelated" }] };
+  const reminderFiller = { role: "user", content: [{ type: "text", text: wrap("a different reminder body, between-bite, synthetic") }] };
+  const standalone2 = { role: "system", content: INNER };
+  const after2 = { body: { messages: [bHead, hostEcho2, toolUseFiller, toolResultFiller, reminderFiller, standalone2] } };
+
+  // Unit-level hand check of each filler's own kind list, independent of the
+  // CLI round-trip below.
+  assert.deepEqual(census.messageKinds(toolUseFiller), ["tool_use"]);
+  assert.deepEqual(census.messageKinds(toolResultFiller), ["tool_result"]);
+  assert.deepEqual(census.messageKinds(reminderFiller), ["reminder-carrying"]);
+
+  const dir = tmpDirSync("census-placement-between-");
+  const p = join(dir, "s-synthetic-between-requests.jsonl");
+  writeFileSync(p, [
+    JSON.stringify({ ts: "2026-08-14T10:00:00.000Z", body: before2.body }),
+    JSON.stringify({ ts: "2026-08-14T10:00:01.000Z", body: after2.body }),
+  ].join("\n") + "\n");
+
+  const out = execFileSync(process.execPath, [TOOL, p, "--json", "--verbose"],
+    { encoding: "utf-8", maxBuffer: 32 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  const res = JSON.parse(out);
+
+  assert.equal(res.placementRows.length, 1);
+  const row = res.placementRows[0];
+  assert.equal(row.hostIndexAfter, 1);
+  assert.equal(row.standaloneIndex, 5);
+  assert.equal(row.offset, 4);
+  assert.deepEqual(row.between, [
+    { role: "assistant", kind: ["tool_use"] },
+    { role: "user", kind: ["tool_result"] },
+    { role: "user", kind: ["reminder-carrying"] },
+  ], "the between vector: role+kind only, in wire order, one entry per intervening message");
+  assert.equal(row.betweenTruncated, undefined, "3 entries is under the 40-cap, so no truncation is reported");
+});
+
 // --- the cap keeps the MINORITY whole, added 2026-08-14 at the desk ----------
 //
 // WHY, and it is a measured defect rather than a refinement. The first version
@@ -188,4 +255,14 @@ test("the placement cap keeps every OFF-MODE row and samples the mode", () => {
   assert.equal(res.placementOffModeTruncated, undefined,
     "nothing off-mode was dropped, so no off-mode truncation is reported");
   for (const r of off) assert.equal(r.offset, 3, "the off-mode rows are the ones with the gap");
+
+  // The two classes must DIFFER on `between`, or the field measures nothing
+  // (dispatch brief, red-first arm 2 — the synthetic analogue of the live
+  // corpus's +1-vs-off-mode split). offset=1 (gap=0) has nothing strictly
+  // between host and standalone; offset=3 (gap=2) has the two gap fillers.
+  for (const r of mode) assert.deepEqual(r.between, [], "MODE-SAMPLE (offset 1) carries an EMPTY between vector by construction");
+  for (const r of off) {
+    assert.equal(r.between.length, 2, "OFF-MODE (offset 3, gap 2) carries the two gap fillers");
+    for (const entry of r.between) assert.deepEqual(entry, { role: "user", kind: ["text"] });
+  }
 });
