@@ -256,7 +256,13 @@ hook, whose fork-side contract line shipped this session.
   paths still reports unresolved; `node tools/backlog-lint.mjs` reports no NEW
   boundary finding against today's 11; this entry moves to `## Done` with its ref.
   Loop stage: VERIFY.
-  Anchor: tools/backlog-lint.mjs:655
+  THIRD RECORDED INSTANCE of the `path:line` anchor defect, and it was booked
+  before I hit it: this entry originally read `Anchor: tools/backlog-lint.mjs:655`
+  and the READY bar fired `ANCHOR-UNRESOLVED` on it, because `lintReadyBar`
+  resolves a non-`row N` anchor with a bare `pathExists(value)`. The entry
+  describing that defect calls itself the second instance; this is the third, and
+  the two entries should be built together — same file, same slot-parsing fix.
+  Anchor: tools/backlog-lint.mjs
   Write-set: `tools/backlog-lint.mjs`, `test/backlog-lint.test.mjs`
   Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
   <!-- entry: "ready-bar and boundary resolver read the write-set slot with different grammars" -->
@@ -2028,11 +2034,16 @@ hook, whose fork-side contract line shipped this session.
   Do NOT shop for a substitute capture: a check whose motivating case
   dissolves does not get a substitute found for it (`docs/dev-loop.md`). The
   design below stands unchanged and is complete; only its evidence is missing.
-  Sites, cited rather than described: `tools/bust-triage.mjs:770`
-  (`const cid = JSON.stringify(after.body.messages[0])`) fixes identity from
-  the busting request, and `:781`
-  (`if (JSON.stringify(r.body.messages[0]) !== cid) continue;`) tests every
-  candidate predecessor against it.
+  Sites, cited by ANCHOR TEXT — the line numbers are derived, not load-bearing,
+  and are stale the moment anything above them moves (this citation has now been
+  corrected four times in four days; the fifth correction is a booked mechanism,
+  not another edit). `const cid = JSON.stringify(after.body.messages[0])` fixes
+  identity from the busting request, and
+  `if (JSON.stringify(r.body.messages[0]) !== cid) continue;` tests every
+  candidate predecessor against it. Both now live inside `findPredecessor`
+  (extracted 2026-08-14, `bf01df9`); as of that commit they are at
+  `tools/bust-triage.mjs:759` and `:770`, resolvable at any later commit by
+  grepping the anchor text above.
   **Line numbers corrected a THIRD time 2026-08-14** (764 -> 770, 775 -> 781):
   the EXPECTED-BUST vocabulary block landed in the header above both sites.
   Caught by the citation lint at suite time again; same class as the two
