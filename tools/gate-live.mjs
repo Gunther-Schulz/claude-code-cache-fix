@@ -152,8 +152,14 @@ export function replayArgs(file, env) {
 // and had no daily reader at all — it took a throwaway drop-scan probe to see
 // one. Both are cheap next to the replay (20 s over the whole corpus against
 // the replay's minutes), and neither has a home outside this sweep.
+// --verbose rides along ADDITIVELY (reminder-migration-census.mjs's own
+// convention, stated at its `--json` assembly site): summariseCensus below
+// keeps reading the same named fields it always has, and the unbounded
+// per-capture row arrays (mismatchRows/duplicateRows/volatileRows) arrive
+// alongside them in the SAME parse, spent by extractCensusRowEvidence
+// (below) rather than a second child run.
 export function censusArgs(file) {
-  return [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, CENSUS, file, "--json"];
+  return [`--max-old-space-size=${CHILD_HEAP_CAP_MB}`, CENSUS, file, "--json", "--verbose"];
 }
 
 // The census exits 1 when it could not read something, so the exit CODE is not
@@ -248,6 +254,10 @@ function persistRows(row, field, source) {
 // row, and it WRITES — never commits. Committing is a human act here exactly
 // as it is for harvest's fixtures and its ledger.
 const DEFAULT_ROWPINS = join(__dirname, "..", "test", "fixtures", "harvested", "rowpins");
+
+// The census-rows evidence directory (docs/dev-loop.md closing-gate question
+// 2's recurring-producer clause) — see "Row evidence: census-rows" below.
+const DEFAULT_CENSUS_ROWS = join(__dirname, "..", "test", "fixtures", "harvested", "census-rows");
 
 /** The pin's stable identity: capture key, request, index, INDEX SPACE, family.
  *
@@ -401,6 +411,302 @@ export async function writeRowPins(pins, dir) {
     out.files.push(name);
   }
   return out;
+}
+
+// --- Row evidence: census-rows ---
+//
+// docs/dev-loop.md, closing gate question 2, the RECURRING-PRODUCER clause:
+// a producer that runs on a schedule satisfies the harvest obligation in its
+// own machinery or not at all. The daily sweep's byte-gate census already
+// runs over every live capture and the status file already carries its
+// COUNTS (byteGate.tally, .prunes, .duplicates) — but WHICH capture, WHICH
+// request, HOW MANY bytes apart never lands anywhere, and the capture
+// directory rotates oldest-mtime-first at its 12 GB cap. This is the fix:
+// one document per sweep, carrying the rows the counts summarise, written
+// while the capture that proves them still exists.
+//
+// The source is the SAME --verbose census JSON `summariseCensus` already
+// reads (censusArgs above) — no second child run, no new export. The three
+// row projections below are BODY-FREE BY CONSTRUCTION (never a re-scrub):
+// `mismatchRows[].recon` and `.rejectedCandidate.text` are the census's own
+// full reconstructed/candidate BODIES (proven verbatim by
+// test/census-mismatch-rows-export.test.mjs, "the rejected candidate's full
+// text rides on the exported row") — this file reads their LENGTHS only and
+// never the strings themselves. Every other field taken is already a
+// length, an index, an ordinal, an instant, or a closed-vocabulary label in
+// the census's own output.
+//
+// DEVIATION from the hand-built prototype
+// (test/fixtures/harvested/census-rows/census-rows-2026-08-14.json), named
+// rather than silently dropped: its mismatchRows carry `wrapperSegments`,
+// `strippedSegmentsEqualRecon` and `candidateIndex`, none of which the
+// census tool computes anywhere (grepped absent from
+// reminder-migration-census.mjs) — reproducing them here would mean
+// re-deriving census-internal segment/unwrap logic a second time outside
+// its owning file, which this lane's write boundary forbids editing and
+// which risks exactly the parentage drift the corpus warns against (two
+// definitions of one rule). `remainderChars` IS kept: it is `candidateChars
+// - reconChars`, arithmetic over two lengths already read, not a new
+// derivation. See the closing report for this as a named gap.
+
+/** `family` mirrors `tools/duplicate-billing.mjs`'s own `buildStreakRow`
+ * rule verbatim (same population, same threshold): a streak whose first
+ * member sits in the capture's first five lines is the haiku-sidecar
+ * shape, not the main thread. Restated here rather than imported because
+ * duplicate-billing.mjs is a join tool with its own CLI surface, not a
+ * shared library this file already depends on — but the RULE is one, so a
+ * future divergence between the two is exactly the two-sentences-disagree
+ * defect (site corpus, Fixing) to watch for, never silently re-cut.
+ */
+function streakFamily(startLine) {
+  return (startLine ?? Infinity) <= 5 ? "session-start" : "mid-session";
+}
+
+function projectMismatchRow(r, captureToken) {
+  const reconChars = typeof r?.recon === "string" ? r.recon.length : null;
+  const candidateChars = typeof r?.rejectedCandidate?.text === "string" ? r.rejectedCandidate.text.length : null;
+  return {
+    capture: captureToken,
+    ts: typeof r?.ts === "string" ? r.ts : null,
+    host: r?.host ?? null,
+    blocks: r?.blocks ?? null,
+    shape: r?.mismatchSub ?? null,
+    hostPruned: !!r?.hostPruned,
+    hostIdless: !!r?.hostIdless,
+    reconChars,
+    candidateChars,
+    remainderChars: reconChars != null && candidateChars != null ? candidateChars - reconChars : null,
+    wrapped: r?.wrapped
+      ? { verdict: r.wrapped.verdict ?? null, j: r.wrapped.j ?? null, offset: r.wrapped.offset ?? null }
+      : null,
+    wrappedSub: r?.wrappedSub ?? null,
+    unrelatedDiag: r?.unrelatedDiag
+      ? {
+          reconWrappedChars: r.unrelatedDiag.reconWrappedChars ?? null,
+          candidateChars: r.unrelatedDiag.candidateChars ?? null,
+          wrappedDivOffset: r.unrelatedDiag.wrappedDivOffset ?? null,
+          blockShapes: Array.isArray(r.unrelatedDiag.blockShapes)
+            ? r.unrelatedDiag.blockShapes.map((b) => ({
+                chars: b?.chars ?? null,
+                innerChars: b?.innerChars ?? null,
+                overhead: b?.overhead ?? null,
+                wrapCanonical: !!b?.wrapCanonical,
+              }))
+            : null,
+        }
+      : null,
+  };
+}
+
+function projectDuplicateRow(r, captureToken) {
+  return {
+    capture: captureToken,
+    startTs: typeof r?.startTs === "string" ? r.startTs : null,
+    lastTs: typeof r?.lastTs === "string" ? r.lastTs : null,
+    startLine: r?.startLine ?? null,
+    lastLine: r?.lastLine ?? null,
+    length: r?.length ?? null,
+    billed: r?.billed ?? null,
+    membersWithoutId: r?.noId ?? 0,
+    intervalMs: r?.intervalMs ?? null,
+    family: streakFamily(r?.startLine),
+  };
+}
+
+function projectVolatileRow(r, captureToken) {
+  return {
+    capture: captureToken,
+    kind: r?.kind ?? null,
+    ts: typeof r?.ts === "string" ? r.ts : null,
+    lastTs: typeof r?.lastTs === "string" ? r.lastTs : null,
+    line: r?.line ?? null,
+    req: r?.req ?? null,
+    lastReq: r?.lastReq ?? null,
+    index: r?.index ?? null,
+    occurrences: r?.occurrences ?? null,
+    firstBytes: r?.firstBytes ?? null,
+    nowBytes: r?.nowBytes ?? null,
+    divOffset: r?.divOffset ?? null,
+    cacheControlExempt: !!r?.cacheControlExempt,
+  };
+}
+
+/** One capture's contribution to the sweep's census-rows document, parsed
+ * from the SAME `res` `summariseCensus` already received for this capture
+ * (`res.out` — a second `JSON.parse` of an already-produced string, never a
+ * second child run). `null` on a capture the census could not answer at all
+ * (no parseable JSON) — the same three-answer stance `summariseCensus`
+ * takes, so `reduceCensusRowEvidence` below can skip it exactly as
+ * `reduceByteGate` skips an errored row.
+ */
+export function extractCensusRowEvidence(res, captureToken) {
+  if (!res || res.code === -1) return null;
+  let parsed = null;
+  try {
+    parsed = JSON.parse(res.out);
+  } catch {
+    return null;
+  }
+  return {
+    corpus: {
+      considered: 1,
+      captures: parsed.captures ?? 0,
+      pairs: parsed.pairs ?? 0,
+      conversations: parsed.conversations ?? 0,
+      unreadable: (parsed.unreadable ?? []).length,
+      tornLines: parsed.tornLines ?? 0,
+    },
+    tally: parsed.tally ?? { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
+    extendedSub: parsed.extendedSub ?? { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 },
+    prunes: parsed.prunes ?? { pure: 0, interior: 0, unanchored: 0 },
+    duplicates: parsed.duplicates ?? null,
+    volatile: {
+      change: parsed.volatileChange ?? null,
+      kinds: parsed.volatileKinds ?? null,
+      entries: parsed.volatileEntries ?? 0,
+      entriesByKind: parsed.volatileEntriesByKind ?? {},
+      cacheControlExempt: parsed.volatileExempt ?? 0,
+      truncated: parsed.volatileTruncated ?? {},
+    },
+    mismatchRows: (parsed.mismatchRows ?? []).map((r) => projectMismatchRow(r, captureToken)),
+    mismatchRowsTruncated: parsed.mismatchRowsTruncated ?? 0,
+    duplicateStreaks: (parsed.duplicateRows ?? []).map((r) => projectDuplicateRow(r, captureToken)),
+    duplicatesTruncated: parsed.duplicatesTruncated ?? 0,
+    volatileEntries: (parsed.volatileRows ?? []).map((r) => projectVolatileRow(r, captureToken)),
+  };
+}
+
+/** Sweep-wide sum over every capture's `extractCensusRowEvidence` output —
+ * additive across captures exactly the way `reduceByteGate` already sums
+ * tally/prunes/duplicates (mirrored, not imported: this file's own
+ * per-capture arrays carry `volatile.*`, which `reduceByteGate` does not
+ * collect, so the two reducers stay independent rather than one wrapping
+ * the other). `maxStreak` is the one MAX rather than SUM field, the same
+ * exception `reduceByteGate` documents for the same reason: it is the
+ * longest run SEEN corpus-wide, not a sum of per-capture maxima. Row
+ * arrays are concatenated verbatim — each capture's own array already
+ * carries its per-capture cap (MISMATCH_ROW_CAP / DUP_ROW_CAP /
+ * ENTRY_ROW_CAP, reminder-migration-census.mjs), so this reducer trims
+ * nothing further; only the `*Truncated` counters are summed.
+ */
+export function reduceCensusRowEvidence(list) {
+  const acc = {
+    corpus: { considered: 0, captures: 0, pairs: 0, conversations: 0, unreadable: 0, tornLines: 0 },
+    tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
+    extendedSub: { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 },
+    prunes: { pure: 0, interior: 0, unanchored: 0 },
+    duplicates: { pairs: 0, streaks: 0, maxStreak: 0, requests: 0, billedRequests: 0,
+                  billedStreaks: 0, doubleBilledStreaks: 0, membersWithoutId: 0 },
+    volatile: { change: { matchedAll: 0, matched: 0, identical: 0, reserialized: 0, changed: 0 },
+                kinds: {}, entries: 0, entriesByKind: {}, cacheControlExempt: 0, truncated: {} },
+    mismatchRows: [],
+    mismatchRowsTruncated: 0,
+    duplicateStreaks: [],
+    duplicatesTruncated: 0,
+    volatileEntries: [],
+  };
+  for (const e of list ?? []) {
+    if (!e) continue;
+    acc.corpus.considered += e.corpus?.considered ?? 0;
+    acc.corpus.captures += e.corpus?.captures ?? 0;
+    acc.corpus.pairs += e.corpus?.pairs ?? 0;
+    acc.corpus.conversations += e.corpus?.conversations ?? 0;
+    acc.corpus.unreadable += e.corpus?.unreadable ?? 0;
+    acc.corpus.tornLines += e.corpus?.tornLines ?? 0;
+    for (const k of ["EXACT", "EXTENDED", "DROPPED", "MISMATCH"]) acc.tally[k] += e.tally?.[k] ?? 0;
+    acc.extendedSub["MERGED-STANDALONE"] += e.extendedSub?.["MERGED-STANDALONE"] ?? 0;
+    acc.extendedSub["NEW-TEXT"] += e.extendedSub?.["NEW-TEXT"] ?? 0;
+    for (const k of ["pure", "interior", "unanchored"]) acc.prunes[k] += e.prunes?.[k] ?? 0;
+    if (e.duplicates) {
+      const d = e.duplicates;
+      acc.duplicates.pairs += d.pairs ?? 0;
+      acc.duplicates.streaks += d.streaks ?? 0;
+      acc.duplicates.maxStreak = Math.max(acc.duplicates.maxStreak, d.maxStreak ?? 0);
+      acc.duplicates.requests += d.requests ?? 0;
+      acc.duplicates.billedRequests += d.billedRequests ?? 0;
+      acc.duplicates.billedStreaks += d.billedStreaks ?? 0;
+      acc.duplicates.doubleBilledStreaks += d.doubleBilledStreaks ?? 0;
+      acc.duplicates.membersWithoutId += d.membersWithoutId ?? 0;
+    }
+    if (e.volatile) {
+      const v = e.volatile;
+      if (v.change) for (const k of Object.keys(acc.volatile.change)) acc.volatile.change[k] += v.change[k] ?? 0;
+      if (v.kinds) for (const [k, n] of Object.entries(v.kinds)) acc.volatile.kinds[k] = (acc.volatile.kinds[k] ?? 0) + n;
+      acc.volatile.entries += v.entries ?? 0;
+      if (v.entriesByKind)
+        for (const [k, n] of Object.entries(v.entriesByKind)) acc.volatile.entriesByKind[k] = (acc.volatile.entriesByKind[k] ?? 0) + n;
+      acc.volatile.cacheControlExempt += v.cacheControlExempt ?? 0;
+      if (v.truncated)
+        for (const [k, n] of Object.entries(v.truncated)) acc.volatile.truncated[k] = (acc.volatile.truncated[k] ?? 0) + n;
+    }
+    acc.mismatchRows.push(...e.mismatchRows);
+    acc.mismatchRowsTruncated += e.mismatchRowsTruncated ?? 0;
+    acc.duplicateStreaks.push(...e.duplicateStreaks);
+    acc.duplicatesTruncated += e.duplicatesTruncated ?? 0;
+    acc.volatileEntries.push(...e.volatileEntries);
+  }
+  return acc;
+}
+
+/** Assembles the document `writeCensusRowsDocument` writes, in the
+ * prototype's own top-level shape
+ * (test/fixtures/harvested/census-rows/census-rows-2026-08-14.json):
+ * corpus, tally, prunes, duplicates, volatile, producedAt, producedBy,
+ * extendedSub, mismatchRows, duplicateStreaks, volatileEntries.
+ */
+export function buildCensusRowsDocument(reduced, { producedAt, invocation, censusRunAt }) {
+  return {
+    corpus: reduced.corpus,
+    tally: reduced.tally,
+    prunes: reduced.prunes,
+    duplicates: { ...reduced.duplicates, ...(reduced.duplicatesTruncated ? { streaksTruncated: reduced.duplicatesTruncated } : {}) },
+    volatile: reduced.volatile,
+    producedAt,
+    producedBy: {
+      tool: "tools/gate-live.mjs",
+      invocation,
+      rowDerivation: "mechanism (extractCensusRowEvidence/reduceCensusRowEvidence/buildCensusRowsDocument) — " +
+        "one document per sweep, written from the same --verbose census JSON summariseCensus already reads",
+      censusRunAt,
+    },
+    extendedSub: reduced.extendedSub,
+    mismatchRows: reduced.mismatchRows,
+    ...(reduced.mismatchRowsTruncated ? { mismatchRowsTruncated: reduced.mismatchRowsTruncated } : {}),
+    duplicateStreaks: reduced.duplicateStreaks,
+    volatileEntries: reduced.volatileEntries,
+  };
+}
+
+/** Writes the sweep's census-rows document. Idempotent and NON-overwriting
+ * on differing content — `writeRowPins`'s own property, copied rather than
+ * reinvented, and for the same reason: overwriting would destroy earlier
+ * evidence to make room for a claim about the same sweep.
+ *
+ * A sweep with NO findings at all (every array empty) writes nothing and
+ * does not even create the directory — `writeRowPins`'s own early return on
+ * an empty pins array, mirrored: an all-clean day needs no evidence
+ * document, and a mechanism that wrote one anyway would be manufacturing a
+ * finding out of a non-event (site corpus, Fixing — "a dead mechanism
+ * yields a non-event too").
+ */
+export async function writeCensusRowsDocument(doc, dir) {
+  const totalRows = (doc.mismatchRows?.length ?? 0) + (doc.duplicateStreaks?.length ?? 0) + (doc.volatileEntries?.length ?? 0);
+  if (totalRows === 0) return { written: false, reason: "no rows this sweep", file: null };
+  const dateUtc = (typeof doc.producedAt === "string" ? doc.producedAt : new Date().toISOString()).slice(0, 10);
+  const name = `census-rows-${dateUtc}.json`;
+  const path = join(dir, name);
+  const body = JSON.stringify(doc, null, 2) + "\n";
+  await mkdir(dir, { recursive: true });
+  let existing = null;
+  try {
+    existing = await readFile(path, "utf-8");
+  } catch { /* not written yet today */ }
+  if (existing !== null) {
+    if (existing === body) return { written: false, unchanged: true, conflict: false, file: name };
+    return { written: false, unchanged: false, conflict: true, file: name };
+  }
+  await writeFile(path, body);
+  return { written: true, unchanged: false, conflict: false, file: name };
 }
 
 // --- Error-path pinning: freeze evidence when a replay child ERRORS ---
@@ -1485,6 +1791,7 @@ function parseArgs(argv) {
     snapshots: DEFAULT_SNAPSHOTS,
     transcripts: DEFAULT_TRANSCRIPTS,
     rowpins: DEFAULT_ROWPINS,
+    censusRows: DEFAULT_CENSUS_ROWS,
     // null means "let harvest.mjs use its own default" (test/fixtures/harvested),
     // the same tree DEFAULT_ROWPINS already writes into — overridable so a
     // verification run can redirect error pins to scratch without touching
@@ -1500,6 +1807,7 @@ function parseArgs(argv) {
     else if (a === "--snapshots") args.snapshots = argv[++i];
     else if (a === "--transcripts") args.transcripts = argv[++i];
     else if (a === "--rowpins") args.rowpins = argv[++i];
+    else if (a === "--census-rows") args.censusRows = argv[++i];
     else if (a === "--error-pins") args.errorPins = argv[++i];
     else if (a === "--quiet") args.quiet = true;
     else {
@@ -1531,6 +1839,7 @@ async function main() {
   }
 
   const rows = [];
+  const censusRowEvidence = [];
   for (const f of files.sort()) {
     const full = join(args.captures, f);
     let bytes = 0;
@@ -1544,7 +1853,16 @@ async function main() {
     if (bytes === 0) continue;
     const res = await runReplay(full, prodEnv);
     const row = summarise(f, bytes, res);
-    row.byteGate = summariseCensus(await runCensus(full));
+    // One census child run, spent twice: summariseCensus keeps the counts on
+    // the row exactly as before, and extractCensusRowEvidence (same `res`,
+    // a second JSON.parse of the already-produced string, never a second
+    // child) pulls this capture's contribution to the sweep's census-rows
+    // document. The capture's tracked identity is the same sidToken the row
+    // pins above already use, computed off the same raw key.
+    const censusRes = await runCensus(full);
+    row.byteGate = summariseCensus(censusRes);
+    const captureToken = sidToken(f.replace(/-requests\.jsonl$/, ""));
+    censusRowEvidence.push(extractCensusRowEvidence(censusRes, captureToken));
     // Write the evidence before anything else can go wrong with this sweep,
     // and drop the bodies off the row immediately afterwards: the status file
     // is machine-local, unscrubbed and read by tools that expect counts.
@@ -1620,6 +1938,36 @@ async function main() {
   // rule hold corpus-wide, and did any prune re-bill settled history". Read by
   // the operator and by doctor; per-capture rows keep the detail.
   const byteGate = reduceByteGate(rows);
+  // Row evidence for the byte-gate findings above (docs/dev-loop.md closing
+  // gate question 2, the recurring-producer clause): one document per sweep,
+  // written while the captures behind it still exist. A write failure is
+  // recorded rather than aborting the sweep — the same stance the row-pin
+  // and error-pin writes above take, and for the same reason: a lost
+  // evidence document is not a lost verdict.
+  let censusRowsWrite = null;
+  try {
+    const censusRowsDoc = buildCensusRowsDocument(reduceCensusRowEvidence(censusRowEvidence), {
+      producedAt: started,
+      invocation: `node --max-old-space-size=${CHILD_HEAP_CAP_MB} tools/reminder-migration-census.mjs <capture> --json --verbose (per capture, this sweep)`,
+      censusRunAt: started,
+    });
+    censusRowsWrite = await writeCensusRowsDocument(censusRowsDoc, args.censusRows);
+  } catch (e) {
+    censusRowsWrite = { error: String(e?.message ?? e) };
+  }
+  if (!args.quiet) {
+    process.stdout.write(
+      censusRowsWrite?.error
+        ? `census-rows: COULD NOT WRITE — ${censusRowsWrite.error}\n`
+        : censusRowsWrite?.written
+          ? `census-rows: wrote ${censusRowsWrite.file}\n`
+          : censusRowsWrite?.conflict
+            ? `census-rows: CONFLICT — ${censusRowsWrite.file} already exists with different content, not overwritten\n`
+            : censusRowsWrite?.unchanged
+              ? `census-rows: ${censusRowsWrite.file} already written, unchanged\n`
+              : `census-rows: no rows this sweep\n`,
+    );
+  }
   // Fingerprints of the code this sweep actually exercised. The verdict
   // used to record which CONFIG it replayed but never which CODE — so a
   // morning verdict stayed "fresh" (age bound) across an afternoon of
@@ -1784,6 +2132,7 @@ async function main() {
       dirs: tmpLeftovers.dirs.slice(0, 20),
     },
     byteGate,
+    censusRowsWrite,
     absorption: summariseAbsorption(rows),
     rowPins: reduceRowPins(rows),
     backlogLint,
