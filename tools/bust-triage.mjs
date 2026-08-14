@@ -30,6 +30,19 @@
 //                                               # cause/disposition/row, and
 //                                               # every cause it names is
 //                                               # reachable. Exit 1 on a finding.
+//   node tools/bust-triage.mjs --session @handle  # scope to the session the
+//                                               # operator's own ❄ report
+//                                               # names (`@25-06-...`, the
+//                                               # $CLAUDE_SESSIONS_DIR
+//                                               # registry's own `name`
+//                                               # field) — the newest bust IN
+//                                               # THAT SESSION; composes with
+//                                               # --at (that session's event
+//                                               # at that stamp). Never a
+//                                               # nearest-handle match: an
+//                                               # unknown or ambiguous handle
+//                                               # is a stated could-not-
+//                                               # verify, non-zero exit.
 //   ... --json
 //
 // THREE answers, never two (dev-loop.md, "A checker has THREE answers"):
@@ -96,6 +109,13 @@ const MATRIX = "docs/directives/robustness-threat-matrix.md";
 // a second resolver under tools/ can silently diverge from production's.
 const SNAPSHOTS = process.env.CACHE_FIX_SNAPSHOT_DIR
   || legacyReadPath(statePath("snapshots"), "cache-fix-snapshots");
+// The live-session name registry `--session <handle>` resolves against —
+// claude-worktime.sh's own `@handle` renderer reads this same directory,
+// matching each `*.json` file's `sessionId` key and reading its `name` key.
+// Not this repo's own state (no XDG resolver here): it belongs to the CC
+// harness itself, so the env override matches the harness's own variable
+// name rather than this repo's `CACHE_FIX_*` convention.
+const SESSIONS_DIR = process.env.CLAUDE_SESSIONS_DIR || join(homedir(), ".claude/sessions");
 // A reset telemetry event within this many ms of a candidate request's own
 // `ts` is treated as "that request is what the event is reporting on"
 // (BACKLOG TOOL GAP, 2026-07-31 twin-busts entry). Measured live on the
@@ -2437,10 +2457,98 @@ export function resolveAt(events, wantSec) {
     : `        No bust at or before ${fmt(wantSec)} ${localSuffix(wantSec * 1000)} to fall back to.`] };
 }
 
+/**
+ * `--session <handle>` resolution — the operator's own ❄-report handle
+ * (`@25-06-pv-georgendorf-4f`) to a worktime-ledger session id, via the SAME
+ * registry claude-worktime.sh's own `@handle` renderer reads
+ * ($CLAUDE_SESSIONS_DIR/*.json, matching each file's `sessionId` key and
+ * reading its `name` key) — never a second, hand-rolled notion of what a
+ * handle names. STRICTLY BETTER than the project name as a scoping key: two
+ * live sessions can share one project, which a cwd basename cannot
+ * separate, while a session's own `name` is unique by construction
+ * (claude-worktime's own naming, disambiguated per project).
+ *
+ * Exact match first; else a UNIQUE case-insensitive substring match; else a
+ * stated could-not-verify naming every candidate — NEVER a nearest match,
+ * the identical failure item 1's join replaces one level over (silently
+ * substituting a plausible-looking wrong answer for an exact one).
+ */
+export function resolveSessionHandle(handle, dir = SESSIONS_DIR) {
+  const clean = (handle ?? "").replace(/^@/, "");
+  if (!clean) {
+    return { ok: false, code: "no-handle", detail: "no session handle given" };
+  }
+  if (!existsSync(dir)) {
+    return { ok: false, code: "no-sessions-dir", detail: `no session registry directory at ${dir}` };
+  }
+  let files;
+  try {
+    files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+  } catch {
+    return { ok: false, code: "no-sessions-dir", detail: `session registry directory unreadable: ${dir}` };
+  }
+  const registry = [];
+  for (const f of files) {
+    let raw;
+    try { raw = j(readFileSync(join(dir, f), "utf8")); } catch { raw = null; }
+    if (!raw || typeof raw.name !== "string" || typeof raw.sessionId !== "string") continue;
+    registry.push({ name: raw.name, sessionId: raw.sessionId });
+  }
+  const exact = registry.filter((r) => r.name === clean);
+  if (exact.length === 1) {
+    return { ok: true, sessionId: exact[0].sessionId, name: exact[0].name, match: "exact" };
+  }
+  if (exact.length > 1) {
+    return { ok: false, code: "ambiguous-handle",
+             detail: `"${clean}" matches ${exact.length} sessions by exact name: ${exact.map((r) => r.name).join(", ")}` };
+  }
+  const lower = clean.toLowerCase();
+  const sub = registry.filter((r) => r.name.toLowerCase().includes(lower));
+  if (sub.length === 1) {
+    return { ok: true, sessionId: sub[0].sessionId, name: sub[0].name, match: "substring" };
+  }
+  if (sub.length > 1) {
+    return { ok: false, code: "ambiguous-handle",
+             detail: `"${clean}" matches ${sub.length} sessions by substring: ${sub.map((r) => r.name).join(", ")}` };
+  }
+  return { ok: false, code: "unknown-handle",
+           detail: `"${clean}" matches no session in ${dir} (${registry.length} registered)` };
+}
+
 async function main(argv) {
   const args = argv.slice(2);
   const json = args.includes("--json");
-  const events = coldEvents();
+
+  const sessionI = args.indexOf("--session");
+  let session = null;
+  if (sessionI >= 0) {
+    const handle = args[sessionI + 1] ?? "";
+    const resolved = resolveSessionHandle(handle);
+    if (!resolved.ok) {
+      process.stdout.write(`--session: ${resolved.detail}\n`);
+      return 2;
+    }
+    session = { ...resolved, handle };
+    // Stated, not silent — the same convention `--at`'s own substitution
+    // note follows. Text mode only: `--json`'s consumer reads `session` off
+    // the payload below instead (a stray text line ahead of the JSON blob
+    // would corrupt it).
+    if (!json) {
+      process.stdout.write(
+        `  SESSION  "${session.handle}" -> ${session.name} (${session.match} match)\n`);
+    }
+  }
+
+  // "Scope the existing cold-event selection to that session" (design,
+  // decided): coldEvents() IS that selection, so filtering it here — before
+  // anything downstream reads it — scopes --list, --at and the default path
+  // identically and structurally forbids the one failure mode the design
+  // calls out by name: resolveAt's own nearest-match reduce can never widen
+  // back to a DIFFERENT session's event, because a different session's
+  // events are not in the array it searches.
+  const events = session
+    ? coldEvents().filter((e) => e.s === session.sessionId)
+    : coldEvents();
   const all = events.filter((e) => e.cls === "bust");
   if (args.includes("--list")) {
     if (!events.length) {
@@ -2525,7 +2633,11 @@ async function main(argv) {
     // `fellBack` covers BOTH paths now: it used to be `!explicit && …`, which
     // reported false on the one path that substituted without saying so.
     process.stdout.write(JSON.stringify(
-      { ...r, newest: events[0] ?? null, requested, fellBack: note.length > 0 }, null, 2) + "\n");
+      { ...r, newest: events[0] ?? null, requested, fellBack: note.length > 0,
+        session: session
+          ? { handle: session.handle, name: session.name, sessionId: session.sessionId, match: session.match }
+          : null },
+      null, 2) + "\n");
     return 0;
   }
 
