@@ -317,87 +317,115 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
-- **READY 2026-08-14 — row 4's placement half has exactly ONE unexamined
-  place left, and no export reaches it: what sits BETWEEN the host and the
-  migrated standalone.** The byte half is characterized and closed as a
-  question (matrix row 4, parked the same day: all 16 MISMATCH occurrences are
-  the wrapper-retained form, 8 EXACT + 8 EXTENDED, every remainder
-  MERGED-STANDALONE, every byte computable from the predecessor). The
-  placement half is what still blocks, and it is now measured rather than
-  described: the complete uncapped distribution is 521 occurrences at offset
-  +1 and 27 off-mode across 20 distinct values from +4 to +110
-  (`placementOffsets`, `6020144`).
-  **Two derivation rules are already REFUTED BY MEASUREMENT, so this entry is
-  not a re-run of them:** the standalone is not tail-anchored (its distance
-  from the last message ranges 2..152 across the off-mode rows, and varies
-  inside the +1 class too), and it is not anchored to the predecessor's own
-  length (`standaloneIndex - nBefore` scatters -142..+2 in BOTH classes).
-  Those were computed from the six fields `placementRows` carries, which is
-  why the next question needs a seventh.
-  **Design, decided:** each placement row gains `between` — the messages
-  strictly between `hostIndexAfter` and `standaloneIndex` in the AFTER
-  request, as `[{role, kind}]` in wire order, where `kind` is a CLOSED
-  vocabulary read off the message's content blocks (`tool_result`,
-  `tool_use`, `text`, `reminder-carrying`, `image`, `thinking`, `other`) —
-  roles and kinds only, never text, so the row stays body-free and the
-  census-rows evidence document keeps its single exempted absence class.
-  Capped at 40 entries with a `betweenTruncated` count beside it, the same
-  cap-reports-what-it-dropped shape every other row array here uses. The
-  MODE-SAMPLE rows get it too: a derivation rule has to explain the +1
-  majority as well, and an export that carries the shape only for the
-  unusual rows cannot test that.
-  **Red-first arrangement:** a synthetic pair with three known intervening
-  messages of different kinds asserts the vector hand-computed; against the
-  current tool the field is absent and the bite fails at its own call site
-  (namespace import). Live control: the 27 off-mode rows each carry a
-  `between` vector, and the +1 rows carry an EMPTY one by construction —
-  the two must differ, or the field is measuring nothing.
-  **Done:** the desk can state, from one run, whether a placement rule exists
-  that covers all 548 occurrences — and if none does, row 4 gets its third
-  named blocker instead of a fourth hypothesis.
-  Loop stage: ATTRIBUTE (it decides whether row 4's mitigation can be
-  designed at all).
-  Anchor: row 4
-  Write-set: tools/reminder-migration-census.mjs, test/census-placement-rows.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/census-placement-rows.test.mjs
-  <!-- entry: "row 4 placement: the intervening messages between host and standalone are unexported" -->
+- **READY 2026-08-14 — `replay.mjs` exports `conversationOf` but not the hash
+  it needs, so a tool holding RAW `body.messages` cannot use the repo's own
+  identity function at all.** Returned as a question by the breakpoint-scan
+  lane, which hit it while obeying the rule it was pointed at: `conversationOf`
+  (`tools/replay.mjs:1092`) reads `e.inHash[0]`, an array built by
+  `compactEntry` from a private, unexported `sha`. A tool whose records are raw
+  requests has no `inHash` and cannot build one without re-deriving the hash —
+  the exact anti-pattern `docs/dev-loop.md` names ("never hand-roll identity in
+  a probe"). The lane correctly used `conversationSubKey` from
+  `proxy/extensions/message-hash.mjs` instead and did not touch `replay.mjs`.
+  **Why it is a real gap and not a naming preference:** the rule says "if a tool
+  needs an identity that is not exported yet, export it rather than restate it",
+  and today the export that would satisfy a raw-records caller does not exist.
+  `tools/cache-sim.mjs` already worked around it the same way, so this is the
+  second instance.
+  **Design, decided:** export from `tools/replay.mjs` an `inHashOf(messages)`
+  (the same hashing `compactEntry` performs, factored out, not copied), so
+  `conversationOf` becomes reachable from a raw-messages caller in one step;
+  `conversationSubKey` stays the sub-key grain. Then say so at the identity
+  section of `docs/dev-loop.md`: `conversationSubKey` is the raw-`messages`
+  entry point, `conversationOf` the compactEntry-pair one — the lane's own
+  candidate lesson, and the half that stops the next brief naming the wrong one.
+  **Red-first arrangement, and the two must DIFFER:** on one real capture,
+  `conversationOf(compactEntry(rec))` and `conversationOf({inHash: inHashOf(rec.body.messages)})`
+  return the SAME id for the same record, and DIFFERENT ids for two records of
+  different conversations. A pair that agrees on identical inputs but never
+  differs has not demonstrated the identity.
+  Done: `inHashOf` is exported, both arms of the identity pair above pass, at
+  least one raw-messages caller (`breakpoint-scan`) reads its conversation id
+  through `conversationOf` instead of a sibling, and `docs/dev-loop.md`'s
+  identity section names which entry point is which; this entry moves to
+  `## Done` with its commit ref.
+  Loop stage: ATTRIBUTE (every cross-record comparison in this repo is grouped
+  by this key).
+  Anchor: tools/replay.mjs
+  Write-set: tools/replay.mjs, test/replay-row-identity.test.mjs, docs/dev-loop.md
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/replay-row-identity.test.mjs
+  <!-- entry: "replay.mjs exports conversationOf but not the hash a raw-messages caller needs" -->
 
-- **READY 2026-08-14 — `tools/logs.mjs` owns the RAW formats and has no view
-  for the DERIVED ones, so every consumer of a census export hand-reads
-  capture-outcome field names by construction.** Surfaced the same day by the
-  schema-scope sweep firing on `tools/duplicate-billing.mjs`, correctly:
-  that tool's usage.jsonl side goes through `readUsageLogRecord`, and its
-  capture-outcome side reads `cacheRead`/`cacheCreation`/`inputTokens` off
-  `duplicateRows[].members[].outcome` in a census `--json --verbose` export.
-  Declared KNOWN-OPEN in the sweep's inventory rather than exempted (the
-  names really are that schema's, so it is not a false positive) — but the
-  inventory is the holding pattern, not the fix.
-  **Why this will keep firing:** the census export is a real format this repo
-  writes, with a real schema, and it is the format every downstream analysis
-  reads. Nothing owns it. That is the same gap `logs.mjs` was built to close
-  one level up, and the sweep will now flag each new consumer as it lands —
-  which is the guard working, and also the tell that the reader stops one
-  format short.
-  **Design, decided:** add a `censusExport` view family to `tools/logs.mjs` —
-  a strict view per row array (`duplicateRows`, `mismatchRows`,
-  `placementRows`, `volatileRows`) that THROWS on an unknown field name, the
-  same stance the four existing views take; `duplicate-billing` adopts it and
-  leaves the sweep's inventory in the same commit. The census stays the
-  writer; the reader stays the one place field names are spelled.
-  **Red-first arrangement:** a fixture census export with a misspelled field
-  (`cacheReads`) must throw from the view and be caught by a bite, while the
-  real export parses clean — and the sweep's own inventory entry for
-  `tools/duplicate-billing.mjs` must be REMOVED by the same commit, which the
-  sweep verifies by failing if the file still hand-parses.
-  **Done:** `duplicate-billing` imports the view, the inventory entry is gone,
-  and `node --test test/logs-schemas.test.mjs` is green with the file no
-  longer in scope.
-  Loop stage: VERIFY (it is the instrument layer every duplicate-billing and
-  row-4 measurement now reads through).
-  Anchor: tools/logs.mjs
-  Write-set: tools/logs.mjs, tools/duplicate-billing.mjs, test/logs-schemas.test.mjs, test/duplicate-billing.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/logs-schemas.test.mjs test/duplicate-billing.test.mjs
-  <!-- entry: "logs.mjs has no view for the census export, so every downstream consumer hand-reads the schema" -->
+- **READY 2026-08-14 — the schema-scope sweep is a literal per-line regex, so
+  it fires on a CONSUMER's own output field names and "adopt the reader" cannot
+  clear it.** Returned by the logs-view lane, which had to rename
+  `duplicate-billing`'s own `captureUsage.cacheRead`/`cacheCreation` output keys
+  to `cacheReadTokens`/`cacheCreationTokens` before the sweep would go green —
+  not because it hand-parsed anything (it no longer does), but because the word
+  appears in the file. The rename is harmless and was the right unblock; the
+  sweep's reach is the defect.
+  **Why it will keep firing:** every future consumer that ADOPTS the reader
+  inherits this, and the fix each time is to rename that consumer's own
+  vocabulary — which is the guard shaping the code rather than checking it, the
+  fires-on-legitimate-work shape `docs/dev-loop.md` names. The next author will
+  read a red on a file that does exactly what the rule asks.
+  **Design, decided:** the sweep skips a line whose schema word is a WRITE — an
+  object-literal key or a property assignment in the consumer's own output
+  construction — and keeps firing on a READ of another format's field. Where
+  that distinction is not cheaply computable per line, the fallback is a
+  declared exemption the sweep itself verifies (the shape this repo already
+  requires of a guard that fires on legitimate work): the consumer names the
+  key, the sweep asserts the file no longer hand-parses.
+  **Red-first arrangement, and the two must DIFFER:** restore
+  `duplicate-billing`'s original output key names and the sweep must stay
+  SILENT (they are its own writes); plant a genuine cross-schema read
+  (`rec.cache_read_input_tokens` off a capture outcome) and it must still FIRE.
+  A change that silences both has removed the check.
+  Done: `duplicate-billing`'s output keys can carry the repo's natural names
+  again with the sweep silent, a planted cross-schema read still fires, and no
+  future adopter has to rename its own vocabulary to go green; this entry moves
+  to `## Done` with its commit ref.
+  Loop stage: VERIFY.
+  Anchor: test/logs-schemas.test.mjs
+  Write-set: test/logs-schemas.test.mjs, tools/duplicate-billing.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/logs-schemas.test.mjs
+  <!-- entry: "the schema-scope sweep fires on a consumer's own output field names" -->
+
+- **READY 2026-08-14 — three fields the census-rows prototype carries are
+  computed NOWHERE in the census tool, so the shipped document substitutes
+  arithmetic for them.** Returned as a question by the census-rows lane, which
+  found `wrapperSegments`, `strippedSegmentsEqualRecon` and `candidateIndex` in
+  the hand-built prototype (`test/fixtures/harvested/census-rows/census-rows-2026-08-14.json`)
+  and absent from `tools/reminder-migration-census.mjs` (grepped). Reproducing
+  them meant re-deriving census-internal logic outside its owning file, which
+  its write boundary forbade and which would have been the second
+  implementation of an identity this repo has already paid for three times. It
+  substituted `remainderChars` (`candidateChars - reconChars`, pure arithmetic)
+  and said so.
+  **The lesson under it, worth more than the three fields:** a brief that names
+  a hand-built prototype as "the schema" is naming a label over a body nobody
+  checked against the live producer — the drift class, arriving through the
+  door marked "use the existing shape". Verify a prototype's field names
+  against the writer before treating it as a contract.
+  **Design, decided:** the census tool EXPORTS the three, computed where the
+  wrapper reconstruction already happens (`analysePair`'s mismatch branch), and
+  the sweep's document carries them instead of `remainderChars`; the prototype
+  is then a real sample of the shipped schema rather than a wish.
+  **Red-first arrangement:** a synthetic wrapper-retained pair whose segment
+  count is known by hand asserts `wrapperSegments`; against the current tool the
+  field is absent and the bite fails at its own call site. Live control: the 16
+  real MISMATCH occurrences must all carry a non-zero `wrapperSegments`, since
+  every one of them is the wrapper-retained form by measurement.
+  Done: the three fields are computed by the census and ride the sweep's
+  document, `remainderChars` is retired or kept deliberately with a stated
+  reason, and the committed prototype is regenerated from a real run so it is a
+  sample rather than a wish; this entry moves to `## Done` with its commit ref.
+  Loop stage: ATTRIBUTE.
+  Anchor: row 4
+  Write-set: tools/reminder-migration-census.mjs, tools/gate-live.mjs, test/census-mismatch-rows-export.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/census-mismatch-rows-export.test.mjs
+  <!-- entry: "three census-rows prototype fields are computed nowhere in the census tool" -->
+
 
 - **PARKED 2026-08-14 — the EXPENSIVE duplicate population is a RETRY after
   an incomplete first attempt, not a double answer, and the named missing
@@ -473,53 +501,6 @@ hook, whose fork-side contract line shipped this session.
   is the retry population behaving correctly and is evidence that
   `doubleBilledStreaks` is not firing on ordinary traffic.
   <!-- entry: "double-billed duplicates are two populations: haiku sidecar at session start, main thread mid-session" -->
-
-- **READY 2026-08-14 (operator mandate, same day: "mandatory build under
-  dev-loop question 2's recurring-producer clause, not a nice-to-have") —
-  the byte-gate census stores COUNTS and the daily sweep keeps NONE of its
-  rows, so every byte-gate finding expires with its capture.** The sweep runs
-  the census over every live capture and the status file carries
-  `byteGate: {tally, prunes, duplicates}` — 16 MISMATCH, 140 duplicate pairs,
-  40,190 changed volatile blocks as of this morning. Which capture, which
-  request ordinal, which host index, how many bytes apart: none of it is
-  written anywhere, and the capture directory sits AT its 12 GB cap evicting
-  oldest-mtime-first. Same shape as the absorption check's 2026-08-05 lesson
-  (counts stored, 11 rows lost by the afternoon), one producer over.
-  **Prototype and known positive: `148b5e7`** — the hand run this entry
-  replaces, committed as `test/fixtures/harvested/census-rows/census-rows-2026-08-14.json`
-  (16 mismatch rows, 108 duplicate streaks, 542 volatile entries).
-  **Design, decided:** `gate-live` writes ONE document per SWEEP in the
-  prototype's own schema, into the same directory, named
-  `census-rows-<UTC date>.json`; rows come from the census's existing
-  `--json --verbose` exports (`mismatchRows`, `duplicateRows`,
-  `volatileRows`), which the sweep already produces per capture, so the caps
-  (`MISMATCH_ROW_CAP`, `DUP_ROW_CAP`, `ENTRY_ROW_CAP`) apply per capture and
-  the `*Truncated` counters ride into the document rather than being dropped.
-  Body-free by construction — a length, an index, an ordinal, an instant, a
-  `sidToken` or a closed-vocabulary label, never message text — which is what
-  keeps ONE exempted absence class sufficient (`tools/absence-scan.mjs`
-  census-rows entry, shipped in `148b5e7`). Writing is idempotent and
-  NON-overwriting on differing content, the property `writeRowPins` already
-  has and for the same reason. It WRITES, never commits: committing stays a
-  human act, as it is for harvest's fixtures.
-  **Red-first arrangement, anchored to the committed document rather than to
-  live state:** with the writer disabled, a synthetic sweep leaves no
-  document; enabled, it writes one whose rows reconcile against its own
-  `byteGate` counts. The boundary half is already green and re-runnable —
-  `test/evidence-census-rows.test.mjs` iterates the directory, so a document
-  the mechanism writes is graded by the same five bites (exemption scope,
-  no-leak-outside, boundary scan, planted positive, no free text) with no
-  new test needed.
-  **Done:** the next daily sweep leaves a `census-rows-<date>.json` whose
-  mismatch/duplicate/volatile row counts reconcile against that sweep's own
-  `byteGate` rollup, and `test/evidence-census-rows.test.mjs` stays green
-  over it.
-  Loop stage: ATTRIBUTE (it is the evidence every row-4 and duplicate-billing
-  attribution reads).
-  Anchor: tools/gate-live.mjs
-  Write-set: tools/gate-live.mjs, test/gate-live-census-rows.test.mjs, test/fixtures/harvested/census-rows/
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live-census-rows.test.mjs test/evidence-census-rows.test.mjs
-  <!-- entry: "the byte-gate census keeps no rows, so findings expire with their captures" -->
 
 - **RECORD 2026-08-14 — the volatile-block sweep's byproduct, which is the
   measurement #272 blocker 2 has been waiting for: the change population is
@@ -771,53 +752,6 @@ hook, whose fork-side contract line shipped this session.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-at-substitution.test.mjs
   <!-- entry: "capture outcome-to-request join is not mechanized" -->
 
-- **READY 2026-08-13 — `breakpoint-scan` does not group by CONVERSATION, so
-  every sequence it prints can silently interleave the main thread, its
-  subagents and CC's sidecars.** Surfaced by the lane that built it, in its
-  own honest-residue slot, not by a reviewer. It reports `sid`, which is the
-  session-id HEADER — and `FORK-NOTES.md` and `docs/dev-loop.md` both state
-  that one session id carries the main thread, every subagent and CC's own
-  background calls. dev-loop's standing rule is explicit: "Group by
-  conversation before comparing anything… This artifact produced false
-  results six separate times in one day, including in the gate itself",
-  where adjacent-line pairing reported 0 violations on a 602-request capture
-  while a single-conversation slice of the same session reported 2.
-  **It already showed up in the first real run.** Of 22 rows, 21 form a
-  smooth `nMessages` growth (161→163→166→…→203) and ONE sits at
-  `nMessages=1` with a lone `system[0]` marker. The lane called that a
-  different co-tenant conversation on STRUCTURAL grounds — the reset shape —
-  and said plainly it had not verified a conversation identity. That is the
-  right call and it is exactly the judgement a grouping key would have made
-  mechanical.
-  **Why this is not merely cosmetic:** the tool's most natural use is
-  reading a SEQUENCE (does the tail marker advance, does the layout drift),
-  and a sequence is meaningless across tenants. The refutation it produced
-  today survives only because that argument was re-based on exhaustive
-  window accounting instead of on the sequence — see the RECORD entry above.
-  The next user will not necessarily notice they need to do that.
-  **Design, decided:** emit a `conversationId` per row using the repo's own
-  identity function rather than a new one — `conversationSubKey` /
-  `conversationOf` from `replay.mjs`, per `bust-appears.md` step 9 ("never
-  hand-roll identity in a probe… an identity computed more cheaply than the
-  thing it identifies will collide"). Add `--by-conversation` to group the
-  output; default output stays byte-identical so no existing caller changes.
-  Do NOT re-derive a first-message hash locally — `cache-sim.mjs` has one and
-  a third implementation is the collision this repo has already paid for
-  three times.
-  Red-first arrangement, and the two must DIFFER: a synthetic capture with
-  two interleaved conversations must produce two groups with the correct
-  rows in each; the same fixture read WITHOUT grouping must show the
-  interleaved (wrong) sequence. A change where both readings agree has not
-  demonstrated grouping.
-  Done: the two bites above pass, the live capture's `nMessages=1` outlier
-  lands in its own group rather than inside the main sequence, and this
-  entry moves to `## Done` with its commit ref.
-  Loop stage: ATTRIBUTE.
-  Anchor: tools/breakpoint-scan.mjs
-  Write-set: tools/breakpoint-scan.mjs, test/breakpoint-scan.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/breakpoint-scan.test.mjs
-  <!-- entry: "breakpoint-scan does not group by conversation" -->
-
 - **PARKED 2026-08-13 — the `/tmp` run-root leak is BACK: every full-suite
   run leaks exactly 2 roots, including runs that PASS, and the guard's
   one-hour threshold is a blind window a pushing session refills faster than
@@ -953,6 +887,34 @@ hook, whose fork-side contract line shipped this session.
   Loop stage: VERIFY.
   Anchor: tools/tmpdir.mjs
   Write-set: tools/tmpdir.mjs, tools/gate-live.mjs, docs/dev-loop.md
+  **FOURTH OCCURRENCE 2026-08-14, and it KILLS one hypothesis while exposing a
+  contaminated measurement of my own.** The guard blocked a push again; read
+  before the reap, 34 of 34 run roots held exactly one `cache-fix-replay-*`
+  child and every owning pid was dead — an independent reproduction of the
+  third occurrence's localization, from a different session.
+  **The clean-exit path is EXONERATED, measured rather than argued:** one
+  `replay.mjs` run under gate-live's own `--max-old-space-size=2048`, given a
+  PRIVATE `TMPDIR`, exits 0 and leaves ZERO roots. `removeRunRoot` uses
+  `rmSync(recursive, force)` and fires on `exit`, so nothing about an ordinary
+  termination leaks. The OOM-abort hypothesis also took a hit rather than
+  support: a 1 GB capture replayed under the same cap exited 0.
+  **The instrument lesson, and it is the reusable half.** The desk's FIRST
+  probe counted `/tmp/cache-fix-run-*` before and after that run in the SHARED
+  tmp — 34 then 36 — and read the delta as a clean-exit leak. Four dispatched
+  lanes were running full suites in the same `/tmp` at that moment, so the two
+  new roots were theirs. `docs/dev-loop.md` names this exact trap ("counting
+  leftovers by a TIME WINDOW over shared /tmp attributes any concurrent
+  writer's dirs to your own run"); it was read after the fact, not before. The
+  private-`TMPDIR` arm is the form that answers, and it is what the corrected
+  measurement above uses.
+  **So the remaining question is narrower than this entry has ever stated it:**
+  which replay invocation terminates WITHOUT running exit handlers, given that
+  a clean one does not, gate-live sends no signal, and the heap cap did not
+  fire on the largest capture on disk. The next probe is the test-runner side —
+  whether `node --test` tears down a spawned gate-live's own replay children at
+  suite end, which would be a SIGKILL nothing traps. Named as unmeasured.
+  Reaped by hand again (42 dead-owner roots) purely to unblock pushes; that is
+  the fourth use of the stopgap and the argument for the durable half.
   <!-- entry: "tmp run-root leak returned, 2 per suite run including passes" -->
 
 - **READY 2026-08-13 — the READY-bar's `Anchor:` resolver rejects a
@@ -1386,6 +1348,37 @@ hook, whose fork-side contract line shipped this session.
   Write-set: (integration commits onto main; no single file — the branches' own
   file sets, listed in the entry's measurement above)
   Verifier: for b in $(git worktree list --porcelain | grep '^branch ' | sed 's|branch refs/heads/||'); do echo "$(git cherry main $b | grep -c '^+')  $b"; done
+  **INTEGRATED 2026-08-14: both blocking lanes are in, 13 commits landed and 4
+  dispositioned as skips — and the DONE-CRITERION AS WRITTEN CANNOT BE MET,
+  which is a finding about the criterion.** `worktree-agent-a162` (replay) and
+  `worktree-agent-a82e` (backlog tooling) both integrated per commit, each with
+  its behaviour-level check against main before the pick. Skips, recorded
+  rather than dropped: `b6bfdca` (main's own identifier join, confirmed again),
+  `376caa9` (main carries the same LINEAGE_THRESHOLD sizing note in its own
+  words), `ed30981` (an injectable existence resolver — the desk had already
+  built the same design during the previous pick, from the same red), and
+  `87e0f74`'s tool half (main had landed the absorption section inline, with a
+  richer row).
+  **Why `git cherry` will keep reporting a remainder anyway:** it joins by
+  PATCH-ID, and a conflicted pick is a different patch by construction. Three
+  of a162's nine and one of a82e's eight still read `+` while their content is
+  on main under a resolved form. So "every registered worktree branch reports
+  zero `+`" is satisfiable only by clean picks, and this pile was measured
+  CONFLICTED at booking time. The criterion that actually holds is the one this
+  entry's own method section already implies: every commit carries a recorded
+  disposition — picked, resolved-and-picked, or skipped with its reason — and
+  the commit messages are where those live.
+  **Two merges would have shipped broken under a clean auto-merge, which is the
+  reusable half:** the absorption commit merged with no conflict marker and
+  produced TWO renderers printing the section twice; the closure-duplicate lane
+  merged with main's unconditional `return 0` above its blocking return, so a
+  BLOCKING guard printed BLOCK and exited 0. Both were caught by running the
+  tests, neither by reading the diff — a clean auto-merge is not a substance
+  check, which is this entry's own method correction arriving one level down.
+  **Remaining: `ac73` (5), `a46f` (7), `a93d` (1), the `afc2` orphan (1).** The
+  a46f hazard stands and is now the live one: it carries
+  `tools/prune-lane-branches.mjs`, which deletes orphaned `worktree-agent-*`
+  branches, and `afc2` is exactly such an orphan holding a real commit.
 
 - **RECORD 2026-08-11 (evening) — `alias-claim --protect`'s protected-set size
   needs a `doctor` verdict, and that half lives in DOTFILES, not here.** The
@@ -12682,6 +12675,194 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-14 (`750463e`, `2933d95`) — the export shipped and its ANSWER IS NEGATIVE: no placement rule lives in the intervening messages either, so row 4 takes its THIRD named blocker rather than a fourth hypothesis.** Dispatched to sonnet, integrated after the desk ran the lane's verifier plus a check outside its set — a corpus-wide `--json --verbose` census (46 placement rows) read back through `logs.mjs`'s strict view. The field DISCRIMINATES, which is what makes the negative result mean something: 21 off-mode rows carry a non-empty `between` vector, 25 mode rows carry an empty one by construction, and the two classes must differ or the field measures nothing. What the vectors do NOT carry is a rule: they are ordinary tool_use/tool_result turn sequences of varying length, sometimes with intervening system:text messages, with no shape holding across rows beyond the tautological `len = offset - 1`. Body-free by construction (`{role, kind}`, kind read off a block's `type`), so the publication bar is untouched.
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:** READY 2026-08-14 — row 4's placement half has exactly ONE unexamined
+  place left, and no export reaches it: what sits BETWEEN the host and the
+  migrated standalone.** The byte half is characterized and closed as a
+  question (matrix row 4, parked the same day: all 16 MISMATCH occurrences are
+  the wrapper-retained form, 8 EXACT + 8 EXTENDED, every remainder
+  MERGED-STANDALONE, every byte computable from the predecessor). The
+  placement half is what still blocks, and it is now measured rather than
+  described: the complete uncapped distribution is 521 occurrences at offset
+  +1 and 27 off-mode across 20 distinct values from +4 to +110
+  (`placementOffsets`, `6020144`).
+  **Two derivation rules are already REFUTED BY MEASUREMENT, so this entry is
+  not a re-run of them:** the standalone is not tail-anchored (its distance
+  from the last message ranges 2..152 across the off-mode rows, and varies
+  inside the +1 class too), and it is not anchored to the predecessor's own
+  length (`standaloneIndex - nBefore` scatters -142..+2 in BOTH classes).
+  Those were computed from the six fields `placementRows` carries, which is
+  why the next question needs a seventh.
+  **Design, decided:** each placement row gains `between` — the messages
+  strictly between `hostIndexAfter` and `standaloneIndex` in the AFTER
+  request, as `[{role, kind}]` in wire order, where `kind` is a CLOSED
+  vocabulary read off the message's content blocks (`tool_result`,
+  `tool_use`, `text`, `reminder-carrying`, `image`, `thinking`, `other`) —
+  roles and kinds only, never text, so the row stays body-free and the
+  census-rows evidence document keeps its single exempted absence class.
+  Capped at 40 entries with a `betweenTruncated` count beside it, the same
+  cap-reports-what-it-dropped shape every other row array here uses. The
+  MODE-SAMPLE rows get it too: a derivation rule has to explain the +1
+  majority as well, and an export that carries the shape only for the
+  unusual rows cannot test that.
+  **Red-first arrangement:** a synthetic pair with three known intervening
+  messages of different kinds asserts the vector hand-computed; against the
+  current tool the field is absent and the bite fails at its own call site
+  (namespace import). Live control: the 27 off-mode rows each carry a
+  `between` vector, and the +1 rows carry an EMPTY one by construction —
+  the two must differ, or the field is measuring nothing.
+  **Done:** the desk can state, from one run, whether a placement rule exists
+  that covers all 548 occurrences — and if none does, row 4 gets its third
+  named blocker instead of a fourth hypothesis.
+  Loop stage: ATTRIBUTE (it decides whether row 4's mitigation can be
+  designed at all).
+  Anchor: row 4
+  Write-set: tools/reminder-migration-census.mjs, test/census-placement-rows.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/census-placement-rows.test.mjs
+  <!-- entry: "row 4 placement: the intervening messages between host and standalone are unexported" -->
+
+
+- **DONE 2026-08-14 (`4d29228`, `a828a74`, `2ae9d49`) — the reader owns the census export now, and the concurrent-lane seam it left was closed by the desk against a real export.** Dispatched to sonnet; the lane built the `censusExport` view family, `duplicate-billing` adopted it, and the sweep's KNOWN-OPEN inventory entry went in the same commit. It deliberately left `between`/`betweenTruncated` out and marked the seam, because the writer was still in flight on another lane; `2ae9d49` closes that join with both arms proven on the corpus-wide export. Two lane findings worth keeping: it fixed a latent ordering bug in `makeStrictView` (nested readers ran before optional defaults, so a field in both maps silently returned `undefined` instead of its declared default), and it had to rename `duplicate-billing`'s OWN output keys because the schema-scope sweep is a literal per-line regex — booked below.
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:** READY 2026-08-14 — `tools/logs.mjs` owns the RAW formats and has no view
+  for the DERIVED ones, so every consumer of a census export hand-reads
+  capture-outcome field names by construction.** Surfaced the same day by the
+  schema-scope sweep firing on `tools/duplicate-billing.mjs`, correctly:
+  that tool's usage.jsonl side goes through `readUsageLogRecord`, and its
+  capture-outcome side reads `cacheRead`/`cacheCreation`/`inputTokens` off
+  `duplicateRows[].members[].outcome` in a census `--json --verbose` export.
+  Declared KNOWN-OPEN in the sweep's inventory rather than exempted (the
+  names really are that schema's, so it is not a false positive) — but the
+  inventory is the holding pattern, not the fix.
+  **Why this will keep firing:** the census export is a real format this repo
+  writes, with a real schema, and it is the format every downstream analysis
+  reads. Nothing owns it. That is the same gap `logs.mjs` was built to close
+  one level up, and the sweep will now flag each new consumer as it lands —
+  which is the guard working, and also the tell that the reader stops one
+  format short.
+  **Design, decided:** add a `censusExport` view family to `tools/logs.mjs` —
+  a strict view per row array (`duplicateRows`, `mismatchRows`,
+  `placementRows`, `volatileRows`) that THROWS on an unknown field name, the
+  same stance the four existing views take; `duplicate-billing` adopts it and
+  leaves the sweep's inventory in the same commit. The census stays the
+  writer; the reader stays the one place field names are spelled.
+  **Red-first arrangement:** a fixture census export with a misspelled field
+  (`cacheReads`) must throw from the view and be caught by a bite, while the
+  real export parses clean — and the sweep's own inventory entry for
+  `tools/duplicate-billing.mjs` must be REMOVED by the same commit, which the
+  sweep verifies by failing if the file still hand-parses.
+  **Done:** `duplicate-billing` imports the view, the inventory entry is gone,
+  and `node --test test/logs-schemas.test.mjs` is green with the file no
+  longer in scope.
+  Loop stage: VERIFY (it is the instrument layer every duplicate-billing and
+  row-4 measurement now reads through).
+  Anchor: tools/logs.mjs
+  Write-set: tools/logs.mjs, tools/duplicate-billing.mjs, test/logs-schemas.test.mjs, test/duplicate-billing.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/logs-schemas.test.mjs test/duplicate-billing.test.mjs
+  <!-- entry: "logs.mjs has no view for the census export, so every downstream consumer hand-reads the schema" -->
+
+
+- **DONE 2026-08-14 (`1eafb33`, `2428a18`) — the sweep writes its own evidence now, which is dev-loop question 2's recurring-producer clause discharged for this producer.** Dispatched to sonnet under the operator's same-day mandate; integrated after the desk re-ran the lane's five bites plus the five pre-existing boundary bites (30/30 green with the breakpoint lane). The lane spends the existing per-capture census run twice rather than spawning a second child, and writes one `census-rows-<UTC date>.json` per sweep. TWO ITEMS THE LANE RETURNED AS QUESTIONS ARE BOOKED SEPARATELY below: the prototype's three unbuildable fields, and the `/tmp` foreign red. NOT VERIFIED, in the lane's own words and not softened here: no real scheduled sweep has produced a document yet — the done-criterion is proven by construction and unit reconciliation, and the first live sweep is what closes it.
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:** READY 2026-08-14 (operator mandate, same day: "mandatory build under
+  dev-loop question 2's recurring-producer clause, not a nice-to-have") —
+  the byte-gate census stores COUNTS and the daily sweep keeps NONE of its
+  rows, so every byte-gate finding expires with its capture.** The sweep runs
+  the census over every live capture and the status file carries
+  `byteGate: {tally, prunes, duplicates}` — 16 MISMATCH, 140 duplicate pairs,
+  40,190 changed volatile blocks as of this morning. Which capture, which
+  request ordinal, which host index, how many bytes apart: none of it is
+  written anywhere, and the capture directory sits AT its 12 GB cap evicting
+  oldest-mtime-first. Same shape as the absorption check's 2026-08-05 lesson
+  (counts stored, 11 rows lost by the afternoon), one producer over.
+  **Prototype and known positive: `148b5e7`** — the hand run this entry
+  replaces, committed as `test/fixtures/harvested/census-rows/census-rows-2026-08-14.json`
+  (16 mismatch rows, 108 duplicate streaks, 542 volatile entries).
+  **Design, decided:** `gate-live` writes ONE document per SWEEP in the
+  prototype's own schema, into the same directory, named
+  `census-rows-<UTC date>.json`; rows come from the census's existing
+  `--json --verbose` exports (`mismatchRows`, `duplicateRows`,
+  `volatileRows`), which the sweep already produces per capture, so the caps
+  (`MISMATCH_ROW_CAP`, `DUP_ROW_CAP`, `ENTRY_ROW_CAP`) apply per capture and
+  the `*Truncated` counters ride into the document rather than being dropped.
+  Body-free by construction — a length, an index, an ordinal, an instant, a
+  `sidToken` or a closed-vocabulary label, never message text — which is what
+  keeps ONE exempted absence class sufficient (`tools/absence-scan.mjs`
+  census-rows entry, shipped in `148b5e7`). Writing is idempotent and
+  NON-overwriting on differing content, the property `writeRowPins` already
+  has and for the same reason. It WRITES, never commits: committing stays a
+  human act, as it is for harvest's fixtures.
+  **Red-first arrangement, anchored to the committed document rather than to
+  live state:** with the writer disabled, a synthetic sweep leaves no
+  document; enabled, it writes one whose rows reconcile against its own
+  `byteGate` counts. The boundary half is already green and re-runnable —
+  `test/evidence-census-rows.test.mjs` iterates the directory, so a document
+  the mechanism writes is graded by the same five bites (exemption scope,
+  no-leak-outside, boundary scan, planted positive, no free text) with no
+  new test needed.
+  **Done:** the next daily sweep leaves a `census-rows-<date>.json` whose
+  mismatch/duplicate/volatile row counts reconcile against that sweep's own
+  `byteGate` rollup, and `test/evidence-census-rows.test.mjs` stays green
+  over it.
+  Loop stage: ATTRIBUTE (it is the evidence every row-4 and duplicate-billing
+  attribution reads).
+  Anchor: tools/gate-live.mjs
+  Write-set: tools/gate-live.mjs, test/gate-live-census-rows.test.mjs, test/fixtures/harvested/census-rows/
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live-census-rows.test.mjs test/evidence-census-rows.test.mjs
+  <!-- entry: "the byte-gate census keeps no rows, so findings expire with their captures" -->
+
+
+- **DONE 2026-08-14 (`5b24d0f`, `25aec58`) — `--by-conversation` ships, and the identity comes from the repo's own function.** Dispatched to sonnet, integrated after the desk re-ran the file (20/20). Default output proven byte-identical by `cmp` in three modes, not by reading. DEVIATION, accepted: the lane used `conversationSubKey` from `proxy/extensions/message-hash.mjs` rather than `replay.mjs`'s `conversationOf`, because this tool holds raw `body.messages` and `conversationOf` needs a compactEntry's `inHash` array — the brief's own named fallback, and the right call. That mismatch is booked as its own entry below. NOT VERIFIED: the live capture's real `nMessages=1` outlier was reproduced synthetically, not read from the capture — the lane's worktree could not reach the corpus.
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:** READY 2026-08-13 — `breakpoint-scan` does not group by CONVERSATION, so
+  every sequence it prints can silently interleave the main thread, its
+  subagents and CC's sidecars.** Surfaced by the lane that built it, in its
+  own honest-residue slot, not by a reviewer. It reports `sid`, which is the
+  session-id HEADER — and `FORK-NOTES.md` and `docs/dev-loop.md` both state
+  that one session id carries the main thread, every subagent and CC's own
+  background calls. dev-loop's standing rule is explicit: "Group by
+  conversation before comparing anything… This artifact produced false
+  results six separate times in one day, including in the gate itself",
+  where adjacent-line pairing reported 0 violations on a 602-request capture
+  while a single-conversation slice of the same session reported 2.
+  **It already showed up in the first real run.** Of 22 rows, 21 form a
+  smooth `nMessages` growth (161→163→166→…→203) and ONE sits at
+  `nMessages=1` with a lone `system[0]` marker. The lane called that a
+  different co-tenant conversation on STRUCTURAL grounds — the reset shape —
+  and said plainly it had not verified a conversation identity. That is the
+  right call and it is exactly the judgement a grouping key would have made
+  mechanical.
+  **Why this is not merely cosmetic:** the tool's most natural use is
+  reading a SEQUENCE (does the tail marker advance, does the layout drift),
+  and a sequence is meaningless across tenants. The refutation it produced
+  today survives only because that argument was re-based on exhaustive
+  window accounting instead of on the sequence — see the RECORD entry above.
+  The next user will not necessarily notice they need to do that.
+  **Design, decided:** emit a `conversationId` per row using the repo's own
+  identity function rather than a new one — `conversationSubKey` /
+  `conversationOf` from `replay.mjs`, per `bust-appears.md` step 9 ("never
+  hand-roll identity in a probe… an identity computed more cheaply than the
+  thing it identifies will collide"). Add `--by-conversation` to group the
+  output; default output stays byte-identical so no existing caller changes.
+  Do NOT re-derive a first-message hash locally — `cache-sim.mjs` has one and
+  a third implementation is the collision this repo has already paid for
+  three times.
+  Red-first arrangement, and the two must DIFFER: a synthetic capture with
+  two interleaved conversations must produce two groups with the correct
+  rows in each; the same fixture read WITHOUT grouping must show the
+  interleaved (wrong) sequence. A change where both readings agree has not
+  demonstrated grouping.
+  Done: the two bites above pass, the live capture's `nMessages=1` outlier
+  lands in its own group rather than inside the main sequence, and this
+  entry moves to `## Done` with its commit ref.
+  Loop stage: ATTRIBUTE.
+  Anchor: tools/breakpoint-scan.mjs
+  Write-set: tools/breakpoint-scan.mjs, test/breakpoint-scan.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/breakpoint-scan.test.mjs
+  <!-- entry: "breakpoint-scan does not group by conversation" -->
+
 
 - **DONE 2026-08-11 (`7555177`) — the section prints unconditionally, and the desk graded it on evidence the lane never used.** Dispatched to sonnet from this entry; integrated after the desk ran a check outside the lane's own set (dev-loop, "verify with something the lane did not run"): a plain text `replay.mjs` run — no `--census` — over the row-4 pin frozen earlier today prints `absorption misses (…): 0` immediately after the relocated-block departures block. That is the entry's zero-line requirement, observed on a real committed capture rather than on the lane's synthetic arms. The lane's own arms were both driven through the REAL `insertion-normalization` extension (1 comparable pair each, never zero) rather than through fabricated stats, and it committed no fixture file — the fixtures are generated inline, which keeps the scrub question from arising at all.
   **The brief was WRONG about its own candidate fixture and the lane caught it, which is the useful record.** It named `rowpin-…-absorptionMiss.json` as a likely red arm; that file is untracked (so it never reached the worktree) AND the whole `rowpin-*` family is a single-row evidence-PIN snapshot — `schema: "rowpin/1"`, `{row, sides, checks, provenance}` — not a `{header, records}` replayable capture. Two different objects under one directory and one naming convention. The dispatcher had graded the line "unverified", which is why it was correctable instead of load-bearing; had it been asserted, the lane would have built against a file shape that cannot feed `replay.mjs` at all.
