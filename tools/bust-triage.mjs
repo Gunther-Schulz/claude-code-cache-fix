@@ -370,6 +370,47 @@ export function transcriptMiss(sid, cc, projectsDir = PROJECTS) {
 }
 
 /**
+ * The transcript's own `requestId` for a bust — the `req_…` id every
+ * assistant record carries at its OWN top level (verified against a real
+ * transcript: `test/fixtures/cc-transcript-shape-snapshot.json`'s
+ * `assistant_record_top_level_keys` lists `requestId` beside `message`, and
+ * `buildOutcomeRecord`'s own comment names this as the field that finally
+ * joins the ledger, the capture and CC's transcript).
+ *
+ * Matched by the SAME identity `transcriptCause` already trusts
+ * (`cache_creation_input_tokens === cc`) — extending an existing match
+ * rather than inventing a second one (dev-loop.md, "never hand-roll
+ * identity"). Deliberately does NOT require a `diagnostics.cache_miss_reason`
+ * block the way `transcriptCause` does: a real busting record can carry
+ * `diagnostics: null` while still carrying its own `requestId` (measured
+ * live, the 2026-08-13 11:33:46Z motivating event), and the join needs the
+ * id regardless of whether CC's own diagnostic fired.
+ *
+ * `cc` is not guaranteed unique across a session's transcript, so when more
+ * than one record shares it, the one nearest `wantEpochMs` (the ledger's own
+ * bust stamp) wins — `wantEpochMs` is optional so a caller with no epoch
+ * still gets the first match.
+ */
+export function transcriptRequestId(sid, cc, wantEpochMs = null, projectsDir = PROJECTS) {
+  if (!existsSync(projectsDir)) return null;
+  let best = null; // { id, dist }
+  for (const proj of readdirSync(projectsDir)) {
+    const f = join(projectsDir, proj, `${sid}.jsonl`);
+    if (!existsSync(f)) continue;
+    for (const line of lines(f)) {
+      const r = j(line);
+      if ((r?.message?.usage?.cache_creation_input_tokens ?? null) !== cc) continue;
+      if (typeof r?.requestId !== "string" || !r.requestId) continue;
+      if (wantEpochMs == null) return r.requestId;
+      const t = Date.parse(r.timestamp);
+      const dist = Number.isNaN(t) ? Infinity : Math.abs(t - wantEpochMs);
+      if (!best || dist < best.dist) best = { id: r.requestId, dist };
+    }
+  }
+  return best ? best.id : null;
+}
+
+/**
  * RESET-ONLY insertion-normalization telemetry for a session, at or before
  * a cutoff (epoch ms) — the population `preferTelemetryConfirmed` matches
  * candidates against. Filename pattern mirrors
@@ -616,6 +657,188 @@ export function snapshotCommand(bust, pair) {
          `> ${out} && chmod 600 ${out}`;
 }
 
+/**
+ * The mechanized capture join (BACKLOG "the capture join (outcome ->
+ * request) is not mechanized anywhere" — established and verified live by
+ * that entry, confirmed 1:1 on the motivating pair and instance-positive on
+ * 6 of 6 further targets, the outcome record's own cache-write usage figure
+ * matching the transcript's `cc` EXACTLY on every one): an `outcome` record's
+ * `requestId` (the `req_…` id the CC transcript's own record also carries,
+ * `transcriptRequestId`'s field) names that SAME outcome record's own short
+ * `id` (`buildOutcomeRecord`, proxy/extensions/request-capture.mjs), which
+ * is the identical `id` the REQUEST record carries — the two are written
+ * under one `ctx.meta._captureId` at request time, never re-derived.
+ *
+ * Never a nearest-match fallback: a `req_…` id absent from this capture (the
+ * capture rotated, or request-capture was off for this request) returns its
+ * own could-not-verify code rather than silently substituting a proximate
+ * record — that silent substitution is the failure this join replaces.
+ * Timestamps cannot stand in for this join at all: transcript stamps are
+ * response-COMPLETION times, capture stamps are request-START times, so
+ * "nearest" is not a weaker version of this join, it answers a different
+ * question.
+ *
+ * Streamed via readLines, never readFileSync, for the same reason
+ * `capturePairResult` streams (below): the busting session's own capture is
+ * routinely the largest on disk (ERR_STRING_TOO_LONG at >512MB, live
+ * 2026-07-31). Two passes: the first finds the outcome's short `id` without
+ * holding any request body; the second finds that one request record.
+ */
+export async function joinOutcomeToRequest(sid, reqId, capturesDir = CAPTURES) {
+  const f = join(capturesDir, `s-${sid}-requests.jsonl`);
+  if (!existsSync(f)) {
+    return { ok: false, code: "capture-absent",
+             detail: "no capture file for this session (request capture was off, or the capture rotated)" };
+  }
+  if (!reqId) {
+    return { ok: false, code: "no-request-id", detail: "no transcript requestId given to join against" };
+  }
+  let outcomeId = null;
+  let seen = 0;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (!r) continue;
+    seen++;
+    if (r.type === "outcome" && r.requestId === reqId) { outcomeId = r.id; break; }
+  }
+  if (!outcomeId) {
+    return { ok: false, code: "no-such-request-id",
+             detail: `${reqId} matches no outcome record in this capture (${seen} lines scanned)` };
+  }
+  let ord = -1;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") ord++;
+    if (!r || r.type === "boot" || r.type === "outcome") continue;
+    if (r.id !== outcomeId) continue;
+    r.ord = ord;
+    return { ok: true, id: outcomeId, record: r };
+  }
+  // The outcome exists but its own request line does not — a data
+  // inconsistency this join has no word to guess at (the outcome is written
+  // to the SAME file as its request, on the request's own success path, so
+  // it should never outlive it; if it does, that is its own finding rather
+  // than something to hide behind "no request id").
+  return { ok: false, code: "outcome-without-request",
+           detail: `outcome id ${outcomeId} (requestId ${reqId}) has no matching request record in this capture` };
+}
+
+/**
+ * Given a resolved busting request (`after`), find its predecessor in the
+ * capture — the same-conversation match by first-message identity, the
+ * lineage (content-overlap) fallback for a rotated identity, then the
+ * born-large fallback for a resume boundary. Shared by both pair-selection
+ * paths (`capturePairResult`'s time-proximity `after` and
+ * `capturePairForRequestId`'s joined `after`, below) — "how to find what
+ * came before a known busting request" does not depend on how that request
+ * was found, and this is the exact logic `capturePairResult` always ran
+ * after resolving its own `after`, extracted rather than duplicated
+ * (dev-loop.md, "extend an existing tool before writing a new one").
+ */
+export async function findPredecessor(f, after) {
+  const cid = JSON.stringify(after.body.messages[0]);
+  let before = null;
+  let o3 = -1;
+  let convSize = 0;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") o3++;
+    if (!r?.body?.messages || !r?.ts) continue;
+    r.ord = o3;
+    // `after` itself is excluded by the strict earlier-than check below —
+    // the cross-pass object-identity test the array version used is gone.
+    if (JSON.stringify(r.body.messages[0]) !== cid) continue;
+    convSize++;
+    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
+    if (!before || Date.parse(r.ts) > Date.parse(before.ts)) before = r;
+  }
+  if (before) return { ok: true, before, after };
+  // LINEAGE FALLBACK (BACKLOG "capturePairResult's conversation identity is
+  // the busting request's own messages[0]"). `conversationOf` (the cid
+  // search above) is CORRECT for cache identity and stays exactly as it was
+  // — every stable-identity pair returns above, byte-for-byte unchanged.
+  // But matrix row 29's mechanism REBUILDS messages[0] at an idle boundary,
+  // so the cid search finds nothing to pair against not because there is no
+  // predecessor, but because the identity it searches on was just replaced.
+  // Only reached when the cid search above found NOTHING. A second relation
+  // — content overlap over per-message hashes, imported rather than
+  // re-derived (three confident wrong answers here already came from
+  // hand-rolled identity) — finds the predecessor by what it CONTAINS
+  // instead of by its first message, and survives the rotation that defeats
+  // `conversationOf`.
+  const afterEntry = compactEntry({ inMsgs: after.body.messages });
+  let bestOverlap = -1;
+  let bestEntry = null;
+  let bestCandidate = null;
+  let o4 = -1;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") o4++;
+    if (!r?.body?.messages || !r?.ts) continue;
+    // Strictly earlier than `after` — the same "predecessor" relation the
+    // cid search above enforces, never a second notion of "earlier".
+    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
+    const candEntry = compactEntry({ inMsgs: r.body.messages });
+    const ov = lineageOverlap(candEntry, afterEntry);
+    // >= so that among tied overlaps the MORE RECENT candidate wins — the
+    // measured cluster rises monotonically with recency (97.1/97.3/97.7/
+    // 98.1/98.5%), so ties are not expected, but a later, closer request is
+    // the more plausible predecessor.
+    if (ov >= bestOverlap) {
+      bestOverlap = ov;
+      bestEntry = candEntry;
+      r.ord = o4;
+      bestCandidate = r;
+    }
+  }
+  // Reject on the relation's OWN evidence, not by a special case: a
+  // 1-message co-tenant sidecar sharing 0% never clears the threshold, so it
+  // never needs naming here.
+  if (bestCandidate && sameLineage(bestEntry, afterEntry)) {
+    // Labelled explicitly — a reader must never mistake this for an
+    // ordinary same-identity pair the cid search would have found.
+    return { ok: true, before: bestCandidate, after, crossesRotation: true };
+  }
+  // BORN-LARGE FALLBACK (BACKLOG "bust-triage cannot reach threat-matrix row
+  // 24 by ANY of its three routes" — the resume/born-large class, matrix row
+  // 24). At a same-machine /resume boundary CC hands the proxy a conversation
+  // that is ALREADY large on its very first request: it shares no earlier
+  // request's cid (genuinely the first of a new conversation, BY
+  // CONSTRUCTION) and no earlier request's CONTENT either (a resume's
+  // context is CC's own rebuild from its transcript, not a re-serve of bytes
+  // this capture already has), so stage 2 above finds nothing to reject
+  // either. Only reached when BOTH prior stages found nothing. The nearest
+  // earlier request in this SAME capture file — one session, any
+  // conversation — with >=2 messages stands in as the comparison point, so
+  // the class has SOMETHING to classify against instead of UNVERIFIABLE
+  // forever. Labelled crossConversation so nothing downstream (census,
+  // migration, edit-anchor) mistakes it for a same-conversation pair.
+  let nearest = null;
+  let o5 = -1;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (r && r.type !== "boot" && r.type !== "outcome") o5++;
+    if (!r?.body?.messages || !r?.ts) continue;
+    if ((r.body.messages.length ?? 0) < 2) continue;
+    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
+    if (!nearest || Date.parse(r.ts) > Date.parse(nearest.ts)) {
+      r.ord = o5;
+      nearest = r;
+    }
+  }
+  if (nearest) {
+    return { ok: true, before: nearest, after, crossConversation: true };
+  }
+  // The state that had no word: capture PRESENT, window COVERED, a busting
+  // request SELECTED, and the pairing step nonetheless returning nothing
+  // because the selected request is the first of its own conversation and no
+  // earlier request shares enough content to be its predecessor either.
+  return { ok: false, code: "no-pair-in-conversation",
+           detail: `selected the request at ${after.ts} (ord ${after.ord}, n=${after.body.messages.length}) but its ` +
+                   `conversation has ${convSize} request(s) in this capture and none earlier — ` +
+                   `nothing to pair it against` };
+}
+
 /** The capture request pair straddling a bust, by conversation.
  * Streamed via readLines, never readFileSync: the busting session's own
  * capture is routinely the largest on disk, and the whole-file string read
@@ -767,111 +990,21 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES, ct
     }
   }
 
-  const cid = JSON.stringify(after.body.messages[0]);
-  let before = null;
-  let o3 = -1;
-  let convSize = 0;
-  for await (const line of readLines(f)) {
-    const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") o3++;
-    if (!r?.body?.messages || !r?.ts) continue;
-    r.ord = o3;
-    // `after` itself is excluded by the strict earlier-than check below —
-    // the cross-pass object-identity test the array version used is gone.
-    if (JSON.stringify(r.body.messages[0]) !== cid) continue;
-    convSize++;
-    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
-    if (!before || Date.parse(r.ts) > Date.parse(before.ts)) before = r;
-  }
-  if (before) return { ok: true, before, after };
-  // LINEAGE FALLBACK (BACKLOG "capturePairResult's conversation identity is
-  // the busting request's own messages[0]"). `conversationOf` (the cid
-  // search above) is CORRECT for cache identity and stays exactly as it was
-  // — every stable-identity pair returns above, byte-for-byte unchanged.
-  // But matrix row 29's mechanism REBUILDS messages[0] at an idle boundary,
-  // so the cid search finds nothing to pair against not because there is no
-  // predecessor, but because the identity it searches on was just replaced.
-  // Only reached when the cid search above found NOTHING. A second relation
-  // — content overlap over per-message hashes, imported rather than
-  // re-derived (three confident wrong answers here already came from
-  // hand-rolled identity) — finds the predecessor by what it CONTAINS
-  // instead of by its first message, and survives the rotation that defeats
-  // `conversationOf`.
-  const afterEntry = compactEntry({ inMsgs: after.body.messages });
-  let bestOverlap = -1;
-  let bestEntry = null;
-  let bestCandidate = null;
-  let o4 = -1;
-  for await (const line of readLines(f)) {
-    const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") o4++;
-    if (!r?.body?.messages || !r?.ts) continue;
-    // Strictly earlier than `after` — the same "predecessor" relation the
-    // cid search above enforces, never a second notion of "earlier".
-    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
-    const candEntry = compactEntry({ inMsgs: r.body.messages });
-    const ov = lineageOverlap(candEntry, afterEntry);
-    // >= so that among tied overlaps the MORE RECENT candidate wins — the
-    // measured cluster rises monotonically with recency (97.1/97.3/97.7/
-    // 98.1/98.5%), so ties are not expected, but a later, closer request is
-    // the more plausible predecessor.
-    if (ov >= bestOverlap) {
-      bestOverlap = ov;
-      bestEntry = candEntry;
-      r.ord = o4;
-      bestCandidate = r;
-    }
-  }
-  // Reject on the relation's OWN evidence, not by a special case: a
-  // 1-message co-tenant sidecar sharing 0% never clears the threshold, so it
-  // never needs naming here.
-  if (bestCandidate && sameLineage(bestEntry, afterEntry)) {
-    // Labelled explicitly — a reader must never mistake this for an
-    // ordinary same-identity pair the cid search would have found.
-    return { ok: true, before: bestCandidate, after, crossesRotation: true };
-  }
-  // BORN-LARGE FALLBACK (BACKLOG "bust-triage cannot reach threat-matrix row
-  // 24 by ANY of its three routes" — the resume/born-large class, matrix row
-  // 24). At a same-machine /resume boundary CC hands the proxy a conversation
-  // that is ALREADY large on its very first request: it shares no earlier
-  // request's cid (genuinely the first of a new conversation, BY
-  // CONSTRUCTION) and no earlier request's CONTENT either (a resume's
-  // context is CC's own rebuild from its transcript, not a re-serve of bytes
-  // this capture already has), so stage 2 above finds nothing to reject
-  // either. Only reached when BOTH prior stages found nothing. The nearest
-  // earlier request in this SAME capture file — one session, any
-  // conversation — with >=2 messages stands in as the comparison point, so
-  // the class has SOMETHING to classify against instead of UNVERIFIABLE
-  // forever. Labelled crossConversation so nothing downstream (census,
-  // migration, edit-anchor) mistakes it for a same-conversation pair.
-  let nearest = null;
-  let o5 = -1;
-  for await (const line of readLines(f)) {
-    const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") o5++;
-    if (!r?.body?.messages || !r?.ts) continue;
-    if ((r.body.messages.length ?? 0) < 2) continue;
-    if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
-    if (!nearest || Date.parse(r.ts) > Date.parse(nearest.ts)) {
-      r.ord = o5;
-      nearest = r;
-    }
-  }
-  if (nearest) {
-    return { ok: true, before: nearest, after, crossConversation: true };
-  }
   // CHECK 3 of 3, second half — and the state that had no word: capture
   // PRESENT, window COVERED, a busting request SELECTED, and the pairing step
   // nonetheless returning nothing because the selected request is the first
   // of its own conversation and no earlier request shares enough content to
   // be its predecessor either. This is the case that printed "capture off, or
   // rotated" on 2026-08-06 and again on 2026-08-07 while the capture sat on
-  // disk. It names the pairing input it had, per the entry's design.
-  return { ok: false, code: "no-pair-in-conversation",
-           detail: `capture covers the stamp (${seen} requests, ${span}); selected the request at ` +
-                   `${after.ts} (ord ${after.ord}, n=${after.body.messages.length}) but its ` +
-                   `conversation has ${convSize} request(s) in this capture and none earlier — ` +
-                   `nothing to pair it against` };
+  // disk. `findPredecessor` (above) carries the three-route search itself —
+  // shared with `capturePairForRequestId`, below — and here only the
+  // COVERAGE prefix (`seen`/`span`, gathered by the scan already run above)
+  // is added to its bare reason, exactly as it read before the two paths
+  // shared this code.
+  const pred = await findPredecessor(f, after);
+  if (pred.ok) return pred;
+  return { ok: false, code: pred.code,
+           detail: `capture covers the stamp (${seen} requests, ${span}); ${pred.detail}` };
 }
 
 /**
@@ -885,6 +1018,23 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES, ct
 export async function capturePair(sid, tsEpoch, capturesDir = CAPTURES, ctx = null) {
   const r = await capturePairResult(sid, tsEpoch, capturesDir, ctx);
   return r.ok ? { before: r.before, after: r.after } : null;
+}
+
+/**
+ * The joined counterpart to `capturePairResult`: given a CC transcript
+ * `req_…` id (`reqId`) instead of a ledger timestamp, resolve the exact
+ * busting request via `joinOutcomeToRequest` and its predecessor via the
+ * SAME `findPredecessor` route `capturePairResult` itself uses — "how to
+ * pair a known busting request" does not depend on how that request was
+ * found. Returns the identical `{ok:true, before, after, ...}` /
+ * `{ok:false, code, detail}` shape `capturePairResult` returns, so a caller
+ * (`triage`, `--json`) does not need a second contract to read.
+ */
+export async function capturePairForRequestId(sid, reqId, capturesDir = CAPTURES) {
+  const joined = await joinOutcomeToRequest(sid, reqId, capturesDir);
+  if (!joined.ok) return joined;
+  const f = join(capturesDir, `s-${sid}-requests.jsonl`);
+  return findPredecessor(f, joined.record);
 }
 
 /**
@@ -1886,11 +2036,42 @@ export async function triage(bust) {
     steps.push({ step: "reconcile", ok: true, detail: "ledger and transcript agree" });
   }
 
+  // Pair selection: the mechanized JOIN (outcome.requestId -> outcome.id ->
+  // request.id, `capturePairForRequestId`) wins whenever the transcript
+  // carries a `requestId` for this bust — replacing time proximity, which
+  // cannot join these two artifacts at all (transcript stamps are
+  // response-COMPLETION times, capture stamps are request-START times; see
+  // `joinOutcomeToRequest`'s own header). Falls back to the pre-existing
+  // proximity path (`capturePairResult`, `bust.ctx`'s size-floor and all)
+  // only when no requestId is available at all, or the join itself could
+  // not verify — never silently: the "join" step below and the "capture"
+  // step's own `[joined]`/`[proximate]` tag say which path ran, exactly as
+  // `--at` already states when it substitutes an event (`resolveAt`).
+  const reqId = transcriptRequestId(bust.s, bust.cc, bust.t * 1000);
+  let res = null;
+  let pairPath = "proximate";
+  if (reqId) {
+    const joined = await capturePairForRequestId(bust.s, reqId, CAPTURES);
+    if (joined.ok) {
+      res = joined;
+      pairPath = "joined";
+      steps.push({ step: "join", ok: true,
+                   detail: `transcript requestId resolved to capture id ${joined.after.id ?? "?"}` });
+    } else {
+      steps.push({ step: "join", ok: false,
+                   detail: `requestId resolved but the capture join failed (${joined.code}: ` +
+                            `${joined.detail}) — falling back to time proximity` });
+    }
+  } else {
+    steps.push({ step: "join", ok: false,
+                 detail: "no transcript requestId for this bust (no diagnostic-bearing or matching-cc " +
+                          "record, transcript rotated, or CC build too old) — falling back to time proximity" });
+  }
   // `bust.ctx` is the ledger's own context-token figure for this event, and it
   // is what stops a co-tenant request too small to BE the event from being
   // selected (BACKLOG item B). Older ledger records carry no `ctx`; the null
   // then disables the size test rather than excluding everything.
-  const res = await capturePairResult(bust.s, bust.t, CAPTURES, bust.ctx ?? null);
+  if (!res) res = await capturePairResult(bust.s, bust.t, CAPTURES, bust.ctx ?? null);
   if (!res.ok) {
     // Three ordered checks, each one TESTED before it is reported
     // (BACKLOG item A): capture-absent / window-not-covered / no-candidate /
@@ -1915,7 +2096,7 @@ export async function triage(bust) {
     ? ` | freeze: harvest --pin s-${bust.s} ${pair.before.ord}..${pair.after.ord}`
     : "";
   steps.push({ step: "capture", ok: true,
-               detail: `${pair.before.ts} -> ${pair.after.ts}, n=${pair.before.body.messages.length}->${pair.after.body.messages.length}${ords}` });
+               detail: `${pair.before.ts} -> ${pair.after.ts}, n=${pair.before.body.messages.length}->${pair.after.body.messages.length}${ords} [${pairPath}]` });
 
   // Attribution — OURS / CC's / COULD-NOT-ATTRIBUTE, per docs/dev-loop.md's
   // gate ("No mitigation is DESIGNED before the attribution verdict exists").
