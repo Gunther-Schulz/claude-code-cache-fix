@@ -86,6 +86,26 @@ export const ALLOWLIST = [
     pattern: /(^|\/)test\/fixtures\/harvested\/rowpins\/[^/]*\.json$/,
     classes: ["live-timestamp"],
   },
+  // census-rows/ — the byte-gate census's row-level evidence (the MISMATCH
+  // occurrences, the duplicate streaks, the volatile-pin entries). Same ONE
+  // class and the same reason as the two above: a row's instant is its join
+  // to the bust ledger and to the capture it was measured in, and a row whose
+  // stamp were scrubbed could no longer be checked against anything.
+  //
+  // These documents are body-free BY CONSTRUCTION rather than by scrubbing —
+  // every row field is a length, an index, an ordinal, an instant, a
+  // `sidToken` or a closed-vocabulary label, and no message text ever enters
+  // them. That is what makes ONE exempted class sufficient here: measured on
+  // the first committed document, all 1,317 findings were `live-timestamp`
+  // and zero were anything else. `test/evidence-census-rows.test.mjs` asserts
+  // both halves — the class is exempt inside this directory, every other
+  // class still fires there (planted positive), and the rows carry no free
+  // text, which is the property that keeps the single class sufficient as
+  // the writer changes.
+  {
+    pattern: /(^|\/)test\/fixtures\/harvested\/census-rows\/[^/]*\.json$/,
+    classes: ["live-timestamp"],
+  },
   // test/absence-scan.test.mjs's own SOURCE_UUID_ALLOWLIST holds ~15
   // deliberately synthetic UUIDs (fixture seeds, a roster of every one this
   // repo's own source is allowed to carry) that scanSourceText's capture-uuid
