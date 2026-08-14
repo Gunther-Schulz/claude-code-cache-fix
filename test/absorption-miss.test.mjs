@@ -414,3 +414,48 @@ test("formatAbsorptionMisses prints an explicit 0 on a fixture with none — nev
   assert.match(text, /absorption misses \([^)]*\): 0/);
   assert.doesNotMatch(text, /n=/, "no rows means no row lines, not a suppressed section");
 });
+
+// --- REPORT-WIDE INVARIANT: no section is rendered twice ---
+//
+// The class this closes is not about absorption, and it sits in this file
+// only because `runReplay` above is the one harness that produces a real
+// text report from a synthetic capture; a second copy of that harness is the
+// thing this repo's own rule about extending an existing tool forbids.
+//
+// WHY IT EXISTS (2026-08-14, integration of lane worktree-agent-a162). Two
+// renderers for the absorption section reached `main` from different
+// directions — one inline, one exported — and git AUTO-MERGED them cleanly,
+// with no conflict marker, into a report that printed the section TWICE.
+// Nothing in the suite failed: every existing bite asserted a section is
+// PRESENT, and a duplicate satisfies a presence assertion perfectly. It was
+// caught by a grep after the merge looked suspicious, which is exactly the
+// kind of noticing that does not survive into the next session.
+//
+// So the assertion is on what must NOT appear: a section LABEL occurring more
+// than once in one report. That is the cheap instrument for a check
+// DEGRADING (a presence assertion catches only one breaking), and it is
+// generic — it covers every section the text report has today and every one
+// added later, without naming any of them.
+test("REPORT INVARIANT — no section heading is rendered twice in one text report", async () => {
+  const dir = await tmpDir("report-sections-");
+  try {
+    const out = await runReplay(dir, standaloneLeg);
+    // Section headings sit at column 0 and end in `: <count>`; row lines under
+    // them are indented. Derived from the report itself, not from a list of
+    // names kept beside it — a restated list would age silently, which is the
+    // failure mode this file already collects one level up.
+    const labels = out.split("\n")
+      .filter((l) => /^[a-z][^:]*: \d+$/.test(l))
+      .map((l) => l.slice(0, l.lastIndexOf(":")));
+    assert.ok(labels.length >= 3,
+      `control: the report must actually carry sections, got ${labels.length} — a zero here means the ` +
+      `extractor stopped matching and the assertion below would pass vacuously`);
+    const seen = new Map();
+    for (const l of labels) seen.set(l, (seen.get(l) ?? 0) + 1);
+    const dupes = [...seen].filter(([, n]) => n > 1);
+    assert.deepEqual(dupes, [],
+      `each section must be rendered exactly once; duplicated: ${JSON.stringify(dupes)}`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

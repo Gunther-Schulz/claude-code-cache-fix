@@ -221,6 +221,44 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **READY 2026-08-14 — a tool that PRINTS a blocking verdict and EXITS ZERO is
+  a guard that blocks nothing, and only one of this repo's blocking lanes has a
+  bite pinning the pair.** Measured the same day, during the lane-pile
+  integration: `backlog-lint`'s closure-duplicate lane printed
+  `BLOCK backlog-closure-duplicate …` and exited 0, because a clean auto-merge
+  left main's unconditional `return 0` ABOVE the lane's
+  `return closureDuplicates.length ? 1 : 0`. No conflict marker announced it and
+  the file parsed fine. It was caught only because THAT lane happens to own a
+  CLI bite asserting the exit code; the other blocking lanes in this repo have
+  no such pairing, so the same merge shape lands silently in any of them.
+  **Why the sibling fix (the report-section invariant, `test/absorption-miss.test.mjs`)
+  does not cover this:** that one asserts on rendered TEXT, and this defect is
+  the text being right while the EXIT CODE disagrees with it. Two different
+  surfaces of the same integration class — a printed verdict and the process
+  status are separately reachable, and a guard is only as strong as the weaker.
+  **Design, decided:** one bite per tool that can emit a blocking verdict,
+  asserting the PAIR in both directions — a known-blocking input yields both the
+  BLOCK line and a non-zero exit, and a known-clean input yields neither. The
+  tool inventory is DERIVED, not restated: `git grep -l "BLOCK "` over `tools/`
+  is the population, and a tool in that list without such a bite is itself the
+  finding (the same derive-from-the-source stance `test/logs-schemas.test.mjs`'s
+  scope lint already takes, rather than a hardcoded list beside the parser it
+  mirrors).
+  **Red-first arrangement, and the two must DIFFER:** for each covered tool,
+  hoist an unconditional `return 0` above its blocking return (the exact 08-14
+  mutation) and the bite must fail naming that tool; revert and it must pass.
+  A bite that stays green under that mutation is asserting the printed line
+  only and has not pinned the pair.
+  Done: every tool in the derived population carries the two-direction bite,
+  the derivation itself fails when a new blocking tool appears without one, and
+  this entry moves to `## Done` with its commit ref.
+  Loop stage: VERIFY.
+  Anchor: tools/backlog-lint.mjs
+  Write-set: test/backlog-lint.test.mjs, test/absence-scan.test.mjs, test/blocking-verdict-exit-pair.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/blocking-verdict-exit-pair.test.mjs
+  <!-- entry: "a tool that prints a blocking verdict and exits zero blocks nothing" -->
+
+
 - **READY 2026-08-14 — `replay.mjs` exports `conversationOf` but not the hash
   it needs, so a tool holding RAW `body.messages` cannot use the repo's own
   identity function at all.** Returned as a question by the breakpoint-scan
