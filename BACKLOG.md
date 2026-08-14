@@ -27,102 +27,6 @@ calling the rest unranked.
 - **RECORD** — decision-complete memory, not scheduled. Same bodies, same
   verifiers, nothing dropped; booking stays cheap because the record is what
   booking exists for. Lives in `## Record`.
-- **PARKED** — unchanged: blocked, carrying its named missing evidence.
-
-### The CLOSURE vocabulary — declared 2026-08-13, because it was being used undeclared
-
-The three grades above are what an entry is BOOKED as. They are not what the
-file actually contains: measured 2026-08-13 over top-level bullets in live
-sections, **312 entries carry 33 distinct grade words**. That gap is not
-untidiness, it is why instruments disagree — each one picks a different subset
-of an undeclared vocabulary and every count is defensible and different. Three
-of them disagreed on one day: the session-start banner's `{DONE, DROPPED}`
-predicate said 56 (= DONE 55 + DROPPED 1, reconciled exactly), the
-`--closures-in-live` lane's said 103, and this file's own entry claimed 43.
-
-**A mechanical closure move keyed on any subset moves some closures, leaves
-others, and reports success** — which is why no move ran until this section
-existed. The prerequisite was never a bigger pass over 300 entries; it was a
-judgment pass over 33 WORDS.
-
-The grading below was made by SAMPLING a real header for each word, not by
-reading the words. Two sampled bodies reversed the obvious call, which is the
-whole argument for sampling: `COMMITTED` reads *"COMMITTED on PR #272 and #273
-threads: week-of-soak summary, **due**"* — an outstanding obligation, not a
-closure; and `PARTLY` / `HALF` / `TOOL` / `MECHANISM` are all *"X HALF DONE …"*
-headers with a stated remainder still live.
-
-**CLOSURE — the body says the work is finished; these move to `## Done`:**
-`DONE`, `RESOLVED`, `CLOSED`, `DROPPED`, `BUILT`, `FIXED`, `SHIPPED`,
-`ANSWERED`, `RETIRED`. (`DROPPED` counts: a recorded deliberate drop is an exit
-of equal standing, not a failure — the accretion rule says so outright.)
-
-**OPEN — declared grades plus every word whose body shows live work or a stated
-remainder; these stay put:** `READY`, `RECORD`, `PARKED`, `OPEN`, `HOT`,
-`OPEN/HOT`, `PARTLY`, `HALF`, `TOOL`, `MECHANISM`, `IN`, `QUEUED`,
-`UNDISPOSITIONED`, `NEW`, `FINDING`, `BUST`, `INCIDENT`, `CANDIDATE`,
-`HANDOFF`, `DATAPOINT`, `CORROBORATION`, `ECONNRESET`, `COMMITTED`.
-
-**AMBIGUOUS — listed for a human, never moved by machine:** `CORRECTED`,
-`DOWNGRADED`, `DECISION`, `DECISIONS`, `REFRAMED`. These are genuinely
-undecidable from their own bodies. Leaving them is the cheap side of the
-asymmetry this file already states: an item wrongly left OPEN costs one
-re-read, an item wrongly CLOSED leaves every future list, because the sentence
-that closed it is exactly the thing that stops anyone looking again. **Where a
-body is ambiguous the grading is OPEN, on purpose.**
-
-Two things this section is NOT. It is not a licence to invent grade words —
-new entries take one of the three booked grades, and this vocabulary exists to
-read the corpus AS IT IS, not to bless it. And several of these "grades" are
-not grades at all but the first word of a prose header (`TOOL HALF DONE …`,
-`MECHANISM HALF DONE …`); they are classified OPEN because that is what their
-bodies say, and re-heading them is separate work, deliberately not bundled
-here.
-
-**The booking bar, and it applies to READY only.** A READY entry carries three
-markers, each on its own line, and `node tools/backlog-lint.mjs --ready-bar`
-enforces them:
-
-    Anchor: row <N> | <a repo-relative path>
-    Write-set: <comma-separated repo-relative paths>
-    Verifier: <a command>
-
-The anchor is what the entry SERVES — a threat-matrix row or a
-serving-correctness surface. **It is NOT the rank anchor**, and the two live in
-one file under one word: `tools/backlog-order.mjs` calls the
-`<!-- entry: "…" -->` comment an anchor too, and `backlog-lint --census` prints
-an `anchor` column reporting THAT one — so "READY without anchor: 8" in a census
-run and `MISSING-ANCHOR` from `--ready-bar` are different claims about different
-objects. Named here rather than renamed, because the rank anchor's name is load
--bearing in two tools; what a reader needs is to know there are two. An entry that cannot name one books as RECORD, or
-dies as a one-line journal note; that is the base case that stops instruments
-breeding instruments. The write-set is what makes merging, batching and
-parallel dispatch a mechanical join over entries instead of a judgment pass
-over their prose — the 2026-08-11 census found "which files does this entry
-write" was free text, and two independently built instruments disagreed on the
-collision counts because of it.
-
-**A FOURTH clause on the verifier, added 2026-08-11 — the WRITER half, since a
-reach failure always has one and fixing only the reader leaves the generator
-running.** A `Verifier:` that names a live capture — by alias, by `--at
-<stamp>`, or by any pointer into `~/.local/share/cache-fix/captures/` — books
-as **PARKED** unless the same action that writes the entry also freezes the
-evidence (`harvest --pin --bounded`, the pin committed under
-`test/fixtures/`). Not "should pin soon": READY is a claim that a fresh
-context could execute the entry, and an entry whose red case rotates away
-cannot be executed by anyone. Where the class provably cannot survive the
-scrub — literal-text predicates the sanitizer tokenizes — the entry says so
-and its evidence is a SYNTHETIC fixture, which is this repo's default for
-anything bound for a public tree anyway.
-The measurement that forced it: 19 of 50 alias citations resolve to
-nothing (23 of 27 registered aliases have no capture left on disk; the
-citation figure is the shipped lane's, and it counts row-pin fixtures as
-resolving), and three of the ten entries in the head derived that same morning
-were un-armable by lunchtime — one of them re-verified as reproducing at the
-desk the previous day. The reader-side check (`backlog-lint` warning when a
-cited alias resolves to neither a live capture nor a committed fixture) is
-booked separately and is what catches an entry this clause let through.
-
 ## Build order — RE-DERIVED 2026-08-11, and this time it IS the READY set
 
 Fourth derivation since 2026-08-10, and the first that is not a separate list:
@@ -12675,6 +12579,109 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-14 — THE PILE IS DRAINED: all 31 commits across 6 lane branches carry a recorded disposition, and the done-criterion had to be re-stated to say so.** Integrated in the entry's own order (a162, a82e, then a46f, ac73, a93d, the orphan), per commit, each with a behaviour-level check against main before the pick. **Landed: 26.** **Skipped as superseded, each with its reason: 5** — `b6bfdca` and `376caa9` (main carries the same capability under other names), `ed30981` (an injectable existence resolver the desk had already built during the previous pick, from the same red), `c485af2` (the upstream-PR-slice runbook is BYTE-IDENTICAL on main — `cmp` clean — and its dev-loop router line is present), `224a23b` (matrix row 30, already minted on main and developed a day further), and the `afc2` orphan's `844b792`.
+  **THE ORPHAN IS THE FINDING, and it inverts the hazard this entry carried for three days.** The 2026-08-08 405-insertion commit was the thing the freeze existed to protect. Read at the conflict rather than assumed: main's side of every one of its four hunks is a SUPERSET — the crossesRotation/crossConversation guard, the full `strongerNeighbour` neighbour check, the neighbour-check walk step, a wider import list — because `ac73`'s own later commits (`fe4630e`) implement the same capability more completely. So the commit is not lost work being dropped; it is work that arrived twice and the better copy is in. Its branch is left standing, unpruned.
+  **THE HAZARD IS CLOSED BY MEASUREMENT, not by reading the tool.** `tools/prune-lane-branches.mjs` shipped in this same integration, and the question this entry asked — does it check before deleting — was answered by running it: `--dry-run` on the real repo reports the orphan as `SURVIVES (tip is not an ancestor of main — unintegrated, not litter)`, and its 2 delete candidates were independently confirmed at `outstanding=0` by `git cherry` before `--apply` ran. Two instruments, one verdict. Applied: 2 deleted, 25 survive, 17 skipped (live worktree); the orphan branch verified intact afterwards.
+  **THE DONE-CRITERION AS BOOKED IS UNMEETABLE AND IS REPLACED HERE.** "Every registered worktree branch reports zero `+` under `git cherry`" assumes clean picks; `git cherry` joins by PATCH-ID, so a conflicted pick is a different patch by construction and reads as outstanding forever. Final tally: `a46f` 0, and 14 residual `+` across the other five — every one either a recorded skip or a pick whose content is on main under a resolved form, named in the commit that landed it. The criterion that holds, and that this entry now closes on: a recorded disposition per commit.
+  **What integration proved that no amount of reading would have:** two picks auto-merged CLEANLY and were broken — the absorption report printed its section twice, and a BLOCKING guard printed BLOCK and exited 0 because main's unconditional `return 0` landed above the lane's blocking return. A clean auto-merge is not a substance check, and no conflict marker announces this class.
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:** PARKED** — unchanged: blocked, carrying its named missing evidence.
+
+### The CLOSURE vocabulary — declared 2026-08-13, because it was being used undeclared
+
+The three grades above are what an entry is BOOKED as. They are not what the
+file actually contains: measured 2026-08-13 over top-level bullets in live
+sections, **312 entries carry 33 distinct grade words**. That gap is not
+untidiness, it is why instruments disagree — each one picks a different subset
+of an undeclared vocabulary and every count is defensible and different. Three
+of them disagreed on one day: the session-start banner's `{DONE, DROPPED}`
+predicate said 56 (= DONE 55 + DROPPED 1, reconciled exactly), the
+`--closures-in-live` lane's said 103, and this file's own entry claimed 43.
+
+**A mechanical closure move keyed on any subset moves some closures, leaves
+others, and reports success** — which is why no move ran until this section
+existed. The prerequisite was never a bigger pass over 300 entries; it was a
+judgment pass over 33 WORDS.
+
+The grading below was made by SAMPLING a real header for each word, not by
+reading the words. Two sampled bodies reversed the obvious call, which is the
+whole argument for sampling: `COMMITTED` reads *"COMMITTED on PR #272 and #273
+threads: week-of-soak summary, **due**"* — an outstanding obligation, not a
+closure; and `PARTLY` / `HALF` / `TOOL` / `MECHANISM` are all *"X HALF DONE …"*
+headers with a stated remainder still live.
+
+**CLOSURE — the body says the work is finished; these move to `## Done`:**
+`DONE`, `RESOLVED`, `CLOSED`, `DROPPED`, `BUILT`, `FIXED`, `SHIPPED`,
+`ANSWERED`, `RETIRED`. (`DROPPED` counts: a recorded deliberate drop is an exit
+of equal standing, not a failure — the accretion rule says so outright.)
+
+**OPEN — declared grades plus every word whose body shows live work or a stated
+remainder; these stay put:** `READY`, `RECORD`, `PARKED`, `OPEN`, `HOT`,
+`OPEN/HOT`, `PARTLY`, `HALF`, `TOOL`, `MECHANISM`, `IN`, `QUEUED`,
+`UNDISPOSITIONED`, `NEW`, `FINDING`, `BUST`, `INCIDENT`, `CANDIDATE`,
+`HANDOFF`, `DATAPOINT`, `CORROBORATION`, `ECONNRESET`, `COMMITTED`.
+
+**AMBIGUOUS — listed for a human, never moved by machine:** `CORRECTED`,
+`DOWNGRADED`, `DECISION`, `DECISIONS`, `REFRAMED`. These are genuinely
+undecidable from their own bodies. Leaving them is the cheap side of the
+asymmetry this file already states: an item wrongly left OPEN costs one
+re-read, an item wrongly CLOSED leaves every future list, because the sentence
+that closed it is exactly the thing that stops anyone looking again. **Where a
+body is ambiguous the grading is OPEN, on purpose.**
+
+Two things this section is NOT. It is not a licence to invent grade words —
+new entries take one of the three booked grades, and this vocabulary exists to
+read the corpus AS IT IS, not to bless it. And several of these "grades" are
+not grades at all but the first word of a prose header (`TOOL HALF DONE …`,
+`MECHANISM HALF DONE …`); they are classified OPEN because that is what their
+bodies say, and re-heading them is separate work, deliberately not bundled
+here.
+
+**The booking bar, and it applies to READY only.** A READY entry carries three
+markers, each on its own line, and `node tools/backlog-lint.mjs --ready-bar`
+enforces them:
+
+    Anchor: row <N> | <a repo-relative path>
+    Write-set: <comma-separated repo-relative paths>
+    Verifier: <a command>
+
+The anchor is what the entry SERVES — a threat-matrix row or a
+serving-correctness surface. **It is NOT the rank anchor**, and the two live in
+one file under one word: `tools/backlog-order.mjs` calls the
+`<!-- entry: "…" -->` comment an anchor too, and `backlog-lint --census` prints
+an `anchor` column reporting THAT one — so "READY without anchor: 8" in a census
+run and `MISSING-ANCHOR` from `--ready-bar` are different claims about different
+objects. Named here rather than renamed, because the rank anchor's name is load
+-bearing in two tools; what a reader needs is to know there are two. An entry that cannot name one books as RECORD, or
+dies as a one-line journal note; that is the base case that stops instruments
+breeding instruments. The write-set is what makes merging, batching and
+parallel dispatch a mechanical join over entries instead of a judgment pass
+over their prose — the 2026-08-11 census found "which files does this entry
+write" was free text, and two independently built instruments disagreed on the
+collision counts because of it.
+
+**A FOURTH clause on the verifier, added 2026-08-11 — the WRITER half, since a
+reach failure always has one and fixing only the reader leaves the generator
+running.** A `Verifier:` that names a live capture — by alias, by `--at
+<stamp>`, or by any pointer into `~/.local/share/cache-fix/captures/` — books
+as **PARKED** unless the same action that writes the entry also freezes the
+evidence (`harvest --pin --bounded`, the pin committed under
+`test/fixtures/`). Not "should pin soon": READY is a claim that a fresh
+context could execute the entry, and an entry whose red case rotates away
+cannot be executed by anyone. Where the class provably cannot survive the
+scrub — literal-text predicates the sanitizer tokenizes — the entry says so
+and its evidence is a SYNTHETIC fixture, which is this repo's default for
+anything bound for a public tree anyway.
+The measurement that forced it: 19 of 50 alias citations resolve to
+nothing (23 of 27 registered aliases have no capture left on disk; the
+citation figure is the shipped lane's, and it counts row-pin fixtures as
+resolving), and three of the ten entries in the head derived that same morning
+were un-armable by lunchtime — one of them re-verified as reproducing at the
+desk the previous day. The reader-side check (`backlog-lint` warning when a
+cited alias resolves to neither a live capture nor a committed fixture) is
+booked separately and is what catches an entry this clause let through.
+
 
 - **DONE 2026-08-14 (`750463e`, `2933d95`) — the export shipped and its ANSWER IS NEGATIVE: no placement rule lives in the intervening messages either, so row 4 takes its THIRD named blocker rather than a fourth hypothesis.** Dispatched to sonnet, integrated after the desk ran the lane's verifier plus a check outside its set — a corpus-wide `--json --verbose` census (46 placement rows) read back through `logs.mjs`'s strict view. The field DISCRIMINATES, which is what makes the negative result mean something: 21 off-mode rows carry a non-empty `between` vector, 25 mode rows carry an empty one by construction, and the two classes must differ or the field measures nothing. What the vectors do NOT carry is a rule: they are ordinary tool_use/tool_result turn sequences of varying length, sometimes with intervening system:text messages, with no shape holding across rows beyond the tautological `len = offset - 1`. Body-free by construction (`{role, kind}`, kind read off a block's `type`), so the publication bar is untouched.
   Original entry follows, kept as the record of what was asked.
