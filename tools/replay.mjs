@@ -71,14 +71,14 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 
 import { readLines } from "./read-lines.mjs";
-import { hashMessageContent, conversationSubKey } from "../proxy/extensions/message-hash.mjs";
+import { hashMessageContent, conversationSubKey, PRE_PIPELINE_CONV } from "../proxy/extensions/message-hash.mjs";
 import { isDescriptionNotice } from "../proxy/extensions/deferred-tool-rewrite.mjs";
 import { isClearArtifact } from "../proxy/extensions/fresh-session-sort.mjs";
 import { splitSmooshedReminders } from "../proxy/extensions/smoosh-split.mjs";
 import { rewriteBlockText, getBlockType, isRelocatableBlock } from "../proxy/extensions/fresh-session-sort.mjs";
 import { isContinueTrailerBlock, isBookkeepingReminder } from "../proxy/extensions/content-strip.mjs";
 import { normalizeSessionStartText } from "../proxy/extensions/identity-normalization.mjs";
-import { systemPromptSubKey } from "../proxy/extensions/insertion-normalization.mjs";
+import { systemPromptSubKey, resolveInsertionSessionKey } from "../proxy/extensions/insertion-normalization.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -4179,8 +4179,30 @@ async function main() {
     // already sorted) instead of trusting each extension's telemetry.
     const mutatedBy = [];
     let prevHash = sha(JSON.stringify(ctx.body));
+    // The joinable coordinate a replay row shares with the live insertion
+    // event log (BACKLOG "replay request ordinals and the live insertion
+    // event log share no joinable coordinate"). `report[].key`/`e.key` above
+    // is the CAPTURE key (resolveCaptureKey: `s-<sid>`) — a plain SESSION
+    // key, never a conversation one, so joining rows to
+    // `<key>-insertion-events.jsonl` on it (or on timestamp, which is what
+    // the 2026-08-11 walk actually did) can match a co-tenant's record 3 ms
+    // away rather than the request's own. `insertionKey` is instead the
+    // literal value insertion-normalization computes for `sessionKey`
+    // (insertion-normalization.mjs:1954) and writes as `record.key` in that
+    // log — snapshotted HERE, at the exact point that extension itself reads
+    // its inputs (ctx.headers, ctx.body.messages/system, the pre-pipeline
+    // conv identity fresh-session-sort published), rather than recomputed
+    // once the whole pipeline has finished mutating body.system underneath
+    // it. `null` when insertion-normalization is not among the loaded
+    // extensions (config-dependent) or the request carries no messages —
+    // "never computed", not a value that happens to equal any real key.
+    let insertionKey = null;
     for (const ext of extensions) {
       if (!ext.onRequest) continue;
+      if (ext.name === "insertion-normalization") {
+        const preConv = ctx.meta?.[PRE_PIPELINE_CONV] ?? null;
+        insertionKey = resolveInsertionSessionKey(ctx.headers, ctx.body.messages, ctx.body.system, preConv);
+      }
       await runOnRequest(ctx, [ext]);
       const h = sha(JSON.stringify(ctx.body));
       if (h !== prevHash) mutatedBy.push(ext.name);
@@ -4195,6 +4217,10 @@ async function main() {
       n,
       ts: rec.ts,
       key: rec.key,
+      // The conversation-sub-keyed join coordinate — see the comment above
+      // the extension loop that computes it. Distinct from `key` above
+      // (the plain session key `report[].key` has always carried).
+      insertionKey,
       captureId: rec.id ?? null,
       outBodySha,
       msgs: Array.isArray(rec.body?.messages) ? rec.body.messages.length : 0,
