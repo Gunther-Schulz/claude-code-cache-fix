@@ -140,12 +140,26 @@ function makeStrictView(raw, format, knownFields, { optionalDefaults = new Map()
       if (prop === FORMAT) return format;
       if (typeof prop !== "string") return Reflect.get(target, prop, receiver);
       if (!knownFields.has(prop)) throw unknownFieldError(format, prop);
+      // A genuinely ABSENT optional field returns its declared default before
+      // any nested-reader wrapping is attempted — checked first regardless of
+      // whether `prop` is also a nested-reader key. A field registered in
+      // BOTH maps (censusExport.mismatchRow's `unrelatedDiag`, wrapped when
+      // present, defaulted when the writer omits it) previously fell through
+      // the nested-reader branch first: `target[prop]` on a missing key is
+      // `undefined`, which that branch's own null/undefined short-circuit
+      // returned AS the value, never reaching `optionalDefaults` at all — so
+      // the declared default (`null`) was silently replaced by `undefined`,
+      // the exact confidently-wrong-value failure this module exists to
+      // prevent, one level down. A field PRESENT with an explicit `null`
+      // (e.g. `wrapped: null`) is unaffected: `prop in target` is true there,
+      // so this check does not fire and the nested-reader branch's own
+      // null-passthrough still applies.
+      if (!(prop in target) && optionalDefaults.has(prop)) return optionalDefaults.get(prop);
       if (nestedReaders.has(prop)) {
         const nestedRaw = target[prop];
         if (nestedRaw === null || nestedRaw === undefined) return nestedRaw;
         return nestedReaders.get(prop)(nestedRaw);
       }
-      if (!(prop in target) && optionalDefaults.has(prop)) return optionalDefaults.get(prop);
       return target[prop];
     },
     has(target, prop) {
@@ -281,19 +295,189 @@ export function prefixDiffTenant(lastView, tenantId) {
   return makeStrictView(rawTenant, "prefixDiffLast.tenant", PREFIX_DIFF_TENANT_SNAPSHOT_FIELDS);
 }
 
+// --- (5) reminder-migration-census EXPORT: censusExport view family --------
+//
+// tools/reminder-migration-census.mjs is the WRITER (verified 2026-08-14 at
+// the line numbers below, against this module's own base commit); this
+// reader owns the schema of its `--json --verbose` export's four row
+// arrays, same strictness as (1)-(4) above. `tools/duplicate-billing.mjs` is
+// the first adopting consumer (its duplicateRows side only);
+// mismatchRows/placementRows/volatileRows have no consumer yet and ship
+// ahead of one, the same posture this module's top-of-file comment already
+// states it takes.
+//
+//   duplicateRows[] (census.mjs `trackDuplicate`/`addMember`/`outcomeFacts`,
+//     :749-775, :719-733, :698-711): path, cid, sid, length, billed, noId,
+//     startTs, startLine, lastTs, lastLine, model, nMsg, maxTokens,
+//     intervalMs, members[].
+//       members[]: id, ts, line, outcome.
+//         outcome (null, or): requestId, model, ms, usage.
+//           usage (null, or): cacheRead, cacheCreation, inputTokens,
+//             outputTokens — outputTokens here is the SAME message_start
+//             placeholder captureOutcome's own usage carries (see (2)
+//             above); a consumer must not treat it as a completion length.
+//     -> readCensusDuplicateRow(raw)
+//
+//   mismatchRows[] (census.mjs `analysePair`'s no-counterpart branch,
+//     :526-541 — the MISMATCH-filtered slice of `details`, `--verbose`
+//     only): path, ts, host, blocks, verdict (always "MISMATCH" in this
+//     array), j (always null), text (always ""), recon, sub (always null),
+//     rejectedCandidate, hostPruned, hostIdless, mismatchSub, wrapped,
+//     wrappedSub (OPTIONAL — present only when mismatchSub is
+//     WRAPPER-RETAINED-EXTENDED), unrelatedDiag (OPTIONAL — present only
+//     when mismatchSub is UNRELATED).
+//       rejectedCandidate (null, or): j, chars, text.
+//       wrapped (null, or): verdict, j, offset.
+//       unrelatedDiag: reconWrappedChars, candidateChars, wrappedDivOffset,
+//         blockShapes[].
+//         blockShapes[]: chars, innerChars, overhead, wrapCanonical.
+//     -> readCensusMismatchRow(raw)
+//
+//   placementRows[] (census.mjs `main`'s `placementRow`, :1283-1292): path,
+//     ts, verdict, blocks, hostIndexBefore, nBefore, hostIndexAfter,
+//     standaloneIndex, nAfter, offset, placementClass.
+//     -> readCensusPlacementRow(raw)
+//
+//   volatileRows[] (census.mjs `scanVolatileRegions` + the `rowByEntry.set`
+//     wrapper, :991-1000, :1149-1151): path, sid, ts, cid, line, req,
+//     occurrences, lastTs, lastLine, lastReq, kind, index, h, key,
+//     firstBytes, nowBytes, divOffset, cacheControlExempt.
+//     -> readCensusVolatileRow(raw)
+
+const CENSUS_DUP_MEMBER_OUTCOME_USAGE_FIELDS = new Set([
+  "cacheRead", "cacheCreation", "inputTokens", "outputTokens",
+]);
+function readCensusDuplicateMemberOutcomeUsage(raw) {
+  return makeStrictView(raw, "censusExport.duplicateRow.member.outcome.usage", CENSUS_DUP_MEMBER_OUTCOME_USAGE_FIELDS);
+}
+
+const CENSUS_DUP_MEMBER_OUTCOME_FIELDS = new Set(["requestId", "model", "ms", "usage"]);
+/** Strict view of one `duplicateRows[].members[].outcome` entry (null, or
+ * `{requestId, model, ms, usage}` — `census.mjs`'s `outcomeFacts`). */
+export function readCensusDuplicateMemberOutcome(raw) {
+  return makeStrictView(raw, "censusExport.duplicateRow.member.outcome", CENSUS_DUP_MEMBER_OUTCOME_FIELDS, {
+    nestedReaders: new Map([["usage", readCensusDuplicateMemberOutcomeUsage]]),
+  });
+}
+
+const CENSUS_DUP_MEMBER_FIELDS = new Set(["id", "ts", "line", "outcome"]);
+/** Strict view of one `duplicateRows[].members[]` entry. */
+export function readCensusDuplicateMember(raw) {
+  return makeStrictView(raw, "censusExport.duplicateRow.member", CENSUS_DUP_MEMBER_FIELDS, {
+    nestedReaders: new Map([["outcome", readCensusDuplicateMemberOutcome]]),
+  });
+}
+
+function readCensusDuplicateMembers(raw) {
+  return raw.map(readCensusDuplicateMember);
+}
+
+const CENSUS_DUPLICATE_ROW_FIELDS = new Set([
+  "path", "cid", "sid", "length", "billed", "noId", "startTs", "startLine",
+  "lastTs", "lastLine", "model", "nMsg", "maxTokens", "intervalMs", "members",
+]);
+/** Strict view of one `duplicateRows[]` entry from a
+ * `reminder-migration-census --json --verbose` export. */
+export function readCensusDuplicateRow(raw) {
+  return makeStrictView(raw, "censusExport.duplicateRow", CENSUS_DUPLICATE_ROW_FIELDS, {
+    nestedReaders: new Map([["members", readCensusDuplicateMembers]]),
+  });
+}
+
+const CENSUS_MISMATCH_REJECTED_CANDIDATE_FIELDS = new Set(["j", "chars", "text"]);
+function readCensusMismatchRejectedCandidate(raw) {
+  return makeStrictView(raw, "censusExport.mismatchRow.rejectedCandidate", CENSUS_MISMATCH_REJECTED_CANDIDATE_FIELDS);
+}
+
+const CENSUS_MISMATCH_WRAPPED_FIELDS = new Set(["verdict", "j", "offset"]);
+function readCensusMismatchWrapped(raw) {
+  return makeStrictView(raw, "censusExport.mismatchRow.wrapped", CENSUS_MISMATCH_WRAPPED_FIELDS);
+}
+
+const CENSUS_MISMATCH_BLOCK_SHAPE_FIELDS = new Set(["chars", "innerChars", "overhead", "wrapCanonical"]);
+function readCensusMismatchBlockShape(raw) {
+  return makeStrictView(raw, "censusExport.mismatchRow.unrelatedDiag.blockShape", CENSUS_MISMATCH_BLOCK_SHAPE_FIELDS);
+}
+
+function readCensusMismatchBlockShapes(raw) {
+  return raw.map(readCensusMismatchBlockShape);
+}
+
+const CENSUS_MISMATCH_UNRELATED_DIAG_FIELDS = new Set([
+  "reconWrappedChars", "candidateChars", "wrappedDivOffset", "blockShapes",
+]);
+function readCensusMismatchUnrelatedDiag(raw) {
+  return makeStrictView(raw, "censusExport.mismatchRow.unrelatedDiag", CENSUS_MISMATCH_UNRELATED_DIAG_FIELDS, {
+    nestedReaders: new Map([["blockShapes", readCensusMismatchBlockShapes]]),
+  });
+}
+
+const CENSUS_MISMATCH_ROW_FIELDS = new Set([
+  "path", "ts", "host", "blocks", "verdict", "j", "text", "recon", "sub",
+  "rejectedCandidate", "hostPruned", "hostIdless", "mismatchSub", "wrapped",
+  "wrappedSub", "unrelatedDiag",
+]);
+const CENSUS_MISMATCH_ROW_OPTIONAL_DEFAULTS = new Map([
+  ["wrappedSub", null],
+  ["unrelatedDiag", null],
+]);
+/** Strict view of one `mismatchRows[]` entry (the MISMATCH-filtered slice of
+ * `analysePair`'s findings, `--verbose` only). `wrappedSub` and
+ * `unrelatedDiag` are OPTIONAL — the writer sets them only under
+ * mismatchSub WRAPPER-RETAINED-EXTENDED and UNRELATED respectively — and
+ * read back `null` on a row where the writer legitimately omitted them. */
+export function readCensusMismatchRow(raw) {
+  return makeStrictView(raw, "censusExport.mismatchRow", CENSUS_MISMATCH_ROW_FIELDS, {
+    optionalDefaults: CENSUS_MISMATCH_ROW_OPTIONAL_DEFAULTS,
+    nestedReaders: new Map([
+      ["rejectedCandidate", readCensusMismatchRejectedCandidate],
+      ["wrapped", readCensusMismatchWrapped],
+      ["unrelatedDiag", readCensusMismatchUnrelatedDiag],
+    ]),
+  });
+}
+
+const PLACEMENT_ROW_FIELDS = new Set([
+  "path", "ts", "verdict", "blocks", "hostIndexBefore", "nBefore",
+  "hostIndexAfter", "standaloneIndex", "nAfter", "offset", "placementClass",
+  // ONE-LINE ADDITION POINT: another lane is concurrently adding `between`
+  // (plus `betweenTruncated`) to placementRows in reminder-migration-census.mjs
+  // — add both names to this Set when that lands; nothing else in this view
+  // changes. Do NOT add them ahead of the writer: a view asserting a field
+  // the writer does not yet emit throws on every real export.
+]);
+/** Strict view of one `placementRows[]` entry. */
+export function readCensusPlacementRow(raw) {
+  return makeStrictView(raw, "censusExport.placementRow", PLACEMENT_ROW_FIELDS);
+}
+
+const CENSUS_VOLATILE_ROW_FIELDS = new Set([
+  "path", "sid", "ts", "cid", "line", "req", "occurrences", "lastTs",
+  "lastLine", "lastReq", "kind", "index", "h", "key", "firstBytes",
+  "nowBytes", "divOffset", "cacheControlExempt",
+]);
+/** Strict view of one `volatileRows[]` entry. */
+export function readCensusVolatileRow(raw) {
+  return makeStrictView(raw, "censusExport.volatileRow", CENSUS_VOLATILE_ROW_FIELDS);
+}
+
 // --- Normalized accessors over both on-disk spellings -----------------------
 
 /** Cache-read tokens, reading whichever on-disk spelling `view`'s format
  * actually carries (`usage.cacheRead` for a captureOutcome view,
- * `cache_read_input_tokens` for a usageLog view). Throws on any other
- * format — this does not guess at an unmapped shape. */
+ * `cache_read_input_tokens` for a usageLog view, `usage.cacheRead` again
+ * for a censusExport.duplicateRow.member.outcome view — the census's
+ * `outcomeFacts` copies captureOutcome's own usage spelling verbatim).
+ * Throws on any other format — this does not guess at an unmapped shape. */
 export function cacheReadOf(view) {
   const format = view[FORMAT];
   if (format === "captureOutcome") return view.usage.cacheRead;
   if (format === "usageLog") return view.cache_read_input_tokens;
+  if (format === "censusExport.duplicateRow.member.outcome") return view.usage.cacheRead;
   throw new Error(
     `logs.mjs: cacheReadOf has no mapping for format "${String(format)}" — `
-      + "it normalizes captureOutcome and usageLog only.",
+      + "it normalizes captureOutcome, usageLog, and "
+      + "censusExport.duplicateRow.member.outcome only.",
   );
 }
 
@@ -302,9 +486,11 @@ export function cacheCreationOf(view) {
   const format = view[FORMAT];
   if (format === "captureOutcome") return view.usage.cacheCreation;
   if (format === "usageLog") return view.cache_creation_input_tokens;
+  if (format === "censusExport.duplicateRow.member.outcome") return view.usage.cacheCreation;
   throw new Error(
     `logs.mjs: cacheCreationOf has no mapping for format "${String(format)}" — `
-      + "it normalizes captureOutcome and usageLog only.",
+      + "it normalizes captureOutcome, usageLog, and "
+      + "censusExport.duplicateRow.member.outcome only.",
   );
 }
 

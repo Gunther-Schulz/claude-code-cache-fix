@@ -22,10 +22,15 @@
 // one, by size, and that comparison across a streak's members is the
 // evidence a reader wants — never a verdict this tool hands them pre-formed.
 //
-// Reader discipline: this file never hand-parses usage.jsonl or the capture
-// outcome shape — both go through tools/logs.mjs's strict views
-// (`readUsageLogRecord`), which throws on a wrong-schema field name instead
-// of returning a confidently wrong value.
+// Reader discipline: this file never hand-parses usage.jsonl or the census
+// export's capture-outcome shape — both go through tools/logs.mjs's strict
+// views (`readUsageLogRecord`, `readCensusDuplicateRow`), which throw on a
+// wrong-schema field name instead of returning a confidently wrong value.
+// The census's own field spellings for the capture-outcome usage sub-object
+// are never written out again in this file — `cacheReadOf`/`cacheCreationOf`
+// (also owned by tools/logs.mjs) are called instead of naming them, and this
+// file's own `captureUsage` output uses distinct field names for the same
+// reason: the reader stays the one place a schema's field names are spelled.
 //
 // CLI: node tools/duplicate-billing.mjs --census <census --json --verbose
 // export> [--usage <usage.jsonl path>] [--json]
@@ -36,7 +41,9 @@ import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { readUsageLogRecord } from "./logs.mjs";
+import {
+  readUsageLogRecord, readCensusDuplicateRow, readCensusDuplicateMember, cacheReadOf, cacheCreationOf,
+} from "./logs.mjs";
 import { statePath } from "../proxy/xdg-dirs.mjs";
 
 const DEFAULT_USAGE_PATH = statePath("usage.jsonl");
@@ -86,27 +93,35 @@ export function readUsageIndex(path) {
 
 /**
  * Classify one duplicate-streak member's join to usage.jsonl. `member` is a
- * census `duplicateRows[].members[]` entry: `{ id, ts, line, outcome }`
- * where `outcome` is `{ requestId, model, ms, usage:{cacheRead,
- * cacheCreation, inputTokens, outputTokens} }` or null.
+ * raw census `duplicateRows[].members[]` entry — wrapped here via
+ * `readCensusDuplicateMember` (tools/logs.mjs), which owns this shape's
+ * field names; this function never spells the capture-outcome usage
+ * sub-object's own field names itself, only the strict view's KNOWN names
+ * (`outcome`, `usage`, `inputTokens`) that carry no other file's schema.
  *
- * `captureUsage` carries the outcome's cacheRead/cacheCreation/inputTokens
- * VERBATIM — outputTokens is deliberately never copied across (it is the
+ * `captureUsage` carries the outcome's two cache-token fields (read via
+ * `cacheReadOf`/`cacheCreationOf`, tools/logs.mjs) plus `inputTokens`
+ * VERBATIM, under THIS file's own output names — deliberately distinct from
+ * the schema's own spelling, so no line here needs to repeat it (the same
+ * "reader owns the spelling" discipline the module header states). The
+ * completion-length field is deliberately never copied across (it is the
  * message_start placeholder this whole tool exists to route around; a later
  * reader must not find it sitting in the output looking like an answer).
  */
 export function classifyMember(member, usageIndex) {
-  const outcome = member?.outcome ?? null;
-  const captureUsage = outcome?.usage
+  const view = readCensusDuplicateMember(member ?? {});
+  const outcome = view.outcome ?? null;
+  const usage = outcome?.usage ?? null;
+  const captureUsage = usage
     ? {
-        cacheRead: outcome.usage.cacheRead ?? null,
-        cacheCreation: outcome.usage.cacheCreation ?? null,
-        inputTokens: outcome.usage.inputTokens ?? null,
+        cacheReadTokens: cacheReadOf(outcome),
+        cacheCreationTokens: cacheCreationOf(outcome),
+        inputTokens: usage.inputTokens ?? null,
       }
     : null;
   const base = {
-    line: member?.line ?? null,
-    ts: member?.ts ?? null,
+    line: view.line ?? null,
+    ts: view.ts ?? null,
     requestId: outcome?.requestId ?? null,
     captureUsage,
   };
@@ -131,13 +146,13 @@ export function classifyMember(member, usageIndex) {
     cache_creation_input_tokens: usageRec.cache_creation_input_tokens,
     cache_read_input_tokens: usageRec.cache_read_input_tokens,
   };
-  if (captureUsage && typeof captureUsage.cacheRead === "number") {
+  if (captureUsage && typeof captureUsage.cacheReadTokens === "number") {
     result.crossCheck =
-      captureUsage.cacheRead === usageRec.cache_read_input_tokens
+      captureUsage.cacheReadTokens === usageRec.cache_read_input_tokens
         ? { status: "AGREE" }
         : {
             status: "DIFFER",
-            captureCacheRead: captureUsage.cacheRead,
+            captureCacheRead: captureUsage.cacheReadTokens,
             usageLogCacheRead: usageRec.cache_read_input_tokens,
           };
   }
@@ -146,44 +161,49 @@ export function classifyMember(member, usageIndex) {
 
 /**
  * The input-side tokens attributable to the DUPLICATE sends only: sum of
- * cacheRead + cacheCreation + inputTokens (from each member's captureUsage —
- * the only usage source guaranteed present on every member that has an
- * outcome, since JOINED usage-log data exists only for members that actually
- * joined) over every member EXCEPT the first of the streak. The first send
- * is the legitimate one; only the sends after it are the double-billed
- * charge this tool exists to surface. `members` here are already-classified
- * rows (`classifyMember` output), so a member with no captureUsage
- * (NO-REQUEST-ID with a null outcome) contributes 0, not a thrown error.
+ * `captureUsage`'s two cache-token fields plus `inputTokens` (from each
+ * member's `captureUsage` — the only usage source guaranteed present on
+ * every member that has an outcome, since JOINED usage-log data exists only
+ * for members that actually joined) over every member EXCEPT the first of
+ * the streak. The first send is the legitimate one; only the sends after it
+ * are the double-billed charge this tool exists to surface. `members` here
+ * are already-classified rows (`classifyMember` output), so a member with no
+ * captureUsage (NO-REQUEST-ID with a null outcome) contributes 0, not a
+ * thrown error.
  */
 export function computeDuplicateCharge(members) {
   let total = 0;
   for (let i = 1; i < members.length; i++) {
     const cu = members[i].captureUsage;
     if (!cu) continue;
-    total += (cu.cacheRead ?? 0) + (cu.cacheCreation ?? 0) + (cu.inputTokens ?? 0);
+    total += (cu.cacheReadTokens ?? 0) + (cu.cacheCreationTokens ?? 0) + (cu.inputTokens ?? 0);
   }
   return total;
 }
 
 /**
- * Build one double-billed streak's output row from a census `duplicateRows[]`
- * entry (`{ path, cid, sid, length, billed, noId, startTs, lastTs,
- * startLine, lastLine, model, nMsg, maxTokens, intervalMs, members[] }`).
- * `class` names the population the streak's own startLine says it belongs
- * to: haiku sidecars land in the first few capture lines of a session,
- * main-thread streaks land mid-session.
+ * Build one double-billed streak's output row from a raw census
+ * `duplicateRows[]` entry, wrapped via `readCensusDuplicateRow`
+ * (tools/logs.mjs) for its own top-level fields (path, startLine, model,
+ * nMsg, maxTokens, intervalMs, length, billed). `members` is read off the
+ * RAW row rather than the wrapped view's nested reader, so each member is
+ * wrapped exactly once, inside `classifyMember`. `class` names the
+ * population the streak's own startLine says it belongs to: haiku sidecars
+ * land in the first few capture lines of a session, main-thread streaks
+ * land mid-session.
  */
 export function buildStreakRow(row, usageIndex) {
+  const view = readCensusDuplicateRow(row);
   const members = (row.members ?? []).map((m) => classifyMember(m, usageIndex));
   return {
-    capture: basename(row.path ?? ""),
-    class: (row.startLine ?? Infinity) <= 5 ? "session-start" : "mid-session",
-    model: row.model ?? null,
-    nMsg: row.nMsg ?? null,
-    maxTokens: row.maxTokens ?? null,
-    intervalMs: row.intervalMs ?? null,
-    length: row.length ?? null,
-    billed: row.billed ?? null,
+    capture: basename(view.path ?? ""),
+    class: (view.startLine ?? Infinity) <= 5 ? "session-start" : "mid-session",
+    model: view.model ?? null,
+    nMsg: view.nMsg ?? null,
+    maxTokens: view.maxTokens ?? null,
+    intervalMs: view.intervalMs ?? null,
+    length: view.length ?? null,
+    billed: view.billed ?? null,
     duplicateCharge: computeDuplicateCharge(members),
     members,
   };
