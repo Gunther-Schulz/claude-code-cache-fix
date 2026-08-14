@@ -1673,11 +1673,15 @@ hook, whose fork-side contract line shipped this session.
   Do NOT shop for a substitute capture: a check whose motivating case
   dissolves does not get a substitute found for it (`docs/dev-loop.md`). The
   design below stands unchanged and is complete; only its evidence is missing.
-  Sites, cited rather than described: `tools/bust-triage.mjs:764`
+  Sites, cited rather than described: `tools/bust-triage.mjs:770`
   (`const cid = JSON.stringify(after.body.messages[0])`) fixes identity from
-  the busting request, and `:775`
+  the busting request, and `:781`
   (`if (JSON.stringify(r.body.messages[0]) !== cid) continue;`) tests every
   candidate predecessor against it.
+  **Line numbers corrected a THIRD time 2026-08-14** (764 -> 770, 775 -> 781):
+  the EXPECTED-BUST vocabulary block landed in the header above both sites.
+  Caught by the citation lint at suite time again; same class as the two
+  corrections below.
   **Line numbers corrected AGAIN 2026-08-11** (754 -> 764, 765 -> 775): the
   status-file reader landed ten lines above both sites. Caught by the citation
   lint at suite time, in the lane that caused it, before integration — which is

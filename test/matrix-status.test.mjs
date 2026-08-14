@@ -424,6 +424,46 @@ test("RED-FIRST arm 2 — mutated: disabling the presence check on a missing row
     "a missing-row guard's absence would silently hand a reader row 4's verdict for row 97 — never observed from the shipped reader, which is exactly the point");
 });
 
+// --- RED-FIRST, arm 3: the non-buildable family must NOT read as open work --
+//
+// The defect (operator report, 2026-08-14): sessions dispatched to
+// "investigate busts" kept investigating ACCEPTED classes, because every
+// non-buildable status triaged to KNOWN-OPEN — "known class, still open" —
+// which reads as an invitation. 10 of 30 live rows sat in that family. The
+// 2026-08-06 decision that chose KNOWN-OPEN was avoiding a false MITIGATED;
+// EXPECTED-BUST satisfies both sides: not a false all-clear about a shipped
+// extension, not an open-work claim either. Baseline: these four mapped to
+// KNOWN-OPEN before the split (this arm was run against the old table and
+// went red on all four before the table changed).
+
+test("EXPECTED-BUST: each non-buildable status triages to the terminal verdict, its own why attached", () => {
+  const statusPath = tmpStatusFile({
+    5: { status: "DECLINED", evidence: "x", date: "2026-01-01", residual: null },
+    10: { status: "ACCEPTED", evidence: "x", date: "2026-01-01", residual: null },
+    11: { status: "IMPOSSIBLE", evidence: "x", date: "2026-01-01", residual: null },
+    16: { status: "OUT-OF-SCOPE", evidence: "x", date: "2026-01-01", residual: null },
+  });
+  for (const n of [5, 10, 11, 16]) {
+    const r = ms.rowTriage(n, { statusPath });
+    assert.equal(r.ok, true);
+    assert.equal(r.verdict, "EXPECTED-BUST", `row ${n} (${r.status}) must read as expected cost, not open work`);
+    assert.notEqual(r.verdict, "KNOWN-OPEN");
+    assert.ok(r.why, `row ${n}'s WON'T/MUST-NOT/CAN'T/NOT-OURS reason must stay attached`);
+  }
+});
+
+test("EXPECTED-BUST does not overreach: OPEN, RESIDUAL and UNASSESSED still read KNOWN-OPEN", () => {
+  const statusPath = tmpStatusFile({
+    2: { status: "OPEN", evidence: "x", date: "2026-01-01", residual: null },
+    6: { status: "RESIDUAL", evidence: "x", date: "2026-01-01", residual: "a real remainder" },
+    12: { status: "UNASSESSED", evidence: "x", date: "2026-01-01", residual: null },
+  });
+  for (const n of [2, 6, 12]) {
+    const r = ms.rowTriage(n, { statusPath });
+    assert.equal(r.verdict, "KNOWN-OPEN", `row ${n} (${r.status}) is genuinely open work`);
+  }
+});
+
 // --- readRecords: the THIRD answer, which is the whole reason phase 3 wires
 // this into the sweep rather than leaving it in the suite -------------------
 //

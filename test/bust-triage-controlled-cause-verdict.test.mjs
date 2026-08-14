@@ -76,11 +76,16 @@ test("BITE — live matrix row 27 states its real disposition and reads as one",
 // CONTROL — the widening may not perturb any existing mapping. The nine kinds
 // and their verdicts are quoted from the pre-change table; a change to any of
 // them is a different change than this one.
+// AMENDED 2026-08-14 (that different change): ACCEPTED now maps to
+// EXPECTED-BUST on both paths — see VERDICT_BY_KIND's docstring for the
+// reversal record. This pin was updated in the same commit; run against the
+// old table it goes red on exactly the ACCEPTED line, which is the red-first
+// arrangement for the prose path.
 test("CONTROL — the nine existing kinds map exactly as they did", () => {
   const before = {
     OPEN: "KNOWN-OPEN",
     MITIGATED: "MITIGATED",
-    ACCEPTED: "KNOWN-OPEN",
+    ACCEPTED: "EXPECTED-BUST",
     PARTIAL: "KNOWN-OPEN",
     OBSERVED: "KNOWN-OPEN",
     BUILT: "KNOWN-OPEN",

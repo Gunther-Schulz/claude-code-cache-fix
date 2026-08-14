@@ -33,7 +33,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { tmpDirSync } from "../tools/tmpdir.mjs";
@@ -925,7 +925,21 @@ test("citation lane: red-first against the pre-correction BACKLOG.md, green agai
     frozenLineOf("const cid = JSON.stringify(after.body.messages[0])"),
     frozenLineOf("if (JSON.stringify(r.body.messages[0]) !== cid) continue;"),
   ];
-  const frozenGreen = lintCitations(frozen).filter(
+  // FOURTH anchor of the same class, closed 2026-08-14 after it fired: the
+  // frozen BACKLOG was linted against the LIVE source file, so its MATCH
+  // demanded the cid sites never move again — broken by the next edit that
+  // added lines above them (the EXPECTED-BUST vocabulary block). A frozen
+  // side is only frozen if BOTH sides come from the ref, so the source is
+  // resolved at POST_CITATION_FIX_REF too; every other path is filtered out
+  // below and delegates to the live tree.
+  const frozenEnv = {
+    pathExists: (p) => p === "tools/bust-triage.mjs" || existsSync(join(REPO, p)),
+    readLines: (p) =>
+      p === "tools/bust-triage.mjs"
+        ? frozenSrc
+        : readFileSync(join(REPO, p), "utf8").split("\n"),
+  };
+  const frozenGreen = lintCitations(frozen, frozenEnv).filter(
     (f) => f.file === "tools/bust-triage.mjs" && frozenSites.includes(f.citedLine),
   );
   assert.equal(frozenGreen.length, 2, "the corrected citations must be checked at the frozen ref");

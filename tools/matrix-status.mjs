@@ -59,6 +59,16 @@ export const MATRIX_STATUS_LABELS = [
 // on a live bust where nothing absorbed, by mapping a class to a ROW's
 // status rather than to what actually happened (bust-triage.mjs's own
 // `statusKind` docstring records the incident this table exists to end).
+//
+// The non-buildable family yields EXPECTED-BUST, not KNOWN-OPEN (changed
+// 2026-08-14, reversing the 2026-08-06 collapse-to-KNOWN-OPEN decision).
+// That decision picked KNOWN-OPEN to avoid a false MITIGATED, which was
+// right, and paid a cost nobody priced: KNOWN-OPEN reads as "still open —
+// work here", so sessions dispatched to investigate busts repeatedly
+// investigated ACCEPTED classes (operator report, 2026-08-14; 10 of 30 live
+// rows sat in the family that day). EXPECTED-BUST is the third answer that
+// satisfies both directions: no shipped-extension claim, no open-work claim —
+// an instance of the class is expected cost, and the why says which flavor.
 export const TRIAGE_BY_STATUS = Object.freeze({
   SHIPPED: Object.freeze({ verdict: "MITIGATED", why: null }),
   RESIDUAL: Object.freeze({
@@ -68,19 +78,19 @@ export const TRIAGE_BY_STATUS = Object.freeze({
   OPEN: Object.freeze({ verdict: "KNOWN-OPEN", why: null }),
   UNASSESSED: Object.freeze({ verdict: "KNOWN-OPEN", why: "mitigability not assessed" }),
   ACCEPTED: Object.freeze({
-    verdict: "KNOWN-OPEN",
+    verdict: "EXPECTED-BUST",
     why: "WON'T BUILD — deliberately unmitigated, cost accepted",
   }),
   DECLINED: Object.freeze({
-    verdict: "KNOWN-OPEN",
+    verdict: "EXPECTED-BUST",
     why: "MUST NOT BUILD — mitigating would suppress a legitimate bust",
   }),
   IMPOSSIBLE: Object.freeze({
-    verdict: "KNOWN-OPEN",
+    verdict: "EXPECTED-BUST",
     why: "CAN'T BUILD — physics (model-keyed cache, upstream eviction, TTL)",
   }),
   "OUT-OF-SCOPE": Object.freeze({
-    verdict: "KNOWN-OPEN",
+    verdict: "EXPECTED-BUST",
     why: "NOT OURS — the mitigation lives outside this repo",
   }),
 });
@@ -91,7 +101,8 @@ export const TRIAGE_BY_STATUS = Object.freeze({
 // CONTROLLED-CAUSE) sets `triage` to one of these; `why` is NOT overridden —
 // the status's own reason stays attached, only the verdict shown changes.
 export const TRIAGE_VERDICTS = new Set([
-  "MITIGATED", "KNOWN-OPEN", "CONTROLLED-CAUSE", "UNCLASSIFIED", "UNVERIFIABLE",
+  "MITIGATED", "KNOWN-OPEN", "EXPECTED-BUST", "CONTROLLED-CAUSE",
+  "UNCLASSIFIED", "UNVERIFIABLE",
 ]);
 
 // The prose CLAIM vocabulary a BACKLOG.md entry uses to assert a row's

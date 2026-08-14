@@ -111,8 +111,26 @@ already carries — never by trusting that two counters agree.
 3. **Triage each one, and read the ROW, not just the verdict.**
    `node tools/bust-triage.mjs --at <stamp>` chains the six-step hand
    walk into one verdict. Its verdicts are MITIGATED / KNOWN-OPEN /
-   CONTROLLED-CAUSE / **UNCLASSIFIED** / **STATUS-UNREADABLE** /
-   UNVERIFIABLE. CONTROLLED-CAUSE arrived 2026-08-07: before it, a row
+   EXPECTED-BUST / CONTROLLED-CAUSE / **UNCLASSIFIED** /
+   **STATUS-UNREADABLE** / UNVERIFIABLE.
+
+   **Triage is the FIRST step of any bust investigation, and three of
+   the verdicts END it** (binding, operator 2026-08-14): MITIGATED,
+   EXPECTED-BUST and CONTROLLED-CAUSE are stop-heres in the DONE
+   direction — no investigation or mitigation work is owed on the
+   instance; record the datapoint (the KNOWN-OPEN increment rule at
+   the bottom of this file applies to those carriers too) and stop.
+   Investigable are UNCLASSIFIED (the alarm), the two
+   could-not-answer stops (STATUS-UNREADABLE, UNVERIFIABLE — fix the
+   instrument or the status, then re-triage), and KNOWN-OPEN rows a
+   brief explicitly names. The measured failure this binds against:
+   sessions dispatched to "investigate busts" repeatedly investigated
+   ACCEPTED classes — the 1h-TTL idle bust, compaction — because the
+   whole non-buildable family then triaged to KNOWN-OPEN, which reads
+   as open work. EXPECTED-BUST exists so an expected bust never
+   presents as a finding.
+
+   CONTROLLED-CAUSE arrived 2026-08-07: before it, a row
    whose honest status was a controlled cause had to be written as
    `ACCEPT` to stay readable, because the enum had no state for it and
    the truthful wording read STATUS-UNREADABLE — a stop-here on a row
@@ -130,10 +148,12 @@ already carries — never by trusting that two counters agree.
    ever mitigated. After: **7 of 26** (rows 1, 7, 8, 9, 15, 18, 25), and
    the status parses to an anchored enum with a mandatory unmatched
    case. Two details that outlive the fix:
-   an ACCEPT row is **not** a mitigation — it maps to KNOWN-OPEN,
-   because MITIGATED's definition (Terminal states, below) requires a
-   shipped extension demonstrated on the instance, which an accepted
-   class has never had; and the old flag was computed over the
+   an ACCEPT row is **not** a mitigation — it maps to EXPECTED-BUST
+   (2026-08-14; KNOWN-OPEN from 2026-08-06 until then, see
+   `TRIAGE_BY_STATUS` in `tools/matrix-status.mjs` for the reversal
+   record), because MITIGATED's definition (Terminal states, below)
+   requires a shipped extension demonstrated on the instance, which an
+   accepted class has never had; and the old flag was computed over the
    UNTRUNCATED cell while the status printed beside it was truncated at
    260 chars, so two rows carried a verdict whose stated basis was
    absent from the text under it. **Read the row's own status text

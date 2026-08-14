@@ -589,9 +589,12 @@ node tools/bust-triage.mjs --at <epoch|ISO>      # one specific bust
 `bust-triage` chains what used to be a six-step hand walk — worktime ledger,
 CC transcript, capture pair, `censusPair`, container byte-test, threat-matrix
 lookup — into one verdict, and it reconciles the ledger against the transcript
-because those two have disagreed live. Its verdicts are MITIGATED /
-KNOWN-OPEN / **UNCLASSIFIED** / UNVERIFIABLE. UNCLASSIFIED is the one to stop
-on: it means the shape maps to no matrix row, i.e. a class nothing currently
+because those two have disagreed live. Its verdict vocabulary is the tool's
+own header comment — read it there, not here (an earlier copy of the list in
+this line went stale twice). The reading rule: MITIGATED, EXPECTED-BUST and
+CONTROLLED-CAUSE end the walk — an expected bust is not a finding;
+UNCLASSIFIED is the one to stop on in the other direction: it means the
+shape maps to no matrix row, i.e. a class nothing currently
 watches — which is exactly how a whole bust class stayed invisible until a
 diff happened to be read by hand.
 
@@ -661,8 +664,8 @@ in a specific place. The PRIMITIVE above is implemented and correct:
 inDiv > outDiv` at `:1537`, and the `ccIdenticalAtOutDiv` annotation printed
 per stability violation at `:3897`). **`tools/bust-triage.mjs` — the tool the
 runbook tells you to run FIRST, and the one that emits the VERDICT — computes
-none of it.** Its verdicts (MITIGATED / KNOWN-OPEN / UNCLASSIFIED /
-UNVERIFIABLE) answer *which threat-matrix row*, never *whose divergence*. The
+none of it.** Its verdicts (the vocabulary in its own header comment)
+answer *which threat-matrix row*, never *whose divergence*. The
 grep is the evidence: zero attribution logic in that file, against two live
 sites in `replay.mjs`.
 

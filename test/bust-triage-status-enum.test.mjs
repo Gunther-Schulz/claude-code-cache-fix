@@ -78,11 +78,12 @@ test("BITE — every non-mitigation status stops reading as MITIGATED", () => {
 // comes from MITIGATED's DEFINITION, which lives in bust-appears.md's terminal
 // states — "a shipped extension absorbs the class, demonstrated on this
 // instance" — and not from this tool's mapping table: an ACCEPT row has no
-// shipped extension by construction, so MITIGATED is false of it. KNOWN-OPEN
-// overstates it in the other direction, which is the deliberate choice
-// (dispatcher, 2026-08-06): the status text prints either way, so where the
-// verdict must be wrong it is wrong in the direction that makes someone look
-// rather than the direction that says "nothing for you to do".
+// shipped extension by construction, so MITIGATED is false of it.
+// AMENDED 2026-08-14: the 2026-08-06 choice of KNOWN-OPEN ("wrong in the
+// direction that makes someone look") was reversed — its measured cost was
+// dispatched investigators treating accepted classes as open work. ACCEPT
+// now reads EXPECTED-BUST: still never MITIGATED (that half of this bite is
+// unchanged and is the bite's point), and no longer an open-work claim.
 test("BITE — a decided ACCEPT is not a shipped mitigation", () => {
   const accepts = {
     10: "ACCEPTED-honest-bust (operator practice: /rc from se",
@@ -94,7 +95,7 @@ test("BITE — a decided ACCEPT is not a shipped mitigation", () => {
     assert.equal(statusKind(cell), "ACCEPTED", `row ${n}`);
     assert.notEqual(statusVerdict(cell), "MITIGATED",
       `row ${n} has no shipped extension, so it cannot read as one: ${cell}`);
-    assert.equal(statusVerdict(cell), "KNOWN-OPEN", `row ${n}`);
+    assert.equal(statusVerdict(cell), "EXPECTED-BUST", `row ${n}`);
   }
 });
 

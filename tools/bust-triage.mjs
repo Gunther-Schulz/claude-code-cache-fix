@@ -35,6 +35,12 @@
 // THREE answers, never two (dev-loop.md, "A checker has THREE answers"):
 //   MITIGATED     known class, shipped extension, absorbed as designed
 //   KNOWN-OPEN    known class, matrix row N, still open — prints the status
+//   EXPECTED-BUST known class, deliberately unmitigated (WON'T / MUST-NOT /
+//                 CAN'T / NOT-OURS build — the why says which): an instance
+//                 is expected cost, not a CC bug, and no investigation is
+//                 owed. Terminal like MITIGATED, added 2026-08-14 — before
+//                 it, the whole non-buildable family read KNOWN-OPEN and
+//                 dispatched investigators treated it as open work.
 //   CONTROLLED-CAUSE  known class with no mitigation to build: the cost is
 //                 the operator's own (an idle gap past the TTL, a resume).
 //                 A terminal disposition in runbooks/bust-appears.md, not a
@@ -910,10 +916,18 @@ export function statusKind(status) {
  * from `docs/runbooks/bust-appears.md`'s terminal states — "a shipped
  * extension absorbs the class, demonstrated on this instance". An ACCEPT row
  * has no shipped extension by construction, so MITIGATED is false of it.
- * KNOWN-OPEN overstates it in the other direction and is chosen anyway:
- * where the verdict must be wrong, it is wrong in the direction that makes
- * someone read the row rather than the direction that says "nothing for you
- * to do".
+ * KNOWN-OPEN overstated it in the other direction and was chosen anyway on
+ * the argument that where the verdict must be wrong, it should be wrong in
+ * the direction that makes someone read the row.
+ * REVERSED 2026-08-14: the verdict no longer has to be wrong in either
+ * direction — ACCEPTED maps to EXPECTED-BUST, a terminal verdict of its own
+ * (matrix-status.mjs's TRIAGE_BY_STATUS made the same move for the whole
+ * non-buildable family, and carries the reversal record: KNOWN-OPEN's
+ * "read the row" framing was measured functioning as "work here" — sessions
+ * dispatched to investigate busts kept investigating accepted classes,
+ * operator report 2026-08-14). PARTIAL/OBSERVED/BUILT/DOCUMENTED/COVERED
+ * stay KNOWN-OPEN: none of them states a decision NOT to build, so open is
+ * the honest reading there.
  *
  * CONTROLLED is the FIFTH value, added 2026-08-07 (operator decision
  * 2026-08-06, BACKLOG). The comment that stood here rejected it on "the
@@ -936,7 +950,7 @@ export const VERDICT_BY_KIND = {
   OPEN: "KNOWN-OPEN",
   MITIGATED: "MITIGATED",
   CONTROLLED: "CONTROLLED-CAUSE",
-  ACCEPTED: "KNOWN-OPEN",
+  ACCEPTED: "EXPECTED-BUST",
   PARTIAL: "KNOWN-OPEN",
   OBSERVED: "KNOWN-OPEN",
   BUILT: "KNOWN-OPEN",
@@ -2183,6 +2197,13 @@ async function main(argv) {
       "\n  An unclassified bust is a NEW CLASS until shown otherwise. Book it as a\n" +
       "  threat-matrix row before it is explained away — the matrix records, the\n" +
       "  gate enforces, and a class with no row is a class nothing watches.\n");
+  }
+  if (r.verdict === "EXPECTED-BUST") {
+    process.stdout.write(
+      "\n  STOP — expected cost, not a CC bug. This class is deliberately\n" +
+      "  unmitigated (the why above says whether it's won't/must-not/can't/\n" +
+      "  not-ours build). No investigation or mitigation work is owed on an\n" +
+      "  instance; re-opening the class is a status-file change, not a walk.\n");
   }
   if (r.verdict === "STATUS-UNREADABLE") {
     process.stdout.write(
