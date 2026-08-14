@@ -168,7 +168,12 @@ test("reproduces: HEAD:proxy matches the dotfiles CACHE_FIX_PROXY_TREE_PIN, or c
   assert.equal(res.match, true, `local=${res.local} manifest=${res.manifestPinned}`);
 });
 
-test("reproduces: matrix has exactly 30 rows with 10 OPEN-or-RESIDUAL", () => {
+test("reproduces: matrix has exactly 31 rows with 11 OPEN-or-RESIDUAL", () => {
+  // Updated 2026-08-14, twice in one day: row 2 (idle TTL keepalive) went
+  // OPEN -> ACCEPTED on an operator decision (-1 open), and row 31
+  // (concurrent duplicate sidecar send) was minted OPEN (+1 row, +1 open).
+  // Both moves are the literals doing what this comment says they do.
+  // Original note:
   // Updated 2026-08-14: row 2 (idle TTL keepalive) went OPEN -> ACCEPTED on an
   // operator decision, so the OPEN-or-RESIDUAL set is 10. Second fire of the
   // shape this comment already describes, and the second time nothing was
@@ -185,8 +190,8 @@ test("reproduces: matrix has exactly 30 rows with 10 OPEN-or-RESIDUAL", () => {
   // silently stopped reading rows fails here even when the literals are stale.
   const res = collectMatrix();
   assert.equal(res.ok, true, res.reason);
-  assert.equal(res.totalRows, 30);
-  assert.equal(res.openResidual.length, 10);
+  assert.equal(res.totalRows, 31);
+  assert.equal(res.openResidual.length, 11);
 
   // The independent halves. `totalRows` is the matrix PROSE's row count and
   // `openResidual` is derived from the status JSON — two different files, so

@@ -180,5 +180,11 @@
     "evidence": "03398e3",
     "date": "2026-08-11",
     "residual": "SHIPPED AND SERVING 2026-08-11 (fork 03398e3; dotfiles pin ec05377; verified content-to-content — /health proxy_tree 53180b0da2ee equals proxy/source-fingerprint.mjs over the deployed tree, and the pin equals HEAD:proxy). VERIFIED LIVE by the post-deploy sweep (started 13:49:40Z, finished 14:19:08Z, code stamp proxyTree 53180b0da2ee so VERIFIED equals RUNNING): conservation is ZERO across ALL 25 captures, against 12 failing captures and 1,899 rows before the fix. That supersedes the pre-deploy five-capture claim rather than repeating it — the sweep covers every capture still on disk, which is a larger population than the five replayed by hand. The sweep's one remaining failing row is s-captureBC's single stability violation, already closed as NON-DEFECT the same day (model switch across the pair, cacheRead 0, its declared modelChangedAcrossPair exemption booked and unbuilt) — a known row awaiting its exemption, not a consequence of this fix. RESIDUAL, and now for ONE reason only: the carried-over set is stable only while fresh-session-sort's relocation memory holds it, so row 25's eviction-stranding residual reaches this row — an evicted memory stops declaring the block and CC's own bytes win, which is correct but untested here. Promotion to SHIPPED wants a bite over that eviction path."
+  },
+  "31": {
+    "status": "OPEN",
+    "evidence": "tools/duplicate-billing.mjs",
+    "date": "2026-08-14",
+    "residual": "MEASURED and unmitigated: 47 streaks corpus-wide, every pair carrying DISTINCT upstream request-ids and two completed usage-log records, so both sends are answered and both charged. Not a retry -- the first send's wall time to first usage is ~700-800 ms while the duplicate leaves 6-25 ms in, on 47/47 pairs, so nothing about the first could have been observed. Cost 48,203 input-side tokens; the class is a defect by structure, not by size. MITIGATION UNDESIGNED, and the obvious one is wrong: dropping the second send would leave a live client request unanswered, so the only safe shape is coalescing one upstream call to both callers -- undesigned, touches the streaming path, and must never reach the mid-session duplicate class where the second send is a legitimate retry. Upstream filing (#78420-adjacent) is worth drafting and needs operator GO."
   }
 }

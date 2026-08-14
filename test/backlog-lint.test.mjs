@@ -41,6 +41,7 @@ import { tmpDirSync } from "../tools/tmpdir.mjs";
 // directly so the capture-alias lane's bites build fixture filenames the
 // way harvest.mjs actually does, never by re-deriving the hash by hand.
 import { sidToken } from "../tools/harvest.mjs";
+import * as matrixStatus from "../tools/matrix-status.mjs";
 
 import {
   lintText, lintPointers, splitEntries,
@@ -2079,4 +2080,38 @@ test("closures-in-live: a real SHIPPED-headed entry classifies CLOSURE — one o
   assert.equal(row.line, 8820);
   assert.equal(row.grade, "SHIPPED");
   assert.equal(row.classification, "CLOSURE");
+});
+
+// --- the row-anchor bound is READ, not restated (2026-08-14) -----------------
+//
+// `READY_BAR_MAX_ROW` was the literal 29 and had been wrong for three days:
+// matrix row 30 landed 2026-08-11 and nothing failed, because a restated bound
+// cannot age loudly — an entry anchored to the newest row would have reported
+// ANCHOR-UNRESOLVED while the row was live, which is a check firing on
+// legitimate work. Found by reading the constant, not by any check.
+//
+// The pair below is the discrimination: the LIVE matrix's own highest row must
+// resolve, and one above it must not. Both numbers come from the matrix at run
+// time, so this bite keeps meaning the same thing after row 32 lands.
+test("READY-bar: the row-anchor bound comes from the MATRIX, so the newest row resolves", () => {
+  const rows = matrixStatus.parseMatrixRowNumbers(readFileSync(matrixStatus.MATRIX_PATH, "utf8"));
+  const highest = Math.max(...rows);
+  assert.ok(highest >= 30, `precondition: the matrix has grown past the old hardcoded 29 (highest=${highest})`);
+
+  const live = [
+    "## Open", "",
+    "- **READY — anchored to the newest row.** Body text.",
+    `  Anchor: row ${highest}`,
+    "  Write-set: tools/alive.mjs",
+    "  Verifier: npm test",
+  ].join("\n");
+  assert.deepEqual(lint.lintReadyBar(live, READY_BAR_STUB), [],
+    "the highest row the matrix actually declares must resolve");
+
+  const beyond = live.replace(`Anchor: row ${highest}`, `Anchor: row ${highest + 1}`);
+  const findings = lint.lintReadyBar(beyond, READY_BAR_STUB);
+  assert.equal(findings.length, 1, "a row the matrix does not declare is still rejected");
+  assert.equal(findings[0].label, "ANCHOR-UNRESOLVED");
+  assert.match(findings[0].proof, /read from the matrix/,
+    "and the reason says where the bound came from");
 });

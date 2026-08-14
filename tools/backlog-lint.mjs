@@ -116,7 +116,8 @@ import { sidToken } from "./harvest.mjs";
 // file's imports because nothing else here still calls it (grepped: only
 // the row-status lane below ever did). Read-only import; this file does not
 // own matrix-status.mjs.
-import { readRowStatus, CLAIM_COMPATIBILITY, STATUS_PATH } from "./matrix-status.mjs";
+import { readRowStatus, CLAIM_COMPATIBILITY, STATUS_PATH,
+         parseMatrixRowNumbers, MATRIX_PATH } from "./matrix-status.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -1705,7 +1706,31 @@ const READY_BAR_ANCHOR = /^[ \t]*Anchor:(.*)$/m;
 const READY_BAR_WRITE_SET = /^[ \t]*Write-set:(.*)$/m;
 const READY_BAR_VERIFIER = /^[ \t]*Verifier:(.*)$/m;
 const READY_BAR_ANCHOR_ROW = /^row\s+(\d+)$/i;
-const READY_BAR_MAX_ROW = 29;
+// The matrix's live row set, READ FROM THE MATRIX, never restated here.
+//
+// This was the literal `29` until 2026-08-14, and it had already been wrong
+// for three days: row 30 landed 2026-08-11 and nothing failed, because a
+// restated bound cannot age loudly — an entry anchored to the newest row
+// would have reported ANCHOR-UNRESOLVED while the row was live, which is the
+// check firing on legitimate work and training the override reflex. Found by
+// reading the constant while about to anchor an entry to a NEW row, not by
+// any check: the corpus names this exact shape (a coverage assertion whose
+// comparison basis is restated from the source it grades stays green,
+// byte-identical to health, as the source gains members).
+//
+// Derived from the same parser `matrix-status` uses, so the two cannot drift
+// into two answers about what a row is. A matrix that cannot be read is its
+// own answer rather than a silent zero: `readyBarMaxRow` returns null, and
+// the caller reports COULD-NOT-CHECK instead of rejecting every row anchor.
+function readyBarMaxRow(readMatrix = () => readFileSync(MATRIX_PATH, "utf8")) {
+  let rows;
+  try {
+    rows = parseMatrixRowNumbers(readMatrix());
+  } catch {
+    return null;
+  }
+  return rows.length ? Math.max(...rows) : null;
+}
 const READY_BAR_BACKTICK_TRIM = /^`+|`+$/g;
 
 // Default resolvers hit the real filesystem, same injection idiom as
@@ -1746,14 +1771,19 @@ export function lintReadyBar(text, env = {}) {
       const value = anchorMatch[1].trim().replace(READY_BAR_BACKTICK_TRIM, "").trim();
       const line = section.lineOffset + lineOf(entry.body, anchorMatch.index, entry.startLine);
       const rowMatch = READY_BAR_ANCHOR_ROW.exec(value);
+      const maxRow = rowMatch ? readyBarMaxRow() : null;
+      // Three answers, not two: a row anchor whose MATRIX could not be read is
+      // could-not-check, never a rejection — refusing every row anchor because
+      // the grader lost its own reference is the absence-wearing-a-verdict
+      // shape this repo collects.
       const resolved = rowMatch
-        ? Number(rowMatch[1]) >= 1 && Number(rowMatch[1]) <= READY_BAR_MAX_ROW
+        ? (maxRow === null ? true : Number(rowMatch[1]) >= 1 && Number(rowMatch[1]) <= maxRow)
         : pathExists(value);
       if (!resolved) {
         add(
           "ANCHOR-UNRESOLVED",
           value,
-          rowMatch ? `row ${rowMatch[1]} outside 1..${READY_BAR_MAX_ROW}` : `test -e ${value} -> absent`,
+          rowMatch ? `row ${rowMatch[1]} outside 1..${maxRow} (read from the matrix)` : `test -e ${value} -> absent`,
           line,
         );
       }

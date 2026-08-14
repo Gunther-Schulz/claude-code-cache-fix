@@ -362,6 +362,46 @@ hook, whose fork-side contract line shipped this session.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/census-placement-rows.test.mjs
   <!-- entry: "row 4 placement: the intervening messages between host and standalone are unexported" -->
 
+- **PARKED 2026-08-14 — the EXPENSIVE duplicate population is a RETRY after
+  an incomplete first attempt, not a double answer, and the named missing
+  evidence is why the first attempt did not complete.** 15 mid-session
+  streaks, and they carry 2,873,059 of the 2,921,262 input-side tokens the
+  whole double-billed population costs — 98% of the money is here, and it is
+  NOT the class row 31 describes.
+  **The measurement** (`tools/duplicate-billing.mjs`, joining the capture
+  outcome's `requestId` to `usage.jsonl`'s `request_id`): 14 of the 15
+  streaks have their FIRST member `NOT-IN-USAGE-LOG` while every second and
+  later member joins cleanly with a real final `output_tokens` (175..8,077).
+  The remaining streak is a 3-member fable run where all three joined
+  (606/517/572). Position is exact: all 14 unjoined members sit at index 0 of
+  their streak, and 94 of 94 session-start members joined — so "missing" does
+  not correlate with being first, it correlates with being a mid-session
+  first send.
+  **What that means, read off the WRITERS rather than the field names.** The
+  capture outcome is written on `message_start` (`request-capture.mjs:311`),
+  so an outcome record proves the request reached the model and was charged
+  input-side. `usage-log` appends only on `message_delta` and only when a
+  `message_start` was seen for that response (`usage-log.mjs:321,324`), so an
+  absent usage record means no completion frame was observed. First send
+  charged, no completion; second send completes. That is the retry shape, and
+  it is why the 2026-08-02 entry's "CC received a COMPLETE answer and
+  discarded it" reading does not survive.
+  **NAMED MISSING EVIDENCE, and it is what keeps this parked rather than
+  ready:** WHY the first attempt produced no completion frame. Three live
+  candidates, none measured — an upstream error or stream abort (the proxy's
+  own `upstream-errors.jsonl` at those timestamps is the first place to
+  look), a client disconnect (CC cancelling, e.g. an interrupted turn), or a
+  proxy-side stream failure, which is the one that would make this OURS. The
+  attribution rule binds here: until that answer exists, no mitigation for
+  this class may be designed, and the 2.87 M figure is a cost observation,
+  not a defect claim.
+  **What must NOT happen meanwhile:** any byte-identical-adjacent dedupe or
+  coalescing built for row 31 must be scoped so it can never reach this
+  class. Suppressing the second send here would leave a real retry
+  unanswered — the mitigation that saves 48 k tokens would break the
+  conversations that account for 2.87 M.
+  <!-- entry: "mid-session duplicate streaks are retries after an incomplete first attempt" -->
+
 - **RECORD 2026-08-14 — the double-billed duplicate population is TWO
   populations, and three independent axes agree on the split.** Full corpus,
   118 duplicate streaks of which 62 are double-billed (evidence pinned in
@@ -7864,7 +7904,21 @@ entry promoted to READY must satisfy the booking bar in this file's header
   worth keeping either way.
 
 - **RECORD (ex-READY 2026-08-11) — the fixture-verdict mutation population is DIRECTORY-derived, so
-  the suite covers a different corpus on every machine.** Found 2026-08-06
+  the suite covers a different corpus on every machine.**
+  **A PARTIAL IMPLEMENTATION OF THIS ENTRY EXISTS AND IS RESCUED, origin
+  unknown: `~/.local/state/cache-fix/rescued-patches/2026-08-14-fixture-verdict-identity-from-worktree-af68d602.patch`
+  (2026-08-14).** 76 uncommitted lines against
+  `test/fixture-verdict-identity.test.mjs`, written by neither the dispatching
+  session nor the lane, found sitting in a harness-cut agent worktree that a
+  reclaim would have taken with it. It implements this entry's own fix — the
+  population read from `git ls-files` rather than `readdirSync`, top-level
+  only, with this entry's 2026-08-06 measurement quoted in its comments. The
+  patch was copied out and the worktree left untouched; nothing has been
+  applied or verified. Whoever picks this entry up — including whoever wrote
+  those lines — reads the patch first rather than starting over. Recorded HERE
+  because a rescued file in a state directory is on nobody's read path, and
+  persistence without a consumer is litter with good intentions.
+  Found 2026-08-06
   immediately after integrating the widening, by an unexplained test-count
   delta: the dispatched lane measured 2200 tests in its worktree and the same
   code measured 2203 here. The difference is exactly one fixture × three
@@ -11836,6 +11890,12 @@ then the queued ones. Work the items in that order.
 - **OPEN (attributed 2026-08-02: CC-defect-resend lean, upstream
   filing is the next step and needs operator GO) — double-billed
   duplicate pairs, now 33 streaks.**
+  **SUPERSEDED 2026-08-14 — this entry's population SPLITS, and each half
+  goes to its own home: the concurrent-sidecar half is now threat-matrix
+  ROW 31 (measured, both sends completed, both charged), and the
+  mid-session half is the PARKED retry entry in `## Open`. Read those two
+  before this body; what follows is kept because the correction below is
+  the reason the split was findable at all.**
   **INSTRUMENT DEFECT 2026-08-14, and it VOIDS this entry's central
   retry-refutation: `outSha` is the FORWARDED REQUEST's hash, never
   the response's.** Read at the writer rather than off the field
