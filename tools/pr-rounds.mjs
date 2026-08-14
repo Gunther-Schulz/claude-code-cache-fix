@@ -94,7 +94,7 @@ export function computeRounds({ repo, listPRs, api, whoami }) {
   const prs = listPRs(repo);
   const rounds = [];
   for (const pr of prs) {
-    const events = [
+    const allEvents = [
       ...api(`repos/${repo}/issues/${pr.number}/comments`)
         .map((c) => ({ login: c.user?.login, at: c.created_at })),
       ...api(`repos/${repo}/pulls/${pr.number}/comments`)
@@ -107,10 +107,11 @@ export function computeRounds({ repo, listPRs, api, whoami }) {
       // tell WHO acted, so it is not used as an event source — only named
       // (login-attributed) activity counts, which is why the three sources
       // above are comments and reviews, never the bare `updatedAt` field.
-    ]
-      // "Someone OTHER than us": bots included, our own login excluded. A
-      // reply we ourselves posted is not upstream asking anything.
-      .filter((e) => e.login && e.login !== me);
+    ].filter((e) => e.login);
+
+    // "Someone OTHER than us": bots included, our own login excluded. A
+    // reply we ourselves posted is not upstream asking anything.
+    const events = allEvents.filter((e) => e.login !== me);
 
     if (events.length === 0) continue;
 
@@ -123,10 +124,42 @@ export function computeRounds({ repo, listPRs, api, whoami }) {
       .sort()
       .at(-1) ?? null;
 
-    // No commits at all is a malformed PR, not a silent "no round" — surface
-    // it as an open round anchored to the external event rather than
-    // dropping the PR from the report.
-    if (ourLastPush === null || lastExternal.at > ourLastPush) {
+    // OUR ANSWER CLOSES THE ROUND, and it is not always a push.
+    //
+    // This compared `lastExternal` against `ourLastPush` ALONE until
+    // 2026-08-14, which made the tool unanswerable by answering: our own
+    // comments were filtered out of the event list entirely, so a round whose
+    // correct reply is a QUESTION back stayed open forever. Measured the day
+    // it was found — minutes after two rounds were answered, #306 reported
+    // closed only because that round happened to end in a push, while #276,
+    // answered by comment because the branch work waits on upstream's own
+    // sequencing decision, still reported open with our comment as the last
+    // activity on the thread.
+    //
+    // Wrong in BOTH directions, which is what made it a defect rather than a
+    // strict reading: a push that answers nothing closed a round, and an
+    // answer with no push did not. The consumer is a session-start attention
+    // line, so the cost is not a wrong number in a report — it is a doorbell
+    // that keeps ringing after the door was answered, which trains exactly
+    // the not-looking that let two rounds sit for eight days.
+    //
+    // The ball is with us iff the last NAMED activity on the PR is theirs.
+    // Our comments come back for THIS max only; `lastExternal` above still
+    // excludes them, or a reply of ours could masquerade as upstream asking.
+    const ourLastComment = allEvents
+      .filter((e) => e.login === me)
+      .map((e) => e.at)
+      .sort()
+      .at(-1) ?? null;
+    const ourLastAnswer = [ourLastPush, ourLastComment]
+      .filter(Boolean)
+      .sort()
+      .at(-1) ?? null;
+
+    // Nothing of ours on the PR at all is a malformed PR, not a silent "no
+    // round" — surface it as an open round anchored to the external event
+    // rather than dropping the PR from the report.
+    if (ourLastAnswer === null || lastExternal.at > ourLastAnswer) {
       rounds.push({ n: pr.number, since: lastExternal.at });
     }
   }

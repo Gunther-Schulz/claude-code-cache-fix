@@ -161,11 +161,29 @@ test("BITE — a gh failure (unauthenticated, here) leaves the previous file unt
   const before = JSON.stringify({ finished: "2020-01-01T00:00:00Z", rounds: [{ n: 999, since: "2020-01-01T00:00:00Z" }] });
   writeFileSync(dest, before);
 
+  // PIN THE PREMISE, do not inherit it. This bite says "unauthenticated,
+  // here" and until 2026-08-14 relied on the AMBIENT gh being logged out —
+  // an environment premise the check did not establish. On a machine where
+  // gh IS authenticated (this one, and any machine that ever ran the tool
+  // for real) it reached the network instead, exercised nothing it names,
+  // and went red for a reason that had nothing to do with the failure path.
+  // Pointing GH_CONFIG_DIR at an empty directory and clearing both token
+  // variables makes gh genuinely unauthenticated inside the check, so the
+  // bite is re-runnable in both directions instead of being a property of
+  // whoever's laptop it runs on. Verified both arms: with the ambient
+  // environment the tool exits 0, with this one it exits 2 and gh prints
+  // "please run: gh auth login".
+  const emptyGhConfig = tmpDirSync("pr-rounds-gh-config-");
+  mkdirSync(emptyGhConfig, { recursive: true });
+  const scrubbedEnv = { ...process.env, CACHE_FIX_STATE_DIR: stateDir, GH_CONFIG_DIR: emptyGhConfig };
+  delete scrubbedEnv.GH_TOKEN;
+  delete scrubbedEnv.GITHUB_TOKEN;
+
   let status;
   try {
     execFileSync(process.execPath, [TOOL], {
       cwd: REPO_DIR,
-      env: { ...process.env, CACHE_FIX_STATE_DIR: stateDir },
+      env: scrubbedEnv,
       encoding: "utf8",
       timeout: 20_000,
     });
@@ -176,4 +194,67 @@ test("BITE — a gh failure (unauthenticated, here) leaves the previous file unt
 
   assert.equal(status, 2, "a gh failure must fail the run, not succeed with an empty result");
   assert.equal(readFileSync(dest, "utf8"), before, "the previous file must be byte-identical — nothing was written on failure");
+});
+
+// --- our ANSWER closes the round, and it is not always a push -------------
+// Added 2026-08-14, from the tool contradicting the world minutes after two
+// real rounds were answered. The pair below is the discriminator: the same
+// external event, answered two different ways, must reach the same verdict.
+
+test("BITE — a COMMENT of ours after their event closes the round (an answer need not be a push)", () => {
+  const g = fakeGh({
+    prs: [{ number: 1 }],
+    me: "us",
+    comments: {
+      1: [
+        comment("them", "2026-01-05T00:00:00Z"),
+        comment("us", "2026-01-06T00:00:00Z"),
+      ],
+    },
+    // Our last push PREDATES their event. Under the old predicate this
+    // reported an open round forever, whatever we said — the live shape of
+    // PR #276, whose answer was deliberately a question back rather than a
+    // force-push.
+    commits: { 1: [commit("2026-01-01T00:00:00Z")] },
+  });
+  assert.deepEqual(computeRounds(g), []);
+});
+
+test("BITE — our comment BEFORE their event leaves the round open (answering earlier is not answering)", () => {
+  const g = fakeGh({
+    prs: [{ number: 1 }],
+    me: "us",
+    comments: {
+      1: [
+        comment("us", "2026-01-02T00:00:00Z"),
+        comment("them", "2026-01-05T00:00:00Z"),
+      ],
+    },
+    commits: { 1: [commit("2026-01-01T00:00:00Z")] },
+  });
+  assert.deepEqual(computeRounds(g), [{ n: 1, since: "2026-01-05T00:00:00Z" }]);
+});
+
+test("BITE — our own comment still cannot OPEN a round: it feeds the answer clock only", () => {
+  // The half that keeps the fix from becoming a new defect. Our comments are
+  // admitted for the answer timestamp; if they also counted as external
+  // events, a PR nobody else ever touched would report a round against
+  // itself.
+  const g = fakeGh({
+    prs: [{ number: 1 }],
+    me: "us",
+    comments: { 1: [comment("us", "2026-01-09T00:00:00Z")] },
+    commits: { 1: [commit("2026-01-01T00:00:00Z")] },
+  });
+  assert.deepEqual(computeRounds(g), []);
+});
+
+test("BITE — a PR with an external event and NOTHING of ours still reports, rather than vanishing", () => {
+  const g = fakeGh({
+    prs: [{ number: 1 }],
+    me: "us",
+    comments: { 1: [comment("them", "2026-01-05T00:00:00Z")] },
+    commits: { 1: [] },
+  });
+  assert.deepEqual(computeRounds(g), [{ n: 1, since: "2026-01-05T00:00:00Z" }]);
 });
