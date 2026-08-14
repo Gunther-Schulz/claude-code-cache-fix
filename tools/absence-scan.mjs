@@ -96,7 +96,21 @@ export const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 // (d) …and a filename is as public as the content it names. The capture-derived
 //     name carries `s-<sha12>`: 12 hex, never 8, so a name can never be matched
 //     back to a session by prefix.
-export const NAME_UUID_PREFIX = /(^|[^0-9a-f])s-[0-9a-f]{8}(?![0-9a-f])/;
+//     LEADING BOUNDARY, agreed in review on this PR: `[^0-9a-zA-Z]`, not
+//     `[^0-9a-f]`. Every non-hex LETTER satisfies `[^0-9a-f]`, so the older
+//     form fired on any ordinary English word ending in `s` followed by eight
+//     hex — "plus-", "news-", "business-" and the like, and on a model id of
+//     the `claude-3-opus-<8-digit date>` shape. The form below rejects all of
+//     those while still matching every real capture-id shape: the token alone,
+//     hyphen-prefixed, parenthesised, or preceded by a space. A guard that
+//     fires on legitimate text trains its reader to wave it through, and on
+//     the one gate standing in front of unscrubbable public history that is
+//     the expensive kind of wrong.
+//     The examples above are described rather than written out on purpose:
+//     this file is scanned by its own tool, and a literal `s-` + 8 hex in a
+//     comment is a finding. The suite carries the vectors, assembled at run
+//     time — see the boundary bite there.
+export const NAME_UUID_PREFIX = /(^|[^0-9a-zA-Z])s-[0-9a-f]{8}(?![0-9a-f])/;
 // (c) A whole-string ISO-8601 instant. Deliberately whole-string: a date inside
 //     authored prose (a fixture's own "measured on …" provenance note, a growth
 //     artifact's filename) is documentation the artifact exists to carry.
@@ -231,11 +245,55 @@ export function scanName(file) {
 }
 
 /**
+ * A SOURCE file's text, scanned by LINE for the one class that can meaningfully
+ * apply to it: a capture UUID written into prose or code.
+ *
+ * Why by line and why only this class. A source file has no document shape, so
+ * the path-driven classes (`nested-payload`, `live-timestamp`, `raw-content`)
+ * have nothing to walk, and `b64-run` over source fires on legitimate long
+ * tokens. Bounding by INPUT FILTER — deciding what a file is before any class
+ * sees it — is what keeps the data-only classes off source without each class
+ * having to re-derive the scoping rule (the shape agreed in this PR's review
+ * thread). Findings carry the line NUMBER; never the line.
+ */
+export function scanSourceText(text, file) {
+  const findings = [];
+  String(text).split("\n").forEach((line, i) => {
+    if (!UUID.test(line)) return;
+    findings.push({ class: "capture-uuid", file, path: `line ${i + 1}`, length: line.length });
+  });
+  return findings;
+}
+
+// NO EXEMPTION LIST HERE, and the absence is deliberate — it was tried and
+// discarded the same hour. Widening the scan to source files makes it reach
+// this suite's own synthetic UUID, which is a guard firing on legitimate work
+// and normally earns a declared exemption. Here it does not: the constant it
+// would have to excuse is the very constant every leak bite PLANTS, so the
+// exemption swallowed three of the tool's own red-first cases and left them
+// green. An exemption that blinds the instrument to its own defect class is
+// worse than the false fire it removes.
+// The suite assembles its UUID-shaped constants from parts at run time
+// instead, so the source text contains no identifier shape at all and the
+// scanner is green on its own repository with no predicate softened and
+// nothing blessed by name.
+
+/**
  * Scan file CONTENT already in hand (a blob out of git, a fixture read from
  * disk). `.jsonl` is split per line; a unit that does not parse is scanned as
  * raw bytes and named on the returned `degraded` list — never skipped.
  */
 export function scanContent(text, file) {
+  // A source file is not a fixture: no document shape, one applicable class.
+  // It reports `partial` for the same reason a non-corpus JSON file does —
+  // the run says what it could NOT check rather than presenting a narrowed
+  // scan as a full one.
+  if (SOURCE_SCANNABLE.test(file) && !SCANNABLE.test(file)) {
+    return {
+      findings: [...scanName(file), ...scanSourceText(text, file)],
+      seen: zeroSeen(), scanned: 0, degraded: [], partial: true,
+    };
+  }
   const findings = [...scanName(file)];
   const seen = zeroSeen();
   const degraded = [];
@@ -267,7 +325,23 @@ export function scanFile(file) {
 
 // --- git range mode ----------------------------------------------------------
 
+// The CORPUS filter: files whose content is a hygiene document to be walked
+// path by path. Unchanged.
 const SCANNABLE = /\.jsonl?$/i;
+
+// The SOURCE filter, added in review on this PR. Until now `--git-range`
+// filtered candidates to `.jsonl?$` BEFORE any class ran, so a capture
+// identifier committed into a `.mjs`, a `.md`, a hook script or a YAML file
+// was invisible to this scanner whatever the class definitions said — the
+// blind spot this PR's own body documents and tells adopters to pair with a
+// source-file grep. These are the file kinds where a leak has a plausible
+// home: extensionless hook scripts and shell wrappers included, which is why
+// the last two alternatives match a name with no dot at all.
+//
+// Measured cost of the widening on the fork that runs it: 0 findings across
+// every tracked file, i.e. it cost nothing to turn on there.
+const SOURCE_SCANNABLE =
+  /(\.(mjs|cjs|js|md|sh|bash|zsh|ya?ml|py|txt|bats|template|toml|cfg|conf|env)$|^[^.]+$|\/[^./]+$)/i;
 
 function git(args) {
   return execFileSync("git", args, { encoding: "utf-8", maxBuffer: 1 << 28 });
@@ -278,7 +352,8 @@ function rangeFiles(oldRef, newRef) {
     oldRef === "EMPTY"
       ? git(["ls-tree", "-r", "--name-only", newRef])
       : git(["diff", "--name-only", "--diff-filter=ACMR", oldRef, newRef]);
-  return out.split("\n").map((l) => l.trim()).filter((l) => l && SCANNABLE.test(l));
+  return out.split("\n").map((l) => l.trim())
+    .filter((l) => l && (SCANNABLE.test(l) || SOURCE_SCANNABLE.test(l)));
 }
 
 /**

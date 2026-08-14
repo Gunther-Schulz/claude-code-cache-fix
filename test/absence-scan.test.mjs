@@ -23,13 +23,20 @@ import { tmpdir } from "node:os";
 import { join, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { scanDocument, scanContent, isAllowlisted, CLASSES } from "../tools/absence-scan.mjs";
+import { scanDocument, scanContent, isAllowlisted, CLASSES, NAME_UUID_PREFIX } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
 
 // Synthetic, and shaped like the thing each class is defined against.
-const FAKE_UUID = "0123abcd-4567-89ef-0123-456789abcdef";
+// Assembled from parts rather than written as a literal: this file is
+// scanned by the very tool it tests, and a UUID-shaped literal in source
+// is exactly what the widened source scan is built to find. Joining the
+// groups keeps the VALUE identical for every assertion below while the
+// source text carries no identifier shape. The alternative — an exemption
+// naming this constant — was tried and discarded: it is the constant the
+// leak bites plant, so exempting it left three of them green.
+const FAKE_UUID = ["0123abcd", "4567", "89ef", "0123", "456789abcdef"].join("-");
 const LONG_B64 = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVphYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ejAxMjM0".repeat(4);
 const TOKEN_TEXT = "t_0123456789ab_42";
 
@@ -354,3 +361,90 @@ test("git-range: no test/fixtures/harvested/ directory anywhere in the repo — 
 // The findings themselves are real and are reported separately rather than
 // dropped (see the PR body). Adopting repos that want the source-tree guard
 // should add it with their own roster.
+
+// --- the two changes agreed in this PR's review thread ----------------------
+
+test("NAME_UUID_PREFIX: the leading boundary drops word-tail collisions and keeps every real capture-id shape", () => {
+  // The whole point of the agreed change, stated as a PAIR: the four on the
+  // left must NOT match (they are ordinary English words ending in `s`, and a
+  // model id), the four on the right MUST. A boundary fix that only stopped
+  // false fires would be satisfied by a regex matching nothing at all.
+  // Every vector is ASSEMBLED, never written as a literal: this file is
+  // scanned by the tool it tests, and `s-` followed by eight hex is precisely
+  // the shape that scan exists to find. Writing the vectors out would make the
+  // suite a finding in its own repository.
+  const H = "12345678";
+  const S = "s-";
+  for (const negative of [`plus-${H}`, `news-${H}`, `business-${H}`,
+                          `claude-3-opus-${"2024"}${"0229"}`]) {
+    assert.equal(NAME_UUID_PREFIX.test(negative), false, `must not match: ${negative}`);
+  }
+  for (const positive of [`${S}${H}`, `prefix-${S}${H}`, `(${S}${H})`, ` ${S}${H}`]) {
+    assert.equal(NAME_UUID_PREFIX.test(positive), true, `must match: ${positive}`);
+  }
+});
+
+test("scanContent: a SOURCE file is scanned by line for capture UUIDs, and the data-only classes never see it", () => {
+  const src = [
+    "// a comment",
+    `const id = "${FAKE_UUID}";`,
+    `const blob = "${LONG_B64}";`,
+  ].join("\n");
+  const r = scanContent(src, "tools/whatever.mjs");
+  const classes = r.findings.map((f) => f.class);
+  assert.deepEqual(classes, ["capture-uuid"]);
+  // The line NUMBER, never the line: a leak reporter that echoes the leak has
+  // moved it, not found it.
+  assert.equal(r.findings[0].path, "line 2");
+  assert.ok(!JSON.stringify(r.findings).includes(FAKE_UUID));
+  // b64-run is a data class and must not reach source, or every minified or
+  // long-token file in an adopting repo becomes a finding.
+  assert.ok(!classes.includes("b64-run"));
+  // The run says what it could not fully check rather than presenting a
+  // narrowed scan as a whole one.
+  assert.equal(r.partial, true);
+});
+
+test("git-range: a capture UUID committed into a .mjs is FOUND — the blind spot this PR's body documents", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "seed.txt"), "seed\n");
+    g("add", "seed.txt");
+    g("commit", "-qm", "seed");
+    const first = g("rev-parse", "HEAD");
+
+    // Two source shapes in one commit: an extensionless hook script (matched
+    // by the no-dot alternative) and an ordinary .mjs.
+    mkdirSync(join(dir, "hooks"), { recursive: true });
+    writeFileSync(join(dir, "hooks", "pre-push"), `#!/bin/sh\n# ${FAKE_UUID}\n`);
+    writeFileSync(join(dir, "tool.mjs"), `const id = "${FAKE_UUID}";\n`);
+    g("add", "hooks/pre-push", "tool.mjs");
+    g("commit", "-qm", "source files");
+    const second = g("rev-parse", "HEAD");
+
+    const red = run(["--git-range", `${first}..${second}`], dir);
+    assert.equal(red.status, 2, red.stdout + red.stderr);
+    assert.match(red.stdout, /FINDING capture-uuid {2}tool\.mjs/);
+    assert.match(red.stdout, /FINDING capture-uuid {2}hooks\/pre-push/);
+    assert.ok(!red.stdout.includes(FAKE_UUID), "never echo the matched bytes");
+  });
+});
+
+test("git-range: a clean source file stays green — the widening is not a blanket red", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "seed.txt"), "seed\n");
+    g("add", "seed.txt");
+    g("commit", "-qm", "seed");
+    const first = g("rev-parse", "HEAD");
+
+    writeFileSync(join(dir, "tool.mjs"), "export const x = 1;\n");
+    writeFileSync(join(dir, "notes.md"), "no identifiers here\n");
+    g("add", "tool.mjs", "notes.md");
+    g("commit", "-qm", "clean source");
+    const second = g("rev-parse", "HEAD");
+
+    const green = run(["--git-range", `${first}..${second}`], dir);
+    assert.equal(green.status, 0, green.stdout + green.stderr);
+  });
+});
