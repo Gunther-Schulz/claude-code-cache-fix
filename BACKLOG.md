@@ -744,7 +744,28 @@ hook, whose fork-side contract line shipped this session.
 - **PARKED 2026-08-13 — the `/tmp` run-root leak is BACK: every full-suite
   run leaks exactly 2 roots, including runs that PASS, and the guard's
   one-hour threshold is a blind window a pushing session refills faster than
-  it drains.** `docs/dev-loop.md` claimed "Measured after: a full suite
+  it drains.**
+  **THIRD OCCURRENCE 2026-08-14 ~10:10 local, and it answers this entry's
+  own first step — the producer is measured, not hypothesized.** The guard
+  blocked a push (8 roots older than 1h, every owning pid dead, all created
+  09:07-09:10 during that session's own pre-push runs, arriving in PAIRS
+  1-2 s apart exactly as this entry describes). Read BEFORE the cleanup,
+  which is what makes it evidence rather than a lost opportunity: **all 32
+  run roots then on disk contained exactly ONE `cache-fix-replay-*`
+  directory and nothing else — 32 of 32, no other producer appears at all.**
+  That independently reproduces `534289d`'s localization from a different
+  session and a different day, and it narrows the open half: the question is
+  no longer WHICH producer but why THAT child's exit handler does not fire.
+  New candidate ahead of the entry's SIGKILL guess, and it is testable
+  without new machinery: `gate-live` runs every replay child under
+  `--max-old-space-size`, and a child dying on the heap cap exits through a
+  path no `process.on(exit|SIGTERM|…)` handler serves — the pairs-per-run
+  shape fits two capped children per sweep-shaped test. Unmeasured, named as
+  the next probe.
+  Symptom fix TAKEN again to unblock the push (8 roots removed by hand,
+  after verifying each pid dead — the same stopgap this entry already
+  records, now on its second use, which is itself the argument for building
+  the durable half). `docs/dev-loop.md` claimed "Measured after: a full suite
   leaves ZERO" — corrected today in the same commit as this entry, because
   it is false.
   **The measurement, by counting roots against the runs that made them:**
