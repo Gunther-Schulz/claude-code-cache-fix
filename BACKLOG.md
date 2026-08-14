@@ -317,6 +317,86 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **READY 2026-08-14 — row 4's placement half has exactly ONE unexamined
+  place left, and no export reaches it: what sits BETWEEN the host and the
+  migrated standalone.** The byte half is characterized and closed as a
+  question (matrix row 4, parked the same day: all 16 MISMATCH occurrences are
+  the wrapper-retained form, 8 EXACT + 8 EXTENDED, every remainder
+  MERGED-STANDALONE, every byte computable from the predecessor). The
+  placement half is what still blocks, and it is now measured rather than
+  described: the complete uncapped distribution is 521 occurrences at offset
+  +1 and 27 off-mode across 20 distinct values from +4 to +110
+  (`placementOffsets`, `6020144`).
+  **Two derivation rules are already REFUTED BY MEASUREMENT, so this entry is
+  not a re-run of them:** the standalone is not tail-anchored (its distance
+  from the last message ranges 2..152 across the off-mode rows, and varies
+  inside the +1 class too), and it is not anchored to the predecessor's own
+  length (`standaloneIndex - nBefore` scatters -142..+2 in BOTH classes).
+  Those were computed from the six fields `placementRows` carries, which is
+  why the next question needs a seventh.
+  **Design, decided:** each placement row gains `between` — the messages
+  strictly between `hostIndexAfter` and `standaloneIndex` in the AFTER
+  request, as `[{role, kind}]` in wire order, where `kind` is a CLOSED
+  vocabulary read off the message's content blocks (`tool_result`,
+  `tool_use`, `text`, `reminder-carrying`, `image`, `thinking`, `other`) —
+  roles and kinds only, never text, so the row stays body-free and the
+  census-rows evidence document keeps its single exempted absence class.
+  Capped at 40 entries with a `betweenTruncated` count beside it, the same
+  cap-reports-what-it-dropped shape every other row array here uses. The
+  MODE-SAMPLE rows get it too: a derivation rule has to explain the +1
+  majority as well, and an export that carries the shape only for the
+  unusual rows cannot test that.
+  **Red-first arrangement:** a synthetic pair with three known intervening
+  messages of different kinds asserts the vector hand-computed; against the
+  current tool the field is absent and the bite fails at its own call site
+  (namespace import). Live control: the 27 off-mode rows each carry a
+  `between` vector, and the +1 rows carry an EMPTY one by construction —
+  the two must differ, or the field is measuring nothing.
+  **Done:** the desk can state, from one run, whether a placement rule exists
+  that covers all 548 occurrences — and if none does, row 4 gets its third
+  named blocker instead of a fourth hypothesis.
+  Loop stage: ATTRIBUTE (it decides whether row 4's mitigation can be
+  designed at all).
+  Anchor: row 4
+  Write-set: tools/reminder-migration-census.mjs, test/census-placement-rows.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/census-placement-rows.test.mjs
+  <!-- entry: "row 4 placement: the intervening messages between host and standalone are unexported" -->
+
+- **RECORD 2026-08-14 — the double-billed duplicate population is TWO
+  populations, and three independent axes agree on the split.** Full corpus,
+  118 duplicate streaks of which 62 are double-billed (evidence pinned in
+  `census-rows-2026-08-14.json`; the discriminators shipped in `f1994ce`):
+  - **47 haiku sidecar streaks** — `model claude-haiku-4-5`, `nMsg=1`,
+    `max_tokens=32000` — ALL at capture lines 3-5 (session start), intervals
+    **6 to 25 ms** (p50 14 ms).
+  - **15 main-thread streaks** — opus-5 (6), fable-5 (6), sonnet-5 (3),
+    `max_tokens=64000`, nMsg 1..412 — ALL mid-session, intervals **3.5 to
+    63 s** (p50 12.3 s).
+  Model, capture position and interval are three independent axes and they
+  partition the population the same way, which is what makes this a split
+  rather than a sort. The 2026-08-02 entry's hand-derived version of this
+  (24 sidecar / 7 main-thread) reproduces at 4x the scale.
+  **What is NOT a retry, and what is still open.** A 6-25 ms gap between two
+  byte-identical sends is not a backoff, so the sidecar family is not retry-
+  shaped by interval alone. The mid-session family's intervals ARE
+  retry-plausible, and the capture cannot settle it: it stores no response
+  bytes and its `usage.outputTokens` is the message_start placeholder. The
+  join that can settle it exists and is fully populated — every one of the
+  125 double-billed members carries an outcome record AND a `requestId`, and
+  `usage.jsonl` covers 2026-08-05 onward with `request_id` on 48,256 of
+  48,256 records. `tools/duplicate-billing.mjs` is dispatched to run it.
+  **The cost, stated as what it is:** across those 125 members the capture's
+  own outcome records carry 5,255,225 cacheRead + 458,166 cacheCreation +
+  96,464 input tokens of input-side charge. That is the total over every
+  member including the legitimate first send; the duplicate-attributable
+  half is what the dispatched tool computes (members beyond the first in
+  each streak), and it is not restated here as a guess.
+  **The calibration fact worth keeping:** 56 of the 118 streaks are NOT
+  double-billed (31 carry zero outcome records, 20 carry exactly one), which
+  is the retry population behaving correctly and is evidence that
+  `doubleBilledStreaks` is not firing on ordinary traffic.
+  <!-- entry: "double-billed duplicates are two populations: haiku sidecar at session start, main thread mid-session" -->
+
 - **READY 2026-08-14 (operator mandate, same day: "mandatory build under
   dev-loop question 2's recurring-producer clause, not a nice-to-have") —
   the byte-gate census stores COUNTS and the daily sweep keeps NONE of its
