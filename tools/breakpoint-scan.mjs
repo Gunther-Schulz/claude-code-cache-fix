@@ -2,7 +2,7 @@
 // breakpoint-scan — report cache_control breakpoint layout per request.
 //
 // Usage:
-//   node tools/breakpoint-scan.mjs <capture-or-mirror.jsonl> [--since <ISO>] [--until <ISO>] [--json] [--values]
+//   node tools/breakpoint-scan.mjs <capture-or-mirror.jsonl> [--since <ISO>] [--until <ISO>] [--json] [--values] [--by-conversation]
 //
 // --values: each row additionally carries `markerValues`, the same
 // locations findMarkers reports paired with the verbatim `cache_control`
@@ -11,6 +11,22 @@
 // same LOCATION whose VALUE differs (a TTL downgrade, say). Absent
 // --values, output is byte-identical to before this flag existed
 // (test/breakpoint-scan.test.mjs pins it).
+//
+// --by-conversation: GROUP rows by conversation instead of emitting them in
+// document (line) order. One session-id header (`sid`) carries the main
+// thread, every subagent, and CC's own sidecar calls (FORK-NOTES.md,
+// docs/dev-loop.md), so document order interleaves unrelated conversations —
+// and this tool's most natural read (does the tail marker advance, does the
+// layout drift across a request sequence) is meaningless across that
+// interleave. Each row gains a `conversationId` (the grouping key, from
+// `conversationSubKey` — see the import comment below for why this function
+// and not `conversationOf`), and JSON output becomes one line per group:
+// {"conversationId", "rowCount", "rows": [...]} — rows in original document
+// order within the group, groups in first-appearance order. Table output
+// gets a `== conversation <id> (<n> rows) ==` header per group. Absent
+// --by-conversation, output is byte-identical to before this flag existed
+// (test/breakpoint-scan.test.mjs pins it) — no `conversationId` key, no
+// grouping, same streamed document-order emission as always.
 //
 // READ-ONLY reporter, no mutation of any input. For every record in the
 // input file that carries a request body (`body` is present and an
@@ -45,6 +61,23 @@
 // more than one record at a time.
 
 import { readLines } from "./read-lines.mjs";
+// The repo's own conversation-identity primitive (docs/dev-loop.md, "Never
+// hand-roll identity in a probe": a fourth hand-rolled first-message hash in
+// this repo, after tools/cache-sim.mjs's, is exactly the collision class
+// that rule exists to stop). `tools/replay.mjs` exports `conversationOf`,
+// but that function takes a `compactEntry`-shaped object (`e.inHash`, an
+// array of RAW per-message hashes built by replay.mjs's own private `sha`,
+// which replay.mjs does not export) — a shape this tool's raw per-line
+// records (`rec.body.messages`) do not carry and cannot cheaply construct
+// without either re-deriving that hash locally (the exact anti-pattern) or
+// an export replay.mjs does not offer. `conversationSubKey` is the row-shape
+// fit the brief named for exactly this case: it takes a raw `messages` array
+// directly, is cache_control-STRIPPED (robust to a breakpoint moving on
+// messages[0], unlike conversationOf's raw inHash[0] — see replay.mjs's
+// findIdentityRotations comment), and is already exported from its actual
+// home rather than restated. Reported as a deviation from the brief's literal
+// "from tools/replay.mjs" wording in the closing report.
+import { conversationSubKey } from "../proxy/extensions/message-hash.mjs";
 
 /**
  * Find every `cache_control` key in a request record's body, in document
@@ -144,9 +177,11 @@ export function skipReason(rec) {
  * Build the reported row for one scannable record.
  * @param {object} rec — a record for which hasScannableBody(rec) is true.
  * @param {number} line — 1-based line number in the source file.
- * @param {{values?: boolean}} [opts] — values: true adds `markerValues`
- *   (--values mode). Omitted or false reproduces the pre-flag row exactly —
- *   no key added, nothing reordered.
+ * @param {{values?: boolean, byConversation?: boolean}} [opts] — values:
+ *   true adds `markerValues` (--values mode). byConversation: true adds
+ *   `conversationId`, the row's grouping key (--by-conversation mode).
+ *   Either omitted or false reproduces the pre-flag row exactly — no key
+ *   added, nothing reordered.
  */
 export function buildRow(rec, line, opts = {}) {
   const body = rec.body;
@@ -169,17 +204,19 @@ export function buildRow(rec, line, opts = {}) {
     lastUserIndex,
   };
   if (opts.values) row.markerValues = findMarkerValues(rec);
+  if (opts.byConversation) row.conversationId = conversationSubKey(messages);
   return row;
 }
 
 function parseArgs(argv) {
-  const args = { since: null, until: null, json: false, values: false, file: null };
+  const args = { since: null, until: null, json: false, values: false, byConversation: false, file: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--since") args.since = argv[++i] ?? null;
     else if (a === "--until") args.until = argv[++i] ?? null;
     else if (a === "--json") args.json = true;
     else if (a === "--values") args.values = true;
+    else if (a === "--by-conversation") args.byConversation = true;
     else if (!args.file && !a.startsWith("--")) args.file = a;
   }
   return args;
@@ -199,7 +236,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   if (!args.file) {
     process.stderr.write(
-      "usage: node tools/breakpoint-scan.mjs <capture-or-mirror.jsonl> [--since <ISO>] [--until <ISO>] [--json] [--values]\n",
+      "usage: node tools/breakpoint-scan.mjs <capture-or-mirror.jsonl> [--since <ISO>] [--until <ISO>] [--json] [--values] [--by-conversation]\n",
     );
     process.exitCode = 2;
     return;
@@ -223,6 +260,15 @@ async function main() {
   let skipped = 0;
   let filteredOut = 0;
   const skipReasons = Object.create(null);
+
+  // --by-conversation buffers rows (never raw bodies) into groups, keyed by
+  // first-appearance order, and prints them only after the file is fully
+  // read — grouping requires having seen every row before a group can
+  // close. Rows are the small summary shape buildRow already produces (a
+  // handful of strings/numbers), never the request bodies, which are still
+  // discarded every iteration exactly as before; this does not reinstate
+  // the O(file) body-retention this tool's header rules out.
+  const groups = args.byConversation ? new Map() : null;
 
   if (!args.json) {
     process.stdout.write(
@@ -267,9 +313,25 @@ async function main() {
       }
     }
 
-    const row = buildRow(rec, lineNo, { values: args.values });
+    const row = buildRow(rec, lineNo, { values: args.values, byConversation: args.byConversation });
     scanned++;
-    process.stdout.write(args.json ? JSON.stringify(row) + "\n" : formatRowTable(row));
+    if (groups) {
+      if (!groups.has(row.conversationId)) groups.set(row.conversationId, []);
+      groups.get(row.conversationId).push(row);
+    } else {
+      process.stdout.write(args.json ? JSON.stringify(row) + "\n" : formatRowTable(row));
+    }
+  }
+
+  if (groups) {
+    for (const [conversationId, rows] of groups) {
+      if (args.json) {
+        process.stdout.write(JSON.stringify({ conversationId, rowCount: rows.length, rows }) + "\n");
+      } else {
+        process.stdout.write(`== conversation ${conversationId} (${rows.length} row${rows.length === 1 ? "" : "s"}) ==\n`);
+        for (const row of rows) process.stdout.write(formatRowTable(row));
+      }
+    }
   }
 
   const reasonsStr =
