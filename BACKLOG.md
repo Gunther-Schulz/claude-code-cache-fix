@@ -1026,6 +1026,27 @@ hook, whose fork-side contract line shipped this session.
   suite end, which would be a SIGKILL nothing traps. Named as unmeasured.
   Reaped by hand again (42 dead-owner roots) purely to unblock pushes; that is
   the fourth use of the stopgap and the argument for the durable half.
+  **NARROWED 2026-08-14 by a full inventory before the fifth reap, and it cuts
+  the caller set rather than repeating the count.** 62 dead roots, ZERO live,
+  and the contents are uniform in a way the "2 per suite run" figure hides:
+  **62 of 62 hold exactly ONE entry, and every one is a `cache-fix-replay-*`
+  scratch** (`tools/replay.mjs:4072`). Not one root belongs to a gate-live,
+  harvest or census scratch. So the leaking process is always a REPLAY
+  invocation specifically — the run root is created, replay's scratch is made
+  inside it, and the process dies before `process.on("exit")` runs.
+  Re-confirmed the clean path the same hour rather than citing the earlier
+  claim: a normal `node tools/replay.mjs <pinned fixture> --census` (exit 0)
+  left the root count UNCHANGED at 62, delta 0. `tmpdir.mjs:62` removes with
+  `rmSync(runRoot, { recursive: true, force: true })`, so a non-empty root is
+  not the obstacle either — that alternative is refuted, not merely unlikely.
+  What remains is exactly the entry's own named next probe (test-runner
+  teardown of a spawned gate-live's replay children), now with the caller set
+  narrowed to replay children and every other producer excluded by measurement.
+  Inventory frozen at
+  `<scratch>/tmp-leftovers-inventory-2026-08-14.txt` before the reap — it is
+  the only record of the 62, and it dies with the session unless promoted.
+  Fifth hand-reap taken to unblock eight commits; the argument for the durable
+  half is now five incidents old.
   <!-- entry: "tmp run-root leak returned, 2 per suite run including passes" -->
 
 - **READY 2026-08-13 — the READY-bar's `Anchor:` resolver rejects a
