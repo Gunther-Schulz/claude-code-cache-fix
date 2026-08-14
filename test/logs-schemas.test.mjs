@@ -36,6 +36,12 @@ import {
   readPrefixDiffDiff,
   readPrefixDiffLast,
   prefixDiffTenant,
+  readCensusDuplicateRow,
+  readCensusDuplicateMember,
+  readCensusDuplicateMemberOutcome,
+  readCensusMismatchRow,
+  readCensusPlacementRow,
+  readCensusVolatileRow,
   cacheReadOf,
   cacheCreationOf,
   messageCountsOf,
@@ -103,6 +109,110 @@ test("CORRECT: a -diff.json record's own spelling returns the same numbers direc
   assert.equal(view.messageCountPrev, 3);
   assert.equal(view.messageCountNow, 4);
   assert.deepEqual(messageCountsOf(view), { prev: 3, now: 4 });
+});
+
+// ---------------------------------------------------------------------------
+// Required red-first bite 3 (this dispatch's own): a census duplicateRow
+// member's capture-outcome usage asked for the misspelled "cacheReads"
+// (dispatch brief D-logs-view's red-first arrangement) — the same
+// wrong-field-name mistake bites 1/2 above replay, on the new censusExport
+// view family. RED-FIRST PROOF (report carries the pasted transcript): run
+// against the UNCHANGED base (before this view existed), this bite fails —
+// there is no `readCensusDuplicateMemberOutcome` export to call at all.
+// ---------------------------------------------------------------------------
+
+const censusOutcomeFixture = {
+  requestId: "req_EXAMPLE22222222222222222",
+  model: "claude-opus-5",
+  ms: 1234,
+  usage: { cacheRead: 15603, cacheCreation: 213429, inputTokens: 500, outputTokens: 2 },
+};
+
+test("THROW: a census duplicateRow member outcome's usage asked for cacheReads (misspelled, not the schema's cacheRead)", () => {
+  const view = readCensusDuplicateMemberOutcome(censusOutcomeFixture);
+  assert.throws(
+    () => view.usage.cacheReads,
+    /unknown field "cacheReads" for format "censusExport\.duplicateRow\.member\.outcome\.usage"/,
+  );
+});
+
+test("CORRECT: the same usage object's real spelling (cacheRead/cacheCreation) parses clean, and cacheReadOf/cacheCreationOf normalize it", () => {
+  const view = readCensusDuplicateMemberOutcome(censusOutcomeFixture);
+  assert.equal(view.usage.cacheRead, 15603);
+  assert.equal(view.usage.cacheCreation, 213429);
+  assert.equal(cacheReadOf(view), 15603);
+  assert.equal(cacheCreationOf(view), 213429);
+});
+
+test("CORRECT: a full duplicateRow (members[].outcome.usage nested) parses clean end to end", () => {
+  const raw = {
+    path: "/x/s-example-requests.jsonl", cid: "cid-1", sid: "sid-1", length: 2,
+    billed: 2, noId: 0, startTs: "2026-08-14T00:00:00.000Z", startLine: 100,
+    lastTs: "2026-08-14T00:00:03.000Z", lastLine: 101, model: "claude-opus-5",
+    nMsg: 6, maxTokens: 64000, intervalMs: 3000,
+    members: [
+      { id: "id-100", ts: "2026-08-14T00:00:00.000Z", line: 100, outcome: censusOutcomeFixture },
+      { id: "id-101", ts: "2026-08-14T00:00:03.000Z", line: 101, outcome: null },
+    ],
+  };
+  const view = readCensusDuplicateRow(raw);
+  assert.equal(view.billed, 2);
+  assert.equal(view.members.length, 2);
+  assert.equal(cacheReadOf(view.members[0].outcome), 15603);
+  assert.equal(view.members[1].outcome, null);
+  assert.throws(() => view.notAField, /unknown field "notAField" for format "censusExport\.duplicateRow"/);
+});
+
+test("THROW: a raw duplicateRow member wrapped directly (readCensusDuplicateMember) rejects an unknown top-level field", () => {
+  const view = readCensusDuplicateMember({ id: "id-1", ts: "t", line: 1, outcome: null });
+  assert.throws(() => view.requestId, /unknown field "requestId" for format "censusExport\.duplicateRow\.member"/);
+});
+
+// ---------------------------------------------------------------------------
+// censusExport.mismatchRow / placementRow / volatileRow — basic strictness,
+// no adopting consumer yet (booked ahead of one, same posture logs.mjs's own
+// header takes) — one throw + one correct-spelling bite each.
+// ---------------------------------------------------------------------------
+
+test("censusExport.mismatchRow: known fields read correctly, unknown field throws, optional wrappedSub/unrelatedDiag default to null when omitted", () => {
+  const raw = {
+    path: "/x/s-example-requests.jsonl", ts: "2026-08-14T00:00:00.000Z", host: 3, blocks: 1,
+    verdict: "MISMATCH", j: null, text: "", recon: "recon-text", sub: null,
+    rejectedCandidate: { j: 5, chars: 40, text: "candidate text" },
+    hostPruned: false, hostIdless: false, mismatchSub: "UNRELATED",
+    wrapped: null,
+  };
+  const view = readCensusMismatchRow(raw);
+  assert.equal(view.mismatchSub, "UNRELATED");
+  assert.equal(view.rejectedCandidate.chars, 40);
+  assert.equal(view.wrapped, null);
+  assert.equal(view.wrappedSub, null, "omitted optional field reads back its declared default");
+  assert.equal(view.unrelatedDiag, null, "omitted optional field reads back its declared default");
+  assert.throws(() => view.notAField, /unknown field "notAField" for format "censusExport\.mismatchRow"/);
+});
+
+test("censusExport.placementRow: known fields read correctly, unknown field throws", () => {
+  const raw = {
+    path: "/x/s-example-requests.jsonl", ts: "2026-08-14T00:00:00.000Z", verdict: "EXACT",
+    blocks: 1, hostIndexBefore: 3, nBefore: 10, hostIndexAfter: 4, standaloneIndex: 6,
+    nAfter: 11, offset: 2, placementClass: "MODE-SAMPLE",
+  };
+  const view = readCensusPlacementRow(raw);
+  assert.equal(view.offset, 2);
+  assert.throws(() => view.between, /unknown field "between" for format "censusExport\.placementRow"/,
+    "not yet a known field on this base — a concurrent lane adds it separately");
+});
+
+test("censusExport.volatileRow: known fields read correctly, unknown field throws", () => {
+  const raw = {
+    path: "/x/s-example-requests.jsonl", sid: "sid-1", ts: "2026-08-14T00:00:00.000Z", cid: "cid-1",
+    line: 5, req: 2, occurrences: 1, lastTs: "2026-08-14T00:00:00.000Z", lastLine: 5, lastReq: 2,
+    kind: "IN-PLACE-TEXT", index: 3, h: "hash", key: "h|r|o", firstBytes: 100, nowBytes: 120,
+    divOffset: 10, cacheControlExempt: false,
+  };
+  const view = readCensusVolatileRow(raw);
+  assert.equal(view.kind, "IN-PLACE-TEXT");
+  assert.throws(() => view.entryId, /unknown field "entryId" for format "censusExport\.volatileRow"/);
 });
 
 // ---------------------------------------------------------------------------
