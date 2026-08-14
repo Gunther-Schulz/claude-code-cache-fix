@@ -221,6 +221,169 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **READY 2026-08-14 — the READY-bar and the boundary resolver read the SAME
+  `Write-set:` slot with DIFFERENT grammars, so an entry can pass the bar and be
+  invisible to the lane derivation.** Measured by walking into it 2026-08-14: three
+  entries booked at the desk carried a well-formed `Write-set:` line naming real
+  files, passed `lintReadyBar` clean, and every one came back
+  `no-resolvable-boundary`. Cause, at file:line: `censusFiles`
+  (`tools/backlog-lint.mjs:655-669`) harvests paths ONLY from inline-code spans
+  (`CENSUS_INLINE_CODE`), so a bare `Write-set: tools/foo.mjs` yields `files: []`
+  and therefore an empty realizing boundary — while the READY bar accepts the same
+  bare line as present and well-formed.
+  **Why this is worth a mechanism and not a style note.** The boundary slot exists
+  so that batching, merging and parallel dispatch are a mechanical JOIN over
+  entries instead of a judgment pass over their prose. An entry invisible to the
+  join does not fail loudly — it silently drops out of every lane derivation and
+  reads as unbatchable, which is indistinguishable from an entry that genuinely
+  names no boundary. That is the quiet direction of a drifting check: it stays
+  green while exercising less than it claims.
+  **The two-instrument shape, recorded because it is the general lesson:** two
+  checks over one slot agreeing on the VERDICT ("this entry has a write set")
+  while disagreeing on the GRAIN (backticked vs bare) is the shared-coordinate
+  failure — they were never comparing the same thing, and the disagreement only
+  surfaced because one of them happened to fire.
+  Design, decided: the READY bar's `Write-set:` check and the boundary resolver
+  read the slot through ONE shared parser, so the two cannot diverge again —
+  derive it from the slot line, not from a second regex over the body. Where a
+  path is cited only in prose, the backtick requirement stands; where it is on the
+  `Write-set:` line, backticks are optional and the parser strips them.
+  Red-first, and the two must DIFFER: an entry with a BARE `Write-set:` naming two
+  real files must resolve to those two files (today it resolves to none), and an
+  entry whose `Write-set:` names only dead paths must still report unresolved.
+  Done: one shared parser serves both checks; a bare `Write-set:` naming two real
+  files resolves to those two files; an entry whose `Write-set:` names only dead
+  paths still reports unresolved; `node tools/backlog-lint.mjs` reports no NEW
+  boundary finding against today's 11; this entry moves to `## Done` with its ref.
+  Loop stage: VERIFY.
+  Anchor: tools/backlog-lint.mjs:655
+  Write-set: `tools/backlog-lint.mjs`, `test/backlog-lint.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
+  <!-- entry: "ready-bar and boundary resolver read the write-set slot with different grammars" -->
+
+- **READY 2026-08-14 — `cache-control-normalize` (order 400) strips the marker's
+  `ttl` and `ttl-management` (order 500) puts it back, and NEITHER FILE SAYS SO.**
+  Found by the forwarded-TTL lane while refuting the downgrade hypothesis, and it
+  is worth more than the refutation: the cited defect at
+  `cache-control-normalize.mjs:53-56` is REAL IN ISOLATION — it reapplies
+  `{ type: "ephemeral" }` with no `ttl` — and is neutralised only because
+  `ttl-management` (order 500) injects `ttl:"1h"` into every ephemeral marker
+  missing one, across `body.system` and every `messages[*].content[*]` block.
+  Measured 2026-08-14 over all six pairs of the 2026-08-13 burst under the SERVING
+  gate set: forwarded tail marker is `{"type":"ephemeral","ttl":"1h"}`, byte-identical
+  to CC's own, and the full forwarded bodies are byte-identical between the
+  extension-enabled and extension-disabled arms. Ordering has been stable since
+  `b4c5fe8` (2026-04-21), so this is not a recent fix masking a bug.
+  **Why this is a build item and not a note.** The coupling is invisible at both
+  ends. A session reading `:53-56` sees a marker shipped without its `ttl` and
+  "fixes" it — now 500 is injecting into an already-correct marker. A session
+  retiring or reordering `ttl-management` silently ships a 1h->5m downgrade on
+  every request, and no gate would catch it: `prefix-diff` compares our forwarded
+  body to our PREVIOUS forwarded body, so a mutation applied identically every
+  request is invisible to it by construction.
+  Design, decided: a one-line comment at each end naming the other and the
+  invariant (`400 strips, 500 restores; changing either without the other changes
+  the wire`), plus a bite that asserts the FORWARDED tail marker carries a `ttl`
+  after the full pipeline — the assertion is on the wire value, not on either
+  extension's own output, so it survives a refactor of either.
+  Red-first, and the two must DIFFER: with `ttl-management` disabled the bite must
+  go red (marker forwarded without `ttl`); with the serving set it must pass.
+  Done: both comments present and naming each other's order number and the
+  invariant; the forwarded-marker bite passes under the serving set and goes red
+  with `ttl-management` disabled, both outputs pasted; pin bumped and restarted;
+  this entry moves to `## Done` with its ref.
+  Loop stage: VERIFY.
+  Anchor: proxy/extensions/cache-control-normalize.mjs
+  Write-set: `proxy/extensions/cache-control-normalize.mjs`, `proxy/extensions/ttl-management.mjs`, `test/ttl-forwarding.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/ttl-forwarding.test.mjs
+  DEPLOYMENT-COUPLED: `proxy/**` — needs a dotfiles pin bump (`git rev-parse --short HEAD:proxy`) and a restart. Comment-only, so row 3 transparency holds.
+  <!-- entry: "cache-control-normalize strips the ttl and ttl-management restores it, undocumented" -->
+
+- **READY 2026-08-14 — row 31's duplicate sidecar send is MITIGABLE, and the
+  fidelity objection that blocked its design is weaker than the row assumed.**
+  The row parked the mitigation as "undesigned, touches the streaming path" with
+  the safe shape named (coalesce one upstream call to both callers) but no
+  predicate. Measured at the desk 2026-08-14, reading the duplicated request's
+  STRUCTURE only (no message text; publication bar): `model claude-haiku-4-5`,
+  `max_tokens 32000`, `stream true`, `nMsg 1`, `roles [user]`, one text block of
+  337 chars, 2 system blocks, **0 tools**.
+  **The load-bearing fact: it carries no conversation history and no tools**, so
+  whatever it returns cannot enter any cached conversation prefix. Handing caller
+  B a copy of caller A's answer therefore substitutes one independently-sampled
+  answer for another in a request whose output joins no prefix — and CC issued the
+  second send 6-25 ms in, with no way to have observed the first, so it already
+  treats the two as interchangeable. That is the fidelity question the row left
+  open, answered.
+  **Cost is NOT the deliberation here** and is recorded so the next session does
+  not re-open it on those grounds: the matrix's own mitigation policy says cost
+  never gates mitigation work and the only per-class deliberation is mitigability.
+  The 48,203 tokens are not a reason in either direction.
+  Design, decided — the scoping predicate, all four required: `nMsg === 1` AND the
+  request carries no `tools` AND the two bodies are byte-identical AND the second
+  arrives < 50 ms after the first while the first is still in flight. The
+  mid-session duplicate class — where the second send is a legitimate retry and
+  suppressing it would leave a real request unanswered — fails this on `nMsg`
+  alone, which is the discriminator the row asked for.
+  Dropping the second send stays UNAVAILABLE: two client requests are in flight
+  and each is owed a response. Coalescing is the only shape.
+  Red-first, and the two must DIFFER: a synthetic pair matching all four
+  conditions coalesces to ONE upstream call with both callers answered; a
+  mid-session pair (nMsg > 1) issues TWO upstream calls unchanged. A pair
+  matching three of four conditions must NOT coalesce.
+  Done: the four-condition predicate is implemented and the three arms above pass
+  with their output pasted; a live sweep after the restart shows the class's
+  duplicate count falling to zero while the mid-session duplicate count is
+  UNCHANGED (the second number is what proves the predicate did not over-reach);
+  row 31's status cell carries the result; this entry moves to `## Done`.
+  Loop stage: MITIGATE.
+  Anchor: row 31
+  Write-set: `proxy/server.mjs`, `test/duplicate-coalesce.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs
+  DEPLOYMENT-COUPLED and it touches the STREAMING path — pin bump, restart at a stated session boundary, and a row-3 declaration BEFORE the restart. Do not bundle it with any other proxy change: attribution of a streaming regression must be unambiguous.
+  Upstream filing (#78420-adjacent) is a separate act and has operator GO.
+  <!-- entry: "row 31 duplicate sidecar coalescing, scoping predicate decided" -->
+
+- **READY 2026-08-14 (small) — the push scan's blob dedupe is keyed on OID ALONE,
+  so identical bytes committed at two different paths in one push are scanned
+  under only the first-encountered path's scope classes.** Returned by the
+  range-interior lane as a named-not-fixed gap, correctly: it read the design's
+  literal wording ("dedupe by blob OID") and declined to widen past it. The
+  consequence is narrow and real — scope classes are chosen per PATH (a JSON file
+  under `test/fixtures/harvested/` gets the full class set, a source file gets
+  two), so the same bytes landing in-corpus and out-of-corpus in one push get only
+  the first path's treatment. Not observed in this repo's history.
+  Design, decided: key `scannedBlobs` on `(oid, scopeClass)` rather than `oid`, so
+  the dedupe still avoids re-reading unchanged content while never collapsing two
+  different scope treatments. Anchor comment already in the code (`scannedBlobs`).
+  Red-first: one blob committed at two paths with different scope classes must be
+  scanned under BOTH; the same blob at one path must still be scanned once.
+  Done: `scannedBlobs` is keyed on `(oid, scopeClass)`; one blob at two paths with
+  different scope classes is scanned under BOTH and the same blob at one path is
+  still scanned once, both outputs pasted; the sweep-accounting cost on
+  `HEAD~30..HEAD` has not materially moved from today's 0.230s; this entry moves
+  to `## Done` with its ref.
+  Loop stage: VERIFY.
+  Anchor: tools/absence-scan.mjs
+  Write-set: `tools/absence-scan.mjs`, `test/absence-scan.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/absence-scan.test.mjs
+  <!-- entry: "absence-scan blob dedupe keyed on oid alone, not oid plus scope" -->
+
+- **PARKED 2026-08-14 — the push scan's interior walk diffs each commit against its
+  FIRST PARENT only, so a merge commit's second-parent-only content is out of
+  reach.** Named by the range-interior lane; it did not widen past the design, which
+  was right. This is a PRE-EXISTING limitation the endpoint diff already carried —
+  the lane inherited it rather than introducing it.
+  MISSING EVIDENCE, named: whether any content can reach `origin` through a
+  second parent that is not also reachable through the first. On this repo's
+  merge topology (fork main merging `upstream/main`) the answer is plausibly yes
+  for upstream-authored blobs, but nobody has measured it, and upstream content is
+  not the leak class this guard exists for. What would un-park this: one measured
+  instance of a blob reachable only via a second parent in a range this repo
+  actually pushed.
+  Loop stage: VERIFY.
+  Anchor: tools/absence-scan.mjs
+  <!-- entry: "absence-scan interior walk is first-parent only on merge commits" -->
+
 - **READY 2026-08-14 — a tool that PRINTS a blocking verdict and EXITS ZERO is
   a guard that blocks nothing, and only one of this repo's blocking lanes has a
   bite pinning the pair.** Measured the same day, during the lane-pile
@@ -3515,7 +3678,7 @@ hook, whose fork-side contract line shipped this session.
   **Two desk checks the lane did not run.** Its bites inject the registry path rather than reading the machine's, which is correct for portability and means the committed suite never touches real state — so the live arms were re-run here: AT/AU warn, AV/AW/BA/BB silent. And the lane's own deviation note says the hygiene guard blocked its first attempt at UUID-shaped test placeholders; that is the guard firing on a synthetic value in a test, which is the false-fire direction this repo watches — recorded, not acted on, since the lane's workaround (non-UUID placeholders) costs nothing and the guard's reach is deliberate.
   PROCEDURE half: DONE separately, as the READY bar's fourth clause at the top of this file.
   Original entry follows, RE-GRADED rather than left at READY.
-- **READY — a booked verifier names a live capture as its calibration evidence and NOTHING pins it at booking time; two entries have now lost theirs.** Measured 2026-08-10 by the read-only evidence lane, which could not execute either design because the data was already gone. One entry's motivating pair is off disk, never pinned; another's five backing captures are all gone — searched across the whole cache-fix data tree and the committed fixtures, zero hits. Not "about to expire": already expired. The corpus also shrank from 89 captures to 58 in the same window.
+- **(CLOSED — design record only; both halves shipped, see the re-grade bullet directly above. Header de-READY'd 2026-08-14 after it mis-ranked a build order; body still awaiting its MOVE to `## Done` in the exit pass.) — a booked verifier names a live capture as its calibration evidence and NOTHING pins it at booking time; two entries have now lost theirs.** Measured 2026-08-10 by the read-only evidence lane, which could not execute either design because the data was already gone. One entry's motivating pair is off disk, never pinned; another's five backing captures are all gone — searched across the whole cache-fix data tree and the committed fixtures, zero hits. Not "about to expire": already expired. The corpus also shrank from 89 captures to 58 in the same window.
   **What makes this a class and not two accidents:** an entry is booked with a red-first arrangement pointing at live, mutating state; the arrangement is correct on the day it is written; the capture rotates on a quadratic clock, oldest-mtime-first — which takes the QUIET session first, and a session goes quiet exactly when it stops being traffic and starts being evidence. Nothing in the booking path notices. This repo already carries the rule that a red-first arrangement is anchored to an immutable reference; what it lacks is anything that CHECKS that at the moment a booking is written.
   **The correction to the obvious repair, and it is the load-bearing half:** the answer is NOT to find a substitute calibration case. `docs/dev-loop.md` is explicit — a check whose motivating case dissolves does not get a substitute found for it, because it would ship having never gone red on a real defect. An entry whose calibration evidence expired is therefore not re-armable by shopping for a fresh instance; it is re-armable only by capturing and pinning the NEXT live occurrence, which makes the pin the deliverable and the fix the thing that waits.
   Design, decided, in two halves. MECHANISM: `backlog-lint` gains a check that an entry citing a capture ALIAS in its verifier resolves that alias against the alias registry and against committed fixtures, and WARNs when it resolves to neither — computable with near-zero false fires, since an alias is a closed vocabulary. PROCEDURE: an entry whose verifier names a live capture pins it in the same action that books it, and where the class cannot survive the scrub (literal-text predicates) the entry says so rather than pretending the pin carries it.
