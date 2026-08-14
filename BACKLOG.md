@@ -352,115 +352,6 @@ now means some child DIED HARD and is a finding about that child.
   which diff they have to read. That question is the round's live half.
   <!-- entry: "the 276 fixes were never on the branch" -->
 
-- **PARKED 2026-08-14 — our own public comment on CC #78420 says the duplicate
-  does NOT reproduce here, and row 31 then measured 47 of them. The two cannot
-  both be right, and the public one is ours.** Posted 2026-07-29 on
-  `anthropics/claude-code#78420`: "across 3,446 requests in seven session
-  captures spanning three days: one adjacent-identical instance
-  (retry-shaped, isolated), no doubling pattern" — offered as a negative data
-  point for scoping. Row 31 (matrix, 2026-08-14) measured **118 duplicate
-  streaks, 62 double-billed, 47 of them one class**: byte-identical adjacent
-  same-conversation sidecar pairs, 6-25 ms apart, both answered, both charged.
-  **The shapes differ and that is NOT the resolution.** #78420 is a doubled
-  conversation PREFIX with `cache_read ≈ 2.00×`; row 31 is a duplicate
-  single-message sidecar. But the PREDICATE our comment reported on — adjacent
-  byte-identical request bodies within a session — is the one row 31 found 47
-  of. So the comment's number is at best incomplete for the claim it was
-  offered as.
-  **Why this outranks filing anything new:** a claim shipped as fact in a
-  public thread is rested on by its readers, and correcting it is owed whether
-  or not we ever post again. It is also the reason nothing should be posted
-  there until it is explained — a correction that arrives beside an
-  unexplained contradiction reads as noise.
-  NAMED MISSING EVIDENCE — the three candidate explanations:
-  (a) the July corpus was 7 captures with few session starts, so the class had
-  few chances to appear; (b) the July probe's adjacency was defined
-  differently from the census's same-conversation adjacency; (c) CC changed
-  between 2.1.220 and 2.1.221.
-  **CORRECTED 2026-08-14 (second entry the same day, by probing this entry's
-  own premise before building against it): the sentence that stood here —
-  "TRACKED FIXTURES from that period survive, so (a) and (b) are answerable
-  offline and (c) is answerable from the version stamps in the boot records" —
-  is FALSE on all three counts, and the measurement it commissioned would have
-  produced numbers meaning nothing.** Measured over the 11 tracked
-  `test/fixtures/harvested/pinned-*.json`: every timestamp inside a fixture is
-  scrubbed to `2000-01-01T00:00:00.000Z` (header `harvestedAt` included), so
-  neither an ERA nor the 6-25 ms intervals row 31's class is defined by are
-  recoverable; pin boot records carry `proxyTree` + `gates` and NO Claude Code
-  version, so (c) is unanswerable from fixtures at all; and only ONE pin was
-  committed before August (2026-07-31, 3 request records), so there is no
-  July-era corpus in the tree to measure. The scrub preserves structure and
-  destroys exactly the two predicates this entry needed — the
-  curation-axis blindness this repo already documents, arriving in the axis
-  nobody had checked for it.
-  **(b) WAS ALREADY MEASURED AND FALSIFIED, 2026-07-30, and this entry was
-  written without reading it.** See the RESOLVED entry in `## Record`
-  ("duplicate-request contradiction: ~100 adjacent identical pairs vs the
-  booked 'one instance in 3,446'"): the definition-mismatch hypothesis was
-  tested against the then-current corpus and the answer was that global and
-  per-conversation adjacency "differs marginally" — the growth was corpus
-  CONTENT. That record also states the honest gap: the 07-29 probe's exact
-  runtime and file list are not recoverable. That entry is a document, so it
-  is a prompt to re-measure rather than a discharge.
-  WHAT REPLACES THE FIXTURE ROUTE: the two definitions measured side by side
-  over the corpus that actually exists — the 57 LIVE captures — so the
-  definitional question is answered on production-shaped input rather than
-  argued. Dispatched 2026-08-14 (`tools/duplicate-adjacency-probe.mjs`, arm
-  CONV = the shipped `findDuplicateRequests`, arm FILE = global capture-line
-  adjacency, with a discrimination control that must make the two arms
-  disagree on an interleaved pair). The 11 pins ride along as the committed,
-  reproducible arm — a structural corpus, never a rate.
-  **MEASURED 2026-08-14 — the two arms diverge by 2.3x, so the definition
-  mismatch is a LIVE mechanism, not the falsified one the 2026-07-30 record
-  reports.** `tools/duplicate-adjacency-probe.mjs` (`22781b3`, dispatched
-  lane) over 67 inputs / 21,739 request records — 11 tracked pins and the 56
-  live captures present at measurement time (the corpus rotated from 57
-  mid-session; deviation named by the lane, not papered over):
-  pins FILE **0**/2,007 compared vs CONV **14**/1,340; live FILE **65**/19,665
-  vs CONV **148**/16,525; combined FILE **65** vs CONV **162**. Arm FILE is
-  the July probe's likely shape (raw capture-line adjacency) and it undercounts
-  by more than half, because interleaved main/subagent/sidecar traffic breaks
-  adjacency that conversation grouping restores. The instrument's controls ran
-  first: a planted duplicate is found by BOTH arms, a strict append by
-  neither, and an interleaved pair separates them (CONV 1, FILE 0) — the
-  constructed discriminator reproducing at corpus scale is what makes the
-  divergence readable as a definition effect rather than as noise.
-  **This re-grades the correction one paragraph up.** That paragraph leaned on
-  the 07-30 record's "global vs per-conversation differs marginally" to call
-  (b) falsified. At today's corpus it is not marginal. Both can be true of
-  their own corpora and the 07-30 corpus is rotated, so the honest state is:
-  (b) explains PART of the gap and cannot be closed; the rest is corpus
-  content, which the pins' own 0/2,007 shows from the other side.
-  **THE FINDING THAT DECIDES WHAT MAY BE POSTED, and it came from closing the
-  lane's own not-verified slot rather than from the totals.** The lane flagged
-  two outliers as data. The larger one is a **RETRY STORM, not duplicate
-  billing**: 17 request records, one opus-5 `msgs=2` request repeated 13 times
-  at growing intervals (3.5s → 41.9s, i.e. backoff), and NO outcome record for
-  any of them — the exact shape the 2026-07-30 record already named as "client
-  retries against upstream/proxy errors, not the #78420 billing shape". So the
-  predicate our public comment reported on — adjacent byte-identical bodies —
-  CONFLATES two populations, and a correction quoting a raw duplicate count
-  would replace one wrong number with another.
-  **The split is already measured by the production instrument** and needs no
-  new tool: today's sweep (`gate-status.json`, 16:46:26Z, pre-flip traffic)
-  carries `byteGate.duplicates` = 144 pairs / 114 streaks / maxStreak 11 / 258
-  requests, of which **134 billed requests, 78 billed streaks, 55
-  double-billed streaks**, `membersWithoutId: 0` (so the join is complete
-  rather than silently partial). Roughly half the streaks are billed twice;
-  the rest are the retry class above.
-  WHAT THE CORRECTION MAY THEREFORE CLAIM, and it is stronger than a
-  retraction: the July negative rested on a definition that undercounts by
-  2.3x AND on a predicate that does not separate retries from double billing;
-  measured properly the class is present here at 114 streaks per sweep with 55
-  double-billed. Draft owed; operator GO before posting.
-  Trigger to re-grade: none outstanding for the measurement — the remaining
-  gate is the drafted correction.
-  Loop stage: ATTRIBUTE.
-  Anchor: docs/directives/robustness-threat-matrix.md
-  Write-set: tools/duplicate-adjacency-probe.mjs (+ its test), then a drafted
-  correction comment (operator GO before posting)
-  <!-- entry: "our public 78420 comment contradicts row 31" -->
-
 - **READY 2026-08-14 — CC #82642 got an independent second measurement today;
   ours would make it a third platform, and the measurement is short.**
   `anthropics/claude-code#82642` (PreToolUse denials discard `decisionReason`)
@@ -12997,6 +12888,127 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-14 (posted: `anthropics/claude-code#78420` comment
+  `5297021582`; original comment `5117558047` pointer-edited the same
+  minute) — the correction is public, in the form the 2026-08-14 round
+  settled: new comment plus pointer-edit, never a silent rewrite.** Compose
+  followed `docs/runbooks/public-comms.md` (minted the same evening,
+  `338ac0c`): every number re-measured at compose time — probe re-run gave
+  FILE 65/21,364 vs CONV 160/17,564 over 21,431 records (corpus rotated
+  from this entry's 65 vs 162 over 21,739; the 2.5x definition gap is the
+  stable fact and is what posted), billing split re-read exact from
+  `gate-status.json` (144/114/258/134/55, `membersWithoutId: 0`), and the
+  entry's own "the rest are the retry class" wording was corrected before
+  posting: 23 of the 59 non-double-billed streaks were billed ONCE, only
+  36 never answered. The walk's body follows as booked:
+  does NOT reproduce here, and row 31 then measured 47 of them. The two cannot
+  both be right, and the public one is ours.** Posted 2026-07-29 on
+  `anthropics/claude-code#78420`: "across 3,446 requests in seven session
+  captures spanning three days: one adjacent-identical instance
+  (retry-shaped, isolated), no doubling pattern" — offered as a negative data
+  point for scoping. Row 31 (matrix, 2026-08-14) measured **118 duplicate
+  streaks, 62 double-billed, 47 of them one class**: byte-identical adjacent
+  same-conversation sidecar pairs, 6-25 ms apart, both answered, both charged.
+  **The shapes differ and that is NOT the resolution.** #78420 is a doubled
+  conversation PREFIX with `cache_read ≈ 2.00×`; row 31 is a duplicate
+  single-message sidecar. But the PREDICATE our comment reported on — adjacent
+  byte-identical request bodies within a session — is the one row 31 found 47
+  of. So the comment's number is at best incomplete for the claim it was
+  offered as.
+  **Why this outranks filing anything new:** a claim shipped as fact in a
+  public thread is rested on by its readers, and correcting it is owed whether
+  or not we ever post again. It is also the reason nothing should be posted
+  there until it is explained — a correction that arrives beside an
+  unexplained contradiction reads as noise.
+  NAMED MISSING EVIDENCE — the three candidate explanations:
+  (a) the July corpus was 7 captures with few session starts, so the class had
+  few chances to appear; (b) the July probe's adjacency was defined
+  differently from the census's same-conversation adjacency; (c) CC changed
+  between 2.1.220 and 2.1.221.
+  **CORRECTED 2026-08-14 (second entry the same day, by probing this entry's
+  own premise before building against it): the sentence that stood here —
+  "TRACKED FIXTURES from that period survive, so (a) and (b) are answerable
+  offline and (c) is answerable from the version stamps in the boot records" —
+  is FALSE on all three counts, and the measurement it commissioned would have
+  produced numbers meaning nothing.** Measured over the 11 tracked
+  `test/fixtures/harvested/pinned-*.json`: every timestamp inside a fixture is
+  scrubbed to `2000-01-01T00:00:00.000Z` (header `harvestedAt` included), so
+  neither an ERA nor the 6-25 ms intervals row 31's class is defined by are
+  recoverable; pin boot records carry `proxyTree` + `gates` and NO Claude Code
+  version, so (c) is unanswerable from fixtures at all; and only ONE pin was
+  committed before August (2026-07-31, 3 request records), so there is no
+  July-era corpus in the tree to measure. The scrub preserves structure and
+  destroys exactly the two predicates this entry needed — the
+  curation-axis blindness this repo already documents, arriving in the axis
+  nobody had checked for it.
+  **(b) WAS ALREADY MEASURED AND FALSIFIED, 2026-07-30, and this entry was
+  written without reading it.** See the RESOLVED entry in `## Record`
+  ("duplicate-request contradiction: ~100 adjacent identical pairs vs the
+  booked 'one instance in 3,446'"): the definition-mismatch hypothesis was
+  tested against the then-current corpus and the answer was that global and
+  per-conversation adjacency "differs marginally" — the growth was corpus
+  CONTENT. That record also states the honest gap: the 07-29 probe's exact
+  runtime and file list are not recoverable. That entry is a document, so it
+  is a prompt to re-measure rather than a discharge.
+  WHAT REPLACES THE FIXTURE ROUTE: the two definitions measured side by side
+  over the corpus that actually exists — the 57 LIVE captures — so the
+  definitional question is answered on production-shaped input rather than
+  argued. Dispatched 2026-08-14 (`tools/duplicate-adjacency-probe.mjs`, arm
+  CONV = the shipped `findDuplicateRequests`, arm FILE = global capture-line
+  adjacency, with a discrimination control that must make the two arms
+  disagree on an interleaved pair). The 11 pins ride along as the committed,
+  reproducible arm — a structural corpus, never a rate.
+  **MEASURED 2026-08-14 — the two arms diverge by 2.3x, so the definition
+  mismatch is a LIVE mechanism, not the falsified one the 2026-07-30 record
+  reports.** `tools/duplicate-adjacency-probe.mjs` (`22781b3`, dispatched
+  lane) over 67 inputs / 21,739 request records — 11 tracked pins and the 56
+  live captures present at measurement time (the corpus rotated from 57
+  mid-session; deviation named by the lane, not papered over):
+  pins FILE **0**/2,007 compared vs CONV **14**/1,340; live FILE **65**/19,665
+  vs CONV **148**/16,525; combined FILE **65** vs CONV **162**. Arm FILE is
+  the July probe's likely shape (raw capture-line adjacency) and it undercounts
+  by more than half, because interleaved main/subagent/sidecar traffic breaks
+  adjacency that conversation grouping restores. The instrument's controls ran
+  first: a planted duplicate is found by BOTH arms, a strict append by
+  neither, and an interleaved pair separates them (CONV 1, FILE 0) — the
+  constructed discriminator reproducing at corpus scale is what makes the
+  divergence readable as a definition effect rather than as noise.
+  **This re-grades the correction one paragraph up.** That paragraph leaned on
+  the 07-30 record's "global vs per-conversation differs marginally" to call
+  (b) falsified. At today's corpus it is not marginal. Both can be true of
+  their own corpora and the 07-30 corpus is rotated, so the honest state is:
+  (b) explains PART of the gap and cannot be closed; the rest is corpus
+  content, which the pins' own 0/2,007 shows from the other side.
+  **THE FINDING THAT DECIDES WHAT MAY BE POSTED, and it came from closing the
+  lane's own not-verified slot rather than from the totals.** The lane flagged
+  two outliers as data. The larger one is a **RETRY STORM, not duplicate
+  billing**: 17 request records, one opus-5 `msgs=2` request repeated 13 times
+  at growing intervals (3.5s → 41.9s, i.e. backoff), and NO outcome record for
+  any of them — the exact shape the 2026-07-30 record already named as "client
+  retries against upstream/proxy errors, not the #78420 billing shape". So the
+  predicate our public comment reported on — adjacent byte-identical bodies —
+  CONFLATES two populations, and a correction quoting a raw duplicate count
+  would replace one wrong number with another.
+  **The split is already measured by the production instrument** and needs no
+  new tool: today's sweep (`gate-status.json`, 16:46:26Z, pre-flip traffic)
+  carries `byteGate.duplicates` = 144 pairs / 114 streaks / maxStreak 11 / 258
+  requests, of which **134 billed requests, 78 billed streaks, 55
+  double-billed streaks**, `membersWithoutId: 0` (so the join is complete
+  rather than silently partial). Roughly half the streaks are billed twice;
+  the rest are the retry class above.
+  WHAT THE CORRECTION MAY THEREFORE CLAIM, and it is stronger than a
+  retraction: the July negative rested on a definition that undercounts by
+  2.3x AND on a predicate that does not separate retries from double billing;
+  measured properly the class is present here at 114 streaks per sweep with 55
+  double-billed. Draft owed; operator GO before posting.
+  Trigger to re-grade: none outstanding for the measurement — the remaining
+  gate is the drafted correction.
+  Loop stage: ATTRIBUTE.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: tools/duplicate-adjacency-probe.mjs (+ its test), then a drafted
+  correction comment (operator GO before posting)
+  <!-- entry: "our public 78420 comment contradicts row 31" -->
 
 - **DONE 2026-08-14 (`338ac0c`) — public-comms rules carrier minted:
   `docs/runbooks/public-comms.md`, indexed in dev-loop.md's event table.**
