@@ -221,6 +221,34 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **PARKED 2026-08-14 — row 31's mitigation is LIVE but its done-criterion is
+  not measured yet, and the measurement is a two-sided one that a casual read
+  will get half right.** `CACHE_FIX_COALESCE_SIDECAR=1` since 2026-08-14
+  (dotfiles `7050372`, acceptance `700833b`). What closes the row: across a
+  full sweep, the SESSION-START duplicate class (haiku, `nMsg=1`,
+  `max_tokens=32000`, capture lines 3-5, intervals 6-25 ms) falls to 0
+  double-billed streaks, WHILE the mid-session class stays UNCHANGED.
+  **Both halves are the criterion.** A fall in the mid-session count would be
+  over-reach, not success: there the second send is a real retry whose first
+  attempt has no completion record, and suppressing it would leave a real
+  request unanswered. The mitigation's four conditions are built to make that
+  impossible (one message, no tools), so a mid-session drop would mean a
+  condition is not holding — a finding about the fence, not a win.
+  **The new number to read it with**, so nobody hand-derives it again:
+  `coalescedRequests` / `coalescedStreaks` in the census rollup, and
+  `duplicate-billing`'s COALESCED join class. The pre-flip baseline is the
+  2026-08-14 sweep's own duplicates block.
+  NAMED MISSING EVIDENCE: a full sweep over a corpus whose captures were
+  written with the gate ON. The 2026-08-14 sweeps ran against pre-flip
+  traffic, so their duplicate counts cannot answer this either way — the
+  captures have to age past the flip first.
+  Trigger to re-grade: the first sweep whose window lies entirely after
+  2026-08-14 18:17 local.
+  Loop stage: VERIFY.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: docs/directives/robustness-threat-matrix.md (row 31 status)
+  <!-- entry: "row 31 done-criterion unmeasured after the coalesce flip" -->
+
 - **READY 2026-08-14 — `bust-triage` stops one question short: it names the ROW
   and never says whether the mitigation ABSORBED, so the answer gets hand-derived
   from jq every time — and today that hand-derivation pointed the WRONG WAY.**
