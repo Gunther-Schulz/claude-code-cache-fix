@@ -208,6 +208,37 @@ now means some child DIED HARD and is a finding about that child.
 
 ## Open
 
+- **PARKED 2026-08-14 — public-comms rules have no carrier: every issue/PR
+  comment round re-derives form, timing, and style from precedent.** Operator
+  (2026-08-14, mid-review round): "wir sollten hier im repo auch mal regeln
+  persistieren, wie und wann und in welchem stil issues kommentiert und
+  reagiert und neue geöffnet werden. möglicherweise ähnliches auch für PRs."
+  Today produced the corpus to distill: five posts in one day (#82642
+  comment, #306, #276, #336, #337) plus the #78420 correction round, and the
+  fresh-context review of them surfaced the rule candidates — a number ships
+  only with its instrument named and re-runnable (every verified number in
+  the set survived; the one unverified sentence, "third platform", is the one
+  that shipped wrong); a third party's figures are restated only after
+  reading the LIVE thread, never from our own backlog's paraphrase (that is
+  where "third platform" was minted); footer + session link on everything
+  authored under the operator's account; operator GO before anything public
+  (standing rule, restated in the doc so it has one home); corrections to
+  our own posts as new-comment-plus-pointer-edit (pending this round's
+  confirmation); a comment answers the thread's actual ask before adding
+  findings (#306's opener is the model).
+  **Design, decided:** one tracked doc `docs/runbooks/public-comms.md` —
+  rules only, no session content, so the publication bar is untouched —
+  indexed in dev-loop.md's "Which line are you on" table with trigger "a
+  public comment/issue/PR post is about to be written";
+  `upstream-pr-round.md` keeps PR-round mechanics and gains a pointer, not a
+  duplicate. Write-boundary: this repo (docs/runbooks/ + the dev-loop.md
+  index row). Done-criterion: doc committed and indexed; verifier: its
+  checklist applied to the next real post in the posting reply.
+  **Named missing piece (why PARKED, not READY): the operator's answers to
+  the 2026-08-14 form round** (edit-vs-new policy, footer-on-edit policy) —
+  they are content of the doc, not decoration; fold them in, do not guess
+  them. Flips to READY the moment the round settles.
+
 - **RECORD 2026-08-14 — the PR-round doorbell has a WRITER and no READER, and
   that cost eight days of silence on two open rounds.** RECORD and not READY
   on purpose: the realizing write is a hook in the dotfiles repo, outside this
