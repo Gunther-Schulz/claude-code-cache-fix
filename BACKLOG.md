@@ -362,6 +362,43 @@ hook, whose fork-side contract line shipped this session.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/census-placement-rows.test.mjs
   <!-- entry: "row 4 placement: the intervening messages between host and standalone are unexported" -->
 
+- **READY 2026-08-14 — `tools/logs.mjs` owns the RAW formats and has no view
+  for the DERIVED ones, so every consumer of a census export hand-reads
+  capture-outcome field names by construction.** Surfaced the same day by the
+  schema-scope sweep firing on `tools/duplicate-billing.mjs`, correctly:
+  that tool's usage.jsonl side goes through `readUsageLogRecord`, and its
+  capture-outcome side reads `cacheRead`/`cacheCreation`/`inputTokens` off
+  `duplicateRows[].members[].outcome` in a census `--json --verbose` export.
+  Declared KNOWN-OPEN in the sweep's inventory rather than exempted (the
+  names really are that schema's, so it is not a false positive) — but the
+  inventory is the holding pattern, not the fix.
+  **Why this will keep firing:** the census export is a real format this repo
+  writes, with a real schema, and it is the format every downstream analysis
+  reads. Nothing owns it. That is the same gap `logs.mjs` was built to close
+  one level up, and the sweep will now flag each new consumer as it lands —
+  which is the guard working, and also the tell that the reader stops one
+  format short.
+  **Design, decided:** add a `censusExport` view family to `tools/logs.mjs` —
+  a strict view per row array (`duplicateRows`, `mismatchRows`,
+  `placementRows`, `volatileRows`) that THROWS on an unknown field name, the
+  same stance the four existing views take; `duplicate-billing` adopts it and
+  leaves the sweep's inventory in the same commit. The census stays the
+  writer; the reader stays the one place field names are spelled.
+  **Red-first arrangement:** a fixture census export with a misspelled field
+  (`cacheReads`) must throw from the view and be caught by a bite, while the
+  real export parses clean — and the sweep's own inventory entry for
+  `tools/duplicate-billing.mjs` must be REMOVED by the same commit, which the
+  sweep verifies by failing if the file still hand-parses.
+  **Done:** `duplicate-billing` imports the view, the inventory entry is gone,
+  and `node --test test/logs-schemas.test.mjs` is green with the file no
+  longer in scope.
+  Loop stage: VERIFY (it is the instrument layer every duplicate-billing and
+  row-4 measurement now reads through).
+  Anchor: tools/logs.mjs
+  Write-set: tools/logs.mjs, tools/duplicate-billing.mjs, test/logs-schemas.test.mjs, test/duplicate-billing.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/logs-schemas.test.mjs test/duplicate-billing.test.mjs
+  <!-- entry: "logs.mjs has no view for the census export, so every downstream consumer hand-reads the schema" -->
+
 - **PARKED 2026-08-14 — the EXPENSIVE duplicate population is a RETRY after
   an incomplete first attempt, not a double answer, and the named missing
   evidence is why the first attempt did not complete.** 15 mid-session

@@ -364,6 +364,22 @@ const SWEEP_KNOWN_OPEN = [{
   path: "tools/cold-events.mjs",
   reason: "genuine captureOutcome hand-parse (u.cacheRead/u.cacheCreation); " +
           "adopting tools/logs.mjs here is a separate booked entry",
+}, {
+  path: "tools/duplicate-billing.mjs",
+  // Declared 2026-08-14, the day the file landed, and the classification took
+  // reading the file rather than the guard's output: the usage.jsonl side DOES
+  // go through the owning reader (`readUsageLogRecord`), and what the sweep
+  // catches is the CAPTURE-OUTCOME side — `cacheRead`/`cacheCreation`/
+  // `inputTokens` read off `duplicateRows[].members[].outcome` in a census
+  // `--json --verbose` export. That is a DERIVED format the census itself
+  // built through its own `outcomeFacts`, and `tools/logs.mjs` has no view for
+  // it: its `captureOutcome` view reads raw capture records. So this is not a
+  // false positive (the names really are that schema's) and not a reader the
+  // file could simply adopt today — the durable fix is a census-export view in
+  // the owning reader, booked separately.
+  reason: "captureOutcome field names read off a census EXPORT (a derived " +
+          "format logs.mjs has no view for); the usage.jsonl side already " +
+          "uses readUsageLogRecord. Census-export view: separate booked entry",
 }];
 
 // Pure so a planted file can be fed straight in — the instrument-positive
