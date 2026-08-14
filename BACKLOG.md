@@ -510,45 +510,6 @@ hook, whose fork-side contract line shipped this session.
   <!-- entry: "a tool that prints a blocking verdict and exits zero blocks nothing" -->
 
 
-- **READY 2026-08-14 — `replay.mjs` exports `conversationOf` but not the hash
-  it needs, so a tool holding RAW `body.messages` cannot use the repo's own
-  identity function at all.** Returned as a question by the breakpoint-scan
-  lane, which hit it while obeying the rule it was pointed at: `conversationOf`
-  (`tools/replay.mjs:1092`) reads `e.inHash[0]`, an array built by
-  `compactEntry` from a private, unexported `sha`. A tool whose records are raw
-  requests has no `inHash` and cannot build one without re-deriving the hash —
-  the exact anti-pattern `docs/dev-loop.md` names ("never hand-roll identity in
-  a probe"). The lane correctly used `conversationSubKey` from
-  `proxy/extensions/message-hash.mjs` instead and did not touch `replay.mjs`.
-  **Why it is a real gap and not a naming preference:** the rule says "if a tool
-  needs an identity that is not exported yet, export it rather than restate it",
-  and today the export that would satisfy a raw-records caller does not exist.
-  `tools/cache-sim.mjs` already worked around it the same way, so this is the
-  second instance.
-  **Design, decided:** export from `tools/replay.mjs` an `inHashOf(messages)`
-  (the same hashing `compactEntry` performs, factored out, not copied), so
-  `conversationOf` becomes reachable from a raw-messages caller in one step;
-  `conversationSubKey` stays the sub-key grain. Then say so at the identity
-  section of `docs/dev-loop.md`: `conversationSubKey` is the raw-`messages`
-  entry point, `conversationOf` the compactEntry-pair one — the lane's own
-  candidate lesson, and the half that stops the next brief naming the wrong one.
-  **Red-first arrangement, and the two must DIFFER:** on one real capture,
-  `conversationOf(compactEntry(rec))` and `conversationOf({inHash: inHashOf(rec.body.messages)})`
-  return the SAME id for the same record, and DIFFERENT ids for two records of
-  different conversations. A pair that agrees on identical inputs but never
-  differs has not demonstrated the identity.
-  Done: `inHashOf` is exported, both arms of the identity pair above pass, at
-  least one raw-messages caller (`breakpoint-scan`) reads its conversation id
-  through `conversationOf` instead of a sibling, and `docs/dev-loop.md`'s
-  identity section names which entry point is which; this entry moves to
-  `## Done` with its commit ref.
-  Loop stage: ATTRIBUTE (every cross-record comparison in this repo is grouped
-  by this key).
-  Anchor: tools/replay.mjs
-  Write-set: tools/replay.mjs, test/replay-row-identity.test.mjs, docs/dev-loop.md
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/replay-row-identity.test.mjs
-  <!-- entry: "replay.mjs exports conversationOf but not the hash a raw-messages caller needs" -->
-
 - **READY 2026-08-14 — the schema-scope sweep is a literal per-line regex, so
   it fires on a CONSUMER's own output field names and "adopt the reader" cannot
   clear it.** Returned by the logs-view lane, which had to rename
@@ -3541,17 +3502,6 @@ hook, whose fork-side contract line shipped this session.
   **The doctor half is NOT dropped, it moved to its own repo** — booked in dotfiles `07573c4` as READY, with its design (a `d1_retirement_verdict` beside `bytegate_verdict`), its three answers, and its red-first pair. It was not built in this turn for a stated reason rather than a vague one: when the entry was written the live status file still predated the writer, so a verdict authored against it would have graded a shape it had never seen. That is now false — the emission above is the shape.
   **A defect the lane surfaced by being EXECUTED rather than read** (`a7f04a0`): step 7's three-way compare was not executable on a scheduled run. The unit and `/health` carry eleven gates and the status file nine; `gate-live`'s header says the two artifact-only exclusions are "named in the output so nobody reads them as tested", but that line sits behind `!args.quiet` and the systemd unit passes `--quiet` — so the only run that writes the artifact step 7 reads is the only run whose artifact omits the explanation. `gatesExcludedArtifactOnly` now rides on the status object, sourced from the same Set the filter applies; step 7 became a union compare with the commands written out. Two bites, red-first by name against the unmodified tool, each asserting disjointness AND union because either alone passes on a defect the other catches.
   Original entry follows, RE-GRADED rather than left at READY.
-- **READY (small) — D1's retirement trigger is a HAND-GREP, and a code comment in two shipped extensions asserts it is booked. This entry is what makes that comment true.** Booked 2026-08-10 immediately after the assertion was checked and found false — the named-and-unbooked class, committed one level above the very defect the same commit had just fixed, which is the useful part of the record: `a5f1960` repaired an over-wide assurance about `gate-live` and then made a second one ("Wiring it there is booked") inside the repair itself.
-  **The gap.** D1's bridge retires when `oldKeyFallback` is absent from the event logs for seven consecutive days. Those events live in `~/.local/state/cache-fix/snapshots/*-{insertion,deferred-tool}-events.jsonl`; `gate-live` replays CAPTURES and never reads that directory, so the retirement question is answerable only by a hand-grep nobody will run on day seven. A trigger whose evaluation depends on someone remembering is not a trigger.
-  Design, decided: `gate-live` gains a snapshots pass counting `oldKeyFallback:true` records and the newest such record's date, carrying `d1OldKeyFallback: {hits, newestUtc, filesScanned}` in the status file; `doctor` reads it as a third answer so a stale or unwritten count FAILS rather than reading as a silent zero. `filesScanned` is load-bearing, not decoration — a zero over zero files is this repo's could-not-verify case and must never render as clean.
-  Verifier, red-first, both arms required: a scratch snapshots dir with one planted `oldKeyFallback:true` record must report `hits: 1`; the same dir without it `hits: 0` with `filesScanned` non-zero. Negative control measured and dated today so a future non-zero is a real transition rather than a first reading: the real snapshots dir reads **0 hits over 9,533 event files** at ~19:58Z.
-  **A correction worth keeping, because it is the exact defect this repo names.** That control was first written here as "0 hits over 20 event files" — 20 being the count of event files TOUCHED SINCE THE RESTART (13 insertion + 7 deferred), a different population from all event files, carried across from an earlier measurement of a different quantity. Two numbers, both real, describing different sets; the wrong one read as a total. Caught by re-running the count instead of citing it, which is the whole content of "an entry that says MEASURED without the executed output beside it is making a claim in the costume of a result". It also changes the DESIGN input rather than being cosmetic: a pass over 9,533 files is not free, so the implementation scopes by mtime window (the ~20/hour figure is the honest rate) rather than scanning the directory whole — and `filesScanned` must therefore report the scoped count with its window, or a small number will read as a small corpus rather than as a narrow scope.
-  **WIDENED 2026-08-11 at the desk, and the widening is one field in the same pass rather than a second entry.** Re-verifying the row-26 mitigation found that its own done-criterion parts 2 and 3 — `deferred-tool-rewrite` reporting `rewrite`/`unchanged` rather than `no-baseline` on a relocating request, and the forwarded `tools[]` byte-identical across the pair — are asserted by nothing (`grep -rln "PRE_PIPELINE_CONV\|prePipelineConv" test/ tools/` returns one file, which asserts neither). That is the ABSORPTION question, and the counter that looks like it answers it does not: `identityRotations.transitions` compares raw against forwarded `messages[0]` (`replay.mjs:1136-1153`), i.e. our pipeline still relocating, which D1 deliberately does not stop. The snapshots pass this entry already specifies is walking exactly the files that carry the answer, so it also emits `d1PostRelocationNoBaseline: {count, newestUtc}` — `no-baseline` actions logged under a key that rotated, which post-D1 should be ZERO and whose non-zero is the class re-opening. Same red-first shape as the `oldKeyFallback` arms and the same `filesScanned` guard: a zero over zero files is could-not-verify, never clean.
-  Done-criterion: the seven-day question AND the absorption question are answerable from `gate-status.json` alone, and both extensions' comments then cite the fields instead of a grep. Realizing write-boundary: `tools/gate-live.mjs` + a test, then the comment update in both extensions. Consumer tier **2 (feeds the gates)**. Loop stage: VERIFY.
-  Anchor: row 26
-  Write-set: tools/gate-live.mjs, test/gate-live.test.mjs, proxy/extensions/insertion-normalization.mjs, proxy/extensions/deferred-tool-rewrite.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live.test.mjs
-
 - **DATAPOINT 2026-08-10 21:57 local (19:57:07Z) — the FOURTH row-4 instance today, and the first that is NOT the far-from-anchor `replace/edit` shape.** Recorded against row 4; it re-grades the canonicalization entry's design question rather than merely incrementing a count. `❄ 321k`, statusline cause `other`, ledger AND transcript both `messages_changed / 282112` — the `other` display is the FORK-NOTES trap ("no cause available", never "causes tested and rejected"), and the real cause was on disk the whole time. This session's own capture (`s-captureBB`), pair `n=330->335`.
   ATTRIBUTION **CC's**: CC's raw bytes diverged at index 225, and the replayed census recorded no stability violation for the pair. Census **`splice/insert-mid`** (not `replace/edit`), row-4 container migration at host 225, **EXTENDED/NEW-TEXT** (not MERGED-STANDALONE), and no anchor callout — the anchor annotation rides `replace/edit` rows, so today's 3-for-3 anchor-distance signal says nothing about this instance either way.
   **Why this re-grades the design:** today's four instances are TWO shapes, not one. Three are `replace/edit` / MERGED-STANDALONE / >30 from the human anchor; this is `splice/insert-mid` / NEW-TEXT. The canonicalization entry already owed a statement of which shape it covers before the byte-match gate, and that is no longer a formality — a rule tuned on the MERGED-STANDALONE remainder has no defined behaviour on NEW-TEXT. Ship what the safety argument reaches, name the other as a sibling.
@@ -6580,6 +6530,38 @@ Promotion is by re-deriving the head, never by editing a grade in place. An
 entry promoted to READY must satisfy the booking bar in this file's header
 (`Anchor:` / `Write-set:` / `Verifier:`), which `tools/backlog-lint.mjs
 --ready-bar` enforces.
+
+- **RECORD 2026-08-14 — a manual compact is NOT automatically a cold rewrite,
+  and the two cases are readable in the usage numbers alone.** Reported by the
+  `claude-worktime` session (peer message, their measurement, not this repo's):
+  the same act — a manual `/compact` — produced `cache_read 105164 /
+  cache_creation 8040` in a session whose cache was still warm, and
+  `cache_read 0 / cache_creation 77475` in one that had sat idle 3h03m. The
+  mechanism is this repo's own subject read from the other end: cache keys are
+  PREFIXES, the system prompt and tool definitions sit before the messages, and
+  a compact leaves them byte-identical — so a warm compact re-bills the summary
+  and keeps the prefix, while a dead-cache compact pays for everything.
+  **Why it is worth keeping here even though nothing is owed:** it is a
+  counterexample to "compaction causes a bust", which is a premise a future
+  attribution pass could easily rest on. The busting variable is TIME SINCE
+  THE LAST UPSTREAM CALL — not idle time, and the distinction is not
+  pedantry: the warm session here was this one, which had been working
+  continuously for those 3h03m without touching the API. A session can be
+  busy and let its cache die, so a discriminator written as "the user was
+  away" measures the wrong quantity. (That wording was corrected in both
+  repos after this session read its own case wrong first.)
+  It also names a cheap discriminator — `cache_read` on the first request
+  after a compact separates the two cases with no other instrument: 105164
+  against 0 in the two measured sessions.
+  UNVERIFIED here, and the reach is stated rather than left to the reader:
+  this session reproduced neither measurement, the numbers are the peer's,
+  and n=2 — same machine, same afternoon, both Opus 1M. That carries fully as
+  a COUNTEREXAMPLE (one warm compact refutes "a compact busts the cache") and
+  carries nothing about how OFTEN compacts land warm. What would make it
+  actionable rather than memory: a census class that labels a post-compact
+  first request warm vs cold, which nothing currently asks for.
+  <!-- entry: "manual compact is not automatically a cold rewrite" -->
+
 
 - **RECORD (ex-READY 2026-08-11, displaced from the head by the matrix prose strip) — no instrument reads the BILLING side, so the only ground truth we
   have about whether the cache held is unread.** Measured 2026-08-10:
@@ -12708,6 +12690,100 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-14 (`70b4cb9`) — `inHashOf` is exported, and the one
+  done-criterion that did NOT get met was wrong on its merits.** Verified
+  against the artifacts rather than against the entry's own reasoning:
+  `inHashOf` is exported (`tools/replay.mjs:888`),
+  `test/replay-row-identity.test.mjs` carries the identity pair, and
+  `docs/dev-loop.md`'s identity section names which entry point is which
+  (:2121).
+  **The fourth criterion — "breakpoint-scan reads its conversation id through
+  `conversationOf`" — is deliberately NOT met, and forcing it would have made
+  the tool worse.** `conversationSubKey` is cache_control-STRIPPED, so a
+  breakpoint MOVING on `messages[0]` does not change the identity;
+  `conversationOf`'s raw `inHash[0]` does. For a tool whose whole subject is
+  where breakpoints sit, switching would regroup the very rows it compares.
+  The criterion was written before that reason was known, and the artifact's
+  own comment carried it all along.
+  **What WAS repaired there:** that comment justified its choice with "an
+  export replay.mjs does not offer" — true when written, false since
+  `70b4cb9`, and left standing it is an absence claim about a file that has
+  since changed. Rewritten to give the reason that actually decides it.
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:**
+
+  **READY 2026-08-14 — `replay.mjs` exports `conversationOf` but not the hash
+  it needs, so a tool holding RAW `body.messages` cannot use the repo's own
+  identity function at all.** Returned as a question by the breakpoint-scan
+  lane, which hit it while obeying the rule it was pointed at: `conversationOf`
+  (`tools/replay.mjs:1092`) reads `e.inHash[0]`, an array built by
+  `compactEntry` from a private, unexported `sha`. A tool whose records are raw
+  requests has no `inHash` and cannot build one without re-deriving the hash —
+  the exact anti-pattern `docs/dev-loop.md` names ("never hand-roll identity in
+  a probe"). The lane correctly used `conversationSubKey` from
+  `proxy/extensions/message-hash.mjs` instead and did not touch `replay.mjs`.
+  **Why it is a real gap and not a naming preference:** the rule says "if a tool
+  needs an identity that is not exported yet, export it rather than restate it",
+  and today the export that would satisfy a raw-records caller does not exist.
+  `tools/cache-sim.mjs` already worked around it the same way, so this is the
+  second instance.
+  **Design, decided:** export from `tools/replay.mjs` an `inHashOf(messages)`
+  (the same hashing `compactEntry` performs, factored out, not copied), so
+  `conversationOf` becomes reachable from a raw-messages caller in one step;
+  `conversationSubKey` stays the sub-key grain. Then say so at the identity
+  section of `docs/dev-loop.md`: `conversationSubKey` is the raw-`messages`
+  entry point, `conversationOf` the compactEntry-pair one — the lane's own
+  candidate lesson, and the half that stops the next brief naming the wrong one.
+  **Red-first arrangement, and the two must DIFFER:** on one real capture,
+  `conversationOf(compactEntry(rec))` and `conversationOf({inHash: inHashOf(rec.body.messages)})`
+  return the SAME id for the same record, and DIFFERENT ids for two records of
+  different conversations. A pair that agrees on identical inputs but never
+  differs has not demonstrated the identity.
+  Done: `inHashOf` is exported, both arms of the identity pair above pass, at
+  least one raw-messages caller (`breakpoint-scan`) reads its conversation id
+  through `conversationOf` instead of a sibling, and `docs/dev-loop.md`'s
+  identity section names which entry point is which; this entry moves to
+  `## Done` with its commit ref.
+  Loop stage: ATTRIBUTE (every cross-record comparison in this repo is grouped
+  by this key).
+  Anchor: tools/replay.mjs
+  Write-set: tools/replay.mjs, test/replay-row-identity.test.mjs, docs/dev-loop.md
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/replay-row-identity.test.mjs
+  <!-- entry: "replay.mjs exports conversationOf but not the hash a raw-messages caller needs" -->
+
+- **DONE 2026-08-14 (fork `46d7bc4` + `189911f`) — D1's retirement trigger
+  has an instrument, and the fork half is fully discharged; the remaining half
+  lives in the other repo and is booked there.** Verified against the artifact
+  rather than from memory: today's `gate-status.json` carries
+  `d1OldKeyFallback {hits: 0, newestUtc: null, filesScanned: 831, window:
+  {...}}` and `d1PostRelocationNoBaseline {count: 0, newestUtc: null,
+  filesScanned: 96, window: {...}}` — both with the `filesScanned` and
+  `window` fields this entry specified, so a zero over zero files reads as
+  could-not-verify and a small number reads as a narrow scope rather than a
+  small corpus. Both extensions' bridge comments now cite the fields by name
+  instead of pointing at a hand-grep
+  (`insertion-normalization.mjs:1968`, `deferred-tool-rewrite.mjs:709`).
+  **The half that is NOT here, with its home named:** doctor reading the
+  fields as a third answer is deployment-side, outside this repo's write
+  boundary, and it is booked in the dotfiles backlog — checked, not assumed:
+  the entry there names both field shapes and says "nothing on the deployment
+  side looks at either". Search proven on a known positive before the absence
+  was believed (`CACHE_FIX_PROXY_TREE_PIN` → 3 files; `d1OldKeyFallback` →
+  BACKLOG.md only).
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:**
+
+  **READY (small) — D1's retirement trigger is a HAND-GREP, and a code comment in two shipped extensions asserts it is booked. This entry is what makes that comment true.** Booked 2026-08-10 immediately after the assertion was checked and found false — the named-and-unbooked class, committed one level above the very defect the same commit had just fixed, which is the useful part of the record: `a5f1960` repaired an over-wide assurance about `gate-live` and then made a second one ("Wiring it there is booked") inside the repair itself.
+  **The gap.** D1's bridge retires when `oldKeyFallback` is absent from the event logs for seven consecutive days. Those events live in `~/.local/state/cache-fix/snapshots/*-{insertion,deferred-tool}-events.jsonl`; `gate-live` replays CAPTURES and never reads that directory, so the retirement question is answerable only by a hand-grep nobody will run on day seven. A trigger whose evaluation depends on someone remembering is not a trigger.
+  Design, decided: `gate-live` gains a snapshots pass counting `oldKeyFallback:true` records and the newest such record's date, carrying `d1OldKeyFallback: {hits, newestUtc, filesScanned}` in the status file; `doctor` reads it as a third answer so a stale or unwritten count FAILS rather than reading as a silent zero. `filesScanned` is load-bearing, not decoration — a zero over zero files is this repo's could-not-verify case and must never render as clean.
+  Verifier, red-first, both arms required: a scratch snapshots dir with one planted `oldKeyFallback:true` record must report `hits: 1`; the same dir without it `hits: 0` with `filesScanned` non-zero. Negative control measured and dated today so a future non-zero is a real transition rather than a first reading: the real snapshots dir reads **0 hits over 9,533 event files** at ~19:58Z.
+  **A correction worth keeping, because it is the exact defect this repo names.** That control was first written here as "0 hits over 20 event files" — 20 being the count of event files TOUCHED SINCE THE RESTART (13 insertion + 7 deferred), a different population from all event files, carried across from an earlier measurement of a different quantity. Two numbers, both real, describing different sets; the wrong one read as a total. Caught by re-running the count instead of citing it, which is the whole content of "an entry that says MEASURED without the executed output beside it is making a claim in the costume of a result". It also changes the DESIGN input rather than being cosmetic: a pass over 9,533 files is not free, so the implementation scopes by mtime window (the ~20/hour figure is the honest rate) rather than scanning the directory whole — and `filesScanned` must therefore report the scoped count with its window, or a small number will read as a small corpus rather than as a narrow scope.
+  **WIDENED 2026-08-11 at the desk, and the widening is one field in the same pass rather than a second entry.** Re-verifying the row-26 mitigation found that its own done-criterion parts 2 and 3 — `deferred-tool-rewrite` reporting `rewrite`/`unchanged` rather than `no-baseline` on a relocating request, and the forwarded `tools[]` byte-identical across the pair — are asserted by nothing (`grep -rln "PRE_PIPELINE_CONV\|prePipelineConv" test/ tools/` returns one file, which asserts neither). That is the ABSORPTION question, and the counter that looks like it answers it does not: `identityRotations.transitions` compares raw against forwarded `messages[0]` (`replay.mjs:1136-1153`), i.e. our pipeline still relocating, which D1 deliberately does not stop. The snapshots pass this entry already specifies is walking exactly the files that carry the answer, so it also emits `d1PostRelocationNoBaseline: {count, newestUtc}` — `no-baseline` actions logged under a key that rotated, which post-D1 should be ZERO and whose non-zero is the class re-opening. Same red-first shape as the `oldKeyFallback` arms and the same `filesScanned` guard: a zero over zero files is could-not-verify, never clean.
+  Done-criterion: the seven-day question AND the absorption question are answerable from `gate-status.json` alone, and both extensions' comments then cite the fields instead of a grep. Realizing write-boundary: `tools/gate-live.mjs` + a test, then the comment update in both extensions. Consumer tier **2 (feeds the gates)**. Loop stage: VERIFY.
+  Anchor: row 26
+  Write-set: tools/gate-live.mjs, test/gate-live.test.mjs, proxy/extensions/insertion-normalization.mjs, proxy/extensions/deferred-tool-rewrite.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live.test.mjs
 
 - **DONE 2026-08-14 — the coalesce record ships, and row 31's gate is
   unblocked: a suppressed duplicate no longer reads as an unanswered send.**

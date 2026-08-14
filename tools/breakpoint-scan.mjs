@@ -65,18 +65,20 @@ import { readLines } from "./read-lines.mjs";
 // hand-roll identity in a probe": a fourth hand-rolled first-message hash in
 // this repo, after tools/cache-sim.mjs's, is exactly the collision class
 // that rule exists to stop). `tools/replay.mjs` exports `conversationOf`,
-// but that function takes a `compactEntry`-shaped object (`e.inHash`, an
-// array of RAW per-message hashes built by replay.mjs's own private `sha`,
-// which replay.mjs does not export) — a shape this tool's raw per-line
-// records (`rec.body.messages`) do not carry and cannot cheaply construct
-// without either re-deriving that hash locally (the exact anti-pattern) or
-// an export replay.mjs does not offer. `conversationSubKey` is the row-shape
-// fit the brief named for exactly this case: it takes a raw `messages` array
-// directly, is cache_control-STRIPPED (robust to a breakpoint moving on
-// messages[0], unlike conversationOf's raw inHash[0] — see replay.mjs's
-// findIdentityRotations comment), and is already exported from its actual
-// home rather than restated. Reported as a deviation from the brief's literal
-// "from tools/replay.mjs" wording in the closing report.
+// which takes a `compactEntry`-shaped object (`e.inHash`, an array of RAW
+// per-message hashes) — a shape this tool's raw per-line records
+// (`rec.body.messages`) do not carry. That route is now REACHABLE:
+// `inHashOf` was exported for exactly this case (replay.mjs, `70b4cb9`),
+// so the original reason given here — "an export replay.mjs does not
+// offer" — is no longer true and has been removed rather than left standing
+// as an absence claim about a file that has since changed.
+// `conversationSubKey` stays anyway, and now for the reason that actually
+// decides it rather than for a missing export: it is
+// cache_control-STRIPPED, so a breakpoint MOVING on messages[0] does not
+// change the identity (unlike conversationOf's raw inHash[0] — see
+// replay.mjs's findIdentityRotations comment). For a tool whose whole
+// subject is where breakpoints sit, an identity that rotates when a
+// breakpoint moves would regroup the very rows it is comparing.
 import { conversationSubKey } from "../proxy/extensions/message-hash.mjs";
 
 /**
