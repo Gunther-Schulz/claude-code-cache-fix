@@ -332,7 +332,51 @@ now means some child DIED HARD and is a finding about that child.
   adjacency, with a discrimination control that must make the two arms
   disagree on an interleaved pair). The 11 pins ride along as the committed,
   reproducible arm — a structural corpus, never a rate.
-  Trigger to re-grade: that measurement's two counts.
+  **MEASURED 2026-08-14 — the two arms diverge by 2.3x, so the definition
+  mismatch is a LIVE mechanism, not the falsified one the 2026-07-30 record
+  reports.** `tools/duplicate-adjacency-probe.mjs` (`22781b3`, dispatched
+  lane) over 67 inputs / 21,739 request records — 11 tracked pins and the 56
+  live captures present at measurement time (the corpus rotated from 57
+  mid-session; deviation named by the lane, not papered over):
+  pins FILE **0**/2,007 compared vs CONV **14**/1,340; live FILE **65**/19,665
+  vs CONV **148**/16,525; combined FILE **65** vs CONV **162**. Arm FILE is
+  the July probe's likely shape (raw capture-line adjacency) and it undercounts
+  by more than half, because interleaved main/subagent/sidecar traffic breaks
+  adjacency that conversation grouping restores. The instrument's controls ran
+  first: a planted duplicate is found by BOTH arms, a strict append by
+  neither, and an interleaved pair separates them (CONV 1, FILE 0) — the
+  constructed discriminator reproducing at corpus scale is what makes the
+  divergence readable as a definition effect rather than as noise.
+  **This re-grades the correction one paragraph up.** That paragraph leaned on
+  the 07-30 record's "global vs per-conversation differs marginally" to call
+  (b) falsified. At today's corpus it is not marginal. Both can be true of
+  their own corpora and the 07-30 corpus is rotated, so the honest state is:
+  (b) explains PART of the gap and cannot be closed; the rest is corpus
+  content, which the pins' own 0/2,007 shows from the other side.
+  **THE FINDING THAT DECIDES WHAT MAY BE POSTED, and it came from closing the
+  lane's own not-verified slot rather than from the totals.** The lane flagged
+  two outliers as data. The larger one is a **RETRY STORM, not duplicate
+  billing**: 17 request records, one opus-5 `msgs=2` request repeated 13 times
+  at growing intervals (3.5s → 41.9s, i.e. backoff), and NO outcome record for
+  any of them — the exact shape the 2026-07-30 record already named as "client
+  retries against upstream/proxy errors, not the #78420 billing shape". So the
+  predicate our public comment reported on — adjacent byte-identical bodies —
+  CONFLATES two populations, and a correction quoting a raw duplicate count
+  would replace one wrong number with another.
+  **The split is already measured by the production instrument** and needs no
+  new tool: today's sweep (`gate-status.json`, 16:46:26Z, pre-flip traffic)
+  carries `byteGate.duplicates` = 144 pairs / 114 streaks / maxStreak 11 / 258
+  requests, of which **134 billed requests, 78 billed streaks, 55
+  double-billed streaks**, `membersWithoutId: 0` (so the join is complete
+  rather than silently partial). Roughly half the streaks are billed twice;
+  the rest are the retry class above.
+  WHAT THE CORRECTION MAY THEREFORE CLAIM, and it is stronger than a
+  retraction: the July negative rested on a definition that undercounts by
+  2.3x AND on a predicate that does not separate retries from double billing;
+  measured properly the class is present here at 114 streaks per sweep with 55
+  double-billed. Draft owed; operator GO before posting.
+  Trigger to re-grade: none outstanding for the measurement — the remaining
+  gate is the drafted correction.
   Loop stage: ATTRIBUTE.
   Anchor: docs/directives/robustness-threat-matrix.md
   Write-set: tools/duplicate-adjacency-probe.mjs (+ its test), then a drafted
