@@ -172,7 +172,7 @@ const FROZEN = "3b37ece";
 
 test("CLI: 3b37ece -- 100 READY entries total, every bucket accounted for exactly once", () => {
   const historical = gitShow(FROZEN, "BACKLOG.md");
-  const lanes = deriveLanes(historical);
+  const lanes = deriveLanes(historical, { exists: existsAt(FROZEN) });
   const total =
     lanes.holds.length + lanes.desk.length + lanes.unresolved.length +
     lanes.mergeLanes.reduce((n, l) => n + l.members.length, 0) +
