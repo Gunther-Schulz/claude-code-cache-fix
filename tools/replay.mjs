@@ -874,6 +874,20 @@ function lastRelocByType(msgs) {
   return RELOC_TYPES.filter((t) => last.has(t)).map((t) => ({ type: t, msgIdx: last.get(t) }));
 }
 
+// The identity hash `compactEntry` builds for `inHash` (below), factored out
+// so a caller holding RAW `body.messages` — never a compact entry — can reach
+// `conversationOf` in one step: `conversationOf({ inHash: inHashOf(messages) })`.
+// Exported per docs/dev-loop.md "Never hand-roll identity in a probe" /
+// "if a tool needs an identity that is not exported yet, export it rather
+// than restate it" — `tools/cache-sim.mjs` had already worked around this gap
+// once by re-deriving the hash itself, which is the second-truth failure this
+// function exists to close. Same hashing, same order, one message per array
+// slot — `compactEntry` calls this rather than keeping its own copy of the
+// expression, so the two can never drift apart.
+export function inHashOf(messages) {
+  return (messages ?? []).map((m) => sha(JSON.stringify(m)));
+}
+
 export function compactEntry(e) {
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
@@ -894,7 +908,7 @@ export function compactEntry(e) {
     // the capture file that survives the line-vs-request namespace split.
     id: e.id ?? null,
     key: e.key,
-    inHash: inMsgs.map((m) => sha(JSON.stringify(m))),
+    inHash: inHashOf(inMsgs),
     // cache_control-stripped twin of inHash, the INPUT-side sibling of
     // outHashNoCC below — same primitive (stripCacheControlDeep), same
     // reason: comparing it against inHash index-by-index is what locates a

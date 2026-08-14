@@ -31,6 +31,9 @@ import {
   findRelocDepartures,
   findBlockMigrations,
   findSuccessions,
+  conversationOf,
+  inHashOf,
+  compactEntry,
 } from "../tools/replay.mjs";
 
 const text = (t) => ({ type: "text", text: t });
@@ -146,6 +149,34 @@ test("blockMigrations carries id/prevId", () => {
   assert.equal(rows.length, 1);
   assert.equal(rows[0].id, "req-B");
   assert.equal(rows[0].prevId, "req-A");
+});
+
+// `inHashOf` is the export that lets a RAW-messages caller (no compact
+// entry, no `compactEntry` call) reach `conversationOf` in one step —
+// BACKLOG "replay.mjs exports conversationOf but not the hash it needs".
+// The instrument-pair rule (docs/dev-loop.md / operator corpus, Fixing):
+// the two arms must agree on the SAME record and differ across two
+// different ones, or the "identity" being demonstrated is not one.
+test("inHashOf + conversationOf reaches the same id compactEntry does, on a raw-messages record — and a different id across two conversations", () => {
+  const convA = [user("conversation A opener"), asst("a1"), user("a2")];
+  const convB = [user("conversation B opener"), asst("b1")];
+
+  // Arm 1: the existing compactEntry path (a raw entry -> compactEntry -> conversationOf).
+  const ceA = compactEntry(raw(0, "req-A", convA, convA));
+  const ceB = compactEntry(raw(0, "req-B", convB, convB));
+
+  // Arm 2: the new path a raw-messages caller (no entry, no compactEntry) uses —
+  // exactly the shape docs/dev-loop.md's identity section now names.
+  const rawIdA = conversationOf({ inHash: inHashOf(convA) });
+  const rawIdB = conversationOf({ inHash: inHashOf(convB) });
+
+  // Same record: both arms name the same conversation.
+  assert.equal(rawIdA, conversationOf(ceA), "same record, same id across both arms");
+  // Different records: both arms must DIFFER from each other, or the pair
+  // proves nothing (a mechanism that returns one constant id would still
+  // pass an agreement-only check).
+  assert.notEqual(rawIdA, rawIdB, "two different conversations must not collide");
+  assert.notEqual(conversationOf(ceA), conversationOf(ceB), "control: the pre-existing arm also discriminates the two");
 });
 
 test("successions carries id/prevId", () => {

@@ -2062,6 +2062,13 @@ Four keying collisions surfaced in one day, all the same shape:
 and the collision presents as churn rather than as a bug.** Hash the whole
 thing. `proxy/extensions/message-hash.mjs` is the shared primitive.
 
+Two exported entry points, named so the next brief names the right one:
+`conversationSubKey` (message-hash.mjs) is the RAW-`messages` entry point —
+call it directly on `body.messages`; `conversationOf` (tools/replay.mjs) is
+the compactEntry-PAIR entry point — a raw-messages caller reaches it via
+`conversationOf({ inHash: inHashOf(messages) })`, `inHashOf` being the same
+per-message hash `compactEntry` builds, exported rather than re-derived.
+
 ## Volatile content vs. real change
 
 CC injects session-scoped content into structures that are otherwise stable,
