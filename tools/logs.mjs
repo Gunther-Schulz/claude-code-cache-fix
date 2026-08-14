@@ -440,11 +440,17 @@ export function readCensusMismatchRow(raw) {
 const PLACEMENT_ROW_FIELDS = new Set([
   "path", "ts", "verdict", "blocks", "hostIndexBefore", "nBefore",
   "hostIndexAfter", "standaloneIndex", "nAfter", "offset", "placementClass",
-  // ONE-LINE ADDITION POINT: another lane is concurrently adding `between`
-  // (plus `betweenTruncated`) to placementRows in reminder-migration-census.mjs
-  // — add both names to this Set when that lands; nothing else in this view
-  // changes. Do NOT add them ahead of the writer: a view asserting a field
-  // the writer does not yet emit throws on every real export.
+  // The row-4 placement fields, added 2026-08-14 at integration once their
+  // WRITER was on main (`between`, the [{role, kind}] vector of the messages
+  // strictly between host and standalone, and `betweenTruncated`, the
+  // cap-reports-what-it-dropped counter beside it — reminder-migration-census
+  // .mjs). The lane that built this view deliberately left them out and named
+  // this seam, because a view asserting a field the writer does not yet emit
+  // throws on every real export; the two lanes were concurrent and this is
+  // the join. Proven against a real corpus-wide `--json --verbose` export (46
+  // placement rows, every one carrying `between`): the view throws without
+  // these two names and parses clean with them.
+  "between", "betweenTruncated",
 ]);
 /** Strict view of one `placementRows[]` entry. */
 export function readCensusPlacementRow(raw) {

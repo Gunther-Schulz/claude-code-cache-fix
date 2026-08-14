@@ -196,11 +196,21 @@ test("censusExport.placementRow: known fields read correctly, unknown field thro
     path: "/x/s-example-requests.jsonl", ts: "2026-08-14T00:00:00.000Z", verdict: "EXACT",
     blocks: 1, hostIndexBefore: 3, nBefore: 10, hostIndexAfter: 4, standaloneIndex: 6,
     nAfter: 11, offset: 2, placementClass: "MODE-SAMPLE",
+    between: [{ role: "user", kind: ["tool_result"] }], betweenTruncated: 3,
   };
   const view = readCensusPlacementRow(raw);
   assert.equal(view.offset, 2);
-  assert.throws(() => view.between, /unknown field "between" for format "censusExport\.placementRow"/,
-    "not yet a known field on this base — a concurrent lane adds it separately");
+  // The row-4 placement fields, joined 2026-08-14 once their writer was on
+  // main. This bite previously asserted `.between` THREW — correct on the
+  // base this view was written against, and the marker that made the join
+  // visible instead of silent. Both arms were re-proven against a real
+  // corpus-wide export before the names were added (46 placement rows, 21
+  // with a non-empty vector): removing the two names makes this read throw
+  // again, which is what keeps the assertion below from being vacuous.
+  assert.deepEqual(view.between, [{ role: "user", kind: ["tool_result"] }]);
+  assert.equal(view.betweenTruncated, 3, "the cap-reports-what-it-dropped counter rides beside it");
+  assert.throws(() => view.betweenTypo, /unknown field "betweenTypo" for format "censusExport\.placementRow"/,
+    "a near-miss spelling is still rejected — the join widened the view by exactly two names");
 });
 
 test("censusExport.volatileRow: known fields read correctly, unknown field throws", () => {
