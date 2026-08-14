@@ -160,6 +160,26 @@ export function censusLines(lines) {
   const decisionTotals = new Map(); // hookName -> counts
   const errorCandidates = []; // { toolUseID, kind, label }
   let malformedLines = 0;
+  // Count 1 and count 2 have DIFFERENT denominators, and nothing said so
+  // until a desk re-run put 6171 attachments beside 2838 classified
+  // decisions and asked where the other 3333 went. They carry no `stdout`
+  // field at all, so the classifier below never sees them — which is NOT
+  // the same absence as `empty` (stdout present, parsed, no
+  // permissionDecision). Two different absences reading as one number is
+  // this repo's "a field can be a default, not a measurement" shape, and a
+  // reader quoting "N attachments, deny=0" would be quoting the wrong N.
+  let noStdout = 0;
+  // The REACH of the two text signatures, as a number rather than as a
+  // hedge. The lane that built this file named its own residue honestly —
+  // "whether the regexes are EXHAUSTIVE was not proven negative" — and a
+  // hedge is not an instrument. An is_error tool_result that mentions a
+  // hook and matches NEITHER signature is exactly the member of the class
+  // the patterns cannot match, so it is counted here: zero is then a
+  // measurement of reach, non-zero is the finding, and count 3 is knowably
+  // a floor either way. No bytes are kept — the vocabulary tested below is
+  // OUR search term, never corpus content.
+  let errorTextsUnclassified = 0;
+  let errorTextsUnclassifiedMentioningHook = 0;
 
   const bumpDecision = (hookName, kind) => {
     if (!decisionTotals.has(hookName)) decisionTotals.set(hookName, emptyDecisionCounts());
@@ -201,6 +221,8 @@ export function censusLines(lines) {
         const { kind } = classifyDecision(att.stdout);
         bumpDecision(hookName, kind);
         if (toolUseID) perToolUse.get(toolUseID).decisionKinds.add(kind);
+      } else {
+        noStdout++;
       }
     }
 
@@ -212,7 +234,11 @@ export function censusLines(lines) {
         const text = toolResultText(item);
         if (!text) continue;
         const label = extractDenialLabel(text);
-        if (!label) continue;
+        if (!label) {
+          errorTextsUnclassified++;
+          if (/\bhooks?\b/i.test(text)) errorTextsUnclassifiedMentioningHook++;
+          continue;
+        }
         const toolUseID = typeof item.tool_use_id === "string" ? item.tool_use_id : null;
         errorCandidates.push({ toolUseID, ...label });
       }
@@ -239,12 +265,17 @@ export function censusLines(lines) {
   return {
     malformedLines,
     preToolUseTotal,
+    noStdout,
     decisionTotals,
     errorOnly: {
       total: errorOnlyTotal,
       byLabel: errorOnlyByLabel,
       withRecordedDenyElsewhere,
       unattributedNoAttachment,
+    },
+    signatureReach: {
+      unclassified: errorTextsUnclassified,
+      unclassifiedMentioningHook: errorTextsUnclassifiedMentioningHook,
     },
   };
 }
@@ -320,10 +351,13 @@ export function censusTree(root = PROJECTS) {
   let malformedLines = 0;
   const preToolUseTotal = { total: 0, byHookName: new Map() };
   const decisionTotals = new Map();
+  let noStdout = 0;
   let errorOnlyTotal = 0;
   const errorOnlyByLabel = new Map();
   let withRecordedDenyElsewhere = 0;
   let unattributedNoAttachment = 0;
+  let unclassified = 0;
+  let unclassifiedMentioningHook = 0;
 
   for (const fp of files) {
     const r = censusFile(fp);
@@ -334,11 +368,14 @@ export function censusTree(root = PROJECTS) {
     malformedLines += r.malformedLines;
     preToolUseTotal.total += r.preToolUseTotal.total;
     mergeCountMaps(preToolUseTotal.byHookName, r.preToolUseTotal.byHookName);
+    noStdout += r.noStdout;
     mergeDecisionMaps(decisionTotals, r.decisionTotals);
     errorOnlyTotal += r.errorOnly.total;
     mergeCountMaps(errorOnlyByLabel, r.errorOnly.byLabel);
     withRecordedDenyElsewhere += r.errorOnly.withRecordedDenyElsewhere;
     unattributedNoAttachment += r.errorOnly.unattributedNoAttachment;
+    unclassified += r.signatureReach.unclassified;
+    unclassifiedMentioningHook += r.signatureReach.unclassifiedMentioningHook;
   }
 
   const decisionTotal = emptyDecisionCounts();
@@ -357,6 +394,12 @@ export function censusTree(root = PROJECTS) {
     },
     decisions: {
       total: decisionTotal,
+      // The denominator of `total`, stated rather than left to be inferred
+      // from count 1: classified + noStdout === preToolUse.total, and the
+      // identity is asserted in the suite so a future attachment shape
+      // cannot break it quietly.
+      classified: sumDecisionCounts(decisionTotal),
+      noStdout,
       byHookName: Object.fromEntries(
         [...decisionTotals]
           .sort((a, b) => sumDecisionCounts(b[1]) - sumDecisionCounts(a[1]))),
@@ -368,6 +411,7 @@ export function censusTree(root = PROJECTS) {
       withRecordedDenyElsewhere,
       unattributedNoAttachment,
     },
+    signatureReach: { unclassified, unclassifiedMentioningHook },
   };
 }
 
@@ -392,6 +436,9 @@ export function formatHuman(report) {
   for (const [name, count] of p1) lines.push(`  ${name}: ${count}`);
   lines.push("");
   lines.push("=== 2. Decisions parsed from attachment stdout (PreToolUse only) ===");
+  lines.push(`denominator: ${report.decisions.classified} of ${report.preToolUse.total} ` +
+    `attachments carry stdout; the other ${report.decisions.noStdout} carry NO stdout ` +
+    `field and reach no classifier — a different absence from empty= below`);
   lines.push(`total: ${fmtDecisionCounts(report.decisions.total)}`);
   lines.push("by hook name:");
   const p2 = Object.entries(report.decisions.byHookName);
@@ -412,6 +459,10 @@ export function formatHuman(report) {
     `on that call (excluded from total 3): ${report.errorOnlyDenials.withRecordedDenyElsewhere}`);
   lines.push(`  of total 3, calls with NO PreToolUse attachment at all on record: ` +
     `${report.errorOnlyDenials.unattributedNoAttachment}`);
+  lines.push(`  signature REACH — is_error tool_results matching neither signature: ` +
+    `${report.signatureReach.unclassified}, of which mention a hook: ` +
+    `${report.signatureReach.unclassifiedMentioningHook} (non-zero is a finding: ` +
+    `a denial shape the two signatures cannot match, i.e. count 3 is a floor)`);
   return lines.join("\n");
 }
 

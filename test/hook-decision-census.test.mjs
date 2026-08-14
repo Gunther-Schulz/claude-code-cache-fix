@@ -301,3 +301,77 @@ test("censusTree: a directory holding an unreadable-as-JSON file still reports t
   assert.equal(r.malformedLines, 2);
   assert.equal(r.preToolUse.total, 0);
 });
+
+// --- desk additions (2026-08-14): the two numbers the lane's own report
+// --- could not state — the decision denominator, and the signatures' reach.
+
+// A PreToolUse attachment carrying NO stdout field at all. This is the shape
+// behind 3,333 of 6,171 attachments on this machine, and before `noStdout`
+// existed it was invisible: it reached no classifier, so it appeared in
+// count 1 and in no bucket of count 2. `empty` is a DIFFERENT absence
+// (stdout present, parsed, no permissionDecision), and a reader quoting
+// "N attachments, deny=0" was quoting the wrong N.
+function preToolUseNoStdout({ toolUseID, hookName }) {
+  return JSON.stringify({
+    type: "attachment",
+    attachment: { type: "hook_additional_context", hookName, hookEvent: "PreToolUse", toolUseID, content: "ctx" },
+  });
+}
+
+test("censusLines: an attachment with NO stdout is counted in count 1, reaches no decision bucket, and is named by noStdout", () => {
+  const lines = [
+    preToolUseNoStdout({ toolUseID: "toolu_a", hookName: "PreToolUse:Bash" }),
+    preToolUseHookSuccess({ toolUseID: "toolu_b", hookName: "PreToolUse:Bash", decision: "ask" }),
+  ];
+  const r = censusLines(lines);
+  assert.equal(r.preToolUseTotal.total, 2);
+  assert.equal(r.noStdout, 1);
+  // The discriminating half: it must NOT land in `empty`, which is the
+  // bucket it would silently join if the two absences were merged.
+  const counts = r.decisionTotals.get("PreToolUse:Bash");
+  assert.equal(counts.empty, 0);
+  assert.equal(counts.ask, 1);
+});
+
+test("censusTree: classified + noStdout === the PreToolUse total (the identity that makes count 2 readable)", () => {
+  const dir = tmpDirSync("hook-census-denominator-");
+  writeFileSync(join(dir, "t.jsonl"), [
+    preToolUseNoStdout({ toolUseID: "t1", hookName: "PreToolUse:Bash" }),
+    preToolUseNoStdout({ toolUseID: "t2", hookName: "PreToolUse:Edit" }),
+    preToolUseHookSuccess({ toolUseID: "t3", hookName: "PreToolUse:Bash", decision: "allow" }),
+  ].join("\n") + "\n");
+  const r = censusTree(dir);
+  assert.equal(r.preToolUse.total, 3);
+  assert.equal(r.decisions.classified, 1);
+  assert.equal(r.decisions.noStdout, 2);
+  assert.equal(r.decisions.classified + r.decisions.noStdout, r.preToolUse.total);
+  assert.match(formatHuman(r), /carry NO stdout/);
+});
+
+test("signatureReach: an error text that names a hook but matches NEITHER signature is counted, so count 3 is knowably a floor", () => {
+  const lines = [
+    // Matches neither signature: the wrapper words appear, but not at the
+    // start of the text in either accepted form. This is the member of the
+    // class the two patterns cannot match — the residue the lane reported
+    // as "not proven negative", now a number.
+    toolResultErrorLine({ toolUseId: "t9", text: "Error: the operation was refused by a hook before it ran" }),
+    // Control in the other direction: an ordinary tool failure naming no
+    // hook at all must count as unclassified WITHOUT inflating the
+    // hook-mentioning number, or the reach signal would fire on noise.
+    toolResultErrorLine({ toolUseId: "t10", text: "ENOENT: no such file or directory" }),
+  ];
+  const r = censusLines(lines);
+  assert.equal(r.errorOnly.total, 0);
+  assert.equal(r.signatureReach.unclassified, 2);
+  assert.equal(r.signatureReach.unclassifiedMentioningHook, 1);
+});
+
+test("signatureReach: a MATCHED denial text does not inflate the unclassified counters", () => {
+  const lines = [
+    toolResultErrorLine({ toolUseId: "t11", text: "[dispatch-guards/push-claim-reminder] denied" }),
+  ];
+  const r = censusLines(lines);
+  assert.equal(r.errorOnly.total, 1);
+  assert.equal(r.signatureReach.unclassified, 0);
+  assert.equal(r.signatureReach.unclassifiedMentioningHook, 0);
+});
