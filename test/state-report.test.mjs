@@ -168,7 +168,11 @@ test("reproduces: HEAD:proxy matches the dotfiles CACHE_FIX_PROXY_TREE_PIN, or c
   assert.equal(res.match, true, `local=${res.local} manifest=${res.manifestPinned}`);
 });
 
-test("reproduces: matrix has exactly 30 rows with 11 OPEN-or-RESIDUAL", () => {
+test("reproduces: matrix has exactly 30 rows with 10 OPEN-or-RESIDUAL", () => {
+  // Updated 2026-08-14: row 2 (idle TTL keepalive) went OPEN -> ACCEPTED on an
+  // operator decision, so the OPEN-or-RESIDUAL set is 10. Second fire of the
+  // shape this comment already describes, and the second time nothing was
+  // wrong — the literal moved because the world did.
   // Updated 2026-08-11 for row 30 (relocate-then-pin content loss). These two
   // literals are a REPRODUCTION pin, not an invariant: they exist so
   // collectMatrix is checked against the real artifact rather than against
@@ -182,7 +186,7 @@ test("reproduces: matrix has exactly 30 rows with 11 OPEN-or-RESIDUAL", () => {
   const res = collectMatrix();
   assert.equal(res.ok, true, res.reason);
   assert.equal(res.totalRows, 30);
-  assert.equal(res.openResidual.length, 11);
+  assert.equal(res.openResidual.length, 10);
 
   // The independent halves. `totalRows` is the matrix PROSE's row count and
   // `openResidual` is derived from the status JSON — two different files, so

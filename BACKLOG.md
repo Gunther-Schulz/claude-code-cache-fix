@@ -317,6 +317,85 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **READY 2026-08-14 (operator mandate, same day: "mandatory build under
+  dev-loop question 2's recurring-producer clause, not a nice-to-have") —
+  the byte-gate census stores COUNTS and the daily sweep keeps NONE of its
+  rows, so every byte-gate finding expires with its capture.** The sweep runs
+  the census over every live capture and the status file carries
+  `byteGate: {tally, prunes, duplicates}` — 16 MISMATCH, 140 duplicate pairs,
+  40,190 changed volatile blocks as of this morning. Which capture, which
+  request ordinal, which host index, how many bytes apart: none of it is
+  written anywhere, and the capture directory sits AT its 12 GB cap evicting
+  oldest-mtime-first. Same shape as the absorption check's 2026-08-05 lesson
+  (counts stored, 11 rows lost by the afternoon), one producer over.
+  **Prototype and known positive: `148b5e7`** — the hand run this entry
+  replaces, committed as `test/fixtures/harvested/census-rows/census-rows-2026-08-14.json`
+  (16 mismatch rows, 108 duplicate streaks, 542 volatile entries).
+  **Design, decided:** `gate-live` writes ONE document per SWEEP in the
+  prototype's own schema, into the same directory, named
+  `census-rows-<UTC date>.json`; rows come from the census's existing
+  `--json --verbose` exports (`mismatchRows`, `duplicateRows`,
+  `volatileRows`), which the sweep already produces per capture, so the caps
+  (`MISMATCH_ROW_CAP`, `DUP_ROW_CAP`, `ENTRY_ROW_CAP`) apply per capture and
+  the `*Truncated` counters ride into the document rather than being dropped.
+  Body-free by construction — a length, an index, an ordinal, an instant, a
+  `sidToken` or a closed-vocabulary label, never message text — which is what
+  keeps ONE exempted absence class sufficient (`tools/absence-scan.mjs`
+  census-rows entry, shipped in `148b5e7`). Writing is idempotent and
+  NON-overwriting on differing content, the property `writeRowPins` already
+  has and for the same reason. It WRITES, never commits: committing stays a
+  human act, as it is for harvest's fixtures.
+  **Red-first arrangement, anchored to the committed document rather than to
+  live state:** with the writer disabled, a synthetic sweep leaves no
+  document; enabled, it writes one whose rows reconcile against its own
+  `byteGate` counts. The boundary half is already green and re-runnable —
+  `test/evidence-census-rows.test.mjs` iterates the directory, so a document
+  the mechanism writes is graded by the same five bites (exemption scope,
+  no-leak-outside, boundary scan, planted positive, no free text) with no
+  new test needed.
+  **Done:** the next daily sweep leaves a `census-rows-<date>.json` whose
+  mismatch/duplicate/volatile row counts reconcile against that sweep's own
+  `byteGate` rollup, and `test/evidence-census-rows.test.mjs` stays green
+  over it.
+  Loop stage: ATTRIBUTE (it is the evidence every row-4 and duplicate-billing
+  attribution reads).
+  Anchor: tools/gate-live.mjs
+  Write-set: tools/gate-live.mjs, test/gate-live-census-rows.test.mjs, test/fixtures/harvested/census-rows/
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live-census-rows.test.mjs test/evidence-census-rows.test.mjs
+  <!-- entry: "the byte-gate census keeps no rows, so findings expire with their captures" -->
+
+- **RECORD 2026-08-14 — the volatile-block sweep's byproduct, which is the
+  measurement #272 blocker 2 has been waiting for: the change population is
+  entirely REMOVALS, and IN-PLACE TEXT EDITS ARE ZERO.** Full corpus, 46
+  captures considered / 43 with pairs, 0 unreadable (evidence pinned in
+  `census-rows-2026-08-14.json`, `148b5e7`; captures s-captureBO / s-captureBA
+  / s-captureBP protected against rotation): 1,224,062 re-occurrences of a
+  pinned identity, 69,375 of them where the pin rewrites bytes at all, 29,185
+  IDENTICAL and **40,190 CHANGED** — and the change kinds are `VANISHED`
+  40,170, `REDUCED` 20, `IN-PLACE-TEXT` **0**, `APPEARED` 0, `AUGMENTED` 0.
+  Distinct pinned entries behind those rows: 542 (541 VANISHED, 1 REDUCED —
+  the singleton sits in s-captureBO at request 239, 496 bytes down to 748…362
+  with first divergence at offset 43). `cacheControlExempt` is 0, so none of
+  these rows is one the shipped pin would have declined to override.
+  **Why it is decision-relevant rather than trivia:** the blocker asks which
+  repair the pin needs — an evidenced allowlist, or a fail-closed re-pin —
+  and the answer turns on how often CC *changes* volatile bytes as against
+  *re-serializing* or dropping them. Under this classification, changing the
+  text in place has zero instances corpus-wide, and every counted change is
+  the reminder going away.
+  **What this does NOT establish, named rather than glossed:** the
+  classification is `classifyVolatileChange`'s, so "0 IN-PLACE-TEXT" is a
+  statement about that predicate's partition and not an independent
+  measurement of the upstream reviewer's reproduction — which was a real
+  observation and is not refuted by a corpus-wide zero in a different
+  vocabulary. No second instrument has measured this quantity, so there is
+  no divergence check on it (the cheap reach detector this repo prefers).
+  **Missing piece that would make this READY:** the #272 blocker-2 design
+  decision itself (allowlist vs fail-closed re-pin), which is a desk/operator
+  design call, not an evidence gap — this entry is the evidence half, and it
+  is now on disk instead of in a capture.
+  <!-- entry: "volatile-block sweep byproduct: every counted change is a removal, zero in-place text edits" -->
+
 - **RECORD 2026-08-13 — the 6-bust burst in the Georgendorf session is NOT a
   breakpoint-layout change, and the desk hypothesis that said it was is
   REFUTED. `cache_control` marker layout is byte-identical across warm and
@@ -11076,10 +11155,6 @@ then the queued ones. Work the items in that order.
   zero observed instances here — an occurrence is the build trigger,
   and the threat-matrix coverage section carries the class).
 
-- **Row 2 (threat matrix): TTL keepalive** — OPEN since 2026-07-27,
-  phase-3 candidate, cost-positive only if the operator returns after
-  idle; needs idle-detection + opt-in. Unchanged.
-
 - **Reminder-swap (#76606): DECIDED — pin-and-suppress (operator
   "B", 2026-07-29 evening).** Resolution history: fidelity probe
   proved replay byte-faithful to the wire; the "mitigated:true" had
@@ -11323,17 +11398,6 @@ then the queued ones. Work the items in that order.
   per kind (alarm fires on a nonzero fixture, log fires on an old
   mtime); the doctor books the new verdicts unchanged. Done: table
   + verdicts + bites green.
-
-- **Row 2 TTL keepalive — PARK sharpened to a measurable trigger**
-  (settled 2026-07-30): cost math — a keepalive is a full-prefix
-  cache-READ (~0.1x) per <1h window; one avoided cold re-bill
-  (~1.25x write) pays for ~12 refreshes, so it is cost-positive
-  only for returns within a bounded idle window. Build trigger,
-  measurable from the worktime --cold ledger's preventable/TTL-idle
-  split: a week showing repeated TTL-idle colds with return inside
-  ~2h. Until the ledger shows that pattern, not built; design then:
-  opt-in timer, last-activity from capture mtime, capped extension
-  window.
 
 - **RESOLVED 2026-07-31 — restart boundary EXECUTED (operator GO
   "restart now"; same GO retired the restart-busts-live-sessions
@@ -11670,7 +11734,44 @@ then the queued ones. Work the items in that order.
 
 - **OPEN (attributed 2026-08-02: CC-defect-resend lean, upstream
   filing is the next step and needs operator GO) — double-billed
-  duplicate pairs, now 33 streaks.** Sonnet discovery
+  duplicate pairs, now 33 streaks.**
+  **INSTRUMENT DEFECT 2026-08-14, and it VOIDS this entry's central
+  retry-refutation: `outSha` is the FORWARDED REQUEST's hash, never
+  the response's.** Read at the writer rather than off the field
+  name: `request-capture.mjs:183-184` sets `outSha`/`outBytes` from
+  `ctx.meta._forwardedSha`/`_forwardedBytes`, and those are assigned
+  at exactly one site — `proxy/server.mjs:132-133`,
+  `createHash("sha256").update(forwardBody)` over
+  `Buffer.from(JSON.stringify(reqCtx.body))`, under a comment that
+  says so in full ("Fingerprint of what we ACTUALLY send… the single
+  point where the outbound bytes exist, after every extension has
+  run"). So "33/33 double-billed streaks have byte-IDENTICAL response
+  content between both billed answers — retry-refuting" is measuring
+  the two SENDS, which are byte-identical by the definition of a
+  streak (`sameBody`) and would be identical whatever the answers
+  were. The same correction hits this entry's other quoted pair:
+  "responses byte-identical at outSha 62baa3a1 / 3,043,768 B" is a
+  3 MB REQUEST, not a 3 MB response.
+  **What survives, and it is most of the entry.** The BILLING half is
+  untouched: two outcome records mean two `message_start` frames and
+  two input-side charges, and the input numbers (`cacheRead`,
+  `cacheCreation`, `inputTokens`) are final at `message_start` by the
+  writer's own comment. So is the TRANSCRIPT ASYMMETRY on s-captureK
+  751/754 (CC records the second request-id three times and the first
+  zero times), which was always the stronger evidence and does not
+  read `outSha` at all. What is GONE is the byte-identity argument
+  against retry-after-degenerate — and with it the claim that the
+  discarded answer was not truncated, which rested on the same field.
+  **What the capture cannot answer at all, named so nobody re-derives
+  it from the same field:** whether either send produced a COMPLETE
+  response. The capture stores no response bytes, and
+  `usage.outputTokens` is the `message_start` placeholder (this
+  entry's own 2026-08-02 instrument note). The completion evidence
+  lives in `usage.jsonl`, whose `output_tokens` comes off
+  `message_delta` and which carries `request_id` — the join is
+  outcome `requestId` -> usage-log `request_id`, and it is the next
+  measurement this entry needs.
+  Sonnet discovery
   (dispatcher-spot-checked: the hand-verified s-captureK streak's
   two outcomes read identical outSha 610e911e / outBytes 2406 under
   my own probe): 33/33 double-billed streaks have byte-IDENTICAL
@@ -12407,6 +12508,46 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **CLOSED 2026-08-14 (operator decision) — row 2, the idle-TTL keepalive, is
+  NOT BUILT: matrix row 2 goes ACCEPTED and a 1h-idle bust triages
+  EXPECTED-BUST from now on.** Two live entries closed into this one, bodies
+  moved rather than struck through: the 2026-07-27 "OPEN, phase-3 candidate,
+  needs idle-detection + opt-in. Unchanged." entry, and the 2026-07-30 park
+  that had sharpened it to a measurable build trigger.
+  **The decision.** A keepalive is cost-positive only if the operator RETURNS
+  inside the extended window. The deliberate case — stepping away and
+  knowing they are coming back — is already covered by the operator's own
+  `keep-warm` skill, which fires exactly when it pays off. A proxy-side timer
+  has to GUESS that, and each wrong guess bills a full-prefix cache read per
+  idle window, forever, on every session the machine happens to be holding
+  open.
+  **What the closed park's cost math actually said, kept because it is the
+  arithmetic the decision rests on** (settled 2026-07-30): a keepalive is a
+  full-prefix cache READ (~0.1x) per sub-hour window while one avoided cold
+  re-bill is a ~1.25x write, so a ping is ~5% of the bust it prevents and one
+  avoided bust pays for ~12 refreshes — cost-positive ONLY for returns
+  inside a bounded idle window. Its build trigger was "a week showing
+  repeated TTL-idle colds with return inside ~2h, read off the worktime
+  --cold ledger's preventable/TTL-idle split"; that trigger is WITHDRAWN as
+  the decision criterion, because the skill covers the return case it was
+  meant to detect.
+  **Not-built design of record**, kept on disk should the decision reverse:
+  `docs/directives/proxy-ttl-keepalive.md` (opt-in timer at
+  `CACHE_FIX_KEEPALIVE_AT` ~50 min, ping = last request replayed with
+  `max_tokens` minimised, capped at 4 consecutive pings, main-thread only).
+  The design was never the blocker; the return rate was.
+  **Accepted residual, stated rather than implied:** an idle-then-return the
+  skill was not started for pays the full cold, and nothing measures how
+  often that happens — the rate was never instrumented and is not being
+  instrumented.
+  Landed in: matrix row 2 cell + `robustness-threat-matrix.status.json` row 2
+  (`ACCEPTED`, date 2026-08-14; `matrix-status` clean, 0 findings over 30
+  rows; `TRIAGE_BY_STATUS.ACCEPTED` -> EXPECTED-BUST / "WON'T BUILD",
+  checked by executing the mapping, not by reading it).
+  Untouched by this closure: upstream's cache-warmer directive
+  (`docs/directives/proxy-cache-warmer-v3.7.0.md`, their issue #127) is a
+  separate initiative and this decision says nothing about it.
 
 - **DONE 2026-08-13 — `breakpoint-scan --values`: marker locations now carry their `cache_control` OBJECTS, and the first run settled the question it was built for (`5b87f32`, sonnet dispatch, desk-verified 14/14).** `findMarkers` and the new `findMarkerValues` both delegate to one `scanMarkers(body)` helper so the two cannot drift; with `--values` absent the output keeps the same seven keys in the same order, asserted by its own bite. Red-first: the lane broke `findMarkerValues` to strip everything but `type`, went RED 12/14 naming both affected tests, restored byte-identical, GREEN 14/14 — all three runs executed, not summarized.
   **What it measured, and it is the load-bearing half.** On all six busting pairs, CC's own markers carry `{"type":"ephemeral","ttl":"1h","scope":"global"}` at `system[1]` and `{"type":"ephemeral","ttl":"1h"}` at `system[2]` and at the rolling tail marker — IDENTICAL on the predecessor and the busting request, every pair. So CC sends a 1-hour TTL and does not change it at the bust. That is what makes the forwarded layer the open question rather than a hunch: `cache-control-normalize.mjs:53-56` rewrites the tail marker to `{ type: "ephemeral" }` with NO `ttl`, which — if it reaches the wire — is a 1h→5m downgrade WE introduce. Unmeasured at the forwarded tap; booked in `## Open`.

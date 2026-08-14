@@ -7,10 +7,10 @@
     "residual": "NEAR-ZERO, not zero. The cell's leading clause still names the bookmark ladder as the mitigated half; that mechanism was RETIRED 2026-07-28 (matrix section 'Bookmark-ladder disposition — REVERSED', measured: the ladder itself produced 57 stability violations). What carries the class today is insertion-normalization alone, and the insertions that still bust are rows 4 and 22's classes."
   },
   "2": {
-    "status": "OPEN",
+    "status": "ACCEPTED",
     "evidence": "docs/directives/robustness-threat-matrix.md",
-    "date": "2026-07-27",
-    "residual": "Phase-3 keepalive candidate: needs idle-detection plus an opt-in, and is cost-positive only if the operator returns. No design decided, so it is buildable-but-undesigned rather than blocked."
+    "date": "2026-08-14",
+    "residual": "WON'T BUILD (operator decision 2026-08-14): the phase-3 keepalive is not built, so an idle-hour cold is expected cost and a 1h-idle bust triages EXPECTED-BUST. A keepalive is cost-positive only if the operator RETURNS inside the extended window, and the deliberate case is already covered by their own keep-warm skill, which fires exactly when it pays off; a proxy-side timer has to guess, and a wrong guess bills a full-prefix read per idle window on every session the machine holds open. The 2026-07-30 measurable build trigger (a week of TTL-idle colds with return inside ~2h) is WITHDRAWN as the decision criterion. Not-built design of record, kept should the decision reverse: docs/directives/proxy-ttl-keepalive.md. Residual risk accepted with it: an idle-then-return the skill was not started for pays the full cold, and nothing measures how often that happens — the rate was never instrumented and is not being instrumented."
   },
   "3": {
     "status": "RESIDUAL",
