@@ -269,6 +269,46 @@ now means some child DIED HARD and is a finding about that child.
   Anchor: docs/directives/robustness-threat-matrix.md
   <!-- entry: "row 31 filed upstream as PR 337" -->
 
+- **RECORD 2026-08-14 — FOUR instances of one class in one day, and the day
+  was SPENT fixing the first one.** The class: reporting the state of an
+  artifact without opening it. Booked as a record rather than a fix because
+  the corpus rule already exists and is loaded — this is evidence about its
+  firing, and the next fire-rate review is its consumer.
+  1. The #276 blocker (2026-08-06, a prior session): fork-main's line numbers
+     reported as the pushed ref's. Cost eight days of a blocked review.
+  2. The `#82642` comment's opener said "Third platform". Inherited verbatim
+     from this repo's own backlog headline, never checked against the filing
+     it describes — our own 2026-07-29 comment says "linux" in its first
+     sentence. Corrected in place by the review session; the headline itself
+     is corrected above, because the entry is the writer.
+  3. The handoff written to hand this work over asserted the 2026-07-29
+     comment "carries no AI-attribution footer". It carries one. I did not
+     open it.
+  4. The same handoff asserted my published `#82642` comment "restates the
+     macOS reporter's figures". It does not — `grep -cE '48,404|47,081|1,279'`
+     over the published body returns 0. I did not re-read what I had posted.
+  **The shape, and why the third and fourth are the interesting ones:** 3 and
+  4 are claims about MY OWN output, made hours after producing it, in the very
+  document whose purpose was to let someone else check my work. The corpus
+  names that case exactly ("one's own past output is the same altitude
+  question, at the claim moment only"), and it was loaded all day. Both were
+  cheap to check — one API read each — and both were made in the register of
+  recollection rather than of assertion, which is the tell the rule names.
+  A fifth, adjacent and caught by the reviewer rather than by me: the #78420
+  draft said the non-double-billed streaks "are retries that were never
+  answered". The fields I QUOTED IN THE SAME PARAGRAPH refute it — 114
+  streaks, 78 billed, 55 double-billed, so 23 of the 59 were billed exactly
+  once and only 36 were never answered. Not an unopened artifact this time but
+  an uncomputed subtraction over numbers already in hand, which is the same
+  failure with the source sitting in the sentence.
+  No mechanism proposed: every instance was catchable by one read or one
+  subtraction, and a guard that fires on "did you open it" has no computable
+  predicate. The operator is the backstop, and today the backstop was a peer
+  session doing exactly the review it was handed.
+  Loop stage: VERIFY.
+  Anchor: docs/runbooks/public-comms.md
+  <!-- entry: "four unopened-artifact claims in one day" -->
+
 - **READY 2026-08-14 — the PR-round doorbell cannot be answered by ANSWERING:
   its predicate reads our last COMMIT, so a round whose correct reply is a
   question stays open forever.** Found by using it minutes after both rounds
@@ -353,7 +393,20 @@ now means some child DIED HARD and is a finding about that child.
   <!-- entry: "the 276 fixes were never on the branch" -->
 
 - **READY 2026-08-14 — CC #82642 got an independent second measurement today;
-  ours would make it a third platform, and the measurement is short.**
+  ours adds the numbers our own filing never carried, and it is short.**
+  **THIS HEADLINE SAID "ours would make it a third platform" UNTIL
+  2026-08-14, AND THAT PHRASE REACHED A PUBLIC COMMENT.** It is false and was
+  falsifiable from our own filing: the issue is ours, filed from LINUX, so
+  linux is platform one and the macOS corroboration is platform two — our
+  measurement is a second data point on the FIRST platform, not a third
+  platform. Our own 2026-07-29 comment on the sibling issue states the setup
+  in its first sentence ("CC 2.1.220, linux"), so nothing had to be measured
+  to catch this; the entry's own words simply went unchecked against the
+  thread they describe. The published comment opened "Third platform" on the
+  strength of this line and was corrected in place the same day. The reader
+  fix is the correction above; the WRITER fix is this line, because an entry
+  that phrases a claim wrongly hands it to whoever drafts from it, and
+  drafting from the entry is exactly what the entry is for.
   `anthropics/claude-code#82642` (PreToolUse denials discard `decisionReason`)
   is ours, filed 2026-07-30. Today another user posted a corroboration from a
   different platform: 48,404 `PreToolUse:Bash` attachments across 601
