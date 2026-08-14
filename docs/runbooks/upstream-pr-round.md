@@ -124,13 +124,19 @@ When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
    files: the gap a planted UUID found". The greps above are now the
    belt over that guard, not the only check — still run them: they
    fire at review time, before the boundary.
-   **Blind spot still OPEN:** the push scan diffs the RANGE
-   ENDPOINTS and reads content at the tip, so a leak committed and
-   then scrubbed within the same pushed range publishes at the
-   intermediate SHA unscanned (booked in BACKLOG.md, grep
-   "range-interior"). Until that lands, a scrub commit inside an
-   unpushed series means: re-scan the WHOLE series by hand before
-   pushing, or squash the leak out of history first.
+   **Blind spot CLOSED 2026-08-14:** the push scan used to diff only
+   the RANGE ENDPOINTS, so a leak committed and then scrubbed within
+   the same pushed range published at the intermediate SHA unscanned
+   — the manual re-scan-by-hand instruction that used to sit here was
+   the interim cover for it. `scanGitRange` now walks every commit in
+   the range and scans what each one adds or modifies at its own
+   tree, deduped by blob OID against the endpoint pass (red-proof:
+   test/absence-scan.test.mjs, "range-interior commits" — a defect
+   added then deleted within one pushed range). The same landing also
+   covers a pushed ANNOTATED TAG's own message, which no scanner read
+   before (red-proof: same file, "annotated tag messages"). A scrub
+   commit inside an unpushed series needs no hand re-scan now; the
+   push scan itself reaches it.
 6. **Push, then comment.** Every push gets a PR comment: what changed
    in response to which finding, real test counts from the run, then
    the footer:

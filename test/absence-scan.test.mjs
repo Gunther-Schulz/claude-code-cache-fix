@@ -401,6 +401,167 @@ test("git-range: an unresolvable base ref degrades to a full scan rather than er
   });
 });
 
+// --- range-interior commits ---------------------------------------------------
+//
+// `rangeFiles` diffs the range's two ENDPOINTS (`--diff-filter=ACMR oldRef
+// newRef`), so a blob added in one commit and deleted (or reverted) by a
+// later commit inside the same pushed range nets out of that diff entirely —
+// the natural "leak, then scrub, then push" sequence, and it read as clean
+// before this fix (docs/dev-loop.md, "Blind spot still OPEN").
+//
+// RED-FIRST: reverting this walk (deleting the range-interior loop in
+// scanGitRange) reproduces the pre-fix behaviour — the added-then-deleted
+// synthetic UUID below reports `absence-scan: clean`, exit 0. Demonstrated by
+// hand against the unpatched scanner before this fix landed (dispatcher's
+// closing report carries the pasted output); the bite below pins the fixed
+// behaviour going forward.
+test("git-range: a defect ADDED then DELETED within the same pushed range is still caught", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const cleanRel = seedCorpusFile(dir, "clean.json", CLEAN);
+    g("add", cleanRel);
+    g("commit", "-qm", "clean baseline");
+    const base = g("rev-parse", "HEAD");
+
+    const leakRel = seedCorpusFile(dir, "leak.json", SEEDED["capture-uuid"]);
+    g("add", leakRel);
+    g("commit", "-qm", "add leak (should have been caught here)");
+
+    g("rm", "-q", leakRel);
+    g("commit", "-qm", "scrub: remove leak.json before push");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--git-range", `${base}..${head}`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING capture-uuid {2}test\/fixtures\/harvested\/leak\.json/,
+      "the blob is read at the ADDING commit's own tree, never reachable at the tip");
+    assert.ok(!r.stdout.includes(FAKE_UUID), "and must not echo the identifier");
+  });
+});
+
+test("git-range: the same added-then-deleted shape with CLEAN content stays green", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const cleanRel = seedCorpusFile(dir, "clean.json", CLEAN);
+    g("add", cleanRel);
+    g("commit", "-qm", "clean baseline");
+    const base = g("rev-parse", "HEAD");
+
+    const tempRel = seedCorpusFile(dir, "temp.json", { note: "nothing sensitive here" });
+    g("add", tempRel);
+    g("commit", "-qm", "add temp");
+
+    g("rm", "-q", tempRel);
+    g("commit", "-qm", "remove temp");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--git-range", `${base}..${head}`], dir);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+  });
+});
+
+test("git-range: a defect MODIFIED then REVERTED within the range is still caught at the interior commit", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const rel = seedCorpusFile(dir, "flip.json", CLEAN);
+    g("add", rel);
+    g("commit", "-qm", "clean baseline");
+    const base = g("rev-parse", "HEAD");
+
+    writeFileSync(join(dir, rel), JSON.stringify(SEEDED["capture-uuid"], null, 2));
+    g("add", rel);
+    g("commit", "-qm", "modify to a leak");
+
+    writeFileSync(join(dir, rel), JSON.stringify(CLEAN, null, 2));
+    g("add", rel);
+    g("commit", "-qm", "revert to clean before push");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--git-range", `${base}..${head}`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING capture-uuid {2}test\/fixtures\/harvested\/flip\.json/);
+  });
+});
+
+test("git-range: a blob unchanged from the tip is not re-scanned by the interior walk (dedupe)", () => {
+  // Not directly observable from the CLI's findings (a correctly-deduped run
+  // and a naively-duplicating one both report exactly one finding for a
+  // single real defect) — the property under test is COST: the same file
+  // touched across three commits without ever changing content must not
+  // multiply the interior walk's work. Exercised indirectly via the sweep
+  // accounting in the closing report; this bite pins the observable half —
+  // one finding, not three, for one defect touched three times.
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const rel = seedCorpusFile(dir, "steady.json", SEEDED["capture-uuid"]);
+    g("add", rel);
+    g("commit", "-qm", "add leak");
+    const base = g("rev-parse", "HEAD");
+    // Touch an unrelated file twice more so `steady.json`'s blob is walked
+    // by the interior loop at more than one commit without its content ever
+    // changing between them.
+    for (let i = 0; i < 2; i++) {
+      writeFileSync(join(dir, "test/fixtures/harvested/unrelated.json"),
+        JSON.stringify({ n: i, ts: `2000-01-01T00:00:0${i}.000Z` }, null, 2));
+      g("add", "test/fixtures/harvested/unrelated.json");
+      g("commit", "-qm", `unrelated touch ${i}`);
+    }
+    const head = g("rev-parse", "HEAD");
+    const r = run(["--git-range", `EMPTY..${head}`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    const hits = r.stdout.split("\n").filter((l) => l.startsWith("FINDING capture-uuid"));
+    assert.equal(hits.length, 1, "one defect, touched once, must report once");
+  });
+});
+
+// --- annotated tag messages -----------------------------------------------------
+//
+// A tag's ANNOTATION is a message on its own object, distinct from every
+// commit it points at — nothing before this fix ever read it (the range
+// walk above covers files and commits, not the tag object itself).
+//
+// RED-FIRST: against the unpatched scanner this reported `absence-scan:
+// clean`, exit 0, even though the message text carried a synthetic capture
+// UUID (demonstrated by hand before this fix landed; dispatcher's closing
+// report carries the pasted output).
+test("git-range: a synthetic UUID in an ANNOTATED TAG's message is caught", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "a.md"), "clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "base");
+    g("tag", "-a", "v1.0.0", "-m", `release notes: session ${FAKE_UUID} busted this cut`);
+    const tagSha = g("rev-parse", "v1.0.0");
+
+    const r = run(["--git-range", `EMPTY..${tagSha}`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING capture-uuid {2}tag /,
+      "a tag annotation finding must say it came from the tag, not a file or a commit");
+    assert.ok(!r.stdout.includes(FAKE_UUID), "and must not echo the identifier");
+  });
+});
+
+test("git-range: a clean annotated tag reports nothing, and a lightweight tag is a no-op for this class", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "a.md"), "clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "base");
+    g("tag", "-a", "v1.0.0", "-m", "a perfectly ordinary release note");
+    const annotated = g("rev-parse", "v1.0.0");
+    const rAnnotated = run(["--git-range", `EMPTY..${annotated}`], dir);
+    assert.equal(rAnnotated.status, 0, rAnnotated.stdout + rAnnotated.stderr);
+
+    // A lightweight tag has no separate object — `v-lite` resolves straight
+    // to the commit, so there is no annotation for this class to read; the
+    // commit's own file content is what the endpoint/interior walks cover.
+    g("tag", "v-lite");
+    const lite = g("rev-parse", "v-lite");
+    const rLite = run(["--git-range", `EMPTY..${lite}`], dir);
+    assert.equal(rLite.status, 0, rLite.stdout + rLite.stderr);
+  });
+});
+
 // ── Source files: a capture UUID may exist only on the allowlist ──────────────
 //
 // Fixtures are covered by the classes above; SOURCE leaks ride in comments and

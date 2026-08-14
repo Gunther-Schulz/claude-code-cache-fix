@@ -552,15 +552,22 @@ function git(args, { quiet = false } = {}) {
 }
 
 /**
- * The commits being pushed, as {sha, text} with subject and body. EMPTY means
- * a new branch: `git log <newRef>` alone would walk to the root and report the
- * whole project's history, so the range is bounded by whatever is already
- * reachable from any other ref — the commits this push actually adds.
+ * The revision-args that bound a pushed range to "the commits this push
+ * actually adds" — shared by every walk that needs that same set (messages,
+ * and the range-interior blob walk below), so the EMPTY/new-branch handling
+ * lives in exactly one place. EMPTY means a new branch: `git log <newRef>`
+ * alone would walk to the root and report the whole project's history, so
+ * the range is bounded by whatever is already reachable from any other ref.
  */
+function rangeCommitArgs(oldRef, newRef) {
+  return oldRef === "EMPTY"
+    ? [newRef, "--not", "--all", "--not", newRef, "--branches", "--tags", "--remotes"]
+    : [`${oldRef}..${newRef}`];
+}
+
+/** The commits being pushed, as {sha, text} with subject and body. */
 function rangeMessages(oldRef, newRef) {
-  const args = oldRef === "EMPTY"
-    ? ["log", "--format=%H%x00%s%n%b%x01", newRef, "--not", "--all", "--not", newRef, "--branches", "--tags", "--remotes"]
-    : ["log", "--format=%H%x00%s%n%b%x01", `${oldRef}..${newRef}`];
+  const args = ["log", "--format=%H%x00%s%n%b%x01", ...rangeCommitArgs(oldRef, newRef)];
   let out;
   try {
     out = git(args);
@@ -571,6 +578,84 @@ function rangeMessages(oldRef, newRef) {
     const [sha, text] = c.split("\x00");
     return { sha: (sha ?? "").slice(0, 12), text: text ?? "" };
   });
+}
+
+/**
+ * The full-length SHAs of the commits being pushed — same range as
+ * `rangeMessages`, undoing its 12-char truncation, because these feed git
+ * plumbing (`diff-tree`, `cat-file`) rather than a printed finding.
+ */
+function rangeCommitShas(oldRef, newRef) {
+  let out;
+  try {
+    out = git(["rev-list", ...rangeCommitArgs(oldRef, newRef)]);
+  } catch {
+    return [];
+  }
+  return out.split("\n").map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * The blobs one commit ADDS or MODIFIES, at their path in that commit —
+ * `git diff-tree --raw` against the first parent (or, for a root commit,
+ * against the empty tree via `--root`), so a merge commit's second-parent
+ * contributions are outside this walk's reach (the existing endpoint diff
+ * has the same single-parent limitation; not widened here).
+ *
+ * WHY THIS EXISTS: rangeFiles diffs the range's two ENDPOINTS, so a blob
+ * added in one commit and deleted in a later one — both inside the pushed
+ * range — nets out of that diff entirely and is never read. This is the
+ * per-commit walk that reaches it: every commit in the range contributes
+ * its own added/modified paths, read at THAT commit's tree, not the tip's.
+ */
+function commitBlobs(commit) {
+  let out;
+  try {
+    out = git(["diff-tree", "--raw", "--no-commit-id", "-r", "--root", "--diff-filter=ACMR", commit]);
+  } catch {
+    return [];
+  }
+  const items = [];
+  for (const line of out.split("\n")) {
+    const l = line.trim();
+    if (!l) continue;
+    // `:<old-mode> <new-mode> <old-sha> <new-sha> <status>\t<path>` — a
+    // rename/copy (R/C) carries a similarity score after the letter and TWO
+    // tab-separated paths (old, new); every other status carries one.
+    const m = /^:\d+ \d+ [0-9a-f]+ ([0-9a-f]+) [A-Z]\d*\t(.+)$/.exec(l);
+    if (!m) continue;
+    const rest = m[2];
+    const path = rest.includes("\t") ? rest.split("\t").pop() : rest;
+    items.push({ blob: m[1], path });
+  }
+  return items;
+}
+
+/**
+ * An annotated tag's own message, or null when `sha` is not a tag object —
+ * a lightweight tag or a branch resolves straight to a commit and carries no
+ * separate message to read. `git cat-file -p` on a tag object prints the
+ * header block (object/type/tag/tagger) then a blank line then the message;
+ * there is no `--format` for it the way commits have one, so the split is
+ * manual — the same "no format flag exists" reason `scanSourceText` is
+ * reused wholesale below rather than re-derived.
+ */
+function tagMessage(sha) {
+  let kind;
+  try {
+    kind = git(["cat-file", "-t", sha]).trim();
+  } catch {
+    return null;
+  }
+  if (kind !== "tag") return null;
+  let raw;
+  try {
+    raw = git(["cat-file", "-p", sha]);
+  } catch {
+    return null;
+  }
+  const idx = raw.indexOf("\n\n");
+  return idx === -1 ? "" : raw.slice(idx + 2);
 }
 
 function rangeFiles(oldRef, newRef) {
@@ -609,11 +694,29 @@ export function scanGitRange(oldRef, newRef) {
   let scanned = 0;
   let partial = 0;
   let partialSource = 0;
+  // Blob OIDs already scanned, shared across the endpoint pass below and the
+  // range-interior walk that follows it — the same content reached through
+  // two different git invocations (`show <tip>:<path>` vs. a per-commit
+  // `diff-tree`) is one scan, not two. A blob that only ever exists inside
+  // the range (added then removed before the tip) is scanned exactly once,
+  // by the interior walk; a blob that survives to the tip is scanned once,
+  // here, and the interior walk's later encounter of the same OID is a
+  // no-op. Scoped by OID alone, not (OID, path): the same bytes committed
+  // at two different logical paths in one push share a scan, which can in
+  // principle skip a corpus-scope finding at the second path if the first
+  // path scanned it out-of-corpus — not observed in this repo's history,
+  // named rather than silently accepted.
+  const scannedBlobs = new Set();
   for (const file of files) {
     if (isAllowlisted(file)) {
       allowlisted.push(skipEntry(file));
       continue;
     }
+    let blobId = "";
+    try {
+      blobId = git(["rev-parse", "-q", "--verify", `${newRef}:${file}`]).trim();
+    } catch { /* unresolvable — fall through and scan by content anyway */ }
+    if (blobId) scannedBlobs.add(blobId);
     const text = git(["show", `${newRef}:${file}`]);
     const r = scanContent(text, file);
     // Class-scoped exemptions: the file is still SCANNED, and only the
@@ -629,6 +732,57 @@ export function scanGitRange(oldRef, newRef) {
     if (r.partial) partial++;
     if (r.sourceOnly) partialSource++;
     degraded.push(...r.degraded.map((d) => `${file}: ${d}`));
+  }
+
+  // RANGE-INTERIOR BLOBS: `files` above is an ENDPOINT diff, so a blob added
+  // in one commit and deleted (or reverted) by a later commit inside the same
+  // pushed range nets out of it entirely and is never read — the natural
+  // shape of "leak, then scrub, then push" (docs/dev-loop.md, "Blind spot
+  // still OPEN"). Walk every commit in the range and scan what each one adds
+  // or modifies, at ITS OWN tree, deduped against the endpoint pass above.
+  let interiorPaths = 0;
+  const interiorSkipped = new Set();
+  for (const commit of rangeCommitShas(from, newRef)) {
+    for (const { blob, path } of commitBlobs(commit)) {
+      if (!(SCANNABLE.test(path) || SOURCE_SCANNABLE.test(path))) continue;
+      if (isAllowlisted(path)) {
+        if (!interiorSkipped.has(path)) {
+          allowlisted.push(skipEntry(path));
+          interiorSkipped.add(path);
+        }
+        continue;
+      }
+      if (scannedBlobs.has(blob)) continue;
+      scannedBlobs.add(blob);
+      interiorPaths++;
+      let text;
+      try {
+        text = git(["cat-file", "-p", blob]);
+      } catch {
+        degraded.push(`${path} @ ${commit.slice(0, 12)}: blob ${blob} unreadable`);
+        continue;
+      }
+      const r = scanContent(text, path);
+      const exempt = exemptClasses(path);
+      const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
+      if (kept.length < r.findings.length) allowlisted.push(exemptEntry(path, exempt));
+      findings.push(...kept);
+      for (const n of CLASS_NAMES) seen[n] += r.seen[n];
+      scanned += r.scanned;
+      if (r.partial) partial++;
+      if (r.sourceOnly) partialSource++;
+      degraded.push(...r.degraded.map((d) => `${path} @ ${commit.slice(0, 12)}: ${d}`));
+    }
+  }
+
+  // A PUSHED ANNOTATED TAG's own message. Lightweight tags and branches
+  // resolve `newRef` straight to a commit, so `tagMessage` returns null for
+  // them and this is a no-op — the same scanner already covers those via
+  // the endpoint and interior walks above.
+  const tagMsg = tagMessage(newRef);
+  if (tagMsg !== null) {
+    const r = scanSourceText(tagMsg, `tag ${newRef.slice(0, 12)}`);
+    findings.push(...r.findings);
   }
 
   // COMMIT MESSAGES, scanned with the same class as source files.
@@ -651,7 +805,7 @@ export function scanGitRange(oldRef, newRef) {
   }
 
   return { findings, seen, scanned, degraded, allowlisted, files, partial, partialSource,
-           messages: messages.length };
+           messages: messages.length, interiorPaths };
 }
 
 // --- one published version of a path -----------------------------------------
