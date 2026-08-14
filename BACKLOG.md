@@ -221,6 +221,60 @@ hook, whose fork-side contract line shipped this session.
 
 ## Open
 
+- **READY 2026-08-14 — `bust-triage` stops one question short: it names the ROW
+  and never says whether the mitigation ABSORBED, so the answer gets hand-derived
+  from jq every time — and today that hand-derivation pointed the WRONG WAY.**
+  Measured on the 591k `tools_changed` bust (11:20:33Z, row 6). `bust-triage`
+  walked it correctly to KNOWN-OPEN / row 6 / attribution CC's, which is where it
+  stops. The next question — did our mitigation hold — took three manual steps,
+  and each one is a tool that exists but is not reachable from where the walk
+  leaves you:
+  (i) `collectD1Retirement` (`tools/gate-live.mjs:1569`) already answers the
+  absorption/identity half and shipped 2026-08-11 in `46d7bc4`; nothing points at
+  it from a bust walk, so the desk hand-grepped `snapshots/*.jsonl` with jq
+  instead and read a stale `no-baseline` as evidence the row-26 class was
+  re-opening. The instrument, run over the right window, said `count: 0` over
+  `filesScanned: 94` — the opposite. A hand-read beat by its own tool, which is
+  the failure this entry exists to remove.
+  (ii) the live `gate-status.json` carries those fields but its `window` ends at
+  the last sweep (07:14:23Z), and BOTH of today's busts (08:51, 11:20) fall
+  outside it. The fields carry their window, which is what made the staleness
+  visible — good design — but nothing WARNS a reader whose event sits outside it.
+  (iii) replaying the pinned pair to get the tools[] verdict requires converting
+  `{header, records}` to JSONL by hand; pointing `replay.mjs` at the `.json` pin
+  returns `census: 0 same-conversation pairs` and exits clean. Known and still
+  open (this file, "reads 0 pairs"), and it is the worst of the three because the
+  wrong answer is a CLEAN-LOOKING ZERO.
+  **What the answer turned out to be, so the mechanism has its target:** fed
+  correctly, the pin reports `tools[] deltas: 3 (3 tools-ONLY)`, `forwarded
+  tools[] held stable across: 0/3 (whole array)`, `shared-name subset held stable
+  across: 3/3 (the guarantee actually made)`, `absorption misses: 0`. The
+  mitigation HELD on the guarantee it makes; CC changed tool-set MEMBERSHIP,
+  which no rewrite can absorb. That converts the disposition from KNOWN-OPEN to
+  an expected-bust reading of row 6 — and it is three numbers a human should
+  never have to assemble.
+  Design, decided: `bust-triage` gains an ABSORPTION step after its attribution
+  step, printing (a) `collectD1Retirement` scoped to the BUST's own window —
+  imported, never re-derived, so the window is computed from the event rather
+  than inherited from the last sweep; and (b) the tools[]-stability lines for the
+  walked pair, obtained by replaying the joined pair. Where any input is missing
+  the step prints the repo's third answer (could-not-verify with its reason),
+  never a silent zero — `filesScanned: 0` and `pairs: 0` are both could-not-verify
+  by construction.
+  Red-first, and the two must DIFFER: on this bust's own pinned pair the step must
+  report `0/3 whole array` and `3/3 shared-name subset`; on a pair with no tools
+  delta it must report no tools-stability finding rather than `0/0` rendered as a
+  hold. A pin fed as `.json` must print could-not-verify, NOT `0 pairs` clean.
+  Done: the absorption step ships; running `bust-triage --session <handle>` on the
+  2026-08-14 11:20:33Z event prints the three numbers above without a jq probe;
+  the could-not-verify arm is demonstrated on a `.json` pin; this entry moves to
+  `## Done` with its ref.
+  Loop stage: ATTRIBUTE.
+  Anchor: row 6
+  Write-set: `tools/bust-triage.mjs`, `test/bust-triage-absorption-step.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-absorption-step.test.mjs
+  <!-- entry: "bust-triage names the row but never says whether the mitigation absorbed" -->
+
 - **READY 2026-08-14 — the READY-bar and the boundary resolver read the SAME
   `Write-set:` slot with DIFFERENT grammars, so an entry can pass the bar and be
   invisible to the lane derivation.** Measured by walking into it 2026-08-14: three
