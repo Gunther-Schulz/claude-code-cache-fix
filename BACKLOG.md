@@ -370,6 +370,34 @@ now means some child DIED HARD and is a finding about that child.
   only-as-text, or it is measuring nothing. A zero over an unproven parse is
   the absence-read-as-clean shape.
   OPERATOR GO BEFORE POSTING — draft only.
+  **MEASURED 2026-08-14; the tool is shipped and the draft is written. Only
+  the posting is outstanding.** `tools/hook-decision-census.mjs` +
+  `test/hook-decision-census.test.mjs` (`7658ab4`, dispatched lane; desk
+  corrections `341dede`). Over 979 transcripts, CC 2.1.232: 6,171
+  `PreToolUse:*` attachments, **deny=0**, against **1,567** denials visible
+  only as tool_result error text. The positive control named above appeared
+  (`push-claim-reminder`, 137 hits), so the parse measures something real.
+  **The desk grading found two numbers whose denominators nobody stated, and
+  both would have gone into a public comment wrong.** (i) 6,171 is NOT the
+  decision denominator — 3,333 attachments carry no `stdout` at all and reach
+  no classifier, which is a different absence from the 2,693 that carry
+  stdout and no `permissionDecision`; `decisions.classified` /
+  `decisions.noStdout` now state it and the suite pins
+  `classified + noStdout == total`. (ii) The lane reported honestly that its
+  two denial-text signatures were "not proven exhaustive" — a hedge measures
+  nothing, so it is now counted: **134** error results mention a hook and
+  match neither signature, which makes 1,567 a FLOOR. Red-first for both,
+  arrangement stated: 29/29 green on the new code, and with the old blob
+  restored exactly the four new bites fail while all 25 pre-existing pass.
+  **A SECOND, SHARPER FINDING the brief did not ask for, and it is a
+  DECISION rather than a booking:** 1,339 of the 1,567 have NO PreToolUse
+  attachment on the call at all — not a discarded `decisionReason`, no record
+  of any kind; for `message-payload-gate` (denying `SendMessage`) it is
+  1,061 of 1,061. #82642 as filed names only the discarded-reason tier. Open
+  question for the operator: does this ride in the same comment (drafted that
+  way) or become its own issue? Drafted, not posted.
+  Draft: scratchpad `draft-cc82642-comment.md`, absence-scan clean with both
+  classes proven live on that file first.
   Loop stage: SEE.
   Anchor: tools/
   Write-set: tools/ (the probe), plus the comment draft
