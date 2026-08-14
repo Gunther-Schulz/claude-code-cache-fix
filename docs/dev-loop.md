@@ -885,6 +885,36 @@ handler list above covers exit/throw/SIGINT/SIGTERM/SIGHUP and not SIGKILL
 — named as a hypothesis, unmeasured). Booked in BACKLOG.md with that as its
 first step; hand-cleaning the roots is the symptom fix and was taken to
 unblock a push, while the generator is still running.
+**RESOLVED 2026-08-14 — the producer is measured, the cause is not SIGKILL,
+and the fix is on the TEST side.** The measurement that answered it took one
+run and is the one this paragraph had been asking for since 2026-08-13: make
+each run root record its own creator (pid, ppid, argv) at creation, run the
+full suite under a PRIVATE `TMPDIR` — the attribution trap two paragraphs
+below, avoided rather than re-read afterwards — and open the survivors. Both
+survivors were `replay.mjs … --json --census --pin-rows` children of the same
+test process, and neither had gone through `gate-live`'s own child-exit path.
+They are `test/gate-live-rowpins.test.mjs`'s two DELIBERATE crashes: it runs
+replay under `--max-old-space-size=8` to force the failure class the daily
+sweep's own heap cap exists to convert into a status row. A V8 heap-limit
+failure calls `abort()` — SIGABRT, exit 134 — and abort runs NO exit handlers,
+so `tmpdir.mjs`'s cleanup never fires. Paired probe, both arms from the same
+command: 8 MB cap → exit 134, one root left; default cap → exit 0, zero roots.
+That also explains why the earlier OOM hypothesis was recorded as having
+"taken a hit" — it was tested at gate-live's 2048 MB cap on a 1 GB capture,
+which does not abort. The right cap was in the test file all along.
+FIXED the same day: the two forcing children get a `TMPDIR` inside the test's
+own scratch, which lives under the parent's run root and dies with it, plus
+two PID-SCOPED assertions per crash (nothing under this child's pid in the
+shared temp root; exactly one under it in the scratch). Pid-scoping is what
+makes reading shared `/tmp` safe here at all. Red-first, both arms stated:
+baseline 11/11 green with zero shared-`/tmp` roots; with the private `TMPDIR`
+removed and the assertions kept, 10/11 with the failure naming the exact
+leaked directory and pid.
+**The correction that outlives the bug: `tmpdir.mjs`'s DEFINITION was wrong,
+and its wrongness is what sent three sessions hunting a kill.** The header
+named SIGKILL as the one case it cannot cover; SIGABRT is a second, and it was
+the one actually occurring. Corrected there. A leftover run root means a child
+DIED HARD — a finding about that child, never about the helper.
 **Two numbers here were wrong and are corrected, because the ranking read
 them.** "One full-suite run leaves thousands" was never measured: a full run
 leaked **113**, confirmed by two independent instruments (a marker-based `find`

@@ -917,192 +917,6 @@ hook, whose fork-side contract line shipped this session.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-at-substitution.test.mjs
   <!-- entry: "capture outcome-to-request join is not mechanized" -->
 
-- **PARKED 2026-08-13 — the `/tmp` run-root leak is BACK: every full-suite
-  run leaks exactly 2 roots, including runs that PASS, and the guard's
-  one-hour threshold is a blind window a pushing session refills faster than
-  it drains.**
-  **THIRD OCCURRENCE 2026-08-14 ~10:10 local, and it answers this entry's
-  own first step — the producer is measured, not hypothesized.** The guard
-  blocked a push (8 roots older than 1h, every owning pid dead, all created
-  09:07-09:10 during that session's own pre-push runs, arriving in PAIRS
-  1-2 s apart exactly as this entry describes). Read BEFORE the cleanup,
-  which is what makes it evidence rather than a lost opportunity: **all 32
-  run roots then on disk contained exactly ONE `cache-fix-replay-*`
-  directory and nothing else — 32 of 32, no other producer appears at all.**
-  That independently reproduces `534289d`'s localization from a different
-  session and a different day, and it narrows the open half: the question is
-  no longer WHICH producer but why THAT child's exit handler does not fire.
-  New candidate ahead of the entry's SIGKILL guess, and it is testable
-  without new machinery: `gate-live` runs every replay child under
-  `--max-old-space-size`, and a child dying on the heap cap exits through a
-  path no `process.on(exit|SIGTERM|…)` handler serves — the pairs-per-run
-  shape fits two capped children per sweep-shaped test. Unmeasured, named as
-  the next probe.
-  Symptom fix TAKEN again to unblock the push (8 roots removed by hand,
-  after verifying each pid dead — the same stopgap this entry already
-  records, now on its second use, which is itself the argument for building
-  the durable half). `docs/dev-loop.md` claimed "Measured after: a full suite
-  leaves ZERO" — corrected today in the same commit as this entry, because
-  it is false.
-  **The measurement, by counting roots against the runs that made them:**
-  six consecutive `pre-push` full-suite runs (16:07, 16:08, 16:09, 16:15,
-  16:16, 16:20 local) left exactly TWO `/tmp/cache-fix-run-<pid>-*` roots
-  each — twelve, every owning pid dead. The pair from the 16:20 run, which
-  PASSED and pushed, is identical to the five from failing runs, so this is
-  not a failure path and not a kill path peculiar to red suites. Separately,
-  25 roots dating 12:21–13:17 had already accumulated past the one-hour
-  threshold and BLOCKED a push via `gate-live`'s `tmpLeftovers` — which is
-  how this was found: the guard fired, nobody read the doc line.
-  **Why it matters more than 12 directories.** `tmpLeftovers` only fails on
-  roots older than an hour, so a session pushing repeatedly stays under the
-  threshold while the pile grows; the doc line then tells the next reader
-  there is nothing to look for. `dev-loop.md`'s own ENOSPC precedent is
-  where that ends: 31,108 dirs, `/tmp` at 100%, unrelated tooling broken
-  machine-wide, and a suite returning 0/3/95/525/528 failures across five
-  runs of one commit.
-  **First step is DIAGNOSIS, not a reaper — the fix must not be a
-  `rm -rf` on a schedule**, which would delete a live run's root and
-  reintroduce the failure `tmpdir.mjs` deliberately avoids ("never deletes
-  anything it did not create"). Identify the two producers per run (the
-  `npm test` parent and the `gate-live` subprocess are the candidates, from
-  the pre-push command line, unverified) and establish why their exit
-  handler does not fire. SIGKILL is the leading hypothesis and is NAMED as
-  unmeasured: the registered list is exit/throw/SIGINT/SIGTERM/SIGHUP, and
-  SIGKILL is untrappable, so a hard kill would leak exactly this way — but
-  a passing run should not be killed at all, which is the fact that
-  hypothesis has to explain.
-  Red-first arrangement, and the two must DIFFER: instrument the producers
-  to record root creation and removal, run the full suite once, and assert
-  the created set equals the removed set. Today that assertion must FAIL
-  naming 2 roots; after the fix it must pass — and a run that is
-  deliberately SIGKILLed must still show the discrepancy, so the check is
-  not silently satisfied by removing the instrumentation.
-  **NAMED MISSING EVIDENCE — why this is PARKED and not READY, which the
-  booking bar caught and it was right to.** The entry was first written
-  READY, and the fix's design is precisely what is NOT decided: the repair
-  for "the handler is never registered in the child" is a different change
-  from "the handler is registered and SIGKILL bypasses it", and nothing here
-  distinguishes them. What unparks it is one measurement, and it is
-  decision-complete on its own: instrument root creation and removal in
-  `tools/tmpdir.mjs`, run `npm test` once, and report the created set minus
-  the removed set together with which process created each survivor. That
-  names the two producers and says whether their handler ran at all.
-  Red executed 2026-08-13, so the premise is not a recollection —
-  `for d in /tmp/cache-fix-run-*; do … kill -0 "$pid" …; done | sort`
-  returned twelve roots, all `dead`, in six timestamp pairs matching the six
-  pre-push runs one-for-one (16:07:24/25, 16:08:12/13, 16:09:07/08,
-  16:15:36/37, 16:16:53/55, 16:20:04/06); the 16:20 pair is the run that
-  passed and pushed.
-  **SECOND OCCURRENCE, same session, 2026-08-13 ~17:35 local — it blocked a
-  push again, 40 minutes after the first cleanup, and this is now a
-  RECURRING BLOCKER rather than a latent risk.** 18 roots had aged past the
-  threshold (26 present in total) and `gate-live`'s
-  `real: a clean sweep over the same capture pins no error evidence at all`
-  failed the pre-push suite on `FAIL tmp-leftovers: 18 run root(s)`. The
-  entry predicted exactly this — "a session pushing repeatedly refills the
-  pile inside the guard's own blind window" — so the prediction is confirmed
-  rather than merely plausible. Cost so far: two push cycles, both on work
-  that had nothing to do with the leak.
-  **One hypothesis ELIMINATED, recorded so the next pass does not re-walk
-  it.** `tools/tmpdir.mjs`'s own DEFINITION accepts one residue case:
-  SIGKILL, "which runs no code at all". The obvious story was therefore that
-  the suite deliberately hard-kills spawned children (it has bites like
-  "a gate that died is an error"), making the residue BY DESIGN and the real
-  defect the guard firing on it an hour later. That story is not supported:
-  `grep -rn SIGKILL test/ tools/` returns four hits and NONE of them kills a
-  node child in the main suite — two are `tmpdir.mjs`'s own prose, two are
-  in the `gh-auth-status-shim` bats tests. So the residue is not
-  explained-away design behaviour, and the exit handler — which covers
-  `exit`, throws, `process.exit()`, SIGINT/SIGTERM/SIGHUP — should have run.
-  That makes the measurement below MORE valuable, not less: the two
-  survivors per run are unexplained by the module's own accepted exception.
-  **THIRD occurrence, and the producer is now LOCALIZED — this is the
-  cheapest thing anyone could have done and it was not done for two rounds.**
-  The blocker fired a third time (4 roots past threshold). Instead of reaping
-  again, `ls` INSIDE the leaked roots: **every single one contains exactly one
-  `cache-fix-replay-*` child and nothing else**, across all 12 present at the
-  time (6 pairs, timestamps matching six suite runs one-for-one). So the
-  leaker is not "two unknown producers" — it is `replay.mjs`, spawned as a
-  child, twice per suite run.
-  **What that rules in and out.** The child DID use `tools/tmpdir.mjs` (the
-  root exists and carries the module's own `cache-fix-replay-` prefix inside
-  it), so `ensureRunRoot` ran and `process.on("exit", removeRunRoot)` was
-  registered. `grep -n "kill\|SIGTERM\|timeout\|abort\|signal"
-  tools/gate-live.mjs` returns exactly one hit, a comment — **gate-live sends
-  no signal to its replay children**. So the child was not killed by its
-  parent, and its exit handler did not run. That leaves paths where node runs
-  no exit handlers at all: a V8 OOM abort under the heap cap gate-live passes
-  (`SIGABRT`, handlers skipped) is the leading candidate, and an uncaught
-  native-level crash is the other. Both are NAMED as candidates, neither is
-  measured.
-  **Why the remaining step is now small and worth doing.** The measurement
-  shrinks from "instrument the whole suite" to: run one replay child the way
-  gate-live runs it, on a capture big enough to approach the cap, and read
-  its exit status and signal. If it aborts on OOM, the fix is a decision
-  about the cap or about the child reporting its own failure — and the sweep
-  currently reads CLEAN while two of its children died, which is the more
-  serious half: a clean verdict over children that aborted is a false green,
-  not a tidiness problem.
-  **Deliberately not chased further at the desk.** The next step is that
-  one-child run, not another hypothesis; guessing at it twice in one session
-  is how a blocker becomes a rabbit hole. Reaped by hand three times today
-  (18, then 4-past-threshold, then all 12 dead-owner roots) purely to ship
-  unrelated work.
-  Trigger to re-grade: that measurement's output.
-  Loop stage: VERIFY.
-  Anchor: tools/tmpdir.mjs
-  Write-set: tools/tmpdir.mjs, tools/gate-live.mjs, docs/dev-loop.md
-  **FOURTH OCCURRENCE 2026-08-14, and it KILLS one hypothesis while exposing a
-  contaminated measurement of my own.** The guard blocked a push again; read
-  before the reap, 34 of 34 run roots held exactly one `cache-fix-replay-*`
-  child and every owning pid was dead — an independent reproduction of the
-  third occurrence's localization, from a different session.
-  **The clean-exit path is EXONERATED, measured rather than argued:** one
-  `replay.mjs` run under gate-live's own `--max-old-space-size=2048`, given a
-  PRIVATE `TMPDIR`, exits 0 and leaves ZERO roots. `removeRunRoot` uses
-  `rmSync(recursive, force)` and fires on `exit`, so nothing about an ordinary
-  termination leaks. The OOM-abort hypothesis also took a hit rather than
-  support: a 1 GB capture replayed under the same cap exited 0.
-  **The instrument lesson, and it is the reusable half.** The desk's FIRST
-  probe counted `/tmp/cache-fix-run-*` before and after that run in the SHARED
-  tmp — 34 then 36 — and read the delta as a clean-exit leak. Four dispatched
-  lanes were running full suites in the same `/tmp` at that moment, so the two
-  new roots were theirs. `docs/dev-loop.md` names this exact trap ("counting
-  leftovers by a TIME WINDOW over shared /tmp attributes any concurrent
-  writer's dirs to your own run"); it was read after the fact, not before. The
-  private-`TMPDIR` arm is the form that answers, and it is what the corrected
-  measurement above uses.
-  **So the remaining question is narrower than this entry has ever stated it:**
-  which replay invocation terminates WITHOUT running exit handlers, given that
-  a clean one does not, gate-live sends no signal, and the heap cap did not
-  fire on the largest capture on disk. The next probe is the test-runner side —
-  whether `node --test` tears down a spawned gate-live's own replay children at
-  suite end, which would be a SIGKILL nothing traps. Named as unmeasured.
-  Reaped by hand again (42 dead-owner roots) purely to unblock pushes; that is
-  the fourth use of the stopgap and the argument for the durable half.
-  **NARROWED 2026-08-14 by a full inventory before the fifth reap, and it cuts
-  the caller set rather than repeating the count.** 62 dead roots, ZERO live,
-  and the contents are uniform in a way the "2 per suite run" figure hides:
-  **62 of 62 hold exactly ONE entry, and every one is a `cache-fix-replay-*`
-  scratch** (`tools/replay.mjs:4072`). Not one root belongs to a gate-live,
-  harvest or census scratch. So the leaking process is always a REPLAY
-  invocation specifically — the run root is created, replay's scratch is made
-  inside it, and the process dies before `process.on("exit")` runs.
-  Re-confirmed the clean path the same hour rather than citing the earlier
-  claim: a normal `node tools/replay.mjs <pinned fixture> --census` (exit 0)
-  left the root count UNCHANGED at 62, delta 0. `tmpdir.mjs:62` removes with
-  `rmSync(runRoot, { recursive: true, force: true })`, so a non-empty root is
-  not the obstacle either — that alternative is refuted, not merely unlikely.
-  What remains is exactly the entry's own named next probe (test-runner
-  teardown of a spawned gate-live's replay children), now with the caller set
-  narrowed to replay children and every other producer excluded by measurement.
-  Inventory frozen at
-  `<scratch>/tmp-leftovers-inventory-2026-08-14.txt` before the reap — it is
-  the only record of the 62, and it dies with the session unless promoted.
-  Fifth hand-reap taken to unblock eight commits; the argument for the durable
-  half is now five incidents old.
-  <!-- entry: "tmp run-root leak returned, 2 per suite run including passes" -->
-
 - **READY 2026-08-13 — the READY-bar's `Anchor:` resolver rejects a
   `path:line` citation as a dead path, which is the SECOND recorded instance
   of a class this repo has already paid for.** `lintReadyBar` resolves a
@@ -12866,6 +12680,240 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-14 — the `/tmp` run-root leak is CLOSED: the producer is the
+  test suite's own deliberate OOM crashes, the cause is SIGABRT (which runs no
+  exit handlers), and the fix is a private `TMPDIR` for the two forcing
+  children.** Sixth and last hand-reap taken before the measurement; the
+  measurement is the one this entry has named as its unparking condition since
+  2026-08-13, and it took one run.
+  **The measurement.** Made each run root record its own creator (pid, ppid,
+  argv, cwd) at creation — a temporary probe in `tools/tmpdir.mjs`, reverted
+  after — and ran the full suite under a PRIVATE `TMPDIR`, which is this
+  entry's own recorded attribution trap avoided rather than re-read afterwards.
+  Survivors: exactly 2 of 3236 tests' worth of children, both
+  `replay.mjs … --json --census --pin-rows`, both children of the SAME test
+  process, and neither appearing in `gate-live`'s child-exit log — so they were
+  never spawned by the sweep at all. Isolated to
+  `test/gate-live-rowpins.test.mjs` in 1.3 s: it crashes replay on purpose
+  under `--max-old-space-size=8`, twice, to force the failure class the daily
+  sweep's own heap cap converts into a status row.
+  **The cause, and it is NOT this entry's leading hypothesis.** A V8
+  heap-limit failure calls `abort()` — SIGABRT, exit 134 — and abort runs no
+  exit handlers, so `tmpdir.mjs`'s `process.on("exit")` cleanup never fires.
+  Paired probe from one command: 8 MB cap → exit 134, one root left; default
+  cap → exit 0, zero roots. The arms differ, which is what makes it a
+  measurement rather than a reproduction. This also explains why the earlier
+  round recorded the OOM hypothesis as having "taken a hit": it was tested at
+  gate-live's 2048 MB cap on a 1 GB capture, which does not abort. The right
+  cap was inside the test file the whole time.
+  **The fix, red-first, both arms stated.** The two forcing children get a
+  `TMPDIR` inside the test's own scratch, which lives under the parent's run
+  root and dies with it, plus two PID-SCOPED assertions per crash: nothing
+  under this child's pid in the shared temp root, exactly one under it in the
+  scratch. Pid-scoping is what makes reading shared `/tmp` safe under
+  concurrent lanes at all — the attribution trap this entry recorded, turned
+  into the instrument's design. Baseline: 11/11 green, zero shared-`/tmp`
+  roots. Mutated (private `TMPDIR` removed, assertions kept): 10/11, the
+  failure naming the exact leaked directory and pid. Full suite after:
+  3226 pass / 0 fail / 10 skipped, zero roots.
+  **The correction that outlives the bug.** `tools/tmpdir.mjs`'s DEFINITION
+  named SIGKILL as the one case it cannot cover. SIGABRT is a second, and it
+  was the one actually occurring — so three sessions hunted a kill that never
+  happened, against a definition that ruled the true cause out. Corrected in
+  the module header and in `docs/dev-loop.md`. A leftover run root means a
+  child DIED HARD: a finding about that child, never about the helper, and
+  `tmpLeftovers` is now the only reader that says so.
+  Landed: test/gate-live-rowpins.test.mjs, tools/tmpdir.mjs, docs/dev-loop.md.
+  Original entry follows, kept as the record of what was asked and of the two
+  hypotheses it eliminated on the way.
+  **Original entry, as booked:**
+
+  **PARKED 2026-08-13 — the `/tmp` run-root leak is BACK: every full-suite
+  run leaks exactly 2 roots, including runs that PASS, and the guard's
+  one-hour threshold is a blind window a pushing session refills faster than
+  it drains.**
+  **THIRD OCCURRENCE 2026-08-14 ~10:10 local, and it answers this entry's
+  own first step — the producer is measured, not hypothesized.** The guard
+  blocked a push (8 roots older than 1h, every owning pid dead, all created
+  09:07-09:10 during that session's own pre-push runs, arriving in PAIRS
+  1-2 s apart exactly as this entry describes). Read BEFORE the cleanup,
+  which is what makes it evidence rather than a lost opportunity: **all 32
+  run roots then on disk contained exactly ONE `cache-fix-replay-*`
+  directory and nothing else — 32 of 32, no other producer appears at all.**
+  That independently reproduces `534289d`'s localization from a different
+  session and a different day, and it narrows the open half: the question is
+  no longer WHICH producer but why THAT child's exit handler does not fire.
+  New candidate ahead of the entry's SIGKILL guess, and it is testable
+  without new machinery: `gate-live` runs every replay child under
+  `--max-old-space-size`, and a child dying on the heap cap exits through a
+  path no `process.on(exit|SIGTERM|…)` handler serves — the pairs-per-run
+  shape fits two capped children per sweep-shaped test. Unmeasured, named as
+  the next probe.
+  Symptom fix TAKEN again to unblock the push (8 roots removed by hand,
+  after verifying each pid dead — the same stopgap this entry already
+  records, now on its second use, which is itself the argument for building
+  the durable half). `docs/dev-loop.md` claimed "Measured after: a full suite
+  leaves ZERO" — corrected today in the same commit as this entry, because
+  it is false.
+  **The measurement, by counting roots against the runs that made them:**
+  six consecutive `pre-push` full-suite runs (16:07, 16:08, 16:09, 16:15,
+  16:16, 16:20 local) left exactly TWO `/tmp/cache-fix-run-<pid>-*` roots
+  each — twelve, every owning pid dead. The pair from the 16:20 run, which
+  PASSED and pushed, is identical to the five from failing runs, so this is
+  not a failure path and not a kill path peculiar to red suites. Separately,
+  25 roots dating 12:21–13:17 had already accumulated past the one-hour
+  threshold and BLOCKED a push via `gate-live`'s `tmpLeftovers` — which is
+  how this was found: the guard fired, nobody read the doc line.
+  **Why it matters more than 12 directories.** `tmpLeftovers` only fails on
+  roots older than an hour, so a session pushing repeatedly stays under the
+  threshold while the pile grows; the doc line then tells the next reader
+  there is nothing to look for. `dev-loop.md`'s own ENOSPC precedent is
+  where that ends: 31,108 dirs, `/tmp` at 100%, unrelated tooling broken
+  machine-wide, and a suite returning 0/3/95/525/528 failures across five
+  runs of one commit.
+  **First step is DIAGNOSIS, not a reaper — the fix must not be a
+  `rm -rf` on a schedule**, which would delete a live run's root and
+  reintroduce the failure `tmpdir.mjs` deliberately avoids ("never deletes
+  anything it did not create"). Identify the two producers per run (the
+  `npm test` parent and the `gate-live` subprocess are the candidates, from
+  the pre-push command line, unverified) and establish why their exit
+  handler does not fire. SIGKILL is the leading hypothesis and is NAMED as
+  unmeasured: the registered list is exit/throw/SIGINT/SIGTERM/SIGHUP, and
+  SIGKILL is untrappable, so a hard kill would leak exactly this way — but
+  a passing run should not be killed at all, which is the fact that
+  hypothesis has to explain.
+  Red-first arrangement, and the two must DIFFER: instrument the producers
+  to record root creation and removal, run the full suite once, and assert
+  the created set equals the removed set. Today that assertion must FAIL
+  naming 2 roots; after the fix it must pass — and a run that is
+  deliberately SIGKILLed must still show the discrepancy, so the check is
+  not silently satisfied by removing the instrumentation.
+  **NAMED MISSING EVIDENCE — why this is PARKED and not READY, which the
+  booking bar caught and it was right to.** The entry was first written
+  READY, and the fix's design is precisely what is NOT decided: the repair
+  for "the handler is never registered in the child" is a different change
+  from "the handler is registered and SIGKILL bypasses it", and nothing here
+  distinguishes them. What unparks it is one measurement, and it is
+  decision-complete on its own: instrument root creation and removal in
+  `tools/tmpdir.mjs`, run `npm test` once, and report the created set minus
+  the removed set together with which process created each survivor. That
+  names the two producers and says whether their handler ran at all.
+  Red executed 2026-08-13, so the premise is not a recollection —
+  `for d in /tmp/cache-fix-run-*; do … kill -0 "$pid" …; done | sort`
+  returned twelve roots, all `dead`, in six timestamp pairs matching the six
+  pre-push runs one-for-one (16:07:24/25, 16:08:12/13, 16:09:07/08,
+  16:15:36/37, 16:16:53/55, 16:20:04/06); the 16:20 pair is the run that
+  passed and pushed.
+  **SECOND OCCURRENCE, same session, 2026-08-13 ~17:35 local — it blocked a
+  push again, 40 minutes after the first cleanup, and this is now a
+  RECURRING BLOCKER rather than a latent risk.** 18 roots had aged past the
+  threshold (26 present in total) and `gate-live`'s
+  `real: a clean sweep over the same capture pins no error evidence at all`
+  failed the pre-push suite on `FAIL tmp-leftovers: 18 run root(s)`. The
+  entry predicted exactly this — "a session pushing repeatedly refills the
+  pile inside the guard's own blind window" — so the prediction is confirmed
+  rather than merely plausible. Cost so far: two push cycles, both on work
+  that had nothing to do with the leak.
+  **One hypothesis ELIMINATED, recorded so the next pass does not re-walk
+  it.** `tools/tmpdir.mjs`'s own DEFINITION accepts one residue case:
+  SIGKILL, "which runs no code at all". The obvious story was therefore that
+  the suite deliberately hard-kills spawned children (it has bites like
+  "a gate that died is an error"), making the residue BY DESIGN and the real
+  defect the guard firing on it an hour later. That story is not supported:
+  `grep -rn SIGKILL test/ tools/` returns four hits and NONE of them kills a
+  node child in the main suite — two are `tmpdir.mjs`'s own prose, two are
+  in the `gh-auth-status-shim` bats tests. So the residue is not
+  explained-away design behaviour, and the exit handler — which covers
+  `exit`, throws, `process.exit()`, SIGINT/SIGTERM/SIGHUP — should have run.
+  That makes the measurement below MORE valuable, not less: the two
+  survivors per run are unexplained by the module's own accepted exception.
+  **THIRD occurrence, and the producer is now LOCALIZED — this is the
+  cheapest thing anyone could have done and it was not done for two rounds.**
+  The blocker fired a third time (4 roots past threshold). Instead of reaping
+  again, `ls` INSIDE the leaked roots: **every single one contains exactly one
+  `cache-fix-replay-*` child and nothing else**, across all 12 present at the
+  time (6 pairs, timestamps matching six suite runs one-for-one). So the
+  leaker is not "two unknown producers" — it is `replay.mjs`, spawned as a
+  child, twice per suite run.
+  **What that rules in and out.** The child DID use `tools/tmpdir.mjs` (the
+  root exists and carries the module's own `cache-fix-replay-` prefix inside
+  it), so `ensureRunRoot` ran and `process.on("exit", removeRunRoot)` was
+  registered. `grep -n "kill\|SIGTERM\|timeout\|abort\|signal"
+  tools/gate-live.mjs` returns exactly one hit, a comment — **gate-live sends
+  no signal to its replay children**. So the child was not killed by its
+  parent, and its exit handler did not run. That leaves paths where node runs
+  no exit handlers at all: a V8 OOM abort under the heap cap gate-live passes
+  (`SIGABRT`, handlers skipped) is the leading candidate, and an uncaught
+  native-level crash is the other. Both are NAMED as candidates, neither is
+  measured.
+  **Why the remaining step is now small and worth doing.** The measurement
+  shrinks from "instrument the whole suite" to: run one replay child the way
+  gate-live runs it, on a capture big enough to approach the cap, and read
+  its exit status and signal. If it aborts on OOM, the fix is a decision
+  about the cap or about the child reporting its own failure — and the sweep
+  currently reads CLEAN while two of its children died, which is the more
+  serious half: a clean verdict over children that aborted is a false green,
+  not a tidiness problem.
+  **Deliberately not chased further at the desk.** The next step is that
+  one-child run, not another hypothesis; guessing at it twice in one session
+  is how a blocker becomes a rabbit hole. Reaped by hand three times today
+  (18, then 4-past-threshold, then all 12 dead-owner roots) purely to ship
+  unrelated work.
+  Trigger to re-grade: that measurement's output.
+  Loop stage: VERIFY.
+  Anchor: tools/tmpdir.mjs
+  Write-set: tools/tmpdir.mjs, tools/gate-live.mjs, docs/dev-loop.md
+  **FOURTH OCCURRENCE 2026-08-14, and it KILLS one hypothesis while exposing a
+  contaminated measurement of my own.** The guard blocked a push again; read
+  before the reap, 34 of 34 run roots held exactly one `cache-fix-replay-*`
+  child and every owning pid was dead — an independent reproduction of the
+  third occurrence's localization, from a different session.
+  **The clean-exit path is EXONERATED, measured rather than argued:** one
+  `replay.mjs` run under gate-live's own `--max-old-space-size=2048`, given a
+  PRIVATE `TMPDIR`, exits 0 and leaves ZERO roots. `removeRunRoot` uses
+  `rmSync(recursive, force)` and fires on `exit`, so nothing about an ordinary
+  termination leaks. The OOM-abort hypothesis also took a hit rather than
+  support: a 1 GB capture replayed under the same cap exited 0.
+  **The instrument lesson, and it is the reusable half.** The desk's FIRST
+  probe counted `/tmp/cache-fix-run-*` before and after that run in the SHARED
+  tmp — 34 then 36 — and read the delta as a clean-exit leak. Four dispatched
+  lanes were running full suites in the same `/tmp` at that moment, so the two
+  new roots were theirs. `docs/dev-loop.md` names this exact trap ("counting
+  leftovers by a TIME WINDOW over shared /tmp attributes any concurrent
+  writer's dirs to your own run"); it was read after the fact, not before. The
+  private-`TMPDIR` arm is the form that answers, and it is what the corrected
+  measurement above uses.
+  **So the remaining question is narrower than this entry has ever stated it:**
+  which replay invocation terminates WITHOUT running exit handlers, given that
+  a clean one does not, gate-live sends no signal, and the heap cap did not
+  fire on the largest capture on disk. The next probe is the test-runner side —
+  whether `node --test` tears down a spawned gate-live's own replay children at
+  suite end, which would be a SIGKILL nothing traps. Named as unmeasured.
+  Reaped by hand again (42 dead-owner roots) purely to unblock pushes; that is
+  the fourth use of the stopgap and the argument for the durable half.
+  **NARROWED 2026-08-14 by a full inventory before the fifth reap, and it cuts
+  the caller set rather than repeating the count.** 62 dead roots, ZERO live,
+  and the contents are uniform in a way the "2 per suite run" figure hides:
+  **62 of 62 hold exactly ONE entry, and every one is a `cache-fix-replay-*`
+  scratch** (`tools/replay.mjs:4072`). Not one root belongs to a gate-live,
+  harvest or census scratch. So the leaking process is always a REPLAY
+  invocation specifically — the run root is created, replay's scratch is made
+  inside it, and the process dies before `process.on("exit")` runs.
+  Re-confirmed the clean path the same hour rather than citing the earlier
+  claim: a normal `node tools/replay.mjs <pinned fixture> --census` (exit 0)
+  left the root count UNCHANGED at 62, delta 0. `tmpdir.mjs:62` removes with
+  `rmSync(runRoot, { recursive: true, force: true })`, so a non-empty root is
+  not the obstacle either — that alternative is refuted, not merely unlikely.
+  What remains is exactly the entry's own named next probe (test-runner
+  teardown of a spawned gate-live's replay children), now with the caller set
+  narrowed to replay children and every other producer excluded by measurement.
+  Inventory frozen at
+  `<scratch>/tmp-leftovers-inventory-2026-08-14.txt` before the reap — it is
+  the only record of the 62, and it dies with the session unless promoted.
+  Fifth hand-reap taken to unblock eight commits; the argument for the durable
+  half is now five incidents old.
+  <!-- entry: "tmp run-root leak returned, 2 per suite run including passes" -->
 
 - **DONE 2026-08-14 — THE PILE IS DRAINED: all 31 commits across 6 lane branches carry a recorded disposition, and the done-criterion had to be re-stated to say so.** Integrated in the entry's own order (a162, a82e, then a46f, ac73, a93d, the orphan), per commit, each with a behaviour-level check against main before the pick. **Landed: 26.** **Skipped as superseded, each with its reason: 5** — `b6bfdca` and `376caa9` (main carries the same capability under other names), `ed30981` (an injectable existence resolver the desk had already built during the previous pick, from the same red), `c485af2` (the upstream-PR-slice runbook is BYTE-IDENTICAL on main — `cmp` clean — and its dev-loop router line is present), `224a23b` (matrix row 30, already minted on main and developed a day further), and the `afc2` orphan's `844b792`.
   **THE ORPHAN IS THE FINDING, and it inverts the hazard this entry carried for three days.** The 2026-08-08 405-insertion commit was the thing the freeze existed to protect. Read at the conflict rather than assumed: main's side of every one of its four hunks is a SUPERSET — the crossesRotation/crossConversation guard, the full `strongerNeighbour` neighbour check, the neighbour-check walk step, a wider import list — because `ac73`'s own later commits (`fe4630e`) implement the same capability more completely. So the commit is not lost work being dropped; it is work that arrived twice and the better copy is in. Its branch is left standing, unpruned.

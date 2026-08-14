@@ -5,8 +5,17 @@
 // under the OS temp root once it has exited. Not "usually", and not "when the
 // happy path is taken" — the guarantee holds for a run that throws, a run that
 // calls process.exit(), and a run that is terminated by SIGINT/SIGTERM/SIGHUP.
-// The one case it cannot hold for is SIGKILL, which runs no code at all; that
-// residue is what gate-live's leftover signal exists to report.
+// The cases it cannot hold for are the ones that run no code at all: SIGKILL,
+// and a V8 heap-limit failure, which calls abort() (SIGABRT, exit 134) without
+// running a single exit handler. That residue is what gate-live's leftover
+// signal exists to report, and the second case is not hypothetical — it is
+// exactly what the `tmpLeftovers` guard was reporting for two days while this
+// header named only SIGKILL and sent every reader looking for a kill that never
+// happened (measured 2026-08-14: two aborted children per full suite run,
+// manufactured by test/gate-live-rowpins.test.mjs's deliberate 8 MB-cap crash;
+// that file now gives them a private TMPDIR, so the residue lands inside the
+// suite's own scratch). A leftover root is therefore evidence that some child
+// DIED HARD — which is a finding about that child, not about this module.
 //
 // WHY THIS EXISTS. Measured 2026-08-08: /tmp here is a 31 GB tmpfs and it
 // reached 100% with 31,108 top-level directories — 7,024 `fixture-verd*`,

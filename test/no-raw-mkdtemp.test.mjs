@@ -105,6 +105,11 @@ const TMPDIR_EXEMPT = {
   "test/census-read-coverage.test.mjs": [2, "paths that must not exist"],
   "test/slice-preflight.test.mjs": [1, "a tree path that must not exist"],
   "test/proxy-forward-attach-fallback.test.mjs": [1, "an empty PATH entry, never created"],
+  // Reads the shared temp root, creates nothing: the pid-scoped assertion that
+  // a deliberately OOM-aborted replay child left NO residue there. It is the
+  // check that closed this guard's own sibling defect — the two run roots every
+  // full suite leaked (BACKLOG "## Done", 2026-08-14).
+  "test/gate-live-rowpins.test.mjs": [1, "assertion only: this child's pid has no run root in the shared temp root"],
 };
 
 test("every hand-rolled tmpdir() site is declared, with a reason", () => {

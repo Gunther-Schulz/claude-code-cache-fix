@@ -19,11 +19,13 @@
 // deliberately errored replay leaves a pin that reproduces the error on
 // replay, and a clean run pins nothing extra.
 
-import { tmpDir } from "../tools/tmpdir.mjs";
+import { tmpDir, RUN_ROOT_PREFIX } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { mkdir, writeFile, readFile, readdir } from "node:fs/promises";
+import { readdirSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -43,6 +45,66 @@ const pExecFile = promisify(execFile);
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const REPLAY = join(REPO, "tools", "replay.mjs");
 const GATE_LIVE = join(REPO, "tools", "gate-live.mjs");
+
+// --- The forcing arm's OWN residue ------------------------------------------
+//
+// The two bites below crash a replay child on purpose, under an 8 MB heap cap.
+// A V8 heap-limit failure calls abort() — SIGABRT, exit 134 — and abort runs no
+// exit handlers at all, so `tools/tmpdir.mjs`'s `process.on("exit")` cleanup
+// never fires and the child's run root survives it. That is not a defect in the
+// child and not one in tmpdir.mjs: it is the same class the module's header
+// names for SIGKILL, "which runs no code at all".
+//
+// It IS a defect for this file to manufacture that residue in the SHARED temp
+// root. Measured 2026-08-14: every full suite left exactly two
+// /tmp/cache-fix-run-* roots, and both were these two children — the leak that
+// blocked five pushes over two days via gate-live's `tmpLeftovers` guard, which
+// only fails on roots older than an hour, so a session pushing repeatedly
+// refills the pile inside the guard's own blind window. The abort's residue is
+// a real signal about production; a test that fabricates it daily is noise
+// wearing that signal's clothes.
+//
+// The fix is to give the crashing child a TMPDIR inside this test's own
+// scratch, which lives under THIS process's run root and dies with it.
+//
+// Both assertions below are PID-SCOPED, which is what makes reading the shared
+// temp root safe here: `docs/dev-loop.md` names counting leftovers by a time
+// window over shared /tmp as an attribution trap (a concurrent lane's dirs get
+// read as your own), and a run root carries its creator's pid in the name, so
+// asking only about THIS child's pid answers about this child and nothing else.
+function runRootsFor(pid, root) {
+  try {
+    return readdirSync(root).filter((n) => n.startsWith(`${RUN_ROOT_PREFIX}${pid}-`));
+  } catch {
+    return [];
+  }
+}
+
+// Returns the child's pid alongside its result: `promisify(execFile)` hangs the
+// ChildProcess off the promise, and the pid must be captured BEFORE the catch,
+// since the rejection carries stdio but not identity.
+async function forcedOomReplay(capture, scratch) {
+  const p = pExecFile(
+    "node",
+    ["--max-old-space-size=8", REPLAY, capture, "--json", "--census", "--pin-rows"],
+    { maxBuffer: 64 * 1024 * 1024, env: { ...process.env, TMPDIR: scratch } },
+  );
+  const pid = p.child.pid;
+  const res = await p.catch((e) => ({ code: e.code, out: e.stdout ?? "", err: e.stderr ?? "" }));
+  return { pid, res };
+}
+
+function assertResidueContained(pid, scratch) {
+  assert.deepEqual(runRootsFor(pid, tmpdir()), [],
+    `the forced crash must leave nothing in the shared temp root (pid ${pid}) — that residue is what blocks pushes`);
+  // The positive half, and it is what keeps the assertion above from passing
+  // vacuously: without it, a child that never reached tmpDir() at all would
+  // read exactly like a contained one. If a future node ever cleans up on a
+  // heap-limit abort this arm goes red — that is good news, not a regression,
+  // and the arm retires with the leak.
+  assert.equal(runRootsFor(pid, scratch).length, 1,
+    "and its run root must land in this test's own scratch, which dies with the parent process");
+}
 
 // --- planErrorPin / boundedRangeAround: pure, no subprocess -----------------
 
@@ -197,13 +259,10 @@ test("real: an errored replay leaves a GUESSED pin that reproduces the error on 
   // the daily sweep's own heap cap exists to convert into a status row
   // (tools/gate-live.mjs CHILD_HEAP_CAP_MB header) — just tuned lower so
   // the test forces it on demand instead of waiting for a real regression.
-  const res = await pExecFile(
-    "node",
-    ["--max-old-space-size=8", REPLAY, join(captureDir, "tiny-requests.jsonl"), "--json", "--census", "--pin-rows"],
-    { maxBuffer: 64 * 1024 * 1024 },
-  ).catch((e) => ({ code: e.code, out: e.stdout ?? "", err: e.stderr ?? "" }));
+  const { pid, res } = await forcedOomReplay(join(captureDir, "tiny-requests.jsonl"), dir);
   const code = res.code ?? res.signal ?? -1;
   assert.notEqual(code, 0, "the forcing arm must actually be off — a heap cap this low must not run clean");
+  assertResidueContained(pid, dir);
 
   const row = summarise("tiny-requests.jsonl", 10, { code, out: res.out ?? res.stdout ?? "", err: res.err ?? res.stderr ?? "" });
   assert.ok(row.error, "the forced crash must be recorded as an error, never smoothed into zero");
@@ -227,14 +286,11 @@ test("real: an errored replay leaves a GUESSED pin that reproduces the error on 
   // SAME forcing condition.
   const pinJsonl = join(dir, "pin-replay.jsonl");
   await writeFile(pinJsonl, fixture.records.map((r) => JSON.stringify(r)).join("\n") + "\n");
-  const replayRes = await pExecFile(
-    "node",
-    ["--max-old-space-size=8", REPLAY, pinJsonl, "--json", "--census", "--pin-rows"],
-    { maxBuffer: 64 * 1024 * 1024 },
-  ).catch((e) => ({ code: e.code, out: e.stdout ?? "", err: e.stderr ?? "" }));
+  const { pid: replayPid, res: replayRes } = await forcedOomReplay(pinJsonl, dir);
   const replayCode = replayRes.code ?? replayRes.signal ?? -1;
   assert.notEqual(replayCode, 0, "the pinned fixture must reproduce the same crash under the same forcing condition");
   assert.equal((replayRes.out ?? "").trim(), "", "a reproduced crash writes no JSON, same as the original");
+  assertResidueContained(replayPid, dir);
 });
 
 test("real: a clean sweep over the same capture pins no error evidence at all", async (t) => {
