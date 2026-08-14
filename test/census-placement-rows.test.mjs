@@ -113,3 +113,79 @@ test("no verdict change — --json without --verbose carries no placementRows ke
   assert.equal("placementRows" in parsed, false,
     "placementRows is verbose-gated, matching mismatchRows/duplicateRows/volatileRows");
 });
+
+// --- the cap keeps the MINORITY whole, added 2026-08-14 at the desk ----------
+//
+// WHY, and it is a measured defect rather than a refinement. The first version
+// of this export took a flat `slice(0, 200)` over the placement findings. Run
+// over the live corpus it kept 200 rows of which 190 carried the dominant
+// offset and dropped 548 — so the unusual placements, the only rows that can
+// answer whether the index is DERIVABLE rather than merely variable, survived
+// or died by luck of capture order. A sample of a skewed population is not a
+// small version of it, and the export existed for the tail.
+//
+// So the export splits: every OFF-MODE row is kept, the MODE is sampled, the
+// two truncation counters are reported apart, and `placementOffsets` carries
+// the COMPLETE distribution so no reader ever derives it from the sample.
+// This bite is the cap's own positive — a cap that has never been exercised
+// is unproven code, which is how the first one shipped.
+
+const MODE_PAIRS = 30;
+const OFF_MODE_PAIRS = 2;
+
+/** One conversation's (before, after) pair. `gap` extra fillers between the
+ *  host echo and the standalone make the offset `1 + gap`. Each conversation
+ *  gets its own head text, since conversation identity is derived from
+ *  `messages[0]` — one shared head would collapse them into a single group. */
+function conversationPair(id, gap) {
+  const hostId = `t_host_cap_${id}`;
+  const cHead = { role: "user", content: [{ type: "text", text: `conversation head ${id}, synthetic` }] };
+  const cHost = {
+    role: "user",
+    content: [
+      { type: "tool_result", tool_use_id: hostId },
+      { type: "text", text: wrap(INNER) },
+    ],
+  };
+  const cEcho = { role: "user", content: [{ type: "tool_result", tool_use_id: hostId }] };
+  const gaps = Array.from({ length: gap }, (_, i) => (
+    { role: "user", content: [{ type: "text", text: `gap ${i} in ${id}, synthetic` }] }));
+  return {
+    before: { messages: [cHead, cHost] },
+    after: { messages: [cHead, cEcho, ...gaps, { role: "system", content: INNER }] },
+  };
+}
+
+test("the placement cap keeps every OFF-MODE row and samples the mode", () => {
+  const dir = tmpDirSync("census-placement-cap-");
+  const p = join(dir, "s-synthetic-cap-requests.jsonl");
+  const lines = [];
+  let t = 0;
+  const emit = (id, gap) => {
+    const { before: b, after: a } = conversationPair(id, gap);
+    lines.push(JSON.stringify({ ts: new Date(Date.UTC(2026, 7, 14, 9, 0, t++)).toISOString(), body: b }));
+    lines.push(JSON.stringify({ ts: new Date(Date.UTC(2026, 7, 14, 9, 0, t++)).toISOString(), body: a }));
+  };
+  for (let i = 0; i < MODE_PAIRS; i++) emit(`mode-${i}`, 0);       // offset 1
+  for (let i = 0; i < OFF_MODE_PAIRS; i++) emit(`off-${i}`, 2);    // offset 3
+  writeFileSync(p, lines.join("\n") + "\n");
+
+  const out = execFileSync(process.execPath, [TOOL, p, "--json", "--verbose"],
+    { encoding: "utf-8", maxBuffer: 32 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  const res = JSON.parse(out);
+
+  // The COMPLETE distribution is exact and uncapped — this is the number a
+  // reader must never take from the rows.
+  assert.deepEqual(res.placementOffsets, { 1: MODE_PAIRS, 3: OFF_MODE_PAIRS },
+    "the offset tally covers every finding, not the exported sample");
+
+  const off = res.placementRows.filter((r) => r.placementClass === "OFF-MODE");
+  const mode = res.placementRows.filter((r) => r.placementClass === "MODE-SAMPLE");
+  assert.equal(off.length, OFF_MODE_PAIRS, "every off-mode row survives the cap");
+  assert.equal(mode.length, 25, "the mode is sampled to PLACEMENT_MODE_SAMPLE");
+  assert.deepEqual(res.placementModeSampled, { kept: 25, total: MODE_PAIRS },
+    "the sampling says what it kept and out of how many");
+  assert.equal(res.placementOffModeTruncated, undefined,
+    "nothing off-mode was dropped, so no off-mode truncation is reported");
+  for (const r of off) assert.equal(r.offset, 3, "the off-mode rows are the ones with the gap");
+});

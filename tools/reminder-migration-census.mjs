@@ -190,17 +190,37 @@ export function canonical(blocks) {
 }
 
 /**
- * The WRAPPER-RETAINED standalone form: the blocks VERBATIM (wrapper still
- * on), joined with the same separator `canonical` uses. Measured 2026-08-14:
- * every MISMATCH in a 46-capture corpus is this mechanism — CC re-emits the
- * migrated blocks with `<system-reminder>` wrappers RETAINED rather than
- * stripped, joined the same way `canonical` joins the stripped form. `row 4`'s
- * DEFINITION (module header) assumes stripping; this is the measured
- * alternative CC actually took, evaluated alongside it rather than replacing
- * it — `canonical`'s own callers and behaviour are untouched.
+ * The WRAPPER-RETAINED standalone form: the blocks with their wrappers still
+ * on, TRAILING WHITESPACE REMOVED, joined with the same separator `canonical`
+ * uses. Measured 2026-08-14: every MISMATCH in the corpus is this mechanism —
+ * CC re-emits the migrated blocks with `<system-reminder>` wrappers RETAINED
+ * rather than stripped. Row 4's DEFINITION (module header) assumes stripping;
+ * this is the measured alternative CC actually took, evaluated alongside it
+ * rather than replacing it — `canonical`'s own callers and behaviour are
+ * untouched.
+ *
+ * THE `trimEnd` IS THE WHOLE MECHANISM AND IT WAS MEASURED, NOT ASSUMED. A
+ * host's INLINE block carries a trailing newline after its closing tag; CC's
+ * standalone does not reproduce it, and joins from the closing tag itself. The
+ * first version of this function joined the blocks verbatim and returned
+ * UNRELATED on all 8 multi-block occurrences while matching all 8 single-block
+ * ones — the split that exposed it, since a single block has no join to get
+ * wrong. What settled it is arithmetic the rows now carry (`unrelatedDiag`):
+ * every non-final block reported `overhead` 38 against the canonical 37
+ * (`<system-reminder>\n` = 18 plus `\n</system-reminder>` = 19), the final
+ * block 37, and `wrappedDivOffset` landed exactly one byte past the first
+ * block's own length — i.e. at the join, with the block bytes themselves
+ * byte-identical up to it. `WRAP` already tolerates that trailing whitespace
+ * (`\s*$`), which is why the STRIPPED reconstruction matched byte-for-byte all
+ * along while the wrapped one could not: the difference lives entirely in
+ * bytes unwrapping discards.
+ *
+ * This is computable from the PREDECESSOR alone — `trimEnd` is a pure function
+ * of the host's own blocks — which is what makes it a candidate mechanism for
+ * row 4 rather than merely a description of the divergence.
  */
 export function canonicalWrapped(blocks) {
-  return blocks.join(JOIN);
+  return blocks.map((t) => t.trimEnd()).join(JOIN);
 }
 
 /** Classify one reconstruction against CC's own later text. */
@@ -448,7 +468,7 @@ export function analysePair(before, after) {
     // consulted; only then does whether a wrapper-retained hit exists (and
     // its own verdict) decide the label; UNRELATED is what is left when the
     // host was located and nothing — stripped or wrapped — accounts for it.
-    let mismatchSub = null, wrapped = null, wrappedSub;
+    let mismatchSub = null, wrapped = null, wrappedSub, diag;
     if (verdict === "MISMATCH") {
       wrapped = bestWrapped
         ? { verdict: bestWrapped.verdict, j: bestWrapped.j,
@@ -466,6 +486,42 @@ export function analysePair(before, after) {
       if (mismatchSub === "WRAPPER-RETAINED-EXTENDED") {
         wrappedSub = subclassifyExtended(reconWrapped, bestWrapped.text, sysBefore);
       }
+      // UNRELATED is the label that says least, and it is the one a design
+      // decision would rest on: "neither reconstruction accounts for this" can
+      // mean the wrapper bytes differ, the block ORDER differs, or the content
+      // is genuinely new — three different answers for row 4, and the label
+      // separates none of them. So an UNRELATED row carries the wrapper-region
+      // ARITHMETIC, which is where the first two hypotheses live and which is
+      // free to compute here.
+      //
+      // Why this is not a fourth sub-class: what the numbers below discriminate
+      // is not yet known to be a closed set, and minting a vocabulary before
+      // the population is read is how a label starts standing in for its own
+      // body. They are measurements; the reading stays human.
+      //
+      // `overhead` is the block's own bytes minus its unwrapped inner text —
+      // exactly 37 for the canonical form (`<system-reminder>\n` = 18 plus
+      // `\n</system-reminder>` = 19). Anything else means the block carries
+      // wrapper bytes `canonicalWrapped` reproduces and the candidate does not
+      // (or the reverse), which no length total would reveal, since the
+      // STRIPPED join can match byte-for-byte while the wrapped one cannot.
+      if (mismatchSub === "UNRELATED") {
+        diag = {
+          reconWrappedChars: reconWrapped.length,
+          candidateChars: rejectedCandidate ? rejectedCandidate.text.length : null,
+          // Where the wrapper-retained reconstruction and the candidate part
+          // company. Null when there is no candidate to compare against —
+          // never 0, which would read as "they differ at the first byte".
+          wrappedDivOffset: rejectedCandidate
+            ? firstDiffOffset(reconWrapped, rejectedCandidate.text) : null,
+          blockShapes: blocks.map((t) => ({
+            chars: t.length,
+            innerChars: unwrapText(t).length,
+            overhead: t.length - unwrapText(t).length,
+            wrapCanonical: WRAP.test(t),
+          })),
+        };
+      }
     }
     findings.push({ host: i, blocks: blocks.length,
                     verdict,
@@ -479,7 +535,9 @@ export function analysePair(before, after) {
                     // "give the state that has no word yet its own string").
                     hostPruned, hostIdless,
                     ...(verdict === "MISMATCH"
-                      ? { mismatchSub, wrapped, ...(wrappedSub !== undefined ? { wrappedSub } : {}) }
+                      ? { mismatchSub, wrapped,
+                          ...(wrappedSub !== undefined ? { wrappedSub } : {}),
+                          ...(diag !== undefined ? { unrelatedDiag: diag } : {}) }
                       : {}) });
   }
   return findings;
@@ -962,12 +1020,18 @@ const ENTRY_ROW_CAP = 5000;
 // largest so far a 38-row conservation gate-red).
 const MISMATCH_ROW_CAP = 200;
 
-// Same backstop shape, for the placement facts (`placementRows`, below):
-// counts are already reported exactly via the "placement" text block's own
-// tally, so this bounds only the per-row EXPORT — the census's finding
-// population per pair is small (row-4 hosts, not requests), so tripping this
-// would itself be the finding.
+// Backstop for the OFF-MODE placement rows — the minority the export exists to
+// carry whole. Counts are reported exactly and uncapped in `placementOffsets`,
+// so this bounds only the per-row export of the unusual placements; the
+// population is small by construction (27 of 493 at the last full run), so
+// tripping this cap would itself be the finding.
 const PLACEMENT_ROW_CAP = 200;
+
+// How many rows of the DOMINANT offset ride along. The mode needs no sample to
+// be counted — `placementOffsets` has it exactly — so these exist only to show
+// the class rather than to measure it, and a large sample would re-create the
+// defect this split was written to fix (a 200-row export that was 95% mode).
+const PLACEMENT_MODE_SAMPLE = 25;
 
 // Same shape of backstop for duplicate-streak detail rows: the counts stay
 // exact, the rows are capped and the cap reports what it dropped. Streaks are
@@ -1188,10 +1252,35 @@ async function main(argv) {
   // together with a found `best`).
   const placementAll = details.filter((d) =>
     (d.verdict === "EXACT" || d.verdict === "EXTENDED") && d.offset != null);
+  // The COMPLETE offset distribution, uncapped, so no reader ever derives it
+  // from the capped row sample below. Object keys are strings; the values are
+  // exact counts over every placement-eligible finding in the run.
+  const placementOffsets = {};
+  for (const d of placementAll) placementOffsets[d.offset] = (placementOffsets[d.offset] ?? 0) + 1;
+
+  // THE CAP KEEPS THE MINORITY WHOLE AND SAMPLES THE MAJORITY, and that is the
+  // whole design rather than a refinement of it. A flat `slice(0, 200)` over a
+  // distribution this lopsided discards precisely the rows worth having: the
+  // first run of this export kept 200 rows of which 190 were the dominant
+  // offset and dropped 548, so the handful of unusual placements — the only
+  // ones that can answer whether the index is DERIVABLE rather than merely
+  // variable — survived by luck of capture order. A sample of a skewed
+  // population is not a small version of it.
+  //
+  // The dominant value is computed, never hardcoded: it is the MODE of the
+  // distribution above, so the rule keeps holding if CC's placement changes.
+  // Every row whose offset is not the mode is kept (with its own generous
+  // backstop, tripping which is itself a finding); the mode's rows are sampled
+  // to prove the class is there.
+  const modeOffset = Object.entries(placementOffsets)
+    .sort((a, b) => b[1] - a[1])[0]?.[0];
+  const isMode = (d) => String(d.offset) === modeOffset;
+  const minority = placementAll.filter((d) => !isMode(d));
+  const majority = placementAll.filter(isMode);
   // Two index spaces meet in one row — the BEFORE request's and the AFTER
   // request's — so every field below names its space rather than leaving it
   // to be inferred; conflating them is a mistake this repo has made before.
-  const placementRows = placementAll.slice(0, PLACEMENT_ROW_CAP).map((d) => ({
+  const placementRow = (d) => ({
     path: d.path, ts: d.ts, verdict: d.verdict, blocks: d.blocks,
     hostIndexBefore: d.host,   // BEFORE-request index space
     nBefore: d.nBefore,        // BEFORE-request message count
@@ -1199,7 +1288,12 @@ async function main(argv) {
     standaloneIndex: d.j,      // AFTER-request index space
     nAfter: d.nAfter,          // AFTER-request message count
     offset: d.offset,          // standaloneIndex - hostIndexAfter, unchanged
-  }));
+    placementClass: isMode(d) ? "MODE-SAMPLE" : "OFF-MODE",
+  });
+  const placementRows = [
+    ...minority.slice(0, PLACEMENT_ROW_CAP).map(placementRow),
+    ...majority.slice(0, PLACEMENT_MODE_SAMPLE).map(placementRow),
+  ];
 
   if (json) {
     // ADDITIVE ONLY. gate-live's summariseCensus and bust-triage read named
@@ -1213,11 +1307,19 @@ async function main(argv) {
         volatileChange, volatileKinds, volatileTruncated, volatileExempt,
         volatileByCapture, volatileEntries, volatileEntriesByKind,
         duplicates, duplicatesByCapture, duplicatesTruncated,
+        placementOffsets,
         ...(verbose ? { volatileRows, duplicateRows, mismatchRows, placementRows,
                          ...(mismatchAll.length > MISMATCH_ROW_CAP
                            ? { mismatchRowsTruncated: mismatchAll.length } : {}),
-                         ...(placementAll.length > PLACEMENT_ROW_CAP
-                           ? { placementRowsTruncated: placementAll.length } : {}) } : {}) },
+                         // Truncation is reported per CLASS, because one number
+                         // over a split export cannot say which half was lost —
+                         // and losing the off-mode half is the defect this
+                         // split exists to prevent.
+                         ...(minority.length > PLACEMENT_ROW_CAP
+                           ? { placementOffModeTruncated: minority.length } : {}),
+                         ...(majority.length > PLACEMENT_MODE_SAMPLE
+                           ? { placementModeSampled: { kept: PLACEMENT_MODE_SAMPLE, total: majority.length } }
+                           : {}) } : {}) },
       null, 2) + "\n");
     return unreadable.length ? 1 : 0;
   }

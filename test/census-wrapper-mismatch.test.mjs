@@ -112,3 +112,83 @@ test("control — the existing stripped-form EXACT pair is untouched: no mismatc
   assert.equal(f.wrapped, undefined);
   assert.equal(f.wrappedSub, undefined);
 });
+
+// --- the TRAILING-NEWLINE join, added 2026-08-14 at the desk -----------------
+//
+// WHY THIS FILE NEEDED A SIXTH BITE, stated because the gap is the lesson. The
+// five bites above all build their blocks with `wrap()`, which emits the
+// canonical form with nothing after the closing tag — so every one of them is
+// blind to what a block looks like INLINE in real traffic, where it carries a
+// trailing newline. Against the live corpus the first `canonicalWrapped`
+// (a verbatim join) matched all 8 single-block occurrences and NONE of the 8
+// multi-block ones, because a single block has no join to get wrong: the
+// fixtures were green and the corpus said UNRELATED, which is the
+// curation-axis blindness dev-loop.md names, arriving inside the very check
+// built to classify the population.
+//
+// The two bites below are that population, synthesized: a host whose blocks
+// carry the trailing newline, and a standalone that joins from the closing tag.
+// Red before the `trimEnd` (both read UNRELATED), green after — and the live
+// pair is the stronger control: 8/0/8 EXACT/EXTENDED/UNRELATED before,
+// 8/8/0 after, over the same corpus minutes apart.
+
+const HOST_ID_NL = "t_host_wrapper_trailing_nl_001";
+const wrapNl = (t) => `<system-reminder>\n${t}\n</system-reminder>\n`;
+const INNER_A = "first synthetic block, deterministic, not capture bytes";
+const INNER_B = "second synthetic block, deterministic, not capture bytes";
+
+const hostMsgNl = {
+  role: "user",
+  content: [
+    { type: "tool_result", tool_use_id: HOST_ID_NL },
+    { type: "text", text: wrapNl(INNER_A) },
+    { type: "text", text: wrapNl(INNER_B) },
+  ],
+};
+const hostEchoNl = { role: "user", content: [{ type: "tool_result", tool_use_id: HOST_ID_NL }] };
+
+function pairFindingsNl(afterExtra) {
+  const before = { body: { messages: [head, hostMsgNl] } };
+  const after = { body: { messages: [head, hostEchoNl, ...afterExtra] } };
+  return analysePair(before, after);
+}
+
+test("RED-FIRST — a multi-block host whose blocks carry a trailing newline: WRAPPER-RETAINED-EXACT", () => {
+  // CC's standalone joins from the CLOSING TAG: each block's trailing
+  // whitespace is gone and exactly one blank line separates them. This is the
+  // string `canonicalWrapped` must reproduce from the host's blocks alone.
+  const retained = { role: "system", content: `${wrap(INNER_A)}\n\n${wrap(INNER_B)}` };
+  const findings = pairFindingsNl([retained]);
+  assert.equal(findings.length, 1, "one host, one finding");
+  const f = findings[0];
+
+  assert.equal(f.verdict, "MISMATCH", "the stripped rule still rejects wrapper-retained bytes");
+  assert.equal(f.mismatchSub, "WRAPPER-RETAINED-EXACT",
+    "a verbatim join leaves the inline block's trailing newline in and reads UNRELATED here");
+  assert.equal(f.wrapped.verdict, "EXACT");
+  assert.equal(f.unrelatedDiag, undefined, "an accounted-for row carries no residual diagnostic");
+});
+
+test("the UNRELATED diagnostic reports the wrapper ARITHMETIC, not just the label", () => {
+  // The residual label says least exactly where a design decision would rest on
+  // it, so an UNRELATED row carries the numbers that separate "the wrapper
+  // bytes differ" from "the content is genuinely new". Asserted against the
+  // DEFINITION — overhead is the block's bytes minus its unwrapped inner text,
+  // and the canonical wrapper is 37 (18 opening + 19 closing) — never against
+  // whatever the corpus happens to hold today.
+  const unrelated = { role: "system",
+                       content: `noise-before ${INNER_A} noise-after (not the reminder form at all)` };
+  const findings = pairFindingsNl([unrelated]);
+  const f = findings[0];
+
+  assert.equal(f.mismatchSub, "UNRELATED");
+  assert.ok(f.unrelatedDiag, "an UNRELATED row carries the arithmetic");
+  assert.equal(f.unrelatedDiag.blockShapes.length, 2, "one shape per host block");
+  for (const s of f.unrelatedDiag.blockShapes) {
+    assert.equal(s.wrapCanonical, true, "WRAP tolerates the trailing newline");
+    assert.equal(s.overhead, 38, "18 + 19 + the trailing newline this fixture plants");
+    assert.equal(s.chars - s.innerChars, s.overhead, "overhead is defined as that difference");
+  }
+  assert.equal(typeof f.unrelatedDiag.wrappedDivOffset, "number",
+    "where the wrapped reconstruction and the candidate part company");
+});
