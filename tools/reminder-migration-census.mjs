@@ -180,6 +180,48 @@ export function reminderBlocks(msg) {
     .filter((t) => t.includes("<system-reminder>"));
 }
 
+// The closed kind vocabulary row 4's `between` export reads off a content
+// block's `type`, never off its bytes — the row must stay body-free (that is
+// what keeps this file's export inside its single exempted absence class in
+// `tools/absence-scan.mjs`; a body-bearing field breaks the push gate for
+// everyone). `text` is split further below into `text` vs `reminder-carrying`
+// because that split is the whole reason the export exists: whether a passing
+// reminder rode between the host and its standalone is exactly the question
+// row 4's placement half needs answered.
+const BLOCK_KINDS = new Set(["tool_result", "tool_use", "image", "thinking"]);
+
+/**
+ * One content block's closed-vocabulary kind: `tool_result`, `tool_use`,
+ * `text`, `reminder-carrying`, `image`, `thinking`, or `other` for anything
+ * outside that list (including a `text` block whose own `text` is not a
+ * string). Never reads more of the block than `type` and, for text blocks,
+ * whether it contains the reminder wrapper marker.
+ */
+export function blockKind(block) {
+  if (!block || typeof block !== "object") return "other";
+  if (block.type === "text") {
+    return typeof block.text === "string" && block.text.includes("<system-reminder>")
+      ? "reminder-carrying" : "text";
+  }
+  return BLOCK_KINDS.has(block.type) ? block.type : "other";
+}
+
+/**
+ * One message's ordered kind list — one entry per content block, in block
+ * order, duplicates NOT collapsed: a message carrying two `tool_result`
+ * blocks reports `["tool_result","tool_result"]`, not one. String content
+ * (a bare system message; see `textOf`'s other branch) is treated as a
+ * single implicit block, `text` or `reminder-carrying` by the same rule.
+ * A message with no content array and no string content (should not occur
+ * on a well-formed record) reports an empty list rather than `other`.
+ */
+export function messageKinds(msg) {
+  const c = msg?.content;
+  if (typeof c === "string") return [c.includes("<system-reminder>") ? "reminder-carrying" : "text"];
+  if (!Array.isArray(c)) return [];
+  return c.map(blockKind);
+}
+
 /**
  * The canonical standalone form: strip each wrapper, join with "\n\n".
  * This is the exact rule a mitigation would apply, kept here so the census
@@ -408,6 +450,19 @@ export function analysePair(before, after) {
       const sub = best.verdict === "EXTENDED"
         ? subclassifyExtended(recon, best.text, sysBefore)
         : null;
+      // The messages strictly between the host and its standalone, in WIRE
+      // ORDER, role + closed-vocabulary kind only (`messageKinds`) — the
+      // seventh field row 4's placement half needs: two derivation rules are
+      // already refuted by measurement (not tail-anchored, not
+      // predecessor-length anchored), both computed from the six fields a
+      // finding already carried, which is why the next hypothesis needs a
+      // field neither of those used. Set iff `offset` is — both require the
+      // same located, non-negative `hj` — so a `between` array exists on a
+      // finding exactly when that finding's `offset` does; the caller never
+      // has to re-derive the guard.
+      const between = offset != null
+        ? a.slice(hj + 1, best.j).map((m) => ({ role: m?.role ?? null, kind: messageKinds(m) }))
+        : null;
       // `hj` (the host's index in `after`) and `nBefore`/`nAfter` (each
       // request's own message count) ride the finding so a placement row can
       // be assembled downstream without re-deriving them — `hj` in
@@ -415,7 +470,7 @@ export function analysePair(before, after) {
       // that inverts the exact fact this exists to carry into an arithmetic
       // reconstruction of it.
       findings.push({ host: i, blocks: blocks.length, ...best, recon, offset, sub,
-                       hj, nBefore: b.length, nAfter: a.length });
+                       hj, nBefore: b.length, nAfter: a.length, between });
       continue;
     }
     // No standalone counterpart matched the canonical rule. Distinguish a DROP
@@ -1033,6 +1088,15 @@ const PLACEMENT_ROW_CAP = 200;
 // defect this split was written to fix (a 200-row export that was 95% mode).
 const PLACEMENT_MODE_SAMPLE = 25;
 
+// Per-row cap on the `between` export (row-4 placement, the seventh field —
+// see `analysePair`). 40 sits above anything measured: the widest off-mode
+// offset seen is +110, and the export is one row's own intervening span, not
+// a corpus-wide count — this bounds export SIZE per row, it does not bound
+// what the field can discover. `betweenTruncated` reports the drop the same
+// way every other capped row array in this file does: present only when the
+// cap actually trimmed something, valued at what it dropped.
+const BETWEEN_CAP = 40;
+
 // Same shape of backstop for duplicate-streak detail rows: the counts stay
 // exact, the rows are capped and the cap reports what it dropped. Streaks are
 // a small population by construction (a hundred pairs across a corpus), so
@@ -1280,16 +1344,28 @@ async function main(argv) {
   // Two index spaces meet in one row — the BEFORE request's and the AFTER
   // request's — so every field below names its space rather than leaving it
   // to be inferred; conflating them is a mistake this repo has made before.
-  const placementRow = (d) => ({
-    path: d.path, ts: d.ts, verdict: d.verdict, blocks: d.blocks,
-    hostIndexBefore: d.host,   // BEFORE-request index space
-    nBefore: d.nBefore,        // BEFORE-request message count
-    hostIndexAfter: d.hj,      // AFTER-request index space
-    standaloneIndex: d.j,      // AFTER-request index space
-    nAfter: d.nAfter,          // AFTER-request message count
-    offset: d.offset,          // standaloneIndex - hostIndexAfter, unchanged
-    placementClass: isMode(d) ? "MODE-SAMPLE" : "OFF-MODE",
-  });
+  const placementRow = (d) => {
+    const between = d.between ?? [];
+    const betweenTruncated = between.length > BETWEEN_CAP;
+    return {
+      path: d.path, ts: d.ts, verdict: d.verdict, blocks: d.blocks,
+      hostIndexBefore: d.host,   // BEFORE-request index space
+      nBefore: d.nBefore,        // BEFORE-request message count
+      hostIndexAfter: d.hj,      // AFTER-request index space
+      standaloneIndex: d.j,      // AFTER-request index space
+      nAfter: d.nAfter,          // AFTER-request message count
+      offset: d.offset,          // standaloneIndex - hostIndexAfter, unchanged
+      placementClass: isMode(d) ? "MODE-SAMPLE" : "OFF-MODE",
+      // The messages strictly between the host and the standalone, WIRE
+      // ORDER, role + closed-vocabulary kind only, never text (see
+      // `analysePair`). Present — possibly empty — on every row, MODE-SAMPLE
+      // included: a derivation rule has to explain the +1 majority too, and
+      // an export carrying the shape only for the unusual rows could never
+      // test that.
+      between: between.slice(0, BETWEEN_CAP),
+      ...(betweenTruncated ? { betweenTruncated: between.length - BETWEEN_CAP } : {}),
+    };
+  };
   const placementRows = [
     ...minority.slice(0, PLACEMENT_ROW_CAP).map(placementRow),
     ...majority.slice(0, PLACEMENT_MODE_SAMPLE).map(placementRow),
