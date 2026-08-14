@@ -1014,6 +1014,28 @@ bug were ours, while the safety gate's first 243 "corruptions" were its own
 missing exemption. The instrument is not a neutral observer; it is the newest
 and least-tested thing in the room.
 
+**A THIRD hypothesis, and it is the one that reads as a defect in both of the
+other two: the check is right, the system is right, and a MITIGATION SHIPPED
+BETWEEN the recorded moment and now.** Replaying a historical capture with
+today's code and comparing against what live production wrote to a stateful
+extension's own event log at that historical moment is a comparison across a
+deploy boundary. Where a fix landed inside that window, the two SHOULD differ,
+and the divergence is evidence the fix works — not a replay defect and not a
+system bug. Measured 2026-08-14: an entry's live red-first arm could not be
+reproduced because replay computed the stable pre-pipeline identity while the
+log held the rotated one; the D1 commit (`246b61d`, 19:41:49Z) postdates that
+log record (19:37:28.135Z) by 4m21s, so the log was written by pre-D1 code.
+The lane reported it as a gap rather than explaining it away, which is what
+made it cheap to settle — one `git log` on the fix's own commit.
+**The consequence outlives the instance, and it is a booking rule:** an entry
+whose red-first arrangement names a live artifact is dated evidence, and a fix
+shipping afterwards can DESTROY ITS OWN CALIBRATION CASE. That case is not
+re-armable by shopping for a substitute (see the corpus rule this file already
+carries); it is re-armable only by a fresh live occurrence, or not at all. So
+before concluding a replay/live mismatch is a defect, put the fix's deploy
+timestamp beside the record's — it is one command, and it separates the three
+hypotheses where reasoning about them does not.
+
 Order that works, cheapest first:
 
 1. **Is the pair what you think it is?** Violations are reported per
