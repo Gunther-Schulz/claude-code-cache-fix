@@ -189,6 +189,20 @@ export function canonical(blocks) {
   return blocks.map(unwrapText).join(JOIN);
 }
 
+/**
+ * The WRAPPER-RETAINED standalone form: the blocks VERBATIM (wrapper still
+ * on), joined with the same separator `canonical` uses. Measured 2026-08-14:
+ * every MISMATCH in a 46-capture corpus is this mechanism — CC re-emits the
+ * migrated blocks with `<system-reminder>` wrappers RETAINED rather than
+ * stripped, joined the same way `canonical` joins the stripped form. `row 4`'s
+ * DEFINITION (module header) assumes stripping; this is the measured
+ * alternative CC actually took, evaluated alongside it rather than replacing
+ * it — `canonical`'s own callers and behaviour are untouched.
+ */
+export function canonicalWrapped(blocks) {
+  return blocks.join(JOIN);
+}
+
 /** Classify one reconstruction against CC's own later text. */
 export function classify(reconstructed, actual) {
   if (reconstructed === actual) return "EXACT";
@@ -301,6 +315,11 @@ export function analysePair(before, after) {
     // If any block is still inline somewhere in `after`, nothing migrated.
     if (blocks.some((t) => inlineAfter.has(t))) continue;
     const recon = canonical(blocks);
+    // The wrapper-retained alternative reconstruction, evaluated alongside
+    // `recon` in the same scan below (`bestWrapped`) — never substituted for
+    // it. Only consulted when a finding ends up MISMATCH under the stripped
+    // rule (`mismatchSub`, below).
+    const reconWrapped = canonicalWrapped(blocks);
     // Where the host ended up in `after`, by tool_use_id — needed to measure
     // PLACEMENT. Content byte-matching alone is not sufficient for a
     // mitigation: emitting the right bytes at the wrong index diverges the
@@ -316,6 +335,12 @@ export function analysePair(before, after) {
     // flat absence. Never overrides `best`; only consulted when `best` stays
     // null for the whole scan (see the no-counterpart branch).
     let rejectedCandidate = null;
+    // The best wrapper-retained hit found in the scan below, tracked
+    // independently of `best`/`rejectedCandidate`: an EXACT wrapped hit wins
+    // once found and is never overwritten; the first EXTENDED wrapped hit is
+    // kept only while no wrapped hit exists yet. Never influences `best` or
+    // the stripped verdict — only read when a finding ends up MISMATCH.
+    let bestWrapped = null;
     // "Position-eligible" is a claim about the HOST's position, so it can only
     // be made when the host was LOCATED. TWO states defeat that, and the filter
     // below short-circuits identically in both — so the first system message in
@@ -340,6 +365,16 @@ export function analysePair(before, after) {
     const hostUnlocated = hostPruned || hostIdless;
     for (const s of sysAfter) {
       if (hj !== null && hj >= 0 && s.j <= hj) continue;
+      // Wrapped scan runs alongside the stripped one for every
+      // position-eligible candidate, and stops updating once it holds an
+      // EXACT (nothing can beat it). This must never short-circuit or
+      // otherwise touch the stripped `best`/`rejectedCandidate` tracking
+      // below — they stay exactly the scan they always were.
+      if (!bestWrapped || bestWrapped.verdict !== "EXACT") {
+        const wv = classify(reconWrapped, s.text);
+        if (wv === "EXACT") bestWrapped = { verdict: wv, ...s };
+        else if (wv === "EXTENDED" && !bestWrapped) bestWrapped = { verdict: wv, ...s };
+      }
       const verdict = classify(recon, s.text);
       if (verdict === "EXACT") { best = { verdict, ...s }; break; }
       if (verdict === "EXTENDED") { if (!best) best = { verdict, ...s }; continue; }
@@ -353,7 +388,14 @@ export function analysePair(before, after) {
       const sub = best.verdict === "EXTENDED"
         ? subclassifyExtended(recon, best.text, sysBefore)
         : null;
-      findings.push({ host: i, blocks: blocks.length, ...best, recon, offset, sub });
+      // `hj` (the host's index in `after`) and `nBefore`/`nAfter` (each
+      // request's own message count) ride the finding so a placement row can
+      // be assembled downstream without re-deriving them — `hj` in
+      // particular is never backed out of `offset` (`best.j - hj`), because
+      // that inverts the exact fact this exists to carry into an arithmetic
+      // reconstruction of it.
+      findings.push({ host: i, blocks: blocks.length, ...best, recon, offset, sub,
+                       hj, nBefore: b.length, nAfter: a.length });
       continue;
     }
     // No standalone counterpart matched the canonical rule. Distinguish a DROP
@@ -399,8 +441,34 @@ export function analysePair(before, after) {
       }
       return false;
     });
+    const verdict = anyCreated ? "MISMATCH" : "DROPPED";
+    // Sub-classification, MISMATCH only. Precedence, in order: a host that
+    // could not be LOCATED never had a position to weigh a wrapped candidate
+    // against, so those two states win before wrapped evidence is even
+    // consulted; only then does whether a wrapper-retained hit exists (and
+    // its own verdict) decide the label; UNRELATED is what is left when the
+    // host was located and nothing — stripped or wrapped — accounts for it.
+    let mismatchSub = null, wrapped = null, wrappedSub;
+    if (verdict === "MISMATCH") {
+      wrapped = bestWrapped
+        ? { verdict: bestWrapped.verdict, j: bestWrapped.j,
+            offset: hj !== null && hj >= 0 ? bestWrapped.j - hj : null }
+        : null;
+      mismatchSub = hostPruned ? "HOST-PRUNED"
+        : hostIdless ? "HOST-IDLESS"
+        : bestWrapped?.verdict === "EXACT" ? "WRAPPER-RETAINED-EXACT"
+        : bestWrapped?.verdict === "EXTENDED" ? "WRAPPER-RETAINED-EXTENDED"
+        : "UNRELATED";
+      // Reported as DATA, labelled — this is not a verdict about
+      // absorbability, only where the wrapped-EXTENDED remainder came from.
+      // Reuses the exact primitive the stripped EXTENDED branch uses, against
+      // the same predecessor population (`sysBefore`).
+      if (mismatchSub === "WRAPPER-RETAINED-EXTENDED") {
+        wrappedSub = subclassifyExtended(reconWrapped, bestWrapped.text, sysBefore);
+      }
+    }
     findings.push({ host: i, blocks: blocks.length,
-                    verdict: anyCreated ? "MISMATCH" : "DROPPED",
+                    verdict,
                     j: null, text: "", recon, sub: null, rejectedCandidate,
                     // An unlocatable host is its own state and gets its own
                     // word: with no `rejectedCandidate` the row would otherwise
@@ -409,7 +477,10 @@ export function analysePair(before, after) {
                     // A pruned host, an ID-less host and a genuinely empty
                     // counterpart are three findings, not one (dev-loop.md,
                     // "give the state that has no word yet its own string").
-                    hostPruned, hostIdless });
+                    hostPruned, hostIdless,
+                    ...(verdict === "MISMATCH"
+                      ? { mismatchSub, wrapped, ...(wrappedSub !== undefined ? { wrappedSub } : {}) }
+                      : {}) });
   }
   return findings;
 }
@@ -534,18 +605,73 @@ export function sameBody(a, b) {
  * loop already retains.
  */
 export function newDuplicateScan() {
-  return { runs: new Map(), pending: new Map(), billed: new Set(), streaks: [] };
+  return { runs: new Map(), pending: new Map(), billed: new Map(), streaks: [] };
+}
+
+/**
+ * The streak-level request shape, read ONCE from the streak's FIRST member's
+ * body. `sameBody` is what makes a run a run in the first place, so every
+ * member's body is byte-identical by construction — one read is the whole
+ * streak's answer, never re-derived per member. A missing or non-object body
+ * reports null for every field, never 0 and never a silently omitted key: a
+ * body-shape question this tool cannot answer is a different state than
+ * "zero messages" or "no max_tokens set".
+ */
+function requestShapeOf(body) {
+  if (!body || typeof body !== "object") return { model: null, nMsg: null, maxTokens: null };
+  return {
+    model: body.model ?? null,
+    nMsg: Array.isArray(body.messages) ? body.messages.length : null,
+    maxTokens: body.max_tokens ?? null,
+  };
+}
+
+/**
+ * The facts one outcome record contributes to the member it billed:
+ * requestId, model, wall time, and the usage the API actually reported.
+ *
+ * `outputTokens` is a KNOWN PLACEHOLDER, not a completion length:
+ * `buildOutcomeRecord` (proxy/extensions/request-capture.mjs) writes the
+ * outcome record on `message_start`, before the completion exists, so this
+ * is the message_start-time value CC reported at that instant — carried
+ * through verbatim here, and no later consumer should read it as an answer
+ * length.
+ */
+function outcomeFacts(rec) {
+  const u = rec?.usage;
+  return {
+    requestId: rec?.requestId ?? null,
+    model: rec?.model ?? null,
+    ms: rec?.ms ?? null,
+    usage: u ? {
+      cacheRead: u.cacheRead ?? null,
+      cacheCreation: u.cacheCreation ?? null,
+      inputTokens: u.inputTokens ?? null,
+      outputTokens: u.outputTokens ?? null,
+    } : null,
+  };
 }
 
 /** A request joins the run it duplicates, and brings its billing state with
  *  it: its outcome record may already have gone past. An id-less record cannot
  *  be matched to an outcome at all, and says so rather than reading as
- *  unbilled. */
-function addMember(scan, run, id) {
+ *  unbilled. `rec` is the request record itself (not just its id), so the
+ *  member row carries its own pointer (id/ts/line) — never body content
+ *  (corpus hygiene: streak rows already carry no request bodies). */
+function addMember(scan, run, rec) {
   run.length++;
-  if (typeof id !== "string" || !id) { run.noId++; return; }
-  if (scan.billed.delete(id)) run.billed++;
-  else scan.pending.set(id, run);
+  const id = rec?.id;
+  const idStr = (typeof id === "string" && id) ? id : null;
+  const member = { id: idStr, ts: rec?.ts ?? null, line: rec?.__line ?? null, outcome: null };
+  run.members.push(member);
+  if (!idStr) { run.noId++; return; }
+  if (scan.billed.has(idStr)) {
+    member.outcome = scan.billed.get(idStr);
+    scan.billed.delete(idStr);
+    run.billed++;
+  } else {
+    scan.pending.set(idStr, run);
+  }
 }
 
 /**
@@ -569,16 +695,24 @@ export function trackDuplicate(scan, cid, before, current) {
   }
   let run = scan.runs.get(cid);
   if (!run) {
+    const shape = requestShapeOf(before?.body);
     run = { cid, sid: current.sid ?? null, length: 0, billed: 0, noId: 0,
             startTs: before.ts ?? null, startLine: before.__line ?? null,
-            lastTs: before.ts ?? null, lastLine: before.__line ?? null };
-    addMember(scan, run, before.id);
+            lastTs: before.ts ?? null, lastLine: before.__line ?? null,
+            model: shape.model, nMsg: shape.nMsg, maxTokens: shape.maxTokens,
+            members: [], intervalMs: null };
+    addMember(scan, run, before);
     scan.runs.set(cid, run);
     scan.streaks.push(run);
   }
-  addMember(scan, run, current.id);
+  addMember(scan, run, current);
   run.lastTs = current.ts ?? null;
   run.lastLine = current.__line ?? null;
+  // Last member's ts minus first member's ts, in wire order — recomputed on
+  // every extension of the run so it always reflects the streak's true
+  // first/last so far. null when either stamp is missing, never a NaN
+  // wearing a number's costume.
+  run.intervalMs = (run.startTs && run.lastTs) ? Date.parse(run.lastTs) - Date.parse(run.startTs) : null;
   return run;
 }
 
@@ -586,15 +720,27 @@ export function trackDuplicate(scan, cid, before, current) {
  * An outcome record: that request was answered and charged. It bills a member
  * immediately, or is REMEMBERED for the request that has not yet turned out to
  * be one (see `newDuplicateScan` on why that direction is the common one).
- * Consumed on match, so one outcome record can never bill two requests.
+ * Consumed on match, so one outcome record can never bill two requests —
+ * that invariant, and the counts `summariseDuplicates` returns, are
+ * unchanged by carrying the record's facts.
+ *
+ * `outcomeRecord` (optional — existing callers that only ever needed the
+ * count still pass just an id) is reduced to its facts and attached to the
+ * member it billed, in EITHER arrival order: the pending branch attaches
+ * straight to the found member; the remembered branch stashes the facts in
+ * `scan.billed` and `addMember` reads them back out once that member is
+ * finally seen.
  * Returns whether it billed a member right now.
  */
-export function noteOutcome(scan, id) {
+export function noteOutcome(scan, id, outcomeRecord) {
   if (typeof id !== "string" || !id) return false;
+  const facts = outcomeRecord ? outcomeFacts(outcomeRecord) : null;
   const run = scan.pending.get(id);
-  if (!run) { scan.billed.add(id); return false; }
+  if (!run) { scan.billed.set(id, facts); return false; }
   scan.pending.delete(id);
   run.billed++;
+  const member = run.members.find((m) => m.id === id);
+  if (member) member.outcome = facts;
   return true;
 }
 
@@ -816,6 +962,13 @@ const ENTRY_ROW_CAP = 5000;
 // largest so far a 38-row conservation gate-red).
 const MISMATCH_ROW_CAP = 200;
 
+// Same backstop shape, for the placement facts (`placementRows`, below):
+// counts are already reported exactly via the "placement" text block's own
+// tally, so this bounds only the per-row EXPORT — the census's finding
+// population per pair is small (row-4 hosts, not requests), so tripping this
+// would itself be the finding.
+const PLACEMENT_ROW_CAP = 200;
+
 // Same shape of backstop for duplicate-streak detail rows: the counts stay
 // exact, the rows are capped and the cap reports what it dropped. Streaks are
 // a small population by construction (a hundred pairs across a corpus), so
@@ -825,6 +978,13 @@ const DUP_ROW_CAP = 5000;
 export async function census(paths) {
   const tally = { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 };
   const extendedSub = { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 };
+  // Precedence order `analysePair`'s `mismatchSub` assignment itself uses —
+  // kept identical so the printed tally's row order and the classifier's own
+  // precedence never drift apart. All five labels ZERO here rather than
+  // absent, so an unmeasured label prints 0 instead of vanishing from output.
+  const mismatchSubs = { "HOST-PRUNED": 0, "HOST-IDLESS": 0,
+                          "WRAPPER-RETAINED-EXACT": 0, "WRAPPER-RETAINED-EXTENDED": 0,
+                          UNRELATED: 0 };
   const prunes = { pure: 0, interior: 0, unanchored: 0 };
   const pruneDetails = [];
   const details = [];
@@ -879,7 +1039,7 @@ export async function census(paths) {
         // outcome record carries no body, so every analysis below would skip
         // it anyway — it is handled here so that skip is a decision, not a
         // side effect of `conversationOf` returning null.
-        if (r.type === "outcome") { noteOutcome(dupScan, r.id); continue; }
+        if (r.type === "outcome") { noteOutcome(dupScan, r.id, r); continue; }
         const cid = conversationOf(r);
         if (cid === null) continue;
 
@@ -942,6 +1102,7 @@ export async function census(paths) {
         for (const f of analysePair(before, r)) {
           tally[f.verdict]++;
           if (f.sub) extendedSub[f.sub]++;
+          if (f.mismatchSub) mismatchSubs[f.mismatchSub]++;
           details.push({ path, ts: r.ts, ...f });
         }
       }
@@ -971,7 +1132,7 @@ export async function census(paths) {
     if (withPairs.size) captures++;
     conversations += withPairs.size;
   }
-  return { tally, extendedSub, prunes, pruneDetails, details, pairs, captures, conversations,
+  return { tally, extendedSub, mismatchSubs, prunes, pruneDetails, details, pairs, captures, conversations,
            unreadable, considered: paths.length, tornLines: torn.n,
            volatileChange, volatileKinds, volatileRows: [...rowByEntry.values()], volatileTruncated,
            volatileExempt, volatileByCapture: [...volatileByCapture.entries()],
@@ -991,7 +1152,7 @@ async function main(argv) {
     process.stderr.write("usage: reminder-migration-census <capture.jsonl> ...\n");
     return 1;
   }
-  const { tally, extendedSub, prunes, pruneDetails, details, pairs, captures, conversations,
+  const { tally, extendedSub, mismatchSubs, prunes, pruneDetails, details, pairs, captures, conversations,
           unreadable, considered, tornLines, volatileChange, volatileKinds, volatileRows,
           volatileTruncated, volatileExempt, volatileByCapture,
           volatileEntries, volatileEntriesByKind,
@@ -1016,6 +1177,30 @@ async function main(argv) {
   const mismatchAll = details.filter((d) => d.verdict === "MISMATCH");
   const mismatchRows = mismatchAll.slice(0, MISMATCH_ROW_CAP);
 
+  // The per-row facts behind the "placement" text block's tally, exported so
+  // the derivability question (is the index PREDICTABLE per case, not just
+  // measured as a distribution) can be asked without re-running the whole
+  // corpus by hand. Only findings that HAVE a placement: `best` was found
+  // (verdict EXACT or EXTENDED) and the host was actually located, which is
+  // exactly the condition `offset` itself is non-null under (`!= null` here
+  // catches both the DROPPED/MISMATCH branch, where the field is absent
+  // entirely, and a located-but-null offset, though the latter cannot occur
+  // together with a found `best`).
+  const placementAll = details.filter((d) =>
+    (d.verdict === "EXACT" || d.verdict === "EXTENDED") && d.offset != null);
+  // Two index spaces meet in one row — the BEFORE request's and the AFTER
+  // request's — so every field below names its space rather than leaving it
+  // to be inferred; conflating them is a mistake this repo has made before.
+  const placementRows = placementAll.slice(0, PLACEMENT_ROW_CAP).map((d) => ({
+    path: d.path, ts: d.ts, verdict: d.verdict, blocks: d.blocks,
+    hostIndexBefore: d.host,   // BEFORE-request index space
+    nBefore: d.nBefore,        // BEFORE-request message count
+    hostIndexAfter: d.hj,      // AFTER-request index space
+    standaloneIndex: d.j,      // AFTER-request index space
+    nAfter: d.nAfter,          // AFTER-request message count
+    offset: d.offset,          // standaloneIndex - hostIndexAfter, unchanged
+  }));
+
   if (json) {
     // ADDITIVE ONLY. gate-live's summariseCensus and bust-triage read named
     // fields, so new keys ride along without touching either; `volatileChange`
@@ -1023,14 +1208,16 @@ async function main(argv) {
     // detail rows appear only under --verbose so the sweep's status file does
     // not grow a row per reminder flip.
     process.stdout.write(JSON.stringify(
-      { tally, extendedSub, prunes, pairs, captures, conversations, total, considered, unreadable,
+      { tally, extendedSub, mismatchSubs, prunes, pairs, captures, conversations, total, considered, unreadable,
         tornLines,
         volatileChange, volatileKinds, volatileTruncated, volatileExempt,
         volatileByCapture, volatileEntries, volatileEntriesByKind,
         duplicates, duplicatesByCapture, duplicatesTruncated,
-        ...(verbose ? { volatileRows, duplicateRows, mismatchRows,
+        ...(verbose ? { volatileRows, duplicateRows, mismatchRows, placementRows,
                          ...(mismatchAll.length > MISMATCH_ROW_CAP
-                           ? { mismatchRowsTruncated: mismatchAll.length } : {}) } : {}) },
+                           ? { mismatchRowsTruncated: mismatchAll.length } : {}),
+                         ...(placementAll.length > PLACEMENT_ROW_CAP
+                           ? { placementRowsTruncated: placementAll.length } : {}) } : {}) },
       null, 2) + "\n");
     return unreadable.length ? 1 : 0;
   }
@@ -1230,7 +1417,12 @@ async function main(argv) {
         `         ${String(extendedSub["NEW-TEXT"]).padStart(5)}  NEW-TEXT           the remainder is content no earlier request carried\n`
       : "") +
     `  ${String(tally.DROPPED).padStart(5)}  ${pct(tally.DROPPED).padStart(6)}  DROPPED   blocks vanished, no counterpart — nothing migrated, rule not exercised\n` +
-    `  ${String(tally.MISMATCH).padStart(5)}  ${pct(tally.MISMATCH).padStart(6)}  MISMATCH  rule does not hold — every one is a hole\n\n`);
+    `  ${String(tally.MISMATCH).padStart(5)}  ${pct(tally.MISMATCH).padStart(6)}  MISMATCH  rule does not hold — every one is a hole\n` +
+    (tally.MISMATCH
+      ? Object.entries(mismatchSubs).map(([k, n]) =>
+          `         ${String(n).padStart(5)}  ${k}\n`).join("")
+      : "") +
+    `\n`);
 
   const offs = details.filter((d) => d.verdict === "EXACT" && d.offset !== null && d.offset !== undefined);
   if (offs.length) {
@@ -1293,6 +1485,18 @@ async function main(argv) {
         process.stdout.write(`             recon: ${JSON.stringify(d.recon)}\n`);
         if (d.rejectedCandidate) {
           process.stdout.write(`             candidate: ${JSON.stringify(d.rejectedCandidate.text)}\n`);
+        }
+        // The sub-classification: which of the five states this MISMATCH is,
+        // and — for the wrapper-retained forms — the wrapped-reconstruction
+        // hit that decided it. `wrappedSub` is reported as data (where the
+        // WRAPPER-RETAINED-EXTENDED remainder came from), never a verdict
+        // about absorbability.
+        process.stdout.write(`             mismatchSub: ${d.mismatchSub}\n`);
+        if (d.wrapped) {
+          process.stdout.write(`             wrapped: ${JSON.stringify(d.wrapped)}\n`);
+        }
+        if (d.wrappedSub) {
+          process.stdout.write(`             wrappedSub: ${d.wrappedSub}\n`);
         }
       }
     }
