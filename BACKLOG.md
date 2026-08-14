@@ -242,6 +242,38 @@ now means some child DIED HARD and is a finding about that child.
   Realizing boundary: the dotfiles repo — hook plus a user timer.
   <!-- entry: "pr-round doorbell has a writer and no reader" -->
 
+- **RECORD 2026-08-14 — the #276 blocker is settled by measurement, and the
+  cause is NOT the one both sides assumed.** Upstream reported that
+  `pr-276-head` (`e8574b6`) still carries the old `NAME_UUID_PREFIX`
+  (`[^0-9a-f]` form, line 97) and `SCANNABLE = /\.jsonl?$/i` (line 268), file
+  length 402 — against our 2026-08-06 comment claiming both fixes were in at
+  `:139` and `:359`. **Upstream is right.** Their hypothesis was that the
+  rebase dropped the carrying commit; measured, no such commit ever existed:
+  for each commit touching `tools/absence-scan.mjs`, greping its own blob for
+  `zA-Z` returns ZERO hits on `pr/verification-tools`, on
+  `backup/verification-tools-pre-rewrite`, and on `pr/absence-scan` — while
+  the same loop over fork `main` returns three (`f228720`, `148b5e7`,
+  `5631334`). Same result for `SOURCE_SCANNABLE`. The positive control is the
+  load-bearing half: the first run of that probe returned zero on `main` TOO,
+  because zsh reads `$c:tools/…` as the `:t` history modifier — an empty
+  result shaped exactly like a clean absence, caught only because a control
+  was run. (Environment class: the corpus's "Bash idioms that read as SUCCESS
+  under zsh" covers `$VAR` splitting and `PIPESTATUS`, not this member.)
+  So the failure is one step EARLIER than "shipped fork-side ≠ in the pushed
+  ref": our comment cited line numbers from fork-main's *current* file (993
+  lines today) and reported them as the branch's (402 lines). One
+  `git show pr-276-head:<path>` before writing would have caught it, and that
+  is exactly the instrument upstream used.
+  CONSEQUENCE FOR THE FIXES: they belong on `pr/absence-scan` (#306), not
+  here — Chris's Q1 put scanner ownership there, and `fb9763b` carries the
+  same two old forms. Pushing them to both refs forks the scanner.
+  Loop stage: VERIFY.
+  Anchor: BACKLOG.md `## Upstream PR round`
+  Write-set: pr/absence-scan (the two changes), pr/verification-tools (rebase
+  onto 4ab9cf8, drop the scanner pair, lift the
+  `test/insertion-suppression.test.mjs` rider) — both pushes operator-GO-gated
+  <!-- entry: "the 276 fixes were never on the branch" -->
+
 - **PARKED 2026-08-14 — our own public comment on CC #78420 says the duplicate
   does NOT reproduce here, and row 31 then measured 47 of them. The two cannot
   both be right, and the public one is ours.** Posted 2026-07-29 on
@@ -262,18 +294,49 @@ now means some child DIED HARD and is a finding about that child.
   or not we ever post again. It is also the reason nothing should be posted
   there until it is explained — a correction that arrives beside an
   unexplained contradiction reads as noise.
-  NAMED MISSING EVIDENCE — the three candidate explanations, none measured:
+  NAMED MISSING EVIDENCE — the three candidate explanations:
   (a) the July corpus was 7 captures with few session starts, so the class had
   few chances to appear; (b) the July probe's adjacency was defined
   differently from the census's same-conversation adjacency; (c) CC changed
-  between 2.1.220 and 2.1.221. The July captures are rotated, but TRACKED
-  FIXTURES from that period survive, so (a) and (b) are answerable offline and
-  (c) is answerable from the version stamps in the boot records.
-  Trigger to re-grade: that measurement, run over the July-era fixtures.
+  between 2.1.220 and 2.1.221.
+  **CORRECTED 2026-08-14 (second entry the same day, by probing this entry's
+  own premise before building against it): the sentence that stood here —
+  "TRACKED FIXTURES from that period survive, so (a) and (b) are answerable
+  offline and (c) is answerable from the version stamps in the boot records" —
+  is FALSE on all three counts, and the measurement it commissioned would have
+  produced numbers meaning nothing.** Measured over the 11 tracked
+  `test/fixtures/harvested/pinned-*.json`: every timestamp inside a fixture is
+  scrubbed to `2000-01-01T00:00:00.000Z` (header `harvestedAt` included), so
+  neither an ERA nor the 6-25 ms intervals row 31's class is defined by are
+  recoverable; pin boot records carry `proxyTree` + `gates` and NO Claude Code
+  version, so (c) is unanswerable from fixtures at all; and only ONE pin was
+  committed before August (2026-07-31, 3 request records), so there is no
+  July-era corpus in the tree to measure. The scrub preserves structure and
+  destroys exactly the two predicates this entry needed — the
+  curation-axis blindness this repo already documents, arriving in the axis
+  nobody had checked for it.
+  **(b) WAS ALREADY MEASURED AND FALSIFIED, 2026-07-30, and this entry was
+  written without reading it.** See the RESOLVED entry in `## Record`
+  ("duplicate-request contradiction: ~100 adjacent identical pairs vs the
+  booked 'one instance in 3,446'"): the definition-mismatch hypothesis was
+  tested against the then-current corpus and the answer was that global and
+  per-conversation adjacency "differs marginally" — the growth was corpus
+  CONTENT. That record also states the honest gap: the 07-29 probe's exact
+  runtime and file list are not recoverable. That entry is a document, so it
+  is a prompt to re-measure rather than a discharge.
+  WHAT REPLACES THE FIXTURE ROUTE: the two definitions measured side by side
+  over the corpus that actually exists — the 57 LIVE captures — so the
+  definitional question is answered on production-shaped input rather than
+  argued. Dispatched 2026-08-14 (`tools/duplicate-adjacency-probe.mjs`, arm
+  CONV = the shipped `findDuplicateRequests`, arm FILE = global capture-line
+  adjacency, with a discrimination control that must make the two arms
+  disagree on an interleaved pair). The 11 pins ride along as the committed,
+  reproducible arm — a structural corpus, never a rate.
+  Trigger to re-grade: that measurement's two counts.
   Loop stage: ATTRIBUTE.
   Anchor: docs/directives/robustness-threat-matrix.md
-  Write-set: a probe over test/fixtures/harvested/, then a drafted correction
-  comment (operator GO before posting)
+  Write-set: tools/duplicate-adjacency-probe.mjs (+ its test), then a drafted
+  correction comment (operator GO before posting)
   <!-- entry: "our public 78420 comment contradicts row 31" -->
 
 - **READY 2026-08-14 — CC #82642 got an independent second measurement today;
