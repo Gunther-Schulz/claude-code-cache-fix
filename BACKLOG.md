@@ -242,6 +242,46 @@ now means some child DIED HARD and is a finding about that child.
   Realizing boundary: the dotfiles repo — hook plus a user timer.
   <!-- entry: "pr-round doorbell has a writer and no reader" -->
 
+- **READY 2026-08-14 — the PR-round doorbell cannot be answered by ANSWERING:
+  its predicate reads our last COMMIT, so a round whose correct reply is a
+  question stays open forever.** Found by using it minutes after both rounds
+  were answered: `--dry-run` reported #306 closed and **#276 still open**,
+  although our comment (17:47:15Z) is the last activity on the thread and
+  there are no reviews. The predicate is `lastExternal.at > ourLastPush` with
+  `ourLastPush` taken from the PR's COMMIT dates (`tools/pr-rounds.mjs`, the
+  `rounds.push` guard) — comments of ours are filtered out of the event list
+  entirely, so they cannot close anything. #306 closed only because that round
+  happened to end in a push.
+  **Wrong in BOTH directions, which is what makes it a defect rather than a
+  strict reading.** A push with no answer to their findings CLOSES the round;
+  an answer with no push does not. #276's answer is deliberately comment-only
+  — we asked upstream which sequencing they want before force-pushing the
+  branch twice — so the correct state of that round is "ball with upstream"
+  and the tool says the opposite.
+  **Why this is urgent rather than tidy:** the dotfiles entry to build the
+  READER is READY and would be built against this predicate. A doorbell that
+  keeps ringing after the door was answered trains the operator to ignore it —
+  the fires-on-a-non-defect shape, arriving on the one instrument whose
+  silence already cost eight days.
+  **Design, decided:** the ball is with us iff the last NAMED activity on the
+  PR is theirs. Compare `lastExternal.at` against
+  `max(ourLastPush, ourLastComment)` — our own comments come back into the
+  event list for the max, while staying excluded from `lastExternal`. Same
+  trust we already place in a push, and it is what a human means by "our
+  court".
+  Red-first: #276 as it stands today is the live positive — the tool must go
+  from reporting it open to reporting no open rounds, with no other round's
+  verdict moving. Pin it as a fixture (a synthetic events/commits pair in both
+  orders), because the live case dissolves the moment either side pushes.
+  Done-criterion: a round answered by comment alone reports closed; a push
+  that answers nothing does NOT close a round whose last external event
+  postdates it.
+  Loop stage: VERIFY.
+  Anchor: tools/pr-rounds.mjs
+  Write-set: tools/pr-rounds.mjs, test/pr-rounds.test.mjs
+  Verifier: the fixture pair above, plus `--dry-run` against the live #276
+  <!-- entry: "pr-rounds predicate reads commits, not answers" -->
+
 - **RECORD 2026-08-14 — the #276 blocker is settled by measurement, and the
   cause is NOT the one both sides assumed.** Upstream reported that
   `pr-276-head` (`e8574b6`) still carries the old `NAME_UUID_PREFIX`
@@ -272,6 +312,17 @@ now means some child DIED HARD and is a finding about that child.
   Write-set: pr/absence-scan (the two changes), pr/verification-tools (rebase
   onto 4ab9cf8, drop the scanner pair, lift the
   `test/insertion-suppression.test.mjs` rider) — both pushes operator-GO-gated
+  **BOTH ROUNDS ANSWERED 2026-08-14 on operator GO.** The two agreed changes
+  are pushed to `pr/absence-scan` (`20365e1`) and READ BACK OUT OF THE REF
+  before the comment was written — `pr-306-head` = `20365e1`, 479 lines,
+  `NAME_UUID_PREFIX` at `:113` in the `[^0-9a-zA-Z]` form, `SOURCE_SCANNABLE`
+  at `:343` — which is the step whose absence caused this entry.
+  Comments: #306 `issuecomment-5296435924`, #276 `issuecomment-5296436518`.
+  STILL OPEN and deliberately not done: the #276 branch work (rebase onto
+  `4ab9cf8`, drop the scanner pair once #306 lands, lift the
+  `insertion-suppression` rider). The comment asks upstream which sequencing
+  they want, because either order costs a force-push and their answer decides
+  which diff they have to read. That question is the round's live half.
   <!-- entry: "the 276 fixes were never on the branch" -->
 
 - **PARKED 2026-08-14 — our own public comment on CC #78420 says the duplicate
