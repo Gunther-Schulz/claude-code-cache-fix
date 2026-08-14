@@ -156,6 +156,30 @@ export async function runOnStreamEvent(ctx, snapshot) {
   }
 }
 
+// Fires INSTEAD of the response hooks, on the one path where there is no
+// response of this request's own to hook: a duplicate sidecar send that the
+// row 31 mitigation served from another request's in-flight answer. The caller
+// is that branch in server.mjs and nothing else.
+//
+// It exists as a hook rather than as a direct call into request-capture because
+// the core must not import one extension by name — the registry is loaded from
+// a directory at runtime, and a static import would make the coalescing path
+// depend on a file that may not be installed. The cost is thirteen lines that
+// mirror the four hooks above exactly.
+export async function runOnCoalesced(ctx, snapshot) {
+  const exts = snapshot || registry;
+  const route = ctx.meta?.route;
+  for (const ext of exts) {
+    if (!ext.onCoalesced) continue;
+    if (!appliesToRoute(ext, route)) continue;
+    try {
+      await ext.onCoalesced(ctx);
+    } catch (err) {
+      process.stderr.write(`[pipeline] ${ext.name}.onCoalesced error: ${err.message}\n`);
+    }
+  }
+}
+
 export async function runOnResponse(ctx, snapshot) {
   const exts = snapshot || registry;
   const route = ctx.meta?.route;

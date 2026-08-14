@@ -97,6 +97,7 @@ import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
 import { localSuffix, withLocalStamps } from "./local-stamp.mjs";
 import { rowTriage } from "./matrix-status.mjs";
+import { isCaptureRequestRecord } from "./logs.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
@@ -728,8 +729,8 @@ export async function joinOutcomeToRequest(sid, reqId, capturesDir = CAPTURES) {
   let ord = -1;
   for await (const line of readLines(f)) {
     const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") ord++;
-    if (!r || r.type === "boot" || r.type === "outcome") continue;
+    if (isCaptureRequestRecord(r)) ord++;
+    if (!isCaptureRequestRecord(r)) continue;
     if (r.id !== outcomeId) continue;
     r.ord = ord;
     return { ok: true, id: outcomeId, record: r };

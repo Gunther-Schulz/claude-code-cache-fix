@@ -319,6 +319,12 @@ async function* readRecords(path, tornCount) {
     // discriminator. They deliberately get no `__line` — nothing points at
     // them — and every other analysis skips them on `type`.
     if (r?.type === "outcome" && typeof r?.id === "string") { yield r; continue; }
+    // Coalesced records (row 31: a duplicate send served from another
+    // request's in-flight answer) share the file and carry no body either.
+    // Yielded for the same one consumer, and for the same reason: without it
+    // the duplicate counter reads a suppressed duplicate as an unanswered
+    // send, which inverts the mitigation's own signal.
+    if (r?.type === "coalesced" && typeof r?.id === "string") { yield r; continue; }
     // 1-based LINE ordinal, counting blank and corrupt lines too, so a detail
     // row's pointer resolves with `sed -n '<N>p'` on the capture itself. Set
     // on the record rather than yielded alongside it because the record is
@@ -718,7 +724,7 @@ export function sameBody(a, b) {
  * loop already retains.
  */
 export function newDuplicateScan() {
-  return { runs: new Map(), pending: new Map(), billed: new Map(), streaks: [] };
+  return { runs: new Map(), pending: new Map(), billed: new Map(), coalesced: new Map(), streaks: [] };
 }
 
 /**
@@ -775,9 +781,19 @@ function addMember(scan, run, rec) {
   run.length++;
   const id = rec?.id;
   const idStr = (typeof id === "string" && id) ? id : null;
-  const member = { id: idStr, ts: rec?.ts ?? null, line: rec?.__line ?? null, outcome: null };
+  const member = { id: idStr, ts: rec?.ts ?? null, line: rec?.__line ?? null, outcome: null, coalesced: null };
   run.members.push(member);
   if (!idStr) { run.noId++; return; }
+  // A member can be coalesced OR billed, never both: the coalesced send never
+  // reached upstream, so no outcome record can exist for it. Both arrival
+  // orders are handled for the same reason `billed` handles both — appends
+  // from concurrent requests interleave in one capture file, so wire order is
+  // not a guarantee this reader may rest on.
+  if (scan.coalesced.has(idStr)) {
+    member.coalesced = scan.coalesced.get(idStr);
+    scan.coalesced.delete(idStr);
+    run.coalesced++;
+  }
   if (scan.billed.has(idStr)) {
     member.outcome = scan.billed.get(idStr);
     scan.billed.delete(idStr);
@@ -809,7 +825,7 @@ export function trackDuplicate(scan, cid, before, current) {
   let run = scan.runs.get(cid);
   if (!run) {
     const shape = requestShapeOf(before?.body);
-    run = { cid, sid: current.sid ?? null, length: 0, billed: 0, noId: 0,
+    run = { cid, sid: current.sid ?? null, length: 0, billed: 0, coalesced: 0, noId: 0,
             startTs: before.ts ?? null, startLine: before.__line ?? null,
             lastTs: before.ts ?? null, lastLine: before.__line ?? null,
             model: shape.model, nMsg: shape.nMsg, maxTokens: shape.maxTokens,
@@ -858,6 +874,45 @@ export function noteOutcome(scan, id, outcomeRecord) {
 }
 
 /**
+ * A COALESCED record: that send never reached upstream — row 31's mitigation
+ * served it from another request's in-flight answer.
+ *
+ * This is the reason the record exists on disk at all. Without it, a coalesced
+ * member is a streak member with no outcome, which is BYTE-FOR-BYTE the shape
+ * of a retry streak's unanswered send — so the mitigation's success would be
+ * counted as the failure class it removes. `billed` stays untouched here on
+ * purpose: nothing was charged for this send, and inflating the billing count
+ * to mark it would corrupt the one number `doubleBilledStreaks` is derived
+ * from.
+ *
+ * Mirrors `noteOutcome` in both arrival directions, and deliberately does NOT
+ * consume from `scan.pending`: a pending id means "no outcome yet", which stays
+ * true — a coalesced send never gets one.
+ */
+export function noteCoalesced(scan, id, coalescedRecord) {
+  if (typeof id !== "string" || !id) return false;
+  const facts = coalescedRecord
+    ? {
+        leaderId: coalescedRecord.leaderId ?? null,
+        sha: coalescedRecord.sha ?? null,
+        deltaMs: coalescedRecord.deltaMs ?? null,
+      }
+    : null;
+  // `scan.pending` is the id->run index of members with no outcome yet, which
+  // is exactly where a coalesced member lives and stays: it never gets one.
+  // Looking it up here rather than scanning `scan.streaks` keeps this O(1) —
+  // a linear scan per record would be quadratic on a capture where coalescing
+  // is common, which is the corpus this mitigation is FOR.
+  const run = scan.pending.get(id);
+  if (!run) { scan.coalesced.set(id, facts); return false; }
+  const member = run.members.find((m) => m.id === id);
+  if (!member || member.coalesced) return false; // one record per send, never counted twice
+  member.coalesced = facts;
+  run.coalesced++;
+  return true;
+}
+
+/**
  * The capture's rollup. `pairs` is derived from the streaks (sum of
  * length - 1) rather than counted alongside them, so the two can never
  * disagree about what a streak is.
@@ -872,19 +927,30 @@ export function noteOutcome(scan, id, outcomeRecord) {
  * (dev-loop.md). Two or more outcome records inside one streak is the thing
  * CC#78420 alleges: one body, answered and charged more than once.
  * `billedStreaks` and `billedRequests` stay as the decomposition.
+ *
+ * `coalescedRequests`/`coalescedStreaks` are the MITIGATION's own number, and
+ * they are why row 31's record exists: a send the proxy served from another
+ * request's in-flight answer is a member with no outcome, indistinguishable by
+ * shape from a retry's unanswered send. Counted separately, the mitigation's
+ * effect is a daily figure instead of a hand-count — and a streak whose
+ * members are all coalesced-or-billed is a suppressed duplicate rather than an
+ * unexplained one.
  */
 export function summariseDuplicates(scan) {
   const s = { pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
               billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
+              coalescedRequests: 0, coalescedStreaks: 0,
               membersWithoutId: 0 };
   for (const run of scan.streaks) {
     s.streaks++;
     s.pairs += run.length - 1;
     s.requests += run.length;
     s.billedRequests += run.billed;
+    s.coalescedRequests += run.coalesced ?? 0;
     s.membersWithoutId += run.noId;
     if (run.billed > 0) s.billedStreaks++;
     if (run.billed > 1) s.doubleBilledStreaks++;
+    if ((run.coalesced ?? 0) > 0) s.coalescedStreaks++;
     if (run.length > s.maxStreak) s.maxStreak = run.length;
   }
   return s;
@@ -1168,6 +1234,7 @@ export async function census(paths) {
         // it anyway — it is handled here so that skip is a decision, not a
         // side effect of `conversationOf` returning null.
         if (r.type === "outcome") { noteOutcome(dupScan, r.id, r); continue; }
+        if (r.type === "coalesced") { noteCoalesced(dupScan, r.id, r); continue; }
         const cid = conversationOf(r);
         if (cid === null) continue;
 

@@ -48,7 +48,7 @@ const censusResJson = (o) => ({
     volatileKinds: {}, volatileEntries: 0, volatileEntriesByKind: {}, volatileExempt: 0,
     volatileTruncated: {},
     duplicates: { pairs: 0, streaks: 0, maxStreak: 0, requests: 0, billedRequests: 0,
-                  billedStreaks: 0, doubleBilledStreaks: 0, membersWithoutId: 0 },
+                  billedStreaks: 0, doubleBilledStreaks: 0, coalescedRequests: 0, coalescedStreaks: 0, membersWithoutId: 0 },
     ...o,
   }),
 });
@@ -128,13 +128,13 @@ test("BITE — a sweep with findings (ENABLED arm) writes one document whose row
     tally: { EXACT: 1, EXTENDED: 0, DROPPED: 0, MISMATCH: 2 },
     mismatchRows: [mismatchRow(), unrelatedMismatchRow()],
     duplicates: { pairs: 1, streaks: 1, maxStreak: 2, requests: 2, billedRequests: 2,
-                  billedStreaks: 1, doubleBilledStreaks: 0, membersWithoutId: 0 },
+                  billedStreaks: 1, doubleBilledStreaks: 0, coalescedRequests: 0, coalescedStreaks: 0, membersWithoutId: 0 },
     duplicateRows: [duplicateRow(3)],
   }), "s-aaaaaaaaaaaa");
   const capB = extractCensusRowEvidence(censusResJson({
     tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
     duplicates: { pairs: 1, streaks: 1, maxStreak: 5, requests: 3, billedRequests: 1,
-                  billedStreaks: 1, doubleBilledStreaks: 1, membersWithoutId: 0 },
+                  billedStreaks: 1, doubleBilledStreaks: 1, coalescedRequests: 0, coalescedStreaks: 0, membersWithoutId: 0 },
     duplicateRows: [duplicateRow(40)],
     volatileEntries: 1, volatileEntriesByKind: { VANISHED: 1 },
     volatileKinds: { VANISHED: 1 },

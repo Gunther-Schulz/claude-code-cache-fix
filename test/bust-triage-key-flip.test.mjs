@@ -212,8 +212,8 @@ function captureLines({ beforeTs, afterTs, tools }) {
   const before = [head, msg("assistant", "B"), msg("user", "C")];
   const after = [head, msg("assistant", "B"), msg("user", "C"), msg("assistant", "D2")]; // splice-shaped
   return [
-    JSON.stringify({ ts: beforeTs, type: "request", body: { messages: before, tools } }),
-    JSON.stringify({ ts: afterTs, type: "request", body: { messages: after, tools } }),
+    JSON.stringify({ ts: beforeTs, body: { messages: before, tools } }),
+    JSON.stringify({ ts: afterTs, body: { messages: after, tools } }),
   ].join("\n") + "\n";
 }
 

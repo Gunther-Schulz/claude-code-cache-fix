@@ -113,7 +113,8 @@ test("a corpus with no repeated body reports zeros, not silence", async (t) => {
   assert.equal(res.pairs, 2, "two same-conversation pairs were examined");
   assert.deepEqual(res.duplicates, {
     pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
-    billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0, membersWithoutId: 0,
+    billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
+    coalescedRequests: 0, coalescedStreaks: 0, membersWithoutId: 0,
   });
   assert.deepEqual(res.duplicatesByCapture, [], "no rollup for a capture with nothing to roll up");
   assert.deepEqual(res.duplicateRows, []);

@@ -53,6 +53,7 @@ import { localSuffix } from "./local-stamp.mjs";
 // re-derived for the error-pin path's capture scan below, the same reason
 // every other reader in this tree imports it.
 import { readLines } from "./read-lines.mjs";
+import { isCaptureRequestRecord } from "./logs.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
@@ -750,7 +751,7 @@ async function countCaptureRequests(capturePath) {
     } catch {
       continue;
     }
-    if (rec.type === "boot" || rec.type === "outcome") continue;
+    if (!isCaptureRequestRecord(rec)) continue;
     count++;
   }
   return count;

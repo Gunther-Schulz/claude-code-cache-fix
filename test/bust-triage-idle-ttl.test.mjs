@@ -80,8 +80,8 @@ function captureLines({ ctx, ttl, edited, beforeTs, afterTs }) {
     ? [head, msg("assistant", "B-EDITED"), msg("user", "C")]   // -> replace/edit
     : [head, msg("assistant", "B"), msg("user", "C"), msg("assistant", "D")]; // -> append-only
   return [
-    JSON.stringify({ ts: beforeTs, type: "request", body: { system, messages: before } }),
-    JSON.stringify({ ts: afterTs, type: "request", body: { system, messages: after } }),
+    JSON.stringify({ ts: beforeTs, body: { system, messages: before } }),
+    JSON.stringify({ ts: afterTs, body: { system, messages: after } }),
   ].join("\n") + "\n";
 }
 

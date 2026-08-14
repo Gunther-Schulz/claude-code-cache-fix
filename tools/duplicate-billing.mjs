@@ -111,6 +111,7 @@ export function readUsageIndex(path) {
 export function classifyMember(member, usageIndex) {
   const view = readCensusDuplicateMember(member ?? {});
   const outcome = view.outcome ?? null;
+  const coalesced = view.coalesced ?? null;
   const usage = outcome?.usage ?? null;
   const captureUsage = usage
     ? {
@@ -126,6 +127,24 @@ export function classifyMember(member, usageIndex) {
     captureUsage,
   };
 
+  // A COALESCED member never reached upstream: row 31's mitigation served it
+  // from the in-flight request named by `leaderId`. It has no outcome record
+  // and never will, which without this branch reads as NO-REQUEST-ID — the
+  // same class as a send that went out and was never answered. Those are
+  // opposite facts (one is money saved, the other is a failure), and reporting
+  // the mitigation's success under the failure's name is what kept the gate
+  // parked. `sha` is the leader's `outSha` namespace, so a reader can check the
+  // two sends really were byte-identical instead of trusting the label.
+  if (coalesced) {
+    return {
+      ...base,
+      join: "COALESCED",
+      leaderId: coalesced.leaderId ?? null,
+      sha: coalesced.sha ?? null,
+      deltaMs: coalesced.deltaMs ?? null,
+      reason: "served from the in-flight leader — never sent upstream, never charged",
+    };
+  }
   if (!outcome) {
     return { ...base, join: "NO-REQUEST-ID", reason: "no outcome record for this member" };
   }
@@ -168,8 +187,14 @@ export function classifyMember(member, usageIndex) {
  * the streak. The first send is the legitimate one; only the sends after it
  * are the double-billed charge this tool exists to surface. `members` here
  * are already-classified rows (`classifyMember` output), so a member with no
- * captureUsage (NO-REQUEST-ID with a null outcome) contributes 0, not a
- * thrown error.
+ * captureUsage (NO-REQUEST-ID with a null outcome, or COALESCED) contributes
+ * 0, not a thrown error.
+ *
+ * COALESCED contributing zero is the mitigation's arithmetic, not an
+ * exemption: that send never reached upstream, so there is no charge to
+ * attribute. A streak whose duplicate members are all coalesced totals 0 here
+ * — which is what row 31 shipped to achieve, and it is readable in this number
+ * rather than only in the proxy's own log.
  */
 export function computeDuplicateCharge(members) {
   let total = 0;

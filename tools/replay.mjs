@@ -79,6 +79,7 @@ import { rewriteBlockText, getBlockType, isRelocatableBlock } from "../proxy/ext
 import { isContinueTrailerBlock, isBookkeepingReminder } from "../proxy/extensions/content-strip.mjs";
 import { normalizeSessionStartText } from "../proxy/extensions/identity-normalization.mjs";
 import { systemPromptSubKey, resolveInsertionSessionKey } from "../proxy/extensions/insertion-normalization.mjs";
+import { isCaptureRequestRecord } from "./logs.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const EXT_DIR = join(__dirname, "..", "proxy", "extensions");
@@ -1667,7 +1668,7 @@ export async function excerptsForAsks(file, asks) {
       // record has neither. Skipping them by TYPE rather than by "no body"
       // keeps a malformed request record reporting as an unanswered ask
       // instead of silently reading as a body-less outcome.
-      if (rec.type === "outcome" || rec.type === "boot") continue;
+      if (!isCaptureRequestRecord(rec)) continue;
       const here = want.get(rec.id);
       if (!here) continue;
       for (const a of here) {
@@ -2579,7 +2580,7 @@ async function collectPinEvidence(file, asks, loadExtensions, runOnRequest) {
       // that landed on a different ordinal would carry a neighbouring
       // request's bytes, which is the namespace split this file documents at
       // `excerptsForAsks`.
-      if (rec.type === "outcome" || rec.type === "boot") continue;
+      if (!isCaptureRequestRecord(rec)) continue;
       const n = ++reqN;
       const ctx = {
         body: structuredClone(rec.body),
@@ -3759,7 +3760,7 @@ export async function attributeConservationRows(file, rows, { loadExtensions, ru
     // Same numbering rule as the main loop, so a verdict lands on the request
     // index the row was reported in — the two-coordinate-spaces error this file
     // has paid for at every other join.
-    if (rec.type === "outcome" || rec.type === "boot") continue;
+    if (!isCaptureRequestRecord(rec)) continue;
     const n = ++reqN;
     const ctx = {
       body: structuredClone(rec.body),
@@ -4133,6 +4134,11 @@ async function main() {
       boots.push({ afterRequest: reqN, ...rec });
       continue;
     }
+    // Anything else that names a kind is not a request and must not consume a
+    // request index. Before this line a `coalesced` record reached the body
+    // path below and killed the run with `TypeError: The "data" argument must
+    // be of type string … Received undefined` — measured 2026-08-14.
+    if (!isCaptureRequestRecord(rec)) continue;
     const n = ++reqN;
     const body = structuredClone(rec.body);
     // The capture record stores the session id under "session-id", but
@@ -4448,7 +4454,7 @@ async function main() {
         }
         // Same numbering rule as the main loop — attribution replays must
         // land on the same request indices the violations were reported in.
-        if (rec.type === "outcome" || rec.type === "boot") continue;
+        if (!isCaptureRequestRecord(rec)) continue;
         const n = ++bReqN;
         const ctx = {
           body: structuredClone(rec.body),

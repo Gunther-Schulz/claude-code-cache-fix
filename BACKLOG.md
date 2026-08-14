@@ -12681,6 +12681,104 @@ then the queued ones. Work the items in that order.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
 
+- **DONE 2026-08-14 — the coalesce record ships, and row 31's gate is
+  unblocked: a suppressed duplicate no longer reads as an unanswered send.**
+  Built at the desk the same day it was booked, so the entry's own record is
+  its closure rather than a queue position.
+  **What landed.** The proxy writes one `type:"coalesced"` line into the
+  capture file the pair already lives in — no new carrier class — naming the
+  follower, the leader whose outcome record carries the billing, the
+  forwarded-bytes digest in the outcome record's own `outSha` namespace, and
+  the interval. It rides a new pipeline hook (`runOnCoalesced`) rather than a
+  direct import, because the core must not name one extension by file.
+  **The dependents were the work, and they were larger than the record.**
+  Twelve sites across six tools spelled "is this a request?" as an exclusion
+  list of the two types that existed, which reclassifies any new kind as a
+  request. All twelve now ask one positive predicate
+  (`isCaptureRequestRecord`, `tools/logs.mjs`). That predicate also surfaced
+  sixteen fixtures across eight test files writing `type: "request"` — a shape
+  the producer never emits (measured: zero in the tracked corpus, zero in a
+  live capture sample) — which passed only because the consumers used an
+  exclusion list. Repaired to the writer's real output.
+  **Red executed, four mutations, baseline stated before each** (14/14 and
+  17/17 green): `noteCoalesced` inert → the census arms report the pre-record
+  reading (`coalescedRequests 0`, member `coalesced: null`); the COALESCED
+  branch removed from `classifyMember` → the join arm reports
+  `NO-REQUEST-ID`, the exact mislabel this record exists to prevent; the
+  predicate made to accept every object → the replay arms fail the way the
+  real defect did, a `TypeError` out of the request path; the
+  `runOnCoalesced` call removed from `proxy/server.mjs` → the wire arm alone
+  fails on 0 records vs 1 while every other bite stays green. All four
+  reverted, full suite 3242 pass / 0 fail.
+  **The pre-change red, executed, with its command and output** — this is the
+  claim the entry made about today's behaviour:
+  `node tools/replay.mjs <capture with one coalesced line> --census --json`
+  → `replay failed: TypeError [ERR_INVALID_ARG_TYPE]: The "data" argument
+  must be of type string or an instance of Buffer, TypedArray, or DataView.
+  Received undefined  at sha (tools/replay.mjs:88:31)`. After the predicate:
+  the same command returns a clean census, two requests, ordinals 0 and 1.
+  **What is NOT done here, on purpose:** the gate is still OFF. Flipping
+  `CACHE_FIX_COALESCE_SIDECAR` is a separate declared act with its own
+  acceptance measurement, in the dotfiles repo (pin bump + restart), and it
+  is the next step rather than part of this commit.
+  Original entry follows, kept as the record of what was asked.
+  **Original entry, as booked:**
+
+  **READY 2026-08-14 — the coalesce RECORD: row 31's mitigation, switched on,
+  makes its own success read as an unanswered send, and the carrier that
+  distinguishes them does not exist yet.** This is the named blocker that
+  parked `CACHE_FIX_COALESCE_SIDECAR` on the day the mitigation shipped
+  (`1176d65`, gated off): a coalesced FOLLOWER gets a capture REQUEST record
+  and no OUTCOME record, because it never reached upstream and no usage frame
+  was ever addressed to it. In the census's duplicate-streak rollup
+  (`summariseDuplicates`, `run.billed`) that is byte-for-byte the shape of a
+  retry streak's unanswered send. So the mitigation would suppress real double
+  billing while writing evidence that reads like the failure class it is not,
+  and the row's own done-criterion is stated in exactly that number.
+  **Design, decided.** The proxy writes ONE record per coalesce into the same
+  capture file the pair already lives in — no new carrier class, so the
+  closing gate's carrier-registration question is answered by the captures'
+  existing collector rather than by a new one:
+  `{ts, type:"coalesced", id:<follower captureId>, key, leaderId:<leader
+  captureId>, sha:<16-char forwarded digest, the outcome record's `outSha`
+  namespace>, deltaMs}`. `leaderId` joins to the request that WAS answered,
+  whose outcome record carries the upstream `requestId` and the billing;
+  `sha` lets a reader confirm the pair was byte-identical instead of taking
+  the proxy's word for it.
+  **The dependents are the work, not the record.** A capture request record is
+  identified by carrying NO `type` field, and twelve sites across six tools
+  spell that as `rec.type === "outcome" || rec.type === "boot"` — an
+  enumeration that reclassifies any new kind as a request. Measured before the
+  change: one `coalesced` line kills `replay.mjs --census` with `TypeError:
+  The "data" argument must be of type string … Received undefined`. The fix is
+  one positive predicate (`isCaptureRequestRecord`, `tools/logs.mjs`) at all
+  twelve, so a kind added later is skipped by construction.
+  **Consumers that must ride along**: `harvest` needs a scrubber (the record
+  carries the capture key and two ids; the same deterministic `id_<sha8>`
+  hashing keeps the join alive INSIDE a fixture) and a pass-through branch in
+  both pin paths; the census must yield the record and attach it to the
+  member, exposing `coalescedStreaks`/`coalescedMembers` so the mitigation's
+  effect is a daily number rather than a hand-count; `logs.mjs`'s strict
+  member view must gain the field or `duplicate-billing` throws on it;
+  `duplicate-billing` reports coalesced members instead of showing them as
+  outcome-less.
+  Done-criterion: with the gate ON, a duplicate sidecar pair reads as ONE
+  billed send plus one COALESCED member — never as two sends of which one went
+  unanswered — and `doubleBilledStreaks` stays 0 for that pair.
+  Verifier: `npm test` plus `node tools/replay.mjs <capture with a coalesced
+  record> --census --json` returning a clean census where it crashes today.
+  Loop stage: MITIGATE.
+  Anchor: proxy/extensions/request-capture.mjs
+  Write-set: proxy/extensions/request-capture.mjs, proxy/server.mjs,
+  tools/logs.mjs, tools/harvest.mjs, tools/replay.mjs, tools/fixture-cut.mjs,
+  tools/bust-triage.mjs, tools/restart-exposure.mjs,
+  tools/fixture-verdict-identity.mjs, tools/gate-live.mjs,
+  tools/reminder-migration-census.mjs, tools/duplicate-billing.mjs
+  Realizing boundary: this desk (deployment-coupled — `proxy/**`, so it needs
+  the dotfiles pin bump and a proxy restart, which `tools/backlog-lanes.mjs`
+  routes to DESK and never to a plain lane).
+  <!-- entry: "coalesce record so a coalesced follower is not read as an unanswered send" -->
+
 - **DONE 2026-08-14 — the `/tmp` run-root leak is CLOSED: the producer is the
   test suite's own deliberate OOM crashes, the cause is SIGABRT (which runs no
   exit handlers), and the fix is a private `TMPDIR` for the two forcing

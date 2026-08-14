@@ -41,8 +41,8 @@ test("BITE — gateStatus lands at the real gate-live DEFAULT_STATUS path", () =
 test("BITE — each capture lands at s-<sid>-requests.jsonl under the real XDG captures dir", () => {
   const home = buildSyntheticHome({
     captures: [
-      { sid: "AAA", lines: [{ type: "request", body: {} }] },
-      { sid: "BBB", lines: [{ type: "request", body: {} }, { type: "outcome" }] },
+      { sid: "AAA", lines: [{ body: {} }] },
+      { sid: "BBB", lines: [{ body: {} }, { type: "outcome" }] },
     ],
   });
   const dir = join(home, ".local", "share", "cache-fix", "captures");
@@ -86,7 +86,7 @@ test("BITE — every component together, all at their real paths simultaneously"
   const home = buildSyntheticHome({
     ledger: [{ type: "cold", k: "hit", t: 1 }],
     gateStatus: { ok: true },
-    captures: [{ sid: "AAA", lines: [{ type: "request" }] }],
+    captures: [{ sid: "AAA", lines: [{ body: {} }] }],
     aliases: { "s-captureAA": {} },
   });
   assert.ok(existsSync(join(home, ".local", "share", "claude-worktime", "activity.jsonl")));

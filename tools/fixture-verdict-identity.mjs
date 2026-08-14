@@ -49,6 +49,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { isCaptureRequestRecord } from "./logs.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -116,7 +117,7 @@ export async function replayVerdicts(fixturePath) {
     const entries = [];
     let reqN = replayFrom - 1;
     for (const rec of records) {
-      if (rec.type === "outcome" || rec.type === "boot") continue;
+      if (!isCaptureRequestRecord(rec)) continue;
       const n = ++reqN;
       const body = structuredClone(rec.body);
       const headers = {

@@ -188,6 +188,39 @@ export function buildOutcomeRecord(ctx, id, key, now = new Date()) {
   };
 }
 
+// The COALESCED record: a duplicate sidecar send that never reached upstream,
+// because row 31's mitigation served it from another request's in-flight
+// answer.
+//
+// Written because its ABSENCE is what parked the mitigation. A coalesced
+// follower gets a request record here and never an outcome record — no usage
+// frame was ever addressed to it — and in the census's duplicate-streak rollup
+// that is byte-for-byte the shape of a retry streak's unanswered send. Without
+// this line the mitigation's success would read as the failure class it
+// removes, which inverts the very number row 31's done-criterion is stated in.
+//
+// `leaderId` is the capture id of the request that WAS answered: its outcome
+// record carries the upstream requestId and the billing, so the pair is one
+// join away from complete. `sha` is the same 16-char forwarded-bytes digest the
+// outcome record calls `outSha` — deliberately the same namespace, so a reader
+// can CHECK the two sends were byte-identical against the leader's own record
+// rather than believing the proxy about it.
+export function buildCoalescedRecord(ctx, now = new Date()) {
+  const id = ctx?.meta?._captureId;
+  const key = ctx?.meta?._captureKey;
+  const into = ctx?.meta?._coalescedInto;
+  if (!id || !key || !into) return null;
+  return {
+    ts: now.toISOString(),
+    type: "coalesced",
+    id,
+    key,
+    leaderId: into.leaderId ?? null,
+    sha: into.sha ?? null,
+    deltaMs: into.deltaMs ?? null,
+  };
+}
+
 // Delete oldest capture files until the directory is under maxBytes.
 // Returns the number of files deleted (for tests/telemetry).
 export async function sweepCaptureDir(dir, maxBytes, fs = DEFAULT_FS) {
@@ -292,6 +325,21 @@ export default {
       }
     } catch (err) {
       debug(`capture failed: ${err?.message ?? err}`);
+    }
+  },
+
+  // The one path with no response of its own: the duplicate send was answered
+  // from another request's stream, so neither onResponseStart nor
+  // onStreamEvent will ever fire for it. Called from server.mjs's coalescing
+  // branch via the pipeline's runOnCoalesced.
+  async onCoalesced(ctx) {
+    if (!isEnabled() || !ctx?.meta) return;
+    try {
+      const record = buildCoalescedRecord(ctx);
+      if (!record) return;
+      await captureAppend(join(getCaptureDir(), `${record.key}-requests.jsonl`), JSON.stringify(record) + "\n");
+    } catch (err) {
+      debug(`coalesced capture failed: ${err?.message ?? err}`);
     }
   },
 

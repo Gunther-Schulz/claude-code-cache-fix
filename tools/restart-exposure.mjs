@@ -58,6 +58,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 import { localSuffix } from "./local-stamp.mjs";
+import { isCaptureRequestRecord } from "./logs.mjs";
 
 // Overridable for tests only, same idiom as `CACHE_FIX_CAPTURE_DIR` etc.:
 // exercising `--match-class`'s WIRING (subprocess call, exit-code-as-signal
@@ -142,7 +143,7 @@ export function lastRecord(chunk) {
     } catch {
       continue; // a truncated first line is expected — the chunk starts mid-record
     }
-    if (rec.type === "boot" || rec.type === "outcome") continue;
+    if (!isCaptureRequestRecord(rec)) continue;
     if (!rec.body) continue;
     return rec;
   }

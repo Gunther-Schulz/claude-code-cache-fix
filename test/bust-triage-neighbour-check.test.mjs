@@ -34,7 +34,7 @@ const asst = (t) => ({ role: "assistant", content: [txt(t)] });
 
 function writeCapture(dir, sid, states) {
   const lines = states.map(({ ts, msgs }) =>
-    JSON.stringify({ ts, type: "request", body: { messages: msgs } }));
+    JSON.stringify({ ts, body: { messages: msgs } }));
   writeFileSync(join(dir, `s-${sid}-requests.jsonl`), lines.join("\n") + "\n");
 }
 

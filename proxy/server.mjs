@@ -4,7 +4,7 @@ import { pathToFileURL, URL } from "node:url";
 import config from "./config.mjs";
 import { forwardRequest } from "./upstream.mjs";
 import { streamResponse, createTelemetryRecord } from "./stream.mjs";
-import { loadExtensions, snapshotRegistry, runOnRequest, runOnResponseStart, runOnResponse, getFailedExtensions } from "./pipeline.mjs";
+import { loadExtensions, snapshotRegistry, runOnRequest, runOnResponseStart, runOnResponse, runOnCoalesced, getFailedExtensions } from "./pipeline.mjs";
 import { startWatcher } from "./watcher.mjs";
 import { startOAuthRefresher, stopOAuthRefresher } from "./oauth/refresher.mjs";
 import { attachForwardProxy } from "./forward-proxy.mjs";
@@ -299,14 +299,31 @@ async function handleMessages(clientReq, clientRes) {
     // is a sha256 collision, which makes it an unprovable predicate wearing
     // a check's clothes. Condition 4, the window, is what remains here.
     if (leader && Date.now() - leader.at < COALESCE_WINDOW_MS) {
+      const deltaMs = Date.now() - leader.at;
       debugLog("[PROXY] coalescing duplicate sidecar into in-flight request",
-               "key:", coalesceKey.slice(0, 16), "ageMs:", Date.now() - leader.at);
+               "key:", coalesceKey.slice(0, 16), "ageMs:", deltaMs);
+      // This send gets a request record from the capture extension and will
+      // never get an outcome record, because no usage frame is addressed to
+      // it. Left at that, it reads as a retry streak's unanswered send — the
+      // mitigation's success wearing the costume of the defect. The coalesced
+      // record is written BEFORE the await so the evidence lands whether or
+      // not the leader's stream completes.
+      meta._coalescedInto = {
+        leaderId: leader.captureId ?? null,
+        sha: meta._forwardedSha ?? null,
+        deltaMs,
+      };
+      await runOnCoalesced({ body: parsed, headers, meta }, extSnapshot);
       if (leader.fanOut.attach(clientRes)) await leader.done;
       return;
     }
     let settle;
     const entry = {
       at: Date.now(),
+      // The leader's own capture id, so a follower's coalesced record can name
+      // the request that WAS answered. Null when the capture extension is off
+      // — the mitigation does not depend on capture being enabled.
+      captureId: meta._captureId ?? null,
       fanOut: createFanOut(clientRes),
       done: new Promise((r) => { settle = r; }),
     };

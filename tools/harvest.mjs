@@ -104,6 +104,7 @@ import { dataPath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
 
 import { censusPair, compactEntry, conversationOf, sameLineage } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
+import { isCaptureRequestRecord } from "./logs.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_CAPTURES = process.env.CACHE_FIX_CAPTURE_DIR
@@ -523,7 +524,7 @@ export async function scanCapture(path, seenClasses, minIndex = 0) {
     }
     // Outcome records carry no body and must not consume a request index —
     // watermarks are stated in request numbers.
-    if (rec.type === "outcome" || rec.type === "boot") continue;
+    if (!isCaptureRequestRecord(rec)) continue;
     const index = count++;
     const cid = conversationId(rec.body?.messages);
     if (cid === null) continue;
@@ -646,10 +647,26 @@ function scrubOutcomeRecord(rec) {
     ms: rec.ms ?? null,
   };
 }
+// The coalesced record (row 31's mitigation: a duplicate send served from
+// another request's in-flight answer). Both ids go through the SAME
+// `id_<sha8>` hashing the request and outcome records use, which is what keeps
+// the follower->leader join alive inside a fixture: a pin that broke the join
+// would freeze the evidence and lose the fact it exists to prove.
+function scrubCoalescedRecord(rec) {
+  return {
+    ts: rec.ts,
+    type: "coalesced",
+    id: rec.id ? `id_${sha(rec.id).slice(0, 8)}` : null,
+    key: rec.key ? sidToken(rec.key) : null,
+    leaderId: rec.leaderId ? `id_${sha(rec.leaderId).slice(0, 8)}` : null,
+    sha: rec.sha ?? null,
+    deltaMs: rec.deltaMs ?? null,
+  };
+}
 
 // Streams capturePath from its start and returns every record (boot,
 // outcome, request — sanitized) through the request whose file-wide ordinal
-// (counting only non-boot/non-outcome records, same counting rule
+// (counting only request-only (no `type` field) records, same counting rule
 // scanCapture and both real-pair tests use) equals `m`. Throws if the
 // capture has fewer than m+1 request records — a pin that cannot be
 // fulfilled must fail loudly, not write a truncated fixture silently.
@@ -671,6 +688,10 @@ export async function pinRange(capturePath, m) {
     }
     if (rec.type === "outcome") {
       records.push(scrubOutcomeRecord(rec));
+      continue;
+    }
+    if (rec.type === "coalesced") {
+      records.push(scrubCoalescedRecord(rec));
       continue;
     }
     const idx = count++;
@@ -804,7 +825,7 @@ async function locateBoundedTarget(capturePath, m) {
     } catch {
       continue;
     }
-    if (rec.type === "boot" || rec.type === "outcome") continue;
+    if (!isCaptureRequestRecord(rec)) continue;
     if (count++ === m) {
       const inMsgs = Array.isArray(rec.body?.messages) ? rec.body.messages : [];
       return compactEntry({ inMsgs });
@@ -856,6 +877,10 @@ export async function pinRangeBounded(capturePath, m) {
     }
     if (rec.type === "outcome") {
       records.push(scrubOutcomeRecord(rec));
+      continue;
+    }
+    if (rec.type === "coalesced") {
+      records.push(scrubCoalescedRecord(rec));
       continue;
     }
     const idx = count++;
@@ -932,7 +957,7 @@ export async function writeCapturePrefix(capturePath, m, outPath) {
       continue;
     }
     ws.write(line + "\n");
-    if (rec.type === "boot" || rec.type === "outcome") continue;
+    if (!isCaptureRequestRecord(rec)) continue;
     if (count++ === m) {
       reached = true;
       break;
@@ -974,7 +999,7 @@ export async function writeCapturePrefixBounded(capturePath, m, outPath) {
     } catch {
       continue;
     }
-    if (rec.type === "boot" || rec.type === "outcome") {
+    if (!isCaptureRequestRecord(rec)) {
       ws.write(line + "\n");
       continue;
     }
@@ -1037,7 +1062,7 @@ export async function bustingConversationOrdinals(capturePath, m) {
     } catch {
       continue;
     }
-    if (rec.type === "boot" || rec.type === "outcome") continue;
+    if (!isCaptureRequestRecord(rec)) continue;
     const idx = count++;
     const inMsgs = Array.isArray(rec.body?.messages) ? rec.body.messages : [];
     const cid = conversationOf(compactEntry({ inMsgs }));

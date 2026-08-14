@@ -190,9 +190,27 @@ function readCaptureRequestBody(raw) {
   return makeStrictView(raw, "captureRequest.body", CAPTURE_REQUEST_BODY_FIELDS);
 }
 
+// Which lines in a capture file are REQUESTS, in one place.
+//
+// A request record carries no `type` field at all (`request-capture.mjs`
+// `buildCaptureRecord`); every other kind names itself. Consumers used to spell
+// that as `if (rec.type === "outcome" || rec.type === "boot") continue` —
+// twelve sites across six tools, each an enumeration that silently reclassifies
+// any new kind as a request. Measured 2026-08-14 before this predicate existed:
+// a capture carrying one `coalesced` record killed `replay.mjs --census` with
+// `TypeError: The "data" argument must be of type string … Received undefined`,
+// because a record with no `body` had been handed to the request path.
+//
+// Stated as the POSITIVE ("is this a request?") rather than as a list of
+// exclusions, so a kind added later is skipped by construction instead of
+// needing twelve edits that nothing would have failed for missing.
+export function isCaptureRequestRecord(rec) {
+  return !!rec && typeof rec === "object" && rec.type == null;
+}
+
 const CAPTURE_REQUEST_FIELDS = new Set(["ts", "id", "sid", "key", "headers", "body"]);
-/** Strict view of a capture `<key>-requests.jsonl` REQUEST record (any line
- * whose `type` is neither "outcome" nor "boot"). */
+/** Strict view of a capture `<key>-requests.jsonl` REQUEST record — a line
+ * carrying no `type` field (`isCaptureRequestRecord`). */
 export function readCaptureRequest(raw) {
   return makeStrictView(raw, "captureRequest", CAPTURE_REQUEST_FIELDS, {
     nestedReaders: new Map([
@@ -220,6 +238,29 @@ export function readCaptureOutcome(raw) {
   return makeStrictView(raw, "captureOutcome", CAPTURE_OUTCOME_FIELDS, {
     nestedReaders: new Map([["usage", readCaptureOutcomeUsage]]),
   });
+}
+
+// --- (2b) capture COALESCED record -------------------------------------------
+
+const CAPTURE_COALESCED_FIELDS = new Set(["ts", "type", "id", "key", "leaderId", "sha", "deltaMs"]);
+/** Strict view of a capture `<key>-requests.jsonl` COALESCED record
+ * (`type:"coalesced"`, `request-capture.mjs` `buildCoalescedRecord`): the
+ * duplicate sidecar send that row 31's mitigation served from an in-flight
+ * request instead of forwarding.
+ *
+ * Why this record exists at all, since its absence is what parked the
+ * mitigation: a coalesced follower gets a REQUEST record and no OUTCOME record,
+ * because it never reached upstream and no usage frame was ever addressed to
+ * it. In the census's duplicate-streak rollup that is byte-for-byte the shape
+ * of an unanswered first send in a retry streak — so the mitigation, switched
+ * on, would have made its own success read as the very defect it removes.
+ * `leaderId` joins to the request that WAS answered, whose own outcome record
+ * carries the upstream `requestId` and the billing. `sha` is the same 16-char
+ * forwarded-bytes digest the outcome record calls `outSha`, which is what lets
+ * a reader confirm the pair really was byte-identical rather than take the
+ * proxy's word for it. */
+export function readCaptureCoalesced(raw) {
+  return makeStrictView(raw, "captureCoalesced", CAPTURE_COALESCED_FIELDS);
 }
 
 // --- (3) usage.jsonl ---------------------------------------------------------
@@ -360,11 +401,33 @@ export function readCensusDuplicateMemberOutcome(raw) {
   });
 }
 
-const CENSUS_DUP_MEMBER_FIELDS = new Set(["id", "ts", "line", "outcome"]);
+const CENSUS_DUP_MEMBER_COALESCED_FIELDS = new Set(["leaderId", "sha", "deltaMs"]);
+/** Strict view of one `duplicateRows[].members[].coalesced` entry (null, or
+ * `{leaderId, sha, deltaMs}` — `census.mjs`'s `noteCoalesced`). Present means
+ * this send never reached upstream: row 31's mitigation served it from the
+ * request named by `leaderId`, whose outcome record carries the billing. A
+ * member with `coalesced` set and `outcome` null is a SUPPRESSED duplicate,
+ * not an unanswered one — telling those two apart is the whole reason the
+ * record exists. */
+function readCensusDuplicateMemberCoalesced(raw) {
+  return makeStrictView(raw, "censusExport.duplicateRow.member.coalesced", CENSUS_DUP_MEMBER_COALESCED_FIELDS);
+}
+
+const CENSUS_DUP_MEMBER_FIELDS = new Set(["id", "ts", "line", "outcome", "coalesced"]);
+// An export written before the coalesce record existed carries no `coalesced`
+// key at all. Declared optional with a `null` default rather than left to fall
+// through the nested-reader branch, which would hand back `undefined` — the
+// silently-replaced-default failure this module's own `makeStrictView` header
+// documents, one level down.
+const CENSUS_DUP_MEMBER_DEFAULTS = new Map([["coalesced", null]]);
 /** Strict view of one `duplicateRows[].members[]` entry. */
 export function readCensusDuplicateMember(raw) {
   return makeStrictView(raw, "censusExport.duplicateRow.member", CENSUS_DUP_MEMBER_FIELDS, {
-    nestedReaders: new Map([["outcome", readCensusDuplicateMemberOutcome]]),
+    optionalDefaults: CENSUS_DUP_MEMBER_DEFAULTS,
+    nestedReaders: new Map([
+      ["outcome", readCensusDuplicateMemberOutcome],
+      ["coalesced", readCensusDuplicateMemberCoalesced],
+    ]),
   });
 }
 
@@ -373,13 +436,17 @@ function readCensusDuplicateMembers(raw) {
 }
 
 const CENSUS_DUPLICATE_ROW_FIELDS = new Set([
-  "path", "cid", "sid", "length", "billed", "noId", "startTs", "startLine",
+  "path", "cid", "sid", "length", "billed", "coalesced", "noId", "startTs", "startLine",
   "lastTs", "lastLine", "model", "nMsg", "maxTokens", "intervalMs", "members",
 ]);
+// `null`, not 0, on an export that predates the field: a count of zero is a
+// MEASURED zero, and this is a measurement that never happened.
+const CENSUS_DUPLICATE_ROW_DEFAULTS = new Map([["coalesced", null]]);
 /** Strict view of one `duplicateRows[]` entry from a
  * `reminder-migration-census --json --verbose` export. */
 export function readCensusDuplicateRow(raw) {
   return makeStrictView(raw, "censusExport.duplicateRow", CENSUS_DUPLICATE_ROW_FIELDS, {
+    optionalDefaults: CENSUS_DUPLICATE_ROW_DEFAULTS,
     nestedReaders: new Map([["members", readCensusDuplicateMembers]]),
   });
 }

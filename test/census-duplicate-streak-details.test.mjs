@@ -143,9 +143,13 @@ test("two byte-identical requests with two outcome records: full discriminator s
   assert.equal(row.members.length, 2);
   assert.ok(row.members[0].outcome && row.members[1].outcome, "both members billed");
   assert.equal(row.intervalMs, 3000);
-  // summariseDuplicates's rollup keys are unchanged by any of this.
+  // summariseDuplicates's rollup keys are unchanged by any of this. The
+  // coalesced pair joined the set when row 31's mitigation gained its record
+  // (2026-08-14): a suppressed duplicate is a member with no outcome, and
+  // without its own counter it would be tallied as an unanswered send.
   assert.deepEqual(Object.keys(res.duplicates).sort(), [
     "billedRequests", "billedStreaks", "doubleBilledStreaks", "maxStreak",
+    "coalescedRequests", "coalescedStreaks",
     "membersWithoutId", "pairs", "requests", "streaks",
   ].sort());
 });

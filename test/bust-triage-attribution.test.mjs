@@ -189,8 +189,8 @@ function writeBust({ wt, caps, sid, atStamp, before, after, beforeTs, afterTs })
   writeFileSync(join(wt, "activity.jsonl"),
     JSON.stringify({ type: "cold", k: "hit", t: sec(atStamp), s: sid, cc: 20000, ctx: 10, gap: 5, cause: "other" }) + "\n");
   writeFileSync(join(caps, `s-${sid}-requests.jsonl`), [
-    JSON.stringify({ ts: beforeTs, type: "request", body: { messages: before, tools: [] } }),
-    JSON.stringify({ ts: afterTs, type: "request", body: { messages: after, tools: [] } }),
+    JSON.stringify({ ts: beforeTs, body: { messages: before, tools: [] } }),
+    JSON.stringify({ ts: afterTs, body: { messages: after, tools: [] } }),
   ].join("\n") + "\n");
 }
 

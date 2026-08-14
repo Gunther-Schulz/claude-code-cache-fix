@@ -56,7 +56,7 @@ function corpus(dir) {
   ]);
   const file = join(dir, "corpus.jsonl");
   writeFileSync(file, [0, 1].map((i) =>
-    JSON.stringify({ type: "request", ts: `2026-08-11T00:00:0${i}.000Z`, key: "k", body: { messages: msg(i) } }),
+    JSON.stringify({ ts: `2026-08-11T00:00:0${i}.000Z`, key: "k", body: { messages: msg(i) } }),
   ).join("\n") + "\n");
   return file;
 }

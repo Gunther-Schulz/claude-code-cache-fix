@@ -16,8 +16,12 @@ import { tmpDir } from "../tools/tmpdir.mjs";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { rm } from "node:fs/promises";
+import { rm, symlink, readdir, readFile } from "node:fs/promises";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { startProxy, coalesceCandidate, createFanOut } from "../proxy/server.mjs";
+
+const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 function clientRequest(port, body) {
   return new Promise((resolve, reject) => {
@@ -257,6 +261,104 @@ describe("row 31 at the wire — the upstream call COUNT is the defect", () => {
     // byte-compare, and the mutation proof is what showed that — disabling
     // one left this arm green.
     assert.equal(counter.calls, 2, "differing forwarded bytes never share a coalescing key");
+  });
+});
+
+// The record is what makes the mitigation SWITCHABLE-ON: without it a
+// coalesced follower is a request with no outcome, which the census reads as
+// an unanswered send (test/coalesce-record.test.mjs owns that reading). The
+// bites there run over hand-written capture lines; this one is the altitude
+// question — does the RUNNING proxy actually write the line, through the real
+// extension, on a real coalesce. A record that only exists in a builder's unit
+// test is a record nothing writes.
+//
+// Red-first, baseline stated: 17/17 green on the shipped build; with the
+// `runOnCoalesced` call removed from server.mjs's coalescing branch — the
+// mechanism, not the assertion — this bite fails on `coalescedRecs.length`
+// 0 vs 1 while every other bite in the file stays green, which is what places
+// the red on the writer rather than on the harness.
+describe("row 31 — the coalesce record at the wire", () => {
+  let handle, upstream, counter, extDir, captureDir;
+
+  before(async () => {
+    // A SYMLINK, not a copy: node resolves it to the real path, so the
+    // extension's own relative imports (../xdg-dirs.mjs) still resolve. A copy
+    // into a temp dir would fail to load, and loading the whole real
+    // extensions directory would drag every other extension's mutations into
+    // an assertion about capture lines.
+    extDir = await tmpDir("coalesce-rec-ext-");
+    await symlink(join(REPO, "proxy", "extensions", "request-capture.mjs"),
+                  join(extDir, "request-capture.mjs"));
+    captureDir = await tmpDir("coalesce-rec-caps-");
+    counter = { calls: 0, bodies: [] };
+    upstream = slowSseUpstream(counter);
+    await new Promise((r) => upstream.listen(0, "127.0.0.1", r));
+    process.env.CACHE_FIX_PROXY_UPSTREAM = `http://127.0.0.1:${upstream.address().port}`;
+    process.env.CACHE_FIX_COALESCE_SIDECAR = "1";
+    process.env.CACHE_FIX_REQUEST_CAPTURE = "1";
+    process.env.CACHE_FIX_CAPTURE_DIR = captureDir;
+    handle = await startProxy({ port: 0, watch: false, extensionsDir: extDir });
+  });
+
+  after(async () => {
+    await handle.close();
+    await new Promise((r) => upstream.close(r));
+    delete process.env.CACHE_FIX_PROXY_UPSTREAM;
+    delete process.env.CACHE_FIX_COALESCE_SIDECAR;
+    delete process.env.CACHE_FIX_REQUEST_CAPTURE;
+    delete process.env.CACHE_FIX_CAPTURE_DIR;
+    await rm(extDir, { recursive: true, force: true });
+    await rm(captureDir, { recursive: true, force: true });
+  });
+
+  it("the suppressed send leaves a record naming the request that answered it", async () => {
+    counter.calls = 0;
+    const a = clientRequest(handle.port, SIDECAR);
+    await new Promise((r) => setTimeout(r, 15));
+    const b = clientRequest(handle.port, SIDECAR);
+    await Promise.all([a, b]);
+    assert.equal(counter.calls, 1, "precondition: the pair really did coalesce");
+
+    const files = (await readdir(captureDir)).filter((f) => f.endsWith("-requests.jsonl"));
+    assert.equal(files.length, 1, "both sends share a capture key, so both land in one file");
+    const lines = (await readFile(join(captureDir, files[0]), "utf-8"))
+      .trim().split("\n").map((l) => JSON.parse(l));
+
+    const requests = lines.filter((r) => !r.type);
+    const coalescedRecs = lines.filter((r) => r.type === "coalesced");
+    const outcomes = lines.filter((r) => r.type === "outcome");
+
+    assert.equal(requests.length, 2, "both sends are captured — the follower is not erased");
+    assert.equal(coalescedRecs.length, 1, "exactly one record per suppressed send");
+    assert.equal(outcomes.length, 1, "and exactly one answer was billed");
+
+    const rec = coalescedRecs[0];
+    assert.equal(rec.id, requests[1].id, "the record names the FOLLOWER as its subject");
+    assert.equal(rec.leaderId, requests[0].id, "and the leader as what answered it");
+    assert.equal(rec.leaderId, outcomes[0].id, "which is the send that carries the billing");
+    assert.equal(typeof rec.deltaMs, "number");
+    assert.ok(rec.deltaMs >= 0 && rec.deltaMs < 50, `inside the window: ${rec.deltaMs}`);
+    assert.match(rec.sha ?? "", /^[0-9a-f]{16}$/,
+      "the digest rides in the outcome record's own outSha namespace, so the two are comparable");
+  });
+
+  it("a request that is NOT coalesced leaves no such record", async () => {
+    // The discriminating arm: without it, a build that wrote a coalesced
+    // record for every request would pass the bite above.
+    const before = (await readdir(captureDir)).length;
+    await clientRequest(handle.port, MID_SESSION);
+    const files = (await readdir(captureDir)).filter((f) => f.endsWith("-requests.jsonl"));
+    assert.ok(files.length >= before, "the mid-session request landed somewhere");
+    const all = [];
+    for (const f of files) {
+      const lines = (await readFile(join(captureDir, f), "utf-8")).trim().split("\n");
+      for (const l of lines) all.push(JSON.parse(l));
+    }
+    const midSession = all.filter((r) => !r.type && r.body?.messages?.length === 3);
+    assert.equal(midSession.length, 1, "precondition: the mid-session send was captured");
+    const coalescedIds = new Set(all.filter((r) => r.type === "coalesced").map((r) => r.id));
+    assert.equal(coalescedIds.has(midSession[0].id), false,
+      "a send that went upstream on its own must not be marked as served by another");
   });
 });
 

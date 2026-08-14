@@ -168,8 +168,8 @@ function btFixture() {
   const before = [msg("user", "HEAD"), msg("assistant", "B"), msg("user", "C")];
   const after = [...before, msg("assistant", "D2")];
   writeFileSync(join(caps, `s-${sid}-requests.jsonl`), [
-    JSON.stringify({ ts: "2026-08-05T09:09:54.362Z", type: "request", body: { messages: before, tools: [] } }),
-    JSON.stringify({ ts: "2026-08-05T09:09:58.626Z", type: "request", body: { messages: after, tools: [] } }),
+    JSON.stringify({ ts: "2026-08-05T09:09:54.362Z", body: { messages: before, tools: [] } }),
+    JSON.stringify({ ts: "2026-08-05T09:09:58.626Z", body: { messages: after, tools: [] } }),
   ].join("\n") + "\n");
   return { home, caps, atIso };
 }
@@ -237,8 +237,8 @@ function dossierFixture() {
   const before = [msg("user", "HEAD"), msg("assistant", "B"), msg("user", "C")];
   const after = [...before, msg("assistant", "D2")];
   writeFileSync(join(caps, `s-${sid}-requests.jsonl`), [
-    JSON.stringify({ ts: "2026-08-05T09:09:54.362Z", type: "request", body: { messages: before, tools: [] } }),
-    JSON.stringify({ ts: "2026-08-05T09:09:58.626Z", type: "request", body: { messages: after, tools: [] } }),
+    JSON.stringify({ ts: "2026-08-05T09:09:54.362Z", body: { messages: before, tools: [] } }),
+    JSON.stringify({ ts: "2026-08-05T09:09:58.626Z", body: { messages: after, tools: [] } }),
   ].join("\n") + "\n");
   return { home, caps, cwd, atIso, atSec };
 }
@@ -399,8 +399,7 @@ const RESTART_EXPOSURE = join(REPO, "tools", "restart-exposure.mjs");
 function restartExposureFixture() {
   const caps = tmpDirSync("tos-re-caps-");
   writeFileSync(join(caps, "s-tosreprobe-requests.jsonl"), JSON.stringify({
-    ts: new Date().toISOString(), type: "request",
-    body: {
+    ts: new Date().toISOString(),     body: {
       model: "claude-x", system: [], tools: [],
       messages: [{ role: "user", content: [{ type: "text", text: "hi" }] },
         { role: "assistant", content: [{ type: "text", text: "hello" }] }],

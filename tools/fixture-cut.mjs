@@ -51,6 +51,7 @@ import { existsSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join, resolve, dirname, basename, extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
+import { isCaptureRequestRecord } from "./logs.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const IDENTITY_TOOL = join(__dirname, "fixture-verdict-identity.mjs");
@@ -82,7 +83,7 @@ function computeOrdinals(records, replayFrom) {
   const ords = [];
   let reqN = replayFrom - 1;
   for (const rec of records) {
-    if (rec?.type === "outcome" || rec?.type === "boot") {
+    if (!isCaptureRequestRecord(rec)) {
       ords.push(null);
       continue;
     }
