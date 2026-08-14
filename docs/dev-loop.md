@@ -22,6 +22,7 @@ behind any step.
 | a session sets out to slice a reviewable upstream PR out of `main` | `runbooks/upstream-pr-slice.md` | PR drafted (and, on operator GO, opened), handed to `runbooks/upstream-pr-round.md` |
 | the operator signals the session is ending | `runbooks/session-close.md` | closed — every context-resident fact on disk in its consumer's carrier, every open backlog entry executable without asking anyone a question, and `continue from backlog` sufficient as the next session's whole instruction; or each exception named as dropped |
 | a session is about to ship a change touching `proxy/**` (or ride the same lane for a doc/tools-only commit) | `runbooks/ship-proxy-change.md` | shipped / aborted-with-reason |
+| a public post (issue, PR body, comment — any venue) is about to be written | `runbooks/public-comms.md` | posted with GO / draft handed to operator with verification stated |
 
 Why these exist at all (operator, 2026-08-06): the method and the closing gate
 were both written down, and how completely an event got handled still depended
