@@ -242,6 +242,33 @@ now means some child DIED HARD and is a finding about that child.
   Realizing boundary: the dotfiles repo — hook plus a user timer.
   <!-- entry: "pr-round doorbell has a writer and no reader" -->
 
+- **RECORD 2026-08-14 — row 31 is UPSTREAM-FILED, and the slice is narrower than
+  the mitigation because the gates said so.** PR
+  `cnighswonger/claude-code-cache-fix#337` (`pr/coalesce-sidecar`, cut from
+  `upstream/main` per `docs/runbooks/upstream-pr-slice.md`), opt-in behind
+  `CACHE_FIX_COALESCE_SIDECAR=1`, body carrying the measured population (144
+  pairs / 114 streaks / 55 double-billed) and the retry class as the design
+  constraint rather than as a caveat.
+  **What the slice does NOT carry, decided by a gate rather than by taste:**
+  the coalesce RECORD half (`4c6c061`) refused at two of the runbook's steps —
+  cherry-pick conflicted on fork-only paths (`BACKLOG.md`, the bust-triage and
+  census suites) because they do not exist upstream, and `slice-preflight`
+  then named five static imports in `test/coalesce-record.test.mjs` reaching
+  the census/harvest stack. Ported anyway it would have widened this PR into
+  #276's topic, so it rides with that work; the PR body says so rather than
+  leaving the omission to be discovered.
+  `tools/tmpdir.mjs` rides along as its own commit — the topic's test imports
+  it and upstream has no equivalent. All four slice gates green: fork-only
+  sweep no hits, preflight clean, `absence-scan --git-range` clean, full
+  upstream suite 1795/1796 with 0 fail.
+  **Also filed: `#336`**, the one-file fix for upstream's hardcoded test port,
+  proven as a controlled pair (9876 held: before 42/43, after 43/43). It is a
+  separate PR rather than a rider because upstream asked for unrelated changes
+  to be lifted out of PRs.
+  Loop stage: RETIRE (upstream fixes theirs).
+  Anchor: docs/directives/robustness-threat-matrix.md
+  <!-- entry: "row 31 filed upstream as PR 337" -->
+
 - **READY 2026-08-14 — the PR-round doorbell cannot be answered by ANSWERING:
   its predicate reads our last COMMIT, so a round whose correct reply is a
   question stays open forever.** Found by using it minutes after both rounds
