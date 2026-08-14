@@ -112,112 +112,83 @@ standing fact from this correction: an entry whose verifier names a live
 capture ranks as PARKED until the pin exists, whatever its design maturity,
 because the design is not what expires.
 
-## Handoff — 2026-08-11 evening. Rewritten, not appended; a stale one reads as authoritative.
+## Handoff — 2026-08-14 evening. Rewritten, not appended; a stale one reads as authoritative.
 
-The 2026-08-10 handoff is REPLACED. Its content is discharged and not repeated.
+The 2026-08-11 handoff is REPLACED. Its "one big thing waiting" (31 commits
+across 6 lane branches) is discharged — see `## Done`, "THE PILE IS DRAINED".
 
-**The entry point is `continue from backlog`, and nothing here is an instruction
-the entries lack.** Build ORDER is deliberately absent — it is derived at build
-time from `docs/dev-loop.md` ("Build order is DERIVED at build time"), and the
-`## Build order` block above is stale by construction: it predates today's
-integration and three of its ten have shipped.
+**The entry point is `continue from backlog`.** Build ORDER is derived at build
+time (`docs/dev-loop.md`); the `## Build order` block above is stale by
+construction and three of its ten have shipped since.
 
-**STATE — the tree is clean and everything is pushed.** `git log
-origin/main..main` is empty in BOTH repos (fork and dotfiles). No background
-agents are running, no worktree carries rebase state, no wakeup is scheduled.
-The two modified tracked files (`test/fixtures/harvested/LEDGER-Siren.json` in
-the fork, `claude/settings.json` in dotfiles) were already modified at session
-start and belong to neither this session nor its work.
+**ONE THING WAS IN FLIGHT WHEN THIS WAS WRITTEN, and it is the first thing to
+do.** A gate sweep was started at ~16:20Z to produce the VERIFIED answer for
+today's proxy ship and had not finished. It is step 6 of
+`docs/runbooks/ship-proxy-change.md`; step 7 (the DECLARED/RUNNING/VERIFIED
+three-way compare) is UNRUN and is what certifies the restart for production.
+Run step 7 from the runbook — it carries the exact two commands and the union
+rule (VERIFIED is the smaller set by construction; the two artifact-only
+exclusions are named in the status file). Expect TWELVE gates declared now,
+not eleven: `CACHE_FIX_COALESCE_SIDECAR` joined today.
+Two reds in the 12:36Z sweep were pre-existing and attributed, so do not read
+them as new: one capture ENOENT (evicted mid-run, a replay error, not a
+finding) and `tmpLeftovers: 4` (this session's own suite runs — the leak that
+caused it is FIXED today, so a non-zero count in the new sweep is a fresh
+finding rather than the known one).
 
-**THE ONE BIG THING WAITING, and it is now measured rather than discovered:
-31 outstanding commits across 6 lane branches, 1 of them orphaned.** Its entry
-is in `## Open` ("five registered worktrees hold 30 commits" — the title's 30
-is the first, worktree-based count; the entry's own body carries the corrected
-43-branch/33-commit measurement and says why the two differ). Read that entry
-before touching the head: it blocks two head items, it carries the per-commit
-method, the ordering, and the sizing measurement that says the picks are
-CONFLICTED rather than clean.
+**STATE — everything is pushed in both repos.** Fork `main` at the
+backlog-closures commit; dotfiles `main` at the acceptance addendum. `git log
+origin/main..main` empty in both, checked against the remote. No background
+agents, no worktree rebase state, no scheduled wakeup. Modified-but-untracked
+fixture churn under `test/fixtures/harvested/` predates this session.
+`qgis/QGIS3.ini` is modified in dotfiles by something else — not this work,
+do not commit it.
 
-**Progress on it is one command, because the reading now exists:**
+**DEPLOYMENT — a ship completed today and one gate went live.**
+`CACHE_FIX_PROXY_TREE_PIN = "0e031a0"` in dotfiles matches
+`git rev-parse --short HEAD:proxy`; the proxy was restarted and `/health`
+reports twelve gates including `CACHE_FIX_COALESCE_SIDECAR=1`. Its acceptance
+is recorded in `CACHE_FIX_GATE_ACCEPTANCE` with both halves: a controlled
+no-auth probe for the mechanism, and a real live pair for the billing.
+**Any further `proxy/**` change owes the whole runbook again** (pin bump +
+restart + gate + three-way compare), and while a sweep is running, DO NOT edit
+`proxy/**` or the tools it spawns: the sweep replays working-copy code and
+stamps its own code fingerprint at start.
 
-    node tools/state-report.mjs --json | jq .laneBranches
+**ROW 31 IS MITIGATED AND LIVE, and what would CLOSE it is booked, not
+claimed.** The done-criterion needs a sweep whose captures were written after
+the flip and has TWO halves — the session-start duplicate class falling to
+zero WHILE the mid-session class stays unchanged. A drop in the mid-session
+count is over-reach, not success. Entry: "row 31 done-criterion unmeasured
+after the coalesce flip", `## Open`, PARKED with that trigger.
+The new numbers to read it with: `coalescedRequests` / `coalescedStreaks` in
+the census rollup, and `duplicate-billing`'s COALESCED join class.
 
-shipped this evening. It enumerates by BRANCH, not by worktree — a branch
-outlives its worktree, which is exactly how the orphan hid — and counts by
-patch-id, so a cherry-picked lane correctly reads `outstanding=0,
-alreadyUpstream=N`. Verified live at the desk, not only on its fixture.
+**THE NEXT MITIGATION, and it is deployment-coupled like the last one:**
+`_resetRelocationMemory` cannot evict the memory the running pipeline uses
+(`proxy/extensions/fresh-session-sort.mjs`). Decision-complete in its own
+entry; needs its own restart, so it is a DESK item — `tools/backlog-lanes.mjs`
+routes `proxy/**` entries away from plain lanes.
 
-**What is BROKEN rather than merely unbuilt — read before trusting anything.**
-Nothing is known-broken in the running fork. Three live defects are booked and
-are load-bearing premises rather than missing features:
-`tools/named-unbooked-scan.mjs` under-fires silently on the vocabulary sessions
-actually use (its own entry has the measurement, with the positive control);
-`_resetRelocationMemory` cannot evict the memory the running pipeline uses;
-and `FORK-NOTES.md` still states `deferred-tool-rewrite` is disabled while
-`/health` reports its gate ON — that sentence is a premise of the
-restart-transparency argument and its correction sits further down that file.
+**PREMISES THAT ARE LOAD-BEARING RATHER THAN MISSING FEATURES.**
+`tools/named-unbooked-scan.mjs` under-fires silently on the vocabulary
+sessions actually use (its entry carries the measurement and the positive
+control). The 2026-08-11 handoff also claimed `FORK-NOTES.md` states
+`deferred-tool-rewrite` is disabled while `/health` reports it ON — the
+`/health` half is re-confirmed today (enabled, source `config`), but a grep
+for that wording in `FORK-NOTES.md` found nothing, so either it was corrected
+or the claim was about different wording. Re-check before resting on it; it is
+repeated here only because it was named as a premise of the
+restart-transparency argument.
 
-**Deployment: nothing owed.** No `proxy/**` change landed this session, so no
-pin bump and no restart. The gate's one red (`s-captureBC`, a stability row) is
-the measured NON-DEFECT awaiting its `modelChangedAcrossPair` exemption — the
-head item whose test-side file has ZERO main-side commits and can therefore land
-without waiting on the lane pile. That split is the cheapest way back into the
-head.
+**WHAT CHANGED TODAY that a fresh context would otherwise re-derive.**
+A capture REQUEST record is identified by carrying NO `type` field — ask
+`isCaptureRequestRecord` (`tools/logs.mjs`), never an exclusion list of the
+types that happen to exist. A third record type (`coalesced`) now rides the
+capture files. The `/tmp` run-root leak is CLOSED: it was the suite's own
+deliberate OOM crashes (SIGABRT runs no exit handlers), so a leftover run root
+now means some child DIED HARD and is a finding about that child.
 
-**Disjoint write-sets, a fact about the files rather than a judgement** — for
-anyone dispatching in parallel:
-  `tools/replay.mjs` + `test/replay-gate-selfcheck.test.mjs` — CONTENDED with
-  lane `worktree-agent-a162…`; serialize behind its integration
-  `tools/backlog-lint.mjs` + `test/backlog-lint.test.mjs` — CONTENDED with lane
-  `worktree-agent-a82e…`; same
-  `tools/bust-triage.mjs` + `test/bust-triage-*` — CONTENDED with lanes
-  `worktree-agent-ac73…` and the orphan `worktree-agent-afc2…`
-  `tools/state-report.mjs` + `test/state-report.test.mjs` — FREE (integrated
-  today, no lane holds it)
-  `tools/alias-claim.mjs` + `test/alias-claim.test.mjs` — FREE
-  `proxy/**` — deployment-coupled: any change needs a dotfiles pin bump
-  (`git rev-parse --short HEAD:proxy`) and a restart
-  `BACKLOG.md` belongs to the dispatcher alone, always.
-The collision surfaces NOT visible in a file list — the shared git index, the
-node_modules symlink, the alias registry, sibling-repo isolation — are in
-`docs/dev-loop.md` ("Once the order is derived, run it in PARALLEL").
-
-**Hazard, for whoever integrates lane `worktree-agent-a46f…`:** it contains
-`tools/prune-lane-branches.mjs`, which deletes orphaned `worktree-agent-*`
-branches. The orphan `worktree-agent-afc2…` carries a real 405-insertion commit
-from 2026-08-08 with no registered worktree. Confirm the tool checks the
-outstanding count before deleting, or running it destroys work that the
-2026-08-11 freeze exists to prove was there.
-
-**Evidence frozen this session:**
-`test/fixtures/lane-branches/inventory-2026-08-11-pre-integration.json` — the
-lane-branch world before integration cleared it. It is the collector's red case
-and it cannot be re-made.
-
-**What this session added to the method**, in `docs/dev-loop.md` because the
-next session inherits rules and not reasoning: the CARRIER REGISTRATION rule in
-the closing gate (question 4) — a mechanism that creates a persistent state
-carrier is unfinished until that carrier class has a collector in
-`state-report`. It sits inside the required-reading extract block, so it arrives
-at session start rather than waiting to be read. Its enumerable half is booked.
-
-**The session-start attention line, resolved part by part** (close-runbook step
-3 — a standing signal with no disposition is wallpaper, not evidence of
-nothing). `gate RED 1/25` → BOOKED: the `modelChangedAcrossPair` exemption
-entry, and the handoff paragraph above names the test-side split that lands it
-without the pile. `exit pass owed, ~56 closure markers outside the closure home`
-→ BOOKED: the `--closures-in-live` entry, which is the mechanism for exactly
-this and is blocked only on lane `worktree-agent-a82e…`. `21 READY, oldest 4d`
-→ ACTED: three shipped today and the grade set moved with them. `33 behind
-upstream` → NOT THIS SESSION, and the reason is a collision rather than
-capacity: an upstream merge rewrites the same core files the 31-commit lane pile
-is queued against, so it belongs after the pile drains, not beside it.
-
-**Work booked in other repos, with pointers here:** the dotfiles doctor's
-verdict over `alias-claim --protect-status` (booked here as an explicit POINTER
-whose own body says a pointer is not a discharge — its real home is dotfiles'
-backlog and nobody has written it there yet); the dotfiles close-signal Stop
-hook, whose fork-side contract line shipped this session.
 
 ## Open
 
