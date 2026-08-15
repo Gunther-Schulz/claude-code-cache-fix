@@ -723,6 +723,47 @@ now means some child DIED HARD and is a finding about that child.
   Anchor: tools/absence-scan.mjs
   <!-- entry: "absence-scan interior walk is first-parent only on merge commits" -->
 
+- **READY 2026-08-15 — #276's `fallback RED` meta-test counts SKIPS in another
+  file, so it broke when that file grew a second test; it is red in CI now and
+  a rebase will not clear it.** Diagnosed today from the CI log of run
+  31103225337 (job 92621747522), the second of #276's two failures. The first
+  (`source: every UUID ... is on the synthetic allowlist`) leaves with the
+  scanner when it moves to #306; THIS one survives any rebase, so it is the
+  half that is actually owed.
+  **The defect:** `test/harvest-pin.test.mjs:264` runs
+  `mitigation-output-form.test.mjs` as a subprocess with both capture and
+  fixture pointed at nonexistent paths, then asserts `/# skipped 1/`. Actual
+  output is `# skipped 2` — the target file holds two tests, and node reports
+  the one excluded by `--test-name-pattern` as a skip too
+  (`# SKIP test name does not match pattern`). The assertion pinned a count it
+  does not own: the number of tests in a DIFFERENT file. It passed when written
+  and stopped being true when that file grew, with nothing in either file
+  announcing the coupling.
+  **Design, decided:** assert the OUTCOME, not the tally. Keep
+  `/COULD NOT VERIFY/` and `/# fail 0/`, and replace `/# pass 0/` and
+  `/# skipped 1/` with a match on the specific subtest line — the real-pair
+  test named, carrying `# SKIP` and the COULD-NOT-VERIFY reason. That is what
+  the check exists to prove, and it is invariant under the target file gaining
+  or losing unrelated tests.
+  **Red-first arrangement, and the two must DIFFER:** add a third test to
+  `mitigation-output-form.test.mjs` (or stub one in a fixture copy) — the
+  current assertion must fail on the skip count while the outcome-shaped one
+  passes; then point the fixture override at a REAL fixture and the
+  outcome-shaped assertion must fail, since COULD NOT VERIFY no longer appears.
+  An assertion green on both arms is matching the file running at all.
+  Note the same brittleness in the sibling `fallback GREEN` test at :274,
+  which asserts `/# pass 1/` — same class, same file, fix together.
+  Done: both arms hold, #276's CI shows this test green, and this entry moves
+  to `## Done` with its commit ref.
+  Loop stage: BUILD.
+  Anchor: test/harvest-pin.test.mjs
+  Write-set: test/harvest-pin.test.mjs
+  Verifier: node --test test/harvest-pin.test.mjs
+  Lands on branch `pr/verification-tools` (#276), where the red is; the file
+  exists on main too, so the anchor resolves either way.
+  <!-- entry: "harvest-pin fallback RED counts skips in another file" -->
+
+
 - **READY 2026-08-15 — `pr-rounds` only sees PRs somebody POSTED on, so a PR
   whose blocker cleared in SILENCE is invisible to it; #281 sat ten days that
   way.** Measured today while checking PR state: #281 was graded "stalled, ball
