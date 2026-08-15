@@ -253,8 +253,15 @@ const ZERO_FALSE_FIRE_REF = "3bc6a72";
 
 test("CLI: zero false fires -- FROZEN at 3bc6a72 (suite-blocking; never the live file)", () => {
   const frozen = gitShow(ZERO_FALSE_FIRE_REF, "BACKLOG.md");
-  const { code, out } = runTool(["-"], frozen);
-  assert.equal(code, 0);
+  const { out } = runTool(["-"], frozen);
+  // The exit code is deliberately NOT asserted. This test's subject is the
+  // HEADER lane's false-fire rate, and the exit code is now driven by two
+  // other lanes (closure-duplicate, and the READY cap promoted to blocking
+  // 2026-08-15). `3bc6a72` carries 94 READY entries, so the cap lane blocks
+  // there correctly -- asserting exit 0 would fail for a reason that has
+  // nothing to do with the header lane, and passing it would have meant
+  // nothing about the header lane either. The two assertions below ARE the
+  // subject and are unchanged.
   const warnLines = out.split("\n").filter((l) => l.startsWith("WARN backlog-header"));
   assert.deepEqual(warnLines, [], "the frozen reference must be clean");
   assert.match(out, /backlog-lint: clean/);
@@ -2507,15 +2514,48 @@ test("lintReadyCap: RED-FIRST against the two immutable refs where the cap was d
     "the two refs must DIFFER -- a lane green on both counts something other than READY entries",
   );
 
-  // Same pair, through the default CLI run's own printed lines. This lane
-  // is REPORT-only and never sets the exit code itself -- the closure-
-  // duplicate lane (unrelated, BLOCKING, pre-existing) is what may make
-  // either run's exit code non-zero at a given historical ref, so this
-  // asserts only the printed line, never the exit code.
+  // Same pair, through the default CLI run's own printed lines. Asserted on
+  // the printed line only, NOT the exit code: the closure-duplicate lane
+  // (unrelated, BLOCKING, pre-existing) also fires at these historical refs,
+  // so an exit-code assertion here would pass for that lane's reason and say
+  // nothing about this one. Measured 2026-08-15: with the cap raised to 999
+  // -- this lane clean -- `053e22af` STILL exits 1. The exit-code contract is
+  // pinned by the next test, on a pair where that lane is clean.
   const atRun = runTool(["-"], atCapText);
   const overRun = runTool(["-"], overCapText);
   assert.match(atRun.out, /^backlog-ready-cap: clean \(10\/10\)$/m);
-  assert.match(overRun.out, /^backlog-ready-cap: 11 READY in ## Open against cap 10 — REPORT only$/m);
+  assert.match(overRun.out, /^backlog-ready-cap: 11 READY in ## Open against cap 10 — BLOCKING$/m);
+});
+
+test("lintReadyCap: the cap lane BLOCKS -- exit code pinned on a pair where no other blocking lane fires", () => {
+  // Promoted from REPORT to BLOCKING 2026-08-15, in the commit that brought
+  // the head back to ten. The discriminator: the LIVE BACKLOG.md, which the
+  // closure-duplicate lane reports clean, so any non-zero exit here is this
+  // lane's. Both arms are the same real file; only the READY count differs.
+  const live = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+
+  const clean = runTool(["-"], live);
+  assert.match(clean.out, /^backlog-closure-duplicate: clean$/m,
+    "precondition: the other blocking lane must be clean, or this pair proves nothing");
+  assert.match(clean.out, /^backlog-ready-cap: clean \(10\/10\)$/m);
+  assert.equal(clean.code, 0, "at the cap, the tool exits 0");
+
+  // One extra READY entry in `## Open` -- the only difference between the arms.
+  const openAt = live.indexOf("\n## Open");
+  assert.ok(openAt > 0, "## Open must exist for this arm to be constructed");
+  const bodyAt = live.indexOf("\n", openAt + 1) + 1;
+  const extra = '- **READY 2026-08-15 — synthetic eleventh entry, this test only.**\n' +
+    "  Anchor: BACKLOG.md\n  Write-set: BACKLOG.md\n  Verifier: node tools/backlog-lint.mjs\n\n";
+  const over = live.slice(0, bodyAt) + "\n" + extra + live.slice(bodyAt);
+
+  const red = runTool(["-"], over);
+  assert.match(red.out, /^backlog-closure-duplicate: clean$/m,
+    "the added entry must not disturb the other blocking lane");
+  assert.match(red.out, /^backlog-ready-cap: 11 READY in ## Open against cap 10 — BLOCKING$/m);
+  assert.equal(red.code, 1, "one over the cap must BLOCK -- printing BLOCKING and exiting 0 is the defect this pins");
+
+  assert.notEqual(clean.code, red.code,
+    "the two must DIFFER: equal exit codes mean the lane does not drive the exit at all");
 });
 
 // ==========================================================================
@@ -2536,8 +2576,10 @@ test("CLI default run: backlog-closures-in-live / -open RED-FIRST against the tw
 
   const beforeRun = runTool(["-"], beforeText);
   const afterRun = runTool(["-"], afterText);
-  assert.equal(beforeRun.code, 0);
-  assert.equal(afterRun.code, 0);
+  // Exit codes deliberately NOT asserted: both refs carry 38 READY entries,
+  // and the cap lane was promoted to blocking 2026-08-15, so both runs exit
+  // 1 for a reason unrelated to this lane. This lane is REPORT-only; its
+  // contract is the two printed counts below.
 
   // Before: a non-zero CLOSURE count in live sections (the population the
   // exit pass went on to move).

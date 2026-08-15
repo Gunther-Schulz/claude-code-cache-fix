@@ -2283,7 +2283,7 @@ function main(argv) {
   const readyCap = lintReadyCap(text);
   process.stdout.write(
     readyCap.over
-      ? `backlog-ready-cap: ${readyCap.count} READY in ## Open against cap ${readyCap.cap} — REPORT only\n`
+      ? `backlog-ready-cap: ${readyCap.count} READY in ## Open against cap ${readyCap.cap} — BLOCKING\n`
       : `backlog-ready-cap: clean (${readyCap.count}/${readyCap.cap})\n`,
   );
 
@@ -2340,12 +2340,21 @@ function main(argv) {
       `backlog-ready-bar: ${readyBar.length} finding(s) — REPORT only — ${readyBarCounts}\n`,
     );
   }
-  // Every lane above this point is WARN-only (exit 0 always); the closure-
-  // duplicate lane is the one exception and is what can make this non-zero.
+  // Every lane above this point is WARN-only (exit 0 always) EXCEPT two: the
+  // closure-duplicate lane, and the READY-cap lane promoted to blocking
+  // 2026-08-15 in the same commit that brought the head back to ten.
   // (Integration 2026-08-14: main's unconditional `return 0` stood here and
   // the merge left it ABOVE this line, making the blocking return dead code —
   // the CLI printed BLOCK and exited 0. Caught by the lane's own CLI bite.)
-  return closureDuplicates.length ? 1 : 0;
+  //
+  // Why the cap lane blocks only NOW, and not when it shipped (`bba0a35`):
+  // READY stood at 38 that morning. A guard armed against a condition the
+  // carrier is knowingly in fires on every push until someone fixes a thing
+  // they have not been given the chance to fix — the check-that-fires-on-a-
+  // non-defect shape, which trains its reader to discount a red result. It
+  // shipped REPORT-only, the head was re-derived to ten, and the arming
+  // rides in that same commit. Both returns are pinned by CLI bites.
+  return closureDuplicates.length || readyCap.over ? 1 : 0;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
