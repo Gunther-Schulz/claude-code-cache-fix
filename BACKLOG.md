@@ -80,8 +80,13 @@ it in practice.
    sweep stays red on a measured NON-defect — tier 2, and a guard that fires on
    legitimate work trains its reader to ignore red.
    <!-- entry: "stability check lacks the modelChangedAcrossPair exemption" -->
-9. a tool that PRINTS a blocking verdict and EXITS ZERO — tier 2, guards.
-   <!-- entry: "a tool that prints a blocking verdict and exits zero blocks nothing" -->
+9. the cap lane guards ONE direction — a drained head is silent, so `RECORD`
+   has no promotion path. Raised by the operator at close and probed: a head of
+   four reports `clean (4/10)` and exits 0. This is what makes the three-grade
+   design work at all, which is why it displaced the blocking-verdict exit-pair
+   item (demoted to `## Record`, same body, same verifier) rather than waiting
+   for a slot.
+   <!-- entry: "cap lane guards over-fill only, a drained head is silent" -->
 10. `pr-rounds` misses a PR whose blocking dependency merged in silence — tier 3,
     and the only item here whose cost was measured TODAY: nine days on #278, ten
     on #281, both found by hand.
@@ -553,43 +558,37 @@ now means some child DIED HARD and is a finding about that child.
   Verifier: node --test test/replay-gate-selfcheck.test.mjs
   <!-- entry: "stability check lacks the modelChangedAcrossPair exemption" -->
 
-- **READY 2026-08-14 — a tool that PRINTS a blocking verdict and EXITS ZERO is
-  a guard that blocks nothing, and only one of this repo's blocking lanes has a
-  bite pinning the pair.** Measured the same day, during the lane-pile
-  integration: `backlog-lint`'s closure-duplicate lane printed
-  `BLOCK backlog-closure-duplicate …` and exited 0, because a clean auto-merge
-  left main's unconditional `return 0` ABOVE the lane's
-  `return closureDuplicates.length ? 1 : 0`. No conflict marker announced it and
-  the file parsed fine. It was caught only because THAT lane happens to own a
-  CLI bite asserting the exit code; the other blocking lanes in this repo have
-  no such pairing, so the same merge shape lands silently in any of them.
-  **Why the sibling fix (the report-section invariant, `test/absorption-miss.test.mjs`)
-  does not cover this:** that one asserts on rendered TEXT, and this defect is
-  the text being right while the EXIT CODE disagrees with it. Two different
-  surfaces of the same integration class — a printed verdict and the process
-  status are separately reachable, and a guard is only as strong as the weaker.
-  **Design, decided:** one bite per tool that can emit a blocking verdict,
-  asserting the PAIR in both directions — a known-blocking input yields both the
-  BLOCK line and a non-zero exit, and a known-clean input yields neither. The
-  tool inventory is DERIVED, not restated: `git grep -l "BLOCK "` over `tools/`
-  is the population, and a tool in that list without such a bite is itself the
-  finding (the same derive-from-the-source stance `test/logs-schemas.test.mjs`'s
-  scope lint already takes, rather than a hardcoded list beside the parser it
-  mirrors).
-  **Red-first arrangement, and the two must DIFFER:** for each covered tool,
-  hoist an unconditional `return 0` above its blocking return (the exact 08-14
-  mutation) and the bite must fail naming that tool; revert and it must pass.
-  A bite that stays green under that mutation is asserting the printed line
-  only and has not pinned the pair.
-  Done: every tool in the derived population carries the two-direction bite,
-  the derivation itself fails when a new blocking tool appears without one, and
-  this entry moves to `## Done` with its commit ref.
+- **READY 2026-08-15 — the cap lane guards ONE direction, so a DRAINED head is
+  silent and `RECORD` has no promotion path at all.** Raised by the operator at
+  session close — *"how will it get to them if they are only recorded and not
+  ready?"* — and the honest answer, probed rather than reasoned: a simulated head
+  of four reports `backlog-ready-cap: clean (4/10)` and exits 0. Nothing fires.
+  **Why this is structural and not cosmetic:** the three-grade design (2026-08-11)
+  moves everything not scheduled into `## Record` — 88 entries there before today,
+  116 after this session's demotions. Their ONLY route back is a head
+  re-derivation, and nothing triggers one. A grade whose exit is "someone
+  eventually notices" is the capture-dominance disease one level up: entries
+  accumulate in a carrier nobody is scheduled to read. The cap lane made
+  over-fill impossible and left under-fill invisible, which converts the head
+  from a queue into a fixed set.
+  **Design, decided:** extend `lintReadyCap` to report BOTH directions —
+  `{count, cap, over, under}` — and add a default-run line when the head is under
+  cap: `backlog-ready-cap: N/10 — head UNDER-FULL, promote from ## Record`.
+  REPORT-only in that direction and never blocking: an under-full head is a
+  prompt, not an error, and blocking on it would stop every push the moment work
+  closes, which is the check-that-fires-on-a-non-defect shape.
+  **Red-first, and the two must DIFFER:** the live file at 10/10 prints `clean`
+  and must NOT print the under-full line; the same file with entries demoted to
+  9 READY must print it naming 9/10. A lane green on both is reading the cap and
+  not the count.
+  Done: both arms hold with their output pasted, the default run prints the
+  under-full line at 9 READY and does not print it at 10, the lane still exits 0
+  in the under-full direction, and this entry moves to `## Done` with its ref.
   Loop stage: VERIFY.
   Anchor: tools/backlog-lint.mjs
-  Write-set: test/backlog-lint.test.mjs, test/absence-scan.test.mjs, test/blocking-verdict-exit-pair.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/blocking-verdict-exit-pair.test.mjs
-  <!-- entry: "a tool that prints a blocking verdict and exits zero blocks nothing" -->
-
+  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
+  <!-- entry: "cap lane guards over-fill only, a drained head is silent" -->
 
 - **READY 2026-08-15 — `pr-rounds` only sees PRs somebody POSTED on, so a PR
   whose blocker cleared in SILENCE is invisible to it; #281 sat ten days that
@@ -3507,6 +3506,35 @@ now means some child DIED HARD and is a finding about that child.
   Write-set: BACKLOG.md
   Verifier: gh pr view 276 --repo cnighswonger/claude-code-cache-fix --json comments
   <!-- entry: "#276 held on the sequencing question, both answers pre-derived" -->
+
+- **PARKED 2026-08-15 — fork-`main` is 33 behind `upstream/main` and that signal
+  has had no disposition since it drifted; the answer is NOT an exemption.** The
+  session-close line requires every non-silent part of the attention line to
+  resolve to an action, a booking, or an explicit "not this session, because —".
+  This one resolved to none for the whole session.
+  **A proposed exemption was WRONG and the record is what refuted it.** The
+  desk's first recommendation was to declare "behind upstream" not-applicable for
+  this fork, on the reasoning that main deliberately diverges and slices are cut
+  as PR branches. The dotfiles backlog carries the closed entry
+  `**cache-fix fork behind upstream** — merged (\`a1e19be\`) … Fork is now 0
+  behind / 68 ahead`, i.e. the operator's actual practice has been to MERGE, and
+  the signal has a real terminal state. Exempting it would have silenced a
+  doorbell that works.
+  **Missing evidence / trigger that unparks this:** an operator decision on
+  timing. The merge is deployment-coupled — `proxy/**` changes mean a
+  `CACHE_FIX_PROXY_TREE_PIN` bump plus a restart at a stated session boundary
+  (threat-matrix row 3), so it is a session of its own and must not ride the tail
+  of unrelated work.
+  **One home, deliberately:** booked HERE and not in dotfiles, even though the
+  precedent entry lives there, because the merge happens in this repo and a fork
+  session is its consumer. The dotfiles entry is closed and stays closed.
+  Consumer: the session that takes the upstream merge.
+  Loop stage: RETIRE.
+  Anchor: BACKLOG.md
+  Write-set: BACKLOG.md
+  Verifier: git rev-list --count main..upstream/main
+  <!-- entry: "fork main 33 behind upstream, disposition owed, merge not exemption" -->
+
 
 
 
@@ -7693,6 +7721,43 @@ entry promoted to READY must satisfy the booking bar in this file's header
   creations). "Any unabsorbed mid-history divergence pays ~full
   price" over-claimed; at least the interior system-removal class
   is free. See the reframed interior-prunes entry above.
+
+- **RECORD (ex-READY 2026-08-15, demoted to free a head slot for the promotion-path lane) 2026-08-14 — a tool that PRINTS a blocking verdict and EXITS ZERO is
+  a guard that blocks nothing, and only one of this repo's blocking lanes has a
+  bite pinning the pair.** Measured the same day, during the lane-pile
+  integration: `backlog-lint`'s closure-duplicate lane printed
+  `BLOCK backlog-closure-duplicate …` and exited 0, because a clean auto-merge
+  left main's unconditional `return 0` ABOVE the lane's
+  `return closureDuplicates.length ? 1 : 0`. No conflict marker announced it and
+  the file parsed fine. It was caught only because THAT lane happens to own a
+  CLI bite asserting the exit code; the other blocking lanes in this repo have
+  no such pairing, so the same merge shape lands silently in any of them.
+  **Why the sibling fix (the report-section invariant, `test/absorption-miss.test.mjs`)
+  does not cover this:** that one asserts on rendered TEXT, and this defect is
+  the text being right while the EXIT CODE disagrees with it. Two different
+  surfaces of the same integration class — a printed verdict and the process
+  status are separately reachable, and a guard is only as strong as the weaker.
+  **Design, decided:** one bite per tool that can emit a blocking verdict,
+  asserting the PAIR in both directions — a known-blocking input yields both the
+  BLOCK line and a non-zero exit, and a known-clean input yields neither. The
+  tool inventory is DERIVED, not restated: `git grep -l "BLOCK "` over `tools/`
+  is the population, and a tool in that list without such a bite is itself the
+  finding (the same derive-from-the-source stance `test/logs-schemas.test.mjs`'s
+  scope lint already takes, rather than a hardcoded list beside the parser it
+  mirrors).
+  **Red-first arrangement, and the two must DIFFER:** for each covered tool,
+  hoist an unconditional `return 0` above its blocking return (the exact 08-14
+  mutation) and the bite must fail naming that tool; revert and it must pass.
+  A bite that stays green under that mutation is asserting the printed line
+  only and has not pinned the pair.
+  Done: every tool in the derived population carries the two-direction bite,
+  the derivation itself fails when a new blocking tool appears without one, and
+  this entry moves to `## Done` with its commit ref.
+  Loop stage: VERIFY.
+  Anchor: tools/backlog-lint.mjs
+  Write-set: test/backlog-lint.test.mjs, test/absence-scan.test.mjs, test/blocking-verdict-exit-pair.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/blocking-verdict-exit-pair.test.mjs
+  <!-- entry: "a tool that prints a blocking verdict and exits zero blocks nothing" -->
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED, current state is the first entry
 
@@ -17965,6 +18030,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   g-owned dirs older than 60 min (100% -> 25G free) — the
   hand-cleanup is the prototype, the helper is the deliverable.
   Consumer: next tooling session here; the derivation ranks it.
+
 
 
 
