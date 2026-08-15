@@ -3328,38 +3328,6 @@ now means some child DIED HARD and is a finding about that child.
   reporting "nothing outstanding" over an empty enumeration is the failure this
   repo has hit most often.
 
-- **IN FLIGHT (operator-side, dotfiles; dispatched 2026-08-06 evening) — the
-  push scan's already-published filter covers COMMIT MESSAGES only, and the FILE
-  half fired on the identical class the same week.** The 2026-08-06 fix
-  (dotfiles `6912e2b`) discards message findings whose text the other side
-  already has, and says so in its own docstring, which ends
-  `Datei-Befunde bleiben unangetastet`. That was a declared scope, not an
-  oversight — which is exactly why this entry exists: the ARGUMENT the fix
-  records ("was oeffentlich ist, ist per Konstruktion ausserhalb dessen, was ein
-  Block noch verhindern koennte") is about publication, not about which FIELD
-  carries the bytes, so it reached message bytes and stopped at file bytes for no
-  stated reason. A rule's basis outliving its stated scope is the reach-test
-  shape from the grounding corpus, here written down by the author of the
-  narrower half.
-  **The occurrence, measured:** a force-push of `pr/output-guard` rebased onto
-  `upstream/main` (`e3149ae`) was blocked by 5 `capture-key-prefix` findings in
-  `proxy/extensions/deferred-tool-rewrite.mjs` (224/238/417) and
-  `test/deferred-tool-rewrite.test.mjs` (258/517). Confirmed before any
-  bypass was considered: all five lines are byte-identical to `upstream/main`'s
-  same lines, and neither file is in the branch's own 13-file diff. The bytes are
-  a source comment naming a capture, already public in upstream's repo via our
-  own merged #273 — unretractable by any block. **No `--no-verify` was taken**;
-  the fork's rule limits it to deliberate WIP pushes, and the corpus rule is that
-  a guard firing on legitimate work earns a declared exemption the guard itself
-  verifies, never an override habit. The push is held until the gate is fixed.
-  Design dispatched: discard a FILE finding only when the blob at the pushed tip
-  is byte-identical to the same path's blob at a published tip (same
-  `veroeffentlichte_tips` source as the message filter). A file our own commits
-  touched is fully scanned, always — conservative on purpose, since a file
-  carrying both public and new bytes must never ride through on its public half.
-  Red-first: tonight's block reproduced, then green, and a capture id planted in
-  a file the branch DOES touch must still block.
-
 - **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — one status file now has TWO definitions of
   "how old is the sweep", and they can disagree by design.** Surfaced 2026-08-06
   by the agent that built the gate-red doorbell, as a returned gap rather than a
@@ -3392,50 +3360,6 @@ now means some child DIED HARD and is a finding about that child.
   session-scan.py's own comment records doctor as deliberately left
   unconverged), but the entry's path citation
   `~/.claude/cache-fix-gate-status.json` is stale — same correction as n=25.
-- **QUEUED THIS SESSION (2026-08-06 evening) — #278's second rebase round,
-  serialized behind the running fork-repo lane, not dropped.** The round is read
-  and understood (previous entry carries its content); the work is the runbook
-  `docs/runbooks/upstream-pr-round.md` end to end — worktree + `node_modules`
-  symlink, rebase onto current `upstream/main`, full `npm test` in the worktree,
-  the hygiene greps scoped to THIS round's commits, then push and the
-  push-announcement comment. It is not running yet for one reason, stated so it
-  is not re-litigated: another agent owns this repository's working copy right
-  now, and the runbook's own setup writes to the shared `.git` — one writer per
-  repository. If this entry is still here when the fork lane has reported, that
-  is the next thing to run.
-  **RUN 2026-08-06 evening — REBASED AND VERIFIED, PUSH HELD.** Clean rebase onto
-  `upstream/main` = `e3149ae` (not the `48e9673` upstream's comment names — it had
-  moved again), zero conflicts, nothing left mid-rebase. `git range-diff` shows
-  both commits `=`: content and message identical to what is already public in
-  `refs/pull/278/head`, which is what makes the message-grep vacuous BY PROOF
-  rather than by assertion. Suite in the worktree 1767/1768 (the count grew from
-  1724 because the new base carries #273/#317). Both diff forms now agree at 13
-  files / +543 / **0 deletions**; upstream's phantom `-2125` is gone. The push is
-  blocked by the leak-gate scope gap booked above and waits on that fix — NOT on
-  an override.
-  **CI, and upstream's account is right but incomplete IN OUR FAVOUR.** Run
-  31102727767 on the pre-rebase head: `test (18)` and `test (22)` each have
-  exactly one step, `Set up job`, dead at *Failed to resolve action download
-  info — Service Unavailable* (15:38–15:41Z), never reaching `Run tests` — so
-  upstream's transient claim is corroborated verbatim. What their comment omits:
-  **`test (20)` succeeded, all nine steps green including `Run tests`.** The
-  suite did execute on `3c4ecfa` and passed; only two legs died at setup.
-  **SURFACED, NOT RAISED — an operator decision, because it exceeds the
-  push-announcement pattern the runbook authorises.** Post-rebase
-  `proxy/extensions.json` registers `output-guard` at order **690, the same slot
-  as the pre-existing `session-budget-breaker`**, while `request-log` already
-  sits at **700** (`enabled: false`). This is unchanged branch content, not a
-  rebase artifact, and it bears directly on the structural premise upstream's
-  review raised (that nothing registers above 690 — a disabled 700 entry already
-  exists). Their load-bearing review pass will reach it. Raising it needs a GO;
-  the runbook's box permits the push announcement and nothing beyond it.
-  **Instrument note, third instance tonight of one shape:** the round's first
-  check grepped the test output for `output-guard` and got zero — a pattern that
-  could never have matched, since no test title in that file carries the string.
-  Same family as this evening's `jq '.byteGate.mismatch'` null: a self-composed
-  pattern or path IS the instrument, and its reach is the claim's basis. Both
-  were caught by their own authors; neither was caught by a mechanism.
-
 - **BUST 2026-08-06 15:02:33Z — 48k, cause `other`, PARKED with its named
   missing evidence.** Walked the bust-appears line rather than improvised.
   Inventory (`--list`): this is the newest cold event and the only one after
@@ -3485,47 +3409,6 @@ now means some child DIED HARD and is a finding about that child.
   `tools/lane-sweep.mjs` was ranked on a premise that has since moved — its
   value was scored as fork-only, and the index check above makes two of its
   conditions domain-free. Re-score it when the order is next derived.
-
-- **HANDOFF 2026-08-05 LATE NIGHT — read this first. It supersedes the NIGHT
-  handoff's queue section and nothing else.**
-  **STATE: everything committed and pushed, both repos.** Fork main at the
-  commit carrying this entry; dotfiles at the pin `f024b0a`. Suite 2184/2184.
-  Proxy restarted TWICE tonight and verified content-to-content both times
-  (`/health` == `sourceFingerprint(disk)` == `3162447a7a61`, dotfiles pin ==
-  `git rev-parse --short HEAD:proxy` == `f024b0a`). A gate re-stamp for that
-  tree was running when this was written — CHECK IT FIRST
-  (`jq -c '{finished,code,failing}' ~/.claude/cache-fix-gate-status.json`);
-  the previous sweep was 63 captures, 1 failing, and the one failure is the
-  long-standing row-24 conservation pair, not a regression.
-  **THE QUEUE'S TOP ITEM IS DONE, with its mechanism.** CACHE-CONTROL and
-  TEXT were one class: 26 of 34 absorption misses are a moved cache_control
-  breakpoint. The ladder mislabelled them (TEXT ran before the strip test),
-  `cacheControlOnly` now rides every absorption row from a
-  container-preserving stripped hash, and the sweep summary carries
-  `cacheControlOnly` + `cacheControlUnknown`. The sweep's own number
-  reproduced the hand classification exactly, 26/34 with zero unknowns.
-  **AND THE FINDING IT PRODUCED IS PARTLY IN DOUBT — start here.** A 610k
-  bust at 20:52Z is a marker leaving the last message and nothing else. The
-  counting stands; the inference "therefore free" does not. Its entry below
-  carries the measurement, the frozen fixture, and the one number that
-  settles it. That number now exists going forward: `usage-log` was enabled
-  tonight and writes per-request `cache_read` / `cache_creation`.
-  **DO NOT DISPATCH `builtByUs` AS WRITTEN.** Its named known positives are
-  gone from the corpus — one row no longer exists, the other moved index —
-  and three spot-checked rows were all byte-present in CC's raw array. Its
-  entry says what to re-ground first.
-  **UPSTREAM MOVED TODAY, and the previous handoff's "nothing is blocked on
-  us" is stale.** Four PRs merged (#275, #279, #280, #282). #272 is rebased,
-  APPROVED and CLEAN — ball with upstream, and #273/#278/#281 unblock behind
-  it. #276 answered. #295 closed as dropped. #278 shows `mergeStateStatus:
-  DIRTY` and will need the same rebase treatment #272 got — that is the next
-  upstream item, and the runbook covers it.
-  **TWO PUBLIC CLAIMS WERE CORRECTED TONIGHT**, both because a check was made
-  at the wrong layer: a scanner "false positive" that was really a declared
-  exemption doing its job, and the marker-is-free note above. Both edited in
-  place, reasons stated. The lesson is already in dev-loop; the pattern was
-  testing a part (an exported regex, a corpus count) and claiming a property
-  of the whole (the scanner, the cost).
 
 - **BUST 2026-08-05 20:52Z — 610k, `messages_changed`, and its only
   pre-pipeline difference is a cache_control marker leaving the last message.
@@ -3997,140 +3880,6 @@ now means some child DIED HARD and is a finding about that child.
   raised from 8192 because the corpus was evicting captures an
   analysis still needed. Revert when pin-at-finding lands; the trigger
   is written in the dotfiles unit file where the knob lives.
-
-- **HANDOFF 2026-08-05 LATE — superseded by the evening handoff above;
-  its UPSTREAM section is still current.** It supersedes the
-  handoff below on every point they disagree.** Everything is
-  committed and pushed (fork-main and dotfiles both clean, 0 unpushed).
-  Suite 2112/2112. Deployed tree `9ef42be576bd`, /health verified
-  content-to-content against disk, dotfiles pin `5d39423`. Doctor reports
-  ONE fail and it is the gate-red below, not a machine problem —
-  "1 von 41 Captures NICHT sauber". Everything else in doctor is
-  green, including the two new .git/config-signature checks.
-
-  **STATE OF THE GATE: 1 failing capture, down from 3.** The survivor
-  is s-captureD conservation 2 — the row-24 container-flip pair the
-  earlier handoff already attributed as PRE-EXISTING and proven
-  byte-identical under old and new code. The other two are CLOSED (see
-  the GATE-RED CLOSED entry): 38 -> 0 and 2 -> 0.
-
-  **THE BIGGEST OPEN THING, and it is new: the absorption check's
-  first corpus-wide number is 50 misses, 40 of them OURS, across 12
-  captures.** `gate-live` now carries `absorption: {total, ours,
-  captures}` in every sweep. That is 40 cases where a mitigation RAN
-  and did not ABSORB, attributable to us — the class that let a 349k
-  bust replay green on all five gates. It is a REPORT, not a gate, on
-  purpose: the rate was unmeasured when it shipped and now it is not,
-  so the next question is CLASSIFICATION — are the 40 one mechanism or
-  several? Start here; it is the largest measured, unexplained number
-  in the repo.
-
-  **WHAT SHIPPED TODAY** (all pushed, all red-first): the conservation
-  exemptions (fresh-session-sort's rewrite, the smoosh-split/
-  content-strip composition) and the `normalizeSessionStartText`
-  anchoring; `findAbsorptionMisses` in replay + the daily sweep; the
-  UTC round trip (`bust-triage` marks its rows, `dossier` reads a
-  naked stamp as UTC); the absence-scan's three blind spots — object
-  KEY names, commit messages, and every text file type — plus
-  class-scoped exemptions replacing the path-wide allowlist; the
-  harvest ledger's keys hashed (94 session UUIDs gone from a public
-  file); `tools/restart-exposure.mjs`; and the doctor checks for the
-  .git/config corruption signature (dotfiles 443b200).
-
-  **THREE THINGS THE NEXT SESSION SHOULD NOT RE-LEARN.**
-  (1) A restart is transparent unless the NEW CODE forwards different
-  bytes for content live conversations already hold — measured six
-  restarts, one bust, with a comment-only-scrub restart as the clean
-  control. Before any proxy restart whose change alters forwarded
-  bytes, run `node tools/restart-exposure.mjs --match '<class>'`; the
-  cost is live-session tokens, never corpus instances.
-  (2) The gate's conservation units are UNWRAPPED while the
-  extensions' predicates are defined over the WRAPPED
-  `<system-reminder>` form. That one confusion caused three separate
-  bugs in replay.mjs in a single afternoon.
-  (3) A measurement over a working tree another writer holds is quoted
-  with the commit it was taken at, or not quoted — three wrong
-  exposure counts came from unpinned greps while an agent committed.
-
-  **UPSTREAM:** all nine PR-round items are ANSWERED — which is not
-  the same as merged, and the distinction matters for whoever reads
-  this next. Six PRs had their review round answered with a fix
-  pushed and a comment posted (#272, #275, #276, #279, #280, #282) and
-  are still OPEN awaiting upstream; issue #292 is answered and its fix
-  is **PR #307** (`Closes #292`); the absence-scan split is **PR
-  #306**; #295 is DROPPED on a falsified premise (see its entry).
-  Nothing is blocked on us. Do NOT re-do any of the six — check the PR
-  thread first; the next move on all of them is upstream's.
-
-  **THE 8-HEX PREFIX IN HISTORY: DECIDED — ACCEPTED, 2026-08-05.** See
-  the dedicated entry below for the measurements and the basis.
-
-- **HANDOFF 2026-08-05 — the 08-02 handoff's G1/G2/G3 are all settled
-  and shipped on `wt/description-absorb` (now at 7f6e5a1, pushed);
-  read this before the entry below, which it supersedes on those
-  points.**
-  **G2 DECIDED: SET-identity.** Basis: sort-stabilization (order 200,
-  `proxy/extensions/sort-stabilization.mjs:60-62`) name-sorts
-  `body.tools` on EVERY live request, so incoming order is not a
-  property the pipeline preserves — and the absorb forwards the
-  canonical's first-seen order regardless, so the relax changes zero
-  wire bytes versus the order-identical case. Bite re-specified FIRST
-  (commit 1a60631), red-first at both levels (new bite vs fd87e12:
-  exactly the reorder expectation red; new self-check vs old replay:
-  exactly the exemption test red). Corpus: the absorb now FIRES on
-  request 1202 — the 484,972-token bust — and old-vs-new replay of
-  the whole 1512-request capture differs ONLY in the 52 declared
-  announcements.
-  **G1 SHIPPED (da4e8e1)** — with a deliberate deviation from the
-  entry below: the exemption is SHAPE-based (isDescriptionNotice,
-  living beside the builder, shared template constants), NOT keyed on
-  `descriptionChangedNames` telemetry as sketched, because both
-  consumers rule telemetry out: input-side ECHOES of injections carry
-  no telemetry (the 2026-07-29 one-sided-filter incident), and the
-  byte-stability exemption reads positions after bodies are gone
-  (tools/replay.mjs:712-716).
-  **G3 SETTLED by wire evidence, not a probe**
-  (tools/scan-description-carrier-evidence.mjs, 7f6e5a1): 837 live
-  streamed-200 requests on claude-opus-5 AND claude-fable-5 carried
-  an active tool_addition injection (beta on the wire) alongside CC's
-  own role:system TEXT messages — the notice's exact carrier shape,
-  at population scale. Residue: proves the carrier, not the specific
-  notice bytes; the extension header's gate-3 live acceptance (one
-  absorbed request observed on production capture) remains owed at
-  flag-flip.
-  **DEPLOYMENT of the two landed changes: DONE, by the 08-05 boot.**
-  The machine rebooted 09:59; systemd started the proxy from the repo
-  tree at 9059d3a, and /health's fingerprint matches disk exactly
-  (eec233efa271) — no restart owed. Dotfiles pin bumped ad4ff80 ->
-  6b69e87 (dotfiles d2c9874).
-  **ROW 4 IS NOT CLOSED — the gate ran RED, on OTHER classes.** First
-  gate run over the 40-capture/6.7GB corpus (10:02-10:14): failing 3,
-  byte-gate MISMATCH 3. Attributed: s-captureJ conservation 2 = the
-  row-24 container-flip pair at n=1400 (in[937]/out[937], role
-  system, 938-msg thread) — PRE-EXISTING, proven byte-identical under
-  old and new code. UNATTRIBUTED, next session's triage:
-  **s-captureI conservation 38** (the big one), s-captureU
-  conservation 2, byte-gate MISMATCH s-captureG x2 + s-captureJ x1.
-  Row 4's own signal was not read out of the gate rows before this
-  handoff — read it there before booking anything about row 4.
-  **BRANCH DEPLOY still gated on:** (1) full suite on the branch —
-  known sole failure is the absence-scan guard at the branch's
-  pre-770e915 base (session ids main already scrubbed;
-  gate-live.test.mjs, replay-gate-selfcheck.test.mjs, replay.mjs) —
-  merge into current main and re-run rather than fixing on-branch;
-  (2) the merge itself; (3) restart with row-3 stated: fd87e12+ is
-  FORWARD-COMPATIBLE ONLY (rollback after deploy is not clean — old
-  build mis-marks defer_loading on new-format state).
-  **UPSTREAM (operator asked 08-05):** fork is 14 behind
-  upstream/main; `git merge-tree` shows REAL conflicts in
-  proxy/server.mjs and test/proxy-wrapper.test.mjs — the pull is its
-  own deployment-coupled work unit, not a casual merge. Among the 14:
-  header-forwarding and supervised-stop fixes to server.mjs, launcher
-  ca-trust changes, RFC 7230 absolute-form fix. PR-thread sweep
-  (10 fork PRs; 5 CHANGES_REQUESTED, #275 CONFLICTING) dispatched to
-  a sonnet agent 08-05; report delivered — persisted (id-masked) at
-  docs/audits/upstream-pr-sweep-2026-08-05.md, and every actionable
-  item from it is booked in the "Upstream PR round" section below.
 
 - **BUST 2026-08-05 12:20Z — 786k, 655,021 tokens re-billed, and it was
   MY RESTART. Investigated, mechanism closed, lesson mechanized.**
@@ -8810,29 +8559,6 @@ then the queued ones. Work the items in that order.
   eyeball verification; deep-range pins also need a no-full-prefix
   mode (297 MB fixture from an 8-request window).
 
-- **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
-  Updated 2026-07-30 after the suppression work: #272 gained the
-  duplicate-suppression commit (c713d0e), #276 the output-side
-  metric/census/exemptions refresh (93203c9, extension synced to the
-  #272 tip), #281 rebased onto c713d0e (draft, force-with-lease); all
-  three commented, slices test-verified in their own worktrees.
-  Rebase worktrees: `~/dev/vendor/cache-fix-pr{1..10}`. #281 flips to
-  ready when #272 merges (either side can; `gh pr ready 281`). Residue
-  riding with rebases or a final chore PR: +35 lines of test hardening
-  (install-service / proxy-wrapper / read-dedupe tests) and
-  proxy-restart-transparent.test.mjs. PR2's copy of
-  session-key-invariants.test.mjs excises the prefix-diff tenantId case;
-  it lives in #280's proxy-prefix-diff.test.mjs.
-  Wave 2 (post-morning commits da4e7e1..e0f8fcb → #272/#276/#278/#280,
-  #281 rebase): hold released 2026-07-30, brief decision-complete at
-  docs/directives/pr-wave2-port-brief.md; execution blocked by the CC
-  Agent-denial incident — full state in
-  docs/directives/HANDOFF-2026-07-30-agent-denial-restart.md.
-
-- **COMMITTED on PR #272 and #273 threads: week-of-soak summary, due
-  ~2026-08-05.** Material: cache-fix-gate-status.json history + the
-  worktime --cold ledger (preventable vs TTL-idle split).
-
 - **Watch threads** for responses: anthropics/claude-code #76606,
   #81967, #78660 (our comments with measurements), #82229 (our issue),
   cnighswonger PRs #272–#281.
@@ -9062,156 +8788,6 @@ then the queued ones. Work the items in that order.
   it; trigger to build is the next selection miss the heuristic
   cannot break.
 
-- **OPEN (attributed 2026-08-02: CC-defect-resend lean, upstream
-  filing is the next step and needs operator GO) — double-billed
-  duplicate pairs, now 33 streaks.**
-  **SUPERSEDED 2026-08-14 — this entry's population SPLITS, and each half
-  goes to its own home: the concurrent-sidecar half is now threat-matrix
-  ROW 31 (measured, both sends completed, both charged), and the
-  mid-session half is the PARKED retry entry in `## Open`. Read those two
-  before this body; what follows is kept because the correction below is
-  the reason the split was findable at all.**
-  **INSTRUMENT DEFECT 2026-08-14, and it VOIDS this entry's central
-  retry-refutation: `outSha` is the FORWARDED REQUEST's hash, never
-  the response's.** Read at the writer rather than off the field
-  name: `request-capture.mjs:183-184` sets `outSha`/`outBytes` from
-  `ctx.meta._forwardedSha`/`_forwardedBytes`, and those are assigned
-  at exactly one site — `proxy/server.mjs:132-133`,
-  `createHash("sha256").update(forwardBody)` over
-  `Buffer.from(JSON.stringify(reqCtx.body))`, under a comment that
-  says so in full ("Fingerprint of what we ACTUALLY send… the single
-  point where the outbound bytes exist, after every extension has
-  run"). So "33/33 double-billed streaks have byte-IDENTICAL response
-  content between both billed answers — retry-refuting" is measuring
-  the two SENDS, which are byte-identical by the definition of a
-  streak (`sameBody`) and would be identical whatever the answers
-  were. The same correction hits this entry's other quoted pair:
-  "responses byte-identical at outSha 62baa3a1 / 3,043,768 B" is a
-  3 MB REQUEST, not a 3 MB response.
-  **What survives, and it is most of the entry.** The BILLING half is
-  untouched: two outcome records mean two `message_start` frames and
-  two input-side charges, and the input numbers (`cacheRead`,
-  `cacheCreation`, `inputTokens`) are final at `message_start` by the
-  writer's own comment. So is the TRANSCRIPT ASYMMETRY on s-captureK
-  751/754 (CC records the second request-id three times and the first
-  zero times), which was always the stronger evidence and does not
-  read `outSha` at all. What is GONE is the byte-identity argument
-  against retry-after-degenerate — and with it the claim that the
-  discarded answer was not truncated, which rested on the same field.
-  **What the capture cannot answer at all, named so nobody re-derives
-  it from the same field:** whether either send produced a COMPLETE
-  response. The capture stores no response bytes, and
-  `usage.outputTokens` is the `message_start` placeholder (this
-  entry's own 2026-08-02 instrument note). The completion evidence
-  lives in `usage.jsonl`, whose `output_tokens` comes off
-  `message_delta` and which carries `request_id` — the join is
-  outcome `requestId` -> usage-log `request_id`, and it is the next
-  measurement this entry needs.
-  Sonnet discovery
-  (dispatcher-spot-checked: the hand-verified s-captureK streak's
-  two outcomes read identical outSha 610e911e / outBytes 2406 under
-  my own probe): 33/33 double-billed streaks have byte-IDENTICAL
-  response content between both billed answers — retry-refuting
-  (a retry hoping for better gets different bytes); 79% land at the
-  session's very first request (structural, not content-gated);
-  upstream-error correlation 1/33 and that one sits inside a 2-hour
-  401 burst (auth noise, not signal — 30/32 log entries are 401s).
-  The entry's earlier degenerate-lean was the wrong lens: the
-  content-class split (24 deg/deg, 4 deg/sub, 2 sub/deg, 3 sub/sub)
-  is superseded by the hash identity. Residues, named: one
-  outputTokens-vs-outSha accounting anomaly (s-captureT 654/656:
-  same bytes, tokens 2 vs 1); the 7 mid-session streaks' trigger
-  uncharacterized. Evidence: the discovery report in the
-  dispatching session's scratchpad; re-derivable from the census
-  duplicates key + outcome outSha join.
-  INSTRUMENT DEFECT 2026-08-02, and it invalidates this entry's own
-  "degenerate answer" reasoning: the capture outcome record's
-  `usage.outputTokens` is the `message_start` PLACEHOLDER, never the
-  completion length. request-capture builds the outcome on
-  message_start only (request-capture.mjs:311) and its own comment
-  says message_delta updates output tokens afterwards but waiting
-  risks losing the record on a cancelled stream — a defensible
-  choice, recorded under a field name that reads as final. Measured:
-  in one 805-outcome capture, 803 responses exceed 20 kB while the
-  MAXIMUM outputTokens ever recorded is 73, mass at 1-3. So every
-  "outputTokens 1-2 => degenerate answer" inference is void — this
-  entry's original one, the census's help text
-  (reminder-migration-census.mjs:92,985), and the discovery's
-  content-class split (24 deg/deg etc.), which its own outSha
-  finding had already superseded for a different reason. The
-  byte-identity result is UNAFFECTED (outSha/outBytes are real).
-  A correct source already exists: cache-telemetry, request-log and
-  usage-log read `event.usage.output_tokens` off message_delta
-  (stream.mjs, cache-telemetry.mjs) — final, not placeholder. Fix
-  design (proxy/**, so it RIDES THE NEXT PROXY BOUNDARY, never
-  alone): rename to `outputTokensAtStart` in the outcome record and
-  let consumers that want the real length join the request-log `n`;
-  dependents search run before the rename lands (this entry's own
-  grep found the census help text and the two test fixtures).
-  Undiagnosed, named: the recorded distribution has a 34-73 tail no
-  message_start story explains — not chased, and not needed for the
-  invalidation above.
-  UPSTREAM FILING BLOCKED 2026-08-02 by its own refutation probe
-  (dispatcher, run BEFORE drafting): the report's open item 3 — "is
-  CC actually sending two physically distinct HTTP requests, or is
-  one proxy-side" — probed on the hand-verified s-captureK pair.
-  Half-answered, and it reframes the finding. Both answers carry
-  DISTINCT server-assigned request-ids (req_011Cdbpbge…,
-  req_011Cdbpbgi…), so two real API calls were made and billed, and
-  the proxy forwards one-inbound-one-upstream (server.mjs
-  forwardRequest per request, no retry loop in the handler) — the
-  duplication is client-side, not ours. BUT the pair is a HAIKU
-  SIDECAR (model claude-haiku-4-5, msgs=1, max_tokens=32000), not
-  the main conversation, and neither id appears in that session's CC
-  transcript — which carries requestId 1648 times, so the absence is
-  real rather than an instrument gap: background calls simply are not
-  transcript-recorded. Consequence: "CC re-sends CONVERSATION
-  requests" is the wrong framing for at least the session-start
-  majority, which looks like the background sidecar double-firing —
-  and session start is where 26/33 streaks sit by construction.
-  SPLIT DONE 2026-08-02 (sonnet discovery, dispatcher-verified on
-  s-captureK 751/754 with my own probe): of 31 double-billed
-  streaks, 24 are HAIKU SIDECAR calls (nMsg=1, max_tokens=32000) and
-  7 are MAIN-THREAD shaped (fable-5/opus-5, nMsg>1,
-  max_tokens=64000) — clean split, zero ambiguous. The entry's
-  "one pair near session start" shape is ENTIRELY a sidecar artifact:
-  all 24 sit at capture lines 3-5, every session. Discriminator note
-  from the build: system-prompt presence does NOT separate the
-  classes (every request carries one, sidecars included) — message
-  count + model does. TRANSCRIPT ASYMMETRY, the finding that makes
-  the main-thread subset reportable: on s-captureK 751/754 (two
-  fable-5 requests, 152 messages each, responses byte-identical at
-  outSha 62baa3a1 / 3,043,768 B) CC's own transcript records the
-  SECOND request-id three times and the FIRST zero times — so CC
-  received a COMPLETE answer, discarded it, re-sent the identical
-  request and kept the second answer; both were billed. Completeness
-  matters to the reading: identical outSha means the discarded
-  response was not truncated, which argues against retry-after-
-  failed-stream and toward a genuine duplicate send. Across 3
-  main-thread streaks checked, 0 had both ids present and 2 had
-  exactly one — consistent shape, small n, stated as such. Then: fold into the #272/#273 week-of-soak
-  summary (due ~08-07) and/or file upstream as the #78420-adjacent
-  shape — Public Communication rule: draft first, operator approves
-  before posting.
-  Original entry: **double-billed duplicate pairs: 29 streaks live
-  (dup-census first run, 2026-08-01), hand-verified at the
-  altitude.** Two examples records-read-directly: s-captureK lines
-  3/5 (identical 2384-char haiku bodies, 14 ms apart, BOTH answered,
-  587 input tokens charged EACH) and s-captureT lines 654/656
-  (identical 1.84 MB fable bodies 11 s apart, both answered;
-  outputTokens 2 and 1 — the first answers look degenerate; second
-  read 360k cached). Corpus rollup: 71 pairs / 67 streaks / 32
-  billed / 29 double-billed of 10,454 same-conversation pairs.
-  Shape: one pair near session start per session + scattered
-  mid-session. OPEN question: CC defect (needless re-send, the
-  #78420-adjacent shape) vs legitimate retry after a degenerate
-  answer — the outputTokens 2/1 pattern leans retry-after-degenerate
-  but is unclassified. Next evidence: inspect the paired answers'
-  content class; correlate streak timestamps with upstream errors
-  once the error-log gate flips (same rider as the retry residue
-  above). Not comparable to the 07-30 numbers: that sample's capture
-  aged out of the corpus mid-measurement.
-
 ## From the closing-gate sweep (2026-07-29, opus dispatch) — parked with bases
 
 - **Orphan telemetry consumers (Q4).** Alarm files written by ON gates
@@ -9440,6 +9016,475 @@ re-inflated within four days of being declared. Also found: the
 `--closures-in-live` detector that would have caught all 110 of these is an
 OPT-IN FLAG, absent from the default `backlog-lint` run, so nothing was ever
 going to report this disease unprompted.
+
+- **DONE 2026-08-15 — RETIREMENT PASS: eight live entries were overtaken by
+  the world and are retired, each against an executed check rather than a
+  reading of the entry.** Population DERIVED, not hand-listed: every `#NNN`
+  reference in the live sections (18 distinct) resolved against the upstream API,
+  13 closed; the 14 live entries citing a closed one were then read individually.
+  The eight below close; the other six are legitimate history (`RECORD`/`READY`
+  entries citing merged PRs as basis), a live standing watch, or a park handed to
+  another repo. **The bodies follow this entry unedited.**
+  1. **`IN FLIGHT` — push-scan FILE-half filter (dotfiles).** SHIPPED, and
+     proven by the guard's own output rather than by its commit: this session's
+     `pr/retire-messages-cache-breakpoint` push printed `15 Befund(e) in 6
+     Datei(en) uebersprungen: dieselben Bytes liegen am selben Pfad schon in der
+     veroeffentlichten History`. Filter present at dotfiles
+     `git/hooks/pre-push:531`.
+  2. **`QUEUED` — #278's second rebase round.** Overtaken: the round was run and
+     the push deliberately held on the leak-gate gap; upstream MERGED #278 at
+     2026-08-06T20:50:19Z, so the held push is moot. Second #278 entry to close
+     this way today.
+  3-5. **Three superseded `HANDOFF` entries (2026-08-05 LATE NIGHT, LATE, and
+     08-05).** The repo keeps ONE handoff, in `## Handoff`, currently
+     2026-08-14; its own header states a stale one reads as authoritative.
+     L4001 declares itself superseded in its own first line.
+  6. **`Upstream PR series #272–#281 (ten open, #281 draft) — await review`.**
+     False as written: of those ten, eight have merged; only #276 and #281
+     remain open, and #281 is no longer a draft (un-drafted 2026-08-15).
+  7. **`COMMITTED … week-of-soak summary, due ~2026-08-05` on the #272/#273
+     threads.** Both PRs merged 2026-08-05/06; a soak summary posted to merged
+     threads reaches nobody. Not done, and recorded as not done.
+  8. **`OPEN (attributed 2026-08-02) — double-billed duplicate pairs`.**
+     Self-declared superseded 2026-08-14 with both successor homes named
+     (threat-matrix row 31, and the PARKED retry entry in `## Open`).
+  **One header was rewritten, not just moved:** entry 8's grade token read
+  `OPEN` while its own body declared it superseded, and a pre-commit guard
+  blocked the move — an `OPEN` grade under `## Done` reads as live work that has
+  fallen out of the dispatch queue the SessionStart scan reads. Regraded to
+  `RETIRED 2026-08-15 (was OPEN …)`; the rest of the body is untouched. The
+  guard was right and this is the second time today it caught a real defect in
+  a sweep of mine.
+  **What this pass did NOT do:** it checked the PR-reference class only. Entries
+  resting on capture aliases, live file state or threat-matrix rows are a
+  different stale-risk class and were not swept — named so the next pass knows
+  what is still unexamined.
+  <!-- entry: "retirement pass 2026-08-15, eight entries overtaken" -->
+
+
+- **IN FLIGHT (operator-side, dotfiles; dispatched 2026-08-06 evening) — the
+  push scan's already-published filter covers COMMIT MESSAGES only, and the FILE
+  half fired on the identical class the same week.** The 2026-08-06 fix
+  (dotfiles `6912e2b`) discards message findings whose text the other side
+  already has, and says so in its own docstring, which ends
+  `Datei-Befunde bleiben unangetastet`. That was a declared scope, not an
+  oversight — which is exactly why this entry exists: the ARGUMENT the fix
+  records ("was oeffentlich ist, ist per Konstruktion ausserhalb dessen, was ein
+  Block noch verhindern koennte") is about publication, not about which FIELD
+  carries the bytes, so it reached message bytes and stopped at file bytes for no
+  stated reason. A rule's basis outliving its stated scope is the reach-test
+  shape from the grounding corpus, here written down by the author of the
+  narrower half.
+  **The occurrence, measured:** a force-push of `pr/output-guard` rebased onto
+  `upstream/main` (`e3149ae`) was blocked by 5 `capture-key-prefix` findings in
+  `proxy/extensions/deferred-tool-rewrite.mjs` (224/238/417) and
+  `test/deferred-tool-rewrite.test.mjs` (258/517). Confirmed before any
+  bypass was considered: all five lines are byte-identical to `upstream/main`'s
+  same lines, and neither file is in the branch's own 13-file diff. The bytes are
+  a source comment naming a capture, already public in upstream's repo via our
+  own merged #273 — unretractable by any block. **No `--no-verify` was taken**;
+  the fork's rule limits it to deliberate WIP pushes, and the corpus rule is that
+  a guard firing on legitimate work earns a declared exemption the guard itself
+  verifies, never an override habit. The push is held until the gate is fixed.
+  Design dispatched: discard a FILE finding only when the blob at the pushed tip
+  is byte-identical to the same path's blob at a published tip (same
+  `veroeffentlichte_tips` source as the message filter). A file our own commits
+  touched is fully scanned, always — conservative on purpose, since a file
+  carrying both public and new bytes must never ride through on its public half.
+  Red-first: tonight's block reproduced, then green, and a capture id planted in
+  a file the branch DOES touch must still block.
+
+- **QUEUED THIS SESSION (2026-08-06 evening) — #278's second rebase round,
+  serialized behind the running fork-repo lane, not dropped.** The round is read
+  and understood (previous entry carries its content); the work is the runbook
+  `docs/runbooks/upstream-pr-round.md` end to end — worktree + `node_modules`
+  symlink, rebase onto current `upstream/main`, full `npm test` in the worktree,
+  the hygiene greps scoped to THIS round's commits, then push and the
+  push-announcement comment. It is not running yet for one reason, stated so it
+  is not re-litigated: another agent owns this repository's working copy right
+  now, and the runbook's own setup writes to the shared `.git` — one writer per
+  repository. If this entry is still here when the fork lane has reported, that
+  is the next thing to run.
+  **RUN 2026-08-06 evening — REBASED AND VERIFIED, PUSH HELD.** Clean rebase onto
+  `upstream/main` = `e3149ae` (not the `48e9673` upstream's comment names — it had
+  moved again), zero conflicts, nothing left mid-rebase. `git range-diff` shows
+  both commits `=`: content and message identical to what is already public in
+  `refs/pull/278/head`, which is what makes the message-grep vacuous BY PROOF
+  rather than by assertion. Suite in the worktree 1767/1768 (the count grew from
+  1724 because the new base carries #273/#317). Both diff forms now agree at 13
+  files / +543 / **0 deletions**; upstream's phantom `-2125` is gone. The push is
+  blocked by the leak-gate scope gap booked above and waits on that fix — NOT on
+  an override.
+  **CI, and upstream's account is right but incomplete IN OUR FAVOUR.** Run
+  31102727767 on the pre-rebase head: `test (18)` and `test (22)` each have
+  exactly one step, `Set up job`, dead at *Failed to resolve action download
+  info — Service Unavailable* (15:38–15:41Z), never reaching `Run tests` — so
+  upstream's transient claim is corroborated verbatim. What their comment omits:
+  **`test (20)` succeeded, all nine steps green including `Run tests`.** The
+  suite did execute on `3c4ecfa` and passed; only two legs died at setup.
+  **SURFACED, NOT RAISED — an operator decision, because it exceeds the
+  push-announcement pattern the runbook authorises.** Post-rebase
+  `proxy/extensions.json` registers `output-guard` at order **690, the same slot
+  as the pre-existing `session-budget-breaker`**, while `request-log` already
+  sits at **700** (`enabled: false`). This is unchanged branch content, not a
+  rebase artifact, and it bears directly on the structural premise upstream's
+  review raised (that nothing registers above 690 — a disabled 700 entry already
+  exists). Their load-bearing review pass will reach it. Raising it needs a GO;
+  the runbook's box permits the push announcement and nothing beyond it.
+  **Instrument note, third instance tonight of one shape:** the round's first
+  check grepped the test output for `output-guard` and got zero — a pattern that
+  could never have matched, since no test title in that file carries the string.
+  Same family as this evening's `jq '.byteGate.mismatch'` null: a self-composed
+  pattern or path IS the instrument, and its reach is the claim's basis. Both
+  were caught by their own authors; neither was caught by a mechanism.
+
+- **HANDOFF 2026-08-05 LATE NIGHT — read this first. It supersedes the NIGHT
+  handoff's queue section and nothing else.**
+  **STATE: everything committed and pushed, both repos.** Fork main at the
+  commit carrying this entry; dotfiles at the pin `f024b0a`. Suite 2184/2184.
+  Proxy restarted TWICE tonight and verified content-to-content both times
+  (`/health` == `sourceFingerprint(disk)` == `3162447a7a61`, dotfiles pin ==
+  `git rev-parse --short HEAD:proxy` == `f024b0a`). A gate re-stamp for that
+  tree was running when this was written — CHECK IT FIRST
+  (`jq -c '{finished,code,failing}' ~/.claude/cache-fix-gate-status.json`);
+  the previous sweep was 63 captures, 1 failing, and the one failure is the
+  long-standing row-24 conservation pair, not a regression.
+  **THE QUEUE'S TOP ITEM IS DONE, with its mechanism.** CACHE-CONTROL and
+  TEXT were one class: 26 of 34 absorption misses are a moved cache_control
+  breakpoint. The ladder mislabelled them (TEXT ran before the strip test),
+  `cacheControlOnly` now rides every absorption row from a
+  container-preserving stripped hash, and the sweep summary carries
+  `cacheControlOnly` + `cacheControlUnknown`. The sweep's own number
+  reproduced the hand classification exactly, 26/34 with zero unknowns.
+  **AND THE FINDING IT PRODUCED IS PARTLY IN DOUBT — start here.** A 610k
+  bust at 20:52Z is a marker leaving the last message and nothing else. The
+  counting stands; the inference "therefore free" does not. Its entry below
+  carries the measurement, the frozen fixture, and the one number that
+  settles it. That number now exists going forward: `usage-log` was enabled
+  tonight and writes per-request `cache_read` / `cache_creation`.
+  **DO NOT DISPATCH `builtByUs` AS WRITTEN.** Its named known positives are
+  gone from the corpus — one row no longer exists, the other moved index —
+  and three spot-checked rows were all byte-present in CC's raw array. Its
+  entry says what to re-ground first.
+  **UPSTREAM MOVED TODAY, and the previous handoff's "nothing is blocked on
+  us" is stale.** Four PRs merged (#275, #279, #280, #282). #272 is rebased,
+  APPROVED and CLEAN — ball with upstream, and #273/#278/#281 unblock behind
+  it. #276 answered. #295 closed as dropped. #278 shows `mergeStateStatus:
+  DIRTY` and will need the same rebase treatment #272 got — that is the next
+  upstream item, and the runbook covers it.
+  **TWO PUBLIC CLAIMS WERE CORRECTED TONIGHT**, both because a check was made
+  at the wrong layer: a scanner "false positive" that was really a declared
+  exemption doing its job, and the marker-is-free note above. Both edited in
+  place, reasons stated. The lesson is already in dev-loop; the pattern was
+  testing a part (an exported regex, a corpus count) and claiming a property
+  of the whole (the scanner, the cost).
+
+- **HANDOFF 2026-08-05 LATE — superseded by the evening handoff above;
+  its UPSTREAM section is still current.** It supersedes the
+  handoff below on every point they disagree.** Everything is
+  committed and pushed (fork-main and dotfiles both clean, 0 unpushed).
+  Suite 2112/2112. Deployed tree `9ef42be576bd`, /health verified
+  content-to-content against disk, dotfiles pin `5d39423`. Doctor reports
+  ONE fail and it is the gate-red below, not a machine problem —
+  "1 von 41 Captures NICHT sauber". Everything else in doctor is
+  green, including the two new .git/config-signature checks.
+
+  **STATE OF THE GATE: 1 failing capture, down from 3.** The survivor
+  is s-captureD conservation 2 — the row-24 container-flip pair the
+  earlier handoff already attributed as PRE-EXISTING and proven
+  byte-identical under old and new code. The other two are CLOSED (see
+  the GATE-RED CLOSED entry): 38 -> 0 and 2 -> 0.
+
+  **THE BIGGEST OPEN THING, and it is new: the absorption check's
+  first corpus-wide number is 50 misses, 40 of them OURS, across 12
+  captures.** `gate-live` now carries `absorption: {total, ours,
+  captures}` in every sweep. That is 40 cases where a mitigation RAN
+  and did not ABSORB, attributable to us — the class that let a 349k
+  bust replay green on all five gates. It is a REPORT, not a gate, on
+  purpose: the rate was unmeasured when it shipped and now it is not,
+  so the next question is CLASSIFICATION — are the 40 one mechanism or
+  several? Start here; it is the largest measured, unexplained number
+  in the repo.
+
+  **WHAT SHIPPED TODAY** (all pushed, all red-first): the conservation
+  exemptions (fresh-session-sort's rewrite, the smoosh-split/
+  content-strip composition) and the `normalizeSessionStartText`
+  anchoring; `findAbsorptionMisses` in replay + the daily sweep; the
+  UTC round trip (`bust-triage` marks its rows, `dossier` reads a
+  naked stamp as UTC); the absence-scan's three blind spots — object
+  KEY names, commit messages, and every text file type — plus
+  class-scoped exemptions replacing the path-wide allowlist; the
+  harvest ledger's keys hashed (94 session UUIDs gone from a public
+  file); `tools/restart-exposure.mjs`; and the doctor checks for the
+  .git/config corruption signature (dotfiles 443b200).
+
+  **THREE THINGS THE NEXT SESSION SHOULD NOT RE-LEARN.**
+  (1) A restart is transparent unless the NEW CODE forwards different
+  bytes for content live conversations already hold — measured six
+  restarts, one bust, with a comment-only-scrub restart as the clean
+  control. Before any proxy restart whose change alters forwarded
+  bytes, run `node tools/restart-exposure.mjs --match '<class>'`; the
+  cost is live-session tokens, never corpus instances.
+  (2) The gate's conservation units are UNWRAPPED while the
+  extensions' predicates are defined over the WRAPPED
+  `<system-reminder>` form. That one confusion caused three separate
+  bugs in replay.mjs in a single afternoon.
+  (3) A measurement over a working tree another writer holds is quoted
+  with the commit it was taken at, or not quoted — three wrong
+  exposure counts came from unpinned greps while an agent committed.
+
+  **UPSTREAM:** all nine PR-round items are ANSWERED — which is not
+  the same as merged, and the distinction matters for whoever reads
+  this next. Six PRs had their review round answered with a fix
+  pushed and a comment posted (#272, #275, #276, #279, #280, #282) and
+  are still OPEN awaiting upstream; issue #292 is answered and its fix
+  is **PR #307** (`Closes #292`); the absence-scan split is **PR
+  #306**; #295 is DROPPED on a falsified premise (see its entry).
+  Nothing is blocked on us. Do NOT re-do any of the six — check the PR
+  thread first; the next move on all of them is upstream's.
+
+  **THE 8-HEX PREFIX IN HISTORY: DECIDED — ACCEPTED, 2026-08-05.** See
+  the dedicated entry below for the measurements and the basis.
+
+- **HANDOFF 2026-08-05 — the 08-02 handoff's G1/G2/G3 are all settled
+  and shipped on `wt/description-absorb` (now at 7f6e5a1, pushed);
+  read this before the entry below, which it supersedes on those
+  points.**
+  **G2 DECIDED: SET-identity.** Basis: sort-stabilization (order 200,
+  `proxy/extensions/sort-stabilization.mjs:60-62`) name-sorts
+  `body.tools` on EVERY live request, so incoming order is not a
+  property the pipeline preserves — and the absorb forwards the
+  canonical's first-seen order regardless, so the relax changes zero
+  wire bytes versus the order-identical case. Bite re-specified FIRST
+  (commit 1a60631), red-first at both levels (new bite vs fd87e12:
+  exactly the reorder expectation red; new self-check vs old replay:
+  exactly the exemption test red). Corpus: the absorb now FIRES on
+  request 1202 — the 484,972-token bust — and old-vs-new replay of
+  the whole 1512-request capture differs ONLY in the 52 declared
+  announcements.
+  **G1 SHIPPED (da4e8e1)** — with a deliberate deviation from the
+  entry below: the exemption is SHAPE-based (isDescriptionNotice,
+  living beside the builder, shared template constants), NOT keyed on
+  `descriptionChangedNames` telemetry as sketched, because both
+  consumers rule telemetry out: input-side ECHOES of injections carry
+  no telemetry (the 2026-07-29 one-sided-filter incident), and the
+  byte-stability exemption reads positions after bodies are gone
+  (tools/replay.mjs:712-716).
+  **G3 SETTLED by wire evidence, not a probe**
+  (tools/scan-description-carrier-evidence.mjs, 7f6e5a1): 837 live
+  streamed-200 requests on claude-opus-5 AND claude-fable-5 carried
+  an active tool_addition injection (beta on the wire) alongside CC's
+  own role:system TEXT messages — the notice's exact carrier shape,
+  at population scale. Residue: proves the carrier, not the specific
+  notice bytes; the extension header's gate-3 live acceptance (one
+  absorbed request observed on production capture) remains owed at
+  flag-flip.
+  **DEPLOYMENT of the two landed changes: DONE, by the 08-05 boot.**
+  The machine rebooted 09:59; systemd started the proxy from the repo
+  tree at 9059d3a, and /health's fingerprint matches disk exactly
+  (eec233efa271) — no restart owed. Dotfiles pin bumped ad4ff80 ->
+  6b69e87 (dotfiles d2c9874).
+  **ROW 4 IS NOT CLOSED — the gate ran RED, on OTHER classes.** First
+  gate run over the 40-capture/6.7GB corpus (10:02-10:14): failing 3,
+  byte-gate MISMATCH 3. Attributed: s-captureJ conservation 2 = the
+  row-24 container-flip pair at n=1400 (in[937]/out[937], role
+  system, 938-msg thread) — PRE-EXISTING, proven byte-identical under
+  old and new code. UNATTRIBUTED, next session's triage:
+  **s-captureI conservation 38** (the big one), s-captureU
+  conservation 2, byte-gate MISMATCH s-captureG x2 + s-captureJ x1.
+  Row 4's own signal was not read out of the gate rows before this
+  handoff — read it there before booking anything about row 4.
+  **BRANCH DEPLOY still gated on:** (1) full suite on the branch —
+  known sole failure is the absence-scan guard at the branch's
+  pre-770e915 base (session ids main already scrubbed;
+  gate-live.test.mjs, replay-gate-selfcheck.test.mjs, replay.mjs) —
+  merge into current main and re-run rather than fixing on-branch;
+  (2) the merge itself; (3) restart with row-3 stated: fd87e12+ is
+  FORWARD-COMPATIBLE ONLY (rollback after deploy is not clean — old
+  build mis-marks defer_loading on new-format state).
+  **UPSTREAM (operator asked 08-05):** fork is 14 behind
+  upstream/main; `git merge-tree` shows REAL conflicts in
+  proxy/server.mjs and test/proxy-wrapper.test.mjs — the pull is its
+  own deployment-coupled work unit, not a casual merge. Among the 14:
+  header-forwarding and supervised-stop fixes to server.mjs, launcher
+  ca-trust changes, RFC 7230 absolute-form fix. PR-thread sweep
+  (10 fork PRs; 5 CHANGES_REQUESTED, #275 CONFLICTING) dispatched to
+  a sonnet agent 08-05; report delivered — persisted (id-masked) at
+  docs/audits/upstream-pr-sweep-2026-08-05.md, and every actionable
+  item from it is booked in the "Upstream PR round" section below.
+
+- **Upstream PR series #272–#281 (ten open, #281 draft) — await review.**
+  Updated 2026-07-30 after the suppression work: #272 gained the
+  duplicate-suppression commit (c713d0e), #276 the output-side
+  metric/census/exemptions refresh (93203c9, extension synced to the
+  #272 tip), #281 rebased onto c713d0e (draft, force-with-lease); all
+  three commented, slices test-verified in their own worktrees.
+  Rebase worktrees: `~/dev/vendor/cache-fix-pr{1..10}`. #281 flips to
+  ready when #272 merges (either side can; `gh pr ready 281`). Residue
+  riding with rebases or a final chore PR: +35 lines of test hardening
+  (install-service / proxy-wrapper / read-dedupe tests) and
+  proxy-restart-transparent.test.mjs. PR2's copy of
+  session-key-invariants.test.mjs excises the prefix-diff tenantId case;
+  it lives in #280's proxy-prefix-diff.test.mjs.
+  Wave 2 (post-morning commits da4e7e1..e0f8fcb → #272/#276/#278/#280,
+  #281 rebase): hold released 2026-07-30, brief decision-complete at
+  docs/directives/pr-wave2-port-brief.md; execution blocked by the CC
+  Agent-denial incident — full state in
+  docs/directives/HANDOFF-2026-07-30-agent-denial-restart.md.
+
+- **COMMITTED on PR #272 and #273 threads: week-of-soak summary, due
+  ~2026-08-05.** Material: cache-fix-gate-status.json history + the
+  worktime --cold ledger (preventable vs TTL-idle split).
+
+- **RETIRED 2026-08-15 (was OPEN — attributed 2026-08-02: CC-defect-resend lean, upstream
+  filing is the next step and needs operator GO) — double-billed
+  duplicate pairs, now 33 streaks.**
+  **SUPERSEDED 2026-08-14 — this entry's population SPLITS, and each half
+  goes to its own home: the concurrent-sidecar half is now threat-matrix
+  ROW 31 (measured, both sends completed, both charged), and the
+  mid-session half is the PARKED retry entry in `## Open`. Read those two
+  before this body; what follows is kept because the correction below is
+  the reason the split was findable at all.**
+  **INSTRUMENT DEFECT 2026-08-14, and it VOIDS this entry's central
+  retry-refutation: `outSha` is the FORWARDED REQUEST's hash, never
+  the response's.** Read at the writer rather than off the field
+  name: `request-capture.mjs:183-184` sets `outSha`/`outBytes` from
+  `ctx.meta._forwardedSha`/`_forwardedBytes`, and those are assigned
+  at exactly one site — `proxy/server.mjs:132-133`,
+  `createHash("sha256").update(forwardBody)` over
+  `Buffer.from(JSON.stringify(reqCtx.body))`, under a comment that
+  says so in full ("Fingerprint of what we ACTUALLY send… the single
+  point where the outbound bytes exist, after every extension has
+  run"). So "33/33 double-billed streaks have byte-IDENTICAL response
+  content between both billed answers — retry-refuting" is measuring
+  the two SENDS, which are byte-identical by the definition of a
+  streak (`sameBody`) and would be identical whatever the answers
+  were. The same correction hits this entry's other quoted pair:
+  "responses byte-identical at outSha 62baa3a1 / 3,043,768 B" is a
+  3 MB REQUEST, not a 3 MB response.
+  **What survives, and it is most of the entry.** The BILLING half is
+  untouched: two outcome records mean two `message_start` frames and
+  two input-side charges, and the input numbers (`cacheRead`,
+  `cacheCreation`, `inputTokens`) are final at `message_start` by the
+  writer's own comment. So is the TRANSCRIPT ASYMMETRY on s-captureK
+  751/754 (CC records the second request-id three times and the first
+  zero times), which was always the stronger evidence and does not
+  read `outSha` at all. What is GONE is the byte-identity argument
+  against retry-after-degenerate — and with it the claim that the
+  discarded answer was not truncated, which rested on the same field.
+  **What the capture cannot answer at all, named so nobody re-derives
+  it from the same field:** whether either send produced a COMPLETE
+  response. The capture stores no response bytes, and
+  `usage.outputTokens` is the `message_start` placeholder (this
+  entry's own 2026-08-02 instrument note). The completion evidence
+  lives in `usage.jsonl`, whose `output_tokens` comes off
+  `message_delta` and which carries `request_id` — the join is
+  outcome `requestId` -> usage-log `request_id`, and it is the next
+  measurement this entry needs.
+  Sonnet discovery
+  (dispatcher-spot-checked: the hand-verified s-captureK streak's
+  two outcomes read identical outSha 610e911e / outBytes 2406 under
+  my own probe): 33/33 double-billed streaks have byte-IDENTICAL
+  response content between both billed answers — retry-refuting
+  (a retry hoping for better gets different bytes); 79% land at the
+  session's very first request (structural, not content-gated);
+  upstream-error correlation 1/33 and that one sits inside a 2-hour
+  401 burst (auth noise, not signal — 30/32 log entries are 401s).
+  The entry's earlier degenerate-lean was the wrong lens: the
+  content-class split (24 deg/deg, 4 deg/sub, 2 sub/deg, 3 sub/sub)
+  is superseded by the hash identity. Residues, named: one
+  outputTokens-vs-outSha accounting anomaly (s-captureT 654/656:
+  same bytes, tokens 2 vs 1); the 7 mid-session streaks' trigger
+  uncharacterized. Evidence: the discovery report in the
+  dispatching session's scratchpad; re-derivable from the census
+  duplicates key + outcome outSha join.
+  INSTRUMENT DEFECT 2026-08-02, and it invalidates this entry's own
+  "degenerate answer" reasoning: the capture outcome record's
+  `usage.outputTokens` is the `message_start` PLACEHOLDER, never the
+  completion length. request-capture builds the outcome on
+  message_start only (request-capture.mjs:311) and its own comment
+  says message_delta updates output tokens afterwards but waiting
+  risks losing the record on a cancelled stream — a defensible
+  choice, recorded under a field name that reads as final. Measured:
+  in one 805-outcome capture, 803 responses exceed 20 kB while the
+  MAXIMUM outputTokens ever recorded is 73, mass at 1-3. So every
+  "outputTokens 1-2 => degenerate answer" inference is void — this
+  entry's original one, the census's help text
+  (reminder-migration-census.mjs:92,985), and the discovery's
+  content-class split (24 deg/deg etc.), which its own outSha
+  finding had already superseded for a different reason. The
+  byte-identity result is UNAFFECTED (outSha/outBytes are real).
+  A correct source already exists: cache-telemetry, request-log and
+  usage-log read `event.usage.output_tokens` off message_delta
+  (stream.mjs, cache-telemetry.mjs) — final, not placeholder. Fix
+  design (proxy/**, so it RIDES THE NEXT PROXY BOUNDARY, never
+  alone): rename to `outputTokensAtStart` in the outcome record and
+  let consumers that want the real length join the request-log `n`;
+  dependents search run before the rename lands (this entry's own
+  grep found the census help text and the two test fixtures).
+  Undiagnosed, named: the recorded distribution has a 34-73 tail no
+  message_start story explains — not chased, and not needed for the
+  invalidation above.
+  UPSTREAM FILING BLOCKED 2026-08-02 by its own refutation probe
+  (dispatcher, run BEFORE drafting): the report's open item 3 — "is
+  CC actually sending two physically distinct HTTP requests, or is
+  one proxy-side" — probed on the hand-verified s-captureK pair.
+  Half-answered, and it reframes the finding. Both answers carry
+  DISTINCT server-assigned request-ids (req_011Cdbpbge…,
+  req_011Cdbpbgi…), so two real API calls were made and billed, and
+  the proxy forwards one-inbound-one-upstream (server.mjs
+  forwardRequest per request, no retry loop in the handler) — the
+  duplication is client-side, not ours. BUT the pair is a HAIKU
+  SIDECAR (model claude-haiku-4-5, msgs=1, max_tokens=32000), not
+  the main conversation, and neither id appears in that session's CC
+  transcript — which carries requestId 1648 times, so the absence is
+  real rather than an instrument gap: background calls simply are not
+  transcript-recorded. Consequence: "CC re-sends CONVERSATION
+  requests" is the wrong framing for at least the session-start
+  majority, which looks like the background sidecar double-firing —
+  and session start is where 26/33 streaks sit by construction.
+  SPLIT DONE 2026-08-02 (sonnet discovery, dispatcher-verified on
+  s-captureK 751/754 with my own probe): of 31 double-billed
+  streaks, 24 are HAIKU SIDECAR calls (nMsg=1, max_tokens=32000) and
+  7 are MAIN-THREAD shaped (fable-5/opus-5, nMsg>1,
+  max_tokens=64000) — clean split, zero ambiguous. The entry's
+  "one pair near session start" shape is ENTIRELY a sidecar artifact:
+  all 24 sit at capture lines 3-5, every session. Discriminator note
+  from the build: system-prompt presence does NOT separate the
+  classes (every request carries one, sidecars included) — message
+  count + model does. TRANSCRIPT ASYMMETRY, the finding that makes
+  the main-thread subset reportable: on s-captureK 751/754 (two
+  fable-5 requests, 152 messages each, responses byte-identical at
+  outSha 62baa3a1 / 3,043,768 B) CC's own transcript records the
+  SECOND request-id three times and the FIRST zero times — so CC
+  received a COMPLETE answer, discarded it, re-sent the identical
+  request and kept the second answer; both were billed. Completeness
+  matters to the reading: identical outSha means the discarded
+  response was not truncated, which argues against retry-after-
+  failed-stream and toward a genuine duplicate send. Across 3
+  main-thread streaks checked, 0 had both ids present and 2 had
+  exactly one — consistent shape, small n, stated as such. Then: fold into the #272/#273 week-of-soak
+  summary (due ~08-07) and/or file upstream as the #78420-adjacent
+  shape — Public Communication rule: draft first, operator approves
+  before posting.
+  Original entry: **double-billed duplicate pairs: 29 streaks live
+  (dup-census first run, 2026-08-01), hand-verified at the
+  altitude.** Two examples records-read-directly: s-captureK lines
+  3/5 (identical 2384-char haiku bodies, 14 ms apart, BOTH answered,
+  587 input tokens charged EACH) and s-captureT lines 654/656
+  (identical 1.84 MB fable bodies 11 s apart, both answered;
+  outputTokens 2 and 1 — the first answers look degenerate; second
+  read 360k cached). Corpus rollup: 71 pairs / 67 streaks / 32
+  billed / 29 double-billed of 10,454 same-conversation pairs.
+  Shape: one pair near session start per session + scattered
+  mid-session. OPEN question: CC defect (needless re-send, the
+  #78420-adjacent shape) vs legitimate retry after a degenerate
+  answer — the outputTokens 2/1 pattern leans retry-after-degenerate
+  but is unclassified. Next evidence: inspect the paired answers'
+  content class; correlate streak timestamps with upstream errors
+  once the error-log gate flips (same rider as the retry residue
+  above). Not comparable to the 07-30 numbers: that sample's capture
+  aged out of the corpus mid-measurement.
 
 - **DONE 2026-08-15 (`bba0a35`, sonnet dispatch, dispatcher-verified) — the
   backlog's two blind spots now report themselves on every lint run: the READY
@@ -17897,5 +17942,6 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   g-owned dirs older than 60 min (100% -> 25G free) — the
   hand-cleanup is the prototype, the helper is the deliverable.
   Consumer: next tooling session here; the derivation ranks it.
+
 
 
