@@ -157,98 +157,83 @@ per-commit judgment, not a dispatchable unit, and it needs the worktrees
 resolved first.
 
 
-## Handoff — 2026-08-14 evening. Rewritten, not appended; a stale one reads as authoritative.
+## Handoff — 2026-08-15 evening. Rewritten, not appended; a stale one reads as authoritative.
 
-The 2026-08-11 handoff is REPLACED. Its "one big thing waiting" (31 commits
-across 6 lane branches) is discharged — see `## Done`, "THE PILE IS DRAINED".
+The 2026-08-14 handoff is REPLACED. Its "first thing to do is upstream-facing"
+still stands and is now a live PEER session's thread, not this file's — see
+OTHER PARTIES below.
 
 **The entry point is `continue from backlog`.** Build ORDER is derived at build
-time (`docs/dev-loop.md`); the `## Build order` block above is stale by
-construction and three of its ten have shipped since.
-
-**THE SHIP IS CLOSED — step 7 ran and PASSED, so nothing about today's
-restart is outstanding.** Sweep finished 16:46:26Z: `ok: true`, 57 captures,
-**0 failing**, `backlogLint: 0`. The three-way compare is exact — DECLARED
-(unit `Environment=`) and VERIFIED (`gates` + `gatesExcludedArtifactOnly`)
-are identical member-for-member, TWELVE each including
-`CACHE_FIX_COALESCE_SIDECAR`, and the sweep's code stamp
-(`proxyTree e3db067017ca`) equals the running fingerprint, so VERIFIED
-describes the build that is serving.
-**`tmpLeftovers: 0`** — the re-armed signal reading clean on a real sweep,
-which is the run-root leak fix confirmed at the altitude it lives at. Both
-reds of the 12:36Z sweep are gone (the ENOENT capture and the four leftover
-roots).
-ONE NUMBER CARRIES NO VERDICT, deliberately: `rowPins.conflicts: 63` ("same
-row, different bytes — not overwritten"). The fire ledger does not carry
-`rowPins`, so there is no prior-sweep value to compare against — it is
-neither called new nor called normal here, and the first pass that wants it
-should establish a baseline rather than read this number alone.
-The duplicate counts in this sweep are PRE-FLIP traffic by construction
-(`doubleBilledStreaks: 55` over 114 streaks), so they are the baseline for
-row 31's done-criterion, not a reading of it.
-
-**THE FIRST THING TO DO IS UPSTREAM-FACING, and it is overdue rather than
-new.** Two PR review rounds have been open in OUR court since 2026-08-06 —
-eight days — and no one saw them because the doorbell has a writer and no
-reader. Details and the ordered queue: the two `## Open` entries booked
-2026-08-14 whose titles start "the PR-round doorbell has a WRITER" and
-"our own public comment on CC #78420". Read those before opening anything
-new upstream.
-NOTHING GOES PUBLIC WITHOUT OPERATOR GO. Draft, then ask. That binds every
-PR comment, issue comment and new issue below.
+time (`docs/dev-loop.md`); the `## Build order` block above records the SIXTH
+derivation and is stale by construction the moment anything ships.
 
 **STATE — everything is pushed in both repos.** Fork `main` at the
-backlog-closures commit; dotfiles `main` at the acceptance addendum. `git log
-origin/main..main` empty in both, checked against the remote. No background
-agents, no worktree rebase state, no scheduled wakeup. Modified-but-untracked
-fixture churn under `test/fixtures/harvested/` predates this session.
-`qgis/QGIS3.ini` is modified in dotfiles by something else — not this work,
-do not commit it.
+`--quiet`-class booking; dotfiles `main` at the restrict-bash-paths booking.
+`git log origin/main..main` empty in both, checked against the remote. No
+background agents, no scheduled wakeup, no worktree rebase state. Two modified
+files are NOT this work and must not be committed: `LEDGER-Siren.json` (harvest
+churn) in the fork, `qgis/QGIS3.ini` in dotfiles.
 
-**DEPLOYMENT — a ship completed today and one gate went live.**
-`CACHE_FIX_PROXY_TREE_PIN = "0e031a0"` in dotfiles matches
-`git rev-parse --short HEAD:proxy`; the proxy was restarted and `/health`
-reports twelve gates including `CACHE_FIX_COALESCE_SIDECAR=1`. Its acceptance
-is recorded in `CACHE_FIX_GATE_ACCEPTANCE` with both halves: a controlled
-no-auth probe for the mechanism, and a real live pair for the billing.
-**Any further `proxy/**` change owes the whole runbook again** (pin bump +
-restart + gate + three-way compare), and while a sweep is running, DO NOT edit
-`proxy/**` or the tools it spawns: the sweep replays working-copy code and
-stamps its own code fingerprint at start.
+**DEPLOYMENT — untouched today.** Every commit was `tools/`, `test/` or docs, so
+no `CACHE_FIX_PROXY_TREE_PIN` bump and no restart was owed, and none was made.
+Verified at close: pin `0e031a0` matches `HEAD:proxy`; `/health` `proxy_tree`
+`e3db067017ca` matches the source fingerprint. **The current lead item changes
+that** — `_resetRelocationMemory` is `proxy/**`, so it owes the whole ship
+runbook (pin bump + restart at a stated session boundary + gate + three-way
+compare). Row 3's restart-transparency argument holds unchanged for it: memory
+helper only, no state KEYS, no freeze logic.
 
-**ROW 31 IS MITIGATED AND LIVE, and what would CLOSE it is booked, not
-claimed.** The done-criterion needs a sweep whose captures were written after
-the flip and has TWO halves — the session-start duplicate class falling to
-zero WHILE the mid-session class stays unchanged. A drop in the mid-session
-count is over-reach, not success. Entry: "row 31 done-criterion unmeasured
-after the coalesce flip", `## Open`, PARKED with that trigger.
-The new numbers to read it with: `coalescedRequests` / `coalescedStreaks` in
-the census rollup, and `duplicate-billing`'s COALESCED join class.
+**ROW 31 IS CLOSED — MEASURED, and graded RESIDUAL rather than SHIPPED.** The
+full measurement is in the matrix cell and in `## Done`; do not re-derive it.
+The one thing a successor needs that is not obvious: it was closed on a COHORT
+read of a MIXED corpus, not on a wholly-post-flip corpus, and the tool for that
+is `node tools/gate-live.mjs --cohort <iso>`. The residual is one thing only —
+the control arm had n=1 post-flip multi-message streak, so "unchanged" is
+unproven and only "still non-zero" is established. Promotion to SHIPPED wants a
+post-flip corpus with more multi-message duplicate streaks; nothing else.
+`row-31-coalesce` (`tools/shape-verdicts.mjs`) watches the closure on the
+scheduled path and is green.
 
-**THE NEXT MITIGATION, and it is deployment-coupled like the last one:**
-`_resetRelocationMemory` cannot evict the memory the running pipeline uses
-(`proxy/extensions/fresh-session-sort.mjs`). Decision-complete in its own
-entry; needs its own restart, so it is a DESK item — `tools/backlog-lanes.mjs`
-routes `proxy/**` entries away from plain lanes.
+**THE SWEEP RAN TWICE TODAY BY HAND** (12:39Z and 13:11Z, both green, the second
+carrying the new per-row `firstTs` stamp). The timer next fires 07:12 local. A
+successor reading `gate-status.json` gets a file whose rows carry `firstTs`;
+anything older does not, and `--cohort` says COULD NOT VERIFY rather than
+rendering two empty cohorts.
 
-**PREMISES THAT ARE LOAD-BEARING RATHER THAN MISSING FEATURES.**
-`tools/named-unbooked-scan.mjs` under-fires silently on the vocabulary
-sessions actually use (its entry carries the measurement and the positive
-control). The 2026-08-11 handoff also claimed `FORK-NOTES.md` states
-`deferred-tool-rewrite` is disabled while `/health` reports it ON — the
-`/health` half is re-confirmed today (enabled, source `config`), but a grep
-for that wording in `FORK-NOTES.md` found nothing, so either it was corrected
-or the claim was about different wording. Re-check before resting on it; it is
-repeated here only because it was named as a premise of the
-restart-transparency argument.
+**WHAT IS ACTUALLY BROKEN, as opposed to merely unbuilt: nothing.** The suite is
+green (3322), the gate is green (0 failing over 57 captures), both leak scans
+pass, `matrix-status` and `backlog-lint` are clean, and `state-report` shows no
+unpushed work. Everything below is unbuilt, not broken.
 
-**WHAT CHANGED TODAY that a fresh context would otherwise re-derive.**
-A capture REQUEST record is identified by carrying NO `type` field — ask
-`isCaptureRequestRecord` (`tools/logs.mjs`), never an exclusion list of the
-types that happen to exist. A third record type (`coalesced`) now rides the
-capture files. The `/tmp` run-root leak is CLOSED: it was the suite's own
-deliberate OOM crashes (SIGABRT runs no exit handlers), so a leftover run root
-now means some child DIED HARD and is a finding about that child.
+**OPEN OPERATOR DECISIONS — put to the operator at close 2026-08-15 and recorded
+here because an answer may not have landed.** Each is a question wearing a work
+item's clothes until answered, and each has a desk recommendation in its own
+entry: (1) upstream-merge timing, fork `main` 33 behind `upstream/main`
+(entry "fork main 33 behind upstream"); (2) committing the 687 uncommitted
+evidence pins, irreversible and public (entry "687 evidence pins uncommitted");
+(3) the protected-capture cap, currently 4 GiB with 1.7 GB held by 4 protections
+(entry "protect default blocked on release wiring and cap size"); (4) operator GO
+for the row-31 upstream filing, #78420-adjacent. If an answer arrived, it is in
+the entry; if the entry still reads as a question, it did not.
+
+**OTHER PARTIES.** A peer session (`12835824`, this same repo) holds the upstream
+PR-round thread — two review rounds have been in our court since 2026-08-06. It
+was idle at close and its writer reservation had lapsed. Do not assume its work
+is merged; `git log origin/main..main` covers only what landed here. One item is
+booked in the DOTFILES backlog by this session (`restrict-bash-paths.py` firing
+on a lone `/` in a `node -e` string literal); a dotfiles session is its reader.
+
+**PARALLEL DISPATCH — the write-set facts, not a judgement.** The head's items
+divide cleanly: `tools/absence-scan.mjs` carries TWO of them (the range-interior
+endpoint diff and the OID-only blob dedupe) so those two SERIALIZE or bundle;
+`tools/bust-triage.mjs` carries THREE (the absorption step, matrix row 24, the
+disposition vocabularies) so those three do too. The lead
+(`proxy/extensions/fresh-session-sort.mjs`) is disjoint from both and is DESK
+work regardless, being deployment-coupled. `BACKLOG.md` belongs to the
+dispatcher always.
+
+**NOTHING GOES PUBLIC WITHOUT OPERATOR GO.** Binds every PR comment, issue
+comment and new issue.
 
 
 ## Open
