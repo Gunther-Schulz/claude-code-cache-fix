@@ -3482,6 +3482,33 @@ now means some child DIED HARD and is a finding about that child.
   trigger). Consumer: the session instantiating READINESS.json
   here, and the grading session booking probe evidence.
 
+- **PARKED 2026-08-15 — #276 is held on an unanswered sequencing question, and
+  what each answer implies is written here because it existed only in a
+  session's context.** The PR asked Chris (2026-08-14 comment) whether to land
+  #306 first and rebase #276 on top, or rebase #276 now against `4ab9cf8` so its
+  scope is visible while #306 is still in review. Held rather than rebased, and
+  the reason is stronger than "avoid doing it twice": **the rescope's substance
+  is dropping `absence-scan.mjs` from #276, which cannot happen until #306
+  LANDS** — otherwise the scanner exists in no merged place at all.
+  **Measured consequence, so the next session does not re-derive it:** #276's CI
+  carries TWO failures and only one is explained by the rescope. `source: every
+  UUID … is on the synthetic allowlist` leaves with the scanner. `fallback RED:
+  mitigation-output-form.test.mjs skips …` does NOT — it survives any rebase,
+  and it is booked separately (`## Record`, "harvest-pin fallback RED counts
+  skips in another file"). So a rebase today lands a PR that is still red, still
+  not rescoped, and still owes a second rebase when #306 lands.
+  **Missing evidence that unparks this:** Chris's answer on the #276 thread. On
+  "land #306 first" — wait, then rebase and drop the scanner in one pass. On
+  "rebase now" — rebase onto current `upstream/main`, do NOT drop the scanner,
+  and expect the UUID-allowlist failure to persist until #306 merges.
+  Consumer: the session that reads a reply on the #276 thread.
+  Loop stage: RETIRE (upstream-facing slice).
+  Anchor: BACKLOG.md
+  Write-set: BACKLOG.md
+  Verifier: gh pr view 276 --repo cnighswonger/claude-code-cache-fix --json comments
+  <!-- entry: "#276 held on the sequencing question, both answers pre-derived" -->
+
+
 
 
 ## Record — decision-complete memory, not scheduled
@@ -17938,6 +17965,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   g-owned dirs older than 60 min (100% -> 25G free) — the
   hand-cleanup is the prototype, the helper is the deliverable.
   Consumer: next tooling session here; the derivation ranks it.
+
 
 
 
