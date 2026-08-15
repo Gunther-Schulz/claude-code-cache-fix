@@ -683,7 +683,7 @@ test("E3 could-not-verify: an absent or unparseable `finished` yields ageHours:n
 // ==========================================================================
 
 test("renderText prints COULD-NOT-VERIFY for a failed collector rather than throwing", () => {
-  const text = renderText({
+  const data = {
     matrix: { ok: false, reason: "synthetic" },
     backlog: { ok: false, reason: "synthetic" },
     verification: {
@@ -699,9 +699,138 @@ test("renderText prints COULD-NOT-VERIFY for a failed collector rather than thro
       fixtures: { ok: false, reason: "synthetic" },
     },
     laneBranches: { ok: false, reason: "synthetic" },
-  });
-  // One line per collector: matrix(1) + backlog(1) + verification's three
-  // sub-collectors(3) + repo's five sub-collectors(5) + laneBranches(1) = 11.
+  };
+  const text = renderText(data);
+  // One line per collector — DERIVED from the object just rendered, not
+  // restated. The literal 11 that stood here validated nothing from the moment
+  // a collector was added: it went red on `protectedCaptures` (2026-08-15) as
+  // a bare count mismatch, which reads as breakage rather than as "the report
+  // grew a section". Counting the leaves means this bite keeps asserting the
+  // real invariant — every failed collector gets exactly one line, none is
+  // silently omitted — however many collectors there are.
+  const leaves = (o) => (o && typeof o === "object"
+    ? ("ok" in o ? 1 : Object.values(o).reduce((n, v) => n + leaves(v), 0))
+    : 0);
+  const inData = leaves(data);
+  assert.ok(inData >= 11, `instrument positive: the fixture must carry collectors (${inData})`);
   const occurrences = (text.match(/COULD-NOT-VERIFY/g) || []).length;
-  assert.equal(occurrences, 11, text);
+  // NOT an equality against the data's leaf count, and the difference is the
+  // invariant: the renderer also emits a line for a collector the data does
+  // NOT carry (see the absent-collector bite), so a strict equality would make
+  // this bite red every time the report grows a section — which is exactly how
+  // its hardcoded 11 stopped meaning anything. What must hold is that nothing
+  // is SILENTLY OMITTED: every failed collector in the data gets a line, with
+  // its own reason and not the absence wording.
+  assert.ok(occurrences >= inData, `every failed collector needs a line (${occurrences} < ${inData})\n${text}`);
+  assert.equal((text.match(/COULD-NOT-VERIFY — synthetic/g) || []).length, inData,
+    `each data collector reports its OWN reason\n${text}`);
+});
+
+// --- The capture-PROTECTION carrier (2026-08-15) ---
+//
+// Closing-gate question 4's CARRIER REGISTRATION clause: a mechanism that
+// creates a persistent state carrier is unfinished until that carrier CLASS
+// has a collector here. `alias-claim --protect` hard-links a capture into a
+// sibling `captures-protected/` dir so eviction's unlink on the original only
+// decrements the link count — bytes that outlive every run, under a cap, that
+// nothing was scheduled to look at. `--protect-status` printed them on demand,
+// which is the reading-exists-as-a-flag-nobody-runs shape this repo already
+// recorded for `--protect` itself (dev-loop.md: "a mitigation whose only
+// invocation is a flag nobody is told to pass is not shipped, it is
+// available").
+//
+// It was found the first time the flag was actually used. The mechanism
+// shipped 2026-08-11, the same day the registration rule was written, and the
+// enumeration is triggered by the WRITE — so this is the trigger firing late
+// rather than a rule being broken.
+//
+// Red-first: against the unmodified module `sr.collectProtectedCaptures` is
+// undefined and these three bites fail at their own call sites, while every
+// other bite in this file passes (namespace import, per dev-loop.md's
+// import-line rule).
+
+test("collectProtectedCaptures reports the protected set, its cap, and its per-entry aliases", () => {
+  const dir = tmpDirSync("state-report-protected-");
+  writeFileSync(join(dir, "s-fixture-one-requests.jsonl"), "{}\n");
+  writeFileSync(join(dir, "s-fixture-two-requests.jsonl"), "{}\n{}\n");
+  const res = sr.collectProtectedCaptures({ protectedDir: dir });
+  assert.equal(res.ok, true);
+  assert.equal(res.count, 2, "both hard-linked captures are counted");
+  assert.ok(res.bytes > 0, "the protected bytes are measured, not assumed");
+  assert.ok(res.capBytes > 0, "the cap the set is measured AGAINST rides along");
+  assert.equal(res.entries.length, 2);
+  // The alias is what makes an entry citable in tracked prose; an entry with
+  // no registry line reports null rather than being silently dropped, because
+  // an unnamed protected capture is precisely the litter this collector is
+  // for.
+  for (const e of res.entries) assert.ok("alias" in e, "each entry says whether it resolves to an alias");
+});
+
+test("third answer: collectProtectedCaptures on a nonexistent dir is a stated zero, not ok:false", () => {
+  // Deliberately NOT could-not-verify: the protection dir is created lazily by
+  // the first --protect, so its absence is a MEASURED empty set — the tool
+  // looked and there is nothing there. An ok:false here would read as a broken
+  // collector on every machine that has never protected a capture.
+  const res = sr.collectProtectedCaptures({ protectedDir: join(tmpDirSync("state-report-noprotect-"), "nope") });
+  assert.equal(res.ok, true);
+  assert.equal(res.count, 0);
+  assert.equal(res.bytes, 0);
+  assert.deepEqual(res.entries, []);
+});
+
+test("the protected set appears in the rendered report, so the carrier has a READER and not just a collector", () => {
+  const dir = tmpDirSync("state-report-protected-render-");
+  writeFileSync(join(dir, "s-fixture-one-requests.jsonl"), "{}\n");
+  const text = sr.renderText({
+    matrix: { ok: false, reason: "not under test" },
+    backlog: { ok: false, reason: "not under test" },
+    verification: { gate: { ok: false, reason: "not under test" }, pin: { ok: false, reason: "not under test" }, fingerprint: { ok: false, reason: "not under test" } },
+    repo: {
+      unpushed: { ok: false, reason: "not under test" },
+      rescueTags: { ok: false, reason: "not under test" },
+      dangling: { ok: false, reason: "not under test" },
+      worktrees: { ok: false, reason: "not under test" },
+      fixtures: { ok: false, reason: "not under test" },
+      protectedCaptures: sr.collectProtectedCaptures({ protectedDir: dir }),
+    },
+    laneBranches: { ok: false, reason: "not under test" },
+  });
+  assert.match(text, /protected captures: 1 file/);
+  // Instrument positive beside the match, so a passing regex is a measurement:
+  // the same render with an EMPTY set says so in different words.
+  const empty = sr.renderText({
+    matrix: { ok: false, reason: "x" }, backlog: { ok: false, reason: "x" },
+    verification: { gate: { ok: false, reason: "x" }, pin: { ok: false, reason: "x" }, fingerprint: { ok: false, reason: "x" } },
+    repo: {
+      unpushed: { ok: false, reason: "x" }, rescueTags: { ok: false, reason: "x" },
+      dangling: { ok: false, reason: "x" }, worktrees: { ok: false, reason: "x" },
+      fixtures: { ok: false, reason: "x" },
+      protectedCaptures: sr.collectProtectedCaptures({ protectedDir: join(tmpDirSync("sr-empty-"), "nope") }),
+    },
+    laneBranches: { ok: false, reason: "x" },
+  });
+  assert.match(empty, /protected captures: none/);
+});
+
+test("an ABSENT collector renders COULD-NOT-VERIFY instead of taking the whole report down", () => {
+  // Found rather than designed: adding `protectedCaptures` broke two
+  // pre-existing bites that build their `repo` object by hand, with
+  // `Cannot read properties of undefined` out of the RENDERER — one missing
+  // key killing every other line. Repairing the fixtures would have silenced
+  // a real finding about the report, so the renderer was fixed instead.
+  // The same shape reaches production through the door this file's own
+  // `--json` opens: a dump written by an older build, rendered by a newer one.
+  const text = sr.renderText({
+    matrix: { ok: false, reason: "x" },
+    backlog: { ok: false, reason: "x" },
+    verification: { gate: { ok: false, reason: "x" }, pin: { ok: false, reason: "x" }, fingerprint: { ok: false, reason: "x" } },
+    repo: { unpushed: { ok: false, reason: "x" } },   // every other repo collector absent
+    laneBranches: { ok: false, reason: "x" },
+  });
+  assert.match(text, /protected captures: COULD-NOT-VERIFY — collector absent/);
+  assert.match(text, /worktrees: COULD-NOT-VERIFY — collector absent/);
+  // The two arms must DIFFER: a collector that IS present and failed reports
+  // its own reason, not the absence wording.
+  assert.match(text, /unpushed: COULD-NOT-VERIFY — x/);
+  assert.doesNotMatch(text, /unpushed: COULD-NOT-VERIFY — collector absent/);
 });

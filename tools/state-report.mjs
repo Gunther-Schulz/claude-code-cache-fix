@@ -46,6 +46,12 @@ import {
   DEFAULT_BACKLOG,
 } from "./backlog-lint.mjs";
 import { DEFAULT_STATUS as DEFAULT_GATE_STATUS } from "./gate-live.mjs";
+// The capture-PROTECTION carrier is read through alias-claim's own
+// `protectStatus`, never re-derived here: where the hard links live, which
+// env var overrides the directory, and how the cap resolves are all that
+// module's facts, and a second copy of them is the drift this file's header
+// already refuses for every other collector.
+import { protectStatus } from "./alias-claim.mjs";
 import { sourceFingerprint, PROXY_ROOT } from "../proxy/source-fingerprint.mjs";
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -461,6 +467,40 @@ export function collectFixturesAccumulation({
   };
 }
 
+/** The capture-protection carrier (closing-gate question 4's CARRIER
+ * REGISTRATION clause). `alias-claim --protect` hard-links a capture into a
+ * sibling `captures-protected/` dir, so eviction's `unlink` on the original
+ * only decrements the link count and the bytes survive the rotation that
+ * deletes the name. That is state which outlives every run, sits under a cap,
+ * and — until this collector — nothing was scheduled to look at: the reading
+ * existed only as `--protect-status`, a flag a human had to think to run.
+ *
+ * The THIRD ANSWER is deliberately not used for a missing directory. The dir
+ * is created lazily by the first `--protect`, so its absence is a MEASURED
+ * empty set rather than a failure to look — reporting `ok: false` there would
+ * read as a broken collector on every machine that has never protected a
+ * capture, which is the check-that-fires-on-a-non-defect shape. A directory
+ * that exists and cannot be read still surfaces, as a zero count whose
+ * entries are empty, because `protectStatus` swallows the readdir error; that
+ * is a known limit of the imported reader and not restated logic here.
+ */
+export function collectProtectedCaptures({ protectedDir } = {}) {
+  try {
+    const st = protectStatus(protectedDir ? { dir: protectedDir } : {});
+    return {
+      ok: true,
+      dir: st.dir,
+      count: st.count,
+      bytes: st.bytes,
+      capBytes: st.capBytes,
+      unaliased: st.entries.filter((e) => !e.alias).length,
+      entries: st.entries,
+    };
+  } catch (e) {
+    return { ok: false, reason: String(e?.message ?? e) };
+  }
+}
+
 export function collectRepo(opts = {}) {
   return {
     unpushed: collectUnpushed(opts),
@@ -468,6 +508,7 @@ export function collectRepo(opts = {}) {
     dangling: collectDanglingUnrescued(opts),
     worktrees: collectWorktrees(opts),
     fixtures: collectFixturesAccumulation(opts),
+    protectedCaptures: collectProtectedCaptures(opts),
   };
 }
 
@@ -592,7 +633,19 @@ export async function collectAll({ matrix = {}, backlog = {}, verification = {},
 // Renderer — human text (default) or `--json` (same collected object)
 // ==========================================================================
 
+// An ABSENT collector result is the third answer too, and this handled only
+// the `ok:false` half until 2026-08-15 — a missing key threw
+// `Cannot read properties of undefined`, taking the WHOLE report down rather
+// than the one line that could not be answered. Found by adding a collector:
+// two pre-existing bites build their `repo` object by hand and did not know
+// about the new key, which is the same shape as rendering a `--json` dump
+// written by an older build. A report is a reader of last resort, so it
+// degrades per line, never all at once; the reason names the absence rather
+// than pretending a value.
 function fmtVerdict(label, res, matchLine) {
+  if (!res || typeof res !== "object") {
+    return `${label}: COULD-NOT-VERIFY — collector absent from the data (older report, or never run)`;
+  }
   if (!res.ok) return `${label}: COULD-NOT-VERIFY — ${res.reason}`;
   return matchLine(res);
 }
@@ -709,6 +762,18 @@ function renderRepo(r) {
     fmtVerdict("fixtures", r.fixtures, (x) =>
       `${DEFAULT_FIXTURES_DIR}: ${x.count} untracked file(s)` +
       (x.count ? `, oldest=${x.oldestMtime}, newest=${x.newestMtime}` : "")),
+  );
+  lines.push(
+    fmtVerdict("protected captures", r.protectedCaptures, (x) =>
+      x.count === 0
+        ? "protected captures: none (no capture is pinned against eviction)"
+        : `protected captures: ${x.count} file(s), ${(x.bytes / 1e6).toFixed(0)} MB of ` +
+          `${(x.capBytes / 1e6).toFixed(0)} MB cap` +
+          // An unaliased protected capture is the litter case: bytes held
+          // against eviction under a name nothing can cite. Named here rather
+          // than left to whoever reads the entry list.
+          (x.unaliased ? `; ${x.unaliased} with NO alias — held bytes nothing can cite` : "") +
+          `\n${capList(x.entries.map((e) => `${e.alias ?? "(no alias)"} ${(e.bytes / 1e6).toFixed(0)}MB`))}`),
   );
   return lines.join("\n");
 }

@@ -405,10 +405,13 @@ export async function release(capture) {
 
 /** The protected set as it exists on disk right now — for the dotfiles
  * doctor to read the protected-set size without this repo writing into
- * that repo. Reads only; never mutates.
+ * that repo, and for `state-report`'s carrier collector, which imports this
+ * rather than restating where the links live or how the cap is resolved.
+ * Reads only; never mutates. `dir` is an override for callers that need to
+ * point at a fixture set; unset it resolves the real one, env override
+ * included.
  */
-export function protectStatus() {
-  const dir = getProtectedDir();
+export function protectStatus({ dir = getProtectedDir() } = {}) {
   const capBytes = getProtectedMaxBytes();
   let files;
   try {
