@@ -821,6 +821,13 @@ now means some child DIED HARD and is a finding about that child.
   written with the gate ON. The 2026-08-14 sweeps ran against pre-flip
   traffic, so their duplicate counts cannot answer this either way — the
   captures have to age past the flip first.
+  **Evidence held for this entry: `s-captureBQ`** — the first post-flip
+  capture in which the mitigation actually fired (1 streak, 2 sends, 0 billed,
+  1 coalesced), claimed and `--protect`ed 2026-08-15. Cited HERE and not only
+  in its `## Done` entry deliberately: `alias-claim --releasable` buckets an
+  alias by where it is cited, so an alias whose only citation sits under
+  `## Done` reads as RELEASABLE — and this one is live evidence for an OPEN
+  entry. Release it when this entry closes, not before.
   Trigger to re-grade: the first sweep whose window lies entirely after
   2026-08-14 18:17 local.
   **How to read that sweep, decided now so it is not decided under the
