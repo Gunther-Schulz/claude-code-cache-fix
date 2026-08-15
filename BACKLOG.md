@@ -7125,6 +7125,42 @@ entry promoted to READY must satisfy the booking bar in this file's header
   Write-set: tools/named-unbooked-scan.mjs, test/named-unbooked-scan.test.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/named-unbooked-scan.test.mjs
 
+- **RECORD 2026-08-15 — nothing checks a NEW entry against the existing ones, so
+  a gap reached from two directions grows two entries; measured today.** This
+  session booked a duplicate of the 2026-08-11 carrier-enumeration entry, having
+  arrived at the same gap from the capture-protection side. `docs/dev-loop.md`
+  already prescribes the cure — "one grep per new class name, at intake" — and it
+  was skipped, exactly as prose rules are skipped: mid-flight, inside an
+  unrelated analysis, with no firing moment. It surfaced only because re-deriving
+  the head put both entries in view at once, which is luck rather than method.
+  **The cost is not the duplicate, it is what the duplicate did to its twin.**
+  The pre-existing entry named `alias-claim.mjs`'s protected-link carrier as the
+  known positive its enumeration MUST surface. The duplicate's session built that
+  collector without reading the entry, so the entry's instrument-positive is now
+  spent and a zero from that enumeration is unproven. A near-duplicate does not
+  merely waste a slot; it lets two sessions consume each other's calibration.
+  **Design, decided:** a `backlog-lint` lane that, for every entry, scores its
+  headline against every OTHER entry's headline and body, and reports pairs above
+  a threshold as NEAR-DUPLICATE — report-only, never blocking, because entry
+  prose legitimately repeats vocabulary and a blocking predicate here would fire
+  on ordinary work. It runs over the whole file, so it catches pairs booked weeks
+  apart, which is the case a discipline at intake cannot cover.
+  **Red-first, and the known positive is REAL and permanent:** the duplicate pair
+  as it existed in commit `937d41a` (my entry) against the 2026-08-11 entry is a
+  committed range carrying exactly the defect. The lane must surface that pair
+  over `937d41a` and must NOT surface it at HEAD, where the duplicate is merged
+  away. Both arms are commit-anchored, so neither decays.
+  **Negative control, required before believing a hit list:** the lane must stay
+  silent on the two `bust-triage` entries and the two `absence-scan` entries in
+  the current head, which share tooling vocabulary heavily and are genuinely
+  different work. A lane that flags those has learned the vocabulary, not the
+  duplication.
+  Loop stage: SEE.
+  Anchor: tools/backlog-lint.mjs
+  Write-set: `tools/backlog-lint.mjs`, `test/backlog-lint-near-duplicate.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint-near-duplicate.test.mjs
+  <!-- entry: "nothing checks a new entry against existing ones, duplicates grow" -->
+
 - **RECORD 2026-08-15 — anything `gate-live` prints behind `!args.quiet` is
   invisible on the ONLY run that matters, and this is the SECOND measured
   instance of that class.** The systemd unit is
