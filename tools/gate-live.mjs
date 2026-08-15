@@ -838,6 +838,66 @@ async function countCaptureRequests(capturePath) {
   return count;
 }
 
+/** The capture's FIRST record timestamp — the stamp that says which side of a
+ * gate flip its traffic was written on.
+ *
+ * Recorded per row because captures ROTATE: by the time anyone asks "was this
+ * traffic before or after the flip", the file the answer lives in may be gone,
+ * and the sweep is the last party holding it open. It graduated from a
+ * hand-join written twice in one session (row 31's before/after comparison),
+ * which is this repo's stated stop-signal for ad-hoc probes.
+ *
+ * Three answers: the stamp, or `null` — never a fabricated one. A capture with
+ * no parseable record, no `ts` field, or no file at all is UNSTAMPED, and
+ * `cohortSplit` gives that its own bucket rather than folding it into a side.
+ * The hand-join this replaces had exactly that defect: it resolved a row's
+ * BASENAME as a path, opened nothing, and would have reported every capture
+ * unstamped as a table of zeros if the shell had not printed to stderr.
+ *
+ * Reads only until the first record with a `ts` — a capture is line-delimited
+ * and can be a gigabyte, so this never walks the file. */
+export async function firstRecordTs(capturePath) {
+  try {
+    for await (const line of readLines(capturePath)) {
+      if (!line.trim()) continue;
+      let rec;
+      try {
+        rec = JSON.parse(line);
+      } catch {
+        continue; // a torn or partial leading line is skipped, not fatal
+      }
+      if (typeof rec?.ts === "string" && rec.ts) return rec.ts;
+    }
+  } catch {
+    return null; // unreadable/missing capture — unstamped, never a throw
+  }
+  return null;
+}
+
+/** Split a sweep's rows into traffic written BEFORE and AFTER a flip stamp,
+ * summing each side's duplicate rollup through the same derived fold the
+ * corpus-wide rollup uses (so a census field added later lands here too,
+ * without an edit).
+ *
+ * `flipIso` is the moment a gate went live. An UNSTAMPED row — one whose
+ * capture could not be timed — goes in its own bucket and into neither side:
+ * a before/after comparison that silently absorbs rows it could not place is
+ * the shape that makes a clean-looking zero out of an instrument that read
+ * nothing. */
+export function cohortSplit(rows, flipIso) {
+  const flip = Date.parse(flipIso);
+  const bucket = () => ({ captures: 0, duplicates: emptyDuplicateTotals() });
+  const out = { flip: flipIso, before: bucket(), after: bucket(), unstamped: bucket() };
+  if (!Number.isFinite(flip)) return { ...out, error: `unparseable flip stamp: ${flipIso}` };
+  for (const r of rows ?? []) {
+    const t = r?.firstTs ? Date.parse(r.firstTs) : NaN;
+    const side = !Number.isFinite(t) ? out.unstamped : (t >= flip ? out.after : out.before);
+    side.captures++;
+    addDuplicates(side.duplicates, r?.byteGate?.duplicates);
+  }
+  return out;
+}
+
 /** A window around `ordinal`, clamped to the capture's real extent when
  * known (`maxOrdinal`) — never asking harvest.mjs to pin past the records
  * that actually exist, which fails loudly rather than freezing anything. */
@@ -1965,6 +2025,13 @@ async function main() {
         row.errorPin = { error: String(e?.message ?? e) };
       }
     }
+    // The capture's own first-record stamp, taken HERE because this is the
+    // last moment anyone holds the file: captures rotate oldest-first on a
+    // quadratic clock, and "which side of a gate flip was this traffic
+    // written on" is asked long after the file is gone. Never blocks the row
+    // — an unreadable capture is unstamped (null), which `cohortSplit` gives
+    // its own bucket.
+    row.firstTs = await firstRecordTs(join(args.captures, f));
     // row.stderrFull stays on the row and is written to the status file
     // verbatim — that IS the fix (BACKLOG "records the stderr verbatim in
     // the status row"), unlike the pin BODIES above, which are message
