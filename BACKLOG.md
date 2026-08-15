@@ -27,7 +27,7 @@ calling the rest unranked.
 - **RECORD** — decision-complete memory, not scheduled. Same bodies, same
   verifiers, nothing dropped; booking stays cheap because the record is what
   booking exists for. Lives in `## Record`.
-## Build order — RE-DERIVED 2026-08-15; the READY set IS this list
+## Build order — RE-DERIVED 2026-08-15 (SIXTH derivation, evening); the READY set IS this list
 
 Fifth derivation. Method unchanged (`docs/dev-loop.md`, "Build order is DERIVED
 at build time"): partitions first — hard ordering constraints, then irreversible
@@ -71,8 +71,49 @@ because it is UPSTREAM of the lead** — `bust-triage` is what would answer the
 lead's absorption question, so its blindness to absorption gates the item above
 it in practice.
 
-1. row 31 duplicate-sidecar coalescing — MITIGATE lead; live but unproven.
-   <!-- entry: "row 31 duplicate sidecar coalescing, scoping predicate decided" -->
+**SIXTH DERIVATION, 2026-08-15 evening — the lead SHIPPED, so the head was
+re-derived rather than patched.** Row 31 closed (measured, `## Done`), vacating
+slot 1. Promoted into it: the `_resetRelocationMemory` entry, which was demoted
+to `RECORD` this morning when the cap was first enforced.
+
+**COMPOSITION RULE, and the honest answer is the uncomfortable one: NO
+MITIGATE-stage item is decision-complete right now.** The rule requires the
+head to LEAD with one whenever one is, and to say so in one line plus name what
+would make the nearest one ready when none is. This is that line.
+
+The nearest mitigation is **row 25's eviction stranding** — the relocation
+memory is LRU/prune-capped at 256 conversations, so a conversation quiet past
+both caps loses its block with the prefix INTACT, which is the original
+full-cost flip. It is PARKED on named missing evidence, and the evidence is a
+LIVE OCCURRENCE that cannot be manufactured: a costly departure row whose
+predecessor declared relocated. No design decision is outstanding; no amount of
+desk work promotes it. That is a legitimate park, not a queue that filled with
+instrument work by accident.
+
+**What the new lead does about it, which is why it leads rather than merely
+filling a slot:** `_resetRelocationMemory` is the enabling fix for testing that
+exact eviction path — today it clears a Map belonging to a different module
+instance than the pipeline runs, and leaves the persisted half untouched, so
+the eviction bite row 25's residual needs cannot be written honestly. It is the
+nearest thing to mitigation work that is actually buildable, and it is
+deployment-coupled `proxy/**`, which is the axis the rubric notes systematically
+loses the ready-to-brief race.
+
+**Also corrected in this derivation, and it is a miss rather than a
+refinement:** this session booked a DUPLICATE of the carrier-enumeration entry,
+having reached the same gap from the capture-protection side without grepping
+for the class name first — the cure `dev-loop.md` already prescribes at intake.
+Caught only because re-deriving the head put both in view. Duplicate dropped,
+substance merged into the 2026-08-11 entry, and that entry's instrument-positive
+recorded as SPENT: today's collector is exactly the known positive it named, so
+a zero from that enumeration is now unproven and says so.
+
+1. `_resetRelocationMemory` cannot evict the memory the pipeline uses — the
+   enabling fix for row 25's eviction residual, and the nearest buildable thing
+   to a mitigation. Deployment-coupled (`proxy/**`): pin bump + restart at a
+   session boundary, row 3 declaration unchanged (memory-helper only, no state
+   KEYS, no freeze logic). SUPERSEDES row 31, closed and measured.
+   <!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
 2. push scan diffs range ENDPOINTS — a leak committed then scrubbed inside the
    range never reaches the scanner. Irreversible partition, silent.
    <!-- entry: "push scan diffs range endpoints, interior blob escapes" -->
@@ -82,7 +123,10 @@ it in practice.
    content — the class this fork's whole publication bar rests on.
    <!-- entry: "hygiene policy is silent on conversation content" -->
 5. `bust-triage` names the ROW and never says whether the mitigation ABSORBED —
-   instrument partition, consumer tier 1 (event disposition); upstream of #1.
+   instrument partition, consumer tier 1 (event disposition). It was placed here
+   as UPSTREAM of the old #1; with row 31 closed that justification is gone and
+   it now holds this slot on its own tier-1 rank, which is where cost/silence
+   put it anyway.
    <!-- entry: "bust-triage names the row but never says whether the mitigation absorbed" -->
 6. `bust-triage` cannot reach matrix row 24 by any of its three routes — tier 1;
    a whole resume/born-large class is invisible to the tool that dispositions it.
@@ -209,49 +253,35 @@ now means some child DIED HARD and is a finding about that child.
 
 ## Open
 
-- **READY 2026-08-14 — row 31's duplicate sidecar send is MITIGABLE, and the
-  fidelity objection that blocked its design is weaker than the row assumed.**
-  The row parked the mitigation as "undesigned, touches the streaming path" with
-  the safe shape named (coalesce one upstream call to both callers) but no
-  predicate. Measured at the desk 2026-08-14, reading the duplicated request's
-  STRUCTURE only (no message text; publication bar): `model claude-haiku-4-5`,
-  `max_tokens 32000`, `stream true`, `nMsg 1`, `roles [user]`, one text block of
-  337 chars, 2 system blocks, **0 tools**.
-  **The load-bearing fact: it carries no conversation history and no tools**, so
-  whatever it returns cannot enter any cached conversation prefix. Handing caller
-  B a copy of caller A's answer therefore substitutes one independently-sampled
-  answer for another in a request whose output joins no prefix — and CC issued the
-  second send 6-25 ms in, with no way to have observed the first, so it already
-  treats the two as interchangeable. That is the fidelity question the row left
-  open, answered.
-  **Cost is NOT the deliberation here** and is recorded so the next session does
-  not re-open it on those grounds: the matrix's own mitigation policy says cost
-  never gates mitigation work and the only per-class deliberation is mitigability.
-  The 48,203 tokens are not a reason in either direction.
-  Design, decided — the scoping predicate, all four required: `nMsg === 1` AND the
-  request carries no `tools` AND the two bodies are byte-identical AND the second
-  arrives < 50 ms after the first while the first is still in flight. The
-  mid-session duplicate class — where the second send is a legitimate retry and
-  suppressing it would leave a real request unanswered — fails this on `nMsg`
-  alone, which is the discriminator the row asked for.
-  Dropping the second send stays UNAVAILABLE: two client requests are in flight
-  and each is owed a response. Coalescing is the only shape.
-  Red-first, and the two must DIFFER: a synthetic pair matching all four
-  conditions coalesces to ONE upstream call with both callers answered; a
-  mid-session pair (nMsg > 1) issues TWO upstream calls unchanged. A pair
-  matching three of four conditions must NOT coalesce.
-  Done: the four-condition predicate is implemented and the three arms above pass
-  with their output pasted; a live sweep after the restart shows the class's
-  duplicate count falling to zero while the mid-session duplicate count is
-  UNCHANGED (the second number is what proves the predicate did not over-reach);
-  row 31's status cell carries the result; this entry moves to `## Done`.
-  Loop stage: MITIGATE.
-  Anchor: row 31
-  Write-set: `proxy/server.mjs`, `test/duplicate-coalesce.test.mjs`
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs
-  DEPLOYMENT-COUPLED and it touches the STREAMING path — pin bump, restart at a stated session boundary, and a row-3 declaration BEFORE the restart. Do not bundle it with any other proxy change: attribution of a streaming regression must be unambiguous.
-  Upstream filing (#78420-adjacent) is a separate act and has operator GO.
-  <!-- entry: "row 31 duplicate sidecar coalescing, scoping predicate decided" -->
+- **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
+  the running pipeline uses, so its name promises an eviction it does not
+  perform.** Found by the row-30 eviction lane PROBING the premise before
+  building on it, which is the only reason the bite it was building is not
+  vacuous. Two independent causes, both confirmed by that lane against the real
+  pipeline: (1) `loadExtensions` (`proxy/pipeline.mjs:39`) imports every
+  extension through a cache-busted URL (`?t=<counter>`), so a plainly-imported
+  `_resetRelocationMemory()` clears a Map belonging to a DIFFERENT module
+  instance than the one the pipeline runs — a silent no-op; and (2) even on the
+  same instance, `recallMemory()` falls back to disk when RAM is empty, so a
+  RAM-only reset is un-evicted by the persisted `*-fresh-sort-relocated.json`.
+  **What rested on it: nothing, and that was checked rather than assumed** —
+  `git grep _resetRelocationMemory` finds the definition plus the new test and no
+  other caller, so no prior conclusion is invalidated. The export was added for
+  exactly the purpose it cannot serve, which is why it reads as available.
+  **Design (decided):** the helper's doc comment states that it reaches only a
+  caller controlling module identity, AND gains a disk-clearing counterpart so
+  the two halves of the memory are evictable in one call. Deployment-coupled:
+  `proxy/**`, so it needs a dotfiles pin bump and a restart at a session
+  boundary; the change is memory-helper-only and touches no state KEYS or freeze
+  logic, so row 3's restart-transparency argument holds unchanged.
+  **Done-criterion:** the eviction bite in
+  `test/relocate-then-pin-conservation.test.mjs` passes using ONLY the exported
+  helper — with its current splice-and-unlink workaround removed — and goes red
+  when the helper's disk half is disabled. Both arms pasted.
+  Anchor: proxy/extensions/fresh-session-sort.mjs
+  Write-set: proxy/extensions/fresh-session-sort.mjs, test/relocate-then-pin-conservation.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/relocate-then-pin-conservation.test.mjs
+  <!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
 
 - **READY 2026-08-11 — the push scan diffs range ENDPOINTS, so a
   range-interior blob — a leak committed then scrubbed or deleted within the
@@ -787,71 +817,6 @@ now means some child DIED HARD and is a finding about that child.
   they want, because either order costs a force-push and their answer decides
   which diff they have to read. That question is the round's live half.
   <!-- entry: "the 276 fixes were never on the branch" -->
-
-- **PARKED 2026-08-14 — row 31's mitigation is LIVE but its done-criterion is
-  not measured yet, and the measurement is a two-sided one that a casual read
-  will get half right.** `CACHE_FIX_COALESCE_SIDECAR=1` since 2026-08-14
-  (dotfiles `7050372`, acceptance `700833b`). What closes the row: across a
-  full sweep, the SESSION-START duplicate class (haiku, `nMsg=1`,
-  `max_tokens=32000`, capture lines 3-5, intervals 6-25 ms) falls to 0
-  double-billed streaks, WHILE the mid-session class stays UNCHANGED.
-  **Both halves are the criterion.** A fall in the mid-session count would be
-  over-reach, not success: there the second send is a real retry whose first
-  attempt has no completion record, and suppressing it would leave a real
-  request unanswered. The mitigation's four conditions are built to make that
-  impossible (one message, no tools), so a mid-session drop would mean a
-  condition is not holding — a finding about the fence, not a win.
-  **The new number to read it with**, so nobody hand-derives it again:
-  `coalescedRequests` / `coalescedStreaks` in the census rollup, and
-  `duplicate-billing`'s COALESCED join class. The pre-flip baseline is the
-  2026-08-14 sweep's own duplicates block.
-  **RE-GRADED 2026-08-15 — the numbers this entry names were NOT READABLE from
-  the daily sweep when it was written, and now are (`8f8e5ab`, `b5f42e2`).**
-  Two gaps, both silent, both fixed: gate-live's two duplicate rollups
-  enumerated the census's field names by hand and dropped
-  `coalescedRequests`/`coalescedStreaks` for four days (measured on the
-  2026-08-15 10:03Z sweep — per-capture rows carry 3 coalesced requests over 3
-  streaks, the rollup carried neither key), and neither side of the two-sided
-  criterion had a counter at all. `summariseDuplicates` now splits by
-  `nMsg === 1`, the rollups DERIVE their field set from it, and both the census
-  text report and the sweep's own summary line print the two sides. The entry
-  stays PARKED: what was missing was the instrument, and what is still missing
-  is the traffic.
-  NAMED MISSING EVIDENCE: a full sweep over a corpus whose captures were
-  written with the gate ON. The 2026-08-14 sweeps ran against pre-flip
-  traffic, so their duplicate counts cannot answer this either way — the
-  captures have to age past the flip first.
-  **Evidence held for this entry: `s-captureBQ`** — the first post-flip
-  capture in which the mitigation actually fired (1 streak, 2 sends, 0 billed,
-  1 coalesced), claimed and `--protect`ed 2026-08-15. Cited HERE and not only
-  in its `## Done` entry deliberately: `alias-claim --releasable` buckets an
-  alias by where it is cited, so an alias whose only citation sits under
-  `## Done` reads as RELEASABLE — and this one is live evidence for an OPEN
-  entry. Release it when this entry closes, not before.
-  Trigger to re-grade: the first sweep whose window lies entirely after
-  2026-08-14 18:17 local.
-  **How to read that sweep, decided now so it is not decided under the
-  pressure of wanting the row closed:** `byteGate.duplicates
-  .singleMessageDoubleBilled` must reach 0 while `.multiMessageDoubleBilled`
-  does not move. The `singleMessage` bucket is WIDER than row 31's class — it
-  reads `nMsg` alone, never the model, the capture position or the interval —
-  so a non-zero there is a prompt to read the streak rows, not a refutation of
-  the mitigation on its own.
-  **One thing the first full sweep must be read for, raised 2026-08-15 and
-  DELIBERATELY NOT resolved from a sample:** across the two captures probed by
-  hand while building the split, every duplicate streak including the
-  double-billed one was one-message, i.e. the criterion's control side had no
-  members. If that held corpus-wide the "stays UNCHANGED" half would
-  discriminate nothing. It probably does not hold — row 31's own cell records
-  62 double-billed streaks corpus-wide of which 47 are this class, so 15 sit
-  outside it — but those 47 were classified on all four axes, not on `nMsg`, so
-  the matrix's numbers do not answer the `nMsg` question either. Two captures
-  settle nothing in either direction; the first full sweep prints both buckets
-  and settles it in one line.
-  Loop stage: VERIFY.
-  Anchor: docs/directives/robustness-threat-matrix.md
-  Write-set: docs/directives/robustness-threat-matrix.md (row 31 status)
-  <!-- entry: "row 31 done-criterion unmeasured after the coalesce flip" -->
 
 - **PARKED 2026-08-14 — the push scan's interior walk diffs each commit against its
   FIRST PARENT only, so a merge commit's second-parent-only content is out of
@@ -3599,43 +3564,6 @@ entry is not worse than a READY one — it is the same decision-complete body
 with no claim of a schedule attached, which is the whole point of the split:
 `READY` had come to assert an intent nobody held, and a label nobody believes
 carries no information.
-
-- **RECORD 2026-08-15 — the carrier-registration ENUMERATION has never been
-  run, and it is enumerable by construction.** `docs/dev-loop.md` closing-gate
-  question 4 states the completeness test outright: every `tools/` mechanism
-  that writes state outside the tree either names its collector in
-  `state-report`, or names why its state is not a carrier (process-local, or
-  self-expiring within the run); an unclassified writer is the finding. That
-  enumeration has no mechanism and, on today's evidence, has not been run by
-  hand either — the capture-protection carrier shipped 2026-08-11 unregistered
-  and was found four days later only because someone used the flag (`## Done`,
-  same date). ONE instance is not a rate, and that is exactly the argument for
-  enumerating: nobody knows how many others there are.
-  Design, decided: a `tools/` sweep that finds every module writing outside the
-  repo tree — the reachable set is `statePath`/`dataPath` (proxy/xdg-dirs.mjs)
-  plus direct absolute-path writes — and requires each to carry a declaration
-  line naming either its `state-report` collector or its non-carrier reason.
-  The declaration lives in the writing module, next to the write, because the
-  creator is the only party that knows the carrier is there. An undeclared
-  writer fails the sweep.
-  NOT scoped to a grep for `statePath(`: that is the naming-convention-encoding
-  blind spot this repo has measured three times. The sweep resolves writers by
-  IMPORT, and its done-criterion includes naming one member of the class the
-  pattern cannot match.
-  Red-first: the sweep must fire on a writer with its declaration removed, and
-  stay silent with it present — plus the real positive, `alias-claim.mjs`
-  before `2fcbe68` added its collector, which is a commit range and therefore
-  an immutable arrangement rather than a working-copy state.
-  Done: the sweep exists, `node tools/<sweep>` reports every `tools/` writer as
-  declared, the red arms above are pasted, and the enumeration's first run's
-  findings are booked or fixed.
-  Loop stage: VERIFY.
-  Anchor: docs/dev-loop.md closing gate, question 4
-  Write-set: `tools/` (one new sweep or a mode on an existing one — the
-  extend-before-adding rule applies), `test/` its bites
-  Verifier: the new sweep's own test file, run under
-  `node --test --import ./tools/suite-config-root.mjs`
-  <!-- entry: "the carrier-registration enumeration has never been run" -->
 
 Promotion is by re-deriving the head, never by editing a grade in place. An
 entry promoted to READY must satisfy the booking bar in this file's header
@@ -7212,35 +7140,6 @@ entry promoted to READY must satisfy the booking bar in this file's header
   Write-set: tools/named-unbooked-scan.mjs, test/named-unbooked-scan.test.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/named-unbooked-scan.test.mjs
 
-- **RECORD (ex-READY 2026-08-15) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
-  the running pipeline uses, so its name promises an eviction it does not
-  perform.** Found by the row-30 eviction lane PROBING the premise before
-  building on it, which is the only reason the bite it was building is not
-  vacuous. Two independent causes, both confirmed by that lane against the real
-  pipeline: (1) `loadExtensions` (`proxy/pipeline.mjs:39`) imports every
-  extension through a cache-busted URL (`?t=<counter>`), so a plainly-imported
-  `_resetRelocationMemory()` clears a Map belonging to a DIFFERENT module
-  instance than the one the pipeline runs — a silent no-op; and (2) even on the
-  same instance, `recallMemory()` falls back to disk when RAM is empty, so a
-  RAM-only reset is un-evicted by the persisted `*-fresh-sort-relocated.json`.
-  **What rested on it: nothing, and that was checked rather than assumed** —
-  `git grep _resetRelocationMemory` finds the definition plus the new test and no
-  other caller, so no prior conclusion is invalidated. The export was added for
-  exactly the purpose it cannot serve, which is why it reads as available.
-  **Design (decided):** the helper's doc comment states that it reaches only a
-  caller controlling module identity, AND gains a disk-clearing counterpart so
-  the two halves of the memory are evictable in one call. Deployment-coupled:
-  `proxy/**`, so it needs a dotfiles pin bump and a restart at a session
-  boundary; the change is memory-helper-only and touches no state KEYS or freeze
-  logic, so row 3's restart-transparency argument holds unchanged.
-  **Done-criterion:** the eviction bite in
-  `test/relocate-then-pin-conservation.test.mjs` passes using ONLY the exported
-  helper — with its current splice-and-unlink workaround removed — and goes red
-  when the helper's disk half is disabled. Both arms pasted.
-  Anchor: proxy/extensions/fresh-session-sort.mjs
-  Write-set: proxy/extensions/fresh-session-sort.mjs, test/relocate-then-pin-conservation.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/relocate-then-pin-conservation.test.mjs
-
 - **RECORD (ex-READY 2026-08-15) 2026-08-11 (evening) — enumerate every `tools/` mechanism that writes
   state outside the tree and name its collector, or name why its state is not a
   carrier.** The enumerable half of the carrier-registration rule minted into
@@ -7263,6 +7162,28 @@ entry promoted to READY must satisfy the booking bar in this file's header
   `tools/alias-claim.mjs` is known to write a carrier (the protected-link set)
   whose collector does not exist yet, so it MUST land in NEEDS-COLLECTOR; an
   enumeration that does not surface it has not run.
+  **THAT POSITIVE IS SPENT AS OF 2026-08-15 (`2fcbe68`), and this entry is
+  WEAKER for it — the loss is recorded rather than quietly absorbed.** The
+  protected-link carrier now HAS a collector, so `alias-claim.mjs` lands in
+  HAS-COLLECTOR and can no longer distinguish a live enumeration from a dead
+  one. This is the fix-destroys-its-own-calibration-case shape (`docs/dev-loop.md`,
+  "Rule out the instrument"): the collector was built without reading this
+  entry, by the session that found the same gap from the other direction.
+  **No substitute is to be shopped for** — the rule this repo already carries
+  is that a check whose motivating case dissolves does not get a replacement
+  hunted down, because tuning an instrument to ratify its own premise is what
+  that looks like from the inside. What the enumeration has INSTEAD is a
+  measured prior: one writer in this class was found unregistered four days
+  after shipping, and found only because somebody happened to use the flag. If
+  the enumeration returns zero NEEDS-COLLECTOR, that zero is now UNPROVEN and
+  says so; a fresh known-positive arrives the next time a `tools/` mechanism
+  ships a carrier, and the enumeration is better run BEFORE that than after.
+  **How it was found, because the miss is reusable:** a session booked a
+  DUPLICATE of this entry on 2026-08-15 having reached the same gap from the
+  capture-protection side, and caught it only when re-deriving the head made
+  both visible at once. `dev-loop.md` already prescribes the cure — one grep
+  per new class name, at intake — and it was skipped. The duplicate was
+  dropped and its substance merged here.
   Anchor: docs/dev-loop.md
   Write-set: BACKLOG.md (the resulting entries), docs/directives/carrier-enumeration.md
   Verifier: test -f docs/directives/carrier-enumeration.md && grep -c '^| ' docs/directives/carrier-enumeration.md
@@ -9155,6 +9076,166 @@ re-inflated within four days of being declared. Also found: the
 `--closures-in-live` detector that would have caught all 110 of these is an
 OPT-IN FLAG, absent from the default `backlog-lint` run, so nothing was ever
 going to report this disease unprompted.
+
+- **DONE 2026-08-15 — row 31 is MITIGATED AND MEASURED; both entries below close
+  together because they are two halves of one fact.** The mitigation shipped
+  2026-08-14 and its done-criterion is met on both sides, graded RESIDUAL rather
+  than SHIPPED for one named reason (below). Matrix row 31 carries the full
+  measurement; the short form:
+  **Read as a COHORT** rather than waiting for the pre-flip captures to rotate —
+  stronger than the parked entry asked for, because it carries its own baseline.
+  `node tools/gate-live.mjs --cohort 2026-08-14T16:17:00Z` over the sweep
+  finished 13:38:00Z (`ok: true`, 0 failing, 57 captures, all 57 stamped, so the
+  cohorts are total): **BEFORE** 44 captures — 48 single-message streaks, **34
+  double-billed (71%)**, 1 coalesced; 32 multi-message streaks, 3 double-billed,
+  0 coalesced. **AFTER** 13 captures — 14 single-message streaks, **0
+  double-billed (0%)**, 8 coalesced; 1 multi-message streak, 1 double-billed, 0
+  coalesced. Fisher exact, one-sided, on the pre-registered comparison:
+  **p = 1.4e-6** (7.7 expected under the null, 0 observed).
+  **Not an absence dressed as a result:** the mitigation is observed ACTING 8
+  times, which refutes the traffic-simply-changed story — that predicts zero
+  double-bills AND zero coalesces.
+  **The four disconfirming observations were each looked for and named:** a
+  non-zero on the target side (none, 14 streaks); the control falling to zero,
+  i.e. over-reach (it did not — the one post-flip retry streak was NOT
+  suppressed); the fence breached (`multiMessageCoalesced` is 0 across all 95
+  streaks, pre and post); the mitigation inert (refuted by the 8 firings).
+  **RESIDUAL for one reason, stated rather than smoothed over:** the control arm
+  has n=1 post-flip streak and is under-powered — that count says "still
+  non-zero", never "unchanged". What carries the no-over-reach conclusion is the
+  0-coalesced-on-the-retry-side figure across the whole corpus plus the code
+  condition and its two-upstream-calls bite, not the retry count. Promotion to
+  SHIPPED wants a post-flip corpus with enough multi-message duplicate streaks
+  to say "unchanged" rather than "non-zero".
+  **The instruments this needed, all built the same day and each its own
+  commit:** the sweep's duplicate rollup stopped dropping the census's coalesce
+  fields (`8f8e5ab`); the census gained the class split the criterion is stated
+  in (`b5f42e2`); every sweep row carries its capture's first-record stamp so
+  the cohort read exists at all (`daf0e46`); and `row-31-coalesce` watches the
+  closure on the scheduled path (`1325469`) — needed because the systemd unit
+  runs `--quiet`, so the summary line those numbers first landed in reaches
+  nobody on a daily run.
+  Evidence: `s-captureBQ` was the first post-flip capture in which the
+  mitigation fired, and its protection is RELEASED with this closure. The
+  release is deliberate and the reasoning is worth keeping, because an earlier
+  draft of this entry said "hold it until the residual closes" and that was
+  wrong: the residual wants FUTURE traffic with more multi-message duplicate
+  streaks, not this capture, whose measurement is recorded above with its
+  numbers. `alias-claim --releasable` said releasable and the prose said hold —
+  the tool was right, and a prose sentence overriding a mechanism that grades
+  by evidence is how a protected set turns into an unexamined one.
+  Upstream filing (#78420-adjacent) is a separate act and still needs operator GO.
+
+  <!-- moved from `## Open` at closure; bodies verbatim -->
+
+- **[CLOSED — moved verbatim from `## Open` 2026-08-15; graded by the DONE entry above, not by this header] was-READY 2026-08-14 — row 31's duplicate sidecar send is MITIGABLE, and the
+  fidelity objection that blocked its design is weaker than the row assumed.**
+  The row parked the mitigation as "undesigned, touches the streaming path" with
+  the safe shape named (coalesce one upstream call to both callers) but no
+  predicate. Measured at the desk 2026-08-14, reading the duplicated request's
+  STRUCTURE only (no message text; publication bar): `model claude-haiku-4-5`,
+  `max_tokens 32000`, `stream true`, `nMsg 1`, `roles [user]`, one text block of
+  337 chars, 2 system blocks, **0 tools**.
+  **The load-bearing fact: it carries no conversation history and no tools**, so
+  whatever it returns cannot enter any cached conversation prefix. Handing caller
+  B a copy of caller A's answer therefore substitutes one independently-sampled
+  answer for another in a request whose output joins no prefix — and CC issued the
+  second send 6-25 ms in, with no way to have observed the first, so it already
+  treats the two as interchangeable. That is the fidelity question the row left
+  open, answered.
+  **Cost is NOT the deliberation here** and is recorded so the next session does
+  not re-open it on those grounds: the matrix's own mitigation policy says cost
+  never gates mitigation work and the only per-class deliberation is mitigability.
+  The 48,203 tokens are not a reason in either direction.
+  Design, decided — the scoping predicate, all four required: `nMsg === 1` AND the
+  request carries no `tools` AND the two bodies are byte-identical AND the second
+  arrives < 50 ms after the first while the first is still in flight. The
+  mid-session duplicate class — where the second send is a legitimate retry and
+  suppressing it would leave a real request unanswered — fails this on `nMsg`
+  alone, which is the discriminator the row asked for.
+  Dropping the second send stays UNAVAILABLE: two client requests are in flight
+  and each is owed a response. Coalescing is the only shape.
+  Red-first, and the two must DIFFER: a synthetic pair matching all four
+  conditions coalesces to ONE upstream call with both callers answered; a
+  mid-session pair (nMsg > 1) issues TWO upstream calls unchanged. A pair
+  matching three of four conditions must NOT coalesce.
+  Done: the four-condition predicate is implemented and the three arms above pass
+  with their output pasted; a live sweep after the restart shows the class's
+  duplicate count falling to zero while the mid-session duplicate count is
+  UNCHANGED (the second number is what proves the predicate did not over-reach);
+  row 31's status cell carries the result; this entry moves to `## Done`.
+  Loop stage: MITIGATE.
+  Anchor: row 31
+  Write-set: `proxy/server.mjs`, `test/duplicate-coalesce.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs
+  DEPLOYMENT-COUPLED and it touches the STREAMING path — pin bump, restart at a stated session boundary, and a row-3 declaration BEFORE the restart. Do not bundle it with any other proxy change: attribution of a streaming regression must be unambiguous.
+  Upstream filing (#78420-adjacent) is a separate act and has operator GO.
+  <!-- entry: "row 31 duplicate sidecar coalescing, scoping predicate decided" -->
+
+- **[CLOSED — moved verbatim from `## Open` 2026-08-15; graded by the DONE entry above, not by this header] was-PARKED 2026-08-14 — row 31's mitigation is LIVE but its done-criterion is
+  not measured yet, and the measurement is a two-sided one that a casual read
+  will get half right.** `CACHE_FIX_COALESCE_SIDECAR=1` since 2026-08-14
+  (dotfiles `7050372`, acceptance `700833b`). What closes the row: across a
+  full sweep, the SESSION-START duplicate class (haiku, `nMsg=1`,
+  `max_tokens=32000`, capture lines 3-5, intervals 6-25 ms) falls to 0
+  double-billed streaks, WHILE the mid-session class stays UNCHANGED.
+  **Both halves are the criterion.** A fall in the mid-session count would be
+  over-reach, not success: there the second send is a real retry whose first
+  attempt has no completion record, and suppressing it would leave a real
+  request unanswered. The mitigation's four conditions are built to make that
+  impossible (one message, no tools), so a mid-session drop would mean a
+  condition is not holding — a finding about the fence, not a win.
+  **The new number to read it with**, so nobody hand-derives it again:
+  `coalescedRequests` / `coalescedStreaks` in the census rollup, and
+  `duplicate-billing`'s COALESCED join class. The pre-flip baseline is the
+  2026-08-14 sweep's own duplicates block.
+  **RE-GRADED 2026-08-15 — the numbers this entry names were NOT READABLE from
+  the daily sweep when it was written, and now are (`8f8e5ab`, `b5f42e2`).**
+  Two gaps, both silent, both fixed: gate-live's two duplicate rollups
+  enumerated the census's field names by hand and dropped
+  `coalescedRequests`/`coalescedStreaks` for four days (measured on the
+  2026-08-15 10:03Z sweep — per-capture rows carry 3 coalesced requests over 3
+  streaks, the rollup carried neither key), and neither side of the two-sided
+  criterion had a counter at all. `summariseDuplicates` now splits by
+  `nMsg === 1`, the rollups DERIVE their field set from it, and both the census
+  text report and the sweep's own summary line print the two sides. The entry
+  stays PARKED: what was missing was the instrument, and what is still missing
+  is the traffic.
+  NAMED MISSING EVIDENCE: a full sweep over a corpus whose captures were
+  written with the gate ON. The 2026-08-14 sweeps ran against pre-flip
+  traffic, so their duplicate counts cannot answer this either way — the
+  captures have to age past the flip first.
+  **Evidence held for this entry: `s-captureBQ`** — the first post-flip
+  capture in which the mitigation actually fired (1 streak, 2 sends, 0 billed,
+  1 coalesced), claimed and `--protect`ed 2026-08-15. Cited HERE and not only
+  in its `## Done` entry deliberately: `alias-claim --releasable` buckets an
+  alias by where it is cited, so an alias whose only citation sits under
+  `## Done` reads as RELEASABLE — and this one is live evidence for an OPEN
+  entry. Release it when this entry closes, not before.
+  Trigger to re-grade: the first sweep whose window lies entirely after
+  2026-08-14 18:17 local.
+  **How to read that sweep, decided now so it is not decided under the
+  pressure of wanting the row closed:** `byteGate.duplicates
+  .singleMessageDoubleBilled` must reach 0 while `.multiMessageDoubleBilled`
+  does not move. The `singleMessage` bucket is WIDER than row 31's class — it
+  reads `nMsg` alone, never the model, the capture position or the interval —
+  so a non-zero there is a prompt to read the streak rows, not a refutation of
+  the mitigation on its own.
+  **One thing the first full sweep must be read for, raised 2026-08-15 and
+  DELIBERATELY NOT resolved from a sample:** across the two captures probed by
+  hand while building the split, every duplicate streak including the
+  double-billed one was one-message, i.e. the criterion's control side had no
+  members. If that held corpus-wide the "stays UNCHANGED" half would
+  discriminate nothing. It probably does not hold — row 31's own cell records
+  62 double-billed streaks corpus-wide of which 47 are this class, so 15 sit
+  outside it — but those 47 were classified on all four axes, not on `nMsg`, so
+  the matrix's numbers do not answer the `nMsg` question either. Two captures
+  settle nothing in either direction; the first full sweep prints both buckets
+  and settles it in one line.
+  Loop stage: VERIFY.
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: docs/directives/robustness-threat-matrix.md (row 31 status)
+  <!-- entry: "row 31 done-criterion unmeasured after the coalesce flip" -->
 
 - **DONE 2026-08-15 — the capture-PROTECTION carrier had no collector in
   `state-report`, so 1,710 MB held against eviction was in no scheduled
