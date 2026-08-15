@@ -213,6 +213,66 @@ export const B64_RUN = /[A-Za-z0-9+/]{201,}/;
 // (d) A capture identifier. Session keys and sids appear only as `s-<sha12>`
 //     tokens, which carry no dashes and so cannot satisfy this shape.
 export const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const UUID_G = new RegExp(UUID.source, "gi");
+
+// THE SYNTHETIC ROSTER — this repo's declaration of which UUID-shaped
+// literals its own SOURCE is allowed to carry.
+//
+// It lived in `test/absence-scan.test.mjs` until 2026-08-15 and the scanner
+// never read it, so the declaration and the guard were disconnected: a
+// roster member in any file other than that suite still fired `capture-uuid`.
+// Measured that day on `test/bust-triage-key-flip.test.mjs`, which carries
+// `1111...5555` — a member added in a 2026-08-05 scrub precisely so a
+// synthetic would be unmistakable — and reported three findings. They reached
+// `main` only because the identical bytes already sat at the same path in
+// published history; a NEW file adopting the declared convention would have
+// been blocked, which is a guard firing on legitimate work.
+//
+// WHY HONOURING IT TRADES NOTHING, which is the same argument the older
+// single-file ALLOWLIST entry already made: `test/absence-scan.test.mjs`'s
+// roster test ("source: every UUID in a tracked SOURCE_SCANNABLE file is on
+// the synthetic allowlist") walks the tracked tree on every `npm test` and
+// fails on any UUID in tracked source that is NOT listed here. So the roster
+// is a DECLARED exemption the guard itself verifies — not a softened
+// predicate — and adding a real identifier to it is a deliberate, reviewable
+// act rather than a silent widening.
+//
+// SCOPE, deliberately narrow: SOURCE text only, which is exactly the scope
+// the roster test covers. Fixtures, ledgers and capture documents never
+// consult it — a UUID in a data file is caught as before.
+export const SYNTHETIC_UUID_ALLOWLIST = new Set([
+  "0123abcd-4567-89ef-0123-456789abcdef", // absence-scan suite's seeded defect (FAKE_UUID)
+  "b16c607d-d484-4935-840e-e3f7ee78eb08", // proxy suites' synthetic session id
+  // Replaced the real-looking session id cold-events.test.mjs carried as test
+  // data (2026-08-05 scrub). Deliberately unmistakable: a synthetic that looks
+  // like it could be real defeats the purpose of being synthetic.
+  "11111111-2222-3333-4444-555555555555",
+  // ledger-key-hash.test.mjs's synthetics: it must feed the hasher things
+  // shaped like real capture keys to prove none survives into the index.
+  "aaaaaaaa-0000-0000-0000-000000000000",
+  "bbbbbbbb-0000-0000-0000-000000000000",
+  "fedcba98-7654-3210-fedc-ba9876543210",
+  "00000000-0000-4000-8000-c4f1efb22220", // session-mirror synthetic
+  "9d1c250a-e61b-44d9-88ed-5944d1962f5e", // Anthropic's PUBLIC OAuth client_id
+  // docs/ synthetics, each a placeholder by construction:
+  "00000000-0000-4000-8000-c4f1efb22221", // release-test harness's pinned --session-id
+  "00000000-0000-4000-8000-c4f1efb22222", // gate-live cc-version test's swept session
+  "00000000-0000-4000-8000-c4f1efb22223", // gate-live cc-version test's NOT-swept session
+  "abcd1234-5678-90ab-cdef-1234567890ab", // the "e.g." format sample in proxy-jsonl-session-mirror.md
+  // UPSTREAM'S OWN, byte-identical in `upstream/main:tools/MANUAL-COMPACT.md`.
+  // Listed rather than scrubbed: it is not ours, editing it would diverge a
+  // file we carry unchanged, and it is already published from upstream.
+  "db11f377-4ca8-4fc3-9b6d-1069da58c1b2",
+]);
+
+// Every UUID on the line is declared synthetic. Per LINE, because the scanner
+// reports per line: a roster member sitting beside a real identifier must not
+// launder it, so this is `every`, never `some`.
+function allUuidsAreDeclaredSynthetic(line) {
+  const hits = line.match(UUID_G);
+  if (!hits || hits.length === 0) return false;
+  return hits.every((u) => SYNTHETIC_UUID_ALLOWLIST.has(u.toLowerCase()));
+}
 // (d) …and a filename is as public as the content it names. The capture-derived
 //     name carries `s-<sha12>`: 12 hex, never 8, so a name can never be matched
 //     back to a session by prefix.
@@ -412,11 +472,11 @@ export function scanName(file) {
  * disk). `.jsonl` is split per line; a unit that does not parse is scanned as
  * raw bytes and named on the returned `degraded` list — never skipped.
  */
-export function scanContent(text, file) {
+export function scanContent(text, file, { honorSyntheticRoster = false } = {}) {
   // A source file is not a fixture: it has no document shape, and only the
   // short-key class applies to it.
   if (SOURCE_SCANNABLE.test(file) && !SCANNABLE.test(file)) {
-    const r = scanSourceText(text, file);
+    const r = scanSourceText(text, file, honorSyntheticRoster);
     return { findings: [...scanName(file), ...r.findings], seen: zeroSeen(),
              scanned: 0, degraded: r.degraded, partial: true, sourceOnly: true };
   }
@@ -444,9 +504,12 @@ export function scanContent(text, file) {
   return { findings, seen, scanned, degraded, partial: !inCorpus(file), sourceOnly: false };
 }
 
-/** Scan a file from disk. */
+/** Scan a file from disk. A real tracked file is exactly the scope the
+ * synthetic roster covers, so this path honours it — the same as the git-range
+ * and tree walks. Only commit and tag MESSAGES are left out, and they never
+ * reach here. */
 export function scanFile(file) {
-  return scanContent(readFileSync(file, "utf-8"), file);
+  return scanContent(readFileSync(file, "utf-8"), file, { honorSyntheticRoster: true });
 }
 
 // --- git range mode ----------------------------------------------------------
@@ -528,10 +591,19 @@ const SHORT_KEY_EXEMPT = [
  * finding can name where without echoing what — same discipline as every
  * other finding here: class, file, position, length, never the match.
  */
-export function scanSourceText(text, file) {
+// `honorSyntheticRoster` is OPT-IN and defaults to false, which is what keeps
+// this change from widening anything by accident. Two callers must never get
+// it: commit messages and annotated tag messages (`scanSourceText(msg, "commit
+// <sha>")` below), because no roster test walks a message — the repo's own
+// suite asserts exactly that ("no roster can ever reach a message"), and it
+// caught this when the roster was first wired in unconditionally. Default-off
+// also leaves every existing `scanContent` caller, including the suite's
+// classification tests, byte-identical in behaviour.
+export function scanSourceText(text, file, honorSyntheticRoster = false) {
   const findings = [];
   text.split("\n").forEach((line, i) => {
     if (UUID.test(line)) {
+      if (honorSyntheticRoster && allUuidsAreDeclaredSynthetic(line)) return;
       findings.push(finding("capture-uuid", line, { file, path: `line ${i + 1}` }));
       return;
     }
@@ -718,7 +790,7 @@ export function scanGitRange(oldRef, newRef) {
     } catch { /* unresolvable — fall through and scan by content anyway */ }
     if (blobId) scannedBlobs.add(blobId);
     const text = git(["show", `${newRef}:${file}`]);
-    const r = scanContent(text, file);
+    const r = scanContent(text, file, { honorSyntheticRoster: true });
     // Class-scoped exemptions: the file is still SCANNED, and only the
     // findings it is exempt from are dropped. Skipping the file outright —
     // which this did until 2026-08-05 — hides every class, including the ones
@@ -762,7 +834,7 @@ export function scanGitRange(oldRef, newRef) {
         degraded.push(`${path} @ ${commit.slice(0, 12)}: blob ${blob} unreadable`);
         continue;
       }
-      const r = scanContent(text, path);
+      const r = scanContent(text, path, { honorSyntheticRoster: true });
       const exempt = exemptClasses(path);
       const kept = exempt === "all" ? [] : r.findings.filter((f) => !exempt.has(f.class));
       if (kept.length < r.findings.length) allowlisted.push(exemptEntry(path, exempt));
@@ -847,7 +919,7 @@ export function scanAtRef(ref, paths) {
       degraded.push(`${file} does not resolve at ${ref} — contributes nothing`);
       continue;
     }
-    const r = scanContent(text, file);
+    const r = scanContent(text, file, { honorSyntheticRoster: true });
     // The same class-scoped filtering as both other modes — one meaning of
     // "exempt" in this file, not three.
     const exempt = exemptClasses(file);

@@ -124,3 +124,66 @@ test("BITE — predecessor relations that DISAGREE are reported, never collapsed
   assert.notEqual(byRelation["nearest earlier, same model"], byRelation["nearest earlier, any conversation"],
     "the relations disagree here, which is precisely what must stay visible");
 });
+
+// --- Cache segments: the readable unit ---
+//
+// These pin the correction that produced them. The tool first reported "pin
+// tools recovers 1.5%" on the live event; `tools[]` carried NO cache_control
+// at all, so there was nothing at that boundary to read and the true recovery
+// from pinning tools alone is ZERO. A layer view answers "what changed"; only
+// a segment view answers "what could still be read".
+
+const ccMark = { type: "ephemeral", ttl: "1h" };
+const sysCC = (t) => ({ type: "text", text: t, cache_control: ccMark });
+const msgCC = (t) => ({ role: "user", content: [{ type: "text", text: `m-${t}`, cache_control: ccMark }] });
+
+test("BITE — a layer with NO breakpoint is folded into the segment that closes over it", () => {
+  // tools carry no cache_control, so they belong to the span ending at the
+  // first system breakpoint. Pinning them is only useful if the WHOLE span
+  // matches, which is what the smallest-useful-fix line has to say.
+  const f = capture([
+    rec("2026-08-15T15:04:43.000Z", { tools: [{ name: "Bash", description: "session_AAA" }], system: [sys("s0"), sysCC("s1")], messages: [msg("head"), ...BODY, msgCC("last")] }),
+    rec("2026-08-15T15:07:10.000Z", { tools: [{ name: "Bash", description: "session_BBB" }], system: [sys("s0"), sysCC("s1")], messages: [msg("head"), ...BODY, msgCC("last")] }),
+  ]);
+  const d = run(f);
+  assert.equal(d.breakpoints.length, 2, "one system breakpoint and one message breakpoint");
+  const first = d.segments[0];
+  assert.equal(first.endsAt, "system[1]");
+  assert.ok(first.layers.includes("tools"), "tools must be INSIDE the first span, not a span of their own");
+  assert.deepEqual(first.broken, ["tools"], "and they are what broke it");
+  assert.equal(first.readable, false);
+});
+
+test("BITE — an intact segment behind a broken one is NOT readable", () => {
+  // Prefix caching is cumulative. A later span matching byte-for-byte buys
+  // nothing once an earlier one broke, and reporting it as readable would
+  // overstate every recovery estimate downstream.
+  const f = capture([
+    rec("2026-08-15T15:04:43.000Z", { tools: [{ name: "B", description: "OLD" }], system: [sys("s0"), sysCC("s1"), sysCC("s2")], messages: [msg("head"), ...BODY, msgCC("last")] }),
+    rec("2026-08-15T15:07:10.000Z", { tools: [{ name: "B", description: "NEW" }], system: [sys("s0"), sysCC("s1"), sysCC("s2")], messages: [msg("head"), ...BODY, msgCC("last")] }),
+  ]);
+  const d = run(f);
+  const second = d.segments.find((sg) => sg.endsAt === "system[2]");
+  assert.equal(second.intact, true, "system[2] itself is byte-identical");
+  assert.equal(second.readable, false, "but the span before it broke, so the API cannot read it either");
+});
+
+test("CONTROL — a divergence PAST the last breakpoint does not break that span", () => {
+  // The discriminating sibling: the same message layer diverging, but after
+  // the breakpoint rather than before it. If this reported BROKEN the tool
+  // would be answering "something changed" where the question is "was the
+  // cached span still valid".
+  const before = [msg("head"), ...BODY];
+  const after = [msg("head"), ...BODY];
+  before.splice(3, 0, msgCC("bp"));      // breakpoint early in the array
+  after.splice(3, 0, msgCC("bp"));
+  after.push(msg("appended-after-bp"));  // divergence strictly after it
+  const f = capture([
+    rec("2026-08-15T15:04:43.000Z", { tools: [], system: [sysCC("s0")], messages: before }),
+    rec("2026-08-15T15:07:10.000Z", { tools: [], system: [sysCC("s0")], messages: after }),
+  ]);
+  const d = run(f);
+  for (const sg of d.segments) {
+    assert.equal(sg.intact, true, `no span should break on a pure append: ${sg.endsAt} broke on ${sg.broken}`);
+  }
+});

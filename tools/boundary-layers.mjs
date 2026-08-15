@@ -50,6 +50,7 @@ import { createHash } from "node:crypto";
 import { dataPath } from "../proxy/xdg-dirs.mjs";
 import { readLines } from "./read-lines.mjs";
 import { firstDivergence, compactEntry } from "./replay.mjs";
+import { findPredecessor } from "./bust-triage.mjs";
 import { conversationSubKey } from "../proxy/extensions/message-hash.mjs";
 import { localSuffix } from "./local-stamp.mjs";
 
@@ -131,6 +132,96 @@ function excerpt(text, offset, span = 90) {
 // bytes, what would the next divergence be" — which is the mitigation
 // question, priced.
 // ---------------------------------------------------------------------------
+
+// --- Cache SEGMENTS: what actually bills ---
+//
+// A layer diff says what CHANGED. It does not say what the API could still
+// READ, because the readable unit is not a layer — it is the span between
+// `cache_control` breakpoints. Reporting layers alone produced a misleading
+// number on the motivating event ("pinning tools recovers 1.5%"), when in
+// fact `tools[]` carried NO breakpoint at all, so there is nothing at that
+// boundary to read and pinning tools alone recovers exactly zero.
+//
+// ORDER, established from the live data rather than assumed. This tool used
+// to take "tools render before system" from a comment in replay.mjs and
+// encode it. On s-captureBR the request carried breakpoints ONLY on
+// `system[1]`, `system[2]` and the last message; `system[0]` and `system[1]`
+// were byte-identical across the pair, `tools[]` differed, and the outcome
+// record read `cache_read=0` — a TOTAL miss. If `tools[]` sat after the
+// first breakpoint, the span ending at `system[1]` would have been intact
+// and readable, and the read would not have been zero. So tools sit inside
+// the first segment. That is a derivation from the event's own bytes and
+// usage, and it is what the assumed ordering happened to get right.
+function collectBreakpoints(body) {
+  const marks = [];
+  (body?.tools ?? []).forEach((t, i) => {
+    if (t?.cache_control) marks.push({ unit: `tools[${i}]`, cc: t.cache_control });
+  });
+  const sys = Array.isArray(body?.system) ? body.system : [];
+  sys.forEach((b, i) => {
+    if (b?.cache_control) marks.push({ unit: `system[${i}]`, cc: b.cache_control });
+  });
+  (body?.messages ?? []).forEach((m, i) => {
+    const blocks = Array.isArray(m?.content) ? m.content : [];
+    if (blocks.some((c) => c?.cache_control)) marks.push({ unit: `messages[${i}]`, cc: blocks.find((c) => c?.cache_control).cache_control });
+  });
+  return marks;
+}
+
+// Map each layer onto the segment it belongs to, then report per segment
+// whether every layer inside it matched. A segment is readable only if ALL
+// of it matched AND every segment before it did — prefix caching is
+// cumulative, so one broken span invalidates every later one.
+function segmentsOf(layers, marks, msgCount, tailDivIdx) {
+  if (!marks.length) return [];
+  const markPos = (unit) => {
+    let m = /^tools\[(\d+)\]$/.exec(unit);
+    if (m) return [0, Number(m[1])];
+    m = /^system\[(\d+)\]$/.exec(unit);
+    if (m) return [1, Number(m[1])];
+    m = /^messages\[(\d+)\]$/.exec(unit);
+    return [2, Number(m[1])];
+  };
+  const lte = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] <= b[1]);
+  const segs = marks.map((mk) => ({ endsAt: mk.unit, cc: mk.cc, layers: [], bytes: 0, broken: [] }));
+  const place = (pos) => {
+    const i = segs.findIndex((sg) => lte(pos, markPos(sg.endsAt)));
+    return i === -1 ? null : segs[i];
+  };
+
+  for (const l of layers) {
+    // The message TAIL spans many indices, so it cannot be placed by a single
+    // position the way the fixed-size layers can. It contributes its bytes to
+    // whichever segment closes over the array, and it BREAKS the first segment
+    // whose breakpoint sits at or after its divergence index — a divergence
+    // past a breakpoint leaves that breakpoint's span intact.
+    if (l.layer === "messages[1..]") {
+      const home = place([2, Math.max(0, msgCount - 1)]);
+      if (home) { home.layers.push(l.layer); home.bytes += l.bytes; }
+      if (!l.identical && tailDivIdx != null) {
+        const hit = place([2, tailDivIdx]);
+        if (hit) hit.broken.push(`${l.layer}@${tailDivIdx}`);
+      }
+      continue;
+    }
+    const pos = l.layer === "tools" ? [0, 0]
+      : l.layer === "messages[0]" ? [2, 0]
+      : [1, Number(/^system\[(\d+)\]$/.exec(l.layer)[1])];
+    const home = place(pos);
+    if (!home) continue; // past the last breakpoint — never cacheable
+    home.layers.push(l.layer);
+    home.bytes += l.bytes;
+    if (!l.identical) home.broken.push(l.layer);
+  }
+
+  let stillReadable = true;
+  for (const sg of segs) {
+    sg.intact = sg.broken.length === 0;
+    sg.readable = stillReadable && sg.intact;
+    if (!sg.intact) stillReadable = false;
+  }
+  return segs;
+}
 
 function cascade(before, after) {
   const layers = [];
@@ -244,7 +335,9 @@ function cascade(before, after) {
   }
 
   const totalBytes = layers.reduce((s, l) => s + l.bytes, 0);
-  return { layers, firstDivergingLayer, totalBytes, alignment };
+  const marks = collectBreakpoints(after.body);
+  const segments = segmentsOf(layers, marks, after.body.messages.length, tailIdx);
+  return { layers, firstDivergingLayer, totalBytes, alignment, marks, segments };
 }
 
 /**
@@ -476,17 +569,33 @@ async function main() {
       gapSeconds: c.pick ? Math.round((afterMs - Date.parse(c.pick.ts)) / 1000) : null,
     }));
 
-    // The DEFAULT pair is the nearest earlier request of the same model. That
-    // is the relation the cache actually cares about: the cached prefix a
-    // request can read is whatever the previous request of that same
-    // conversation-and-model wrote, and at a boundary that REBUILDS the
-    // identity (rows 24, 29) the first-message identity is exactly the thing
-    // that just changed — so keying the predecessor on it selects a stale
-    // request and prices the wrong pair.
-    before = sameModel?.record ?? anyReq?.record ?? null;
-    chosenBy = sameModel ? "nearest earlier, same model" : "nearest earlier, any conversation";
+    // ONE predecessor resolver for the repo, imported rather than
+    // re-implemented. This tool briefly carried its own (nearest earlier,
+    // same model), which is a SECOND truth about "what came before" — the
+    // duplication this repo has already paid for three times, and it would
+    // have let two instruments disagree about which pair a bust even is.
+    // `findPredecessor` is bust-triage's three-stage relation (exact
+    // first-message identity -> content lineage, most recent -> born-large),
+    // and it is the one whose behaviour is pinned by tests.
+    //
+    // The side-by-side CANDIDATES above stay, and are not a competing
+    // resolver: they are the disagreement REPORT. When they disagree with
+    // each other or with the resolver, that is a finding about the
+    // instruments, which is the whole reason this tool prints them.
+    const resolved = await findPredecessor(file, after);
+    if (resolved?.ok) {
+      before = resolved.before;
+      chosenBy = resolved.crossesRotation
+        ? `findPredecessor (content lineage, crosses an identity rotation${resolved.lineageOverlap != null ? `, overlap ${resolved.lineageOverlap.toFixed(3)}` : ""})`
+        : resolved.crossConversation
+          ? "findPredecessor (born-large fallback — CROSS-CONVERSATION, not a same-thread pair)"
+          : "findPredecessor (exact first-message identity)";
+    } else {
+      before = null;
+      chosenBy = null;
+    }
     if (!before) {
-      console.error("boundary-layers: no earlier request in this capture to compare against");
+      console.error(`boundary-layers: findPredecessor found no pair — ${resolved?.code ?? "unknown"}: ${resolved?.detail ?? ""}`);
       process.exit(2);
     }
     if (args.timeline > 0) {
@@ -513,6 +622,8 @@ async function main() {
     totalBytes: result.totalBytes,
     layers: result.layers,
     messageAlignment: result.alignment,
+    breakpoints: result.marks,
+    segments: result.segments,
   };
 
   if (args.json) {
@@ -562,20 +673,40 @@ async function main() {
   console.log(`\n  MESSAGE-ARRAY ALIGNMENT: ${result.alignment.kind}`);
   console.log(`    ${result.alignment.detail}`);
 
-  console.log("\n  WHAT A PIN WOULD BUY (the row 24 / row 29 question, priced):");
+  console.log("\n  CACHE SEGMENTS — the readable unit is the span between cache_control breakpoints,");
+  console.log("  not the layer. A layer with no breakpoint after it cannot be read on its own.");
+  if (!result.segments.length) {
+    console.log("    no cache_control breakpoints in this request — nothing was cacheable.");
+  } else {
+    for (const sg of result.segments) {
+      const state = sg.readable ? "READABLE" : (sg.intact ? "intact-but-dead" : "BROKEN  ");
+      const why = sg.broken.length ? `broken by ${sg.broken.join(", ")}` : "all layers identical";
+      console.log(`    ${state}  ends at ${sg.endsAt.padEnd(16)} ${fmtBytes(sg.bytes).padStart(9)}  [${sg.layers.join(", ")}] — ${why}`);
+      if (sg.intact && !sg.readable) {
+        console.log("              ^ intact, but an EARLIER segment broke, so the API cannot read it either");
+      }
+    }
+  }
+
+  console.log("\n  WHAT A PIN WOULD BUY (the row 24 / row 29 question):");
   const diverging = result.layers.filter((l) => !l.identical);
   if (!diverging.length) {
     console.log("    nothing to pin — every layer is byte-identical across this pair.");
   } else {
+    // Deliberately NO cumulative-percentage line here. An earlier version
+    // printed "pinning tools recovers 1.5% of the body", which is a BYTE
+    // fraction and not a recovery: on the motivating event `tools[]` carried
+    // no breakpoint, so pinning it alone recovers nothing at all. The
+    // segment lines above are the recovery answer; this list only names the
+    // ORDER in which divergences would have to be dealt with.
     for (let i = 0; i < diverging.length; i++) {
       const l = diverging[i];
       const next = diverging[i + 1];
-      const recovered = l.ifPinnedCumulativeBytes ?? 0;
-      const pct = ((recovered / result.totalBytes) * 100).toFixed(1);
-      console.log(`    pin ${l.layer.padEnd(14)} -> next divergence at ${next ? next.layer : "NONE (whole prefix recovered)"}`);
-      console.log(`        cumulative byte-identical prefix if pinned: ${fmtBytes(recovered)} of ${fmtBytes(result.totalBytes)} (${pct}%)`);
+      console.log(`    pin ${l.layer.padEnd(14)} -> next divergence at ${next ? next.layer : "NONE (no divergence left in this pair)"}`);
       if (!next) break;
     }
+    console.log("    Every one of these must be absorbed before the LAST segment is readable —");
+    console.log("    an unabsorbed divergence anywhere in a span invalidates that span and all after it.");
   }
   if (args.inspect) {
     // Structural view of one message pair. STRUCTURE first, excerpt second
@@ -602,8 +733,17 @@ async function main() {
     }
   }
 
-  console.log("\n  Bytes are advisory, not billed tokens: a recovered prefix is only READ if a cache_control");
-  console.log("  breakpoint covers it (dev-loop.md, \"token numbers are advisory\").");
+  if (result.segments.length) {
+    const firstBroken = result.segments.find((sg) => !sg.intact);
+    if (firstBroken) {
+      console.log(`\n  SMALLEST USEFUL FIX: every layer in the FIRST broken segment (ends at ${firstBroken.endsAt}) —`);
+      console.log(`    ${firstBroken.broken.join(", ")} — because a pin inside a segment buys nothing until the`);
+      console.log("    WHOLE segment matches. Each later segment then needs its own layers matched too.");
+    }
+  }
+  console.log("\n  Byte figures are advisory and are NOT a recovery estimate: a span is read only when a");
+  console.log("  cache_control breakpoint closes it AND every earlier span matched (dev-loop.md, \"token");
+  console.log("  numbers are advisory\"). Read the SEGMENT lines for what would actually be billed.");
 }
 
 main().catch((e) => {

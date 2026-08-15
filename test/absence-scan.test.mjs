@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 
 import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId,
          SOURCE_SCANNABLE, SCANNABLE, skipEntry, exemptEntry, formatAllowlistLine,
-         CLASS_NAMES } from "../tools/absence-scan.mjs";
+         CLASS_NAMES, SYNTHETIC_UUID_ALLOWLIST } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -578,35 +578,11 @@ test("git-range: a clean annotated tag reports nothing, and a lightweight tag is
 // and the same sweep found real capture keys and a session id sitting in four
 // of them. Prose carries more legitimate synthetics than code does — hence the
 // provenance line on each entry below.
-const SOURCE_UUID_ALLOWLIST = new Set([
-  FAKE_UUID,                              // this suite's seeded defect
-  "b16c607d-d484-4935-840e-e3f7ee78eb08", // proxy suites' synthetic session id
-  // Replaced the real-looking session id cold-events.test.mjs carried as test
-  // data (2026-08-05 scrub). Deliberately unmistakable: a synthetic that looks
-  // like it could be real defeats the purpose of being synthetic.
-  "11111111-2222-3333-4444-555555555555",
-  // ledger-key-hash.test.mjs's synthetics: it must feed the hasher things
-  // shaped like real capture keys to prove none survives into the index.
-  "aaaaaaaa-0000-0000-0000-000000000000",
-  "bbbbbbbb-0000-0000-0000-000000000000",
-  "fedcba98-7654-3210-fedc-ba9876543210",
-  "00000000-0000-4000-8000-c4f1efb22220", // session-mirror synthetic
-  "9d1c250a-e61b-44d9-88ed-5944d1962f5e", // Anthropic's PUBLIC OAuth client_id
-  // docs/ synthetics, each a placeholder by construction:
-  "00000000-0000-4000-8000-c4f1efb22221", // release-test harness's pinned --session-id, sibling of ...22220
-  "00000000-0000-4000-8000-c4f1efb22222", // gate-live cc-version test's swept session, sibling of ...22220
-  "00000000-0000-4000-8000-c4f1efb22223", // gate-live cc-version test's NOT-swept session, sibling of ...22220
-  "abcd1234-5678-90ab-cdef-1234567890ab", // the "e.g." 8-4-4-4-12 format sample in proxy-jsonl-session-mirror.md
-  // UPSTREAM'S OWN, byte-identical in `upstream/main:tools/MANUAL-COMPACT.md`
-  // (verified 2026-08-10 by `git show upstream/main:<file> | grep -c`). It is
-  // a real-looking session id pasted as example output in upstream's manual-
-  // compact walkthrough, inherited by the fork. Listed rather than scrubbed:
-  // it is not ours, editing it would diverge a file we carry unchanged, and
-  // it is already published from upstream's own repository. Became visible
-  // only when the walk widened below — `tools/` was collected with the `.mjs`
-  // extension, so no `.md` under it was ever read.
-  "db11f377-4ca8-4fc3-9b6d-1069da58c1b2",
-]);
+// The roster MOVED to tools/absence-scan.mjs on 2026-08-15 so the scanner
+// itself can honour it (test/absence-scan-synthetic-roster.test.mjs). It is
+// imported rather than re-declared: two copies of a declaration is two
+// truths, and the roster test below is the half that keeps this one honest.
+const SOURCE_UUID_ALLOWLIST = SYNTHETIC_UUID_ALLOWLIST;
 
 // WIDENED 2026-08-10, from a hand-enumerated four-root walk to the tracked
 // tree. The old walk was `test/*.mjs`, `tools/*.mjs`, `proxy/**.mjs`,
