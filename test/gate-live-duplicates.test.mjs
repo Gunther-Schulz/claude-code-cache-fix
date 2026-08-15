@@ -183,3 +183,42 @@ test("describeDuplicates says COULD NOT VERIFY rather than printing zeros it nev
   assert.match(describeDuplicates(null), /COULD NOT VERIFY|not run/i,
     "an absent rollup is the third answer, never a row of zeros");
 });
+
+// --- the class split reaching the sweep (2026-08-15) ---
+
+// The payoff of the derivation, demonstrated rather than argued: the census
+// gained six class-split fields AFTER the reducers were rewritten, and no edit
+// to a reducer was needed for them to arrive. This bite is what would have
+// failed had the fields been hand-listed again.
+test("BITE — the census's class split reaches the rollup with no reducer edit", () => {
+  const rows = [
+    { byteGate: summariseCensus(censusJson({ duplicates: dupFixture({ singleMessageStreaks: 2, singleMessageDoubleBilled: 1, multiMessageStreaks: 3, multiMessageDoubleBilled: 2 }) })) },
+    { byteGate: summariseCensus(censusJson({ duplicates: dupFixture({ singleMessageStreaks: 1, singleMessageDoubleBilled: 0, multiMessageStreaks: 1, multiMessageDoubleBilled: 1 }) })) },
+  ];
+  const totals = reduceByteGate(rows).duplicates;
+  assert.equal(totals.singleMessageStreaks, 3);
+  assert.equal(totals.singleMessageDoubleBilled, 1, "the half row 31 must drive to zero");
+  assert.equal(totals.multiMessageStreaks, 4);
+  assert.equal(totals.multiMessageDoubleBilled, 3, "the half that must NOT move");
+});
+
+test("BITE — the sweep line prints row 31's two-sided read, and says so when the rollup predates it", () => {
+  const withSplit = describeDuplicates({
+    ...summariseDuplicates(newDuplicateScan()),
+    singleMessageStreaks: 2, singleMessageDoubleBilled: 0, singleMessageCoalesced: 2,
+    multiMessageStreaks: 5, multiMessageDoubleBilled: 4,
+  });
+  assert.match(withSplit, /by class \(row 31\)/);
+  assert.match(withSplit, /1msg 2 streak\(s\) \/ 0 double-billed \/ 2 coalesced/);
+  assert.match(withSplit, /n-msg 5 \/ 4 double-billed/);
+  // The two arms must DIFFER: a rollup written before the split carries no
+  // class keys, and printing 0/0 there would be an unmeasured zero wearing a
+  // measurement's clothes.
+  const preSplit = describeDuplicates({
+    pairs: 1, streaks: 1, maxStreak: 2, requests: 2,
+    billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
+    coalescedRequests: 0, coalescedStreaks: 0, membersWithoutId: 0,
+  });
+  assert.match(preSplit, /by class \(row 31\): COULD NOT VERIFY/);
+  assert.doesNotMatch(preSplit, /1msg 0/, "no zeros invented for a split that had not shipped");
+});

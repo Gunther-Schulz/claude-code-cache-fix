@@ -55,6 +55,7 @@ import {
   newDuplicateScan,
   trackDuplicate,
   noteOutcome,
+  noteCoalesced,
   summariseDuplicates,
 } from "../tools/reminder-migration-census.mjs";
 
@@ -111,11 +112,14 @@ test("a corpus with no repeated body reports zeros, not silence", async (t) => {
 
   assert.deepEqual(res.unreadable, [], "the capture must be readable");
   assert.equal(res.pairs, 2, "two same-conversation pairs were examined");
-  assert.deepEqual(res.duplicates, {
-    pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
-    billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
-    coalescedRequests: 0, coalescedStreaks: 0, membersWithoutId: 0,
-  });
+  // The expected shape is ASKED OF the summariser over an empty scan, not
+  // restated here. A literal is a copy, and a copy of a field list beside the
+  // source it mirrors is what silently dropped `coalescedRequests` from
+  // gate-live's rollup for four days. The claim being made is "an unrepeated
+  // corpus reports the summariser's own zero shape", which is what this now
+  // says; a field the summariser gains arrives here as 0 without an edit.
+  assert.deepEqual(res.duplicates, summariseDuplicates(newDuplicateScan()));
+  assert.equal(res.duplicates.streaks, 0, "instrument positive: a zero shape really is all zeros");
   assert.deepEqual(res.duplicatesByCapture, [], "no rollup for a capture with nothing to roll up");
   assert.deepEqual(res.duplicateRows, []);
 });
@@ -347,4 +351,105 @@ test("one outcome record bills exactly one request", () => {
   assert.equal(noteOutcome(scan, "a"), true);
   assert.equal(noteOutcome(scan, "a"), false, "a repeated outcome record cannot bill twice");
   assert.equal(summariseDuplicates(scan).billedRequests, 1);
+});
+
+// --- The class split (2026-08-15): row 31's done-criterion is TWO-SIDED ---
+//
+// The criterion reads: the session-start duplicate class falls to zero WHILE
+// the mid-session class stays UNCHANGED — a fall in the second is over-reach,
+// not success. Until this split existed both halves were one corpus-wide
+// number, so the criterion could only be settled by hand, which is exactly the
+// hand-derivation closing-gate question 3 says the census should emit.
+//
+// RED-FIRST, discriminating split stated: run against the unmodified census
+// these four bites fail at their own call sites (every `singleMessage*` /
+// `multiMessage*` field reads `undefined`) while all 22
+// pre-existing bites in this file pass — the summariser gained fields, it did
+// not change any it had. Namespace-free named imports are safe here because
+// `duplicateClassOf` is the only new export and the bites below reach the
+// split through `summariseDuplicates`, which already existed.
+
+const dupBody = (n) => ({ model: "m", messages: Array.from({ length: n }, (_, i) => ({ role: "user", content: `m${i}` })) });
+
+/** One streak of exactly two members with a body of `n` messages. */
+const streakOf = (scan, cid, n, { ids = null } = {}) => {
+  const body = dupBody(n);
+  const a = ids ? { ts: "t1", id: ids[0], body } : { ts: "t1", body };
+  const b = ids ? { ts: "t2", id: ids[1], body } : { ts: "t2", body };
+  trackDuplicate(scan, cid, a, b);
+};
+
+test("the split counts a one-message streak apart from a many-message one — row 31's own discriminator", () => {
+  const scan = newDuplicateScan();
+  streakOf(scan, "start", 1, { ids: ["a1", "a2"] });
+  streakOf(scan, "mid", 7, { ids: ["b1", "b2"] });
+  const s = summariseDuplicates(scan);
+
+  assert.equal(s.streaks, 2);
+  assert.equal(s.singleMessageStreaks, 1, "nMsg === 1 — the class the mitigation can act in");
+  assert.equal(s.multiMessageStreaks, 1, "nMsg !== 1 — the retry class, which must stay UNCHANGED");
+});
+
+test("the alarm column splits by class, so a fall on one side cannot hide a rise on the other", () => {
+  const scan = newDuplicateScan();
+  streakOf(scan, "start", 1, { ids: ["a1", "a2"] });
+  streakOf(scan, "mid", 7, { ids: ["b1", "b2"] });
+  // Both members of each streak billed — the #78420 shape, on both sides.
+  for (const id of ["a1", "a2", "b1", "b2"]) assert.equal(noteOutcome(scan, id), true);
+  const s = summariseDuplicates(scan);
+
+  assert.equal(s.doubleBilledStreaks, 2, "the corpus-wide alarm, unchanged by the split");
+  assert.equal(s.singleMessageDoubleBilled, 1, "the half row 31 must drive to zero");
+  assert.equal(s.multiMessageDoubleBilled, 1, "the half that must NOT move");
+});
+
+test("a non-object body forms no streak at all — which is why TWO buckets are total, not three", () => {
+  // This bite exists because the split's first design had a third bucket for
+  // `nMsg: null`, on the three-answer rule. Its own bite failed on first run
+  // for a reason nobody planted: `sameBody` requires `messages` to be an ARRAY
+  // on both sides before a run is opened, so a streak with a null nMsg cannot
+  // exist and the bucket was unprovable rather than merely unproven. The
+  // bucket went; this pins the premise that replaced it, so the day `sameBody`
+  // loosens, the two-bucket claim fails HERE instead of quietly mis-filing a
+  // streak as mid-session.
+  const scan = newDuplicateScan();
+  const body = "not an object";
+  trackDuplicate(scan, "weird", { ts: "t1", id: "c1", body }, { ts: "t2", id: "c2", body });
+  const s = summariseDuplicates(scan);
+
+  assert.equal(s.streaks, 0, "no run is opened for a body sameBody cannot compare");
+  // Instrument positive, so the zero above is a measurement and not a dead
+  // arrangement: the identical call with a real body DOES open a streak.
+  const ok = newDuplicateScan();
+  streakOf(ok, "fine", 1, { ids: ["e1", "e2"] });
+  assert.equal(summariseDuplicates(ok).streaks, 1, "the same arrangement with a readable body forms one");
+  // And every streak that does exist carries a numeric nMsg — the claim the
+  // two-bucket partition rests on, read off the runs rather than argued.
+  for (const run of ok.streaks) assert.equal(typeof run.nMsg, "number");
+});
+
+test("the two buckets PARTITION the streaks — every per-class counter sums to its corpus-wide sibling", () => {
+  // The property that makes the split checkable rather than merely present. A
+  // miscount on any side shows up here even when each individual bite passes.
+  const scan = newDuplicateScan();
+  streakOf(scan, "s1", 1, { ids: ["a1", "a2"] });
+  streakOf(scan, "s2", 1, { ids: ["d1", "d2"] });
+  streakOf(scan, "m1", 4, { ids: ["b1", "b2"] });
+  for (const id of ["a1", "a2", "b1", "b2"]) noteOutcome(scan, id);
+  noteCoalesced(scan, "d2", { leaderId: "d1", sha: "x", deltaMs: 9 });
+  const s = summariseDuplicates(scan);
+
+  assert.equal(s.singleMessageStreaks + s.multiMessageStreaks, s.streaks,
+    "the buckets partition the streaks");
+  assert.equal(s.singleMessageDoubleBilled + s.multiMessageDoubleBilled,
+    s.doubleBilledStreaks, "and the alarm column");
+  assert.equal(s.singleMessageCoalesced + s.multiMessageCoalesced,
+    s.coalescedStreaks, "and the mitigation's own column");
+  // Negative control against a split that just mirrors the whole: the two
+  // sides must actually DIFFER on this input, or the assertions above would
+  // pass equally against a build that put every streak in one bucket.
+  assert.equal(s.singleMessageStreaks, 2);
+  assert.equal(s.multiMessageStreaks, 1);
+  assert.equal(s.singleMessageCoalesced, 1, "the coalesce landed on the single-message side");
+  assert.equal(s.multiMessageCoalesced, 0);
 });

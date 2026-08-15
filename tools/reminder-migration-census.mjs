@@ -935,12 +935,69 @@ export function noteCoalesced(scan, id, coalescedRecord) {
  * effect is a daily figure instead of a hand-count — and a streak whose
  * members are all coalesced-or-billed is a suppressed duplicate rather than an
  * unexplained one.
+ *
+ * THE CLASS SPLIT, added 2026-08-15, and it exists because row 31's
+ * done-criterion is TWO-SIDED and no counter here answered either side. The
+ * criterion reads: the session-start duplicate class falls to zero WHILE the
+ * mid-session class stays UNCHANGED — a fall in the second is over-reach, not
+ * success, because there the follower is a real retry whose first attempt was
+ * never answered. Both halves were corpus-wide totals until now, so the
+ * criterion could only be settled by hand, which is the hand-derivation
+ * closing-gate question 3 says the census should be emitting instead.
+ *
+ * The discriminator is the one row 31's own entry names — `nMsg` alone: the
+ * mitigation's four conditions require `nMsg === 1`, so the mid-session class
+ * fails on that field before any other is read. This split is therefore the
+ * ENTRY's predicate, not a new judgement made here. What it deliberately does
+ * NOT claim: `singleMessage` is not "the mitigation's class" — the mitigation
+ * also requires no tools, byte-identical bodies and a <50 ms interval, none of
+ * which this counter reads. It is the widest bucket the mitigation can act in,
+ * which is the right shape for a criterion that wants the class to fall to
+ * zero.
+ *
+ * TWO buckets, and the third one this started with was DELETED before it
+ * shipped, which is worth writing down because it is the more useful half.
+ * The obvious design was three — `singleMessage`, `multiMessage`, and an
+ * `unknownShape` bucket for `nMsg: null`, on the three-answer rule that an
+ * unmeasured streak must not read as a measured one. Its bite failed on first
+ * run, for a reason nobody planted: NO INPUT CAN REACH IT. `sameBody` gates
+ * run creation on `messages` being an ARRAY on both sides, so every streak
+ * `trackDuplicate` creates has a numeric `nMsg` by construction and
+ * `requestShapeOf` can never report null for one. A bucket no input can
+ * populate is not an unproven counter, it is an unprovable one — the shape
+ * this repo's own rules name — so it went, and the reachability argument is
+ * pinned by a bite instead (test/census-duplicate-requests.test.mjs, "a
+ * non-object body forms no streak at all").
+ *
+ * `multiMessage` is every NUMERIC `nMsg` other than 1 — including 0, which the
+ * API does not accept and CC therefore does not send, named here so a reader
+ * is not surprised to find it on that side rather than in a bucket of its own.
+ *
+ * The two buckets partition the streaks exactly, which is what makes the split
+ * checkable rather than merely present: each per-class counter sums to its
+ * corpus-wide sibling (`*Streaks` to `streaks`, `*DoubleBilled` to
+ * `doubleBilledStreaks`, `*Coalesced` to `coalescedStreaks`), asserted in
+ * test/census-duplicate-requests.test.mjs.
  */
+const DUPLICATE_CLASSES = ["singleMessage", "multiMessage"];
+
+/** Which of the two buckets a streak belongs to, by `nMsg` alone. A streak
+ *  always has a numeric `nMsg` (see the reachability note above), so this is
+ *  total over the streaks that exist. */
+export function duplicateClassOf(run) {
+  return run?.nMsg === 1 ? "singleMessage" : "multiMessage";
+}
+
 export function summariseDuplicates(scan) {
   const s = { pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
               billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
               coalescedRequests: 0, coalescedStreaks: 0,
               membersWithoutId: 0 };
+  for (const c of DUPLICATE_CLASSES) {
+    s[`${c}Streaks`] = 0;
+    s[`${c}DoubleBilled`] = 0;
+    s[`${c}Coalesced`] = 0;
+  }
   for (const run of scan.streaks) {
     s.streaks++;
     s.pairs += run.length - 1;
@@ -952,6 +1009,10 @@ export function summariseDuplicates(scan) {
     if (run.billed > 1) s.doubleBilledStreaks++;
     if ((run.coalesced ?? 0) > 0) s.coalescedStreaks++;
     if (run.length > s.maxStreak) s.maxStreak = run.length;
+    const c = duplicateClassOf(run);
+    s[`${c}Streaks`]++;
+    if (run.billed > 1) s[`${c}DoubleBilled`]++;
+    if ((run.coalesced ?? 0) > 0) s[`${c}Coalesced`]++;
   }
   return s;
 }
@@ -1536,6 +1597,20 @@ async function main(argv) {
           "  degenerate answer (outputTokens 1-2) lands here too, billed because\n" +
           "  upstream did answer. Read the rows (--verbose) and their outcome\n" +
           "  records — model, usage, interval — before booking either reading.\n") +
+      // Row 31's done-criterion is TWO-SIDED and both sides go in front of a
+      // reader here, because a criterion reachable only through --json is a
+      // criterion somebody hand-derives. `nMsg === 1` is the entry's own
+      // discriminator; it is the widest bucket the mitigation can act in, not
+      // a claim that every streak in it was coalescible.
+      `  BY CLASS (nMsg === 1 vs everything else — row 31's own discriminator):\n` +
+      `    one-message  ${d.singleMessageStreaks} streak(s), ` +
+      `${d.singleMessageDoubleBilled} double-billed, ${d.singleMessageCoalesced} coalesced\n` +
+      `    many-message ${d.multiMessageStreaks} streak(s), ` +
+      `${d.multiMessageDoubleBilled} double-billed, ${d.multiMessageCoalesced} coalesced\n` +
+      "    Row 31 closes when the one-message double-billed count reaches 0 WHILE\n" +
+      "    the many-message one is UNCHANGED. A fall on the second line is\n" +
+      "    over-reach, not success: there the follower is a real retry whose first\n" +
+      "    attempt was never answered, and suppressing it strands a live request.\n" +
       "  Billing is matched WITHIN a capture, so a streak at a live file's tail may\n" +
       "  have outcome records that were not written yet when it was read.\n");
     if (duplicatesByCapture.length > 1) {

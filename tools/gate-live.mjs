@@ -254,15 +254,30 @@ export function addDuplicates(acc, d) {
  * every sweep, not reachable by jq.
  *
  * A rollup that was never produced is the third answer, never a row of zeros:
- * an unwritten 0 and a measured 0 are the same bytes. */
+ * an unwritten 0 and a measured 0 are the same bytes.
+ *
+ * The SECOND line is row 31's criterion, both sides on one line, because the
+ * criterion is two-sided and a reader given only the corpus total settles it
+ * by hand. `1msg` is the census's `nMsg === 1` bucket — the widest one the
+ * mitigation can act in — and `n-msg` is everything else, which must stay
+ * UNCHANGED as the first falls: a drop there is over-reach, not success. A
+ * rollup produced before the split existed carries neither key, so it says so
+ * rather than printing two zeros it never measured. */
 export function describeDuplicates(d) {
   if (!d || typeof d !== "object") return "COULD NOT VERIFY — no duplicate rollup this sweep";
   const n = (k) => d[k] ?? 0;
+  const split = ("singleMessageStreaks" in d)
+    ? `\n  by class (row 31): 1msg ${n("singleMessageStreaks")} streak(s) / ` +
+      `${n("singleMessageDoubleBilled")} double-billed / ${n("singleMessageCoalesced")} coalesced — ` +
+      `n-msg ${n("multiMessageStreaks")} / ${n("multiMessageDoubleBilled")} double-billed ` +
+      `(must stay UNCHANGED as the first falls)`
+    : "\n  by class (row 31): COULD NOT VERIFY — this rollup predates the class split";
   return (
     `${n("streaks")} streak(s) over ${n("requests")} duplicate send(s), longest ${n("maxStreak")}; ` +
     `${n("billedStreaks")} billed / ${n("doubleBilledStreaks")} double-billed (the alarm); ` +
     `${n("coalescedRequests")} coalesced request(s) over ${n("coalescedStreaks")} streak(s)` +
-    (n("membersWithoutId") ? `; ${n("membersWithoutId")} member(s) without a request id` : "")
+    (n("membersWithoutId") ? `; ${n("membersWithoutId")} member(s) without a request id` : "") +
+    split
   );
 }
 

@@ -147,9 +147,18 @@ test("two byte-identical requests with two outcome records: full discriminator s
   // coalesced pair joined the set when row 31's mitigation gained its record
   // (2026-08-14): a suppressed duplicate is a member with no outcome, and
   // without its own counter it would be tallied as an unanswered send.
+  // The six class-split keys joined 2026-08-15, when row 31's TWO-SIDED
+  // done-criterion turned out to have no counter on either side — and this
+  // assertion is what announced it, going red on the addition rather than
+  // letting a new field arrive unremarked. That is the whole job: it is the
+  // only place the summariser's key set is pinned, and gate-live's rollup
+  // now DERIVES its own set from this function rather than keeping a second
+  // copy that drifted for four days.
   assert.deepEqual(Object.keys(res.duplicates).sort(), [
     "billedRequests", "billedStreaks", "doubleBilledStreaks", "maxStreak",
     "coalescedRequests", "coalescedStreaks",
+    "singleMessageStreaks", "singleMessageDoubleBilled", "singleMessageCoalesced",
+    "multiMessageStreaks", "multiMessageDoubleBilled", "multiMessageCoalesced",
     "membersWithoutId", "pairs", "requests", "streaks",
   ].sort());
 });
