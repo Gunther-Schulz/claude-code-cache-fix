@@ -47,10 +47,24 @@ head were REGRADED to `RECORD`, not dropped: same bodies, same verifiers, in
 MITIGATE-stage item — row 31's duplicate-sidecar coalescing. Its code is live
 (`/health` reports `CACHE_FIX_COALESCE_SIDECAR=1`, 12 gates), but its own
 done-criterion asks for a live sweep showing the duplicate count fall to zero
-while the mid-session count stays UNCHANGED, and the gate status file carries no
-duplicate section at all — so the mitigation is shipped and its absorption is
-unproven. That is the gap between "the mitigation ran" and "the mitigation
-absorbed" this repo has a whole dev-loop section about.
+while the mid-session count stays UNCHANGED, and no instrument produced either
+number — so the mitigation is shipped and its absorption is unproven. That is
+the gap between "the mitigation ran" and "the mitigation absorbed" this repo has
+a whole dev-loop section about.
+
+**CORRECTED 2026-08-15, same day, and the correction matters because the
+sentence sent a reader to the wrong place:** this paragraph read "the gate
+status file carries no duplicate section at all". It carries one — eight
+fields, written by every sweep since the dup-census work, and the 10:03Z sweep's
+own `byteGate.duplicates` block is right there in the status file. What was
+missing was narrower and worse: the section was complete-LOOKING and dropped the
+two fields the criterion is actually stated in (`coalescedRequests`/
+`coalescedStreaks`, which the census emitted on every sweep and gate-live's
+hand-listed rollups threw away), and no counter existed for either SIDE of the
+two-sided criterion. Both are fixed (`8f8e5ab`, `b5f42e2`, `## Done`). A wrong
+sentence in the "no section" direction is the kind that stops the next reader
+opening the file, which is how it survived a derivation written the same
+morning.
 
 **One instrument outranks nothing here by seniority; #5 is placed where it is
 because it is UPSTREAM of the lead** — `bust-triage` is what would answer the
@@ -791,12 +805,42 @@ now means some child DIED HARD and is a finding about that child.
   `coalescedRequests` / `coalescedStreaks` in the census rollup, and
   `duplicate-billing`'s COALESCED join class. The pre-flip baseline is the
   2026-08-14 sweep's own duplicates block.
+  **RE-GRADED 2026-08-15 — the numbers this entry names were NOT READABLE from
+  the daily sweep when it was written, and now are (`8f8e5ab`, `b5f42e2`).**
+  Two gaps, both silent, both fixed: gate-live's two duplicate rollups
+  enumerated the census's field names by hand and dropped
+  `coalescedRequests`/`coalescedStreaks` for four days (measured on the
+  2026-08-15 10:03Z sweep — per-capture rows carry 3 coalesced requests over 3
+  streaks, the rollup carried neither key), and neither side of the two-sided
+  criterion had a counter at all. `summariseDuplicates` now splits by
+  `nMsg === 1`, the rollups DERIVE their field set from it, and both the census
+  text report and the sweep's own summary line print the two sides. The entry
+  stays PARKED: what was missing was the instrument, and what is still missing
+  is the traffic.
   NAMED MISSING EVIDENCE: a full sweep over a corpus whose captures were
   written with the gate ON. The 2026-08-14 sweeps ran against pre-flip
   traffic, so their duplicate counts cannot answer this either way — the
   captures have to age past the flip first.
   Trigger to re-grade: the first sweep whose window lies entirely after
   2026-08-14 18:17 local.
+  **How to read that sweep, decided now so it is not decided under the
+  pressure of wanting the row closed:** `byteGate.duplicates
+  .singleMessageDoubleBilled` must reach 0 while `.multiMessageDoubleBilled`
+  does not move. The `singleMessage` bucket is WIDER than row 31's class — it
+  reads `nMsg` alone, never the model, the capture position or the interval —
+  so a non-zero there is a prompt to read the streak rows, not a refutation of
+  the mitigation on its own.
+  **One thing the first full sweep must be read for, raised 2026-08-15 and
+  DELIBERATELY NOT resolved from a sample:** across the two captures probed by
+  hand while building the split, every duplicate streak including the
+  double-billed one was one-message, i.e. the criterion's control side had no
+  members. If that held corpus-wide the "stays UNCHANGED" half would
+  discriminate nothing. It probably does not hold — row 31's own cell records
+  62 double-billed streaks corpus-wide of which 47 are this class, so 15 sit
+  outside it — but those 47 were classified on all four axes, not on `nMsg`, so
+  the matrix's numbers do not answer the `nMsg` question either. Two captures
+  settle nothing in either direction; the first full sweep prints both buckets
+  and settles it in one line.
   Loop stage: VERIFY.
   Anchor: docs/directives/robustness-threat-matrix.md
   Write-set: docs/directives/robustness-threat-matrix.md (row 31 status)
@@ -9067,6 +9111,65 @@ re-inflated within four days of being declared. Also found: the
 `--closures-in-live` detector that would have caught all 110 of these is an
 OPT-IN FLAG, absent from the default `backlog-lint` run, so nothing was ever
 going to report this disease unprompted.
+
+- **DONE 2026-08-15 — the daily sweep dropped the two numbers row 31's
+  done-criterion is stated in, and read as complete while doing it.**
+  `summariseDuplicates` (census) gained `coalescedRequests`/`coalescedStreaks`
+  on 2026-08-11 — its own comment calls them "the MITIGATION's own number, and
+  they are why row 31's record exists" — and BOTH of gate-live's duplicate
+  rollups enumerated the field names by hand beside it, so both were dropped
+  for four days into a `byteGate.duplicates` block carrying eight plausible
+  fields. Measured on the 2026-08-15 10:03Z sweep: the per-capture rows carry 3
+  coalesced requests over 3 streaks; the rollup a human reads carried neither
+  key. The head's LEAD item was therefore not merely unmeasured, it was
+  unmeasurable from the daily sweep by construction.
+  Fixed `8f8e5ab`: both reducers now DERIVE their field set from
+  `summariseDuplicates(newDuplicateScan())` — the source asked, not copied —
+  with the MAX-not-SUM exception declared once, so a field the census gains
+  arrives without an edit and fails a bite the day it does not. Second half,
+  the 2026-08-11 absorption correction applied before it cost the same twice:
+  the sweep's stdout printed tally and prunes and NEVER a duplicate number, so
+  both the CC#78420 alarm column and the mitigation's own column lived only in
+  the status file; `describeDuplicates` prints unconditionally, zeros included,
+  and answers COULD NOT VERIFY rather than a row of zeros it never measured.
+  Red-first, discriminating split stated: 5 pass / 6 fail against the
+  unmodified module, the derived-basis bite naming both dropped fields in its
+  own failure message. Desk check beyond the lane's own evidence: a scratch
+  sweep over s-captureBQ — a real positive, claimed and `--protect`ed — printed
+  the line and both carriers carried the fields.
+  Dependents search: `git grep -n doubleBilledStreaks` over the tree; the only
+  other rollup consumer is `shape-verdicts.mjs`, single-field, no change.
+
+- **DONE 2026-08-15 — row 31's done-criterion is TWO-SIDED and the census had a
+  counter for NEITHER side, so the criterion could only ever be settled by
+  hand.** `summariseDuplicates` now splits `streaks`, `doubleBilledStreaks` and
+  `coalescedStreaks` by `nMsg === 1` — row 31's own discriminator, quoted
+  rather than re-decided — and both readers print it: the census's text report
+  gains a BY CLASS block with the criterion spelled out, the sweep summary a
+  `by class (row 31)` line that says COULD NOT VERIFY on a rollup written
+  before the split rather than inventing two zeros. Shipped `b5f42e2`.
+  **The third bucket was deleted before it shipped, which is the part worth
+  keeping.** The design started with three — the two above plus `unknownShape`
+  for `nMsg: null`, on the three-answer rule — and its bite failed on first run
+  for a reason nobody planted: `sameBody` gates run creation on `messages`
+  being an array on both sides, so no streak can have a null `nMsg` and the
+  bucket was unprovable rather than unproven. It went; the reachability premise
+  that replaced it is pinned by a bite with an instrument positive beside its
+  zero.
+  Red-first with the arrangement named: census reverted to its committed blob
+  via `git checkout HEAD -- <file>`, `git diff --stat HEAD` empty as proof the
+  old implementation was really in place, 3 split bites red / 16 others green;
+  restored 19/19; full suite 3304 pass / 0 fail. The derivation from the
+  previous commit then proved itself in the artifact — all six new census
+  fields reached gate-live's rollup with NO edit to either reducer.
+  Corroboration worth recording: the source-side key-set guard
+  (`test/census-duplicate-streak-details.test.mjs`) went red on the addition
+  and named all six fields. Its gate-live counterpart did not exist until
+  `8f8e5ab`, which is exactly why the same source gaining two fields four days
+  earlier was dropped in silence there.
+  Two more restated bases removed while here, both of which had just fired:
+  `gate-live-duplicates`'s own `dupFixture` and the census suite's "reports
+  zeros" assertion now derive their shape from the summariser.
 
 - **DONE 2026-08-15 (retired — overtaken by this session's own exit pass) —
   `## Open` no longer holds ANY closures: the entry below asked for the 43
