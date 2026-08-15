@@ -93,6 +93,7 @@ import { spawn } from "node:child_process";
 import { censusPair, compactEntry, findEditPositions, findBlockMigrations,
          lineageOverlap, sameLineage, firstDivergence, attributionOf } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
+import { conversationSubKey } from "../proxy/extensions/message-hash.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
   from "./reminder-migration-census.mjs";
 import { localSuffix, withLocalStamps } from "./local-stamp.mjs";
@@ -584,7 +585,7 @@ const STATE_KEY_LOG_SUFFIXES = ["insertion-events.jsonl", "deferred-tool-events.
  * tool has no word to guess at, surfaced by the caller as its own third
  * answer rather than folded into "stable" or "flip".
  */
-export function stateKeyAt(sid, tsIso, dir = SNAPSHOTS) {
+export function stateKeyAt(sid, tsIso, dir = SNAPSHOTS, conv = null) {
   const target = Date.parse(tsIso);
   if (!existsSync(dir) || Number.isNaN(target)) return null;
   let files;
@@ -594,7 +595,25 @@ export function stateKeyAt(sid, tsIso, dir = SNAPSHOTS) {
   } catch {
     return null;
   }
-  let best = null; // { key, action, resetReason, dist }
+  // CONVERSATION SCOPE (added 2026-08-15). Time proximity alone picks
+  // whichever TENANT logged nearest, and one session id carries the main
+  // thread plus every sidecar (FORK-NOTES, "One session id carries several
+  // conversations"). The docstring's "millisecond-scale, so it cannot be
+  // confused" is true about the JOIN and false about the confusion: measured
+  // live on the 919k s-captureBR event, a one-message sidecar beat the main-thread
+  // main thread by 2ms on one side and 3ms on the other, and BOTH sides of
+  // the reported key flip were sidecars.
+  //
+  // The state key's last segment is the conversation sub-key
+  // (`resolveInsertionSessionKey`: `s-<sid>-<systemPromptSubKey>-<conv>`),
+  // and the capture is pre-pipeline, so `conversationSubKey` over the
+  // captured messages reproduces it exactly — verified on the live pair.
+  // So: prefer a record belonging to THIS conversation; fall back to nearest
+  // only when the conversation has none in the window, and say so via
+  // `convMatched` rather than returning an answer that looks scoped and is
+  // not.
+  let scoped = null;
+  let any = null;
   for (const name of files) {
     for (const line of lines(join(dir, name))) {
       const r = j(line);
@@ -603,12 +622,22 @@ export function stateKeyAt(sid, tsIso, dir = SNAPSHOTS) {
       if (Number.isNaN(t)) continue;
       const dist = Math.abs(t - target);
       if (dist > TELEMETRY_WINDOW_MS) continue;
-      if (!best || dist < best.dist) {
-        best = { key: r.key, action: r.action, resetReason: r.resetReason ?? null, dist };
-      }
+      const hit = { key: r.key, action: r.action, resetReason: r.resetReason ?? null, dist };
+      if (!any || dist < any.dist) any = hit;
+      if (conv && r.key.endsWith(`-${conv}`) && (!scoped || dist < scoped.dist)) scoped = hit;
     }
   }
-  return best;
+  // THREE answers, not two, and the third is what keeps this from being a
+  // check that fires on a non-defect. `convMatched: null` means no
+  // conversation was SUPPLIED, so no scoping was attempted — the pre-2026-08-15
+  // behaviour, and the only reachable state for a caller that has no message
+  // array. `false` means a conversation WAS supplied and this window holds no
+  // record for it, so the returned record belongs to some other tenant and no
+  // claim about this one can rest on it. Collapsing the two would report
+  // "wrong tenant" every time a caller simply did not ask for scoping.
+  if (scoped) return { ...scoped, convMatched: true };
+  if (!any) return null;
+  return { ...any, convMatched: conv ? false : null };
 }
 
 /**
@@ -633,15 +662,30 @@ export function stateKeyAt(sid, tsIso, dir = SNAPSHOTS) {
  * stable").
  */
 export function stateKeyFlip(sid, pair, dir = SNAPSHOTS) {
-  const before = stateKeyAt(sid, pair.before.ts, dir);
-  const after = stateKeyAt(sid, pair.after.ts, dir);
+  // Each side is looked up under ITS OWN conversation, computed from the
+  // captured (pre-pipeline) messages by the repo's own function — never
+  // re-derived here (dev-loop, "never hand-roll identity in a probe").
+  // A pair that crosses a rotation has two DIFFERENT conversations by
+  // construction, which is exactly the case this scoping has to get right.
+  const convOf = (rec) =>
+    Array.isArray(rec?.body?.messages) ? conversationSubKey(rec.body.messages) : null;
+  const before = stateKeyAt(sid, pair.before.ts, dir, convOf(pair.before));
+  const after = stateKeyAt(sid, pair.after.ts, dir, convOf(pair.after));
   if (!before || !after) {
     return { code: "unresolved", before, after, noPriorCanonical: false };
   }
   const noPriorCanonical =
     (before.action === "reset" && before.resetReason === "no-prior-canonical") ||
     (after.action === "reset" && after.resetReason === "no-prior-canonical");
-  return { code: before.key === after.key ? "stable" : "flip", before, after, noPriorCanonical };
+  // A side that fell back to nearest-any is NOT evidence about this
+  // conversation, so the pair cannot support a flip/stable claim either way.
+  // Surfaced as its own code rather than folded into a verdict — the same
+  // three-answers discipline the rest of this file keeps.
+  const unscoped = before.convMatched === false || after.convMatched === false;
+  return {
+    code: unscoped ? "unscoped" : (before.key === after.key ? "stable" : "flip"),
+    before, after, noPriorCanonical, unscoped,
+  };
 }
 
 /**
@@ -763,7 +807,7 @@ export async function findPredecessor(f, after) {
   let convSize = 0;
   for await (const line of readLines(f)) {
     const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") o3++;
+    if (isCaptureRequestRecord(r)) o3++;
     if (!r?.body?.messages || !r?.ts) continue;
     r.ord = o3;
     // `after` itself is excluded by the strict earlier-than check below —
@@ -788,37 +832,65 @@ export async function findPredecessor(f, after) {
   // instead of by its first message, and survives the rotation that defeats
   // `conversationOf`.
   const afterEntry = compactEntry({ inMsgs: after.body.messages });
-  let bestOverlap = -1;
-  let bestEntry = null;
-  let bestCandidate = null;
+  // OVERLAP ADMITS, RECENCY SELECTS (corrected 2026-08-15).
+  //
+  // This stage used to take the ARGMAX of `lineageOverlap`, and that is
+  // wrong in a way the score itself guarantees. `lineageOverlap` normalizes
+  // by the SMALLER set (`shared / Math.min(setA.size, setB.size)`,
+  // replay.mjs), so any short EARLY request whose messages all still exist
+  // in the busting array scores a perfect 1.0, while the true immediate
+  // predecessor — which carries the handful of messages the rebuild
+  // dropped — scores below it. Argmax therefore prefers old-and-short over
+  // near-and-real, and the preference strengthens the longer a conversation
+  // runs.
+  //
+  // The comment that used to sit here read: "the measured cluster rises
+  // monotonically with recency (97.1/97.3/97.7/98.1/98.5%), so ties are not
+  // expected". Those numbers are real, and they were measured over the five
+  // requests immediately before one boundary — a window containing no short
+  // early candidate. The monotonicity was a property of that window, not of
+  // the score.
+  //
+  // Measured live 2026-08-15 (the 919k s-captureBR event, 15:07:49Z): argmax
+  // selected a predecessor 2h13m before the bust while the conversation's
+  // real one sat 2m27s before it, and every downstream line of that walk —
+  // attribution, census, state-key flip, migration — was computed over a
+  // pair that never busted. `test/bust-triage-lineage-recency.test.mjs`
+  // reproduces the selection and asserts the score ordering that causes it.
+  //
+  // So: `sameLineage` is the ADMISSION test, applied per candidate, and the
+  // most RECENT admitted candidate is the predecessor — the same "nearest
+  // earlier request" relation stages 1 and 3 already use. All three stages
+  // now share one notion of predecessor and differ only in how they admit.
+  let pick = null;
+  let pickOverlap = -1;
   let o4 = -1;
   for await (const line of readLines(f)) {
     const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") o4++;
+    if (isCaptureRequestRecord(r)) o4++;
     if (!r?.body?.messages || !r?.ts) continue;
     // Strictly earlier than `after` — the same "predecessor" relation the
     // cid search above enforces, never a second notion of "earlier".
     if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
+    // Recency check BEFORE the overlap computation: `compactEntry` hashes
+    // every message, so skipping candidates that cannot win keeps this stage
+    // linear in the capture rather than in its content.
+    if (pick && Date.parse(r.ts) <= Date.parse(pick.ts)) continue;
     const candEntry = compactEntry({ inMsgs: r.body.messages });
-    const ov = lineageOverlap(candEntry, afterEntry);
-    // >= so that among tied overlaps the MORE RECENT candidate wins — the
-    // measured cluster rises monotonically with recency (97.1/97.3/97.7/
-    // 98.1/98.5%), so ties are not expected, but a later, closer request is
-    // the more plausible predecessor.
-    if (ov >= bestOverlap) {
-      bestOverlap = ov;
-      bestEntry = candEntry;
-      r.ord = o4;
-      bestCandidate = r;
-    }
+    // Reject on the relation's OWN evidence, not by a special case: a
+    // 1-message co-tenant sidecar sharing 0% never clears the threshold, so
+    // it never needs naming here.
+    if (!sameLineage(candEntry, afterEntry)) continue;
+    r.ord = o4;
+    pick = r;
+    pickOverlap = lineageOverlap(candEntry, afterEntry);
   }
-  // Reject on the relation's OWN evidence, not by a special case: a
-  // 1-message co-tenant sidecar sharing 0% never clears the threshold, so it
-  // never needs naming here.
-  if (bestCandidate && sameLineage(bestEntry, afterEntry)) {
+  if (pick) {
     // Labelled explicitly — a reader must never mistake this for an
-    // ordinary same-identity pair the cid search would have found.
-    return { ok: true, before: bestCandidate, after, crossesRotation: true };
+    // ordinary same-identity pair the cid search would have found. The
+    // overlap rides along so a reader can see how strong the admission was
+    // rather than inferring it from the fact that a pair came back.
+    return { ok: true, before: pick, after, crossesRotation: true, lineageOverlap: pickOverlap };
   }
   // BORN-LARGE FALLBACK (BACKLOG "bust-triage cannot reach threat-matrix row
   // 24 by ANY of its three routes" — the resume/born-large class, matrix row
@@ -838,7 +910,7 @@ export async function findPredecessor(f, after) {
   let o5 = -1;
   for await (const line of readLines(f)) {
     const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") o5++;
+    if (isCaptureRequestRecord(r)) o5++;
     if (!r?.body?.messages || !r?.ts) continue;
     if ((r.body.messages.length ?? 0) < 2) continue;
     if (Date.parse(r.ts) >= Date.parse(after.ts)) continue;
@@ -936,16 +1008,30 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES, ct
   // the no-candidate reason can name the test that emptied the set rather
   // than leaving the reader to guess at it.
   let tooSmall = 0, largestDropped = 0;
-  // File-wide REQUEST ORDINAL, counted by HARVEST's rule so the number this
-  // tool prints is the number `harvest --pin <key> n..m` takes: non-boot and
-  // non-outcome records only, zero-based (harvest.mjs pinRange). It is NOT the
-  // message count this tool also reports — conflating the two froze the wrong
-  // evidence range once, so the pair now carries the ordinal and the run
-  // prints a pin command that can be pasted.
+  // File-wide REQUEST ORDINAL, counted by HARVEST's OWN PREDICATE so the
+  // number this tool prints is the number `harvest --pin <key> n..m` takes:
+  // `isCaptureRequestRecord`, zero-based (harvest.mjs `pinRange` and
+  // `locateBoundedTarget` both count exactly these). It is NOT the message
+  // count this tool also reports — conflating the two froze the wrong
+  // evidence range once, so the pair carries the ordinal and the run prints
+  // a pin command that can be pasted.
+  //
+  // CORRECTED 2026-08-15. This comment used to say "non-boot and non-outcome
+  // records only" and the code implemented that, which WAS harvest's rule
+  // when it was written and silently stopped being so: harvest skips
+  // `coalesced` records without counting them (`if (rec.type ===
+  // "coalesced") { ...; continue; }` ahead of `const idx = count++`), and
+  // `coalesced` is row 31's own mitigation, so captures only began carrying
+  // them recently. Every such record shifted the printed range by one.
+  // Measured on s-captureBR, where one sits at ordinal 4 and the freeze hint
+  // for the 919k pair named co-tenant sidecars at both endpoints. The rule
+  // is no longer RESTATED here — the predicate is imported, so the two sides
+  // cannot drift apart again (dev-loop: a comparison basis restated from the
+  // source it mirrors cannot age loudly).
   let ord = -1;
   for await (const line of readLines(f)) {
     const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") ord++;
+    if (isCaptureRequestRecord(r)) ord++;
     if (!r?.body?.messages || !r?.ts) continue;
     r.ord = ord;
     seen++;
@@ -1003,7 +1089,7 @@ export async function capturePairResult(sid, tsEpoch, capturesDir = CAPTURES, ct
       let o2 = -1;
       for await (const line of readLines(f)) {
         const r = j(line);
-        if (r && r.type !== "boot" && r.type !== "outcome") o2++;
+        if (isCaptureRequestRecord(r)) o2++;
         if (!r?.body?.messages || !r?.ts) continue;
         r.ord = o2;
         if (plausible(r, line) && Date.parse(r.ts) === chosen.ts) { after = r; break; }
@@ -1598,7 +1684,7 @@ export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowE
   let ord = -1;
   for await (const line of readLines(f)) {
     const r = j(line);
-    if (r && r.type !== "boot" && r.type !== "outcome") ord++;
+    if (isCaptureRequestRecord(r)) ord++;
     if (ord > afterOrd) break;
     if (!r?.body?.messages || !r?.ts) continue;
     if (JSON.stringify(r.body.messages[0]) !== cidJson) continue;

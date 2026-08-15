@@ -108,47 +108,68 @@ substance merged into the 2026-08-11 entry, and that entry's instrument-positive
 recorded as SPENT: today's collector is exactly the known positive it named, so
 a zero from that enumeration is now unproven and says so.
 
-1. `_resetRelocationMemory` cannot evict the memory the pipeline uses — the
+1. **a resume-tolerant state key** — the LINCHPIN of the four-layer resume
+   absorption, and the head's MITIGATE-stage lead. Measured today on
+   s-captureBR (919k): four layers diverge across a resume and absorbing any
+   three recovers <=5.2% of the body while all four recover 100%, so the class
+   is absorb-all-four-or-nothing; and the proxy's own conversation key rotates
+   at that boundary, which strands every persisted pin — `deferred-tool-rewrite`
+   forwarded CC's raw `tools[]` under `no-baseline` at the one request its
+   canonical would have absorbed. Nothing else in this class is buildable until
+   a pin can be READ, which is what makes this the lead rather than one of the
+   three layer pins. Deployment-coupled and it touches state KEYS, so it is NOT
+   a cache-transparent restart: row 3 declaration first, priced with
+   `restart-exposure` against LIVE sessions.
+   <!-- entry: "resume-tolerant state key gates four-layer resume absorption" -->
+2. `_resetRelocationMemory` cannot evict the memory the pipeline uses — the
    enabling fix for row 25's eviction residual, and the nearest buildable thing
    to a mitigation. Deployment-coupled (`proxy/**`): pin bump + restart at a
    session boundary, row 3 declaration unchanged (memory-helper only, no state
    KEYS, no freeze logic). SUPERSEDES row 31, closed and measured.
    <!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
-2. push scan diffs range ENDPOINTS — a leak committed then scrubbed inside the
+3. push scan diffs range ENDPOINTS — a leak committed then scrubbed inside the
    range never reaches the scanner. Irreversible partition, silent.
    <!-- entry: "push scan diffs range endpoints, interior blob escapes" -->
-3. push-scan blob dedupe keyed on OID alone — same partition, small.
+4. push-scan blob dedupe keyed on OID alone — same partition, small.
    <!-- entry: "absence-scan blob dedupe keyed on oid alone, not oid plus scope" -->
-4. the hygiene policy enumerates IPs and says nothing about CONVERSATION
+5. the hygiene policy enumerates IPs and says nothing about CONVERSATION
    content — the class this fork's whole publication bar rests on.
    <!-- entry: "hygiene policy is silent on conversation content" -->
-5. `bust-triage` names the ROW and never says whether the mitigation ABSORBED —
+6. `bust-triage` names the ROW and never says whether the mitigation ABSORBED —
    instrument partition, consumer tier 1 (event disposition). It was placed here
    as UPSTREAM of the old #1; with row 31 closed that justification is gone and
    it now holds this slot on its own tier-1 rank, which is where cost/silence
    put it anyway.
    <!-- entry: "bust-triage names the row but never says whether the mitigation absorbed" -->
-6. `bust-triage` cannot reach matrix row 24 by any of its three routes — tier 1;
+7. `bust-triage` cannot reach matrix row 24 by any of its three routes — tier 1;
    a whole resume/born-large class is invisible to the tool that dispositions it.
    <!-- entry: "bust-triage cannot reach matrix row 24 by any route" -->
-7. two disposition VOCABULARIES reach the matrix with nothing reconciling them —
+8. two disposition VOCABULARIES reach the matrix with nothing reconciling them —
    tier 1.
    <!-- entry: "two disposition vocabularies reach the matrix unreconciled" -->
-8. the stability check lacks a `modelChangedAcrossPair` exemption, so the daily
+9. the stability check lacks a `modelChangedAcrossPair` exemption, so the daily
    sweep stays red on a measured NON-defect — tier 2, and a guard that fires on
    legitimate work trains its reader to ignore red.
    <!-- entry: "stability check lacks the modelChangedAcrossPair exemption" -->
-9. the cap lane guards ONE direction — a drained head is silent, so `RECORD`
+10. the cap lane guards ONE direction — a drained head is silent, so `RECORD`
    has no promotion path. Raised by the operator at close and probed: a head of
    four reports `clean (4/10)` and exits 0. This is what makes the three-grade
    design work at all, which is why it displaced the blocking-verdict exit-pair
    item (demoted to `## Record`, same body, same verifier) rather than waiting
    for a slot.
    <!-- entry: "cap lane guards over-fill only, a drained head is silent" -->
-10. `pr-rounds` misses a PR whose blocking dependency merged in silence — tier 3,
-    and the only item here whose cost was measured TODAY: nine days on #278, ten
-    on #281, both found by hand.
-    <!-- entry: "pr-rounds misses a PR whose blocking dependency merged in silence" -->
+**Amended 2026-08-15 (late), and it is a composition-rule firing rather than a
+re-derivation:** a bust walk that afternoon produced the first decision-complete
+MITIGATE-stage entry this head has had since row 31 closed, so the head now
+LEADS with it — the rule's own words, and the note above already recorded that
+the previous lead held its slot as "the nearest buildable thing to a
+mitigation", which is what a real one displaces. `_resetRelocationMemory` is not
+UPSTREAM of it (different mechanism; the new entry's design and verifier read
+none of its output), so it keeps its rank and moves down one. `pr-rounds` left
+the head to `## Record` to stay inside the cap of ten: tier 3 by the instrument
+partition's own reach ordering, and the only item the mitigation could displace
+without demoting something upstream of it. Same body, same verifier, nothing
+dropped.
 
 **Not in the head, named so the omission is deliberate:** the unintegrated
 lane-branch pile (`prune-lane-branches --check` reports 25 unintegrated, 24
@@ -237,6 +258,87 @@ comment and new issue.
 
 
 ## Open
+
+- **READY 2026-08-15 (MITIGATE stage) — a resume-tolerant state key: the
+  LINCHPIN that gates every four-layer resume absorption, and the reason the
+  tools mitigation we already ship is disarmed at exactly the request that
+  needs it.** Booked because matrix row 24 had NO mitigation entry at all,
+  which the bust runbook says is itself booked before a walk closes.
+  MEASURED 2026-08-15 on capture s-captureBR (919,402 cache_creation,
+  15:07:49Z, opus, resumed 2m27s after the previous request, cache
+  demonstrably hot at 913,341 read on the preceding call).
+  **The finding.** `tools/boundary-layers.mjs` (shipped with this entry)
+  prices the boundary in wire order. FOUR layers diverge, all present in the
+  RAW pre-pipeline capture so attribution is CC's by construction:
+  `tools[]` @17974 (the `Claude-Session:` trailer in Bash's description),
+  `system[2]` @12222 (the `<env>` gitStatus + recent-commits block),
+  `messages[0]` @50066 (the claudeMd corpus snapshot re-read from disk), and
+  `messages[115..116]` — a LOCAL EDIT of two messages where CC's rebuild drops
+  one of two parallel `tool_use` blocks and its matching `tool_result`.
+  `messages[117..]` is byte-identical at the SAME indices (1,432 messages,
+  92.4%). Cascade pricing over the 2.5 MB body: tools alone 1.5%, +system 2.0%,
+  +messages[0] 5.2%, all four 100%. **The class is absorb-all-four-or-nothing**,
+  which is why every earlier single-layer design correctly measured as
+  worthless — that is a sharpening of row 24's 2026-08-05 refusal, not a
+  reversal of it.
+  **Why the key comes FIRST, and why nothing else is dispatchable before it.**
+  The per-conversation state key rotated across the boundary:
+  `…-2719b7a4-8067f43a66beb9f3` (`append-only`) -> `…-2719b7a4-aa5eb6d0c37ed62e`
+  (`reset`, then `no-baseline`). The system-prompt sub-key did NOT move
+  (`2719b7a4` both sides — `systemPromptSubKey` hashes `system[0]`, byte-identical
+  here); it was `conversationSubKey`, i.e. `messages[0]`, that rotated. So every
+  persisted pin keyed on that identity was stranded, `deferred-tool-rewrite`
+  included — it forwarded CC's raw `tools[]` unchanged at the one request where
+  its canonical would have absorbed layer 1. Pins that cannot be READ cannot
+  absorb anything, so the other three layers are not independently buildable.
+  **Design, decided.** Extend `insertion-normalization`'s existing D1 dual-read
+  with a THIRD, lineage-recovered read, in the same shape and with the same
+  rules D1 already follows (read under the recovered key, always WRITE under
+  the new one, so a conversation migrates on its first post-resume request and
+  never writes two buckets). When both the pre-pipeline key and the rotated key
+  miss (`prior === null`), scan this session's own canonical files and adopt the
+  one whose stored per-message hashes share >= `LINEAGE_THRESHOLD` with the
+  incoming array, using `sameLineage`/`lineageOverlap` IMPORTED from
+  `replay.mjs` — never re-derived (three confident wrong answers in this repo
+  came from hand-rolled identity). No schema change is needed: the canonical
+  already persists `{index, h, r, o}` per message (`computeIdentities`,
+  `insertion-normalization.mjs:317`), and `h` is the comparand.
+  Selection rule, and it is the one this session had to FIX in the tooling
+  before trusting it: overlap ADMITS, recency SELECTS — argmax of
+  `lineageOverlap` is wrong because it normalizes by the smaller set, so a
+  short old candidate scores 1.0 and beats the true predecessor
+  (`tools/bust-triage.mjs` carried exactly that defect; see
+  `test/bust-triage-lineage-recency.test.mjs`).
+  **Write boundary:** `proxy/extensions/insertion-normalization.mjs` (the
+  dual-read site, `:1954-1990`). Deployment-coupled: touches state KEYS, so it
+  is NOT a cache-transparent restart — it states its threat-matrix row-3
+  declaration first, is priced with `tools/restart-exposure.mjs` against LIVE
+  sessions rather than the corpus, ships via `docs/runbooks/ship-proxy-change.md`,
+  and needs the dotfiles `CACHE_FIX_PROXY_TREE_PIN` bump plus a restart at a
+  stated session boundary.
+  **Verifier:** a new `test/insertion-lineage-recovery.test.mjs`, red-first
+  against the CURRENT implementation — the fixture is the measured shape above
+  (a rotated `messages[0]` over an array sharing >= threshold with the stored
+  canonical must RECOVER the canonical instead of logging `no-baseline`), plus
+  two controls that must stay green: an unrelated co-tenant sidecar below the
+  threshold is never adopted, and an ordinary same-key request never reaches
+  the third read. Then `node tools/replay.mjs <capture> --env …` green under the
+  SERVING config, and `npm test`.
+  **Done-criterion:** on a replay of s-captureBR the post-resume request
+  resolves its canonical (no `no-baseline`) and `deferred-tool-rewrite` reports
+  `description-absorbed`/`rewrite` rather than forwarding CC's raw array — i.e.
+  layer 1 absorbed on the instance. Layers 2-4 are SEPARATE entries that become
+  dispatchable only once this lands; each is named in matrix row 24 and none is
+  worth building before the key survives.
+  **Sibling enumeration (ship-time, per dev-loop):** the same rotation happens
+  at compaction and at an idle boundary (row 29), where re-serving a stale
+  canonical is NOT obviously safe — this entry's safety argument reaches the
+  resume case, where the incoming array is 98.5% the stored one, and is stated
+  as not reaching a compaction, whose whole purpose is to replace history.
+  Anchor: row 24
+  Write-set: proxy/extensions/insertion-normalization.mjs, test/insertion-lineage-recovery.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/insertion-lineage-recovery.test.mjs
+  <!-- entry: "resume-tolerant state key gates four-layer resume absorption" -->
 
 - **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
   the running pipeline uses, so its name promises an eviction it does not
@@ -511,6 +613,30 @@ comment and new issue.
   conversation's first, with its nearest earlier same-session predecessor
   present in the same pin — frozen by `harvest --pin --bounded` at the next
   such walk. No substitute case is to be shopped for.
+  **THE WALK ARRIVED 2026-08-15 AND THE FREEZE FAILED — the missing piece is
+  now the PIN MODE, not the case.** s-captureBR (919k, 15:07:49Z) is exactly
+  the shape this half has been waiting for: the busting request at ord 664 is
+  its own conversation's first (a brand-new `conversationSubKey`, no earlier
+  request shares it) with its nearest earlier same-session predecessor at
+  ord 662 in the same capture. `harvest --pin s-… 662..664 --bounded` was run
+  and its OWN self-check refused the claim, correctly: *"busting conversation
+  incomplete in the bounded pin: 1 of 1 member ordinal(s) missing or
+  placeholder — ordinal(s) 664"*. That is structural, not incidental, and it
+  is why this half will fail the same way at EVERY future occurrence:
+  `--bounded` keeps the busting conversation's own members, and for a
+  born-large pair the busting request is that conversation's SOLE member, so
+  bounding placeholders the one record the pin exists for. The unbounded
+  route is not the escape — the bounded attempt already wrote a **155 MB**
+  file into the public tree before being rejected (this row's own `pinRange`
+  note records the same hazard at ~30 MB), and it was deleted unstaged.
+  So the named missing piece is now: `harvest --pin --bounded` must retain the
+  busting request itself even when it is its conversation's only member —
+  otherwise the born-large class is unfreezable by construction. Until that
+  lands, the durable evidence for this class is the matrix row 24 addendum
+  plus the machine-local freezes at
+  `~/.local/share/cache-fix/bust-evidence/2026-08-15/` (event-log slice, both
+  timestamps and 4 distinct keys verified present; and the
+  `boundary-layers --json` output carrying the four-layer cascade).
   Anchor: row 24
   Write-set: tools/bust-triage.mjs, test/bust-triage-matrix-walk.test.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-matrix-walk.test.mjs
@@ -619,44 +745,6 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
   <!-- entry: "cap lane guards over-fill only, a drained head is silent" -->
 
-- **READY 2026-08-15 — `pr-rounds` only sees PRs somebody POSTED on, so a PR
-  whose blocker cleared in SILENCE is invisible to it; #281 sat ten days that
-  way.** Measured today while checking PR state: #281 was graded "stalled, ball
-  with nobody" by a fresh read of its thread, and that grade was wrong — its
-  stated dependency #272 had merged on 2026-08-05 as the squash `b00b141`.
-  Because a squash leaves the original commits non-ancestors, the branch was
-  still replaying seven already-merged commits, which is the whole of what
-  `mergeable: CONFLICTING` was reporting. Nobody had posted on #281 since our
-  own status ping of 2026-07-30.
-  **Why the existing writer cannot catch it, by its own definition:** a round
-  is open when someone OTHER than us posted after our last push
-  (`tools/pr-rounds.mjs` header). On #281 nobody posted at all, so the tool
-  reports no round — correctly, forever. The doorbell entry above is a
-  different gap (a missing READER, realizing in dotfiles); this one is a
-  missing PREDICATE in the writer, and its write-set resolves in THIS repo,
-  which is why it is booked here and not folded there.
-  **Design, decided:** a second predicate beside the round predicate —
-  DEPENDENCY-CLEARED. For each of our open PRs, extract `#\d+` references from
-  its title and body (#281's title carries "stacks on #272"; the recurring
-  prose forms are "stacks on", "lands after", "Ref"), resolve each referenced
-  number, and emit when a referenced PR is MERGED or CLOSED and our PR has had
-  no push to its head branch since that merge timestamp. A DRAFT PR in that
-  state is the sharper case and is emitted with its own label, since draft
-  status means no reviewer is looking either.
-  **Red-first arrangement, and the two must DIFFER:** `computeRounds` is
-  already dependency-injected (tools/pr-rounds.mjs:92), so both arms are
-  fixtures, replayed from #281's recorded state — referenced PR merged
-  2026-08-05 with our last push 2026-08-01 MUST fire and name #281; the same
-  fixture with the referenced PR still OPEN must NOT fire. A predicate green on
-  both arms is matching on the reference existing rather than on its being
-  merged, and has not pinned the defect.
-  Done: both arms hold, the #281 replay fires, and this entry moves to
-  `## Done` with its commit ref.
-  Loop stage: BUILD.
-  Anchor: tools/pr-rounds.mjs
-  Write-set: tools/pr-rounds.mjs, test/pr-rounds.test.mjs
-  Verifier: node --test test/pr-rounds.test.mjs
-  <!-- entry: "pr-rounds misses a PR whose blocking dependency merged in silence" -->
 
 
 - **RECORD 2026-08-14 — the PR-round doorbell has a WRITER and no READER, and
@@ -3541,6 +3629,45 @@ comment and new issue.
 
 
 ## Record — decision-complete memory, not scheduled
+
+- **RECORD (demoted 2026-08-15 — the head hit its cap of ten when the resume-tolerant state key was booked as a decision-complete MITIGATE item; the head LEADS with a mitigation and an instrument outranks it only when it is UPSTREAM of it, which this is not: its consumer is the PR-round process, tier 3 by the instrument partition's own reach ordering, not event disposition or the gates. Body, verifier and done-criterion unchanged.) 2026-08-15 — `pr-rounds` only sees PRs somebody POSTED on, so a PR
+  whose blocker cleared in SILENCE is invisible to it; #281 sat ten days that
+  way.** Measured today while checking PR state: #281 was graded "stalled, ball
+  with nobody" by a fresh read of its thread, and that grade was wrong — its
+  stated dependency #272 had merged on 2026-08-05 as the squash `b00b141`.
+  Because a squash leaves the original commits non-ancestors, the branch was
+  still replaying seven already-merged commits, which is the whole of what
+  `mergeable: CONFLICTING` was reporting. Nobody had posted on #281 since our
+  own status ping of 2026-07-30.
+  **Why the existing writer cannot catch it, by its own definition:** a round
+  is open when someone OTHER than us posted after our last push
+  (`tools/pr-rounds.mjs` header). On #281 nobody posted at all, so the tool
+  reports no round — correctly, forever. The doorbell entry above is a
+  different gap (a missing READER, realizing in dotfiles); this one is a
+  missing PREDICATE in the writer, and its write-set resolves in THIS repo,
+  which is why it is booked here and not folded there.
+  **Design, decided:** a second predicate beside the round predicate —
+  DEPENDENCY-CLEARED. For each of our open PRs, extract `#\d+` references from
+  its title and body (#281's title carries "stacks on #272"; the recurring
+  prose forms are "stacks on", "lands after", "Ref"), resolve each referenced
+  number, and emit when a referenced PR is MERGED or CLOSED and our PR has had
+  no push to its head branch since that merge timestamp. A DRAFT PR in that
+  state is the sharper case and is emitted with its own label, since draft
+  status means no reviewer is looking either.
+  **Red-first arrangement, and the two must DIFFER:** `computeRounds` is
+  already dependency-injected (tools/pr-rounds.mjs:92), so both arms are
+  fixtures, replayed from #281's recorded state — referenced PR merged
+  2026-08-05 with our last push 2026-08-01 MUST fire and name #281; the same
+  fixture with the referenced PR still OPEN must NOT fire. A predicate green on
+  both arms is matching on the reference existing rather than on its being
+  merged, and has not pinned the defect.
+  Done: both arms hold, the #281 replay fires, and this entry moves to
+  `## Done` with its commit ref.
+  Loop stage: BUILD.
+  Anchor: tools/pr-rounds.mjs
+  Write-set: tools/pr-rounds.mjs, test/pr-rounds.test.mjs
+  Verifier: node --test test/pr-rounds.test.mjs
+  <!-- entry: "pr-rounds misses a PR whose blocking dependency merged in silence" -->
 
 Everything here was READY on 2026-08-11 and was demoted MECHANICALLY when
 the third grade was declared: one pass over the `## Open` section, bodies

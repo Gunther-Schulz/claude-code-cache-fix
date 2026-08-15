@@ -52,6 +52,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { conversationSubKey } from "../proxy/extensions/message-hash.mjs";
 
 import {
   stateKeyAt, stateKeyFlip, snapshotCommand, TELEMETRY_WINDOW_MS,
@@ -207,17 +208,36 @@ test("BITE — snapshotCommand names the bust's own date/sid/timestamps", () => 
 
 // --- end to end: the CLI's own VERDICT, reproducing both live sides ---
 
-function captureLines({ beforeTs, afterTs, tools }) {
+function captureArrays() {
   const head = msg("user", "HEAD");
   const before = [head, msg("assistant", "B"), msg("user", "C")];
   const after = [head, msg("assistant", "B"), msg("user", "C"), msg("assistant", "D2")]; // splice-shaped
+  return { before, after };
+}
+
+function captureLines({ beforeTs, afterTs, tools }) {
+  const { before, after } = captureArrays();
   return [
     JSON.stringify({ ts: beforeTs, body: { messages: before, tools } }),
     JSON.stringify({ ts: afterTs, body: { messages: after, tools } }),
   ].join("\n") + "\n";
 }
 
-function fakeHome({ sid, atStamp, beforeTs, afterTs, beforeKey, afterKey, resetReason = "no-prior-canonical" }) {
+// CONVERSATION-CONSISTENT KEYS (2026-08-15). `stateKeyAt` now scopes its
+// event-log lookup to the request's OWN conversation, because time proximity
+// alone was selecting co-tenant sidecars on live traffic
+// (test/bust-triage-state-key-tenant.test.mjs). Real state keys are
+// `s-<sid>-<systemPromptSubKey>-<conv>` and their `<conv>` tail IS
+// `conversationSubKey` of that request's messages — so a fixture with an
+// arbitrary tail no longer describes anything the tool can see.
+//
+// The caller therefore supplies only the SYSTEM sub-key and the tail is
+// derived here from the very arrays `captureLines` writes. Both sides of
+// this fixture share `messages[0]`, so the conv tail is identical on both —
+// which is faithful: a flip with a stable conversation is a system-prompt
+// rotation, exactly the shape row 25 documents. Varying the system sub-key
+// keeps the test measuring a real flip instead of an arbitrary string change.
+function fakeHome({ sid, atStamp, beforeTs, afterTs, beforeSub, afterSub, resetReason = "no-prior-canonical" }) {
   const home = tmpDirSync("bt-keyflip-");
   const wt = join(home, ".local/share/claude-worktime");
   const caps = join(home, ".claude/cache-fix-captures");
@@ -228,6 +248,9 @@ function fakeHome({ sid, atStamp, beforeTs, afterTs, beforeKey, afterKey, resetR
   writeFileSync(join(wt, "activity.jsonl"),
     JSON.stringify({ type: "cold", k: "hit", t: atSec, s: sid, cc: 20000, ctx: 100, gap: 25, cause: "other" }) + "\n");
   writeFileSync(join(caps, `s-${sid}-requests.jsonl`), captureLines({ beforeTs, afterTs }));
+  const { before, after } = captureArrays();
+  const beforeKey = `s-${sid}-${beforeSub}-${conversationSubKey(before)}`;
+  const afterKey = `s-${sid}-${afterSub}-${conversationSubKey(after)}`;
   writeFileSync(join(snaps, `s-${sid}-sub1-insertion-events.jsonl`), [
     JSON.stringify({ ts: beforeTs, sid, key: beforeKey, action: "reset", resetReason }),
     JSON.stringify({ ts: afterTs, sid, key: afterKey, action: "reset", resetReason }),
@@ -245,7 +268,7 @@ test("BITE — the captureAT shape: a key-flip pair verdicts KEY-FLIP, never MIT
   const { home, snaps } = fakeHome({
     sid: "SFLIP0001", atStamp: "2026-08-08T09:59:54Z",
     beforeTs: "2026-08-08T09:58:46.362Z", afterTs: "2026-08-08T09:58:50.626Z",
-    beforeKey: "s-SFLIP0001-sub1-KEYBEFORE", afterKey: "s-SFLIP0001-sub1-KEYAFTER",
+    beforeSub: "subA", afterSub: "subB",
   });
   const out = run(home, snaps, ["--at", "2026-08-08T09:59:54Z"]);
   assert.match(out, /VERDICT: KEY-FLIP/, `must stop as KEY-FLIP: ${out}`);
@@ -260,7 +283,7 @@ test("CONTROL — the captureAS shape: a stable key never triggers KEY-FLIP or c
   const { home, snaps } = fakeHome({
     sid: "SSTABLE01", atStamp: "2026-08-08T09:48:53Z",
     beforeTs: "2026-08-08T09:47:49.317Z", afterTs: "2026-08-08T09:47:52.398Z",
-    beforeKey: "s-SSTABLE01-sub1-SAMEKEY", afterKey: "s-SSTABLE01-sub1-SAMEKEY",
+    beforeSub: "sub1", afterSub: "sub1",
     resetReason: "edit-shaped",
   });
   const out = run(home, snaps, ["--at", "2026-08-08T09:48:53Z"]);
