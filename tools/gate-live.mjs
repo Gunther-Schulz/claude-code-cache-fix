@@ -54,6 +54,15 @@ import { localSuffix } from "./local-stamp.mjs";
 // every other reader in this tree imports it.
 import { readLines } from "./read-lines.mjs";
 import { isCaptureRequestRecord } from "./logs.mjs";
+// The duplicate rollup's FIELD SET is asked of the census's own summariser,
+// never restated here. The census runs as a child for heap isolation (CENSUS
+// below), but these two are pure and the module has a main guard, so importing
+// them costs nothing and buys the one property a copied list cannot have: it
+// ages loudly. Measured 2026-08-15 — `summariseDuplicates` gained
+// `coalescedRequests`/`coalescedStreaks` (its own comment: "the MITIGATION's
+// own number, and they are why row 31's record exists") and both reducers here
+// dropped them for four days while staying byte-identical to health.
+import { newDuplicateScan, summariseDuplicates } from "./reminder-migration-census.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPLAY = join(__dirname, "replay.mjs");
@@ -189,6 +198,72 @@ export function summariseCensus(res) {
     // produced one, same convention as tally/extendedSub/prunes above.
     duplicates: parsed.duplicates ?? null,
   };
+}
+
+// --- The duplicate rollup, DERIVED from the census rather than restated ---
+//
+// Both reducers below used to enumerate the duplicate field names by hand
+// beside the summariser they mirror. That is the restated-basis shape: the
+// source gains a member and the assertion stays green, byte-identical to
+// health. It happened — `coalescedRequests`/`coalescedStreaks` are the
+// mitigation's own numbers for threat-matrix row 31, the census emitted them
+// on every sweep, and the rollup a human reads carried neither. Row 31's
+// done-criterion was therefore unmeasurable from the daily sweep BY
+// CONSTRUCTION, and nothing said so.
+//
+// `maxStreak` is the one MAX rather than SUM field — the longest run SEEN
+// corpus-wide, not a sum of per-capture maxima, which would inflate with every
+// capture touched. It is declared here once and read by both reducers; a
+// second MAX field the census adds later belongs in this set, and until it is
+// added it is summed, which is wrong LOUDLY (an implausible number) rather
+// than silently (an absent one).
+const DUPLICATE_MAX_FIELDS = new Set(["maxStreak"]);
+
+/** The duplicate accumulator's zero shape, asked of the census's own
+ * summariser over an empty scan. Never a literal: a literal is a copy, and
+ * the copy is what drifts. */
+export function emptyDuplicateTotals() {
+  return summariseDuplicates(newDuplicateScan());
+}
+
+/** Folds one capture's census duplicate rollup into the accumulator. Every
+ * NUMERIC key present is carried — including one neither module has heard of,
+ * which is the point: the reducer is a derivation, not a longer list.
+ * Non-numeric values are ignored rather than coerced, so a future string field
+ * cannot turn a count into `NaN` or `"0abc"`. */
+export function addDuplicates(acc, d) {
+  if (!d || typeof d !== "object") return acc;
+  for (const [k, v] of Object.entries(d)) {
+    if (typeof v !== "number" || !Number.isFinite(v)) continue;
+    if (DUPLICATE_MAX_FIELDS.has(k)) acc[k] = Math.max(acc[k] ?? 0, v);
+    else acc[k] = (acc[k] ?? 0) + v;
+  }
+  return acc;
+}
+
+/** The duplicate line for the sweep's own stdout summary.
+ *
+ * It prints UNCONDITIONALLY, zeros included. "The computation runs" and "a
+ * human reading the report sees it" are different claims, and this repo has
+ * already paid for the difference once (docs/dev-loop.md, the 2026-08-11
+ * absorption correction: the rows reached a human only through `--json` and
+ * the status file, while the text run a bust walk is told to read had no
+ * section at all). Row 31's done-criterion is two-sided — the session-start
+ * class falling to zero WHILE the mid-session class holds — so both the alarm
+ * column and the mitigation's own column have to be in front of a reader on
+ * every sweep, not reachable by jq.
+ *
+ * A rollup that was never produced is the third answer, never a row of zeros:
+ * an unwritten 0 and a measured 0 are the same bytes. */
+export function describeDuplicates(d) {
+  if (!d || typeof d !== "object") return "COULD NOT VERIFY — no duplicate rollup this sweep";
+  const n = (k) => d[k] ?? 0;
+  return (
+    `${n("streaks")} streak(s) over ${n("requests")} duplicate send(s), longest ${n("maxStreak")}; ` +
+    `${n("billedStreaks")} billed / ${n("doubleBilledStreaks")} double-billed (the alarm); ` +
+    `${n("coalescedRequests")} coalesced request(s) over ${n("coalescedStreaks")} streak(s)` +
+    (n("membersWithoutId") ? `; ${n("membersWithoutId")} member(s) without a request id` : "")
+  );
 }
 
 // A capture being written to right now is not a defect and not a skip: the
@@ -582,9 +657,11 @@ export function extractCensusRowEvidence(res, captureToken) {
  * tally/prunes/duplicates (mirrored, not imported: this file's own
  * per-capture arrays carry `volatile.*`, which `reduceByteGate` does not
  * collect, so the two reducers stay independent rather than one wrapping
- * the other). `maxStreak` is the one MAX rather than SUM field, the same
- * exception `reduceByteGate` documents for the same reason: it is the
- * longest run SEEN corpus-wide, not a sum of per-capture maxima. Row
+ * the other). The DUPLICATE half is no longer mirrored: both reducers call
+ * `addDuplicates` over `emptyDuplicateTotals()`, so the field set comes from
+ * the census's own summariser and `maxStreak`'s MAX-not-SUM exception is
+ * declared once (`DUPLICATE_MAX_FIELDS`) instead of in two hand-kept lists
+ * that already drifted apart from their source. Row
  * arrays are concatenated verbatim — each capture's own array already
  * carries its per-capture cap (MISMATCH_ROW_CAP / DUP_ROW_CAP /
  * ENTRY_ROW_CAP, reminder-migration-census.mjs), so this reducer trims
@@ -596,8 +673,7 @@ export function reduceCensusRowEvidence(list) {
     tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
     extendedSub: { "MERGED-STANDALONE": 0, "NEW-TEXT": 0 },
     prunes: { pure: 0, interior: 0, unanchored: 0 },
-    duplicates: { pairs: 0, streaks: 0, maxStreak: 0, requests: 0, billedRequests: 0,
-                  billedStreaks: 0, doubleBilledStreaks: 0, membersWithoutId: 0 },
+    duplicates: emptyDuplicateTotals(),
     volatile: { change: { matchedAll: 0, matched: 0, identical: 0, reserialized: 0, changed: 0 },
                 kinds: {}, entries: 0, entriesByKind: {}, cacheControlExempt: 0, truncated: {} },
     mismatchRows: [],
@@ -618,17 +694,7 @@ export function reduceCensusRowEvidence(list) {
     acc.extendedSub["MERGED-STANDALONE"] += e.extendedSub?.["MERGED-STANDALONE"] ?? 0;
     acc.extendedSub["NEW-TEXT"] += e.extendedSub?.["NEW-TEXT"] ?? 0;
     for (const k of ["pure", "interior", "unanchored"]) acc.prunes[k] += e.prunes?.[k] ?? 0;
-    if (e.duplicates) {
-      const d = e.duplicates;
-      acc.duplicates.pairs += d.pairs ?? 0;
-      acc.duplicates.streaks += d.streaks ?? 0;
-      acc.duplicates.maxStreak = Math.max(acc.duplicates.maxStreak, d.maxStreak ?? 0);
-      acc.duplicates.requests += d.requests ?? 0;
-      acc.duplicates.billedRequests += d.billedRequests ?? 0;
-      acc.duplicates.billedStreaks += d.billedStreaks ?? 0;
-      acc.duplicates.doubleBilledStreaks += d.doubleBilledStreaks ?? 0;
-      acc.duplicates.membersWithoutId += d.membersWithoutId ?? 0;
-    }
+    addDuplicates(acc.duplicates, e.duplicates);
     if (e.volatile) {
       const v = e.volatile;
       if (v.change) for (const k of Object.keys(acc.volatile.change)) acc.volatile.change[k] += v.change[k] ?? 0;
@@ -1111,8 +1177,10 @@ export function reduceRowPins(rows) {
  * (a synthetic array of rows) rather than only through a live sweep.
  *
  * Duplicate-request rollup (dup-census gap 2, BACKLOG "wire `duplicates`
- * into the daily gate"): additive across captures like tally/prunes above,
- * EXCEPT maxStreak, which is the longest run SEEN corpus-wide, not a sum of
+ * into the daily gate"): folded by `addDuplicates`, whose field set is asked
+ * of the census's own summariser rather than restated here — additive across
+ * captures like tally/prunes above, EXCEPT the declared MAX fields
+ * (`maxStreak`), which is the longest run SEEN corpus-wide, not a sum of
  * per-capture maxima — summing it would inflate the number every capture
  * touches. `doubleBilledStreaks` is the alarm column, not `billedStreaks`:
  * a retry that finally succeeds bills exactly one of its sends, which is
@@ -1129,24 +1197,12 @@ export function reduceByteGate(rows) {
     acc.merged += g.extendedSub?.["MERGED-STANDALONE"] ?? 0;
     acc.newText += g.extendedSub?.["NEW-TEXT"] ?? 0;
     for (const k of ["pure", "interior", "unanchored"]) acc.prunes[k] += g.prunes?.[k] ?? 0;
-    if (g.duplicates) {
-      const d = g.duplicates;
-      acc.duplicates.pairs += d.pairs ?? 0;
-      acc.duplicates.streaks += d.streaks ?? 0;
-      acc.duplicates.maxStreak = Math.max(acc.duplicates.maxStreak, d.maxStreak ?? 0);
-      acc.duplicates.requests += d.requests ?? 0;
-      acc.duplicates.billedRequests += d.billedRequests ?? 0;
-      acc.duplicates.billedStreaks += d.billedStreaks ?? 0;
-      acc.duplicates.doubleBilledStreaks += d.doubleBilledStreaks ?? 0;
-      acc.duplicates.membersWithoutId += d.membersWithoutId ?? 0;
-    }
+    addDuplicates(acc.duplicates, g.duplicates);
     return acc;
   }, { errors: 0, unreadable: 0, merged: 0, newText: 0,
        tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 0 },
        prunes: { pure: 0, interior: 0, unanchored: 0 },
-       duplicates: { pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
-                      billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
-                      membersWithoutId: 0 } });
+       duplicates: emptyDuplicateTotals() });
 }
 
 /** One line per capture: what the byte-gate measured, or why it could not. */
@@ -2195,7 +2251,12 @@ async function main() {
       (byteGate.prunes.unanchored ? ` / ${byteGate.prunes.unanchored} unanchored` : "") +
       (byteGate.unreadable || byteGate.errors
         ? `\n  COULD NOT VERIFY: ${byteGate.unreadable} unreadable capture(s), ${byteGate.errors} failed run(s)\n`
-        : "\n"),
+        : "\n") +
+      // Unconditional, zeros included — the numbers row 31's two-sided
+      // done-criterion is read from, and the CC#78420 alarm column. They were
+      // in the status file and in no run output, which is the "computation
+      // runs / nobody sees it" split this repo has already paid for once.
+      `duplicate sends: ${describeDuplicates(byteGate.duplicates)}\n`,
     );
     const col = (o) => FIRE_CLASSES.map((c) => `${c}=${o[c] === null ? "n/a" : o[c]}`).join(" ");
     const kbCol = (o) =>
