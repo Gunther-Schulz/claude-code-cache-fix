@@ -9441,6 +9441,44 @@ re-inflated within four days of being declared. Also found: the
 OPT-IN FLAG, absent from the default `backlog-lint` run, so nothing was ever
 going to report this disease unprompted.
 
+- **DONE 2026-08-15 (`bba0a35`, sonnet dispatch, dispatcher-verified) — the
+  backlog's two blind spots now report themselves on every lint run: the READY
+  cap, and closures sitting in live sections.** Both REPORT-only, both wired
+  into the DEFAULT `backlog-lint` run.
+  **Why they were needed, measured the same day:** the cap of ten (operator,
+  2026-08-11) had no enforcing lane at all — READY went 95 -> exactly 10 at the
+  re-derivation, back to 11 within hours of that same day, 26 by evening, and
+  38 by 2026-08-15. Nothing reported it. And the closures-in-live detector that
+  would have caught all 110 misplaced closures ALREADY EXISTED behind the
+  opt-in `--closures-in-live` flag, absent from the default run — the
+  flag-nobody-passes shape (`docs/dev-loop.md`, the `--protect` precedent).
+  **Red-first, both lanes, both arms from IMMUTABLE refs rather than planted
+  fixtures**, and re-run independently by the dispatcher before the push:
+  lane A `ee98a997` (READY=10) -> `clean (10/10)`, `053e22af` (READY=11, the
+  first breach) -> fires naming 11 against 10 — the boundary itself, and the
+  two DIFFER; lane B `96936f3` -> `CLOSURE=110`, `95a5782` -> `CLOSURE=0`.
+  **REPORT-only is load-bearing here and was verified as such:** with 38 READY
+  over the cap, `backlog-lint` still exits 0 (checked directly). A lane that
+  returned non-zero would block every push in the repo until the head is
+  re-derived, for a condition nobody has yet had the chance to fix. It is not
+  the print-BLOCK-and-exit-zero defect: the line says REPORT only and means it.
+  **Lane deviation, kept because it generalizes:** the first Lane A test
+  asserted process exit code 0 on both frozen refs, and `ee98a997` exits 1
+  there because an unrelated pre-existing BLOCKING lane fires on that
+  historical snapshot. Narrowed to assert the lane's own output line. A
+  red-first test against a frozen ref can trip on another lane's finding at
+  that same ref; assert the target lane's output, not the process status,
+  unless the status IS under test.
+  Suite: 3290 pass / 0 fail / 10 skipped (baseline 3288 + the two new tests),
+  re-run by the dispatcher at the pushed tree — which also closes the lane's
+  own named gap, that it had not re-run the full suite after its final
+  assertion fix.
+  **Residual, deliberately not done here:** promoting the cap lane from REPORT
+  to BLOCKING belongs in the same commit that re-derives the head back to ten
+  (the grade-inflation cure, still open). Promoting it before that would arm a
+  guard against a condition the carrier is knowingly in.
+  <!-- entry: "READY-cap and closures-in-live lanes in the default lint run" -->
+
 - **DONE 2026-08-15 (closed UNBUILT, overtaken — `#278` merged upstream
   2026-08-06T20:50:19Z) — the #278 rebase entry was written for a PR that
   merged the next day, and sat READY for nine days afterwards.** Booked
