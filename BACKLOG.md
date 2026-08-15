@@ -7140,6 +7140,41 @@ entry promoted to READY must satisfy the booking bar in this file's header
   Write-set: tools/named-unbooked-scan.mjs, test/named-unbooked-scan.test.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/named-unbooked-scan.test.mjs
 
+- **RECORD 2026-08-15 — anything `gate-live` prints behind `!args.quiet` is
+  invisible on the ONLY run that matters, and this is the SECOND measured
+  instance of that class.** The systemd unit is
+  `ExecStart=... tools/gate-live.mjs --quiet`, so every line the tool writes to
+  stdout reaches a human only when someone runs it by hand. Instance one is
+  already recorded in this file (`a7f04a0`): the artifact-only gate exclusions
+  sat behind `!args.quiet`, so "the only run that writes the artifact step 7
+  reads is the only run whose artifact omits the explanation". It was fixed by
+  moving the fact onto the STATUS OBJECT (`gatesExcludedArtifactOnly`).
+  Instance two is today: the duplicate/coalesce summary line added in `8f8e5ab`
+  — added specifically to fix a computation-runs/nobody-sees-it split — landed
+  behind the same flag and reaches nobody daily. Fixed for row 31 by a VERDICT
+  (`row-31-coalesce`, `1325469`) rather than by a print.
+  **The class, stated so the next author recognises it before shipping:** a
+  print is not a delivery mechanism in this tool. Two instances, two different
+  authors, both adding a line to a text report that the scheduled invocation
+  suppresses — and in both cases the author had just been reasoning about
+  exactly this failure shape, which is why noticing is not the fix.
+  **Design, decided:** a bite over `gate-live`'s stdout-only surface asserting
+  that no line behind `!args.quiet` carries a fact absent from the status object
+  or a verdict — enforceable as an inventory: each `!args.quiet` block names the
+  status field or verdict that carries the same fact, or declares itself
+  operator-convenience only (progress, per-capture chatter). An unclassified
+  block is the finding, the same shape as the carrier enumeration.
+  **Red-first, and the known positive is real rather than planted:** the
+  duplicate line as it stood between `8f8e5ab` and `1325469` is a committed
+  range carrying exactly the defect — a fact behind `!args.quiet` with no
+  status-object or verdict counterpart. The check must fire over that range and
+  stay silent at HEAD.
+  Loop stage: VERIFY.
+  Anchor: tools/gate-live.mjs
+  Write-set: `tools/gate-live.mjs`, `test/gate-live-quiet-surface.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/gate-live-quiet-surface.test.mjs
+  <!-- entry: "gate-live stdout behind quiet is invisible on the scheduled run" -->
+
 - **RECORD (ex-READY 2026-08-15) 2026-08-11 (evening) — enumerate every `tools/` mechanism that writes
   state outside the tree and name its collector, or name why its state is not a
   carrier.** The enumerable half of the carrier-registration rule minted into
