@@ -723,6 +723,46 @@ now means some child DIED HARD and is a finding about that child.
   Anchor: tools/absence-scan.mjs
   <!-- entry: "absence-scan interior walk is first-parent only on merge commits" -->
 
+- **READY 2026-08-15 — `pr-rounds` only sees PRs somebody POSTED on, so a PR
+  whose blocker cleared in SILENCE is invisible to it; #281 sat ten days that
+  way.** Measured today while checking PR state: #281 was graded "stalled, ball
+  with nobody" by a fresh read of its thread, and that grade was wrong — its
+  stated dependency #272 had merged on 2026-08-05 as the squash `b00b141`.
+  Because a squash leaves the original commits non-ancestors, the branch was
+  still replaying seven already-merged commits, which is the whole of what
+  `mergeable: CONFLICTING` was reporting. Nobody had posted on #281 since our
+  own status ping of 2026-07-30.
+  **Why the existing writer cannot catch it, by its own definition:** a round
+  is open when someone OTHER than us posted after our last push
+  (`tools/pr-rounds.mjs` header). On #281 nobody posted at all, so the tool
+  reports no round — correctly, forever. The doorbell entry above is a
+  different gap (a missing READER, realizing in dotfiles); this one is a
+  missing PREDICATE in the writer, and its write-set resolves in THIS repo,
+  which is why it is booked here and not folded there.
+  **Design, decided:** a second predicate beside the round predicate —
+  DEPENDENCY-CLEARED. For each of our open PRs, extract `#\d+` references from
+  its title and body (#281's title carries "stacks on #272"; the recurring
+  prose forms are "stacks on", "lands after", "Ref"), resolve each referenced
+  number, and emit when a referenced PR is MERGED or CLOSED and our PR has had
+  no push to its head branch since that merge timestamp. A DRAFT PR in that
+  state is the sharper case and is emitted with its own label, since draft
+  status means no reviewer is looking either.
+  **Red-first arrangement, and the two must DIFFER:** `computeRounds` is
+  already dependency-injected (tools/pr-rounds.mjs:92), so both arms are
+  fixtures, replayed from #281's recorded state — referenced PR merged
+  2026-08-05 with our last push 2026-08-01 MUST fire and name #281; the same
+  fixture with the referenced PR still OPEN must NOT fire. A predicate green on
+  both arms is matching on the reference existing rather than on its being
+  merged, and has not pinned the defect.
+  Done: both arms hold, the #281 replay fires, and this entry moves to
+  `## Done` with its commit ref.
+  Loop stage: BUILD.
+  Anchor: tools/pr-rounds.mjs
+  Write-set: tools/pr-rounds.mjs, test/pr-rounds.test.mjs
+  Verifier: node --test test/pr-rounds.test.mjs
+  <!-- entry: "pr-rounds misses a PR whose blocking dependency merged in silence" -->
+
+
 - **READY 2026-08-14 — a tool that PRINTS a blocking verdict and EXITS ZERO is
   a guard that blocks nothing, and only one of this repo's blocking lanes has a
   bite pinning the pair.** Measured the same day, during the lane-pile
