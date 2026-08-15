@@ -3593,6 +3593,43 @@ with no claim of a schedule attached, which is the whole point of the split:
 `READY` had come to assert an intent nobody held, and a label nobody believes
 carries no information.
 
+- **RECORD 2026-08-15 — the carrier-registration ENUMERATION has never been
+  run, and it is enumerable by construction.** `docs/dev-loop.md` closing-gate
+  question 4 states the completeness test outright: every `tools/` mechanism
+  that writes state outside the tree either names its collector in
+  `state-report`, or names why its state is not a carrier (process-local, or
+  self-expiring within the run); an unclassified writer is the finding. That
+  enumeration has no mechanism and, on today's evidence, has not been run by
+  hand either — the capture-protection carrier shipped 2026-08-11 unregistered
+  and was found four days later only because someone used the flag (`## Done`,
+  same date). ONE instance is not a rate, and that is exactly the argument for
+  enumerating: nobody knows how many others there are.
+  Design, decided: a `tools/` sweep that finds every module writing outside the
+  repo tree — the reachable set is `statePath`/`dataPath` (proxy/xdg-dirs.mjs)
+  plus direct absolute-path writes — and requires each to carry a declaration
+  line naming either its `state-report` collector or its non-carrier reason.
+  The declaration lives in the writing module, next to the write, because the
+  creator is the only party that knows the carrier is there. An undeclared
+  writer fails the sweep.
+  NOT scoped to a grep for `statePath(`: that is the naming-convention-encoding
+  blind spot this repo has measured three times. The sweep resolves writers by
+  IMPORT, and its done-criterion includes naming one member of the class the
+  pattern cannot match.
+  Red-first: the sweep must fire on a writer with its declaration removed, and
+  stay silent with it present — plus the real positive, `alias-claim.mjs`
+  before `2fcbe68` added its collector, which is a commit range and therefore
+  an immutable arrangement rather than a working-copy state.
+  Done: the sweep exists, `node tools/<sweep>` reports every `tools/` writer as
+  declared, the red arms above are pasted, and the enumeration's first run's
+  findings are booked or fixed.
+  Loop stage: VERIFY.
+  Anchor: docs/dev-loop.md closing gate, question 4
+  Write-set: `tools/` (one new sweep or a mode on an existing one — the
+  extend-before-adding rule applies), `test/` its bites
+  Verifier: the new sweep's own test file, run under
+  `node --test --import ./tools/suite-config-root.mjs`
+  <!-- entry: "the carrier-registration enumeration has never been run" -->
+
 Promotion is by re-deriving the head, never by editing a grade in place. An
 entry promoted to READY must satisfy the booking bar in this file's header
 (`Anchor:` / `Write-set:` / `Verifier:`), which `tools/backlog-lint.mjs
@@ -9111,6 +9148,26 @@ re-inflated within four days of being declared. Also found: the
 `--closures-in-live` detector that would have caught all 110 of these is an
 OPT-IN FLAG, absent from the default `backlog-lint` run, so nothing was ever
 going to report this disease unprompted.
+
+- **DONE 2026-08-15 — the capture-PROTECTION carrier had no collector in
+  `state-report`, so 1,710 MB held against eviction was in no scheduled
+  reading.** Closing-gate question 4's CARRIER REGISTRATION clause, fired by
+  its own trigger: `alias-claim --protect` hard-links a capture into
+  `captures-protected/` — bytes that outlive every run, under a cap — and the
+  only reading was `--protect-status`, a flag a human had to think to run.
+  Found by USING the flag for the first time (this session claimed
+  s-captureBQ), which is what the rule predicts: the enumeration runs on the
+  WRITE, and the mechanism shipped 2026-08-11, the same day the clause was
+  written. Shipped `2fcbe68`; `protectStatus` imported, never restated. The
+  FIRST reading is the argument for the clause: five protected captures, 1,710
+  MB of a 4,295 MB cap, all aliased — nothing said so anywhere.
+  Two renderer findings fell out and were repaired rather than papered over:
+  `fmtVerdict` threw on a collector key absent from the data, taking the whole
+  report down instead of one line (the shape an older `--json` dump rendered by
+  a newer build hits), and the render bite asserted a hardcoded count of eleven
+  could-not-verify lines, so it had validated nothing since the day a collector
+  was added. Both now assert what they were named for, derived rather than
+  restated.
 
 - **DONE 2026-08-15 — the daily sweep dropped the two numbers row 31's
   done-criterion is stated in, and read as complete while doing it.**
