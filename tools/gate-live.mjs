@@ -898,6 +898,44 @@ export function cohortSplit(rows, flipIso) {
   return out;
 }
 
+/** The cohort split as text, for `--cohort <iso>`.
+ *
+ * The reader exists because a function reachable only from code is not
+ * shipped, it is available — the distinction this repo has now paid for twice
+ * (`--protect` at zero uses in two days, `findAbsorptionMisses` computing rows
+ * no text run printed). An UNSTAMPED count is announced rather than folded
+ * away: a status file written before the stamp shipped would otherwise render
+ * as two zero-filled sides, which reads as "no duplicates in either cohort"
+ * from an instrument that placed nothing. */
+export function renderCohort(split) {
+  if (split?.error) return `cohort: COULD NOT VERIFY — ${split.error}`;
+  const side = (label, s) => {
+    const d = s.duplicates;
+    const n = (k) => d[k] ?? 0;
+    return (
+      `  ${label.padEnd(7)} ${String(s.captures).padStart(3)} capture(s)   ` +
+      `1msg ${n("singleMessageStreaks")} streaks / ${n("singleMessageDoubleBilled")} double-billed / ` +
+      `${n("singleMessageCoalesced")} coalesced   |   ` +
+      `n-msg ${n("multiMessageStreaks")} streaks / ${n("multiMessageDoubleBilled")} double-billed / ` +
+      `${n("multiMessageCoalesced")} coalesced`
+    );
+  };
+  const lines = [
+    `cohort split at flip ${split.flip}`,
+    side("BEFORE", split.before),
+    side("AFTER", split.after),
+  ];
+  if (split.unstamped.captures > 0) {
+    lines.push(
+      `  UNSTAMPED ${split.unstamped.captures} capture(s) — counted in NEITHER side. ` +
+      `The status file predates the per-row firstTs stamp, or those captures were unreadable; ` +
+      `re-run the sweep rather than reading the two sides above as complete.`,
+    );
+    lines.push(side("(unstamped)", split.unstamped));
+  }
+  return lines.join("\n");
+}
+
 /** A window around `ordinal`, clamped to the capture's real extent when
  * known (`maxOrdinal`) — never asking harvest.mjs to pin past the records
  * that actually exist, which fails loudly rather than freezing anything. */
@@ -1942,6 +1980,7 @@ function parseArgs(argv) {
     else if (a === "--census-rows") args.censusRows = argv[++i];
     else if (a === "--error-pins") args.errorPins = argv[++i];
     else if (a === "--quiet") args.quiet = true;
+    else if (a === "--cohort") args.cohort = argv[++i];
     else {
       process.stderr.write(`unexpected argument: ${a}\n`);
       process.exit(2);
@@ -1952,6 +1991,23 @@ function parseArgs(argv) {
 
 async function main() {
   const args = parseArgs(process.argv);
+
+  // `--cohort <iso>` is a READ of the last sweep's status file, never a sweep:
+  // it answers "was this traffic written before or after gate X flipped" from
+  // stamps the sweep already recorded. Exits before anything is replayed.
+  if (args.cohort) {
+    let status;
+    try {
+      status = JSON.parse(await readFile(args.status, "utf8"));
+    } catch (e) {
+      process.stderr.write(`cohort: COULD NOT VERIFY — ${args.status} unreadable: ${e?.message ?? e}\n`);
+      process.exit(2);
+    }
+    process.stdout.write(`${renderCohort(cohortSplit(status.rows ?? [], args.cohort))}\n`);
+    process.stdout.write(`  source: ${args.status}, sweep finished ${status.finished ?? "unknown"}\n`);
+    return 0;
+  }
+
   const started = new Date().toISOString();
 
   // Resolve the SERVING configuration before anything else, and say so: a

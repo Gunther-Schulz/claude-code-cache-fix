@@ -31,6 +31,11 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { detectGrowthSteps, DEFAULT_LEDGER } from "./harvest.mjs";
 import { statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
+// The cohort split is IMPORTED, never re-derived: which side of a gate flip a
+// capture's traffic falls on is gate-live's definition (it owns the per-row
+// `firstTs` stamp), and a second implementation of that boundary is the
+// hand-rolled-identity error this repo keeps paying for.
+import { cohortSplit } from "./gate-live.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -532,6 +537,70 @@ export function duplicateBillingVerdict(status) {
   };
 }
 
+// --- Row 31's standing watcher (threat matrix row 31, closed 2026-08-15) ---
+//
+// Row 31 closed on a measured before/after across the coalesce flip: single-
+// message duplicate streaks went 34-of-48 double-billed before to 0-of-14
+// after (Fisher exact, one-sided, p = 1.4e-6), the mitigation firing 8 times
+// and never once on the retry class. This is the check that keeps that closure
+// honest — dev-loop's rule that a manual investigation is unfinished while the
+// check that would have produced its finding does not exist.
+//
+// WHY IT IS SCOPED TO THE POST-FLIP COHORT, which is the whole design. The
+// corpus is MIXED and stays mixed until the pre-flip captures rotate out: they
+// carry 34 double-billed single-message streaks that the mitigation could not
+// have touched. A watcher on the corpus-wide count would be red on the day it
+// shipped, on legitimate history — the check-that-fires-on-a-non-defect shape,
+// which trains its reader to ignore red inside a week. Reading the cohort is
+// only possible because every sweep row now carries its capture's own first
+// stamp; the scoping is why that stamp was built.
+//
+// It watches BOTH directions, because the two failures cost different things.
+// A post-flip double-bill is the mitigation having stopped working (money). A
+// coalesce landing on the retry class is the fence breached (correctness: a
+// real retry left unanswered) — measured 0 across all 94 streaks at closure,
+// and anything else there is a defect, never a better result.
+export const COALESCE_FLIP_ISO = "2026-08-14T16:17:00Z";
+
+export function rowThirtyOneVerdict(status, { flipIso = COALESCE_FLIP_ISO } = {}) {
+  const name = "row-31-coalesce";
+  const rows = Array.isArray(status?.rows) ? status.rows : null;
+  if (!rows || rows.length === 0) {
+    return { name, level: "warn", message: `${name}: gate status missing, unreadable, or has no rows — the coalesce mitigation is NOT currently watched` };
+  }
+  const split = cohortSplit(rows, flipIso);
+  if (split.error) return { name, level: "warn", message: `${name}: ${split.error}` };
+  if (split.unstamped.captures > 0 && split.after.captures === 0) {
+    return {
+      name, level: "warn",
+      message: `${name}: ${split.unstamped.captures} capture(s) carry no firstTs and none is stamped after the flip — the status file predates the per-row stamp; re-run the sweep. COULD NOT VERIFY, never clean.`,
+    };
+  }
+  if (split.after.captures === 0) {
+    return { name, level: "warn", message: `${name}: no capture on disk was written after ${flipIso} — nothing to verify against yet` };
+  }
+  const a = split.after.duplicates;
+  const dbl = a.singleMessageDoubleBilled ?? 0;
+  const fence = a.multiMessageCoalesced ?? 0;
+  const problems = [];
+  if (dbl > 0) {
+    problems.push(`${dbl} post-flip single-message streak(s) DOUBLE-BILLED of ${a.singleMessageStreaks ?? 0} — row 31's mitigation is not holding`);
+  }
+  if (fence > 0) {
+    problems.push(`${fence} coalesce(s) landed on the multi-message RETRY class — the fence is breached and a real retry may have gone unanswered (over-reach, not success)`);
+  }
+  if (problems.length) {
+    return { name, level: "warn", message: `${name}: ${problems.join("; ")} [${split.after.captures} post-flip capture(s)]` };
+  }
+  return {
+    name, level: "ok",
+    message:
+      `${name}: 0 double-billed of ${a.singleMessageStreaks ?? 0} post-flip single-message streak(s), ` +
+      `${a.singleMessageCoalesced ?? 0} coalesced, 0 on the retry class ` +
+      `[${split.after.captures} capture(s) after ${flipIso}]`,
+  };
+}
+
 // --- Fire-ledger consumer (BACKLOG "mitigation fire-rate ledger") ---
 //
 // gate-live appends one line per sweep with two columns per class: RAW (what
@@ -685,6 +754,7 @@ export async function computeVerdicts(ledgerPath = DEFAULT_LEDGER) {
     baselineStepVerdict(committed, current),
     retentionVerdict(committed, current),
     duplicateBillingVerdict(await readGateStatus()),
+    rowThirtyOneVerdict(await readGateStatus()),
     fireLedgerVerdict(await readFireLedger()),
     movedFreshVerdict(await readMovedFreshRecords()),
     ...(await computeTelemetryVerdicts()),

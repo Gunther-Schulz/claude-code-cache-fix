@@ -111,8 +111,28 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
     // third time at its "4" when the fire ledger landed, and a fourth at
     // "5" when moved-fresh landed).
     const { TELEMETRY_CONSUMERS } = await import("../tools/shape-verdicts.mjs");
-    const STANDING = 6;
-    assert.equal(verdicts.length, STANDING + TELEMETRY_CONSUMERS.length);
+    // THE LITERAL IS GONE, and it is the FIFTH time this line's count has
+    // rotted (3 -> 4 -> 5 -> 6 -> the row-31 watcher, 2026-08-15). The comment
+    // above correctly de-literalised the TABLE half in 2026-07-30 and left the
+    // standing half as `STANDING = 6`, so the anti-pattern it names kept
+    // firing at half strength — a bare count mismatch that reads as breakage
+    // every time a verdict is legitimately added.
+    //
+    // The count was never the invariant. What this test is about is that a
+    // missing ledger produces HONEST verdicts rather than silence: every
+    // telemetry consumer is represented, the ledger-shape verdicts warn, and
+    // nothing is emitted twice. All three are derived.
+    const names = verdicts.map((v) => v.name);
+    assert.equal(new Set(names).size, names.length, `no verdict is emitted twice: ${names.join(", ")}`);
+    for (const c of TELEMETRY_CONSUMERS) {
+      assert.ok(verdicts.some((v) => v.name === c.name || v.name.includes(c.name) || c.name.includes(v.name)),
+        `telemetry consumer ${c.name} has no verdict (names: ${names.join(", ")})`);
+    }
+    for (const required of ["shape-watch", "baseline", "retention"]) {
+      assert.ok(names.includes(required), `${required} must always be emitted`);
+    }
+    assert.ok(verdicts.length >= TELEMETRY_CONSUMERS.length + 3,
+      "instrument positive: the standing verdicts are present alongside the table");
     // duplicate-billing and moved-fresh both read MACHINE state (the gate
     // status file / the snapshots dir), so their level legitimately varies
     // here; the ledger-shape claim is about the ledger verdicts only.
@@ -122,8 +142,13 @@ test("computeVerdicts: a missing ledger file yields both verdicts as honest warn
       ),
     );
     assert.equal(verdicts[0].level, "warn", "shape-watch cannot read as green without a ledger");
-    const telemetryNames = verdicts.slice(STANDING).map((v) => v.name);
-    assert.deepEqual(telemetryNames, TELEMETRY_CONSUMERS.map((e) => e.name));
+    // Positional slice replaced for the same reason as the count above: it
+    // silently re-anchored every time a standing verdict was added. The claim
+    // is that the telemetry table appears in TABLE ORDER at the tail, which is
+    // checkable without knowing how many verdicts precede it.
+    const wanted = TELEMETRY_CONSUMERS.map((e) => e.name);
+    assert.deepEqual(names.slice(-wanted.length), wanted,
+      `the telemetry table must be the tail, in table order: ${names.join(", ")}`);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -480,4 +505,118 @@ test("moved-fresh rides computeVerdicts, reading the real snapshots dir", async 
   const after = (await computeVerdicts(join(configDir, "ledger.json"))).find((v) => v.name === "moved-fresh");
   assert.equal(after.level, "ok", "1 of 200 needed — an honest ok, not an alarm on a thin window");
   assert.match(after.message, /1 of 200/);
+});
+
+// --- Row 31's standing watcher (2026-08-15) ---
+//
+// Row 31 closed on a measured before/after: single-message duplicate streaks
+// went 34-of-48 double-billed pre-flip to 0-of-14 post-flip (Fisher exact,
+// one-sided, p = 1.4e-6), with the mitigation observed firing 8 times and
+// never once on the retry class. A closure with no watcher rots silently, and
+// dev-loop's own rule is that a manual investigation is unfinished while the
+// check that would have produced its finding does not exist.
+//
+// THE SCOPE IS THE WHOLE DESIGN, and getting it wrong makes a guard that
+// fires on legitimate work. The corpus is MIXED: pre-flip captures still
+// carry 34 double-billed single-message streaks and will until they rotate
+// out, so a watcher on the corpus-wide `singleMessageDoubleBilled` would go
+// red today on traffic the mitigation could not have touched, and train its
+// reader to ignore it inside a week. It reads the POST-FLIP cohort only —
+// which is why the per-row `firstTs` stamp had to exist first.
+//
+// Red-first arrangement, and the known positive is real rather than planted:
+// the SAME verdict pointed at the flip's own start-of-corpus (so every
+// capture counts as post-flip) sees the 34 pre-flip double-bills and fires.
+// The two arms must differ, and they do.
+
+// Namespace import, NOT `import { rowThirtyOneVerdict }` — dev-loop.md, "the
+// commonest way to collapse the split is the import line". A static named
+// import of a not-yet-written export fails this whole file at ESM LINK time,
+// so every pre-existing bite goes red at once and the run proves nothing about
+// which half broke. Written first as a named import in this very change, which
+// is how the note earned its place here rather than being quoted from the doc.
+import * as sv from "../tools/shape-verdicts.mjs";
+const { rowThirtyOneVerdict, COALESCE_FLIP_ISO } = sv;
+
+const dupRow = (firstTs, over = {}) => ({
+  file: `s-${firstTs}.jsonl`,
+  firstTs,
+  byteGate: { duplicates: {
+    singleMessageStreaks: 0, singleMessageDoubleBilled: 0, singleMessageCoalesced: 0,
+    multiMessageStreaks: 0, multiMessageDoubleBilled: 0, multiMessageCoalesced: 0,
+    ...over,
+  } },
+});
+
+test("row-31 watcher: clean when no post-flip single-message streak is double-billed", () => {
+  const status = { rows: [
+    dupRow("2026-08-13T09:00:00.000Z", { singleMessageStreaks: 48, singleMessageDoubleBilled: 34 }),
+    dupRow("2026-08-15T09:00:00.000Z", { singleMessageStreaks: 14, singleMessageDoubleBilled: 0, singleMessageCoalesced: 8 }),
+  ] };
+  const v = rowThirtyOneVerdict(status);
+  assert.equal(v.level, "ok", v.message);
+  assert.match(v.message, /0 double-billed/i);
+  // The pre-flip 34 must NOT reach the verdict — that is the whole scoping
+  // argument, and a watcher that counted them would be red on day one.
+  assert.doesNotMatch(v.message, /34/);
+});
+
+test("row-31 watcher FIRES on a post-flip double-bill — the regression it exists for", () => {
+  const status = { rows: [
+    dupRow("2026-08-15T09:00:00.000Z", { singleMessageStreaks: 3, singleMessageDoubleBilled: 2 }),
+  ] };
+  const v = rowThirtyOneVerdict(status);
+  assert.equal(v.level, "warn", v.message);
+  assert.match(v.message, /2 .*double-billed/i);
+});
+
+test("row-31 watcher FIRES on the OVER-REACH direction too — a coalesce on the retry class", () => {
+  // The other way to be wrong, and the one that costs correctness rather than
+  // money: suppressing a mid-session retry leaves a real request unanswered.
+  // Measured 0 across all 94 streaks at closure; anything else is a breached
+  // fence, not a better result.
+  const status = { rows: [
+    dupRow("2026-08-15T09:00:00.000Z", { multiMessageStreaks: 4, multiMessageCoalesced: 1 }),
+  ] };
+  const v = rowThirtyOneVerdict(status);
+  assert.equal(v.level, "warn", v.message);
+  assert.match(v.message, /retry class|multi-message|over-reach/i);
+});
+
+test("row-31 watcher: KNOWN POSITIVE — the same predicate over the pre-flip corpus fires", () => {
+  // Not a planted defect: these are the real pre-flip numbers, and pointing
+  // the verdict at a flip stamp before them makes them post-flip by
+  // definition. If this stayed green the watcher would be measuring nothing.
+  const status = { rows: [
+    dupRow("2026-08-13T09:00:00.000Z", { singleMessageStreaks: 48, singleMessageDoubleBilled: 34 }),
+  ] };
+  // CORRECTED while writing it: the first version of this bite expected `ok`
+  // for the pre-flip-only status. That was wrong, and the code was right —
+  // with nothing post-flip on disk there is no evidence, and `ok` there would
+  // be a green computed from zero observations, the exact absence-wearing-a-
+  // verdict's-clothes shape. Both arms are warns; what must DIFFER, and what
+  // this bite actually pins, is the REASON.
+  const outOfScope = rowThirtyOneVerdict(status);
+  assert.equal(outOfScope.level, "warn");
+  assert.match(outOfScope.message, /nothing to verify against yet/,
+    "no post-flip capture means could-not-verify, never a pass");
+  assert.doesNotMatch(outOfScope.message, /34/, "pre-flip traffic must not be counted against the row");
+  const red = rowThirtyOneVerdict(status, { flipIso: "2026-08-01T00:00:00Z" });
+  assert.equal(red.level, "warn", "the same rows, in scope, must fire");
+  assert.match(red.message, /34/);
+  assert.match(red.message, /not holding/i);
+});
+
+test("row-31 watcher: three answers — an unstamped status file is could-not-verify, not clean", () => {
+  const noStamp = { rows: [{ file: "old.jsonl", byteGate: { duplicates: { singleMessageDoubleBilled: 9 } } }] };
+  const v = rowThirtyOneVerdict(noStamp);
+  assert.equal(v.level, "warn", v.message);
+  assert.match(v.message, /predates|could not verify|unstamped/i);
+  assert.equal(rowThirtyOneVerdict(null).level, "warn");
+  assert.equal(rowThirtyOneVerdict({ rows: [] }).level, "warn", "a sweep with no rows proves nothing");
+});
+
+test("the flip stamp is declared once and is the real one", () => {
+  assert.equal(COALESCE_FLIP_ISO, "2026-08-14T16:17:00Z",
+    "CACHE_FIX_COALESCE_SIDECAR went live 2026-08-14 18:17 local");
 });

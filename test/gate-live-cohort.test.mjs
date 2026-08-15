@@ -102,3 +102,39 @@ test("cohortSplit reuses the DERIVED duplicate fold, so a new census field needs
   assert.equal(s.after.duplicates.futureCounter, 10, "summed like every other numeric field");
   assert.equal(s.after.duplicates.maxStreak, 9, "and the MAX field is still a max");
 });
+
+// --- the READER, because a function reachable only from code is not shipped ---
+//
+// This session recorded the same shape twice before writing this: `--protect`
+// reached zero uses in two days because the one paragraph teaching the command
+// omitted the flag, and `findAbsorptionMisses` computed rows for months that no
+// text run printed. `cohortSplit` with no invocation would be the third.
+
+test("renderCohort prints both sides and the flip it split on", () => {
+  const rows = [
+    { file: "pre.jsonl", firstTs: "2026-08-13T09:00:00.000Z", byteGate: { duplicates: { singleMessageStreaks: 48, singleMessageDoubleBilled: 34, singleMessageCoalesced: 1, multiMessageStreaks: 32, multiMessageDoubleBilled: 3, multiMessageCoalesced: 0 } } },
+    { file: "post.jsonl", firstTs: "2026-08-15T09:00:00.000Z", byteGate: { duplicates: { singleMessageStreaks: 13, singleMessageDoubleBilled: 0, singleMessageCoalesced: 7, multiMessageStreaks: 1, multiMessageDoubleBilled: 1, multiMessageCoalesced: 0 } } },
+  ];
+  const text = gate.renderCohort(gate.cohortSplit(rows, "2026-08-14T16:17:00Z"));
+  assert.match(text, /flip 2026-08-14T16:17:00Z/);
+  assert.match(text, /BEFORE/);
+  assert.match(text, /AFTER/);
+  assert.match(text, /34 double-billed/);
+  assert.match(text, /0 double-billed/);
+  assert.match(text, /7 coalesced/);
+});
+
+test("renderCohort SAYS SO when rows carry no stamp, instead of printing two empty sides", () => {
+  // A status file written before the stamp shipped puts every row in the
+  // unstamped bucket. Two zero-filled sides would read as "no duplicates in
+  // either cohort" — a measurement, from an instrument that placed nothing.
+  const rows = [{ file: "old.jsonl", byteGate: { duplicates: { singleMessageDoubleBilled: 9 } } }];
+  const text = gate.renderCohort(gate.cohortSplit(rows, "2026-08-14T16:17:00Z"));
+  assert.match(text, /UNSTAMPED 1 capture/);
+  assert.match(text, /predates/i, "names why, so a reader knows to re-sweep rather than to believe the zeros");
+  // The two arms must DIFFER: with a stamp present, no such warning appears.
+  const ok = gate.renderCohort(gate.cohortSplit(
+    [{ file: "new.jsonl", firstTs: "2026-08-15T09:00:00.000Z", byteGate: { duplicates: { singleMessageDoubleBilled: 0 } } }],
+    "2026-08-14T16:17:00Z"));
+  assert.doesNotMatch(ok, /UNSTAMPED/);
+});
