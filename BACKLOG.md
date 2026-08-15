@@ -3630,6 +3630,58 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-15 — the census cannot say whether a message divergence is a
+  LOCAL EDIT, a SHIFT or a REBUILD, so every boundary walk re-derives it by
+  hand.** Closing-gate question 3, answered YES by having hand-classified it:
+  today's walk needed exactly this distinction and nothing emitted it.
+  `firstDivergence` gives an INDEX, and an index alone is ambiguous between
+  three outcomes that route to different mitigations — a content edit at k
+  (pin those messages), an insert/delete at k (the class
+  insertion-normalization already exists for), and a genuine rebuild below k
+  (not mitigable by pinning at all). On s-captureBR the index was 115 of 1549
+  and the truth was a TWO-MESSAGE local edit with 92.4% of the array intact at
+  the same indices; read as a rebuild it would have closed the class as
+  unmitigable, which is the direction that never gets re-opened.
+  The classifier now exists in `tools/boundary-layers.mjs` (`alignMessages`,
+  three answers plus a position-blind total-overlap number, red-first in
+  `test/boundary-layers.test.mjs` including a mutation proof), so this entry is
+  about the CENSUS emitting it per pair rather than about inventing it.
+  Design: `censusPair` gains the same three-valued classification, computed by
+  IMPORTING `alignMessages` rather than restating it — the second-implementation
+  drift this repo has already paid for three times.
+  Done-criterion: a census run over a capture containing a known resume
+  boundary reports the class per pair, and the daily sweep can be asked "how
+  many boundaries were LOCAL-EDIT" without a hand walk.
+  Anchor: row 24
+  Write-set: tools/replay.mjs, tools/boundary-layers.mjs, test/replay-census-alignment.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/replay-census-alignment.test.mjs
+  <!-- entry: "census cannot classify a message divergence as local-edit, shift or rebuild" -->
+
+- **RECORD 2026-08-15 — `bust-evidence/` is an UNREGISTERED state carrier: a
+  mechanism writes it, nothing is scheduled to read it.** Closing-gate question
+  4's carrier-registration clause, answered NO against the actual file rather
+  than from feel: `grep -n bust-evidence tools/state-report.mjs` returns
+  NOTHING, while `tools/bust-triage.mjs:715` prints the command that creates
+  `~/.local/share/cache-fix/bust-evidence/<date>/` and the bust runbook (step
+  11) instructs every walk to write there. Two files landed there today.
+  This is the exact failure the gate describes — "never a wrong reading, a
+  reading that does not exist": the slices are correct, mode 0600, verified to
+  reproduce, and no inventory pass will ever mention them, so they accumulate
+  unbounded and a future session looking for frozen evidence has no way to
+  learn which walks left any.
+  Design: a `collectBustEvidence` collector in `tools/state-report.mjs` in the
+  same three-answer shape as its siblings — count, newest date, total bytes,
+  and `ok:false` with a reason when the directory is absent (absent is not
+  zero). Its retirement axis is size: the class exists to be READ, so the
+  collector is also what makes an accumulation trigger possible later.
+  Done-criterion: `state-report` names the carrier with a non-null count on a
+  machine that has walked a bust, and `ok:false` with a stated reason on one
+  that has not.
+  Anchor: row 24
+  Write-set: tools/state-report.mjs, test/state-report-bust-evidence.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/state-report-bust-evidence.test.mjs
+  <!-- entry: "bust-evidence is an unregistered state carrier with no collector" -->
+
 - **RECORD (demoted 2026-08-15 — the head hit its cap of ten when the resume-tolerant state key was booked as a decision-complete MITIGATE item; the head LEADS with a mitigation and an instrument outranks it only when it is UPSTREAM of it, which this is not: its consumer is the PR-round process, tier 3 by the instrument partition's own reach ordering, not event disposition or the gates. Body, verifier and done-criterion unchanged.) 2026-08-15 — `pr-rounds` only sees PRs somebody POSTED on, so a PR
   whose blocker cleared in SILENCE is invisible to it; #281 sat ten days that
   way.** Measured today while checking PR state: #281 was graded "stalled, ball
