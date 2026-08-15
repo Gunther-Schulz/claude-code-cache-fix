@@ -8946,8 +8946,12 @@ Reconciliation, before = moved + kept, zero dropped. Round 1:
 Entry count conserved at 488 across both rounds.
 
 Gauge, by the detector rather than by the pattern: `CLOSURE` in live sections
-110 -> 0, and 0 in `## Open`. Baseline for the next pass: 17,825 lines, 488
-entries, 378 live.
+110 -> 0, and 0 in `## Open`. Baseline for the next pass, RE-READ at session
+close after the retirement pass and the head re-derivation moved it: 17,943
+lines, 492 entries, 389 live. (The figure first written here — 17,825 / 488 /
+378 — was true when the exit pass committed and was invalidated hours later by
+this same session's own commits. A baseline in a durable artifact is
+load-bearing for whoever measures next, and nothing updates it automatically.)
 
 **Left standing, deliberately:** 3 `AMBIGUOUS` entries whose grade is a
 DECISION or a REFRAME rather than a closure (`## Open` L2818 and L4931,
