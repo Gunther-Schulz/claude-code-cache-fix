@@ -1985,6 +1985,35 @@ function formatReadyOutsideOpenFinding(f) {
 }
 
 // ==========================================================================
+// READY cap lane (default pass)
+// ==========================================================================
+//
+// Why this exists: BACKLOG.md's own `## Grades` section declares READY the
+// SCHEDULED HEAD, capped at ten (operator, 2026-08-11) — and READY in
+// `## Open` was already at 38 the day the cap was declared. No lane counted
+// READY entries against the cap; this one does, reusing `READY_HEADER` and
+// `censusOpenSection` (both already shared by the premise-true lane above)
+// rather than restating either.
+//
+// REPORT-only, deliberately, and this is NOT the print-BLOCK-and-exit-zero
+// defect the closure-duplicate lane's own comment warns about: the line
+// below says "REPORT only" and means it — the exit code is untouched by
+// this lane. Rationale: READY is legitimately over cap pending a head
+// re-derivation that has not happened yet (`docs/dev-loop.md`, "Build order
+// is DERIVED at build time"), so a blocking lane here would block every
+// push for a condition nobody has had the chance to fix. Promotion to
+// blocking belongs with the re-derivation commit that brings the count back
+// under cap, not with this lane's addition.
+
+export function lintReadyCap(text, cap = 10) {
+  const section = censusOpenSection(text);
+  const count = section
+    ? splitEntries(section.body).filter((e) => READY_HEADER.test(e.header)).length
+    : 0;
+  return { count, cap, over: Math.max(0, count - cap) };
+}
+
+// ==========================================================================
 // Boundary classification (default pass) — shared with tools/backlog-lanes.mjs
 // ==========================================================================
 //
@@ -2249,6 +2278,38 @@ function main(argv) {
     readyOutsideOpen.length
       ? `backlog-ready-outside-open: ${readyOutsideOpen.length} finding(s) — REPORT only\n`
       : "backlog-ready-outside-open: clean\n",
+  );
+
+  const readyCap = lintReadyCap(text);
+  process.stdout.write(
+    readyCap.over
+      ? `backlog-ready-cap: ${readyCap.count} READY in ## Open against cap ${readyCap.cap} — REPORT only\n`
+      : `backlog-ready-cap: clean (${readyCap.count}/${readyCap.cap})\n`,
+  );
+
+  // Surfaces the closures-in-live census (defined above, `--closures-in-live`
+  // flag) in the DEFAULT run too — the flag path stays untouched, and this
+  // block never prints its per-row WARN lines, only the two summary counts.
+  // On 2026-08-15 the dispatcher moved 110 closures out of live sections and
+  // the default run had never reported any of them; this is that gap closed.
+  const closuresInLive = closuresInLiveEntries(text);
+  let closuresInLiveClosureCount = 0;
+  let closuresInLiveAmbiguousCount = 0;
+  let closuresInLiveOpenClosureCount = 0;
+  for (const r of closuresInLive) {
+    if (r.classification === "CLOSURE") {
+      closuresInLiveClosureCount++;
+      if (r.section.startsWith(OPEN_SECTION_PREFIX)) closuresInLiveOpenClosureCount++;
+    } else if (r.classification === "AMBIGUOUS") {
+      closuresInLiveAmbiguousCount++;
+    }
+  }
+  process.stdout.write(
+    `backlog-closures-in-live: CLOSURE=${closuresInLiveClosureCount} ` +
+      `AMBIGUOUS=${closuresInLiveAmbiguousCount} (live sections) — REPORT only\n`,
+  );
+  process.stdout.write(
+    `backlog-closures-in-live-open: CLOSURE=${closuresInLiveOpenClosureCount} (## Open section only)\n`,
   );
 
   if (wantPointers) {

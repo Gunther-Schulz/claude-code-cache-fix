@@ -2479,3 +2479,95 @@ test("CLI: backlog-ready-outside-open lane runs in the default pass", () => {
   assert.equal(code, 0);
   assert.match(out, /^backlog-ready-outside-open: clean$/m);
 });
+
+// ==========================================================================
+// Section: READY cap lane -- BACKLOG.md's own `## Grades` section caps READY
+// at ten (operator, 2026-08-11); no lane counted READY entries against the
+// cap until this dispatch. Red-first pair anchored to the two immutable
+// refs (dev-loop.md's rule: never the live working-copy file) where the cap
+// was declared and then first breached, same day.
+// ==========================================================================
+
+const READY_CAP_AT_CAP_REF = "ee98a997";
+const READY_CAP_FIRST_BREACH_REF = "053e22af";
+
+test("lintReadyCap: RED-FIRST against the two immutable refs where the cap was declared then first breached", () => {
+  const atCapText = gitShow(READY_CAP_AT_CAP_REF, "BACKLOG.md");
+  const overCapText = gitShow(READY_CAP_FIRST_BREACH_REF, "BACKLOG.md");
+
+  const atCap = lint.lintReadyCap(atCapText);
+  const overCap = lint.lintReadyCap(overCapText);
+  assert.deepEqual(atCap, { count: 10, cap: 10, over: 0 }, `${READY_CAP_AT_CAP_REF} sits exactly at the cap`);
+  assert.deepEqual(
+    overCap, { count: 11, cap: 10, over: 1 },
+    `${READY_CAP_FIRST_BREACH_REF} is the first breach, one over`,
+  );
+  assert.notDeepEqual(
+    atCap, overCap,
+    "the two refs must DIFFER -- a lane green on both counts something other than READY entries",
+  );
+
+  // Same pair, through the default CLI run's own printed lines. This lane
+  // is REPORT-only and never sets the exit code itself -- the closure-
+  // duplicate lane (unrelated, BLOCKING, pre-existing) is what may make
+  // either run's exit code non-zero at a given historical ref, so this
+  // asserts only the printed line, never the exit code.
+  const atRun = runTool(["-"], atCapText);
+  const overRun = runTool(["-"], overCapText);
+  assert.match(atRun.out, /^backlog-ready-cap: clean \(10\/10\)$/m);
+  assert.match(overRun.out, /^backlog-ready-cap: 11 READY in ## Open against cap 10 — REPORT only$/m);
+});
+
+// ==========================================================================
+// Section: closures-in-live surfaced in the DEFAULT run -- the census
+// existed only behind `--closures-in-live` (Section 9, above) and the
+// default run never reported the population it measures. Red-first pair
+// anchored to the immutable refs either side of the 2026-08-15 exit pass
+// that moved 110 closures out of live sections; `--closures-in-live`
+// itself is untouched by this dispatch and is not re-tested here.
+// ==========================================================================
+
+const CLOSURES_IN_LIVE_BEFORE_EXIT_PASS_REF = "96936f3";
+const CLOSURES_IN_LIVE_AFTER_EXIT_PASS_REF = "95a5782";
+
+test("CLI default run: backlog-closures-in-live / -open RED-FIRST against the two immutable refs either side of the 2026-08-15 exit pass", () => {
+  const beforeText = gitShow(CLOSURES_IN_LIVE_BEFORE_EXIT_PASS_REF, "BACKLOG.md");
+  const afterText = gitShow(CLOSURES_IN_LIVE_AFTER_EXIT_PASS_REF, "BACKLOG.md");
+
+  const beforeRun = runTool(["-"], beforeText);
+  const afterRun = runTool(["-"], afterText);
+  assert.equal(beforeRun.code, 0);
+  assert.equal(afterRun.code, 0);
+
+  // Before: a non-zero CLOSURE count in live sections (the population the
+  // exit pass went on to move).
+  assert.match(beforeRun.out, /^backlog-closures-in-live: CLOSURE=(\d+) AMBIGUOUS=\d+ \(live sections\) — REPORT only$/m);
+  const beforeClosure = Number(beforeRun.out.match(/^backlog-closures-in-live: CLOSURE=(\d+)/m)[1]);
+  assert.ok(beforeClosure > 0, `expected a non-zero CLOSURE count before the exit pass, got ${beforeClosure}`);
+
+  // After: exactly zero, both the whole-live-sections count and the
+  // ## Open-scoped one.
+  assert.match(afterRun.out, /^backlog-closures-in-live: CLOSURE=0 AMBIGUOUS=\d+ \(live sections\) — REPORT only$/m);
+  assert.match(afterRun.out, /^backlog-closures-in-live-open: CLOSURE=0 \(## Open section only\)$/m);
+
+  // The two runs must DIFFER -- a lane reading CLOSURE=0 on both is
+  // counting something other than the live-section population.
+  assert.notEqual(beforeClosure, 0);
+
+  // Per-row WARN lines stay behind the flag; the default run prints only
+  // the two summary lines for this lane.
+  assert.ok(
+    !beforeRun.out.includes("WARN backlog-closure-in-live"),
+    "the default run must not print the per-row WARN lines -- those stay with --closures-in-live",
+  );
+
+  // `--closures-in-live` itself must be untouched by this dispatch: same
+  // shape it always had (finding-count-first summary phrasing, distinct
+  // from the new default-run lines above), on the same before-ref text.
+  const flagOut = lint.closuresInLiveText(beforeText);
+  assert.match(
+    flagOut,
+    /^backlog-closures-in-live: \d+ finding\(s\) — REPORT only — CLOSURE=\d+ AMBIGUOUS=\d+ NOT-CLOSURE=\d+ COULD-NOT-VERIFY=\d+$/m,
+  );
+  assert.match(flagOut, /^backlog-closures-in-live-open: CLOSURE=\d+ \(## Open section only\)$/m);
+});
