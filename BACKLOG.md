@@ -9858,19 +9858,17 @@ entry promoted to READY must satisfy the booking bar in this file's header
 
 ## Upstream PR round — booked 2026-08-05; the round below is CLOSED, current state is the first entry
 
-**STATE AS OF 2026-08-05 21:00Z, read from the API rather than from this
-file's history — the entries below record what WE did, not what upstream
-then did with it, and four of them have since merged.**
+**STATE RE-READ FROM THE API 2026-08-15** (the 2026-08-05 table this
+replaces is superseded, not appended to — a stale table reads as
+authoritative). Nine of the twelve have merged; two remain open.
 
 | PR | state | ball |
 |---|---|---|
-| #275 #279 #280 #282 | **MERGED** 15:11–15:31Z | done |
-| #272 | **APPROVED, mergeStateStatus CLEAN**, rebased onto `39570db` tonight | upstream |
-| #276 | answered tonight; upstream replied accepting both points | upstream |
-| #306 #307 | open, no comments, REVIEW_REQUIRED | upstream |
-| #273 #281 | REVIEW_REQUIRED, BLOCKED behind #272 | upstream |
-| #278 | REVIEW_REQUIRED, **mergeStateStatus DIRTY** | **US — entry below** |
-| #295 | CLOSED tonight, premise falsified | done |
+| #272 #273 #275 #278 #279 #280 #282 #307 | **MERGED** 2026-08-05..08-06 | done |
+| #281 | open, MERGEABLE, CI green — rebased and un-drafted 2026-08-15 | upstream |
+| #276 | open, CONFLICTING, awaiting Chris's sequencing answer (2026-08-14) | upstream |
+| #306 | open, MERGEABLE, all maintainer questions answered 2026-08-14 | upstream |
+| #295 | CLOSED 2026-08-05, premise falsified | done |
 
 - **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — a worktree without `node_modules`
   should fail loudly at doctor time, not as a 900 s fake hang.** Measured
@@ -9887,30 +9885,6 @@ then did with it, and four of them have since merged.**
   worktree; control that a fully-linked set reports clean. Done when the
   check ships with its three-answer case (no worktrees at all is "could not
   verify", not "clean").
-
-- **READY — #278 (`pr/output-guard`) is CONFLICTING and needs the same
-  rebase #272 just had.** Measured 2026-08-05 21:00Z: `mergeStateStatus:
-  DIRTY`, last comment ours from 07-30, so nothing is owed in the thread —
-  only the merge state blocks it. Upstream's contributor rule (their tracked
-  CLAUDE.md, which binds on upstream-facing branches) is rebase-against-
-  current-main, never cherry-pick the conflict away, and the runbook's
-  rebase-policy step covers it.
-  Design, decision-complete: worktree at `/home/g/dev/vendor/cache-fix-pr7`
-  (already provisioned, already on `pr/output-guard` at `e4bd379`;
-  `node_modules` was missing and was symlinked 2026-08-05 — along with
-  pr2, pr5 and pr6, which had the same gap — so the suite runs there now:
-  `test/output-guard.test.mjs` 15/15, and `hpagent` resolves. That gap is
-  the documented 900 s false hang, and four of fifteen worktrees carried
-  it). Then `git rebase upstream/main`, full suite in the worktree, the
-  runbook's
-  hygiene greps scoped to THIS round's commits, `git push
-  --force-with-lease`, then the push-announcement comment with real test
-  counts and the attribution footer.
-  Known in advance, so it does not surprise the next session: the push-side
-  leak scan will block the force-push by re-flagging already-public commit
-  messages — that is the separate READY item above, and the check is
-  patch-id equivalence against the pre-rebase commits before overriding.
-  Done when #278 reports CLEAN and the comment is posted.
 
 Procedure for every item: docs/runbooks/upstream-pr-round.md (worktree
 setup, hygiene gate, comment form, the box). Per-PR state and full
@@ -13022,6 +12996,23 @@ then the queued ones. Work the items in that order.
   Consumer: next tooling session here; the derivation ranks it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-15 (closed UNBUILT, overtaken — `#278` merged upstream
+  2026-08-06T20:50:19Z) — the #278 rebase entry was written for a PR that
+  merged the next day, and sat READY for nine days afterwards.** Booked
+  2026-08-05 21:00Z on a correct measurement (`mergeStateStatus: DIRTY`,
+  ball with us). Upstream merged it 2026-08-06T20:50:19Z; verified by API
+  read 2026-08-15 (`gh pr view 278 --json state,mergedAt`). None of the
+  design was executed and nothing is owed — the worktree at
+  `/home/g/dev/vendor/cache-fix-pr7`, the rebase, the force-push and the
+  announcement comment all became moot on the merge.
+  **Same class as the #281 miss found the same day**, which is why it is
+  recorded rather than quietly deleted: an entry whose premise is killed by
+  a MERGE decays silently, because nothing posts to the thread and no
+  reading of the entry can tell. The mechanism is booked (the
+  dependency-cleared predicate for `tools/pr-rounds.mjs`, `## Open`); this
+  is its second known instance and the one that dates it — nine days.
+  <!-- entry: "#278 rebase closed unbuilt, overtaken by merge" -->
 
 - **DONE 2026-08-14 (posted: `anthropics/claude-code#78420` comment
   `5297021582`; original comment `5117558047` pointer-edited the same
