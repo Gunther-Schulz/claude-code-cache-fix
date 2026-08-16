@@ -1036,6 +1036,28 @@ Running a one-off replay by hand? Pass the gates, or you are testing fiction:
 node tools/gate-live.mjs        # resolves them for you — prefer this
 ```
 
+**The SUITE has the identical hole, and it is checked as of 2026-08-16.**
+Everything above was written about the gate. A unit test that drives a gated
+extension without ever setting that gate is the same green over the same wrong
+configuration — measured on the resume-key lane, where a seven-bite file drove
+`insertion-normalization` and never named `CACHE_FIX_VOLATILE_PIN` while
+`/health` carried it as `1`. All seven passed.
+
+```sh
+node tools/serving-gate-lint.mjs   # 0 clean · 1 findings · 2 COULD NOT VERIFY
+```
+
+It derives each extension's gate set from the extension source, takes the
+serving set from `/health` (never a list in the file), and reports any test file
+holding an extension OBJECT without naming that extension's serving-ON gates.
+Read its header before acting on a red: it is a tripwire for the TOTAL absence
+of a gate, so satisfying it by mentioning the name changes nothing about what
+runs — the repair is exercising the gate the way the file's siblings do. It is
+hand-run today and deliberately not wired into a gate: it is red on two known
+offenders, and wiring it before they are repaired trains the `--no-verify`
+reflex. Exempting them instead would silence the instrument on the day it was
+built.
+
 ## Rule out the instrument before reporting a defect
 
 When a check goes red, there are always two hypotheses: the SYSTEM is broken,

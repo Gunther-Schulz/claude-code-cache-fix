@@ -547,49 +547,101 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/insertion-lineage-recovery.test.mjs
   <!-- entry: "resume-tolerant state key gates four-layer resume absorption" -->
 
-- **READY 2026-08-16 (takes the slot the resume-key entry vacated on being
-  parked) — a test that exercises a GATED extension without setting its gate is
-  green about a pipeline nobody runs, and nothing checks that.** Measured today,
-  twice over, on the resume-key lane: `grep -c VOLATILE_PIN
-  test/insertion-lineage-recovery.test.mjs` returns **0**, so all seven of its
-  bites — plus the dispatcher's own desk probe — ran in plain mode while the
-  serving unit and `/health` both carry `CACHE_FIX_VOLATILE_PIN=1`. The feature
-  under test is INERT in pin mode (that entry's F1), and every check passed
-  anyway. `docs/dev-loop.md` already has the section for this class
-  ("Replay the configuration that is SERVING, not the defaults", whose own
-  conclusion is that such a green "is worse than no verdict because it reads
-  like one") — it was written about `gate-live` and the SUITE has the identical
-  hole.
-  **This is a guard, not new machinery, and that is what makes it cheap:** the
-  convention already exists and is already followed —
-  `test/insertion-normalization.test.mjs`, `insertion-suppression`,
-  `absorption-miss`, `relocate-then-pin-conservation`, `replay-class-matrix` and
-  `mitigation-output-form` all set `CACHE_FIX_VOLATILE_PIN` themselves. Six
-  files honour it, the seventh did not, and nothing noticed.
-  **Design, decided.** A lint in `tools/` (a repo-owned check, per the file
-  roles) that: (1) DERIVES the gate set each extension reads, by scanning
-  `proxy/extensions/*.mjs` for `CACHE_FIX_[A-Z_]+` rather than restating a
-  hardcoded list — a restated basis cannot age loudly and would stay green the
-  day a new gate is added; (2) enumerates test files importing each extension;
-  (3) fails any test file that imports a gated extension without setting that
-  extension's gates anywhere in the file; (4) carries a DECLARED exemption list
-  in data the lint itself verifies — `{path, gates, reason}` — never a softened
-  predicate, since some tests legitimately exercise the OFF path.
-  **Instrument-positive, named so a zero is a measurement:**
-  `test/insertion-lineage-recovery.test.mjs` is a known positive TODAY — the
-  lint must fire on it before the resume-key lane is repaired, and that firing
-  is the red-first proof. The known negative is
-  `test/insertion-normalization.test.mjs`, which must stay green.
-  **Why this outranks resuming the mitigation:** the mitigation's last two
-  rounds were both certified by checks that could not see the serving config,
-  so no third round is trustworthy until this exists. Ordering constraint, not
-  a preference.
+- **READY 2026-08-16 (takes the slot the serving-gate lint vacated on closing) —
+  `test/write-owner-only.test.mjs` drives `insertion-normalization` in pin-OFF
+  while the proxy serves pin-ON.** The serving-gate lint's ONE finding on main
+  the day it shipped, so this is the instrument's first real catch rather than a
+  hand-derivation: the file default-imports the extension, calls `ext.onRequest`
+  at line 96, and computes its expected paths with `resolveInsertionSessionKey`
+  — the very function `CACHE_FIX_VOLATILE_PIN` reaches
+  (`proxy/extensions/insertion-normalization.mjs:158`) — while naming
+  `CACHE_FIX_INSERTION_NORMALIZE` and never `CACHE_FIX_VOLATILE_PIN`. Its four
+  owner-only mode bites are therefore green about a key derivation the
+  deployment does not use.
+  **Design, decided:** the file exercises pin mode the way its six siblings
+  already do (`withEnv({ CACHE_FIX_INSERTION_NORMALIZE: "1",
+  CACHE_FIX_VOLATILE_PIN: "1" })`), not by adding a gate mention that satisfies
+  the lint without changing what runs — the lint is a tripwire for the total
+  absence and cannot tell those apart, which is stated in its own header.
+  **Done-criterion:** the four mode bites pass under pin-ON, and `node
+  tools/serving-gate-lint.mjs` returns exit 0 with zero offenders. Red-first
+  arrangement: run the repaired bites against pin-ON BEFORE changing any
+  expectation — if a path assertion moves, that move is the finding, and
+  repairing the expectation to restore green is how this defect class survives.
   Loop stage: VERIFY
   Anchor: docs/dev-loop.md
-  Write-set: tools/serving-gate-lint.mjs (new), test/serving-gate-lint.test.mjs (new)
-  Verifier: node tools/serving-gate-lint.mjs — must FIRE on test/insertion-lineage-recovery.test.mjs today and stay silent on test/insertion-normalization.test.mjs
-  Done-criterion: the lint is red on the known positive before any repair lands, green after that file exercises pin mode, and the exemption list is verified by the lint itself
-  <!-- entry: "a test exercising a gated extension without its gate is green about a pipeline nobody runs" -->
+  Write-set: test/write-owner-only.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/write-owner-only.test.mjs, then node tools/serving-gate-lint.mjs
+  <!-- entry: "write-owner-only drives insertion-normalization in pin-OFF while production serves pin-ON" -->
+
+- **RECORD 2026-08-16 — the serving-gate lint is a hand-run tool; wiring it into
+  the suite or the pre-push hook waits on both known offenders being
+  repaired.** Named missing element, not a preference: the lint is RED on main
+  today (one offender) and red on `wip/resume-key-third-read` (the second), so
+  wiring it now makes every push red and trains the `--no-verify` reflex the
+  repo's own rules call the way a guard dies. It also must not be wired by
+  exempting the two offenders — an exemption there silences the instrument on
+  the day it was built.
+  **Trigger, computable:** `node tools/serving-gate-lint.mjs` exits 0. At that
+  point the wiring decision is between the suite (a bite that runs the lint over
+  the real tree) and `tools/git-hooks/pre-push`. Recommendation: pre-push, not
+  the suite — the lint reads `/health`, so a suite bite would go COULD NOT
+  VERIFY on any machine with no proxy running and a suite has no third answer to
+  express that in.
+  Anchor: tools/serving-gate-lint.mjs
+  Write-set: tools/git-hooks/pre-push (or test/), decided at wiring time
+  <!-- entry: "wire the serving-gate lint into a gate once both known offenders are repaired" -->
+
+- **PARKED 2026-08-16 (desk finding, relayed, then downgraded by its own author
+  the same hour) — `shape-watch`'s staleness verdict asserts a cause it has not
+  checked, and what the number underneath it means is UNSETTLED.** Two separable
+  halves, and only the first is established.
+  **Established, code-read and executed:** `shape-verdicts.mjs` takes
+  `max(ledger.keys[*].lastHarvest)`; `harvest.mjs:1480` skips a capture
+  (`if (count <= prior.requests) continue;`) BEFORE the `lastHarvest: now` write
+  at :1522, so the field advances only for captures that GREW or are new — it
+  never tracks "did the timer run". The verdict's own sentence, "the timer is not
+  watching", is therefore measurably false: `systemctl --user list-timers` shows
+  `cache-fix-harvest.timer` active, last run 2026-08-16 08:48:42 CEST, exit 0.
+  The WORDING is wrong regardless of what follows.
+  **NOT established, and this is why the entry is parked rather than ready:**
+  whether the 75h reading is benign. A brand-new capture has no `prior`, so it
+  should not be skipped and SHOULD refresh the field — yet 37 captures sit on
+  disk against 289 ledger keys of which 287 are `gone`, and the newest
+  `lastHarvest` is 08-13. Those facts do not reconcile.
+  **Named missing evidence (the park's trigger):** that reconciliation. Until it
+  exists, the run-marker design the finding originally carried is not adoptable —
+  it presumes the number is harmless, which is exactly the unsettled half.
+  Anchor: tools/shape-verdicts.mjs
+  Write-set: tools/harvest.mjs, tools/shape-verdicts.mjs
+  <!-- entry: "shape-watch staleness verdict anchors to lastHarvest, which means last GREW" -->
+
+- **RECORD 2026-08-16 — REFUTED THE SAME HOUR, kept for the lesson and not as
+  work: "two captures expired before harvest and nothing a human reads said
+  so".** The finding was relayed by the desk, retracted by the desk, and the
+  retraction was checked here against the code rather than accepted as
+  testimony. Both halves of it were wrong.
+  **There IS a reader.** `retentionVerdict` (`tools/shape-verdicts.mjs:158`)
+  exists for exactly this, reports "N capture(s) expired before harvest
+  finished", and works by acknowledge-by-commit — a newly `gone` key warns until
+  the ledger commit acknowledges it. The claim that the verdict layer "stayed
+  silent" asserted an absence nobody had looked for.
+  **And the observation was manufactured by the probe that reported it.**
+  `entry.gone = true` and `report.expired.push(...)` run in the same loop under
+  the same guard (`tools/harvest.mjs:1437-1440`), while the ledger write is
+  behind `if (!args.dryRun)` (:1533). The finding came from a `--dry-run`: it set
+  the flag in memory, printed the WARNING from it, and discarded the flag
+  unwritten. The alarm described as reaching nobody was printed by the reporter's
+  own terminal. Both keys are `gone: false` in working and committed ledgers,
+  while 287 others are gone and acknowledged in both — the mechanism working as
+  designed.
+  **The lesson, which is why this is booked at all:** the non-event rule in its
+  purest form. A probe whose output LOOKS like a finding is the instrument, and a
+  dry run is a mode in which mechanisms deliberately do not complete — an absence
+  observed under `--dry-run` is not an absence in production. Class:
+  instrument-not-ruled-out. Mechanism: none — this is the judgment remainder the
+  dev-loop already names, with the operator and the peer channel as backstop.
+  <!-- entry: "REFUTED: expired-before-harvest reaches no verdict — the dry run manufactured it" -->
 
 - **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
   the running pipeline uses, so its name promises an eviction it does not
@@ -10109,6 +10161,53 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-16 — the serving-gate lint exists and has already produced its
+  first finding (`tools/serving-gate-lint.mjs`, `test/serving-gate-lint.test.mjs`).**
+  A test that drives a GATED extension without ever naming that gate is green
+  about a pipeline nobody runs, and until today nothing checked it. The motivating
+  case: `test/insertion-lineage-recovery.test.mjs` on `wip/resume-key-third-read`
+  default-imports `insertion-normalization`, drives `ext.onRequest`, and never
+  names `CACHE_FIX_VOLATILE_PIN` while the serving unit and `/health` both carry
+  it as `1`; all seven of its bites passed.
+  **The red-first proof, run before anything was believed.** One run over a tree
+  holding BOTH named files — the known positive extracted read-only from the
+  branch (`git show`, no checkout, the branch untouched) and the known negative
+  `test/insertion-normalization.test.mjs` — against the live serving set:
+  FIRES on the positive naming `CACHE_FIX_VOLATILE_PIN`, SILENT on the negative,
+  in the same run, so the silence is discriminating rather than vacuous.
+  **The entry's design was NARROWED against measurement, and the numbers are the
+  reason.** As written, the derived predicate — every `CACHE_FIX_*` an extension
+  reads — yields 40 offenders on main, most demanding that a test set
+  `CACHE_FIX_DEBUG` or the `CACHE_FIX_SNAPSHOT_DIR` path: a guard that fires on
+  legitimate work, which is the shape that trains the override reflex. Two
+  narrowings, each measured: requiring only gates the RUNNING proxy has ON takes
+  it to 13, and counting only default/namespace imports — holding the extension
+  OBJECT, not calling an exported pure helper — takes it to 1. Derivation is
+  kept where the entry put it (the per-extension gate set is scanned from source,
+  proven by a bite that adds a gate to a fixture extension and watches a new
+  offender appear with no change to the lint).
+  **The serving set comes from `/health`, never from a list in the file**, so the
+  basis cannot go stale silently; an unreachable proxy is COULD NOT VERIFY
+  (exit 2), not an empty set that would render as a clean sweep. Declared
+  assumption, stated in the header: a switch is recognised by publishing its
+  VALUE, which `proxy/gate-allowlist.mjs` and the capture-hardening bite hold.
+  **What the lint's own test caught about the lint.** The template-literal bite
+  went red for a reason nobody planted: line-anchoring alone does NOT exclude an
+  import sitting inside a fixture's template literal. That is a finding about the
+  artifact, so the artifact was repaired (`stripNonCode`), not the expectation —
+  and the repair was then checked for blast radius against the real corpus
+  (232 files, 0 extension-imports lost).
+  **First real finding, booked as its own READY entry:**
+  `test/write-owner-only.test.mjs` drives `insertion-normalization` in pin-OFF
+  while production serves pin-ON. It was NOT exempted — an exemption on the day
+  the instrument shipped is how a live finding becomes a silenced instrument.
+  Deferred with its named trigger: wiring the lint into a gate waits until it
+  exits 0 (its own RECORD entry).
+  Loop stage: VERIFY. Verifier: `node tools/serving-gate-lint.mjs` (exit 1, one
+  offender), `test/serving-gate-lint.test.mjs` 15/15, full suite 3534 pass / 0
+  fail at the pushed commit.
+  <!-- entry: "a test exercising a gated extension without its gate is green about a pipeline nobody runs" -->
 
 - **DONE 2026-08-16 — the content gate is ported and this repo's half is
   shipped (`4e58269`); the dotfiles half and the restart are the desk's.**
