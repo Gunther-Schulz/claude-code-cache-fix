@@ -151,13 +151,22 @@ a zero from that enumeration is now unproven and says so.
    sweep stays red on a measured NON-defect — tier 2, and a guard that fires on
    legitimate work trains its reader to ignore red.
    <!-- entry: "stability check lacks the modelChangedAcrossPair exemption" -->
-10. the cap lane guards ONE direction — a drained head is silent, so `RECORD`
-   has no promotion path. Raised by the operator at close and probed: a head of
-   four reports `clean (4/10)` and exits 0. This is what makes the three-grade
-   design work at all, which is why it displaced the blocking-verdict exit-pair
-   item (demoted to `## Record`, same body, same verifier) rather than waiting
-   for a slot.
-   <!-- entry: "cap lane guards over-fill only, a drained head is silent" -->
+**SHIPPED OUT OF THE HEAD 2026-08-16, and the departures are recorded here
+rather than patched over.** Slot 10 (the cap lane's drained direction) shipped
+as `dd03b30`, and the write-owner-only serving-gate repair shipped as `92ce3dd`
+— both in `## Done` with their arms. Neither slot was refilled, because
+refilling is a re-derivation and a re-derivation is a judgment pass, not a
+bookkeeping step: the two remaining head items are unchanged in rank and the
+head now sits at eight against its cap of ten.
+
+**The prompt to re-derive is now MECHANICAL rather than remembered**, which is
+the point of the item that just shipped: every `node tools/backlog-lint.mjs`
+run prints `backlog-ready-cap: 8/10 — head UNDER-FULL, promote from ## Record`
+beside its clean line. Before `dd03b30` a drained head was silent, so this
+paragraph would have been the only thing standing between `## Record` and
+permanence — and a paragraph nobody is scheduled to read is what the
+three-grade design's own critique calls a grade whose exit is "someone
+eventually notices".
 **Amended 2026-08-15 (late), and it is a composition-rule firing rather than a
 re-derivation:** a bust walk that afternoon produced the first decision-complete
 MITIGATE-stage entry this head has had since row 31 closed, so the head now
@@ -1003,38 +1012,6 @@ comment and new issue.
   Write-set: tools/replay.mjs, test/replay-gate-selfcheck.test.mjs
   Verifier: node --test test/replay-gate-selfcheck.test.mjs
   <!-- entry: "stability check lacks the modelChangedAcrossPair exemption" -->
-
-- **READY 2026-08-15 — the cap lane guards ONE direction, so a DRAINED head is
-  silent and `RECORD` has no promotion path at all.** Raised by the operator at
-  session close — *"how will it get to them if they are only recorded and not
-  ready?"* — and the honest answer, probed rather than reasoned: a simulated head
-  of four reports `backlog-ready-cap: clean (4/10)` and exits 0. Nothing fires.
-  **Why this is structural and not cosmetic:** the three-grade design (2026-08-11)
-  moves everything not scheduled into `## Record` — 88 entries there before today,
-  116 after this session's demotions. Their ONLY route back is a head
-  re-derivation, and nothing triggers one. A grade whose exit is "someone
-  eventually notices" is the capture-dominance disease one level up: entries
-  accumulate in a carrier nobody is scheduled to read. The cap lane made
-  over-fill impossible and left under-fill invisible, which converts the head
-  from a queue into a fixed set.
-  **Design, decided:** extend `lintReadyCap` to report BOTH directions —
-  `{count, cap, over, under}` — and add a default-run line when the head is under
-  cap: `backlog-ready-cap: N/10 — head UNDER-FULL, promote from ## Record`.
-  REPORT-only in that direction and never blocking: an under-full head is a
-  prompt, not an error, and blocking on it would stop every push the moment work
-  closes, which is the check-that-fires-on-a-non-defect shape.
-  **Red-first, and the two must DIFFER:** the live file at 10/10 prints `clean`
-  and must NOT print the under-full line; the same file with entries demoted to
-  9 READY must print it naming 9/10. A lane green on both is reading the cap and
-  not the count.
-  Done: both arms hold with their output pasted, the default run prints the
-  under-full line at 9 READY and does not print it at 10, the lane still exits 0
-  in the under-full direction, and this entry moves to `## Done` with its ref.
-  Loop stage: VERIFY.
-  Anchor: tools/backlog-lint.mjs
-  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
-  <!-- entry: "cap lane guards over-fill only, a drained head is silent" -->
 
 
 
@@ -10149,6 +10126,42 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-16 (`dd03b30`) — the cap lane now guards BOTH directions, and
+  it stopped pinning the live head's size.** Two defects in one commit, and the
+  second was found by the first firing: closing the write-owner-only entry
+  drained the head to nine, and the whole suite went red.
+  **The premise defect, which is the more useful half.** The cap-lane BITE
+  hardcoded `clean (10/10)` and built its red arm by adding exactly ONE entry —
+  both of them claims about how big the live head happened to be at the moment
+  the test ran. So a correct closure, the one act the backlog exists for, took
+  every push red: a guard firing on legitimate work, which is precisely how a
+  guard trains the override reflex that kills it. The count is now MEASURED from
+  the same file both arms are built from (`withReadyCount`, which adds synthetic
+  entries or demotes real ones to hit an exact target), and the red arm is sized
+  to land exactly one over the cap from wherever the head sits. What the bite
+  asserts is unchanged. **Proven count-independent by running the file at nine
+  and at ten — green at both, where the old form was green only at ten.**
+  **The drained direction, built as its own entry decided.** `lintReadyCap`
+  returns `{count, cap, over, under}`; the default run prints an ADDITIONAL
+  under-full line beside the clean one (`backlog-ready-cap: N/10 — head
+  UNDER-FULL, promote from ## Record`), never replacing it. Asymmetric on
+  purpose: over-fill BLOCKS — the cap is a bound the repo chose and exceeding it
+  is fixable before a push — while under-fill REPORTS and never blocks, since a
+  drained head is what closing work looks like. The entry's own red-first arm
+  was live on disk while it was built: the file stood at 9 READY, and the lane
+  printed `clean (9/10)` plus the under line at the same moment.
+  **And the lane's own header comment was FALSE and had been since 2026-08-15**
+  — "REPORT-only, deliberately … the exit code is untouched by this lane", while
+  `over` drives the exit code and a bite pins exactly that. Corrected in place,
+  with the original rationale kept as history rather than as description. A
+  mechanism's words about itself outliving its body reads as the predicate's
+  reach to whoever opens it next, which is what stops anyone looking.
+  Red-first, both arms named: tool reverted with the new expectations kept →
+  exactly THREE red (the two new bites plus the shape assertion) and the other
+  168 green; with the change 171/0. Full suite 3536 / 0 fail at the pushed
+  commit. Loop stage: VERIFY.
+  <!-- entry: "cap lane guards over-fill only, a drained head is silent" -->
 
 - **DONE 2026-08-16 (`92ce3dd`) — the owner-only BITEs now drive the config the
   proxy actually serves, and the serving-gate lint is CLEAN on main.** The
