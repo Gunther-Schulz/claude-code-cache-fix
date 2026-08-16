@@ -2,9 +2,92 @@
 
 [![npm](https://img.shields.io/npm/v/claude-code-cache-fix?color=blue)](https://www.npmjs.com/package/claude-code-cache-fix) [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](https://opensource.org/licenses/MIT) [![GitHub stars](https://img.shields.io/github/stars/cnighswonger/claude-code-cache-fix)](https://github.com/cnighswonger/claude-code-cache-fix/stargazers)
 
-English | [中文](./README.zh.md) | [한국어](./README.ko.md) | [Português](./docs/guia-pt-br.md)
+English | [中文](./README.zh.md) | [한국어](./README.ko.md) | [Français](./README.fr.md) | [Português](./docs/guia-pt-br.md)
 
 Cache optimization proxy for [Claude Code](https://github.com/anthropics/claude-code). Fixes prompt cache bugs that cause excessive quota burn, stabilizes the request prefix, and monitors for silent regressions. Works with all CC versions including the v2.1.113+ Bun binary.
+
+*This README documents current `main`; release availability is noted per feature.*
+
+## What it does to your traffic
+
+A local proxy sits between Claude Code and Anthropic. Before you read further,
+here is exactly what that means — the full treatment is in
+[Security model](#security-model).
+
+- **Binds to `127.0.0.1`** by default.
+- **Forwards Claude Code traffic to Anthropic. On the default path it makes no
+  other outbound calls** — telemetry is written to local files under
+  `~/.claude/`, never sent anywhere. Two opt-in features do perform their own
+  egress, both off unless you enable them: OAuth refresh
+  (`CACHE_FIX_OAUTH_REFRESH=on`) posts to Anthropic's token endpoint, and
+  forward-proxy download acceleration re-issues release downloads to
+  `downloads.claude.ai` / `storage.googleapis.com`.
+- **Can read and rewrite `POST /v1/messages`.** That capability *is* the cache
+  repair — there is no version of this that works without it.
+- **It is idempotent: if nothing needs fixing, the request passes through
+  unmodified.** It normalizes request structure (block order, fingerprint, TTL);
+  it does not modify your conversation.
+- **Each transform is one file** in `proxy/extensions/`, readable in isolation.
+- [Independently assessed as a legitimate tool](https://github.com/anthropics/claude-code/issues/38335#issuecomment-4244413605)
+  by @TheAuditorTool (2026-04-14).
+
+Forward-proxy mode (`--remote-control`) additionally terminates TLS for
+`api.anthropic.com` using a locally-generated CA, which your client must trust.
+Everything else is blind-tunnelled. That mode is opt-in and off by default.
+
+## Do you need this?
+
+**Install or test it if:** resumed or long-running sessions show repeated
+`cache_creation_input_tokens` spikes; your cache-read ratio is low or unstable;
+you see unexpected TTL 5m downgrades, thinking-desync `400`s, or image-retry
+storms; or one of the non-cache surfaces documented below applies.
+
+**You can skip it if:** your sessions already hold a stable high cache-read
+ratio; you rarely resume long sessions; you are not under quota pressure; or you
+would rather not place a local proxy in the API path. **All four are good
+reasons not to install this.**
+
+If you are not sure which applies, measure it — you do not need this project
+installed to find out.
+
+## Check whether you have this problem
+
+Claude Code already records per-request cache accounting in its own session
+transcripts, so you can measure your cache health right now, before installing
+anything.
+
+```bash
+# Replace <session-uuid>, or use a glob to pick your most recent session.
+jq -r 'select(.message.usage.cache_read_input_tokens != null) |
+  "\(.requestId)\t\(.message.usage.cache_read_input_tokens) \(.message.usage.cache_creation_input_tokens)"' \
+  ~/.claude/projects/*/<session-uuid>.jsonl |
+  sort -u -k1,1 | cut -f2 |
+  awk '{n++; r+=$1; c+=$2}
+       END {if (n==0) print "no usage rows found — check the session path";
+            else printf "requests=%d cache_read=%d creation=%d read-ratio=%.0f%%\n", n, r, c, 100*r/(r+c)}'
+```
+
+`sort -u -k1,1` counts each API call once — Claude Code writes multiple
+transcript rows per request, and **not always the same number of times per
+request** ([ArkNill's analysis](https://github.com/ArkNill/claude-code-hidden-problem-analysis)).
+Summing raw rows weights each call by its own duplicate count. Two independent
+sweeps of the local transcripts on one machine (2026-08-02) agreed on the shape:
+**short sessions are where this bites** — over half of sessions under 20 requests
+shifted by a point or more without the dedup, worst case **41 points**, while
+long sessions were almost all sub-point (3 of ~37). Short sessions are exactly
+what a first-time reader will run this against.
+
+Reading the result:
+
+- **Fewer than ~20 requests: the number is meaningless.** A cold start has
+  nothing to read yet, so creation dominates and every healthy session looks
+  broken. Use a long or resumed session.
+- **Sustained low ratio on a long session, or `creation` spiking on every
+  `--resume`** — that is the problem this project exists to fix.
+- **High ratio on a long session** — you do not need this. See *Do you need
+  this?* above.
+
+## Current advisories
 
 > **v4.0.0** — Local HTTP proxy with a pipeline of cost-impact and observability extensions. Two long-standing defaults flipped: `thinking-block-sanitize` v1 is on by default (mitigates the thinking-desync `400` wedge — [#63147](https://github.com/anthropics/claude-code/issues/63147)) and in-process extension hot-reload is opt-in (`CACHE_FIX_HOT_RELOAD=on`). A/B baseline (v3.0.0 on v2.1.117): **95.5% cache hit rate through proxy vs 82.3% direct** on first warm turn. [Full release notes →](https://github.com/cnighswonger/claude-code-cache-fix/releases/tag/v4.0.0)
 
@@ -77,7 +160,14 @@ The generated systemd unit / launchd agent carries `CACHE_FIX_FORWARD_PROXY=on`,
 - `HTTPS_PROXY` — where the proxy listens: `http://127.0.0.1:<port>` (default port `9801`, or your `CACHE_FIX_PROXY_PORT`).
 - `NODE_EXTRA_CA_CERTS` — the CA the proxy generated on first start: `~/.claude/cache-fix-ca/ca.pem` (or `$CACHE_FIX_CA_DIR/ca.pem`).
 
-Three ways to wire it, depending on how broadly you want the vars to apply:
+Three ways to wire it, depending on how broadly you want the vars to apply.
+
+> **If anything else on this host also MITMs `api.anthropic.com`** — a corporate
+> TLS-inspecting agent, an account-switching pin proxy — do not use these
+> recipes. `NODE_EXTRA_CA_CERTS` takes one file, so pinning it to our CA alone
+> silently untrusts every other component. Use `--remote-control`, which
+> publishes into `ca-trust.d/` and consumes the merged bundle instead. See
+> [Coexisting with another MITM](#coexisting-with-another-mitm-on-the-same-machine-ca-trustd).
 
 ```bash
 # a) per-invocation — scoped to just this claude run
@@ -98,6 +188,130 @@ claude() {
     command claude "$@"
 }
 ```
+
+#### Coexisting with another MITM on the same machine (`ca-trust.d`)
+
+`NODE_EXTRA_CA_CERTS` takes exactly **one** file. If anything else on the host
+also MITMs `api.anthropic.com` and also sets that variable — a corporate agent,
+an account-switching pin proxy — the last writer wins and every other CA is
+silently untrusted. Measured 2026-07-30: two such components on one machine took
+turns breaking each other's TLS, with no error attributable to either.
+
+So `--remote-control` does not simply assign the variable. It:
+
+1. **Publishes** our CA to `<config>/ca-trust.d/ccf.pem` — our own filename only,
+   never a sibling's, rewritten every launch (the proxy regenerates its CA
+   whenever the CA dir is wiped, and a stale pem advertises a key nothing signs
+   with), skipped when the bytes already match, and written via temp + `rename`
+   so a reader never sees a half-written file.
+2. **Reads** `<config>/ca-trust.pem` — a merged bundle built by exactly one
+   external writer from the ambient/corporate roots plus every published
+   `ca-trust.d/*.pem` — and points `NODE_EXTRA_CA_CERTS` at it.
+
+`<config>` is `CLAUDE_CONFIG_DIR` or `~/.claude`. **We never write the merged
+bundle**: merging requires finding the ambient corporate roots, which is
+environment-specific (a Linux host may keep them outside the bundle a shell
+points at; a Mac keeps them in the keychain), and two components both rebuilding
+it would race one output.
+
+The bundle is used only if node, handed that file, will actually verify our
+proxy's leaf. The launcher does not predict that — it asks: a child process with
+`NODE_EXTRA_CA_CERTS` set from birth stands up a TLS server holding our leaf and
+connects to it. Only a bundle from which the loader really loaded our CA can
+complete that handshake.
+
+A bundle failing that is worse than no bundle — it would make the client
+distrust the very proxy it is being routed through, so every request fails TLS
+rather than merely losing some other component's CA.
+
+**Why ask rather than parse.** The previous version modelled node's loader in a
+regex: base64 quanta, padding position, dash runs in markers, which of ten
+whitespace characters openssl tolerates. It took five review rounds and was
+still wrong in *both* directions on a real bundle — accepting one node loads
+nothing from, and refusing one node loads fine. The rule it was reaching for
+turns out not to be expressible from outside: an identical tear is recovered or
+fatal depending only on whether its truncated body happens to be complete DER,
+which is a question about bytes the parser cannot answer. The loader can, in one
+spawn (~25 ms over a bare `node -e ''` — measured, 40 interleaved pairs: 17.3 ms
+bare, 42.4 ms probed). What that is 25 ms *of*: a `--remote-control` launch is
+~520 ms end to end, of which ~493 ms is forking the proxy and waiting for it to
+listen. So the probe is ~8% of a launch and very nearly all of the CA work.
+
+**Three outcomes, never two.** `ok`, `not ok`, and `unknown` — the last meaning
+the probe could not be run at all. A guard that answers "unusable" when it could
+not ask drops every corporate root on a machine whose bundle was fine.
+
+**A damaged merge does not cost the other publishers their CAs.** The damage
+lives in the merge, not in the files that fed it, so the launcher rebuilds from
+the `ca-trust.d/` publishers that still work rather than falling back to its own
+CA alone. The saving is one certificate per surviving publisher: measured on
+this box (ours plus one peer), one certificate under the old fallback against
+two under the rebuild; on a three-publisher host, one against three.
+
+Both paths are fixed names under `<config>`, deliberately with no env override
+of their own. They are two halves of one rendezvous: a knob on either half alone
+lets a participant publish where no builder looks, or read a file no builder
+writes, while still appearing to implement the contract. `CLAUDE_CONFIG_DIR`
+already relocates the pair, and it moves both halves together.
+
+Note the limit of what a consumer checks: intact, and carries my CA. Whether the
+bundle is *complete* — that no corporate root went missing — is the builder's
+guarantee, and a consumer must not act on it even where it could.
+
+That is a design choice, not a missing capability, and the distinction matters
+because the other reading is an invitation: someone adds the previous bundle as
+state, believes the limitation is lifted, and adds a floor. It would still be
+wrong. A shrink is *legitimate* whenever a root is retired or a component is
+uninstalled, and only the builder knows which happened — so a reader holding
+both bundles still cannot tell a regression from a fact. Measured: a legitimate
+bundle is 5 certs on one machine here and 168 on another, so any floor that
+catches narrowing on one host rejects a healthy bundle on the next.
+
+**This is a cooperative convention among same-user processes, not a trust
+boundary.** The check proves *parses, and carries us* — never *contains only
+approved writers*. Anyone who can write `<config>` can hand us a well-formed
+bundle holding our CA plus their own and it will be accepted, exactly as they
+could already have replaced `ca-trust.d/ccf.pem`, the CA dir, or this file. The
+contract defends against components accidentally untrusting each other, which is
+the failure that actually happens; it does not defend against a local attacker,
+who has simpler routes.
+
+#### `CACHE_FIX_DOWNLOAD_REWRITE` breaks `claude update` — leave it off
+
+`CACHE_FIX_DOWNLOAD_REWRITE=on` reads like a pure performance knob. It is not:
+turning it on **disables `claude update` entirely** on that host. Rewriting a
+download URL means reading it, which means MITM-ing `downloads.claude.ai` — and
+the release-channel client pins **public roots only** and rejects any private
+CA, so the version check dies before a byte is downloaded:
+
+```
+Failed to fetch version from .../claude-code-releases/latest after 3 attempt(s):
+  unable to verify the first certificate
+```
+
+Measured with `openssl s_client -proxy 127.0.0.1:9901 -connect downloads.claude.ai:443
+-servername downloads.claude.ai`:
+
+| `CACHE_FIX_DOWNLOAD_REWRITE` | leaf CN | verify |
+|---|---|---|
+| `on` | `api.anthropic.com` | code 21 |
+| `off` | `downloads.claude.ai` (WR3 / GTS Root R1) | code 0 |
+
+Two things make this worse than it first looks:
+
+- **It cannot be narrowed to the binary download.** MITM is decided per host at
+  `CONNECT` time, and the version check shares `downloads.claude.ai` with the
+  download itself. It is all-or-nothing per host.
+- **No client-side override reaches that client.** `HTTPS_PROXY` / `ALL_PROXY`,
+  `/etc/hosts`, `/etc/resolv.conf`, and `NODE_EXTRA_CA_CERTS` were each
+  disproved against a control on the identical path — a local resolver logged 0
+  queries and a TCP forwarder logged 0 connects across a full `claude update`,
+  while a plain `node https.get` through that same forwarder returned 200. So no
+  amount of CA injection can make the rewrite work. Only not intercepting works.
+
+Other hosts are unaffected: `github.com` through the same proxy returns its real
+certificate and verifies. The flag is off by default; keep it that way unless you
+are prepared to update Claude Code some other way.
 
 ### What the proxy does
 
@@ -241,6 +455,10 @@ All proxy settings are controlled via environment variables. Set them before sta
 | `CACHE_FIX_DEBUG` | `0` | Enable debug logging |
 | `CACHE_FIX_HOT_RELOAD` | unset | Set to `on` to enable in-process extension hot-reload. Off by default as of v4.0.0 — see [Upgrading from v3.x](#upgrading-from-v3x) for details and the supervisor restart flow. |
 | `CACHE_FIX_READ_DEDUPE` | unset | Set to `1` to dedupe repeat `Read` tool results that re-appear unchanged across turns. Keeps the first occurrence intact; replaces later byte-identical ones (keyed on `file_path` + content + `offset` + `limit`) with a stable pointer line. Default-off; opt in per session to validate before broader rollout. See [extension impact guide](docs/extension-impact-guide.md). |
+| `CACHE_FIX_ADVISOR_PLAN` | unset | Plan override for `tools/tier-advisor.mjs` — one of `max-5x`, `max-20x`, `pro`. Bypasses heuristic plan detection. See [Tier advisor](docs/tier-advisor.md). |
+| `CACHE_FIX_ADVISOR_UPGRADE_THRESHOLD` | `80` | Projected-Q7d percent that triggers an `UPGRADE` recommendation from tier-advisor. |
+| `CACHE_FIX_ADVISOR_DOWNGRADE_THRESHOLD` | `20` | Projected-Q7d percent that triggers a `DOWNGRADE` recommendation from tier-advisor (paired with the `DOWNGRADE_WEEKS` consecutive-weeks gate). |
+| `CACHE_FIX_ADVISOR_DOWNGRADE_WEEKS` | `2` | Consecutive completed weeks under the downgrade threshold required before tier-advisor recommends downgrade. Single-week dips never trigger; single-week spikes DO trigger upgrade (cost-of-being-throttled asymmetry). |
 
 ### Corporate environments (proxies, custom CAs)
 
@@ -1217,6 +1435,18 @@ Backout: gate off + proxy restart → clients self-manage exactly as today (they
 
 ## Limitations
 
+### When NOT to run this
+
+Cases where the honest answer is "this proxy isn't the right tool for your setup." These are the questions to answer before you decide to adopt, not after.
+
+- **You already operate a caching gateway or proxy in the request path.** Composition here is *chaining*, not layering — you'd point your existing gateway's upstream at `cache-fix-proxy` (or vice versa via `CACHE_FIX_PROXY_UPSTREAM`), which adds a hop, a second failure mode, and a decision about which layer terminates TLS and which owns the cache-control markers. For many setups this is a net negative compared to a single well-instrumented gateway you already run. If you're evaluating whether to add this on top of an existing layer, weigh the marginal signal it gives you against the operational cost of one more process in the path.
+- **You need crash-to-supervisor semantics.** In forward-proxy mode (`--remote-control` / `CACHE_FIX_FORWARD_PROXY=on`), the proxy installs process-wide `uncaughtException` / `unhandledRejection` handlers that log and keep serving instead of crashing. On a shared / multi-tenant proxy this is a feature (one bad request doesn't take the whole process down); on a setup where you rely on a supervisor to restart on fatal errors, it means a fatal bug is swallowed rather than surfaced to the supervisor. See [Crash semantics on a shared proxy](#forward-proxy-mode-keeps-remote-control-working) for the full discussion — the constraint predates this section and applies regardless of when you find it.
+- **Your sessions are short and cold.** The proxy's value concentrates on resumed and long-running sessions where a stable prefix would otherwise be re-billed. On a pattern of many short fresh sessions, there is little cached prefix to protect, and the proxy carries overhead against a small ceiling of improvement. See [`docs/benchmarking.md`](docs/benchmarking.md) for the full "what this doesn't improve" discussion; this is the same argument stated at the adoption decision instead of the measurement one.
+
+### After adoption
+
+Constraints that assume you've already decided to run this:
+
 - **Proxy requires a running process** — The proxy must be started before Claude Code. If it's not running and `ANTHROPIC_BASE_URL` points to it, CC will fail to connect. We recommend running it as a systemd service or with a health-checking wrapper script.
 - **Overage TTL downgrade** — Exceeding 100% of the 5-hour quota triggers a server-enforced TTL downgrade from 1h to 5m. This is server-side and cannot be fixed client-side. The proxy/interceptor prevents the cache instability that can push you into overage in the first place.
 - **Microcompact is not preventable** — The monitoring features detect context degradation but cannot prevent it. Microcompact and budget enforcement are server-controlled via GrowthBook flags with no client-side disable option.
@@ -1253,7 +1483,10 @@ Backout: gate off + proxy restart → clients self-manage exactly as today (they
 - **[@ojura](https://github.com/ojura)** — Opus 4.7 thinking-summaries root-cause analysis: filed [anthropics/claude-code#59844](https://github.com/anthropics/claude-code/issues/59844) with the CLI-binary decode (`!getIsNonInteractiveSession()` gate at offset 230510599 in v2.1.142) and the two-stacked-special-cases framing, which made the `thinking-display` extension (v3.6.1) a clean proxy-side complement to the proposed upstream fix
 - **[@yurukusa](https://github.com/yurukusa)** — [Cluster taxonomy](https://yurukusa.github.io/cc-safe-setup/cluster-tracker.html#cluster-extended-thinking-wedge) for [anthropics/claude-code#63147](https://github.com/anthropics/claude-code/issues/63147) thinking-desync wedge; the 13E (ToolSearch) sub-pattern synthesis that made the `thinking-block-sanitize` v2 directive predicate tractable (cache-fix #171, shipped behind `=v2` opt-in in v4.0.0)
 - **[@schuay](https://github.com/schuay)** — `quota-statusline.sh` enhancements: 10-cell quota bar with elapsed-time tick and exhaust-vs-reset projection replacing the prior `%/min` burn-rate display (PR #140, v3.6.2), and d/h vs h/m time-format autoselect plus named time-unit and burn-warmup constants (PR #143, v3.7.0)
-- **[@codeslake](https://github.com/codeslake)** — Opt-in forward-proxy mode (HTTP `CONNECT` + selective MITM of the upstream host) that keeps Remote Control / mobile session visibility working through the proxy, resolving the `ANTHROPIC_BASE_URL`-disables-RC breakage on CC >= 2.1.196 (PR #251, implements #248); and honoring `CLAUDE_CONFIG_DIR` for all on-disk proxy state so multiple config roots don't clobber each other's credentials/state (PR #246)
+- **[@codeslake](https://github.com/codeslake)** — Opt-in forward-proxy mode (HTTP `CONNECT` + selective MITM of the upstream host) that keeps Remote Control / mobile session visibility working through the proxy, resolving the `ANTHROPIC_BASE_URL`-disables-RC breakage on CC >= 2.1.196 (PR #251, implements #248); and honoring `CLAUDE_CONFIG_DIR` for all on-disk proxy state so multiple config roots don't clobber each other's credentials/state (PR #246); RFC 7230 absolute-form request-target handling in forward-proxy mode (PR #261); and the `ca-trust.d` rendezvous that lets the launcher coexist with another MITM on the same host instead of clobbering its `NODE_EXTRA_CA_CERTS` (PR #283), with the follow-up that replaced a regex model of node's CA loader with an actual probe — spawn a child, stand up a TLS server, connect to it — after the regex proved wrong in both directions on real bundles (PR #296)
+- **[@Gunther-Schulz](https://github.com/Gunther-Schulz)** — The attribution series: `capture` (PR #275), the pre-pipeline record of what Claude Code actually sent, which is what makes "is this bust ours or upstream's" answerable at all; `prefix-diff` (PR #280) reworked from head-only preview into full cache-key attribution — marker/tail windows, every cache-keyed param and beta header, per-tenant baselines; `insertion-normalization` (PR #272) pinning volatile reminder blocks so mid-history rewrites land behind the cache boundary; `deferred-tool-rewrite` (PR #273) holding `tools[]` byte-stable and announcing mid-session tool additions through Anthropic's `mid-conversation-tool-changes` beta rather than mutating the array; and `output-guard` (PR #278), the last-line response invariant that restores rather than corrupts. Plus the forwarding fix for extension-mutated headers (PR #274), continuation protection by shape rather than tail distance (PR #279), a growing conversation no longer read as an upstream change (PR #282), a supervised stop exiting 0 (PR #277), and the transcript-shape fixture rebuild (PR #307)
+- **[@anupamme](https://github.com/anupamme)** — Bounded `strlcpy`/`snprintf` in `claude-vscode-wrapper.c` (PR #294), a memory-safety hardening in the C wrapper we had not caught ourselves
+- **[@thepiper18](https://github.com/thepiper18)** — Original Brazilian Portuguese translation (`docs/guia-pt-br.md`, #109 era); regenerated against v4.x reality in PR #315, which updates their work rather than replacing it
 
 If you contributed to the community effort on these issues and aren't listed here, please open an issue or PR — we want to credit everyone properly.
 

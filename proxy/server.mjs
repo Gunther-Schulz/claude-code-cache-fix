@@ -2,13 +2,14 @@ import http from "node:http";
 import { createHash } from "node:crypto";
 import { pathToFileURL, URL } from "node:url";
 import config from "./config.mjs";
-import { forwardRequest } from "./upstream.mjs";
+import { forwardRequest, parseAbsoluteForm } from "./upstream.mjs";
 import { streamResponse, createTelemetryRecord } from "./stream.mjs";
 import { loadExtensions, snapshotRegistry, runOnRequest, runOnResponseStart, runOnResponse, runOnCoalesced, getFailedExtensions } from "./pipeline.mjs";
 import { startWatcher } from "./watcher.mjs";
 import { startOAuthRefresher, stopOAuthRefresher } from "./oauth/refresher.mjs";
-import { attachForwardProxy } from "./forward-proxy.mjs";
+import { attachForwardProxy, handleDownloadsAbsolute } from "./forward-proxy.mjs";
 import { sourceFingerprint, PROXY_ROOT } from "./source-fingerprint.mjs";
+import { publishableGates } from "./gate-allowlist.mjs";
 
 // Debug logging — writes to ~/.claude/cache-fix-debug.log (override path with
 // CACHE_FIX_DEBUG_LOG). Self-gated on CACHE_FIX_DEBUG=1; a no-op otherwise.
@@ -685,6 +686,29 @@ export function createProxyServer() {
           return originalEnd.apply(res, [chunk, ...args]);
         };
 
+        // RFC 7230 §5.3.2 absolute-form request-target. A proxy-configured
+        // client does not always tunnel: axios's plain-proxy mode (the CLI's
+        // auto-updater / telemetry paths) sends `GET https://host/path` on the
+        // proxy connection instead of CONNECT. Only meaningful in forward mode
+        // — reverse mode keeps its 404 contract for such targets (see below).
+        if (_forwardActive > 0) {
+          const abs = parseAbsoluteForm(req.url);
+          if (abs) {
+            // downloads.claude.ai with the rewrite active: same acceleration
+            // as the CONNECT-MITM arrival style.
+            if (handleDownloadsAbsolute(req, res, abs)) return;
+            // Targets on the upstream reduce to origin-form so the normal
+            // routing below (incl. the /v1/messages transform) applies.
+            // Compare origins, not hostnames: scheme and port are part of
+            // the authority (two servers on one host differ only by port).
+            // Foreign targets fall through to handlePassthrough, where
+            // buildUpstreamUrl honors the absolute-form authority.
+            let upOrigin = "";
+            try { upOrigin = new URL(config.upstream).origin; } catch {}
+            if (abs.origin === upOrigin) req.url = abs.pathname + abs.search;
+          }
+        }
+
         if (req.method === "GET" && req.url === "/health") return handleHealth(req, res);
         if (req.method === "POST" && req.url?.startsWith("/v1/messages")) return await handleMessages(req, res);
         if (req.url?.startsWith("/api/claude_cli/bootstrap")) return await handleBootstrap(req, res);
@@ -775,11 +799,17 @@ export async function startProxy(options = {}) {
   // failure to read our own source must not take the proxy down — an unknown
   // fingerprint reports as null, which a checker can distinguish from a
   // mismatch.
-  _gates = Object.fromEntries(
-    Object.entries(process.env)
-      .filter(([k]) => k.startsWith("CACHE_FIX_"))
-      .sort(([a], [b]) => a.localeCompare(b)),
-  );
+  // Allowlisted gate VALUES, every other CACHE_FIX_* key by name only. /health
+  // is served to anything that can reach the port, and the environment holds an
+  // OAuth client id, a token endpoint and a dozen machine paths alongside the
+  // switches. See proxy/gate-allowlist.mjs for why the default is name-only.
+  //
+  // MERGE NOTE 2026-08-16: taken from upstream, replacing a dump of every
+  // CACHE_FIX_* value. The KEY set is unchanged (every CACHE_FIX_* name is
+  // still present), so the ship-runbook's DECLARED/RUNNING/VERIFIED compare —
+  // which reads names, not values — is unaffected, and `gate-live` resolves the
+  // replay gate set from the unit's own `Environment=` rather than from here.
+  _gates = publishableGates(process.env);
   try {
     _sourceTree = await sourceFingerprint(PROXY_ROOT);
     // Publish via the environment, NOT via a module export. loadExtensions
@@ -863,11 +893,26 @@ export async function startProxy(options = {}) {
 
   const addr = server.address();
   if (forwardProxyCA) {
-    process.stderr.write(
-      "[cache-fix] forward-proxy: on. Wire the client (leave ANTHROPIC_BASE_URL UNSET so Remote Control stays enabled):\n" +
-      `  export HTTPS_PROXY=http://${addr.address}:${addr.port}\n` +
-      `  export NODE_EXTRA_CA_CERTS=${forwardProxyCA}\n`,
-    );
+    // Recipe only when the OPERATOR is wiring. Under --remote-control the
+    // launcher already wired claude via ca-trust.d and relays this stderr, so
+    // printing `export NODE_EXTRA_CA_CERTS=<our ca.pem>` would tell them to undo
+    // it — that variable takes one file, so pinning our CA untrusts every other
+    // MITM on the host.
+    //
+    // An explicit signal, NOT `process.channel`: a channel only proves some
+    // parent opened an IPC descriptor, and measured, a plain `fork()` (which the
+    // suite does) got the suppressed banner and no wiring instructions at all.
+    // Internal handshake, not an operator knob — it asserts "my parent wired
+    // me", which nothing but the launcher can truthfully say.
+    const wiredByLauncher = process.env.CACHE_FIX_WIRED_BY_LAUNCHER === "1";
+    process.stderr.write(wiredByLauncher
+      ? "[cache-fix] forward-proxy: on. Client wired by the launcher (ca-trust.d).\n"
+      : "[cache-fix] forward-proxy: on. Wire the client (leave ANTHROPIC_BASE_URL UNSET so Remote Control stays enabled):\n" +
+        `  export HTTPS_PROXY=http://${addr.address}:${addr.port}\n` +
+        `  export NODE_EXTRA_CA_CERTS=${forwardProxyCA}\n` +
+        "  (if anything else on this host also MITMs api.anthropic.com, use\n" +
+        "   `claude-via-proxy --remote-control` instead — that variable takes\n" +
+        "   one file, so setting it here would untrust the other CA)\n");
   }
   let closed = false;
   return {

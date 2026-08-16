@@ -466,11 +466,23 @@ async function _processRequest(body, headers, { dir, map, fs }) {
   // messages.count grows on every ordinary turn — a conversation living is
   // not an upstream structural change, and logging it drowned the alarm
   // file (97% of all recorded events were count-only diffs, measured
-  // 2026-07-30 over 4661 events). A count-only diff updates the stored
+  // 2026-07-30 over 4661 events). A count-only INCREASE updates the stored
   // fingerprint silently; any OTHER changed path still alarms, with the
-  // count change riding along in its diff if both moved.
-  const alarmDiff = diff.filter((d) => d.path !== "messages.count");
-  if (alarmDiff.length === 0) {
+  // count change riding along in its diff if both moved. A count-only
+  // DECREASE (compaction, truncation, an upstream rewrite that drops
+  // messages) still alarms — this detector exists to catch shape changes we
+  // did not anticipate, and a shrink is exactly that kind of event.
+  //
+  // MERGE NOTE 2026-08-16: the growth/shrink split is upstream's amendment to
+  // this fork's own PR #282, made in their review and never taken back here.
+  // The fork suppressed BOTH directions, so every compaction and truncation
+  // was silently absorbed into the baseline by the one detector whose job is
+  // to notice unanticipated shape changes.
+  const isCountOnlyGrowth =
+    diff.length === 1 &&
+    diff[0].path === "messages.count" &&
+    diff[0].to > diff[0].from;
+  if (isCountOnlyGrowth) {
     return { event: "noop", nsKey };
   }
 

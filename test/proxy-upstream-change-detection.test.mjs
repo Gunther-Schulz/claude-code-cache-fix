@@ -515,7 +515,7 @@ test("loadBaseline tolerates corrupt file", async () => {
 
 // --- 16. Count-only growth is not an upstream change ---
 
-test("16. a messages.count-only diff updates the baseline silently — no structural_change event", async () => {
+test("16. a messages.count-only INCREASE updates the baseline silently — no structural_change event", async () => {
   const dir = await newTmp();
   process.env.CACHE_FIX_UPSTREAM_DETECTION = "1";
   process.env.CACHE_FIX_UPSTREAM_DIR = dir;
@@ -564,6 +564,45 @@ test("17. count change RIDING a real structural change still alarms, count in th
     const parsed = text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
     const change = parsed.find((e) => e.event === "structural_change");
     assert.ok(change, "a tools change must still alarm");
+    assert.ok(change.diff.some((d) => d.path === "messages.count"), "the count delta rides in the diff");
+  } finally {
+    delete process.env.CACHE_FIX_UPSTREAM_DETECTION;
+    delete process.env.CACHE_FIX_UPSTREAM_DIR;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Upstream's bite, taken in the 2026-08-16 merge alongside the growth/shrink
+// split it pins. It is the counterpart to 16: 16 proves growth stays silent,
+// this proves a shrink does not. Without both, the suppression rule is only
+// half-tested and the fork's own both-directions suppression passed 16 alone.
+test("18. a messages.count-only DECREASE still alarms — compaction/truncation is not silent growth", async () => {
+  const dir = await newTmp();
+  process.env.CACHE_FIX_UPSTREAM_DETECTION = "1";
+  process.env.CACHE_FIX_UPSTREAM_DIR = dir;
+  try {
+    const ext = await freshExt();
+    await ext.default.onRequest({
+      body: makeBody({
+        messages: [
+          { role: "user", content: [{ type: "text", text: "hello" }] },
+          { role: "assistant", content: [{ type: "text", text: "hi" }] },
+          { role: "user", content: [{ type: "text", text: "more" }] },
+        ],
+      }),
+    });
+    // Same shape, fewer messages — compaction/truncation, not growth.
+    await ext.default.onRequest({
+      body: makeBody({
+        messages: [
+          { role: "user", content: [{ type: "text", text: "hello" }] },
+        ],
+      }),
+    });
+    const text = await readFile(join(dir, "upstream-changes.jsonl"), "utf8");
+    const parsed = text.split("\n").filter(Boolean).map((l) => JSON.parse(l));
+    const change = parsed.find((e) => e.event === "structural_change");
+    assert.ok(change, "a count-only decrease must still alarm");
     assert.ok(change.diff.some((d) => d.path === "messages.count"), "the count delta rides in the diff");
   } finally {
     delete process.env.CACHE_FIX_UPSTREAM_DETECTION;

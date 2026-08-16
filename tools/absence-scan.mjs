@@ -265,13 +265,53 @@ export const SYNTHETIC_UUID_ALLOWLIST = new Set([
   "db11f377-4ca8-4fc3-9b6d-1069da58c1b2",
 ]);
 
+// UPSTREAM'S DOCUMENTED SYNTHETIC NAMESPACE, admitted by SHAPE rather than by
+// enumeration (added 2026-08-16, upstream merge).
+//
+// `upstream/main:docs/code-reviews/README.md` mandates this exact form as the
+// placeholder to substitute for a real session UUID in review artifacts, so
+// every value in it is synthetic BY CONSTRUCTION rather than by someone having
+// checked. Each catch-up merge imports more of them — this one brought two —
+// and enumerating each new value has two costs the pattern does not: the roster
+// goes red on every merge until a human appends literals, and appending those
+// literals means writing UUID-shaped bytes into a tracked file in a public
+// repo, which is precisely what the pre-push scan and the authoring guard exist
+// to prevent. The pattern is written from PARTS for the same reason: this file
+// is scanned by its own tool.
+//
+// It cannot launder a real identifier: the form pins 20 of a UUID's 32 hex
+// digits to a fixed all-zero/v4/variant prefix, which no generated v4 UUID
+// reaches other than by a 1-in-16^20 accident. That is the property that makes
+// this a DECLARED exemption the guard still verifies, not a softened predicate
+// — the remaining 12 digits are the only free bytes, and a real capture id
+// cannot occupy this space.
+const UPSTREAM_SYNTHETIC_UUID = new RegExp(
+  "^" + "0".repeat(8) + "-" + "0".repeat(4) + "-4000-8000-[0-9a-f]{12}$",
+);
+
+/**
+ * Is this ONE UUID declared synthetic — by the enumerated roster, or by a
+ * declared synthetic namespace?
+ *
+ * Exported because the roster test in `test/absence-scan.test.mjs` must ask
+ * THIS function rather than re-testing `SYNTHETIC_UUID_ALLOWLIST.has(...)`
+ * itself. A test that restates the rule it grades cannot age loudly: the tool
+ * gains a second way of declaring a value synthetic — as it did on 2026-08-16
+ * — and the restated form goes red while the tool is correct, which reads as a
+ * leak and is not one. Derive the basis from the source, never copy it.
+ */
+export function isDeclaredSyntheticUuid(uuid) {
+  const lower = String(uuid).toLowerCase();
+  return SYNTHETIC_UUID_ALLOWLIST.has(lower) || UPSTREAM_SYNTHETIC_UUID.test(lower);
+}
+
 // Every UUID on the line is declared synthetic. Per LINE, because the scanner
 // reports per line: a roster member sitting beside a real identifier must not
 // launder it, so this is `every`, never `some`.
 function allUuidsAreDeclaredSynthetic(line) {
   const hits = line.match(UUID_G);
   if (!hits || hits.length === 0) return false;
-  return hits.every((u) => SYNTHETIC_UUID_ALLOWLIST.has(u.toLowerCase()));
+  return hits.every(isDeclaredSyntheticUuid);
 }
 // (d) …and a filename is as public as the content it names. The capture-derived
 //     name carries `s-<sha12>`: 12 hex, never 8, so a name can never be matched

@@ -26,7 +26,8 @@ import { fileURLToPath } from "node:url";
 
 import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId,
          SOURCE_SCANNABLE, SCANNABLE, skipEntry, exemptEntry, formatAllowlistLine,
-         CLASS_NAMES, SYNTHETIC_UUID_ALLOWLIST } from "../tools/absence-scan.mjs";
+         CLASS_NAMES, SYNTHETIC_UUID_ALLOWLIST, NAME_UUID_PREFIX,
+         isDeclaredSyntheticUuid } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -647,7 +648,13 @@ test("source: every UUID in a tracked SOURCE_SCANNABLE file is on the synthetic 
   for (const rel of files) {
     const text = readFileSync(join(root, rel), "utf8");
     for (const hit of text.match(uuidRe) ?? []) {
-      if (!SOURCE_UUID_ALLOWLIST.has(hit)) offenders.push(`${rel}: ${hit}`);
+      // ASK THE TOOL, never re-test the Set. Corrected 2026-08-16: this line
+      // read `!SOURCE_UUID_ALLOWLIST.has(hit)`, which restated one of the
+      // tool's two ways of declaring a value synthetic. When the merge added
+      // the declared-namespace form, the restatement went red on values the
+      // tool correctly exempts — a coverage assertion whose comparison basis is
+      // copied from the source it grades cannot track that source.
+      if (!isDeclaredSyntheticUuid(hit)) offenders.push(`${rel}: ${hit}`);
     }
   }
   assert.deepEqual(
@@ -1043,5 +1050,76 @@ test("--at: a missing ref or path is a usage error, not a silent clean", () => {
     gitRepo(dir);
     assert.equal(run(["--at"], dir).status, 1);
     assert.equal(run(["--at", "HEAD"], dir).status, 1);
+  });
+});
+
+// --- Bites taken from upstream in the 2026-08-16 merge -----------------------
+//
+// This fork's scanner already carries the behaviour all three assert — the
+// leading-boundary regex is byte-identical on both sides. What the fork did NOT
+// carry is anything that PINS it. A predicate on the one gate standing in front
+// of unscrubbable public history, with the fix in place and no bite holding it
+// there, is one careless edit from silently reverting.
+
+test("NAME_UUID_PREFIX: the leading boundary drops word-tail collisions and keeps every real capture-id shape", () => {
+  // Stated as a PAIR, which is the whole point: the negatives must NOT match
+  // (ordinary English words ending in `s`, and a model id), the positives MUST.
+  // A boundary fix that only stopped false fires would be satisfied by a regex
+  // matching nothing at all — and a guard that fires on legitimate text trains
+  // its reader to wave it through, which on this gate is the expensive kind of
+  // wrong.
+  // Every vector is ASSEMBLED, never written as a literal: this file is scanned
+  // by the tool it tests, and `s-` followed by eight hex is precisely the shape
+  // that scan exists to find. Writing the vectors out would make the suite a
+  // finding in its own repository.
+  const H = "12345678";
+  const S = "s-";
+  for (const negative of [`plus-${H}`, `news-${H}`, `business-${H}`,
+                          `claude-3-opus-${"2024"}${"0229"}`]) {
+    assert.equal(NAME_UUID_PREFIX.test(negative), false, `must not match: ${negative}`);
+  }
+  for (const positive of [`${S}${H}`, `prefix-${S}${H}`, `(${S}${H})`, ` ${S}${H}`]) {
+    assert.equal(NAME_UUID_PREFIX.test(positive), true, `must match: ${positive}`);
+  }
+});
+
+test("scanContent: a SOURCE file is scanned by line for capture UUIDs, and the data-only classes never see it", () => {
+  const src = [
+    "// a comment",
+    `const id = "${FAKE_UUID}";`,
+    `const blob = "${LONG_B64}";`,
+  ].join("\n");
+  const r = scanContent(src, "tools/whatever.mjs");
+  const classes = r.findings.map((f) => f.class);
+  assert.deepEqual(classes, ["capture-uuid"],
+    "the b64 blob must NOT fire on source — pointing the data-only classes at source fires on legitimate long tokens");
+  // The line NUMBER, never the line: a leak reporter that echoes the leak has
+  // moved it, not found it.
+  assert.match(r.findings[0].path, /^line \d+$/);
+  assert.ok(!JSON.stringify(r.findings).includes(FAKE_UUID),
+    "a finding must not carry the identifier it found");
+});
+
+test("git-range: an empty corpus scope reads as passing, and does not widen to skip the byte-level classes", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    mkdirSync(join(dir, "test", "fixtures"), { recursive: true });
+    writeFileSync(join(dir, "test/fixtures/clean.json"), JSON.stringify(CLEAN));
+    g("add", "test/fixtures/clean.json");
+    g("commit", "-qm", "no harvested dir, clean file");
+    const first = g("rev-parse", "HEAD");
+    const clean = run(["--git-range", `EMPTY..${first}`], dir);
+    assert.equal(clean.status, 0, clean.stdout + clean.stderr);
+    assert.match(clean.stdout, /absence-scan: clean/);
+
+    // A leak placed outside the (nonexistent) corpus directory must still be
+    // caught: an absent CORPUS_SCOPE must never be read as "skip everything."
+    writeFileSync(join(dir, "test/fixtures/dirty.json"), JSON.stringify(SEEDED["capture-uuid"]));
+    g("add", "test/fixtures/dirty.json");
+    g("commit", "-qm", "leak outside the absent corpus dir");
+    const second = g("rev-parse", "HEAD");
+    const dirty = run(["--git-range", `${first}..${second}`], dir);
+    assert.equal(dirty.status, 2, dirty.stdout + dirty.stderr);
+    assert.match(dirty.stdout, /FINDING capture-uuid {2}test\/fixtures\/dirty\.json/);
   });
 });

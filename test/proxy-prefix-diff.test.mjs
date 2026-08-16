@@ -31,6 +31,10 @@ import ext, {
   buildKeymapRecord,
   TAP_ORDER,
   TAP_VIEW,
+  sweepSnapshotDir,
+  groupSnapshotFiles,
+  SNAPSHOT_MAX_AGE_MS,
+  SNAPSHOT_MAX_KEYS,
 } from "../proxy/extensions/prefix-diff.mjs";
 
 // `import.meta.dirname` requires Node 20.11+; CI matrix includes Node 18,
@@ -1535,4 +1539,113 @@ test("tenant eviction drops the oldest by timestamp, not by key order", () => {
     "12345678",
     "numeric-string keys sort to the front — key order is NOT insertion order",
   );
+});
+
+// --- Cross-key retention sweep (upstream #280 review; merged 2026-08-16) ---
+//
+// Upstream shipped this sweep with no tests. It is added here because the
+// sweep DELETES FILES and its scope boundary is load-bearing on this fork in a
+// way it is not upstream: our snapshot directory is shared with three of our
+// own mitigation extensions, whose `-canon.json` / `-relocated.json` /
+// `-rungs.json` files are LIVE STATE. Deleting one rotates the key its owner
+// reads and busts the prefix those extensions exist to hold. Measured at merge
+// time: 28,157 files in the real directory, 13,774 of them fork-owned.
+
+async function seedSnapshots(dir, entries) {
+  const { writeFile: wf, utimes } = await import("node:fs/promises");
+  for (const [name, mtimeMs] of entries) {
+    await wf(join(dir, name), "{}");
+    await utimes(join(dir, name), new Date(mtimeMs), new Date(mtimeMs));
+  }
+}
+
+test("sweepSnapshotDir: stale artifacts of a dead key go, a live key's stay", async () => {
+  const dir = await tmpDir("sweep-age-");
+  const now = Date.now();
+  const old = now - (SNAPSHOT_MAX_AGE_MS + 60_000);
+  await seedSnapshots(dir, [
+    ["s-dead-last.json", old], ["s-dead-diff.json", old],
+    ["s-dead-events.jsonl", old], ["s-dead-events.jsonl.1", old],
+    ["s-live-last.json", now], ["s-live-events.jsonl", now],
+  ]);
+  const res = await sweepSnapshotDir(dir, undefined, { now });
+  const left = (await readdir(dir)).sort();
+  assert.equal(res.deleted, 4, "all four of the dead key's artifacts go, rotated .1 included");
+  assert.deepEqual(left, ["s-live-events.jsonl", "s-live-last.json"]);
+  assert.equal(res.keysRemaining, 1);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("sweepSnapshotDir: NEVER touches the fork's own live state, however old", async () => {
+  // The boundary bite. These three names are written by
+  // insertion-normalization, fresh-session-sort and deferred-tool-rewrite into
+  // the SAME directory. They are aged well past the TTL on purpose: age is the
+  // sweep's own delete trigger, so if the scope regex ever widened, this is the
+  // case that goes red instead of a cache bust showing up in production.
+  const dir = await tmpDir("sweep-boundary-");
+  const now = Date.now();
+  const old = now - (SNAPSHOT_MAX_AGE_MS * 10);
+  await seedSnapshots(dir, [
+    ["s-aaa-canon.json", old],
+    ["s-bbb-relocated.json", old],
+    ["s-ccc-rungs.json", old],
+    // A real sweep target beside them, so a run that deletes NOTHING at all
+    // cannot pass this bite by being inert.
+    ["s-ddd-last.json", old],
+  ]);
+  const res = await sweepSnapshotDir(dir, undefined, { now });
+  const left = (await readdir(dir)).sort();
+  assert.equal(res.deleted, 1, "the sweep must still be doing its job here");
+  assert.deepEqual(
+    left,
+    ["s-aaa-canon.json", "s-bbb-relocated.json", "s-ccc-rungs.json"],
+    "fork-owned live state survives; only prefix-diff's own artifact was swept",
+  );
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("sweepSnapshotDir: key cap evicts the oldest keys, newest activity wins", async () => {
+  const dir = await tmpDir("sweep-cap-");
+  const now = Date.now();
+  const entries = [];
+  // maxKeys + 3 keys, all inside the TTL so only the cap pass can act.
+  for (let i = 0; i < SNAPSHOT_MAX_KEYS + 3; i++) {
+    entries.push([`s-k${String(i).padStart(4, "0")}-last.json`, now - i * 1000]);
+  }
+  await seedSnapshots(dir, entries);
+  const res = await sweepSnapshotDir(dir, undefined, { now });
+  assert.equal(res.deleted, 3, "exactly the overflow beyond the cap");
+  assert.equal(res.keysRemaining, SNAPSHOT_MAX_KEYS);
+  const left = await readdir(dir);
+  assert.ok(left.includes("s-k0000-last.json"), "the most recently touched key survives");
+  assert.ok(!left.includes(`s-k${String(SNAPSHOT_MAX_KEYS + 2).padStart(4, "0")}-last.json`),
+            "the oldest key is the one evicted");
+  await rm(dir, { recursive: true, force: true });
+});
+
+test("sweepSnapshotDir: a missing directory is not an error", async () => {
+  const res = await sweepSnapshotDir(join(await tmpDir("sweep-enoent-"), "nope"));
+  assert.deepEqual(res, { deleted: 0, keysRemaining: 0 });
+});
+
+test("groupSnapshotFiles: groups by key and ignores every foreign name", () => {
+  const byKey = groupSnapshotFiles([
+    "s-a-last.json", "s-a-diff.json", "s-a-events.jsonl", "s-a-events.jsonl.1",
+    "s-b-last.json",
+    "s-a-canon.json", "s-a-relocated.json", "s-a-rungs.json",
+    "README", "gate-status.json", "s-a-events.jsonl.2",
+  ]);
+  assert.deepEqual([...byKey.keys()].sort(), ["s-a", "s-b"]);
+  assert.equal(byKey.get("s-a").length, 4, "only the four owned artifact names");
+  assert.ok(!byKey.get("s-a").some((n) => /canon|relocated|rungs/.test(n)));
+});
+
+// Upstream's bite, taken in the same merge: this fork's tenantId already hashes
+// the full text, but nothing pinned it, and the defect it guards against
+// (truncating before hashing) merges two agents that differ only past the cut.
+test("tenantId: two prompts sharing a long preamble must not collide — hash the FULL text", () => {
+  const preamble = "You are a Claude agent. ".repeat(40); // ~960 chars, shared
+  const longA = tenantId({}, [{ type: "text", text: preamble + "TASK A" }]);
+  const longB = tenantId({}, [{ type: "text", text: preamble + "TASK B" }]);
+  assert.notEqual(longA, longB, "a truncated hash merges tenants that differ only past the cut");
 });

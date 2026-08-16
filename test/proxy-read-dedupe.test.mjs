@@ -502,7 +502,13 @@ test("27a. bytes_saved is bytes_original - bytes_after (can be negative on tiny 
 // PIPELINE ORDER (directive test 28)
 // =============================================================================
 
-test("28. read-dedupe loads at order 380, sandwiched between its immediate order-adjacent neighbors", async () => {
+test("28. read-dedupe loads at order 380, after image-retry-circuit-breaker (370) and before cache-control-normalize (400)", async () => {
+  // Asserts the ORDERING guarantee, not array adjacency. An earlier form
+  // pinned `reg[idx-1].name` and `reg[idx+1].name` directly, which held only
+  // while no extension existed in the (370, 400) gap and failed the moment
+  // one did — measured on #272, which registers insertion-normalization at
+  // 395. The `order` field is what other extensions can rely on; array
+  // neighbours are an incidental of what happens to be loaded alongside.
   const { loadExtensions } = await import("../proxy/pipeline.mjs");
   const extensionsDir = join(__dirname, "..", "proxy", "extensions");
   const configPath = join(__dirname, "..", "proxy", "extensions.json");
@@ -510,32 +516,28 @@ test("28. read-dedupe loads at order 380, sandwiched between its immediate order
   const idx = reg.findIndex((e) => e.name === "read-dedupe");
   assert.ok(idx >= 0, "read-dedupe not loaded");
   assert.equal(reg[idx].order, 380);
-  // Order-insertion-tolerant: assert relative position (registry is sorted
-  // by `order`, so the immediate array neighbors are whichever extensions
-  // currently hold the closest order values below/above 380) rather than
-  // hardcoding a specific neighbor's name — a new extension slotting in
-  // between (e.g. insertion-normalization at 395) must not break this test.
-  //
   // The deliberate call (#272 blocker 4). This test once pinned
-  // `cache-control-normalize` as read-dedupe's immediate successor, and
-  // inserting insertion-normalization at 395 between them turned it red.
-  // Two ways out — move the order, or loosen the assertion — and which is
-  // right depends on whether that adjacency is load-bearing FOR read-dedupe,
-  // not on which one makes the test pass.
+  // `cache-control-normalize` as read-dedupe's immediate ARRAY successor, and
+  // inserting insertion-normalization at 395 between them turned it red. The
+  // adjacency is not load-bearing FOR read-dedupe: it contains no reference to
+  // cache-control-normalize or to cache_control at all (`grep -rn -i
+  // "cache-control-normalize\|cache_control\|breakpoint"
+  // proxy/extensions/read-dedupe.mjs` → 0 hits) — it rewrites duplicate Read
+  // tool_result bodies and reads nothing a later breakpoint pass writes.
   //
-  // It is not. read-dedupe contains no reference to cache-control-normalize
-  // or to cache_control at all (`grep -rn -i "cache-control-normalize\|
-  // cache_control\|breakpoint" proxy/extensions/read-dedupe.mjs` → 0 hits):
-  // it rewrites duplicate Read tool_result bodies and reads nothing that a
-  // later breakpoint pass writes. The adjacency was an incidental fact about
-  // the registry on the day this test was written, never a contract.
-  //
-  // What IS load-bearing is asserted above and stays: read-dedupe's own
-  // order value (380) and that it is bracketed rather than at an end. So
-  // the assertion loosens and the order does not move — which also keeps
-  // this out of threat-matrix row 3, since no pipeline order changes.
-  if (idx > 0) assert.ok(reg[idx - 1].order < 380, "previous entry must have a lower order");
-  if (idx < reg.length - 1) assert.ok(reg[idx + 1].order > 380, "next entry must have a higher order");
+  // MERGE NOTE 2026-08-16: the fork had loosened this to
+  // `reg[idx-1].order < 380 && reg[idx+1].order > 380`, which `pipeline.mjs:79`
+  // (`extensions.sort((a, b) => a.order - b.order)`) makes true for ANY entry
+  // in the registry — an unfalsifiable predicate, i.e. a check that validated
+  // nothing from the day it was written. Upstream's form is kept instead: it
+  // is equally insertion-tolerant AND carries two real presence assertions,
+  // which go red if either neighbour stops loading at all.
+  const irc = reg.findIndex((e) => e.name === "image-retry-circuit-breaker");
+  const ccn = reg.findIndex((e) => e.name === "cache-control-normalize");
+  assert.ok(irc >= 0, "image-retry-circuit-breaker not loaded");
+  assert.ok(ccn >= 0, "cache-control-normalize not loaded");
+  assert.ok(irc < idx, `read-dedupe (${idx}) must load AFTER image-retry-circuit-breaker (${irc})`);
+  assert.ok(idx < ccn, `read-dedupe (${idx}) must load BEFORE cache-control-normalize (${ccn})`);
 });
 
 // =============================================================================

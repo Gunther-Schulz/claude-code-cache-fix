@@ -32,8 +32,16 @@ import { resolveSessionId } from "./cache-telemetry.mjs";
 import { createHash } from "node:crypto";
 import { queuedAppend } from "./append-queue.mjs";
 import { ensureOwnerOnly, OWNER_ONLY } from "./write-owner-only.mjs";
+import { publishableGates } from "../gate-allowlist.mjs";
 
 const DEFAULT_FS = { appendFile, chmod, mkdir, readdir, stat, unlink };
+
+// The capture DIRECTORY is owner-only too, not just the files inside it.
+// Taken from upstream in the 2026-08-16 merge: the directory LISTING leaks
+// session keys through the filenames, which the 0600 file mode does nothing
+// about. Applied at CREATE rather than chmod'ed afterwards, so there is no
+// window in which the directory exists at the ambient umask.
+const CAPTURE_DIR_MODE = 0o700;
 
 // Captures hold full request bodies — the most conversation-derived thing
 // this proxy writes — so they are owner-only. Routed through the append
@@ -269,10 +277,18 @@ export async function sweepCaptureDir(dir, maxBytes, fs = DEFAULT_FS) {
 //   class as the gate runner replaying extension DEFAULTS while production ran
 //   eleven gates: a verdict over the wrong configuration.
 export function buildBootRecord(now = new Date(), env = process.env, tree = null) {
-  const gates = {};
-  for (const [k, v] of Object.entries(env)) {
-    if (k.startsWith("CACHE_FIX_") && k !== "CACHE_FIX_PROXY_TREE") gates[k] = v;
-  }
+  // Allowlisted gate VALUES only; every other CACHE_FIX_* key is present by
+  // NAME with its value redacted. Taken from upstream in the 2026-08-16 merge,
+  // replacing a dump of every CACHE_FIX_* value. A capture file is the artifact
+  // most likely to be attached to a bug report or replayed elsewhere, and this
+  // fork's captures additionally feed harvest, which feeds the committed
+  // fixtures in a PUBLIC tree — so the dump form sat one env var away from
+  // putting an OAuth endpoint or a filesystem path across the publication
+  // boundary. Measured at merge time: of the 113 distinct CACHE_FIX_* names
+  // this proxy reads, 73 are redacted by this rule and nearly all of those are
+  // path-, URL- or credential-valued. PROXY_TREE is skipped because it is
+  // already a field of this record.
+  const gates = publishableGates(env, { skip: ["CACHE_FIX_PROXY_TREE"] });
   return {
     ts: now.toISOString(),
     type: "boot",
@@ -311,13 +327,13 @@ export default {
       // configuration, so the corpus carries its own provenance.
       if (!_bootWrittenFor.has(record.key)) {
         _bootWrittenFor.add(record.key);
-        await DEFAULT_FS.mkdir(dir, { recursive: true });
+        await DEFAULT_FS.mkdir(dir, { recursive: true, mode: CAPTURE_DIR_MODE });
         await captureAppend(
           join(dir, `${record.key}-requests.jsonl`),
           JSON.stringify(buildBootRecord(new Date(), process.env, proxyTree())) + "\n",
         );
       }
-      await DEFAULT_FS.mkdir(dir, { recursive: true });
+      await DEFAULT_FS.mkdir(dir, { recursive: true, mode: CAPTURE_DIR_MODE });
       await captureAppend(join(dir, `${record.key}-requests.jsonl`), JSON.stringify(record) + "\n");
       if (++_appendsSinceSweep >= SWEEP_EVERY) {
         _appendsSinceSweep = 0;

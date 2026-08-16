@@ -152,13 +152,36 @@ export function isSignedThinkingForV2(block) {
 // (session 58c979ce), every one attributed to this extension by
 // tools/replay.mjs's cross-request check.
 //
-// A continuation stays protected once it is deep history: its thinking is
-// forwarded exactly as first sent, which is both byte-stable AND the shape
-// the API accepted the first time. Dropping it later buys nothing (the 400
-// this extension prevents is about the LATEST turn, #63147) and costs a
-// full re-write.
+// A continuation stays protected once it is deep history — for v1. v1's
+// omitted-thinking drop is empirical: nothing forces us to touch a
+// byte-identical replayed block once it ages out of the tail, and doing so
+// buys nothing (the 400 this extension prevents is about the LATEST turn,
+// #63147) while costing a full re-write.
+//
+// v2 does NOT get the same by-shape protection. v2 fires only on a tools-hash
+// mismatch, which already busts the cache prefix from that point on — so
+// protecting a deep-history continuation's signed thinking there buys zero
+// cache benefit while reintroducing the stale-signature risk v2 exists to
+// remove (docs/directives/proxy-thinking-block-sanitize-v2.md:58-67, 153-159;
+// PR #279 round-1 review, 2026-07-31). v2's protection therefore stays
+// tail-scoped: only the LATEST assistant turn, when it is itself an active
+// continuation, is left intact.
+//
+// MERGE NOTE 2026-08-16: taken from upstream, which amended this fork's own
+// PR #279 in review. The stability measurement above (133 violations over 563
+// requests, 76 over 169) is about the V1 path and is NOT weakened by this —
+// v1 protection stays position-independent, exactly as measured. Only v2's
+// treatment of deep-history continuations changes, and v2 is not in this
+// deployment's serving set (CACHE_FIX_THINKING_SANITIZE unset → v1), so the
+// change is inert here and is taken to stop the divergence re-conflicting on
+// every future merge.
 export function planSanitize(messages, { v2StripSigned = false } = {}) {
   if (!Array.isArray(messages)) return { messages, dropped: 0, droppedV2: 0 };
+
+  let latestAsst = -1;
+  for (let i = 0; i < messages.length; i++) {
+    if (messages[i] && messages[i].role === "assistant") latestAsst = i;
+  }
 
   let dropped = 0;
   let droppedV2 = 0;
@@ -170,23 +193,35 @@ export function planSanitize(messages, { v2StripSigned = false } = {}) {
       out.push(msg);
       continue;
     }
-    if (isActiveToolContinuation(messages, i)) {
-      // Active continuation — leave thinking intact (both v1 and v2 respect
-      // this; the API needs the signed thinking for the pending tool call).
-      // Position-independent by design: see the stability note above.
+    const activeCont = isActiveToolContinuation(messages, i);
+    // v1: protect by shape, any position — the stability fix above.
+    const protectV1 = activeCont;
+    // v2: protect ONLY the latest active continuation — position-scoped,
+    // matching the v2 directive's "strip all prior signed thinking" rule.
+    const protectV2 = activeCont && i === latestAsst;
+
+    if (protectV1 && (!v2StripSigned || protectV2)) {
+      // Either v2 isn't stripping this request, or this message is the one
+      // case v2 also protects (the latest active continuation) — leave the
+      // whole message intact, both gates agree.
       out.push(msg);
       continue;
     }
+
     const kept = msg.content.filter((b) => {
-      // v1 always-active drop predicate.
+      // v1's shape-based protection still applies here even though we fell
+      // through the whole-message shortcut above — that fallthrough can only
+      // happen when protectV1 is true and v2StripSigned is stripping a
+      // deep-history continuation, which must not touch v1's target blocks.
       if (isOmittedThinking(b)) {
+        if (protectV1) return true;
         dropped++;
         return false;
       }
       // v2-only drop predicate. Predicates are mutually exclusive on a single
       // block: omitted thinking matches v1's predicate but not v2's, and
       // signed/redacted thinking matches v2's predicate but not v1's.
-      if (v2StripSigned && isSignedThinkingForV2(b)) {
+      if (v2StripSigned && isSignedThinkingForV2(b) && !protectV2) {
         droppedV2++;
         return false;
       }

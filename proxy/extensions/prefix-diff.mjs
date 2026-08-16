@@ -100,11 +100,13 @@ import {
   rename as _rename,
   appendFile as _appendFile,
   stat as _stat,
+  readdir as _readdir,
+  unlink as _unlink,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { statePath } from "../xdg-dirs.mjs";
-import { appendFileOwnerOnly, writeFileOwnerOnly } from "./write-owner-only.mjs";
+import { appendFileOwnerOnly, writeFileOwnerOnly, ensureOwnerOnly } from "./write-owner-only.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
 
@@ -129,7 +131,177 @@ const DEFAULT_FS = {
   rename: _rename,
   appendFile: _appendFile,
   stat: _stat,
+  readdir: _readdir,
+  unlink: _unlink,
 };
+
+// Cross-key retention. Taken from upstream in the 2026-08-16 merge, where it
+// was added to this fork's own PR #280 in review and never came back here.
+// The per-tenant eviction elsewhere in this module (MAX_TENANTS) only bounds
+// the map INSIDE one session key's file. Every new session key gets its own
+// `-last.json` / `-diff.json` / `-events.jsonl` triple, and nothing bounded
+// the number of keys or their total age — a long-lived proxy accumulates
+// snapshot artifacts forever. Two independent bounds, both enforced by the
+// boot sweep below: any artifact past this age goes regardless of key count,
+// and once more than this many keys remain, the oldest keys beyond the cap go
+// regardless of age.
+//
+// MEASURED ON THIS DEPLOYMENT at merge time, which is why it is worth taking
+// rather than noting: the snapshot dir held 28,157 files. This sweep's own
+// scope is 14,383 of them (13,813 events.jsonl + 300 last.json + 270
+// diff.json). The remaining 13,774 are `-canon.json`, `-relocated.json` and
+// `-rungs.json`, written by insertion-normalization, fresh-session-sort and
+// deferred-tool-rewrite — fork-owned LIVE STATE, not diagnostics, and
+// deliberately out of scope here: deleting a live canonical rotates the key
+// its owner reads and busts the very prefix these extensions exist to hold.
+// Their retention is a separate, undecided design (booked in BACKLOG.md); do
+// NOT widen SNAPSHOT_FILE_RE to reach them.
+const SNAPSHOT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+const SNAPSHOT_MAX_KEYS = 200;
+
+// Only THIS module's own artifact names, so the sweep can never touch a file
+// a co-tenant of the directory writes — see the fork note above, where that
+// boundary is load-bearing rather than merely tidy.
+const SNAPSHOT_FILE_RE = /^(.+)-(last\.json|diff\.json|events\.jsonl(?:\.1)?)$/;
+
+// Group a directory listing by session key, ignoring anything that isn't one
+// of this module's own artifact names.
+function groupSnapshotFiles(names) {
+  const byKey = new Map();
+  for (const name of names) {
+    const m = SNAPSHOT_FILE_RE.exec(name);
+    if (!m) continue;
+    const key = m[1];
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push(name);
+  }
+  return byKey;
+}
+
+/**
+ * Cross-key retention sweep: delete artifacts older than `maxAgeMs`, then —
+ * if more than `maxKeys` session keys still remain — delete the oldest keys'
+ * artifacts until the cap holds. A key's age is its most recently touched
+ * surviving file, so a key with any recent activity survives the cap pass
+ * even if it also has old rotated files.
+ *
+ * Best-effort throughout: a stat or unlink failure on one file is logged
+ * (CACHE_FIX_DEBUG=1) and skipped, never thrown — a partial sweep is strictly
+ * better than an exception that takes the boot-time caller down with it.
+ *
+ * @param {string} dir  Snapshot directory.
+ * @param {object} [fs] fs/promises subset: { readdir, stat, unlink, chmod }.
+ * @param {object} [opts]
+ * @param {number} [opts.now]      Reference time in epoch ms (test seam).
+ * @param {number} [opts.maxAgeMs] Defaults to SNAPSHOT_MAX_AGE_MS.
+ * @param {number} [opts.maxKeys]  Defaults to SNAPSHOT_MAX_KEYS.
+ * @returns {Promise<{ deleted: number, keysRemaining: number }>}
+ */
+async function sweepSnapshotDir(dir, fs = DEFAULT_FS, opts = {}) {
+  const now = opts.now ?? Date.now();
+  const maxAgeMs = opts.maxAgeMs ?? SNAPSHOT_MAX_AGE_MS;
+  const maxKeys = opts.maxKeys ?? SNAPSHOT_MAX_KEYS;
+
+  let names;
+  try {
+    names = await fs.readdir(dir);
+  } catch (err) {
+    // ENOENT — no snapshot dir yet — is the normal case on a fresh install
+    // and not worth logging even under CACHE_FIX_DEBUG.
+    if (err && err.code !== "ENOENT") {
+      debug(`sweep readdir failed for ${dir}: ${err?.message ?? err}`);
+    }
+    return { deleted: 0, keysRemaining: 0 };
+  }
+
+  const byKey = groupSnapshotFiles(names);
+  const mtimes = new Map();
+  for (const fileNames of byKey.values()) {
+    for (const name of fileNames) {
+      try {
+        const st = await fs.stat(join(dir, name));
+        mtimes.set(name, st.mtimeMs);
+      } catch (err) {
+        // Unreadable — removed between readdir and stat, or a permissions
+        // error. Treat as ancient so the age pass takes it, rather than
+        // silently keeping a file we cannot stat.
+        mtimes.set(name, 0);
+        debug(`sweep stat failed for ${name}: ${err?.message ?? err}`);
+      }
+    }
+  }
+
+  let deleted = 0;
+  async function unlinkOne(name) {
+    try {
+      await fs.unlink(join(dir, name));
+      deleted++;
+    } catch (err) {
+      debug(`sweep unlink failed for ${name}: ${err?.message ?? err}`);
+    }
+  }
+
+  // Age pass: any artifact past its TTL goes regardless of key count, so a
+  // single long-dead session cannot survive by riding under the key cap.
+  // Every surviving file also gets a mode repair here — a rotated `.1` file
+  // inherits whatever mode its pre-rotation path had (rename doesn't change
+  // it), so a file rotated before the 0600 fix shipped could otherwise sit at
+  // a loose mode indefinitely, since rotation is the one path that never calls
+  // appendFileOwnerOnly on the .1 name itself. The sweep already stats every
+  // survivor, so the repair is nearly free.
+  for (const [key, fileNames] of byKey) {
+    const surviving = [];
+    for (const name of fileNames) {
+      const age = now - (mtimes.get(name) ?? 0);
+      if (age > maxAgeMs) {
+        await unlinkOne(name);
+      } else {
+        await ensureOwnerOnly(join(dir, name), fs);
+        surviving.push(name);
+      }
+    }
+    if (surviving.length === 0) byKey.delete(key);
+    else byKey.set(key, surviving);
+  }
+
+  // Key-cap pass: prune the oldest keys — by their newest surviving file's
+  // mtime — beyond maxKeys.
+  if (byKey.size > maxKeys) {
+    const keyActivity = [...byKey.entries()]
+      .map(([key, fileNames]) => ({
+        key,
+        fileNames,
+        last: Math.max(...fileNames.map((n) => mtimes.get(n) ?? 0)),
+      }))
+      .sort((a, b) => a.last - b.last);
+    const toEvict = keyActivity.slice(0, keyActivity.length - maxKeys);
+    for (const { key, fileNames } of toEvict) {
+      for (const name of fileNames) await unlinkOne(name);
+      byKey.delete(key);
+    }
+  }
+
+  return { deleted, keysRemaining: byKey.size };
+}
+
+// Runs the retention sweep once per process, on the first live request —
+// there is no dedicated boot hook in the extension pipeline (loadExtensions
+// only imports the module; see pipeline.mjs), so "on boot" here means "the
+// first time this extension does anything in this process." Fire-and-await
+// rather than fire-and-forget: the cost is one readdir plus a stat per file,
+// paid once per process, not once per request, and awaiting it keeps the
+// error handling in one place (onRequest's own try/catch) instead of risking
+// an unhandled rejection from a detached promise.
+let bootSwept = false;
+
+async function ensureBootSweep(dir, fs) {
+  if (bootSwept) return;
+  bootSwept = true;
+  const result = await sweepSnapshotDir(dir, fs);
+  if (result.deleted > 0) {
+    debug(`boot sweep: removed ${result.deleted} artifact(s), ${result.keysRemaining} key(s) remain`);
+  }
+}
 
 // Per-block system text is stored in full so diffs can locate exact bytes.
 // Capped so a pathological block can't bloat the snapshot; the cap is far
@@ -1209,6 +1381,11 @@ export {
   diffBetaHeader,
   TAP_ORDER,
   TAP_VIEW,
+  // Cross-key retention test seams (upstream #280 review; merged 2026-08-16).
+  sweepSnapshotDir,
+  groupSnapshotFiles,
+  SNAPSHOT_MAX_AGE_MS,
+  SNAPSHOT_MAX_KEYS,
 };
 
 export default {
@@ -1230,6 +1407,10 @@ export default {
     if (!ctx || !ctx.body) return;
     // snapshotPrefix never throws; double-belt try/catch is defense in depth.
     try {
+      // Self-guarded (bootSwept): a no-op after the first call in this
+      // process. Same try/catch as everything else here — the sweep is
+      // best-effort and must never block a request.
+      await ensureBootSweep(getSnapshotDir(), DEFAULT_FS);
       await snapshotPrefix(ctx.body, { headers: ctx.headers });
     } catch (err) {
       debug(`onRequest unexpected: ${err?.message ?? err}`);
