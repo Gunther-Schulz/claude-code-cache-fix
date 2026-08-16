@@ -556,7 +556,8 @@ comment and new issue.
   rounds were both certified by checks that could not see the serving config,
   so no third round is trustworthy until this exists. Ordering constraint, not
   a preference.
-  Loop stage: VERIFY. Anchor: n/a (harness)
+  Loop stage: VERIFY
+  Anchor: docs/dev-loop.md
   Write-set: tools/serving-gate-lint.mjs (new), test/serving-gate-lint.test.mjs (new)
   Verifier: node tools/serving-gate-lint.mjs — must FIRE on test/insertion-lineage-recovery.test.mjs today and stay silent on test/insertion-normalization.test.mjs
   Done-criterion: the lint is red on the known positive before any repair lands, green after that file exercises pin mode, and the exemption list is verified by the lint itself
@@ -3876,7 +3877,8 @@ comment and new issue.
   request sits within the match window it says so and names it — the
   three-answer discipline applied to target selection (resolved / ambiguous /
   none), never a silent nearest-match.
-  Loop stage: ATTRIBUTE. Anchor: n/a (instrument)
+  Loop stage: ATTRIBUTE
+  Anchor: tools/boundary-layers.mjs
   Write-set: tools/boundary-layers.mjs, test/boundary-layers.test.mjs
   Verifier: a fixture with two conversations whose requests interleave inside one second — `--at` at second precision must report AMBIGUOUS and name both, and must not silently pick one
   <!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
@@ -3906,7 +3908,8 @@ comment and new issue.
   **NOT established:** whether the retention is in `readLines`, in
   `findPredecessor`'s candidate collection, or in the cascade's own body
   retention. Nothing was profiled; the 4096-vs-10240 split is the only datum.
-  Loop stage: ATTRIBUTE. Anchor: n/a (instrument)
+  Loop stage: ATTRIBUTE
+  Anchor: tools/boundary-layers.mjs
   Write-set: tools/boundary-layers.mjs, test/boundary-layers.test.mjs
   Verifier: a bytesRead-vs-consumed assertion on a multi-GB capture, red against the current retention
   <!-- entry: "boundary-layers OOMs at 4GB on a live capture, reach shrinks quadratically" -->
