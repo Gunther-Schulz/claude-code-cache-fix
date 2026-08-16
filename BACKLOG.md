@@ -362,8 +362,19 @@ comment and new issue.
   (`grep -c VOLATILE_PIN` over the new test file: 0), and the corrections
   concentrate in the newest round's own changes. A third lap in the same shape
   reproduces the class. The harness fix below comes FIRST.
-  **The 4 commits stay UNPUSHED and are not lost** — pushing them arms an
-  unplanned deployment on any restart, since the unit runs this clone.
+  **THE 4 COMMITS ARE OFF `main` AND ON A NAMED BRANCH: `wip/resume-key-third-read`**
+  (`838e064`, `c051d7d`, `6de0fc5`, `1d0bfe2`; branch tip also carries the
+  bookings that were stacked above them). Taken off `main` 2026-08-16 rather
+  than merely left unpushed, and the reason is F6 rather than tidiness: even
+  with F1 making the feature INERT, the scan still runs on every miss, so those
+  commits are a live 150 ms-per-miss regression that any restart would arm —
+  and `main` IS the deployment state on this machine. Inert-because-broken is
+  not a safety argument.
+  Recorded here because an unreferenced lane branch is the exact class this repo
+  has already paid for once (33 commits sat in lane branches while `git status`,
+  `git log origin/main..main` and a handoff all read clean). Whoever resumes
+  this starts from that branch, not from scratch: the four commits are sound
+  work against a design that was wrong, and F1's fix is one line.
   MEASURED 2026-08-15 on capture s-captureBR (919,402 cache_creation,
   15:07:49Z, opus, resumed 2m27s after the previous request, cache
   demonstrably hot at 913,341 read on the preceding call).
