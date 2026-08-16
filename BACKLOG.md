@@ -3849,6 +3849,38 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-16 (small; DOTFILES-SIDE residue of today's merge, not ours
+  to edit) — `CACHE_FIX_PIN` still reads 4.3.0 while the restarted proxy serves
+  4.4.0-beta.0, so the doctor FAILs.** Found by running the doctor after the
+  restart to positive-control an unrelated guard — not by any step of the ship
+  lane, which is the finding.
+  **Observed, both sides of the boundary:** before the restart `/health`
+  reported `"version":"4.3.0"` and the check passed; the upstream merge moved
+  `package.json` to 4.4.0-beta.0; after the restart `/health` reports
+  4.4.0-beta.0 and `bootstrap/doctor.py:1042` fails
+  (`cache-fix-proxy: health/version abweichend`), because `:1038` compares
+  `h["version"] == CACHE_FIX_PIN` and `manifest.py:221` still says "4.3.0".
+  Causal chain by observation, not inference.
+  **Why nothing caught it: there are TWO pins and the lane tracked one.**
+  `CACHE_FIX_PROXY_TREE_PIN` (tree) is ship-runbook step 4 and was correct
+  throughout at 2bf03b8; `CACHE_FIX_PIN` (the /health version string) is named
+  by no step. Both live in one dotfiles file, which is what makes the omission
+  invisible — the step that edits that file reads as covering it.
+  FIXED ON OUR SIDE the same day: step 4 now names both pins and carries the
+  package.json/`/health` filter that decides whether the second is owed. The
+  dotfiles edit itself is NOT ours — `dotfiles-5b` holds that copy; sent to the
+  desk to route.
+  Named missing evidence: none. The value is known (4.4.0-beta.0) and the site
+  is known (manifest.py:221); only the write boundary is elsewhere.
+  Done-criterion: `CACHE_FIX_PIN` = the string `/health` actually reports, and
+  the doctor's cache-fix-proxy check green.
+  Consumer: whoever ships the dotfiles half (desk routes it).
+  Loop stage: VERIFY (restores a health check that is currently red).
+  Anchor: dotfiles bootstrap/manifest.py:221; bootstrap/doctor.py:1038-1042
+  Write-set: dotfiles only (NOT this repo)
+  Verifier: bootstrap/doctor.py — the cache-fix-proxy health line goes OK
+  <!-- entry: "CACHE_FIX_PIN 4.3.0 vs serving 4.4.0-beta.0, doctor FAIL, dotfiles-side" -->
+
 - **DECIDED 2026-08-16, ANSWER (a) — port upstream's `CACHE_FIX_PREFIXDIFF_CONTENT`
   gate default-OFF and opt this deployment IN.** Operator's answer to the parked
   content-minimization decision (see `## Parked decisions`, now settled). Code

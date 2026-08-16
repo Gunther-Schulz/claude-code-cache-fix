@@ -59,6 +59,24 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    `bootstrap/manifest.py`, committed there (dotfiles is a separate repo
    with its own write boundary — this step happens outside this repo's
    checkout).
+   **THERE ARE TWO PINS, and this step used to name only one.** dotfiles also
+   carries `CACHE_FIX_PIN` — the `/health` VERSION STRING, not the tree — and
+   the doctor FAILs (not warns) when `/health`'s `version` differs from it.
+   Nothing in steps 1–7 looked at it, so a merge that bumps `package.json`
+   turns the operator's health check red at the next restart with no step
+   having asked. Measured 2026-08-16: the upstream catch-up merge moved
+   `package.json` 4.3.0 -> 4.4.0-beta.0; `/health` reported 4.3.0 and passed
+   before the restart and 4.4.0-beta.0 and FAILED after, while the tree pin
+   was correct throughout. Both pins live in one file and only one was owed.
+   The cheap read, and it is a real filter rather than a glance:
+   ```sh
+   git diff <last-shipped>..HEAD -- package.json | grep '"version"'
+   curl -s 127.0.0.1:9801/health | grep -o '"version":"[^"]*"'   # after step 5
+   ```
+   A moved version string means `CACHE_FIX_PIN` is owed in the same dotfiles
+   commit as the tree pin. Empty means it is n/a — say which, because the
+   doctor's FAIL is the only other thing that will tell you, and it tells you
+   after the restart rather than before.
    `[GRADUATE -> a script that runs the rev-parse and edits
    CACHE_FIX_PROXY_TREE_PIN directly instead of a hand copy-paste into
    bootstrap/manifest.py; not yet booked, trigger: a second instance of the
