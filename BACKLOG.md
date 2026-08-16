@@ -3842,67 +3842,115 @@ comment and new issue.
   Verifier: gh pr view 276 --repo cnighswonger/claude-code-cache-fix --json comments
   <!-- entry: "#276 held on the sequencing question, both answers pre-derived" -->
 
-- **PARKED 2026-08-15 — fork-`main` is 33 behind `upstream/main` and that signal
-  has had no disposition since it drifted; the answer is NOT an exemption.** The
-  session-close line requires every non-silent part of the attention line to
-  resolve to an action, a booking, or an explicit "not this session, because —".
-  This one resolved to none for the whole session.
-  **A proposed exemption was WRONG and the record is what refuted it.** The
-  desk's first recommendation was to declare "behind upstream" not-applicable for
-  this fork, on the reasoning that main deliberately diverges and slices are cut
-  as PR branches. The dotfiles backlog carries the closed entry
-  `**cache-fix fork behind upstream** — merged (\`a1e19be\`) … Fork is now 0
-  behind / 68 ahead`, i.e. the operator's actual practice has been to MERGE, and
-  the signal has a real terminal state. Exempting it would have silenced a
-  doorbell that works.
-  **Missing evidence / trigger that unparks this:** an operator decision on
-  timing. The merge is deployment-coupled — `proxy/**` changes mean a
-  `CACHE_FIX_PROXY_TREE_PIN` bump plus a restart at a stated session boundary
-  (threat-matrix row 3), so it is a session of its own and must not ride the tail
-  of unrelated work.
-  **SIZED 2026-08-16, because "33 behind" is a count and not a blast radius.**
-  It is **37** behind now, not 33 — it moved by four during a single session,
-  which is the drift argument by itself. Measured against the merge base
-  (`76d586d`), not against a tree-to-tree diff: **INCOMING is 97 files,
-  +22,197 / -782**, including two whole new upstream tools (`tier-advisor.mjs`
-  722 lines, and upstream's OWN `tools/absence-scan.mjs` at 479 lines).
-  **The conflict surface is 56 files** — files changed on BOTH sides since the
-  base — and it lands squarely on this fork's core: all three mitigation
-  extensions (`insertion-normalization.mjs`, `message-hash.mjs`,
-  `deferred-tool-rewrite.mjs`), `proxy/server.mjs`, and twenty-odd test files.
-  **It touches state keys / freeze logic** (15 matched lines in the incoming
-  set), so row 3's transparency argument does NOT carry: this restart is priced
-  against live sessions, not assumed cheap.
-  **The one to look at first is `tools/absence-scan.mjs`:** upstream has
-  independently grown its own, and ours is the publication-bar enforcer that
-  runs as a pre-push hook. A careless resolution there weakens the leak gate,
-  which is the one irreversible axis in this repo.
-  **METHOD NOTE, recorded because it produced a wrong reading before it
-  produced the right one:** `git diff main..upstream/main` shows the fork's own
-  work as DELETIONS — `proxy/xdg-dirs.mjs -208` is our fork-only file, not
-  upstream removing it, and the state-key hits in that direction are our own D1
-  machinery. Size an incoming merge against `git merge-base`, never tree-to-tree.
-  **Sequencing, decided at the desk 2026-08-16:** this goes BEFORE the harness
-  lint and before the resume-key redesign. The parked branch
-  (`wip/resume-key-third-read`) touches four of the conflict files and is going
-  to be re-derived anyway, so its rebase cost is at its MINIMUM right now; and
-  the harness lint's own subject — test files exercising gated extensions — sits
-  in the conflict set, so building it pre-merge means validating it twice.
-  **One home, deliberately:** booked HERE and not in dotfiles, even though the
-  precedent entry lives there, because the merge happens in this repo and a fork
-  session is its consumer. The dotfiles entry is closed and stays closed.
-  Consumer: the session that takes the upstream merge.
-  Loop stage: RETIRE.
-  Anchor: BACKLOG.md
-  Write-set: BACKLOG.md
-  Verifier: git rev-list --count main..upstream/main
-  <!-- entry: "fork main 33 behind upstream, disposition owed, merge not exemption" -->
 
 
 
 
 
 ## Record — decision-complete memory, not scheduled
+
+- **RECORD 2026-08-16 (MITIGATE stage; small) — the fork's own snapshot artifacts
+  have NO retention at all, and the upstream sweep merged today deliberately
+  cannot reach them.** The 2026-08-16 merge ported upstream's prefix-diff
+  cross-key sweep (14d age, 200-key cap). Measured against the real directory
+  the same day: **28,326 entries, of which prefix-diff owns 14,469 across 13,927
+  session keys and 13,857 are OURS** — `-canon.json` (insertion-normalization),
+  `-relocated.json` (fresh-session-sort), `-rungs.json` (deferred-tool-rewrite).
+  The sweep's scope regex covers only prefix-diff's own three artifact names,
+  correctly: those fork files are LIVE STATE, and deleting a canonical rotates
+  the key its owner reads and busts the prefix the extension exists to hold.
+  So the sweep bounds half the directory and the other half still grows forever.
+  **The design is NOT "widen the regex"** — that is the one thing the merge
+  commented against at the site. It needs a liveness predicate: a canonical is
+  evictable only once no live session can address it, which is a different
+  question from age. Nearest cheap approximation to evaluate first: evict on
+  `mtime` older than the capture-retention window AND no matching live session
+  in `restart-exposure`'s own listing.
+  Done-criterion: fork-owned snapshot artifacts are bounded by a stated rule,
+  with a bite that goes red when a LIVE canonical would be evicted.
+  Consumer: the session that next works snapshot retention.
+  Loop stage: MITIGATE (bounds a store the mitigations themselves depend on).
+  Anchor: proxy/extensions/prefix-diff.mjs (the sweep + its scope comment)
+  Write-set: proxy/extensions/*.mjs (whichever owns the eviction), test/
+  Verifier: node -e over the real snapshots dir — fork-owned file count bounded
+  <!-- entry: "fork-owned snapshot artifacts unbounded; upstream sweep cannot reach them" -->
+
+- **RECORD 2026-08-16 (small) — upstream's new `tools/tier-advisor.mjs` resolves
+  all four of its paths under `~/.claude`, which is not where this fork keeps
+  any of them.** Arrived with the merge. `:405-411` default `account.json`,
+  `usage.jsonl`, `tier-advisor-state.json` and `overage-warnings.jsonl` to
+  `join(homedir(), ".claude", …)`; on this fork all four live under the XDG
+  roots. Its 47 tests pass because they drive the `CACHE_FIX_ADVISOR_*`
+  overrides, so the defaults are exercised by nothing — the tool is silently
+  wrong here rather than loudly broken, which is the shape that survives.
+  Second, smaller half found the same day: `tools/quota-statusline.sh` reads
+  `account.json` from the XDG root (`:29`, `:48`) and `tier-advisor-state.json`
+  from `$HOME/.claude` (`:245`) — one script, two conventions. Writer and reader
+  currently agree, so the feature works; the inconsistency is what will rot.
+  Fix: resolve all four through the fork's own `proxy/xdg-dirs.mjs`, the single
+  resolver whose absence this repo has already paid for once (FORK-NOTES records
+  five proxy-wrapper tests failing when a second hand-rolled resolution went
+  stale).
+  Done-criterion: `tier-advisor` run with no `CACHE_FIX_ADVISOR_*` set finds the
+  fork's real account.json, and the statusline reads its state from one root.
+  Consumer: the session that next touches tier-advisor or the statusline.
+  Loop stage: SEE (a reporting surface that currently reports nothing here).
+  Anchor: tools/tier-advisor.mjs
+  Write-set: tools/tier-advisor.mjs, tools/quota-statusline.sh, test/tier-advisor.test.mjs
+  Verifier: node tools/tier-advisor.mjs --json  (with no ADVISOR env set)
+  <!-- entry: "tier-advisor and statusline resolve tier state under ~/.claude, not XDG" -->
+
+- **RECORD 2026-08-16 (small; the manual pass is already done, this is the
+  mechanism) — an upstream-merge triage tool, because the add/add
+  self-origin class recurs at EVERY catch-up merge.** The 2026-08-16 merge spent
+  its first hour hand-deriving one fact: 22 of 28 conflicts existed only because
+  our own merged PRs re-import our own work as an independent add (no
+  merge-base copy → add/add), and the remaining 6 were the only genuinely
+  foreign work. That derivation is mechanical and it will be needed again the
+  next time this fork falls behind — every PR we land upstream mints another
+  member of the class.
+  The tool takes `<base> <ours> <theirs>` and per conflicting file reports:
+  origin (self-authored upstream commit vs foreign), the upstream-only
+  declaration/test-name set, and whether the file exists at the merge base. Two
+  reach limits the manual pass hit and the tool must carry, or it will report
+  the same false clean: `git log -- <path>` PRUNES under history simplification
+  (use `--full-history`), and a test-NAME set comparison misses a renamed test
+  and a same-named test whose body changed — so it reports names as a
+  candidate list, never as a completeness claim.
+  Red-first arrangement, immutable and re-runnable: `76d586d` (base), `36559f6`
+  (pre-merge main), `8ddd4f0` (upstream) — the tool must classify
+  `proxy/extensions/message-hash.mjs` as self-origin with zero upstream-only
+  declarations, and `test/proxy-forward-ca.test.mjs` as foreign.
+  Done-criterion: the classification above reproduces from those three refs.
+  Consumer: the session that takes the NEXT upstream merge.
+  Loop stage: RETIRE (upstream catch-up is the retirement lane).
+  Anchor: tools/ (new file — no existing tool is in this domain)
+  Write-set: tools/upstream-merge-triage.mjs, test/
+  Verifier: node tools/upstream-merge-triage.mjs 76d586d 36559f6 8ddd4f0
+  <!-- entry: "upstream-merge triage tool: the add/add self-origin class recurs every merge" -->
+
+- **RECORD 2026-08-16 — two traps the NEXT upstream merge will hit, written
+  down because both were found by accident and neither is discoverable from the
+  diff.** (1) `proxy/extensions.json` reads as a huge conflict and is purely a
+  formatting difference — parse both sides and compare KEY SETS, never the text.
+  The only real delta is that upstream still rosters
+  `messages-cache-breakpoint`, which exists at the merge base and which this
+  fork deleted, entry AND extension file; taking upstream's roster points the
+  running pipeline at a file we removed. (2) Upstream ships per-file
+  raw-`mkdtemp` guards inside `test/proxy-wrapper.test.mjs` and
+  `test/proxy-forward-ca.test.mjs` that name `mkdtempSync` inside their own
+  pattern strings. This fork's `test/no-raw-mkdtemp.test.mjs` is tree-wide and
+  matches the NAME rather than the call shape — deliberately closed to
+  exemptions, because the alias route (`import { mkdtemp as mkd }`) is what a
+  call-shape scan cannot see. The 2026-08-16 merge REMOVED upstream's two local
+  guards rather than opening the strong one; if they come back, remove them
+  again rather than adding exemptions.
+  Consumer: the session that takes the next upstream merge.
+  Loop stage: RETIRE.
+  Anchor: BACKLOG.md
+  Write-set: n/a — memory
+  Verifier: n/a
+  <!-- entry: "next-merge traps: extensions.json key sets, upstream's local mkdtemp guards" -->
 
 - **RECORD 2026-08-16 (split out of the resume-key entry on operator GO,
   resolving review finding F4) — `deferred-tool-rewrite` needs its OWN
@@ -9583,6 +9631,67 @@ then the queued ones. Work the items in that order.
 
 ## Parked decisions
 
+- **DECISION OWED (operator) 2026-08-16 — this fork persists prompt text to disk
+  by default; upstream gates it off, and the merge did NOT take that.** Upstream
+  gates every content path in prefix-diff on `CACHE_FIX_PREFIXDIFF_CONTENT=1`,
+  off by default, "because the whole point of the default mode is that
+  prompt-derived text never rests on disk". **This fork has no such gate** —
+  `grep -c 'CONTENT_ENABLED\|PREFIXDIFF_CONTENT' proxy/extensions/prefix-diff.mjs`
+  returns 0 — and always stores system-block text (to `SYSTEM_TEXT_CAP` = 20,000
+  chars), message previews and event-record previews.
+  **Why it is a real exposure and not a tidiness point:** the proxy fronts EVERY
+  Claude Code session on this machine, so that text is other projects'
+  conversations, and it sits in a directory holding 28,326 files.
+  **Why it is not a free fix:** it trades directly against this fork's core
+  mission. dev-loop's own rule is "the census names the class; only content
+  names the cause", and byte-level attribution is what the content windows feed.
+  **The three answers, so the decision is a choice and not an essay.**
+  (a) Adopt upstream's gate default-OFF and set `CACHE_FIX_PREFIXDIFF_CONTENT=1`
+  in the serving unit — code matches upstream exactly, the deployment opts in
+  with a recorded reason, attribution keeps its inputs; costs a unit edit, a
+  manifest gate classification and a `CACHE_FIX_GATE_ACCEPTANCE` entry
+  (ship-runbook step 4b). RECOMMENDED.
+  (b) Adopt it default-OFF and leave it off — maximum privacy, and the next bust
+  walk loses the bytes it needs.
+  (c) Keep the fork as-is — no divergence work, exposure unchanged.
+  Named missing evidence: none. This is intent, not evidence — it is the
+  operator's call and is surfaced rather than defaulted.
+  The security bite now asserts the fork's ACTUAL contract
+  (`test/proxy-prefix-diff-security.test.mjs`, "FORK CONTRACT — default mode DOES
+  persist prompt text"), so it goes RED the day the gate is ported, which is
+  exactly when this decision must be recorded.
+  Consumer: the operator, then the session that implements the chosen answer.
+  Loop stage: MITIGATE.
+  Anchor: BACKLOG.md
+  Write-set: proxy/extensions/prefix-diff.mjs, test/, dotfiles manifest + unit
+  Verifier: grep -c CONTENT_ENABLED proxy/extensions/prefix-diff.mjs
+  <!-- entry: "prefix-diff persists prompt text by default; upstream gates it, operator decision owed" -->
+
+- **DECISION OWED (operator GO) 2026-08-16 — upstream's `docs/benchmarking.md`
+  carried a real-looking session UUID, against upstream's own written rule.**
+  Found by our leak scan going red on content the merge imported. Upstream's
+  `docs/code-reviews/README.md` says plainly: "Do not paste real session UUIDs,
+  request ids, or `s-<8hex>` capture prefixes into review artifacts", and
+  mandates `00000000-0000-4000-8000-<12hex>` as the substitute. Their
+  `docs/benchmarking.md` sample output nevertheless carried a v4-shaped
+  `session_id` alongside real timestamps. Upstream has scrubbed this class once
+  already (`e3149ae`, "scrub two real session UUIDs from PR #299 review
+  artifacts"), which is why the two `00000000-…` values now in that tree are the
+  SCRUBBED replacements — so this is a known class with a known remedy there.
+  In our tree it is resolved: the value was replaced with a non-identifier
+  placeholder (`"<session-id>"`), which needed no UUID literal and therefore
+  passed the authoring guard that blocks writing one into a tracked file.
+  **What is owed is the report to upstream, and it is a PUBLIC communication, so
+  it waits for operator GO on the exact text.** Recommendation: report it — it
+  is their own rule, the remedy is one line, and they have applied it before.
+  Named missing evidence / trigger: operator GO.
+  Consumer: the session that files it, via docs/runbooks/public-comms.md.
+  Loop stage: RETIRE (upstream-facing).
+  Anchor: BACKLOG.md
+  Write-set: an upstream issue or PR — nothing in this repo
+  Verifier: gh issue list --repo cnighswonger/claude-code-cache-fix --search benchmarking
+  <!-- entry: "upstream benchmarking.md real session UUID, report owed on operator GO" -->
+
 - **Repo location `~/dev/vendor/` — LEAVE for now** (operator + session
   2026-07-29). The fork is operator-owned (taxonomy says
   `~/dev/Gunther-Schulz/`), but a move touches the serving unit's
@@ -9776,6 +9885,64 @@ re-inflated within four days of being declared. Also found: the
 `--closures-in-live` detector that would have caught all 110 of these is an
 OPT-IN FLAG, absent from the default `backlog-lint` run, so nothing was ever
 going to report this disease unprompted.
+
+- **DONE 2026-08-16 (`6cb1333`) — the upstream catch-up merge is taken; 37 commits, 28 conflicts resolved, suite green, pushed.**
+  Was: **PARKED 2026-08-15 — fork-`main` is 33 behind `upstream/main` and that signal
+  has had no disposition since it drifted; the answer is NOT an exemption.** The
+  session-close line requires every non-silent part of the attention line to
+  resolve to an action, a booking, or an explicit "not this session, because —".
+  This one resolved to none for the whole session.
+  **A proposed exemption was WRONG and the record is what refuted it.** The
+  desk's first recommendation was to declare "behind upstream" not-applicable for
+  this fork, on the reasoning that main deliberately diverges and slices are cut
+  as PR branches. The dotfiles backlog carries the closed entry
+  `**cache-fix fork behind upstream** — merged (\`a1e19be\`) … Fork is now 0
+  behind / 68 ahead`, i.e. the operator's actual practice has been to MERGE, and
+  the signal has a real terminal state. Exempting it would have silenced a
+  doorbell that works.
+  **Missing evidence / trigger that unparks this:** an operator decision on
+  timing. The merge is deployment-coupled — changes under `proxy/` mean a
+  `CACHE_FIX_PROXY_TREE_PIN` bump plus a restart at a stated session boundary
+  (threat-matrix row 3), so it is a session of its own and must not ride the tail
+  of unrelated work.
+  **SIZED 2026-08-16, because "33 behind" is a count and not a blast radius.**
+  It is **37** behind now, not 33 — it moved by four during a single session,
+  which is the drift argument by itself. Measured against the merge base
+  (`76d586d`), not against a tree-to-tree diff: **INCOMING is 97 files,
+  +22,197 / -782**, including two whole new upstream tools (`tier-advisor.mjs`
+  722 lines, and upstream's OWN `tools/absence-scan.mjs` at 479 lines).
+  **The conflict surface is 56 files** — files changed on BOTH sides since the
+  base — and it lands squarely on this fork's core: all three mitigation
+  extensions (`insertion-normalization.mjs`, `message-hash.mjs`,
+  `deferred-tool-rewrite.mjs`), `proxy/server.mjs`, and twenty-odd test files.
+  **It touches state keys / freeze logic** (15 matched lines in the incoming
+  set), so row 3's transparency argument does NOT carry: this restart is priced
+  against live sessions, not assumed cheap.
+  **The one to look at first is `tools/absence-scan.mjs`:** upstream has
+  independently grown its own, and ours is the publication-bar enforcer that
+  runs as a pre-push hook. A careless resolution there weakens the leak gate,
+  which is the one irreversible axis in this repo.
+  **METHOD NOTE, recorded because it produced a wrong reading before it
+  produced the right one:** `git diff main..upstream/main` shows the fork's own
+  work as DELETIONS — `proxy/xdg-dirs.mjs -208` is our fork-only file, not
+  upstream removing it, and the state-key hits in that direction are our own D1
+  machinery. Size an incoming merge against `git merge-base`, never tree-to-tree.
+  **Sequencing, decided at the desk 2026-08-16:** this goes BEFORE the harness
+  lint and before the resume-key redesign. The parked branch
+  (`wip/resume-key-third-read`) touches four of the conflict files and is going
+  to be re-derived anyway, so its rebase cost is at its MINIMUM right now; and
+  the harness lint's own subject — test files exercising gated extensions — sits
+  in the conflict set, so building it pre-merge means validating it twice.
+  **One home, deliberately:** booked HERE and not in dotfiles, even though the
+  precedent entry lives there, because the merge happens in this repo and a fork
+  session is its consumer. The dotfiles entry is closed and stays closed.
+  Consumer: the session that takes the upstream merge.
+  Loop stage: RETIRE.
+  Anchor: BACKLOG.md
+  Write-set: BACKLOG.md
+  Verifier: git rev-list --count main..upstream/main
+  **CLOSURE.** Merged `upstream/main` at `8ddd4f0` into main as `6cb1333`. The sizing below was right about the count and WRONG about one load-bearing thing, recorded here rather than dropped: it said the incoming set touches state keys / freeze logic so row 3 does not carry. Those 15 lines sat in upstream's older copies of our OWN extensions (add/add, no merge-base ancestor), all resolved to ours, so the four state-key/freeze owners are byte-unchanged and row 3 DOES carry. Established behaviourally, not just structurally: `verdict-ab 36559f6 HEAD --seed-from-a` → IDENTICAL across 3223 verdict lines, 19 corpora. Full suite green at the commit (3514 tests, 3502 pass, 0 fail, 12 skipped). Leak gate proven still firing, both arms on one real fixture: untouched → clean/exit 0, one planted v4 UUID → FINDING capture-uuid/exit 2. Four upstream review amendments to our own PRs taken back (see the commit message). Row-3 pre-declaration written in the threat matrix; restart and pin bump NOT taken — the boundary is the operator's. Findings booked as separate entries above.
+  <!-- entry: "fork main 33 behind upstream, disposition owed, merge not exemption" -->
 
 - **DONE 2026-08-15 — row 31 is MITIGATED AND MEASURED; both entries below close
   together because they are two halves of one fact.** The mitigation shipped

@@ -2025,3 +2025,73 @@ returns before (row 22's promoted question, one instance fixed in `059aae3`,
 the enumeration still open); (ii) NO BASELINE AT ALL — this datapoint, row 26's
 class; (iii) NOT IN `MITIGABLE` — the 638k above, absent by design rather than
 disarmed. A fix aimed at any one of them does not reach the other two.
+
+### Row 3 PRE-declaration — the 2026-08-16 upstream catch-up merge
+### (stated BEFORE the restart, as the 21:46 amendment requires; restart NOT
+### yet taken — the boundary is the operator's to choose)
+
+The change is the merge of `upstream/main` at `8ddd4f0` into fork main
+(`6cb1333`): 37 upstream commits, 97 files incoming, 28 resolved conflicts.
+
+THE DECLARATION: **no state KEY changes and no freeze logic changes**, so
+row 3's exception does not fire and the restart is cache-transparent.
+
+This CORRECTS the premise the merge was scheduled under. The sizing entry and
+the handoff directive both said the incoming set touches state keys / freeze
+logic (15 matched lines) and that row 3 therefore does NOT carry. That was true
+of the raw incoming diff and is FALSE of what landed: those 15 lines sat in
+upstream's older copies of our OWN extensions, re-imported as add/add because
+none of them exists at the merge base, and all of them were resolved to ours.
+The stale premise is recorded rather than quietly dropped, because the plan
+built on it (price it against live sessions, expect a real bill) would otherwise
+have executed unchanged.
+
+THE BASIS, in the order it was established — structural first, then behavioural,
+because a scoped read never settles an unscoped absence:
+
+- All four state-key / freeze-logic owners are byte-unchanged across the merge:
+  `insertion-normalization.mjs`, `message-hash.mjs`, `deferred-tool-rewrite.mjs`,
+  `fresh-session-sort.mjs` (`git diff --numstat 36559f6..HEAD` empty for each).
+  The only `canonical` hit anywhere in the landed `proxy/` diff is a comment
+  added by this merge saying the new sweep must not touch them.
+- **The behavioural half, which is what actually decides it:**
+  `node tools/verdict-ab.mjs 36559f6 HEAD --seed-from-a` — the old-canon
+  compatibility probe, i.e. does the new code take the same decision the old
+  code did when it starts from state the old code produced —
+  **IDENTICAL across 3223 verdict lines, 19 corpora, exit 0.** Not a vacuous
+  zero: the tool exits 2 with COULD-NOT-VERIFY on an empty corpus and prints
+  per-corpus request and conversation counts, which are non-zero throughout.
+- The nine `proxy/` files that DID change are non-mutating with respect to the
+  forwarded body: prefix-diff and request-capture are diagnostic surfaces,
+  upstream-change-detection is a detector, usage-log is telemetry,
+  gate-allowlist is a pure function, and the server changes are `/health` gate
+  redaction plus RFC 7230 absolute-form routing. `thinking-block-sanitize` is
+  the one body-mutating extension touched: its v1 path — the serving mode, with
+  `CACHE_FIX_THINKING_SANITIZE` unset — is byte-identical across a three-case
+  corpus including a deep-history active continuation, and its v2 path is
+  changed but inert here.
+
+PRICED ANYWAY, because "cache-transparent" is a claim about the diff and not
+about who pays (dev-loop, "Before a restart: price it against LIVE sessions").
+`node tools/restart-exposure.mjs --window-min 60`: **7 live sessions, ~1,311k
+tokens worst case** if a restart changed forwarded bytes for all of them
+(largest single session ~684k). The measurement above says it changes none of
+them, so the expected bill is zero — but the number is what the operator is
+choosing against, and it is stated rather than assumed away.
+
+THE ONE REAL CONSEQUENCE, which is not a cache cost and must not be confused
+with one. The newly ported prefix-diff retention sweep runs once per process, on
+the first live request after the restart. Projected against the real directory
+by mirroring its names and mtimes and running the actual `sweepSnapshotDir` over
+the mirror (never by re-implementing the selection): the snapshot dir holds
+**28,326 entries**; prefix-diff owns **14,469** across 13,927 session keys; the
+first run will **delete 14,257 files** and leave 200 keys. Zero out-of-scope
+files are touched — the 13,857 fork-owned `-canon.json` / `-relocated.json` /
+`-rungs.json` files, which are LIVE STATE whose deletion would rotate the key
+their owner reads, all survive, verified on the real listing.
+
+So the restart costs no cache and deletes no live state. What it does delete,
+irreversibly and at once, is ~14.3k prefix-diff DIAGNOSTIC artifacts older than
+14 days or beyond the 200-key cap. That is evidence, and closing-gate question 2
+asks whether any of it backs an open entry before it goes. That is the question
+the operator is deciding, not the cache one.
