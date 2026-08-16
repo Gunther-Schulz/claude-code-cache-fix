@@ -7885,9 +7885,7 @@ entry promoted to READY must satisfy the booking bar in this file's header
   Anchor: row 4
   Write-set: proxy/extensions/insertion-normalization.mjs, test/insertion-normalization.test.mjs, tools/reminder-migration-census.mjs
   Verifier: node tools/reminder-migration-census.mjs ~/.local/share/cache-fix/captures/*.jsonl  # any MISMATCH blocks shipping
-  path; header re-titled 2026-08-01, body was already resolved) —
-  hook-context container normalization (matrix row 4,
-  mid-history replace/edit).** Grounding: measured live 2026-07-31, two
+  Grounding: measured live 2026-07-31, two
   instruments agreeing (`--census`: `edit@98 of 123 [anchor-25] ~75 kB`;
   raw capture diff of the adjacent requests), end-to-end cost from the
   transcript's own `cache_miss_reason messages_changed / 105006`. The
@@ -8154,7 +8152,7 @@ then the queued ones. Work the items in that order.
   bite — so nothing in those files informed its G2 choice.
   **DEPLOYMENT IS OWED AND NOT DONE — this is the largest open
   item, and the plan CHANGED at the last minute.** The intent was
-  one restart carrying all three proxy/** changes. G1-G3 above take
+  one restart carrying all three `proxy/**` changes. G1-G3 above take
   fd87e12 off that list, so the choice is now explicit and it is the
   next session's to make: **deploy the TWO landed changes now** (the
   ordinal fix + the movedFresh split, both on main, both green, both
@@ -8169,7 +8167,7 @@ then the queued ones. Work the items in that order.
   Mechanics: dotfiles pin `CACHE_FIX_PROXY_TREE_PIN` is at `ad4ff80`
   (bootstrap/manifest.py:157); the proxy tree is `5d651e7` as of
   9059d3a — recompute with `git rev-parse --short HEAD:proxy` rather
-  than copying that value, since it moves with any proxy/** commit.
+  than copying that value, since it moves with any `proxy/**` commit.
   Then `systemctl --user restart cache-fix-proxy`, then one gate
   run. Row 3 is answered for BOTH landed changes: no new state key,
   no persisted schema change (only canonical `o` VALUES corrected in
@@ -8279,7 +8277,7 @@ then the queued ones. Work the items in that order.
   written out in the "MECHANISM FOUND" entry below — classifyPinned's
   match loop, family (h,r) whose stored count exceeds wire count by
   exactly one, re-attribute via condition (d)'s lo/hi discriminator,
-  fail closed otherwise. proxy/** so it is deployment-coupled: pin
+  fail closed otherwise. `proxy/**` so it is deployment-coupled: pin
   bump + restart at a stated boundary, and the report must state
   whether it writes a state key or touches freeze logic (row 3).
   (2) **Description-absorb (row 23 + the row-24 tools layer) —
@@ -8336,7 +8334,7 @@ then the queued ones. Work the items in that order.
   another digging round and was right both times, which is now the
   Grounding true-basis clause. Gates that still bind: anything
   published under the operator's accounts (upstream issues, PR
-  comments) is DRAFTED and approved before posting; proxy/** changes
+  comments) is DRAFTED and approved before posting; `proxy/**` changes
   are deployment-coupled and ride a stated boundary with a dotfiles
   pin bump + restart; haiku is barred; the fable consolidation review
   of the corpus is booked in the dotfiles corpus backlog and must NOT
@@ -8385,7 +8383,7 @@ then the queued ones. Work the items in that order.
   red-first bite on a description-only pair plus a CONTROL bite
   proving an input_schema delta still resets, and a live replay of
   ordinals 1200..1202 showing the forwarded tools block byte-stable.
-  Deployment-coupled (proxy/**), rides a stated boundary.
+  Deployment-coupled (`proxy/**`), rides a stated boundary.
   INSTRUMENT GAP found in the same triage, booked below: bust-triage
   called this UNCLASSIFIED although it had already read and printed
   `transcript tools_changed`.
@@ -8462,7 +8460,7 @@ then the queued ones. Work the items in that order.
   canonical bytes instead of dropping) reaches 100% of the pre-exit
   array but is a much larger change to phase-3 behaviour. Do the
   pricing first: if the narrow one holds, the wide one may not be owed
-  at all. Both are proxy/**, deployment-coupled.
+  at all. Both are `proxy/**`, deployment-coupled.
   Full design, simulation, safety argument, named risk (stale
   `cache_control` re-served beside the live one — count them, budget
   is 4) and the value split are in the threat matrix, section
@@ -8695,7 +8693,7 @@ then the queued ones. Work the items in that order.
   exemption the gate BYTE-VERIFIES by chaining the extension's own
   transform, tamper stays red, exemptions counted visibly.
   Complication, named: fresh-session-sort does not export its
-  transform today, so chaining it needs an export — a proxy/**
+  transform today, so chaining it needs an export — a `proxy/**`
   change, behaviour-neutral but deployment-coupled (pin bump +
   restart; row-3 clear, no state keys or freeze logic). SERIALIZED,
   not parked: tools/replay.mjs is in the read set of the running
@@ -8895,7 +8893,7 @@ then the queued ones. Work the items in that order.
   replay) — lesson: a message-COUNT change gets checked against all
   four replay invariants, not the two a brief happens to name.
   Suppression is re-detected per request from the on-disk pin set
-  (no new state file). Remaining, named: (1) DEPLOY — proxy/** ->
+  (no new state file). Remaining, named: (1) DEPLOY — `proxy/**` ->
   dotfiles pin bump + restart at a stated session boundary + gate
   run (dev-loop); row 8 closes on the live non-event, not the
   build. (2) The five other output-spliced pairs are confirmed NOT
@@ -8996,7 +8994,7 @@ then the queued ones. Work the items in that order.
   .json (17 MB, UNTRACKED by design — the fixture-cut minimization
   floor applies before it could ever be committed). Investigation
   dispatched (opus, read-only) for the mechanism at file:line plus a
-  minimal absorb design and its red-first bite; any proxy/** fix is
+  minimal absorb design and its red-first bite; any `proxy/**` fix is
   deployment-coupled and rides a stated boundary. Cost datum for the
   Mitigation policy: this single instance re-billed 535k tokens.
   MECHANISM FOUND 2026-08-02 (opus investigation, dispatcher-verified
@@ -9072,7 +9070,7 @@ then the queued ones. Work the items in that order.
   against a per-candidate key computed from conversationSubKey
   (exported, proxy/extensions/message-hash.mjs) + systemPromptSubKey
   (NOT exported from insertion-normalization.mjs) + resolveSessionId.
-  Named missing piece: the systemPromptSubKey export is a proxy/**
+  Named missing piece: the systemPromptSubKey export is a `proxy/**`
   change — deployment-coupled (pin bump + restart), so it rides the
   next proxy boundary, never alone. Evidence: sonnet dispatch report
   2026-08-02 — reset-only matching closed both live cases without
@@ -9553,7 +9551,7 @@ going to report this disease unprompted.
 
 - **DONE 2026-08-15 (retired — overtaken by this session's own exit pass) —
   `## Open` no longer holds ANY closures: the entry below asked for the 43
-  DONE entries to leave the live section, and the exit pass moved 110 of them.
+  DONE entries to leave the live section, and the exit pass moved 110 of them.**
   Verified by the repo's own detector, not by the pattern that did the moving:
   `backlog-closures-in-live-open: CLOSURE=0 (## Open section only)`. Body below,
   unedited.
@@ -9751,7 +9749,7 @@ going to report this disease unprompted.
   of the whole (the scanner, the cost).
 
 - **HANDOFF 2026-08-05 LATE — superseded by the evening handoff above;
-  its UPSTREAM section is still current.** It supersedes the
+  its UPSTREAM section is still current.** **It supersedes the
   handoff below on every point they disagree.** Everything is
   committed and pushed (fork-main and dotfiles both clean, 0 unpushed).
   Suite 2112/2112. Deployed tree `9ef42be576bd`, /health verified
@@ -9988,7 +9986,7 @@ going to report this disease unprompted.
   A correct source already exists: cache-telemetry, request-log and
   usage-log read `event.usage.output_tokens` off message_delta
   (stream.mjs, cache-telemetry.mjs) — final, not placeholder. Fix
-  design (proxy/**, so it RIDES THE NEXT PROXY BOUNDARY, never
+  design (`proxy/**`, so it RIDES THE NEXT PROXY BOUNDARY, never
   alone): rename to `outputTokensAtStart` in the outcome record and
   let consumers that want the real length join the request-log `n`;
   dependents search run before the rename lands (this entry's own
@@ -10125,7 +10123,7 @@ going to report this disease unprompted.
   entry's own "the rest are the retry class" wording was corrected before
   posting: 23 of the 59 non-double-billed streaks were billed ONCE, only
   36 never answered. The walk's body follows as booked:
-  does NOT reproduce here, and row 31 then measured 47 of them. The two cannot
+  **does NOT reproduce here, and row 31 then measured 47 of them. The two cannot
   both be right, and the public one is ours.** Posted 2026-07-29 on
   `anthropics/claude-code#78420`: "across 3,446 requests in seven session
   captures spanning three days: one adjacent-identical instance
@@ -10675,7 +10673,7 @@ going to report this disease unprompted.
   **THE DONE-CRITERION AS BOOKED IS UNMEETABLE AND IS REPLACED HERE.** "Every registered worktree branch reports zero `+` under `git cherry`" assumes clean picks; `git cherry` joins by PATCH-ID, so a conflicted pick is a different patch by construction and reads as outstanding forever. Final tally: `a46f` 0, and 14 residual `+` across the other five — every one either a recorded skip or a pick whose content is on main under a resolved form, named in the commit that landed it. The criterion that holds, and that this entry now closes on: a recorded disposition per commit.
   **What integration proved that no amount of reading would have:** two picks auto-merged CLEANLY and were broken — the absorption report printed its section twice, and a BLOCKING guard printed BLOCK and exited 0 because main's unconditional `return 0` landed above the lane's blocking return. A clean auto-merge is not a substance check, and no conflict marker announces this class.
   Original entry follows, kept as the record of what was asked.
-  **Original entry, as booked:** PARKED** — unchanged: blocked, carrying its named missing evidence.
+  **Original entry, as booked:** **PARKED** — unchanged: blocked, carrying its named missing evidence.
 
 ### The CLOSURE vocabulary — declared 2026-08-13, because it was being used undeclared
 
@@ -10774,7 +10772,7 @@ booked separately and is what catches an entry this clause let through.
 
 - **DONE 2026-08-14 (`750463e`, `2933d95`) — the export shipped and its ANSWER IS NEGATIVE: no placement rule lives in the intervening messages either, so row 4 takes its THIRD named blocker rather than a fourth hypothesis.** Dispatched to sonnet, integrated after the desk ran the lane's verifier plus a check outside its set — a corpus-wide `--json --verbose` census (46 placement rows) read back through `logs.mjs`'s strict view. The field DISCRIMINATES, which is what makes the negative result mean something: 21 off-mode rows carry a non-empty `between` vector, 25 mode rows carry an empty one by construction, and the two classes must differ or the field measures nothing. What the vectors do NOT carry is a rule: they are ordinary tool_use/tool_result turn sequences of varying length, sometimes with intervening system:text messages, with no shape holding across rows beyond the tautological `len = offset - 1`. Body-free by construction (`{role, kind}`, kind read off a block's `type`), so the publication bar is untouched.
   Original entry follows, kept as the record of what was asked.
-  **Original entry, as booked:** READY 2026-08-14 — row 4's placement half has exactly ONE unexamined
+  **Original entry, as booked:** **READY 2026-08-14 — row 4's placement half has exactly ONE unexamined
   place left, and no export reaches it: what sits BETWEEN the host and the
   migrated standalone.** The byte half is characterized and closed as a
   question (matrix row 4, parked the same day: all 16 MISMATCH occurrences are
@@ -10822,7 +10820,7 @@ booked separately and is what catches an entry this clause let through.
 
 - **DONE 2026-08-14 (`4d29228`, `a828a74`, `2ae9d49`) — the reader owns the census export now, and the concurrent-lane seam it left was closed by the desk against a real export.** Dispatched to sonnet; the lane built the `censusExport` view family, `duplicate-billing` adopted it, and the sweep's KNOWN-OPEN inventory entry went in the same commit. It deliberately left `between`/`betweenTruncated` out and marked the seam, because the writer was still in flight on another lane; `2ae9d49` closes that join with both arms proven on the corpus-wide export. Two lane findings worth keeping: it fixed a latent ordering bug in `makeStrictView` (nested readers ran before optional defaults, so a field in both maps silently returned `undefined` instead of its declared default), and it had to rename `duplicate-billing`'s OWN output keys because the schema-scope sweep is a literal per-line regex — booked below.
   Original entry follows, kept as the record of what was asked.
-  **Original entry, as booked:** READY 2026-08-14 — `tools/logs.mjs` owns the RAW formats and has no view
+  **Original entry, as booked:** **READY 2026-08-14 — `tools/logs.mjs` owns the RAW formats and has no view
   for the DERIVED ones, so every consumer of a census export hand-reads
   capture-outcome field names by construction.** Surfaced the same day by the
   schema-scope sweep firing on `tools/duplicate-billing.mjs`, correctly:
@@ -10862,7 +10860,7 @@ booked separately and is what catches an entry this clause let through.
 
 - **DONE 2026-08-14 (`1eafb33`, `2428a18`) — the sweep writes its own evidence now, which is dev-loop question 2's recurring-producer clause discharged for this producer.** Dispatched to sonnet under the operator's same-day mandate; integrated after the desk re-ran the lane's five bites plus the five pre-existing boundary bites (30/30 green with the breakpoint lane). The lane spends the existing per-capture census run twice rather than spawning a second child, and writes one `census-rows-<UTC date>.json` per sweep. TWO ITEMS THE LANE RETURNED AS QUESTIONS ARE BOOKED SEPARATELY below: the prototype's three unbuildable fields, and the `/tmp` foreign red. NOT VERIFIED, in the lane's own words and not softened here: no real scheduled sweep has produced a document yet — the done-criterion is proven by construction and unit reconciliation, and the first live sweep is what closes it.
   Original entry follows, kept as the record of what was asked.
-  **Original entry, as booked:** READY 2026-08-14 (operator mandate, same day: "mandatory build under
+  **Original entry, as booked:** **READY 2026-08-14 (operator mandate, same day: "mandatory build under
   dev-loop question 2's recurring-producer clause, not a nice-to-have") —
   the byte-gate census stores COUNTS and the daily sweep keeps NONE of its
   rows, so every byte-gate finding expires with its capture.** The sweep runs
@@ -10912,7 +10910,7 @@ booked separately and is what catches an entry this clause let through.
 
 - **DONE 2026-08-14 (`5b24d0f`, `25aec58`) — `--by-conversation` ships, and the identity comes from the repo's own function.** Dispatched to sonnet, integrated after the desk re-ran the file (20/20). Default output proven byte-identical by `cmp` in three modes, not by reading. DEVIATION, accepted: the lane used `conversationSubKey` from `proxy/extensions/message-hash.mjs` rather than `replay.mjs`'s `conversationOf`, because this tool holds raw `body.messages` and `conversationOf` needs a compactEntry's `inHash` array — the brief's own named fallback, and the right call. That mismatch is booked as its own entry below. NOT VERIFIED: the live capture's real `nMessages=1` outlier was reproduced synthetically, not read from the capture — the lane's worktree could not reach the corpus.
   Original entry follows, kept as the record of what was asked.
-  **Original entry, as booked:** READY 2026-08-13 — `breakpoint-scan` does not group by CONVERSATION, so
+  **Original entry, as booked:** **READY 2026-08-13 — `breakpoint-scan` does not group by CONVERSATION, so
   every sequence it prints can silently interleave the main thread, its
   subagents and CC's sidecars.** Surfaced by the lane that built it, in its
   own honest-residue slot, not by a reviewer. It reports `sid`, which is the
@@ -11055,7 +11053,7 @@ booked separately and is what catches an entry this clause let through.
   `key` is the SESSION key and the event log's is the conversation SUB-key, so the two were
   matched on timestamp alone across a 3 ms gap, between records that need not share a
   conversation. Booked separately.
-  the next session's FIRST item) — the daily sweep has been RED at 14 of 48
+  **the next session's FIRST item) — the daily sweep has been RED at 14 of 48
   captures and the banner attributes it to the wrong thing.** Booked 2026-08-11 by
   the records-restructure session, which met it while reading `gate-status.json`
   for phase 3's wiring and is deliberately NOT walking it mid-directive.
@@ -13502,7 +13500,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   the same pass. Verifier, red-first: a bite with two blocks — a real
   SessionStart hook block (still normalized) and a prose block
   quoting the marker mid-sentence (must pass through untouched) —
-  red against today's implementation on the second. proxy/** so it is
+  red against today's implementation on the second. `proxy/**` so it is
   deployment-coupled; row 3 answer expected NO state key and no freeze
   change, to be stated by the implementation.
 
@@ -13902,7 +13900,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   pass/fail. This is persistence only.
 
 - **DONE 2026-08-05 (04ed3c9) — the canonical re-serve normalizes its
-  CONTAINER to the wire's current one (proxy/**, deployed).** Closed
+  CONTAINER to the wire's current one (`proxy/**`, deployed).** Closed
   2026-08-05 night. The closure is right — the work shipped as 04ed3c9 —
   but the ROUTE to it, as first written here, was not, and the correction
   matters more than the closure: this entry's own body cites NO commit ref.
@@ -13915,7 +13913,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   refused to build a check on the premise and halted instead of widening the
   entry boundary to make its known-positive fire — the right call, and the
   reason no `GRADE-VS-COMMIT` lane exists.
-  The design below is what shipped; it is kept for the evidence trail.** This is the
+  **The design below is what shipped; it is kept for the evidence trail.** This is the
   349k bust's actual fix and it is narrower than the row-24 message-
   level pin. Grounding, all measured today (matrix, Row 4 datapoint
   2026-08-05): `resetKeepingPins`/`findJoinMoves` substitute
@@ -13958,7 +13956,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   wire-consulting form the pin path already has.
   SEQUENCING against the narrow container normalisation item further
   down: they are the same mechanism seen from two sides (CC's flip vs
-  our stored flip) and both are proxy/**. First read of the code says
+  our stored flip) and both are `proxy/**`. First read of the code says
   they do NOT dissolve into one another and the sequencing note
   overstated it — this item fixes what WE re-serve (two lines,
   container-blind identity already in place), the row-24 item
@@ -15183,7 +15181,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   one claim under it that could be checked without the 441 MB capture WAS
   checked rather than transcribed: the denominator really is
   `Math.min(setA.size, setB.size)` (`tools/replay.mjs:1187`), which is the
-  mechanism the whole sizing consequence rests on. The two NUMBERS (0.60-0.98,
+  mechanism the whole sizing consequence rests on.** The two NUMBERS (0.60-0.98,
   251 records) are carried with their source and date — the `--bounded` lane's
   measurement — and are not independently reproduced here; reproducing them
   needs the capture, which is exactly the volatility that made stating the
@@ -16781,7 +16779,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   next sweep should be fully green). Builder's attribution
   correction on the record: its "second POST run" was the
   dispatcher's process seen via ps — POST stands on one run, PRE
-  on two. Extension half proxy/** — rides the shared restart
+  on two. Extension half `proxy/**` — rides the shared restart
   boundary. The build was: fresh-session-sort emits ctx.meta
   telemetry (relocated block types + first-appearance flag), and
   replay's stability check gains a telemetry-keyed
@@ -16791,7 +16789,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   flips to exempt-with-basis, gate fully green) + unit bite both
   ways (relocation without telemetry stays RED — the exemption
   must not fire on shape alone). SERIALIZED behind the row6-dup
-  dispatch on tools/replay.mjs; extension half is proxy/** — rides
+  dispatch on tools/replay.mjs; extension half is `proxy/**` — rides
   the shared next restart boundary (fourth rider).
 
 - **DONE 2026-07-30 — capture appends serialize per path**
@@ -16805,7 +16803,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   Builder finding, dispatcher-verified: jsonl-session-mirror rides
   proxy/session-mirror-writer.mjs's appendFileSync — synchronous,
   cannot self-interleave, correctly untouched. NOT YET SERVING:
-  proxy/** — rides the next restart boundary together with the
+  `proxy/**` — rides the next restart boundary together with the
   error-log gate flip (one boundary, one statement).
   Original entry: (settled
   2026-07-30; evidence: flap probe fact 4 — 5 pairs of torn ~1MB
@@ -16985,7 +16983,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   selection at all — its only mentions sit in the KNOWN-OPEN branch discussing an
   unrelated row-status bug. Established by a dispatched lane that read both files
   and HALTED rather than inventing a place to put the caveat.**
-  Original header: both event runbooks open on a tool measured unreliable for
+  Original header: **both event runbooks open on a tool measured unreliable for
   the exact event that enters them.** `docs/runbooks/sweep-finding.md` and
   `docs/runbooks/bust-appears.md` send a fresh context to `bust-triage` FIRST.
   Measured 2026-08-10: it selects the busting request by time proximity to the
@@ -17026,7 +17024,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   READY grade was wrong on its own body's evidence: parts (1) and (2) shipped
   (`7827c4e`, `b94d118`) and part (3) is a separate entry below. Kept as the
   record of what the instrument covers, per its own closing sentence.**
-  Original header: graduate the coverage walk into `tools/`: "is this content on the
+  Original header: **graduate the coverage walk into `tools/`: "is this content on the
   wire" must not be answered by a substring scan, and today every such answer
   is one.** Found 2026-08-07 by the conservation enumeration lane, reported
   against its own delivered result after its lane had closed.
@@ -17753,7 +17751,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   deviate to deliver anything (report §d D1).
   WIDENED 2026-08-01 (fixture-leak post-incident, operator GO): the
   preflight also flags a FIXTURE mapped into a slice without its
-  absence coverage — any test/fixtures/** file in a slice whose
+  absence coverage — any `test/fixtures/**` file in a slice whose
   absence scan (tools/absence-scan.mjs, extracted from
   harvest-scrub-relations §6) is not runnable in that slice = red,
   named. The dotfiles pre-push guard is the boundary backstop either
@@ -17821,7 +17819,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   guardRestores RAW = null by definition (answers our pipeline, not
   CC; suite-asserted so a future measure must argue with a test);
   oscillationAbsorptions has no ABSORBED source without an
-  extension-side field (proxy/** — rides a proxy boundary, never
+  extension-side field (`proxy/**` — rides a proxy boundary, never
   alone); blockMigrations/duplicates absorbed-null (no mitigation
   absorbs those classes); 4 single-request captures resolved
   ccVersions []; multi-day verdict wording fixture-tested only; 26h
@@ -17973,7 +17971,7 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   output-guard gains the assistant-terminal invariant (incoming
   ends non-assistant -> forwarded must too; restore + guard-event
   on violation — the live catch this class lacked); (3) replay the
-  three real failing sub-conversations pre/post. proxy/** — the
+  three real failing sub-conversations pre/post. `proxy/**` — the
   restart urgency is raised: the class actively breaks resumes.
   FIXED same day (e0f8fcb, sonnet, pushed after dispatcher
   verification: 83/83 + output-guard suite green; all THREE real
