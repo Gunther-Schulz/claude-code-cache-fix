@@ -16,10 +16,18 @@
 import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+// Namespace import — deliberate, matching test/gate-live-rowpins.test.mjs's
+// own precedent. The red-first arm of the bites below runs against a
+// tools/boundary-layers.mjs that does not yet export `captureIndexEntry` or
+// `CAPTURE_INDEX_KEYS`; a named import of a missing export fails the whole
+// module at ESM link time and reddens every OTHER test in this file too. A
+// namespace import only fails where the missing member is actually read, so
+// the real pass/fail split stays discriminating.
+import * as boundaryLayers from "../tools/boundary-layers.mjs";
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), "..");
 const TOOL = join(REPO, "tools", "boundary-layers.mjs");
@@ -216,4 +224,108 @@ test("CONTROL — a divergence PAST the last breakpoint does not break that span
   for (const sg of d.segments) {
     assert.equal(sg.intact, true, `no span should break on a pure append: ${sg.endsAt} broke on ${sg.broken}`);
   }
+});
+
+// --- scanCapture's index: SCALARS ONLY, never the parsed request record ----
+//
+// `scanCapture` visits every request in a capture earlier than the busting
+// one, to build the predecessor candidates above — a scan whose retained set
+// grows with the capture, not with the pair being priced. It used to push
+// `record: r` — the ENTIRE parsed request body — into each index entry.
+// `.record` was read nowhere in this file (`grep -n '\.record\b'` finds only
+// the field's own definition): dead retention that held the whole capture as
+// parsed JS for the life of the scan. Measured on the motivating capture
+// (3,023 request lines, largest line 2.8 MB): the unmodified tool died under
+// `--max-old-space-size=2048` (exit 134, heap out of memory); removing only
+// `record: r` made the identical run exit 0 with byte-identical output. Both
+// bites below pin that — the SHAPE of the index entry, and the resource
+// ceiling that shape buys.
+
+test("BITE — captureIndexEntry returns exactly the five closed keys, all scalars", () => {
+  const sample = {
+    ts: "2026-08-15T15:04:43.000Z",
+    id: "req-sample",
+    body: { model: "m", messages: [msg("head"), msg("e0")] },
+  };
+  const entry = boundaryLayers.captureIndexEntry(sample);
+  assert.deepEqual(
+    Object.keys(entry),
+    boundaryLayers.CAPTURE_INDEX_KEYS,
+    "the index entry must carry exactly the closed key list and nothing else — " +
+      "re-introducing `record: r` (or any other field) fails this half",
+  );
+  for (const k of boundaryLayers.CAPTURE_INDEX_KEYS) {
+    const v = entry[k];
+    assert.ok(
+      v === null || typeof v !== "object",
+      `${k} must be a primitive scalar, got ${typeof v} (${JSON.stringify(v)}) — ` +
+        "an object reference here is retention, not an index",
+    );
+  }
+});
+
+// Fixture generator for the resource-cap bite below. Sized by measurement
+// (recorded in the dispatch report, not guessed): 1,500 filler requests at
+// 200 kB of message text each (~300 MB on disk) reliably crash the
+// UNMODIFIED tool at a 192 MB heap cap and reliably run clean at 320 MB;
+// the fixed tool (scalars-only index) runs the same file clean at 192 MB.
+// The filler requests share nothing with the busting pair except being
+// earlier in time — `scanCapture` visits them regardless of conversation,
+// which is exactly the growth this bite exercises. The "before" record
+// shares `messages[0]` with "after" so `findPredecessor`'s stage 1 (exact
+// first-message identity — the same relation the BITEs above already
+// exercise) resolves a real pair and the run reaches JSON output on success.
+function bigFillerCapture(dir, n, bodyKB) {
+  const big = "x".repeat(bodyKB * 1024);
+  const bigMsg = (t) => ({ role: "user", content: [{ type: "text", text: `${big}-${t}` }] });
+  const base = Date.parse("2026-08-15T14:00:00.000Z");
+  const lines = [];
+  for (let i = 0; i < n; i++) {
+    const ts = new Date(base + i * 1000).toISOString();
+    lines.push(JSON.stringify(rec(ts, {
+      tools: [], system: [sys("s")], messages: [msg(`filler-head-${i}`), bigMsg(i), ...BODY],
+    })));
+  }
+  const predTs = new Date(base + n * 1000).toISOString();
+  lines.push(JSON.stringify(rec(predTs, { tools: [], system: [sys("s")], messages: [msg("head"), ...BODY] })));
+  const afterTs = new Date(base + n * 1000 + 10000).toISOString();
+  lines.push(JSON.stringify(rec(afterTs, { tools: [], system: [sys("s")], messages: [msg("head"), ...BODY] })));
+  const f = join(dir, "s-BL02-requests.jsonl");
+  writeFileSync(f, lines.join("\n") + "\n");
+  return { file: f, at: afterTs, predTs };
+}
+
+const HEAP_CAP_MB = 192;
+
+// A private TMPDIR for the spawned child, inside THIS test's own scratch —
+// the test/gate-live-rowpins.test.mjs precedent: a V8 heap-limit failure
+// calls abort() (SIGABRT) and runs no exit handlers, so anything the child
+// writes under TMPDIR survives it unless TMPDIR already points inside a
+// directory that dies with the parent process. boundary-layers.mjs itself
+// never calls tools/tmpdir.mjs (grep: zero hits) and neither does the
+// `findPredecessor` code path it drives, so this run is not expected to
+// leave anything behind either way — the private TMPDIR is precautionary
+// insurance against a future call site, not a containment claim asserted
+// here, since asserting "nothing appeared" where nothing CAN appear would
+// be a check that can never go red on the defect it names.
+function runCapped(file, atIso, capMB, tmpdirPath) {
+  return spawnSync(
+    process.execPath,
+    [`--max-old-space-size=${capMB}`, TOOL, "--capture", file, "--at", atIso, "--json"],
+    { cwd: REPO, encoding: "utf8", maxBuffer: 64 * 1024 * 1024, env: { ...process.env, TMPDIR: tmpdirPath } },
+  );
+}
+
+test("BITE — a heap-capped run over a large capture does not retain the whole file", () => {
+  const dir = tmpDirSync("bl-oom-");
+  const { file, at, predTs } = bigFillerCapture(dir, 1500, 200);
+  const res = runCapped(file, at, HEAP_CAP_MB, dir);
+  assert.equal(
+    res.status,
+    0,
+    `expected a clean exit under a ${HEAP_CAP_MB} MB heap cap; got status=${res.status} signal=${res.signal}\n` +
+      `stderr tail: ${(res.stderr ?? "").slice(-500)}`,
+  );
+  const parsed = JSON.parse(res.stdout);
+  assert.equal(parsed.before.ts, predTs, "the real near-predecessor must still be the one resolved, not a filler");
 });
