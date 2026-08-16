@@ -3630,6 +3630,48 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-15 — the ledger and CC's own diagnostics disagree about the
+  919k event's cause, and it is DELIBERATELY not silenced.** `bust-triage`'s
+  reconcile step warns `LEDGER says "no-prefix", TRANSCRIPT says
+  "system_changed"`. Investigated rather than left as a standing warning, and
+  the outcome is a could-not-verify with its missing evidence named.
+  **Same request, established rather than assumed:** both instruments join on
+  `cache_creation_input_tokens = 919402`, so they describe one event. The
+  ledger record reads `cause:"no-prefix"`, `mtok:0`, `pblk:[]`, `gap:186`; the
+  transcript's `cache_miss_reason` reads `system_changed` with
+  `cache_missed_input_tokens: 737747`.
+  **Why no equivalence entry was added.** `bust-triage` already carries a table
+  of ledger/transcript pairs that NAME THE SAME EVENT in different vocabularies
+  (`idle` <-> `previous_message_not_found`), added because the check had fired
+  on a non-defect. `no-prefix` <-> `system_changed` is a candidate for that
+  table and **n=1**: `grep -c '"cause":"no-prefix"'` over the whole ledger
+  returns exactly ONE record, this event, out of 4,158 cold events. An
+  equivalence silences the warning permanently for that pair, so minting one
+  from a single instance would be softening a check to make a red go away —
+  the repair the standing rules forbid.
+  **The half that argues it is a real defect, not a vocabulary difference:**
+  the ledger populates `mtok` on 77 of 4,158 events and `pblk` on 71, so those
+  fields are readable in general; here the ledger recorded 0 while the number
+  sat in the transcript. That is consistent with the ledger's cause ladder
+  failing to read a diagnostic it could have read.
+  **Consequence, and it is the operator-facing half:** `causeToRow` maps
+  `system_changed` to row 24 and has no mapping for `no-prefix`, and the ❄
+  statusline the operator reads and reports from is fed by the LEDGER. So a
+  hand-reported bust of this class arrives carrying a cause that maps to no
+  matrix row — the step-0 resolution problem `runbooks/bust-appears.md`
+  already names, with a new way in.
+  MISSING EVIDENCE, named: a SECOND `no-prefix` instance with its transcript
+  cause, or claude-worktime's cause-ladder source read directly to establish
+  whether `no-prefix` is a positive determination or a degraded default like
+  `other`. Either settles equivalence-vs-defect; neither is shoppable for.
+  Realizing write-boundary is claude-worktime (a sibling repo), not this one —
+  `bust-triage`'s own behaviour is already correct: it prefers the transcript
+  cause and flags the disagreement rather than acting on the ledger's.
+  Anchor: row 24
+  Write-set: (cross-repo) claude-worktime cause ladder; tools/bust-triage.mjs only if an equivalence is ever justified
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-reconcile.test.mjs
+  <!-- entry: "ledger no-prefix disagrees with transcript system_changed, n=1" -->
+
 - **RECORD 2026-08-15 — the census cannot say whether a message divergence is a
   LOCAL EDIT, a SHIFT or a REBUILD, so every boundary walk re-derives it by
   hand.** Closing-gate question 3, answered YES by having hand-classified it:
