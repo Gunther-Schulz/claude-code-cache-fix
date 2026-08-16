@@ -2504,9 +2504,12 @@ test("lintReadyCap: RED-FIRST against the two immutable refs where the cap was d
 
   const atCap = lint.lintReadyCap(atCapText);
   const overCap = lint.lintReadyCap(overCapText);
-  assert.deepEqual(atCap, { count: 10, cap: 10, over: 0 }, `${READY_CAP_AT_CAP_REF} sits exactly at the cap`);
+  // `under` joined the shape 2026-08-16 (the drained-head direction); both of
+  // these historical refs sit at or above the cap, so both carry under: 0.
+  assert.deepEqual(atCap, { count: 10, cap: 10, over: 0, under: 0 },
+    `${READY_CAP_AT_CAP_REF} sits exactly at the cap`);
   assert.deepEqual(
-    overCap, { count: 11, cap: 10, over: 1 },
+    overCap, { count: 11, cap: 10, over: 1, under: 0 },
     `${READY_CAP_FIRST_BREACH_REF} is the first breach, one over`,
   );
   assert.notDeepEqual(
@@ -2527,31 +2530,132 @@ test("lintReadyCap: RED-FIRST against the two immutable refs where the cap was d
   assert.match(overRun.out, /^backlog-ready-cap: 11 READY in ## Open against cap 10 — BLOCKING$/m);
 });
 
+// Rewrites the LIVE backlog to hold exactly `n` READY entries in `## Open`,
+// by adding synthetic ones or by demoting real headers to RECORD. Both arms of
+// the under-full pair are built through this, so neither carries a claim about
+// how big the head happens to be today -- the premise that took the whole suite
+// red on 2026-08-16 when a closure drained the head to nine.
+function withReadyCount(live, n) {
+  const cur = lint.lintReadyCap(live).count;
+  const openAt = live.indexOf("\n## Open");
+  assert.ok(openAt > 0, "## Open must exist for these arms to be constructed");
+  if (cur === n) return live;
+  if (cur < n) {
+    const bodyAt = live.indexOf("\n", openAt + 1) + 1;
+    const extra = Array.from({ length: n - cur }, (_, i) =>
+      `- **READY 2026-08-15 — synthetic entry ${i + 1}, this test only.**\n` +
+      "  Anchor: BACKLOG.md\n  Write-set: BACKLOG.md\n  Verifier: node tools/backlog-lint.mjs\n\n",
+    ).join("");
+    return live.slice(0, bodyAt) + "\n" + extra + live.slice(bodyAt);
+  }
+  // Demote from the END of `## Open`, so the head's own leading entries -- the
+  // ones every other lane's line numbers are read against -- keep their grade.
+  let out = live;
+  let toDemote = cur - n;
+  const marker = "\n- **READY ";
+  while (toDemote > 0) {
+    const at = out.lastIndexOf(marker);
+    assert.ok(at > openAt, "ran out of READY headers to demote");
+    out = out.slice(0, at) + "\n- **RECORD " + out.slice(at + marker.length);
+    toDemote--;
+  }
+  return out;
+}
+
+test("lintReadyCap: reports BOTH directions -- `under` is not derivable from `over`", () => {
+  const live = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const cap = lint.lintReadyCap(live).cap;
+
+  const atCap = lint.lintReadyCap(withReadyCount(live, cap));
+  const underOne = lint.lintReadyCap(withReadyCount(live, cap - 1));
+  const overOne = lint.lintReadyCap(withReadyCount(live, cap + 1));
+
+  assert.deepEqual(atCap, { count: cap, cap, over: 0, under: 0 });
+  assert.deepEqual(underOne, { count: cap - 1, cap, over: 0, under: 1 });
+  assert.deepEqual(overOne, { count: cap + 1, cap, over: 1, under: 0 });
+
+  // The discriminator the entry named: `over` is 0 on BOTH of the first two,
+  // so a lane reading only `over` cannot tell a full head from a drained one.
+  assert.equal(atCap.over, underOne.over, "arrange: `over` does not separate these two");
+  assert.notEqual(atCap.under, underOne.under, "`under` must -- otherwise it adds nothing");
+});
+
+test("lintReadyCap: the UNDER-FULL line prints at cap-1, is absent at cap, and never changes the exit code", () => {
+  const live = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const cap = lint.lintReadyCap(live).cap;
+  const UNDER = /^backlog-ready-cap: (\d+)\/(\d+) — head UNDER-FULL, promote from ## Record$/m;
+
+  const full = runTool(["-"], withReadyCount(live, cap));
+  assert.match(full.out, new RegExp(`^backlog-ready-cap: clean \\(${cap}/${cap}\\)$`, "m"));
+  assert.doesNotMatch(full.out, UNDER, "a head AT its cap is not under-full");
+
+  const drained = runTool(["-"], withReadyCount(live, cap - 1));
+  assert.match(drained.out, new RegExp(`^backlog-ready-cap: clean \\(${cap - 1}/${cap}\\)$`, "m"),
+    "the clean line stays -- the under line is an ADDITIONAL prompt, not a replacement");
+  const m = drained.out.match(UNDER);
+  assert.ok(m, "a drained head must say so, or `## Record` has no route back");
+  assert.deepEqual([m[1], m[2]], [String(cap - 1), String(cap)], "the line names the real numbers");
+
+  // REPORT-only in this direction, on purpose: blocking here would fire every
+  // time work closes, which is the check-that-fires-on-a-non-defect shape.
+  assert.equal(drained.code, 0, "under-full must not block");
+  assert.equal(full.code, 0, "at cap must not block either");
+});
+
 test("lintReadyCap: the cap lane BLOCKS -- exit code pinned on a pair where no other blocking lane fires", () => {
   // Promoted from REPORT to BLOCKING 2026-08-15, in the commit that brought
   // the head back to ten. The discriminator: the LIVE BACKLOG.md, which the
   // closure-duplicate lane reports clean, so any non-zero exit here is this
   // lane's. Both arms are the same real file; only the READY count differs.
+  //
+  // PREMISE PINNED 2026-08-16, after this test blocked a push for the one
+  // thing the backlog exists to do. It used to hardcode `clean (10/10)` and
+  // build its red arm by adding exactly ONE entry -- both of which are claims
+  // about the LIVE head's size at the moment the test happens to run. Closing
+  // a READY entry took the head to nine, the hardcoded line stopped matching,
+  // and the suite went red on a correct closure: a guard firing on legitimate
+  // work, which is how a guard trains the override reflex that kills it.
+  // The count is now MEASURED from the same file both arms are built from, and
+  // the red arm is sized to land exactly one over the cap from wherever the
+  // head actually sits. What the test asserts is unchanged -- at-or-under the
+  // cap exits 0, one over BLOCKS and exits 1, and the two must differ.
   const live = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const { count: liveCount, cap } = lint.lintReadyCap(live);
+
+  // Not a precondition dressed as an assumption: a live head ALREADY over the
+  // cap is a real finding about the backlog, and the cap lane is the thing
+  // that should say so. Failing here names it instead of silently rebuilding
+  // both arms around a breach.
+  assert.ok(liveCount <= cap,
+    `the live head is over its own cap (${liveCount}/${cap}) -- that is the backlog's finding, not this test's`);
 
   const clean = runTool(["-"], live);
   assert.match(clean.out, /^backlog-closure-duplicate: clean$/m,
     "precondition: the other blocking lane must be clean, or this pair proves nothing");
-  assert.match(clean.out, /^backlog-ready-cap: clean \(10\/10\)$/m);
-  assert.equal(clean.code, 0, "at the cap, the tool exits 0");
+  assert.match(clean.out, new RegExp(`^backlog-ready-cap: clean \\(${liveCount}/${cap}\\)$`, "m"));
+  assert.equal(clean.code, 0, "at or under the cap, the tool exits 0");
 
-  // One extra READY entry in `## Open` -- the only difference between the arms.
+  // Enough synthetic entries in `## Open` to land exactly ONE over the cap --
+  // the only difference between the arms. One-over is the boundary the lane's
+  // predicate turns on, so the arm has to be built from the measured count
+  // rather than from a remembered one.
   const openAt = live.indexOf("\n## Open");
   assert.ok(openAt > 0, "## Open must exist for this arm to be constructed");
   const bodyAt = live.indexOf("\n", openAt + 1) + 1;
-  const extra = '- **READY 2026-08-15 — synthetic eleventh entry, this test only.**\n' +
-    "  Anchor: BACKLOG.md\n  Write-set: BACKLOG.md\n  Verifier: node tools/backlog-lint.mjs\n\n";
+  const needed = cap - liveCount + 1;
+  const extra = Array.from({ length: needed }, (_, i) =>
+    `- **READY 2026-08-15 — synthetic entry ${i + 1} of ${needed}, this test only.**\n` +
+    "  Anchor: BACKLOG.md\n  Write-set: BACKLOG.md\n  Verifier: node tools/backlog-lint.mjs\n\n",
+  ).join("");
   const over = live.slice(0, bodyAt) + "\n" + extra + live.slice(bodyAt);
 
   const red = runTool(["-"], over);
   assert.match(red.out, /^backlog-closure-duplicate: clean$/m,
-    "the added entry must not disturb the other blocking lane");
-  assert.match(red.out, /^backlog-ready-cap: 11 READY in ## Open against cap 10 — BLOCKING$/m);
+    "the added entries must not disturb the other blocking lane");
+  assert.match(
+    red.out,
+    new RegExp(`^backlog-ready-cap: ${cap + 1} READY in ## Open against cap ${cap} — BLOCKING$`, "m"),
+  );
   assert.equal(red.code, 1, "one over the cap must BLOCK -- printing BLOCKING and exiting 0 is the defect this pins");
 
   assert.notEqual(clean.code, red.code,

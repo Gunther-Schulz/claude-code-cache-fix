@@ -1995,22 +1995,41 @@ function formatReadyOutsideOpenFinding(f) {
 // `censusOpenSection` (both already shared by the premise-true lane above)
 // rather than restating either.
 //
-// REPORT-only, deliberately, and this is NOT the print-BLOCK-and-exit-zero
-// defect the closure-duplicate lane's own comment warns about: the line
-// below says "REPORT only" and means it — the exit code is untouched by
-// this lane. Rationale: READY is legitimately over cap pending a head
-// re-derivation that has not happened yet (`docs/dev-loop.md`, "Build order
-// is DERIVED at build time"), so a blocking lane here would block every
-// push for a condition nobody has had the chance to fix. Promotion to
-// blocking belongs with the re-derivation commit that brings the count back
-// under cap, not with this lane's addition.
+// CORRECTED 2026-08-16 — this comment said "REPORT-only, deliberately … the
+// exit code is untouched by this lane" and had been FALSE since 2026-08-15,
+// when the OVER direction was promoted to BLOCKING in the commit that brought
+// the head back to ten. `over` drives the tool's exit code (the return at the
+// bottom of the default run), and a bite pins exactly that. The stale sentence
+// is the mechanism's own words about itself outliving its body — the label
+// stands, the predicate moved, and the assurance reads as the predicate's
+// reach to whoever reads it next. The original rationale is kept below as the
+// history it is, not as a description of what runs.
+//
+// HISTORICAL rationale for the REPORT-only period: READY was legitimately over
+// cap pending a head re-derivation that had not happened yet
+// (`docs/dev-loop.md`, "Build order is DERIVED at build time"), so blocking
+// then would have blocked every push for a condition nobody had had the chance
+// to fix. Promotion came with the re-derivation commit, as planned.
+//
+// TWO DIRECTIONS since 2026-08-16, and they are deliberately asymmetric.
+// OVER-fill BLOCKS: the head is a cap the repo chose, and exceeding it is a
+// state someone can fix before pushing. UNDER-fill REPORTS and never blocks:
+// a drained head is what closing work looks like, so blocking on it would fire
+// on the one thing the backlog exists to do — the check-that-fires-on-a-
+// non-defect shape, which trains the override reflex that kills a guard. The
+// under line exists because the three-grade design (2026-08-11) moved
+// everything unscheduled into `## Record`, whose ONLY route back is a head
+// re-derivation that nothing triggers: the cap made over-fill impossible and
+// left under-fill invisible, converting the head from a queue into a fixed
+// set. The `clean` line is printed in BOTH directions; the under line is an
+// ADDITIONAL prompt beside it, never a replacement.
 
 export function lintReadyCap(text, cap = 10) {
   const section = censusOpenSection(text);
   const count = section
     ? splitEntries(section.body).filter((e) => READY_HEADER.test(e.header)).length
     : 0;
-  return { count, cap, over: Math.max(0, count - cap) };
+  return { count, cap, over: Math.max(0, count - cap), under: Math.max(0, cap - count) };
 }
 
 // ==========================================================================
@@ -2286,6 +2305,11 @@ function main(argv) {
       ? `backlog-ready-cap: ${readyCap.count} READY in ## Open against cap ${readyCap.cap} — BLOCKING\n`
       : `backlog-ready-cap: clean (${readyCap.count}/${readyCap.cap})\n`,
   );
+  if (readyCap.under) {
+    process.stdout.write(
+      `backlog-ready-cap: ${readyCap.count}/${readyCap.cap} — head UNDER-FULL, promote from ## Record\n`,
+    );
+  }
 
   // Surfaces the closures-in-live census (defined above, `--closures-in-live`
   // flag) in the DEFAULT run too — the flag path stays untouched, and this
