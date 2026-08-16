@@ -259,11 +259,111 @@ comment and new issue.
 
 ## Open
 
-- **READY 2026-08-15 (MITIGATE stage) — a resume-tolerant state key: the
+- **PARKED 2026-08-16 (was READY; MITIGATE stage) — a resume-tolerant state key: the
   LINCHPIN that gates every four-layer resume absorption, and the reason the
   tools mitigation we already ship is disarmed at exactly the request that
   needs it.** Booked because matrix row 24 had NO mitigation entry at all,
   which the bust runbook says is itself booked before a walk closes.
+  **RE-GRADED READY -> PARKED 2026-08-16 by an opus fresh-context review of the
+  built change (4 unpushed commits, `838e064..1d0bfe2`). The implementation is
+  NOT the problem to fix; the entry stopped being decision-complete.** Named
+  missing pieces, both of which must land before this is dispatchable again:
+  (1) an OPERATOR SCOPE DECISION — see finding 4 below; (2) a re-derived design,
+  because the mechanism as specified has a production cost nobody priced
+  (finding 6). Ten findings, every one demonstrated by executing the real
+  extension, not by reading it. Two BLOCKING:
+  **F1 (BLOCKING) — the feature is INERT in the configuration that serves.**
+  The unit and `/health` both carry `CACHE_FIX_VOLATILE_PIN=1` (verified at the
+  desk, DECLARED and RUNNING agree). In pin mode stored canonicals hold
+  `computePinnedIdentities` hashes whose user-role entries carry a `"v:"`
+  prefix BY CONSTRUCTION — deliberately disjoint from the plain ones
+  (`:541-545`, "never a silent partial mismatch"). `:2105` passes
+  `computeIdentities(messages)` unconditionally while `mode` is in scope on the
+  same line. Measured at the real CC ratio (every `tool_result` is a user
+  message, so 2 user : 1 assistant): shipped comparand overlap 0.333 /
+  coverage 0.333, correct comparand 1.000 / 1.000. Every real conversation
+  sits under the 0.5 floor. One-line diagnosis AND fix:
+  `pin ? computePinnedIdentities(messages) : computeIdentities(messages)`.
+  **F2 (BLOCKING) — once F1 is fixed, the third read serves one conversation's
+  bytes into another.** `findLineageRecovery` matches on `s-<sid>-` alone,
+  crossing the system-prompt sub-key that row 14 exists because co-tenants
+  under one session id were overwriting each other. Demonstrated in pin mode:
+  conversation B's outgoing body carried NINE messages of conversation A's
+  content and none of its own; the without-the-change control carried B's
+  correctly. **F1 currently MASKS F2 — fixing F1 alone arms F2 at full
+  strength; they land together or not at all.**
+  **F3 (HIGH) — recency picks a newer co-tenant.** The coverage floor closes
+  the SHORT co-tenant hole and does nothing about a LONG one: a fork/subagent
+  canonical that is a 41-message superset (newer) beats the main thread's own
+  40-message predecessor. `subagent_type: "fork"` inherits the parent's full
+  context, so the harness produces this shape routinely.
+  **F4 (HIGH) — THE DONE-CRITERION IS UNREACHABLE FROM THE DECIDED WRITE
+  BOUNDARY, and this is the operator decision.** The stated payoff is
+  `deferred-tool-rewrite` reporting `description-absorbed`/`rewrite` — layer 1,
+  the 38.9 kB first span. That extension keeps its OWN state file
+  (`deferred-tool-rewrite.mjs:205`) and its OWN two-key read (`:698-726`), both
+  keyed on `conversationSubKey` and both rotating at the same boundary, and it
+  has no third read. So this change satisfies the design paragraph and CANNOT
+  satisfy the done-criterion. Desk recommendation, for the operator:
+  NARROW the criterion to "the canonical resolves" and book the tools-layer
+  third read as its OWN entry — two extensions, two state files, and bundling
+  them doubles a lane that has already failed twice.
+  **F5 (MEDIUM-HIGH) — the `sameLineage` gate at `:401` can never fire.**
+  `lineageCoverage` divides by max, `lineageOverlap` by min, both floors 0.5;
+  since min <= max, coverage >= 0.5 IMPLIES overlap >= 0.5. Verified
+  arithmetically at the desk and by deleting the line (all 7 bites stay green).
+  The documented two-gate design is one live gate — and a later lowering of the
+  coverage floor would silently leave the dead gate as the only guard, i.e. the
+  short-sidecar hole reopening. This one is the dispatcher's own design defect,
+  introduced by the coverage floor.
+  **F6 (MEDIUM) — unbounded synchronous scan in the LIVE request path.**
+  Measured at real scale (desk-verified: 11,169 canonical files, 626 MB, the
+  busiest sid holding 649, largest file 1.19 MB): the scan `readFile`s and
+  `JSON.parse`s EVERY prefix-matching candidate and only afterwards `stat`s it,
+  so the mtime it selects on never skips work. End-to-end `onRequest` at 649
+  candidates: **150 ms with the third read vs 2 ms without**, blocking the event
+  loop of a proxy fronting every session on this machine. It fires on the first
+  request of every new conversation under that sid, every subagent, and every
+  sidecar. This is what makes the mechanism itself suspect rather than the code:
+  a lineage INDEX written at save time would make recovery one small read.
+  **F7 (MEDIUM) — the new gate-live counter reports a clean zero over an
+  unscanned population.** `gate-live.mjs:1879-1884` gates `hits` on
+  `filesScanned` (both suffixes) while the signal appears only in
+  insertion-events files; `insertionScanned` is already computed and unused.
+  The sibling four lines above does it right. `grep -rn d1LineageRecovered
+  test/` -> 0: a counter that never counts would ship green.
+  **F8 (MEDIUM) — compaction-shaped input is admitted**, against this entry's
+  own sibling enumeration, which says the safety argument reaches resume and
+  explicitly does NOT reach compaction. Demonstrated admitted at overlap 0.955 /
+  coverage 0.55; only arithmetic keeps large-canonical compactions out, by
+  accident of size.
+  **F9 (LOW-MED) — the floor is nearly free for short arrays**: two 2-message
+  conversations sharing ONE message admit at exactly 0.500.
+  **F10 (LOW) — nondeterministic tie-break**: `:410` uses strict `>`, and
+  `readdir` is unsorted, so equal mtimes make "whose baseline is served" a
+  filesystem-order outcome.
+  **UNTESTED INPUT CLASSES, named so the next round does not re-derive them:**
+  pin mode; `sid` null (the header-less `c-` path returns early, so direct-API
+  traffic never recovers); sids that sanitize to the same string; unreadable
+  dir; corrupt/truncated candidate JSON; `mode` mismatch; `entries: []`;
+  entries carrying `d` (dropped) flags — these INFLATE the max-normalized
+  denominator and can push a true long-lived predecessor UNDER the floor, a
+  false negative created by the dispatcher's own coverage design; entries
+  missing `h` (they enter the Set as `undefined` and can match another
+  malformed candidate); 1- and 2-message arrays; capture-scale (~1,400)
+  arrays; coverage exactly 0.5; identical candidates under different keys;
+  equal mtimes; `stat` failing between load and stat; any candidate count
+  above 2.
+  **THE FORM IS WHAT FAILED, not the individual fixes — read this before
+  opening another repair lap.** Round 1: 7 bites green, suite green, and a desk
+  probe found a blocking defect. Round 2: fixed, 7 bites green, suite green,
+  desk probe green — and a fresh review found ten more including two blocking.
+  Both rounds' green came from checks that never exercised the SERVING config
+  (`grep -c VOLATILE_PIN` over the new test file: 0), and the corrections
+  concentrate in the newest round's own changes. A third lap in the same shape
+  reproduces the class. The harness fix below comes FIRST.
+  **The 4 commits stay UNPUSHED and are not lost** — pushing them arms an
+  unplanned deployment on any restart, since the unit runs this clone.
   MEASURED 2026-08-15 on capture s-captureBR (919,402 cache_creation,
   15:07:49Z, opus, resumed 2m27s after the previous request, cache
   demonstrably hot at 913,341 read on the preceding call).
@@ -418,6 +518,49 @@ comment and new issue.
   Write-set: proxy/extensions/insertion-normalization.mjs, test/insertion-lineage-recovery.test.mjs
   Verifier: node --test --import ./tools/suite-config-root.mjs test/insertion-lineage-recovery.test.mjs
   <!-- entry: "resume-tolerant state key gates four-layer resume absorption" -->
+
+- **READY 2026-08-16 (takes the slot the resume-key entry vacated on being
+  parked) — a test that exercises a GATED extension without setting its gate is
+  green about a pipeline nobody runs, and nothing checks that.** Measured today,
+  twice over, on the resume-key lane: `grep -c VOLATILE_PIN
+  test/insertion-lineage-recovery.test.mjs` returns **0**, so all seven of its
+  bites — plus the dispatcher's own desk probe — ran in plain mode while the
+  serving unit and `/health` both carry `CACHE_FIX_VOLATILE_PIN=1`. The feature
+  under test is INERT in pin mode (that entry's F1), and every check passed
+  anyway. `docs/dev-loop.md` already has the section for this class
+  ("Replay the configuration that is SERVING, not the defaults", whose own
+  conclusion is that such a green "is worse than no verdict because it reads
+  like one") — it was written about `gate-live` and the SUITE has the identical
+  hole.
+  **This is a guard, not new machinery, and that is what makes it cheap:** the
+  convention already exists and is already followed —
+  `test/insertion-normalization.test.mjs`, `insertion-suppression`,
+  `absorption-miss`, `relocate-then-pin-conservation`, `replay-class-matrix` and
+  `mitigation-output-form` all set `CACHE_FIX_VOLATILE_PIN` themselves. Six
+  files honour it, the seventh did not, and nothing noticed.
+  **Design, decided.** A lint in `tools/` (a repo-owned check, per the file
+  roles) that: (1) DERIVES the gate set each extension reads, by scanning
+  `proxy/extensions/*.mjs` for `CACHE_FIX_[A-Z_]+` rather than restating a
+  hardcoded list — a restated basis cannot age loudly and would stay green the
+  day a new gate is added; (2) enumerates test files importing each extension;
+  (3) fails any test file that imports a gated extension without setting that
+  extension's gates anywhere in the file; (4) carries a DECLARED exemption list
+  in data the lint itself verifies — `{path, gates, reason}` — never a softened
+  predicate, since some tests legitimately exercise the OFF path.
+  **Instrument-positive, named so a zero is a measurement:**
+  `test/insertion-lineage-recovery.test.mjs` is a known positive TODAY — the
+  lint must fire on it before the resume-key lane is repaired, and that firing
+  is the red-first proof. The known negative is
+  `test/insertion-normalization.test.mjs`, which must stay green.
+  **Why this outranks resuming the mitigation:** the mitigation's last two
+  rounds were both certified by checks that could not see the serving config,
+  so no third round is trustworthy until this exists. Ordering constraint, not
+  a preference.
+  Loop stage: VERIFY. Anchor: n/a (harness)
+  Write-set: tools/serving-gate-lint.mjs (new), test/serving-gate-lint.test.mjs (new)
+  Verifier: node tools/serving-gate-lint.mjs — must FIRE on test/insertion-lineage-recovery.test.mjs today and stay silent on test/insertion-normalization.test.mjs
+  Done-criterion: the lint is red on the known positive before any repair lands, green after that file exercises pin mode, and the exemption list is verified by the lint itself
+  <!-- entry: "a test exercising a gated extension without its gate is green about a pipeline nobody runs" -->
 
 - **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
   the running pipeline uses, so its name promises an eviction it does not
