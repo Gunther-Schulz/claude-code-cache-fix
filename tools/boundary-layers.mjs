@@ -46,6 +46,7 @@
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 import { dataPath } from "../proxy/xdg-dirs.mjs";
 import { readLines } from "./read-lines.mjs";
@@ -454,20 +455,38 @@ function alignMessages(hBefore, hAfter, divIdx, window = 40) {
 // Predecessor candidates — reported side by side, never collapsed to one
 // ---------------------------------------------------------------------------
 
+// The capture index — SCALARS ONLY, closed set. `scanCapture` visits every
+// request earlier than the busting one to build the predecessor candidates,
+// so its retained set grows with the CAPTURE, not with the pair being
+// priced (the capture-scale, not pair-scale, cost this repo has already paid
+// for three times — dev-loop.md, "Streams" is a claim about a mechanism).
+// One object reference held per entry — `record: r`, present until
+// 2026-08-16 and read nowhere in this file — retains the WHOLE FILE as
+// parsed JS for the life of the scan: measured on the motivating capture
+// (3,023 request lines, largest line 2.8 MB), the tool with `record: r`
+// died under `--max-old-space-size=2048` (exit 134); without it, the
+// identical run exited 0 with byte-identical output. Extend this list only
+// for a field a caller actually reads — anything else is the same leak in a
+// new field.
+export const CAPTURE_INDEX_KEYS = ["ts", "id", "model", "msgs", "cid"];
+
+export function captureIndexEntry(r) {
+  return {
+    ts: r.ts,
+    id: r.id,
+    model: r.body.model,
+    msgs: r.body.messages.length,
+    cid: conversationSubKey(r.body.messages),
+  };
+}
+
 async function scanCapture(file, afterTs) {
   const out = [];
   for await (const line of readLines(file)) {
     const r = j(line);
     if (!isRequest(r)) continue;
     if (afterTs && Date.parse(r.ts) >= afterTs) continue;
-    out.push({
-      ts: r.ts,
-      id: r.id,
-      model: r.body.model,
-      msgs: r.body.messages.length,
-      cid: conversationSubKey(r.body.messages),
-      record: r,
-    });
+    out.push(captureIndexEntry(r));
   }
   return out;
 }
@@ -761,7 +780,14 @@ async function main() {
   console.log("  numbers are advisory\"). Read the SEGMENT lines for what would actually be billed.");
 }
 
-main().catch((e) => {
-  console.error(`boundary-layers: ${e.message}`);
-  process.exit(2);
-});
+// Guarded the same way gate-live.mjs and replay.mjs guard their own main():
+// an unconditional call runs on every `import`, not only on direct
+// invocation, and a test that imports this module for its exported
+// functions (captureIndexEntry, CAPTURE_INDEX_KEYS) would otherwise trigger
+// a full CLI run against the test runner's own argv and process.exit(2).
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main().catch((e) => {
+    console.error(`boundary-layers: ${e.message}`);
+    process.exit(2);
+  });
+}
