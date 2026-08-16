@@ -2038,6 +2038,40 @@ Two rules, both learned the expensive way:
    above. Any existential quantifier in the rule under test makes every extra
    candidate in the fixture a way for the bite to pass for the wrong reason.
 
+   **A NEGATIVE bite proves its boundary only for the members it SEEDS, and
+   the members it omits are the ones nobody thought of — so the population is
+   DERIVED from the writers, never listed by hand.** A positive bite announces
+   its own reach: it names the thing it catches. A boundary bite ("X never
+   touches Y") makes a claim quantified over a whole class while exercising
+   whichever members its author happened to enumerate, and it goes green on the
+   day the class gains one. Nothing about the run says so — the assertion holds,
+   the count is right, and the name reads as the claim.
+   Measured 2026-08-16, and the instrument and the prose failed together:
+   `sweepSnapshotDir`'s boundary bite was named "NEVER touches the fork's own
+   live state, however old" and seeded `-canon.json` / `-relocated.json` /
+   `-rungs.json` — the three co-tenant families the scope regex never matched.
+   Green throughout, while the same regex was claiming 13,699 files belonging to
+   three OTHER co-tenants, whose `-<family>-events.jsonl` names it did match.
+   The site comment made the identical error one register up, asserting the
+   correct behaviour as settled design ("do NOT widen SNAPSHOT_FILE_RE to reach
+   them") while the code already reached them. Name and assurance both read as
+   coverage, which is precisely what stops anyone looking — the author first.
+   **The repair is the derived population, and its reach is measurably wider
+   than any list.** The replacement bite asks the extension SOURCES which
+   per-session artifact names they write and asserts the scope pattern matches
+   none of them. It immediately named a family no directory-derived method could
+   have found: `output-guard`'s `<key>-guard-events.jsonl`, a live writer inside
+   the blast radius with ZERO files on disk that day. A hand-listed population,
+   or one read off the directory, is a comparison basis restated from the data
+   it grades — it cannot age loudly, and both of this incident's independent
+   hand-measurements missed that member by construction.
+   Two things follow for any boundary bite. Derive the population from the
+   producers rather than from a listing or from today's disk contents; and give
+   the scan an INSTRUMENT-POSITIVE (assert it finds the writers already known),
+   because a derivation that silently matched nothing satisfies the boundary
+   assertion vacuously — the zero-hit search read as absence, arriving inside
+   the very check built to prevent it.
+
    **A bite's expected value comes from the invariant's DEFINITION, never
    from the implementation or the reasoning that produced it** — an
    expectation with the same parentage as the code pins the bug it should
