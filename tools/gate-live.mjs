@@ -598,6 +598,13 @@ function projectDuplicateRow(r, captureToken) {
     lastLine: r?.lastLine ?? null,
     length: r?.length ?? null,
     billed: r?.billed ?? null,
+    // `coalesced` is the field that PROVES the mitigation acted on this
+    // streak, and the projection used to drop it while keeping `billed` —
+    // so a retained row could not tell a send the coalescer suppressed from
+    // a retry that was simply never answered. Both render as `billed: 1` on
+    // a 2-member streak. Row 31's whole done-criterion is about that
+    // difference (added 2026-08-16).
+    coalesced: r?.coalesced ?? 0,
     membersWithoutId: r?.noId ?? 0,
     intervalMs: r?.intervalMs ?? null,
     family: streakFamily(r?.startLine),
@@ -2367,6 +2374,18 @@ async function main() {
     // reads by key, so an older line simply has no bytes to report.
     savedBytes,
     leakedBytes,
+    // The duplicate rollup, per run, because the STATUS FILE is overwritten
+    // every sweep and nothing else retained these counters: row 31's effect
+    // question ("did the session-start double-billing fall?") could only ever
+    // be answered about the morning it was asked. That is closing-gate
+    // question 2's recurring-producer clause failing on a live mechanism — a
+    // producer that finds something every day and writes down none of it.
+    // Measured 2026-08-16: the fire ledger's 41 lines carried captures and
+    // ccVersions and no duplicate block at all, while two runs of the same day
+    // reported 24 and then 10 double-billed streaks with no way to compare
+    // them afterwards. New field only: older lines simply have no duplicates
+    // to report, and every consumer reads by key.
+    duplicates: byteGate?.duplicates ?? null,
     ...(Object.keys(partial).length ? { rawPartial: partial } : {}),
   };
   try {

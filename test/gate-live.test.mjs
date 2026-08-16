@@ -1094,3 +1094,64 @@ test("BITE — a --quiet sweep writes the exclusion INTO the status file, which 
     assert.ok(!keptKeys.includes(k), `${k} is claimed excluded and also reported as replayed`);
   }
 });
+
+// --- the row-31 carrier: what the sweep retains about duplicate sends -------
+//
+// Both bites below are closing-gate question 2's recurring-producer clause,
+// applied to a producer that had been running for days: the daily sweep
+// computes the duplicate-send rollup every morning and, until 2026-08-16,
+// wrote it only into the status file it OVERWRITES on the next run. Two runs
+// of one day reported 24 and then 10 double-billed streaks with no artifact
+// left that could compare them.
+
+test("BITE — the projected streak row keeps `coalesced`, the field that proves the mitigation acted", () => {
+  // A 2-member streak where the follower was COALESCED and one where the
+  // follower was simply never answered are byte-identical on `billed` alone
+  // (both read 1). Row 31's whole done-criterion is that difference, so a
+  // projection that drops `coalesced` retains rows nobody can classify.
+  const res = {
+    code: 0,
+    out: JSON.stringify({
+      duplicateRows: [
+        { startTs: "2026-08-16T00:00:00.000Z", lastTs: "2026-08-16T00:00:00.014Z",
+          startLine: 3, lastLine: 4, length: 2, billed: 1, coalesced: 1, noId: 0, intervalMs: 14 },
+        { startTs: "2026-08-16T01:00:00.000Z", lastTs: "2026-08-16T01:00:04.000Z",
+          startLine: 40, lastLine: 41, length: 2, billed: 1, coalesced: 0, noId: 0, intervalMs: 4000 },
+      ],
+    }),
+  };
+  const ev = gateLive.extractCensusRowEvidence(res, "s-token123456");
+  assert.equal(ev.duplicateStreaks.length, 2);
+  assert.equal(ev.duplicateStreaks[0].coalesced, 1, "the suppressed send must stay visible in the retained row");
+  assert.equal(ev.duplicateStreaks[1].coalesced, 0, "an unanswered retry is a real zero, not a missing field");
+  // The pair is the point: the two rows must be TELLABLE APART after
+  // projection. Equal `billed` on both is what makes that non-trivial.
+  assert.equal(ev.duplicateStreaks[0].billed, ev.duplicateStreaks[1].billed);
+  assert.notDeepEqual(ev.duplicateStreaks[0], ev.duplicateStreaks[1]);
+});
+
+test("BITE — a real sweep writes the duplicate rollup into the FIRE LEDGER, which survives the next run", async (t) => {
+  const dir = await tmpDir("dup-ledger-");
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const captures = join(dir, "captures");
+  const snapshots = join(dir, "snapshots");
+  const transcripts = join(dir, "projects");
+  await mkdir(captures, { recursive: true });
+  await mkdir(snapshots, { recursive: true });
+  await mkdir(transcripts, { recursive: true });
+  const ledger = join(dir, "fire.jsonl");
+  const status = join(dir, "status.json");
+
+  await pExecFile("node", [
+    join(REPO, "tools", "gate-live.mjs"),
+    "--captures", captures, "--status", status, "--fire-ledger", ledger,
+    "--snapshots", snapshots, "--transcripts", transcripts, "--quiet",
+  ], { cwd: REPO }).catch((e) => e); // an empty-capture sweep still owes both artifacts
+
+  const line = JSON.parse((await readFile(ledger, "utf-8")).trim().split("\n").at(-1));
+  assert.ok("duplicates" in line,
+    "the status file is overwritten every run; without this field the duplicate counters exist for one morning only");
+  const parsed = JSON.parse(await readFile(status, "utf-8"));
+  assert.deepEqual(line.duplicates, parsed.byteGate.duplicates,
+    "the ledger must carry the SAME rollup the status file reports, not a second derivation of it");
+});
