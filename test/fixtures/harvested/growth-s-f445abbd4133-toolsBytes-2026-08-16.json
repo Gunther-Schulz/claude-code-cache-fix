@@ -1,0 +1,95 @@
+{
+  "key": "s-f445abbd4133",
+  "field": "toolsBytes",
+  "oldBytes": 42345,
+  "newBytes": 54145,
+  "watermark": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_425e8c406a3d_205\n\nt_31717b246cc0_440\n\nt_b74b1bb811c2_15\n\nt_836e969d7851_470\n\nt_ccf51ed2e406_268\n\nt_3a33f9e97a4d_378\n\nt_516df5302e70_336\n\nt_5a91a412faba_19\n\nt_a64ea3c15043_444\n\nt_1cd258329bea_535\n\nt_24833d3da9d2_485\n\nt_9fc02f34ae5f_973\n\nt_278a4989df42_251\n\nt_fd94a1728a68_555\n\nt_4d80858af786_604\n\nt_95a0a6d739e7_770\n\nt_7f893b71b80d_32\n\nt_49b614a3903c_147\n\nt_8619f80003ac_203\n\nt_58fdcde5b24f_119\n\nt_8e5eb9f77303_260\n\nt_0a697e49cd28_224\n\nt_e95b86152834_273\n\nt_9f92eaa57dbc_291\n\nt_6ed98e59a674_323\n\nt_69edf1b82c38_384\n\nt_5bd912ec2779_415\n\nt_b41dfcaf626f_114\n\nt_5be6a783cfe9_302\n\nt_4f696b4b9b60_304\n\nt_1fd90c7278b8_186\n\nt_d6aab9aca3d9_218\n\nt_d97b8d51b0db_293\n\nt_2e3faea2af73_408\n\nt_40d42b8f3fac_225\n\nt_54a75532be78_247\n\nt_84f7ef350dd3_230\n\nt_475fd885479e_301\n\nt_c8943eab0f77_328\n\nt_07617c694955_437\n\nt_55a2543398d3_201\n\nt_514a978f31b5_309\n\nt_9f2cb2ed06ef_158\n\nt_08ba72c9f699_251\n\nt_a06628555ece_55\n\nt_d01e204ccee8_260\n\nt_32e739e5b715_142\n\nt_a6b78c1b52b2_198\n\nt_18ddc0370360_208\n\nt_09ca5fce22d4_305\n\nt_5a7dfcdf4afb_833\n\nt_16746e4b6b4c_111\n\nt_ab47b6fe34e5_180\n\nt_3a3591d6da0e_283",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h",
+          "scope": "global"
+        },
+        "bytes": 17677
+      }
+    ],
+    "tools": []
+  },
+  "newest": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_6c1afcd92329_94",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 156
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_bc6f0d8ea14e_698\n\nt_eabb83031eda_460\n\nt_1c67c1b88562_406\n\nt_856abd6ac518_254\n\nt_3072ae95e201_613\n\nt_73f52a44bd50_308\n\nt_a90b659db056_3970\n\nt_40415bd9fae9_222\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_864b9dcf378a_1128\n\nt_04b8c6d76d03_231\n\nt_247e6c6fb3cf_455\n\nt_1fadadb0a992_519\n\nt_6a5c2732677b_30\n\nt_19c8d89f3908_175\n\nt_817507d75327_106\n\nt_677d19fb503d_121\n\nt_e907a3c15da4_337\n\nt_5145202c6f78_895\n\nt_93e7b8681ac9_316\n\nt_f7143541013d_43\n\nt_2b7db5539346_49\n\nt_e6e02b2c94e7_157\n\nt_96b5a06eb124_20\n\nt_afd105088016_53\n\nt_5aa6d37c7ef2_24\n\nt_804f6139f2b0_15\n\nt_f397cf548dca_779",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 13552
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 9056
+      },
+      {
+        "name": "Artifact",
+        "bytes": 13096
+      },
+      {
+        "name": "Bash",
+        "bytes": 11890
+      },
+      {
+        "name": "Edit",
+        "bytes": 1731
+      },
+      {
+        "name": "Read",
+        "bytes": 2615
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 4744
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "TaskGet",
+        "bytes": 1068
+      },
+      {
+        "name": "TaskList",
+        "bytes": 1815
+      },
+      {
+        "name": "TaskUpdate",
+        "bytes": 3560
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 1051
+      }
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-1d314b1598bf",
+  "n": 21,
+  "prevN": null,
+  "index": 8,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-15T10:09:13.289Z",
+  "row": {
+    "n": 21,
+    "kind": "lost",
+    "at": 8,
+    "side": "in",
+    "exemptReason": "smoosh-split:declared-peel",
+    "detail": "in[8] (user): 1 of 1 unit(s) exempt — smoosh-split's declared peel (5 peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates",
+    "keyToken": "s-1d314b1598bf"
+  },
+  "sides": {
+    "cur": {
+      "n": 21,
+      "rawLen": 9,
+      "forwardedLen": 9,
+      "outBodySha": "b7f5b68c00d08ec8",
+      "forwardedSha": "9dd2d105c3a8",
+      "rawSha": "3c9bb46e98ef",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "9dd2d105c3a8",
+      "firstPassRawSha": "3c9bb46e98ef",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-1d314b1598bf",
+      "idToken": "s-36f5449e098e",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01MPpLRHGRVRuYdBg9igGtFf",
+            "type": "tool_result",
+            "content": "t_10403c69b8df_181\n\nt_f3d703ff7604_12\n\nt_88de6c946fd3_109\n\nt_639581482e82_241\n\nt_0a19c0cdc561_291\n\nt_90fa8cb99aa9_330\n\nt_ba22faf830ec_68\n\nt_aca4ff348799_216\n\nt_55fe42091868_352\n\nt_5ba33a9f111f_68\n\nt_32f7fc62ee82_380\n\nt_eb9d33f15929_367\n\nt_7cbafdfb04c8_68\n\nt_f94af1bc87e2_301\n\nt_3c0237f50580_302\n\nt_d597a8736fcb_68\n\nt_59ebd86e5fa3_318\n\nt_eee29df2d199_294\n\nt_d543a0251c77_68\n\nt_e817b906e923_268\n\nt_5535ffc2eddf_294\n\nt_ed67a16f3e3e_68\n\nt_8baa0894b1db_252\n\nt_f0368ec94c14_311\n\nt_1ff835c51d35_68\n\nt_dafd8444948d_202\n\nt_185fb23afa1b_285\n\nt_2970095be084_68\n\nt_52d45eed3158_310\n\nt_b6a846410df4_269\n\nt_51aa02b9008b_68\n\nt_acf3da566903_276\n\nt_99d58d727bcb_261\n\nt_b5767450afd3_68\n\nt_06a3b68320e2_251\n\nt_17a891c7614f_252\n\nt_f7271a7f9be4_68\n\nt_2c4eb11c6123_229\n\nt_997a7e1da6c6_228\n\nt_8e5943cae195_68\n\nt_b442a59501e5_241\n\nt_252661824fb4_293\n\nt_f7c12abb9c69_68\n\nt_956b802afc3d_232\n\nt_60a0772fe60e_225\n\nt_501b11659da2_68\n\nt_de858385f8d3_251\n\nt_ea5a965884fd_275\n\nt_9dbacea361f4_68\n\nt_91b5634d2848_292\n\nt_2e72c937182c_302\n\nt_fede14234a7a_68\n\nt_b1d53a905445_308\n\nt_6be522d48f6d_296\n\nt_5262aeb005d9_68\n\nt_90503b3e0190_292\n\nt_863503dec62b_182\n\nt_4e24d53fb893_68\n\nt_a937b8eaae59_325\n\nt_80ed59ca1b28_164\n\nt_40e06bb07445_68"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_5668d4959208_49\n</system-reminder>",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01MPpLRHGRVRuYdBg9igGtFf",
+            "type": "tool_result",
+            "content": "t_10403c69b8df_181\n\nt_f3d703ff7604_12\n\nt_88de6c946fd3_109\n\nt_639581482e82_241\n\nt_0a19c0cdc561_291\n\nt_90fa8cb99aa9_330\n\nt_ba22faf830ec_68\n\nt_aca4ff348799_216\n\nt_55fe42091868_352\n\nt_5ba33a9f111f_68\n\nt_32f7fc62ee82_380\n\nt_eb9d33f15929_367\n\nt_7cbafdfb04c8_68\n\nt_f94af1bc87e2_301\n\nt_3c0237f50580_302\n\nt_d597a8736fcb_68\n\nt_59ebd86e5fa3_318\n\nt_eee29df2d199_294\n\nt_d543a0251c77_68\n\nt_e817b906e923_268\n\nt_5535ffc2eddf_294\n\nt_ed67a16f3e3e_68\n\nt_8baa0894b1db_252\n\nt_f0368ec94c14_311\n\nt_1ff835c51d35_68\n\nt_dafd8444948d_202\n\nt_185fb23afa1b_285\n\nt_2970095be084_68\n\nt_52d45eed3158_310\n\nt_b6a846410df4_269\n\nt_51aa02b9008b_68\n\nt_acf3da566903_276\n\nt_99d58d727bcb_261\n\nt_b5767450afd3_68\n\nt_06a3b68320e2_251\n\nt_17a891c7614f_252\n\nt_f7271a7f9be4_68\n\nt_2c4eb11c6123_229\n\nt_997a7e1da6c6_228\n\nt_8e5943cae195_68\n\nt_b442a59501e5_241\n\nt_252661824fb4_293\n\nt_f7c12abb9c69_68\n\nt_956b802afc3d_232\n\nt_60a0772fe60e_225\n\nt_501b11659da2_68\n\nt_de858385f8d3_251\n\nt_ea5a965884fd_275\n\nt_9dbacea361f4_68\n\nt_91b5634d2848_292\n\nt_2e72c937182c_302\n\nt_fede14234a7a_68\n\nt_b1d53a905445_308\n\nt_6be522d48f6d_296\n\nt_5262aeb005d9_68\n\nt_90503b3e0190_292\n\nt_863503dec62b_182\n\nt_4e24d53fb893_68\n\nt_a937b8eaae59_325\n\nt_80ed59ca1b28_164\n\nt_40e06bb07445_68\n\nt_ef96cf39e998_86",
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
