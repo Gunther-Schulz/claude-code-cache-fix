@@ -133,7 +133,10 @@ test("BITE — a freshly written -events.jsonl ledger lands 0600", async () => {
 test("BITE — a rotated -events.jsonl.1 stays 0600 after the boot sweep repairs it", async () => {
   const dir = await newTmp();
   try {
-    const key = "s-modetest01";
+    // `s-` + 12 hex: the shape resolveSessionKey writes, which the sweep's
+    // scope regex anchors on. A readable label here would simply fall outside
+    // the sweep's scope and the bite would pass without repairing anything.
+    const key = "s-0d0e5700de01";
     const eventsPath = join(dir, `${key}-events.jsonl`);
     // Seed a pre-existing events file at a loose mode, as if written by
     // code that predates this fix — this is exactly the case rotation's
@@ -256,6 +259,13 @@ test("INSTRUMENT-POSITIVE — grepDirFor really does detect a sentinel on disk",
 // 3. Cross-key retention sweep
 // =====================================================================
 
+// Session keys here are `s-` + 12 HEX — the shape `resolveSessionKey`
+// actually produces (sha256(session-id).slice(0,12)). The sweep's scope regex
+// anchors on that shape, so a readable label like `s-oldkey0001` is 12
+// characters of a key production never writes: a fixture encoding a state the
+// real system cannot produce, which tests the harness rather than the code.
+const hexKey = (n) => `s-${String(n).padStart(12, "0")}`;
+
 async function seedKey(dir, key, { mtimeMs } = {}) {
   const files = [`${key}-last.json`, `${key}-diff.json`, `${key}-events.jsonl`];
   for (const name of files) {
@@ -276,8 +286,10 @@ test("BITE — sweep deletes artifacts older than the age cap regardless of key 
     const old = now - (SNAPSHOT_MAX_AGE_MS + 24 * 60 * 60 * 1000); // 15 days old
     const fresh = now - 60 * 1000; // 1 minute old
 
-    await seedKey(dir, "s-oldkey0001", { mtimeMs: old });
-    await seedKey(dir, "s-freshkey01", { mtimeMs: fresh });
+    const oldKey = hexKey(1);
+    const freshKey = hexKey(2);
+    await seedKey(dir, oldKey, { mtimeMs: old });
+    await seedKey(dir, freshKey, { mtimeMs: fresh });
 
     const result = await sweepSnapshotDir(dir, undefined, { now });
     const remaining = (await readdir(dir)).sort();
@@ -285,7 +297,7 @@ test("BITE — sweep deletes artifacts older than the age cap regardless of key 
     assert.equal(result.deleted, 3, "all 3 artifacts of the old key must be deleted");
     assert.deepEqual(
       remaining,
-      ["s-freshkey01-diff.json", "s-freshkey01-events.jsonl", "s-freshkey01-last.json"],
+      [`${freshKey}-diff.json`, `${freshKey}-events.jsonl`, `${freshKey}-last.json`].sort(),
       "only the fresh key's artifacts survive",
     );
   } finally {
@@ -301,9 +313,8 @@ test("BITE — sweep prunes the oldest keys beyond the 200-key cap", async () =>
     // mtimes so oldest-first pruning is well-defined.
     const totalKeys = 205;
     for (let i = 0; i < totalKeys; i++) {
-      const key = `s-key${String(i).padStart(6, "0")}`;
       // Oldest key first (i=0 is oldest), 1 minute apart.
-      await seedKey(dir, key, { mtimeMs: now - (totalKeys - i) * 60 * 1000 });
+      await seedKey(dir, hexKey(i), { mtimeMs: now - (totalKeys - i) * 60 * 1000 });
     }
 
     const result = await sweepSnapshotDir(dir, undefined, { now });
@@ -316,11 +327,9 @@ test("BITE — sweep prunes the oldest keys beyond the 200-key cap", async () =>
     assert.equal(result.deleted, (totalKeys - SNAPSHOT_MAX_KEYS) * 3, "3 artifacts per evicted key");
     // The 5 oldest keys (i=0..4) must be gone; the 200 newest must remain.
     for (let i = 0; i < totalKeys - SNAPSHOT_MAX_KEYS; i++) {
-      const key = `s-key${String(i).padStart(6, "0")}`;
-      assert.ok(!remainingKeys.has(key), `oldest key ${key} must have been evicted`);
+      assert.ok(!remainingKeys.has(hexKey(i)), `oldest key ${hexKey(i)} must have been evicted`);
     }
-    const newestKey = `s-key${String(totalKeys - 1).padStart(6, "0")}`;
-    assert.ok(remainingKeys.has(newestKey), "the newest key must survive");
+    assert.ok(remainingKeys.has(hexKey(totalKeys - 1)), "the newest key must survive");
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

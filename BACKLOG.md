@@ -3849,17 +3849,111 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-16 (small) — the snapshot key cap now counts only
+  prefix-diff's own keys, and 200 may be the wrong number for that.** Before the
+  scope anchor landed today the key cap was being spent on keys that were never
+  prefix-diff's: `s-<key>` and `s-<key>-insertion` grouped as two DIFFERENT keys,
+  so co-tenant families inflated the count that then evicted everyone, and
+  `keysRemaining` sat at the 200 cap for that reason rather than on prefix-diff's
+  own volume. Post-fix measurement over the live directory
+  (`node tools/snapshot-sweep-projection.mjs`): 28,511 files, 266 would be
+  deleted, all 266 prefix-diff's own, `keysRemaining` still 200 — i.e. the cap is
+  genuinely binding on ~302 of its own session keys and evicting ~102 of them.
+  **The open question is whether 200 is right now that it means what it says.**
+  It was inherited from upstream, whose deployment does not front every session
+  on the machine. This is not a defect and nothing is being destroyed that the
+  14-day age pass would not also take eventually; it is a number nobody has
+  chosen against this fork's own traffic.
+  Done-criterion: the cap is either re-derived from observed live-session counts
+  with the derivation written at the constant, or explicitly affirmed at 200 with
+  its reason.
+  Consumer: the session that next works snapshot retention (joins the entry
+  below — same file, same design conversation).
+  Loop stage: VERIFY (bounds the store attribution reads from).
+  Anchor: proxy/extensions/prefix-diff.mjs `SNAPSHOT_MAX_KEYS`
+  Write-set: proxy/extensions/prefix-diff.mjs, test/
+  Verifier: node tools/snapshot-sweep-projection.mjs — own-key eviction count
+  <!-- entry: "snapshot key cap 200 inherited from upstream, never chosen for this fork" -->
+
+- **RECORD 2026-08-16 (relayed from the desk session; not independently
+  re-measured here) — 24 registered agent worktrees, 2.3 GB, and up to 14
+  orphaned commits.** `git worktree list` shows 24 live registrations under
+  `.claude/worktrees/agent-*`, oldest content 2026-08-08, none prunable because
+  the directories still exist; 46 `worktree-agent-*` branches carry commits not
+  reachable from main. The desk discriminated the raw count rather than reporting
+  it: **71 of 85 landed by the normal cherry-pick route** (matched by patch-id,
+  which a cherry-pick rewrites) and **14 are genuinely orphaned across 5
+  branches** — itself an upper bound, since a commit picked AND modified reads as
+  orphaned to `git cherry`. Two spot-checks split: the backlog-lint lanes are all
+  on main and NOT lost; `224a23b` ("matrix: mint row 30, APPEND-ONLY CACHE
+  COLLAPSE") never landed and its row number was reused for different content.
+  The other 12 are unchecked, and the booking is the enumeration, not the samples.
+  **Class:** the carrier-registration failure from dev-loop question 4, recurring
+  — a worktree registration lives in `.git/worktrees/` and a branch in the ref
+  namespace, and no reading any session takes touches either. Same shape as the
+  33 commits that sat in lane branches while `git status`, `git log
+  origin/main..main` and a handoff all read clean.
+  **Do NOT bulk-delete.** The 2.3 GB is the least interesting fact; the 14 need
+  resolving first and removal is terminal.
+  Done-criterion: all 14 classified as landed-elsewhere / re-derived / genuinely
+  lost, AND a collector for the worktree+branch carrier class in `state-report`,
+  so the next occurrence is a reading rather than an archaeology.
+  Consumer: the session that next runs a session-close or lane-integration pass.
+  Loop stage: VERIFY (registers a carrier nothing currently reads).
+  Anchor: `.git/worktrees/`, `git branch --list 'worktree-agent-*'`
+  Write-set: tools/state-report (the collector), plus whatever resolves the 14
+  Verifier: git cherry main <branch> reports zero '+' for each, or each named
+  <!-- entry: "24 registered agent worktrees and up to 14 orphaned commits, no collector" -->
+
+- **RECORD 2026-08-16 (relayed from the desk session; small) — one of our own
+  state files sits in the config directory, cause UNKNOWN.** The dotfiles doctor
+  reports `FAIL ~/.claude/ holds non-config entry: cache-fix-state`. Confirmed by
+  the desk: `~/.claude/cache-fix-state/cache-control-sticky-<key>.json`, 37
+  bytes, `{"version":1,"positions":[]}`, dated 2026-08-15.
+  **The code default is CORRECT** — `preload.mjs:799`,
+  `CACHE_CONTROL_STICKY_DIR = process.env.CACHE_FIX_STATE_DIR || join(xdgState(), "state")`
+  — so something ran with `CACHE_FIX_STATE_DIR` pointed at that path. No setter
+  with that value was found anywhere in the fork or in dotfiles.
+  **Booked as unknown rather than guessed:** a wrong cause here is worse than an
+  open question, and the file itself is empty and carries nothing sensitive.
+  **Why it is not cosmetic:** per the environment binding, `~/.claude/` is
+  protected by path SHAPE, so tool data there costs a permission dialog on every
+  read and write for the operator and every dispatched agent — and one such
+  prompt was denied mid-task once and lost the work in flight.
+  Named missing evidence: which process set `CACHE_FIX_STATE_DIR` to that value.
+  Cheapest next probe: the file's mtime against the session/test-run logs for
+  2026-08-15 12:24, since the writer is more likely a test or tool invocation
+  than the serving unit (whose Environment= does not set it).
+  Done-criterion: the writer identified, the stray directory removed, and doctor
+  green — removal alone re-opens it the next time the writer runs.
+  Consumer: the session that next works XDG placement or reads a doctor FAIL.
+  Loop stage: VERIFY.
+  Anchor: preload.mjs:799; ~/.claude/cache-fix-state/
+  Write-set: whichever caller sets CACHE_FIX_STATE_DIR; possibly test/ only
+  Verifier: dotfiles doctor `claude_dir_entries_verdict` green
+  <!-- entry: "cache-fix-state in ~/.claude, writer unknown, doctor FAIL" -->
+
 - **RECORD 2026-08-16 (MITIGATE stage; small) — the fork's own snapshot artifacts
   have NO retention at all, and the upstream sweep merged today deliberately
   cannot reach them.** The 2026-08-16 merge ported upstream's prefix-diff
-  cross-key sweep (14d age, 200-key cap). Measured against the real directory
-  the same day: **28,326 entries, of which prefix-diff owns 14,469 across 13,927
-  session keys and 13,857 are OURS** — `-canon.json` (insertion-normalization),
-  `-relocated.json` (fresh-session-sort), `-rungs.json` (deferred-tool-rewrite).
-  The sweep's scope regex covers only prefix-diff's own three artifact names,
-  correctly: those fork files are LIVE STATE, and deleting a canonical rotates
+  cross-key sweep (14d age, 200-key cap).
+  **NUMBERS AND SCOPE CLAIM CORRECTED 2026-08-16, same day — the original body
+  classified the directory BY FILE SUFFIX and was wrong twice over.** It read
+  "prefix-diff owns 14,469 ... 13,857 are OURS", which counted every
+  `-events.jsonl` as prefix-diff's; three co-tenant extensions end their own
+  per-session event logs the same way. Re-measured with the family names derived
+  from each writer's source rather than from the suffix: **28,475 files, of which
+  the scope regex reached 14,545 — only 846 prefix-diff's own, and 13,699
+  belonging to insertion-normalization (11,437), deferred-tool-rewrite (2,255)
+  and the ladder (7)**. The remaining 13,930 are `-canon.json`
+  (insertion-normalization), `-relocated.json` (fresh-session-sort) and
+  `-rungs.json` (deferred-tool-rewrite).
+  It also asserted the scope regex "covers only prefix-diff's own three artifact
+  names, correctly" — false when written, and that sentence is precisely what
+  stopped anyone looking. FIXED the same day (`## Done`, the key anchor).
+  Those fork files are LIVE STATE, and deleting a canonical rotates
   the key its owner reads and busts the prefix the extension exists to hold.
-  So the sweep bounds half the directory and the other half still grows forever.
+  So the sweep bounds part of the directory and the rest still grows forever.
   **The design is NOT "widen the regex"** — that is the one thing the merge
   commented against at the site. It needs a liveness predicate: a canonical is
   evictable only once no live session can address it, which is a different
@@ -9832,6 +9926,59 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **FIXED 2026-08-16 — the prefix-diff boot sweep's scope regex was unanchored,
+  so it claimed 13,699 co-tenant files as its own to delete on the next
+  restart.** Found by the desk session while the restart was held, confirmed
+  independently here from the extension sources.
+  **The defect.** `SNAPSHOT_FILE_RE = /^(.+)-(last\.json|diff\.json|events\.jsonl(?:\.1)?)$/`
+  — the `(.+)` swallows any family infix, so `s-<key>-insertion-events.jsonl`
+  matched under the synthetic key `s-<key>-insertion`. insertion-normalization,
+  deferred-tool-rewrite and output-guard all write `<key>-<family>-events.jsonl`
+  into that same directory. Measured on the live dir: of 14,545 files the regex
+  reached, **846 were prefix-diff's own and 13,699 were other extensions'** —
+  94% of its reach.
+  **Severity, checked rather than assumed:** both foreign writers only ever
+  APPEND to their event log; they `readFile` their `canonPath`/`statePath`
+  canonical, which the regex never matched. So this destroys ATTRIBUTION
+  EVIDENCE, not live cache state — irreversible on the first request after a
+  restart, and exactly the class dev-loop question 2 exists to protect.
+  **Why nobody looked:** the module's own comment at the site stated the
+  opposite as settled design — it counted all 13,813 `events.jsonl` as "this
+  sweep's own scope" and closed with "do NOT widen SNAPSHOT_FILE_RE to reach
+  them". The regex already reached them. An assurance wider than its predicate
+  establishes reads as the predicate's reach, to its author first.
+  **The fix:** anchor the key to the shape the key GENERATORS produce —
+  `((?:s-)?[0-9a-f]{12})`, covering both `resolveSessionKey`
+  (`s-` + sha256(sid).slice(0,12)) and the headerless `computeSessionKey`
+  fallback. Derived from the generators, not a denylist of today's family names,
+  so an extension added tomorrow cannot fall inside the scope.
+  **Red-first, both arms required and both stated.** The pre-existing boundary
+  bite ("NEVER touches the fork's own live state") was GREEN throughout, because
+  it seeded only `-canon.json` / `-relocated.json` / `-rungs.json` — families
+  that never matched. A check passing while exercising less than its name
+  claims. Two new bites added BEFORE the fix, run against the unfixed module:
+  97 pass / 2 fail, the 2 being exactly the new ones — the discriminating split.
+  After the fix, 100/100 in that file and the full suite 3517 tests / 3505 pass
+  / 0 fail / 12 skipped.
+  **The durable half:** `tools/snapshot-sweep-projection.mjs` — drives the REAL
+  `sweepSnapshotDir` over the live directory with a RECORDING fs (unlink is
+  captured, never performed), classifies every projected deletion by the owning
+  extension, and exits 2 if any belongs to another. Red-proven on the real
+  defect by `git checkout HEAD -- proxy/extensions/prefix-diff.mjs` with the
+  empty `git diff --stat` printed as proof the old blob was in place: **exit 2,
+  13,518 foreign deletions**; restored (md5 identical) and re-run: **exit 0,
+  0 foreign, 266 own** — non-zero, so the sweep still does its job. A fix
+  driving both arms to zero would have broken the sweep instead of repairing it.
+  The second bite is the reach check and asks the extension SOURCES which
+  per-session artifact names they write rather than restating a roster beside
+  them; it found `output-guard.mjs` on its own, which has zero files on disk
+  today and was therefore invisible to every directory-based measurement.
+  Refs: proxy/extensions/prefix-diff.mjs (anchor + corrected scope comment),
+  test/proxy-prefix-diff.test.mjs (co-tenant bite, source-derived reach bite),
+  test/proxy-prefix-diff-security.test.mjs (fixtures re-keyed to the real shape),
+  tools/snapshot-sweep-projection.mjs
+  <!-- entry: "prefix-diff sweep scope regex unanchored, claimed co-tenant event logs" -->
 
 **EXIT PASS 2026-08-15 — TWO ROUNDS, and the first one was incomplete.**
 110 closed bodies moved here from the live sections, which had been grading

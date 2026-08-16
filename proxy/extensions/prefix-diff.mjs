@@ -146,23 +146,48 @@ const DEFAULT_FS = {
 // and once more than this many keys remain, the oldest keys beyond the cap go
 // regardless of age.
 //
-// MEASURED ON THIS DEPLOYMENT at merge time, which is why it is worth taking
-// rather than noting: the snapshot dir held 28,157 files. This sweep's own
-// scope is 14,383 of them (13,813 events.jsonl + 300 last.json + 270
-// diff.json). The remaining 13,774 are `-canon.json`, `-relocated.json` and
-// `-rungs.json`, written by insertion-normalization, fresh-session-sort and
-// deferred-tool-rewrite — fork-owned LIVE STATE, not diagnostics, and
-// deliberately out of scope here: deleting a live canonical rotates the key
-// its owner reads and busts the very prefix these extensions exist to hold.
-// Their retention is a separate, undecided design (booked in BACKLOG.md); do
-// NOT widen SNAPSHOT_FILE_RE to reach them.
+// MEASURED ON THIS DEPLOYMENT, 2026-08-16, and CORRECTED the same day — the
+// first version of this comment classified the directory by FILE SUFFIX and
+// called all 13,813 `events.jsonl` files "this sweep's own scope". That was
+// wrong, and it asserted the opposite of what the code beneath it did, which
+// is what stopped anyone looking: three co-tenant extensions also end their
+// per-session event logs in `-events.jsonl`, and the then-unanchored
+// SNAPSHOT_FILE_RE reached every one of them.
+//
+// Re-measured against the live directory, families derived from each writer's
+// own source rather than from the suffix: 28,475 files, of which the scope
+// regex reached 14,545. Only 846 of those were prefix-diff's own (302
+// `-last.json`, 272 `-diff.json`, 272 bare `-events.jsonl`). The other 13,699
+// belonged to insertion-normalization (11,437), deferred-tool-rewrite (2,255)
+// and the ladder (7) — 94% of the sweep's reach was other extensions' files.
+//
+// The remaining 13,930 files are `-canon.json`, `-relocated.json` and
+// `-rungs.json` — fork-owned LIVE STATE, not diagnostics, and out of scope
+// here in both versions: deleting a live canonical rotates the key its owner
+// reads and busts the very prefix these extensions exist to hold. Their
+// retention is a separate, undecided design (booked in BACKLOG.md); do NOT
+// widen SNAPSHOT_FILE_RE to reach them, and do not relax its KEY anchor
+// either — that anchor is the only thing keeping a co-tenant's event log out.
 const SNAPSHOT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 const SNAPSHOT_MAX_KEYS = 200;
 
 // Only THIS module's own artifact names, so the sweep can never touch a file
 // a co-tenant of the directory writes — see the fork note above, where that
 // boundary is load-bearing rather than merely tidy.
-const SNAPSHOT_FILE_RE = /^(.+)-(last\.json|diff\.json|events\.jsonl(?:\.1)?)$/;
+//
+// The KEY is anchored to the shape `resolveSessionKey` actually produces:
+// `s-` + sha256(session-id).slice(0,12), or the bare 12-hex `computeSessionKey`
+// fallback for a request that carried no session-id header. Anchoring it is
+// what makes the "only this module's own names" claim above true. An
+// unanchored `(.+)` reads `s-<key>-insertion-events.jsonl` as this module's
+// artifact under the synthetic key `s-<key>-insertion`, because the family
+// infix is swallowed by the wildcard — and insertion-normalization,
+// deferred-tool-rewrite and output-guard all name their per-session event logs
+// `<key>-<family>-events.jsonl` into this same directory. The shape anchor is
+// derived from the key generators rather than from a denylist of today's
+// family names, so an extension added tomorrow cannot fall inside the scope.
+const SNAPSHOT_FILE_RE =
+  /^((?:s-)?[0-9a-f]{12})-(last\.json|diff\.json|events\.jsonl(?:\.1)?)$/;
 
 // Group a directory listing by session key, ignoring anything that isn't one
 // of this module's own artifact names.
@@ -1384,6 +1409,7 @@ export {
   // Cross-key retention test seams (upstream #280 review; merged 2026-08-16).
   sweepSnapshotDir,
   groupSnapshotFiles,
+  SNAPSHOT_FILE_RE,
   SNAPSHOT_MAX_AGE_MS,
   SNAPSHOT_MAX_KEYS,
 };

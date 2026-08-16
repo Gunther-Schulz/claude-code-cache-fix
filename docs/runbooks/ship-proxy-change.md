@@ -86,6 +86,18 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    the empty result an absence rather than a filter that never matched.
 
 5. **Restart + health gates check.**
+   **First, project what the boot sweep would delete — this is BEFORE an
+   irreversible boundary, which is the only side of it worth checking from:**
+   ```sh
+   node tools/snapshot-sweep-projection.mjs      # exit 2 = it would delete another extension's files
+   ```
+   prefix-diff's retention sweep runs on the FIRST REQUEST after a restart and
+   its deletions are terminal; nothing in the extension asks anyone first. On
+   2026-08-16 an unanchored scope regex would have destroyed 13,699 co-tenant
+   attribution logs on the next restart, and it was found by building this
+   projection by hand rather than by any check firing. A non-zero own-deletion
+   count is normal (the age and key-cap passes doing their job); a non-zero
+   FOREIGN count is a blocking finding, not a number to note.
    ```sh
    systemctl --user restart cache-fix-proxy && curl -s 127.0.0.1:9801/health
    ```
@@ -109,7 +121,12 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    **VERIFIED is the smaller set by construction, and the compare is a union,
    not an equality.** The sweep replays two gates OFF on purpose —
    `CACHE_FIX_REQUEST_CAPTURE` would capture the captures, `CACHE_FIX_SESSION_MIRROR`
-   would write mirrors — so `gates` carries nine where the unit carries eleven.
+   would write mirrors — so `gates` carries exactly two fewer than the unit.
+   (This line read "nine where the unit carries eleven" until 2026-08-16; the
+   unit carries TWELVE today and the sweep replays ten. Hardcoding the pair was
+   the defect — the counts move whenever a gate is added, while the RULE, minus
+   exactly the two artifact-only gates, does not. Read the numbers off the two
+   commands below rather than off this sentence.)
    The status file names them in `gatesExcludedArtifactOnly` (added 2026-08-11
    for this step: the stdout line that used to be the only carrier sits behind
    `!args.quiet`, and the scheduled run passes `--quiet`, so the artifact this

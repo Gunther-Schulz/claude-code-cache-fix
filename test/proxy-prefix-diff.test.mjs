@@ -33,6 +33,7 @@ import ext, {
   TAP_VIEW,
   sweepSnapshotDir,
   groupSnapshotFiles,
+  SNAPSHOT_FILE_RE,
   SNAPSHOT_MAX_AGE_MS,
   SNAPSHOT_MAX_KEYS,
 } from "../proxy/extensions/prefix-diff.mjs";
@@ -1559,19 +1560,31 @@ async function seedSnapshots(dir, entries) {
   }
 }
 
+// Session keys in these fixtures are the shape production actually writes —
+// `s-` + 12 hex (resolveSessionKey) — not readable labels like `s-dead`. The
+// scope regex anchors on that shape, so a fixture keyed `s-dead` would be
+// testing a state the real system cannot produce; `skey("dead")` keeps the
+// bites readable without inventing a key shape nothing generates.
+const skey = (label) => {
+  const hex = Buffer.from(label).toString("hex").padEnd(12, "0").slice(0, 12);
+  return `s-${hex}`;
+};
+
 test("sweepSnapshotDir: stale artifacts of a dead key go, a live key's stay", async () => {
   const dir = await tmpDir("sweep-age-");
   const now = Date.now();
   const old = now - (SNAPSHOT_MAX_AGE_MS + 60_000);
+  const dead = skey("dead");
+  const live = skey("live");
   await seedSnapshots(dir, [
-    ["s-dead-last.json", old], ["s-dead-diff.json", old],
-    ["s-dead-events.jsonl", old], ["s-dead-events.jsonl.1", old],
-    ["s-live-last.json", now], ["s-live-events.jsonl", now],
+    [`${dead}-last.json`, old], [`${dead}-diff.json`, old],
+    [`${dead}-events.jsonl`, old], [`${dead}-events.jsonl.1`, old],
+    [`${live}-last.json`, now], [`${live}-events.jsonl`, now],
   ]);
   const res = await sweepSnapshotDir(dir, undefined, { now });
   const left = (await readdir(dir)).sort();
   assert.equal(res.deleted, 4, "all four of the dead key's artifacts go, rotated .1 included");
-  assert.deepEqual(left, ["s-live-events.jsonl", "s-live-last.json"]);
+  assert.deepEqual(left, [`${live}-events.jsonl`, `${live}-last.json`].sort());
   assert.equal(res.keysRemaining, 1);
   await rm(dir, { recursive: true, force: true });
 });
@@ -1585,23 +1598,110 @@ test("sweepSnapshotDir: NEVER touches the fork's own live state, however old", a
   const dir = await tmpDir("sweep-boundary-");
   const now = Date.now();
   const old = now - (SNAPSHOT_MAX_AGE_MS * 10);
+  const survivors = [
+    `${skey("aaa")}-canon.json`,
+    `${skey("bbb")}-relocated.json`,
+    `${skey("ccc")}-rungs.json`,
+  ];
   await seedSnapshots(dir, [
-    ["s-aaa-canon.json", old],
-    ["s-bbb-relocated.json", old],
-    ["s-ccc-rungs.json", old],
+    ...survivors.map((n) => [n, old]),
     // A real sweep target beside them, so a run that deletes NOTHING at all
     // cannot pass this bite by being inert.
-    ["s-ddd-last.json", old],
+    [`${skey("ddd")}-last.json`, old],
   ]);
   const res = await sweepSnapshotDir(dir, undefined, { now });
   const left = (await readdir(dir)).sort();
   assert.equal(res.deleted, 1, "the sweep must still be doing its job here");
   assert.deepEqual(
     left,
-    ["s-aaa-canon.json", "s-bbb-relocated.json", "s-ccc-rungs.json"],
+    [...survivors].sort(),
     "fork-owned live state survives; only prefix-diff's own artifact was swept",
   );
   await rm(dir, { recursive: true, force: true });
+});
+
+// The bite the boundary test above MISSED, and the reason it missed it is the
+// point: that test seeds `-canon.json` / `-relocated.json` / `-rungs.json`,
+// which the scope regex never matched, so it was green on the day the sweep
+// was deleting 13,699 co-tenant files in production. A check whose name claims
+// "the fork's own live state" while its body covers only the families that
+// were never at risk is the degrading-check shape — it passes while exercising
+// less than it claims.
+//
+// The families below are the ones actually at risk: insertion-normalization,
+// deferred-tool-rewrite and output-guard all name their per-session event logs
+// `<key>-<family>-events.jsonl` into THIS directory. An unanchored `(.+)` in
+// SNAPSHOT_FILE_RE swallows the family infix, so each read as one of this
+// module's own artifacts under a synthetic key. Measured against the live
+// directory 2026-08-16: of the 14,545 files the regex reached, 846 were
+// prefix-diff's own and 13,699 belonged to other extensions.
+test("sweepSnapshotDir: a co-tenant's event log is NOT this sweep's to delete", async () => {
+  const dir = await tmpDir("sweep-cotenant-");
+  const now = Date.now();
+  const old = now - (SNAPSHOT_MAX_AGE_MS * 10);
+  // A real key shape: `s-` + sha256(session-id).slice(0,12) (resolveSessionKey).
+  const key = "s-3ce1c5cda120";
+  const foreign = [
+    `${key}-insertion-events.jsonl`,
+    `${key}-insertion-events.jsonl.1`,
+    `${key}-deferred-tool-events.jsonl`,
+    `${key}-guard-events.jsonl`,
+  ];
+  await seedSnapshots(dir, [
+    ...foreign.map((n) => [n, old]),
+    // prefix-diff's own artifact beside them, aged the same, so a run that
+    // deletes NOTHING cannot pass this bite by being inert.
+    [`${key}-last.json`, old],
+  ]);
+  const res = await sweepSnapshotDir(dir, undefined, { now });
+  const left = (await readdir(dir)).sort();
+  assert.equal(res.deleted, 1,
+    "exactly one file here is prefix-diff's own; the rest are other extensions'");
+  assert.deepEqual(left, [...foreign].sort(),
+    "every co-tenant event log survives, however far past the TTL");
+});
+
+// The bite above pins the three families that exist TODAY. This one is the
+// reach check: it asks the extension SOURCES which per-session artifact names
+// they write, rather than restating a list beside them — a hardcoded roster
+// cannot age loudly, and the next extension to add a `-events.jsonl` family
+// would land inside the sweep's blast radius with every existing test green.
+test("SNAPSHOT_FILE_RE reaches no artifact name another extension writes", async () => {
+  const { readdir: rd, readFile: rf } = await import("node:fs/promises");
+  const extDir = new URL("../proxy/extensions/", import.meta.url);
+  const files = (await rd(extDir)).filter((f) => f.endsWith(".mjs"));
+
+  // `join(dir, `${sessionKey}-<literal>`)` is how every writer in this
+  // directory names its per-session artifact. Capture the literal tail.
+  const NAME_RE = /\$\{[A-Za-z_$][\w$]*\}(-[A-Za-z0-9._-]+)/g;
+  const byOwner = new Map();
+  for (const f of files) {
+    const src = await rf(new URL(f, extDir), "utf-8");
+    for (const m of src.matchAll(NAME_RE)) {
+      if (!/\.(json|jsonl)$/.test(m[1])) continue;
+      if (!byOwner.has(f)) byOwner.set(f, new Set());
+      byOwner.get(f).add(m[1]);
+    }
+  }
+
+  // Instrument-positive: a scan that matched nothing would satisfy the
+  // assertion below vacuously, so prove it found the writers we already know.
+  const owned = byOwner.get("prefix-diff.mjs") ?? new Set();
+  assert.ok(owned.has("-last.json") && owned.has("-events.jsonl"),
+    `the scan must see prefix-diff's own names; got ${JSON.stringify([...owned])}`);
+  assert.ok((byOwner.get("insertion-normalization.mjs") ?? new Set()).has("-insertion-events.jsonl"),
+    "the scan must see insertion-normalization's event log");
+
+  const trespass = [];
+  for (const [owner, tails] of byOwner) {
+    if (owner === "prefix-diff.mjs") continue;
+    for (const tail of tails) {
+      // Probe with a real key shape, which is what production produces.
+      if (SNAPSHOT_FILE_RE.test(`s-3ce1c5cda120${tail}`)) trespass.push(`${owner}: ${tail}`);
+    }
+  }
+  assert.deepEqual(trespass, [],
+    `the sweep's scope regex claims files these extensions own:\n${trespass.join("\n")}`);
 });
 
 test("sweepSnapshotDir: key cap evicts the oldest keys, newest activity wins", async () => {
@@ -1609,16 +1709,17 @@ test("sweepSnapshotDir: key cap evicts the oldest keys, newest activity wins", a
   const now = Date.now();
   const entries = [];
   // maxKeys + 3 keys, all inside the TTL so only the cap pass can act.
+  const capKey = (i) => `s-${String(i).padStart(12, "0")}`;
   for (let i = 0; i < SNAPSHOT_MAX_KEYS + 3; i++) {
-    entries.push([`s-k${String(i).padStart(4, "0")}-last.json`, now - i * 1000]);
+    entries.push([`${capKey(i)}-last.json`, now - i * 1000]);
   }
   await seedSnapshots(dir, entries);
   const res = await sweepSnapshotDir(dir, undefined, { now });
   assert.equal(res.deleted, 3, "exactly the overflow beyond the cap");
   assert.equal(res.keysRemaining, SNAPSHOT_MAX_KEYS);
   const left = await readdir(dir);
-  assert.ok(left.includes("s-k0000-last.json"), "the most recently touched key survives");
-  assert.ok(!left.includes(`s-k${String(SNAPSHOT_MAX_KEYS + 2).padStart(4, "0")}-last.json`),
+  assert.ok(left.includes(`${capKey(0)}-last.json`), "the most recently touched key survives");
+  assert.ok(!left.includes(`${capKey(SNAPSHOT_MAX_KEYS + 2)}-last.json`),
             "the oldest key is the one evicted");
   await rm(dir, { recursive: true, force: true });
 });
@@ -1629,15 +1730,32 @@ test("sweepSnapshotDir: a missing directory is not an error", async () => {
 });
 
 test("groupSnapshotFiles: groups by key and ignores every foreign name", () => {
+  const a = skey("a");
+  const b = skey("b");
   const byKey = groupSnapshotFiles([
-    "s-a-last.json", "s-a-diff.json", "s-a-events.jsonl", "s-a-events.jsonl.1",
-    "s-b-last.json",
-    "s-a-canon.json", "s-a-relocated.json", "s-a-rungs.json",
-    "README", "gate-status.json", "s-a-events.jsonl.2",
+    `${a}-last.json`, `${a}-diff.json`, `${a}-events.jsonl`, `${a}-events.jsonl.1`,
+    `${b}-last.json`,
+    `${a}-canon.json`, `${a}-relocated.json`, `${a}-rungs.json`,
+    "README", "gate-status.json", `${a}-events.jsonl.2`,
+    // Co-tenant event logs. Before the key anchor these grouped under the
+    // synthetic keys `<a>-insertion` and `<a>-deferred-tool`, which is how
+    // 13,699 files became this sweep's to delete.
+    `${a}-insertion-events.jsonl`, `${a}-deferred-tool-events.jsonl`,
+    `${a}-guard-events.jsonl`,
+    // A key of the wrong shape entirely: neither `s-`+12hex nor bare 12hex.
+    "s-notakey-last.json",
   ]);
-  assert.deepEqual([...byKey.keys()].sort(), ["s-a", "s-b"]);
-  assert.equal(byKey.get("s-a").length, 4, "only the four owned artifact names");
-  assert.ok(!byKey.get("s-a").some((n) => /canon|relocated|rungs/.test(n)));
+  assert.deepEqual([...byKey.keys()].sort(), [a, b].sort());
+  assert.equal(byKey.get(a).length, 4, "only the four owned artifact names");
+  assert.ok(!byKey.get(a).some((n) => /canon|relocated|rungs|insertion|deferred|guard/.test(n)));
+});
+
+test("groupSnapshotFiles: the headerless-request fallback key still groups", () => {
+  // computeSessionKey (no session-id header) returns a BARE 12-hex key with no
+  // `s-` prefix. The anchor covers both shapes because both are produced.
+  const byKey = groupSnapshotFiles(["a1b2c3d4e5f6-last.json", "a1b2c3d4e5f6-events.jsonl"]);
+  assert.deepEqual([...byKey.keys()], ["a1b2c3d4e5f6"]);
+  assert.equal(byKey.get("a1b2c3d4e5f6").length, 2);
 });
 
 // Upstream's bite, taken in the same merge: this fork's tenantId already hashes
