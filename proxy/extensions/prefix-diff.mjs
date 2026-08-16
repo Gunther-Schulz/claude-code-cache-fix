@@ -14,6 +14,20 @@
 // No request mutation. Fail-open: any I/O error is swallowed. Set
 // CACHE_FIX_DEBUG=1 to also log swallowed errors.
 //
+// CONTENT MINIMIZATION (upstream's, ported 2026-08-16 on an operator
+// decision — see BACKLOG "port upstream CACHE_FIX_PREFIXDIFF_CONTENT gate
+// default-OFF, opt deployment in"). By default this module persists only
+// hashes, lengths, and indices — enough to say WHICH block/message/index
+// changed, never the bytes that changed. Full text (system-block windows,
+// message previews, event-record previews) is stored only under
+// CACHE_FIX_PREFIXDIFF_CONTENT=1. Enabling it persists prompt-derived text
+// to disk; it is an explicit, separate opt-in from CACHE_FIX_PREFIXDIFF
+// itself. THIS DEPLOYMENT OPTS IN (the serving unit sets it), because
+// byte-level attribution is this fork's purpose — dev-loop's "the census
+// names the class; only content names the cause". The code is upstream's
+// exactly; the divergence lives in the deployment, with its reason
+// recorded in the dotfiles gate-acceptance entry.
+//
 // ---------------------------------------------------------------------
 // Design notes — the four blind spots this version closes (2026-07-27)
 //
@@ -112,6 +126,14 @@ import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
 
 const ENABLED = process.env.CACHE_FIX_PREFIXDIFF === "1";
 const DEBUG = process.env.CACHE_FIX_DEBUG === "1";
+// Content minimization (upstream's, ported 2026-08-16): by default this
+// module persists only hashes, lengths, and indices — enough to say WHICH
+// block/message/index changed, never the bytes that changed. Full text
+// (system-block windows, message previews, event-record previews) is
+// stored only when this is explicitly opted into. Off by default because
+// the whole point of the default mode is that prompt-derived text never
+// rests on disk.
+const CONTENT_ENABLED = process.env.CACHE_FIX_PREFIXDIFF_CONTENT === "1";
 
 // This extension's pipeline order (dev-loop.md, "Tap points"). A bare index
 // was equated across tap points during the 587k attribution — a raw-capture
@@ -529,7 +551,15 @@ function computeSystemHash(system) {
 // A short human label for a system block, so a diff line reads
 // "block 2 (env)" instead of "block 2". Derived from content because
 // the API gives blocks no identity of their own.
-function labelSystemBlock(text) {
+//
+// The fixed categories below are safe to return regardless of
+// `contentEnabled`: each is a constant string naming a recognized shape,
+// never a slice of the block's own bytes. Only the last-resort fallback
+// (an unrecognized block) used to echo the block's own leading text as
+// the label — that is prompt-derived content leaking through a field that
+// looks like metadata, so it is gated the same as everything else content
+// minimization covers.
+function labelSystemBlock(text, contentEnabled = true) {
   if (typeof text !== "string" || text.length === 0) return "empty";
   const head = text.slice(0, 200).replace(/\s+/g, " ").trim();
   if (/^You are Claude Code/i.test(head)) return "cc-identity";
@@ -539,22 +569,30 @@ function labelSystemBlock(text) {
   if (/system-reminder/i.test(head)) return "system-reminder";
   if (/available skills|Skill tool/i.test(head)) return "skills";
   if (/agent types|subagent_type/i.test(head)) return "agents";
+  if (!contentEnabled) return "other";
   return head.slice(0, 40) || "text";
 }
 
 // Store each system block's full text (capped) rather than one opaque
-// hash, so computeDiff can point at the exact bytes that moved.
-function buildSystemSnapshot(system) {
+// hash, so computeDiff can point at the exact bytes that moved — but only
+// when `contentEnabled` (CACHE_FIX_PREFIXDIFF_CONTENT=1). Content
+// minimization: by default `text` is omitted entirely and only structural
+// metadata (index, type, label, chars, hash, hasCacheControl, truncated)
+// is stored, so a system-prompt byte never rests on disk unless the
+// operator opted into it. `chars`/`hash` still give computeDiff enough to
+// say WHICH block changed and by how much; `text` is what it needs to say
+// HOW.
+function buildSystemSnapshot(system, contentEnabled = true) {
   if (typeof system === "string") {
     return [
       {
         index: 0,
         type: "string",
-        label: labelSystemBlock(system),
+        label: labelSystemBlock(system, contentEnabled),
         chars: system.length,
         hash: sha(system),
-        text: system.slice(0, SYSTEM_TEXT_CAP),
         truncated: system.length > SYSTEM_TEXT_CAP,
+        ...(contentEnabled ? { text: system.slice(0, SYSTEM_TEXT_CAP) } : {}),
       },
     ];
   }
@@ -567,12 +605,12 @@ function buildSystemSnapshot(system) {
     return {
       index: i,
       type: block?.type ?? "unknown",
-      label: labelSystemBlock(text),
+      label: labelSystemBlock(text, contentEnabled),
       chars: text.length,
       hash: sha(JSON.stringify(rest)),
       hasCacheControl: Boolean(cache_control),
-      text: text.slice(0, SYSTEM_TEXT_CAP),
       truncated: text.length > SYSTEM_TEXT_CAP,
+      ...(contentEnabled ? { text: text.slice(0, SYSTEM_TEXT_CAP) } : {}),
     };
   });
 }
@@ -619,11 +657,41 @@ function diffBetaHeader(prevSnap, nowSnap) {
   return { added, removed };
 }
 
-// Project a single message: strip cache_control, truncate text >500 chars
-// with `...[N chars]` marker. Pure: returns a new object, never mutates
-// input. Shared by the head and tail windows so both apply identical
-// truncation rules.
-function truncateOneMessage(msg) {
+// Rough content size, safe to store regardless of `contentEnabled` — a
+// length, never the bytes themselves.
+function charLength(value) {
+  if (typeof value === "string") return value.length;
+  return JSON.stringify(value ?? null).length;
+}
+
+// Project a single message for the head/tail windows.
+//
+// contentEnabled: strip cache_control, truncate text >500 chars with
+// `...[N chars]` marker. Pure: returns a new object, never mutates input.
+// Shared by the head and tail windows so both apply identical truncation
+// rules.
+//
+// !contentEnabled (content minimization): a single
+// hash-over-the-whole-message plus a size, and nothing else. This is
+// deliberately NOT a per-block redaction (drop `text`, keep `input`/
+// `content` blocks as-is) — a tool_use block's `input` or a tool_result's
+// `content` can carry arbitrary prompt- or tool-output-derived text just
+// as easily as a `text` block can, and the old per-block truncation only
+// ever capped `.text`. Hashing the whole message (via the same
+// stripCacheControl used for the always-on hash chain) covers every
+// content shape uniformly, so no block type is an accidental content
+// leak. Attribution survives: diffMessageWindow still detects a change at
+// this position via the hash, and messageChain (buildMessageHashes, which
+// covers every index, not just the head/tail windows) already names the
+// exact first divergent index and role.
+function truncateOneMessage(msg, contentEnabled = true) {
+  if (!contentEnabled) {
+    return {
+      role: msg?.role,
+      hash: sha(JSON.stringify(stripCacheControl(msg ?? {})), 12),
+      chars: charLength(msg?.content),
+    };
+  }
   if (!msg || !Array.isArray(msg.content)) {
     return { role: msg?.role, content: msg?.content };
   }
@@ -662,7 +730,14 @@ function stripCacheControl(msg) {
 // entry, so even a 1000-turn session costs ~40KB — cheap enough to make
 // the head/marker/tail windows detail providers rather than the only
 // detection surface.
-function buildMessageHashes(messages) {
+// `p` (the per-message preview) is real prompt content and is stored only
+// under `contentEnabled` (content minimization) — omitted entirely
+// otherwise, the same "field absent on an older/degraded snapshot" shape
+// this file already uses everywhere a version boundary needs to degrade
+// instead of throw. `h` (the hash) is unaffected: it is always computed
+// and always stored, because it is what carries the attribution value in
+// default mode.
+function buildMessageHashes(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
   return messages.map((msg, i) => ({
     i,
@@ -676,23 +751,23 @@ function buildMessageHashes(messages) {
     // MESSAGE_PREVIEW_CHARS per message and makes the ledger
     // self-sufficient for exactly the class that previously needed the
     // live request — which by then no longer exists.
-    p: messageTextPreview(msg, MESSAGE_PREVIEW_CHARS),
+    ...(contentEnabled ? { p: messageTextPreview(msg, MESSAGE_PREVIEW_CHARS) } : {}),
   }));
 }
 
 // Project the first 5 messages (the head window): strip cache_control,
 // truncate text >500 chars with `...[N chars]` marker.
-function truncatePrefixMessages(messages) {
+function truncatePrefixMessages(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
-  return messages.slice(0, 5).map(truncateOneMessage);
+  return messages.slice(0, 5).map((m) => truncateOneMessage(m, contentEnabled));
 }
 
 // Project the last 3 messages (the tail window), same truncation rules as
 // the head window. Catches busts near the live edge of long sessions that
 // the head window (fixed at the start of the array) can never see.
-function truncateTailMessages(messages) {
+function truncateTailMessages(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
-  return messages.slice(-3).map(truncateOneMessage);
+  return messages.slice(-3).map((m) => truncateOneMessage(m, contentEnabled));
 }
 
 // True if `msg` carries at least one content block with a cache_control
@@ -751,7 +826,7 @@ function hashMessageContent(msg) {
 // only a hash + short preview, not the full message body — long sessions
 // can accumulate many turns, and this window must stay cheap regardless
 // of session length.
-function buildMarkerSnapshot(messages) {
+function buildMarkerSnapshot(messages, contentEnabled = true) {
   if (!Array.isArray(messages)) return [];
   const markers = [];
   for (let i = 0; i < messages.length && markers.length < MARKER_CAP; i++) {
@@ -760,13 +835,15 @@ function buildMarkerSnapshot(messages) {
     markers.push({
       index: i,
       hash: hashMessageContent(msg),
-      textPreview: messageTextPreview(msg),
+      // Real content — same content-minimization gate as everywhere else
+      // (2026-08-05): omitted unless contentEnabled.
+      ...(contentEnabled ? { textPreview: messageTextPreview(msg) } : {}),
     });
   }
   return markers;
 }
 
-function buildSnapshot(payload, headers) {
+function buildSnapshot(payload, headers, contentEnabled = true) {
   if (!payload || !payload.system) return null;
   return {
     timestamp: new Date().toISOString(),
@@ -775,12 +852,19 @@ function buildSnapshot(payload, headers) {
     systemHash: computeSystemHash(payload.system),
     // Coverage added 2026-07-27 — see design notes at the top.
     params: buildParamsSnapshot(payload),
-    systemBlocks: buildSystemSnapshot(payload.system),
+    // Every builder below that can carry raw prompt bytes takes
+    // `contentEnabled` and gates on it (content minimization, 2026-08-05,
+    // CACHE_FIX_PREFIXDIFF_CONTENT=1) — gating once here, at the single
+    // point everything downstream (computeDiff, buildEventRecord) reads
+    // from, means no consumer has to re-check the flag: an omitted field
+    // degrades the same way an old-format snapshot's missing field
+    // already does everywhere else in this file.
+    systemBlocks: buildSystemSnapshot(payload.system, contentEnabled),
     toolsDetail: buildToolsSnapshot(payload.tools),
-    messageHashes: buildMessageHashes(payload.messages),
-    prefixMessages: truncatePrefixMessages(payload.messages),
-    tailMessages: truncateTailMessages(payload.messages),
-    markerMessages: buildMarkerSnapshot(payload.messages),
+    messageHashes: buildMessageHashes(payload.messages, contentEnabled),
+    prefixMessages: truncatePrefixMessages(payload.messages, contentEnabled),
+    tailMessages: truncateTailMessages(payload.messages, contentEnabled),
+    markerMessages: buildMarkerSnapshot(payload.messages, contentEnabled),
     // Blind spot 5 (2026-07-27): the anthropic-beta header lives outside
     // `payload`, so it's threaded in separately rather than read off the
     // body like everything else above. `headers` is optional — direct
@@ -1194,7 +1278,11 @@ function withKeyLock(key, fn) {
 
 async function snapshotPrefix(payload, options = {}) {
   const headers = options.headers || null;
-  const current = buildSnapshot(payload, headers);
+  // `contentEnabled` in options lets tests exercise both modes without
+  // mutating process.env; production leaves it unset and gets the real
+  // CACHE_FIX_PREFIXDIFF_CONTENT reading.
+  const contentEnabled = options.contentEnabled ?? CONTENT_ENABLED;
+  const current = buildSnapshot(payload, headers, contentEnabled);
   if (!current) return null;
   const lockKey = resolveSessionKey(headers, payload.system);
   return withKeyLock(lockKey, () => snapshotPrefixLocked(payload, options, current, headers));

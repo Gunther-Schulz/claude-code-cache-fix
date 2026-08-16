@@ -23,6 +23,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, readdir, rm, stat, utimes, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { tmpDir } from "../tools/tmpdir.mjs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -159,7 +160,16 @@ test("BITE — a rotated -events.jsonl.1 stays 0600 after the boot sweep repairs
 
 const SENTINEL = "SENTINEL-9f3c2b7e-do-not-persist";
 
-function payloadWithSentinel() {
+// FIXTURE DEFECT, FOUND AND FIXED 2026-08-16 while porting the gate — the
+// overrides parameter did not exist. Both arms below call
+// `payloadWithSentinel({ messages: [...] })` to make the SECOND request differ
+// from the first, and the no-argument version inherited from upstream silently
+// ignored that object: the two requests were byte-identical, so no diff and no
+// event record were ever written, and the absence assertion only ever covered
+// `-last.json`. The arms passed either way, which is what stopped anyone
+// looking. The `wroteDiff` precondition asserted in both arms below is what
+// keeps it fixed: it fails loudly if the two requests ever stop differing.
+function payloadWithSentinel(overrides = {}) {
   return makePayload({
     system: [{ type: "text", text: `you are claude. ${SENTINEL} extra context that pads past any short cap` }],
     messages: [
@@ -168,88 +178,161 @@ function payloadWithSentinel() {
       { role: "user", content: [{ type: "tool_result", content: `result containing ${SENTINEL}` }] },
       { role: "assistant", content: [{ type: "tool_use", name: "Bash", input: { command: SENTINEL } }] },
     ],
+    ...overrides,
   });
 }
 
-// FORK DIVERGENCE 2026-08-16 (upstream merge) — READ THIS BEFORE "FIXING" THE
-// TEST BELOW.
+// CONTRACT CHANGED 2026-08-16 — the pair below replaced a single
+// "FORK CONTRACT — default mode DOES persist prompt text" bite, and this note
+// is the record of why, so the change reads as a decision rather than as a
+// repair.
 //
-// Upstream's version of this bite asserts that in DEFAULT mode no prompt-derived
-// text reaches disk: upstream gates every content path on
-// CACHE_FIX_PREFIXDIFF_CONTENT=1, off by default, "because the whole point of
-// the default mode is that prompt-derived text never rests on disk".
+// Until today this fork had no content gate at all (`grep -c
+// 'CONTENT_ENABLED\|PREFIXDIFF_CONTENT' proxy/extensions/prefix-diff.mjs`
+// returned 0): it always stored system-block text to SYSTEM_TEXT_CAP, message
+// previews and event-record previews. The old bite asserted that — the fork's
+// real contract — precisely so it would go RED on the day the gate landed
+// rather than letting the change pass unnoticed. It DID go red today
+// (1 failing of 10, the other nine green), and this is the deliberate update
+// of the expectation, not a reflexive greening.
 //
-// THIS FORK HAS NO SUCH GATE — `grep -c 'CONTENT_ENABLED\|PREFIXDIFF_CONTENT'
-// proxy/extensions/prefix-diff.mjs` returns 0. It always stores system-block
-// text (to SYSTEM_TEXT_CAP = 20,000 chars), message previews and event-record
-// previews, deliberately: this fork's whole purpose is byte-level divergence
-// attribution, and dev-loop.md's own rule is that "the census names the class;
-// only content names the cause".
+// What changed underneath: upstream's `CACHE_FIX_PREFIXDIFF_CONTENT` gate is
+// now ported verbatim, default OFF (operator decision, BACKLOG "port upstream
+// CACHE_FIX_PREFIXDIFF_CONTENT gate default-OFF, opt deployment in"). The code
+// matches upstream exactly and the divergence lives in the DEPLOYMENT: the
+// serving unit sets the variable to 1, so this machine keeps byte-level
+// attribution, with the reason recorded in the dotfiles gate-acceptance entry.
+// So the two arms below now test the CODE's contract; they say nothing about
+// what this deployment has opted into, which is the point of moving the choice
+// out of the code.
 //
-// So upstream's bite fails here, and — the part that matters — its CONTROL
-// passes for the wrong reason: with no gate, the contentEnabled:true arm and
-// the default arm exercise the same code, so the pair cannot discriminate. Two
-// arms agreeing IS the finding.
-//
-// The exposure is real and measured: the proxy fronts EVERY Claude Code session
-// on this machine, and the snapshot directory held 28,157 files at merge time.
-// Whether to adopt upstream's minimization — and if so whether to set
-// CACHE_FIX_PREFIXDIFF_CONTENT=1 in the serving unit so attribution keeps its
-// inputs — is an OPERATOR decision, booked in BACKLOG.md. It is deliberately
-// NOT taken inside a merge.
-//
-// Until then this asserts the fork's ACTUAL contract, so it documents reality
-// rather than an aspiration, and it goes RED the day the gate is ported —
-// which is exactly when the booked decision needs to be recorded.
-test("FORK CONTRACT — default mode DOES persist prompt text (no content gate here; see the note above)", async () => {
+// The pair also discriminates again, which it could not while the fork had no
+// gate: with one code path for both arms, default and contentEnabled:true
+// exercised the same bytes and two arms agreeing was the finding.
+test("BITE — default mode: the sentinel never lands in any written file", async () => {
   const dir = await newTmp();
   try {
     const headers = { "x-claude-code-session-id": "content-default" };
     // First request establishes the baseline; second mutates it so a diff
     // and an event record are actually written — the artifacts most
-    // likely to carry a leaked preview.
+    // likely to carry a leaked preview. `wroteDiff` is asserted rather
+    // than assumed: without it this absence claim silently shrinks to
+    // `-last.json` alone (see the fixture note above).
     await snapshotPrefix(payloadWithSentinel(), { dir, headers });
+    let r;
     await captureStderr(async () => {
-      await snapshotPrefix(
+      r = await snapshotPrefix(
         payloadWithSentinel({
           messages: [{ role: "user", content: `${SENTINEL} mutated` }],
         }),
         { dir, headers },
       );
     });
+    assert.ok(r.wroteDiff, "precondition: a diff and an event record must actually have been written");
 
     const hits = await grepDirFor(dir, SENTINEL);
-    assert.ok(
-      hits.length > 0,
-      "this fork persists prompt text in default mode — if this went green, the content gate " +
-      "was ported without recording the operator decision the note above names",
-    );
+    assert.deepEqual(hits, [], `sentinel must not appear in any written file, found in: ${hits.join(", ")}`);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
 });
 
-// Kept as the GREP's instrument-positive and nothing more. On upstream this is
-// the discriminating half of a pair; on this fork it exercises the same code
-// path as the case above, so it proves only that `grepDirFor` can see a
-// sentinel that is present. Named for what it establishes here rather than
-// left claiming a discrimination it cannot make.
-test("INSTRUMENT-POSITIVE — grepDirFor really does detect a sentinel on disk", async () => {
+test("CONTROL — CACHE_FIX_PREFIXDIFF_CONTENT mode: the sentinel DOES land on disk (proves the grep can detect it)", async () => {
   const dir = await newTmp();
   try {
     const headers = { "x-claude-code-session-id": "content-enabled" };
     await snapshotPrefix(payloadWithSentinel(), { dir, headers, contentEnabled: true });
+    let r;
     await captureStderr(async () => {
-      await snapshotPrefix(
+      r = await snapshotPrefix(
         payloadWithSentinel({
           messages: [{ role: "user", content: `${SENTINEL} mutated` }],
         }),
         { dir, headers, contentEnabled: true },
       );
     });
+    assert.ok(r.wroteDiff, "precondition: a diff and an event record must actually have been written");
 
     const hits = await grepDirFor(dir, SENTINEL);
     assert.ok(hits.length > 0, "control must find the sentinel when content mode is on, or the grep instrument is broken");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// =====================================================================
+// 2b. The ENV route — the entry path production actually takes
+// =====================================================================
+//
+// The two arms above drive the gate through `options.contentEnabled`, which is
+// a TEST seam. Production drives it through `CACHE_FIX_PREFIXDIFF_CONTENT`,
+// read once at module load into `CONTENT_ENABLED` — a different entry path to
+// the same protected property, and "a mechanism that guards one route is not a
+// guard" (dev-loop). An in-process test cannot flip a module-load constant, so
+// each arm runs in its own child process with its own environment.
+//
+// This is the verifier the backlog entry names for this change: plant a
+// sentinel, run the real path with the gate OFF and grep what was written, then
+// re-run with the gate ON to prove the grep can see the sentinel at all. A zero
+// from an instrument that never fires is indistinguishable from a zero that
+// means something.
+
+// Run one arm: two snapshots into `dir` in a child process whose environment
+// carries (or does not carry) the gate. Returns the child's own `wroteDiff`, so
+// the absence assertion cannot silently shrink to `-last.json` here either.
+function runEnvArm(dir, gateValue) {
+  const modUrl = new URL("../proxy/extensions/prefix-diff.mjs", import.meta.url).href;
+  const src = `
+    const { snapshotPrefix } = await import(process.env.MOD_URL);
+    const headers = { "x-claude-code-session-id": "content-env-route" };
+    await snapshotPrefix(JSON.parse(process.env.P1), { dir: process.env.DIR, headers });
+    const r = await snapshotPrefix(JSON.parse(process.env.P2), { dir: process.env.DIR, headers });
+    process.stdout.write(JSON.stringify({ wroteDiff: Boolean(r && r.wroteDiff) }));
+  `;
+  const env = {
+    ...process.env,
+    MOD_URL: modUrl,
+    DIR: dir,
+    P1: JSON.stringify(payloadWithSentinel()),
+    P2: JSON.stringify(
+      payloadWithSentinel({ messages: [{ role: "user", content: `${SENTINEL} mutated` }] }),
+    ),
+  };
+  // Absent, not empty-string: an unset variable is the real default state, and
+  // `CACHE_FIX_PREFIXDIFF_CONTENT=""` is a different input.
+  delete env.CACHE_FIX_PREFIXDIFF_CONTENT;
+  if (gateValue !== undefined) env.CACHE_FIX_PREFIXDIFF_CONTENT = gateValue;
+  const out = execFileSync(process.execPath, ["--input-type=module", "-e", src], {
+    env,
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  return JSON.parse(out);
+}
+
+test("BITE — env route, gate UNSET: the sentinel never lands in any written file", async () => {
+  const dir = await newTmp();
+  try {
+    const { wroteDiff } = runEnvArm(dir, undefined);
+    assert.ok(wroteDiff, "precondition: a diff and an event record must actually have been written");
+    const hits = await grepDirFor(dir, SENTINEL);
+    assert.deepEqual(hits, [], `sentinel must not appear in any written file, found in: ${hits.join(", ")}`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CONTROL — env route, CACHE_FIX_PREFIXDIFF_CONTENT=1: the sentinel DOES land on disk", async () => {
+  const dir = await newTmp();
+  try {
+    const { wroteDiff } = runEnvArm(dir, "1");
+    assert.ok(wroteDiff, "precondition: a diff and an event record must actually have been written");
+    const hits = await grepDirFor(dir, SENTINEL);
+    assert.ok(
+      hits.length > 0,
+      "the deployment's own configuration must still persist content — if this is empty, the gate " +
+      "does not read the env var and the serving unit's opt-in is dead text",
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
