@@ -3860,6 +3860,34 @@ comment and new issue.
   `CACHE_FIX_PROXY_TREE_PIN` bump plus a restart at a stated session boundary
   (threat-matrix row 3), so it is a session of its own and must not ride the tail
   of unrelated work.
+  **SIZED 2026-08-16, because "33 behind" is a count and not a blast radius.**
+  It is **37** behind now, not 33 — it moved by four during a single session,
+  which is the drift argument by itself. Measured against the merge base
+  (`76d586d`), not against a tree-to-tree diff: **INCOMING is 97 files,
+  +22,197 / -782**, including two whole new upstream tools (`tier-advisor.mjs`
+  722 lines, and upstream's OWN `tools/absence-scan.mjs` at 479 lines).
+  **The conflict surface is 56 files** — files changed on BOTH sides since the
+  base — and it lands squarely on this fork's core: all three mitigation
+  extensions (`insertion-normalization.mjs`, `message-hash.mjs`,
+  `deferred-tool-rewrite.mjs`), `proxy/server.mjs`, and twenty-odd test files.
+  **It touches state keys / freeze logic** (15 matched lines in the incoming
+  set), so row 3's transparency argument does NOT carry: this restart is priced
+  against live sessions, not assumed cheap.
+  **The one to look at first is `tools/absence-scan.mjs`:** upstream has
+  independently grown its own, and ours is the publication-bar enforcer that
+  runs as a pre-push hook. A careless resolution there weakens the leak gate,
+  which is the one irreversible axis in this repo.
+  **METHOD NOTE, recorded because it produced a wrong reading before it
+  produced the right one:** `git diff main..upstream/main` shows the fork's own
+  work as DELETIONS — `proxy/xdg-dirs.mjs -208` is our fork-only file, not
+  upstream removing it, and the state-key hits in that direction are our own D1
+  machinery. Size an incoming merge against `git merge-base`, never tree-to-tree.
+  **Sequencing, decided at the desk 2026-08-16:** this goes BEFORE the harness
+  lint and before the resume-key redesign. The parked branch
+  (`wip/resume-key-third-read`) touches four of the conflict files and is going
+  to be re-derived anyway, so its rebase cost is at its MINIMUM right now; and
+  the harness lint's own subject — test files exercising gated extensions — sits
+  in the conflict set, so building it pre-merge means validating it twice.
   **One home, deliberately:** booked HERE and not in dotfiles, even though the
   precedent entry lives there, because the merge happens in this repo and a fork
   session is its consumer. The dotfiles entry is closed and stays closed.
