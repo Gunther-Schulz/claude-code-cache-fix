@@ -514,12 +514,24 @@ comment and new issue.
   to ~4.5 GB, over cap — i.e. this is blocked on the SAME operator decision the
   2026-08-15 handoff already carries about the cap, now with a named
   consequence rather than a hypothetical one.
-  **Done-criterion:** on a replay of s-captureBR the post-resume request
-  resolves its canonical (no `no-baseline`) and `deferred-tool-rewrite` reports
-  `description-absorbed`/`rewrite` rather than forwarding CC's raw array — i.e.
-  layer 1 absorbed on the instance. Layers 2-4 are SEPARATE entries that become
-  dispatchable only once this lands; each is named in matrix row 24 and none is
-  worth building before the key survives.
+  **Done-criterion — NARROWED 2026-08-16 on operator GO, resolving review
+  finding F4.** It read: "on a replay of s-captureBR the post-resume request
+  resolves its canonical (no `no-baseline`) AND `deferred-tool-rewrite` reports
+  `description-absorbed`/`rewrite`". The second clause is unreachable from this
+  entry's write boundary — that extension holds its own state file and its own
+  two-key read and has no third read — so the criterion demanded of this entry
+  something only a DIFFERENT entry can deliver.
+  It now reads, in full: **on a replay of s-captureBR under the SERVING gate set
+  (`CACHE_FIX_VOLATILE_PIN=1` included — a plain-mode replay proves nothing
+  here, per F1), the post-resume request resolves its canonical and logs no
+  `no-baseline` from `insertion-normalization`.** That is this change's whole
+  claim: the pin becomes READABLE across the boundary.
+  What the narrowing deliberately gives up, so nobody reads it as a win: the
+  38.9 kB first-span recovery is NOT demonstrated by this entry any more. It
+  moves to the tools-layer entry below, and until that ships this mitigation
+  buys a readable canonical and no measured cache recovery. Layers 2-4 remain
+  separate entries named in matrix row 24, none worth building before the key
+  survives.
   **Sibling enumeration (ship-time, per dev-loop):** the same rotation happens
   at compaction and at an idle boundary (row 29), where re-serving a stale
   canonical is NOT obviously safe — this entry's safety argument reaches the
@@ -3863,6 +3875,69 @@ comment and new issue.
 
 
 ## Record — decision-complete memory, not scheduled
+
+- **RECORD 2026-08-16 (split out of the resume-key entry on operator GO,
+  resolving review finding F4) — `deferred-tool-rewrite` needs its OWN
+  resume-tolerant read, and it is where the measured 38.9 kB actually lives.**
+  The resume-key entry's done-criterion used to demand this and could not
+  reach it: `deferred-tool-rewrite` keeps a SEPARATE state file
+  (`deferred-tool-rewrite.mjs:205`, `<key>-deferred-tool-canon.json`) and its
+  own two-key read (`:698-726`), both keyed on `conversationSubKey` exactly as
+  insertion-normalization is, and both rotate at the same resume boundary. It
+  has no third read, so it logs `no-baseline` and forwards CC's raw `tools[]`
+  at precisely the request its canonical would have absorbed.
+  **Why this is the entry that carries the payoff.** Measured on s-captureBR by
+  `tools/boundary-layers.mjs`: the first cache segment ends at `system[1]`,
+  spans 38.9 kB, and its ONLY broken layer is `tools` — so the smallest useful
+  fix on that event is the tools pin alone, and it is worth a readable 38.9 kB
+  span. The insertion-normalization work buys a readable canonical; THIS buys
+  the bytes.
+  **Named missing evidence, and it is a hard ORDERING constraint rather than a
+  preference:** this is not dispatchable until (a) the harness lint above
+  exists, so any bite here is exercised under the serving gate set — this
+  extension is gated by `CACHE_FIX_TOOL_REWRITE=1`, so it has exactly the F1
+  exposure that made the sibling lane's green worthless; and (b) the sibling
+  entry's re-derived design settles, because if both extensions end up needing
+  the same lineage-recovery primitive it is written ONCE, in
+  `proxy/extensions/message-hash.mjs`, not twice.
+  **Do NOT copy the sibling's mechanism forward uncritically.** Review finding
+  F6 measured that design at 150 ms per miss on 649 candidates; whatever this
+  entry adopts must not repeat a per-request parse of every candidate file.
+  Loop stage: MITIGATE
+  Anchor: docs/directives/robustness-threat-matrix.md
+  Write-set: proxy/extensions/deferred-tool-rewrite.mjs, test/deferred-tool-resume-recovery.test.mjs (new)
+  Verifier: a replay of s-captureBR under the SERVING gate set where deferred-tool-rewrite reports description-absorbed/rewrite instead of no-baseline, plus the boundary-layers segment line showing the first span readable
+  <!-- entry: "deferred-tool-rewrite needs its own resume-tolerant read, where the 38.9 kB lives" -->
+
+- **RECORD 2026-08-16 — a `tools/` module that calls `main()` unconditionally at
+  module scope cannot be IMPORTED, so its internals can only ever be tested
+  through the CLI — and nothing checks that.** Surfaced by the boundary-layers
+  lane as a deviation it had to make before it could write a unit bite at all:
+  a namespace import of `tools/boundary-layers.mjs` triggered a full CLI run
+  against the test runner's own argv and `process.exit(2)`, killing the test
+  process before any test ran. It added the guard
+  `if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1])`,
+  which is the repo's existing idiom — desk-verified byte-identical at
+  `tools/gate-live.mjs:2419` (the lane's report cited `:2458`, a pointer slip;
+  the idiom claim itself is true).
+  **Why this is a class and not one file's slip:** the guard's absence is
+  invisible until someone tries to unit-test the tool, and until then the tool
+  accumulates CLI-only tests — which is exactly how `boundary-layers` came to
+  have no test that could see `scanCapture`'s retention. The defect and the
+  reason it went unseen are the same fact.
+  **Design, decided:** a source lint over `tools/*.mjs` — any module defining a
+  `main()` must guard its invocation. The repo already has this exact shape in
+  `test/no-raw-mkdtemp.test.mjs` (a repo-wide `git ls-files` sweep with a
+  self-verifying exemption list), so this is a second instance of a pattern that
+  works here, not a new mechanism. Exemptions declared in data the lint checks.
+  **Instrument-positive, so a zero is a measurement:** revert the guard in
+  `boundary-layers.mjs` and the lint must fire; it must stay silent on
+  `gate-live.mjs` and `replay.mjs`, which already carry it.
+  Loop stage: VERIFY
+  Anchor: tools/boundary-layers.mjs
+  Write-set: tools/main-guard-lint.mjs (new), test/main-guard-lint.test.mjs (new)
+  Verifier: node tools/main-guard-lint.mjs — red with the guard reverted, green with it, silent on the two tools that already have it
+  <!-- entry: "a tools module calling main() at module scope cannot be imported or unit-tested" -->
 
 - **RECORD 2026-08-16 (OPERATOR-RANKED SECOND, behind the resume-key mitigation
   — takes a head slot at the next derivation, which is owed the moment that

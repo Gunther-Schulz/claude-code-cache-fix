@@ -94,9 +94,29 @@ export function getProtectedDir() {
   return process.env.CACHE_FIX_PROTECTED_DIR || join(dirname(getCaptureDir()), "captures-protected");
 }
 
+// RAISED 4096 -> 8192 on 2026-08-16 (operator GO), and it is a BRIDGE with a
+// named revert trigger rather than a preference. The cap bounds RETENTION
+// POLICY, not disk: `--protect` hard-links, so a protected capture adds zero
+// bytes to the filesystem and this number only limits how much the eviction
+// sweep is told to keep.
+//
+// What forced it: the evidence under the parked resume-key entry (matrix row
+// 24) is a LIVE capture that was 2.83 GB at 09:00 and 3.02 GB by 09:5x — it
+// does not fit beside the four existing protections in 4 GiB, and all four are
+// cited by live entries, so nothing was releasable. Eviction is
+// oldest-mtime-first, which takes the QUIET session first — and a session goes
+// quiet exactly when it stops being traffic and starts being evidence, so the
+// window to protect it is while it is still noisy.
+//
+// REVERT TRIGGER, so this does not become the permanent answer: the durable
+// fix is a SMALL bounded pin of the one pair, not retention of a multi-GB
+// capture. `harvest --pin --bounded` currently cannot produce one for this
+// shape — it has failed twice on this session (born-large refusal, then 65 of
+// 174 member ordinals missing). When that defect is fixed and a small pin
+// replaces this protection, drop this back to 4096.
 function getProtectedMaxBytes(env = process.env) {
-  const raw = parseInt(env.CACHE_FIX_PROTECTED_MAX_MB ?? "4096", 10);
-  const mb = Number.isFinite(raw) && raw > 0 ? raw : 4096;
+  const raw = parseInt(env.CACHE_FIX_PROTECTED_MAX_MB ?? "8192", 10);
+  const mb = Number.isFinite(raw) && raw > 0 ? raw : 8192;
   return mb * 1024 * 1024;
 }
 
