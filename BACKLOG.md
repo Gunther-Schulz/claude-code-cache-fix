@@ -547,33 +547,6 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/insertion-lineage-recovery.test.mjs
   <!-- entry: "resume-tolerant state key gates four-layer resume absorption" -->
 
-- **READY 2026-08-16 (takes the slot the serving-gate lint vacated on closing) —
-  `test/write-owner-only.test.mjs` drives `insertion-normalization` in pin-OFF
-  while the proxy serves pin-ON.** The serving-gate lint's ONE finding on main
-  the day it shipped, so this is the instrument's first real catch rather than a
-  hand-derivation: the file default-imports the extension, calls `ext.onRequest`
-  at line 96, and computes its expected paths with `resolveInsertionSessionKey`
-  — the very function `CACHE_FIX_VOLATILE_PIN` reaches
-  (`proxy/extensions/insertion-normalization.mjs:158`) — while naming
-  `CACHE_FIX_INSERTION_NORMALIZE` and never `CACHE_FIX_VOLATILE_PIN`. Its four
-  owner-only mode bites are therefore green about a key derivation the
-  deployment does not use.
-  **Design, decided:** the file exercises pin mode the way its six siblings
-  already do (`withEnv({ CACHE_FIX_INSERTION_NORMALIZE: "1",
-  CACHE_FIX_VOLATILE_PIN: "1" })`), not by adding a gate mention that satisfies
-  the lint without changing what runs — the lint is a tripwire for the total
-  absence and cannot tell those apart, which is stated in its own header.
-  **Done-criterion:** the four mode bites pass under pin-ON, and `node
-  tools/serving-gate-lint.mjs` returns exit 0 with zero offenders. Red-first
-  arrangement: run the repaired bites against pin-ON BEFORE changing any
-  expectation — if a path assertion moves, that move is the finding, and
-  repairing the expectation to restore green is how this defect class survives.
-  Loop stage: VERIFY
-  Anchor: docs/dev-loop.md
-  Write-set: test/write-owner-only.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/write-owner-only.test.mjs, then node tools/serving-gate-lint.mjs
-  <!-- entry: "write-owner-only drives insertion-normalization in pin-OFF while production serves pin-ON" -->
-
 - **RECORD 2026-08-16 — the serving-gate lint is a hand-run tool; wiring it into
   the suite or the pre-push hook waits on both known offenders being
   repaired.** Named missing element, not a preference: the lint is RED on main
@@ -588,6 +561,21 @@ comment and new issue.
   the suite — the lint reads `/health`, so a suite bite would go COULD NOT
   VERIFY on any machine with no proxy running and a suite has no third answer to
   express that in.
+  **TRIGGER HALF-FIRED 2026-08-16 (`92ce3dd`), and the remaining half is a
+  QUESTION rather than a repair.** Main is CLEAN — `node
+  tools/serving-gate-lint.mjs` exits 0 on `main`, measured at that commit, so
+  the first of the two named offenders is gone. The second lives on
+  `wip/resume-key-third-read`, which `f0`'s grading calls wrong-by-approach
+  (F6: the per-miss parse-every-candidate scan is a design defect; the entry's
+  own save-time lineage index is the right shape), so that branch may never
+  land in its current form. Wiring pre-push on main today would therefore go
+  red only for whoever pushes THAT branch — which is arguably the instrument
+  working, not the override-reflex hazard this entry was written against.
+  **What this entry now waits on, named:** the row-24 redesign's disposition of
+  `wip/resume-key-third-read` — rebuilt on the lineage-index shape (its test
+  gets the serving pair as it is written, and no offender exists) or dropped
+  (nothing left to be red about). Either outcome makes the wiring
+  unconditional; wiring before it means guessing which.
   Anchor: tools/serving-gate-lint.mjs
   Write-set: tools/git-hooks/pre-push (or test/), decided at wiring time
   <!-- entry: "wire the serving-gate lint into a gate once both known offenders are repaired" -->
@@ -10161,6 +10149,43 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-16 (`92ce3dd`) — the owner-only BITEs now drive the config the
+  proxy actually serves, and the serving-gate lint is CLEAN on main.** The
+  lint's first real finding, closed the day after it was booked: all six bites
+  in `test/write-owner-only.test.mjs` drove `insertion-normalization` with
+  `CACHE_FIX_INSERTION_NORMALIZE` alone while the running unit serves
+  `CACHE_FIX_VOLATILE_PIN=1` beside it. Pin mode is what selects the canonical
+  shape `saveCanonical`/`loadCanonical` round-trip
+  (`insertion-normalization.mjs:1958`, `mode: pin | plain`), so the file modes
+  under assertion were the modes of a `"plain"` canonical the deployment never
+  writes.
+  **Built as the entry decided, not as the lint would accept.** Both drive
+  helpers and the third, inline drive site take the serving PAIR
+  (`SERVING_GATES`), and the arranged pre-existing canon in the atomic-write
+  bite was changed from `mode: "plain"` to `mode: "pin"` — it stands in for a
+  file the running proxy left behind, and a plain file under a pin-mode load is
+  a different case (a mode mismatch) than the one that bite is about. No gate
+  MENTION was added to satisfy the tripwire, which the lint's own header says it
+  cannot tell from a real drive.
+  **The gate-took-effect assertion is the durable half.** `mode` is written from
+  `isPinEnabled()` at save time, so it is the one observable separating the
+  serving path from the phase-2-only one; without it, adding the gate would be
+  decoration nothing could falsify, and the next author could silently revert to
+  the unserved path.
+  **Red-first, both arms named, under the suite's own config-root isolation**
+  (`node --test --import ./tools/suite-config-root.mjs`, which is the supported
+  route — bare `node --test` fails all six at HEAD too, the config-root artifact
+  `docs/dev-loop.md` already tables): baseline 6/6 GREEN with the change; with
+  `CACHE_FIX_VOLATILE_PIN` removed from `SERVING_GATES`, exactly ONE red — the
+  canon-shape assertion, by its own message — and the other five green. So the
+  assertion discriminates against the defect rather than against change.
+  **No path assertion moved**, which was the entry's named finding-if-it-happens.
+  Loop stage: VERIFY. Verifier: the six bites 6/6; `node
+  tools/serving-gate-lint.mjs` → CLEAN, exit 0; full suite 3546 tests / 0 fail
+  at the pushed commit. Test-only change: no `proxy/**` bytes, so no pin bump
+  and no restart.
+  <!-- entry: "write-owner-only drives insertion-normalization in pin-OFF while production serves pin-ON" -->
 
 - **DONE 2026-08-16 — the serving-gate lint exists and has already produced its
   first finding (`tools/serving-gate-lint.mjs`, `test/serving-gate-lint.test.mjs`).**
