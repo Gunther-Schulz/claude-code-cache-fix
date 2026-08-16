@@ -41,6 +41,20 @@ export const PUBLISHABLE_GATES = new Set([
   // distinct CACHE_FIX_* names and this is the ONLY one of the 12 serving
   // gates that the upstream allowlist did not already cover.
   "CACHE_FIX_COALESCE_SIDECAR",
+  // FORK ADDITION 2026-08-16, and the SECOND instance of exactly the shape the
+  // paragraph above describes — which is why it is written out rather than
+  // added silently. `CACHE_FIX_PREFIXDIFF_CONTENT` is the content-minimization
+  // gate this fork ports from upstream and then opts INTO on the serving unit.
+  // Unlisted, `/health` published it as `<redacted>`, and the doctor's
+  // three-way gate compare (ship-runbook step 7) read declared `"1"` against
+  // published `<redacted>` and FAILED — telling its reader "unit changed
+  // without a restart" about a process that had just been restarted. Measured
+  // live the day the gate shipped. A gate the deployment deliberately turns ON
+  // has to publish its VALUE or nothing downstream can reproduce the serving
+  // configuration, which is the one property this object exists to give. Same
+  // character as its neighbours: a boolean switch, no path, no URL, no
+  // credential, no free-form pattern.
+  "CACHE_FIX_PREFIXDIFF_CONTENT",
   "CACHE_FIX_FORWARD_PROXY",
   "CACHE_FIX_INSERTION_NORMALIZE",
   "CACHE_FIX_OUTPUT_GUARD",

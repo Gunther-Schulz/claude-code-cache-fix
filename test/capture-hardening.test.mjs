@@ -116,6 +116,46 @@ test("an unrecognised CACHE_FIX_* key is published by NAME, never by value", () 
   assert.ok(!JSON.stringify(gates).includes("s3cr3t"));
 });
 
+// The VALUE is the assertion, not the key's presence — and that distinction is
+// the whole bite. A redacted gate is still PRESENT in the object (that is the
+// deny-by-default design working), so a bite asserting `"KEY" in gates` passes
+// in both worlds and proves nothing. This one fails the day a serving gate
+// drops off the allowlist.
+//
+// It exists because that failure happened live, 2026-08-16: the newly enabled
+// `CACHE_FIX_PREFIXDIFF_CONTENT` was not listed, `/health` published
+// `<redacted>`, and the doctor's three-way gate compare (ship-runbook step 7)
+// went FAIL with a message blaming a missing restart on a process that had
+// just been restarted. The population is DERIVED from the serving unit's own
+// gate set rather than hand-listed, so it cannot go quietly green when the
+// deployment turns on a gate nobody added here.
+test("every gate the serving unit turns ON publishes its VALUE, not <redacted>", () => {
+  // The serving set, as of 2026-08-16 — the twelve Environment= gates on
+  // cache-fix-proxy.service. Kept here because the unit lives in another repo
+  // this one must not read; a gate added there and not here shows up as a
+  // doctor FAIL, which is the backstop this bite exists to make cheaper.
+  const serving = {
+    CACHE_FIX_FORWARD_PROXY: "on",
+    CACHE_FIX_SESSION_MIRROR: "on",
+    CACHE_FIX_PREFIXDIFF: "1",
+    CACHE_FIX_PREFIXDIFF_CONTENT: "1",
+    CACHE_FIX_INSERTION_NORMALIZE: "1",
+    CACHE_FIX_VOLATILE_PIN: "1",
+    CACHE_FIX_TOOL_REWRITE: "1",
+    CACHE_FIX_UPSTREAM_DETECTION: "1",
+    CACHE_FIX_UPSTREAM_ERROR_LOG: "on",
+    CACHE_FIX_REQUEST_CAPTURE: "1",
+    CACHE_FIX_OUTPUT_GUARD: "1",
+    CACHE_FIX_COALESCE_SIDECAR: "1",
+  };
+  const gates = publishableGates(serving);
+  const redacted = Object.keys(serving).filter((k) => gates[k] === REDACTED);
+  assert.deepEqual(redacted, [],
+    "a serving gate published as <redacted> cannot be compared against the unit's " +
+    "declared value, so the doctor's three-way compare can never agree:\n" + redacted.join("\n"));
+  for (const [k, v] of Object.entries(serving)) assert.equal(gates[k], v);
+});
+
 test("the allowlist contains no path, URL, command or credential key", () => {
   // The allowlist is hand-maintained, so this pins the RULE that governs
   // adding to it rather than the current membership: a key whose value names
