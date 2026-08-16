@@ -1,7 +1,7 @@
 import { tmpDir } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmod, mkdir, stat, writeFile, rm } from "node:fs/promises";
+import { chmod, mkdir, readFile, stat, writeFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 
 import ext, { resolveInsertionSessionKey } from "../proxy/extensions/insertion-normalization.mjs";
@@ -109,11 +109,22 @@ async function runExt(body, { headers, dir } = {}) {
 // the modes observed are the ones a real file lands with. A test double
 // for `fs` would report whatever the double chose — the wrongness this
 // check hunts lives in the filesystem, not in the call.
+//
+// SERVING CONFIG, not the minimum that reaches the write. The unit runs
+// CACHE_FIX_VOLATILE_PIN=1 alongside the phase-2 gate, and pin mode is what
+// decides which canonical shape `loadCanonical`/`saveCanonical` round-trip
+// (`insertion-normalization.mjs:1958`, `mode: pin | plain`). Driving with the
+// phase-2 gate alone left these BITEs green about a "plain" canonical the
+// proxy never writes. Found by `tools/serving-gate-lint.mjs` — the check that
+// derives each extension's gates from its source and the serving set from
+// /health. The canon-shape assertion in the first BITE is what keeps this
+// honest: drop CACHE_FIX_VOLATILE_PIN again and it goes red rather than
+// silently reverting to the unserved path.
+const SERVING_GATES = { CACHE_FIX_INSERTION_NORMALIZE: "1", CACHE_FIX_VOLATILE_PIN: "1" };
+
 async function driveInsertion(dir, seed, headers) {
   const body = { model: "claude-opus-4-7", messages: conv(6, seed) };
-  await silenced(() =>
-    withEnvAsync({ CACHE_FIX_INSERTION_NORMALIZE: "1" }, () => runExt(body, { headers, dir })),
-  );
+  await silenced(() => withEnvAsync(SERVING_GATES, () => runExt(body, { headers, dir })));
   const key = resolveInsertionSessionKey(headers, body.messages, body.system);
   return {
     canon: join(dir, "cache-fix", "snapshots", `${key}-insertion-canon.json`),
@@ -135,6 +146,15 @@ test("BITE — a freshly written canon file lands 0600, not at the ambient umask
       await modeOf(canon),
       OWNER_ONLY,
       "canon holds first-seen message bytes (entry.m) and must be owner-only",
+    );
+    // The gate-took-effect assertion. `mode` is written from `isPinEnabled()`
+    // at save time, so this is the one observable that separates the serving
+    // path from the phase-2-only one; without it, adding CACHE_FIX_VOLATILE_PIN
+    // to SERVING_GATES would be decoration nothing could falsify.
+    assert.equal(
+      JSON.parse(await readFile(canon, "utf8")).mode,
+      "pin",
+      "the drive helper must exercise the SERVING config (pin mode), not phase-2 alone",
     );
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -177,9 +197,7 @@ test("BITE — a pre-existing group-readable events file is repaired to 0600 on 
     await chmod(events, 0o664);
     assert.equal(await modeOf(events), 0o664, "precondition: file starts group-writable");
 
-    await silenced(() =>
-      withEnvAsync({ CACHE_FIX_INSERTION_NORMALIZE: "1" }, () => runExt(body, { headers, dir })),
-    );
+    await silenced(() => withEnvAsync(SERVING_GATES, () => runExt(body, { headers, dir })));
 
     assert.equal(await modeOf(events), OWNER_ONLY, "next write must repair the stale mode");
   } finally {
@@ -201,13 +219,15 @@ test("BITE — a pre-existing group-readable canon file is replaced at 0600 by t
     const canon = join(snapshotDir, `${key}-insertion-canon.json`);
 
     await mkdir(snapshotDir, { recursive: true });
-    await writeFile(canon, JSON.stringify({ mode: "plain", entries: [] }));
+    // `mode: "pin"` because the arranged file stands in for one the RUNNING
+    // proxy left behind, and the running proxy serves CACHE_FIX_VOLATILE_PIN=1.
+    // A "plain" file under a pin-mode load is a different case (a mode
+    // mismatch), and it is not the one this BITE is about.
+    await writeFile(canon, JSON.stringify({ mode: "pin", entries: [] }));
     await chmod(canon, 0o644);
     assert.equal(await modeOf(canon), 0o644, "precondition: file starts world-readable");
 
-    await silenced(() =>
-      withEnvAsync({ CACHE_FIX_INSERTION_NORMALIZE: "1" }, () => runExt(body, { headers, dir })),
-    );
+    await silenced(() => withEnvAsync(SERVING_GATES, () => runExt(body, { headers, dir })));
 
     assert.equal(await modeOf(canon), OWNER_ONLY, "rename must carry the tmp file's 0600");
   } finally {
