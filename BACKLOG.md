@@ -354,8 +354,32 @@ comment and new issue.
   already uses (`hits` null when `filesScanned` is 0 — could-not-verify, never
   a clean zero), or it ships unobservable and unretirable exactly as the D1
   bridge would have.
-  Deployment-coupled: touches state KEYS, so it
-  is NOT a cache-transparent restart — it states its threat-matrix row-3
+  **ROW-3 DECLARATION, MEASURED 2026-08-16 — and it REFUTES this entry's own
+  premise, which said "touches state KEYS, so it is NOT a cache-transparent
+  restart".** What was actually built does not touch key derivation at all:
+  the diff over `838e064^..1d0bfe2` changes no line of
+  `resolveInsertionSessionKey`, `conversationSubKey` or `systemPromptSubKey` —
+  the only edit to the import line ADDS names. The change adds a third fallback
+  READ, reached solely when both existing reads miss. So across a restart every
+  continuing session re-derives the same key it had, hits its own canonical on
+  the FIRST read, and never reaches the new path.
+  Executed evidence, not reasoning: `node tools/verdict-ab.mjs f69cb78 1d0bfe2`
+  reports **IDENTICAL across 3,223 verdict lines over 19 corpora**, exit 0 —
+  and that tool exits 2 with COULD-NOT-VERIFY on an empty or unreplayable
+  corpus, so the zero is a measurement rather than an absence.
+  **What that evidence does NOT establish, stated because the two are easy to
+  merge:** IDENTICAL proves the change is INERT on existing shapes, which is
+  exactly the restart-transparency question. It says nothing about whether the
+  new path WORKS — the committed corpus is curated for structure and may never
+  produce the double-miss state the third read exists for. That half rests on
+  the new bites and the desk probe, not on this run.
+  Restart cost therefore re-derived: `restart-exposure --window-min 60` reports
+  4 live sessions and a ~784k worst case, but that figure assumes forwarded
+  bytes change for all of them. They do not — the measurement above says
+  forwarded bytes are unchanged for any session whose canonical resolves, which
+  is every continuing one. The residual exposure is confined to sessions
+  already in the miss path, i.e. already resetting.
+  Still deployment-coupled: it states its threat-matrix row-3
   declaration first, is priced with `tools/restart-exposure.mjs` against LIVE
   sessions rather than the corpus, ships via `docs/runbooks/ship-proxy-change.md`,
   and needs the dotfiles `CACHE_FIX_PROXY_TREE_PIN` bump plus a restart at a
@@ -3684,6 +3708,65 @@ comment and new issue.
 
 
 ## Record — decision-complete memory, not scheduled
+
+- **RECORD 2026-08-16 (OPERATOR-RANKED SECOND, behind the resume-key mitigation
+  — takes a head slot at the next derivation, which is owed the moment that
+  entry closes) — `boundary-layers --at` picks a request by NEAREST timestamp,
+  so second-precision silently selects a DIFFERENT conversation and prints a
+  complete, plausible, wrong anatomy.** Measured today at the desk: walking the
+  07:37:39Z bust with `--at 2026-08-16T07:37:39Z` resolved to the request at
+  `07:37:38.362Z` — a 107-message conversation — while the busting request
+  `bust-triage` had joined was `07:37:39.512Z`, a 461-message conversation. The
+  two anatomies disagree on everything that matters: the wrong one reports
+  `tools` BYTE-IDENTICAL and the first two segments READABLE, the right one
+  reports `tools` diverging and the first segment BROKEN. Either reads as a
+  finished answer.
+  **Why the existing warning does not cover it, which is the whole defect.**
+  The tool DOES print "RELATIONS DISAGREE" — but that warning is about
+  PREDECESSOR selection, i.e. which record the chosen target is compared
+  AGAINST. Nothing warns about the selection of the TARGET itself, which is the
+  one that was wrong. A guard that fires on the adjacent question reads as
+  coverage of this one; that is the entry-path shape `docs/dev-loop.md` already
+  collects, arriving inside a tool built to prevent exactly this class.
+  **Design, decided:** `--at` reports the resolved record's OWN timestamp,
+  message count and conversation id BEFORE the cascade, and when another
+  request sits within the match window it says so and names it — the
+  three-answer discipline applied to target selection (resolved / ambiguous /
+  none), never a silent nearest-match.
+  Loop stage: ATTRIBUTE. Anchor: n/a (instrument)
+  Write-set: tools/boundary-layers.mjs, test/boundary-layers.test.mjs
+  Verifier: a fixture with two conversations whose requests interleave inside one second — `--at` at second precision must report AMBIGUOUS and name both, and must not silently pick one
+  <!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
+
+- **RECORD 2026-08-16 (bundles into ONE lane with the `--at` entry above — same
+  realizing file, separate red-first arrangements) — `boundary-layers` OOMs at a
+  4 GB heap on a live capture and the capture grows quadratically, so the
+  instrument's reach shrinks while the events worth walking get bigger.**
+  Measured today: `--max-old-space-size=4096` died `FATAL ERROR: Ineffective
+  mark-compacts near heap limit` after ~21 s on a 2.83 GB capture and dumped
+  core; the same walk completed at `10240`. The same tool had run on the SAME
+  capture earlier the same day at 4096, so the failure threshold was crossed by
+  roughly 150 MB of growth in one session — this is not a stable margin.
+  **Why it ranks BELOW the `--at` defect despite being the louder symptom:**
+  signal 3 of the ranking rubric — a core dump cannot be mistaken for an answer,
+  while a silently mis-selected conversation already was. It ranks above ordinary
+  cost work because the trigger is a clock nobody controls.
+  **Design, decided:** the repo already has the shape for this — `gate-live` runs
+  every replay child under an explicit `--max-old-space-size` cap, and
+  `docs/dev-loop.md`'s "Streams is a claim about a mechanism" section records
+  that this capture read was fixed for scale THREE times and was still O(file)
+  the third. So: measure `bytesRead` against bytes consumed on a large capture
+  before touching anything (the read-lines bite's own question), and only then
+  decide between a streaming repair and a declared cap. A raised heap is a
+  BRIDGE, named as one here, with its revert trigger being the first streaming
+  measurement.
+  **NOT established:** whether the retention is in `readLines`, in
+  `findPredecessor`'s candidate collection, or in the cascade's own body
+  retention. Nothing was profiled; the 4096-vs-10240 split is the only datum.
+  Loop stage: ATTRIBUTE. Anchor: n/a (instrument)
+  Write-set: tools/boundary-layers.mjs, test/boundary-layers.test.mjs
+  Verifier: a bytesRead-vs-consumed assertion on a multi-GB capture, red against the current retention
+  <!-- entry: "boundary-layers OOMs at 4GB on a live capture, reach shrinks quadratically" -->
 
 - **RECORD 2026-08-16 — `git commit -q` is invisible to the subagent-commit
   recorder, so every quiet commit reaches the push gate UNMARKED and the gate
