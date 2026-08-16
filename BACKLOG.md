@@ -310,19 +310,51 @@ comment and new issue.
   never writes two buckets). When both the pre-pipeline key and the rotated key
   miss (`prior === null`), scan this session's own canonical files and adopt the
   one whose stored per-message hashes share >= `LINEAGE_THRESHOLD` with the
-  incoming array, using `sameLineage`/`lineageOverlap` IMPORTED from
-  `replay.mjs` — never re-derived (three confident wrong answers in this repo
-  came from hand-rolled identity). No schema change is needed: the canonical
-  already persists `{index, h, r, o}` per message (`computeIdentities`,
-  `insertion-normalization.mjs:317`), and `h` is the comparand.
+  incoming array, using `sameLineage`/`lineageOverlap` — never re-derived
+  (three confident wrong answers in this repo came from hand-rolled identity).
+  No schema change is needed: the canonical already persists `{index, h, r, o}`
+  per message (`computeIdentities`, `insertion-normalization.mjs:317`), and `h`
+  is the comparand.
+  **PLACEMENT DECIDED 2026-08-16 — the entry said "IMPORTED from `replay.mjs`"
+  and that direction is WRONG, which is a decision the executor must not be
+  left to make.** `git grep 'from "\.\./\.\./tools/'` over `proxy/` returns
+  ZERO: no deployed file imports from `tools/` today, and the deployment pin
+  `CACHE_FIX_PROXY_TREE_PIN` hashes the `proxy/` tree ALONE. An extension
+  importing `tools/replay.mjs` would put deployed code outside the pin, so the
+  pin would go on reading "unchanged" while the serving behaviour moved —
+  a silent-failure surface, not a style question. The existing direction is the
+  opposite and is already established: `tools/boundary-layers.mjs:54` imports
+  `conversationSubKey` from `../proxy/extensions/message-hash.mjs`, which
+  dev-loop names as THE shared identity primitive. So: MOVE
+  `LINEAGE_THRESHOLD`, `lineageOverlap` and `sameLineage` into
+  `proxy/extensions/message-hash.mjs` and RE-EXPORT them from `tools/replay.mjs`
+  so the existing consumer (`tools/bust-triage.mjs:94`) keeps working untouched.
+  **ADAPTER DECIDED 2026-08-16, second unstated decision:** `lineageOverlap(a, b)`
+  reads `a.inHash` / `b.inHash` ARRAYS (`replay.mjs:1250-1257`), not the
+  `{index, h, r, o}` canonical shape, so the caller builds
+  `{ inHash: stored.map((x) => x.h) }` and the same from
+  `computeIdentities(messages)`. Note the denominator is
+  `Math.min(setA.size, setB.size)` — the very property that produced the argmax
+  defect below, which is why the selection rule that follows is load-bearing
+  rather than a refinement.
   Selection rule, and it is the one this session had to FIX in the tooling
   before trusting it: overlap ADMITS, recency SELECTS — argmax of
   `lineageOverlap` is wrong because it normalizes by the smaller set, so a
   short old candidate scores 1.0 and beats the true predecessor
   (`tools/bust-triage.mjs` carried exactly that defect; see
   `test/bust-triage-lineage-recency.test.mjs`).
-  **Write boundary:** `proxy/extensions/insertion-normalization.mjs` (the
-  dual-read site, `:1954-1990`). Deployment-coupled: touches state KEYS, so it
+  **Write boundary — WIDENED 2026-08-16 by the two decisions above, and the
+  widening is the point rather than a detail:** `proxy/extensions/insertion-normalization.mjs`
+  (the dual-read site, `:1953-1990`), `proxy/extensions/message-hash.mjs` (the
+  primitives move here), `tools/replay.mjs` (re-export, so `bust-triage` is
+  untouched), `test/insertion-lineage-recovery.test.mjs` (new), and
+  `tools/gate-live.mjs` — the last because closing-gate question 4 binds: the
+  third read is a new fallback TIER and needs its own counter beside
+  `d1OldKeyFallback`, in the same three-answer shape `collectD1Retirement`
+  already uses (`hits` null when `filesScanned` is 0 — could-not-verify, never
+  a clean zero), or it ships unobservable and unretirable exactly as the D1
+  bridge would have.
+  Deployment-coupled: touches state KEYS, so it
   is NOT a cache-transparent restart — it states its threat-matrix row-3
   declaration first, is priced with `tools/restart-exposure.mjs` against LIVE
   sessions rather than the corpus, ships via `docs/runbooks/ship-proxy-change.md`,
@@ -336,6 +368,17 @@ comment and new issue.
   threshold is never adopted, and an ordinary same-key request never reaches
   the third read. Then `node tools/replay.mjs <capture> --env …` green under the
   SERVING config, and `npm test`.
+  **EVIDENCE IS UNPROTECTED, and this is closing-gate question 2 firing on
+  this entry's own basis (2026-08-16).** The capture behind s-captureBR is
+  present and LIVE — 2.87 GB, still being appended to today — and it is NOT in
+  `captures-protected/`, so eviction (oldest-mtime-first) can take the one
+  artifact both this entry's design and its done-criterion rest on. The claim
+  was made without `--protect`, which is exactly the miss dev-loop records
+  against that flag. It is not fixable unilaterally: the protected set already
+  holds 1.67 GB of a 4 GiB cap, so hard-linking a 2.87 GB capture would take it
+  to ~4.5 GB, over cap — i.e. this is blocked on the SAME operator decision the
+  2026-08-15 handoff already carries about the cap, now with a named
+  consequence rather than a hypothetical one.
   **Done-criterion:** on a replay of s-captureBR the post-resume request
   resolves its canonical (no `no-baseline`) and `deferred-tool-rewrite` reports
   `description-absorbed`/`rewrite` rather than forwarding CC's raw array — i.e.
@@ -3641,6 +3684,33 @@ comment and new issue.
 
 
 ## Record — decision-complete memory, not scheduled
+
+- **RECORD 2026-08-16 — `git commit -q` is invisible to the subagent-commit
+  recorder, so every quiet commit reaches the push gate UNMARKED and the gate
+  cannot say who made it.** Observed on this session's own push: three commits
+  listed under "ungebuchte(r) Commit(s) OHNE MARKE — konnte nicht bestimmt
+  werden, wer sie gemacht hat", with the hook naming its own mechanism —
+  `claude/hooks/subagent-commit-mark.py` never saw them because `git commit -q`
+  returns no `gitOperation` and therefore no SHA for the recorder to key on.
+  **Why it is worth a record rather than a shrug:** the gate's whole purpose is
+  separating subagent work from desk work at the push boundary, and the
+  degraded answer is not "unknown author" but a LIST the reader must
+  hand-triage — which is the shape that gets skimmed. The failure is silent in
+  the direction that matters: a subagent commit made with `-q` looks exactly
+  like a desk commit made with `-q`.
+  **What is NOT established:** whether any other commit-invoking form has the
+  same hole (`git commit -F`, `-am`, commit via a tool wrapper), and whether
+  the recorder could key on the post-commit ref change instead of on the
+  harness's `gitOperation`. Neither was probed; both are one command away for
+  whoever picks this up.
+  Realizing write-boundary is the DOTFILES repo (`claude/hooks/subagent-commit-mark.py`
+  plus the pre-push lane that reads its marks), not this one — a dotfiles
+  session is its reader, and it is recorded here only because this is where it
+  was observed.
+  Anchor: n/a (process instrument, not a threat-matrix row)
+  Write-set: (cross-repo) dotfiles `claude/hooks/subagent-commit-mark.py`, `git/hooks/pre-push`
+  Verifier: make a commit with `git commit -q` and one without, then run the pre-push mark lane — the marked/unmarked split must follow the AUTHOR, not the flag
+  <!-- entry: "git commit -q is invisible to the subagent-commit recorder" -->
 
 - **RECORD 2026-08-15 — the ledger and CC's own diagnostics disagree about the
   919k event's cause, and it is DELIBERATELY not silenced.** `bust-triage`'s
