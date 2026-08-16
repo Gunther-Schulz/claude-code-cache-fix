@@ -1,9 +1,28 @@
-# DRAFT — not posted. Awaiting operator GO on this exact text.
+# POSTED 2026-08-16 as issue #87101 — https://github.com/anthropics/claude-code/issues/87101
+
+**Status corrected 2026-08-16.** This header read "DRAFT — not posted.
+Awaiting operator GO on this exact text." after the filing had already
+published, which is a stale label over its own resolved body — the exact drift
+class this repo's grounding rules name, and the reason a status header is never
+the basis for a claim about what is public. Verified against the world rather
+than against this file: `gh issue view 87101` returns state OPEN, author
+Gunther-Schulz, created `2026-08-16T09:11:12Z` (11:11 local), title identical
+to the one below.
+
+**The text below is the AS-POSTED body, with one divergence now repaired.**
+This file described #78420 as a doubled-*tools* shape. It is not: #78420 is
+titled "Prompt intermittently sent doubled (exact 2x conversation prefix,
+cache_read=2.00x prev)" — a doubled conversation PREFIX. The posted issue was
+already correct; only this stored copy carried the wrong characterisation, so
+nothing wrong about a third party reached the public. Read live at correction
+time, not recalled.
 
 Venue: a NEW issue on `anthropics/claude-code`. Not a comment on #78420 —
-that thread is a doubled-*tools* shape and we have already told it, in the
-2026-08-14 correction, that our numbers "do not confirm the shape in this
-issue". Filing this under that thread would re-blur two different shapes.
+that thread is a doubled-*prefix* shape (theirs is one request carrying a
+doubled body; ours is two separate requests carrying identical bodies) and we
+have already told it, in the 2026-08-14 correction, that our numbers "do not
+confirm the shape in this issue". Filing this under that thread would re-blur
+two different shapes.
 
 Composed 2026-08-16 per `docs/runbooks/public-comms.md`. Every number below
 was re-read at compose time from `~/.local/state/cache-fix/gate-status.json`,
@@ -18,8 +37,10 @@ finished `07:18:00.303Z` over 45 captures (`ok: true`, `failing: 0`).
 
 Reporting a duplicate-send shape we can measure continuously, in case it is
 useful. This is a client-side send pattern, not a caching question, and it is
-a *different* shape from the doubled-tools report in #78420 — I am filing it
-separately rather than adding it there for that reason.
+a *different* shape from the doubled-prefix report in #78420: theirs is one
+request carrying a doubled body, ours is two separate requests carrying
+identical bodies. I am filing it separately rather than adding it there for
+that reason.
 
 **What we see.** At session start, the same sidecar request is issued twice,
 roughly 13 ms apart, with the second going out while the first is still in
@@ -88,8 +109,22 @@ https://claude.ai/code/session_019stbymw1bF8UET5DgRkrCv
       to name a capture.
 - [x] **Third-party claims** — the only reference to #78420 is to say the
       shapes differ, which is what our own posted correction there already
-      says. No figure of theirs is restated.
+      says. No figure of theirs is restated. **Re-verified 2026-08-16 against
+      the live issue**, because this file had mischaracterised it: #78420 is a
+      doubled conversation PREFIX, not doubled tools. The posted body was
+      already right; this stored copy was not.
 - [x] **What was not checked** — five items, including the one that cuts
       against us (our own mitigation covers half the population).
-- [ ] **Operator GO on this exact text** — outstanding. A materially edited
-      draft needs a fresh GO.
+- [x] **Operator GO on this exact text** — given, and the issue published as
+      #87101 on 2026-08-16.
+
+## After posting
+
+- **Any further edit to #87101 is a fresh publication act** and needs its own
+  operator GO on the exact text. Correcting this file is not that, and did not
+  touch the issue.
+- The as-posted body is recoverable from the world, not from here:
+  `gh issue view 87101 --repo anthropics/claude-code --json body -q .body`.
+  Where this file and that output disagree, the issue is the truth and this
+  file is the stale copy — which is how the #78420 mischaracterisation above
+  was found.

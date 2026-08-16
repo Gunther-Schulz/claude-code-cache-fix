@@ -3849,6 +3849,59 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **DECIDED 2026-08-16, ANSWER (a) — port upstream's `CACHE_FIX_PREFIXDIFF_CONTENT`
+  gate default-OFF and opt this deployment IN.** Operator's answer to the parked
+  content-minimization decision (see `## Parked decisions`, now settled). Code
+  matches upstream exactly; the deployment opts in with a recorded reason, so
+  the exposure becomes a declared choice rather than an unexamined default.
+  **NOT bundled with the 2026-08-16 restart, deliberately.** It is a second
+  `proxy/**` change and therefore owes its own pin bump and its own run of
+  `docs/runbooks/ship-proxy-change.md`. The restart on tree `2bf03b8` shipped
+  the merge and the sweep fix and nothing else; bundling would have made a
+  restart's attribution ambiguous across two changes, which is the one thing
+  row 3's argument cannot survive.
+  **THE RESIDUE SPLITS ACROSS TWO REPOS, and the split is the point** — this is
+  the sender-side-residue rule applied to its own first case.
+  OURS (this repo, this lane):
+  - the gate itself in `proxy/extensions/prefix-diff.mjs`, defaulting OFF, over
+    every content path (system-block text to `SYSTEM_TEXT_CAP`, message
+    previews, event-record previews);
+  - `test/proxy-prefix-diff-security.test.mjs` — it currently asserts the
+    FORK's contract ("default mode DOES persist content"), so it goes RED the
+    day the gate lands. **Expect that red and update it deliberately**: it is
+    the check reporting that the contract changed, not breakage. Reflexively
+    repairing it to restore green is how a live finding becomes a silenced
+    instrument.
+  NOT OURS (dotfiles, `dotfiles-5b`'s working copy — do not reach in):
+  - the `Environment=CACHE_FIX_PREFIXDIFF_CONTENT=1` line on
+    `cache-fix-proxy.service`, plus `systemctl --user daemon-reload`;
+  - the gate classification in `bootstrap/manifest.py`
+    (`CACHE_FIX_GATES_ACTIVE`, with the reason);
+  - the `CACHE_FIX_GATE_ACCEPTANCE` entry naming the probe that proved it safe
+    to enable.
+  **The check that REVEALS the residue, so it is not a promise to remember:**
+  ship-runbook step 4b is owed here (this change introduces a gate token, so
+  the `git show <commit> | grep -o 'CACHE_FIX_[A-Z_]*'` filter is non-empty),
+  and doctor's gate-acceptance verdict is what goes red while the dotfiles half
+  is missing. Runner: whoever ships the dotfiles half. Without it the mitigation
+  is DORMANT and step 7's three-way compare reads GREEN anyway — all three
+  answers agreeing on the gate's absence, which is exactly the blind spot 4b
+  documents.
+  Handoff obligation: when our half lands, send the fact to the desk session so
+  it can route the dotfiles half; a report to the operator discharges nothing
+  for a peer.
+  Done-criterion: gate present and default-OFF in code; the security bite
+  updated deliberately and green; the dotfiles half landed and doctor's
+  gate-acceptance verdict green; a restart on the new pin with step 7 agreeing.
+  Consumer: the session that next ships a proxy change.
+  Loop stage: MITIGATE (bounds what rests on disk from every session on this box).
+  Anchor: proxy/extensions/prefix-diff.mjs; upstream's gate of the same name
+  Write-set (ours): proxy/extensions/prefix-diff.mjs, test/proxy-prefix-diff-security.test.mjs
+  Verifier: the security bite, plus `grep -c` for content on disk with the gate
+  off — plant a sentinel, run the real path, grep what was written, then re-run
+  with the gate ON to prove the grep can see the sentinel at all
+  <!-- entry: "port upstream CACHE_FIX_PREFIXDIFF_CONTENT gate default-OFF, opt deployment in" -->
+
 - **RECORD 2026-08-16 (small) — the snapshot key cap now counts only
   prefix-diff's own keys, and 200 may be the wrong number for that.** Before the
   scope anchor landed today the key cap was being spent on keys that were never
@@ -9725,6 +9778,11 @@ then the queued ones. Work the items in that order.
 
 ## Parked decisions
 
+- **SETTLED 2026-08-16 — answer (a). Body kept for its evidence; the work is
+  booked in `## Record` ("port upstream CACHE_FIX_PREFIXDIFF_CONTENT gate
+  default-OFF, opt deployment in"), which carries the two-repo residue split.
+  Not moved to `## Done`: the DECISION closed, the WORK has not shipped.**
+  Original entry follows.
 - **DECISION OWED (operator) 2026-08-16 — this fork persists prompt text to disk
   by default; upstream gates it off, and the merge did NOT take that.** Upstream
   gates every content path in prefix-diff on `CACHE_FIX_PREFIXDIFF_CONTENT=1`,
