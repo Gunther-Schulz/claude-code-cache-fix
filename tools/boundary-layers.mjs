@@ -138,9 +138,20 @@ function excerpt(text, offset, span = 90) {
 // A layer diff says what CHANGED. It does not say what the API could still
 // READ, because the readable unit is not a layer — it is the span between
 // `cache_control` breakpoints. Reporting layers alone produced a misleading
-// number on the motivating event ("pinning tools recovers 1.5%"), when in
-// fact `tools[]` carried NO breakpoint at all, so there is nothing at that
-// boundary to read and pinning tools alone recovers exactly zero.
+// number on the motivating event ("pinning tools recovers 1.5% of the body"),
+// because that is a byte fraction of what CHANGED, not a span that can be read.
+//
+// CORRECTED 2026-08-16 — the first replacement claim OVERSHOT, and it is worth
+// stating because it was wrong in the code that fixed the original error. It
+// read "`tools[]` carried NO breakpoint at all, so pinning tools alone recovers
+// exactly zero". A layer having no breakpoint of its own does not make it
+// worthless to pin — it makes it un-readable ON ITS OWN, which is a different
+// claim. `tools[]` sits INSIDE the span ending at `system[1]`, and on
+// s-captureBR that span's ONLY broken layer is `tools`, so pinning tools alone
+// makes the whole 38.9 kB span readable. Measured by running this tool on the
+// event: `SMALLEST USEFUL FIX … ends at system[1] — tools`. The zero claim
+// contradicted `segmentsOf` below and the smallest-useful-fix line this same
+// file prints, which is what made it findable at all.
 //
 // ORDER, established from the live data rather than assumed. This tool used
 // to take "tools render before system" from a comment in replay.mjs and
@@ -695,10 +706,14 @@ async function main() {
   } else {
     // Deliberately NO cumulative-percentage line here. An earlier version
     // printed "pinning tools recovers 1.5% of the body", which is a BYTE
-    // fraction and not a recovery: on the motivating event `tools[]` carried
-    // no breakpoint, so pinning it alone recovers nothing at all. The
-    // segment lines above are the recovery answer; this list only names the
-    // ORDER in which divergences would have to be dealt with.
+    // fraction of what CHANGED and not a recovery at all. The SEGMENT lines
+    // above are the recovery answer; this list only names the ORDER in which
+    // divergences would have to be dealt with.
+    // (The 2026-08-15 replacement for that line said pinning tools "recovers
+    // nothing at all" — also wrong, and corrected 2026-08-16 at the segment
+    // comment above: a layer with no breakpoint of its own is still part of
+    // the span that closes over it, and pinning it recovers that span once
+    // every other layer inside it matches.)
     for (let i = 0; i < diverging.length; i++) {
       const l = diverging[i];
       const next = diverging[i + 1];

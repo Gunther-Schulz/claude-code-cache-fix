@@ -276,11 +276,23 @@ comment and new issue.
   `messages[115..116]` — a LOCAL EDIT of two messages where CC's rebuild drops
   one of two parallel `tool_use` blocks and its matching `tool_result`.
   `messages[117..]` is byte-identical at the SAME indices (1,432 messages,
-  92.4%). Cascade pricing over the 2.5 MB body: tools alone 1.5%, +system 2.0%,
-  +messages[0] 5.2%, all four 100%. **The class is absorb-all-four-or-nothing**,
-  which is why every earlier single-layer design correctly measured as
-  worthless — that is a sharpening of row 24's 2026-08-05 refusal, not a
-  reversal of it.
+  92.4%).
+  **PRICED IN SEGMENTS 2026-08-16 — the layer percentages this entry carried
+  are withdrawn, and so is the correction that replaced them.** The entry read
+  "tools alone 1.5%, +system 2.0%, +messages[0] 5.2%, all four 100%", which is
+  a byte fraction of what CHANGED rather than a recovery; the readable unit is
+  the span between `cache_control` breakpoints. The 2026-08-15 replacement
+  ("pinning tools alone recovers exactly zero") overshoots and is withdrawn
+  too. Measured by running `tools/boundary-layers.mjs` on the event: three
+  segments — `[tools, system[0], system[1]]` 38.9 kB broken by **`tools`
+  alone**, `[system[2]]` 12.6 kB, `[messages[0], messages[1..]]` 2.5 MB. The
+  smallest useful fix is `tools` by itself, recovering the 38.9 kB first span —
+  small, and NOT zero. **The class is absorb-all-four-or-nothing for the
+  BODY**, which is why every earlier single-layer design correctly measured as
+  worthless against the 2.5 MB — that is a sharpening of row 24's 2026-08-05
+  refusal, not a reversal of it. What changes here is that the tools pin this
+  repo ALREADY SHIPS has a real, measurable first-span recovery the moment its
+  state key survives the boundary, which is this entry's whole subject.
   **Why the key comes FIRST, and why nothing else is dispatchable before it.**
   The per-conversation state key rotated across the boundary:
   `…-2719b7a4-8067f43a66beb9f3` (`append-only`) -> `…-2719b7a4-aa5eb6d0c37ed62e`

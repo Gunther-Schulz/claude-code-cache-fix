@@ -128,10 +128,19 @@ test("BITE — predecessor relations that DISAGREE are reported, never collapsed
 // --- Cache segments: the readable unit ---
 //
 // These pin the correction that produced them. The tool first reported "pin
-// tools recovers 1.5%" on the live event; `tools[]` carried NO cache_control
-// at all, so there was nothing at that boundary to read and the true recovery
-// from pinning tools alone is ZERO. A layer view answers "what changed"; only
-// a segment view answers "what could still be read".
+// tools recovers 1.5%" on the live event — a byte fraction of what CHANGED,
+// not a readable span. A layer view answers "what changed"; only a segment
+// view answers "what could still be read".
+//
+// CORRECTED 2026-08-16: this header used to end "the true recovery from
+// pinning tools alone is ZERO", which is false and was never asserted by any
+// bite below — the bites only ever checked the state BEFORE a pin. `tools[]`
+// having no breakpoint of its own means it cannot be read on its own, not
+// that pinning it buys nothing: it sits inside the span ending at
+// `system[1]`, and on the live event that span's only broken layer IS tools,
+// so pinning tools alone makes the whole 38.9 kB span readable. The bite
+// below is the one that would have caught the wrong sentence had it ever
+// been implemented.
 
 const ccMark = { type: "ephemeral", ttl: "1h" };
 const sysCC = (t) => ({ type: "text", text: t, cache_control: ccMark });
@@ -152,6 +161,27 @@ test("BITE — a layer with NO breakpoint is folded into the segment that closes
   assert.ok(first.layers.includes("tools"), "tools must be INSIDE the first span, not a span of their own");
   assert.deepEqual(first.broken, ["tools"], "and they are what broke it");
   assert.equal(first.readable, false);
+});
+
+test("BITE — pinning the ONLY broken layer of the first span makes that span readable", () => {
+  // The discriminating sibling of the bite above, and the one that refutes
+  // "a layer with no breakpoint recovers nothing when pinned". Identical
+  // fixture except that `tools` now MATCHES, which is what a working pin
+  // produces. The span ending at system[1] must flip to readable and carry
+  // real bytes — if it did not, the smallest-useful-fix line this tool prints
+  // would be naming a fix that buys nothing.
+  const pinned = { name: "Bash", description: "session_AAA" };
+  const f = capture([
+    rec("2026-08-15T15:04:43.000Z", { tools: [pinned], system: [sys("s0"), sysCC("s1")], messages: [msg("head"), ...BODY, msgCC("last")] }),
+    rec("2026-08-15T15:07:10.000Z", { tools: [pinned], system: [sys("s0"), sysCC("s1")], messages: [msg("head"), ...BODY, msgCC("last")] }),
+  ]);
+  const d = run(f);
+  const first = d.segments[0];
+  assert.equal(first.endsAt, "system[1]");
+  assert.ok(first.layers.includes("tools"), "tools still belong to this span");
+  assert.deepEqual(first.broken, [], "with tools pinned nothing in the span is broken");
+  assert.equal(first.readable, true, "so the API can read it — the recovery is NOT zero");
+  assert.ok(first.bytes > 0, `and the span carries real bytes (got ${first.bytes})`);
 });
 
 test("BITE — an intact segment behind a broken one is NOT readable", () => {
