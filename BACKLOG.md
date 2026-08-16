@@ -503,17 +503,22 @@ comment and new issue.
   threshold is never adopted, and an ordinary same-key request never reaches
   the third read. Then `node tools/replay.mjs <capture> --env …` green under the
   SERVING config, and `npm test`.
-  **EVIDENCE IS UNPROTECTED, and this is closing-gate question 2 firing on
-  this entry's own basis (2026-08-16).** The capture behind s-captureBR is
-  present and LIVE — 2.87 GB, still being appended to today — and it is NOT in
-  `captures-protected/`, so eviction (oldest-mtime-first) can take the one
-  artifact both this entry's design and its done-criterion rest on. The claim
-  was made without `--protect`, which is exactly the miss dev-loop records
-  against that flag. It is not fixable unilaterally: the protected set already
-  holds 1.67 GB of a 4 GiB cap, so hard-linking a 2.87 GB capture would take it
-  to ~4.5 GB, over cap — i.e. this is blocked on the SAME operator decision the
-  2026-08-15 handoff already carries about the cap, now with a named
-  consequence rather than a hypothetical one.
+  **EVIDENCE WAS UNPROTECTED — RESOLVED 2026-08-16 (later the same day), and
+  the correction is left in place rather than deleted because the paragraph was
+  stale in the REASSURING direction's opposite: it named a live risk that no
+  longer exists, and a reader taking it at face value would re-derive an
+  eviction hazard and a blocked operator decision that are both gone.** The
+  capture behind s-captureBR is now IN `captures-protected/` (protected
+  2026-08-16T08:27:25Z), it has grown to 4.42 GB, and the protected set holds
+  6.01 GB against a cap since raised to 8 GiB. Read from the world (the
+  protected directory and `--protect-status`), not from this entry — which is
+  the point: this paragraph's own numbers (2.87 GB, unprotected, 1.67 GB of a
+  4 GiB cap) were true when written and were still being quoted hours later by
+  a fresh reader who had read the ENTRY rather than the directory.
+  What the original paragraph got right and keeps: the claim was made without
+  `--protect`, which is exactly the miss dev-loop records against that flag,
+  and closing-gate question 2 fired on this entry's own basis. What is no
+  longer true: the eviction risk, and the dependency on the cap decision.
   **Done-criterion — NARROWED 2026-08-16 on operator GO, resolving review
   finding F4.** It read: "on a replay of s-captureBR the post-resume request
   resolves its canonical (no `no-baseline`) AND `deferred-tool-rewrite` reports
@@ -3847,7 +3852,109 @@ comment and new issue.
 
 
 
+- **PARKED on operator GO 2026-08-16 — upstream's own copy of the prefix-diff
+  security test carries the fixture defect we just fixed here, so their
+  default-mode content-minimization bite covers less than it says.**
+  `payloadWithSentinel()` in upstream's `test/proxy-prefix-diff-security.test.mjs`
+  takes no parameter, and both arms call it with an overrides object
+  (`payloadWithSentinel({ messages: [...] })`) intended to make the second
+  request differ from the first. The object is ignored, so the two requests are
+  byte-identical, `wroteDiff` is false, and no `-diff.json` or `-events.jsonl`
+  is ever written — the sentinel-absence assertion only ever covers
+  `-last.json`, while its own comment says it covers "the artifacts most likely
+  to carry a leaked preview". Verified here by restoring the defect: both arms
+  go red on the `wroteDiff` precondition.
+  This matters to them more than to us: theirs is the DEFAULT configuration, so
+  the bite is their only check that prompt text does not rest on disk.
+  Named missing evidence: none — it is an operator GO on the exact text, per
+  the Public Communication rule. The fix is two lines (accept an overrides
+  argument, assert `wroteDiff`), and our commit `4e58269` is the reference.
+  Recommendation: report it, with the fix, as a small upstream issue or PR.
+  Consumer: the operator, then whoever opens the upstream issue.
+  Loop stage: RETIRE (upstream carrying the fix is what lets ours stop being a
+  divergence).
+  Anchor: upstream test/proxy-prefix-diff-security.test.mjs, payloadWithSentinel
+  Write-set: an upstream issue/PR — nothing in this repo
+  Verifier: the upstream arms go red on the precondition before the fix
+  <!-- entry: "upstream's prefix-diff security bite carries the same ignored-overrides fixture defect" -->
+
 ## Record — decision-complete memory, not scheduled
+
+- **RECORD 2026-08-16 (small; decision-complete, NOT scheduled — the READY head
+  is capped at ten and its membership is derived, not edited) — the sweep's
+  per-streak evidence document is keyed by DATE, so only the FIRST run of any
+  day retains row-level evidence.**
+  Measured today: `gate-status.json` reports
+  `censusRowsWrite: {written:false, unchanged:false, conflict:true, file:"census-rows-2026-08-16.json"}`
+  for the 10:41 sweep, because the 06:48 run had already written that filename
+  with different content. The conflict is deliberate (never overwrite), and its
+  consequence is not: the 10:41 run's duplicate and mismatch rows went nowhere,
+  and the file on disk answers about 06:48 while the status file answers about
+  11:09. A reader joining the two gets a silent cross-run mismatch — the rows
+  and the rollup are from different sweeps and nothing in either says so.
+  This bit immediately: the row-31 effect measurement had to join 06:48 rows to
+  a 11:09 rollup, and the only reason it did not mislead is that the tool
+  prints the document's own `producedAt`.
+  Named missing evidence: none. The design decision is the filename, and it is
+  a small one — a per-run suffix (`census-rows-<date>T<hhmm>.json`), or a merge
+  into the existing document, or an explicit "second run of the day appends".
+  Whoever owns the document's consumers picks; the entry is dispatchable once
+  that one choice is made, which is why this is READY rather than parked.
+  Done-criterion: two sweeps on one day both retain their rows, and a reader
+  can tell which run any row came from.
+  Consumer: the next session reading `census-rows-*.json` for row-level
+  evidence; `tools/row31-effect.mjs` is the first.
+  Loop stage: SEE.
+  Anchor: tools/gate-live.mjs, writeCensusRowsDocument / the conflict branch
+  Write-set: tools/gate-live.mjs, test/gate-live.test.mjs
+  Verifier: a bite that runs two sweeps in one day against a temp dir and
+  asserts both documents exist and are distinguishable — red-first against
+  today's code, where the second write is a no-op
+  <!-- entry: "census-rows document is date-keyed, second run of the day retains nothing" -->
+
+- **RECORD 2026-08-16 — row 6 step (b): the tool-addition population is
+  MEASURED, and the headline is that a session-start preload cannot reach most
+  of it.** Dispatched discovery over the whole live corpus (36 captures, ~11.5
+  GiB, 36/36 censused with zero could-not-verify, 17,006 requests) via
+  `replay.mjs --gates-from-capture --census --json`.
+  **How often:** 128 tools deltas, of which 126 are pure additions and 2 mixed
+  (one description byte-edit, one removal). 25 of 36 captures had at least one
+  addition; 11 had none, 4 of those being one-request placeholder sessions.
+  The lane checked rather than assumed that `kind:"membership+"` means a pure
+  addition — it is a NET-direction label — and verified
+  `(count_now - count_prev) === newNames.length` on 126/126 rows.
+  **Which tools:** `SendMessage` dominates — 103 of 126 addition events, in 24
+  of the 25 captures that have any. Everything else is a one-off MCP server
+  connecting mid-session (qgis, claude-in-chrome, playwright, thunderbird),
+  clustering by SERVER rather than by tool: 37 of 39 distinct names appear in
+  exactly ONE capture.
+  **Where — the finding that bounds the lever:** additions do NOT cluster at
+  session start. Median first addition sits ~12% into a session; only 3% of all
+  events and 4 of 25 first-additions land in the opening 5%, while 56% fall in
+  the 25-75% band. A preload is a session-START mechanism by construction, so
+  most measured additions are events it cannot anticipate.
+  **Coverage arithmetic, as a measurement and not a proposal** (an event counts
+  as covered only if EVERY name it adds is in the set; the denominator for
+  captures is the 25 with additions, never all 36):
+  k=1 {SendMessage} 101/126 events (80.2%), 12/25 captures fully covered;
+  k=3 84.1% / 60.0%; k=5 86.5% / 68.0%; k=10 88.9% / 76.0%. The residue at
+  k=10 is 11.1% of events and 24% of captures, all one-off MCP servers whose
+  membership a session-start list cannot know without over-fitting to this
+  snapshot.
+  **No list is proposed here, deliberately** — the round's instruction, and the
+  right one: the design question the numbers now let someone answer is whether
+  an 80%-of-events lever whose ceiling is ~89% is worth a session-start
+  mechanism at all, against the alternative of doing nothing for the
+  mid-session bursts. That is the desk's and the operator's call, and it is
+  informed rather than guessed for the first time.
+  Named missing evidence for a DESIGN: none about the population; what is
+  missing is the cost side — what a preloaded-but-unused tool costs in prefix
+  bytes, which nothing here measured.
+  Consumer: whoever designs row 6 step (b).
+  Loop stage: MITIGATE (the design this would inform).
+  Anchor: threat matrix row 6, ladder step (b)
+  <!-- entry: "row 6 step (b) population measured: SendMessage 103/126, additions spread mid-session" -->
+
 
 - **RECORD 2026-08-16 (small; DOTFILES-SIDE residue of today's merge, not ours
   to edit) — `CACHE_FIX_PIN` still reads 4.3.0 while the restarted proxy serves
@@ -3880,59 +3987,6 @@ comment and new issue.
   Write-set: dotfiles only (NOT this repo)
   Verifier: bootstrap/doctor.py — the cache-fix-proxy health line goes OK
   <!-- entry: "CACHE_FIX_PIN 4.3.0 vs serving 4.4.0-beta.0, doctor FAIL, dotfiles-side" -->
-
-- **DECIDED 2026-08-16, ANSWER (a) — port upstream's `CACHE_FIX_PREFIXDIFF_CONTENT`
-  gate default-OFF and opt this deployment IN.** Operator's answer to the parked
-  content-minimization decision (see `## Parked decisions`, now settled). Code
-  matches upstream exactly; the deployment opts in with a recorded reason, so
-  the exposure becomes a declared choice rather than an unexamined default.
-  **NOT bundled with the 2026-08-16 restart, deliberately.** It is a second
-  `proxy/**` change and therefore owes its own pin bump and its own run of
-  `docs/runbooks/ship-proxy-change.md`. The restart on tree `2bf03b8` shipped
-  the merge and the sweep fix and nothing else; bundling would have made a
-  restart's attribution ambiguous across two changes, which is the one thing
-  row 3's argument cannot survive.
-  **THE RESIDUE SPLITS ACROSS TWO REPOS, and the split is the point** — this is
-  the sender-side-residue rule applied to its own first case.
-  OURS (this repo, this lane):
-  - the gate itself in `proxy/extensions/prefix-diff.mjs`, defaulting OFF, over
-    every content path (system-block text to `SYSTEM_TEXT_CAP`, message
-    previews, event-record previews);
-  - `test/proxy-prefix-diff-security.test.mjs` — it currently asserts the
-    FORK's contract ("default mode DOES persist content"), so it goes RED the
-    day the gate lands. **Expect that red and update it deliberately**: it is
-    the check reporting that the contract changed, not breakage. Reflexively
-    repairing it to restore green is how a live finding becomes a silenced
-    instrument.
-  NOT OURS (dotfiles, `dotfiles-5b`'s working copy — do not reach in):
-  - the `Environment=CACHE_FIX_PREFIXDIFF_CONTENT=1` line on
-    `cache-fix-proxy.service`, plus `systemctl --user daemon-reload`;
-  - the gate classification in `bootstrap/manifest.py`
-    (`CACHE_FIX_GATES_ACTIVE`, with the reason);
-  - the `CACHE_FIX_GATE_ACCEPTANCE` entry naming the probe that proved it safe
-    to enable.
-  **The check that REVEALS the residue, so it is not a promise to remember:**
-  ship-runbook step 4b is owed here (this change introduces a gate token, so
-  the `git show <commit> | grep -o 'CACHE_FIX_[A-Z_]*'` filter is non-empty),
-  and doctor's gate-acceptance verdict is what goes red while the dotfiles half
-  is missing. Runner: whoever ships the dotfiles half. Without it the mitigation
-  is DORMANT and step 7's three-way compare reads GREEN anyway — all three
-  answers agreeing on the gate's absence, which is exactly the blind spot 4b
-  documents.
-  Handoff obligation: when our half lands, send the fact to the desk session so
-  it can route the dotfiles half; a report to the operator discharges nothing
-  for a peer.
-  Done-criterion: gate present and default-OFF in code; the security bite
-  updated deliberately and green; the dotfiles half landed and doctor's
-  gate-acceptance verdict green; a restart on the new pin with step 7 agreeing.
-  Consumer: the session that next ships a proxy change.
-  Loop stage: MITIGATE (bounds what rests on disk from every session on this box).
-  Anchor: proxy/extensions/prefix-diff.mjs; upstream's gate of the same name
-  Write-set (ours): proxy/extensions/prefix-diff.mjs, test/proxy-prefix-diff-security.test.mjs
-  Verifier: the security bite, plus `grep -c` for content on disk with the gate
-  off — plant a sentinel, run the real path, grep what was written, then re-run
-  with the gate ON to prove the grep can see the sentinel at all
-  <!-- entry: "port upstream CACHE_FIX_PREFIXDIFF_CONTENT gate default-OFF, opt deployment in" -->
 
 - **RECORD 2026-08-16 (small) — the snapshot key cap now counts only
   prefix-diff's own keys, and 200 may be the wrong number for that.** Before the
@@ -10016,6 +10070,134 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-16 — the content gate is ported and this repo's half is
+  shipped (`4e58269`); the dotfiles half and the restart are the desk's.**
+  Operator answer (a) to the parked content-minimization decision: port
+  upstream's `CACHE_FIX_PREFIXDIFF_CONTENT` gate default-OFF over every content
+  path and let the deployment opt in, so what rests on disk is a recorded
+  choice rather than an unexamined default.
+  **What landed.** The gate in `proxy/extensions/prefix-diff.mjs` — system-block
+  text, per-message previews, marker previews, and the event-record previews
+  that fall out of the same single gating point in `buildSnapshot`. The seven
+  gated builders are BYTE-IDENTICAL to upstream's, checked function by function
+  with an extractor whose instrument-positive is that it also reported the two
+  that genuinely differed (comment dates, since matched too) — so this narrows
+  the merge surface rather than widening it.
+  **The security bite went RED as designed, and that is the record worth
+  keeping.** It asserted the fork's actual persist-by-default contract
+  precisely so the port could not pass unnoticed: 1 failing of 10 at the port,
+  the other nine green — a discriminating split, not a module-load failure. The
+  expectation was then updated deliberately, with the reason written into the
+  file.
+  **Two defects found on the way, both the shape of a check that passes while
+  measuring the wrong quantity.** (1) `payloadWithSentinel()` ignored its
+  overrides argument — inherited from upstream — so the two requests in each arm
+  were byte-identical, no diff and no event record were ever written, and the
+  sentinel-absence claim only ever covered `-last.json`. Fixed, with a
+  `wroteDiff` precondition in both arms, red-proven by restoring the defect
+  (both arms red on the precondition, eight others green). (2) Both arms drove
+  the gate through `options.contentEnabled`, a TEST seam, while production
+  drives it through the env var read once at module load — one covered entry
+  path out of two. Two child-process bites now cover the env route, each
+  mutation-proven: forcing `CONTENT_ENABLED` true reddens only the gate-unset
+  arm, forcing it false reddens only the `=1` arm.
+  **Row-3, executed rather than argued:** the change touches neither state keys
+  nor freeze logic, and prefix-diff makes no request mutation (zero body
+  assignments; instrument-positive: 3 in `deferred-tool-rewrite.mjs`). An
+  old-code baseline diffed against a new-code snapshot under the deployment's
+  own config reports NO change; a real edit still registers; the old-vs-old
+  control also reports none. A deployment that does NOT set the variable would
+  see one spurious diff record on its first post-restart request, from the
+  head/tail window shape change — diagnostic noise, no wire effect.
+  Ship-lane step 2, run before the hand-off: 8 live sessions, ~472k worst case
+  IF a restart changed forwarded bytes; it changes none.
+  Residue, NOT ours and not done by this entry: the `Environment=` line, the
+  manifest gate classification, the `CACHE_FIX_GATE_ACCEPTANCE` entry, the tree
+  pin, and the restart. Routed to the desk when this landed.
+  Loop stage: MITIGATE. Verifier: `test/proxy-prefix-diff-security.test.mjs`
+  (12 bites, 12 green), full suite 3519/0 at the pushed commit.
+  <!-- entry: "port upstream CACHE_FIX_PREFIXDIFF_CONTENT gate default-OFF, opt deployment in" -->
+
+- **DONE 2026-08-16 — a gate the deployment turns ON has to publish its VALUE,
+  or the doctor's three-way compare can never agree (`914ca24`).** Found live by
+  the desk within the hour of the gate shipping: `/health` published
+  `CACHE_FIX_PREFIXDIFF_CONTENT` as `<redacted>` (deny-by-default in
+  `proxy/gate-allowlist.mjs`, working exactly as designed), the unit declared
+  `"1"`, and ship-runbook step 7 FAILED with *"Unit geaendert ohne Restart"* —
+  a standing red that was wrong about its own cause and would have stayed red
+  forever, telling its reader to restart a process that had just been
+  restarted.
+  **Second instance of this exact shape in one day**, the first being
+  `CACHE_FIX_COALESCE_SIDECAR` three lines above it in the same file, whose own
+  comment already spelled out the consequence ("a replay could no longer
+  reproduce the configuration that was SERVING").
+  **The bite asserts the VALUE, not the key's presence**, because a redacted
+  gate is still PRESENT in the object — a presence assertion passes in both
+  worlds and proves nothing. Its population is derived from the serving unit's
+  twelve gates rather than hand-listed. Red-first against the world as it was
+  an hour earlier: remove the entry, exactly that bite goes red, seven others
+  green.
+  Owed and NOT done here: this is a `proxy/**` change, so it needs its own tree
+  pin and its own restart — the SECOND restart of the day for one mitigation.
+  Loop stage: VERIFY. Verifier: `test/capture-hardening.test.mjs`.
+  <!-- entry: "publish CACHE_FIX_PREFIXDIFF_CONTENT value in /health gates" -->
+
+- **DONE 2026-08-16 — row 31's effect is measured, and the instrument the round
+  specified is REFUTED rather than merely unbuilt (`55618fd`).**
+  **The A/B replay cannot exist.** The coalescing decision lives in the live
+  request path (`proxy/server.mjs`, the only site outside the gate allowlist
+  reading `CACHE_FIX_COALESCE_SIDECAR`), which is UPSTREAM of the capture file:
+  by the time a capture exists the decision is taken and recorded. Executed on
+  real data carrying a real `type:"coalesced"` record — the census returns a
+  BYTE-IDENTICAL duplicate rollup under the gate `=0` and `=1`. Two arms that
+  agree have measured nothing. Structural half, with its instrument-positive:
+  zero reads of that variable under `tools/`, against three `tools/` files for
+  a gate the tools do read.
+  **What replaced it, and why it is stronger:** every capture's BOOT RECORD
+  declares the gate set its proxy started with, so the corpus labels its own
+  arms — one fixed corpus, one variable, the label being data rather than a
+  re-run. `tools/row31-effect.mjs` reads that label off line 1 of each capture
+  (never the whole file), joins it to the sweep's retained per-streak rows, and
+  reports double-billing per capture per arm.
+  **Reading, 2026-08-16:** ON 30 captures, session-start double-billing **0.000
+  per capture**; PRE-GATE control 5 captures, **0.400**. Mid-session 0.133 vs
+  0.400 — NOT reported as over-reach at n=5, and the tool says so in its own
+  output; the honest over-reach discriminator is the census's
+  `multiMessageCoalesced`, zero in every run so far.
+  **FOUR arms, not three, and the split is what made the tool work:** the first
+  run reported "no comparison exists" because OFF was empty — no proxy ever ran
+  with the gate declared and unset — while five captures sat there from a build
+  predating the mechanism. Collapsing those into UNKNOWN threw away the only
+  control the corpus has, so PRE-GATE and NO-BOOT are separate answers and the
+  control arm is named in the output.
+  Nine bites, three mutations, each reddening only the bites that name its
+  condition — including the load-bearing negative one: an ON arm that still
+  double-bills must come back non-zero, or the zero above means nothing.
+  What this does NOT close: row 31's own done-criterion is stated on the
+  census's `singleMessage*` counters, which still show residual double-billing
+  (3 streaks in the 11:09 sweep). The row stays open on that number.
+  Loop stage: VERIFY.
+  <!-- entry: "row 31 effect measurement, A/B replay refuted, boot-record arms" -->
+
+- **DONE 2026-08-16 — the duplicate rollup now survives its own run, and the
+  retained streak row keeps the field that proves the mitigation acted
+  (`55618fd`).** Closing-gate question 2's recurring-producer clause, firing on
+  a producer that had been running for days.
+  Two halves, both measured before being fixed: the daily sweep wrote the
+  duplicate counters ONLY into the status file it overwrites next run — today's
+  two sweeps reported 24 and then 10 double-billed streaks with nothing on disk
+  able to compare them — while the fire ledger (41 lines, append-only, the
+  artifact built for exactly this) carried `captures` and `ccVersions` and no
+  duplicate block at all, read from its own key set rather than from memory.
+  And the per-streak projection dropped `coalesced` while keeping `billed`, so
+  a retained row could not tell a send the coalescer SUPPRESSED from a retry
+  nobody answered: both read `billed: 1` on a two-member streak, which is
+  exactly the distinction row 31 closes on.
+  Both red-proven: drop either field and exactly its bite goes red, 52 others
+  green.
+  Loop stage: SEE. Verifier: `test/gate-live.test.mjs` (53 bites).
+  <!-- entry: "fire-ledger carries the duplicate rollup; projection keeps coalesced" -->
 
 - **FIXED 2026-08-16 — the prefix-diff boot sweep's scope regex was unanchored,
   so it claimed 13,699 co-tenant files as its own to delete on the next

@@ -102,6 +102,33 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    Empty means no gate token moved and the step is n/a; the filter is proven
    able to fire on `d6647cc` (`CACHE_FIX_ALIAS_REGISTRY`), which is what makes
    the empty result an absence rather than a filter that never matched.
+   **THERE IS A THIRD COUPLED HALF, and it is in THIS repo, which is why the
+   two dotfiles-side ones above did not cover it.** Added 2026-08-16, the same
+   day and the same shape as step 4's two-pins correction: shipping a gate
+   touches fork code, dotfiles, AND the restart, and 4a/4b tracked only the
+   last two. The fork-side half is `proxy/gate-allowlist.mjs` — a gate the
+   deployment turns ON must be in `PUBLISHABLE_GATES`, or `/health` publishes
+   it as `<redacted>` (deny-by-default, working as designed) while the unit
+   declares a value, and **step 7's three-way compare can never agree**. It
+   FAILS with "Unit geaendert ohne Restart" about a process that was just
+   restarted — a red that is wrong about its own cause and therefore stays red
+   forever. Measured live on `CACHE_FIX_PREFIXDIFF_CONTENT`, and it was the
+   SECOND instance in one day: `CACHE_FIX_COALESCE_SIDECAR` had hit it hours
+   earlier.
+   The cheap read, same form as the filter above:
+   ```sh
+   git show <commit> | grep -o 'CACHE_FIX_[A-Z_]*' | sort -u | while read g; do
+     grep -q "\"$g\"" proxy/gate-allowlist.mjs || echo "NOT PUBLISHABLE: $g"
+   done
+   ```
+   A gate named in the diff and absent from the allowlist is the finding. Two
+   things this deliberately does NOT say: not every `CACHE_FIX_*` token
+   belongs there (the allowlist is deny-by-default on purpose, and a key naming
+   a path, URL, command or credential must never be added — the suite pins that
+   rule); and the entry belongs in the SAME commit as the gate, not in a
+   follow-up, or the first restart serves a proxy the doctor cannot verify.
+   `[GRADUATE -> the check above as a real script beside the other ship
+   checks; trigger: a third gate shipping without its allowlist entry]`
 
 5. **Restart + health gates check.**
    **First, project what the boot sweep would delete — this is BEFORE an
