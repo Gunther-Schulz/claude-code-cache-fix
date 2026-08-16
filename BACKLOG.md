@@ -3880,6 +3880,45 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-16 — FOUR lane branches from 2026-08-10 still carry work
+  that is not in `main`, and `git status`, `git log origin/main..main` and
+  every handoff since have all read clean.** This is the exact class dev-loop
+  records ("thirty commits sat in five registered worktrees, never merged"),
+  found again by counting rather than by any check firing — and found while
+  doing something else, which is how the first instance was found too.
+  Counted by PATCH-ID (`git cherry main <branch>`, `+` only), never by
+  revision, because cherry-picking changes every hash it touches and a rev
+  count called eleven branches unintegrated where six had landed:
+  `worktree-agent-a162bc7ead18882ad` 3 · `worktree-agent-a82eb314485126126` 7 ·
+  `worktree-agent-a93d5b5926262ab7c` 1 · `worktree-agent-ac73dca7ecf344d05` 2.
+  Thirteen commits over 26 registered worktrees; the other 22 branches report
+  zero, so the finding is four lanes and not a general failure.
+  The subject matter is real work, not scratch — `findBornLargeStarts` as a
+  census class, absorption-miss rows printed in the plain text report, the
+  backlog-lint READY-outside-Open and closure-mints-a-second-bullet lanes,
+  `backlog-index.mjs`, the row-30 mint, and `capturePairResult`'s lineage
+  fallback for a rotated `messages[0]`. At least two of those look like they
+  were later RE-IMPLEMENTED on main (the absorption text print and the row-24
+  cause map are both recorded as landing separately), which is the measured
+  cost of the class: work rebuilt because nobody could see it.
+  NOT resolved here, and the reason is a boundary rather than effort:
+  integrating another session's lane needs that lane's closing report and its
+  verification, which this session does not hold. Cherry-picking thirteen
+  unread commits into the deployment state is the opposite of what the
+  integration rule asks for.
+  Named missing evidence: each lane's closing report, or a per-branch read of
+  what the commits do and whether main has since re-implemented it.
+  Done-criterion: every registered worktree's branch reports zero `+` under
+  `git cherry main <branch>`, or each remainder is named with a disposition
+  (integrated / superseded by a named commit on main / dropped with a reason).
+  Consumer: whoever runs the next session-close lane; `tools/prune-lane-branches.mjs`
+  is the mechanism that exists for it.
+  Loop stage: VERIFY (it decides whether shipped work is actually shipped).
+  Anchor: `git worktree list`, the four branches above
+  Write-set: the branches and the worktree registrations — no source file
+  Verifier: `git cherry main <branch>` per registered worktree, zero `+`
+  <!-- entry: "four 2026-08-10 lane branches carry 13 unmerged commits, invisible to every clean reading" -->
+
 - **RECORD 2026-08-16 (small; decision-complete, NOT scheduled — the READY head
   is capped at ten and its membership is derived, not edited) — the sweep's
   per-streak evidence document is keyed by DATE, so only the FIRST run of any
