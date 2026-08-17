@@ -136,6 +136,56 @@ test("a red that is IN THE COMMIT blocks, even when the working tree is green", 
   }
 });
 
+// --- the oversize-blob step, wired ahead of the suite ---
+//
+// The guard's own logic is proven in test/oversize-blob-guard.test.mjs. What
+// only THIS file can prove is the WIRING: that the hook actually invokes it,
+// refuses on its red, and does so BEFORE paying for the suite. The fixture
+// repo carries just the hook, so the hook's `[ -f ]` check skips the guard
+// there — which is correct behaviour for a standalone copy and also means a
+// wiring test must install the guard file itself, or it asserts nothing.
+//
+// The blob is a SPARSE 101 MiB of zeros: over GitHub's hard limit, costing
+// no real disk and packing to almost nothing. Sizes come from the remote's
+// documented limit, not from the guard's constants — an expectation read off
+// the artifact it grades moves with the mutant.
+function installGuard(work) {
+  mkdirSync(join(work, "tools"), { recursive: true });
+  copyFileSync(join(REPO, "tools/oversize-blob-guard.mjs"), join(work, "tools/oversize-blob-guard.mjs"));
+  git(work, "add", "tools/oversize-blob-guard.mjs");
+  git(work, "commit", "--quiet", "-m", "install guard");
+}
+
+test("a blob over the remote's hard limit is REFUSED, and refused before the suite runs", () => {
+  const { root, work } = makeFixture("oversize");
+  try {
+    installGuard(work);
+    // Negative control FIRST, in the same fixture: with the guard installed
+    // and nothing oversized, the push still goes through. Without this arm a
+    // refusal below proves only that something said no.
+    const clean = tryPush(work);
+    assert.equal(clean.ok, true, `guard present + ordinary tree must still push\n${clean.out}`);
+
+    execFileSync("truncate", ["-s", "101M", join(work, "huge.bin")]);
+    git(work, "add", "huge.bin");
+    git(work, "commit", "--quiet", "-m", "a pin far too large to publish");
+    const r = tryPush(work);
+    assert.equal(r.ok, false, `push must be REFUSED — the remote cannot accept this blob\n${r.out}`);
+    assert.match(r.out, /oversize-blob-guard: REFUSED/, `the guard must name itself\n${r.out}`);
+    assert.match(r.out, /huge\.bin/, `the refusal must name the offending file\n${r.out}`);
+    // The ordering claim, and it is the reason this step sits where it does:
+    // the suite is the expensive half, so a tree that cannot be published
+    // must be rejected without paying for it.
+    assert.doesNotMatch(
+      r.out,
+      /npm test \(full suite\)/,
+      `the oversize check must short-circuit BEFORE the suite\n${r.out}`,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("negative control: an ordinary green push is still allowed", () => {
   const { root, work } = makeFixture("clean");
   try {

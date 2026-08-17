@@ -271,10 +271,35 @@ already carries — never by trusting that two counters agree.
 
     | the finding | what carries it |
     |---|---|
-    | byte divergence, message shape, migrations | the CAPTURE (pin it) |
+    | byte divergence, message shape, migrations | the CAPTURE (pin it) — check its SIZE, next paragraph |
     | state key, reset reason, what an extension DID | `~/.local/state/cache-fix/snapshots/*-events.jsonl` |
     | cause, token cost, `cache_miss_reason` | the CC transcript |
     | which gates/extensions were live | `/health` + the sweep status file |
+
+    **A PIN'S SIZE IS THE CONVERSATION'S DEPTH, NOT THE PAIR'S — check it
+    before committing, and check whether your finding needs a pin at all.**
+    Added 2026-08-17, from following the table above literally. `harvest
+    --pin` writes the pair plus the full conversation prefix from record 0,
+    because replay needs the history to group conversations. So the 686k
+    row-6 pair, 733 records into a ~700k-context session, produced a **188 MB**
+    fixture — 4x the largest pin this repo tracks, and over GitHub's 100 MiB
+    hard per-file limit. This repo is PUBLIC and `main` is published
+    deployment state that must never be rewritten, so a blob that reaches
+    history is not removable; the commit would have succeeded locally and the
+    PUSH would have failed with the bytes already committed. The push
+    boundary now refuses it (`tools/oversize-blob-guard.mjs`, blocks at
+    100 MiB, warns at 50 MB), but the guard is the backstop, not the plan.
+    The plan is the granularity question the table above does not ask:
+    **a pin freezes the PREFIX, so pin only when your finding needs the
+    prefix.** A stability violation or a divergence INDEX does. A `tools[]`
+    shape, an addition's namespace, a state key does not — that day's finding
+    was two tool arrays and a census row, a few KB, and the whole prefix was
+    freight. Where the pin is over the limit, or is freight, freeze
+    machine-local to `~/.local/share/cache-fix/bust-evidence/<date>/` and cite
+    by alias exactly as the event-log slices below do; nothing about the
+    evidence is lost, it just stops being public history. (The write-side
+    reroute — `harvest --pin` refusing the tracked tree above the guard's
+    threshold — is booked READY, so today this is a hand-check.)
 
     Event-log slices are machine-local, never committed — raw lines carry
     full session ids and the hygiene scan blocks them at push (the

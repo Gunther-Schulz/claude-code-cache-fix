@@ -1191,6 +1191,21 @@ function summarise(file, bytes, res) {
       heldStable,
       heldUnstable: deltas.length - heldStable,
     };
+    // Row 6's ladder step (b) — the session-start PRELOAD list — is designed
+    // against a RATE, not against whichever pin a walk froze: how often is a
+    // tools[] addition a namespace's first appearance (a candidate for
+    // preloading) versus a selective load into a namespace already present.
+    // Tallied by the shape the row carries rather than by a fixed key set,
+    // so a new shape appears here instead of being silently dropped into an
+    // existing bucket. Omitted entirely when no row carries the field: an
+    // all-zero tally over an older replay's rows would read as a measured
+    // absence rather than as an instrument that was not there.
+    const shapes = {};
+    for (const d of deltas) {
+      if (!d.addition) continue;
+      shapes[d.addition.shape] = (shapes[d.addition.shape] ?? 0) + 1;
+    }
+    if (Object.keys(shapes).length > 0) row.toolsDeltas.additionShapes = shapes;
   }
   // Row 26's labelled pair (replay.mjs printer, findIdentityRotations):
   // reporting either number alone invites the other's question, because

@@ -31,7 +31,7 @@
 // LAST step (render) differs, so the two can never disagree about what was
 // found.
 
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -501,6 +501,57 @@ export function collectProtectedCaptures({ protectedDir } = {}) {
   }
 }
 
+/** The bust-evidence carrier (closing-gate question 4's CARRIER REGISTRATION
+ * clause). `bust-triage`'s freeze-hint has been printing
+ * `~/.local/share/cache-fix/bust-evidence/<date>/` since 2026-08-08 and a
+ * walk writes event-log slices there; 2026-08-17 added a 188 MB pin, rerouted
+ * out of the tracked tree because it is over GitHub's hard limit. That is
+ * state which outlives every run, is never rotated, and — until this
+ * collector — nothing was scheduled to look at. It is the same shape as the
+ * protected-captures carrier above and was missed for the same reason: the
+ * party that creates it is not the party that later needs to know it is
+ * there.
+ *
+ * Reported as a per-date roll-up rather than a file list: the consumer
+ * question is "how much undrained evidence is sitting here, and how old", and
+ * a listing of every slice would bury it. A missing root is a MEASURED empty
+ * set, not a third answer — the dir is created lazily by the first freeze, so
+ * `ok: false` there would fire on every machine that has never frozen
+ * anything.
+ */
+export function collectBustEvidence({ bustEvidenceDir = join(homedir(), ".local/share/cache-fix/bust-evidence") } = {}) {
+  let dates;
+  try {
+    dates = readdirSync(bustEvidenceDir, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name);
+  } catch (e) {
+    if (e?.code === "ENOENT") return { ok: true, dir: bustEvidenceDir, dates: 0, files: 0, bytes: 0, oldest: null };
+    return { ok: false, reason: String(e?.message ?? e) };
+  }
+  let files = 0;
+  let bytes = 0;
+  for (const date of dates) {
+    for (const entry of readdirSync(join(bustEvidenceDir, date), { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      files += 1;
+      try {
+        bytes += statSync(join(bustEvidenceDir, date, entry.name)).size;
+      } catch {
+        // Vanished between readdir and stat — still counted as a file; only
+        // its byte contribution is skipped, same stance as the fixtures
+        // collector above.
+      }
+    }
+  }
+  return {
+    ok: true,
+    dir: bustEvidenceDir,
+    dates: dates.length,
+    files,
+    bytes,
+    oldest: dates.length > 0 ? dates.slice().sort()[0] : null,
+  };
+}
+
 export function collectRepo(opts = {}) {
   return {
     unpushed: collectUnpushed(opts),
@@ -509,6 +560,7 @@ export function collectRepo(opts = {}) {
     worktrees: collectWorktrees(opts),
     fixtures: collectFixturesAccumulation(opts),
     protectedCaptures: collectProtectedCaptures(opts),
+    bustEvidence: collectBustEvidence(opts),
   };
 }
 
@@ -774,6 +826,13 @@ function renderRepo(r) {
           // than left to whoever reads the entry list.
           (x.unaliased ? `; ${x.unaliased} with NO alias — held bytes nothing can cite` : "") +
           `\n${capList(x.entries.map((e) => `${e.alias ?? "(no alias)"} ${(e.bytes / 1e6).toFixed(0)}MB`))}`),
+  );
+  lines.push(
+    fmtVerdict("bust evidence", r.bustEvidence, (x) =>
+      x.files === 0
+        ? "bust evidence: none frozen"
+        : `bust evidence: ${x.files} file(s), ${(x.bytes / 1e6).toFixed(0)} MB across ` +
+          `${x.dates} date(s), oldest ${x.oldest} — machine-local, nothing rotates it`),
   );
   return lines.join("\n");
 }

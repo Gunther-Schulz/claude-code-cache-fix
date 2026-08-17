@@ -857,6 +857,109 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-absorption-step.test.mjs
   <!-- entry: "bust-triage names the row but never says whether the mitigation absorbed" -->
 
+- **READY 2026-08-17 — row 6's LIMB is still read by hand, and the namespace
+  annotation shipped today cannot settle it.** The row's trigger names three
+  limbs ("ToolSearch loading deferred tools, MCP reconnect, schema bump")
+  that do NOT share a mitigation: ladder step (b) is a session-START preload,
+  so it can only reach a limb whose membership is knowable at session start.
+  Today's 686k walk shipped `addition` on every `membership+` census row
+  (`replay.mjs` `classifyAddition`, `additionShapes` in `gate-live`'s status
+  row), which answers whether the added tool's NAMESPACE was already in
+  `tools[]` — and that is strictly narrower than the limb question, because
+  deferred MCP tools sit outside `tools[]` until something loads them, so a
+  first-time ToolSearch load and a server connecting BOTH read
+  `new-namespace`. So the row's 2026-08-10 limb assignment ("a server
+  connecting mid-session, NOT a ToolSearch deferred load") is now labelled
+  UNVERIFIED in the matrix, and the same question is open on today's
+  instance.
+  **Why this is not cosmetic:** the two limbs have different levers. A
+  ToolSearch load is CC deciding to load a schema it already knows about —
+  reachable by a preload, or by an announce path. A server connecting
+  mid-session is not knowable at session start at all. The 2026-08-16
+  population record's whole "one-off MCP server connecting mid-session"
+  residue (11.1% of events, 24% of captures at k=10) rests on the limb
+  reading it inherited from prose.
+  Design, decided: `findToolsDeltas` gains `addition.trigger`, computed from
+  the pair's own APPENDED messages — the busting pairs are
+  `msgKind:append-only`, so the messages that would carry a `ToolSearch`
+  `tool_use` are already in the pair. `toolsearch-adjacent` when one of the
+  appended messages carries a `tool_use` named `ToolSearch`; `no-toolsearch`
+  when the appended messages are present and carry none; `unknown` when the
+  pair has no appended messages to read (an identical-history delta), which
+  must be its own value and never fold into `no-toolsearch`. The three-value
+  split is the point: a two-value predicate would report the could-not-read
+  case as a server arrival, which is the exact direction the current prose
+  already errs in.
+  Red-first, and the two must DIFFER: over the frozen 2026-08-10 pin
+  (`pinned-s-dda5c6419d49-372-373.json`, replayed via `.records` out as
+  JSONL — a `.json` pin reads 0 pairs and exits clean) the n=372->373 and
+  n=369->370 rows must report a trigger value that is not `unknown`; a
+  constructed pair whose appended messages carry no `ToolSearch` must report
+  `no-toolsearch` while the same pair with one inserted reports
+  `toolsearch-adjacent`. Whichever way the pins land, the matrix's UNVERIFIED
+  label is replaced by the measurement — a `no-toolsearch` result CONFIRMS
+  the 2026-08-10 prose and is an equally good outcome, which is what keeps
+  this from being a check built to agree.
+  Note the retention question is real work, not a lookup: `compactEntry`
+  keeps per-message HASHES, not bodies, so the tool_use names have to be
+  extracted at compact time (a names-only field, no bodies retained — the
+  same byte-conservation discipline `byName` already follows).
+  Done: both pins report a non-`unknown` trigger; the matrix's 2026-08-10
+  limb sentence and today's instance both carry a measured limb; entry moves
+  to `## Done` with its ref.
+  Loop stage: ATTRIBUTE (it decides which mitigation row 6 step (b) can be).
+  Anchor: row 6
+  Write-set: `tools/replay.mjs`, `test/replay-gate-selfcheck.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/replay-gate-selfcheck.test.mjs
+  <!-- entry: "row 6's limb is read by hand; namespace shape cannot separate ToolSearch load from server arrival" -->
+
+- **READY 2026-08-17 — `harvest --pin` sizes a pin by the CONVERSATION's
+  depth, so a deep session's pin is unpublishable, and nothing on the write
+  side says so.** Measured today: freezing the 686k row-6 pair (n=733->734)
+  produced a **188 MB** fixture in `test/fixtures/harvested/` — 4x the
+  largest pin this repo has ever tracked (45.8 MB) and over GitHub's 100 MiB
+  hard per-file limit, i.e. it could have been committed and then failed at
+  push, with the bytes already in `main`'s history that FORK-NOTES.md forbids
+  rewriting.
+  The READER half SHIPPED today (`tools/oversize-blob-guard.mjs`, wired into
+  `tools/git-hooks/pre-push` ahead of the suite; red-first proven live at
+  101 MiB, negative control at 45 MiB green). **This entry is the WRITER
+  half, which is still running**: the pin is built full-prefix-from-0 by
+  construction, so the next deep-session walk produces the same artifact and
+  only learns at push.
+  **The mismatch under it, stated as the design question rather than a fix:**
+  pin granularity is fixed while FINDING granularity is not. Today's finding
+  was a `tools[]` SHAPE — two arrays, a few KB — and the runbook's freeze
+  table ("byte divergence, message shape, migrations -> the CAPTURE (pin
+  it)") routed it to the whole prefix. A stability or divergence-index
+  finding genuinely needs the prefix; a tools-shape or state-key finding does
+  not.
+  Design, decided: `harvest --pin` refuses to write into the tracked tree
+  above the guard's block threshold — imported from
+  `tools/oversize-blob-guard.mjs`, never restated, so one number moves both —
+  and writes to `~/.local/share/cache-fix/bust-evidence/<date>/` (mode 0600)
+  instead, printing the alias-citation line the runbook already requires.
+  That is a REROUTE, not a refusal to freeze: the evidence still exists, it
+  just stops being a public-history problem. Whether a narrower
+  finding-scoped pin should also exist is NOT decided here and is explicitly
+  out of this entry's scope.
+  Red-first: today's own case is the fixture — pinning n=733..734 of
+  `s-captureBS` must land in `bust-evidence/`, not in
+  `test/fixtures/harvested/`, and a shallow pin (any existing tracked pin's
+  range) must still land in the tree. The two arms must DIFFER; a version
+  that reroutes everything passes the first arm and fails the second.
+  The DOC half is already done (same commit as the guard):
+  `docs/runbooks/bust-appears.md` step 11 now carries the size caveat and the
+  granularity rule — pin only when the finding needs the PREFIX — so this
+  entry is the code half alone.
+  Done: a deep-session pin lands machine-local with its citation line, a
+  shallow one still lands tracked; entry moves to `## Done` with its ref.
+  Loop stage: SEE (evidence retention for every later stage).
+  Anchor: tools/harvest.mjs
+  Write-set: `tools/harvest.mjs`, `test/harvest-pin.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/harvest-pin.test.mjs
+  <!-- entry: "harvest --pin sizes by conversation depth; deep-session pins are unpublishable" -->
+
 - **READY — `bust-triage` cannot reach threat-matrix row 24 by ANY of its three
   routes, so the whole resume / born-large class triages as UNVERIFIABLE or
   UNCLASSIFIED forever.** Measured 2026-08-06 on capture s-captureAL (the
@@ -4006,6 +4109,14 @@ comment and new issue.
   Named missing evidence for a DESIGN: none about the population; what is
   missing is the cost side — what a preloaded-but-unused tool costs in prefix
   bytes, which nothing here measured.
+  **INSTANCE 2026-08-17: 686k re-written, 21:11:40Z, `s-captureBS`** (pair
+  n=733->734, five `mcp__claude-in-chrome__*` names, `new-namespace`,
+  attribution CC's, `heldStable` true). It lands squarely in this record's
+  hard residue: a one-off MCP-server namespace appearing ~46% into a
+  6h51m session, i.e. exactly the mid-session burst the k=10 arithmetic
+  above leaves uncovered. The measured ceiling did not move; this is the
+  second `mcp__claude-in-chrome` first-appearance on record (2026-08-10,
+  263k) and the first with a machine-readable addition shape.
   Consumer: whoever designs row 6 step (b).
   Loop stage: MITIGATE (the design this would inform).
   Anchor: threat matrix row 6, ladder step (b)

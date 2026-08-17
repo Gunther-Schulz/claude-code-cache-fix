@@ -2550,16 +2550,30 @@ function withReadyCount(live, n) {
   }
   // Demote from the END of `## Open`, so the head's own leading entries -- the
   // ones every other lane's line numbers are read against -- keep their grade.
-  let out = live;
+  //
+  // BOUNDED TO `## Open` 2026-08-17, after this helper silently failed to
+  // reach its target. It used to scan the WHOLE file with `lastIndexOf` and
+  // accept any hit past `## Open`'s offset -- but READY entries also live in
+  // later sections (the lint's own `backlog-ready-outside-open` lane reports
+  // three today), so the demotions landed outside the counted region, the
+  // `## Open` count never moved, and the arm came back at the live count
+  // wearing the target's name. The failure was invisible until the live head
+  // grew past the arm it was building: every call before that took the GROW
+  // path, so the demote path shipped never having run against a real file.
+  const openEnd = (() => {
+    const next = live.indexOf("\n## ", openAt + 1);
+    return next === -1 ? live.length : next;
+  })();
+  let head = live.slice(openAt, openEnd);
   let toDemote = cur - n;
   const marker = "\n- **READY ";
   while (toDemote > 0) {
-    const at = out.lastIndexOf(marker);
-    assert.ok(at > openAt, "ran out of READY headers to demote");
-    out = out.slice(0, at) + "\n- **RECORD " + out.slice(at + marker.length);
+    const at = head.lastIndexOf(marker);
+    assert.ok(at >= 0, "ran out of READY headers inside ## Open to demote");
+    head = head.slice(0, at) + "\n- **RECORD " + head.slice(at + marker.length);
     toDemote--;
   }
-  return out;
+  return live.slice(0, openAt) + head + live.slice(openEnd);
 }
 
 test("lintReadyCap: reports BOTH directions -- `under` is not derivable from `over`", () => {

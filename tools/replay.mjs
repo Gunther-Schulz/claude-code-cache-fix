@@ -1095,6 +1095,26 @@ export function findToolsDeltas(entries) {
           .sort();
         heldStable = sharedSig(p.outTools.byName, sharedNames) === sharedSig(c.outTools.byName, sharedNames);
       }
+      // Row 6 asks WHICH of its trigger limbs an instance is ("ToolSearch
+      // loading deferred tools, MCP reconnect, schema bump"), because they do
+      // not share a mitigation: ladder step (b), the session-start PRELOAD
+      // list, can only preload what is knowable at session start. That
+      // question was being answered BY HAND off the added names (the row's
+      // 2026-08-10 instance reads "a server connecting mid-session, NOT a
+      // ToolSearch deferred load", derived from seven names in prose).
+      //
+      // This field does NOT answer it, and the name says what it does
+      // answer: was the added tool's namespace already represented in the
+      // previous request's tools[]? DEFERRED MCP tools are absent from
+      // tools[] until something loads them, so a ToolSearch load of a
+      // never-loaded server's tools and that server connecting both read
+      // `new-namespace`. What the field separates is a SELECTIVE load into a
+      // namespace already present from a namespace's first appearance —
+      // measured on real traffic, both shapes occur (2026-08-10 pin: 4
+      // first-appearances against 1 selective load into `mcp__thunderbird-
+      // mail`). The limb discriminator proper needs ToolSearch tool_use
+      // adjacency in the pair's appended messages; booked, not built here.
+      const addition = kind === "membership+" ? classifyAddition(p.inTools, c.inTools) : null;
       rows.push({
         n: c.n,
         prevN: p.n,
@@ -1122,10 +1142,51 @@ export function findToolsDeltas(entries) {
         // means it ran and had nothing new to decide about, and the two
         // must stay distinguishable rather than both reading as absent.
         deferredToolRewriteStats: c.deferredToolRewriteStats ?? null,
+        addition,
       });
     }
   }
   return rows.sort((a, b) => a.n - b.n);
+}
+
+// A tool's NAMESPACE: the server segment of an MCP name, or `builtin` for
+// everything else. CC emits MCP tools as `mcp__<server>__<tool>`, so the
+// server is what sits between the first and second `__` — never a
+// fixed-width prefix, since server names carry hyphens and underscores of
+// their own (`mcp__plugin_pbs-gis_pbs-gis__catalog`).
+const namespaceOf = (name) => {
+  if (!name.startsWith("mcp__")) return "builtin";
+  const parts = name.split("__");
+  return parts.length >= 3 ? `${parts[0]}__${parts[1]}` : name;
+};
+
+// findToolsDeltas' `addition` field (row 6's limb discriminator, above).
+// Reads only the per-name maps both sides already retain, so it costs no new
+// retention. `no-new-names` is not defensive padding for an impossible case:
+// `set` counts duplicates, so a tools[] that repeats a name it already
+// carried grows the count and moves the set membership signature while
+// adding no NAME — labelling that "within-known-namespace" would be a true
+// sentence about a delta that added nothing.
+function classifyAddition(prevTools, curTools) {
+  if (prevTools.byName === null || curTools.byName === null) return null;
+  const names = Object.keys(curTools.byName)
+    .filter((n) => !Object.prototype.hasOwnProperty.call(prevTools.byName, n))
+    .sort();
+  const prevNamespaces = new Set(Object.keys(prevTools.byName).map(namespaceOf));
+  const knownNamespaces = [];
+  const newNamespaces = [];
+  for (const ns of [...new Set(names.map(namespaceOf))].sort()) {
+    (prevNamespaces.has(ns) ? knownNamespaces : newNamespaces).push(ns);
+  }
+  const shape =
+    names.length === 0
+      ? "no-new-names"
+      : newNamespaces.length === 0
+        ? "within-known-namespace"
+        : knownNamespaces.length === 0
+          ? "new-namespace"
+          : "mixed";
+  return { names, knownNamespaces, newNamespaces, shape };
 }
 
 // heldStable's comparison, factored out: the byte signature of one side's

@@ -89,6 +89,41 @@ test("BITE — a fixture row with census toolsDeltas present lands a compact sum
   assert.equal(row.toolsDeltas.leaked, 1);
 });
 
+// The addition-shape counts ride the same path. Row 6's mitigation ladder
+// step (b) — the session-start PRELOAD list — is designed against how often
+// a bust is a namespace's FIRST appearance (preloadable, if the namespace is
+// knowable at session start) versus a selective load into a namespace
+// already present. That is a rate question, so it belongs in the daily
+// sweep's row rather than in whatever pin a walk happens to freeze.
+test("BITE — the status row carries the addition-shape counts, not just the delta count", () => {
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }, { n: 1 }, { n: 2 }, { n: 3 }],
+    violations: [], safety: [], sequence: [], orderViolations: [],
+    census: { pairs: 3 },
+    toolsDeltas: [
+      { n: 1, prevN: 0, kind: "reorder", msgKind: "identical", toolsOnly: true, forwardedStable: true, addition: null },
+      { n: 2, prevN: 1, kind: "membership+", msgKind: "append-only", toolsOnly: true, forwardedStable: false,
+        addition: { names: ["mcp__a__x"], knownNamespaces: [], newNamespaces: ["mcp__a"], shape: "new-namespace" } },
+      { n: 3, prevN: 2, kind: "membership+", msgKind: "append-only", toolsOnly: true, forwardedStable: false,
+        addition: { names: ["mcp__a__y"], knownNamespaces: ["mcp__a"], newNamespaces: [], shape: "within-known-namespace" } },
+    ],
+  }));
+  assert.deepEqual(row.toolsDeltas.additionShapes, { "new-namespace": 1, "within-known-namespace": 1 },
+    "a reorder contributes no shape; the two membership+ deltas are counted apart");
+});
+
+test("BITE — an older replay whose rows carry no addition field omits additionShapes rather than reporting zeroes", () => {
+  const row = summarise("c.jsonl", 10, json({
+    report: [{ n: 0 }, { n: 1 }],
+    violations: [], safety: [], sequence: [], orderViolations: [],
+    census: { pairs: 1 },
+    toolsDeltas: [{ n: 1, prevN: 0, kind: "membership+", msgKind: "append-only", toolsOnly: true, forwardedStable: false }],
+  }));
+  assert.equal(row.toolsDeltas.count, 1, "the delta itself is still summarised");
+  assert.equal(row.toolsDeltas.additionShapes, undefined,
+    "an all-zero shape tally over rows that never carried the field would read as measured absence");
+});
+
 test("no toolsDeltas in the parsed output (older replay, or census off) leaves the field absent, not zeroed", () => {
   const row = summarise("c.jsonl", 10, json({
     report: [{ n: 0 }],

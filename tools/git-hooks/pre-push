@@ -90,6 +90,22 @@ unset $(git rev-parse --local-env-vars) 2>/dev/null || true
 
 for sha in $PUSH_SHAS; do
   short="$(git rev-parse --short "$sha" 2>/dev/null || echo "$sha")"
+
+  # Cheapest check first, and it is the one whose failure is IRREVERSIBLE.
+  # GitHub rejects any blob at or over 100 MiB, so a tree carrying one
+  # cannot be pushed — but the commit already exists locally when the push
+  # fails, and this fork's main is published deployment state that must
+  # never be rewritten (FORK-NOTES.md). Found 2026-08-17: `harvest --pin`
+  # writes a pin containing the pair's whole conversation prefix, so a deep
+  # conversation yields a 188 MB fixture with nothing on any route saying
+  # so. Runs against the PUSHED TREE, same object the suite below uses.
+  if [ -f "$REPO/tools/oversize-blob-guard.mjs" ]; then
+    if ! (cd "$REPO" && node tools/oversize-blob-guard.mjs "$sha"); then
+      echo "pre-push: REFUSED — $short carries a blob the remote will not accept (see above)." >&2
+      exit 1
+    fi
+  fi
+
   echo "pre-push: npm test (full suite) at pushed commit $short ..." >&2
 
   WTROOT="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-wt.XXXXXX")" || exit 1

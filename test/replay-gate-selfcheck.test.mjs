@@ -1177,6 +1177,112 @@ test("toolsDeltas: BITE — a PASSTHROUGH (new name, no announcement) is visible
   assert.deepEqual(d.deferredToolRewriteStats.announcedNames, []);
 });
 
+// --- Row 6: was the added tool's NAMESPACE already in tools[]? ---
+//
+// Row 6's trigger names three limbs and treats them as one class: "ToolSearch
+// loading deferred tools, MCP reconnect, schema bump". They need DIFFERENT
+// mitigations, so the census owes an instance its limb — and the row's
+// 2026-08-10 instance was assigned to "MCP reconnect" by reading seven added
+// names by hand.
+//
+// `shape` is NOT that limb answer and is deliberately named for the narrower
+// thing it measures: whether the added tool's namespace (`mcp__<server>`, or
+// `builtin`) was already represented on the previous side. Deferred MCP
+// tools sit outside tools[] until something loads them, so a first-time
+// ToolSearch load and a server connecting both read `new-namespace`. What
+// this DOES separate — and what the hand-read could not — is a selective
+// load into an already-present namespace from a namespace's first
+// appearance. Both occur on real traffic (2026-08-10 pin, five membership+
+// deltas: four first-appearances, one selective load into
+// `mcp__thunderbird-mail`).
+
+test("toolsDeltas: an addition INSIDE a namespace already present reads within-known-namespace", () => {
+  const nav = tool("mcp__chrome__navigate");
+  const read = tool("mcp__chrome__read_page");
+  const p = entry(1, conv, conv, { inTools: [nav], outTools: [nav] });
+  const c = entry(2, conv, conv, { inTools: [nav, read], outTools: [nav, read] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.kind, "membership+");
+  assert.equal(d.addition.shape, "within-known-namespace");
+  assert.deepEqual(d.addition.names, ["mcp__chrome__read_page"]);
+  assert.deepEqual(d.addition.newNamespaces, [], "chrome was already in tools[] — nothing arrived");
+  assert.deepEqual(d.addition.knownNamespaces, ["mcp__chrome"]);
+});
+
+test("toolsDeltas: a namespace tools[] has never carried reads new-namespace", () => {
+  const bash = tool("Bash");
+  const nav = tool("mcp__chrome__navigate");
+  const p = entry(1, conv, conv, { inTools: [bash], outTools: [bash] });
+  const c = entry(2, conv, conv, { inTools: [bash, nav], outTools: [bash, nav] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.addition.shape, "new-namespace");
+  assert.deepEqual(d.addition.newNamespaces, ["mcp__chrome"]);
+  assert.deepEqual(d.addition.knownNamespaces, []);
+});
+
+// The pair that gives the field its discriminating power: both arms add
+// exactly ONE tool to a one-tool array, so every other field on the row —
+// kind, count, outCount, heldStable — is identical between them. If the two
+// arms did not differ HERE, the annotation would be measuring nothing.
+test("toolsDeltas: BITE — the two shapes DIFFER on pairs identical in every other field", () => {
+  const nav = tool("mcp__chrome__navigate");
+  const known = findToolsDeltas([
+    entry(1, conv, conv, { inTools: [nav], outTools: [nav] }),
+    entry(2, conv, conv, { inTools: [nav, tool("mcp__chrome__read_page")], outTools: [nav, tool("mcp__chrome__read_page")] }),
+  ])[0];
+  const fresh = findToolsDeltas([
+    entry(1, conv, conv, { inTools: [nav], outTools: [nav] }),
+    entry(2, conv, conv, { inTools: [nav, tool("mcp__other__thing")], outTools: [nav, tool("mcp__other__thing")] }),
+  ])[0];
+  assert.equal(known.kind, fresh.kind, "precondition: the two arms are the same kind of delta");
+  assert.equal(known.count, fresh.count, "precondition: the two arms move the same counts");
+  assert.notEqual(known.addition.shape, fresh.addition.shape, "the annotation must separate the two shapes");
+});
+
+test("toolsDeltas: builtins are their own namespace — a deferred BUILTIN load is within-known-namespace", () => {
+  const bash = tool("Bash");
+  const p = entry(1, conv, conv, { inTools: [bash], outTools: [bash] });
+  const c = entry(2, conv, conv, { inTools: [bash, tool("WebFetch")], outTools: [bash, tool("WebFetch")] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.addition.shape, "within-known-namespace");
+  assert.deepEqual(d.addition.knownNamespaces, ["builtin"]);
+});
+
+test("toolsDeltas: an addition touching both a known and a fresh namespace reads mixed", () => {
+  const bash = tool("Bash");
+  const nav = tool("mcp__chrome__navigate");
+  const p = entry(1, conv, conv, { inTools: [bash, nav], outTools: [bash, nav] });
+  const cur = [bash, nav, tool("mcp__chrome__read_page"), tool("mcp__other__thing")];
+  const c = entry(2, conv, conv, { inTools: cur, outTools: cur });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.addition.shape, "mixed");
+  assert.deepEqual(d.addition.knownNamespaces, ["mcp__chrome"]);
+  assert.deepEqual(d.addition.newNamespaces, ["mcp__other"]);
+});
+
+// The server segment is everything between the first and second `__`, so a
+// server whose own name carries hyphens and underscores — and a tool name
+// carrying a further `__` — must still resolve to one namespace.
+test("toolsDeltas: the namespace is the SERVER segment, not a fixed-width prefix", () => {
+  const a = tool("mcp__plugin_pbs-gis_pbs-gis__catalog");
+  const b = tool("mcp__plugin_pbs-gis_pbs-gis__list_recipes");
+  const p = entry(1, conv, conv, { inTools: [a], outTools: [a] });
+  const c = entry(2, conv, conv, { inTools: [a, b], outTools: [a, b] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.addition.shape, "within-known-namespace");
+  assert.deepEqual(d.addition.knownNamespaces, ["mcp__plugin_pbs-gis_pbs-gis"]);
+});
+
+test("toolsDeltas: BITE — a delta that adds NOTHING carries no addition annotation", () => {
+  const toolA = tool("A");
+  const toolB = tool("B");
+  const p = entry(1, conv, conv, { inTools: [toolA, toolB], outTools: [toolA, toolB] });
+  const c = entry(2, conv, conv, { inTools: [toolB, toolA], outTools: [toolB, toolA] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.kind, "reorder");
+  assert.equal(d.addition, null, "a reorder must not be labelled with an addition shape");
+});
+
 test("toolsDeltas: the extension never running this request reads as null, distinct from an empty decision", () => {
   const toolA = tool("A");
   const toolB = tool("B");
