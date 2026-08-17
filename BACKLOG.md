@@ -268,6 +268,131 @@ comment and new issue.
 
 ## Open
 
+- **READY 2026-08-17 (MITIGATE stage — THE NEXT THING, operator instruction:
+  "just build it", then "book it as the next thing when I start a new session
+  here") — preload `SendMessage` as a deferred tool at session start, so the
+  addition that causes 80% of tool-front invalidations never arrives
+  mid-session.** Row 6 ladder step (b), the lever the 2026-08-16 population
+  record measured and deliberately left un-designed.
+  **Why this one and why now.** `SendMessage` is 103 of 126 measured addition
+  events, in 24 of the 25 captures that have any (2026-08-16 record, this
+  file). It is also the only frequent addition that is PREDICTABLE at session
+  start: it appears when a session gains a teammate agent, unlike the one-off
+  MCP servers that make up the rest. Operator decision 2026-08-17, taken with
+  the ceiling stated: k=1 covers ~80% of events, the k=10 ceiling is ~89%, and
+  the residue is mid-session MCP arrivals that NO session-start mechanism can
+  reach — tonight's own 686k bust included. This does not fix that class and
+  is not claimed to.
+  **The design, and it is a SEED of existing machinery rather than a new
+  mechanism.** `deferred-tool-rewrite` already forwards, for every KNOWN tool
+  name, the FROZEN persisted object rather than CC's incoming bytes
+  (`proxy/extensions/deferred-tool-rewrite.mjs`, header + `loadState`). So if
+  `SendMessage` is already in the persisted known-tools array before CC ever
+  sends it, CC's later addition is classified as a known name, the frozen
+  object is forwarded, and `tools[]` does not move — no front invalidation.
+  Concretely, at the `no-baseline` path only (first-seen session):
+  1. seed the persisted array with the preload set, each entry marked
+     `defer_loading: true`;
+  2. emit NO `tool_addition` block at seed time. This half is load-bearing
+     for SAFETY, not for cache: the API loads a deferred tool only when its
+     `tool_addition` block is present in that request (extension header,
+     beta `mid-conversation-tool-changes-2026-07-01`), so an unannounced
+     preloaded tool sits in `tools[]` without being callable. That is what
+     stops the model from invoking a tool Claude Code does not yet know it
+     has and cannot route;
+  3. when CC later sends `SendMessage` for real, announce it then — the
+     existing new-name path already does exactly this.
+  **THE SHIP-TIME HAZARD, and it is the one that would bust every live
+  session.** The seed must apply ONLY to sessions with no baseline yet. A
+  running session already has a persisted array; adding `SendMessage` to it
+  mid-flight changes `tools[]` and busts that session — the mitigation
+  causing the exact class it prevents. So: seed at baseline creation, never
+  retrofit, and price the restart against LIVE sessions
+  (`tools/restart-exposure.mjs`), not against the corpus.
+  **Where the preloaded BYTES come from — decide this before coding, it is
+  the entry's one open sub-decision.** Two candidates, recommendation first:
+  (a) LEARNED — the first session that ever sees `SendMessage` records its
+  schema to machine-local state; later sessions seed from that. No hardcoded
+  schema to go stale, and the existing fingerprint-change path already handles
+  the day CC's schema moves (reset + re-record). (b) PINNED — a committed
+  schema snapshot. Simpler, but it is a restated copy of CC's own artifact and
+  cannot age loudly, which is the exact shape this repo keeps getting bitten
+  by. Recommend (a); a fresh context may take (a) without asking.
+  **Red-first, and the two arms must DIFFER.** Over a capture whose session
+  adds `SendMessage` mid-conversation (the 2026-08-16 record names 24 such
+  captures; pick one and pin it): today that pair censuses as `membership+`
+  with the array growing and a front invalidation; with the preload seeded,
+  the same pair must census with `tools[]` byte-stable across it — and a
+  control session that never gains `SendMessage` must forward an array
+  identical to today's except for the one deferred entry. A version that
+  makes every pair stable is over-firing and fails the control.
+  **Gates that bind before this ships, none relaxed by "mitigations first":**
+  attribution verdict exists (row 6, CC's — done tonight); replay/gate green
+  under the SERVING config, not defaults; the fidelity gate green, since this
+  changes what the model can see; sibling enumeration (added / removed /
+  renamed / re-described / duplicated / arriving during a reset) stated at
+  ship time; and the row-3 declaration — this touches persisted state
+  CONTENT, so state whether it moves state KEYS or freeze logic before any
+  restart. `proxy/**` changes need the dotfiles pin bump
+  (`git rev-parse --short HEAD:proxy`) + `systemctl --user restart
+  cache-fix-proxy`, at a stated session boundary.
+  **Skip-gauge, run 2026-08-17: two NOs.** Failure is SILENT (a preload with
+  wrong bytes causes busts instead of preventing them, on every session), and
+  blast radius is large (`proxy/**` fronts every Claude Code session on this
+  machine). Paired mechanisms, both owed: fresh-context verification of the
+  built change before push, and a written enumeration of everything touched.
+  Done: a seeded session's `SendMessage` arrival shows `tools[]` byte-stable
+  in the census; the control session is unchanged; gate + fidelity green under
+  serving config; shipped via `docs/runbooks/ship-proxy-change.md`; the next
+  live `SendMessage` addition named ABSORBED rather than merely "the
+  mitigation ran"; entry moves to `## Done` with its ref.
+  Loop stage: MITIGATE.
+  Anchor: row 6
+  Write-set: `proxy/extensions/deferred-tool-rewrite.mjs`,
+  `test/deferred-tool-rewrite.test.mjs`,
+  `docs/directives/robustness-threat-matrix.md`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/deferred-tool-rewrite.test.mjs
+  <!-- entry: "preload SendMessage as a deferred tool at session start (row 6 step b)" -->
+
+- **RECORD 2026-08-17 — the READY cap of ten is doing its job, and its cost
+  lands at exactly the wrong moment: BOOKING time.** Operator, tonight, on
+  being told a demotion was needed to book the preload: *"this 10 limit seems
+  to sometimes hurt more than help?"*
+  **Measured on this instance, both directions.** The cap HELPED: forced to
+  pick a member to demote, the session read all ten and found that the
+  ingestion-lane reconciliation entry does not meet the READY bar — its design
+  depends on per-event lane+identity data the matrix does not carry and the
+  entry never specifies. That entry had been sitting in the scheduled head
+  claiming a fresh context could execute it. Nothing but the cap would have
+  prompted anyone to look. The cap COST: five entries read and a judgment call
+  made, mid-flight, while booking — and the accretion rule that keeps this
+  repo honest is precisely that booking must stay about as cheap as doing,
+  because the moment it stops being cheap the un-booked exit starts winning.
+  **So the finding is not "the cap is wrong", it is "the demotion is
+  unmechanized".** `backlog-lint` already computes the count and the cap; at
+  11 it BLOCKS and says nothing about which member is weakest, so every
+  booking that hits the ceiling pays a full manual re-read. The hazard that
+  makes this worth building rather than tolerating: a session under pressure,
+  facing "demote something or don't book", takes the exit the rules forbid —
+  and unlike a dropped entry, a never-written one leaves no trace to find.
+  **Design sketch, NOT decision-complete (this is why RECORD, not READY):**
+  the lint prints a DEMOTION CANDIDATES line at or near the cap, ranking head
+  members by facts the entries already carry — a design decision still open in
+  the body, a measured cost older than N days, a premise citing a file that
+  has since changed. Which signals, and in what order, is the open decision;
+  a rank nobody trusts is worse than no rank, and the ranking rubric in
+  `docs/dev-loop.md` is the place that argument belongs.
+  **What is NOT recommended, so it is not re-argued:** raising the cap. The
+  cap's own rationale is that a grade nobody believes carries no information
+  (sibling repo at 110 READY), and tonight's demotion found a real defect
+  inside the ten, which is evidence the bound is binding on something real.
+  The number is the operator's (2026-08-11); nothing here asks to change it.
+  Consumer: whoever next hits the cap while booking — i.e. the next session
+  that books anything into a full head.
+  Loop stage: none (process instrument; surfaced under the trajectory test as
+  evidence of a missing stage in the booking path itself).
+  <!-- entry: "READY cap blocks at 11 but never names a demotion candidate" -->
+
 - **PARKED 2026-08-16 (was READY; MITIGATE stage) — a resume-tolerant state key: the
   LINCHPIN that gates every four-layer resume absorption, and the reason the
   tools mitigation we already ship is disarmed at exactly the request that
@@ -1045,8 +1170,20 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/bust-triage-matrix-walk.test.mjs
   <!-- entry: "bust-triage cannot reach matrix row 24 by any route" -->
 
-- **READY — three ingestion lanes reach the same event and two disposition
+- **RECORD (DEMOTED from the scheduled head 2026-08-17 to make room for row
+  6's preload mitigation, and it does not meet the READY bar as written) —
+  three ingestion lanes reach the same event and two disposition
   VOCABULARIES reach the matrix, with nothing reconciling or deduping them.**
+  **The named gap that demotes it:** the design says "a matrix event carries
+  the LANE it entered by and the event identity (timestamp + session) it was
+  dispositioned under" — and the matrix carries no such per-event data today,
+  nor does this entry specify its shape or where it lives. A fresh context
+  cannot execute that without making a data-model decision, which is exactly
+  what READY promises it will not have to do. Everything below stands; what
+  it needs to return to the head is one paragraph deciding where per-event
+  lane+identity is recorded. Nothing here is judged less valuable than the
+  head's other nine — the head is at its cap of ten and this is the one
+  member with a design decision still open.
   Operator, 2026-08-07: "there are two ingestion lanes right? when I report,
   but at the same time we sweep on a schedule — two lanes but they converge on
   results I assume." Three, and they converge on the CARRIER but not on the
