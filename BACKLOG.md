@@ -10807,6 +10807,16 @@ then the queued ones. Work the items in that order.
   imports, and one grep found the second.
   Gap booked separately rather than closed here: the ship runbook has no A/B
   verdict step at all (see `## Open`).
+  **RESIDUE, and it is the DESK's, not anyone else's — open as of this
+  writing.** Correction 3's reachable home is this entry, but a reader who
+  hits `88440f3` in DOTFILES history will never open this file, so the
+  correction also owes one line in that repo's `LEDGER.md`. It is not written
+  yet: a peer session held the dotfiles working copy at that moment (commit
+  `41a7e6e`, after mine), and one writer per copy means waiting, not asking
+  the peer to write it — a relayed obligation looks discharged from both ends
+  while nobody may act on it. The peer was told the FACT so they do not cite
+  the commit; the WRITE stays here. Check that reveals it if this session
+  ends first: `grep -c 88440f3` over the dotfiles `LEDGER.md` returns 0.
 
 - **DONE 2026-08-14 (`f228720`), discovered closed 2026-08-18 — the push scan
   walks range-INTERIOR commits and annotated tag messages.** Closed by the
