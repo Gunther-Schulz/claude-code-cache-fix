@@ -257,8 +257,24 @@ run, step 7's three-way compare. Nothing else about the ship is outstanding.
 
 **NIGHT DELTA — 2026-08-18, close of session. Read this before the afternoon
 body below, which is still accurate on everything it covers but predates the
-following.** No proxy or tools code changed tonight; the only fork write is
-this file.
+following.**
+
+**NEXT SESSION STARTS HERE (operator decision, 2026-08-18 night):** the two
+ECONOMICS entries at the head of `## Open` are the next work — the daily
+gate's parent-memory growth and missing incrementality, and the capture
+store's ~271:1 stored-to-novel ratio. They are booked decision-complete with
+their measurements, their instrument caveats, and in the gate entry's case a
+correction to its own first version. Take them before anything else in the
+build order.
+
+**The ship is COMPLETE.** Pin `5ddf24f` in fork and dotfiles, proxy restarted,
+fingerprint on-disk `c2effc3e1d2e` equal to running, version `4.4.0-beta.0`
+equal to its pin, and the runbook's three answers all agree — DECLARED
+(unit) = RUNNING (`/health`) = VERIFIED (gate status stamped 21:18:52Z,
+`ok: true`, 0 failing, 30 captures). The sweep that produced VERIFIED ran
+AFTER the restart, which is the freshness this step exists to establish; an
+earlier read in the same session nearly booked the afternoon's 13:36Z file
+as this ship's verification.
 
 - **The ship is still HELD and nothing about it moved.** Pin `5ddf24f` local
   vs `25c9929` in the dotfiles manifest, fingerprint `c2effc3e1d2e` local vs
@@ -405,13 +421,25 @@ comment and new issue.
 
 - **READY 2026-08-18 (night, operator question: does the sweep have to cost
   this much) — the daily gate re-walks the WHOLE corpus every run and its
-  PARENT process is uncapped, so both its runtime and its memory track corpus
-  size with nothing watching either.** Measured on tonight's ship run:
-  started 22:52, still running at 50 minutes against the afternoon run's 16,
-  over **30 captures / 12 GB** where the afternoon walked 18. Parent RSS
-  climbed 4.3 -> 5.9 -> 8.1 GB across the run (peak 8.3), monotonically,
-  which is accumulation rather than streaming — the parent retains per-streak
-  rows for every capture and never releases them.
+  PARENT process is uncapped. Runtime is LINEAR and healthy today; the
+  memory half is the live concern and the runtime half is a trajectory, not
+  a present defect.** Measured off the status file's own stamps rather than
+  assumed: this run **26.1 min over 30 captures (0.87 min/capture)** against
+  the afternoon's **16.1 min over 18 (0.89 min/capture)**. Per-capture cost
+  is FLAT — the sweep is not degrading, it is doing proportionally more work
+  on a corpus that grew from 18 captures to 30 / 12 GB in a day.
+  **A CORRECTION TO THIS ENTRY'S FIRST VERSION, kept because the shape
+  recurs:** it was booked claiming the run was "still running at 50 minutes"
+  and overdue. That was an assumed elapsed time — nobody read a clock, and
+  the session had asserted 38 and then 50 minutes from feel while the run
+  actually took 26. The operator caught it. The instrument was available the
+  whole time (`started` and `finished` in the status file), and the entry it
+  produced overstated a real-but-mild finding into a failing one.
+  Parent RSS climbed 4.3 -> 5.9 -> 8.1 GB across the run (peak 8.3),
+  monotonically, which is accumulation rather than streaming — the parent
+  retains per-streak rows for every capture and never releases them. That
+  half stands unqualified: it is measured, it is unbounded, and unlike the
+  runtime it has no linear headroom argument.
   **The heap cap does not cover this, and the note saying it does is reading
   the wrong half:** `tools/gate-live.mjs:138` `export const
   CHILD_HEAP_CAP_MB = 2048;` caps the replay and census CHILDREN,
@@ -427,10 +455,13 @@ comment and new issue.
   fix and it is the one that stops the trend.
   (2) A PARENT BOUND. Retained rows are what grow; either stream them to the
   status file per capture or cap what is held. This is the memory fix.
-  **Why it is not merely slow:** the unit is on a twice-daily timer. A run
-  that outgrows its own interval silently stops being a daily sweep, and the
-  failure is a NON-EVENT — no red, just an older verdict than anyone thinks.
-  Nothing currently alarms on sweep duration.
+  **Why it still matters at a flat per-capture cost:** the unit is on a
+  twice-daily timer, so linear growth has a crossing point — a run that
+  outgrows its own interval silently stops being a daily sweep, and that
+  failure is a NON-EVENT: no red, just an older verdict than anyone thinks.
+  Nothing alarms on sweep duration today. At 0.87 min/capture the interval
+  is not close, so this is a watch-and-design item, not a repair. The cheap
+  first move is the alarm, not the incrementality.
   Loop stage: VERIFY (instrument economics; the sweep produces the third of
   the ship runbook's three answers, so its health is load-bearing for every
   ship).
