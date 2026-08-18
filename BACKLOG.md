@@ -27,154 +27,155 @@ calling the rest unranked.
 - **RECORD** — decision-complete memory, not scheduled. Same bodies, same
   verifiers, nothing dropped; booking stays cheap because the record is what
   booking exists for. Lives in `## Record`.
-## Build order — RE-DERIVED 2026-08-18 (SEVENTH derivation); the READY set IS this list
+## Build order — RE-DERIVED 2026-08-18 (EIGHTH derivation); the READY set IS this list
 
 Method unchanged (`docs/dev-loop.md`, "Build order is DERIVED at build time"):
 partitions first — hard ordering constraints, then irreversible failure modes,
-then instruments with a MEASURED false verdict — then signals 2-4 (measured
-cost, silence, cheapness) inside each. The rank lives ONLY in the anchors
-below; `node tools/backlog-order.mjs` makes the file order match, because the
-SessionStart scan reads file order and cannot see this block.
+then instruments with a MEASURED false verdict — then signals 2-4 inside each,
+under the mitigation-led composition rule. The SEVENTH derivation (same day) is
+REPLACED, not edited; its lap closure, the seven items that closed and the four
+rankings it refuted live in `## Done` and in the commit record.
 
-**Why it was re-derived today:** the sixth derivation (2026-08-15) ranked items
-that have since left the head — its #1 (resume-tolerant state key) and #8
-(disposition vocabularies) are no longer in READY — so it was stale and
-authoritative at the same time, which is the exact failure the dated-list rule
-exists to prevent. Three of today's events moved the inputs: row 6's ladder
-step (b) shipped and its follow-on reset fix shipped and verified; two
-instruments produced a MEASURED false verdict on live evidence; and the
-check-set class was booked with a mechanical test.
+**THE OWED QUESTION, ANSWERED BEFORE ANYTHING IS RANKED — what proxy-side bust
+class got closer to closed this week?** The seventh derivation made this the
+eighth's first obligation and said that if the honest answer is "none", the
+ranking is not the thing to fix. **The answer is not none**, and it is read from
+the machine-readable row record and the shipped commits rather than from any
+entry's prose: diffing `robustness-threat-matrix.status.json` at `60cf17c` (the
+last commit before 2026-08-11) against today gives **row 23 OPEN -> RESIDUAL**
+(the description-delta absorb, shipped today, `cdc2b9a` + `d7699cc`), **row 31
+NEW -> RESIDUAL** (the duplicate sidecar coalesce, shipped 2026-08-14, measured
+2026-08-15 at p = 1.4e-6), and row 2 OPEN -> ACCEPTED, which is an operator
+disposition rather than a mitigation and is counted as neither. Row 6's ladder
+gained the tool preload (`eaa1454`, `2759eeb`, `3eff617`) with a first live
+absorption recorded. Eleven commits touched `proxy/**` in that window. So the
+FORM is not this week's finding, and this derivation does not open on a process
+repair.
 
-**Composition rule, answered rather than skipped:** the head carries one
-MITIGATE-stage item, `_resetRelocationMemory` (#9 as ranked, #6 after the lap
-closure below). It is deliberately NOT the
-lead. Two instruments above it produced false verdicts on TODAY's real bust,
-and an instrument that lies corrupts the evidence every mitigation is designed
-from — this repo nearly designed a mitigation for its own regression once. The
-nearest other mitigation, the preload-forfeit-on-reset fix, is NOT
-dispatchable: keeping pending seeds across a reset means re-injecting them into
-the rebaselined array, and that design is undecided. **That decision is what
-would make it ready** — the clause this rule calls load-bearing.
+**But the same read found what a ranking question would never have asked for.**
+Row 31's own standing watcher — built to keep its closure honest, because the
+systemd unit runs `--quiet` and the closing numbers otherwise reach nobody — is
+WARN as of today's 13:20-13:36Z sweep: one post-flip single-message streak
+double-billed of 27. It went unread at close because the close lane's health
+list does not run `shape-verdicts` (fixed, `session-close.md` step 3b). Walked
+today to a measured cause: the surviving miss fails ONLY the mitigation's fourth
+condition, whose clock is stamped at the leader's POST-PIPELINE registration, so
+our own pipeline latency is spent out of CC's 50 ms budget. Matrix row 31 carries
+the full walk; the evidence is frozen. **The class this week closed is the class
+now leaking, and that is what the head leads on.**
 
-**A standing caution this derivation does not escape:** dev-loop records that
-the third partition is self-reinforcing — exercising instruments is what finds
-false verdicts, so an instrument-heavy day promotes more instrument work, and
-every individual promotion is correctly argued. Five of these ten are
-instruments. That is defensible today because two of the five were measured
-false on a live bust this morning, and indefensible as a standing order. If the
-eighth derivation is again instrument-led, the form is the finding, not the
-ranking.
+**THE MITIGATE LEAD, AND THE ONE REGRADE IT REQUIRED.** The composition rule says
+the head LEADS with a MITIGATE-stage item whenever one is decision-complete. The
+only candidate was `_resetRelocationMemory`, and reading its body to check the
+label found something narrower and worse: **the entry has never carried a `Loop
+stage:` line at all.** The MITIGATE label existed only in the SEVENTH
+derivation's own prose, where it was written to satisfy this very rule — a
+composition check answered by a label the derivation minted for itself, over a
+body that does not support it. What the body does support is VERIFY: the entry's
+own `git grep` finds the definition plus one test and no other caller, and its
+done-criterion is a TEST passing using only the exported helper. The stage line
+is now IN the entry, with that basis, rather than in a derivation block that
+gets replaced every few days. **So no MITIGATE-stage
+item is decision-complete today**, which triggers the rule's load-bearing second
+clause: the nearest mitigation is the coalesce WINDOW-CLOCK fix (PARKED below),
+and what would make it ready is named — the coalesce-miss records ranked #1,
+which discriminate `stale-leader` (the clock fix removes it) from `tombstone` (a
+different change to a different line). A mitigation designed before that
+discrimination would be designed under an unknown attribution.
 
-**What left the head, both REGRADED to `RECORD`, not dropped:**
-- row 6 step (b)'s preload entry — SHIPPED 2026-08-18. What remains of its
-  done-criterion needs an OBSERVATION (a sweep whose announcing conversation
-  was also born under the gate), not work, and a scheduled-head slot is too
-  expensive to spend on waiting.
-- `harvest --pin` conversation-depth sizing — SEE stage; the oversize-blob push
-  guard already backstops the irreversible half, so the remainder is
-  convenience.
+**THE INSTRUMENT-LED CAUTION, PAID RATHER THAN INHERITED.** The seventh
+derivation said the form is the finding if the eighth came out instrument-led.
+By raw count it has. That is not the same state the caution described, and the
+difference is checkable rather than rhetorical: the lead instrument is UPSTREAM
+of the mitigation parked on it — the exception the scoping rule already carries,
+here as arithmetic rather than as an appeal; the second was found while freezing
+this week's own evidence and silently drops the proof of any billing finding;
+the third is an instrument with a MEASURED false verdict feeding EVENT
+DISPOSITION, tier 1 of the partition's reach ordering, and operator-ranked. What
+would indict the form is an instrument-led head with no mitigation blocked on
+any of it. Today every instrument at the top has a named consumer waiting on it.
 
-**Closed and moved to `## Done`:** the description-delta-alongside-addition
-reset fix — built `cdc2b9a` + `d7699cc`, pin `88440f3`, verified by a sweep
-reporting 0 stability violations AND 0 exemptions over 18 captures.
-
-**LAP CLOSURE, same day — the IRREVERSIBLE partition is EMPTY.** All three of
-this derivation's leading items closed within hours of being ranked, and the
-numbering below is what is LEFT, not a re-derivation (the eighth derivation is
-owed once the remaining lanes land; see the trend caution above, which now has
-a lap to read). Their bodies are in `## Done`:
-- former #1, range-interior blobs — **already shipped** in `f228720`, four days
-  before this derivation ranked it first. The entry's reasoning was intact; the
-  world had moved. Tripwire booked in `## Record`.
-- former #2, blob dedupe on OID alone — built (`e921c86` lane, `0d72bf1` desk).
-- former #3, the conversation-content policy — landed in dotfiles `59d2c1c`,
-  the write-set correction made in this derivation proving out: the realizing
-  write was never in this checkout at all.
-- former #5, `verdict-ab` reporting IDENTICAL — built (`665cec2`), and it took
-  TWO of this derivation's own claims down with it: the mechanism was not the
-  corpus lacking a case (the tool never loads the changed file at all), and the
-  rank basis "it gates every ship through the proxy runbook" was false — no
-  runbook has ever named the tool. Both corrections are in the `## Done` body,
-  along with a third that is published and unfixable. Its residue is ranked #1
-  below.
-- former #4 and #6, the two `bust-triage` items — built (`8869124`, `7b39a5e`).
-- former #8 and #10, the stability exemption and row 6's limb — built in one
-  commit (`f189e0d`), and the limb half returned a FINDING that flips this
-  row's eight-day-old answer: both real pairs are ToolSearch-adjacent, folded
-  into the matrix.
-- former #7, row 24 — **not built, and correctly so.** Half one was already
-  shipped 2026-08-11; half two's evidence cannot be frozen because
-  `harvest --pin --bounded` refuses a sole-member conversation. REGRADED to
-  PARKED with that as its named missing evidence, and the harvest question
-  booked as its own PARKED entry — its boundary rule is a design decision, not
-  a lane's to invent.
-
-**SO SEVEN OF THIS DERIVATION'S TEN CLOSED IN ONE DAY, and that number is not
-the good news it looks like.** Three were closed by BUILDING; one was already
-shipped before it was ranked; one was in another repo entirely; one was parked
-on a blocker the ranking never saw; and one had its rank basis refuted. A
-derivation that ranks ten items and is wrong about four of them on the same day
-is not a queue with a throughput problem — it is a ranking built from entry
-PROSE rather than from the world the entries describe. That is the finding the
-eighth derivation inherits, ahead of any ordering question.
-
-<!-- entry: "ship runbook has no A/B verdict step; verdict-ab sees one extension" -->
-1. **the ship runbook has NO A/B verdict step, and the tool assumed to fill
-   that slot sees 1 of 42 extensions** — the residue of #5's closure. Prose-only,
-   cheap, and it makes a reach limit visible at the moment a ship rests on it.
-<!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
-2. **`_resetRelocationMemory` cannot evict the memory the pipeline uses** —
-   MITIGATE, and the composition rule's answer. It is now the head's ONLY
-   mitigation item and the only one that moves a bust class, which is the
-   trend caution below arriving as arithmetic rather than as a warning.
+<!-- entry: "proxy records coalesce hits but never coalesce misses" -->
+1. **the proxy records a coalesce HIT and nothing about a coalesce MISS** —
+   ATTRIBUTE, and the head's lead. It is what the only live MITIGATE remainder
+   is parked on, it changes no forwarding behaviour, and without it every future
+   miss costs the hand walk this one cost. Deployment-coupled: it ships at the
+   desk through `docs/runbooks/ship-proxy-change.md`, never bundled with another
+   `proxy/**` change.
+<!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
+2. **`boundary-layers --at` picks a request by NEAREST timestamp and prints a
+   complete, plausible, wrong anatomy** — PROMOTED from `## Record`, where it
+   was booked OPERATOR-RANKED SECOND behind a mitigation that has since parked.
+   Third partition, tier 1: its output is what a bust walk attributes from, and
+   it has already produced two disagreeing anatomies of one event. Bundles into
+   ONE lane with the OOM entry below it — same realizing file, separate
+   red-first arrangements.
+<!-- entry: "boundary-layers OOMs at 4GB on a live capture, reach shrinks quadratically" -->
+3. **`boundary-layers` OOMs at a 4 GB heap while captures grow quadratically** —
+   the same lane's second half, and it rides the lane rather than leading it
+   for the reason its own body gives: a core dump cannot be mistaken for an
+   answer. Its repair is NOT decided — the lane MEASURES (`bytesRead` against
+   bytes consumed on a large capture) and returns the streaming-vs-cap decision
+   to the desk. That is stated here so the lane is not briefed as a fix.
+<!-- entry: "harvest --pin excludes the pinned pair's own outcome records" -->
+4. **`harvest --pin` stops at request ordinal `m`, so the pinned pair's own
+   outcome records are never in the fixture** — while the tool reports that the
+   pin "reproduces the live verdicts". SEE. Found today by freezing evidence
+   with it; every billing or coalescing finding ever pinned lost its proof this
+   way.
 <!-- entry: "READY entry whose anchor moved after its booking date" -->
-3. **a READY entry whose ANCHOR moved after its booking date is unflagged** —
-   ADDED AFTER the derivation, mid-lap, minted by this lap's own measured
-   failure (this derivation ranked an already-shipped item first). Ranked last
-   deliberately: it is process instrumentation, not proxy work, and nothing
+5. **a READY entry whose ANCHOR moved after its booking date is unflagged** —
+   the seventh derivation's own measured failure, mechanized. Ranked below the
+   proxy work deliberately: it is process instrumentation and nothing
    downstream waits on it.
+<!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
+6. **`_resetRelocationMemory` cannot evict the memory the running pipeline
+   uses** — REGRADED to VERIFY above. Deployment-coupled, ships on its own; it
+   is real work and it is last because nothing rests on it, which is the same
+   sentence that took it out of the lead slot.
 
-**THE TREND CAUTION ABOVE HAS NOW BEEN PAID, and the answer is not
-comfortable.** The caution said the form is the finding if the EIGHTH
-derivation comes out instrument-led. It has not been run yet — but of the eight
-items now standing, SIX are instruments, one is a MITIGATE and one is an
-ATTRIBUTE, and the item just added is a ninth consecutive instrument promotion.
-Each is individually well-argued, which is precisely what the caution predicted
-and precisely why the count is the evidence and the arguments are not. What
-this lap actually shows is the mechanism: exercising instruments is how you
-find broken instruments, so an instrument-heavy day generates its own next
-day's queue, and a repo can run that loop indefinitely while shipping no
-mitigation at all. The eighth derivation therefore owes an explicit answer to
-one question before it ranks anything — what proxy-side bust class got closer
-to closed this week — and if the honest answer is "none", the ranking is not
-the thing to fix.
+**THE HEAD IS SIX, NOT TEN, AND THAT IS A DECISION.** `backlog-lint`'s cap lane
+reports UNDER-FULL and is right about the count. Filling to ten would re-assert
+the intent the third grade exists to stop asserting: today's schedulable
+capacity is three parallel lanes plus two desk-side `proxy/**` ships, and the
+promotion pass below found the population honestly thin. What is nearest, named
+so the ninth derivation does not re-derive it: the `deferred-tool-rewrite`
+resume-tolerant read (a MEASURED 38.9 kB span, and the strongest mitigation in
+the file) is blocked by a HARD ORDERING constraint its own entry states — the
+sibling resume-key design must settle first, and that entry is parked on an opus
+review's ten findings; the fork-owned snapshot retention item is MITIGATE-stage
+but its design is explicitly undecided ("not widen the regex" is all that is
+settled).
 
-**LANE JOIN over the entries' write-boundary slots — derived, not composed by
-hand, because the head is dispatched in parallel and an unexamined mapping
-resolves to one-item-per-lane that nobody chose:**
+**A MEASURED INSTRUMENT TRAP THIS DERIVATION HIT ITSELF, recorded because the
+next derivation will use the same command.** `git log --since=YYYY-MM-DD` does
+NOT mean midnight: git's approxidate attaches the CURRENT clock time, so at
+17:00 the bare form silently drops every commit made earlier that day, and the
+same check returns different answers depending on the hour it runs. Measured
+three ways on one anchor: `--since=2026-08-16` returned nothing for
+`tools/boundary-layers.mjs`, `--since="2026-08-16 00:00"` returned `a644022
+df83937`, and `a644022`'s own committer date is 2026-08-16 10:22:22 +0200. The
+first pass of this derivation's promotion survey ran the bare form, so its
+zeroes were unfounded and were re-run pinned (21 anchor-moved entries became
+24). The correction reached the anchor-lint lane mid-flight with a third bite
+attached to it.
 
-Numbers below are the ranking AS DERIVED (before the lap closure above), so
-they are the numbers the four dispatched briefs were written against:
+**LANE JOIN over the entries' write-boundary slots — derived from the
+`Write-set:` lines, not composed by hand:**
 
 | lane | items | write-set | state |
 |---|---|---|---|
-| A | 1, 2, 3 | `tools/absence-scan.mjs` + test (#3 also dotfiles, see its note) | CLOSED, all three in `## Done` |
-| B | 4, 6, 7 | `tools/bust-triage.mjs` + tests | dispatched |
-| C | 8, 10 | `tools/replay.mjs`, `test/replay-gate-selfcheck.test.mjs` | dispatched |
-| — | 5 | `tools/verdict-ab.mjs` + test (standalone) | dispatched |
-| — | 9 | `proxy/extensions/fresh-session-sort.mjs` (standalone, deployment-coupled) | not dispatched |
+| — | 4 | `tools/harvest.mjs` + its two pin tests | dispatched |
+| — | 5 | `tools/backlog-lint.mjs`, its test, `docs/dev-loop.md` | dispatched |
+| — | 2, 3 | `tools/boundary-layers.mjs`, `test/boundary-layers.test.mjs` | ready to dispatch |
+| desk | 1 | `proxy/server.mjs` + capture, census, verdict readers | desk (ship runbook) |
+| desk | 6 | `proxy/extensions/fresh-session-sort.mjs` | desk (ship runbook) |
 
-Lanes A, B, C and #5 are disjoint and run in PARALLEL. #9 is deployment-coupled
-(pin bump + restart + row-3 declaration) and is therefore NOT bundled with the
-tool lanes; it ships on its own through `docs/runbooks/ship-proxy-change.md`.
-
-**What lane A actually returned, because the join above says nothing about
-it:** one of its three items was built, one was already shipped, and one had no
-code half in this repo at all. A write-boundary join is a collision check and
-nothing more — it cannot see that an item is already done or lives in another
-repo, and reading its clean output as a work estimate is the mapping's own
-label-over-body failure. The premise check in each brief is what covers that,
-and on this lap it carried two of lane A's three items.
+The three tool lanes are disjoint and run in PARALLEL. Both `proxy/**` items are
+deployment-coupled and are NOT bundled — with each other or with anything else:
+row 31's own entry records why attribution of a streaming-path regression must
+stay unambiguous. The ship-runbook A/B step that led the seventh derivation's
+residue CLOSED during this derivation (`50c331c`) and is in `## Done`.
 
 ## Handoff — 2026-08-18 afternoon. Rewritten, not appended; a stale one reads as authoritative.
 
@@ -184,10 +185,13 @@ is the failure this whole day's record is about, so this section does not get to
 repeat it.
 
 **The entry point is `continue from backlog`.** Build ORDER is derived at build
-time (`docs/dev-loop.md`). The `## Build order` block above records the SEVENTH
-derivation and is spent: seven of its ten items closed on 2026-08-18. **The
-EIGHTH derivation is owed, and it owes one answer before it ranks anything** —
-see the block's own closing note.
+time (`docs/dev-loop.md`). **SUPERSEDED 2026-08-18 (evening): the EIGHTH
+derivation has been RUN** — the `## Build order` block above is it, its owed
+question is answered in its first paragraph (three proxy-side classes moved this
+week; the answer is not "none"), and the head is six with the under-fill stated
+as a decision. The rest of this handoff was written before that and is being
+rewritten at close; where it and the build-order block disagree, the block is
+newer.
 
 **STATE — everything is pushed in both repos, verified against the remote, not
 recalled.** Fork `main` at `323ca40`; dotfiles `main` at `5d9d0e0`;
@@ -283,130 +287,6 @@ comment and new issue.
 
 ## Open
 
-- **READY 2026-08-18 — the ship runbook has NO A/B verdict step, and the tool
-  everyone assumes fills that slot can only see 1 of this repo's 42
-  extensions.** Two facts found while closing the `verdict-ab` entry, each
-  measured: `grep -c verdict-ab docs/runbooks/ship-proxy-change.md` -> 0, and
-  `grep -rl` over all of `docs/runbooks/` -> no file; and
-  `tools/verdict-ab.mjs` hardcodes one module path (`EXT`, :75) and one
-  exported function (`classifyPinned`), so a change anywhere else in
-  `proxy/extensions/` cannot reach its comparison at all. The runbook's
-  restart-transparency question therefore rests on step 1's row-3 JUDGMENT
-  alone, with no mechanical arm — and the tool that would have been the
-  mechanical arm would have answered vacuously for 41 of 42 extensions until
-  `665cec2` made that vacuity visible.
-  **Two halves, and only the first is decided.** DECIDED: the runbook gains an
-  explicit step naming `tools/verdict-ab.mjs`, stating in the step itself that
-  a COULD-NOT-VERIFY is the EXPECTED answer for any change outside `EXT` and
-  is not a failure — a step that reads as a gate while returning
-  could-not-verify on almost every real ship would train the override reflex
-  within a week, which is exactly the guard-fires-on-legitimate-work shape.
-  So the step's job is to make the tool's reach VISIBLE at ship time, not to
-  pretend to a coverage it does not have.
-  NOT DECIDED, and named as this entry's boundary: whether `verdict-ab` should
-  be widened to load the changed extension(s) rather than a hardcoded one.
-  That is a real design question — the tool's whole shape (its `classifyPinned`
-  call signature, its corpus format, `--seed-from-a`) is built around one
-  function's contract, and generalizing it is not a rename. Do NOT bundle it
-  with the runbook step; the step is worth having either way and lands first.
-  Red-first: the runbook change is prose, so the arm is the STEP's own
-  instruction exercised once — running the named command on a change outside
-  `EXT` must produce COULD-NOT-VERIFY and the step must say that is expected;
-  running it on a change inside `EXT` must produce a matched count. Both
-  arrangements exist in git history today (`cdc2b9a^..aa85900` for the first;
-  any `insertion-normalization.mjs` commit for the second) and neither needs
-  constructing.
-  Done: the step is in the runbook with its expected-answer sentence, both
-  arrangements run and pasted, and this entry moves to `## Done` with its ref.
-  Loop stage: VERIFY.
-  Anchor: docs/runbooks/ship-proxy-change.md
-  Write-set: docs/runbooks/ship-proxy-change.md
-  Verifier: node tools/verdict-ab.mjs cdc2b9a^ aa85900 (must read COULD NOT VERIFY, exit 2)
-  <!-- entry: "ship runbook has no A/B verdict step; verdict-ab sees one extension" -->
-
-- **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
-  the running pipeline uses, so its name promises an eviction it does not
-  perform.** Found by the row-30 eviction lane PROBING the premise before
-  building on it, which is the only reason the bite it was building is not
-  vacuous. Two independent causes, both confirmed by that lane against the real
-  pipeline: (1) `loadExtensions` (`proxy/pipeline.mjs:39`) imports every
-  extension through a cache-busted URL (`?t=<counter>`), so a plainly-imported
-  `_resetRelocationMemory()` clears a Map belonging to a DIFFERENT module
-  instance than the one the pipeline runs — a silent no-op; and (2) even on the
-  same instance, `recallMemory()` falls back to disk when RAM is empty, so a
-  RAM-only reset is un-evicted by the persisted `*-fresh-sort-relocated.json`.
-  **What rested on it: nothing, and that was checked rather than assumed** —
-  `git grep _resetRelocationMemory` finds the definition plus the new test and no
-  other caller, so no prior conclusion is invalidated. The export was added for
-  exactly the purpose it cannot serve, which is why it reads as available.
-  **Design (decided):** the helper's doc comment states that it reaches only a
-  caller controlling module identity, AND gains a disk-clearing counterpart so
-  the two halves of the memory are evictable in one call. Deployment-coupled:
-  `proxy/**`, so it needs a dotfiles pin bump and a restart at a session
-  boundary; the change is memory-helper-only and touches no state KEYS or freeze
-  logic, so row 3's restart-transparency argument holds unchanged.
-  **Done-criterion:** the eviction bite in
-  `test/relocate-then-pin-conservation.test.mjs` passes using ONLY the exported
-  helper — with its current splice-and-unlink workaround removed — and goes red
-  when the helper's disk half is disabled. Both arms pasted.
-  Anchor: proxy/extensions/fresh-session-sort.mjs
-  Write-set: proxy/extensions/fresh-session-sort.mjs, test/relocate-then-pin-conservation.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/relocate-then-pin-conservation.test.mjs
-  <!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
-
-- **READY 2026-08-18 — a READY entry whose ANCHOR file moved after the entry's
-  booking date is a staleness candidate, and nothing reads that today.**
-  Measured, not anticipated: the seventh derivation ranked "push scan diffs
-  range ENDPOINTS" **head #1** on 2026-08-18, and the work had shipped in
-  `f228720` on 2026-08-14 — four days earlier, in the entry's own Anchor file.
-  A second entry on the same lane ("hygiene policy is silent on conversation
-  content") was half-overtaken the same way. Both were found by the dispatched
-  lanes' premise check, in minutes, by opening the Anchor.
-  **The mechanism, stated so it is not mistaken for carelessness:** a
-  derivation re-reads each entry's REASONING, which stays intact — what
-  refutes it is a commit made by a different piece of work that never reads
-  the entry, so nobody holds both halves at once and the staleness rule cannot
-  fire on its own. That is exactly the shape a computed input dissolves: the
-  comparison is two dates and a `git log`, and it is the DELIVERY of the input
-  to the judgment that is mechanizable, never the judgment.
-  Design, decided: a new WARN-only lane `lintAnchorMoved(text, env)` in
-  `tools/backlog-lint.mjs`, beside the existing `lintReadyBar` (same entry
-  walk, same finding shape `{line, title, label, token, proof}`). For each
-  READY entry in `## Open`: take the booking date from the header
-  (`READY YYYY-MM-DD`, the same token the census already reads) and the path
-  from the `Anchor:` line, then run
-  `git log --format=%h --since=<date> -- <anchor>`. Non-empty -> label
-  `ANCHOR-MOVED`, token the anchor path, proof the short SHAs (capped at 3
-  plus a count). THREE answers, never two: a header carrying no date, a `row N`
-  anchor, or a git invocation that fails -> `ANCHOR-UNCHECKABLE` with the
-  reason as proof — an entry that cannot be checked must not read as an entry
-  that passed.
-  **WARN-only on purpose, and this is the load-bearing decision:** a commit
-  touching the anchor does NOT prove the entry stale (the file has many
-  reasons to move), so the predicate is judgment-shaped and blocking on it
-  would fire on legitimate work and train the override reflex. It reports; the
-  derivation decides.
-  Consumer, named because a lint nobody reads is decoration: the default
-  `backlog-lint` run, which the session-start banner and the pre-push hook
-  already surface — PLUS one sentence in `docs/dev-loop.md`'s build-order
-  procedure making the lane's output a required read AT DERIVATION TIME, which
-  is the moment that actually failed here.
-  Red-first, both arms drawn from real history rather than planted: (a) the
-  closed entry above, replayed from `git show` of this file at a commit where
-  it was still READY with its 2026-08-11 header and `tools/absence-scan.mjs`
-  anchor, must produce `ANCHOR-MOVED` naming `f228720`; (b) a READY entry whose
-  anchor has NO commits since its booking date must produce nothing at all —
-  without arm (b) a lane that fires on everything passes arm (a).
-  Done: both arms pasted, the lane wired into the default run and its labels
-  registered like the other lanes', the dev-loop sentence landed, and the full
-  suite green; this entry moves to `## Done` with its ref.
-  Loop stage: MITIGATE (the instrument half).
-  Anchor: tools/backlog-lint.mjs
-  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs,
-  docs/dev-loop.md
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
-  <!-- entry: "READY entry whose anchor moved after its booking date" -->
-
 - **READY 2026-08-18 (evening) — the proxy records a coalesce HIT and nothing
   at all about a coalesce MISS, so row 31's one surviving post-flip
   double-bill cost a hand walk to attribute and the next one will cost
@@ -462,39 +342,68 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs test/coalesce-record.test.mjs
   <!-- entry: "proxy records coalesce hits but never coalesce misses" -->
 
-- **PARKED 2026-08-18 (evening) — row 31's 50 ms window is measured from the
-  leader's POST-PIPELINE registration, so our own pipeline latency is spent out
-  of CC's budget.** `entry.at = Date.now()` is stamped after `preForward` has
-  run the whole extension pipeline (`proxy/server.mjs`), and the follower
-  compares against it after its OWN pipeline — so the quantity checked against
-  `COALESCE_WINDOW_MS` is the arrival delta PLUS the skew between the two
-  requests' pipeline times, not the interval CC actually produced. The measured
-  instance: a 43 ms pair (class p50 is 14 ms) missed the window while a 166 KB
-  13-tool request arrived between the two and shared the event loop, 9 ms ahead
-  of the follower.
-  **The obvious fix — compare arrival stamps instead — is NOT booked as ready,
-  and the reason is the honest one:** if the follower found no leader at all
-  because the leader had not finished its pipeline yet, an arrival clock changes
-  nothing, because there is no entry to compare against. Building the clock fix
-  under that reading would ship a mitigation for a cause that may not be the
-  one occurring, which is what the attribution rule forbids.
-  NAMED MISSING EVIDENCE: `coalesce-miss` records (the READY entry above)
-  showing, across at least a few live instances, whether the misses read
-  `stale-leader` with `arrivalDeltaMs < 50` — which the clock fix removes — or
-  `tombstone`, which needs the leader registered EARLIER instead, a different
-  change to a different line.
-  Design sketch held for when that lands, so the trigger is a build and not a
-  re-derivation: the leader entry carries `arrivedAt`; condition 4 reads
-  `follower.arrivedAt - leader.arrivedAt < COALESCE_WINDOW_MS`; the window
-  constant is unchanged, because widening it to absorb our own latency is the
-  workaround, not the fix.
-  Trigger to re-grade: the first sweep whose captures carry `coalesce-miss`
-  records.
-  Loop stage: MITIGATE.
-  Anchor: proxy/server.mjs
-  Write-set: proxy/server.mjs, test/duplicate-coalesce.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs
-  <!-- entry: "coalesce window measured from registration, not arrival" -->
+- **READY (promoted 2026-08-18, EIGHTH derivation — the resume-key mitigation it
+  was ranked behind is PARKED, so this is the highest operator-ranked available
+  item; head #2, bundled into one lane with the OOM entry below) 2026-08-16 — `boundary-layers --at` picks a request by NEAREST timestamp,
+  so second-precision silently selects a DIFFERENT conversation and prints a
+  complete, plausible, wrong anatomy.** Measured today at the desk: walking the
+  07:37:39Z bust with `--at 2026-08-16T07:37:39Z` resolved to the request at
+  `07:37:38.362Z` — a 107-message conversation — while the busting request
+  `bust-triage` had joined was `07:37:39.512Z`, a 461-message conversation. The
+  two anatomies disagree on everything that matters: the wrong one reports
+  `tools` BYTE-IDENTICAL and the first two segments READABLE, the right one
+  reports `tools` diverging and the first segment BROKEN. Either reads as a
+  finished answer.
+  **Why the existing warning does not cover it, which is the whole defect.**
+  The tool DOES print "RELATIONS DISAGREE" — but that warning is about
+  PREDECESSOR selection, i.e. which record the chosen target is compared
+  AGAINST. Nothing warns about the selection of the TARGET itself, which is the
+  one that was wrong. A guard that fires on the adjacent question reads as
+  coverage of this one; that is the entry-path shape `docs/dev-loop.md` already
+  collects, arriving inside a tool built to prevent exactly this class.
+  **Design, decided:** `--at` reports the resolved record's OWN timestamp,
+  message count and conversation id BEFORE the cascade, and when another
+  request sits within the match window it says so and names it — the
+  three-answer discipline applied to target selection (resolved / ambiguous /
+  none), never a silent nearest-match.
+  Loop stage: ATTRIBUTE
+  Anchor: `tools/boundary-layers.mjs`
+  Write-set: `tools/boundary-layers.mjs`, `test/boundary-layers.test.mjs`
+  Verifier: a fixture with two conversations whose requests interleave inside one second — `--at` at second precision must report AMBIGUOUS and name both, and must not silently pick one
+  <!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
+
+- **READY (promoted 2026-08-18, EIGHTH derivation; head #3, rides the `--at`
+  lane above — same realizing file, separate red-first arrangements. THE LANE
+  MEASURES, IT DOES NOT REPAIR: the streaming-vs-declared-cap decision returns
+  to the desk, per this entry's own "only then decide") 2026-08-16 — `boundary-layers` OOMs at a
+  4 GB heap on a live capture and the capture grows quadratically, so the
+  instrument's reach shrinks while the events worth walking get bigger.**
+  Measured today: `--max-old-space-size=4096` died `FATAL ERROR: Ineffective
+  mark-compacts near heap limit` after ~21 s on a 2.83 GB capture and dumped
+  core; the same walk completed at `10240`. The same tool had run on the SAME
+  capture earlier the same day at 4096, so the failure threshold was crossed by
+  roughly 150 MB of growth in one session — this is not a stable margin.
+  **Why it ranks BELOW the `--at` defect despite being the louder symptom:**
+  signal 3 of the ranking rubric — a core dump cannot be mistaken for an answer,
+  while a silently mis-selected conversation already was. It ranks above ordinary
+  cost work because the trigger is a clock nobody controls.
+  **Design, decided:** the repo already has the shape for this — `gate-live` runs
+  every replay child under an explicit `--max-old-space-size` cap, and
+  `docs/dev-loop.md`'s "Streams is a claim about a mechanism" section records
+  that this capture read was fixed for scale THREE times and was still O(file)
+  the third. So: measure `bytesRead` against bytes consumed on a large capture
+  before touching anything (the read-lines bite's own question), and only then
+  decide between a streaming repair and a declared cap. A raised heap is a
+  BRIDGE, named as one here, with its revert trigger being the first streaming
+  measurement.
+  **NOT established:** whether the retention is in `readLines`, in
+  `findPredecessor`'s candidate collection, or in the cascade's own body
+  retention. Nothing was profiled; the 4096-vs-10240 split is the only datum.
+  Loop stage: ATTRIBUTE
+  Anchor: `tools/boundary-layers.mjs`
+  Write-set: `tools/boundary-layers.mjs`, `test/boundary-layers.test.mjs`
+  Verifier: a bytesRead-vs-consumed assertion on a multi-GB capture, red against the current retention
+  <!-- entry: "boundary-layers OOMs at 4GB on a live capture, reach shrinks quadratically" -->
 
 - **READY 2026-08-18 (evening) — `harvest --pin <n>..<m>` stops at request
   ordinal `m`, so the pinned pair's OWN outcome records are never in the
@@ -531,11 +440,133 @@ comment and new issue.
   Done: both arms pasted, the header field landed, the verification sentence
   narrowed to what it establishes, suite green, entry moves to `## Done`.
   Loop stage: SEE (the evidence-freezing half of it).
-  Anchor: tools/harvest.mjs
-  Write-set: tools/harvest.mjs, test/harvest-pin.test.mjs,
-  test/harvest-pin-verify.test.mjs
+  Anchor: `tools/harvest.mjs`
+  Write-set: `tools/harvest.mjs`, `test/harvest-pin.test.mjs`,
+  `test/harvest-pin-verify.test.mjs`
   Verifier: node --test --import ./tools/suite-config-root.mjs test/harvest-pin.test.mjs test/harvest-pin-verify.test.mjs
   <!-- entry: "harvest --pin excludes the pinned pair's own outcome records" -->
+
+- **READY 2026-08-18 — a READY entry whose ANCHOR file moved after the entry's
+  booking date is a staleness candidate, and nothing reads that today.**
+  Measured, not anticipated: the seventh derivation ranked "push scan diffs
+  range ENDPOINTS" **head #1** on 2026-08-18, and the work had shipped in
+  `f228720` on 2026-08-14 — four days earlier, in the entry's own Anchor file.
+  A second entry on the same lane ("hygiene policy is silent on conversation
+  content") was half-overtaken the same way. Both were found by the dispatched
+  lanes' premise check, in minutes, by opening the Anchor.
+  **The mechanism, stated so it is not mistaken for carelessness:** a
+  derivation re-reads each entry's REASONING, which stays intact — what
+  refutes it is a commit made by a different piece of work that never reads
+  the entry, so nobody holds both halves at once and the staleness rule cannot
+  fire on its own. That is exactly the shape a computed input dissolves: the
+  comparison is two dates and a `git log`, and it is the DELIVERY of the input
+  to the judgment that is mechanizable, never the judgment.
+  Design, decided: a new WARN-only lane `lintAnchorMoved(text, env)` in
+  `tools/backlog-lint.mjs`, beside the existing `lintReadyBar` (same entry
+  walk, same finding shape `{line, title, label, token, proof}`). For each
+  READY entry in `## Open`: take the booking date from the header
+  (`READY YYYY-MM-DD`, the same token the census already reads) and the path
+  from the `Anchor:` line, then run
+  `git log --format=%h --since=<date> -- <anchor>`. Non-empty -> label
+  `ANCHOR-MOVED`, token the anchor path, proof the short SHAs (capped at 3
+  plus a count). THREE answers, never two: a header carrying no date, a `row N`
+  anchor, or a git invocation that fails -> `ANCHOR-UNCHECKABLE` with the
+  reason as proof — an entry that cannot be checked must not read as an entry
+  that passed.
+  **WARN-only on purpose, and this is the load-bearing decision:** a commit
+  touching the anchor does NOT prove the entry stale (the file has many
+  reasons to move), so the predicate is judgment-shaped and blocking on it
+  would fire on legitimate work and train the override reflex. It reports; the
+  derivation decides.
+  Consumer, named because a lint nobody reads is decoration: the default
+  `backlog-lint` run, which the session-start banner and the pre-push hook
+  already surface — PLUS one sentence in `docs/dev-loop.md`'s build-order
+  procedure making the lane's output a required read AT DERIVATION TIME, which
+  is the moment that actually failed here.
+  Red-first, both arms drawn from real history rather than planted: (a) the
+  closed entry above, replayed from `git show` of this file at a commit where
+  it was still READY with its 2026-08-11 header and `tools/absence-scan.mjs`
+  anchor, must produce `ANCHOR-MOVED` naming `f228720`; (b) a READY entry whose
+  anchor has NO commits since its booking date must produce nothing at all —
+  without arm (b) a lane that fires on everything passes arm (a).
+  Done: both arms pasted, the lane wired into the default run and its labels
+  registered like the other lanes', the dev-loop sentence landed, and the full
+  suite green; this entry moves to `## Done` with its ref.
+  Loop stage: MITIGATE (the instrument half).
+  Anchor: tools/backlog-lint.mjs
+  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs,
+  docs/dev-loop.md
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
+  <!-- entry: "READY entry whose anchor moved after its booking date" -->
+
+- **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
+  the running pipeline uses, so its name promises an eviction it does not
+  perform.** Found by the row-30 eviction lane PROBING the premise before
+  building on it, which is the only reason the bite it was building is not
+  vacuous. Two independent causes, both confirmed by that lane against the real
+  pipeline: (1) `loadExtensions` (`proxy/pipeline.mjs:39`) imports every
+  extension through a cache-busted URL (`?t=<counter>`), so a plainly-imported
+  `_resetRelocationMemory()` clears a Map belonging to a DIFFERENT module
+  instance than the one the pipeline runs — a silent no-op; and (2) even on the
+  same instance, `recallMemory()` falls back to disk when RAM is empty, so a
+  RAM-only reset is un-evicted by the persisted `*-fresh-sort-relocated.json`.
+  **What rested on it: nothing, and that was checked rather than assumed** —
+  `git grep _resetRelocationMemory` finds the definition plus the new test and no
+  other caller, so no prior conclusion is invalidated. The export was added for
+  exactly the purpose it cannot serve, which is why it reads as available.
+  **Design (decided):** the helper's doc comment states that it reaches only a
+  caller controlling module identity, AND gains a disk-clearing counterpart so
+  the two halves of the memory are evictable in one call. Deployment-coupled:
+  `proxy/**`, so it needs a dotfiles pin bump and a restart at a session
+  boundary; the change is memory-helper-only and touches no state KEYS or freeze
+  logic, so row 3's restart-transparency argument holds unchanged.
+  **Done-criterion:** the eviction bite in
+  `test/relocate-then-pin-conservation.test.mjs` passes using ONLY the exported
+  helper — with its current splice-and-unlink workaround removed — and goes red
+  when the helper's disk half is disabled. Both arms pasted.
+  Loop stage: VERIFY (added 2026-08-18 by the EIGHTH derivation — this entry has
+  never carried a stage line; the MITIGATE label it was led with existed only in
+  the SEVENTH derivation's own prose. VERIFY is what the body supports: the
+  entry's own `git grep` finds the definition plus one test and no other caller,
+  and the done-criterion is a TEST passing using only the exported helper.)
+  Anchor: `proxy/extensions/fresh-session-sort.mjs`
+  Write-set: `proxy/extensions/fresh-session-sort.mjs`, `test/relocate-then-pin-conservation.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/relocate-then-pin-conservation.test.mjs
+  <!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
+
+- **PARKED 2026-08-18 (evening) — row 31's 50 ms window is measured from the
+  leader's POST-PIPELINE registration, so our own pipeline latency is spent out
+  of CC's budget.** `entry.at = Date.now()` is stamped after `preForward` has
+  run the whole extension pipeline (`proxy/server.mjs`), and the follower
+  compares against it after its OWN pipeline — so the quantity checked against
+  `COALESCE_WINDOW_MS` is the arrival delta PLUS the skew between the two
+  requests' pipeline times, not the interval CC actually produced. The measured
+  instance: a 43 ms pair (class p50 is 14 ms) missed the window while a 166 KB
+  13-tool request arrived between the two and shared the event loop, 9 ms ahead
+  of the follower.
+  **The obvious fix — compare arrival stamps instead — is NOT booked as ready,
+  and the reason is the honest one:** if the follower found no leader at all
+  because the leader had not finished its pipeline yet, an arrival clock changes
+  nothing, because there is no entry to compare against. Building the clock fix
+  under that reading would ship a mitigation for a cause that may not be the
+  one occurring, which is what the attribution rule forbids.
+  NAMED MISSING EVIDENCE: `coalesce-miss` records (the READY entry above)
+  showing, across at least a few live instances, whether the misses read
+  `stale-leader` with `arrivalDeltaMs < 50` — which the clock fix removes — or
+  `tombstone`, which needs the leader registered EARLIER instead, a different
+  change to a different line.
+  Design sketch held for when that lands, so the trigger is a build and not a
+  re-derivation: the leader entry carries `arrivedAt`; condition 4 reads
+  `follower.arrivedAt - leader.arrivedAt < COALESCE_WINDOW_MS`; the window
+  constant is unchanged, because widening it to absorb our own latency is the
+  workaround, not the fix.
+  Trigger to re-grade: the first sweep whose captures carry `coalesce-miss`
+  records.
+  Loop stage: MITIGATE.
+  Anchor: proxy/server.mjs
+  Write-set: proxy/server.mjs, test/duplicate-coalesce.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs
+  <!-- entry: "coalesce window measured from registration, not arrival" -->
 
 - **PARKED 2026-08-18 (was READY; HALF ONE IS SHIPPED, half two is blocked on
   another repo file) — `bust-triage` cannot reach threat-matrix row 24 by ANY
@@ -4453,6 +4484,44 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-18 (found by the EIGHTH derivation's own promotion pass, and
+  it is the reason that pass was slower than the ranking) — 106 of the 140
+  `## Record` entries carry no `Loop stage:` line and 88 carry no `Anchor:`, so
+  the two fields the composition rule and the staleness check are STATED IN
+  cannot be read off most of the promotion population.** Measured by parsing the
+  section rather than sampling it: 140 entries, 34 with a loop stage, 52 with an
+  anchor, 67 with a verifier. The consequence is specific and it bit today: a
+  derivation refilling the head has to open bodies by hand to find out which
+  stage an entry advances, which is exactly the per-entry judgment pass the
+  boundary and stage slots exist to replace — and the mitigation-led composition
+  rule reads the stage, so an entry without one is invisible to the rule that is
+  supposed to promote it.
+  **Not a data-entry failure.** The fields postdate most of these bodies; the
+  entries were correct when written. What is missing is a decision about which
+  of three shapes the repo wants, and that decision is why this is booked rather
+  than built:
+  (1) backfill all 106 by hand — expensive, and a stage assigned by a reader who
+  did not write the entry is a label over someone else's body, the exact drift
+  class this file collects;
+  (2) require the fields only for entries booked or re-graded after a stated
+  date, and have `backlog-lint` say `STAGE-UNSTATED` for the older ones — three
+  answers, so an unreadable entry never reads as a passing one;
+  (3) derive nothing and accept that promotion from `## Record` is a body-read
+  pass, stated as such in `docs/dev-loop.md` so no future derivation budgets for
+  a mechanical join it will not get.
+  Recommendation if this is picked up: (2). It is the only one that makes the
+  gap VISIBLE per entry at the moment a derivation reads it, and it costs one
+  lint lane rather than 106 judgments.
+  NAMED MISSING ELEMENT: the choice between those three, which is a desk or
+  operator call, not a lane's to invent.
+  Consumer: the ninth derivation's promotion pass, and whoever next extends
+  `tools/backlog-lint.mjs`.
+  Loop stage: VERIFY (the promotion path's own readability).
+  Anchor: `tools/backlog-lint.mjs`
+  Write-set: `tools/backlog-lint.mjs`, `test/backlog-lint.test.mjs`, `docs/dev-loop.md`
+  Verifier: the lane reports STAGE-UNSTATED for a Record entry with no `Loop stage:` line and nothing for one that has it
+  <!-- entry: "most Record entries carry no loop stage or anchor" -->
+
 - **RECORD 2026-08-18 (small; closes a dangling pointer created the same day) —
   ship-runbook step 6b names a GRADUATE target that has no entry.** Step 6b
   (re-run `serving-gate-lint` AFTER the restart when a ship adds a gate) was
@@ -4988,67 +5057,6 @@ comment and new issue.
   Write-set: tools/main-guard-lint.mjs (new), test/main-guard-lint.test.mjs (new)
   Verifier: node tools/main-guard-lint.mjs — red with the guard reverted, green with it, silent on the two tools that already have it
   <!-- entry: "a tools module calling main() at module scope cannot be imported or unit-tested" -->
-
-- **RECORD 2026-08-16 (OPERATOR-RANKED SECOND, behind the resume-key mitigation
-  — takes a head slot at the next derivation, which is owed the moment that
-  entry closes) — `boundary-layers --at` picks a request by NEAREST timestamp,
-  so second-precision silently selects a DIFFERENT conversation and prints a
-  complete, plausible, wrong anatomy.** Measured today at the desk: walking the
-  07:37:39Z bust with `--at 2026-08-16T07:37:39Z` resolved to the request at
-  `07:37:38.362Z` — a 107-message conversation — while the busting request
-  `bust-triage` had joined was `07:37:39.512Z`, a 461-message conversation. The
-  two anatomies disagree on everything that matters: the wrong one reports
-  `tools` BYTE-IDENTICAL and the first two segments READABLE, the right one
-  reports `tools` diverging and the first segment BROKEN. Either reads as a
-  finished answer.
-  **Why the existing warning does not cover it, which is the whole defect.**
-  The tool DOES print "RELATIONS DISAGREE" — but that warning is about
-  PREDECESSOR selection, i.e. which record the chosen target is compared
-  AGAINST. Nothing warns about the selection of the TARGET itself, which is the
-  one that was wrong. A guard that fires on the adjacent question reads as
-  coverage of this one; that is the entry-path shape `docs/dev-loop.md` already
-  collects, arriving inside a tool built to prevent exactly this class.
-  **Design, decided:** `--at` reports the resolved record's OWN timestamp,
-  message count and conversation id BEFORE the cascade, and when another
-  request sits within the match window it says so and names it — the
-  three-answer discipline applied to target selection (resolved / ambiguous /
-  none), never a silent nearest-match.
-  Loop stage: ATTRIBUTE
-  Anchor: tools/boundary-layers.mjs
-  Write-set: tools/boundary-layers.mjs, test/boundary-layers.test.mjs
-  Verifier: a fixture with two conversations whose requests interleave inside one second — `--at` at second precision must report AMBIGUOUS and name both, and must not silently pick one
-  <!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
-
-- **RECORD 2026-08-16 (bundles into ONE lane with the `--at` entry above — same
-  realizing file, separate red-first arrangements) — `boundary-layers` OOMs at a
-  4 GB heap on a live capture and the capture grows quadratically, so the
-  instrument's reach shrinks while the events worth walking get bigger.**
-  Measured today: `--max-old-space-size=4096` died `FATAL ERROR: Ineffective
-  mark-compacts near heap limit` after ~21 s on a 2.83 GB capture and dumped
-  core; the same walk completed at `10240`. The same tool had run on the SAME
-  capture earlier the same day at 4096, so the failure threshold was crossed by
-  roughly 150 MB of growth in one session — this is not a stable margin.
-  **Why it ranks BELOW the `--at` defect despite being the louder symptom:**
-  signal 3 of the ranking rubric — a core dump cannot be mistaken for an answer,
-  while a silently mis-selected conversation already was. It ranks above ordinary
-  cost work because the trigger is a clock nobody controls.
-  **Design, decided:** the repo already has the shape for this — `gate-live` runs
-  every replay child under an explicit `--max-old-space-size` cap, and
-  `docs/dev-loop.md`'s "Streams is a claim about a mechanism" section records
-  that this capture read was fixed for scale THREE times and was still O(file)
-  the third. So: measure `bytesRead` against bytes consumed on a large capture
-  before touching anything (the read-lines bite's own question), and only then
-  decide between a streaming repair and a declared cap. A raised heap is a
-  BRIDGE, named as one here, with its revert trigger being the first streaming
-  measurement.
-  **NOT established:** whether the retention is in `readLines`, in
-  `findPredecessor`'s candidate collection, or in the cascade's own body
-  retention. Nothing was profiled; the 4096-vs-10240 split is the only datum.
-  Loop stage: ATTRIBUTE
-  Anchor: tools/boundary-layers.mjs
-  Write-set: tools/boundary-layers.mjs, test/boundary-layers.test.mjs
-  Verifier: a bytesRead-vs-consumed assertion on a multi-GB capture, red against the current retention
-  <!-- entry: "boundary-layers OOMs at 4GB on a live capture, reach shrinks quadratically" -->
 
 - **RECORD 2026-08-16 — `git commit -q` is invisible to the subagent-commit
   recorder, so every quiet commit reaches the push gate UNMARKED and the gate
@@ -10811,6 +10819,71 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-18 — the ship runbook names the A/B verdict tool and states its
+  expected silence. Built `fb99920` (lane `sonnet-runbook-ab`), integrated
+  `50c331c`.** Step 1b sits beside the row-3 restart-transparency judgment,
+  names `tools/verdict-ab.mjs`, and says in the step itself that COULD-NOT-VERIFY
+  is the EXPECTED, non-failing answer for a change outside `EXT` — so the step
+  makes the tool's reach visible at ship time instead of reading as a gate that
+  returns nothing on almost every real ship.
+  **Both arms were re-run AT THE DESK rather than booked from the lane's
+  report**, and the desk's own corpus is larger than the lane's worktree, which
+  is why the numbers differ: `node tools/verdict-ab.mjs cdc2b9a^ aa85900` ->
+  exit 2, `COULD NOT VERIFY — 0 of 3228 verdict lines could exercise the changed
+  code`; `node tools/verdict-ab.mjs 9059d3a^ 9059d3a` -> exit 0, `IDENTICAL
+  across 3228 verdict lines, 20 corpora`.
+  **The lane's own honest residue was closed here rather than carried:** it
+  reported (g) that the step's LITERAL command form — a tree-ish plus a
+  working-directory argument — had never been executed as written. Run at the
+  desk: `node tools/verdict-ab.mjs 9059d3a^ .` -> exit 0, a real verdict, not
+  COULD NOT VERIFY. The form in the runbook executes.
+  The undecided half stands where the entry left it: whether `verdict-ab` should
+  load the CHANGED extension rather than a hardcoded one is a real design
+  question and is deliberately not bundled.
+
+  <!-- moved from `## Open` at closure; body verbatim -->
+
+- **[CLOSED — moved verbatim from `## Open` 2026-08-18; graded by the DONE entry above, not by this header] was-READY 2026-08-18 — the ship runbook has NO A/B verdict step, and the tool
+  everyone assumes fills that slot can only see 1 of this repo's 42
+  extensions.** Two facts found while closing the `verdict-ab` entry, each
+  measured: `grep -c verdict-ab docs/runbooks/ship-proxy-change.md` -> 0, and
+  `grep -rl` over all of `docs/runbooks/` -> no file; and
+  `tools/verdict-ab.mjs` hardcodes one module path (`EXT`, :75) and one
+  exported function (`classifyPinned`), so a change anywhere else in
+  `proxy/extensions/` cannot reach its comparison at all. The runbook's
+  restart-transparency question therefore rests on step 1's row-3 JUDGMENT
+  alone, with no mechanical arm — and the tool that would have been the
+  mechanical arm would have answered vacuously for 41 of 42 extensions until
+  `665cec2` made that vacuity visible.
+  **Two halves, and only the first is decided.** DECIDED: the runbook gains an
+  explicit step naming `tools/verdict-ab.mjs`, stating in the step itself that
+  a COULD-NOT-VERIFY is the EXPECTED answer for any change outside `EXT` and
+  is not a failure — a step that reads as a gate while returning
+  could-not-verify on almost every real ship would train the override reflex
+  within a week, which is exactly the guard-fires-on-legitimate-work shape.
+  So the step's job is to make the tool's reach VISIBLE at ship time, not to
+  pretend to a coverage it does not have.
+  NOT DECIDED, and named as this entry's boundary: whether `verdict-ab` should
+  be widened to load the changed extension(s) rather than a hardcoded one.
+  That is a real design question — the tool's whole shape (its `classifyPinned`
+  call signature, its corpus format, `--seed-from-a`) is built around one
+  function's contract, and generalizing it is not a rename. Do NOT bundle it
+  with the runbook step; the step is worth having either way and lands first.
+  Red-first: the runbook change is prose, so the arm is the STEP's own
+  instruction exercised once — running the named command on a change outside
+  `EXT` must produce COULD-NOT-VERIFY and the step must say that is expected;
+  running it on a change inside `EXT` must produce a matched count. Both
+  arrangements exist in git history today (`cdc2b9a^..aa85900` for the first;
+  any `insertion-normalization.mjs` commit for the second) and neither needs
+  constructing.
+  Done: the step is in the runbook with its expected-answer sentence, both
+  arrangements run and pasted, and this entry moves to `## Done` with its ref.
+  Loop stage: VERIFY.
+  Anchor: docs/runbooks/ship-proxy-change.md
+  Write-set: docs/runbooks/ship-proxy-change.md
+  Verifier: node tools/verdict-ab.mjs cdc2b9a^ aa85900 (must read COULD NOT VERIFY, exit 2)
+  <!-- entry: "ship runbook has no A/B verdict step; verdict-ab sees one extension" -->
 
 - **DONE 2026-08-18 (`8869124`) — `bust-triage` reads EXEMPTIONS, not only
   violations, before it attributes a bust to CC.** The tool's "no violation row
