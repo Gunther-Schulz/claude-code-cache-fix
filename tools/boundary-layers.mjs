@@ -491,23 +491,57 @@ async function scanCapture(file, afterTs) {
   return out;
 }
 
-async function findRequest(file, { at, requestId, id }) {
-  let best = null;
+// Resolves a target request three ways, never a silent nearest-match:
+// "resolved" (exactly one candidate), "ambiguous" (more than one — the
+// caller must report and stop, never pick), "none" (zero). An id/requestId
+// hit is unambiguous by construction (ids are unique) and returns
+// immediately; only the --at path can produce "ambiguous".
+//
+// TWO TIERS, in order — both needed, and dropping either breaks a real use
+// case (measured against this repo's OWN fixtures, not assumed):
+//
+//   1. WINDOW match. Sized to the precision the caller actually typed
+//      (atPrecisionMs — 1000 for second precision, 1 for millisecond
+//      precision; see parseArgs), spanning FORWARD from the parsed instant:
+//      [wantMs, wantMs + atPrecisionMs - 1]. A second-precision --at carries
+//      no sub-second information, so a request timestamped anywhere inside
+//      that second is an equally plausible match — including ones AFTER the
+//      typed whole-second mark, which tier 2 alone silently excludes
+//      (measured: --at 07:37:39Z resolved to a 07:37:38.362Z request while
+//      the intended one was 07:37:39.512Z — a sub-second field lost by the
+//      CLI's own truncation flipped which side of "before" it fell on).
+//      One match in-window: resolved. More than one: ambiguous — reported
+//      and named, never picked.
+//   2. NEAREST-EARLIER fallback, only when tier 1 finds nothing in-window:
+//      the original rule (this file's prior behaviour, and the repo's
+//      existing fixtures exercise gaps of minutes under it) — the busting
+//      REQUEST precedes the ledger's event stamp (written when the
+//      response's usage is read), so among requests at-or-before --at, the
+//      nearest one wins. This is deliberately NOT window-limited: a
+//      --at drawn from a later event stamp can legitimately sit minutes
+//      after its request, and only the empty-window case reaches here.
+async function findRequest(file, { at, requestId, id, atPrecisionMs }) {
   const wantMs = at ? Date.parse(at) : null;
+  const windowStart = wantMs != null ? Math.floor(wantMs / atPrecisionMs) * atPrecisionMs : null;
+  const windowEnd = windowStart != null ? windowStart + atPrecisionMs - 1 : null;
+  const windowMatches = [];
+  let nearestEarlier = null;
   for await (const line of readLines(file)) {
     const r = j(line);
     if (!isRequest(r)) continue;
-    if (id && r.id === id) return r;
-    if (requestId && r.requestId === requestId) return r;
-    if (wantMs != null) {
-      // The busting REQUEST precedes the ledger's event stamp (the event is
-      // written when the response's usage is read), so only earlier-or-equal
-      // requests are candidates, nearest first.
-      const d = wantMs - Date.parse(r.ts);
-      if (d >= 0 && (!best || d < best.d)) best = { d, r };
+    if (id && r.id === id) return { kind: "resolved", record: r };
+    if (requestId && r.requestId === requestId) return { kind: "resolved", record: r };
+    if (windowStart != null) {
+      const ts = Date.parse(r.ts);
+      if (ts >= windowStart && ts <= windowEnd) windowMatches.push(r);
+      const d = wantMs - ts;
+      if (d >= 0 && (!nearestEarlier || d < nearestEarlier.d)) nearestEarlier = { d, r };
     }
   }
-  return best ? best.r : null;
+  if (windowStart == null) return { kind: "none" };
+  if (windowMatches.length === 1) return { kind: "resolved", record: windowMatches[0] };
+  if (windowMatches.length > 1) return { kind: "ambiguous", records: windowMatches };
+  return nearestEarlier ? { kind: "resolved", record: nearestEarlier.r } : { kind: "none" };
 }
 
 function resolveCapture({ capture, session }) {
@@ -537,9 +571,21 @@ function parseArgs(argv) {
     else if (k === "--timeline") a.timeline = Number(argv[++i]) || 0;
     else if (k === "--inspect") a.inspect = argv[++i];
   }
-  if (a.at && /^\d+$/.test(a.at)) {
-    const n = Number(a.at);
-    a.at = new Date(n < 1e12 ? n * 1000 : n).toISOString();
+  if (a.at) {
+    // Precision the caller actually typed, computed from the RAW argument
+    // before any epoch->ISO conversion below overwrites it: a bare epoch in
+    // seconds (n < 1e12) or an ISO string with no fractional-seconds
+    // component both carry second precision (1000ms window); an epoch
+    // already in milliseconds or an ISO string with a "." fraction carries
+    // millisecond precision (1ms window — exact match only). This is the
+    // decision findRequest's ambiguity window is sized to; see there.
+    a.atPrecisionMs = /^\d+$/.test(a.at)
+      ? (Number(a.at) < 1e12 ? 1000 : 1)
+      : (/\.\d+/.test(a.at) ? 1 : 1000);
+    if (/^\d+$/.test(a.at)) {
+      const n = Number(a.at);
+      a.at = new Date(n < 1e12 ? n * 1000 : n).toISOString();
+    }
   }
   return a;
 }
@@ -565,19 +611,43 @@ async function main() {
 
   if (args.pair) {
     const [bId, aId] = args.pair.split(":");
-    before = await findRequest(file, { id: bId });
-    after = await findRequest(file, { id: aId });
+    const beforeRes = await findRequest(file, { id: bId });
+    const afterRes = await findRequest(file, { id: aId });
+    before = beforeRes.kind === "resolved" ? beforeRes.record : null;
+    after = afterRes.kind === "resolved" ? afterRes.record : null;
     chosenBy = "explicit --pair";
     if (!before || !after) {
       console.error(`boundary-layers: --pair ${args.pair} did not resolve both records`);
       process.exit(2);
     }
   } else {
-    after = await findRequest(file, { at: args.at, requestId: args.request, id: args.request });
+    const atRes = await findRequest(file, {
+      at: args.at, requestId: args.request, id: args.request, atPrecisionMs: args.atPrecisionMs,
+    });
+    if (atRes.kind === "ambiguous") {
+      console.error(
+        `boundary-layers: --at ${args.at} is AMBIGUOUS — ${atRes.records.length} requests fall inside the ` +
+        `${args.atPrecisionMs}ms match window (the precision of the --at you passed); no target was selected:`,
+      );
+      for (const r of atRes.records) {
+        console.error(`    ${r.ts}  id=${r.id}  ${r.body.messages.length} msgs  cid=${conversationSubKey(r.body.messages)}`);
+      }
+      console.error("boundary-layers: pass --request <id>, --pair, or a higher-precision --at to disambiguate");
+      process.exit(2);
+    }
+    after = atRes.kind === "resolved" ? atRes.record : null;
     if (!after) {
       console.error("boundary-layers: could not resolve the busting request (need --at, --request or --pair)");
       process.exit(2);
     }
+    // Report the resolved record's OWN anatomy before the cascade runs — the
+    // target-selection defect this half fixes was a silent nearest-match
+    // that only ever showed itself downstream, inside a complete, plausible,
+    // wrong cascade.
+    console.error(
+      `boundary-layers: resolved --at ${args.at} -> ${after.ts}  id=${after.id}  ` +
+      `${after.body.messages.length} msgs  cid=${conversationSubKey(after.body.messages)}`,
+    );
     const afterMs = Date.parse(after.ts);
     const earlier = await scanCapture(file, afterMs);
     const afterCid = conversationSubKey(after.body.messages);

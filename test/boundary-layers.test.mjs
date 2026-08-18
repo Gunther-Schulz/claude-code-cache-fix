@@ -316,6 +316,87 @@ function runCapped(file, atIso, capMB, tmpdirPath) {
   );
 }
 
+// --- --at target selection: resolved / ambiguous / none, never a silent
+// nearest-match ------------------------------------------------------------
+//
+// findRequest used to pick the request NEAREST-EARLIER to --at by timestamp
+// and return it silently — no report of the resolved record's own anatomy,
+// no warning that another request sat inside the precision the caller
+// actually typed. Measured live: --at 2026-08-16T07:37:39Z (second
+// precision) resolved to a 07:37:38.362Z request (107 msgs) while the real
+// busting request bust-triage had joined was 07:37:39.512Z (461 msgs) — a
+// sub-second field the CLI itself truncated flipped which side of "before"
+// the real target fell on, and either anatomy read as a finished answer.
+// The existing "RELATIONS DISAGREE" warning (predecessor selection) says
+// nothing about this: it is the TARGET, not what it is compared against,
+// that was wrong.
+
+function runRaw(file, at, extra = []) {
+  return spawnSync(process.execPath,
+    [TOOL, "--capture", file, "--at", at, "--json", ...extra],
+    { cwd: REPO, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+}
+
+test("BITE — two requests interleaving inside ONE second make --at AMBIGUOUS, never a silent pick", () => {
+  // Two distinct conversations' requests land 0.7s apart, both inside the
+  // single second the caller's --at names at second precision. Picking
+  // either silently is the defect: whichever anatomy printed would be
+  // complete and plausible, and wrong for whatever the caller meant.
+  const f = capture([
+    rec("2026-08-15T15:07:39.100Z", { tools: [], system: [sys("s")], messages: [msg("head-A"), ...BODY] }),
+    rec("2026-08-15T15:07:39.800Z", { tools: [], system: [sys("s")], messages: [msg("head-B"), ...BODY] }),
+  ]);
+  const res = runRaw(f, "2026-08-15T15:07:39Z");
+  assert.notEqual(res.status, 0, "an ambiguous target must exit non-zero, never silently proceed");
+  assert.match(res.stderr, /AMBIGUOUS/);
+  assert.match(res.stderr, /2026-08-15T15:07:39\.100Z/, "both candidates must be named");
+  assert.match(res.stderr, /2026-08-15T15:07:39\.800Z/, "both candidates must be named");
+  assert.equal(
+    res.stdout, "",
+    "a complete anatomy after 'ambiguous' is the same defect wearing a warning — nothing must print once ambiguity fires",
+  );
+});
+
+test("BITE — a request AFTER the typed whole-second mark resolves correctly, not the stale nearest-earlier pick", () => {
+  // Pins the entry's own live numbers. The old nearest-earlier rule (d>=0
+  // only) excluded the real target because its millisecond offset put it
+  // AFTER the truncated --at value; the stale request from a DIFFERENT,
+  // unrelated conversation in the PREVIOUS second silently won instead.
+  // "real-pred" shares messages[0] with the true target so findPredecessor
+  // resolves a real pair once target selection is fixed — the point being
+  // pinned is which record --at selects as "after", not the pairing itself.
+  const f = capture([
+    rec("2026-08-16T07:37:20.000Z", { tools: [], system: [sys("s")], messages: [msg("real"), ...BODY] }),
+    rec("2026-08-16T07:37:38.362Z", { tools: [], system: [sys("s")], messages: [msg("stale")] }),
+    rec("2026-08-16T07:37:39.512Z", { tools: [], system: [sys("s")], messages: [msg("real"), ...BODY, msg("new-turn")] }),
+  ]);
+  const res = runRaw(f, "2026-08-16T07:37:39Z");
+  assert.equal(res.status, 0, `expected a clean resolve; stderr: ${res.stderr}`);
+  assert.match(res.stderr, /resolved --at 2026-08-16T07:37:39Z -> 2026-08-16T07:37:39\.512Z/);
+  const d = JSON.parse(res.stdout);
+  assert.equal(d.after.ts, "2026-08-16T07:37:39.512Z", "the real target, not the stale prior-second pick");
+  assert.equal(d.after.msgs, 14);
+  assert.equal(d.before.ts, "2026-08-16T07:37:20.000Z", "predecessor resolution proceeds normally once the target is right");
+});
+
+test("CONTROL — an --at that resolves unambiguously proceeds exactly as before, target anatomy reported first", () => {
+  // The discriminating sibling of the two bites above: no second request
+  // sits inside the typed second, so resolution must still succeed, still
+  // report the resolved record's own ts/msgs/cid before the cascade runs,
+  // and still produce the same payload shape as every other bite in this
+  // file (which all rely on exactly this path working).
+  const f = capture([
+    rec("2026-08-15T15:04:43.000Z", { tools: [], system: [sys("s")], messages: [msg("head"), ...BODY] }),
+    rec("2026-08-15T15:07:49.100Z", { tools: [], system: [sys("s")], messages: [msg("head2"), ...BODY] }),
+  ]);
+  const res = runRaw(f, "2026-08-15T15:07:49Z");
+  assert.equal(res.status, 0, `expected a clean resolve; stderr: ${res.stderr}`);
+  assert.match(res.stderr, /resolved --at 2026-08-15T15:07:49Z -> 2026-08-15T15:07:49\.100Z\s+id=\S+\s+13 msgs/);
+  const d = JSON.parse(res.stdout);
+  assert.equal(d.after.ts, "2026-08-15T15:07:49.100Z");
+  assert.equal(d.before.ts, "2026-08-15T15:04:43.000Z", "the large-gap nearest-earlier fallback must still find the true predecessor");
+});
+
 test("BITE — a heap-capped run over a large capture does not retain the whole file", () => {
   const dir = tmpDirSync("bl-oom-");
   const { file, at, predTs } = bigFillerCapture(dir, 1500, 200);
