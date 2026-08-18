@@ -18,9 +18,30 @@
 //     wrong location — top-level system heads the cache prefix, so every
 //     injection there would bust the whole cache).
 //
-// STATELESSNESS: the API loads a deferred tool only when its
-// tool_addition block is present in THAT request, and CC never echoes
-// our injected message back. So both halves re-apply every request:
+// STATELESSNESS: **CORRECTED 2026-08-18 — this paragraph's first clause was
+// FALSE as stated, and a later design rested on it.** It read: "the API loads
+// a deferred tool only when its tool_addition block is present in THAT
+// request". Measured over 4 live captures: 4,972 requests carry tools[], and
+// ALL 4,972 carry `defer_loading` tools with NO tool_addition block anywhere,
+// while ZERO carry both — that is ordinary ToolSearch traffic, and
+// `SendMessage` itself arrives from CC already deferred in 3,327 of them. The
+// instrument-positive is the 4,972 total: a zero there would have made the
+// parse the finding rather than the corpus.
+// What IS true, and it is a different mechanism: the model's view of which
+// tools it may LOAD comes from Claude Code's own deferred-tool listing — a
+// system-role message CC writes into body.messages from its own registry
+// (found there, never in top-level system) — not from tools[] itself. So a
+// tool present in tools[] that CC has never registered is invisible to the
+// model. Established by a live disposable session, not by reading: a
+// fabricated tool seeded into tools[] with defer_loading:true and no
+// announcement was accepted by the API (no 400) and the model answered ABSENT
+// when asked whether it could see or call it, with the extension's own
+// telemetry and persisted state proving the seed had actually reached the wire
+// (without that control, ABSENT would be indistinguishable from a probe that
+// never armed).
+// The announcement still matters for what it always did — telling a model
+// about a tool CC HAS registered, in-band, at the moment it appears. CC never
+// echoes our injected message back. So both halves re-apply every request:
 // tools[] stays held with added tools permanently defer_loading:true,
 // and each injected system message is re-spliced byte-identically at a
 // content-anchored position (identity hash of the message it was

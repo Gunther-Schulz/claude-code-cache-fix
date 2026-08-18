@@ -268,12 +268,145 @@ comment and new issue.
 
 ## Open
 
-- **READY 2026-08-17 (MITIGATE stage — THE NEXT THING, operator instruction:
-  "just build it", then "book it as the next thing when I start a new session
-  here") — preload `SendMessage` as a deferred tool at session start, so the
-  addition that causes 80% of tool-front invalidations never arrives
-  mid-session.** Row 6 ladder step (b), the lever the 2026-08-16 population
-  record measured and deliberately left un-designed.
+- **READY 2026-08-18 (booked READY 2026-08-17, PARKED and un-PARKED the same
+  day — see the grade trail below; MITIGATE stage) — preload
+  `SendMessage` as a deferred tool at session start, so the addition that
+  causes 80% of tool-front invalidations never arrives mid-session.** Row 6
+  ladder step (b), the lever the 2026-08-16 population record measured and
+  deliberately left un-designed.
+  **BUILT (`eaa1454`, local, unpushed), RE-GRADED READY -> PARKED by an opus
+  fresh-context review of the built change, then PARKED -> READY the same day
+  once the park's named missing evidence was SUPPLIED by a live probe. The
+  implementation is not the thing to throw away; what it needs is the repair
+  list below, which is decision-complete.**
+  **THE PARK'S MISSING EVIDENCE IS NOW IN HAND — and the result is that the
+  safety property HOLDS while the reason stated for it was false.** The park
+  asked one thing: is a tool sitting in `tools[]` with `defer_loading: true`
+  and no `tool_addition` block reachable by the model? Settled by a live
+  disposable session against a throwaway proxy on a spare port with isolated
+  XDG dirs (production untouched, verified answering afterwards), using the
+  DISCRIMINATING case rather than the convenient one — a FABRICATED name CC can
+  never have registered, because `SendMessage` cannot separate the hypotheses:
+  CC's own deferred-tool listing already names it, so the model can load it
+  whether or not we seed it (read from the PRE-pipeline capture of the first
+  probe, i.e. before our extension touched anything — the repo's own
+  attribution primitive). Reading that first run as "the seed made it
+  reachable" would have been a confident wrong claim.
+  Result, both halves: the API ACCEPTED an unannounced `defer_loading` tool (no
+  400, request completed), and the model answered **ABSENT** when asked whether
+  it could see or call it. Instrument-positive, without which ABSENT proves
+  nothing: the extension's own telemetry (`seeded=['ZzProbeOnlyTool']`) and its
+  persisted array (`preloaded: ['ZzProbeOnlyTool']`, never announced) establish
+  the seed genuinely reached the wire, so ABSENT is a measurement rather than a
+  probe that never armed.
+  **What that changes in the CODE, and it is a correction to a PRE-EXISTING
+  sentence rather than to this entry's work:** the header's STATELESSNESS
+  paragraph claimed "the API loads a deferred tool only when its tool_addition
+  block is present in THAT request". Measured false — 4,972 of 4,972 sampled
+  requests carry `defer_loading` tools with NO announcement, zero carry both.
+  The true mechanism is that the model's loadable-tool view comes from CC's own
+  listing inside `body.messages`, not from `tools[]`. Corrected in the file.
+  The design's safety half therefore stands, on the right mechanism — with the
+  residual now precisely stated: the risk lives in the preload SET, not in the
+  mechanism. Seeding a name CC does not universally register is invisible to
+  the model (safe) but pins bytes nothing will ever announce; `SendMessage` is
+  safe on this axis because CC lists it regardless.
+  **The header's safety claim is REFUTED IN ITS LITERAL FORM, and it is the
+  extension's PRE-EXISTING sentence rather than a new one — this entry's
+  design simply rested on it.** Desk-verified independently of the lane by a
+  streamed scan of 4 live captures: 4,972 requests carry `tools[]`; of those,
+  **4,972 carry `defer_loading` tools with NO `tool_addition` block anywhere
+  and ZERO carry both**; `SendMessage` itself arrives from CC already deferred
+  in 3,327. So "a deferred tool loads only when its `tool_addition` block is
+  present in THAT request" (`deferred-tool-rewrite.mjs`, STATELESSNESS
+  paragraph) is false as stated — that is ordinary ToolSearch traffic. The
+  instrument-positive is the 4,972 itself: a zero there would have made the
+  parse the finding rather than the corpus.
+  What appears to protect the case is a DIFFERENT mechanism the commit never
+  names: CC writes the deferred-tool listing the model reads out of its own
+  registry, as a system-role message inside `messages[]` (found there, never in
+  top-level `system`), so a name CC never registered would not appear in it.
+  Plausible, and tested by nothing here. The open half — whether the API
+  surfaces a deferred name server-side — is what the probe must answer.
+  **THE NINE FINDINGS, as dispositions rather than prose, so this is a brief
+  whoever executes it.** Every one was demonstrated by EXECUTING the real
+  extension or by mutating it; the two marked (desk) were re-verified here
+  independently rather than booked on the lane's word.
+  1. BLOCKING — a pending seed disables the shipped description-absorb. The
+     absorb needs `heldNames.length === 0` (`:559-562`, refused `:575-578`)
+     and a seeded-but-unarrived name is permanently held, so every description
+     delta in the pending window takes `reset/tool-schema-changed` instead.
+     (desk) Two arms, same input, only the gate differing: preload OFF ->
+     `description-absorbed`, wire unchanged; preload ON -> `reset`, wire moves
+     `[Bash, Read, SendMessage*]` -> `[Bash, Read]`. The reset also zeroes
+     `preloadPending`, so the conversation loses the preload as well. FIX: the
+     set-identity test must ignore names the extension itself seeded — a name
+     WE added is not evidence CC changed its tool set; write that definition
+     before the assertion. RED-FIRST: the two-arm probe as written.
+     Lane-reported and NOT desk-verified, booked as such because it changes
+     emphasis and no verdict: 145 of 153 live `description-absorbed` events sit
+     inside a pending window.
+  2. HIGH — a stale learned schema at arrival is strictly WORSE than no
+     preload. Store learns schema A, CC later sends schema B: PRELOAD arm
+     `reset`, CONTROL arm (parent commit) `rewrite` + announce, prefix held.
+     FIX: on a fingerprint mismatch for a name still PENDING, adopt CC's bytes
+     and announce — the new-name path — never the global reset.
+  3. HIGH — a duplicated name in the gate list puts two identical-name entries
+     on the wire (`CACHE_FIX_TOOL_PRELOAD="SendMessage,SendMessage"` ->
+     `[..., SendMessage*, SendMessage*]`). This file's own classifier calls a
+     duplicate-name array degenerate. FIX: de-duplicate; may dissolve entirely
+     under the gate-shape repair below.
+  4. HIGH — the safety premise, above. Blocks the gate flip on its own.
+  5. MEDIUM — "never retrofits" is guarded by `action === "no-baseline"`,
+     which is a fact about the STATE FILE, not about the conversation. A
+     mid-conversation key rotation (this repo has measured one: `s-captureAB`
+     n=331->336) makes turn 7 of a live conversation classify `no-baseline` and
+     SEED — wire went 8 tools -> 9. FIX: the guard needs a conversation-depth
+     or history test, not a state-file test.
+  6. MEDIUM — the new reset reason is an unexplained stability violation in
+     the offline gate: `resetWipesAdditionsExemption` keys on the exact string
+     `tool-schema-changed` (`tools/replay.mjs:280-281`), so every
+     `preload-unannounceable` abandon fires a red the gate cannot explain —
+     the standing-FAIL-on-a-non-defect shape replay.mjs's own comment warns
+     about. FIX: extend the exemption, or do not mint a new reason.
+  7. MEDIUM — the machine-wide store is rewritten on every request whose
+     preloaded tool's bytes differ; for any name whose description is project-
+     or plugin-dependent that is a write per request across every session on
+     the box, last writer winning. FIX: restrict the gate to schema-stable
+     names, or throttle the write.
+  8. LOW — gate-unset inertness holds on the wire (byte-identical across 6
+     requests spanning all five classifier actions), with two non-wire deltas
+     named: `deferredToolRewriteStats` gains three keys, and the canon file
+     gains `"preloaded": []`. No consumer break found.
+  9. LOW — odd store shapes degrade to "no seed" except one: an entry whose
+     `tool.name` disagrees with its key seeds under the OTHER name.
+  **FIVE CLAIMS THIS ENTRY'S OWN TESTS DO NOT COVER — from a mutation battery
+  (14 mutations caught, 5 uncaught), and the first is the sharpest because the
+  header calls it load-bearing while nothing tests it:** announce-on-arrival
+  moved INSIDE the `wantPreload` gate (zero bites red); pending surviving a
+  classifier reset; a store that parses but has no `tools` object; gate-live's
+  window filter on preload acts; and the `unchanged`/`description-absorbed`
+  forwarding branches with a non-empty pending set.
+  **AND A DEFECT THE REVIEW DID NOT NEED TO FIND — the gate's SHAPE.**
+  `CACHE_FIX_TOOL_PRELOAD` is a comma-separated name list, which
+  `proxy/gate-allowlist.mjs` forbids adding (its rule: no free-form values),
+  while ship-runbook step 4b requires a serving gate to be publishable or the
+  doctor's three-way compare FAILS naming the wrong cause. FIX: make the gate
+  a boolean and move the preload set into a source constant beside
+  `TOOL_ADDITION_MODELS`, where each name carries its measured evidence —
+  which is better than an env string anyone can set without any.
+  **THE FORM IS WHAT FAILED, and the trend is the reason this is PARKED rather
+  than repaired in place.** Three rounds on this extension family now: the
+  row-24 lane's round 1 (green bites, green suite -> blocking defect at a desk
+  probe), its round 2 (green bites, green suite, green desk probe -> ten
+  findings, two blocking), and this one (nine red-first bites, 3,570-test suite
+  green, gate green over 12,378 MB, `verdict-ab` IDENTICAL over 3,223 verdict
+  lines -> nine findings, one blocking). Flat-to-worsening, each round's
+  defects minted by its own changes. `docs/dev-loop.md`'s measured split names
+  what held instead: dispositions recorded BEFORE implementation, then
+  implemented from them — desk-implemented repairs took the blockers both
+  previous times. The list above IS that record; a fourth lap in the same shape
+  reproduces the class.
   **Why this one and why now.** `SendMessage` is 103 of 126 measured addition
   events, in 24 of the 25 captures that have any (2026-08-16 record, this
   file). It is also the only frequent addition that is PREDICTABLE at session
@@ -341,6 +474,74 @@ comment and new issue.
   blast radius is large (`proxy/**` fronts every Claude Code session on this
   machine). Paired mechanisms, both owed: fresh-context verification of the
   built change before push, and a written enumeration of everything touched.
+  **BUILT 2026-08-18 (`eaa1454`, held unpushed pending the gauge's owed
+  fresh-context review). The entry stays READY because BUILT is not SHIPPED,
+  and the gap between them is this entry's whole remaining risk.** What
+  exists: the seed at `no-baseline` only, learned bytes (option (a), taken as
+  the entry permits), no announcement at seed time, announce-on-arrival —
+  which is NOT the existing new-name path, since by then the name is KNOWN and
+  the classifier never lists it in `newNames`; the pending set is carried in
+  the persisted state (`preloaded`) and drained there. Two decisions the entry
+  did not contain and the desk made: the model gate (seed only for a model on
+  `TOOL_ADDITION_MODELS` — a preloaded tool that can never be announced is a
+  tool that can never be called), and the ABANDON path (a seeded conversation
+  whose model later leaves the allowlist takes one honest reset, reason
+  `preload-unannounceable`, rather than sending `defer_loading` plus the beta
+  header to a model with a recorded 400 on this contract).
+  Red-first, both arms: 43 pass / 9 fail against the unmodified extension
+  (`git checkout HEAD -- <ext>`, `git diff --stat HEAD` printed as proof the
+  old blob was in place), 52/52 with it; the same arrangement for the two
+  instrument changes (30/3 and 53/2). Full suite 3565 pass / 0 fail.
+  **What remains, and it is a DEPLOYMENT act rather than more building:** the
+  gate `CACHE_FIX_TOOL_PRELOAD` is a comma-separated NAME LIST and is unset
+  everywhere, so the shipped code is inert until a unit declares it. Flipping
+  it lands in the DOTFILES repo (`Environment=` on `cache-fix-proxy.service`),
+  which is a different write boundary, and it changes what goes on the wire
+  for every new conversation on this machine — so it is the operator's call,
+  with the desk recommendation being YES and the evidence being the two
+  transparency facts below.
+  **Row-3 declaration, and it is stronger than the entry assumed — MEASURED,
+  not reasoned.** No key derivation moved; the per-conversation state file
+  gains one field read as `[]` when absent. With the gate unset the new path
+  is entirely inert, and that is the half with executed evidence rather than
+  an argument: `node tools/verdict-ab.mjs eaa1454^ eaa1454` reports
+  **IDENTICAL across 3,223 verdict lines over 19 corpora**, exit 0 — and that
+  tool exits 2 with COULD-NOT-VERIFY on an empty or unreplayable corpus, so
+  the result is a measurement and not an absence. Beside it, `gate-live` over
+  the live corpus with the SERVING 12-gate set: `ok=true`, 0 failing over 20
+  captures / 12,378 MB, `tmpLeftovers` 0, and the run's own `code.proxyTree`
+  is `ba5770e8fdd8` — the WORKING TREE's fingerprint, not the serving proxy's
+  `c36cba5af50e`, which is what establishes that the sweep exercised the built
+  change rather than the deployed pipeline.
+  **What that evidence does NOT establish, stated because the two are easy to
+  merge:** IDENTICAL proves the change is INERT on existing shapes, which is
+  exactly the restart-transparency question. It says nothing about whether the
+  new path WORKS — the committed corpus is curated for structure and contains
+  no seeded conversation at all. That half rests on the new bites, on the
+  fresh-context review, and on the live probe named below.
+  And the gate FLIP is itself transparent to live conversations, because the
+  seed fires at baseline creation only — an existing conversation is never
+  retrofitted, which is the ship-time hazard this entry names. Both halves owe
+  `tools/restart-exposure.mjs` against LIVE sessions before the restart, not
+  the corpus.
+  **NAMED MISSING EVIDENCE, and it is the SAFETY premise rather than a cache
+  one — this entry may not ship its gate ON until it exists.** The design
+  rests on: a tool present in `tools[]` with `defer_loading: true` and NO
+  `tool_addition` block anywhere is (a) accepted by the API and (b) NOT
+  callable. Nothing built here tests it — every check drives the extension
+  locally, and `tools/probe-tool-addition.mjs` measures the OPPOSITE case (its
+  header: whether a model accepts a tool_addition BLOCK). This is also the one
+  surface where this repo has already recorded the published contract being
+  wrong: row 6 carries a logged SPEC CONTRADICTION on deferred-tool loads. If
+  (a) is false the proxy 400s every new conversation; if (b) is false the
+  model can call a tool Claude Code cannot route. The probe is the runbook's
+  own through-proxy method (a throwaway proxy on a spare port, one disposable
+  `claude -p` session, verify on the capture) — booked as this entry's next
+  step, before any unit `Environment=` change.
+  **The done-criterion's absorption half is UNMEASURED and says so.** Nothing
+  live has exercised the preload; `toolPreload.announced` non-zero on a daily
+  sweep is the observation that would settle it, and until then this is "the
+  mitigation is built", never "the mitigation absorbed".
   Done: a seeded session's `SendMessage` arrival shows `tools[]` byte-stable
   in the census; the control session is unchanged; gate + fidelity green under
   serving config; shipped via `docs/runbooks/ship-proxy-change.md`; the next

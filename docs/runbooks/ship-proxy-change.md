@@ -46,6 +46,48 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    point (restart now vs. wait for a quieter window), not a step to note
    and proceed past.
 
+2b. **Name the skip-gauge outcome, and let it decide what must happen BEFORE
+   step 3.** The gauge itself is the global corpus's (Calibration); this step
+   is only its FIRING MOMENT, which is the half that was missing here. State
+   the outcome in one line — "gauge: clean", or each no with its paired
+   mechanism — and for a `proxy/**` change answer the two axes explicitly:
+   would a failure be SILENT, and is the blast radius large? On this
+   deployment the second is almost always yes, because the proxy fronts every
+   Claude Code session on this machine.
+   - **Both noes → a fresh-context review of the BUILT change runs before the
+     push,** and where the change also rests on an unverified behavioural
+     premise about an external system and spans sessions, the corpus's
+     escalation applies: ITERATED falsification rounds until one returns zero
+     delta, not a single round (Insurance, "Escalation past one-shot
+     review"). One-shot review misses two classes by construction — a premise
+     silently substituted between cycles, and a fix that OVERSHOOTS, visible
+     only when a later round re-falsifies it.
+   - **Fewer than both → say so and continue.** This step is deliberately not
+     an unconditional review gate: a check that fires on every ship is the
+     check-that-fires-on-a-non-defect shape, and it would train the override
+     reflex that kills it.
+
+   **Why this is a STEP and not a note, which is the same argument step 4b
+   makes.** Push is step 3 of eight, so every verification this lane owns —
+   pin, restart, gate run, doctor — sits AFTER the publish boundary. `main` is
+   this machine's deployed state AND a public repo whose history is permanent
+   (CLAUDE.local.md, the publication bar), so a review after step 3 is a
+   post-mortem on live traffic rather than a gate. The repo already agrees
+   with itself here: the hygiene scan sits at pre-push for exactly this
+   reason, and the ranking rubric carries irreversibility as its own
+   partition. Measured 2026-08-18: the SendMessage-preload ship ran its review
+   before the push only because the backlog entry happened to carry the gauge
+   outcome, written by the session that booked it the day before — this lane
+   contained no step that would have asked (`grep -niE
+   "review|gauge|skip.gauge"` over this file returned only the phrase "written
+   for a fresh context", against the same pattern matching in every other
+   runbook, so the zero was a measurement). A missing STEP, not missing
+   knowledge, which is the class this runbook set exists to close.
+   `[GRADUATE -> a pre-push check that fails when a proxy/** commit's own
+   entry recorded two gauge noes and no review is booked against its hash;
+   trigger: a second proxy ship where the review fired by recollection rather
+   than by a step]`
+
 3. **Commit + push.** Land the change on `main` in this repo.
 
 4. **Pin bump in dotfiles.** **Doc/tools-only commits skip steps 4–7
