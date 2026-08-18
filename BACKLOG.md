@@ -4871,6 +4871,41 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-18 (decision-complete; promotion belongs to the next
+  derivation or a dated operator OVERRIDE) — keep the ten-cap, demote the
+  derivation from authority over READY membership to an occasional method, and
+  make the dated operator-OVERRIDE block a first-class object
+  `backlog-order --check` understands.** Provenance, stated because it is
+  second-hand: the operator GO'd this at the DOTFILES desk (2026-08-18,
+  5-point backlog-system round, item 2); this booking is a relay — the GO is
+  real, its witness here is testimony, and if this repo's rules want it
+  re-typed at this desk, surface that at next operator contact. The evidence
+  is this repo's OWN report to that desk (f4 session, same evening): a
+  derivation costs an hour and REPLACES its predecessor's reasoning; the
+  cap's churn is a one-line edit; the evening's dated OVERRIDE block makes
+  `backlog-order --check` report 9 bullets misplaced — an operator decision
+  reading as drift to the machine, which a future derivation would "fix".
+  Design: (a) the ten-cap stands (operator 2026-08-11); (b) dev-loop.md's
+  "Build order is DERIVED at build time" is amended — the derivation becomes
+  a method for when the order is genuinely unknown, not the standing
+  authority, and "the derived order is re-derived, not edited" gains the
+  override as its declared exception; (c) `tools/backlog-order.mjs` (and
+  `tools/backlog-lint.mjs` where it reads order) parses a dated
+  `OVERRIDE (operator, YYYY-MM-DD)` block as first-class: bullets ordered
+  under it are not misplacements, and the check reports the override's date
+  and scope instead of drift. Verifier: `backlog-order --check` green over
+  the evening's REAL override with zero misplaced bullets, AND still red on
+  a bullet misordered outside the override's scope — both arms shown, the
+  pair must differ. Done: an operator ordering decision is expressible
+  without running a derivation and without red checks. Write-set:
+  `tools/backlog-order.mjs`, `tools/backlog-lint.mjs`, `docs/dev-loop.md`,
+  this file's build-order section. RELATED CORPUS FACT, same GO (dotfiles
+  `9b9c474`): the global accretion module now canonicalizes the slot token
+  `Write-set:` (this repo's spelling won, 115 vs 32 measured) and closed
+  per-carrier grade vocabulary with three-answer counters; this file's 32
+  `Write boundary:` spellings are now the non-conforming form repo-wide —
+  normalization is a small separate act, foldable into any carrier pass.
+
 - **RECORD 2026-08-18 (found by the EIGHTH derivation's own promotion pass, and
   it is the reason that pass was slower than the ranking) — 106 of the 140
   `## Record` entries carry no `Loop stage:` line and 88 carry no `Anchor:`, so
