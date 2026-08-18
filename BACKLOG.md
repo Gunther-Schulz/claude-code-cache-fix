@@ -259,13 +259,23 @@ run, step 7's three-way compare. Nothing else about the ship is outstanding.
 body below, which is still accurate on everything it covers but predates the
 following.**
 
-**NEXT SESSION STARTS HERE (operator decision, 2026-08-18 night):** the two
-ECONOMICS entries at the head of `## Open` are the next work — the daily
-gate's parent-memory growth and missing incrementality, and the capture
-store's ~271:1 stored-to-novel ratio. They are booked decision-complete with
-their measurements, their instrument caveats, and in the gate entry's case a
-correction to its own first version. Take them before anything else in the
-build order.
+**NEXT SESSION STARTS HERE (operator decision, 2026-08-18 night):** the
+entries at the head of `## Open` are the next work, and the operator's
+framing decides which: **storage is NOT scarce on this machine, so nothing
+valuable is pruned to save space. Only PERFORMANCE and OOM justify a
+change.** Under that constraint the order is:
+  1. **The child heap cap decoupled from the rotation ceiling** — an OOM
+     finding this session created: raising `CACHE_FIX_CAPTURE_MAX_MB`
+     8192 -> 12288 cut the replay children's headroom 1.67x -> 1.11x, and
+     the cap is a proven regression detector, so it is now close to firing
+     on healthy input.
+  2. **The gate's parent memory** — 4.3 -> 8.3 GB monotonic, uncapped, with
+     no equivalent of the children's regression detector. Runtime is FLAT
+     (0.87 min/capture) and needs only an alarm, not incrementality.
+  3. The capture-size ratio is **PARKED**, not ready — its storage
+     justification died with the operator's constraint, and its risk (byte
+     fidelity is the evidence base) is not worth buying on a resource that
+     is not scarce.
 
 **The ship is COMPLETE.** Pin `5ddf24f` in fork and dotfiles, proxy restarted,
 fingerprint on-disk `c2effc3e1d2e` equal to running, version `4.4.0-beta.0`
@@ -472,10 +482,60 @@ comment and new issue.
   count; both read off the run rather than argued
   <!-- entry: "daily gate re-walks the whole corpus and its parent is uncapped" -->
 
-- **READY 2026-08-18 (night, operator question: do the captures have to be so
-  big) — the capture store keeps roughly 271 bytes for every byte of novel
-  conversation, because every request re-sends the whole conversation and each
-  one is stored in full.** Measured over a 315 MB sample of the largest live
+- **READY 2026-08-18 (night, and it is an OOM finding this session CREATED) —
+  the replay children's heap cap is a constant sitting beside the ceiling it
+  was sized against, so tonight's ceiling raise silently cut its headroom
+  from 1.67x to 1.11x.** `tools/gate-live.mjs:138` `export const
+  CHILD_HEAP_CAP_MB = 2048;` is deliberately a REGRESSION DETECTOR, not a
+  tuning knob — its own comment records it proven red on the real defect (the
+  pre-`8b7ed9e` replay OOMs under it in 5 s on the 1.5 GB capture; the fixed
+  one finishes with headroom). The sizing argument is written there too: a
+  streaming replay needs ~15% of capture bytes, "~1.2 GB projected at the
+  8 GB rotation ceiling".
+  **The ceiling is no longer 8 GB.** `CACHE_FIX_CAPTURE_MAX_MB` reads 12288
+  on the live proxy — raised from 8192 earlier this same session as a named
+  bridge. At 15%, projected child peak moves 1229 MB -> 1843 MB against the
+  unchanged 2048 MB cap: **1.67x headroom -> 1.11x**. Nothing failed, and
+  nothing would have said anything until a legitimately large capture tripped
+  a check whose whole value is that it only fires on regressions. That is the
+  over-firing shape: a detector that starts firing on healthy input trains the
+  reader to discount it, and this one is load-bearing.
+  **The defect is the COUPLING, not the number.** A constant beside the
+  quantity it is derived from cannot age loudly — the same restated-basis
+  shape as a hand-kept index beside its directory. Derive the cap from the
+  live ceiling (`ceiling x 0.15 x safety`), or assert the ratio in a bite so
+  moving either one goes red. Do NOT simply raise 2048: that discards the
+  detector's calibration and is the tuning-knob reading its own comment
+  forbids.
+  Loop stage: VERIFY (an instrument whose calibration silently drifted).
+  Anchor: `tools/gate-live.mjs`
+  Write-set: `tools/gate-live.mjs`, `test/gate-live-rowpins.test.mjs`
+  Verifier: with the ceiling moved in a fixture, the derived cap moves with
+  it and a pinned ratio assertion goes red when it does not
+  <!-- entry: "child heap cap decoupled from the rotation ceiling it was sized against" -->
+
+- **PARKED 2026-08-18 (night, operator question: do the captures have to be so
+  big — and the answer is that SIZE is not the problem here) — the capture
+  store keeps roughly 271 bytes for every byte of novel conversation, because
+  every request re-sends the whole conversation and each one is stored in
+  full.**
+  **PARKED, not ready, and the operator's constraint is why:** disk on this
+  machine is not scarce, so nothing valuable gets pruned to save space. That
+  removes the entire storage justification this entry was first booked under.
+  What remains is only the part that touches PERFORMANCE and OOM: capture
+  bytes drive the replay children's memory at ~15%, so capture size is an
+  input to the entry above rather than a problem in itself. Missing evidence
+  before this becomes ready: a measurement showing capture SIZE (rather than
+  capture COUNT) is what drives sweep cost or memory — today the sweep is
+  flat at 0.87 min/capture and children sit far under their cap, so neither
+  is in evidence.
+  **Read the risk before reviving it:** byte-level fidelity IS the evidence
+  base — attribution rests on comparing forwarded bytes — so a
+  content-addressed rewrite would put every reader behind a reconstruction
+  layer, and a subtly lossy one would corrupt the evidence quietly rather
+  than fail loudly. A two-orders-of-magnitude saving on a resource that is
+  not scarce does not buy that risk. The measurement below is kept because it
+  is real and was expensive to get, not because it justifies the change. Measured over a 315 MB sample of the largest live
   capture: 562 whole records, median 516 KB, largest single record 1.16 MB,
   total 313 MB — a stored-to-largest ratio of ~271:1. Record sizes grow
   monotonically through a session (186 -> 191 -> 194 -> 211 KB across four
@@ -489,20 +549,14 @@ comment and new issue.
   two request records differ in their opening bytes (timestamps, ids) even
   when their bodies are near-identical. Prefix is the wrong operator; the
   size distribution is what carries the finding.
-  **The design that would fix it, and the reason it is not a small change:**
-  content-addressed block storage — hash each message block, store each
-  unique block once, store per request an ordered list of hashes. Lossless in
-  principle and worth roughly two orders of magnitude. But byte-level
-  fidelity is the WHOLE point of these captures: attribution rests on
-  comparing forwarded bytes, so every reader would have to go through an
-  exact reconstruction layer, and a reconstruction that is subtly lossy would
-  corrupt the evidence base rather than fail loudly. That is the risk to
-  design against, and it is why this is booked rather than built.
-  **What it would buy beyond disk:** the retention sweep evicts oldest-first
-  on a size cap, so capture size directly sets how far back evidence
-  survives — the same rotation clock the closing gate's question 2 is about.
-  A 100x reduction is a 100x longer evidence window at the same cap.
-  Loop stage: SEE (the cost is measured; the design is not decided).
+  **The one argument that survives the operator's constraint, and it is not
+  about disk:** the retention sweep evicts oldest-first on a size cap, so
+  capture size sets how far back evidence survives — the rotation clock the
+  closing gate's question 2 exists for. But where disk is cheap the direct
+  answer is to RAISE the ceiling, which was already done tonight, and the
+  entry above is what that raise cost. So even the evidence-window argument
+  routes through the cap-coupling fix first, not through a storage rewrite.
+  Loop stage: SEE (the cost is measured; nothing justifies the design yet).
   Anchor: `proxy/extensions/request-capture.mjs`
   Write-set: `proxy/extensions/request-capture.mjs`, `tools/logs.mjs`
   Verifier: a reconstructed capture is byte-identical to the original across
