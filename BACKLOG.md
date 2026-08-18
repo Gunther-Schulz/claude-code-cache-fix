@@ -176,84 +176,110 @@ repo, and reading its clean output as a work estimate is the mapping's own
 label-over-body failure. The premise check in each brief is what covers that,
 and on this lap it carried two of lane A's three items.
 
-## Handoff — 2026-08-15 evening. Rewritten, not appended; a stale one reads as authoritative.
+## Handoff — 2026-08-18 afternoon. Rewritten, not appended; a stale one reads as authoritative.
 
-The 2026-08-14 handoff is REPLACED. Its "first thing to do is upstream-facing"
-still stands and is now a live PEER session's thread, not this file's — see
-OTHER PARTIES below.
+The 2026-08-15 handoff is REPLACED. Two of its four "open operator decisions"
+are dead of their own premises and are retired below rather than carried — that
+is the failure this whole day's record is about, so this section does not get to
+repeat it.
 
 **The entry point is `continue from backlog`.** Build ORDER is derived at build
-time (`docs/dev-loop.md`); the `## Build order` block above records the SIXTH
-derivation and is stale by construction the moment anything ships.
+time (`docs/dev-loop.md`). The `## Build order` block above records the SEVENTH
+derivation and is spent: seven of its ten items closed on 2026-08-18. **The
+EIGHTH derivation is owed, and it owes one answer before it ranks anything** —
+see the block's own closing note.
 
-**STATE — everything is pushed in both repos.** Fork `main` at the
-`--quiet`-class booking; dotfiles `main` at the restrict-bash-paths booking.
-`git log origin/main..main` empty in both, checked against the remote. No
-background agents, no scheduled wakeup, no worktree rebase state. Two modified
+**STATE — everything is pushed in both repos, verified against the remote, not
+recalled.** Fork `main` at `323ca40`; dotfiles `main` at `5d9d0e0`;
+`git log origin/main..main` empty in both. No background agents, no scheduled
+wakeup, no worktree rebase state, no dispatch awaiting a report. Two modified
 files are NOT this work and must not be committed: `LEDGER-Siren.json` (harvest
-churn) in the fork, `qgis/QGIS3.ini` in dotfiles.
+churn) in the fork, `qgis/QGIS3.ini` (the operator's) in dotfiles.
 
-**DEPLOYMENT — untouched today.** Every commit was `tools/`, `test/` or docs, so
-no `CACHE_FIX_PROXY_TREE_PIN` bump and no restart was owed, and none was made.
-Verified at close: pin `0e031a0` matches `HEAD:proxy`; `/health` `proxy_tree`
-`e3db067017ca` matches the source fingerprint. **The current lead item changes
-that** — `_resetRelocationMemory` is `proxy/**`, so it owes the whole ship
-runbook (pin bump + restart at a stated session boundary + gate + three-way
-compare). Row 3's restart-transparency argument holds unchanged for it: memory
-helper only, no state KEYS, no freeze logic.
+**DEPLOYMENT — the proxy WAS shipped today and the triple agrees.** `HEAD:proxy`
+`25c9929` = dotfiles `CACHE_FIX_PROXY_TREE_PIN` `25c9929`; source fingerprint
+`7f15d0bc285b` = `/health` `7f15d0bc285b`; version `4.4.0-beta.0` unchanged.
+Everything committed AFTER the ship was `tools/`, `test/` or docs, so no further
+bump and no restart is owed, and none was made. **The current lead item does not
+change that; the SECOND one does** — `_resetRelocationMemory` is `proxy/**` and
+owes the whole ship runbook (pin bump + restart at a stated session boundary +
+gate run + three-way compare). Row 3's restart-transparency argument holds
+unchanged for it: memory helper only, no state KEYS, no freeze logic.
 
-**ROW 31 IS CLOSED — MEASURED, and graded RESIDUAL rather than SHIPPED.** The
-full measurement is in the matrix cell and in `## Done`; do not re-derive it.
-The one thing a successor needs that is not obvious: it was closed on a COHORT
-read of a MIXED corpus, not on a wholly-post-flip corpus, and the tool for that
-is `node tools/gate-live.mjs --cohort <iso>`. The residual is one thing only —
-the control arm had n=1 post-flip multi-message streak, so "unchanged" is
-unproven and only "still non-zero" is established. Promotion to SHIPPED wants a
-post-flip corpus with more multi-message duplicate streaks; nothing else.
-`row-31-coalesce` (`tools/shape-verdicts.mjs`) watches the closure on the
-scheduled path and is green.
+**HEALTH AT CLOSE.** Suite green (3,641 tests, 0 fail, 12 pre-existing skips).
+Daily gate `ok=true`, 0 failing over 18 captures, finished 13:36Z. Sweep
+stability: 0 violations AND 0 exemptions. `serving-gate-lint` CLEAN over 13
+serving gates. `matrix-status` 0 findings over 31 rows. `backlog-lint`
+ready-bar 0. Nothing is broken; everything below is unbuilt.
 
-**THE SWEEP RAN TWICE TODAY BY HAND** (12:39Z and 13:11Z, both green, the second
-carrying the new per-row `firstTs` stamp). The timer next fires 07:12 local. A
-successor reading `gate-status.json` gets a file whose rows carry `firstTs`;
-anything older does not, and `--cohort` says COULD NOT VERIFY rather than
-rendering two empty cohorts.
+**THE HEAD IS DELIBERATELY SHORT — 3 of 10, and that is not an oversight.** The
+cap lane prints `head UNDER-FULL, promote from ## Record`, correctly. Refilling
+it IS the eighth derivation, and doing that mid-lap on a day that just refuted
+four of its own rankings would repeat the exact error. Promote when you derive,
+with the question below answered first.
 
-**WHAT IS ACTUALLY BROKEN, as opposed to merely unbuilt: nothing.** The suite is
-green (3322), the gate is green (0 failing over 57 captures), both leak scans
-pass, `matrix-status` and `backlog-lint` are clean, and `state-report` shows no
-unpushed work. Everything below is unbuilt, not broken.
+**LIVE STATE WORTH SEEING BEFORE YOU PICK WORK.** Protected captures hold 7,626
+MB of an 8,590 MB cap — 89%, five files, `s-captureBR` alone 5,916 MB. That cap
+is a hard stop, and there is a RECORD entry on the protect-default/cap-size
+decision. Nothing is failing yet; this is the number that decides whether the
+next big freeze succeeds.
 
-**OPEN OPERATOR DECISIONS — put to the operator at close 2026-08-15 and recorded
-here because an answer may not have landed.** Each is a question wearing a work
-item's clothes until answered, and each has a desk recommendation in its own
-entry: (1) upstream-merge timing, fork `main` 33 behind `upstream/main`
-(entry "fork main 33 behind upstream"); (2) committing the 687 uncommitted
-evidence pins, irreversible and public (entry "687 evidence pins uncommitted");
-(3) the protected-capture cap, currently 4 GiB with 1.7 GB held by 4 protections
-(entry "protect default blocked on release wiring and cap size"); (4) operator GO
-for the row-31 upstream filing, #78420-adjacent. If an answer arrived, it is in
-the entry; if the entry still reads as a question, it did not.
+**RETIRED OPERATOR DECISIONS — both killed by measurement today, not by an
+answer.** (1) "fork `main` 33 behind `upstream/main`" is MOOT: measured after an
+explicit `git fetch upstream --verbose`, the fork is **0 behind and 1,079
+ahead** of `upstream/main` (`8ddd4f0`, dated 2026-08-15). There is nothing to
+merge. (2) "committing the 687 uncommitted evidence pins" no longer describes
+the tree: 25 untracked files under `test/fixtures/harvested/`, not 687. The
+underlying question (are evidence pins tracked, and at what public cost) still
+lives in its own entry; the NUMBER that made it urgent is gone. Two decisions
+that STILL stand: the protect-default/cap-size call, and **operator GO for the
+row-31 upstream filing** (#78420-adjacent) — no public artifact has been posted.
 
-**OTHER PARTIES.** A peer session (`12835824`, this same repo) holds the upstream
-PR-round thread — two review rounds have been in our court since 2026-08-06. It
-was idle at close and its writer reservation had lapsed. Do not assume its work
-is merged; `git log origin/main..main` covers only what landed here. One item is
-booked in the DOTFILES backlog by this session (`restrict-bash-paths.py` firing
-on a lone `/` in a `node -e` string literal); a dotfiles session is its reader.
+**WHAT LANDED TODAY, so it is not re-derived.** A live 448k bust walked to a root
+cause in our own extension, fixed, shipped and verified; four parallel lanes
+closing seven head items; row 6's ToolSearch-limb question answered and its
+eight-day-old prose refuted in the matrix; and three instruments caught
+producing false verdicts — `bust-triage` attributing to CC on a pair we had
+exempted, `verdict-ab` reporting IDENTICAL over a comparison it structurally
+could not make, and the runbook marker check confirming "BACKLOG ready" claims
+from PARKED and DONE entries. All three are fixed. The bodies are in `## Done`;
+do not re-derive any of them.
 
-**PARALLEL DISPATCH — the write-set facts, not a judgement.** The head's items
-divide cleanly: `tools/absence-scan.mjs` carries TWO of them (the range-interior
-endpoint diff and the OID-only blob dedupe) so those two SERIALIZE or bundle;
-`tools/bust-triage.mjs` carries THREE (the absorption step, matrix row 24, the
-disposition vocabularies) so those three do too. The lead
-(`proxy/extensions/fresh-session-sort.mjs`) is disjoint from both and is DESK
-work regardless, being deployment-coupled. `BACKLOG.md` belongs to the
-dispatcher always.
+**THREE CORRECTIONS TO MY OWN DELIVERED CLAIMS, recorded because a successor
+would otherwise inherit them as facts.** (a) The reason `verdict-ab` returned
+IDENTICAL was NOT that the corpora lacked a case — the tool loads one module
+file and the change was in another. (b) `verdict-ab` is named in NO runbook;
+the seventh derivation ranked it partly on a runbook role it does not have.
+(c) dotfiles commit `88440f3` carries (a)'s wrong story in its own body,
+pushed and unfixable; the correction is in dotfiles `LEDGER.md` and in
+`## Done` here. All three shared one shape: a TRUE basis answering a narrower
+question than the one it was closing.
+
+**ONE THING I BROKE, stated because the record is the only place it exists.**
+While rewriting an unpushed commit to fix a misattributed co-author trailer, a
+`git reset --hard` also discarded the uncommitted `LEDGER-Siren.json` change
+that had been in the tree since before the session. Re-running `harvest`
+rebuilt it (307 keys against 289 committed, and both expired-capture keys — the
+lossy case — present), so nothing evidential was lost. The lesson is the scope:
+the reset's blast radius rested on my memory of what was dirty rather than on a
+read of the actual state.
+
+**OTHER PARTIES.** A peer session holds the upstream PR-round thread; two review
+rounds have been in our court since 2026-08-06 and nothing about that moved
+today. `git log origin/main..main` covers only what landed here. A dotfiles
+peer session was active this afternoon (`41a7e6e`, `ee00e42`) and released the
+repo cleanly; my own dotfiles work is in and pushed.
+
+**LANE BRANCHES — read `state-report`, not a raw `rev-list`.** 54 lane branches
+exist and a naive `git rev-list main..<branch>` reports ~47 of them as carrying
+unmerged work, which is WRONG: their content landed on `main` by cherry-pick, so
+the SHAs differ while the change is present. `state-report`'s own count is the
+one to trust — 5 branches with work, 1 orphaned with work and no registered
+worktree (`worktree-agent-afc2401061b010669`, 2026-08-08). 26 worktrees
+registered, 0 prunable.
 
 **NOTHING GOES PUBLIC WITHOUT OPERATOR GO.** Binds every PR comment, issue
 comment and new issue.
-
 
 ## Open
 
