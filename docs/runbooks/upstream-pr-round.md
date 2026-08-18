@@ -130,7 +130,9 @@ When done with a branch: `git worktree remove /tmp/wt-<branch-slug>`.
    — the manual re-scan-by-hand instruction that used to sit here was
    the interim cover for it. `scanGitRange` now walks every commit in
    the range and scans what each one adds or modifies at its own
-   tree, deduped by blob OID against the endpoint pass (red-proof:
+   tree, deduped against the endpoint pass by blob OID *and scope*
+   (narrowed 2026-08-18 — an OID-only key let an out-of-corpus path
+   absorb a byte-identical in-corpus twin's scan) (red-proof:
    test/absence-scan.test.mjs, "range-interior commits" — a defect
    added then deleted within one pushed range). The same landing also
    covers a pushed ANNOTATED TAG's own message, which no scanner read

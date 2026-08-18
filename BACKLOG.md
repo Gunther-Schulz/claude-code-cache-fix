@@ -46,7 +46,8 @@ instruments produced a MEASURED false verdict on live evidence; and the
 check-set class was booked with a mechanical test.
 
 **Composition rule, answered rather than skipped:** the head carries one
-MITIGATE-stage item, `_resetRelocationMemory` (#9). It is deliberately NOT the
+MITIGATE-stage item, `_resetRelocationMemory` (#9 as ranked, #6 after the lap
+closure below). It is deliberately NOT the
 lead. Two instruments above it produced false verdicts on TODAY's real bust,
 and an instrument that lies corrupts the evidence every mitigation is designed
 from — this repo nearly designed a mitigation for its own regression once. The
@@ -77,61 +78,92 @@ ranking.
 reset fix — built `cdc2b9a` + `d7699cc`, pin `88440f3`, verified by a sweep
 reporting 0 stability violations AND 0 exemptions over 18 captures.
 
-<!-- entry: "push scan diffs range endpoints, interior blob escapes" -->
-1. **push scan diffs range ENDPOINTS** — IRREVERSIBLE partition. A leak
-   committed and then scrubbed INSIDE one push range is invisible to an
-   endpoint diff, and git history cannot be scrubbed afterwards; this repo's
-   own precedent required destroying a droplet.
-<!-- entry: "absence-scan blob dedupe keyed on oid alone, not oid plus scope" -->
-2. **push-scan blob dedupe keyed on OID alone** — same partition, small.
-<!-- entry: "hygiene policy is silent on conversation content" -->
-3. **the hygiene policy enumerates IPs and is silent on CONVERSATION content**
-   — same partition; this fork's publication bar is wider than the upstream
-   policy it inherited. **Write-set correction, made in this derivation:** the
-   slot names `CLAUDE.local.md`, which is DEPLOYED from the dotfiles repo — the
-   realizing write is THERE, and a lane editing it in this checkout would have
-   its work overwritten by the next deploy.
+**LAP CLOSURE, same day — the IRREVERSIBLE partition is EMPTY.** All three of
+this derivation's leading items closed within hours of being ranked, and the
+numbering below is what is LEFT, not a re-derivation (the eighth derivation is
+owed once the remaining lanes land; see the trend caution above, which now has
+a lap to read). Their bodies are in `## Done`:
+- former #1, range-interior blobs — **already shipped** in `f228720`, four days
+  before this derivation ranked it first. The entry's reasoning was intact; the
+  world had moved. Tripwire booked in `## Record`.
+- former #2, blob dedupe on OID alone — built (`e921c86` lane, `0d72bf1` desk).
+- former #3, the conversation-content policy — landed in dotfiles `59d2c1c`,
+  the write-set correction made in this derivation proving out: the realizing
+  write was never in this checkout at all.
+
 <!-- entry: "bust-triage attribution blind to stability exemptions" -->
-4. **`bust-triage` prints `ATTRIBUTION: CC's` on a pair our OWN extension
+1. **`bust-triage` prints `ATTRIBUTION: CC's` on a pair our OWN extension
    exempted** — third partition, and the strongest measurement in it: it
    mis-attributed today's 448k bust away from us, on a basis that stability
    exemptions satisfy by construction. Silence is maximal — it names the wrong
    party and reads clean doing it.
 <!-- entry: "verdict-ab IDENTICAL over a corpus lacking the case under test" -->
-5. **`verdict-ab` reports IDENTICAL over a corpus that cannot contain the case
+2. **`verdict-ab` reports IDENTICAL over a corpus that cannot contain the case
    under test** — third partition, measured today; it gates the
    restart-transparency claim of every ship through the proxy runbook.
 <!-- entry: "bust-triage names the row but never says whether the mitigation absorbed" -->
-6. **`bust-triage` never says whether the mitigation ABSORBED** — third
+3. **`bust-triage` never says whether the mitigation ABSORBED** — third
    partition; upstream of every matrix row's closure.
 <!-- entry: "bust-triage cannot reach matrix row 24 by any route" -->
-7. **`bust-triage` cannot reach matrix row 24 by any of its three routes** —
-   third partition, same lane as #4 and #6.
+4. **`bust-triage` cannot reach matrix row 24 by any of its three routes** —
+   third partition, same lane as #1 and #3.
 <!-- entry: "stability check lacks the modelChangedAcrossPair exemption" -->
-8. **the stability check lacks a `modelChangedAcrossPair` exemption** — third
+5. **the stability check lacks a `modelChangedAcrossPair` exemption** — third
    partition; a cross-model pair reads as a violation on the daily sweep.
 <!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
-9. **`_resetRelocationMemory` cannot evict the memory the pipeline uses** —
+6. **`_resetRelocationMemory` cannot evict the memory the pipeline uses** —
    MITIGATE, and the composition rule's answer.
 <!-- entry: "row 6's limb is read by hand; namespace shape cannot separate ToolSearch load from server arrival" -->
-10. **row 6's LIMB is still read by hand** — ATTRIBUTE; it decides which lever
+7. **row 6's LIMB is still read by hand** — ATTRIBUTE; it decides which lever
     row 6's residue can take, so it is upstream of the next mitigation there.
+<!-- entry: "READY entry whose anchor moved after its booking date" -->
+8. **a READY entry whose ANCHOR moved after its booking date is unflagged** —
+   ADDED AFTER the derivation, mid-lap, minted by this lap's own measured
+   failure (this derivation ranked an already-shipped item first). Ranked last
+   deliberately: it is process instrumentation, not proxy work, and nothing
+   downstream waits on it.
+
+**THE TREND CAUTION ABOVE HAS NOW BEEN PAID, and the answer is not
+comfortable.** The caution said the form is the finding if the EIGHTH
+derivation comes out instrument-led. It has not been run yet — but of the eight
+items now standing, SIX are instruments, one is a MITIGATE and one is an
+ATTRIBUTE, and the item just added is a ninth consecutive instrument promotion.
+Each is individually well-argued, which is precisely what the caution predicted
+and precisely why the count is the evidence and the arguments are not. What
+this lap actually shows is the mechanism: exercising instruments is how you
+find broken instruments, so an instrument-heavy day generates its own next
+day's queue, and a repo can run that loop indefinitely while shipping no
+mitigation at all. The eighth derivation therefore owes an explicit answer to
+one question before it ranks anything — what proxy-side bust class got closer
+to closed this week — and if the honest answer is "none", the ranking is not
+the thing to fix.
 
 **LANE JOIN over the entries' write-boundary slots — derived, not composed by
 hand, because the head is dispatched in parallel and an unexamined mapping
 resolves to one-item-per-lane that nobody chose:**
 
-| lane | items | write-set |
-|---|---|---|
-| A | 1, 2, 3 | `tools/absence-scan.mjs` + test (#3 also dotfiles, see its note) |
-| B | 4, 6, 7 | `tools/bust-triage.mjs` + tests |
-| C | 8, 10 | `tools/replay.mjs`, `test/replay-gate-selfcheck.test.mjs` |
-| — | 5 | `tools/verdict-ab.mjs` + test (standalone) |
-| — | 9 | `proxy/extensions/fresh-session-sort.mjs` (standalone, deployment-coupled) |
+Numbers below are the ranking AS DERIVED (before the lap closure above), so
+they are the numbers the four dispatched briefs were written against:
+
+| lane | items | write-set | state |
+|---|---|---|---|
+| A | 1, 2, 3 | `tools/absence-scan.mjs` + test (#3 also dotfiles, see its note) | CLOSED, all three in `## Done` |
+| B | 4, 6, 7 | `tools/bust-triage.mjs` + tests | dispatched |
+| C | 8, 10 | `tools/replay.mjs`, `test/replay-gate-selfcheck.test.mjs` | dispatched |
+| — | 5 | `tools/verdict-ab.mjs` + test (standalone) | dispatched |
+| — | 9 | `proxy/extensions/fresh-session-sort.mjs` (standalone, deployment-coupled) | not dispatched |
 
 Lanes A, B, C and #5 are disjoint and run in PARALLEL. #9 is deployment-coupled
 (pin bump + restart + row-3 declaration) and is therefore NOT bundled with the
 tool lanes; it ships on its own through `docs/runbooks/ship-proxy-change.md`.
+
+**What lane A actually returned, because the join above says nothing about
+it:** one of its three items was built, one was already shipped, and one had no
+code half in this repo at all. A write-boundary join is a collision check and
+nothing more — it cannot see that an item is already done or lives in another
+repo, and reading its clean output as a work estimate is the mapping's own
+label-over-body failure. The premise check in each brief is what covers that,
+and on this lap it carried two of lane A's three items.
 
 ## Handoff — 2026-08-15 evening. Rewritten, not appended; a stale one reads as authoritative.
 
@@ -213,144 +245,6 @@ comment and new issue.
 
 
 ## Open
-
-- **READY 2026-08-11 — the push scan diffs range ENDPOINTS, so a
-  range-interior blob — a leak committed then scrubbed or deleted within the
-  same pushed series — publishes at its intermediate SHA unscanned; and a
-  pushed annotated tag's ANNOTATION message is scanned by nothing.** Found by
-  Begehung round 1 (BEGEHUNG-MAP.md). Basis, code-read: `rangeFiles` runs
-  `git diff --name-only --diff-filter=ACMR oldRef newRef` and `scanGitRange`
-  reads every candidate at `newRef` only (tools/absence-scan.mjs:556-562,
-  the `git show` at :594), so added-then-deleted nets out of the diff and
-  modified-then-reverted is read in its final form; `rangeMessages` formats
-  COMMITS only, so a tag object's own message text reaches no scanner. The
-  cost is the guard's own founding cost: a blob is served at its commit's
-  SHA forever (probed 2026-08-10, negative control in CLAUDE.local.md), and
-  leak-then-scrub-then-push is the natural repair sequence, so the gap sits
-  exactly on the expected human path. Design: walk `git rev-list
-  oldRef..newRef` and scan each commit's added/modified blobs at that
-  commit (dedupe by blob OID so unchanged files are not re-scanned per
-  commit); for pushed `refs/tags/*`, scan the tag object's message via the
-  same text scanner (`scanSourceText`). Dispatcher note: the dotfiles
-  pre-push dispatcher hands (oldRef, newRef) per pushed ref; confirm it
-  does not filter tag refs out before the scanner sees them — if it does,
-  that half's write lands in dotfiles (its own write boundary, book there
-  per the consumer rule, do not write across).
-  Red-first pair, constructed (no live capture named, per the READY bar's
-  fourth clause): (a) a fixture range where commit A adds a file carrying a
-  synthetic capture UUID and commit B deletes it — the CURRENT scanner must
-  return clean over that range (that run is the red proving the defect),
-  the patched scanner must fire on A's blob; (b) the same shape with clean
-  content stays green; (c) an annotated tag whose message carries a
-  synthetic UUID fires, a clean annotation does not.
-  Anchor: tools/absence-scan.mjs
-  Write-set: tools/absence-scan.mjs, test/absence-scan.test.mjs,
-  docs/runbooks/upstream-pr-round.md (drop the interim hand-rescan line)
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/absence-scan.test.mjs
-  Done: all three red arms demonstrated (the (a) red against the unpatched
-  scanner pasted in the closing report), suite green, and the runbook's
-  interim hand-rescan sentence replaced by a pointer to the shipped check.
-  <!-- entry: "push scan diffs range endpoints, interior blob escapes" -->
-
-- **READY 2026-08-14 (small) — the push scan's blob dedupe is keyed on OID ALONE,
-  so identical bytes committed at two different paths in one push are scanned
-  under only the first-encountered path's scope classes.** Returned by the
-  range-interior lane as a named-not-fixed gap, correctly: it read the design's
-  literal wording ("dedupe by blob OID") and declined to widen past it. The
-  consequence is narrow and real — scope classes are chosen per PATH (a JSON file
-  under `test/fixtures/harvested/` gets the full class set, a source file gets
-  two), so the same bytes landing in-corpus and out-of-corpus in one push get only
-  the first path's treatment. Not observed in this repo's history.
-  Design, decided: key `scannedBlobs` on `(oid, scopeClass)` rather than `oid`, so
-  the dedupe still avoids re-reading unchanged content while never collapsing two
-  different scope treatments. Anchor comment already in the code (`scannedBlobs`).
-  Red-first: one blob committed at two paths with different scope classes must be
-  scanned under BOTH; the same blob at one path must still be scanned once.
-  Done: `scannedBlobs` is keyed on `(oid, scopeClass)`; one blob at two paths with
-  different scope classes is scanned under BOTH and the same blob at one path is
-  still scanned once, both outputs pasted; the sweep-accounting cost on
-  `HEAD~30..HEAD` has not materially moved from today's 0.230s; this entry moves
-  to `## Done` with its ref.
-  Loop stage: VERIFY.
-  Anchor: tools/absence-scan.mjs
-  Write-set: `tools/absence-scan.mjs`, `test/absence-scan.test.mjs`
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/absence-scan.test.mjs
-  <!-- entry: "absence-scan blob dedupe keyed on oid alone, not oid plus scope" -->
-
-- **READY (small) — the public-repo hygiene policy enumerates origin IPs and
-  stack fingerprints and says NOTHING about CONVERSATION CONTENT, which is the
-  category this repo actually handles most of.** Raised by the operator
-  2026-08-10 ("for public consumption, we leak nothing from our chats?") and
-  answered by measurement rather than by assurance, on the pin pushed the same
-  day (`pinned-s-dda5c6419d49-372-373.json`): message text is replaced by
-  `t_<hash>_<len>` tokens, tool inputs by `REDACTED`, the SYSTEM block —
-  where the operator's private global corpus renders — tokenized identically,
-  headers reduced to `anthropic-beta` alone (no auth, no key), and tool
-  objects reduced to `{"name": ...}` with descriptions and JSON schemas
-  dropped. The scrubber holds. That is not the gap.
-  **The gap is that none of it is WRITTEN DOWN as policy, and two things do
-  survive by design.** (i) Tool NAMES ship in cleartext — today's matrix row 6
-  entry names seven `mcp__claude-in-chrome__*` tools, which discloses which MCP
-  servers and skills this machine runs. Capability disclosure, not
-  conversation, and probably acceptable — but acceptable by nobody's decision
-  until stated. (ii) Our own tracked PROSE and COMMIT MESSAGES quoted the
-  operator verbatim.
-  **OPERATOR DECISION 2026-08-10, and it overrides the recommendation this
-  entry originally carried:** no verbatim operator quotes in public material,
-  going forward, and the existing ones scrubbed where scrubbing is possible.
-  The original recommendation here was to KEEP the practice because a quote is
-  a BASIS and a paraphrased trigger is the label-over-body drift this repo
-  keeps getting bitten by. That reasoning was answered on two grounds and both
-  are recorded because the entry would otherwise re-argue it: the rule needed
-  PER-INSTANCE judgment ("keep it when work-scoped and short"), which is the
-  predicate shape that over- and under-fires, and here a single misjudgment is
-  irreversible public history — unbounded downside against marginal upside;
-  and the evidential value survives a neutral restatement ("operator trigger:
-  the READY count read as implausibly large" records the same causation), so
-  compliance costs nearly nothing, which collapses the basis argument on its
-  own arithmetic. The deciding ground is not evidence quality at all: they are
-  the operator's words, published without their having agreed to it.
-  EXTENT, measured 2026-08-10 rather than estimated: ONE verbatim quote in the
-  whole tracked tree (`BACKLOG.md:39`, scrubbed in this change to a neutral
-  restatement that keeps the attribution and the trigger), and SIX across all
-  commit messages. An earlier scan suggesting ~56 was instrument error — those
-  hits quote documents, code and review reports, not the operator.
-  Design, decided: state the conversation-content rule beside the existing
-  origin-IP rules, in four lines — capture-derived fixtures ship structure and
-  hashes only, never prose (already true, now asserted); tool names are
-  acceptable disclosure; NO verbatim operator quotes in tracked prose or commit
-  messages; where a trigger or decision needs recording, the attribution and
-  the causal record stay and only the wording is restated, because a blunt
-  deletion would destroy the provenance that made the line worth having.
-  **Placement, and it is the whole reason this is booked rather than done:**
-  the tracked `CLAUDE.md` is UPSTREAM's, and this fork's own rule says
-  corrections and deviations land in `CLAUDE.local.md`, which is DEPLOYED from
-  the dotfiles repo and must be edited THERE, never in this tree. So the edit
-  is a dotfiles change (`cache-fix/CLAUDE.local.md`) and this entry is the
-  fork-side record of it. Consumer: the next dotfiles session.
-  **THE NAMED CONSUMER CANNOT REACH IT — measured 2026-08-11, and this is the
-  decorative-naming defect rather than a scheduling delay.** A fresh dotfiles
-  session loads the dotfiles repo's own carriers, never this fork's backlog, so
-  an item whose whole realizing write lands over there sits where its reader
-  will not look. Probed: `grep -c` for this item's subject over the dotfiles
-  `BACKLOG.md` returns **0** — the consumer's own queue has no record of it,
-  and the pointer has therefore been decorative since it was written.
-  NOT fixed here on purpose: writing into a sibling repo's backlog is that
-  repo's write boundary and a peer session works there. What discharges this is
-  one entry in the dotfiles backlog carrying the four-line rule, after which
-  THIS entry becomes a pointer that resolves. Until then the item is,
-  operationally, unqueued in both repos while appearing queued in one.
-  Verifier: the deployed overlay carries the three lines, and the doctor's
-  content-drift check on `DEPLOYED_COPIES` stays green.
-  Anchor: tools/absence-scan.mjs
-  Write-set: tools/absence-scan.mjs, test/absence-scan.test.mjs — PLUS the
-  policy prose, whose realizing write is in the DOTFILES repo
-  (`cache-fix/CLAUDE.local.md`, deployed here via DEPLOYED_COPIES), never in
-  this checkout: an edit made here is overwritten by the next deploy and the
-  doctor's content-drift check fails on it. Corrected in the seventh
-  derivation, 2026-08-18; the slot previously named the deployed copy.
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/absence-scan.test.mjs
-  <!-- entry: "hygiene policy is silent on conversation content" -->
 
 - **READY (promoted 2026-08-18, seventh derivation — head #4) — instrument with
   a MEASURED false verdict on today's live bust — `bust-triage` prints ATTRIBUTION
@@ -668,6 +562,59 @@ comment and new issue.
   Write-set: `tools/replay.mjs`, `test/replay-gate-selfcheck.test.mjs`
   Verifier: node --test --import ./tools/suite-config-root.mjs test/replay-gate-selfcheck.test.mjs
   <!-- entry: "row 6's limb is read by hand; namespace shape cannot separate ToolSearch load from server arrival" -->
+
+- **READY 2026-08-18 — a READY entry whose ANCHOR file moved after the entry's
+  booking date is a staleness candidate, and nothing reads that today.**
+  Measured, not anticipated: the seventh derivation ranked "push scan diffs
+  range ENDPOINTS" **head #1** on 2026-08-18, and the work had shipped in
+  `f228720` on 2026-08-14 — four days earlier, in the entry's own Anchor file.
+  A second entry on the same lane ("hygiene policy is silent on conversation
+  content") was half-overtaken the same way. Both were found by the dispatched
+  lanes' premise check, in minutes, by opening the Anchor.
+  **The mechanism, stated so it is not mistaken for carelessness:** a
+  derivation re-reads each entry's REASONING, which stays intact — what
+  refutes it is a commit made by a different piece of work that never reads
+  the entry, so nobody holds both halves at once and the staleness rule cannot
+  fire on its own. That is exactly the shape a computed input dissolves: the
+  comparison is two dates and a `git log`, and it is the DELIVERY of the input
+  to the judgment that is mechanizable, never the judgment.
+  Design, decided: a new WARN-only lane `lintAnchorMoved(text, env)` in
+  `tools/backlog-lint.mjs`, beside the existing `lintReadyBar` (same entry
+  walk, same finding shape `{line, title, label, token, proof}`). For each
+  READY entry in `## Open`: take the booking date from the header
+  (`READY YYYY-MM-DD`, the same token the census already reads) and the path
+  from the `Anchor:` line, then run
+  `git log --format=%h --since=<date> -- <anchor>`. Non-empty -> label
+  `ANCHOR-MOVED`, token the anchor path, proof the short SHAs (capped at 3
+  plus a count). THREE answers, never two: a header carrying no date, a `row N`
+  anchor, or a git invocation that fails -> `ANCHOR-UNCHECKABLE` with the
+  reason as proof — an entry that cannot be checked must not read as an entry
+  that passed.
+  **WARN-only on purpose, and this is the load-bearing decision:** a commit
+  touching the anchor does NOT prove the entry stale (the file has many
+  reasons to move), so the predicate is judgment-shaped and blocking on it
+  would fire on legitimate work and train the override reflex. It reports; the
+  derivation decides.
+  Consumer, named because a lint nobody reads is decoration: the default
+  `backlog-lint` run, which the session-start banner and the pre-push hook
+  already surface — PLUS one sentence in `docs/dev-loop.md`'s build-order
+  procedure making the lane's output a required read AT DERIVATION TIME, which
+  is the moment that actually failed here.
+  Red-first, both arms drawn from real history rather than planted: (a) the
+  closed entry above, replayed from `git show` of this file at a commit where
+  it was still READY with its 2026-08-11 header and `tools/absence-scan.mjs`
+  anchor, must produce `ANCHOR-MOVED` naming `f228720`; (b) a READY entry whose
+  anchor has NO commits since its booking date must produce nothing at all —
+  without arm (b) a lane that fires on everything passes arm (a).
+  Done: both arms pasted, the lane wired into the default run and its labels
+  registered like the other lanes', the dev-loop sentence landed, and the full
+  suite green; this entry moves to `## Done` with its ref.
+  Loop stage: MITIGATE (the instrument half).
+  Anchor: tools/backlog-lint.mjs
+  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs,
+  docs/dev-loop.md
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
+  <!-- entry: "READY entry whose anchor moved after its booking date" -->
 
 - **RECORD (regraded from READY 2026-08-18, seventh derivation — SHIPPED; the
   remainder is an OBSERVATION, not work) 2026-08-18 (booked READY 2026-08-17, PARKED and un-PARKED the same
@@ -10785,6 +10732,77 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-14 (`f228720`), discovered closed 2026-08-18 — the push scan
+  walks range-INTERIOR commits and annotated tag messages.** Closed by the
+  landing that shipped it four days after this was booked; the entry then sat
+  in `## Open` for four days and was ranked **head #1** by the seventh
+  derivation this morning, which is the finding worth more than the closure.
+  Verified in the artifact rather than from the lane's report:
+  `rangeCommitShas`/`commitBlobs`/the interior loop and `tagMessage` are in
+  `tools/absence-scan.mjs` today (:712, :735, :767, :876-891, :916); all three
+  red arms exist as named tests (`test/absence-scan.test.mjs` — "a defect ADDED
+  then DELETED", "MODIFIED then REVERTED", "a synthetic UUID in an ANNOTATED
+  TAG's message"); and the done-criterion's third arm, the runbook's interim
+  hand-rescan sentence, is already replaced by a pointer to the shipped check
+  (`docs/runbooks/upstream-pr-round.md`, "Blind spot CLOSED 2026-08-14").
+  **Why the derivation did not catch it, stated as a mechanism and not as
+  care:** a build order re-reads each entry's REASONING, which stayed
+  plausible, and the world that refuted it was a commit in the same file made
+  by a different piece of work that never read this entry. Nobody held both
+  halves. The dispatched lane found it in minutes by opening the Anchor — which
+  is what the premise-check-before-implementing clause in its brief is for, and
+  it earned its place on first contact. Tripwire booked in `## Record`
+  ("a READY entry whose Anchor moved after its booking date").
+
+- **DONE 2026-08-18 (`e921c86` lane + `0d72bf1` desk) — the push scan's blob
+  dedupe is keyed on `(oid, scope)`, so byte-identical content at two paths
+  with different scope treatment is scanned under BOTH.** `scannedBlobs` was a
+  plain OID set shared between the endpoint pass and the interior walk, so
+  whichever path was reached first marked the OID done and the second path's
+  own classes never ran — an out-of-corpus twin (byte-level classes only)
+  silently absorbing an in-corpus blob's `live-timestamp`/`nested-payload`/
+  `raw-content` scan. Red arm re-run at the desk rather than booked from the
+  report: baseline 50/50 green, the fix reverted to OID-only keying fails
+  exactly the new test and nothing else, restored.
+  **The desk added the half the lane's fix was missing** (`0d72bf1`):
+  `scopeKey` RESTATES `scanContent`'s routing, which is the basis-restated-from-
+  the-source shape that cannot age loudly — a fourth route would leave
+  `scopeKey` returning three values and every test green, byte-identical to
+  health. The new assertion compares `scopeKey`'s partition against the route
+  the scanner ACTUALLY takes, read at run time from `scanContent`'s
+  `sourceOnly` and `classesFor`'s applied class set, in both directions over
+  every pair (one direction alone is satisfied by a degenerate key). Three
+  mutants red, each reverted: a constant key fails 2, a path-unique key 1,
+  dropping the source branch alone 1.
+  **The done-criterion's cost clause was anchored to mutating state and could
+  not be met as written:** it pinned "not materially moved from today's 0.230s
+  on `HEAD~30..HEAD`", a figure measured against a different commit window on
+  2026-08-14. The lane answered the question the clause was for by A/B-ing
+  fixed against unfixed on the SAME current range — ~0.48s both — which is the
+  discriminating form the clause should have had.
+
+- **DONE 2026-08-18 (dotfiles `59d2c1c`) — the publication bar now covers our
+  OWN prose: no verbatim operator quotes in tracked prose or commit messages.**
+  Realized where it always belonged — `cache-fix/CLAUDE.local.md` in the
+  DOTFILES repo, deployed here — which is why this entry could never be closed
+  by a lane working in this checkout. Two of the four decided points were
+  already in the deployed overlay (tool names are inventory; fixtures ship
+  structure and hashes only); the missing third and its corollary are what
+  landed: attribution and causal record stay, only the wording is restated,
+  because a blunt deletion destroys the provenance that made the line worth
+  having. Shipped with the extent (1 quote in the tree, 6 in commit messages,
+  both scrubbed), the reason the rule is FLAT rather than per-instance, and the
+  explicit statement that it is not mechanizable — no predicate separates a
+  quote from a restatement, so it is prose with the operator as backstop.
+  Verified red-first as a deployment, not just as an edit: the source/dest
+  comparison reported drift (exit 1) before `dot apply` and exit 0 after, with
+  the doctor's own line `deployed copy in sync: .../CLAUDE.local.md` on OK.
+  **The decorative-consumer half is closed too** — this entry's named consumer
+  (a fresh dotfiles session) provably could not reach it, measured 2026-08-11
+  as 0 hits in the dotfiles backlog. It was discharged by the desk holding both
+  repos in one turn instead, which is the other legitimate exit and the cheaper
+  one; no cross-repo booking was needed in the end.
 
 - **DONE 2026-08-18 — a description delta no longer forces a global reset when
   it rides alongside a pure tool addition.** Built `cdc2b9a` (dispatched lane)
