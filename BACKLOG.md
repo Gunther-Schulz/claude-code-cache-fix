@@ -123,11 +123,15 @@ any of it. Today every instrument at the top has a named consumer waiting on it.
    pin "reproduces the live verdicts". SEE. Found today by freezing evidence
    with it; every billing or coalescing finding ever pinned lost its proof this
    way.
-<!-- entry: "READY entry whose anchor moved after its booking date" -->
 5. **a READY entry whose ANCHOR moved after its booking date is unflagged** —
    the seventh derivation's own measured failure, mechanized. Ranked below the
    proxy work deliberately: it is process instrumentation and nothing
-   downstream waits on it.
+   downstream waits on it. **CLOSED the same evening (`935d216` / `5a557ce`);
+   body in `## Done`.** Its ranking anchor is deliberately absent from this
+   line: `tools/backlog-order.mjs` requires every ranked anchor to match a LIVE
+   bullet in `## Open`, and leaving one behind after a closure is what made the
+   pre-push suite red here — the guard working, caught before the push rather
+   than after it.
 <!-- entry: "resetRelocationMemory cannot evict the memory the pipeline uses" -->
 6. **`_resetRelocationMemory` cannot evict the memory the running pipeline
    uses** — REGRADED to VERIFY above. Deployment-coupled, ships on its own; it
