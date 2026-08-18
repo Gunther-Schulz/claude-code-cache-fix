@@ -99,6 +99,7 @@ import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
 import { localSuffix, withLocalStamps } from "./local-stamp.mjs";
 import { rowTriage } from "./matrix-status.mjs";
 import { isCaptureRequestRecord } from "./logs.mjs";
+import { collectD1Retirement } from "./gate-live.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const LEDGER = join(homedir(), ".local/share/claude-worktime/activity.jsonl");
@@ -139,6 +140,16 @@ export const TELEMETRY_WINDOW_MS = 3000;
 // is generous against that (10x the high end) while still nowhere near
 // covering a multi-hour session, so an unrelated old coincidence can't win.
 const NEAR_CUTOFF_WINDOW_MS = 60_000;
+// The ABSORPTION step's D1-retirement window (BACKLOG "bust-triage names the
+// row but never says whether the mitigation absorbed"): computed FROM THE
+// EVENT, never inherited from the last scheduled sweep — the entry's own
+// finding (ii) is a live `gate-status.json` whose `window` ends at the last
+// sweep and misses a same-day bust sitting past it. Ten minutes either side
+// of the bust's own timestamp is generous against one request's handling
+// time while staying far short of a whole session, mirroring the same
+// discipline NEAR_CUTOFF_WINDOW_MS above states for a different telemetry
+// join.
+const ABSORPTION_WINDOW_MS = 10 * 60_000;
 
 const j = (line) => { try { return JSON.parse(line); } catch { return null; } };
 // CONTENT ONLY — this drops blank lines, so an index into what it returns is
@@ -2049,13 +2060,37 @@ async function replayedViolations(capturePath) {
   if (!Array.isArray(parsed.exemptions)) {
     return { ok: false, reason: "replay's --census --json output carried no `exemptions` array" };
   }
-  return { ok: true, violations: parsed.violations, exemptions: parsed.exemptions };
+  // toolsDeltas/absorptionMisses/census ride the SAME --census --json call —
+  // BACKLOG "bust-triage names the row but never says whether the mitigation
+  // absorbed" reuses this one replay for the absorption step rather than
+  // spawning a second child process for it.
+  if (!Array.isArray(parsed.toolsDeltas)) {
+    return { ok: false, reason: "replay's --census --json output carried no `toolsDeltas` array" };
+  }
+  if (!Array.isArray(parsed.absorptionMisses)) {
+    return { ok: false, reason: "replay's --census --json output carried no `absorptionMisses` array" };
+  }
+  if (!parsed.census || typeof parsed.census.pairs !== "number") {
+    return { ok: false, reason: "replay's --census --json output carried no `census.pairs` count" };
+  }
+  return { ok: true, violations: parsed.violations, exemptions: parsed.exemptions,
+           toolsDeltas: parsed.toolsDeltas, absorptionMisses: parsed.absorptionMisses,
+           census: parsed.census };
 }
 
 /**
  * OURS / CC's / COULD-NOT-ATTRIBUTE for one triaged pair. `sid` and
  * `capturesDir` locate the same capture file `capturePairResult` already
  * read, so the replay below sees exactly the traffic this pair came from.
+ *
+ * Carries the fetched `replay` (the `{ok, violations, exemptions,
+ * toolsDeltas, absorptionMisses, census}` shape `replayedViolations`
+ * returns, or `null` on the two fast paths that never touch disk) alongside
+ * the verdict — an ADDITIVE field, existing callers reading only `.verdict`/
+ * `.reason` are unaffected. This is what lets the ABSORPTION step (BACKLOG
+ * "bust-triage names the row but never says whether the mitigation
+ * absorbed") reuse the SAME replay `triage()` already paid for here, rather
+ * than spawning a second child process for the same capture.
  */
 export async function computeAttribution(sid, pair, capturesDir = CAPTURES) {
   const inDiv = firstDivergence(pair.before.body.messages, pair.after.body.messages);
@@ -2063,18 +2098,20 @@ export async function computeAttribution(sid, pair, capturesDir = CAPTURES) {
     return { verdict: "OURS",
              reason: "CC's own raw captured messages are identical/append-only between this pair " +
                      "(captures are PRE-pipeline) — nothing upstream explains a forwarded " +
-                     "divergence, so it originates with us" };
+                     "divergence, so it originates with us",
+             replay: null };
   }
   if (pair.before.ord == null || pair.after.ord == null) {
     return { verdict: "COULD-NOT-ATTRIBUTE",
-             reason: "this pair carries no request ordinal to match against the replayed census" };
+             reason: "this pair carries no request ordinal to match against the replayed census",
+             replay: null };
   }
   const capturePath = join(capturesDir, `s-${sid}-requests.jsonl`);
   const rv = await replayedViolations(capturePath);
   if (!rv.ok) {
-    return { verdict: "COULD-NOT-ATTRIBUTE", reason: rv.reason };
+    return { verdict: "COULD-NOT-ATTRIBUTE", reason: rv.reason, replay: rv };
   }
-  return attributionFromCensus(rv, pair, inDiv);
+  return { ...attributionFromCensus(rv, pair, inDiv), replay: rv };
 }
 
 /**
@@ -2177,6 +2214,90 @@ export function attributionFromExemption(row) {
                    `(${row.exemptReason}) — an exemption is a true statement about what it names and ` +
                    `silent about the rest (runbook step 5), and this one names one of our own ` +
                    `extensions moving the bytes at outDiv=${row.outDiv}, so the divergence is OURS` };
+}
+
+// --- Absorption: did the mitigation the walk names actually HOLD? ---
+//
+// BACKLOG "bust-triage names the row but never says whether the mitigation
+// absorbed": a walk landing on a matrix row (KNOWN-OPEN row 6, in the
+// entry's own motivating case) answers "what changed", never "did our own
+// fix for it hold on THIS instance" — that took three hand steps every
+// time, one of them (a stale `gate-status.json` window) pointing the WRONG
+// way once already. Two independent sources, neither re-derived:
+//   (a) `collectD1Retirement` (gate-live.mjs), IMPORTED and scoped to a
+//       window AROUND THIS BUST — never the last scheduled sweep's window,
+//       which need not cover this event at all.
+//   (b) the SAME replayed census `computeAttribution` already fetched for
+//       this pair (`attribution.replay`, above) — never a second, narrow
+//       two-record replay: deferred-tool-rewrite's classification depends
+//       on accumulated per-conversation state, so replaying just this pair
+//       in isolation would read a false `no-baseline` for the BEFORE
+//       request instead of reproducing what the live pipeline actually
+//       decided (the same reason PART TWO of computeAttribution's own
+//       header comment needs the whole corpus, not a pair).
+
+/**
+ * (a). `bustTsSec` is the bust's own ledger timestamp (epoch seconds) — the
+ * window is computed FROM IT, never inherited from a sweep's own window.
+ */
+export async function d1RetirementForBust(bustTsSec, snapshotsDir = SNAPSHOTS, windowMs = ABSORPTION_WINDOW_MS) {
+  return collectD1Retirement(snapshotsDir, bustTsSec * 1000 - windowMs, bustTsSec * 1000 + windowMs);
+}
+
+/**
+ * (b). `replay` is `computeAttribution`'s own `.replay` field — the
+ * `{ok, violations, exemptions, toolsDeltas, absorptionMisses, census}`
+ * shape `replayedViolations` returns, or `null` on the two fast paths that
+ * never touched disk. THREE answers, never a silent zero (design, decided):
+ *   `replay === null` or `!replay.ok`   — SKIPPED / COULD-NOT-VERIFY, named
+ *   `replay.census.pairs === 0`         — COULD-NOT-VERIFY: this exact shape
+ *     is what a `.json` pin fed where JSONL is expected produces (BACKLOG,
+ *     same entry, finding iii: "pointing replay.mjs at the .json pin
+ *     returns census: 0 same-conversation pairs and exits clean" — "the
+ *     worst of the three because the wrong answer is a CLEAN-LOOKING
+ *     ZERO"), so a real pair-less capture and a wrongly-shaped one are
+ *     indistinguishable from this count alone and neither may read clean.
+ *   `replay.toolsDeltas.length === 0`   — NO-FINDING: pairs replayed fine
+ *     and genuinely none moved tools[] — a real, positive answer, and it
+ *     must not collapse into the same `0/0` a hold renders (design,
+ *     decided: "on a pair with no tools delta it must report no
+ *     tools-stability finding rather than 0/0 rendered as a hold").
+ *   otherwise — MEASURED, the aggregate this replay's `toolsDeltas` gives:
+ *     forwarded-whole-array and shared-name-subset hold counts, plus
+ *     `absorptionMisses` (row 25's own always-on check, riding the same
+ *     replay for free).
+ */
+export function toolsStabilityFromReplay(replay) {
+  if (replay === null) {
+    return { verdict: "SKIPPED",
+             reason: "attribution resolved without a replay (no raw divergence, or no ordinal to " +
+                     "match against a census) — nothing to assess for tools[] stability either" };
+  }
+  if (!replay.ok) {
+    return { verdict: "COULD-NOT-VERIFY", reason: replay.reason };
+  }
+  if (replay.census.pairs === 0) {
+    return { verdict: "COULD-NOT-VERIFY",
+             reason: "the replayed census recorded 0 same-conversation pairs — that reads " +
+                     "identically whether the capture is genuinely pair-less or the wrong " +
+                     "shape/path was replayed (a .json pin fed where JSONL is expected returns " +
+                     "this same clean zero), so it may not be read as a clean pass" };
+  }
+  if (replay.toolsDeltas.length === 0) {
+    return { verdict: "NO-FINDING",
+             reason: "the replayed census produced same-conversation pairs but none moved tools[] " +
+                     "— no tools[] delta to assess in this capture" };
+  }
+  const unstable = replay.toolsDeltas.filter((d) => !d.forwardedStable);
+  const heldUnstable = replay.toolsDeltas.filter((d) => !d.heldStable);
+  return {
+    verdict: "MEASURED",
+    deltas: replay.toolsDeltas.length,
+    toolsOnly: replay.toolsDeltas.filter((d) => d.toolsOnly).length,
+    forwardedWholeArrayHeld: `${replay.toolsDeltas.length - unstable.length}/${replay.toolsDeltas.length}`,
+    sharedNameSubsetHeld: `${replay.toolsDeltas.length - heldUnstable.length}/${replay.toolsDeltas.length}`,
+    absorptionMisses: replay.absorptionMisses.length,
+  };
 }
 
 export async function triage(bust) {
@@ -2282,6 +2403,19 @@ export async function triage(bust) {
   const attribution = await computeAttribution(bust.s, pair, CAPTURES);
   steps.push({ step: "attribution", ok: attribution.verdict !== "COULD-NOT-ATTRIBUTE",
                detail: `${attribution.verdict} — ${attribution.reason}` });
+
+  // Absorption — did the mitigation the eventual disposition names actually
+  // HOLD (BACKLOG "bust-triage names the row but never says whether the
+  // mitigation absorbed")? Computed here, beside attribution, so both share
+  // the one replay `computeAttribution` already fetched — but only ATTACHED
+  // at a return point that actually names a disposition to ask the question
+  // of (the walk-resolved and matrix-row-resolved returns below): KEY-FLIP,
+  // STATUS-UNREADABLE and UNCLASSIFIED each already say, in their own why,
+  // that no row's status describes this pair — asking whether it absorbed
+  // would be a claim about a population this pair was never a member of,
+  // the exact failure this entry exists to remove one level up.
+  const absorption = { d1: await d1RetirementForBust(bust.t, SNAPSHOTS),
+                        toolsStability: toolsStabilityFromReplay(attribution.replay) };
 
   // State-key check (BACKLOG: "bust-triage reports a state-key CHANGE
   // across the pair as its own line"). Read right after `pair` is known so
@@ -2428,7 +2562,7 @@ export async function triage(bust) {
       return { bust, steps, verdict: VERDICT_BY_KIND[kind],
                why: `matrix event walk "${walk.title}" (${kind}): ` +
                     `${walk.reason ?? walk.disposition}`,
-               attribution };
+               attribution, absorption };
     }
   }
   if (rowN === null) {
@@ -2467,7 +2601,7 @@ export async function triage(bust) {
     why: tri.why
       ? `matrix row ${rowN} (${tri.status} — ${tri.why})`
       : `matrix row ${rowN} (${tri.status})`,
-    attribution,
+    attribution, absorption,
   };
 }
 
@@ -2669,6 +2803,28 @@ export function resolveSessionHandle(handle, dir = SESSIONS_DIR) {
            detail: `"${clean}" matches no session in ${dir} (${registry.length} registered)` };
 }
 
+/** The ABSORPTION block's two text lines — `r.absorption`'s CLI rendering. */
+function formatAbsorption(absorption) {
+  const d1 = absorption.d1;
+  const fb = d1.d1OldKeyFallback.hits === null ? "COULD-NOT-VERIFY" : String(d1.d1OldKeyFallback.hits);
+  const nb = d1.d1PostRelocationNoBaseline.count === null
+    ? "COULD-NOT-VERIFY" : String(d1.d1PostRelocationNoBaseline.count);
+  const tp = d1.toolPreload.seeded === null
+    ? "COULD-NOT-VERIFY"
+    : `${d1.toolPreload.seeded}/${d1.toolPreload.announced}/${d1.toolPreload.fallback}`;
+  const d1Line = `D1 retirement (${d1.d1OldKeyFallback.window.sinceUtc}..${d1.d1OldKeyFallback.window.untilUtc}): ` +
+    `old-key-fallback=${fb}, post-relocation-no-baseline=${nb}, preload seeded/announced/fallback=${tp}`;
+
+  const ts = absorption.toolsStability;
+  const tsLine = ts.verdict === "MEASURED"
+    ? `tools[] stability: ${ts.deltas} delta(s) (${ts.toolsOnly} tools-ONLY) — forwarded whole array ` +
+      `held ${ts.forwardedWholeArrayHeld}, shared-name subset held ${ts.sharedNameSubsetHeld}, ` +
+      `absorption misses ${ts.absorptionMisses}`
+    : `tools[] stability: ${ts.verdict} — ${ts.reason}`;
+
+  return `  ABSORPTION:\n    ${d1Line}\n    ${tsLine}\n`;
+}
+
 async function main(argv) {
   const args = argv.slice(2);
   const json = args.includes("--json");
@@ -2806,6 +2962,7 @@ async function main(argv) {
   }
   process.stdout.write(`\n  VERDICT: ${r.verdict}\n  ${r.why}\n`);
   process.stdout.write(`\n  ATTRIBUTION: ${r.attribution.verdict}\n  ${r.attribution.reason}\n`);
+  if (r.absorption) process.stdout.write("\n" + formatAbsorption(r.absorption));
   if (r.verdict === "UNCLASSIFIED") {
     process.stdout.write(
       "\n  An unclassified bust is a NEW CLASS until shown otherwise. Book it as a\n" +
