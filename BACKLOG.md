@@ -4422,6 +4422,63 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-18 (review lens + audit; instruments) — FIVE instruments in
+  this repo failed one class on one day, and the class has a MECHANICAL test.**
+  The test, and it is the point of this entry: **where does the checker's
+  CHECK SET come from, and can the defect it hunts shrink that set?** That is
+  answerable by looking at a guard's wiring, without judging its prose — which
+  is what makes it a lens rather than a mood. The looser parent form ("the
+  output reads wider than its predicate establishes") is a per-case judgment
+  call and does not schedule any work.
+  **The five, each with its disposition:**
+  1. `deferred-tool-rewrite`'s reset reason `tool-schema-changed`, emitted on a
+     branch where the schema scan has ALREADY returned — no schema had moved.
+     FIXED 2026-08-18 (`cdc2b9a`); the surviving branch says
+     `description-delta-with-removal`.
+  2. `bust-triage` printing `ATTRIBUTION: CC's` from the basis "no stability
+     violation for this pair". Stability EXEMPTIONS are excluded from
+     violations by construction, so an exempted pair satisfies it — and the
+     capture's only exemption WAS the busting pair. BOOKED (own entry above).
+  3. `serving-gate-lint`: its verdict holds only for the serving set at the
+     moment it ran, so a run taken before a gate flip says nothing about the
+     gate that flip adds — and both runs print green. FIXED as ship-runbook
+     step 6b. **Strongest exhibit of the class in this repo** (peer's
+     assessment, and it is right: nothing distinguishes the two greens).
+  4. The machine doctor's `replay-bench` FAIL detail, which took the bench's
+     LAST stdout line — "false fires: 0 (fired where the corpus expects
+     silence)" — so every failure rendered inside a success sentence. FIXED in
+     the dotfiles repo.
+  5. `forwardedStable`, a whole-array claim standing where the guarantee covers
+     only the shared-name subset. Previously retired by adding `heldStable`;
+     listed because it is the same shape and shows the class predates today.
+  **THE REPAIR PATTERN, contributed by a peer session on this machine and
+  worth more than the diagnosis:** derive the expectation set from a SECOND,
+  INDEPENDENTLY MAINTAINED source, so the defect cannot drag the check set
+  along with it. Their case: a check that picks its subject from the newest
+  record silently drops any abandoned record the moment a newer one appears —
+  exactly the state it exists to find.
+  **Cross-repo note, stated so nobody re-derives it:** the peer booked the
+  mechanical form on their side; their instances are theirs and are NOT
+  duplicated here, and these five are ours and were not sent there.
+  Named missing evidence: none — the test is stated and the five are
+  dispositioned. What is unbuilt is the SWEEP.
+  Done-criterion: every `tools/` checker that derives a check set at run time
+  has been walked against the test above, each one either shown immune (its
+  set cannot be shrunk by its own quarry) or repaired by the second-source
+  pattern; the walk's result recorded per instrument.
+  **Explicitly NOT to be mechanized as a guard** — "does this verdict overstate
+  its predicate" is judgment-shaped, would over- and under-fire, and would
+  train the override reflex that kills a guard. This is a review lens applied
+  by a human or a dispatched reviewer, not a hook.
+  Consumer: the next session auditing instruments, or writing a new checker
+  that derives its own check set.
+  Loop stage: VERIFY.
+  Anchor: this entry; ship runbook step 6b; the `bust-triage` attribution entry
+  Write-set: `tools/*.mjs` (per-instrument, only where the walk finds a defect)
+  Verifier: the walk's per-instrument record, with at least one instrument
+  shown red-then-green under the second-source pattern
+  <!-- entry: "check-set-derived-at-runtime: five instruments, one mechanical test" -->
+
 - **RECORD 2026-08-18 (MITIGATE stage) — a description delta arriving in the
   SAME request as an addition forces a global reset, and that reset is what
   paid the 448k bust.** `deferred-tool-rewrite.mjs:784-787`: the
