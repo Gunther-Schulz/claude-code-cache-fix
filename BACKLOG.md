@@ -253,7 +253,47 @@ resume the runbook at step 4 — pin bump `git rev-parse --short HEAD:proxy` in
 dotfiles `bootstrap/manifest.py`, restart, step 5's health check, step 6's gate
 run, step 7's three-way compare. Nothing else about the ship is outstanding.
 
-## Handoff — 2026-08-18 afternoon. Rewritten, not appended; a stale one reads as authoritative.
+## Handoff — 2026-08-18 afternoon, with a NIGHT delta at the top. Rewritten, not appended; a stale one reads as authoritative.
+
+**NIGHT DELTA — 2026-08-18, close of session. Read this before the afternoon
+body below, which is still accurate on everything it covers but predates the
+following.** No proxy or tools code changed tonight; the only fork write is
+this file.
+
+- **The ship is still HELD and nothing about it moved.** Pin `5ddf24f` local
+  vs `25c9929` in the dotfiles manifest, fingerprint `c2effc3e1d2e` local vs
+  `7f15d0bc285b` on live `/health` — both MISMATCH, both expected, both
+  clearing at the pin bump + restart per `## SHIP HELD`. A night session
+  verified the divergence is exactly the coalesce-miss work and nothing else.
+- **A session-intake script was proposed, measured, and withdrawn** — the
+  entry at the head of `## Open` carries the design that survived (four
+  collectors on `state-report.mjs`) and the reason a ninth script is not it.
+  Do not re-derive; the entry says so in its own body.
+- **`docs/dev-loop.md`'s cost header was CORRECTED in place (`8866244`), not
+  reverted.** Its earlier claim — that a whole-file read of that file was the
+  single largest context jump of a session — overstated two things: the file
+  returns ~16k tokens on a whole-file Read (the 2000-line cap truncates it,
+  so the header's own ~40k figure never lands in one read), and the 33k jump
+  was that read as DOMINANT COMPONENT, roughly half to two-thirds, not the
+  whole. The section index added earlier that day (`a9d0473`) STAYS; it was
+  kept deliberately after the correction, not overlooked.
+- **A corpus rule shipped in dotfiles (`c054c05`) that binds work in THIS
+  repo:** the discovery tell now counts intake and state verification —
+  checking a handoff's or a booking's claims against the world — and the
+  reading of large local artifacts (transcripts, logs, corpora) as discovery.
+  Both had been escaping it by presenting as grounding discipline. Concretely
+  for a successor here: verifying this handoff's own claims is dispatchable
+  mechanical work; grading what the outcomes mean stays at the desk. That is
+  the corpus's answer to the ~106k this repo's own openings have been costing.
+- **An instrument defect worth inheriting:** transcript analysis that dedupes
+  by API message id, keeping the first record per id, silently drops the
+  majority of `tool_use` blocks — they live in later streaming partials
+  (measured 236 of 354). It reports them as absent and never goes red. The
+  head entry of `## Open` carries the full note.
+- Unchanged and still open exactly as the afternoon body states: the row-31
+  upstream filing (operator GO given, still nothing posted), the resume-key
+  mitigation (design re-derived, build not started), the protect-default and
+  cap-size decision.
 
 The 2026-08-15 handoff is REPLACED. Two of its four "open operator decisions"
 are dead of their own premises and are retired below rather than carried — that
@@ -362,6 +402,51 @@ registered, 0 prunable.
 comment and new issue.
 
 ## Open
+
+- **READY 2026-08-18 (night) — `state-report` answers most of a session's
+  intake already; four collectors close the rest, and the ninth script that
+  was proposed instead is withdrawn.** A session-intake script was proposed
+  this evening on the premise that a session's opening spends ~90-95k on
+  mechanical facts. Both halves of that premise failed. The token half was
+  refuted by re-measurement (see the instrument note below). The redundancy
+  half was found by a read-only discovery lane: `tools/state-report.mjs`
+  ALREADY aggregates the threat-matrix status counts and OPEN/RESIDUAL rows,
+  the backlog READY head, the gate-live verdict subset, the git-tree pin
+  against the dotfiles manifest, the content fingerprint against live
+  `/health`, protected-capture bytes, repo hygiene and lane-branch commit
+  counts — via pure `collect*()` functions feeding one text/`--json`
+  renderer, importing `matrix-status.mjs`, `backlog-lint.mjs`,
+  `gate-live.mjs`, `alias-claim.mjs` and `proxy/source-fingerprint.mjs`
+  rather than re-deriving their invariants. Measured: 45 lines, 2.39 s.
+  **The four genuine gaps**, each a collector in the existing pattern
+  (`{ok, ...}` or `{ok:false, reason}`, one renderer line, one `--json` key):
+  (1) the full `/health` gate and extension listing — the fingerprint
+  collector already fetches `/health` but extracts only `proxy_tree`;
+  (2) `shape-verdicts.mjs` output, currently uncovered;
+  (3) test-suite last-run state — tail of the newest file in
+  `~/.local/state/cache-fix/test-runs/`;
+  (4) raw capture-store size — `~/.local/share/cache-fix/captures`; only the
+  protected sibling directory is measured today.
+  Loop stage: VERIFY (this is instrument coverage, not a mitigation).
+  Write boundary: `tools/state-report.mjs` alone — no new file.
+  Verifier: `node tools/state-report.mjs` and `--json` both emit the four new
+  keys, and the serving-gate lint stays green; done when a session can answer
+  all eight intake facts from one command.
+  Anchor: `tools/state-report.mjs` `collectAll()`/`renderText()`.
+  **Do NOT re-propose a separate intake script without first re-reading this
+  entry** — the discovery lane's full fact-by-fact mechanics (sources, keys,
+  costs, side-effect checks) are preserved with the decomposition record in
+  dotfiles `claude/records/transcript-decomposition-2026-08-18*`; the
+  session scratchpad they were written in is not a carrier and will rotate.
+  **Instrument note, the reusable part:** the ~90-95k premise came from a
+  transcript analysis that deduped by API message id keeping the FIRST record
+  per id. Streaming splits one message across partials and the `tool_use`
+  blocks sit in the LATER ones — measured 236 of 354 blocks discarded, so the
+  instrument saw a third of the session's tool calls and reported the rest as
+  absent. It never went red, because a dropped call and a call that never
+  happened look identical. Any future transcript tooling here inherits this
+  the moment it dedupes that way. Full mechanism and the three instruments:
+  the dotfiles record above; corpus JOURNAL 2026-08-18 carries it too.
 
 - **READY 2026-08-18 (evening, minted by a LIVE bust while the session was
   designing the next mitigation) — the preload's named residue is NOT
