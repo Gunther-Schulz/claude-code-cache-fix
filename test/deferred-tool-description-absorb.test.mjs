@@ -570,6 +570,65 @@ test("CONTROL — pure addition with NO description delta -> byte-for-byte today
   }
 });
 
+// =============================================================================
+// SERVING CONFIG — every onRequest bite above runs with CACHE_FIX_TOOL_PRELOAD
+// UNSET, while the proxy that actually serves this machine has had it ON since
+// 2026-08-18. A suite that only ever drives the gate-off pipeline is green
+// about a pipeline nobody runs, which is the exact shape
+// `tools/serving-gate-lint.mjs` exists to catch — and it caught this file.
+//
+// Provenance of that red, because it is not what it looked like: the finding
+// was NOT introduced by the combined-absorb change committed alongside it. The
+// pre-change file drove the extension and named no gate either; what changed
+// was the SERVING SET — flipping the gate on made a standing gap visible. The
+// lint reads /health, so its verdict is only ever about the serving set at the
+// moment it ran, and a run taken BEFORE a gate flip certifies nothing about the
+// configuration that flip creates.
+//
+// Reach, stated no wider than the bite establishes: this pins that the absorb
+// still fires under the serving gate. It does NOT exercise a PENDING SEED
+// meeting a description delta — the case repaired earlier the same day, where a
+// seeded-but-unarrived name wrongly counted into `heldNames` and disabled the
+// absorb. That needs two conversations (one to learn, one born to seed) and is
+// booked rather than faked here; a bite that merely turned the gate on and
+// asserted the same thing would read like coverage of it.
+test("SERVING — the description absorb still fires with CACHE_FIX_TOOL_PRELOAD on", async () => {
+  const dir = await newTmp();
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "1" }, async () => {
+      const canonical = [tool("Bash", DESC_OLD), tool("Read", "reads a file")];
+      const ctx1 = await runExt(body(canonical), { dir });
+      const forwarded1 = ctx1.body.tools.map((t) => ({ ...t }));
+
+      const ctx2 = await runExt(
+        body([tool("Bash", DESC_NEW), tool("Read", "reads a file")], {
+          messages: [U1, { role: "assistant", content: [{ type: "text", text: "a" }] },
+                     { role: "user", content: [{ type: "text", text: "turn 2" }] }],
+        }),
+        { dir },
+      );
+
+      const events = await readEvents(dir);
+      const last = events[events.length - 1];
+      assert.equal(last.action, "description-absorbed",
+        `gate ON must not turn the absorb into a reset (got ${last.action}/${last.reason ?? "-"})`);
+      assert.deepEqual(last.descriptionChangedNames, ["Bash"]);
+
+      // The whole point of the absorb: the forwarded array does not move.
+      assert.deepEqual(ctx2.body.tools, forwarded1);
+      // ...and the model is told the new prose in-band rather than silently.
+      const notices = announcements(ctx2);
+      assert.equal(notices.length, 1, "exactly one description notice");
+      assert.ok(
+        JSON.stringify(notices[0]).includes("Its parameters are unchanged"),
+        "the notice must be the description-change carrier, not some other system block",
+      );
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 // Keeps the file honest about where it lives.
 test("meta: this file sits beside the extension it pins", () => {
   assert.ok(__dirname.endsWith("test"));

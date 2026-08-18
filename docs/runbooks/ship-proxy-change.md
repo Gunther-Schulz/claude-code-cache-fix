@@ -199,6 +199,26 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    This produces the VERIFIED answer (what the sweep replayed) once it
    finishes; see `docs/runbooks/sweep-finding.md` if it reports a finding.
 
+6b. **Re-run `serving-gate-lint` AFTER the restart, whenever this ship ADDS a
+   gate — a run from before the restart certifies nothing about the gate you
+   just added.**
+   ```sh
+   node tools/serving-gate-lint.mjs   # exit 0, or fix the named file
+   ```
+   The lint derives its serving set from `/health`, so its verdict is only
+   ever about the configuration running at the moment it ran. Turning a gate
+   ON makes every test file that drives that extension without naming the gate
+   newly non-compliant — the gap was always there, the flip is what makes it
+   visible. Run it before the restart and it reads the OLD serving set, passes,
+   and says nothing about the gate this ship exists to add.
+   Measured 2026-08-18, and it reached a push: `CACHE_FIX_TOOL_PRELOAD` went
+   serving in the morning with a pre-restart lint run recorded as exit 0; the
+   finding (`deferred-tool-description-absorb.test.mjs` driving the extension
+   without naming the gate) surfaced only that afternoon, on the next run, and
+   was first misread as a defect in the change that happened to be in flight.
+   `[GRADUATE -> the lint runs from the gate unit, so the sweep re-asks it
+   daily against whatever is serving; BACKLOG.]`
+
 7. **Doctor's three answers agree.** DECLARED (`Environment=` in
    `cache-fix-proxy.service`) / RUNNING (`/health`'s `gates`, from step 5) /
    VERIFIED (`gates` in `cache-fix-gate-status.json`, from step 6) must all
