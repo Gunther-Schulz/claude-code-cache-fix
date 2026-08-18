@@ -114,9 +114,24 @@ export function getProtectedDir() {
 // shape — it has failed twice on this session (born-large refusal, then 65 of
 // 174 member ordinals missing). When that defect is fixed and a small pin
 // replaces this protection, drop this back to 4096.
+//
+// RAISED AGAIN 8192 -> 12288 on 2026-08-18 (operator GO), same bridge, same
+// revert trigger, and the reason is a MEASURED wall rather than a preference:
+// the protected set sat at 7,626 MB of 8,192 with FIVE members and
+// `alias-claim --releasable` reporting NOTHING releasable — every one is cited
+// by a live entry. At 93% the next protection simply fails, and the thing it
+// would fail to hold is whatever evidence the next bust produces, which is
+// exactly when the window is open and short.
+// Priced against the real constraint before choosing the number, because a cap
+// that outruns the disk is the ENOSPC class this repo has already paid for
+// once: `--protect` HARD-LINKS, so a protected capture adds no bytes, and the
+// filesystem holds 1.7 TB free against 9.8 GB of captures and 7.2 GB of
+// protections. The cap is a retention-policy bound, and 12288 matches the
+// bridge value `CACHE_FIX_CAPTURE_MAX_MB` already carries, so the two numbers
+// stop disagreeing about how much history this machine keeps.
 function getProtectedMaxBytes(env = process.env) {
-  const raw = parseInt(env.CACHE_FIX_PROTECTED_MAX_MB ?? "8192", 10);
-  const mb = Number.isFinite(raw) && raw > 0 ? raw : 8192;
+  const raw = parseInt(env.CACHE_FIX_PROTECTED_MAX_MB ?? "12288", 10);
+  const mb = Number.isFinite(raw) && raw > 0 ? raw : 12288;
   return mb * 1024 * 1024;
 }
 

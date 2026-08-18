@@ -363,6 +363,84 @@ comment and new issue.
 
 ## Open
 
+- **READY 2026-08-18 (evening, minted by a LIVE bust while the session was
+  designing the next mitigation) — the preload's named residue is NOT
+  unreachable: the mid-session tools[] additions that bust are DEFERRED MCP
+  tools whose names this machine already knows at session start.** The
+  preload entry states the opposite as settled — "the residue is mid-session MCP
+  arrivals that NO session-start mechanism can reach" — and tonight's 431k bust
+  is the case that refutes it, measured rather than argued.
+  **The event, walked to a disposition (`bust-triage`, 2026-08-18T15:56:17Z,
+  capture `s-captureBV`, protected):** VERDICT KNOWN-OPEN against matrix row 6,
+  ATTRIBUTION **CC's** — computed, not inherited: CC's own raw bytes diverged at
+  index 648 and the replayed census recorded no stability violation for the
+  pair. At the bust instant `deferred-tool-rewrite` classified `rewrite` with
+  **eight new names, every one `mcp__claude-in-chrome__*`** (computer, find,
+  navigate, read_console_messages, read_network_requests, read_page,
+  tabs_context_mcp, tabs_create_mcp), announced them, and held the shared-name
+  subset 20/20 while the whole array moved 0/20. The extension did exactly what
+  it is built to do; the class simply is not covered.
+  **Why this is a mitigation lead and not just a bust record.** Those eight
+  arrived MID-session (the conversation had been running an hour) because
+  ToolSearch loaded them on demand — row 6's own first mechanism, "ToolSearch
+  loading deferred tools". But the SERVER was configured at session start, and
+  its tool names are already in this machine's learned state: the preload store
+  exists and records schemas. A name that is seeded before it arrives is
+  classified as KNOWN when it does, the frozen array is forwarded, and `tools[]`
+  does not move — which is precisely the mechanism that already ships for
+  `SendMessage`.
+  **The safety half is ALREADY MEASURED and does not need re-deriving** — today's
+  live probe against a throwaway proxy settled it with a fabricated name CC can
+  never have registered: the API accepts an unannounced `defer_loading` tool and
+  the model answers ABSENT when asked whether it can see or call it, because the
+  model's loadable view comes from CC's own listing inside `body.messages`, not
+  from `tools[]`. That is the same fence this would rest on.
+  **NAMED MISSING EVIDENCE, and it is a population question rather than a design
+  one:** what share of the residue is configured-server deferred loads (knowable
+  at session start) versus genuinely unpredictable arrivals? The 2026-08-16
+  record measured 126 addition events with 103 `SendMessage`; the other 23 have
+  never been split by that axis. The measurement is a corpus pass over the
+  captures' `deferred-tool-events` files, grouping `newNames` by whether the
+  name's server was present in that session's config at its first request —
+  cheap, and it decides both the ceiling and whether the seed set is per-machine
+  or per-project.
+  **Two design questions the measurement feeds, stated so they are not
+  re-derived:** whether the seed set is machine-wide or scoped to the servers a
+  session actually declares (a machine-wide seed puts tools in the array of
+  sessions that will never see them — stable, so not a bust, but it inflates
+  every prefix), and how a per-project MCP schema difference is handled, since
+  the store is last-writer-wins today.
+  Loop stage: MITIGATE.
+  Anchor: `proxy/extensions/deferred-tool-rewrite.mjs`
+  Write-set: `proxy/extensions/deferred-tool-rewrite.mjs`, `test/deferred-tool-preload.test.mjs`
+  Verifier: a replay of `s-captureBV` under the SERVING gate set where the 15:56 pair classifies as a known-name rewrite with `tools[]` unmoved, against today's 8-name addition as the red arm
+  <!-- entry: "the preload residue is reachable: deferred MCP names are known at session start" -->
+
+- **RECORD 2026-08-18 — `harvest --pin --bounded` failed to reproduce for the
+  THIRD time on a born-large conversation, and its own self-check is what said
+  so.** Tonight's 431k bust: `--pin 1791..1795 --bounded` kept 281 of 1796
+  records and reported `135 of 281 member ordinal(s) missing or placeholder —
+  the fixture is kept but it is NOT evidence for what it was pinned for`. The
+  fixture was deleted rather than committed; a 3,422-record artifact that proves
+  nothing does not belong in public history.
+  **This is the third occurrence and the pattern is now the finding:** born-large
+  refusal (2026-08-18 morning), 65 of 174 ordinals missing (2026-08-16), 135 of
+  281 tonight. The bounded pin's member-selection cannot follow a conversation
+  whose members are interleaved across a long capture, and the tool is honest
+  about it every time — which is why this is a booking rather than a bust.
+  **What kept the evidence anyway, and it is the reusable half:** the capture was
+  PROTECTED (`s-captureBV`) before the pin was attempted, so the raw bytes are
+  off the eviction clock regardless. Protection is the freeze that works today;
+  the pin is the freeze that is committable, and only the first is currently
+  reliable for this shape.
+  Consumer: whoever next works `harvest --pin --bounded`, and the parked row-24
+  entry whose named missing evidence is a frozen born-large pin.
+  Loop stage: SEE.
+  Anchor: `tools/harvest.mjs`
+  Write-set: `tools/harvest.mjs`, `test/harvest-pin-bounded.test.mjs`
+  Verifier: a bounded pin over a born-large capture reproduces its own pair — the self-check that currently refuses
+  <!-- entry: "harvest --pin --bounded fails to reproduce on born-large, third occurrence" -->
+
 - **READY 2026-08-18 (evening) — the proxy records a coalesce HIT and nothing
   at all about a coalesce MISS, so row 31's one surviving post-flip
   double-bill cost a hand walk to attribute and the next one will cost
@@ -1115,7 +1193,7 @@ comment and new issue.
   evidence of a missing stage in the booking path itself).
   <!-- entry: "READY cap blocks at 11 but never names a demotion candidate" -->
 
-- **PARKED 2026-08-16 (was READY; MITIGATE stage) — a resume-tolerant state key: the
+- **READY (re-derived and UN-PARKED 2026-08-18 evening, operator GO to design the next mitigation; MITIGATE stage) 2026-08-16 — a resume-tolerant state key: the
   LINCHPIN that gates every four-layer resume absorption, and the reason the
   tools mitigation we already ship is disarmed at exactly the request that
   needs it.** Booked because matrix row 24 had NO mitigation entry at all,
@@ -1198,6 +1276,92 @@ comment and new issue.
   **F10 (LOW) — nondeterministic tie-break**: `:410` uses strict `>`, and
   `readdir` is unsorted, so equal mtimes make "whose baseline is served" a
   filesystem-order outcome.
+  **RE-DERIVED DESIGN, 2026-08-18 — this is the second named missing piece, now
+  supplied. The first (the F4 scope decision) was discharged when the
+  tools-layer read was split into its own entry on operator GO.**
+  **The mechanism changes shape: the read-time SCAN is dropped entirely and
+  replaced by a save-time LINEAGE INDEX.** F6 is not a slow implementation of a
+  sound design, it is the design being wrong: recovery cannot afford to
+  `readFile` + `JSON.parse` every prefix-matching candidate on the live request
+  path (measured 150 ms vs 2 ms at 649 candidates, blocking the event loop of a
+  proxy fronting every session on this machine), and no amount of ordering the
+  `stat` before the parse fixes a mechanism whose cost grows with a directory
+  nobody bounds.
+  1. **The index.** When insertion-normalization SAVES a canonical it also
+     upserts one row into a per-sid index file beside the canonicals,
+     `<sid>-lineage-index.json`: `{ subKey, file, mtimeMs, n, mode,
+     identityHashes }` — the identity set is what the floors are computed from,
+     so it is STORED rather than re-derived. `mode` is stored because F1 is a
+     mode confusion: a pin-mode canonical's identities carry the `"v:"` prefix
+     by construction and must never be compared against plain ones.
+  2. **Recovery becomes one small read plus one canonical read.** Load the
+     index, score candidates from the stored identity sets, then read exactly
+     ONE canonical — the winner. No candidate parse, no directory walk.
+  3. **F1, one line and it lands with F2 or not at all:**
+     `pin ? computePinnedIdentities(messages) : computeIdentities(messages)`.
+     F1 currently MASKS F2, so fixing it alone arms cross-conversation bleed at
+     full strength. The index's stored `mode` is what makes the comparison
+     checkable rather than remembered.
+  4. **F2 — the index row carries the system SUB-KEY and matching REQUIRES it.**
+     `s-<sid>-` alone crosses the boundary row 14 exists because co-tenants
+     under one session id overwrote each other. This is the same fence, applied
+     at the index rather than at a filename prefix.
+  5. **F3 — selection is by BEST FIT, not by recency.** Among candidates passing
+     the floors, prefer the one whose message count is closest to the incoming
+     count without exceeding it; a fork/subagent superset (the harness produces
+     these routinely) therefore loses to the thread's own predecessor even when
+     it is newer. mtime is a tie-break, never the ranking.
+  6. **F5 — the dead gate goes, and its arithmetic is recorded where it died.**
+     `lineageCoverage` divides by max and `lineageOverlap` by min, so coverage
+     >= floor IMPLIES overlap >= floor and the documented two-gate design is one
+     live gate. Keep ONE stated floor. Deleting the redundant test is not a
+     relaxation, and the comment says why, so a later lowering of the floor
+     cannot silently leave a dead guard as the only fence.
+  7. **F9 — the floor gains an ABSOLUTE minimum:** at least 3 shared identities,
+     because two 2-message conversations sharing one admit at exactly 0.500 and
+     a ratio alone cannot express "too small to mean anything".
+  8. **F8 — compaction-shaped input is REFUSED explicitly**, by a predicate
+     rather than by the accident of size that keeps it out today. This entry's
+     own sibling enumeration says the safety argument reaches resume and does
+     NOT reach compaction; an accident is not a fence.
+  9. **F10 — deterministic order:** candidates sort by `(score, n, subKey)`,
+     never by `readdir` order, so "whose baseline is served" stops being a
+     filesystem outcome.
+  10. **F7 — the counter gates on `insertionScanned`**, which is already computed
+     and unused, not on `filesScanned`; and it ships with the bite whose absence
+     `grep -rn d1LineageRecovered test/` -> 0 already proved.
+  **CARRIER REGISTRATION, and it is a build obligation rather than a nicety
+  (dev-loop closing gate, question 4):** the index is a NEW persistent state
+  carrier — it outlives the run and nothing is scheduled to look at it. It ships
+  with a collector in `state-report` (count, total bytes, oldest/newest row,
+  and rows whose canonical file no longer exists) in the SAME change, or the
+  mechanism is unfinished.
+  **What the index also buys, stated because it is the argument for preferring
+  it over a faster scan:** a stale row is detectable (its canonical is gone) and
+  the index is bounded per sid, so the pathology F6 measured — cost growing with
+  a directory nobody bounds — cannot recur in the same shape.
+  **THE PREVIOUS IMPLEMENTATION IS NOT THE STARTING POINT.** Four commits sit on
+  `wip/resume-key-third-read` (`c051d7d`..`1d0bfe2`) and they implement the
+  SCAN. They stay as the record of what was measured; the build starts from this
+  design. That is also what resolves the serving-gate-lint wiring entry, whose
+  named blocker is this branch's disposition: the branch does not land in its
+  current form.
+  **Red-first, and the two that matter are the ones the previous round did not
+  have.** (a) F2's cross-conversation bleed, reproduced first: conversation B's
+  outgoing body carrying nine of A's messages under the OLD code, and B's own
+  under the new — the review demonstrated exactly this, so the arrangement
+  exists. (b) The COST arm, because F6 is why the design changed: recovery over
+  a sid holding hundreds of canonicals must be a small constant, measured, with
+  the old scan's number quoted beside it — an assertion that only checks
+  correctness would pass the design that had to be abandoned. Plus one arm per
+  finding above, each red against the current implementation.
+  **Done-criterion, NARROWED per F4 and unchanged by this re-derivation:** the
+  CANONICAL resolves across a resume boundary (insertion-normalization reports a
+  recovered baseline instead of `no-baseline`), measured on a real capture. The
+  tools-layer half — the 38.9 kB span — is its own entry and is NOT claimed here.
+  **Ship discipline: deployment-coupled and it touches state KEYS**, so unlike
+  tonight's observational change it owes row 3's declaration BEFORE the restart,
+  and the restart is priced against live sessions with `restart-exposure`.
   **UNTESTED INPUT CLASSES, named so the next round does not re-derive them:**
   pin mode; `sid` null (the header-less `c-` path returns early, so direct-API
   traffic never recovers); sids that sanitize to the same string; unreadable
