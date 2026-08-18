@@ -191,6 +191,47 @@ row 31's own entry records why attribution of a streaming-path regression must
 stay unambiguous. The ship-runbook A/B step that led the seventh derivation's
 residue CLOSED during this derivation (`50c331c`) and is in `## Done`.
 
+## SHIP HELD — the coalesce-miss record is BUILT and PUSHED, the deployment half is not
+
+**State, 2026-08-18 evening.** Fork `main` carries the change
+(`dc11012` + `f491b0f`, suite green at each). The RUNNING proxy does not: no pin
+bump in dotfiles, no restart. That is a decision taken at the ship runbook's own
+step 2, not an omission, and the deployment triple therefore still agrees on the
+PREVIOUS tree — `CACHE_FIX_PROXY_TREE_PIN` is unchanged on purpose, so `doctor`
+stays green rather than reporting a mismatch nobody chose.
+
+**Why held, with the number the step asks for.** `node tools/restart-exposure.mjs
+--window-min 60` reported **7 live sessions, worst case ~1,112k tokens**, three of
+them large and active within the same minute (601, 846 and 604 messages). The
+runbook calls a non-trivial number here "a decision point (restart now vs. wait
+for a quieter window), not a step to note and proceed past". The change is
+OBSERVATIONAL — it writes a record and forwards nothing differently — so it buys
+exactly nothing until the next coalesce miss occurs, while a restart during three
+large live sessions risks a class this repo has measured busting once in three
+restarts. Waiting costs the value of one missed record; not waiting risks a real
+rebill. That asymmetry is the whole argument.
+
+**Steps already discharged, so the next session does not redo them:**
+- Step 1, row-3 declaration: NOT owed. No state KEYS, no freeze logic; the two
+  maps are per-process and already were, and no extension mutates the body.
+- Step 1b, the A/B verdict tool, on its first real use since the step landed:
+  `node tools/verdict-ab.mjs dc11012^ .` -> exit 2, `COULD NOT VERIFY — 0 of 3228
+  verdict lines could exercise the changed code`. That is the EXPECTED answer for
+  a change outside `EXT` and says nothing about this ship's safety, exactly as the
+  step's own text says to read it.
+- Step 2b, the skip gauge: silent-failure NO (the record's absence is itself
+  readable — a double-billed streak with no miss record is the other case), blast
+  radius YES. Fewer than both noes, so no fresh-context review gate; stated rather
+  than skipped.
+- Step 3, commit + push: done.
+
+**TRIGGER TO FINISH IT, computable rather than remembered:** run
+`node tools/restart-exposure.mjs --window-min 60` again; when no session with more
+than 100 messages has been active in that window (or on operator GO regardless),
+resume the runbook at step 4 — pin bump `git rev-parse --short HEAD:proxy` in
+dotfiles `bootstrap/manifest.py`, restart, step 5's health check, step 6's gate
+run, step 7's three-way compare. Nothing else about the ship is outstanding.
+
 ## Handoff — 2026-08-18 afternoon. Rewritten, not appended; a stale one reads as authoritative.
 
 The 2026-08-15 handoff is REPLACED. Two of its four "open operator decisions"
