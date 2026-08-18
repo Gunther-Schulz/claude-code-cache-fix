@@ -1313,12 +1313,16 @@ test("preload END-TO-END: learn, seed a NEW conversation, hold tools[] byte-stab
         assert.deepEqual(store.tools.SendMessage.tool, sm, "learned CC's own bytes, verbatim");
 
         // --- SEED. A different conversation, born after the store was
-        // learned, whose incoming array does NOT carry SendMessage.
+        // learned, whose incoming array does NOT carry SendMessage. The
+        // opening request carries the user turn AND a system-role block CC
+        // writes itself — the shape 36 of 50 measured conversations have, not
+        // the one-message body a harness finds convenient.
         const headers = { "x-claude-code-session-id": "sess-preload-seeded" };
         const first = { role: "user", content: [{ type: "text", text: "seeded turn 1" }] };
+        const ccSystem = { role: "system", content: [{ type: "text", text: "CC's own deferred-tool listing" }] };
         const body1 = {
           system: [],
-          messages: [first],
+          messages: [first, ccSystem],
           model: "claude-opus-5",
           tools: [tool("Read"), tool("Bash")],
         };
@@ -1334,7 +1338,11 @@ test("preload END-TO-END: learn, seed a NEW conversation, hold tools[] byte-stab
         // NO announcement at seed time. This half is SAFETY, not cache: an
         // unannounced deferred tool is not loadable, which is what stops the
         // model calling a tool CC does not yet know it has.
-        assert.equal(ctx1.body.messages.length, 1, "no tool_addition message injected at seed time");
+        assert.deepEqual(
+          ctx1.body.messages,
+          [first, ccSystem],
+          "no tool_addition message injected at seed time — messages[] goes out exactly as it came in",
+        );
         assert.match(headers["anthropic-beta"] ?? "", /mid-conversation-tool-changes/,
           "defer_loading is beta-gated, so the header rides with the seed");
         const wire1 = structuredClone(ctx1.body.tools);
@@ -1894,6 +1902,84 @@ test("preload FORWARDING: the pending marker survives the unchanged branch, requ
         assert.deepEqual(ctx.body.tools, wire1, `turn ${turn}: byte-stable, marker and all`);
         assert.equal(ctx.meta.deferredToolRewriteStats.preloadPending, 1);
       }
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// BIRTH vs ROTATION — the discriminator the corpus hands us, replacing the
+// message-COUNT guard that shipped in 3eff617 and never seeded on real
+// traffic. Measured over 6 live captures, 3,189 tool-carrying requests, 50
+// conversations grouped by conversationSubKey (imported, never re-derived):
+// the first observed request carries 2 messages in 36 of them, 1 in 2, and 4+
+// in 12 — so a `messages.length <= 1` guard would have refused 48 of 50.
+// Split by structure instead, and the split is clean with zero overlap:
+//   no assistant message : 38 conversations, roles user/system (36) or user
+//                          (2) — CC's own system-role block, read from
+//                          PRE-pipeline captures, so not one of ours
+//   an assistant message : 12 conversations, 4 to 459 messages
+// A conversation at BIRTH has no assistant turn; a mid-conversation key
+// rotation always has one. That is the property the guard is about.
+//
+// THE TWO ARMS MUST DIFFER, and they run against the same implementation.
+test("preload BIRTH vs ROTATION: the realistic first request seeds, a rotation mid-conversation does not", async () => {
+  const dir = await newTmp();
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "1" }, async () => {
+      await runExt(
+        {
+          system: [],
+          messages: [{ role: "user", content: [{ type: "text", text: "teacher" }] }],
+          model: "claude-opus-5",
+          tools: [tool("Read"), sendMessageTool()],
+        },
+        { headers: { "x-claude-code-session-id": "sess-birth-teacher" }, dir },
+      );
+
+      // ARM A — BIRTH, in the shape real traffic actually produces: the user
+      // turn that opened the conversation plus CC's own system-role message.
+      const birth = [
+        { role: "user", content: [{ type: "text", text: "opening turn" }] },
+        { role: "system", content: [{ type: "text", text: "CC's own deferred-tool listing" }] },
+      ];
+      const a = await runExt(
+        { system: [], messages: structuredClone(birth), model: "claude-opus-5", tools: [tool("Read"), tool("Bash")] },
+        { headers: { "x-claude-code-session-id": "sess-birth" }, dir },
+      );
+      assert.equal(a.meta.deferredToolRewriteStats.action, "no-baseline");
+      assert.deepEqual(
+        a.meta.deferredToolRewriteStats.preloadSeeded,
+        ["SendMessage"],
+        "the two-message opening request is a BIRTH and must seed — a count guard of 1 refuses it, which is 48 of 50 real conversations",
+      );
+      assert.deepEqual(a.body.tools.map((t) => t.name), ["Read", "Bash", "SendMessage"]);
+
+      // ARM B — the ROTATION case, same implementation: an assistant turn is
+      // already in the history, so this is a live conversation whose state key
+      // moved, and it must be refused however few messages it carries.
+      const rotated = [
+        { role: "user", content: [{ type: "text", text: "opening turn (re-read)" }] },
+        { role: "assistant", content: [{ type: "text", text: "a" }] },
+        { role: "user", content: [{ type: "text", text: "turn 2" }] },
+      ];
+      const b = await runExt(
+        { system: [], messages: structuredClone(rotated), model: "claude-opus-5", tools: [tool("Read"), tool("Bash")] },
+        { headers: { "x-claude-code-session-id": "sess-rotation" }, dir },
+      );
+      assert.equal(b.meta.deferredToolRewriteStats.action, "no-baseline", "arrangement: this really is a fresh state file");
+      assert.deepEqual(
+        b.meta.deferredToolRewriteStats.preloadSeeded,
+        [],
+        "an assistant turn already in the history means this conversation was not born here",
+      );
+      assert.deepEqual(b.body.tools, [tool("Read"), tool("Bash")], "the live conversation's tools[] does not move");
+
+      assert.notDeepEqual(
+        a.meta.deferredToolRewriteStats.preloadSeeded,
+        b.meta.deferredToolRewriteStats.preloadSeeded,
+        "the two arms must DIFFER, or the guard discriminates nothing",
+      );
     });
   } finally {
     await rm(dir, { recursive: true, force: true });

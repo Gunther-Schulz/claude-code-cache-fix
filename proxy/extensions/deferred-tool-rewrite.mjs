@@ -156,10 +156,21 @@
 // conversation classify `no-baseline`. Seeding there retrofits a running
 // session's tools[] — measured 8 tools -> 9 — which is the ship-time hazard
 // above, arriving through the back door. So the seed additionally requires the
-// request's own history to be a conversation's first (PRELOAD_MAX_SEED_MESSAGES).
-// The two failure directions are deliberately asymmetric: too strict seeds
-// nothing, which is exactly today's behaviour and busts nobody; too loose busts
-// a live session.
+// request's own history to show that nothing has been answered here yet
+// (isConversationBirth).
+//
+// CORRECTED 2026-08-18, same day, and the correction is worth keeping because
+// the wrong version SILENTLY DISABLED this whole mitigation while every bite
+// passed. That version admitted at most ONE message, on the stated reasoning
+// that "Claude Code's first request in a conversation carries exactly the user
+// turn that opened it". That is a claim about CC, so the corpus answers it, and
+// it is false: over 6 live captures (3,189 tool-carrying requests, 50
+// conversations by conversationSubKey) the first observed request carries TWO
+// messages in 36, one in 2, and 4+ in 12 — the guard would have refused 48 of
+// 50 real conversations, and the bites all passed because they drive
+// one-message bodies, a shape real traffic barely produces. The replacement is
+// structural rather than a re-tuned number, because a number nobody can
+// re-justify is what survives into the next reader's model.
 //
 // MODEL GATE, same opt-in stance as the announcement: seed only for a model on
 // TOOL_ADDITION_MODELS. A preloaded tool that can never be announced is a tool
@@ -385,13 +396,28 @@ export function preloadNames(env = process.env) {
 // adoption) — one entry's bytes, not a reset.
 export const PRELOAD_RELEARN_MS = 60 * 60 * 1000;
 
-// How deep a conversation may be and still be seeded. The seed is legal at a
-// conversation's BIRTH and nowhere else (header, SEEDING IS NEVER
-// RETROFITTED), and `no-baseline` does not establish birth — a mid-conversation
-// key rotation produces it at turn 7. One message is the opening request and
-// nothing else: Claude Code's first request in a conversation carries exactly
-// the user turn that opened it.
-export const PRELOAD_MAX_SEED_MESSAGES = 1;
+// IS THIS CONVERSATION BEING BORN? The seed is legal at birth and nowhere else
+// (header, SEEDING IS NEVER RETROFITTED), and `no-baseline` does not establish
+// birth — a mid-conversation key rotation produces it at turn 7.
+//
+// The test is STRUCTURAL, and a message COUNT was the wrong instrument: the
+// first version of this guard admitted one message only, on the reasoning that
+// a first request carries just the user turn that opened it. Measured over 6
+// live captures — 3,189 tool-carrying requests, 50 conversations grouped by
+// conversationSubKey — that is false, and the guard would have refused 48 of
+// the 50: the first observed request carries TWO messages in 36 of them (the
+// user turn plus a system-role block Claude Code writes itself; read from
+// PRE-pipeline captures, so not one of ours), one in 2, and 4 or more in 12.
+//
+// The same measurement hands over the real discriminator, with no overlap
+// between the populations: every conversation whose first request has no
+// ASSISTANT turn carries 1-2 messages, and every one that has an assistant
+// turn carries 4 to 459. An exchange that has already been answered was not
+// born on this request, whatever the state file says — which is precisely what
+// the rotation case is. So: no assistant message, no prior turn, birth.
+export function isConversationBirth(messages) {
+  return Array.isArray(messages) && !messages.some((m) => m?.role === "assistant");
+}
 
 // ONE file for the whole machine, NOT per session key. The name deliberately
 // carries no `<key>-` prefix: prefix-diff's SNAPSHOT_FILE_RE is anchored to
@@ -1125,11 +1151,10 @@ export default {
         // that has been measured rotating mid-conversation (s-captureAB,
         // n=331->336), which makes turn 7 of a live session classify
         // `no-baseline` and seed into it — wire 8 tools -> 9. So the request's
-        // own history has to say "first turn" as well. Erring strict costs a
-        // seed (today's behaviour); erring loose busts a running session.
-        const freshConversation =
-          Array.isArray(body.messages) && body.messages.length <= PRELOAD_MAX_SEED_MESSAGES;
-        if (result.action === "no-baseline" && announceOk && freshConversation) {
+        // own history has to say that nothing has been answered here yet:
+        // isConversationBirth, which carries the measurement behind the test
+        // and the reason it is structural rather than a message count.
+        if (result.action === "no-baseline" && announceOk && isConversationBirth(body.messages)) {
           const seeds = preloadSeedTools(incomingTools, store, wantPreload);
           if (seeds.length > 0) {
             preloadSeeded = seeds.map((t) => t.name);
