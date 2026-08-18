@@ -160,6 +160,16 @@ zeroes were unfounded and were re-run pinned (21 anchor-moved entries became
 24). The correction reached the anchor-lint lane mid-flight with a third bite
 attached to it.
 
+**LAP CLOSURE, same evening — two of the six are already in `## Done`, and the
+numbering below is what was DERIVED, not what is left.** Head #5 (the
+anchor-moved lint) shipped `935d216`/`5a557ce` and closed; the ship-runbook A/B
+step that was the seventh derivation's residue shipped `fb99920`/`50c331c`. Head
+#4 (`harvest --pin`) is built and back with its lane for one narrowing — the
+chase was scoped 0..m and swept 90 unrelated outcome records into a public
+fixture, so it is being re-scoped to n..m before integration. Nothing here
+re-ranks: a lap closure records what left, and the NINTH derivation is what
+re-orders.
+
 **LANE JOIN over the entries' write-boundary slots — derived from the
 `Write-set:` lines, not composed by hand:**
 
@@ -342,9 +352,10 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs test/coalesce-record.test.mjs
   <!-- entry: "proxy records coalesce hits but never coalesce misses" -->
 
-- **READY (promoted 2026-08-18, EIGHTH derivation — the resume-key mitigation it
-  was ranked behind is PARKED, so this is the highest operator-ranked available
-  item; head #2, bundled into one lane with the OOM entry below) 2026-08-16 — `boundary-layers --at` picks a request by NEAREST timestamp,
+- **READY 2026-08-16 (promoted 2026-08-18, EIGHTH derivation — the resume-key
+  mitigation it was ranked behind is PARKED, so this is the highest
+  operator-ranked available item; head #2, bundled into one lane with the OOM
+  entry below) — `boundary-layers --at` picks a request by NEAREST timestamp,
   so second-precision silently selects a DIFFERENT conversation and prints a
   complete, plausible, wrong anatomy.** Measured today at the desk: walking the
   07:37:39Z bust with `--at 2026-08-16T07:37:39Z` resolved to the request at
@@ -372,10 +383,10 @@ comment and new issue.
   Verifier: a fixture with two conversations whose requests interleave inside one second — `--at` at second precision must report AMBIGUOUS and name both, and must not silently pick one
   <!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
 
-- **READY (promoted 2026-08-18, EIGHTH derivation; head #3, rides the `--at`
-  lane above — same realizing file, separate red-first arrangements. THE LANE
-  MEASURES, IT DOES NOT REPAIR: the streaming-vs-declared-cap decision returns
-  to the desk, per this entry's own "only then decide") 2026-08-16 — `boundary-layers` OOMs at a
+- **READY 2026-08-16 (promoted 2026-08-18, EIGHTH derivation; head #3, rides the
+  `--at` lane above — same realizing file, separate red-first arrangements. THE
+  LANE MEASURES, IT DOES NOT REPAIR: the streaming-vs-declared-cap decision
+  returns to the desk, per this entry's own "only then decide") — `boundary-layers` OOMs at a
   4 GB heap on a live capture and the capture grows quadratically, so the
   instrument's reach shrinks while the events worth walking get bigger.**
   Measured today: `--max-old-space-size=4096` died `FATAL ERROR: Ineffective
@@ -446,60 +457,7 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/harvest-pin.test.mjs test/harvest-pin-verify.test.mjs
   <!-- entry: "harvest --pin excludes the pinned pair's own outcome records" -->
 
-- **READY 2026-08-18 — a READY entry whose ANCHOR file moved after the entry's
-  booking date is a staleness candidate, and nothing reads that today.**
-  Measured, not anticipated: the seventh derivation ranked "push scan diffs
-  range ENDPOINTS" **head #1** on 2026-08-18, and the work had shipped in
-  `f228720` on 2026-08-14 — four days earlier, in the entry's own Anchor file.
-  A second entry on the same lane ("hygiene policy is silent on conversation
-  content") was half-overtaken the same way. Both were found by the dispatched
-  lanes' premise check, in minutes, by opening the Anchor.
-  **The mechanism, stated so it is not mistaken for carelessness:** a
-  derivation re-reads each entry's REASONING, which stays intact — what
-  refutes it is a commit made by a different piece of work that never reads
-  the entry, so nobody holds both halves at once and the staleness rule cannot
-  fire on its own. That is exactly the shape a computed input dissolves: the
-  comparison is two dates and a `git log`, and it is the DELIVERY of the input
-  to the judgment that is mechanizable, never the judgment.
-  Design, decided: a new WARN-only lane `lintAnchorMoved(text, env)` in
-  `tools/backlog-lint.mjs`, beside the existing `lintReadyBar` (same entry
-  walk, same finding shape `{line, title, label, token, proof}`). For each
-  READY entry in `## Open`: take the booking date from the header
-  (`READY YYYY-MM-DD`, the same token the census already reads) and the path
-  from the `Anchor:` line, then run
-  `git log --format=%h --since=<date> -- <anchor>`. Non-empty -> label
-  `ANCHOR-MOVED`, token the anchor path, proof the short SHAs (capped at 3
-  plus a count). THREE answers, never two: a header carrying no date, a `row N`
-  anchor, or a git invocation that fails -> `ANCHOR-UNCHECKABLE` with the
-  reason as proof — an entry that cannot be checked must not read as an entry
-  that passed.
-  **WARN-only on purpose, and this is the load-bearing decision:** a commit
-  touching the anchor does NOT prove the entry stale (the file has many
-  reasons to move), so the predicate is judgment-shaped and blocking on it
-  would fire on legitimate work and train the override reflex. It reports; the
-  derivation decides.
-  Consumer, named because a lint nobody reads is decoration: the default
-  `backlog-lint` run, which the session-start banner and the pre-push hook
-  already surface — PLUS one sentence in `docs/dev-loop.md`'s build-order
-  procedure making the lane's output a required read AT DERIVATION TIME, which
-  is the moment that actually failed here.
-  Red-first, both arms drawn from real history rather than planted: (a) the
-  closed entry above, replayed from `git show` of this file at a commit where
-  it was still READY with its 2026-08-11 header and `tools/absence-scan.mjs`
-  anchor, must produce `ANCHOR-MOVED` naming `f228720`; (b) a READY entry whose
-  anchor has NO commits since its booking date must produce nothing at all —
-  without arm (b) a lane that fires on everything passes arm (a).
-  Done: both arms pasted, the lane wired into the default run and its labels
-  registered like the other lanes', the dev-loop sentence landed, and the full
-  suite green; this entry moves to `## Done` with its ref.
-  Loop stage: MITIGATE (the instrument half).
-  Anchor: tools/backlog-lint.mjs
-  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs,
-  docs/dev-loop.md
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
-  <!-- entry: "READY entry whose anchor moved after its booking date" -->
-
-- **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — `_resetRelocationMemory` cannot evict the memory
+- **READY 2026-08-11 (evening; promoted 2026-08-15, sixth derivation) — `_resetRelocationMemory` cannot evict the memory
   the running pipeline uses, so its name promises an eviction it does not
   perform.** Found by the row-30 eviction lane PROBING the premise before
   building on it, which is the only reason the bite it was building is not
@@ -10819,6 +10777,94 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-18 — a READY entry whose ANCHOR moved after its booking date is
+  now FLAGGED at derivation time. Built `935d216` (lane `sonnet-anchor-lint`),
+  integrated `5a557ce`.** WARN-only `lintAnchorMoved` in `tools/backlog-lint.mjs`,
+  wired into the DEFAULT run (so the session-start banner and the pre-push hook
+  both surface it), three answers as designed — ANCHOR-MOVED / ANCHOR-UNCHECKABLE
+  / silent — plus the required sentence in `docs/dev-loop.md`'s build-order
+  procedure making its output a required read AT DERIVATION TIME.
+  **Verified at the desk, not booked from the report:** `test/backlog-lint.test.mjs`
+  184/184, and the lane run over the live file. The lane's own red-first was the
+  new bites against the old tool (13 fail / 171 pre-existing pass, then 184/184).
+  **IT EARNED ITS KEEP INSIDE THE HOUR, twice, which is the part worth keeping.**
+  (1) Its first live run reported ANCHOR-UNCHECKABLE on three entries — including
+  two this derivation had just promoted — because a `READY (promoted …) <date>`
+  header does not carry the date where the census reads it. That is the
+  three-answer discipline paying off immediately: the entries were not passing,
+  they were unreadable, and the lint said so instead of staying silent. Headers
+  fixed; the same run then reported four honest ANCHOR-MOVED findings.
+  (2) One of those four was head #6, `_resetRelocationMemory`, whose anchor moved
+  in `03398e3` after its booking — the exact shape that made the SEVENTH
+  derivation rank an already-shipped item first. Checked against the world in one
+  command rather than a lap: `03398e3` is row 30's content-loss fix and its diff
+  touches no memory helper, so the entry's premise stands. The lane reports, the
+  derivation decides — as its own WARN-only design says.
+  **The lane also found, independently and before my correction reached it, that
+  a bare `git log --since=<date>` is not midnight** — the same defect this desk
+  measured in its own promotion survey the same hour. Two independent
+  measurements of one quantity agreeing is what makes it a tool property rather
+  than an author's slip; the fix (`--since=<date>T00:00:00`) is in the lane and
+  the fact is now in `docs/dev-loop.md`'s standing rules.
+  **One deviation, accepted and better than the brief:** the SHA proof is capped
+  OLDEST-first, not newest-first, so a finding's stated proof does not silently
+  rewrite itself as more commits accrue.
+
+  <!-- moved from `## Open` at closure; body verbatim -->
+
+- **[CLOSED — moved verbatim from `## Open` 2026-08-18; graded by the DONE entry above, not by this header] was-READY 2026-08-18 — a READY entry whose ANCHOR file moved after the entry's
+  booking date is a staleness candidate, and nothing reads that today.**
+  Measured, not anticipated: the seventh derivation ranked "push scan diffs
+  range ENDPOINTS" **head #1** on 2026-08-18, and the work had shipped in
+  `f228720` on 2026-08-14 — four days earlier, in the entry's own Anchor file.
+  A second entry on the same lane ("hygiene policy is silent on conversation
+  content") was half-overtaken the same way. Both were found by the dispatched
+  lanes' premise check, in minutes, by opening the Anchor.
+  **The mechanism, stated so it is not mistaken for carelessness:** a
+  derivation re-reads each entry's REASONING, which stays intact — what
+  refutes it is a commit made by a different piece of work that never reads
+  the entry, so nobody holds both halves at once and the staleness rule cannot
+  fire on its own. That is exactly the shape a computed input dissolves: the
+  comparison is two dates and a `git log`, and it is the DELIVERY of the input
+  to the judgment that is mechanizable, never the judgment.
+  Design, decided: a new WARN-only lane `lintAnchorMoved(text, env)` in
+  `tools/backlog-lint.mjs`, beside the existing `lintReadyBar` (same entry
+  walk, same finding shape `{line, title, label, token, proof}`). For each
+  READY entry in `## Open`: take the booking date from the header
+  (`READY YYYY-MM-DD`, the same token the census already reads) and the path
+  from the `Anchor:` line, then run
+  `git log --format=%h --since=<date> -- <anchor>`. Non-empty -> label
+  `ANCHOR-MOVED`, token the anchor path, proof the short SHAs (capped at 3
+  plus a count). THREE answers, never two: a header carrying no date, a `row N`
+  anchor, or a git invocation that fails -> `ANCHOR-UNCHECKABLE` with the
+  reason as proof — an entry that cannot be checked must not read as an entry
+  that passed.
+  **WARN-only on purpose, and this is the load-bearing decision:** a commit
+  touching the anchor does NOT prove the entry stale (the file has many
+  reasons to move), so the predicate is judgment-shaped and blocking on it
+  would fire on legitimate work and train the override reflex. It reports; the
+  derivation decides.
+  Consumer, named because a lint nobody reads is decoration: the default
+  `backlog-lint` run, which the session-start banner and the pre-push hook
+  already surface — PLUS one sentence in `docs/dev-loop.md`'s build-order
+  procedure making the lane's output a required read AT DERIVATION TIME, which
+  is the moment that actually failed here.
+  Red-first, both arms drawn from real history rather than planted: (a) the
+  closed entry above, replayed from `git show` of this file at a commit where
+  it was still READY with its 2026-08-11 header and `tools/absence-scan.mjs`
+  anchor, must produce `ANCHOR-MOVED` naming `f228720`; (b) a READY entry whose
+  anchor has NO commits since its booking date must produce nothing at all —
+  without arm (b) a lane that fires on everything passes arm (a).
+  Done: both arms pasted, the lane wired into the default run and its labels
+  registered like the other lanes', the dev-loop sentence landed, and the full
+  suite green; this entry moves to `## Done` with its ref.
+  Loop stage: MITIGATE (the instrument half).
+  Anchor: tools/backlog-lint.mjs
+  Write-set: tools/backlog-lint.mjs, test/backlog-lint.test.mjs,
+  docs/dev-loop.md
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
+  <!-- entry: "READY entry whose anchor moved after its booking date" -->
 
 - **DONE 2026-08-18 — the ship runbook names the A/B verdict tool and states its
   expected silence. Built `fb99920` (lane `sonnet-runbook-ab`), integrated

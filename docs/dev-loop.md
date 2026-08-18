@@ -854,6 +854,24 @@ deltas on one corpus, never as a verdict.
 commit in the same repo makes it block on `index.lock` — once observed as a
 600-second hang that looked like a hung test.
 
+**`git log --since=<YYYY-MM-DD>` does NOT mean midnight, and the wrong answer is
+shaped exactly like the right one.** Git's approxidate attaches the CURRENT
+CLOCK TIME to a bare date — past or present — so a bare `--since` silently drops
+every commit made earlier that same calendar day, and the same check returns a
+different answer depending on the hour it runs. Measured 2026-08-18, three arms
+on one anchor: `git log --since=2026-08-16 -- tools/boundary-layers.mjs`
+returned NOTHING, `--since="2026-08-16 00:00"` returned `a644022 df83937`, and
+`a644022`'s own committer date is 2026-08-16 10:22:22 +0200. It bit twice inside
+one hour — in the eighth derivation's promotion survey and, independently, in
+the anchor-staleness lane being built beside it — which is what makes it a
+property of the tool rather than of one author. Pin the bound:
+`--since=<date>T00:00:00`. A window whose lower edge moves with the wall clock
+is an unpinned PREMISE inside an instrument, which is the class this file's own
+rules collect; the audit run the same day found the repo's only other git
+`--since` call site already passing a full ISO instant
+(`tools/named-unbooked-scan.mjs:411`), and that call is the positive control
+proving the search reached git call sites at all.
+
 **A failure count that swings by hundreds between runs of ONE commit indicts
 the environment — and the first thing to check is DISK.** Measured 2026-08-08:
 five consecutive runs of one commit returned **0, 3, 95, 525, 528** failures,
