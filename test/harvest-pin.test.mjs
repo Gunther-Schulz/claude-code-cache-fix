@@ -219,6 +219,281 @@ test("readPinnedFixture: yields [n, line] tuples whose parsed records match what
 });
 
 // =====================================================================
+// pinRange's own outcome records — BACKLOG.md "harvest --pin excludes
+// the pinned pair's own outcome records"
+// =====================================================================
+//
+// The proxy writes a request's OUTCOME only once the response completes,
+// which can land in the capture file after later requests' own lines — so
+// breaking out of the read loop the instant ordinal m is pushed excluded
+// exactly the evidence a pin is usually taken FOR (a billing or coalescing
+// claim, which lives only in the outcome/coalesced records). These bites
+// pin THROUGH the request that used to be the truncation point and check
+// what shows up after it, never through a LATER request standing in for
+// the fix (the old workaround this entry retires).
+
+const KEY2_TOKEN = `s-${createHash("sha256").update("s-late0000").digest("hex").slice(0, 12)}`;
+
+// A capture whose pinned range's own outcome for the LAST pinned request
+// (m=1) arrives after an unrelated filler line — proving the lookahead
+// resolves it without absorbing the filler as an extra request record.
+async function writeCaptureWithLateOutcome(dir) {
+  const path = join(dir, "s-late0000-requests.jsonl");
+  const lines = [
+    JSON.stringify({ ts: "2026-01-01T00:00:00Z", type: "boot", pid: 1, proxyTree: "abc123", gates: { X: "1" } }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01Z",
+      id: "req-0",
+      sid: "s-late0000",
+      key: "s-late0000",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: SECRET }] }] },
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:02Z",
+      type: "outcome",
+      id: "req-0",
+      key: "s-late0000",
+      requestId: "up-0",
+      model: "claude-sonnet-5",
+      usage: { cacheRead: 0, cacheCreation: 0, inputTokens: 10, outputTokens: 1 },
+      outSha: null,
+      outBytes: null,
+      ms: 5,
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:03Z",
+      id: "req-1",
+      sid: "s-late0000",
+      key: "s-late0000",
+      headers: { "anthropic-beta": "x" },
+      body: {
+        model: "claude-sonnet-5",
+        system: "sys0",
+        messages: [
+          { role: "user", content: [{ type: "text", text: SECRET }] },
+          { role: "assistant", content: [{ type: "text", text: "a reply" }] },
+          { role: "user", content: [{ type: "text", text: "a second message" }] },
+        ],
+      },
+    }),
+    // Filler: a request belonging to a DIFFERENT key, one line past the
+    // pinned request. It must never be absorbed into the pin's own request
+    // set — only outcome/coalesced records are chased past m.
+    JSON.stringify({
+      ts: "2026-01-01T00:00:04Z",
+      id: "req-filler",
+      sid: "s-unrelated00",
+      key: "s-unrelated00",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sysX", messages: [{ role: "user", content: [{ type: "text", text: "unrelated" }] }] },
+    }),
+    // req-1's own outcome, arriving after the filler — this is the record
+    // the old code excluded by construction.
+    JSON.stringify({
+      ts: "2026-01-01T00:00:05Z",
+      type: "outcome",
+      id: "req-1",
+      key: "s-late0000",
+      requestId: "up-1",
+      model: "claude-sonnet-5",
+      usage: { cacheRead: 0, cacheCreation: 0, inputTokens: 12, outputTokens: 3 },
+      outSha: null,
+      outBytes: null,
+      ms: 7,
+    }),
+  ];
+  await writeFile(path, lines.join("\n") + "\n");
+  return path;
+}
+
+test("pinRange: chases the last pinned request's own outcome past m, without absorbing an intervening request", async () => {
+  const dir = await tmpDir("harvest-pin-late-");
+  const path = await writeCaptureWithLateOutcome(dir);
+
+  const records = await pinRange(path, 1);
+
+  assert.equal(records.filter((r) => r.type === "outcome").length, 2, "both req-0's and req-1's outcome records are present");
+  const requests = records.filter((r) => r.type !== "boot" && r.type !== "outcome");
+  assert.equal(requests.length, 2, "the filler request one line past m is NOT absorbed into the pin");
+  assert.deepEqual(records.outcomes, { resolved: [0, 1], unresolved: [] }, "both pinned ordinals resolved");
+});
+
+// A capture truncated right after the pinned request: its own outcome
+// never arrives at all. The lookahead exhausts by running off the end of
+// the file, never by hitting the record/byte bound — and the ordinal must
+// report unresolved rather than the loop silently accepting EOF as success.
+async function writeCaptureTruncatedAfterPin(dir) {
+  const path = join(dir, "s-trunc0000-requests.jsonl");
+  const lines = [
+    JSON.stringify({ ts: "2026-01-01T00:00:00Z", type: "boot", pid: 1, proxyTree: "abc123", gates: { X: "1" } }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01Z",
+      id: "t-0",
+      sid: "s-trunc0000",
+      key: "s-trunc0000",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: SECRET }] }] },
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:02Z",
+      type: "outcome",
+      id: "t-0",
+      key: "s-trunc0000",
+      requestId: "up-t0",
+      model: "claude-sonnet-5",
+      usage: { cacheRead: 0, cacheCreation: 0, inputTokens: 10, outputTokens: 1 },
+      outSha: null,
+      outBytes: null,
+      ms: 5,
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:03Z",
+      id: "t-1",
+      sid: "s-trunc0000",
+      key: "s-trunc0000",
+      headers: { "anthropic-beta": "x" },
+      body: {
+        model: "claude-sonnet-5",
+        system: "sys0",
+        messages: [
+          { role: "user", content: [{ type: "text", text: SECRET }] },
+          { role: "assistant", content: [{ type: "text", text: "a reply" }] },
+          { role: "user", content: [{ type: "text", text: "a second message" }] },
+        ],
+      },
+    }),
+    // Nothing after t-1: the capture ends here, exactly like a fresh
+    // capture that has not yet seen t-1 answered.
+  ];
+  await writeFile(path, lines.join("\n") + "\n");
+  return path;
+}
+
+test("pinRange: lookahead exhausted by EOF (not the bound) reports the last ordinal unresolved", async () => {
+  const dir = await tmpDir("harvest-pin-trunc-");
+  const path = await writeCaptureTruncatedAfterPin(dir);
+
+  const records = await pinRange(path, 1);
+
+  assert.equal(records.filter((r) => r.type === "outcome").length, 1, "only t-0's own outcome ever existed in this capture");
+  assert.deepEqual(records.outcomes, { resolved: [0], unresolved: [1] }, "t-1's own outcome never arrived");
+});
+
+test("pinRange: the 200-record lookahead bound stops the chase before an outcome past it", async () => {
+  const dir = await tmpDir("harvest-pin-bound-");
+  const path = join(dir, "s-bound0000-requests.jsonl");
+  const lines = [
+    JSON.stringify({ ts: "2026-01-01T00:00:00Z", type: "boot", pid: 1, proxyTree: "abc123", gates: { X: "1" } }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01Z",
+      id: "b-0",
+      sid: "s-bound0000",
+      key: "s-bound0000",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: SECRET }] }] },
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01.500Z",
+      type: "outcome",
+      id: "b-0",
+      key: "s-bound0000",
+      requestId: "up-b0",
+      model: "claude-sonnet-5",
+      usage: { cacheRead: 0, cacheCreation: 0, inputTokens: 10, outputTokens: 1 },
+      outSha: null,
+      outBytes: null,
+      ms: 5,
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:02Z",
+      id: "b-1",
+      sid: "s-bound0000",
+      key: "s-bound0000",
+      headers: { "anthropic-beta": "x" },
+      body: {
+        model: "claude-sonnet-5",
+        system: "sys0",
+        messages: [
+          { role: "user", content: [{ type: "text", text: SECRET }] },
+          { role: "assistant", content: [{ type: "text", text: "a reply" }] },
+          { role: "user", content: [{ type: "text", text: "a second message" }] },
+        ],
+      },
+    }),
+  ];
+  // 205 filler lines (neither outcome nor coalesced) between m and the
+  // real outcome — past OUTCOME_LOOKAHEAD_MAX_RECORDS (200).
+  for (let i = 0; i < 205; i++) {
+    lines.push(JSON.stringify({ filler: i }));
+  }
+  lines.push(
+    JSON.stringify({
+      ts: "2026-01-01T00:00:03Z",
+      type: "outcome",
+      id: "b-1",
+      key: "s-bound0000",
+      requestId: "up-b1",
+      model: "claude-sonnet-5",
+      usage: { cacheRead: 0, cacheCreation: 0, inputTokens: 10, outputTokens: 1 },
+      outSha: null,
+      outBytes: null,
+      ms: 5,
+    }),
+  );
+  await writeFile(path, lines.join("\n") + "\n");
+
+  const records = await pinRange(path, 1);
+  assert.equal(records.filter((r) => r.type === "outcome").length, 1, "only b-0's inline outcome — b-1's sits past the bound and is never reached");
+  assert.deepEqual(records.outcomes, { resolved: [0], unresolved: [1] }, "b-1 reports unresolved, not a false resolve");
+});
+
+test("harvest --pin CLI: fully resolved outcomes — header field and the unqualified-billing verification line", async () => {
+  const dir = await tmpDir("harvest-pin-late-cli-");
+  const capturesDir = join(dir, "captures");
+  const outDir = join(dir, "out");
+  await mkdir(capturesDir, { recursive: true });
+  await writeCaptureWithLateOutcome(capturesDir);
+
+  const stdout = execFileSync(
+    process.execPath,
+    [HARVEST_CLI, "--captures", capturesDir, "--out", outDir, "--pin", "s-late0000", "0..1"],
+    { encoding: "utf-8" },
+  );
+  assert.match(stdout, /pin verified: reproduces the live stability\/census verdicts over records 0\.\.1/);
+  assert.match(stdout, /outcomes resolved for all 2 pinned ordinal\(s\)/);
+  assert.doesNotMatch(stdout, /does NOT carry billing/);
+
+  const outPath = join(outDir, `pinned-${KEY2_TOKEN}-0-1.json`);
+  const fixture = JSON.parse(await readFile(outPath, "utf-8"));
+  assert.deepEqual(fixture.header.outcomes, { resolved: [0, 1], unresolved: [] });
+});
+
+test("harvest --pin CLI: unresolved outcome — header field and the narrowed no-billing-evidence line", async () => {
+  const dir = await tmpDir("harvest-pin-trunc-cli-");
+  const capturesDir = join(dir, "captures");
+  const outDir = join(dir, "out");
+  await mkdir(capturesDir, { recursive: true });
+  await writeCaptureTruncatedAfterPin(capturesDir);
+
+  const stdout = execFileSync(
+    process.execPath,
+    [HARVEST_CLI, "--captures", capturesDir, "--out", outDir, "--pin", "s-trunc0000", "0..1"],
+    { encoding: "utf-8" },
+  );
+  // Still a reproduces-the-replayed-verdicts success (arm b's whole point:
+  // a lookahead that always succeeds would pass arm (a) alone) — but
+  // narrowed, and the billing claim explicitly withheld.
+  assert.match(stdout, /pin verified: reproduces the live stability\/census verdicts over records 0\.\.1/);
+  assert.match(stdout, /1 pinned ordinal\(s\) unresolved \(1\): this pin does NOT carry billing or coalescing evidence/);
+
+  const truncToken = `s-${createHash("sha256").update("s-trunc0000").digest("hex").slice(0, 12)}`;
+  const outPath = join(outDir, `pinned-${truncToken}-0-1.json`);
+  const fixture = JSON.parse(await readFile(outPath, "utf-8"));
+  assert.deepEqual(fixture.header.outcomes, { resolved: [0], unresolved: [1] });
+});
+
+// =====================================================================
 // Fallback red-green — the actual real-pair tests, run as subprocesses
 // =====================================================================
 //

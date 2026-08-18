@@ -664,16 +664,63 @@ function scrubCoalescedRecord(rec) {
   };
 }
 
+// BACKLOG.md "harvest --pin excludes the pinned pair's own outcome
+// records": the proxy writes a request's OUTCOME only once the response
+// completes, which can land in the capture file after later requests'
+// own lines. Breaking out the instant ordinal `m` is pushed (the old
+// behaviour) therefore excluded exactly the evidence a pin is usually
+// taken FOR — a billing or coalescing claim, which lives in the outcome/
+// coalesced records, never in the request records themselves. So after
+// pushing `m`, both pinRange and pinRangeBounded keep reading — never
+// pushing another REQUEST record, which would silently grow past the
+// FULL PREFIX 0..m the header promises — watching only for outcome/
+// coalesced records that resolve a pinned ordinal's own raw id, until
+// every pinned ordinal is resolved or this bound is exhausted. A bound,
+// not a scan of the rest of a 435 MB capture.
+const OUTCOME_LOOKAHEAD_MAX_RECORDS = 200;
+const OUTCOME_LOOKAHEAD_MAX_BYTES = 32 * 1024 * 1024;
+
+// requestIds[i] is the RAW capture id of pinned ordinal i, or `undefined`
+// where ordinal i is not part of the pin's evidentiary claim at all (a
+// pinRangeBounded placeholder, whose fabricated content has no real
+// outcome to chase). `null` is a real, kept ordinal whose raw record
+// carried no id (should not occur in practice; treated as unresolved).
+// Shared by pinRange and pinRangeBounded so "what counts as resolved"
+// cannot drift into two hand-rolled readings of the same question.
+function outcomesSummary(requestIds, resolvedIds) {
+  const resolved = [];
+  const unresolved = [];
+  for (let i = 0; i < requestIds.length; i++) {
+    const id = requestIds[i];
+    if (id === undefined) continue;
+    if (id !== null && resolvedIds.has(id)) resolved.push(i);
+    else unresolved.push(i);
+  }
+  return { resolved, unresolved };
+}
+
 // Streams capturePath from its start and returns every record (boot,
 // outcome, request — sanitized) through the request whose file-wide ordinal
 // (counting only request-only (no `type` field) records, same counting rule
-// scanCapture and both real-pair tests use) equals `m`. Throws if the
-// capture has fewer than m+1 request records — a pin that cannot be
-// fulfilled must fail loudly, not write a truncated fixture silently.
+// scanCapture and both real-pair tests use) equals `m`, PLUS whatever
+// outcome/coalesced records resolve a pinned ordinal within the bounded
+// lookahead past `m` (see OUTCOME_LOOKAHEAD_MAX_* above). The returned
+// array carries an OUT-OF-BAND `.outcomes` property (`{resolved,
+// unresolved}`, both arrays of ordinals) — a plain extra property on the
+// array object, never folded into its own indices, so every existing
+// consumer that reads this as a plain records array (length, filter, map,
+// JSON.stringify) is unaffected. Throws if the capture has fewer than
+// m+1 request records —
+// a pin that cannot be fulfilled must fail loudly, not write a truncated
+// fixture silently.
 export async function pinRange(capturePath, m) {
   const records = [];
+  const requestIds = [];
+  const resolvedIds = new Set();
   let count = 0;
   let reached = false;
+  let lookaheadRecords = 0;
+  let lookaheadBytes = 0;
   for await (const line of readLines(capturePath)) {
     if (!line.trim()) continue;
     let rec;
@@ -682,28 +729,51 @@ export async function pinRange(capturePath, m) {
     } catch {
       continue;
     }
+    if (reached) {
+      lookaheadRecords++;
+      lookaheadBytes += Buffer.byteLength(line, "utf-8");
+      if (rec.type === "outcome") {
+        records.push(scrubOutcomeRecord(rec));
+        if (rec.id) resolvedIds.add(rec.id);
+      } else if (rec.type === "coalesced") {
+        records.push(scrubCoalescedRecord(rec));
+        if (rec.id) resolvedIds.add(rec.id);
+      }
+      const allResolved = requestIds.every((id) => id === undefined || (id !== null && resolvedIds.has(id)));
+      if (
+        allResolved ||
+        lookaheadRecords >= OUTCOME_LOOKAHEAD_MAX_RECORDS ||
+        lookaheadBytes >= OUTCOME_LOOKAHEAD_MAX_BYTES
+      ) {
+        break;
+      }
+      continue;
+    }
     if (rec.type === "boot") {
       records.push(scrubBootRecord(rec));
       continue;
     }
     if (rec.type === "outcome") {
       records.push(scrubOutcomeRecord(rec));
+      if (rec.id) resolvedIds.add(rec.id);
       continue;
     }
     if (rec.type === "coalesced") {
       records.push(scrubCoalescedRecord(rec));
+      if (rec.id) resolvedIds.add(rec.id);
       continue;
     }
     const idx = count++;
     records.push(scrubRecord(rec));
+    requestIds[idx] = rec.id ?? null;
     if (idx === m) {
       reached = true;
-      break;
     }
   }
   if (!reached) {
     throw new Error(`capture ${capturePath} has only ${count} request record(s), cannot pin through m=${m}`);
   }
+  records.outcomes = outcomesSummary(requestIds, resolvedIds);
   return records;
 }
 
@@ -854,15 +924,27 @@ function boundedKeep(rec, target, targetCid) {
 // (scrubRecord's header comment, "PRESERVED: equality of equal texts"), so
 // the SET-based relations conversationOf/sameLineage read are identical
 // whichever side of the scrub they are computed on.
+// Shares the same break-at-`m` shape pinRange had (and the same fix): a
+// request's outcome record can land in the capture after later requests'
+// own lines, so pushing `m` and breaking immediately excluded it here too.
+// Only KEPT ordinals (boundedKeep === true) enter the pinned-evidence set —
+// a placeholder ordinal's fabricated content has no real outcome to chase,
+// and the raw id behind it belongs to a conversation this pin deliberately
+// dropped, so `outcomesSummary` above already skips `undefined` entries for
+// exactly this reason.
 export async function pinRangeBounded(capturePath, m) {
   const target = await locateBoundedTarget(capturePath, m);
   const targetCid = conversationOf(target);
 
   const records = [];
+  const requestIds = [];
+  const resolvedIds = new Set();
   let count = 0;
   let reached = false;
   let kept = 0;
   let placeholders = 0;
+  let lookaheadRecords = 0;
+  let lookaheadBytes = 0;
   for await (const line of readLines(capturePath)) {
     if (!line.trim()) continue;
     let rec;
@@ -871,35 +953,58 @@ export async function pinRangeBounded(capturePath, m) {
     } catch {
       continue;
     }
+    if (reached) {
+      lookaheadRecords++;
+      lookaheadBytes += Buffer.byteLength(line, "utf-8");
+      if (rec.type === "outcome") {
+        records.push(scrubOutcomeRecord(rec));
+        if (rec.id) resolvedIds.add(rec.id);
+      } else if (rec.type === "coalesced") {
+        records.push(scrubCoalescedRecord(rec));
+        if (rec.id) resolvedIds.add(rec.id);
+      }
+      const allResolved = requestIds.every((id) => id === undefined || (id !== null && resolvedIds.has(id)));
+      if (
+        allResolved ||
+        lookaheadRecords >= OUTCOME_LOOKAHEAD_MAX_RECORDS ||
+        lookaheadBytes >= OUTCOME_LOOKAHEAD_MAX_BYTES
+      ) {
+        break;
+      }
+      continue;
+    }
     if (rec.type === "boot") {
       records.push(scrubBootRecord(rec));
       continue;
     }
     if (rec.type === "outcome") {
       records.push(scrubOutcomeRecord(rec));
+      if (rec.id) resolvedIds.add(rec.id);
       continue;
     }
     if (rec.type === "coalesced") {
       records.push(scrubCoalescedRecord(rec));
+      if (rec.id) resolvedIds.add(rec.id);
       continue;
     }
     const idx = count++;
     if (boundedKeep(rec, target, targetCid)) {
       records.push(scrubRecord(rec));
+      requestIds[idx] = rec.id ?? null;
       kept++;
     } else {
       records.push(boundedPlaceholder(idx, rec.ts));
+      requestIds[idx] = undefined;
       placeholders++;
     }
     if (idx === m) {
       reached = true;
-      break;
     }
   }
   if (!reached) {
     throw new Error(`capture ${capturePath} has only ${count} request record(s), cannot pin through m=${m}`);
   }
-  return { records, kept, placeholders };
+  return { records, kept, placeholders, outcomes: outcomesSummary(requestIds, resolvedIds) };
 }
 
 // --- pin self-verification: a pin is a claim until it is replayed ---
@@ -1288,14 +1393,19 @@ async function runPin(args) {
     process.exit(2);
   }
 
-  let records, boundedInfo = null;
+  let records, boundedInfo = null, outcomesInfo;
   try {
     if (args.bounded) {
       const res = await pinRangeBounded(capturePath, m);
       records = res.records;
       boundedInfo = { kept: res.kept, placeholders: res.placeholders };
+      outcomesInfo = res.outcomes;
     } else {
       records = await pinRange(capturePath, m);
+      // Captured before rebaseTimestamps below, which clones `records` via
+      // Array.prototype.map (mapStrings) and would drop this non-index
+      // property along with any other shape the clone does not carry.
+      outcomesInfo = records.outcomes;
     }
   } catch (err) {
     process.stderr.write(`${err.message}\n`);
@@ -1306,6 +1416,13 @@ async function runPin(args) {
     header: {
       key: sidToken(key),
       range: { n, m },
+      // Per pinned ordinal (0..m; bounded mode excludes placeholder
+      // ordinals — see pinRangeBounded's own header comment): whether its
+      // outcome or coalesced record was found, inline or within the
+      // bounded lookahead past m. An ordinal in `unresolved` has no
+      // billing or coalescing evidence in this fixture at all — its
+      // outcome record simply never arrived within the lookahead bound.
+      outcomes: outcomesInfo,
       replayFrom: 0,
       note:
         "records holds the FULL prefix 0..m, not just n..m: the real-pair " +
@@ -1397,10 +1514,25 @@ async function runPin(args) {
     );
     return;
   }
+  // Narrowed on purpose (BACKLOG.md "harvest --pin excludes the pinned
+  // pair's own outcome records"): this line names the STABILITY/CENSUS
+  // verdicts it actually replayed, never "the live verdicts" unqualified —
+  // that wider phrasing is what let a billing finding get pinned as
+  // "verified" while the outcome records its whole proof lives in were
+  // silently absent. A pin with any unresolved ordinal states plainly that
+  // it carries no billing or coalescing evidence for them.
+  const unresolved = outcomesInfo.unresolved;
+  const outcomesLine = unresolved.length
+    ? `  ${unresolved.length} pinned ordinal(s) unresolved (${unresolved.join(", ")}): this pin does NOT ` +
+      "carry billing or coalescing evidence for them — no outcome or coalesced record for their own " +
+      "id appeared within the lookahead bound\n"
+    : `  outcomes resolved for all ${outcomesInfo.resolved.length} pinned ordinal(s): this pin carries ` +
+      "billing/coalescing evidence for the full pinned range\n";
   process.stdout.write(
-    `pin verified: reproduces the live verdicts over records 0..${m} — ` +
+    `pin verified: reproduces the live stability/census verdicts over records 0..${m} — ` +
       `${v.pin.pairs} same-conversation pair(s), ${v.pin.violations} stability violation(s), ` +
-      `${v.pin.exemptions} exemption(s), ${Object.keys(v.pin.classes).length} census class(es), exit ${v.pin.exitCode}\n`,
+      `${v.pin.exemptions} exemption(s), ${Object.keys(v.pin.classes).length} census class(es), exit ${v.pin.exitCode}\n` +
+      outcomesLine,
   );
 }
 
