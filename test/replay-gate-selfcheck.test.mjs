@@ -596,6 +596,91 @@ test("stability: BITE — a reset with no injection to remove is not exempt", ()
   assert.equal(v.length, 1);
 });
 
+// --- modelChangedAcrossPair exemption (2026-08-11) ---
+//
+// A model switch re-bills the whole cache prefix by the API's OWN billing —
+// the request pays for a cold rewrite regardless of anything we do — so a
+// divergence WE introduce on that same request costs nothing marginal.
+//
+// The real case (BACKLOG "stability check lacks the modelChangedAcrossPair
+// exemption", threat-matrix row 6's 2026-08-10 instance, s-captureBC
+// n=461->462): outDiv=36, CC byte-identical there, model claude-fable-5 ->
+// claude-opus-4-8, `supportsToolAddition` true -> false so
+// deferred-tool-rewrite's model gate (`if (!announceOk) additions = []`)
+// empties established additions; cacheRead 0 / cacheCreation 633,639 on that
+// request. The committed pin for this pair (pinned-s-d8f209e4b75e-461-462
+// .json) freezes the capture through request 462 itself and therefore
+// cannot carry ITS OWN outcome record — an outcome record trails its request
+// in the file, and the pin's range ends exactly at the request that needs
+// it — so the shape below is CONSTRUCTED from the documented real numbers,
+// the same convention every other exemption's "real case" test in this file
+// already follows (compare strandedPair() and the reset-wipe pairs above,
+// neither of which replays a committed fixture either).
+//
+// Deliberately carries NO deferredToolRewriteStats: the model gate that
+// produces this shape (deferred-tool-rewrite.mjs's `if (!announceOk)
+// additions = []`) runs on every action, not only `reset`, and reports no
+// reason string at all — this exemption is not keyed to that extension's
+// telemetry, unlike resetWipesAdditionsExemption above.
+function modelSwitchPair(mutate = {}) {
+  const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const aOut = [user("u0"), asst("a1"), inj("SendMessage"), user("u2"), asst("a3")];
+  const bIn = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const bOut = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const prevExtra = { model: "claude-fable-5", ...(mutate.prevExtra ?? {}) };
+  const curExtra = { model: "claude-opus-4-8", cacheRead: 0, ...(mutate.curExtra ?? {}) };
+  return [entry(0, aIn, aOut, prevExtra), entry(1, bIn, bOut, curExtra)];
+}
+
+test("stability: a model switch across the pair is exempt when the request read cold (cacheRead === 0)", () => {
+  const pair = modelSwitchPair();
+  assert.equal(findStabilityViolations(pair).length, 0,
+    "a model switch re-bills the whole prefix by itself — the flip is free");
+  const x = findStabilityExemptions(pair);
+  assert.equal(x.length, 1, "the exemption must be annotated in the output, not silently dropped");
+  assert.equal(x[0].outDiv, 2);
+  assert.equal(x[0].ccIdenticalAtOutDiv, true);
+  assert.equal(x[0].exemptReason, "model-changed-across-pair");
+  assert.equal(x[0].exemptBasis.prevModel, "claude-fable-5");
+  assert.equal(x[0].exemptBasis.curModel, "claude-opus-4-8");
+});
+
+// The done-criterion's required PAIR, other half: the identical shape with
+// cacheRead > 0 (the request read WARM) must still fire — the two must
+// DIFFER, or the exemption is not discriminating (BACKLOG's own words).
+test("stability: BITE — the same model switch with cacheRead > 0 stays a violation", () => {
+  const pair = modelSwitchPair({ curExtra: { cacheRead: 100 } });
+  assert.equal(findStabilityViolations(pair).length, 1,
+    "a warm read means the switch did not re-bill the prefix — no marginal-cost argument survives");
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
+// The entry's own named guard: a null cacheRead (no outcome record at all —
+// predates the feature, or the outcome never arrived) must not read as the
+// MEASURED zero condition 3 requires.
+test("stability: BITE — a null cacheRead (no outcome measured) must not read as zero", () => {
+  const pair = modelSwitchPair({ curExtra: { cacheRead: null } });
+  assert.equal(findStabilityViolations(pair).length, 1,
+    "an unmeasured request must not be treated as a measured cold one");
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
+test("stability: BITE — the same divergence WITHOUT a model change stays a violation", () => {
+  const pair = modelSwitchPair({ curExtra: { model: "claude-fable-5", cacheRead: 0 } });
+  assert.equal(findStabilityViolations(pair).length, 1);
+  assert.equal(findStabilityExemptions(pair).length, 0);
+});
+
+test("stability: BITE — a model change with either side's model absent stays a violation", () => {
+  const missingPrev = modelSwitchPair({ prevExtra: { model: null } });
+  assert.equal(findStabilityViolations(missingPrev).length, 1);
+  assert.equal(findStabilityExemptions(missingPrev).length, 0);
+
+  const missingCur = modelSwitchPair({ curExtra: { model: null, cacheRead: 0 } });
+  assert.equal(findStabilityViolations(missingCur).length, 1);
+  assert.equal(findStabilityExemptions(missingCur).length, 0);
+});
+
 // --- Safety gate ---
 
 test("safety: faithful passthrough is GREEN", () => {
@@ -1326,6 +1411,72 @@ test("toolsDeltas: the extension never running this request reads as null, disti
   assert.equal(d.deferredToolRewriteStats, null, "absent stats must read as null, never as an empty-but-present object");
 });
 
+// --- Row 6's actual limb discriminator: addition.trigger ---
+// (BACKLOG "row 6's limb is read by hand; namespace shape cannot separate
+// ToolSearch load from server arrival", 2026-08-17)
+//
+// `addition.shape` above cannot separate a first-time ToolSearch load from an
+// MCP server connecting mid-session — both read `new-namespace`. `trigger`
+// reads the pair's own APPENDED messages instead: the busting pairs are
+// `msgKind:append-only`, so a ToolSearch `tool_use` would already be present
+// in the pair if CC issued one just before the tools[] delta.
+
+const toolUseMsg = (name) => ({
+  role: "assistant",
+  content: [{ type: "tool_use", id: `tu_${name}`, name, input: {} }],
+});
+
+test("toolsDeltas: addition.trigger reads toolsearch-adjacent when an appended message carries a ToolSearch tool_use", () => {
+  const nav = tool("mcp__chrome__navigate");
+  const read = tool("mcp__chrome__read_page");
+  const prevMsgs = [user("u0"), asst("a1")];
+  const curMsgs = [...prevMsgs, toolUseMsg("ToolSearch"), user("result")];
+  const p = entry(1, prevMsgs, prevMsgs, { inTools: [nav], outTools: [nav] });
+  const c = entry(2, curMsgs, curMsgs, { inTools: [nav, read], outTools: [nav, read] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.kind, "membership+");
+  assert.equal(d.msgKind, "append-only", "precondition: the appended tail is well-defined");
+  assert.equal(d.addition.trigger, "toolsearch-adjacent");
+});
+
+test("toolsDeltas: BITE — addition.trigger reads no-toolsearch when the appended messages carry no ToolSearch call", () => {
+  const nav = tool("mcp__chrome__navigate");
+  const read = tool("mcp__chrome__read_page");
+  const prevMsgs = [user("u0"), asst("a1")];
+  const curMsgs = [...prevMsgs, user("u2"), asst("a3")];
+  const p = entry(1, prevMsgs, prevMsgs, { inTools: [nav], outTools: [nav] });
+  const c = entry(2, curMsgs, curMsgs, { inTools: [nav, read], outTools: [nav, read] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.msgKind, "append-only");
+  assert.equal(d.addition.trigger, "no-toolsearch");
+});
+
+test("toolsDeltas: BITE — addition.trigger reads unknown, never no-toolsearch, on an identical-history delta", () => {
+  // The three-value split is the point: a two-value predicate would report
+  // this could-not-read case as a server arrival, the exact direction the
+  // row's own 2026-08-10 prose already erred in.
+  const nav = tool("mcp__chrome__navigate");
+  const read = tool("mcp__chrome__read_page");
+  const p = entry(1, conv, conv, { inTools: [nav], outTools: [nav] });
+  const c = entry(2, conv, conv, { inTools: [nav, read], outTools: [nav, read] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.equal(d.msgKind, "identical");
+  assert.equal(d.addition.trigger, "unknown",
+    "an identical-history delta has no appended messages to read");
+});
+
+test("toolsDeltas: BITE — addition.trigger reads unknown for a non-append-only message delta", () => {
+  const nav = tool("mcp__chrome__navigate");
+  const read = tool("mcp__chrome__read_page");
+  const prevMsgs = [user("u0"), asst("a1"), user("u2")];
+  const curMsgs = [user("u0"), asst("CC-EDITED-a1"), user("u2"), asst("a3")];
+  const p = entry(1, prevMsgs, prevMsgs, { inTools: [nav], outTools: [nav] });
+  const c = entry(2, curMsgs, curMsgs, { inTools: [nav, read], outTools: [nav, read] });
+  const [d] = findToolsDeltas([p, c]);
+  assert.notEqual(d.msgKind, "append-only", "precondition: this is not a well-defined appended tail");
+  assert.equal(d.addition.trigger, "unknown", "an edited prefix is not a clean appended-messages read");
+});
+
 // --- Block-migration FLAP ---
 //
 // A one-way block migration is absorbable by the volatile pin. An
@@ -1645,6 +1796,49 @@ test("BITE — the real 2026-07-30 flap: three relocated hosts, three legs, six 
     ],
     "each host's second and third legs reverse its own predecessor",
   );
+});
+
+// --- addition.trigger against the real capture (row 6, BACKLOG's own named
+// evidence: pinned-s-dda5c6419d49-372-373.json, the 2026-08-10 tools-only
+// isolation) ---
+//
+// Read directly off the raw capture bytes — no pipeline replay needed, since
+// `addition.trigger` reads only INPUT-side facts (compactEntry's `inSem` /
+// `inToolUseNames`, both computed from `rec.body` before any extension runs):
+// the same "captures are PRE-pipeline" fact dev-loop.md states for
+// attribution. `inTools`/`outTools` are set identically to the raw capture's
+// own `body.tools` — the extension's OUTPUT decision plays no part in this
+// field, so there is nothing to reconstruct by running it.
+test("toolsDeltas: real capture n=369->370 and n=372->373 (row 6, s-dda5c6419d49) report a non-unknown trigger", () => {
+  const doc = fixture("pinned-s-dda5c6419d49-372-373.json");
+  const replayFrom = doc.header?.replayFrom ?? 0;
+  const entries = [];
+  let reqN = replayFrom - 1;
+  for (const rec of doc.records) {
+    if (rec.type === "boot" || rec.type === "outcome") continue;
+    const n = ++reqN;
+    const msgs = Array.isArray(rec.body?.messages) ? rec.body.messages : [];
+    entries.push(
+      entry(n, msgs, msgs, { key: rec.key, ts: rec.ts, inTools: rec.body?.tools, outTools: rec.body?.tools }),
+    );
+  }
+  const rows = findToolsDeltas(entries);
+  for (const [prevN, curN] of [[369, 370], [372, 373]]) {
+    const row = rows.find((r) => r.n === curN && r.prevN === prevN);
+    assert.ok(row, `expected a tools-delta row for n=${prevN}->${curN}`);
+    assert.equal(row.kind, "membership+");
+    assert.equal(row.msgKind, "append-only", `n=${prevN}->${curN} precondition: a well-defined appended tail`);
+    // Both real pairs carry a ToolSearch tool_use in their appended
+    // messages — measured directly, not assumed: this CONTRADICTS the row's
+    // 2026-08-10 prose ("a server connecting mid-session, NOT a ToolSearch
+    // deferred load"), which the matrix itself already labels UNVERIFIED as
+    // of the 2026-08-17 correction. Whichever way the pins land is an
+    // equally valid measurement per the entry's own words; this asserts the
+    // value actually measured here rather than the weaker `notEqual`, so a
+    // future change to either the pin or the classifier is caught either way.
+    assert.equal(row.addition.trigger, "toolsearch-adjacent",
+      `n=${prevN}->${curN} appended messages carry a ToolSearch tool_use`);
+  }
 });
 
 // --- Join migrations: the standalone side is a JOIN, not a block ---

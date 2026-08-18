@@ -143,8 +143,9 @@ export function attributionOf(inDiv, outDiv) {
 // The check itself. Entries are grouped by (capture key, conversation) and
 // compared pairwise in arrival order WITHIN each group. A violation is an
 // output divergence strictly earlier than the input's — except a divergence
-// with a matching telemetry-keyed exemption (freshSessionSortExemption and
-// resetWipesAdditionsExemption below), which is reported separately by
+// with a matching telemetry-or-billing-keyed exemption (freshSessionSortExemption,
+// resetWipesAdditionsExemption, memoryStrandedByKeyRotationExemption and
+// modelChangedAcrossPair below), which is reported separately by
 // findStabilityExemptions rather than silently dropped.
 function scanAllGroups(entries) {
   const groups = new Map();
@@ -174,9 +175,11 @@ export function findStabilityViolations(entries) {
 }
 
 // Exempted divergences, annotated with their basis — not silently dropped.
-// Three exemptions are declared: freshSessionSortExemption,
-// resetWipesAdditionsExemption and memoryStrandedByKeyRotationExemption,
-// all below, all keyed on the responsible extension's own telemetry.
+// Four exemptions are declared: freshSessionSortExemption,
+// resetWipesAdditionsExemption and memoryStrandedByKeyRotationExemption, all
+// keyed on the responsible extension's own telemetry, and
+// modelChangedAcrossPair, keyed on the request's own model and measured
+// billing outcome instead — all below.
 export function findStabilityExemptions(entries) {
   return scanAllGroups(entries).exemptions;
 }
@@ -378,6 +381,43 @@ function memoryStrandedByKeyRotationExemption(prev, cur, outDiv, ccSame, prefix)
   };
 }
 
+// A model switch re-bills the whole cache prefix by the API's OWN billing —
+// the request pays for a cold rewrite regardless of anything we do — so a
+// divergence WE introduce on that same request costs nothing marginal.
+// BACKLOG "stability check lacks the modelChangedAcrossPair exemption"
+// (2026-08-11), threat-matrix row 6's 2026-08-10 instance: `n=461->462`,
+// `outDiv=36`, CC byte-identical there, model `claude-fable-5` ->
+// `claude-opus-4-8`, `supportsToolAddition` true -> false, so
+// deferred-tool-rewrite's model gate (`if (!announceOk) additions = []`,
+// deferred-tool-rewrite.mjs) empties established additions and our forwarded
+// array moves one slot earlier than CC's own did. That gate runs on EVERY
+// action (not only `reset`) and reports no reason string at all, so this is
+// a genuinely different shape than resetWipesAdditionsExemption above — it is
+// not keyed to deferred-tool-rewrite's telemetry at all, deliberately: the
+// billing condition holds regardless of WHICH extension produced the flip.
+//
+// Exempt ONLY when all three hold — telemetry (model) plus the request's own
+// MEASURED billing outcome, never inferred from shape:
+//   1. both sides carry a model AND it changed (prev.model !== cur.model,
+//      neither null/undefined — an absent model on either side answers
+//      nothing);
+//   2. CC's own byte at the divergence index is identical across the pair
+//      (ccSame) — the flip is ours by construction, as every exemption in
+//      this file requires; and
+//   3. the CURRENT request's own outcome shows cacheRead === 0 — the
+//      REQUIRED measured coldness, this exemption's own retirement trigger
+//      (memoryStrandedByKeyRotationExemption's condition 5, same
+//      discipline): the day a switched-model request reads warm, condition 3
+//      stops holding and the gate re-arms with no separate monitor. A `null`
+//      cacheRead (no outcome record at all) must not read as zero — the
+//      strict `=== 0` below is deliberate, not `!cur.cacheRead`.
+function modelChangedAcrossPair(prev, cur, ccSame) {
+  if (!prev.model || !cur.model || prev.model === cur.model) return null;
+  if (ccSame !== true) return null;
+  if (cur.cacheRead !== 0) return null;
+  return { prevModel: prev.model, curModel: cur.model, cacheRead: cur.cacheRead };
+}
+
 // Did anything above `messages` in the cache prefix move across this pair?
 // `sig` is null when a side carries no tools[] at all — null === null is the
 // honest "both requests had none", not an unknown, because the fingerprints
@@ -476,6 +516,9 @@ function scanGroup(entries) {
       const stranded = relocation || resetWipe
         ? null
         : memoryStrandedByKeyRotationExemption(prev, cur, outDiv, ccSame, record.prefixAboveMessages);
+      const modelChanged = relocation || resetWipe || stranded
+        ? null
+        : modelChangedAcrossPair(prev, cur, ccSame);
       if (relocation) {
         exemptions.push({
           ...record,
@@ -493,6 +536,12 @@ function scanGroup(entries) {
           ...record,
           exemptReason: "fresh-session-sort:memory-stranded-by-key-rotation",
           exemptBasis: stranded,
+        });
+      } else if (modelChanged) {
+        exemptions.push({
+          ...record,
+          exemptReason: "model-changed-across-pair",
+          exemptBasis: modelChanged,
         });
       } else {
         violations.push(record);
@@ -919,6 +968,20 @@ export function inHashOf(messages) {
   return (messages ?? []).map((m) => sha(JSON.stringify(m)));
 }
 
+// The tool_use NAMES a single raw message carries — names only, never a
+// body, same discipline as isSuggestionModeBlock: compact entries retain no
+// message content, so a marker over content has to be captured at compact
+// time or not at all (BACKLOG "row 6's limb is read by hand" — the entry's
+// own words: "the tool_use names have to be extracted at compact time, a
+// names-only field, no bodies retained"). Reads assistant `tool_use` blocks
+// only, which is where CC's own ToolSearch calls live.
+function toolUseNamesOf(msg) {
+  if (!msg || !Array.isArray(msg.content)) return [];
+  return msg.content
+    .filter((b) => b && b.type === "tool_use" && typeof b.name === "string")
+    .map((b) => b.name);
+}
+
 export function compactEntry(e) {
   const inMsgs = e.inMsgs ?? [];
   const outMsgs = e.outMsgs ?? [];
@@ -978,6 +1041,12 @@ export function compactEntry(e) {
     // entries carry no content, so a marker over content must be captured at
     // compaction time or not at all.
     inSuggestionMode: inMsgs.map(isSuggestionModeBlock),
+    // Tool-use NAMES present in each raw input message, names only (see
+    // toolUseNamesOf above). Row 6's limb discriminator (findToolsDeltas'
+    // addition.trigger) reads this to ask whether a ToolSearch tool_use sits
+    // in the pair's own APPENDED messages, without retaining the messages
+    // themselves.
+    inToolUseNames: inMsgs.map(toolUseNamesOf),
     outHash: outMsgs.map((m) => sha(JSON.stringify(m))),
     // cache_control-stripped twin of outHash, for findMitigationGaps'
     // outputForm ONLY (see outputContentHash above) — never read by the
@@ -1065,6 +1134,24 @@ export function compactEntry(e) {
     // telemetry reports only how MANY additions were live, never their
     // indices, so this is the one place the position can be read.
     outInjections: outMsgs.reduce((acc, m, i) => (isDeclaredInjection(m) ? (acc.push(i), acc) : acc), []),
+    // The REQUEST's own declared model (`body.model`), read straight off the
+    // raw entry — no join, since it is present at build time. Read by
+    // modelChangedAcrossPair's condition 1 (BACKLOG "stability check lacks
+    // the modelChangedAcrossPair exemption", 2026-08-11): a model switch
+    // re-bills the whole prefix by the API's OWN billing, so a divergence WE
+    // introduce on the same request costs nothing marginal.
+    model: e.model ?? null,
+    // The associated OUTCOME record's cacheRead for THIS request, joined by
+    // id (never requestId — a different, upstream identifier; buildOutcomeRecord's
+    // own comment: "Consumers join on `id`"). Outcome records trail their
+    // request in the capture file, so main()'s `outcomes` map is only
+    // complete once the whole file has been read — this field is therefore
+    // attached in a POST-loop pass over `stability`, never at compactEntry's
+    // own build time (see main()). `null` means "no outcome measured" and
+    // must never read as zero: modelChangedAcrossPair's condition 3 requires
+    // the NUMBER 0 — the measured coldness — not merely a falsy value, the
+    // same three-answer discipline prefixCostTag's header documents.
+    cacheRead: e.cacheRead ?? null,
   };
 }
 
@@ -1133,18 +1220,26 @@ export function findToolsDeltas(entries) {
       // 2026-08-10 instance reads "a server connecting mid-session, NOT a
       // ToolSearch deferred load", derived from seven names in prose).
       //
-      // This field does NOT answer it, and the name says what it does
-      // answer: was the added tool's namespace already represented in the
-      // previous request's tools[]? DEFERRED MCP tools are absent from
-      // tools[] until something loads them, so a ToolSearch load of a
-      // never-loaded server's tools and that server connecting both read
+      // The `shape` sub-field does NOT answer the limb question, and the name
+      // says what it does answer: was the added tool's namespace already
+      // represented in the previous request's tools[]? DEFERRED MCP tools are
+      // absent from tools[] until something loads them, so a ToolSearch load
+      // of a never-loaded server's tools and that server connecting both read
       // `new-namespace`. What the field separates is a SELECTIVE load into a
       // namespace already present from a namespace's first appearance —
       // measured on real traffic, both shapes occur (2026-08-10 pin: 4
       // first-appearances against 1 selective load into `mcp__thunderbird-
-      // mail`). The limb discriminator proper needs ToolSearch tool_use
-      // adjacency in the pair's appended messages; booked, not built here.
-      const addition = kind === "membership+" ? classifyAddition(p.inTools, c.inTools) : null;
+      // mail`).
+      //
+      // `trigger` (BACKLOG "row 6's limb is read by hand", 2026-08-17) IS the
+      // limb discriminator: ToolSearch tool_use adjacency in the pair's own
+      // APPENDED messages. See additionTrigger below.
+      // classifyAddition returns null when either side carries no per-name
+      // tools map (byName === null) — a real, checked case (gate-live's
+      // additionShapes reads `if (!d.addition) continue`), so the merge below
+      // must not paper over it: only a genuine classification gains a trigger.
+      const additionBase = kind === "membership+" ? classifyAddition(p.inTools, c.inTools) : null;
+      const addition = additionBase ? { ...additionBase, trigger: additionTrigger(p, c, msgKind) } : null;
       rows.push({
         n: c.n,
         prevN: p.n,
@@ -1217,6 +1312,38 @@ function classifyAddition(prevTools, curTools) {
           ? "new-namespace"
           : "mixed";
   return { names, knownNamespaces, newNamespaces, shape };
+}
+
+// findToolsDeltas' `addition.trigger` — row 6's actual limb discriminator
+// (BACKLOG "row 6's limb is read by hand; namespace shape cannot separate
+// ToolSearch load from server arrival", 2026-08-17). `classifyAddition`'s
+// `shape` answers a strictly narrower question (was the NAMESPACE already
+// known) that cannot separate a first-time ToolSearch load from a server
+// connecting mid-session — both read `new-namespace`. This reads the pair's
+// own APPENDED messages instead: the busting pairs are `msgKind:append-only`,
+// so the messages that would carry a ToolSearch `tool_use` are already in the
+// pair (compactEntry's `inToolUseNames`, names-only, no bodies retained).
+//
+// Three values, deliberately — a two-value predicate would report the
+// could-not-read case as a server arrival, which is the exact direction the
+// row's own 2026-08-10 prose already erred in:
+//   `toolsearch-adjacent` — an appended message carries a ToolSearch tool_use.
+//   `no-toolsearch`       — appended messages are present and carry none.
+//   `unknown`             — there is no clean APPENDED tail to read at all:
+//                           msgKind is not append-only (so "the appended
+//                           messages" is not even a well-defined slice — an
+//                           `identical` delta has none, and any other msgKind
+//                           mixes edits in with whatever was added), or either
+//                           side's inToolUseNames is missing. `unknown` must
+//                           never fold into `no-toolsearch` — that fold is
+//                           the exact failure this field exists to remove.
+function additionTrigger(prev, cur, msgKind) {
+  if (msgKind !== "append-only") return "unknown";
+  if (!Array.isArray(prev.inToolUseNames) || !Array.isArray(cur.inToolUseNames)) return "unknown";
+  const appended = cur.inToolUseNames.slice(prev.inToolUseNames.length);
+  if (appended.length === 0) return "unknown";
+  const hasToolSearch = appended.some((names) => (names ?? []).includes("ToolSearch"));
+  return hasToolSearch ? "toolsearch-adjacent" : "no-toolsearch";
 }
 
 // heldStable's comparison, factored out: the byte signature of one side's
@@ -4362,6 +4489,10 @@ async function main() {
       contentStripStats: ctx.meta.contentStripStats ?? null,
       deferredToolRewriteStats: ctx.meta.deferredToolRewriteStats ?? null,
       smooshSplitStats: ctx.meta.smooshSplitStats ?? null,
+      // The request's own declared model — present at build time, unlike
+      // cacheRead below (compactEntry's comment explains why cacheRead is
+      // NOT set here).
+      model: rec.body?.model ?? null,
     };
     // Safety is a per-request question, so answer it now and keep only the
     // verdict; the messages become garbage as soon as this iteration ends.
@@ -4397,6 +4528,22 @@ async function main() {
     }
     // Everything else keeps hashes, not bodies — see compactEntry.
     stability.push(compactEntry(full));
+  }
+
+  // Attach each entry's own cacheRead, joined by id against the OUTCOME
+  // records — a POST-loop pass, deliberately: an outcome record trails its
+  // request in the capture file, so at the moment a given request's
+  // compactEntry was built (the loop just above) its OWN outcome had usually
+  // not been read yet. `outcomes` is only complete once the whole capture has
+  // been read, which is exactly now. Joined by `id` — never `requestId`, a
+  // different, upstream identifier (buildOutcomeRecord's own comment:
+  // "Consumers join on `id`") — and a request whose outcome never arrived
+  // (predates the feature, or the capture ends before it) is left at
+  // compactEntry's default `null`, which modelChangedAcrossPair's condition 3
+  // deliberately does not treat as zero.
+  for (const e of stability) {
+    const oc = e.id !== null ? outcomes.get(e.id) : undefined;
+    if (oc) e.cacheRead = oc.usage?.cacheRead ?? null;
   }
 
   // Gate provenance check — see the block comment above `declaredGateEnv`.
