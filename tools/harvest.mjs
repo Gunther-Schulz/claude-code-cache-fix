@@ -663,6 +663,29 @@ function scrubCoalescedRecord(rec) {
     deltaMs: rec.deltaMs ?? null,
   };
 }
+// The coalesce-miss record (row 31's NEGATIVE evidence: a duplicate sidecar
+// send that was NOT coalesced, and why — desk change in flight, third
+// non-request record type in captures). Same `id_<sha8>` hashing as
+// scrubCoalescedRecord for both `id` and `leaderId`, so the follower->leader
+// join survives a pin here too; `sha`, `reason`, `ageMs`, `arrivalDeltaMs`
+// are scalars with no conversation content and ride through unchanged. This
+// does NOT resolve a pinned ordinal's chase (see the `reached`-branch
+// handling in pinRange/pinRangeBounded below): it is not a completion
+// record — the request it describes still gets its own outcome — only
+// `outcome` and `coalesced` mark an ordinal resolved.
+function scrubCoalesceMissRecord(rec) {
+  return {
+    ts: rec.ts,
+    type: "coalesce-miss",
+    id: rec.id ? `id_${sha(rec.id).slice(0, 8)}` : null,
+    key: rec.key ? sidToken(rec.key) : null,
+    leaderId: rec.leaderId ? `id_${sha(rec.leaderId).slice(0, 8)}` : null,
+    sha: rec.sha ?? null,
+    reason: rec.reason ?? null,
+    ageMs: rec.ageMs ?? null,
+    arrivalDeltaMs: rec.arrivalDeltaMs ?? null,
+  };
+}
 
 // BACKLOG.md "harvest --pin excludes the pinned pair's own outcome
 // records": the proxy writes a request's OUTCOME only once the response
@@ -745,6 +768,10 @@ export async function pinRange(capturePath, m, n = 0) {
       } else if (rec.type === "coalesced") {
         records.push(scrubCoalescedRecord(rec));
         if (rec.id) resolvedIds.add(rec.id);
+      } else if (rec.type === "coalesce-miss") {
+        // Preserved (it is evidence), never resolving — see
+        // scrubCoalesceMissRecord's own header comment.
+        records.push(scrubCoalesceMissRecord(rec));
       }
       const allResolved = requestIds.every((id) => id === undefined || (id !== null && resolvedIds.has(id)));
       if (
@@ -768,6 +795,10 @@ export async function pinRange(capturePath, m, n = 0) {
     if (rec.type === "coalesced") {
       records.push(scrubCoalescedRecord(rec));
       if (rec.id) resolvedIds.add(rec.id);
+      continue;
+    }
+    if (rec.type === "coalesce-miss") {
+      records.push(scrubCoalesceMissRecord(rec));
       continue;
     }
     const idx = count++;
@@ -977,6 +1008,8 @@ export async function pinRangeBounded(capturePath, m, n = 0) {
       } else if (rec.type === "coalesced") {
         records.push(scrubCoalescedRecord(rec));
         if (rec.id) resolvedIds.add(rec.id);
+      } else if (rec.type === "coalesce-miss") {
+        records.push(scrubCoalesceMissRecord(rec));
       }
       const allResolved = requestIds.every((id) => id === undefined || (id !== null && resolvedIds.has(id)));
       if (
@@ -1000,6 +1033,10 @@ export async function pinRangeBounded(capturePath, m, n = 0) {
     if (rec.type === "coalesced") {
       records.push(scrubCoalescedRecord(rec));
       if (rec.id) resolvedIds.add(rec.id);
+      continue;
+    }
+    if (rec.type === "coalesce-miss") {
+      records.push(scrubCoalesceMissRecord(rec));
       continue;
     }
     const idx = count++;

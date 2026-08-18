@@ -541,6 +541,119 @@ test("pinRangeBounded: chases the target's own outcome past m too, without absor
   assert.deepEqual(res.outcomeScope, { n: 0, m: 0 });
 });
 
+// =====================================================================
+// coalesce-miss — a THIRD non-request record type (desk change, threat
+// matrix row 31's negative evidence: a duplicate sidecar send that was NOT
+// coalesced, and why). Before this record type existed, pinRange and
+// pinRangeBounded special-cased exactly two non-request types (boot,
+// outcome, coalesced) and treated everything else as a request — so a
+// coalesce-miss record would take a REQUEST ORDINAL it does not own,
+// shifting every later ordinal and scrubbing a bodyless record as if it
+// had one.
+//
+// RED-FIRST, run by hand (not asserted here — the prior code no longer
+// exists in this tree to assert against) against git commit e268d69's
+// tools/harvest.mjs, invoked in place inside tools/ so its relative
+// imports resolved, deleted immediately after: pinRange(capture, 1, 0)
+// over the capture writeCoalesceMissCapture below produced 3 records —
+// boot, the real first request, and the coalesce-miss record MISREAD as a
+// second request with 0 messages (scrubRecord on a record with no `body`
+// field) — and the REAL second request never appeared at all, silently
+// dropped because the ordinal it should have owned was already spent.
+async function writeCoalesceMissCapture(dir) {
+  const path = join(dir, "s-cmiss0000-requests.jsonl");
+  const lines = [
+    JSON.stringify({ ts: "2026-01-01T00:00:00Z", type: "boot", pid: 1, proxyTree: "abc123", gates: {} }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01Z",
+      id: "cm-0",
+      sid: "s-cmiss0000",
+      key: "s-cmiss0000",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: "first request" }] }] },
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01.010Z",
+      type: "coalesce-miss",
+      id: "cm-follower",
+      key: "s-cmiss0000",
+      leaderId: "cm-0",
+      sha: "abc123abc123abc1",
+      reason: "tombstone",
+      ageMs: 120,
+      arrivalDeltaMs: 45,
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:02Z",
+      id: "cm-1",
+      sid: "s-cmiss0000",
+      key: "s-cmiss0000",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: "second real request" }] }] },
+    }),
+  ];
+  await writeFile(path, lines.join("\n") + "\n");
+  return path;
+}
+
+test("pinRange: a coalesce-miss record between two requests does not shift request ordinals, and survives scrubbed", async () => {
+  const dir = await tmpDir("harvest-pin-cmiss-");
+  const path = await writeCoalesceMissCapture(dir);
+
+  const records = await pinRange(path, 1, 0);
+  assert.equal(records.length, 4, "boot + request 0 + the coalesce-miss record + request 1 — none absorbed, none dropped");
+
+  const requests = records.filter((r) => !r.type);
+  assert.equal(requests.length, 2, "exactly two request records — the coalesce-miss record took neither ordinal");
+  assert.equal(requests[0].body.messages[0].content[0].text.startsWith("t_"), true, "request 0's real content, tokenized");
+  assert.equal(requests[1].body.messages[0].content[0].text.startsWith("t_"), true, "request 1 is the REAL second request, not the miss record misread as one");
+
+  const cmiss = records.find((r) => r.type === "coalesce-miss");
+  assert.ok(cmiss, "the coalesce-miss record is preserved, not dropped and not merged into a request slot");
+  assert.notEqual(cmiss.id, "cm-follower", "id is hashed through the same id_<sha8> scheme as outcome/coalesced");
+  assert.notEqual(cmiss.leaderId, "cm-0", "leaderId is hashed too — the follower->leader join survives, just tokenized");
+  assert.equal(cmiss.sha, "abc123abc123abc1", "sha is a scalar digest, not conversation content — rides through unchanged");
+  assert.equal(cmiss.reason, "tombstone");
+  assert.equal(cmiss.ageMs, 120);
+  assert.equal(cmiss.arrivalDeltaMs, 45);
+  assert.equal(JSON.stringify(records).includes("cm-follower"), false, "the raw id leaks nowhere in the pinned fixture");
+});
+
+test("pinRange: a coalesce-miss record does NOT resolve a pinned ordinal, even when its own id matches one", async () => {
+  const dir = await tmpDir("harvest-pin-cmiss-noresolve-");
+  const path = join(dir, "s-cmissnr0000-requests.jsonl");
+  const lines = [
+    JSON.stringify({ ts: "2026-01-01T00:00:00Z", type: "boot", pid: 1, proxyTree: "abc123", gates: {} }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01Z",
+      id: "nr-0",
+      sid: "s-cmissnr0000",
+      key: "s-cmissnr0000",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: "only request" }] }] },
+    }),
+    // Past m: a coalesce-miss record whose own `id` matches the pinned
+    // request's raw id — a completion record with this id WOULD resolve
+    // it (see the outcome/coalesced tests above); this must not.
+    JSON.stringify({
+      ts: "2026-01-01T00:00:02Z",
+      type: "coalesce-miss",
+      id: "nr-0",
+      key: "s-cmissnr0000",
+      leaderId: "nr-somebody-else",
+      sha: "deadbeefdeadbeef",
+      reason: "arrival-race",
+      ageMs: 30,
+      arrivalDeltaMs: 12,
+    }),
+  ];
+  await writeFile(path, lines.join("\n") + "\n");
+
+  const records = await pinRange(path, 0, 0);
+  assert.equal(records.filter((r) => r.type === "coalesce-miss").length, 1, "the record is still preserved");
+  assert.deepEqual(records.outcomes, { resolved: [], unresolved: [0] }, "coalesce-miss is not a completion record — only outcome/coalesced resolve an ordinal");
+});
+
 test("harvest --pin CLI: fully resolved outcomes — header field and the unqualified-billing verification line", async () => {
   const dir = await tmpDir("harvest-pin-late-cli-");
   const capturesDir = join(dir, "captures");
