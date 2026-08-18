@@ -4422,6 +4422,70 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-18 (instruments; check-set class, 6th instance) —
+  `verdict-ab` reports IDENTICAL over a corpus that CANNOT CONTAIN the case
+  under test, and nothing in its output says so.** Used today to price the
+  combined-absorb change before the restart: `node tools/verdict-ab.mjs
+  cdc2b9a^ aa85900` returned IDENTICAL across 3,223 verdict lines / 19
+  corpora, exit 0. True, and it is a NO-REGRESSION result, not a
+  NO-CHANGE result — the pinned corpora hold no
+  description-delta-alongside-addition pair, while the same change is plainly
+  visible on the live capture (`heldStable` false -> true, stability
+  exemptions 1 -> 0). A reader who takes IDENTICAL as "the change is inert"
+  gets the opposite of the truth, and on the restart-transparency question
+  that is the reading that matters.
+  **Why it is this repo's own class and not a footnote:** the check set is a
+  FIXED pinned corpus, and a change whose case the corpus lacks removes itself
+  from the comparison — the same shape as `serving-gate-lint`'s pre-flip green
+  and `bust-triage`'s exemption blindness (entry below). The repair pattern
+  from that entry applies directly: the expectation must come from a source
+  the change cannot silently vacate.
+  **NOT a proposal to widen the corpus by default** — pins are expensive and
+  this repo has already been bitten by an unpublishable 188 MB one. The cheap
+  form is an output line: report how many pairs in the corpus MATCHED the
+  changed code path, so a green over zero relevant pairs is visibly different
+  from a green over many. Zero matches is a COULD-NOT-VERIFY, not a pass.
+  Named missing evidence: none — measured today, both readings in hand.
+  Done-criterion: `verdict-ab` prints a per-run count of corpus pairs that
+  exercised the changed path, and returns a distinct status when that count is
+  zero; red-first on today's own arrangement, which must stop reading as a
+  clean pass.
+  Consumer: any session pricing a proxy change before a restart — i.e. every
+  ship through `docs/runbooks/ship-proxy-change.md`.
+  Loop stage: VERIFY.
+  Anchor: `tools/verdict-ab.mjs`; ship runbook step 1's transparency question
+  Write-set: `tools/verdict-ab.mjs`, its test
+  Verifier: today's invocation re-run reports the match count, and a
+  constructed zero-match run does NOT report a plain pass
+  <!-- entry: "verdict-ab IDENTICAL over a corpus lacking the case under test" -->
+
+- **RECORD 2026-08-18 (small; closes a dangling pointer created the same day) —
+  ship-runbook step 6b names a GRADUATE target that has no entry.** Step 6b
+  (re-run `serving-gate-lint` AFTER the restart when a ship adds a gate) was
+  added today after a pre-restart run certified nothing about the gate the
+  ship existed to add. Its `[GRADUATE -> ...]` marker points at the backlog and
+  nothing was booked, which is the marker convention failing in the one
+  direction nobody checks — a hand-run step that believes it is already
+  scheduled.
+  The graduation: the lint runs from the GATE UNIT, so the daily sweep re-asks
+  it against whatever is serving that morning, instead of only when a human
+  remembers at ship time. That also fixes the ordering hazard structurally
+  rather than by discipline — a sweep cannot run before its own restart.
+  Named missing evidence: none.
+  Done-criterion: `cache-fix-gate` runs `serving-gate-lint` and its result
+  reaches `gate-status.json` as a three-answer field (pass / findings /
+  COULD-NOT-VERIFY when `/health` is unreachable, never a clean zero); the
+  runbook's step 6b is then reduced to reading that field, and its GRADUATE
+  marker is removed in the same change.
+  Consumer: the daily sweep, and the next session shipping a gate.
+  Loop stage: VERIFY.
+  Anchor: `docs/runbooks/ship-proxy-change.md` step 6b; `tools/gate-live.mjs`
+  Write-set: `tools/gate-live.mjs`, `tools/serving-gate-lint.mjs` (exit
+  contract only if needed), `docs/runbooks/ship-proxy-change.md`
+  Verifier: a gate run writes the lint field; unplugging `/health` yields
+  COULD-NOT-VERIFY rather than a pass
+  <!-- entry: "step 6b's GRADUATE target unbooked; lint should ride the gate unit" -->
+
 - **RECORD 2026-08-18 (review lens + audit; instruments) — FIVE instruments in
   this repo failed one class on one day, and the class has a MECHANICAL test.**
   The test, and it is the point of this entry: **where does the checker's
