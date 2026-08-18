@@ -407,6 +407,136 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/backlog-lint.test.mjs
   <!-- entry: "READY entry whose anchor moved after its booking date" -->
 
+- **READY 2026-08-18 (evening) — the proxy records a coalesce HIT and nothing
+  at all about a coalesce MISS, so row 31's one surviving post-flip
+  double-bill cost a hand walk to attribute and the next one will cost
+  another.** Measured today on capture `s-captureBU`, evidence frozen at
+  `test/fixtures/harvested/pinned-s-44aa393e3110-1-4.json`: a session-start
+  duplicate pair of row 31's own class (haiku, `nMsg=1`, `max_tokens=32000`,
+  lines 3 and 5, 43 ms apart) was forwarded twice and billed twice, with
+  conditions 1-3 provably held — `tools: []`, one message, and equal
+  forwarded-bytes digests (`outSha fe8fac4fd93ec354`, 2271 bytes both, and
+  condition 3 IS the map key). The gate was ON in the serving process (that
+  capture's boot record). So the miss is condition 4's, and **which way it
+  failed is unrecorded**: a STALE leader (registered >50 ms earlier by the
+  registration clock) and NO leader at all (the leader's `preForward` had not
+  resolved when the follower looked) are indistinguishable from outside the
+  process, and they call for different fixes.
+  **Design, decided.** (1) `handleMessages` stamps `arrivedAt` at entry and
+  the leader entry carries it. (2) A bounded TOMBSTONE map, key -> `{arrivedAt,
+  registeredAt, captureId}`, retained 2 s past the leader's completion, so a
+  second candidate carrying the same key can still see that a leader existed.
+  Bounded by construction: sha keys, small objects, TTL-swept on write.
+  (3) On a candidate whose key hits a live-but-stale leader or a tombstone,
+  `request-capture` writes a `type:"coalesce-miss"` record beside its existing
+  `buildCoalescedRecord` — `{ts, id, key, sha, reason: "stale-leader" |
+  "tombstone", ageMs (registration clock), arrivalDeltaMs (arrival clock),
+  leaderId}`. Both clocks in one record is the point: it says whether an
+  arrival-clock window would have caught this miss, which is exactly the
+  evidence the parked fix below is waiting on. (4) A strict view
+  `readCaptureCoalesceMiss` in `tools/logs.mjs` beside `readCaptureCoalesced`,
+  and the census's duplicate-streak rows carry the miss fields when the streak
+  has one, so `shape-verdicts`' `row-31-coalesce` warn can name the reason
+  instead of only the count.
+  **It changes no forwarding behaviour** — pure observation, no new condition,
+  no path where a request is served differently. That is what keeps it
+  shippable ahead of the fix it informs.
+  **Carrier check (dev-loop q4):** the record rides the capture file, an
+  existing registered carrier with an existing collector; no new carrier class.
+  Red-first, three arms, and the third is the one that keeps it from firing on
+  everything: a synthetic pair whose leader registration is delayed past the
+  window produces NO record today and a `reason:"stale-leader"` record with
+  `arrivalDeltaMs < 50 <= ageMs` after; a pair that coalesces normally still
+  writes `coalesced` and writes NO miss record; a duplicate arriving past the
+  tombstone TTL writes nothing at all.
+  Done: the three arms pasted, the census and `shape-verdicts` legs landed, the
+  suite green, and — deployment-coupled — the ship runbook walked (pin bump,
+  restart at a stated session boundary, gate run, three-way compare). Row 3's
+  restart-transparency argument holds: no state KEYS, no freeze logic, and the
+  in-memory maps are per-process by design.
+  Loop stage: ATTRIBUTE (the instrument the mitigation below reads).
+  Anchor: proxy/server.mjs
+  Write-set: proxy/server.mjs, proxy/extensions/request-capture.mjs,
+  tools/logs.mjs, tools/reminder-migration-census.mjs, tools/shape-verdicts.mjs,
+  test/coalesce-record.test.mjs, test/duplicate-coalesce.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs test/coalesce-record.test.mjs
+  <!-- entry: "proxy records coalesce hits but never coalesce misses" -->
+
+- **PARKED 2026-08-18 (evening) — row 31's 50 ms window is measured from the
+  leader's POST-PIPELINE registration, so our own pipeline latency is spent out
+  of CC's budget.** `entry.at = Date.now()` is stamped after `preForward` has
+  run the whole extension pipeline (`proxy/server.mjs`), and the follower
+  compares against it after its OWN pipeline — so the quantity checked against
+  `COALESCE_WINDOW_MS` is the arrival delta PLUS the skew between the two
+  requests' pipeline times, not the interval CC actually produced. The measured
+  instance: a 43 ms pair (class p50 is 14 ms) missed the window while a 166 KB
+  13-tool request arrived between the two and shared the event loop, 9 ms ahead
+  of the follower.
+  **The obvious fix — compare arrival stamps instead — is NOT booked as ready,
+  and the reason is the honest one:** if the follower found no leader at all
+  because the leader had not finished its pipeline yet, an arrival clock changes
+  nothing, because there is no entry to compare against. Building the clock fix
+  under that reading would ship a mitigation for a cause that may not be the
+  one occurring, which is what the attribution rule forbids.
+  NAMED MISSING EVIDENCE: `coalesce-miss` records (the READY entry above)
+  showing, across at least a few live instances, whether the misses read
+  `stale-leader` with `arrivalDeltaMs < 50` — which the clock fix removes — or
+  `tombstone`, which needs the leader registered EARLIER instead, a different
+  change to a different line.
+  Design sketch held for when that lands, so the trigger is a build and not a
+  re-derivation: the leader entry carries `arrivedAt`; condition 4 reads
+  `follower.arrivedAt - leader.arrivedAt < COALESCE_WINDOW_MS`; the window
+  constant is unchanged, because widening it to absorb our own latency is the
+  workaround, not the fix.
+  Trigger to re-grade: the first sweep whose captures carry `coalesce-miss`
+  records.
+  Loop stage: MITIGATE.
+  Anchor: proxy/server.mjs
+  Write-set: proxy/server.mjs, test/duplicate-coalesce.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs
+  <!-- entry: "coalesce window measured from registration, not arrival" -->
+
+- **READY 2026-08-18 (evening) — `harvest --pin <n>..<m>` stops at request
+  ordinal `m`, so the pinned pair's OWN outcome records are never in the
+  fixture, while the tool reports that the pin "reproduces the live
+  verdicts".** Measured while freezing today's row-31 evidence, and it cost a
+  wasted pin: `--pin s-<key> 1..3` over `s-captureBU` wrote 5 records — boot
+  plus four requests, ZERO outcome records — and printed `pin verified:
+  reproduces the live verdicts over records 0..3`. That sentence is TRUE about
+  what it checked (stability, exemptions, census classes over the request
+  stream) and false as read: the finding being frozen was a BILLING one, whose
+  entire proof — two distinct upstream request-ids, two `usage` blocks, equal
+  `outSha`, and the ABSENCE of a `type:"coalesced"` record — lives in the
+  outcome records that follow the last pinned request. `pinRange` breaks out of
+  the read loop the moment it pushes request ordinal `m`, so those records are
+  excluded by construction, for every pin ever taken. The workaround found by
+  hand was to pin `1..4` and let the next request drag the outcomes in, which
+  works by accident and freezes an unrelated 170 KB request to do it.
+  **Design, decided.** After pushing ordinal `m`, keep streaming until every
+  pinned request id has been seen in an `outcome` or `coalesced` record, or a
+  bounded lookahead is exhausted (200 records or 32 MB of lines, whichever
+  first — a bound, not a scan of the rest of a 435 MB capture). The header
+  records the result per pinned ordinal: `outcomes: {resolved: [...],
+  unresolved: [...]}`. And the verification line stops claiming the general —
+  it names the replayed verdicts and states, when any pinned request's outcome
+  is unresolved, that the pin does NOT carry billing or coalescing evidence.
+  An assurance wider than its predicate is what stopped anyone looking here.
+  Red-first, both arms from the real capture rather than planted: (a) pinning
+  `1..3` over `s-captureBU` today produces zero outcome records and the
+  unqualified success line — after the change the same command carries all
+  three outcome records and the header lists them resolved; (b) a pin whose
+  lookahead genuinely runs out (a capture truncated after the pinned request)
+  must say `unresolved` and must NOT report the billing-evidence claim — without
+  (b) a lookahead that always succeeds passes arm (a).
+  Done: both arms pasted, the header field landed, the verification sentence
+  narrowed to what it establishes, suite green, entry moves to `## Done`.
+  Loop stage: SEE (the evidence-freezing half of it).
+  Anchor: tools/harvest.mjs
+  Write-set: tools/harvest.mjs, test/harvest-pin.test.mjs,
+  test/harvest-pin-verify.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/harvest-pin.test.mjs test/harvest-pin-verify.test.mjs
+  <!-- entry: "harvest --pin excludes the pinned pair's own outcome records" -->
+
 - **PARKED 2026-08-18 (was READY; HALF ONE IS SHIPPED, half two is blocked on
   another repo file) — `bust-triage` cannot reach threat-matrix row 24 by ANY
   of its three routes, so the whole resume / born-large class triages as

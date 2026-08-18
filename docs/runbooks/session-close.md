@@ -83,6 +83,24 @@ continue-or-restart decision at depth. It is not "the work looks done"
    `[GRADUATE -> a parse plus a set difference against the session's own
    commits; no judgment beyond option (c)'s reason. BACKLOG ready]`
 
+3b. **RUN the fork's own verdicts — `node tools/shape-verdicts.mjs` — and give
+   every non-`ok` one a disposition, the same three options as step 3.** The
+   suite, the daily gate, `serving-gate-lint`, `matrix-status` and
+   `backlog-lint` are the checks a close report reaches for by habit; the
+   verdict set is the one that reads the STANDING WATCHERS a mitigation left
+   behind, and it is the one that gets left out. Measured 2026-08-18: the
+   13:20-13:36Z sweep's `row-31-coalesce` verdict said *"1 post-flip
+   single-message streak DOUBLE-BILLED of 27 — row 31's mitigation is not
+   holding"*, the close report's health list named six other checks and not
+   this one, and the finding was found the next session by running the
+   command. Row 31 was the one bust class that week had closed, and its own
+   watcher — built for exactly this, on the scheduled path, because the unit
+   runs `--quiet` — reported into nobody's close. The dotfiles `doctor`
+   surfaces these verdicts at their own level, so the reader exists; what was
+   missing was a step that runs it. `warn` is not a lower grade of `ok`: it is
+   a finding whose runbook is `docs/runbooks/sweep-finding.md`.
+   `[GRADUATE -> the close scan running the verdict set itself; BACKLOG]`
+
 4. **Both repos, not one.** `git status --short` and
    `git log --oneline origin/<branch>..<branch>` in the fork AND in
    dotfiles. Deployment coupling means a session often writes to both,
