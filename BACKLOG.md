@@ -403,6 +403,82 @@ comment and new issue.
 
 ## Open
 
+- **READY 2026-08-18 (night, operator question: does the sweep have to cost
+  this much) — the daily gate re-walks the WHOLE corpus every run and its
+  PARENT process is uncapped, so both its runtime and its memory track corpus
+  size with nothing watching either.** Measured on tonight's ship run:
+  started 22:52, still running at 50 minutes against the afternoon run's 16,
+  over **30 captures / 12 GB** where the afternoon walked 18. Parent RSS
+  climbed 4.3 -> 5.9 -> 8.1 GB across the run (peak 8.3), monotonically,
+  which is accumulation rather than streaming — the parent retains per-streak
+  rows for every capture and never releases them.
+  **The heap cap does not cover this, and the note saying it does is reading
+  the wrong half:** `tools/gate-live.mjs:138` `export const
+  CHILD_HEAP_CAP_MB = 2048;` caps the replay and census CHILDREN,
+  deliberately, as a check rather than a tuning knob. The parent has no cap in the unit either — no `MemoryMax`, no
+  `NODE_OPTIONS` (`systemctl --user cat cache-fix-gate`). `CLAUDE.local.md`
+  calls the sweep "heap-capped", which is TRUE of the children and silent
+  about the parent; that line wants a word.
+  **Two independent fixes, and they are not alternatives:**
+  (1) INCREMENTALITY. The sweep already computes a per-capture code stamp
+  (33 references in `gate-live.mjs`) but nothing skips on it and there is no
+  `--since` / `--incremental` flag (0 hits). A capture already verified at
+  the current code fingerprint does not need replaying. This is the runtime
+  fix and it is the one that stops the trend.
+  (2) A PARENT BOUND. Retained rows are what grow; either stream them to the
+  status file per capture or cap what is held. This is the memory fix.
+  **Why it is not merely slow:** the unit is on a twice-daily timer. A run
+  that outgrows its own interval silently stops being a daily sweep, and the
+  failure is a NON-EVENT — no red, just an older verdict than anyone thinks.
+  Nothing currently alarms on sweep duration.
+  Loop stage: VERIFY (instrument economics; the sweep produces the third of
+  the ship runbook's three answers, so its health is load-bearing for every
+  ship).
+  Anchor: `tools/gate-live.mjs`
+  Write-set: `tools/gate-live.mjs`, `test/gate-live-rowpins.test.mjs`
+  Verifier: a second consecutive sweep over an unchanged corpus completes in
+  a small fraction of the first, and parent peak RSS stops tracking capture
+  count; both read off the run rather than argued
+  <!-- entry: "daily gate re-walks the whole corpus and its parent is uncapped" -->
+
+- **READY 2026-08-18 (night, operator question: do the captures have to be so
+  big) — the capture store keeps roughly 271 bytes for every byte of novel
+  conversation, because every request re-sends the whole conversation and each
+  one is stored in full.** Measured over a 315 MB sample of the largest live
+  capture: 562 whole records, median 516 KB, largest single record 1.16 MB,
+  total 313 MB — a stored-to-largest ratio of ~271:1. Record sizes grow
+  monotonically through a session (186 -> 191 -> 194 -> 211 KB across four
+  consecutive requests), which is the conversation prefix accumulating.
+  Store today: **12 GB across 30 captures**, largest single capture 2.5 GB.
+  **Two instrument notes, because the obvious measurements both mislead:**
+  gzip over the file reports only 2.2:1, and cannot do better — its window is
+  32 KB while the repetition is at 100 KB+ range, so a low ratio there is
+  evidence of nothing. And a common-PREFIX comparison between consecutive
+  records reads 0.0%, also misleading: records alternate request/outcome, and
+  two request records differ in their opening bytes (timestamps, ids) even
+  when their bodies are near-identical. Prefix is the wrong operator; the
+  size distribution is what carries the finding.
+  **The design that would fix it, and the reason it is not a small change:**
+  content-addressed block storage — hash each message block, store each
+  unique block once, store per request an ordered list of hashes. Lossless in
+  principle and worth roughly two orders of magnitude. But byte-level
+  fidelity is the WHOLE point of these captures: attribution rests on
+  comparing forwarded bytes, so every reader would have to go through an
+  exact reconstruction layer, and a reconstruction that is subtly lossy would
+  corrupt the evidence base rather than fail loudly. That is the risk to
+  design against, and it is why this is booked rather than built.
+  **What it would buy beyond disk:** the retention sweep evicts oldest-first
+  on a size cap, so capture size directly sets how far back evidence
+  survives — the same rotation clock the closing gate's question 2 is about.
+  A 100x reduction is a 100x longer evidence window at the same cap.
+  Loop stage: SEE (the cost is measured; the design is not decided).
+  Anchor: `proxy/extensions/request-capture.mjs`
+  Write-set: `proxy/extensions/request-capture.mjs`, `tools/logs.mjs`
+  Verifier: a reconstructed capture is byte-identical to the original across
+  the whole corpus — the red-first arm being a deliberately corrupted block
+  that must fail the comparison
+  <!-- entry: "captures store ~271:1 against novel content; content-addressed blocks" -->
+
 - **READY 2026-08-18 (night, found by the pre-push suite going red on an
   unrelated commit) — the runbook marker checker CONFIRMS a claim from the
   claim's own disposition keyword, so one ordinary entry can silence every
