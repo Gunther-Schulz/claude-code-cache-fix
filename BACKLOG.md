@@ -27,7 +27,33 @@ calling the rest unranked.
 - **RECORD** — decision-complete memory, not scheduled. Same bodies, same
   verifiers, nothing dropped; booking stays cheap because the record is what
   booking exists for. Lives in `## Record`.
-## Build order — RE-DERIVED 2026-08-18 (EIGHTH derivation); the READY set IS this list
+## Build order — EIGHTH derivation (2026-08-18 afternoon), OVERTAKEN that night; read the override below before the list
+
+**OVERRIDE — 2026-08-18 night, operator decision. This section's ranking is
+STALE and the header's old claim that "the READY set IS this list" is false as
+written: three entries booked after it are not in it, and its own item 1
+shipped.** Do not re-derive a ninth ordering to fix that — the next session's
+order is decided and stated here:
+
+  1. **the replay children's heap cap decoupled from the rotation ceiling** —
+     OOM, created this session (ceiling 8192 -> 12288 cut headroom 1.67x ->
+     1.11x on a cap that is a proven regression detector).
+  2. **the gate's parent memory** — 4.3 -> 8.3 GB monotonic, uncapped, no
+     equivalent of the children's detector. Runtime is FLAT (0.87 min/capture
+     vs 0.89) and wants a duration alarm, not incrementality.
+  3. **`state-report` gains four collectors** — the intake gap.
+  Then the surviving items of the list below, in its order.
+
+**The operator's framing that decides all of the above: storage is NOT scarce
+on this machine. Nothing valuable is pruned or leaned to save space — only
+PERFORMANCE and OOM justify a change.** The capture-size entry (~271:1 stored
+to novel) is PARKED under that constraint, not ready.
+
+**Item 1 of the list below is CLOSED** — the coalesce-MISS record shipped this
+session (`dc11012`, `f491b0f`, `81548e4`), deployed (pin `5ddf24f`, `81dd656`,
+restart, three answers agreeing), and its entry has MOVED to `## Done`. The
+ranking text below is left unedited as the record of what was derived that
+afternoon; this block is what is current.
 
 Method unchanged (`docs/dev-loop.md`, "Build order is DERIVED at build time"):
 partitions first — hard ordering constraints, then irreversible failure modes,
@@ -716,75 +742,6 @@ comment and new issue.
   Verifier: a bounded pin over a born-large capture reproduces its own pair — the self-check that currently refuses
   <!-- entry: "harvest --pin --bounded fails to reproduce on born-large, third occurrence" -->
 
-- **READY 2026-08-18 (evening) — the proxy records a coalesce HIT and nothing
-  at all about a coalesce MISS, so row 31's one surviving post-flip
-  double-bill cost a hand walk to attribute and the next one will cost
-  another.** Measured today on capture `s-captureBU`, evidence frozen at
-  `test/fixtures/harvested/pinned-s-44aa393e3110-1-4.json`: a session-start
-  duplicate pair of row 31's own class (haiku, `nMsg=1`, `max_tokens=32000`,
-  lines 3 and 5, 43 ms apart) was forwarded twice and billed twice, with
-  conditions 1-3 provably held — `tools: []`, one message, and equal
-  forwarded-bytes digests (`outSha fe8fac4fd93ec354`, 2271 bytes both, and
-  condition 3 IS the map key). The gate was ON in the serving process (that
-  capture's boot record). So the miss is condition 4's, and **which way it
-  failed is unrecorded**: a STALE leader (registered >50 ms earlier by the
-  registration clock) and NO leader at all (the leader's `preForward` had not
-  resolved when the follower looked) are indistinguishable from outside the
-  process, and they call for different fixes.
-  **Design, decided — AND REVISED DURING THE BUILD, 2026-08-18 evening. The
-  revision is recorded here rather than smoothed over, because the entry is the
-  spec and shipping something else without saying so is the drift this file
-  collects.** (1) `handleMessages` stamps `arrivedAt` at entry and the leader
-  entry carries it. (2) On a candidate whose key finds a leader that is STILL IN
-  FLIGHT but outside the window, `request-capture` writes a
-  `type:"coalesce-miss"` record beside its existing `buildCoalescedRecord` —
-  `{ts, id, key, sha, reason, ageMs (registration clock), arrivalDeltaMs
-  (arrival clock), leaderId}`. Both clocks in one record is the point: it says
-  whether an arrival-clock window would have caught this miss, which is exactly
-  the evidence the parked fix below is waiting on.
-  **WHAT WAS CUT AND WHY — a 2 s TOMBSTONE of completed leaders.** The original
-  design kept one so a follower arriving after the leader finished could still
-  see that a leader existed. Its own CONTROL arm killed it inside the hour: a
-  pair that DID coalesce produced a miss record, because the previous pair's
-  tombstone was live under the same key — the record firing on the mitigation's
-  own success, which is the check-that-fires-on-a-non-defect shape aimed at the
-  very number row 31 is measured in. Two facts fell out of that red: a COMPLETED
-  leader is not a lost opportunity (nothing was in flight to attach to), and the
-  case actually worth catching — the leader mid-pipeline, not yet registered —
-  the tombstone never covered at all, since the tombstone is written on
-  COMPLETION. So the scope narrowed to the case where an opportunity provably
-  existed, and the missing case is recovered AT THE READER without guessing: a
-  post-flip single-message streak that is double-billed and carries NO miss
-  record IS the leader-not-yet-registered case. Absence of the record is
-  evidence, which is why nothing may write one speculatively. (4) A strict view
-  `readCaptureCoalesceMiss` in `tools/logs.mjs` beside `readCaptureCoalesced`,
-  and the census's duplicate-streak rows carry the miss fields when the streak
-  has one, so `shape-verdicts`' `row-31-coalesce` warn can name the reason
-  instead of only the count.
-  **It changes no forwarding behaviour** — pure observation, no new condition,
-  no path where a request is served differently. That is what keeps it
-  shippable ahead of the fix it informs.
-  **Carrier check (dev-loop q4):** the record rides the capture file, an
-  existing registered carrier with an existing collector; no new carrier class.
-  Red-first, four arms at the wire, and three of them are controls because the
-  one thing this must never do is fire on the mitigation working: a pair whose
-  leader is still in flight with the window closed produces NO record today and
-  a `reason:"stale-leader"` record carrying both clocks after; a pair that
-  coalesces normally still writes `coalesced` and NO miss record; a pair whose
-  leader has COMPLETED writes nothing (the scope decision above, pinned); a lone
-  request writes nothing.
-  Done: the three arms pasted, the census and `shape-verdicts` legs landed, the
-  suite green, and — deployment-coupled — the ship runbook walked (pin bump,
-  restart at a stated session boundary, gate run, three-way compare). Row 3's
-  restart-transparency argument holds: no state KEYS, no freeze logic, and the
-  in-memory maps are per-process by design.
-  Loop stage: ATTRIBUTE (the instrument the mitigation below reads).
-  Anchor: proxy/server.mjs
-  Write-set: proxy/server.mjs, proxy/extensions/request-capture.mjs,
-  tools/logs.mjs, tools/reminder-migration-census.mjs, tools/shape-verdicts.mjs,
-  test/coalesce-record.test.mjs, test/duplicate-coalesce.test.mjs
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs test/coalesce-record.test.mjs
-  <!-- entry: "proxy records coalesce hits but never coalesce misses" -->
 
 - **PARKED 2026-08-18 (was READY, promoted the same day; the measurement RAN and returned a SCALE GAP rather than an answer — head #3, formerly riding the
   `--at` lane above — same realizing file, separate red-first arrangements. THE
@@ -11248,6 +11205,86 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-18 (night) — the proxy now records a coalesce MISS, and the
+  deployment half landed with it.** Built and shipped this session: the miss
+  record (`dc11012`), the forwarding-path ordering fix that keeps the write
+  off the hot path (`f491b0f`), and `harvest --pin` recognising
+  coalesce-miss as a third non-request record type (`81548e4`). Deployed:
+  dotfiles pin `25c9929` -> `5ddf24f` (`81dd656`), proxy restarted, and the
+  ship runbook's three answers agree with VERIFIED produced by a sweep that
+  ran AFTER the restart (gate status stamped 21:18:52Z, ok, 0 failing, 30
+  captures). The original entry body follows unchanged.
+  **ORIGINAL ENTRY, as booked:**
+  - **READY 2026-08-18 (evening) — the proxy records a coalesce HIT and nothing
+  at all about a coalesce MISS, so row 31's one surviving post-flip
+  double-bill cost a hand walk to attribute and the next one will cost
+  another.** Measured today on capture `s-captureBU`, evidence frozen at
+  `test/fixtures/harvested/pinned-s-44aa393e3110-1-4.json`: a session-start
+  duplicate pair of row 31's own class (haiku, `nMsg=1`, `max_tokens=32000`,
+  lines 3 and 5, 43 ms apart) was forwarded twice and billed twice, with
+  conditions 1-3 provably held — `tools: []`, one message, and equal
+  forwarded-bytes digests (`outSha fe8fac4fd93ec354`, 2271 bytes both, and
+  condition 3 IS the map key). The gate was ON in the serving process (that
+  capture's boot record). So the miss is condition 4's, and **which way it
+  failed is unrecorded**: a STALE leader (registered >50 ms earlier by the
+  registration clock) and NO leader at all (the leader's `preForward` had not
+  resolved when the follower looked) are indistinguishable from outside the
+  process, and they call for different fixes.
+  **Design, decided — AND REVISED DURING THE BUILD, 2026-08-18 evening. The
+  revision is recorded here rather than smoothed over, because the entry is the
+  spec and shipping something else without saying so is the drift this file
+  collects.** (1) `handleMessages` stamps `arrivedAt` at entry and the leader
+  entry carries it. (2) On a candidate whose key finds a leader that is STILL IN
+  FLIGHT but outside the window, `request-capture` writes a
+  `type:"coalesce-miss"` record beside its existing `buildCoalescedRecord` —
+  `{ts, id, key, sha, reason, ageMs (registration clock), arrivalDeltaMs
+  (arrival clock), leaderId}`. Both clocks in one record is the point: it says
+  whether an arrival-clock window would have caught this miss, which is exactly
+  the evidence the parked fix below is waiting on.
+  **WHAT WAS CUT AND WHY — a 2 s TOMBSTONE of completed leaders.** The original
+  design kept one so a follower arriving after the leader finished could still
+  see that a leader existed. Its own CONTROL arm killed it inside the hour: a
+  pair that DID coalesce produced a miss record, because the previous pair's
+  tombstone was live under the same key — the record firing on the mitigation's
+  own success, which is the check-that-fires-on-a-non-defect shape aimed at the
+  very number row 31 is measured in. Two facts fell out of that red: a COMPLETED
+  leader is not a lost opportunity (nothing was in flight to attach to), and the
+  case actually worth catching — the leader mid-pipeline, not yet registered —
+  the tombstone never covered at all, since the tombstone is written on
+  COMPLETION. So the scope narrowed to the case where an opportunity provably
+  existed, and the missing case is recovered AT THE READER without guessing: a
+  post-flip single-message streak that is double-billed and carries NO miss
+  record IS the leader-not-yet-registered case. Absence of the record is
+  evidence, which is why nothing may write one speculatively. (4) A strict view
+  `readCaptureCoalesceMiss` in `tools/logs.mjs` beside `readCaptureCoalesced`,
+  and the census's duplicate-streak rows carry the miss fields when the streak
+  has one, so `shape-verdicts`' `row-31-coalesce` warn can name the reason
+  instead of only the count.
+  **It changes no forwarding behaviour** — pure observation, no new condition,
+  no path where a request is served differently. That is what keeps it
+  shippable ahead of the fix it informs.
+  **Carrier check (dev-loop q4):** the record rides the capture file, an
+  existing registered carrier with an existing collector; no new carrier class.
+  Red-first, four arms at the wire, and three of them are controls because the
+  one thing this must never do is fire on the mitigation working: a pair whose
+  leader is still in flight with the window closed produces NO record today and
+  a `reason:"stale-leader"` record carrying both clocks after; a pair that
+  coalesces normally still writes `coalesced` and NO miss record; a pair whose
+  leader has COMPLETED writes nothing (the scope decision above, pinned); a lone
+  request writes nothing.
+  Done: the three arms pasted, the census and `shape-verdicts` legs landed, the
+  suite green, and — deployment-coupled — the ship runbook walked (pin bump,
+  restart at a stated session boundary, gate run, three-way compare). Row 3's
+  restart-transparency argument holds: no state KEYS, no freeze logic, and the
+  in-memory maps are per-process by design.
+  Loop stage: ATTRIBUTE (the instrument the mitigation below reads).
+  Anchor: proxy/server.mjs
+  Write-set: proxy/server.mjs, proxy/extensions/request-capture.mjs,
+  tools/logs.mjs, tools/reminder-migration-census.mjs, tools/shape-verdicts.mjs,
+  test/coalesce-record.test.mjs, test/duplicate-coalesce.test.mjs
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs test/coalesce-record.test.mjs
+  <!-- entry: "proxy records coalesce hits but never coalesce misses" -->
 
 - **DONE 2026-08-18 — `boundary-layers --at` reports resolved / ambiguous /
   none, never a silent nearest-match. Built `ef28e8e` (lane
