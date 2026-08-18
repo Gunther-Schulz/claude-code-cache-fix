@@ -515,6 +515,68 @@ test("git-range: a blob unchanged from the tip is not re-scanned by the interior
   });
 });
 
+// ---------------------------------------------------------------------------
+// BACKLOG "absence-scan blob dedupe keyed on oid alone, not oid plus scope" —
+// `scannedBlobs` above is a plain OID set shared between the endpoint pass
+// and the interior walk. Two DIFFERENT paths carrying byte-IDENTICAL content
+// (same blob OID) but routed to DIFFERENT scope treatment — one outside
+// test/fixtures/harvested/ (byte-level classes only), one inside it (the
+// full class set, including corpus-only classes like live-timestamp) — share
+// one dedupe entry, so whichever path is scanned FIRST silently absorbs the
+// second path's scan, and a corpus-only defect at the second path never
+// fires.
+//
+// RED-FIRST: against the unmodified scanner this reports `absence-scan:
+// clean`, exit 0 — demonstrated by hand before this fix landed (dispatcher's
+// closing report carries the pasted output). The out-of-corpus path is
+// scanned first (endpoint pass runs before the interior walk) and produces
+// no findings (its scope excludes live-timestamp), which is enough to mark
+// the OID "already scanned" and skip the in-corpus path's own scan entirely
+// once the fix keys dedupe on (oid, scope).
+// ---------------------------------------------------------------------------
+
+test("git-range: identical bytes at two paths with DIFFERENT scope classes are scanned under BOTH", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    writeFileSync(join(dir, "README.md"), "clean\n");
+    g("add", "-A");
+    g("commit", "-qm", "clean baseline");
+    const base = g("rev-parse", "HEAD");
+
+    // Byte-identical content at two paths with different scope treatment:
+    // a live (out-of-epoch) timestamp, which only the corpus-scope
+    // `live-timestamp` class has any opinion about.
+    const shared = JSON.stringify({ ts: "2026-08-01T09:15:00.000Z" }, null, 2);
+
+    // Out-of-corpus path — scanned first (it survives to the tip, so the
+    // endpoint pass reaches it before the interior walk runs at all) and
+    // produces NO findings: outside test/fixtures/harvested/, only the
+    // "any"-scope classes (b64-run, capture-uuid) apply, and this content
+    // trips neither.
+    writeFileSync(join(dir, "outer.json"), shared);
+    g("add", "outer.json");
+    g("commit", "-qm", "add outer (out-of-corpus, same bytes)");
+
+    // In-corpus path, same bytes, same blob OID — added then removed, so it
+    // never reaches the endpoint diff and is visible only to the interior
+    // walk, AFTER the endpoint pass has already scanned the blob via
+    // outer.json above.
+    mkdirSync(join(dir, CORPUS), { recursive: true });
+    writeFileSync(join(dir, CORPUS, "inner.json"), shared);
+    g("add", `${CORPUS}/inner.json`);
+    g("commit", "-qm", "add inner (in-corpus, same bytes — should be caught here)");
+    g("rm", "-q", `${CORPUS}/inner.json`);
+    g("commit", "-qm", "scrub: remove inner.json before push");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--git-range", `${base}..${head}`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, new RegExp(`FINDING live-timestamp {2}${CORPUS}/inner\\.json`),
+      "the in-corpus path's own scope must fire even though the out-of-corpus twin " +
+      "with the same OID was scanned first");
+  });
+});
+
 // --- annotated tag messages -----------------------------------------------------
 //
 // A tag's ANNOTATION is a message on its own object, distinct from every

@@ -205,6 +205,18 @@ export function isAllowlisted(path) {
 export const CORPUS_SCOPE = /(^|\/)test\/fixtures\/harvested\//;
 export const inCorpus = (file) => CORPUS_SCOPE.test(String(file).replace(/\\/g, "/"));
 
+// The three ROUTES `scanContent` can send a path down — "source" (short-key
+// + full-UUID only, via scanSourceText), "corpus" (the full CLASSES set) or
+// "json" (the "any"-scope classes alone). Two paths sharing a blob OID but
+// resolving to different routes must not share one dedupe entry (see
+// `scannedBlobs` in scanGitRange) — the same bytes mean different things
+// scanned under a narrower scope than a wider one would have applied.
+export function scopeKey(file) {
+  const f = String(file);
+  if (SOURCE_SCANNABLE.test(f) && !SCANNABLE.test(f)) return "source";
+  return inCorpus(f) ? "corpus" : "json";
+}
+
 // --- The class definitions ---------------------------------------------------
 
 // (a) An image payload, a thinking signature or an encoded blob looks like a
@@ -806,18 +818,27 @@ export function scanGitRange(oldRef, newRef) {
   let scanned = 0;
   let partial = 0;
   let partialSource = 0;
-  // Blob OIDs already scanned, shared across the endpoint pass below and the
-  // range-interior walk that follows it — the same content reached through
-  // two different git invocations (`show <tip>:<path>` vs. a per-commit
-  // `diff-tree`) is one scan, not two. A blob that only ever exists inside
-  // the range (added then removed before the tip) is scanned exactly once,
-  // by the interior walk; a blob that survives to the tip is scanned once,
-  // here, and the interior walk's later encounter of the same OID is a
-  // no-op. Scoped by OID alone, not (OID, path): the same bytes committed
-  // at two different logical paths in one push share a scan, which can in
-  // principle skip a corpus-scope finding at the second path if the first
-  // path scanned it out-of-corpus — not observed in this repo's history,
-  // named rather than silently accepted.
+  // Blob (OID, scope) pairs already scanned, shared across the endpoint pass
+  // below and the range-interior walk that follows it — the same content
+  // reached through two different git invocations (`show <tip>:<path>` vs. a
+  // per-commit `diff-tree`) is one scan, not two, PROVIDED it is scanned
+  // under the same scope. A blob that only ever exists inside the range
+  // (added then removed before the tip) is scanned exactly once, by the
+  // interior walk; a blob that survives to the tip is scanned once, here,
+  // and the interior walk's later encounter of the same OID under the SAME
+  // scope is a no-op.
+  //
+  // KEYED ON (OID, scope), NOT OID ALONE — narrowed 2026-08-18. Byte-
+  // identical content committed at two different logical paths in one push
+  // used to share one dedupe entry regardless of scope, so whichever path
+  // was scanned first silently absorbed the second: a blob scanned
+  // out-of-corpus (byte-level classes only) marked the OID "done", and an
+  // in-corpus twin with the same bytes never got its own corpus-scope
+  // classes (live-timestamp, nested-payload, raw-content) checked at all.
+  // `scopeKey` names the route `scanContent` would take for a given path —
+  // the same content at two paths in the same route is still deduped; a
+  // route change still gets its own scan.
+  const blobKey = (oid, path) => `${oid}\0${scopeKey(path)}`;
   const scannedBlobs = new Set();
   for (const file of files) {
     if (isAllowlisted(file)) {
@@ -828,7 +849,7 @@ export function scanGitRange(oldRef, newRef) {
     try {
       blobId = git(["rev-parse", "-q", "--verify", `${newRef}:${file}`]).trim();
     } catch { /* unresolvable — fall through and scan by content anyway */ }
-    if (blobId) scannedBlobs.add(blobId);
+    if (blobId) scannedBlobs.add(blobKey(blobId, file));
     const text = git(["show", `${newRef}:${file}`]);
     const r = scanContent(text, file, { honorSyntheticRoster: true });
     // Class-scoped exemptions: the file is still SCANNED, and only the
@@ -864,8 +885,9 @@ export function scanGitRange(oldRef, newRef) {
         }
         continue;
       }
-      if (scannedBlobs.has(blob)) continue;
-      scannedBlobs.add(blob);
+      const key = blobKey(blob, path);
+      if (scannedBlobs.has(key)) continue;
+      scannedBlobs.add(key);
       interiorPaths++;
       let text;
       try {
