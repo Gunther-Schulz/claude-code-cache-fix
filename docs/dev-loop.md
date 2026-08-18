@@ -235,6 +235,12 @@ BACKLOG.md carries no priority field. Instead the order is recomputed from what
 the entries already prove, and the derived list is written down WITH ITS DATE so
 a stale one is visibly stale rather than quietly authoritative.
 
+Before any of the four signals below is applied, `backlog-lint`'s default-run
+`ANCHOR-MOVED`/`ANCHOR-UNCHECKABLE` lines for the READY set are a required
+read — a flagged entry's `Anchor:` file has commits since the entry's own
+booking date and its premise needs re-checking before it ranks at all, the
+gap the seventh derivation's own already-shipped head #1 fell through.
+
 Four signals, in descending authority. The first is fact; the rest are judgment
 over evidence:
 

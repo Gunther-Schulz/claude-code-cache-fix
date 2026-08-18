@@ -1819,6 +1819,159 @@ export function lintReadyBar(text, env = {}) {
   return findings;
 }
 
+// ==========================================================================
+// Anchor-moved lane (default pass) — a READY entry whose ANCHOR file moved
+// after the entry's own booking date
+// ==========================================================================
+//
+// Why this exists: the seventh build-order derivation (2026-08-18) ranked
+// "push scan diffs range ENDPOINTS" head #1 while the work had already
+// shipped in `f228720` on 2026-08-14 — four days earlier, in the entry's own
+// `Anchor:` file. A second entry on the same lane was half-overtaken the
+// same way. Both were found by a dispatched lane opening the Anchor, not by
+// any check. The mechanism, so this is not mistaken for carelessness: a
+// derivation re-reads each entry's REASONING, which stays intact — what
+// refutes it is a commit made by a different piece of work that never reads
+// the entry, so nobody holds both halves at once and the staleness cannot
+// surface on its own. The comparison is two dates and a `git log`; only the
+// DELIVERY of that input to the judgment is mechanizable, never the
+// judgment itself. See BACKLOG.md, "a READY entry whose ANCHOR file moved
+// after the entry's booking date".
+//
+// SCOPE: `## Open`, READY-graded bullets only (`READY_HEADER`, already
+// defined above for the premise-true lane — reused, not re-derived).
+//
+// The booking date is the `YYYY-MM-DD` immediately following `READY` in the
+// entry's HEADER LINE (`READY_BOOKING_DATE`, below) — this corpus's real
+// idiom (`READY 2026-08-18`, `READY 2026-08-18 (evening)`). A header that
+// does not carry that exact shape — a promoted/re-ranked header with prose
+// between `READY` and its date (`READY (promoted 2026-08-15, …) 2026-08-11
+// (evening)`) — has no COMPUTABLE booking date and is `ANCHOR-UNCHECKABLE`,
+// never guessed at from the nearest date in the header.
+//
+// The anchor is the entry's own `Anchor:` line (`READY_BAR_ANCHOR`, already
+// defined above for the READY-bar lane — reused). A `row N` anchor names a
+// matrix row, not a file, and is not checkable by `git log`; a missing or
+// empty `Anchor:` line is the same absence one level up. All three are
+// `ANCHOR-UNCHECKABLE` — an entry that cannot be checked must not read as an
+// entry that passed.
+//
+// THE WINDOW'S LOWER BOUND MUST BE PINNED TO MIDNIGHT, not left as a bare
+// `--since=<date>`: git's approxidate attaches the CURRENT clock time to a
+// bare date, so `--since=2026-08-18` run at 17:00 means "2026-08-18 17:00"
+// and silently drops every commit made earlier that same day — measured
+// directly against this repo's own history (`tools/boundary-layers.mjs`,
+// booked 2026-08-16, committed `a644022` at 10:18 that morning: the bare
+// form finds nothing, `--since="2026-08-16 00:00"` finds it). Worse, the
+// bare form's answer changes with the WALL-CLOCK HOUR the lint happens to
+// run at — a check whose verdict depends on when it is invoked is exactly
+// the drifting-premise shape this corpus already collects. So the window is
+// `--since=<date>T00:00:00`, always — over-inclusion on the booking day
+// itself is the safe direction for a WARN-only lane; silent under-reporting
+// is not.
+//
+// `git log --format=%h --since=<date>T00:00:00 --reverse -- <anchor>`:
+// non-empty output -> `ANCHOR-MOVED`, token the anchor path, proof the short
+// SHAs (capped at 3, plus a count past the cap). `--reverse` (OLDEST first)
+// is deliberate, not cosmetic: it is the first commit to overtake the entry
+// that is decision-relevant, and capping from the old end keeps the
+// PRINTED proof stable as history grows — a commit landing tomorrow lands
+// past the cap, never displacing the SHA that first proved the entry stale
+// (capping from the newest end would silently rewrite yesterday's proof
+// every time a new commit lands). Empty output -> no finding — nothing to
+// report, and the absence rule's "clean" case. A FAILED git invocation (bad
+// path spec, git error) is the third answer, `ANCHOR-UNCHECKABLE`, never a
+// silent "nothing changed".
+//
+// WARN-only, and this is the load-bearing decision: a commit touching the
+// anchor does NOT prove the entry stale — the file has many reasons to
+// move that have nothing to do with the entry's own premise. Blocking on it
+// would fire on legitimate work and train the override reflex; this lane
+// reports, the derivation decides.
+
+const READY_BOOKING_DATE = /^- \*\*READY\s+(\d{4}-\d{2}-\d{2})\b/;
+const ANCHOR_MOVED_SHA_CAP = 3;
+
+function anchorMovedGitLog(anchorPath, bookingDate) {
+  try {
+    const out = execFileSync(
+      "git",
+      ["log", "--format=%h", `--since=${bookingDate}T00:00:00`, "--reverse", "--", anchorPath],
+      { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+    );
+    return { ok: true, shas: out.split("\n").filter(Boolean) };
+  } catch (e) {
+    const text = `${e.stderr ?? ""}${e.stdout ?? ""}`.trim();
+    return { ok: false, reason: text || `exit ${e.status ?? "?"}, no output` };
+  }
+}
+
+// Default resolver hits the real git log, same injection idiom as
+// REAL_ENV/READY_BAR_REAL_ENV above. Injectable so a red-first bite can pin
+// a synthetic outcome without depending on which commits happen to exist
+// against a real anchor path at test time.
+const ANCHOR_MOVED_REAL_ENV = { gitLog: anchorMovedGitLog };
+
+// Lints for a READY entry whose anchor moved after its booking date. `env`
+// overrides the resolver (see ANCHOR_MOVED_REAL_ENV) — same injection idiom
+// as lintPointers/lintCitations/lintReadyBar above.
+export function lintAnchorMoved(text, env = {}) {
+  const { gitLog } = { ...ANCHOR_MOVED_REAL_ENV, ...env };
+  const section = censusOpenSection(text);
+  if (!section) return [];
+  const findings = [];
+
+  for (const entry of splitEntries(section.body)) {
+    if (!READY_HEADER.test(entry.header)) continue;
+    const title = entry.header.replace(/^- \*\*/, "").trim().slice(0, 80);
+    const headerLine = section.lineOffset + entry.startLine;
+    const add = (label, token, proof) => findings.push({ line: headerLine, title, label, token, proof });
+
+    const dateMatch = READY_BOOKING_DATE.exec(entry.header);
+    if (!dateMatch) {
+      add("ANCHOR-UNCHECKABLE", "-", "no YYYY-MM-DD booking date immediately after READY in the header");
+      continue;
+    }
+    const bookingDate = dateMatch[1];
+
+    const anchorMatch = READY_BAR_ANCHOR.exec(entry.body);
+    if (!anchorMatch) {
+      add("ANCHOR-UNCHECKABLE", "-", "no `Anchor:` line in the entry body");
+      continue;
+    }
+    const anchorValue = anchorMatch[1].trim().replace(READY_BAR_BACKTICK_TRIM, "").trim();
+    if (!anchorValue) {
+      add("ANCHOR-UNCHECKABLE", "-", "`Anchor:` line carries no path");
+      continue;
+    }
+    if (READY_BAR_ANCHOR_ROW.test(anchorValue)) {
+      add("ANCHOR-UNCHECKABLE", anchorValue, "row anchor names a matrix row, not a file — not checkable by git log");
+      continue;
+    }
+
+    const result = gitLog(anchorValue, bookingDate);
+    if (!result.ok) {
+      add("ANCHOR-UNCHECKABLE", anchorValue, `git log --since=${bookingDate}T00:00:00 -- ${anchorValue} -> ${result.reason}`);
+      continue;
+    }
+    if (result.shas.length === 0) continue; // no commits since booking — clean, nothing to report
+
+    const shown = result.shas.slice(0, ANCHOR_MOVED_SHA_CAP);
+    const proof =
+      result.shas.length > ANCHOR_MOVED_SHA_CAP
+        ? `${shown.join(", ")} (+${result.shas.length - ANCHOR_MOVED_SHA_CAP} more)`
+        : shown.join(", ");
+    add("ANCHOR-MOVED", anchorValue, proof);
+  }
+  return findings;
+}
+
+export const ANCHOR_MOVED_LABELS = ["ANCHOR-MOVED", "ANCHOR-UNCHECKABLE"];
+
+function formatAnchorMovedFinding(f) {
+  return `WARN backlog-anchor-moved line=${f.line} ${f.label} token="${f.token}" entry="${f.title}" proof=${f.proof}`;
+}
+
 // Heading-wrap lane (default pass) — a `## ` heading split across two lines
 // ==========================================================================
 //
@@ -2275,6 +2428,15 @@ function main(argv) {
     boundaryless.length
       ? `backlog-boundary: ${boundaryless.length} finding(s) — REPORT only\n`
       : "backlog-boundary: clean\n",
+  );
+
+  const anchorMoved = lintAnchorMoved(text);
+  for (const f of anchorMoved) process.stdout.write(`${formatAnchorMovedFinding(f)}\n`);
+  const anchorMovedCounts = ANCHOR_MOVED_LABELS.map(
+    (l) => `${l}=${anchorMoved.filter((f) => f.label === l).length}`,
+  ).join(" ");
+  process.stdout.write(
+    `backlog-anchor-moved: ${anchorMoved.length} finding(s) — REPORT only — ${anchorMovedCounts}\n`,
   );
 
   const headingWraps = lintHeadingWrap(text);

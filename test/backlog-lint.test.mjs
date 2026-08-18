@@ -2731,3 +2731,212 @@ test("CLI default run: backlog-closures-in-live / -open RED-FIRST against the tw
   );
   assert.match(flagOut, /^backlog-closures-in-live-open: CLOSURE=\d+ \(## Open section only\)$/m);
 });
+
+// --- Section 11: the anchor-moved lane (default pass) -----------------------
+//
+// BACKLOG.md, "a READY entry whose ANCHOR file moved after the entry's
+// booking date": the seventh build-order derivation ranked an
+// already-shipped entry head #1 because nothing compared its `Anchor:`
+// file's own commit history against the entry's own booking date. This
+// lane is the mechanized DELIVERY of that comparison to the derivation —
+// never the judgment of whether the entry is actually stale, which is why
+// it is WARN-only.
+//
+// The `gitLog` resolver is stubbed for the rule-level bites below (never
+// hits real git) so they pin the RULE, not this repo's current commit
+// history, and so one named condition can be mutated at a time — same
+// injection idiom as READY_BAR_STUB above.
+
+function anchorMovedStub(shas) {
+  return { gitLog: () => ({ ok: true, shas }) };
+}
+const ANCHOR_MOVED_EMPTY_STUB = anchorMovedStub([]);
+
+test("anchor-moved: well-formed READY entry with no commits since booking has zero findings", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY 2026-08-18 — a thing.** Body text.",
+    "  Anchor: tools/alive.mjs",
+  ].join("\n");
+  assert.deepEqual(lint.lintAnchorMoved(doc, ANCHOR_MOVED_EMPTY_STUB), []);
+});
+
+test("anchor-moved: ANCHOR-MOVED fires when the anchor has commits since booking, proof capped at 3 plus a count", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY 2026-08-18 — a thing.** Body text.",
+    "  Anchor: tools/alive.mjs",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(
+    doc,
+    anchorMovedStub(["aaa1111", "bbb2222", "ccc3333", "ddd4444", "eee5555"]),
+  );
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-MOVED");
+  assert.equal(findings[0].token, "tools/alive.mjs");
+  assert.equal(findings[0].proof, "aaa1111, bbb2222, ccc3333 (+2 more)");
+});
+
+test("anchor-moved: proof lists every SHA with no trailing count when at or under the cap", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY 2026-08-18 — a thing.** Body text.",
+    "  Anchor: tools/alive.mjs",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(doc, anchorMovedStub(["aaa1111", "bbb2222"]));
+  assert.equal(findings[0].proof, "aaa1111, bbb2222");
+});
+
+test("anchor-moved: ANCHOR-UNCHECKABLE fires when the header carries no date immediately after READY", () => {
+  // The promoted/re-ranked header shape this repo actually has today
+  // (`_resetRelocationMemory`, BACKLOG.md): prose between READY and its
+  // date means no COMPUTABLE booking date, never a guess at the nearest one.
+  const doc = [
+    "## Open", "",
+    "- **READY (promoted 2026-08-15, sixth derivation) 2026-08-11 (evening) — a thing.** Body text.",
+    "  Anchor: tools/alive.mjs",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(doc, ANCHOR_MOVED_EMPTY_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-UNCHECKABLE");
+  assert.match(findings[0].proof, /no YYYY-MM-DD booking date/);
+});
+
+test("anchor-moved: ANCHOR-UNCHECKABLE fires on a `row N` anchor — a matrix row, not a file", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY 2026-08-18 — a thing.** Body text.",
+    "  Anchor: row 4",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(doc, ANCHOR_MOVED_EMPTY_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-UNCHECKABLE");
+  assert.equal(findings[0].token, "row 4");
+});
+
+test("anchor-moved: ANCHOR-UNCHECKABLE fires when the Anchor: line is absent", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY 2026-08-18 — a thing.** Body text, no Anchor line at all.",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(doc, ANCHOR_MOVED_EMPTY_STUB);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-UNCHECKABLE");
+  assert.match(findings[0].proof, /no `Anchor:` line/);
+});
+
+test("anchor-moved: ANCHOR-UNCHECKABLE fires when the git invocation itself fails", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY 2026-08-18 — a thing.** Body text.",
+    "  Anchor: tools/alive.mjs",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(doc, {
+    gitLog: () => ({ ok: false, reason: "fatal: bad revision" }),
+  });
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-UNCHECKABLE");
+  assert.match(findings[0].proof, /fatal: bad revision/);
+});
+
+test("anchor-moved: scoped to READY headers only — an OPEN entry stays silent", () => {
+  const doc = [
+    "## Open", "",
+    "- **OPEN 2026-08-18 — a thing.** Body text.",
+    "  Anchor: tools/alive.mjs",
+  ].join("\n");
+  assert.deepEqual(lint.lintAnchorMoved(doc, anchorMovedStub(["aaa1111"])), []);
+});
+
+test("anchor-moved: scoped to `## Open` — a READY entry under `## Done` is invisible", () => {
+  const doc = [
+    "## Open", "",
+    "- **OPEN — unrelated.** Nothing here.",
+    "",
+    "## Done", "",
+    "- **READY 2026-08-18 — out of scope.** Body text.",
+    "  Anchor: tools/alive.mjs",
+  ].join("\n");
+  assert.deepEqual(lint.lintAnchorMoved(doc, anchorMovedStub(["aaa1111"])), []);
+});
+
+test("anchor-moved: CLI default run prints the lane with no flag needed, per-class counts stated at zero", () => {
+  const { out, code } = runTool(
+    ["-"],
+    ["## Open", "", "- **OPEN — nothing to see.** Plain body, no READY entries."].join("\n"),
+  );
+  assert.equal(code, 0);
+  const line = out.split("\n").find((l) => l.startsWith("backlog-anchor-moved:"));
+  assert.ok(line, "the lane must print in the default run with no flag, unlike --ready-bar");
+  for (const label of lint.ANCHOR_MOVED_LABELS) {
+    assert.match(line, new RegExp(`${label}=0`), `${label} must be stated even at zero`);
+  }
+});
+
+// RED-FIRST arm (a): the closed "push scan diffs range ENDPOINTS" entry,
+// replayed from a real historical BACKLOG.md revision (d1f3e06 — the commit
+// that simplified this entry's Anchor line to a plain `tools/absence-scan.mjs`
+// path, still READY with its 2026-08-11 header) against REAL, unstubbed git
+// history. `--reverse` (oldest-first) capping is what keeps this stable as
+// more commits land on `tools/absence-scan.mjs` after `f228720` — they fall
+// past the cap, never displacing the SHA that first proved the entry stale.
+const ANCHOR_MOVED_HISTORICAL_REF = "d1f3e06";
+
+test("anchor-moved: RED-FIRST arm (a) — the closed push-scan-endpoints entry, replayed against real git history", () => {
+  const historical = gitShow(ANCHOR_MOVED_HISTORICAL_REF, "BACKLOG.md");
+  const findings = lint.lintAnchorMoved(historical);
+  const hit = findings.find((f) => f.token === "tools/absence-scan.mjs");
+  console.log("d1f3e06 anchor-moved arm (a) finding: " + JSON.stringify(hit));
+  assert.ok(hit, "the entry's Anchor (tools/absence-scan.mjs) must produce a finding");
+  assert.equal(hit.label, "ANCHOR-MOVED");
+  assert.ok(hit.proof.includes("f228720"), `expected f228720 in the proof, got: ${hit.proof}`);
+});
+
+// RED-FIRST arm (b): a real, CURRENT READY entry whose anchor genuinely has
+// no commits since its own booking date — without this arm, a lane that
+// fires unconditionally on every READY entry would still pass arm (a). This
+// bite reads LIVE state (today's BACKLOG.md, today's git history for
+// tools/harvest.mjs) rather than a frozen ref: the entry's booking date is
+// TODAY, so there is no earlier immutable snapshot of it to freeze against.
+// It is expected to need re-pointing at a different entry once
+// tools/harvest.mjs gains a commit after today — named here so that future
+// red reads as "pick a new negative", never as a regression in the lane
+// itself. The RULE-level negative control above (empty-stub, immortal) is
+// what actually guards the "fires on everything" defect class forever; this
+// bite is the real-history corroboration the brief asks for on top of it.
+test("anchor-moved: RED-FIRST arm (b) — a real current READY entry with no commits since booking produces nothing", () => {
+  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
+  const findings = lint.lintAnchorMoved(current);
+  const hit = findings.find((f) => f.token === "tools/harvest.mjs");
+  assert.equal(
+    hit,
+    undefined,
+    "tools/harvest.mjs must have no ANCHOR-MOVED/ANCHOR-UNCHECKABLE finding as of today's booking",
+  );
+});
+
+// Third arm, added on the dispatcher's mid-task correction: the midnight-pin
+// fix itself, proven against real history rather than only asserted.
+// Without `T00:00:00`, git's approxidate attaches the CURRENT CLOCK TIME to
+// a bare `--since=<date>`, so a commit made EARLIER on the booking day than
+// the hour the lint happens to run drops out silently, and the verdict
+// changes with the wall-clock hour it runs at — measured directly against
+// this repo's own history: `tools/boundary-layers.mjs`, booked 2026-08-16,
+// committed `a644022` at 10:18 that morning (`df83937` at 09:14, also that
+// morning) — the bare form finds neither, `--since="…T00:00:00"` finds
+// both. This bite pins that the fix holds regardless of the wall-clock hour
+// it happens to run at.
+test("anchor-moved: RED-FIRST — the midnight-pin fix catches a same-day-but-earlier commit, real history", () => {
+  const doc = [
+    "## Open", "",
+    "- **READY 2026-08-16 — synthetic entry, real anchor.** Body text.",
+    "  Anchor: tools/boundary-layers.mjs",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(doc);
+  assert.equal(findings.length, 1);
+  assert.equal(findings[0].label, "ANCHOR-MOVED");
+  assert.ok(
+    findings[0].proof.includes("a644022"),
+    `expected a644022 in the proof, got: ${findings[0].proof}`,
+  );
+});
