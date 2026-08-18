@@ -611,8 +611,16 @@ comment and new issue.
   `WebFetch`+`WebSearch` (14->16, 0 of 14 shared tool objects changed) landed
   in the same request as a description delta, so `sameSet` failed and the
   extension took a global `reset` — the capture's only `heldStable=false` of
-  9 `tools[]` deltas. Cost is ours to the extent the reset moved the frozen
-  array; CC's two added tools are theirs.
+  9 `tools[]` deltas.
+  **COST ATTRIBUTION CORRECTED 2026-08-18 by the fresh-context verifier (this
+  desk's first reading was wrong and is retracted):** the 448k itself is CC's.
+  Their addition moved `tools[]`, which renders first, so the prefix was
+  already invalid — the reset's MARGINAL cost on this pair is ZERO. What is
+  ours is not this bust's price but what the reset destroyed for the rest of
+  the conversation: the frozen canonical and every pending injection with
+  their `defer_loading` markers (`:1222`, and reset is absent from the
+  forwarding branches `:1326-1353`, so `body.tools` reverts to CC's raw
+  array). Do not cite this instance as a cost figure for the reset defect.
   Per testimony from the busting session (recollection-grade, not checked
   here): the load served a verification need created mid-conversation, so no
   session-start mechanism could have enumerated it. The lever for this limb is
@@ -4435,6 +4443,21 @@ comment and new issue.
   repair stopped seeded names counting into `heldNames`; the ADDITION half of
   `sameSet` is untouched and is what fired here. Fixing one and not the other
   is why this is a record and not a closure.
+  **SCOPE IS WIDER THAN "the two happened to coincide" — established by the
+  fresh-context verifier and confirmed in the source.** The description delta
+  is not a coincidence, it is a STANDING condition: the canonical never
+  adopts CC's new prose, so once any tool's description has changed in a
+  conversation the delta is re-detected on EVERY subsequent request
+  (`:884-890`, which states this in its own comment as the deliberate
+  difference between "one announcement" and "one per request"). Therefore
+  `descriptionChanges.length > 0` is permanently true from that point, and
+  EVERY later addition in that conversation takes the global reset. On this
+  instance the standing delta was `Agent`'s description, with 2 injections
+  outstanding at n=505. The other `tool-schema-changed` return (`:738`) and
+  the other reset sites (`:1193` preload-unannounceable, `:1216` which needs
+  `!canAnnounce`) were each excluded on evidence, not by elimination-by-
+  plausibility: n=505 returned `description-absorbed`, which requires no
+  `:738` hit and `sameSet` true, and the model is allowlisted (`:295`).
   **What is NOT yet decided, which is why this is RECORD and not READY:**
   whether absorbing a description AND announcing an addition in one request is
   safe. The code's own comment argues the safety case needs "every name
@@ -4443,6 +4466,13 @@ comment and new issue.
   design question, and it is not settled by this walk.
   Named missing evidence: a stated safety argument for combined
   absorb+announce, or a measurement showing the combined wire is accepted.
+  Named missing ARTIFACT, surfaced by the verifier as its own honest residue:
+  replay does not emit per-request FORWARDED `tools[]`, so which of the 14
+  shared bodies moved on the wire is inferred (`Agent`) rather than read. The
+  attribution verdict does not rest on it — `heldStable` is itself a
+  forwarded-side measurement — but the repair's red-first arrangement will
+  want it. Cheapest form: a replay flag dumping forwarded `tools[]` per
+  request for a named pair.
   Done-criterion: a description delta co-occurring with an addition holds
   held-tool bytes stable, red-first on this instance's frozen pair; the reason
   label names its real predicate; census shows no exemption on the re-run.
