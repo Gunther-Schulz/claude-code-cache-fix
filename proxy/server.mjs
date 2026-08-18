@@ -4,7 +4,7 @@ import { pathToFileURL, URL } from "node:url";
 import config from "./config.mjs";
 import { forwardRequest, parseAbsoluteForm } from "./upstream.mjs";
 import { streamResponse, createTelemetryRecord } from "./stream.mjs";
-import { loadExtensions, snapshotRegistry, runOnRequest, runOnResponseStart, runOnResponse, runOnCoalesced, getFailedExtensions } from "./pipeline.mjs";
+import { loadExtensions, snapshotRegistry, runOnRequest, runOnResponseStart, runOnResponse, runOnCoalesced, runOnCoalesceMiss, getFailedExtensions } from "./pipeline.mjs";
 import { startWatcher } from "./watcher.mjs";
 import { startOAuthRefresher, stopOAuthRefresher } from "./oauth/refresher.mjs";
 import { attachForwardProxy, handleDownloadsAbsolute } from "./forward-proxy.mjs";
@@ -84,6 +84,35 @@ const COALESCE_WINDOW_MS = 50;
 
 /** key (sha256 of forwarded bytes) -> in-flight leader. */
 const inFlightSidecars = new Map();
+
+// MISS accounting, and its SCOPE is the load-bearing decision (row 31,
+// 2026-08-18). A miss is recorded ONLY where a coalescing opportunity actually
+// existed and was lost: the leader is still IN FLIGHT and the window has
+// closed. Two neighbouring cases are deliberately NOT recorded, and saying why
+// is what keeps this from being a check that fires on non-defects:
+//
+//   * the leader has FINISHED — nothing was in flight to attach a follower to,
+//     so no opportunity existed. Recording it would also fire on an ordinary
+//     later request that happens to carry identical bytes, which is a
+//     different phenomenon wearing the same key.
+//   * the leader has not REGISTERED yet, because its own preForward has not
+//     resolved — a real lost opportunity, and invisible from inside this path
+//     by construction: the key is a digest of the FORWARDED bytes, so it does
+//     not exist until the pipeline has run, and a follower that finds an empty
+//     map cannot tell "leader mid-pipeline" from "first send".
+//
+// The second case is recovered WITHOUT guessing, by pairing two signals that
+// already exist: a post-flip single-message streak that is DOUBLE-BILLED and
+// carries NO miss record is exactly the leader-not-yet-registered case, and
+// the census can compute that because it reads both. That is why the record
+// carries `reason` even with one value today — the complement is derived at
+// the reader, not invented here.
+//
+// An earlier draft of this kept a 2 s TOMBSTONE of completed leaders so a
+// follower could still see one. Its own control arm killed it within the
+// hour: a pair that DID coalesce still produced a miss record, because the
+// previous pair's tombstone was live under the same key. The record was
+// firing on the mitigation's own success.
 
 // Conditions 1 and 2 — the half that is a property of ONE request. 3 and 4
 // belong to a PAIR and are checked at the map hit. Exported for the bites:
@@ -260,6 +289,14 @@ async function preForward(clientReq, clientRes, _abortController, extSnapshot, r
 async function handleMessages(clientReq, clientRes) {
   const abortController = new AbortController();
   const extSnapshot = snapshotRegistry();
+  // Stamped BEFORE the pipeline runs, which is the whole point: the coalescing
+  // window below is measured from the leader's REGISTRATION — after every
+  // extension has run — so the quantity it compares is CC's interval plus our
+  // own pipeline skew. This is the arrival clock, recorded alongside it so a
+  // miss record can say which of the two would have caught the pair. It does
+  // not yet DECIDE anything (threat matrix row 31; the clock change is parked
+  // on the evidence this record produces).
+  const arrivedAt = Date.now();
 
   // Streaming SSE: if the client gives up mid-stream, free the upstream.
   // Bootstrap (handleBootstrap) doesn't install this because its response is
@@ -318,9 +355,41 @@ async function handleMessages(clientReq, clientRes) {
       if (leader.fanOut.attach(clientRes)) await leader.done;
       return;
     }
+    // ── MISS accounting (threat matrix row 31, added 2026-08-18) ───────────
+    // Observation only: nothing below changes which requests are forwarded or
+    // what any caller receives. It exists because a miss is INVISIBLE from
+    // outside the process — the follower is forwarded normally and produces an
+    // ordinary request and outcome record, so the two ways condition 4 fails
+    // are indistinguishable afterwards, and they want different fixes:
+    //   stale-leader — the leader IS registered, but more than the window ago
+    //                  by the registration clock (our own pipeline skew may be
+    //                  what spent the budget);
+    //   tombstone    — no live leader at all when the follower looked, because
+    //                  the leader's own preForward had not resolved yet.
+    // The record carries BOTH clocks so a reader can see whether an
+    // arrival-clock window would have caught this pair. Measured 2026-08-18 on
+    // one live pair: 43 ms apart, byte-identical forwarded bytes, gate on, not
+    // coalesced — and which of the two it was could not be recovered.
+    if (leader) {
+      meta._coalesceMiss = {
+        reason: "stale-leader",
+        ageMs: Date.now() - leader.at,
+        arrivalDeltaMs: leader.arrivedAt != null ? arrivedAt - leader.arrivedAt : null,
+        leaderId: leader.captureId ?? null,
+        sha: meta._forwardedSha ?? null,
+      };
+      debugLog("[PROXY] duplicate sidecar NOT coalesced",
+               "key:", coalesceKey.slice(0, 16),
+               "reason:", meta._coalesceMiss.reason,
+               "ageMs:", meta._coalesceMiss.ageMs,
+               "arrivalDeltaMs:", meta._coalesceMiss.arrivalDeltaMs);
+      await runOnCoalesceMiss({ body: parsed, headers, meta }, extSnapshot);
+    }
+
     let settle;
     const entry = {
       at: Date.now(),
+      arrivedAt,
       // The leader's own capture id, so a follower's coalesced record can name
       // the request that WAS answered. Null when the capture extension is off
       // — the mitigation does not depend on capture being enabled.

@@ -316,18 +316,32 @@ comment and new issue.
   registration clock) and NO leader at all (the leader's `preForward` had not
   resolved when the follower looked) are indistinguishable from outside the
   process, and they call for different fixes.
-  **Design, decided.** (1) `handleMessages` stamps `arrivedAt` at entry and
-  the leader entry carries it. (2) A bounded TOMBSTONE map, key -> `{arrivedAt,
-  registeredAt, captureId}`, retained 2 s past the leader's completion, so a
-  second candidate carrying the same key can still see that a leader existed.
-  Bounded by construction: sha keys, small objects, TTL-swept on write.
-  (3) On a candidate whose key hits a live-but-stale leader or a tombstone,
-  `request-capture` writes a `type:"coalesce-miss"` record beside its existing
-  `buildCoalescedRecord` — `{ts, id, key, sha, reason: "stale-leader" |
-  "tombstone", ageMs (registration clock), arrivalDeltaMs (arrival clock),
-  leaderId}`. Both clocks in one record is the point: it says whether an
-  arrival-clock window would have caught this miss, which is exactly the
-  evidence the parked fix below is waiting on. (4) A strict view
+  **Design, decided — AND REVISED DURING THE BUILD, 2026-08-18 evening. The
+  revision is recorded here rather than smoothed over, because the entry is the
+  spec and shipping something else without saying so is the drift this file
+  collects.** (1) `handleMessages` stamps `arrivedAt` at entry and the leader
+  entry carries it. (2) On a candidate whose key finds a leader that is STILL IN
+  FLIGHT but outside the window, `request-capture` writes a
+  `type:"coalesce-miss"` record beside its existing `buildCoalescedRecord` —
+  `{ts, id, key, sha, reason, ageMs (registration clock), arrivalDeltaMs
+  (arrival clock), leaderId}`. Both clocks in one record is the point: it says
+  whether an arrival-clock window would have caught this miss, which is exactly
+  the evidence the parked fix below is waiting on.
+  **WHAT WAS CUT AND WHY — a 2 s TOMBSTONE of completed leaders.** The original
+  design kept one so a follower arriving after the leader finished could still
+  see that a leader existed. Its own CONTROL arm killed it inside the hour: a
+  pair that DID coalesce produced a miss record, because the previous pair's
+  tombstone was live under the same key — the record firing on the mitigation's
+  own success, which is the check-that-fires-on-a-non-defect shape aimed at the
+  very number row 31 is measured in. Two facts fell out of that red: a COMPLETED
+  leader is not a lost opportunity (nothing was in flight to attach to), and the
+  case actually worth catching — the leader mid-pipeline, not yet registered —
+  the tombstone never covered at all, since the tombstone is written on
+  COMPLETION. So the scope narrowed to the case where an opportunity provably
+  existed, and the missing case is recovered AT THE READER without guessing: a
+  post-flip single-message streak that is double-billed and carries NO miss
+  record IS the leader-not-yet-registered case. Absence of the record is
+  evidence, which is why nothing may write one speculatively. (4) A strict view
   `readCaptureCoalesceMiss` in `tools/logs.mjs` beside `readCaptureCoalesced`,
   and the census's duplicate-streak rows carry the miss fields when the streak
   has one, so `shape-verdicts`' `row-31-coalesce` warn can name the reason
@@ -337,12 +351,13 @@ comment and new issue.
   shippable ahead of the fix it informs.
   **Carrier check (dev-loop q4):** the record rides the capture file, an
   existing registered carrier with an existing collector; no new carrier class.
-  Red-first, three arms, and the third is the one that keeps it from firing on
-  everything: a synthetic pair whose leader registration is delayed past the
-  window produces NO record today and a `reason:"stale-leader"` record with
-  `arrivalDeltaMs < 50 <= ageMs` after; a pair that coalesces normally still
-  writes `coalesced` and writes NO miss record; a duplicate arriving past the
-  tombstone TTL writes nothing at all.
+  Red-first, four arms at the wire, and three of them are controls because the
+  one thing this must never do is fire on the mitigation working: a pair whose
+  leader is still in flight with the window closed produces NO record today and
+  a `reason:"stale-leader"` record carrying both clocks after; a pair that
+  coalesces normally still writes `coalesced` and NO miss record; a pair whose
+  leader has COMPLETED writes nothing (the scope decision above, pinned); a lone
+  request writes nothing.
   Done: the three arms pasted, the census and `shape-verdicts` legs landed, the
   suite green, and — deployment-coupled — the ship runbook walked (pin bump,
   restart at a stated session boundary, gate run, three-way compare). Row 3's

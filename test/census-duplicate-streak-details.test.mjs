@@ -154,9 +154,16 @@ test("two byte-identical requests with two outcome records: full discriminator s
   // only place the summariser's key set is pinned, and gate-live's rollup
   // now DERIVES its own set from this function rather than keeping a second
   // copy that drifted for four days.
+  // The three coalesce-MISS keys joined 2026-08-18, and this assertion
+  // announced them the same way: it went red on the addition inside the run
+  // that made it, which is the only reason the key set below is current rather
+  // than a list somebody remembered to update. `coalesceMissReasons` is an
+  // OBJECT, not a count, because the two ways row 31's window fails are two
+  // different fixes and a bare total says nothing about which one to build.
   assert.deepEqual(Object.keys(res.duplicates).sort(), [
     "billedRequests", "billedStreaks", "doubleBilledStreaks", "maxStreak",
     "coalescedRequests", "coalescedStreaks",
+    "coalesceMissRequests", "coalesceMissStreaks", "coalesceMissReasons",
     "singleMessageStreaks", "singleMessageDoubleBilled", "singleMessageCoalesced",
     "multiMessageStreaks", "multiMessageDoubleBilled", "multiMessageCoalesced",
     "membersWithoutId", "pairs", "requests", "streaks",

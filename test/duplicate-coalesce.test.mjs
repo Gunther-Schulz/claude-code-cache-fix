@@ -362,6 +362,142 @@ describe("row 31 — the coalesce record at the wire", () => {
   });
 });
 
+describe("row 31 — the MISS record: a duplicate the mitigation did NOT absorb", () => {
+  // The hit already had a record; the MISS did not, and that asymmetry is the
+  // defect these bites exist for. A duplicate that is forwarded anyway leaves
+  // an ordinary request record and an ordinary outcome record, i.e. after the
+  // fact it is indistinguishable from a first send — measured 2026-08-18, when
+  // attributing ONE such miss took a hand walk over a 435 MB capture and still
+  // could not say WHICH way the window failed.
+  //
+  // Two reasons, two different fixes, so each gets its own arm rather than one
+  // arm asserting "a record exists": a build that emitted `stale-leader` for
+  // every miss would pass a single-armed bite while being wrong about half the
+  // population.
+  let handle, upstream, counter, extDir, captureDir;
+
+  before(async () => {
+    extDir = await tmpDir("coalesce-miss-ext-");
+    await symlink(join(REPO, "proxy", "extensions", "request-capture.mjs"),
+                  join(extDir, "request-capture.mjs"));
+    captureDir = await tmpDir("coalesce-miss-caps-");
+    counter = { calls: 0, bodies: [] };
+    // A LONGER hold than the coalescing block's: the stale-leader arm needs the
+    // leader still in flight while the window has already closed, which is
+    // exactly the state the window is measured against.
+    upstream = slowSseUpstream(counter, 400);
+    await new Promise((r) => upstream.listen(0, "127.0.0.1", r));
+    process.env.CACHE_FIX_PROXY_UPSTREAM = `http://127.0.0.1:${upstream.address().port}`;
+    process.env.CACHE_FIX_COALESCE_SIDECAR = "1";
+    process.env.CACHE_FIX_REQUEST_CAPTURE = "1";
+    process.env.CACHE_FIX_CAPTURE_DIR = captureDir;
+    handle = await startProxy({ port: 0, watch: false, extensionsDir: extDir });
+  });
+
+  after(async () => {
+    await handle.close();
+    await new Promise((r) => upstream.close(r));
+    delete process.env.CACHE_FIX_PROXY_UPSTREAM;
+    delete process.env.CACHE_FIX_COALESCE_SIDECAR;
+    delete process.env.CACHE_FIX_REQUEST_CAPTURE;
+    delete process.env.CACHE_FIX_CAPTURE_DIR;
+    await rm(extDir, { recursive: true, force: true });
+    await rm(captureDir, { recursive: true, force: true });
+  });
+
+  async function missRecords(dir) {
+    const files = (await readdir(dir)).filter((f) => f.endsWith("-requests.jsonl"));
+    const out = [];
+    for (const f of files) {
+      const lines = (await readFile(join(dir, f), "utf-8")).trim().split("\n");
+      for (const l of lines) {
+        const r = JSON.parse(l);
+        if (r.type === "coalesce-miss") out.push(r);
+      }
+    }
+    return out;
+  }
+
+  it("STALE-LEADER: the leader is still in flight but the window has closed", async () => {
+    const own = await tmpDir("coalesce-miss-stale-");
+    process.env.CACHE_FIX_CAPTURE_DIR = own;
+    counter.calls = 0;
+    const a = clientRequest(handle.port, SIDECAR);
+    // Past COALESCE_WINDOW_MS (50) and far inside the upstream hold (400), so
+    // the leader is registered AND live when the follower looks.
+    await new Promise((r) => setTimeout(r, 120));
+    const b = clientRequest(handle.port, SIDECAR);
+    await Promise.all([a, b]);
+    assert.equal(counter.calls, 2, "precondition: the pair was NOT coalesced");
+
+    const misses = await missRecords(own);
+    assert.equal(misses.length, 1, "exactly one miss record for the one forwarded duplicate");
+    const rec = misses[0];
+    assert.equal(rec.reason, "stale-leader");
+    assert.equal(typeof rec.ageMs, "number");
+    assert.ok(rec.ageMs >= 50, `the registration clock says the window had closed: ${rec.ageMs}`);
+    assert.equal(typeof rec.arrivalDeltaMs, "number",
+      "both clocks ride in the record — the arrival one is the evidence the parked fix reads");
+    assert.ok(rec.arrivalDeltaMs >= 50, `arrival delta: ${rec.arrivalDeltaMs}`);
+    assert.match(rec.sha ?? "", /^[0-9a-f]{16}$/,
+      "same digest namespace as the outcome record's outSha, so a reader can check byte-identity");
+    assert.ok(rec.leaderId, "and it names what it lost the race to");
+    await rm(own, { recursive: true, force: true });
+    process.env.CACHE_FIX_CAPTURE_DIR = captureDir;
+  });
+
+  it("CONTROL — the leader having FINISHED is NOT a miss: no opportunity existed", async () => {
+    // The scope decision, pinned. Two identical sends where the first has
+    // already completed had nothing in flight to attach to, so nothing was
+    // lost — and recording it would fire on any ordinary later request that
+    // happens to carry the same bytes. An earlier draft DID record it, via a
+    // 2 s tombstone of completed leaders, and this arm is what killed it: the
+    // tombstone made a pair that DID coalesce report a miss, because the
+    // previous pair's tombstone was still live under the same key. The record
+    // was firing on the mitigation's own success.
+    const own = await tmpDir("coalesce-miss-done-");
+    process.env.CACHE_FIX_CAPTURE_DIR = own;
+    counter.calls = 0;
+    await clientRequest(handle.port, SIDECAR);      // leader completes fully
+    await clientRequest(handle.port, SIDECAR);      // identical bytes, but nothing in flight
+    assert.equal(counter.calls, 2, "precondition: two upstream calls, nothing coalesced");
+    assert.equal((await missRecords(own)).length, 0,
+      "a completed leader is not a lost opportunity — the leader-not-yet-registered case is " +
+      "recovered at the READER instead, as a double-billed streak carrying no miss record");
+    await rm(own, { recursive: true, force: true });
+    process.env.CACHE_FIX_CAPTURE_DIR = captureDir;
+  });
+
+  it("CONTROL — a pair that DOES coalesce writes a coalesced record and NO miss record", async () => {
+    // Without this arm, a build that wrote a miss record for every duplicate
+    // would pass both arms above while inverting the mitigation's own signal.
+    const own = await tmpDir("coalesce-miss-ctl-");
+    process.env.CACHE_FIX_CAPTURE_DIR = own;
+    counter.calls = 0;
+    const a = clientRequest(handle.port, SIDECAR);
+    await new Promise((r) => setTimeout(r, 10));
+    const b = clientRequest(handle.port, SIDECAR);
+    await Promise.all([a, b]);
+    assert.equal(counter.calls, 1, "precondition: this pair really did coalesce");
+    assert.equal((await missRecords(own)).length, 0,
+      "an ABSORBED duplicate is not a miss — the two records must never both fire");
+    await rm(own, { recursive: true, force: true });
+    process.env.CACHE_FIX_CAPTURE_DIR = captureDir;
+  });
+
+  it("CONTROL — a lone request writes no miss record at all", async () => {
+    // The over-firing arm at the other end: a first send has no predecessor,
+    // and a lane that fires on everything would still pass the three above.
+    const own = await tmpDir("coalesce-miss-lone-");
+    process.env.CACHE_FIX_CAPTURE_DIR = own;
+    counter.calls = 0;
+    await clientRequest(handle.port, MID_SESSION);
+    assert.equal((await missRecords(own)).length, 0);
+    await rm(own, { recursive: true, force: true });
+    process.env.CACHE_FIX_CAPTURE_DIR = captureDir;
+  });
+});
+
 describe("row 31 — the gate is OFF by default", () => {
   let handle, upstream, counter, extDir;
 

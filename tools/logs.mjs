@@ -263,6 +263,42 @@ export function readCaptureCoalesced(raw) {
   return makeStrictView(raw, "captureCoalesced", CAPTURE_COALESCED_FIELDS);
 }
 
+// --- (2c) capture COALESCE-MISS record ---------------------------------------
+
+const CAPTURE_COALESCE_MISS_FIELDS = new Set([
+  "ts", "type", "id", "key", "leaderId", "sha", "reason", "ageMs", "arrivalDeltaMs",
+]);
+/** Strict view of a capture `<key>-requests.jsonl` COALESCE-MISS record
+ * (`type:"coalesce-miss"`, `request-capture.mjs` `buildCoalesceMissRecord`): a
+ * duplicate sidecar that met row 31's first three conditions and was forwarded
+ * anyway.
+ *
+ * Why it exists, since the mitigation's SUCCESS already had a record and its
+ * failure did not: a miss leaves an ordinary request record and an ordinary
+ * outcome record, i.e. it is indistinguishable from a first send after the
+ * fact. Attributing one took a hand walk over a 435 MB capture on 2026-08-18,
+ * and even then the walk could not say WHICH way the window failed.
+ *
+ * `reason` carries ONE value today, `stale-leader`: a leader was registered
+ * and still in flight, and the window had closed by the registration clock.
+ * The field exists anyway because the SECOND way condition 4 fails is real and
+ * is deliberately not recorded here — a leader whose own pipeline has not
+ * resolved cannot be seen from this path at all, since the key is a digest of
+ * the FORWARDED bytes and does not exist until the pipeline has run. That case
+ * is recovered at the READER instead, without guessing: a post-flip
+ * single-message streak that is DOUBLE-BILLED and carries no miss record IS
+ * the leader-not-yet-registered case. Absence of this record is therefore
+ * evidence, which is why nothing here may write one speculatively.
+ * `ageMs` is the registration clock the mitigation actually tests;
+ * `arrivalDeltaMs` is the interval CC produced. Reading the two together is
+ * what answers whether an arrival-clock window would have caught the pair —
+ * the question the clock fix is parked on. Either may be null: a tombstone
+ * from a leader that predates the arrival stamp has no `arrivalDeltaMs`, and
+ * null means NOT MEASURED, never zero. */
+export function readCaptureCoalesceMiss(raw) {
+  return makeStrictView(raw, "captureCoalesceMiss", CAPTURE_COALESCE_MISS_FIELDS);
+}
+
 // --- (3) usage.jsonl ---------------------------------------------------------
 
 const USAGE_LOG_REQUIRED_FIELDS = [

@@ -584,7 +584,20 @@ export function rowThirtyOneVerdict(status, { flipIso = COALESCE_FLIP_ISO } = {}
   const fence = a.multiMessageCoalesced ?? 0;
   const problems = [];
   if (dbl > 0) {
-    problems.push(`${dbl} post-flip single-message streak(s) DOUBLE-BILLED of ${a.singleMessageStreaks ?? 0} — row 31's mitigation is not holding`);
+    // The reason tally, when the sweep's captures carry coalesce-miss records
+    // (proxy change 2026-08-18). Added because the count ALONE sent a session
+    // on a hand walk over a 435 MB capture to answer "which condition failed",
+    // and even that walk could not separate the two ways condition 4 fails.
+    // Absent — an older capture, or a miss the proxy did not record — this
+    // says NOT RECORDED rather than nothing: a silent omission here would read
+    // as "no misses", which is the same count with the opposite meaning.
+    const reasons = a.coalesceMissReasons && Object.keys(a.coalesceMissReasons).length
+      ? Object.entries(a.coalesceMissReasons).sort().map(([k, v]) => `${k}=${v}`).join(" ")
+      : "reasons NOT RECORDED (pre-2026-08-18 captures, or the miss record did not fire)";
+    problems.push(
+      `${dbl} post-flip single-message streak(s) DOUBLE-BILLED of ${a.singleMessageStreaks ?? 0} ` +
+      `— row 31's mitigation is not holding [${reasons}]`,
+    );
   }
   if (fence > 0) {
     problems.push(`${fence} coalesce(s) landed on the multi-message RETRY class — the fence is breached and a real retry may have gone unanswered (over-reach, not success)`);

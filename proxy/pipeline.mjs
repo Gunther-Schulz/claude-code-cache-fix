@@ -180,6 +180,31 @@ export async function runOnCoalesced(ctx, snapshot) {
   }
 }
 
+// The MISS twin of the hook above, and it exists for the reason the hit hook
+// does not cover: a duplicate sidecar that the row 31 mitigation did NOT serve
+// from an in-flight answer is forwarded normally, so it produces an ordinary
+// request and an ordinary outcome record and nothing anywhere says a
+// coalescing opportunity was seen and lost. Measured 2026-08-18: attributing
+// ONE such miss took a hand walk over a 435 MB capture, and the walk could
+// still not separate the two ways condition 4 fails — which is the difference
+// between two different fixes.
+//
+// Same registry argument as `runOnCoalesced`: the core must not import an
+// extension by name.
+export async function runOnCoalesceMiss(ctx, snapshot) {
+  const exts = snapshot || registry;
+  const route = ctx.meta?.route;
+  for (const ext of exts) {
+    if (!ext.onCoalesceMiss) continue;
+    if (!appliesToRoute(ext, route)) continue;
+    try {
+      await ext.onCoalesceMiss(ctx);
+    } catch (err) {
+      process.stderr.write(`[pipeline] ${ext.name}.onCoalesceMiss error: ${err.message}\n`);
+    }
+  }
+}
+
 export async function runOnResponse(ctx, snapshot) {
   const exts = snapshot || registry;
   const route = ctx.meta?.route;

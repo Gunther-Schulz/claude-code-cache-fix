@@ -229,6 +229,37 @@ export function buildCoalescedRecord(ctx, now = new Date()) {
   };
 }
 
+// The MISS twin (threat matrix row 31, added 2026-08-18). A duplicate sidecar
+// the mitigation did NOT coalesce is forwarded normally, so it already has a
+// request record and will get an outcome record — and NOTHING says a
+// coalescing opportunity was seen and lost. That absence is what cost a hand
+// walk over a 435 MB capture to attribute one miss, and the walk still could
+// not say WHICH way condition 4 failed.
+//
+// Both clocks ride in the record deliberately. `ageMs` is the registration
+// clock the mitigation actually tests; `arrivalDeltaMs` is the interval CC
+// produced. A reader comparing the two learns whether an arrival-clock window
+// would have caught this pair — which is the evidence the parked clock fix is
+// waiting on, and it cannot be recovered from the capture afterwards because
+// neither stamp is anywhere in the request bytes.
+export function buildCoalesceMissRecord(ctx, now = new Date()) {
+  const id = ctx?.meta?._captureId;
+  const key = ctx?.meta?._captureKey;
+  const miss = ctx?.meta?._coalesceMiss;
+  if (!id || !key || !miss) return null;
+  return {
+    ts: now.toISOString(),
+    type: "coalesce-miss",
+    id,
+    key,
+    leaderId: miss.leaderId ?? null,
+    sha: miss.sha ?? null,
+    reason: miss.reason ?? null,
+    ageMs: miss.ageMs ?? null,
+    arrivalDeltaMs: miss.arrivalDeltaMs ?? null,
+  };
+}
+
 // Delete oldest capture files until the directory is under maxBytes.
 // Returns the number of files deleted (for tests/telemetry).
 export async function sweepCaptureDir(dir, maxBytes, fs = DEFAULT_FS) {
@@ -356,6 +387,21 @@ export default {
       await captureAppend(join(getCaptureDir(), `${record.key}-requests.jsonl`), JSON.stringify(record) + "\n");
     } catch (err) {
       debug(`coalesced capture failed: ${err?.message ?? err}`);
+    }
+  },
+
+  // The duplicate that was NOT coalesced. Unlike onCoalesced this request DOES
+  // go on to have a response of its own — this hook only leaves the note that
+  // the opportunity existed and was missed, beside the request record that is
+  // already on disk.
+  async onCoalesceMiss(ctx) {
+    if (!isEnabled() || !ctx?.meta) return;
+    try {
+      const record = buildCoalesceMissRecord(ctx);
+      if (!record) return;
+      await captureAppend(join(getCaptureDir(), `${record.key}-requests.jsonl`), JSON.stringify(record) + "\n");
+    } catch (err) {
+      debug(`coalesce-miss capture failed: ${err?.message ?? err}`);
     }
   },
 

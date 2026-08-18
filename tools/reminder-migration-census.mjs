@@ -325,6 +325,11 @@ async function* readRecords(path, tornCount) {
     // the duplicate counter reads a suppressed duplicate as an unanswered
     // send, which inverts the mitigation's own signal.
     if (r?.type === "coalesced" && typeof r?.id === "string") { yield r; continue; }
+    // Coalesce-MISS records (row 31: a duplicate that met the first three
+    // conditions and was forwarded anyway). Same shape of passthrough, same
+    // one consumer — without it the streak row can say a pair was
+    // double-billed but never why the mitigation did not absorb it.
+    if (r?.type === "coalesce-miss" && typeof r?.id === "string") { yield r; continue; }
     // 1-based LINE ordinal, counting blank and corrupt lines too, so a detail
     // row's pointer resolves with `sed -n '<N>p'` on the capture itself. Set
     // on the record rather than yielded alongside it because the record is
@@ -724,7 +729,7 @@ export function sameBody(a, b) {
  * loop already retains.
  */
 export function newDuplicateScan() {
-  return { runs: new Map(), pending: new Map(), billed: new Map(), coalesced: new Map(), streaks: [] };
+  return { runs: new Map(), pending: new Map(), billed: new Map(), coalesced: new Map(), coalesceMisses: new Map(), streaks: [] };
 }
 
 /**
@@ -781,7 +786,7 @@ function addMember(scan, run, rec) {
   run.length++;
   const id = rec?.id;
   const idStr = (typeof id === "string" && id) ? id : null;
-  const member = { id: idStr, ts: rec?.ts ?? null, line: rec?.__line ?? null, outcome: null, coalesced: null };
+  const member = { id: idStr, ts: rec?.ts ?? null, line: rec?.__line ?? null, outcome: null, coalesced: null, coalesceMiss: null };
   run.members.push(member);
   if (!idStr) { run.noId++; return; }
   // A member can be coalesced OR billed, never both: the coalesced send never
@@ -913,6 +918,40 @@ export function noteCoalesced(scan, id, coalescedRecord) {
 }
 
 /**
+ * The MISS twin (row 31, added 2026-08-18). A duplicate the mitigation did NOT
+ * coalesce keeps its outcome record, so by SHAPE it is an ordinary billed
+ * member and the rollup counts it as one — correctly, because it really was
+ * charged. What the counters cannot say is that a coalescing opportunity was
+ * seen and lost, and WHICH of the two ways the window failed; that is what the
+ * record carries and what this attaches to the member, so a streak row answers
+ * "why was this one not absorbed" without a hand walk over the capture.
+ *
+ * Unlike a coalesced member this one is NOT in `scan.pending` — it has an
+ * outcome — so the lookup goes through the run index, and a miss whose member
+ * has not been seen yet is stashed the same way `noteCoalesced` stashes an
+ * early record.
+ */
+export function noteCoalesceMiss(scan, id, missRecord) {
+  if (typeof id !== "string" || !id) return false;
+  const facts = missRecord
+    ? {
+        leaderId: missRecord.leaderId ?? null,
+        sha: missRecord.sha ?? null,
+        reason: missRecord.reason ?? null,
+        ageMs: missRecord.ageMs ?? null,
+        arrivalDeltaMs: missRecord.arrivalDeltaMs ?? null,
+      }
+    : null;
+  const run = scan.runs.get(id) ?? scan.pending.get(id);
+  if (!run) { scan.coalesceMisses.set(id, facts); return false; }
+  const member = run.members.find((m) => m.id === id);
+  if (!member || member.coalesceMiss) return false; // one record per send
+  member.coalesceMiss = facts;
+  run.coalesceMisses = (run.coalesceMisses ?? 0) + 1;
+  return true;
+}
+
+/**
  * The capture's rollup. `pairs` is derived from the streaks (sum of
  * length - 1) rather than counted alongside them, so the two can never
  * disagree about what a streak is.
@@ -992,6 +1031,17 @@ export function summariseDuplicates(scan) {
   const s = { pairs: 0, streaks: 0, maxStreak: 0, requests: 0,
               billedRequests: 0, billedStreaks: 0, doubleBilledStreaks: 0,
               coalescedRequests: 0, coalescedStreaks: 0,
+              // The MISS side of the same mitigation (row 31). Kept beside the
+              // coalesced counts because the pair is the whole signal: absorbed
+              // versus seen-and-not-absorbed. The reason tally is what makes a
+              // non-zero here actionable rather than merely alarming — the two
+              // reasons are two different fixes, and a count that does not
+              // separate them says nothing about which one to build. Derived
+              // from the members, never enumerated by hand, so a reason added
+              // later cannot be dropped by this rollup the way
+              // coalescedRequests once was for four days.
+              coalesceMissRequests: 0, coalesceMissStreaks: 0,
+              coalesceMissReasons: {},
               membersWithoutId: 0 };
   for (const c of DUPLICATE_CLASSES) {
     s[`${c}Streaks`] = 0;
@@ -1008,6 +1058,13 @@ export function summariseDuplicates(scan) {
     if (run.billed > 0) s.billedStreaks++;
     if (run.billed > 1) s.doubleBilledStreaks++;
     if ((run.coalesced ?? 0) > 0) s.coalescedStreaks++;
+    const misses = (run.members ?? []).filter((m) => m.coalesceMiss);
+    s.coalesceMissRequests += misses.length;
+    if (misses.length > 0) s.coalesceMissStreaks++;
+    for (const m of misses) {
+      const reason = m.coalesceMiss.reason ?? "unstated";
+      s.coalesceMissReasons[reason] = (s.coalesceMissReasons[reason] ?? 0) + 1;
+    }
     if (run.length > s.maxStreak) s.maxStreak = run.length;
     const c = duplicateClassOf(run);
     s[`${c}Streaks`]++;
@@ -1296,6 +1353,7 @@ export async function census(paths) {
         // side effect of `conversationOf` returning null.
         if (r.type === "outcome") { noteOutcome(dupScan, r.id, r); continue; }
         if (r.type === "coalesced") { noteCoalesced(dupScan, r.id, r); continue; }
+        if (r.type === "coalesce-miss") { noteCoalesceMiss(dupScan, r.id, r); continue; }
         const cid = conversationOf(r);
         if (cid === null) continue;
 
