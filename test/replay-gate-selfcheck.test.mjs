@@ -505,8 +505,39 @@ test("stability: BITE — the identical divergence WITHOUT deferred-tool-rewrite
   assert.equal(findStabilityExemptions([entry(0, aIn, aOut), entry(1, bIn, bOut)]).length, 0);
 });
 
+// The SECOND declared reset reason (2026-08-18, row 6 step (b)). A conversation
+// seeded with a preloaded tool whose model has since left the tool_addition
+// allowlist can never announce it, so the extension abandons the seed, forwards
+// CC's raw array and empties `additions` — the same declared branch and the
+// same zero-marginal-cost argument (dropping the seeded entry moves tools[],
+// which renders before messages, so the reset invalidates the prefix by itself).
+// Unexempted, every abandon would fire a red the gate cannot explain: the
+// standing-FAIL-on-a-non-defect shape this file's own comment warns about.
+test("stability: a preload-unannounceable reset that wipes its own injections is exempt too", () => {
+  const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
+  const aOut = [user("u0"), asst("a1"), inj("SendMessage"), user("u2"), asst("a3")];
+  const bIn = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const bOut = [user("u0"), asst("a1"), user("u2"), asst("CC-EDITED-a3")];
+  const reset = {
+    deferredToolRewriteStats: {
+      action: "reset",
+      reason: "preload-unannounceable",
+      injected: 0,
+      reanchored: 0,
+    },
+  };
+
+  const v = findStabilityViolations([entry(0, aIn, aOut), entry(1, bIn, bOut, reset)]);
+  assert.equal(v.length, 0, "the preload abandon is a declared branch, not a self-inflicted divergence");
+
+  const x = findStabilityExemptions([entry(0, aIn, aOut), entry(1, bIn, bOut, reset)]);
+  assert.equal(x.length, 1, "and it is annotated rather than silently dropped");
+  assert.equal(x[0].exemptReason, "deferred-tool-rewrite:reset-wipes-additions");
+  assert.equal(x[0].exemptBasis.type, "preload-unannounceable", "the basis names WHICH declared branch fired");
+});
+
 test("stability: BITE — a reset for any OTHER reason stays a violation", () => {
-  // Only the tool-schema-changed reset is the declared wipe. A different
+  // Only a reason on the DECLARED list is an exempt wipe. A different
   // reset reason dropping an injection is a cause nobody has classified.
   const aIn = [user("u0"), asst("a1"), user("u2"), asst("a3")];
   const aOut = [user("u0"), asst("a1"), inj("SendMessage"), user("u2"), asst("a3")];

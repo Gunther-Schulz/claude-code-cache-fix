@@ -265,11 +265,23 @@ function freshSessionSortExemption(cur, outDiv, prefix) {
 // Left unexempted it is a standing FAIL on a non-defect, which trains the
 // reader to discount the gate.
 //
+// The SECOND declared reset reason, added 2026-08-18 with the row-6 preload:
+// `preload-unannounceable`. A conversation seeded with a preloaded tool whose
+// model has since left the tool_addition allowlist can never announce it, so
+// the extension abandons the seed and forwards CC's raw array — the same
+// declared branch, the same emptied `additions`, and the same
+// zero-marginal-cost argument: dropping the seeded entry from tools[] moves
+// the tools block, which renders before messages, so the prefix is invalidated
+// by the reset itself and the wiped injection costs nothing on top. Minting a
+// reset reason the exemption did not know about is how a mitigation ships a
+// standing gate FAIL on its own designed behaviour, which is the failure mode
+// the paragraph above already paid for once.
+//
 // Exempt ONLY when all three hold — the same telemetry-not-shape discipline
 // as freshSessionSortExemption above:
-//   1. the CURRENT entry reports action=reset with reason=tool-schema-changed
-//      (any other reset reason, or the same reason on a non-reset action, is
-//      a cause nobody has classified),
+//   1. the CURRENT entry reports action=reset with a DECLARED reset reason
+//      (any reason outside that closed set, or a declared reason on a
+//      non-reset action, is a cause nobody has classified),
 //   2. CC's own bytes at the divergence index are identical across the pair
 //      (an append-only input, where CC has no byte at that index at all,
 //      reads as false here and stays a violation — deliberately strict), and
@@ -277,9 +289,14 @@ function freshSessionSortExemption(cur, outDiv, prefix) {
 //      injections out of BOTH outputs and what is left must not diverge below
 //      the bar. Without this, the exemption would be a blanket amnesty for
 //      every schema-change reset.
+// The closed set of reset reasons deferred-tool-rewrite DECLARES as
+// additions-wiping branches. A reason absent from here is unclassified and
+// stays a violation.
+const DECLARED_RESET_REASONS = new Set(["tool-schema-changed", "preload-unannounceable"]);
+
 function resetWipesAdditionsExemption(prev, cur, bar, ccSame) {
   const stats = cur.deferredToolRewriteStats;
-  if (!stats || stats.action !== "reset" || stats.reason !== "tool-schema-changed") return null;
+  if (!stats || stats.action !== "reset" || !DECLARED_RESET_REASONS.has(stats.reason)) return null;
   if (!ccSame) return null;
   const prevInj = new Set(prev.outInjections ?? []);
   const curInj = new Set(cur.outInjections ?? []);
