@@ -4491,6 +4491,30 @@ comment and new issue.
   Done-criterion: a description delta co-occurring with an addition holds
   held-tool bytes stable, red-first on this instance's frozen pair; the reason
   label names its real predicate; census shows no exemption on the re-run.
+  **BUILT 2026-08-18 — `cdc2b9a` (dispatched lane, sonnet) + `d7699cc` (desk).
+  NOT SHIPPED: pin bump and restart await operator GO at a session boundary,
+  so the running proxy is still the old code and this entry does NOT move to
+  `## Done`.** Every clause of the done-criterion is met and each was verified
+  by the desk in the artifact rather than taken from the lane's report:
+  - additions-only rides `rewrite` carrying `descriptionChanges`; a REMOVAL
+    alongside the delta still resets, under `description-delta-with-removal`,
+    and `tools/replay.mjs` learned that string in the SAME commit (splitting
+    them would leave a commit where the census misreads its own exemption).
+  - `tool-schema-changed` was NOT renamed anywhere — the dependents search
+    (`grep -rc` over proxy/ tools/ test/ docs/) found `tools/replay.mjs` keying
+    its exemption recognizer on it plus a committed rowpin fixture pinning it.
+  - Red-first: 5 new bites failed against the unmodified extension, pass after.
+  - CENSUS ON THE REAL INSTANCE, re-run under the serving config: pair
+    n=505->508 now `heldStable=true` (was false), **0 stability exemptions**
+    (was 1, `reset-wipes-additions`), 0 violations, shared subset 11/11.
+    `forwardedStable` stays false, correctly — a genuinely new tool always
+    moves the whole array, the retired framing gap.
+  - Suite 3593 pass / 0 fail; `serving-gate-lint` exit 0 (it went red first on
+    a gap the morning's gate flip surfaced — see ship runbook step 6b).
+  A pre-existing CONTROL bite that asserted `reset` for the addition case was
+  corrected, not deleted: it had pinned the defect. The replacement asserts
+  `rewrite`, keeps the removal half, and ADDS `notEqual(action,
+  "description-absorbed")` — a strengthening, annotated in place.
   Consumer: the next session working row 6 or reading a `reset-wipes-additions`
   exemption.
   Loop stage: MITIGATE.
