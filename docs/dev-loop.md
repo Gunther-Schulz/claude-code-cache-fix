@@ -6,12 +6,16 @@ every one of them was live and invisible.
 
 ## What reading this file costs, and how to read it so it costs less
 
-**This file is 2,500 lines / ~40k tokens.** A session that Reads it whole pays
-25-33k tokens before it has done anything — measured 2026-08-18 from the API's
-own per-call accounting on one session: the single largest context jump of that
-entire session was **33,284 tokens, 40 seconds in, and it was this file**. The
-same session's floor (corpus + tool schemas + session-start hooks) was 69,890
-tokens, so those two together spent 100k before the first finding.
+**This file is 2,500 lines, and a whole-file Read returns ~16k tokens before
+hitting the 2000-line Read cap.** Measured 2026-08-18 from the API's own
+per-call accounting on one session, then re-measured by a second, independent
+instrument the same day (precision correction to the first claim here): the
+single largest context jump of that entire session was **33,284 tokens, 40
+seconds in, and this file's Read was its dominant single component** — roughly
+half to two-thirds, the rest being the backlog-handoff read and session-start
+attachments arriving in the same round. The same session's floor (corpus +
+tool schemas + session-start hooks) was 69,890 tokens, so the opening spent
+100k+ before the first finding.
 
 **Read it by SECTION.** The required-reading gate is satisfied by a targeted
 Read — an offset and a limit, or a grep for the rule you need. The index below
@@ -36,13 +40,15 @@ heading cannot be mistaken for the rule.
 | touching fixtures or pins | "Corpus hygiene", "The scrub destroys CONTENT PREDICATES" |
 | about to restart the proxy | "Before a restart: price it against LIVE sessions" |
 
-**And the wider lesson from that same measurement, because it generalises past
-this file:** the session's growth was ~47% its own OUTPUT (thinking, tool calls,
-briefs, entries, commit messages) and ~53% what came back from tools. There is
-no single leak to plug. What is controllable is the count of round trips — 253
-API calls at a median of 1,358 tokens each — so batching independent probes into
-one call is worth more than trimming any individual read. The one structural tax
-is this file, and the index above is its fix.
+**And the wider lesson from that same measurement, twice-measured and corrected
+2026-08-18:** the session's growth was roughly half its own OUTPUT (thinking,
+briefs, entries, commit messages) and half what came back from tools and hooks.
+There is no single leak to plug — and batching probes is NOT the fix an earlier
+version of this paragraph claimed: batched or not, the same results enter the
+window, so batching reduces how often the prefix is re-billed (a cost and
+rate-limit lever), not how large the context grows. What actually moves context
+size is what gets read into the window and what gets written into it. The one
+structural tax is this file, and the index above is its fix.
 
 ## Which line are you on
 
