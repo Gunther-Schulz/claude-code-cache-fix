@@ -25,13 +25,27 @@
 //   (c) Two trees that take a DIFFERENT decision on the same request must
 //       exit 1 and print the line that changed. A differing pair reported as
 //       identical is the failure this tool exists to prevent.
+//   (d) A comparison whose two trees are BYTE-IDENTICAL over the compared
+//       file (EXT) exercises no change at all, in ANY corpus — 0 of N pairs
+//       matched, exit 2, COULD NOT VERIFY, never counted as a pass. This is
+//       the 2026-08-18 measured miss (BACKLOG.md, "verdict-ab IDENTICAL over
+//       a corpus lacking the case under test"): `node tools/verdict-ab.mjs
+//       cdc2b9a^ aa85900` returned a clean IDENTICAL pass across 3,223
+//       verdict lines while the change it was pricing (deferred-tool-rewrite.mjs)
+//       never touches insertion-normalization.mjs at all — the compared file
+//       is byte-identical across that whole range. A reader taking IDENTICAL
+//       as "the change is inert" got the opposite of the truth. The
+//       dedicated regression test below pins that exact real invocation
+//       (immutable git history, per the corpus's anchor rule) rather than
+//       only a stub.
 //
 // Trees are supplied as DIRECTORIES throughout (the tool accepts either a
 // directory holding the extension or a git ref): no scratch worktree is
-// created, so the suite cannot leave one behind. (a) and (b) run against the
-// repo's own real extension; (c) uses two minimal stub trees, because the
-// question there is whether a DIFFERENCE is reported, and manufacturing one
-// out of the real extension would pin its current behaviour instead.
+// created, so the suite cannot leave one behind. (a), (b) and the regression
+// test run against the repo's own real extension/history; (c) and (d) use
+// minimal stub trees, because the question there is whether a DIFFERENCE (or
+// its absence) is reported, and manufacturing one out of the real extension
+// would pin its current behaviour instead.
 
 import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { test } from "node:test";
@@ -128,8 +142,15 @@ test("BITE (b) — every committed fixture shape is read; only the non-message-a
   assert.ok(want.readable.length > 0, "corpus has no readable fixture — oracle or corpus is broken");
   assert.ok(want.skippable.length > 0, "corpus has no skippable fixture — (b) would be vacuous");
 
+  // REPO vs REPO is the same directory on both sides, so EXT is trivially
+  // byte-identical between A and B — (d)'s condition — and the run correctly
+  // reports COULD NOT VERIFY rather than IDENTICAL now that 0-matched is its
+  // own status. The reader-completeness assertions below are unaffected: the
+  // per-corpus read/skip lines print during the loop, before the final
+  // verdict is decided.
   const r = run([REPO, REPO, "--fixtures", FIXTURES]);
-  assert.equal(r.code, 0, `identical trees must agree:\n${r.out}`);
+  assert.equal(r.code, 2, `identical trees exercise no change and must not report a pass:\n${r.out}`);
+  assert.match(r.out, /COULD NOT VERIFY/, r.out);
   assert.deepEqual(skippedNames(r.out), want.skippable,
     "the skipped list must name exactly the fixtures carrying no message array");
   // ...and the other side of the same partition: every remaining fixture was
@@ -138,7 +159,6 @@ test("BITE (b) — every committed fixture shape is read; only the non-message-a
   const stripExt = (n) => n.replace(/\.(json|jsonl)$/, "");
   assert.deepEqual(corpusNames(r.out), want.readable.map(stripExt).sort(),
     "every message-array fixture must appear as a read corpus");
-  assert.match(r.out, /IDENTICAL across \d+ verdict lines/);
 });
 
 test("BITE (c) — a differing pair reports DIFFERS and prints the line that changed", () => {
@@ -171,8 +191,51 @@ export function classifyPinned(messages) {
 
   const r = run([treeA, treeB, "--fixtures", fixtures]);
   assert.equal(r.code, 1, `a difference must exit 1, got ${r.code}:\n${r.out}`);
-  assert.match(r.out, /DIFFERS on 1 of 2 verdict lines/, r.out);
+  // treeA and treeB's classifyPinned bodies genuinely differ (that is what
+  // makes this pair diverge at all), so every pair in the run — not only the
+  // one that diverged — ran through code the change touched: 2 of 2 matched.
+  assert.match(r.out, /DIFFERS on 1 of 2 verdict lines \(2 of 2 pairs exercised the changed code\)/, r.out);
   assert.match(r.out, /^ +- A synthetic n=1 .*dropped=0/m, `A's line missing:\n${r.out}`);
   assert.match(r.out, /^ +\+ B synthetic n=1 .*dropped=1/m, `B's line missing:\n${r.out}`);
   assert.doesNotMatch(r.out, /n=0/, "the identical line must not be reported as a diff");
+});
+
+test("BITE (d) — byte-identical trees report 0 matched pairs, exit 2, never a pass", () => {
+  const source = `
+export function resolveInsertionSessionKey() { return "conv"; }
+export function classifyPinned(messages) {
+  return { action: "none", dropped: 0, canonicalEntries: null, messages };
+}
+`;
+  const treeA = stubTree("d-a", source);
+  const treeB = stubTree("d-b", source); // byte-identical source, distinct directories
+  const fixtures = scratch("d-fixtures");
+  const msg = (t) => ({ role: "user", content: t });
+  writeFileSync(join(fixtures, "synthetic.json"), JSON.stringify({
+    requests: [{ n: 0, messages: [msg("one"), msg("two")] }],
+  }));
+
+  const r = run([treeA, treeB, "--fixtures", fixtures]);
+  assert.equal(r.code, 2, `a comparison that can exercise no change must not report a pass:\n${r.out}`);
+  assert.match(r.out, /COULD NOT VERIFY/, r.out);
+  assert.match(r.out, /0 of 1 verdict lines?/, r.out);
+  assert.doesNotMatch(r.out, /^IDENTICAL/m, "0 matched pairs must never print a plain IDENTICAL pass");
+});
+
+test("REGRESSION 2026-08-18 — cdc2b9a^ vs aa85900 must not read as a plain pass", () => {
+  // The real invocation that priced the combined-absorb build (BACKLOG.md,
+  // "verdict-ab IDENTICAL over a corpus lacking the case under test"):
+  // `node tools/verdict-ab.mjs cdc2b9a^ aa85900` returned IDENTICAL across
+  // 3,223 verdict lines / 19 corpora, exit 0. True, and read backwards: the
+  // change it was pricing lives entirely in
+  // proxy/extensions/deferred-tool-rewrite.mjs and tools/replay.mjs — EXT
+  // (insertion-normalization.mjs, the only file this tool loads) is
+  // byte-identical across the whole range (`git diff cdc2b9a^ aa85900 --
+  // proxy/extensions/insertion-normalization.mjs` is empty). Pinned to these
+  // SHAs deliberately: they are this repo's own immutable history, so this
+  // is the exact arrangement, not a stand-in for it.
+  const r = run(["cdc2b9a^", "aa85900"]);
+  assert.equal(r.code, 2, `must not report a pass over a comparison that changed nothing this tool inspects:\n${r.out}`);
+  assert.match(r.out, /COULD NOT VERIFY/, r.out);
+  assert.doesNotMatch(r.out, /^IDENTICAL/m, r.out);
 });

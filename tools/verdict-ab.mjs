@@ -20,6 +20,24 @@
 // corpus in which no fixture yields a replayable request, exits 2 with
 // COULD-NOT-VERIFY and never 0.
 //
+// A FOURTH shape of the same failure, added 2026-08-18 (BACKLOG.md,
+// "verdict-ab IDENTICAL over a corpus lacking the case under test"):
+// `node tools/verdict-ab.mjs cdc2b9a^ aa85900` returned IDENTICAL across
+// 3,223 verdict lines / 19 corpora, exit 0 — true, and read backwards. The
+// change it was pricing lived entirely in
+// proxy/extensions/deferred-tool-rewrite.mjs and tools/replay.mjs; EXT (the
+// only file this tool loads) was byte-identical between the two trees across
+// the whole range. Non-empty corpora and a clean "IDENTICAL" both held while
+// nothing this tool inspects could possibly have differed — a NO-REGRESSION
+// result read as a NO-CHANGE one. So before any corpus is compared, the two
+// trees' copies of EXT are diffed at the byte level: identical bytes means
+// 0 of N pairs could exercise a change, whatever N is, and that is
+// COULD-NOT-VERIFY too, never a pass. When the bytes differ, every pair
+// still ran through the changed module, so all N count as having exercised
+// it — a function-level signal, not branch-level: a corpus that reaches
+// EXT's changed code without tripping the specific altered branch still
+// counts here, which is a real and named limitation, not a silent one.
+//
 //   node tools/verdict-ab.mjs <treeA> <treeB> [options]
 //
 //     <treeA> <treeB>   a git ref (checked out DETACHED into a scratch
@@ -40,10 +58,12 @@
 //                       directory under this run's temp root, removed at exit)
 //     --verbose         print every verdict line, not only the differing ones
 //
-//   exit 0  every verdict line identical
+//   exit 0  every verdict line identical, AND at least one pair could
+//           exercise the changed code (EXT differs between the trees)
 //   exit 1  at least one differs (the diff is printed)
-//   exit 2  COULD NOT VERIFY — nothing replayable was found, or a tree failed
-//           to load. Never reported as a pass.
+//   exit 2  COULD NOT VERIFY — nothing replayable was found, a tree failed
+//           to load, or EXT is byte-identical between the trees so 0 pairs
+//           could exercise a change. Never reported as a pass.
 
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, mkdirSync, rmSync } from "node:fs";
@@ -206,10 +226,19 @@ async function main() {
     // "never hand-roll identity in a probe").
     const groupOf = (r) => modA.resolveInsertionSessionKey(r.headers, r.messages, r.system);
 
+    // The changed-code-path gate (see the header comment's "FOURTH shape").
+    // Read once, before any corpus is touched: whether the corpus can see a
+    // change is a fact about the two trees, not about any one fixture.
+    const bytesIdentical =
+      readFileSync(join(treeA.dir, EXT), "utf-8") === readFileSync(join(treeB.dir, EXT), "utf-8");
+
     const { corpora, skipped } = loadCorpora(resolve(opts.fixtures ?? join(REPO, "test/fixtures/harvested")));
     console.log(`A: ${treeA.label}  ${treeA.dir}`);
     console.log(`B: ${treeB.label}  ${treeB.dir}`);
     console.log(`mode: ${opts.seedFromA ? "seed-from-A (old-canon compatibility)" : "independent chains"}`);
+    console.log(
+      `code: ${EXT} is ${bytesIdentical ? "byte-for-byte the same in A and B — no pair can exercise a change" : "different between A and B"}`
+    );
     for (const s of skipped) console.log(`  skipped ${s}`);
 
     const diffs = [];
@@ -235,14 +264,22 @@ async function main() {
       console.log(`  ${name}: ${requests.length} request(s), ${groups.size} conversation(s)`);
     }
 
-    // The third answer. Zero lines is not "identical" — it is nothing checked.
+    // The third answer, and its fourth shape. Zero lines is not "identical"
+    // — it is nothing checked; zero MATCHED lines is the same failure one
+    // level up — everything got checked and none of it could have differed.
+    const matched = bytesIdentical ? 0 : lines;
     if (lines === 0) {
       console.log("COULD NOT VERIFY — no fixture yielded a replayable request");
       exitCode = 2;
+    } else if (matched === 0) {
+      console.log(
+        `COULD NOT VERIFY — 0 of ${lines} verdict lines could exercise the changed code (${EXT} is byte-identical between A and B)`
+      );
+      exitCode = 2;
     } else if (diffs.length === 0) {
-      console.log(`IDENTICAL across ${lines} verdict lines, ${corpora.length} corpora`);
+      console.log(`IDENTICAL across ${lines} verdict lines, ${corpora.length} corpora (${matched} of ${lines} pairs exercised the changed code)`);
     } else {
-      console.log(`DIFFERS on ${diffs.length} of ${lines} verdict lines:`);
+      console.log(`DIFFERS on ${diffs.length} of ${lines} verdict lines (${matched} of ${lines} pairs exercised the changed code):`);
       for (const d of diffs) console.log(`  - A ${d.a}\n  + B ${d.b}`);
       exitCode = 1;
     }
