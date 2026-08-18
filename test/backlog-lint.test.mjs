@@ -2892,27 +2892,54 @@ test("anchor-moved: RED-FIRST arm (a) — the closed push-scan-endpoints entry, 
   assert.ok(hit.proof.includes("f228720"), `expected f228720 in the proof, got: ${hit.proof}`);
 });
 
-// RED-FIRST arm (b): a real, CURRENT READY entry whose anchor genuinely has
-// no commits since its own booking date — without this arm, a lane that
-// fires unconditionally on every READY entry would still pass arm (a). This
-// bite reads LIVE state (today's BACKLOG.md, today's git history for
-// tools/harvest.mjs) rather than a frozen ref: the entry's booking date is
-// TODAY, so there is no earlier immutable snapshot of it to freeze against.
-// It is expected to need re-pointing at a different entry once
-// tools/harvest.mjs gains a commit after today — named here so that future
-// red reads as "pick a new negative", never as a regression in the lane
-// itself. The RULE-level negative control above (empty-stub, immortal) is
-// what actually guards the "fires on everything" defect class forever; this
-// bite is the real-history corroboration the brief asks for on top of it.
-test("anchor-moved: RED-FIRST arm (b) — a real current READY entry with no commits since booking produces nothing", () => {
-  const current = readFileSync(join(REPO, "BACKLOG.md"), "utf8");
-  const findings = lint.lintAnchorMoved(current);
-  const hit = findings.find((f) => f.token === "tools/harvest.mjs");
-  assert.equal(
-    hit,
-    undefined,
-    "tools/harvest.mjs must have no ANCHOR-MOVED/ANCHOR-UNCHECKABLE finding as of today's booking",
+// RED-FIRST arm (b): the lane must produce NOTHING for an entry whose anchor
+// has not moved — without it, a lane that fires unconditionally on every READY
+// entry would still pass arm (a).
+//
+// IT IS FROZEN, and the first version of it was not. That version read LIVE
+// state (today's BACKLOG.md against today's git history for tools/harvest.mjs)
+// and its author named the hazard in this very comment: "expected to need
+// re-pointing once tools/harvest.mjs gains a commit after today". It gained
+// three, in the same session, roughly ninety minutes later — and the arm went
+// red on a lane that was working perfectly. That is the anchored-to-mutable
+// -state class from docs/dev-loop.md, arriving inside the check built to
+// detect exactly that class one level up, which is why the fix is to PIN the
+// premise inside the check rather than to re-point it at the next file that
+// happens to be quiet today.
+//
+// Frozen arrangement: a synthesised entry whose anchor is a path that has NEVER
+// existed in this repo's history, with a booking date old enough that any
+// commit at all would be found if the path resolved. Its git answer cannot
+// change, because nothing can retroactively add commits to a path that does not
+// exist — and the lane must still report nothing rather than UNCHECKABLE, since
+// "no commits since the booking date" is a legitimate clean answer.
+test("anchor-moved: RED-FIRST arm (b) — an entry whose anchor has no commits since booking produces nothing (frozen)", () => {
+  const entry = [
+    "## Open",
+    "",
+    "- **READY 2026-08-11 — a synthetic entry, frozen so this arm cannot rot**",
+    "  Body text.",
+    "  Anchor: `tools/this-path-has-never-existed-in-this-repo.mjs`",
+    "  Write-set: `tools/this-path-has-never-existed-in-this-repo.mjs`",
+    "  <!-- entry: \"frozen negative control\" -->",
+    "",
+  ].join("\n");
+  const findings = lint.lintAnchorMoved(entry);
+  assert.deepEqual(
+    findings,
+    [],
+    "an anchor with no commits since its booking date is CLEAN — not moved, and not uncheckable",
   );
+
+  // The PAIR, without which the assertion above is satisfied by a lane that
+  // never ran on this entry at all: the SAME synthetic entry with its anchor
+  // swapped for a path that HAS moved must fire. An empty result proves
+  // nothing until an identical arrangement is shown producing a non-empty one.
+  const moved = lint.lintAnchorMoved(entry.replace(
+    /tools\/this-path-has-never-existed-in-this-repo\.mjs/g, "tools/harvest.mjs"));
+  assert.equal(moved.length, 1, "the same entry with a MOVED anchor must fire — else the negative is vacuous");
+  assert.equal(moved[0].label, "ANCHOR-MOVED");
+  assert.equal(moved[0].token, "tools/harvest.mjs");
 });
 
 // Third arm, added on the dispatcher's mid-task correction: the midnight-pin
