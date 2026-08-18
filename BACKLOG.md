@@ -403,6 +403,35 @@ comment and new issue.
 
 ## Open
 
+- **READY 2026-08-18 (night, found by the pre-push suite going red on an
+  unrelated commit) — the runbook marker checker CONFIRMS a claim from the
+  claim's own disposition keyword, so one ordinary entry can silence every
+  stale marker at once.** `checkMarkers` asks `findMatchingPhrase` whether any
+  distinctive BIGRAM of the marker body appears in the ready-entry text. The
+  marker bodies end in their own disposition phrase, and that phrase survives
+  into the bigram set — so it is matched against a file where those same two
+  words occur in ordinary prose. The match is then tautological: the marker is
+  confirmed by the words it used to declare itself, not by the entry it claims
+  exists.
+  **Measured tonight, and this is the red-first arrangement:** with a new entry
+  added that happened to contain those two words adjacently in unrelated prose,
+  real STALE markers went 5 -> 0. Restoring the wording restored 5. The five
+  markers were never resolved; the checker simply stopped seeing them, and the
+  test that guards this only fails because it asserts staleness must be found —
+  had it asserted the opposite, the silencing would have read as success.
+  Fix: drop each marker's own disposition phrase from its distinctive-bigram
+  set before matching, so confirmation can only come from content naming the
+  actual work. The bite is the case above: the entry text plus the five
+  markers, frozen as a fixture, must classify all five STALE.
+  Loop stage: VERIFY (instrument defect; the same tool was corrected once
+  already this week for confirming claims from PARKED and DONE entries — this
+  is a second, independent hole in the same confirmation path).
+  Anchor: `tools/named-unbooked-scan.mjs`
+  Write-set: `tools/named-unbooked-scan.mjs`, `test/runbook-lane-index.test.mjs`
+  Verifier: the frozen fixture classifies all five markers STALE, and the same
+  predicate goes green on a marker whose named work genuinely has an entry
+  <!-- entry: "runbook marker checker confirms from the disposition keyword" -->
+
 - **READY 2026-08-18 (night) — `state-report` answers most of a session's
   intake already; four collectors close the rest, and the ninth script that
   was proposed instead is withdrawn.** A session-intake script was proposed
@@ -411,7 +440,7 @@ comment and new issue.
   refuted by re-measurement (see the instrument note below). The redundancy
   half was found by a read-only discovery lane: `tools/state-report.mjs`
   ALREADY aggregates the threat-matrix status counts and OPEN/RESIDUAL rows,
-  the backlog READY head, the gate-live verdict subset, the git-tree pin
+  the head of this file's ready set, the gate-live verdict subset, the git-tree pin
   against the dotfiles manifest, the content fingerprint against live
   `/health`, protected-capture bytes, repo hygiene and lane-branch commit
   counts — via pure `collect*()` functions feeding one text/`--json`
@@ -428,11 +457,11 @@ comment and new issue.
   (4) raw capture-store size — `~/.local/share/cache-fix/captures`; only the
   protected sibling directory is measured today.
   Loop stage: VERIFY (this is instrument coverage, not a mitigation).
-  Write boundary: `tools/state-report.mjs` alone — no new file.
-  Verifier: `node tools/state-report.mjs` and `--json` both emit the four new
-  keys, and the serving-gate lint stays green; done when a session can answer
-  all eight intake facts from one command.
-  Anchor: `tools/state-report.mjs` `collectAll()`/`renderText()`.
+  Anchor: `tools/state-report.mjs`
+  Write-set: `tools/state-report.mjs`
+  Verifier: `node tools/state-report.mjs` and `--json` both emit the four new keys and the serving-gate lint stays green; done when a session answers all eight intake facts from one command
+  <!-- entry: "state-report gains four collectors; the ninth intake script is withdrawn" -->
+  The realizing site is `collectAll()`/`renderText()` in that file — no new file.
   **Do NOT re-propose a separate intake script without first re-reading this
   entry** — the discovery lane's full fact-by-fact mechanics (sources, keys,
   costs, side-effect checks) are preserved with the decomposition record in
