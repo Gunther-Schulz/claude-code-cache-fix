@@ -206,9 +206,20 @@ residue CLOSED during this derivation (`50c331c`) and is in `## Done`.
 **State, 2026-08-18 evening.** Fork `main` carries the change
 (`dc11012` + `f491b0f`, suite green at each). The RUNNING proxy does not: no pin
 bump in dotfiles, no restart. That is a decision taken at the ship runbook's own
-step 2, not an omission, and the deployment triple therefore still agrees on the
-PREVIOUS tree — `CACHE_FIX_PROXY_TREE_PIN` is unchanged on purpose, so `doctor`
-stays green rather than reporting a mismatch nobody chose.
+step 2, not an omission.
+**CORRECTED, same evening, by running the doctor instead of predicting it.**
+This paragraph first said the unchanged pin would keep `doctor` green "rather
+than reporting a mismatch nobody chose". False, and the doctor was one command
+away: it compares the pin against the REPO's `HEAD:proxy`, not only against the
+running process, so the hold produces TWO warns, both accurate —
+`main@proxy:5ddf24f != Pin main@proxy:25c9929` and `laufender Prozess fuehrt
+Fingerprint 7f15d0bc285b aus, auf der Platte liegt c2effc3e1d2e — Aenderung ohne
+Restart`. Those warns are the CORRECT state of a half-finished ship and are
+better than the green I predicted: they say out loud that code on disk is not
+the code serving traffic, which is exactly what a session arriving tomorrow
+needs to know. Treat them as the hold's own reminder, not as a defect to
+silence — the second one clears at the restart, the first at the pin bump, and
+the trigger below is when both happen.
 
 **Why held, with the number the step asks for.** `node tools/restart-exposure.mjs
 --window-min 60` reported **7 live sessions, worst case ~1,112k tokens**, three of
