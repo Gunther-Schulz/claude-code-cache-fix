@@ -1215,3 +1215,27 @@ test("BITE — toolPreload: ordinary traffic with no preload act reports a MEASU
   assert.equal(unscanned.toolPreload.announced, null);
   assert.equal(unscanned.toolPreload.fallback, null);
 });
+
+test("BITE — toolPreload: a preload act OUTSIDE the sweep window is not counted", async (t) => {
+  // The gap the repair lane returned as outside its write boundary, with the
+  // repair it named: the two bites above plant records only INSIDE
+  // [since, until), so deleting the window test at gate-live.mjs's preload
+  // branch leaves both of them green — a filter no bite could miss losing.
+  // One out-of-window record is what makes the window assertion falsifiable.
+  const dir = await snapshotDirWith({
+    "s-key-w-deferred-tool-events.jsonl": [
+      // INSIDE the window.
+      JSON.stringify({ ts: "2026-08-18T10:00:00.000Z", key: "key-w", sid: "sid-1", action: "no-baseline", preloadSeeded: ["SendMessage"] }),
+      // BEFORE it — same file, same shape, so only the timestamp separates them.
+      JSON.stringify({ ts: "2026-08-17T10:00:00.000Z", key: "key-w", sid: "sid-1", action: "no-baseline", preloadSeeded: ["SendMessage"] }),
+      // AFTER it.
+      JSON.stringify({ ts: "2026-08-19T10:00:00.000Z", key: "key-w", sid: "sid-1", action: "unchanged", preloadAnnounced: ["SendMessage"] }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-18T00:00:00Z"), Date.parse("2026-08-19T00:00:00Z"));
+  assert.equal(r.toolPreload.seeded, 1, "only the in-window seed counts — the earlier one is outside the sweep");
+  assert.equal(r.toolPreload.announced, 0, "the announce is after the window and must not be counted");
+  assert.equal(r.toolPreload.newestUtc, "2026-08-18T10:00:00.000Z", "newest is the newest IN-WINDOW act");
+});

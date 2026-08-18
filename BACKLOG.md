@@ -388,14 +388,57 @@ comment and new issue.
   window filter on preload acts; and the `unchanged`/`description-absorbed`
   forwarding branches with a non-empty pending set.
   **AND A DEFECT THE REVIEW DID NOT NEED TO FIND — the gate's SHAPE.**
-  `CACHE_FIX_TOOL_PRELOAD` is a comma-separated name list, which
+  `CACHE_FIX_TOOL_PRELOAD` was a comma-separated name list, which
   `proxy/gate-allowlist.mjs` forbids adding (its rule: no free-form values),
   while ship-runbook step 4b requires a serving gate to be publishable or the
   doctor's three-way compare FAILS naming the wrong cause. FIX: make the gate
   a boolean and move the preload set into a source constant beside
   `TOOL_ADDITION_MODELS`, where each name carries its measured evidence —
   which is better than an env string anyone can set without any.
-  **THE FORM IS WHAT FAILED, and the trend is the reason this is PARKED rather
+  **REPAIR ROUND CLOSED 2026-08-18 — dispositions-first + dispatch, and the
+  form change WORKED: the series went 9 findings -> 1.** Commits `3eff617`,
+  `8fa214e`, `2ae2cd9` (opus lane, unpushed at close of round). All seven
+  worked findings plus the gate-shape repair are built; F4 was closed by the
+  probe and F8 needed no code. Verified at the DESK with instruments the lane
+  did not run, never booked on its report: the original two-arm absorb probe
+  now returns `description-absorbed` with `tools[]` unmoved (the BLOCKING
+  finding is gone), and an independent stale-schema arrival probe shows the
+  model receives CC's CURRENT schema rather than the stored one — the half a
+  bare "not a reset" assertion would have missed. Suite 3,582/0, verdict-ab
+  IDENTICAL across 3,223 verdict lines / 19 corpora, serving-gate-lint exit 0.
+  **THE ONE DEFECT THE ROUND ITSELF ALMOST SHIPPED, and it was a CONSTANT the
+  brief forced the lane to invent.** The brief named F5's fix ("a
+  conversation-depth or history test") without a value; the lane picked
+  `PRELOAD_MAX_SEED_MESSAGES = 1` and reasoned the failure direction benign —
+  "too strict seeds nothing, i.e. today's behaviour". Measured at the desk over
+  6 live captures / 5,428 tool-carrying requests grouped by imported
+  `conversationSubKey`: **0 of 43 conversations** would have passed it, so the
+  mitigation was dead on arrival under a fully green suite — the silent-failure
+  class the skip gauge named. The bites passed only because they drive
+  1-message bodies, a shape CC does not produce: fixture-encodes-an-impossible-
+  state, with the constant calibrated to the fixture.
+  Replaced by a SEMANTIC test, `isConversationBirth(messages)` — no assistant
+  turn yet — derived from a discriminating pair in real data rather than a
+  constructed one: births (no assistant) numbered 27 at exactly 2 messages,
+  roles `user/system`; mid-conversations (assistant present) numbered 16 at 4
+  or 6+. Zero overlap. `PRELOAD_MAX_SEED_MESSAGES` is gone, not kept beside it.
+  **CORRECTION to this entry's own numbers, because the lane re-measured rather
+  than booking mine:** on its independent capture set the guard admitted 2 of
+  50, not 0 of 43. One-message first requests DO occur and are rare, so "never
+  seeds" was an overreach of my sample — the honest figure is ~96%, and the two
+  survivors are exactly why the old bites looked healthy. Direction and size
+  unchanged. Desk-probed afterwards with a THIRD arm neither side had stated:
+  the rare 1-message birth also seeds, which is what proves the new guard is
+  semantic rather than a count in disguise.
+  **What the round returned as outside the lane's boundary and the desk then
+  closed:** the `gate-live` window-filter bite (added, and RED-PROVEN — deleting
+  the window test reddens exactly that bite, 55/1, restored 56/56), and both
+  documents still describing the gate in its old name-list shape.
+  **Telemetry shape change, for whoever next reads a live sweep:** the pending
+  steady state now reports action `unchanged` where it reported `rewrite` with
+  `heldNames=[SendMessage]`. Wire bytes identical either way; `preloadPending`
+  still carries the count.
+  **THE FORM IS WHAT FAILED, and the trend is the reason this WAS parked rather
   than repaired in place.** Three rounds on this extension family now: the
   row-24 lane's round 1 (green bites, green suite -> blocking defect at a desk
   probe), its round 2 (green bites, green suite, green desk probe -> ten
@@ -493,8 +536,12 @@ comment and new issue.
   old blob was in place), 52/52 with it; the same arrangement for the two
   instrument changes (30/3 and 53/2). Full suite 3565 pass / 0 fail.
   **What remains, and it is a DEPLOYMENT act rather than more building:** the
-  gate `CACHE_FIX_TOOL_PRELOAD` is a comma-separated NAME LIST and is unset
-  everywhere, so the shipped code is inert until a unit declares it. Flipping
+  gate `CACHE_FIX_TOOL_PRELOAD` is a BOOLEAN ("1") since the repair round — the
+  name set lives in the `PRELOAD_TOOL_NAMES` source constant beside
+  `TOOL_ADDITION_MODELS`, each name carrying its measured evidence — and it is
+  unset everywhere, so the shipped code is inert until a unit declares it. The
+  unit line to eventually add is `CACHE_FIX_TOOL_PRELOAD=1`, NOT a name list.
+  Flipping
   it lands in the DOTFILES repo (`Environment=` on `cache-fix-proxy.service`),
   which is a different write boundary, and it changes what goes on the wire
   for every new conversation on this machine — so it is the operator's call,
