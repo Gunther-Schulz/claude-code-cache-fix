@@ -102,6 +102,28 @@
 // `descriptionFallback` so the real cause is not buried under
 // "tool-schema-changed": a stale description is never served silently.
 //
+// COMBINED WITH A PURE ADDITION (2026-08-18). A description delta is a
+// STANDING condition once CC changes a tool's prose — the canonical never
+// adopts the new prose (see upsertDescriptionNotice's dedupe note below), so
+// the same delta is re-detected on EVERY later request in that conversation.
+// Before this widening, a genuinely NEW tool arriving in any of those later
+// requests took the global reset — dropping `additions` and clearing
+// `preloadPending` with no re-seed path — even though 0 of the SHARED tools'
+// schemas had moved. Measured instance 2026-08-18: a pure addition of two
+// tools, 0 of 14 shared tool objects changed, reset taken anyway. The safety
+// argument is identical to the addition-only case's: the schema-change scan
+// above runs over every name present in BOTH sets before this branch is
+// reached, so every shared name's schema is already proven byte-identical —
+// the model calls against the schema it always did, whichever names are new.
+// So: additions only (no removal anywhere in the same request) ride the
+// ordinary `rewrite` action, carrying `descriptionChanges` so onRequest
+// injects both notices. A REMOVAL riding along is the one case this does not
+// reach — holding a tool CC dropped while ALSO holding stale prose for
+// another has no safety argument behind it — so that combination keeps the
+// honest reset, tagged `description-delta-with-removal` (never
+// `tool-schema-changed`, since no schema moved) so the two causes stay
+// distinguishable in telemetry and in the replay gate's exemption.
+//
 // PRELOAD (threat-matrix row 6, ladder step (b), 2026-08-18) — the fifth
 // outcome, and the only one that acts BEFORE the event it prevents. Measured
 // over the 2026-08-16 population record: `SendMessage` is 103 of 126 tool
@@ -672,9 +694,9 @@ export function toolFingerprint(tool) {
 // Returns:
 //   { action: "no-baseline", knownTools }                                             — first-seen session; persist baseline, forward unchanged (EXCEPT where onRequest seeds a preload into knownTools — the one case a fresh baseline forwards something other than CC's array; see the PRELOAD header section)
 //   { action: "unchanged", knownTools }                                               — incoming === known set, same order; forward unchanged
-//   { action: "reset", knownTools, reason }                                           — a known tool's schema changed; forward unchanged, re-baseline
-//   { action: "rewrite", tools, newNames, heldNames, knownTools }                      — held removal and/or reorder and/or pure addition; onRequest forwards forwardedTools(knownTools, additions) and injects the addition message
-//   { action: "description-absorbed", knownTools, descriptionChanges }                 — DESCRIPTION prose only, identical schemas/names/order; knownTools is the FIRST-SEEN array unchanged, and descriptionChanges carries the NEW prose for the in-band announcement
+//   { action: "reset", knownTools, reason }                                           — a known tool's schema changed ("tool-schema-changed"), or a description delta arrived alongside a REMOVAL ("description-delta-with-removal"); forward unchanged, re-baseline
+//   { action: "rewrite", tools, newNames, heldNames, knownTools, descriptionChanges? } — held removal and/or reorder and/or pure addition, optionally carrying a description delta that arrived ALONGSIDE a pure addition (no removal — see the COMBINED section below); onRequest forwards forwardedTools(knownTools, additions) and injects the addition message and/or the description notice
+//   { action: "description-absorbed", knownTools, descriptionChanges }                 — DESCRIPTION prose only, identical schemas/names/order, no add/remove; knownTools is the FIRST-SEEN array unchanged, and descriptionChanges carries the NEW prose for the in-band announcement
 //
 // `priorPreloadedNames` is the SEEDED-BUT-UNANNOUNCED set as the persisted
 // state carried it: names WE put into the array, which Claude Code has not
@@ -782,16 +804,28 @@ export function classifyToolChange(incomingTools, priorKnownTools, priorPreloade
   // ("the schema the model calls against is unchanged") needs every name
   // present with its schema byte-identical, which the scan above enforced.
   if (descriptionChanges.length > 0) {
-    if (!sameSet) {
-      return { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
+    if (heldNames.length > 0) {
+      // A tool CC dropped WHILE also holding stale prose for another has no
+      // safety argument reaching it (header, COMBINED WITH A PURE ADDITION).
+      // Named apart from "tool-schema-changed" because no SCHEMA changed
+      // here — the replay gate's exemption and telemetry both key on this.
+      return { action: "reset", knownTools: incomingTools, reason: "description-delta-with-removal" };
     }
-    // The canonical is the first-seen array — including any pending seed,
-    // which must stay on the wire — with an adopted name's bytes replaced.
-    return {
-      action: "description-absorbed",
-      knownTools: adopted.size === 0 ? priorKnownTools : priorOrderNames.map(canonicalOf),
-      descriptionChanges,
-    };
+    if (sameSet) {
+      // Pure description delta — no add, no remove, no reorder-length
+      // mismatch. The canonical is the first-seen array — including any
+      // pending seed, which must stay on the wire — with an adopted name's
+      // bytes replaced.
+      return {
+        action: "description-absorbed",
+        knownTools: adopted.size === 0 ? priorKnownTools : priorOrderNames.map(canonicalOf),
+        descriptionChanges,
+      };
+    }
+    // Additions only (heldNames is empty, so whatever broke sameSet is a new
+    // name): the safety argument reaches exactly as far as it does for a
+    // plain addition. Fall through to the ordinary rewrite path below and
+    // let it carry descriptionChanges too — never a separate return here.
   }
 
   if (orderMatches) {
@@ -811,6 +845,7 @@ export function classifyToolChange(incomingTools, priorKnownTools, priorPreloade
     newNames,
     heldNames,
     knownTools: priorOrderNames.concat(newNames).map((name) => canonicalOf(name) ?? incomingByName.get(name)),
+    ...(descriptionChanges.length > 0 ? { descriptionChanges } : {}),
   };
 }
 
@@ -1211,7 +1246,14 @@ export default {
       // genuine schema change, which is the class it exists to separate.
       const canAnnounce = announceOk && Array.isArray(body.messages) && body.messages.length > 0;
       let descriptionFallback = null;
-      if (result.action === "description-absorbed" && !canAnnounce) {
+      // Keyed on the PRESENCE of descriptionChanges, not on action ===
+      // "description-absorbed" alone: a "rewrite" carrying descriptionChanges
+      // (the combined addition+description case above) is absorbing prose
+      // exactly as much as the pure absorb is, and it is only honest where
+      // the model is told the new prose in-band — same guard, same reason,
+      // same telemetry field, so the two classes stay indistinguishable in
+      // neither direction.
+      if (result.descriptionChanges && !canAnnounce) {
         descriptionFallback = result.descriptionChanges.map((c) => c.name);
         result = { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
       }
@@ -1309,8 +1351,12 @@ export default {
       // the wire unchanged (below), so the new prose has to reach the model
       // here or not at all. Anchored after the current last message like an
       // addition, and upserted rather than appended — see the dedupe note on
-      // upsertDescriptionNotice.
-      if (result.action === "description-absorbed") {
+      // upsertDescriptionNotice. Keyed on the PRESENCE of descriptionChanges,
+      // not on action === "description-absorbed" alone, so a "rewrite"
+      // carrying a description delta alongside a pure addition (the combined
+      // case above) also gets its notice injected — both machinery share one
+      // `additions` list, told apart by `kind`.
+      if (result.descriptionChanges) {
         additions = upsertDescriptionNotice(
           additions,
           result.descriptionChanges,

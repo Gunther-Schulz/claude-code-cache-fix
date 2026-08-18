@@ -277,6 +277,15 @@ function freshSessionSortExemption(cur, outDiv, prefix) {
 // standing gate FAIL on its own designed behaviour, which is the failure mode
 // the paragraph above already paid for once.
 //
+// The THIRD declared reset reason, added 2026-08-18 alongside the combined
+// addition+description-delta widening: `description-delta-with-removal`. A
+// description delta that arrives together with a tool REMOVAL still resets —
+// holding a tool CC dropped while also holding stale prose for another has no
+// safety argument behind it — and it wipes the same `additions` the other two
+// declared resets do, for the same reason: tools[] renders before messages,
+// so the removal alone already invalidates the prefix and the wiped
+// injection(s) cost nothing marginal.
+//
 // Exempt ONLY when all three hold — the same telemetry-not-shape discipline
 // as freshSessionSortExemption above:
 //   1. the CURRENT entry reports action=reset with a DECLARED reset reason
@@ -292,7 +301,11 @@ function freshSessionSortExemption(cur, outDiv, prefix) {
 // The closed set of reset reasons deferred-tool-rewrite DECLARES as
 // additions-wiping branches. A reason absent from here is unclassified and
 // stays a violation.
-const DECLARED_RESET_REASONS = new Set(["tool-schema-changed", "preload-unannounceable"]);
+const DECLARED_RESET_REASONS = new Set([
+  "tool-schema-changed",
+  "preload-unannounceable",
+  "description-delta-with-removal",
+]);
 
 function resetWipesAdditionsExemption(prev, cur, bar, ccSame) {
   const stats = cur.deferredToolRewriteStats;

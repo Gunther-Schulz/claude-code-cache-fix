@@ -228,20 +228,31 @@ test("CONTROL — an input_schema delta on the same tool still RESETS (stale sch
   }
 });
 
-test("CONTROL — description delta PLUS a tool-SET change is a rewrite/reset, never a description absorb", () => {
+// CORRECTED 2026-08-18 — the ADDITION half of this test used to assert
+// "reset", pinning the exact defect the COMBINED section above fixes: a
+// genuinely new tool arriving alongside a description delta, with no
+// removal anywhere, now rides the ordinary rewrite path (see the dedicated
+// bites there) instead of taking the honest reset it never needed. The
+// REMOVAL half is untouched — set identity still binds on that side, now
+// under its own reset reason (description-delta-with-removal, not
+// tool-schema-changed — no schema moved).
+test("CONTROL — description delta PLUS a REMOVAL is still a reset; PLUS an ADDITION is now a rewrite, never a description absorb", () => {
   const prior = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
 
-  // A new tool arriving alongside a description delta → not the absorb class.
+  // A new tool arriving alongside a description delta, no removal → the
+  // combined rewrite class (dedicated bites above), never the pure absorb.
   const added = classifyToolChange(
     [tool("Read", "reads a file"), tool("Bash", DESC_NEW), tool("Write", "writes a file")],
     prior,
   );
-  assert.equal(added.action, "reset");
+  assert.equal(added.action, "rewrite");
+  assert.notEqual(added.action, "description-absorbed");
 
   // A tool DISAPPEARING alongside a description delta → not the absorb class
-  // either: set identity binds in both directions.
+  // either: set identity binds in both directions, and this side still resets.
   const removed = classifyToolChange([tool("Bash", DESC_NEW)], prior);
   assert.equal(removed.action, "reset");
+  assert.equal(removed.reason, "description-delta-with-removal");
 });
 
 test("CONTROL — an input_schema delta hidden inside a reorder still RESETS (the schema scan is order-blind)", () => {
@@ -398,6 +409,161 @@ test("SIBLING — after a reset, the absorb still fires, against the REBASELINED
       );
       assert.equal(ctx5.meta.deferredToolRewriteStats.action, "description-absorbed");
       assert.equal(JSON.stringify(ctx5.body.tools), JSON.stringify(later), "held against the newest canonical");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// =============================================================================
+// COMBINED — a description delta arriving ALONGSIDE a pure ADDITION
+// (2026-08-18). The description delta is a STANDING condition once CC
+// changes a tool's prose (the canonical never absorbs it — see
+// upsertDescriptionNotice's own dedupe note in the extension), so it is
+// re-detected on EVERY later request in that conversation. Before this
+// widening, ANY tool addition arriving after it took the global reset —
+// dropping `additions` and clearing `preloadPending` with no re-seed path —
+// even though 0 of the shared tools' schemas had moved. Measured instance
+// 2026-08-18: a pure addition of two tools, 0 of 14 shared tool objects
+// changed, reset taken anyway.
+// =============================================================================
+
+test("classifyToolChange: description delta + pure addition -> rewrite carrying descriptionChanges, never a reset", () => {
+  const prior = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+  const incoming = [tool("Read", "reads a file"), tool("Bash", DESC_NEW), tool("Write", "writes a file")];
+
+  const result = classifyToolChange(incoming, prior);
+
+  assert.equal(result.action, "rewrite");
+  assert.deepEqual(result.newNames, ["Write"]);
+  assert.deepEqual(result.heldNames, []);
+  assert.deepEqual(result.descriptionChanges.map((c) => c.name), ["Bash"]);
+});
+
+test("classifyToolChange: description delta + REMOVAL -> still resets, reason description-delta-with-removal (never tool-schema-changed)", () => {
+  const prior = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+  const incoming = [tool("Bash", DESC_NEW)]; // Read removed, Bash's description also changed
+
+  const result = classifyToolChange(incoming, prior);
+
+  assert.equal(result.action, "reset");
+  assert.equal(result.reason, "description-delta-with-removal");
+});
+
+test("onRequest: description delta + pure addition -> no reset, held tools byte-identical to prior canonical, new tool defer_loading:true, BOTH notices present", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-combined" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const canonical = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+
+      const ctx1 = await runExt(body(canonical.map((t) => ({ ...t }))), { headers, dir });
+      assert.equal(ctx1.meta.deferredToolRewriteStats.action, "no-baseline");
+
+      const ctx2 = await runExt(
+        body([tool("Read", "reads a file"), tool("Bash", DESC_NEW), tool("Write", "writes a file")]),
+        { headers, dir },
+      );
+
+      const stats = ctx2.meta.deferredToolRewriteStats;
+      assert.equal(stats.action, "rewrite", "the combined case is a rewrite, never a reset");
+      assert.deepEqual(stats.newNames, ["Write"]);
+      assert.deepEqual(stats.descriptionChangedNames, ["Bash"]);
+
+      // Held tools byte-identical to the prior canonical — the OLD
+      // description travels on the wire, never the new prose (the canonical
+      // still never absorbs it).
+      assert.deepEqual(ctx2.body.tools[0], canonical[0]);
+      assert.deepEqual(ctx2.body.tools[1], canonical[1]);
+      // New tool present, marked defer_loading.
+      const written = ctx2.body.tools.find((t) => t.name === "Write");
+      assert.ok(written, "the new tool is forwarded");
+      assert.equal(written.defer_loading, true);
+
+      // BOTH a tool_addition block and a description notice ride in messages[].
+      const additionBlock = ctx2.body.messages.find(
+        (m) => m.role === "system" && m.content?.some?.((b) => b.type === "tool_addition"),
+      );
+      assert.ok(additionBlock, "the new tool is announced");
+      assert.deepEqual(additionBlock.content.map((b) => b.tool.name), ["Write"]);
+
+      const descNotice = announcements(ctx2);
+      assert.equal(descNotice.length, 1, "the description delta is ALSO announced, in the same request");
+      assert.ok(descNotice[0].content[0].text.includes("Command output is displayed to you"));
+
+      assert.match(headers["anthropic-beta"] ?? "", /mid-conversation-tool-changes/);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("onRequest: description delta + REMOVAL -> still resets, reason description-delta-with-removal", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-combined-removal" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const canonical = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+      await runExt(body(canonical.map((t) => ({ ...t }))), { headers, dir });
+
+      const ctx2 = await runExt(body([tool("Bash", DESC_NEW)]), { headers, dir }); // Read removed
+
+      const stats = ctx2.meta.deferredToolRewriteStats;
+      assert.equal(stats.action, "reset");
+      assert.equal(stats.reason, "description-delta-with-removal");
+      assert.equal(announcements(ctx2).length, 0, "a reset announces nothing");
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CONTROL — description delta + addition with no announcement channel (!canAnnounce) -> resets, never silently absorbed", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-combined-sonnet" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const canonical = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+      await runExt(body(canonical.map((t) => ({ ...t })), { model: "claude-sonnet-5" }), { headers, dir });
+
+      const ctx2 = await runExt(
+        body(
+          [tool("Read", "reads a file"), tool("Bash", DESC_NEW), tool("Write", "writes a file")],
+          { model: "claude-sonnet-5" },
+        ),
+        { headers, dir },
+      );
+
+      const stats = ctx2.meta.deferredToolRewriteStats;
+      assert.equal(stats.action, "reset", "no announcement channel -> never serve the stale description silently");
+      assert.equal(stats.reason, "tool-schema-changed", "the reason the replay gate's exemption is keyed on");
+      assert.deepEqual(stats.descriptionFallback, ["Bash"], "the REAL cause stays visible in telemetry");
+      assert.equal(announcements(ctx2).length, 0);
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("CONTROL — pure addition with NO description delta -> byte-for-byte today's shipped behaviour", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-combined-control" };
+  try {
+    await withEnvAsync({ CACHE_FIX_TOOL_REWRITE: "1" }, async () => {
+      const canonical = [tool("Read", "reads a file"), tool("Bash", DESC_OLD)];
+      await runExt(body(canonical.map((t) => ({ ...t }))), { headers, dir });
+
+      const ctx2 = await runExt(
+        body([tool("Read", "reads a file"), tool("Bash", DESC_OLD), tool("Write", "writes a file")]),
+        { headers, dir },
+      );
+
+      const stats = ctx2.meta.deferredToolRewriteStats;
+      assert.equal(stats.action, "rewrite");
+      assert.deepEqual(stats.newNames, ["Write"]);
+      assert.ok(!("descriptionChangedNames" in stats), "no description delta -> field absent, exactly as today");
+      assert.deepEqual(ctx2.body.tools[0], canonical[0]);
+      assert.deepEqual(ctx2.body.tools[1], canonical[1]);
     });
   } finally {
     await rm(dir, { recursive: true, force: true });
