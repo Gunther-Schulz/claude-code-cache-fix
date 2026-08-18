@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId,
          SOURCE_SCANNABLE, SCANNABLE, skipEntry, exemptEntry, formatAllowlistLine,
          CLASS_NAMES, SYNTHETIC_UUID_ALLOWLIST, NAME_UUID_PREFIX,
-         isDeclaredSyntheticUuid } from "../tools/absence-scan.mjs";
+         isDeclaredSyntheticUuid, scopeKey, classesFor } from "../tools/absence-scan.mjs";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -575,6 +575,52 @@ test("git-range: identical bytes at two paths with DIFFERENT scope classes are s
       "the in-corpus path's own scope must fire even though the out-of-corpus twin " +
       "with the same OID was scanned first");
   });
+});
+
+// `scopeKey` above is the dedupe key's second half, and it RESTATES the route
+// `scanContent` picks rather than deriving it — the shape that cannot age
+// loudly: `scanContent` gains a fourth route, `scopeKey` keeps returning three
+// values, and the dedupe silently re-absorbs a scan while every existing test
+// stays green, byte-identical to health. What this asserts is therefore not
+// `scopeKey`'s table but its AGREEMENT with the running scanner: two paths
+// share a dedupe key exactly when the scanner actually treats them the same,
+// where "actually" is read out of `scanContent`/`classesFor` at run time and
+// never from a copy of their branch conditions kept here.
+test("scopeKey partitions paths exactly as the scanner's own routing does", () => {
+  // The route a path really takes, read from the scanner rather than restated:
+  // the source branch announces itself as `sourceOnly`, and every other route
+  // is identified by the class set it actually applies.
+  const routeOf = (file) => {
+    const r = scanContent("{}", file, {});
+    return r.sourceOnly ? "source" : classesFor(file).map((c) => c.name).sort().join(",");
+  };
+
+  const paths = [
+    "tools/absence-scan.mjs",
+    "docs/dev-loop.md",
+    "tools/git-hooks/pre-push",
+    `${CORPUS}/notes.md`,          // source-shaped INSIDE the corpus dir
+    `${CORPUS}/capture.json`,
+    `${CORPUS}/capture.jsonl`,
+    "outer.json",
+    "proxy/state/data.jsonl",
+  ];
+
+  // Both directions, over every pair: same key ⟺ same treatment. One direction
+  // alone is satisfiable by a degenerate key (a constant merges everything; a
+  // path-unique key splits everything), so neither is the check on its own.
+  for (const a of paths) {
+    for (const b of paths) {
+      assert.equal(scopeKey(a) === scopeKey(b), routeOf(a) === routeOf(b),
+        `dedupe key and scanner routing disagree for ${a} vs ${b}: ` +
+        `keys ${scopeKey(a)}/${scopeKey(b)}, routes ${routeOf(a)}/${routeOf(b)}`);
+    }
+  }
+
+  // And the partition is not the trivial one in either direction — a constant
+  // key or an all-distinct key would satisfy the loop above vacuously if the
+  // scanner happened to match it.
+  assert.equal(new Set(paths.map(scopeKey)).size, 3, "all three routes must be represented");
 });
 
 // --- annotated tag messages -----------------------------------------------------
