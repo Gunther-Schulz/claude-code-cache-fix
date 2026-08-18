@@ -613,6 +613,11 @@ comment and new issue.
   extension took a global `reset` — the capture's only `heldStable=false` of
   9 `tools[]` deltas. Cost is ours to the extent the reset moved the frozen
   array; CC's two added tools are theirs.
+  Per testimony from the busting session (recollection-grade, not checked
+  here): the load served a verification need created mid-conversation, so no
+  session-start mechanism could have enumerated it. The lever for this limb is
+  therefore step (a)'s reset path, and "load it earlier" is not a mitigation
+  for the class.
   Done: a seeded session's `SendMessage` arrival shows `tools[]` byte-stable
   in the census; the control session is unchanged; gate + fidelity green under
   serving config; shipped via `docs/runbooks/ship-proxy-change.md`; the next
