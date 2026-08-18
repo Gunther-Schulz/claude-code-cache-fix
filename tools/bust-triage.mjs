@@ -2008,16 +2008,23 @@ function runChild(args) {
 }
 
 /**
- * The replayed census's `violations` rows for one session's capture — the
- * ONLY source of a real forwarded-side divergence index (see the section
- * header above for why). The exit CODE is not the signal: replay.mjs exits
- * non-zero whenever it finds a stability violation, which is the EXPECTED
- * outcome here — this tool exists to triage a bust that already happened.
- * The JSON is the signal, same discipline as gate-live.mjs's summariseCensus.
- * Three ordered checks, never a guessed disjunction: the capture must exist,
- * the child must produce output, and the output must parse to JSON carrying
- * a `violations` array. Returns `{ok:true, violations}` or `{ok:false,
- * reason}`.
+ * The replayed census's `violations` AND `exemptions` rows for one session's
+ * capture — the ONLY source of a real forwarded-side divergence index (see
+ * the section header above for why). Both arrays, never violations alone:
+ * an exemption is not a clean pass, it is a true statement about what it
+ * NAMES and silent about the rest (docs/runbooks/bust-appears.md step 5,
+ * "the EXEMPTION rows are the interesting ones") — a pair whose only
+ * replayed record is an exemption still needs that record read, or the
+ * caller sees no violation and defaults to CC's on a divergence our own
+ * pipeline explains (BACKLOG "bust-triage attribution blind to stability
+ * exemptions"). The exit CODE is not the signal: replay.mjs exits non-zero
+ * whenever it finds a stability violation, which is the EXPECTED outcome
+ * here — this tool exists to triage a bust that already happened. The JSON
+ * is the signal, same discipline as gate-live.mjs's summariseCensus. Four
+ * ordered checks, never a guessed disjunction: the capture must exist, the
+ * child must produce output, and the output must parse to JSON carrying both
+ * a `violations` array and an `exemptions` array. Returns `{ok:true,
+ * violations, exemptions}` or `{ok:false, reason}`.
  */
 async function replayedViolations(capturePath) {
   if (!existsSync(capturePath)) {
@@ -2039,7 +2046,10 @@ async function replayedViolations(capturePath) {
   if (!Array.isArray(parsed.violations)) {
     return { ok: false, reason: "replay's --census --json output carried no `violations` array" };
   }
-  return { ok: true, violations: parsed.violations };
+  if (!Array.isArray(parsed.exemptions)) {
+    return { ok: false, reason: "replay's --census --json output carried no `exemptions` array" };
+  }
+  return { ok: true, violations: parsed.violations, exemptions: parsed.exemptions };
 }
 
 /**
@@ -2064,14 +2074,38 @@ export async function computeAttribution(sid, pair, capturesDir = CAPTURES) {
   if (!rv.ok) {
     return { verdict: "COULD-NOT-ATTRIBUTE", reason: rv.reason };
   }
-  const row = rv.violations.find((v) => v.n === pair.after.ord && v.prevN === pair.before.ord);
-  if (!row) {
-    return { verdict: "CC's",
-             reason: `CC's own raw bytes diverged at index ${inDiv}, and the replayed census recorded ` +
-                     "no stability violation for this pair (our forwarded output never diverged " +
-                     "earlier than CC's own bytes did), so the divergence is CC's" };
-  }
-  return attributionFromRow(row);
+  return attributionFromCensus(rv, pair, inDiv);
+}
+
+/**
+ * The pair-lookup half of `computeAttribution`'s costly path, split out so
+ * it is testable against a synthetic `{violations, exemptions}` census
+ * without a subprocess (BACKLOG "bust-triage attribution blind to stability
+ * exemptions"). `rv` is the already-validated shape `replayedViolations`
+ * returns; `inDiv` is the raw-side divergence index the caller already
+ * computed, carried through only for the fallback CC's reason text.
+ *
+ * A VIOLATION match wins outright — that is the existing, unchanged path.
+ * Failing that, an EXEMPTION match is checked before falling back to CC's:
+ * `scanGroup` (replay.mjs) routes every pair satisfying the violation
+ * condition (`outDiv !== null && outDiv < bar`) into EITHER `violations` OR
+ * `exemptions`, never neither — so a pair with no violation row and no
+ * exemption row genuinely never diverged on our side, and CC's remains the
+ * correct default. A pair with no violation row and a MATCHING exemption row
+ * did diverge on our side, and the exemption is the reason why (runbook
+ * step 5: "a green gate with an exemption on the busting pair is not a green
+ * gate, it is an unexamined claim").
+ */
+export function attributionFromCensus(rv, pair, inDiv) {
+  const matches = (v) => v.n === pair.after.ord && v.prevN === pair.before.ord;
+  const row = rv.violations.find(matches);
+  if (row) return attributionFromRow(row);
+  const exemption = rv.exemptions.find(matches);
+  if (exemption) return attributionFromExemption(exemption);
+  return { verdict: "CC's",
+           reason: `CC's own raw bytes diverged at index ${inDiv}, and the replayed census recorded ` +
+                   "no stability violation for this pair (our forwarded output never diverged " +
+                   "earlier than CC's own bytes did), so the divergence is CC's" };
 }
 
 /**
@@ -2110,6 +2144,39 @@ export function attributionFromRow(row) {
            reason: `replayed census: our forwarded output diverged at outDiv=${row.outDiv}, ahead of ` +
                    `CC's own bytes (inDiv=${row.inDiv ?? "append-only"}), and CC's byte at that index ` +
                    `is ${row.ccIdenticalAtOutDiv ? "identical" : "also changed"} across the pair` };
+}
+
+/**
+ * The verdict carried by ONE replayed-census EXEMPTION row (BACKLOG
+ * "bust-triage attribution blind to stability exemptions"). An exemption
+ * row is built from the SAME `record` (replay.mjs's `scanGroup`) as a
+ * violation row — same `outDiv !== null && outDiv < bar` condition, same
+ * two fields — before being routed to `exemptions` instead of `violations`
+ * because a declared extension explains the divergence. So the emission
+ * guard is the identical invariant `attributionFromRow` already checks, and
+ * a guard-break here gets the same COULD-NOT-ATTRIBUTE rather than being
+ * read as a default OURS.
+ *
+ * Where the guard holds, the verdict is OURS — but the REASON is not the
+ * generic violation text: it names the exemption (`exemptReason`, always
+ * shaped `<our extension>:<reason>` — `deferred-tool-rewrite:…` or
+ * `fresh-session-sort:…`, never CC's) so a human reading the ATTRIBUTION
+ * line sees WHY without re-deriving it by hand, and it names the shape of
+ * the finding this function exists to fix: an exemption is a true statement
+ * about what it names and silent about the rest
+ * (docs/runbooks/bust-appears.md step 5, "the EXEMPTION rows are the
+ * interesting ones") — what it names here IS an attribution, so reading "no
+ * violation" as CC's misattributes exactly the case the exemption exists to
+ * explain.
+ */
+export function attributionFromExemption(row) {
+  const base = attributionFromRow(row);
+  if (base.verdict !== "OURS") return base;
+  return { verdict: "OURS",
+           reason: `replayed census: this pair carries a stability EXEMPTION, not a clean pass ` +
+                   `(${row.exemptReason}) — an exemption is a true statement about what it names and ` +
+                   `silent about the rest (runbook step 5), and this one names one of our own ` +
+                   `extensions moving the bytes at outDiv=${row.outDiv}, so the divergence is OURS` };
 }
 
 export async function triage(bust) {
