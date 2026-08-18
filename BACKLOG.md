@@ -605,6 +605,14 @@ comment and new issue.
   (2) a live addition named ABSORBED by `bust-triage` rather than merely
   counted. Both need one sweep day whose announcing conversation was also
   born under the gate — no design work outstanding, only the observation.
+  **INSTANCE 2026-08-18: 448k, 2026-08-18T11:22:51Z, `s-captureBT`** (row 6,
+  ToolSearch limb, `claude-opus-5` both sides so `tool_addition` was
+  available). Not absorbed, and not the named remainder: a pure addition of
+  `WebFetch`+`WebSearch` (14->16, 0 of 14 shared tool objects changed) landed
+  in the same request as a description delta, so `sameSet` failed and the
+  extension took a global `reset` — the capture's only `heldStable=false` of
+  9 `tools[]` deltas. Cost is ours to the extent the reset moved the frozen
+  array; CC's two added tools are theirs.
   Done: a seeded session's `SendMessage` arrival shows `tools[]` byte-stable
   in the census; the control session is unchanged; gate + fidelity green under
   serving config; shipped via `docs/runbooks/ship-proxy-change.md`; the next
@@ -4400,6 +4408,98 @@ comment and new issue.
   <!-- entry: "upstream's prefix-diff security bite carries the same ignored-overrides fixture defect" -->
 
 ## Record — decision-complete memory, not scheduled
+
+- **RECORD 2026-08-18 (MITIGATE stage) — a description delta arriving in the
+  SAME request as an addition forces a global reset, and that reset is what
+  paid the 448k bust.** `deferred-tool-rewrite.mjs:784-787`: the
+  description-absorb requires `sameSet`, so any co-occurring `newNames` (or
+  removal, or length change) falls through to
+  `reset / reason:"tool-schema-changed"`. The schema scan at `:737` has
+  already returned early on a genuine schema change, so at that line no shared
+  schema has moved — the reason string is therefore wrong about its own
+  predicate, which is not cosmetic: it sent the 2026-08-18 walk looking for a
+  schema change that never happened.
+  **Measured on the instance** (`s-captureBT`, 2026-08-18T11:22:51Z, pair
+  n=505->508, `claude-opus-5` both sides so `tool_addition` was available):
+  the incoming delta is a pure addition of `WebFetch`+`WebSearch`, 14->16,
+  with **0 of 14 shared tool objects changed** by byte comparison; the
+  extension reset anyway; the pair is the capture's ONLY `heldStable=false`
+  of 9 `tools[]` deltas, recorded as its only `stability exemption`
+  (`reset-wipes-additions`).
+  **SAME FAMILY as the pending-seed blocker fixed 2026-08-18 earlier** — that
+  repair stopped seeded names counting into `heldNames`; the ADDITION half of
+  `sameSet` is untouched and is what fired here. Fixing one and not the other
+  is why this is a record and not a closure.
+  **What is NOT yet decided, which is why this is RECORD and not READY:**
+  whether absorbing a description AND announcing an addition in one request is
+  safe. The code's own comment argues the safety case needs "every name
+  present with its schema byte-identical" — the scan already guarantees that,
+  so the argument may not actually forbid the combined path; that is the
+  design question, and it is not settled by this walk.
+  Named missing evidence: a stated safety argument for combined
+  absorb+announce, or a measurement showing the combined wire is accepted.
+  Done-criterion: a description delta co-occurring with an addition holds
+  held-tool bytes stable, red-first on this instance's frozen pair; the reason
+  label names its real predicate; census shows no exemption on the re-run.
+  Consumer: the next session working row 6 or reading a `reset-wipes-additions`
+  exemption.
+  Loop stage: MITIGATE.
+  Anchor: `proxy/extensions/deferred-tool-rewrite.mjs:737,784-787`; matrix row 6
+  Write-set: `proxy/extensions/deferred-tool-rewrite.mjs`,
+  `test/deferred-tool-rewrite.test.mjs`
+  Verifier: the frozen pair replays with `heldStable=true` and zero stability
+  exemptions under the serving config
+  <!-- entry: "description+addition in one request forces reset, paid the 448k" -->
+
+- **RECORD 2026-08-18 (instrument with a MEASURED false verdict — the build
+  order partitions this class early) — `bust-triage` prints ATTRIBUTION
+  `CC's` on a pair our OWN extension exempted.** Its attribution basis is "the
+  replayed census recorded no stability violation for this pair". Stability
+  EXEMPTIONS are excluded from violations by construction, so every exempted
+  pair satisfies that test — including one exempted precisely because our
+  pipeline moved the bytes (`deferred-tool-rewrite:reset-wipes-additions`).
+  Measured 2026-08-18 on `s-captureBT`: verdict `ATTRIBUTION: CC's`, while the
+  same replay reports 0 violations and 1 exemption, and that single exemption
+  IS the busting pair.
+  **This is the runbook's own step-5 warning** ("the EXEMPTION rows are the
+  interesting ones"; "a green gate with an exemption on the busting pair is not
+  a green gate, it is an unexamined claim") firing on the tool that is supposed
+  to have mechanized the runbook — the hand-derivation exists, the mechanism
+  does not, which is dev-loop closing question 1 exactly.
+  Done-criterion: `bust-triage` reads the pair's exemptions as well as its
+  violations and refuses a clean `CC's` where an exemption names one of OUR
+  extensions — red-first on this instance, which must stop printing `CC's`.
+  Consumer: any session running the bust lane.
+  Loop stage: VERIFY.
+  Anchor: `tools/bust-triage.mjs` attribution step; `docs/runbooks/bust-appears.md` step 5
+  Write-set: `tools/bust-triage.mjs`, its test
+  Verifier: re-triage of 2026-08-18T11:22:51Z no longer reports a bare `CC's`
+  <!-- entry: "bust-triage attribution blind to stability exemptions" -->
+
+- **RECORD 2026-08-18 (small) — ledger and transcript disagree on the bust
+  CAUSE, and the lane says a tool disagreement is itself the finding.** For
+  2026-08-18T11:22:51Z the ledger recorded `no-prefix` while the CC transcript
+  recorded `tools_changed / 342781`; `bust-triage` surfaces this correctly as
+  `WARN reconcile`, so the disagreement is detected but nothing decides it.
+  The walk established the transcript was right — the pair's raw arrays differ
+  by exactly two added tools — so on this instance the LEDGER's cause label is
+  the wrong one, and the statusline the operator reads shows the ledger's.
+  Not merely cosmetic: `no-prefix` and `tools_changed` route to different
+  matrix rows, so the label decides which row a reporter and a triage start
+  from.
+  Named missing evidence: whether the ledger's `no-prefix` is a distinct
+  measurable condition that CO-OCCURS with `tools_changed`, or a
+  misclassification — one more instance with both labels would separate them,
+  and 2026-08-17T17:10:47Z (315k, `no-prefix`, statiker) is a candidate
+  already in the ledger.
+  Done-criterion: the two causes reconciled on both instances, and either the
+  ledger's classifier corrected or the co-occurrence documented as expected.
+  Consumer: the next session entering the bust lane on a `no-prefix` report.
+  Loop stage: SEE.
+  Anchor: `bust-triage` reconcile step; ledger cause field
+  Write-set: whichever writer sets the ledger cause
+  Verifier: both instances triage without a `WARN reconcile`
+  <!-- entry: "ledger no-prefix vs transcript tools_changed disagree" -->
 
 - **RECORD 2026-08-16 — FOUR lane branches from 2026-08-10 still carry work
   that is not in `main`, and `git status`, `git log origin/main..main` and
