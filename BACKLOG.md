@@ -4466,6 +4466,21 @@ comment and new issue.
   design question, and it is not settled by this walk.
   Named missing evidence: a stated safety argument for combined
   absorb+announce, or a measurement showing the combined wire is accepted.
+  **THE RESET PERMANENTLY FORFEITS THE PRELOAD FOR THAT CONVERSATION, and the
+  code's own justification for dropping the pending seeds does not cover the
+  case it drops.** Traced in the source 2026-08-18 (this desk, after the
+  verifier's report; the verifier did not raise it): `:1120` sets
+  `preloadPending = []` on reset, justified at `:1117-1119` by "a reset
+  re-baselines against CC's own array, which by definition already contains
+  whatever it sends, so nothing stays pending across one". That holds for a
+  tool CC HAS sent. A pending seed is by construction one CC has NOT sent
+  yet — so it is neither in CC's array nor in pending, and it is simply gone.
+  There is no recovery path: seeding requires `result.action === "no-baseline"`
+  AND `isConversationBirth(body.messages)` (`:1157`), and neither can hold
+  mid-conversation. So when CC finally sends that tool it arrives as a genuine
+  new name and costs a `tools[]` bust — precisely the bust the preload exists
+  to prevent. One description change therefore disarms row 6 step (b) for the
+  remainder of a conversation, via any later addition.
   Named missing ARTIFACT, surfaced by the verifier as its own honest residue:
   replay does not emit per-request FORWARDED `tools[]`, so which of the 14
   shared bodies moved on the wire is inferred (`Agent`) rather than read. The
