@@ -4,6 +4,46 @@ Read this before changing anything under `proxy/`. It is the procedure that
 found six self-inflicted defects in one day (2026-07-28) after months in which
 every one of them was live and invisible.
 
+## What reading this file costs, and how to read it so it costs less
+
+**This file is 2,500 lines / ~40k tokens.** A session that Reads it whole pays
+25-33k tokens before it has done anything — measured 2026-08-18 from the API's
+own per-call accounting on one session: the single largest context jump of that
+entire session was **33,284 tokens, 40 seconds in, and it was this file**. The
+same session's floor (corpus + tool schemas + session-start hooks) was 69,890
+tokens, so those two together spent 100k before the first finding.
+
+**Read it by SECTION.** The required-reading gate is satisfied by a targeted
+Read — an offset and a limit, or a grep for the rule you need. The index below
+exists so that is cheap. `grep -n '^## \|^### ' docs/dev-loop.md` regenerates it.
+
+**The index is NAVIGATION, not a summary, and it discharges nothing.** Every
+heading here is a pointer to a body you still have to read before relying on
+it; `CLAUDE.local.md` records what happened the last time this file was
+compressed into shorthand — a session re-derived, from scratch, a design one of
+the closing-gate questions already stated in full, because the shorthand read
+as sufficient. Headings are safe where a paraphrase is not, precisely because a
+heading cannot be mistaken for the rule.
+
+| you are here because | read |
+|---|---|
+| picking what to build next | "Build order is DERIVED at build time", "The head is MITIGATION-LED" |
+| dispatching lanes | "Once the order is derived, run it in PARALLEL", "A gap CAUGHT by an expensive tier" |
+| a bust or a sweep finding | "Standing rules", "No mitigation is DESIGNED before the attribution verdict", "Rule out the instrument", "What no gate asks: did the mitigation ABSORB?" |
+| closing anything | "CLOSING is established against the WORLD", "The closing gate: four questions" |
+| writing a check | "Adding a check", "A checker has THREE answers, not two", "Never hand-roll identity in a probe" |
+| grading a lane's report | "Grading a dispatched lane: verify with something the lane did not run" |
+| touching fixtures or pins | "Corpus hygiene", "The scrub destroys CONTENT PREDICATES" |
+| about to restart the proxy | "Before a restart: price it against LIVE sessions" |
+
+**And the wider lesson from that same measurement, because it generalises past
+this file:** the session's growth was ~47% its own OUTPUT (thinking, tool calls,
+briefs, entries, commit messages) and ~53% what came back from tools. There is
+no single leak to plug. What is controllable is the count of round trips — 253
+API calls at a median of 1,358 tokens each — so batching independent probes into
+one call is worth more than trimming any individual read. The one structural tax
+is this file, and the index above is its fix.
+
 ## Which line are you on
 
 This file is the METHOD — how to attribute, how to check an instrument, what
