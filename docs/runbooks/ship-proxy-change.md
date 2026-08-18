@@ -33,6 +33,38 @@ sessions, not the corpus" for why the exposure tool takes `--match`, not just
    already happened. If the change is a doc/tools-only commit with no
    `proxy/**` diff, the answer is trivially no; say so and continue.
 
+1b. **Run the A/B verdict tool, and read its silence correctly.**
+   ```sh
+   node tools/verdict-ab.mjs <last-shipped> .
+   ```
+   `tools/verdict-ab.mjs` diffs two trees' REPLAYED verdicts over the
+   fixture corpus, but it loads exactly one module (`EXT`,
+   `proxy/extensions/insertion-normalization.mjs` as of this writing — read
+   the constant at the top of the file, not this sentence, since it can
+   move) and nothing else. This repo carries 42 files under
+   `proxy/extensions/`. A change to any of the other 41 leaves `EXT`
+   byte-identical between the two trees, and the tool exits 2 printing
+   COULD NOT VERIFY — **that is the EXPECTED answer for a change outside
+   `EXT`, not a failure, and it says nothing about whether THIS ship is
+   safe.** Read it as "this tool had nothing to say," never as "this ship
+   passed." A change that DOES touch `EXT` gets a real comparison instead:
+   exit 0 (IDENTICAL across every replayed verdict) or exit 1 (at least one
+   diverges, printed) — that result is load-bearing for step 1's judgment.
+   **Why a step that mostly reports could-not-verify is worth having:** the
+   restart-transparency call in step 1 was, until this step existed, a
+   judgment with no mechanical arm anywhere in this runbook and no line
+   even naming the tool (`grep -c verdict-ab` over this file returned 0).
+   This step checks the one file the tool DOES cover instead of assuming
+   it, and it makes the other 41 files' blind spot VISIBLE at ship time
+   instead of silently absent. A step that read as a gate while returning
+   could-not-verify on almost every real ship would train the override
+   reflex within a week — so this step is deliberately not styled as one;
+   it is styled as a measurement whose usual result is "not applicable
+   here," stated as such rather than skipped.
+   Widening the tool to load the changed extension(s) instead of the one
+   hardcoded module is a real, undecided design question — not this step,
+   and never bundled with it.
+
 2. **Session boundary confirmed.** Restarts are cache-transparent (row 3)
    unless step 1 said otherwise, but "cache-transparent" is a claim about
    the DIFF, not about who pays — price the live exposure before treating
