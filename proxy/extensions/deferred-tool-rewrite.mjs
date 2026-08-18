@@ -121,11 +121,22 @@
 //     name that is missing from the incoming array, using bytes LEARNED from
 //     a previous session (below), and mark it defer_loading on the wire;
 //   - emit NO tool_addition block at seed time. This half is load-bearing for
-//     SAFETY, not for cache: the API loads a deferred tool only when its
-//     tool_addition block is present in THAT request, so an unannounced
-//     preloaded tool sits in tools[] without being callable — which is what
-//     stops the model invoking a tool Claude Code does not yet know it has
-//     and cannot route;
+//     SAFETY, not for cache — and the MECHANISM is the corrected one in the
+//     STATELESSNESS paragraph above, not the sentence this bullet used to
+//     carry ("the API loads a deferred tool only when its tool_addition block
+//     is present in THAT request", measured false 2026-08-18 over 4,972
+//     requests). What actually holds: the model's loadable-tool view comes
+//     from Claude Code's own deferred-tool listing inside body.messages, so a
+//     name CC has not registered is invisible to it however tools[] is
+//     shaped. Measured live with a FABRICATED name — the discriminating case,
+//     since `SendMessage` cannot separate the hypotheses (CC lists it either
+//     way): the API accepted the unannounced deferred tool and the model
+//     answered ABSENT. The residual therefore lives in the preload SET rather
+//     than in the mechanism — a name CC does not universally register is
+//     invisible AND pins bytes nothing will ever announce — which is why the
+//     set is the reviewed PRELOAD_TOOL_NAMES constant below, each name
+//     carrying the measurement that put it there, and not an env string
+//     anyone can set without one;
 //   - when CC later sends that name for real, announce it THEN, on the same
 //     addition machinery, without touching tools[]. This is NOT the new-name
 //     path — by then the name is KNOWN, so the classifier reports
@@ -134,9 +145,21 @@
 //
 // SEEDING IS NEVER RETROFITTED. A conversation that already has a persisted
 // array keeps it; adding a name mid-flight would change tools[] and cause the
-// exact bust this prevents. The seed happens at baseline creation or not at
+// exact bust this prevents. The seed happens at conversation birth or not at
 // all, which also means a restart is transparent for every continuing
 // conversation (row 3) and the change only reaches conversations born after it.
+//
+// "Conversation birth" is read off the CONVERSATION, never off the state file.
+// `no-baseline` is a fact about the state file only: this extension's key
+// carries a conversation sub-key, and a mid-conversation key rotation (this
+// repo has measured one — s-captureAB, n=331->336) makes turn 7 of a live
+// conversation classify `no-baseline`. Seeding there retrofits a running
+// session's tools[] — measured 8 tools -> 9 — which is the ship-time hazard
+// above, arriving through the back door. So the seed additionally requires the
+// request's own history to be a conversation's first (PRELOAD_MAX_SEED_MESSAGES).
+// The two failure directions are deliberately asymmetric: too strict seeds
+// nothing, which is exactly today's behaviour and busts nobody; too loose busts
+// a live session.
 //
 // MODEL GATE, same opt-in stance as the announcement: seed only for a model on
 // TOOL_ADDITION_MODELS. A preloaded tool that can never be announced is a tool
@@ -145,6 +168,17 @@
 // real arrival cannot be announced, the preload is ABANDONED — CC's raw array
 // is forwarded (one honest bust, `preloadFallback` in telemetry), never a
 // silently uncallable tool.
+//
+// WHAT A PENDING SEED IS NOT EVIDENCE OF. Between the seed and CC's real
+// arrival the persisted array is deliberately a SUPERSET of what CC sends, so
+// every identity test in the classifier has to ask whether the set CC SENT
+// moved — never whether our array equals CC's. Both halves of that were
+// measured wrong before the repair (2026-08-18 review): a pending name read as
+// a "held" (GC'd) tool made `sameSet` permanently false, disabling the
+// description absorb for the whole pending window; and a pending name arriving
+// with bytes different from the ones we guessed read as "a known tool's schema
+// changed" and took the global reset, which is strictly worse than running
+// with no preload at all. See classifyToolChange's own definition paragraph.
 //
 // WHERE THE BYTES COME FROM: LEARNED, never pinned. The first conversation
 // that sees a preload name records that tool object to a machine-local store
@@ -157,11 +191,24 @@
 //
 // The store starts EMPTY, so the first conversation after this ships seeds
 // nothing and only learns. That is the intended bootstrap, and it is why the
-// change cannot bust anything on the day it lands.
+// change cannot bust anything on the day it lands. Re-learning is THROTTLED
+// (PRELOAD_RELEARN_MS): this store is one file for the whole machine, so a
+// name whose description is project- or plugin-dependent would otherwise be
+// rewritten by every session on the box, once per request, last writer
+// winning. The throttle keeps last-seen-wins — a Claude Code upgrade is still
+// absorbed, just within the window rather than within the request.
 //
-// Gate: CACHE_FIX_TOOL_PRELOAD, a comma-separated NAME LIST (not a boolean) —
-// unset or empty is OFF, which is the default. The names are the declared
-// preload set, so DECLARED/RUNNING/VERIFIED all carry it verbatim.
+// Gate: CACHE_FIX_TOOL_PRELOAD, a BOOLEAN ("1") — unset or anything else is
+// OFF, which is the default. It was a comma-separated NAME LIST until
+// 2026-08-18, and that shape was unpublishable: gate-allowlist.mjs admits no
+// free-form value, so /health would have published it as `<redacted>` and the
+// doctor's three-way DECLARED/RUNNING/VERIFIED compare would FAIL naming the
+// wrong cause (measured on the prefix-diff content gate the day it shipped —
+// named in gate-allowlist.mjs, deliberately not spelled out here: serving-gate
+// -lint derives an extension's gates from its RAW source, comments included,
+// so citing another gate's env name in prose makes every test driving this
+// file owe that gate). The set itself now lives in PRELOAD_TOOL_NAMES below,
+// where each name carries the measurement that put it there.
 //
 // Phase B stops at: documented shapes + persistent re-injection,
 // validated by unit tests and replay A/B (directive addendum's gates 1-2).
@@ -294,16 +341,57 @@ function eventsPath(dir, sessionKey) {
 
 // --- Preload store (row 6 step (b); see the PRELOAD section in the header) ---
 
-// The declared preload set. A NAME LIST rather than a boolean, so the serving
-// configuration says which tools it preloads instead of pointing at a constant
-// in this file. Unset/empty = OFF, which is the default; read per call like
-// every other gate here.
+// THE DECLARED PRELOAD SET, in source beside TOOL_ADDITION_MODELS and for the
+// same reason: a name belongs here only with a measurement behind it. This was
+// an env NAME LIST until 2026-08-18; the gate is now a boolean and the set is
+// here (header, Gate paragraph — gate-allowlist.mjs admits no free-form value,
+// and an unpublishable serving gate breaks the doctor's three-way compare).
+//
+// Seeding a name is not free and not symmetric: a name Claude Code registers
+// everywhere costs nothing when it never arrives (an unannounced deferred tool
+// is invisible to the model) and saves a full front invalidation when it does,
+// while a name CC does not universally register pins bytes nothing will ever
+// announce. So each entry states the population it was measured over.
+export const PRELOAD_TOOL_NAMES = [
+  // SendMessage — 103 of 126 measured tool ADDITION events, present in 24 of
+  // the 25 captures that have any (2026-08-16 population record, BACKLOG). The
+  // only frequent addition that is PREDICTABLE at session start: it appears
+  // when a session gains a teammate agent, unlike the one-off MCP servers that
+  // make up the rest. k=1 covers ~80% of addition events; the k=10 ceiling is
+  // ~89%. CC lists it in its own deferred-tool listing whether or not we seed
+  // it (read from a PRE-pipeline capture of a teammate-less session
+  // 2026-08-18), which is what makes it safe on the registration axis.
+  "SendMessage",
+];
+
+// Gate: a BOOLEAN. Returns the declared set or nothing — read per call like
+// every other gate here. A copy, never the constant itself: the caller
+// concatenates and filters this value, and one accidental in-place mutation
+// would change the set for every session in the process.
 export function preloadNames(env = process.env) {
-  return (env.CACHE_FIX_TOOL_PRELOAD ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  return env.CACHE_FIX_TOOL_PRELOAD === "1" ? PRELOAD_TOOL_NAMES.slice() : [];
 }
+
+// RE-LEARN THROTTLE. The store below is ONE file for the whole machine, and
+// the learn step fires on any fingerprint difference — so a preload name whose
+// description varies by project or by plugin set (CC embeds per-session and
+// per-project prose in tool descriptions; this file already carries a
+// VOLATILE_DESC_PATTERNS entry for one such case) would be rewritten by every
+// session on the box, once per request, last writer winning. The throttle
+// bounds that to one write per name per window while keeping LAST-SEEN-WINS
+// intact: an upstream schema move is still absorbed, within the window rather
+// than within the request, and the only cost of a slightly stale stored copy
+// is that the arrival adopts CC's bytes (classifyToolChange, the pending-name
+// adoption) — one entry's bytes, not a reset.
+export const PRELOAD_RELEARN_MS = 60 * 60 * 1000;
+
+// How deep a conversation may be and still be seeded. The seed is legal at a
+// conversation's BIRTH and nowhere else (header, SEEDING IS NEVER
+// RETROFITTED), and `no-baseline` does not establish birth — a mid-conversation
+// key rotation produces it at turn 7. One message is the opening request and
+// nothing else: Claude Code's first request in a conversation carries exactly
+// the user turn that opened it.
+export const PRELOAD_MAX_SEED_MESSAGES = 1;
 
 // ONE file for the whole machine, NOT per session key. The name deliberately
 // carries no `<key>-` prefix: prefix-diff's SNAPSHOT_FILE_RE is anchored to
@@ -337,17 +425,29 @@ async function savePreloadStore(dir, store, fs) {
 }
 
 // Pure. Returns the names whose stored bytes need (re)writing: a name we want
-// to preload that is present in the incoming array and whose stored copy is
-// absent or fingerprint-different. LAST-SEEN-WINS is the whole staleness
-// answer — a schema that moves upstream is re-learned on the next conversation
-// that carries it, so the store can never pin bytes CC has stopped sending.
-export function preloadLearnable(incomingTools, store, wanted) {
+// to preload that is present in the incoming array, whose stored copy is
+// absent or fingerprint-different, and whose stored copy is older than the
+// re-learn window. LAST-SEEN-WINS is the whole staleness answer — a schema
+// that moves upstream is re-learned on the next conversation that carries it
+// once the window has passed, so the store can never pin bytes CC has stopped
+// sending.
+export function preloadLearnable(incomingTools, store, wanted, now = Date.now()) {
   const want = new Set(wanted);
   const out = [];
   for (const t of incomingTools) {
     if (!want.has(t?.name)) continue;
-    const known = store?.tools?.[t.name]?.tool;
+    const entry = store?.tools?.[t.name];
+    const known = entry?.tool;
     if (known && toolFingerprint(known) === toolFingerprint(t)) continue;
+    // Throttle (see PRELOAD_RELEARN_MS). An UNPARSEABLE or FUTURE `learnedAt`
+    // is deliberately not throttled: a corrupt or clock-skewed stamp that
+    // suppressed re-learning would pin whatever bytes were stored beside it,
+    // permanently and silently, which is the failure this store exists to
+    // avoid. Re-learning rewrites the stamp, so the state self-heals.
+    if (known) {
+      const age = now - Date.parse(entry?.learnedAt ?? "");
+      if (Number.isFinite(age) && age >= 0 && age < PRELOAD_RELEARN_MS) continue;
+    }
     out.push(t);
   }
   return out;
@@ -365,6 +465,14 @@ export function preloadSeedTools(incomingTools, store, wanted) {
     if (present.has(name)) continue;
     const known = store?.tools?.[name]?.tool;
     if (!known) continue;
+    // A stored entry whose `tool.name` disagrees with its KEY is the one odd
+    // store shape that does not degrade to "no seed": it would seed under the
+    // OTHER name, putting a tool nobody asked for into tools[] — and, because
+    // the pending set records the WANTED name, forwardedTools would not even
+    // mark it defer_loading, so an unannounced tool would go out presented as
+    // loaded. The store is a machine-local file; a key/name disagreement is a
+    // corrupt entry, and a corrupt entry seeds nothing.
+    if (known.name !== name) continue;
     const { defer_loading: _drop, ...bytes } = known;
     out.push(bytes);
   }
@@ -541,13 +649,42 @@ export function toolFingerprint(tool) {
 //   { action: "reset", knownTools, reason }                                           — a known tool's schema changed; forward unchanged, re-baseline
 //   { action: "rewrite", tools, newNames, heldNames, knownTools }                      — held removal and/or reorder and/or pure addition; onRequest forwards forwardedTools(knownTools, additions) and injects the addition message
 //   { action: "description-absorbed", knownTools, descriptionChanges }                 — DESCRIPTION prose only, identical schemas/names/order; knownTools is the FIRST-SEEN array unchanged, and descriptionChanges carries the NEW prose for the in-band announcement
-export function classifyToolChange(incomingTools, priorKnownTools) {
+//
+// `priorPreloadedNames` is the SEEDED-BUT-UNANNOUNCED set as the persisted
+// state carried it: names WE put into the array, which Claude Code has not
+// sent yet.
+//
+// THE DEFINITION IT ENFORCES, stated before the assertions that use it: a name
+// WE added is not evidence that Claude Code changed its tool set. Every
+// identity test below therefore asks whether the set CC SENT is unchanged, and
+// never whether our persisted array equals CC's incoming one — during a
+// pending window the two differ BY CONSTRUCTION, since the seed is precisely a
+// name CC has not sent. Two consequences, both of them defects measured on the
+// first build (2026-08-18 review) rather than hypotheses:
+//   - a pending name is not a HELD tool. `held` means the harness GC'd
+//     something it had sent us; a name CC never sent cannot have been GC'd.
+//     Counted as held, `heldNames.length === 0` never holds, so `sameSet` is
+//     permanently false and every description delta in the pending window
+//     takes reset/tool-schema-changed instead of the absorb this file ships.
+//     Two arms, same input, only the gate differing: preload OFF ->
+//     description-absorbed, wire unchanged; preload ON -> reset, wire losing
+//     the seeded entry AND the pending set with it.
+//   - a pending name arriving with bytes that differ from the ones we seeded
+//     is not a SCHEMA CHANGE. We never received those bytes from CC in this
+//     conversation; we guessed them from another one, and the guess being
+//     wrong is our error, not CC editing a tool. The honest act is to ADOPT
+//     CC's bytes for that one entry and let the arrival announce it — the
+//     new-name path, costing exactly that entry's bytes. The global reset
+//     costs the frozen order of the whole array plus every pending injection,
+//     which is strictly WORSE than having run with no preload at all.
+export function classifyToolChange(incomingTools, priorKnownTools, priorPreloadedNames = []) {
   if (!Array.isArray(priorKnownTools)) {
     return { action: "no-baseline", knownTools: incomingTools };
   }
 
   const priorByName = new Map(priorKnownTools.map((t) => [t.name, t]));
   const incomingByName = new Map(incomingTools.map((t) => [t.name, t]));
+  const pending = new Set(priorPreloadedNames);
 
   // Schema-change scan runs over every name present in BOTH sets — absence
   // is handled separately below (held, not reset) — so a removal elsewhere
@@ -559,19 +696,42 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
   // and decided after the set/order checks below, because the absorb it
   // enables is only legal when nothing ELSE about tools[] moved.
   const descriptionChanges = [];
+  // Pending names whose incoming bytes differ from the ones we seeded — see
+  // the definition above. Collected rather than acted on immediately, because
+  // the adoption has to survive into whichever branch the set checks pick.
+  const adoptedNames = [];
   for (const [name, priorTool] of priorByName) {
     const incomingTool = incomingByName.get(name);
     if (!incomingTool) continue;
     if (toolFingerprint(incomingTool) === toolFingerprint(priorTool)) continue;
+    if (pending.has(name)) {
+      adoptedNames.push(name);
+      continue;
+    }
     if (schemaIdentity(incomingTool) !== schemaIdentity(priorTool)) {
       return { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
     }
     descriptionChanges.push({ name, description: incomingTool.description });
   }
+  const adopted = new Set(adoptedNames);
+  // The frozen object for a name, with an adopted pending name resolving to
+  // CC's incoming bytes instead of the ones we guessed.
+  const canonicalOf = (name) => (adopted.has(name) ? incomingByName.get(name) : priorByName.get(name));
 
   const priorOrderNames = [...priorByName.keys()];
-  const heldNames = priorOrderNames.filter((name) => !incomingByName.has(name));
+  // HELD means the harness GC'd a tool it HAD sent us. A pending seed CC has
+  // not sent yet is not that, so it is excluded here and from the length
+  // comparison below — the set under test is CC's, not ours.
+  const heldNames = priorOrderNames.filter(
+    (name) => !incomingByName.has(name) && !pending.has(name),
+  );
   const newNames = [...incomingByName.keys()].filter((name) => !priorByName.has(name));
+  // The names CC itself established in this conversation: our persisted order
+  // minus the seeds it has not sent. Equal to priorOrderNames whenever nothing
+  // is pending, which is every conversation with the preload gate off.
+  const ccPriorNames = priorOrderNames.filter(
+    (name) => incomingByName.has(name) || !pending.has(name),
+  );
 
   const incomingOrderNames = incomingTools.map((t) => t.name);
   // Same names in both directions AND same array length — the length guard
@@ -580,9 +740,11 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
   const sameSet =
     heldNames.length === 0 &&
     newNames.length === 0 &&
-    incomingOrderNames.length === priorOrderNames.length;
+    incomingOrderNames.length === ccPriorNames.length;
+  // An adoption is a byte change to the canonical array, so it can never be
+  // "unchanged" however well the names line up.
   const orderMatches =
-    sameSet && incomingOrderNames.every((name, i) => name === priorOrderNames[i]);
+    sameSet && adopted.size === 0 && incomingOrderNames.every((name, i) => name === ccPriorNames[i]);
 
   // The absorb's precondition is SET-identity, not order-identity (decision
   // 2026-08-05): sort-stabilization (order 200) name-sorts tools[] on every
@@ -597,7 +759,13 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
     if (!sameSet) {
       return { action: "reset", knownTools: incomingTools, reason: "tool-schema-changed" };
     }
-    return { action: "description-absorbed", knownTools: priorKnownTools, descriptionChanges };
+    // The canonical is the first-seen array — including any pending seed,
+    // which must stay on the wire — with an adopted name's bytes replaced.
+    return {
+      action: "description-absorbed",
+      knownTools: adopted.size === 0 ? priorKnownTools : priorOrderNames.map(canonicalOf),
+      descriptionChanges,
+    };
   }
 
   if (orderMatches) {
@@ -606,17 +774,17 @@ export function classifyToolChange(incomingTools, priorKnownTools) {
 
   const newTools = newNames.map((name) => incomingByName.get(name));
   const deferredNewTools = newTools.map((t) => ({ ...t, defer_loading: true }));
-  // First-seen order, for every name ever known — held (removed) names
-  // included, using their frozen object so wire bytes never drift for a
-  // tool whose content didn't actually change.
-  const heldOrPresentTools = priorOrderNames.map((name) => priorByName.get(name));
+  // First-seen order, for every name ever known — held (removed) names and
+  // pending seeds included, using the frozen object so wire bytes never drift
+  // for a tool whose content didn't actually change.
+  const heldOrPresentTools = priorOrderNames.map(canonicalOf);
 
   return {
     action: "rewrite",
     tools: heldOrPresentTools.concat(deferredNewTools),
     newNames,
     heldNames,
-    knownTools: priorOrderNames.concat(newNames).map((name) => priorByName.get(name) ?? incomingByName.get(name)),
+    knownTools: priorOrderNames.concat(newNames).map((name) => canonicalOf(name) ?? incomingByName.get(name)),
   };
 }
 
@@ -905,7 +1073,12 @@ export default {
           ctx.meta[OLD_KEY_HIT] = true;
         }
       }
-      let result = classifyToolChange(incomingTools, prior?.tools ?? null);
+      // The pending seeds are an INPUT to the classifier, not an afterthought:
+      // they are the difference between our persisted array and CC's, and
+      // every identity test in there is about CC's set (classifyToolChange's
+      // definition paragraph).
+      const priorPreloaded = prior?.preloaded ?? [];
+      let result = classifyToolChange(incomingTools, prior?.tools ?? null, priorPreloaded);
 
       const announceOk = supportsToolAddition(body?.model);
 
@@ -918,7 +1091,7 @@ export default {
       // Carried forward on every request; a reset re-baselines against CC's
       // own array, which by definition already contains whatever it sends, so
       // nothing stays pending across one.
-      let preloadPending = result.action === "reset" ? [] : (prior?.preloaded ?? []);
+      let preloadPending = result.action === "reset" ? [] : priorPreloaded;
       let preloadSeeded = [];
       let preloadAnnounced = [];
       let preloadFallback = null;
@@ -942,10 +1115,21 @@ export default {
           }
         }
 
-        // SEED: fresh baseline only, allowlisted model only. Never a retrofit
-        // — adding a name to a conversation that already has a persisted array
-        // changes tools[] mid-flight, i.e. causes the class this prevents.
-        if (result.action === "no-baseline" && announceOk) {
+        // SEED: a FRESH CONVERSATION only, allowlisted model only. Never a
+        // retrofit — adding a name to a conversation that already has a
+        // persisted array changes tools[] mid-flight, i.e. causes the class
+        // this prevents.
+        //
+        // `no-baseline` alone does NOT establish that: it is a fact about the
+        // state FILE, and this extension's key carries a conversation sub-key
+        // that has been measured rotating mid-conversation (s-captureAB,
+        // n=331->336), which makes turn 7 of a live session classify
+        // `no-baseline` and seed into it — wire 8 tools -> 9. So the request's
+        // own history has to say "first turn" as well. Erring strict costs a
+        // seed (today's behaviour); erring loose busts a running session.
+        const freshConversation =
+          Array.isArray(body.messages) && body.messages.length <= PRELOAD_MAX_SEED_MESSAGES;
+        if (result.action === "no-baseline" && announceOk && freshConversation) {
           const seeds = preloadSeedTools(incomingTools, store, wantPreload);
           if (seeds.length > 0) {
             preloadSeeded = seeds.map((t) => t.name);

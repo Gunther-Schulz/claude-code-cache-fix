@@ -55,6 +55,19 @@ export const PUBLISHABLE_GATES = new Set([
   // character as its neighbours: a boolean switch, no path, no URL, no
   // credential, no free-form pattern.
   "CACHE_FIX_PREFIXDIFF_CONTENT",
+  // FORK ADDITION 2026-08-18 — the row-6 step-(b) tool preload gate
+  // (`deferred-tool-rewrite`). Listed here BEFORE any unit turns it on, and
+  // the shape of the gate was decided by this file: it started life as a
+  // comma-separated NAME LIST, which the paragraph above forbids (a free-form
+  // value), so it became a BOOLEAN ("1") with the preload set moved into a
+  // source constant — `PRELOAD_TOOL_NAMES` in the extension, each name
+  // carrying its measured evidence, which is more than an env string could
+  // ever say. Same character as its neighbours: a boolean switch, no path, no
+  // URL, no credential, no free-form pattern. Unlisted, a serving unit that
+  // set it would publish `<redacted>` to /health and the doctor's three-way
+  // DECLARED/RUNNING/VERIFIED compare would fail naming the wrong cause —
+  // measured live on CACHE_FIX_PREFIXDIFF_CONTENT above.
+  "CACHE_FIX_TOOL_PRELOAD",
   "CACHE_FIX_FORWARD_PROXY",
   "CACHE_FIX_INSERTION_NORMALIZE",
   "CACHE_FIX_OUTPUT_GUARD",
