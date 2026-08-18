@@ -589,6 +589,22 @@ comment and new issue.
   live has exercised the preload; `toolPreload.announced` non-zero on a daily
   sweep is the observation that would settle it, and until then this is "the
   mitigation is built", never "the mitigation absorbed".
+  **SETTLED 2026-08-18 — the named observation returned.** Gate flipped on in
+  the unit, proxy restarted, `/health` publishes `CACHE_FIX_TOOL_PRELOAD=1`.
+  First post-flip sweep: `toolPreload {seeded: 2, announced: 1, fallback: 0}`,
+  `ok=true`, 0 failing over 19 captures; the extension's own event logs read
+  independently give 4 seeds / 2 announces / 0 fallbacks by 11:02Z and agree
+  with the sweep on the shared window. `heldStable` 2/2, `heldUnstable` 0 on
+  the announcing session; the `leaked: 2` beside it is the retired
+  whole-array framing gap (`replay.mjs:1099-1105`), not a miss.
+  **Two Done clauses remain OPEN, so this entry does NOT move to `## Done`:**
+  (1) a seeded session's `SendMessage` arrival shown `tools[]` byte-stable in
+  the CENSUS — today's isolation rests on the pre-ship run against the real
+  production store, not on a live capture, because pre-restart conversations
+  are never retrofitted and day-one traffic mixes seeded with unseeded; and
+  (2) a live addition named ABSORBED by `bust-triage` rather than merely
+  counted. Both need one sweep day whose announcing conversation was also
+  born under the gate — no design work outstanding, only the observation.
   Done: a seeded session's `SendMessage` arrival shows `tools[]` byte-stable
   in the census; the control session is unchanged; gate + fidelity green under
   serving config; shipped via `docs/runbooks/ship-proxy-change.md`; the next
