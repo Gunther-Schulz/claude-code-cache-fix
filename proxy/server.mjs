@@ -355,36 +355,18 @@ async function handleMessages(clientReq, clientRes) {
       if (leader.fanOut.attach(clientRes)) await leader.done;
       return;
     }
-    // ── MISS accounting (threat matrix row 31, added 2026-08-18) ───────────
-    // Observation only: nothing below changes which requests are forwarded or
-    // what any caller receives. It exists because a miss is INVISIBLE from
-    // outside the process — the follower is forwarded normally and produces an
-    // ordinary request and outcome record, so the two ways condition 4 fails
-    // are indistinguishable afterwards, and they want different fixes:
-    //   stale-leader — the leader IS registered, but more than the window ago
-    //                  by the registration clock (our own pipeline skew may be
-    //                  what spent the budget);
-    //   tombstone    — no live leader at all when the follower looked, because
-    //                  the leader's own preForward had not resolved yet.
-    // The record carries BOTH clocks so a reader can see whether an
-    // arrival-clock window would have caught this pair. Measured 2026-08-18 on
-    // one live pair: 43 ms apart, byte-identical forwarded bytes, gate on, not
-    // coalesced — and which of the two it was could not be recovered.
-    if (leader) {
-      meta._coalesceMiss = {
-        reason: "stale-leader",
-        ageMs: Date.now() - leader.at,
-        arrivalDeltaMs: leader.arrivedAt != null ? arrivedAt - leader.arrivedAt : null,
-        leaderId: leader.captureId ?? null,
-        sha: meta._forwardedSha ?? null,
-      };
-      debugLog("[PROXY] duplicate sidecar NOT coalesced",
-               "key:", coalesceKey.slice(0, 16),
-               "reason:", meta._coalesceMiss.reason,
-               "ageMs:", meta._coalesceMiss.ageMs,
-               "arrivalDeltaMs:", meta._coalesceMiss.arrivalDeltaMs);
-      await runOnCoalesceMiss({ body: parsed, headers, meta }, extSnapshot);
-    }
+    // The miss FACTS are read here, at the decision point, and written further
+    // down: both clocks must describe the moment the window was actually
+    // tested, not the moment the record happened to be composed.
+    const missFacts = leader
+      ? {
+          reason: "stale-leader",
+          ageMs: Date.now() - leader.at,
+          arrivalDeltaMs: leader.arrivedAt != null ? arrivedAt - leader.arrivedAt : null,
+          leaderId: leader.captureId ?? null,
+          sha: meta._forwardedSha ?? null,
+        }
+      : null;
 
     let settle;
     const entry = {
@@ -406,6 +388,27 @@ async function handleMessages(clientReq, clientRes) {
       if (inFlightSidecars.get(coalesceKey) === entry) inFlightSidecars.delete(coalesceKey);
       entry.settle();
     });
+
+    // The miss record is written AFTER registration, deliberately. It used to
+    // sit before it, and the skip gauge caught what that costs: this request is
+    // itself the next duplicate's potential LEADER, so awaiting a disk append
+    // ahead of `inFlightSidecars.set` delays the very registration whose
+    // lateness the record exists to measure — an instrument perturbing the
+    // quantity it reports. Nothing in the forwarding path waits on it, and the
+    // facts it writes were read above, at the moment the window was tested.
+    //
+    // Observation only: no request is forwarded differently and no caller
+    // receives anything different. Scope and the case deliberately NOT recorded
+    // are stated once, at the top of this section.
+    if (missFacts) {
+      meta._coalesceMiss = missFacts;
+      debugLog("[PROXY] duplicate sidecar NOT coalesced",
+               "key:", coalesceKey.slice(0, 16),
+               "reason:", missFacts.reason,
+               "ageMs:", missFacts.ageMs,
+               "arrivalDeltaMs:", missFacts.arrivalDeltaMs);
+      await runOnCoalesceMiss({ body: parsed, headers, meta }, extSnapshot);
+    }
   }
 
   const requestedModel = parsed?.model || null;
