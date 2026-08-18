@@ -102,7 +102,6 @@ any of it. Today every instrument at the top has a named consumer waiting on it.
    miss costs the hand walk this one cost. Deployment-coupled: it ships at the
    desk through `docs/runbooks/ship-proxy-change.md`, never bundled with another
    `proxy/**` change.
-<!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
 2. **`boundary-layers --at` picks a request by NEAREST timestamp and prints a
    complete, plausible, wrong anatomy** — PROMOTED from `## Record`, where it
    was booked OPERATOR-RANKED SECOND behind a mitigation that has since parked.
@@ -117,7 +116,6 @@ any of it. Today every instrument at the top has a named consumer waiting on it.
    answer. Its repair is NOT decided — the lane MEASURES (`bytesRead` against
    bytes consumed on a large capture) and returns the streaming-vs-cap decision
    to the desk. That is stated here so the lane is not briefed as a fix.
-<!-- entry: "harvest --pin excludes the pinned pair's own outcome records" -->
 4. **`harvest --pin` stops at request ordinal `m`, so the pinned pair's own
    outcome records are never in the fixture** — while the tool reports that the
    pin "reproduces the live verdicts". SEE. Found today by freezing evidence
@@ -173,6 +171,18 @@ chase was scoped 0..m and swept 90 unrelated outcome records into a public
 fixture, so it is being re-scoped to n..m before integration. Nothing here
 re-ranks: a lap closure records what left, and the NINTH derivation is what
 re-orders.
+
+**LAP CLOSURE, second pass — the head is down to TWO, and the ninth derivation
+is what refills it.** Since the note above: #4 (`harvest --pin`) and #2
+(`boundary-layers --at`) both CLOSED and are in `## Done`; #3 (the OOM reach)
+is REGRADED to PARKED — its measurement ran and returned a scale gap rather
+than an answer, and its named missing evidence is now a capture at incident
+scale; #1 (the coalesce-miss record) is BUILT AND PUSHED but its done-criterion
+includes a ship, and the ship is HELD at the runbook's step 2 (see the section
+above this handoff). What remains READY is #1's ship and #6. That is thin on
+purpose rather than by attrition: five of the six items derived this morning
+reached a terminal state the same day, and re-ranking a two-item head inside the
+same lap would repeat the mistake the seventh derivation is a record of.
 
 **LANE JOIN over the entries' write-boundary slots — derived from the
 `Write-set:` lines, not composed by hand:**
@@ -412,38 +422,7 @@ comment and new issue.
   Verifier: node --test --import ./tools/suite-config-root.mjs test/duplicate-coalesce.test.mjs test/coalesce-record.test.mjs
   <!-- entry: "proxy records coalesce hits but never coalesce misses" -->
 
-- **READY 2026-08-16 (promoted 2026-08-18, EIGHTH derivation — the resume-key
-  mitigation it was ranked behind is PARKED, so this is the highest
-  operator-ranked available item; head #2, bundled into one lane with the OOM
-  entry below) — `boundary-layers --at` picks a request by NEAREST timestamp,
-  so second-precision silently selects a DIFFERENT conversation and prints a
-  complete, plausible, wrong anatomy.** Measured today at the desk: walking the
-  07:37:39Z bust with `--at 2026-08-16T07:37:39Z` resolved to the request at
-  `07:37:38.362Z` — a 107-message conversation — while the busting request
-  `bust-triage` had joined was `07:37:39.512Z`, a 461-message conversation. The
-  two anatomies disagree on everything that matters: the wrong one reports
-  `tools` BYTE-IDENTICAL and the first two segments READABLE, the right one
-  reports `tools` diverging and the first segment BROKEN. Either reads as a
-  finished answer.
-  **Why the existing warning does not cover it, which is the whole defect.**
-  The tool DOES print "RELATIONS DISAGREE" — but that warning is about
-  PREDECESSOR selection, i.e. which record the chosen target is compared
-  AGAINST. Nothing warns about the selection of the TARGET itself, which is the
-  one that was wrong. A guard that fires on the adjacent question reads as
-  coverage of this one; that is the entry-path shape `docs/dev-loop.md` already
-  collects, arriving inside a tool built to prevent exactly this class.
-  **Design, decided:** `--at` reports the resolved record's OWN timestamp,
-  message count and conversation id BEFORE the cascade, and when another
-  request sits within the match window it says so and names it — the
-  three-answer discipline applied to target selection (resolved / ambiguous /
-  none), never a silent nearest-match.
-  Loop stage: ATTRIBUTE
-  Anchor: `tools/boundary-layers.mjs`
-  Write-set: `tools/boundary-layers.mjs`, `test/boundary-layers.test.mjs`
-  Verifier: a fixture with two conversations whose requests interleave inside one second — `--at` at second precision must report AMBIGUOUS and name both, and must not silently pick one
-  <!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
-
-- **READY 2026-08-16 (promoted 2026-08-18, EIGHTH derivation; head #3, rides the
+- **PARKED 2026-08-18 (was READY, promoted the same day; the measurement RAN and returned a SCALE GAP rather than an answer — head #3, formerly riding the
   `--at` lane above — same realizing file, separate red-first arrangements. THE
   LANE MEASURES, IT DOES NOT REPAIR: the streaming-vs-declared-cap decision
   returns to the desk, per this entry's own "only then decide") — `boundary-layers` OOMs at a
@@ -470,52 +449,34 @@ comment and new issue.
   **NOT established:** whether the retention is in `readLines`, in
   `findPredecessor`'s candidate collection, or in the cascade's own body
   retention. Nothing was profiled; the 4096-vs-10240 split is the only datum.
+  **MEASURED 2026-08-18 and it did NOT reproduce — which is a scale gap, not a
+  clean bill.** The dispatched lane instrumented `process.memoryUsage()` behind
+  a forced GC at each phase boundary and ran the largest protected capture under
+  1 GB (846 MB, 2438 request lines): peak `heapUsed` ~11 MB, rss plateau
+  ~155 MB, and clean exits at the default cap, at `--max-old-space-size=192`
+  AND at `=96`. The reported failure was a 4096 MB cap dying on a 2.83 GB
+  capture — over three times this file's size — so a clean result here answers
+  "not reproduced at this scale" and never "not present". The instrumentation
+  was reverted before any commit; this half produced no code.
+  **One hypothesis IS ruled out, on source grounds rather than by the
+  inconclusive numbers:** all three `findPredecessor` stages retain exactly ONE
+  candidate at a time (`before` / `pick` / `nearest`, each reassigned, never
+  pushed to a list), so "the candidate collection accumulates" cannot be the
+  retention site. Two of the entry's three named hypotheses remain.
+  **NAMED MISSING EVIDENCE, and it is the lane's returned question, not a
+  preference:** a capture at or near the 2.83 GB incident scale, or an operator
+  decision to build a synthetic fixture long enough to force
+  `findPredecessor`'s stage-2/3 fallback at length. The protected set tops out
+  at 846 MB today, so the instrument cannot currently be exercised at the scale
+  its own defect was reported at — which is a standing gap for any future
+  reach measurement here, not only this one.
+  Trigger to re-grade: a capture of >2 GB on disk (protected, so it does not
+  rotate), or that operator decision.
   Loop stage: ATTRIBUTE
   Anchor: `tools/boundary-layers.mjs`
   Write-set: `tools/boundary-layers.mjs`, `test/boundary-layers.test.mjs`
   Verifier: a bytesRead-vs-consumed assertion on a multi-GB capture, red against the current retention
   <!-- entry: "boundary-layers OOMs at 4GB on a live capture, reach shrinks quadratically" -->
-
-- **READY 2026-08-18 (evening) — `harvest --pin <n>..<m>` stops at request
-  ordinal `m`, so the pinned pair's OWN outcome records are never in the
-  fixture, while the tool reports that the pin "reproduces the live
-  verdicts".** Measured while freezing today's row-31 evidence, and it cost a
-  wasted pin: `--pin s-<key> 1..3` over `s-captureBU` wrote 5 records — boot
-  plus four requests, ZERO outcome records — and printed `pin verified:
-  reproduces the live verdicts over records 0..3`. That sentence is TRUE about
-  what it checked (stability, exemptions, census classes over the request
-  stream) and false as read: the finding being frozen was a BILLING one, whose
-  entire proof — two distinct upstream request-ids, two `usage` blocks, equal
-  `outSha`, and the ABSENCE of a `type:"coalesced"` record — lives in the
-  outcome records that follow the last pinned request. `pinRange` breaks out of
-  the read loop the moment it pushes request ordinal `m`, so those records are
-  excluded by construction, for every pin ever taken. The workaround found by
-  hand was to pin `1..4` and let the next request drag the outcomes in, which
-  works by accident and freezes an unrelated 170 KB request to do it.
-  **Design, decided.** After pushing ordinal `m`, keep streaming until every
-  pinned request id has been seen in an `outcome` or `coalesced` record, or a
-  bounded lookahead is exhausted (200 records or 32 MB of lines, whichever
-  first — a bound, not a scan of the rest of a 435 MB capture). The header
-  records the result per pinned ordinal: `outcomes: {resolved: [...],
-  unresolved: [...]}`. And the verification line stops claiming the general —
-  it names the replayed verdicts and states, when any pinned request's outcome
-  is unresolved, that the pin does NOT carry billing or coalescing evidence.
-  An assurance wider than its predicate is what stopped anyone looking here.
-  Red-first, both arms from the real capture rather than planted: (a) pinning
-  `1..3` over `s-captureBU` today produces zero outcome records and the
-  unqualified success line — after the change the same command carries all
-  three outcome records and the header lists them resolved; (b) a pin whose
-  lookahead genuinely runs out (a capture truncated after the pinned request)
-  must say `unresolved` and must NOT report the billing-evidence claim — without
-  (b) a lookahead that always succeeds passes arm (a).
-  Done: both arms pasted, the header field landed, the verification sentence
-  narrowed to what it establishes, suite green, entry moves to `## Done`.
-  Loop stage: SEE (the evidence-freezing half of it).
-  Anchor: `tools/harvest.mjs`
-  Write-set: `tools/harvest.mjs`, `test/harvest-pin.test.mjs`,
-  `test/harvest-pin-verify.test.mjs`
-  Verifier: node --test --import ./tools/suite-config-root.mjs test/harvest-pin.test.mjs test/harvest-pin-verify.test.mjs
-  <!-- entry: "harvest --pin excludes the pinned pair's own outcome records" -->
 
 - **READY 2026-08-11 (evening; promoted 2026-08-15, sixth derivation) — `_resetRelocationMemory` cannot evict the memory
   the running pipeline uses, so its name promises an eviction it does not
@@ -10837,6 +10798,127 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-18 — `boundary-layers --at` reports resolved / ambiguous /
+  none, never a silent nearest-match. Built `ef28e8e` (lane
+  `sonnet-boundary-at`), integrated `4b27733`.** A window sized to the precision
+  the caller actually typed resolves first; more than one request inside it is
+  AMBIGUOUS, named, non-zero exit, and no cascade prints. An unambiguous resolve
+  now prints the record's own ts/msgs/cid before the cascade runs.
+  **The entry's own live case is fixed and was re-run:** `--at 07:37:39Z` now
+  resolves to the 07:37:39.512Z record instead of the 07:37:38.362Z one the old
+  nearest-earlier rule silently picked — the two anatomies that disagreed on
+  everything that mattered.
+  **The lane's first draft was window-ONLY and went 9/11 red against the
+  existing suite**, which is the finding worth keeping: multi-minute `--at` gaps
+  are a real, exercised usage (a ledger stamp is not the request's own time),
+  and the entry's prose named only the motivating incident. The shipped shape is
+  two-tier — window first, nearest-earlier fallback only when the window is
+  empty — because the suite refused the simpler design, not because someone
+  anticipated it.
+  **Attribution repaired at integration:** the lane's commit was missing its
+  `Co-Authored-By` trailer and it said so plainly in its own report rather than
+  leaving it unremarked; the trailer was added on the desk's cherry-pick.
+
+  <!-- moved from `## Open` at closure; body verbatim -->
+
+- **[CLOSED — moved verbatim from `## Open` 2026-08-18; graded by the DONE entry above, not by this header] was-READY 2026-08-16 (promoted 2026-08-18, EIGHTH derivation — the resume-key
+  mitigation it was ranked behind is PARKED, so this is the highest
+  operator-ranked available item; head #2, bundled into one lane with the OOM
+  entry below) — `boundary-layers --at` picks a request by NEAREST timestamp,
+  so second-precision silently selects a DIFFERENT conversation and prints a
+  complete, plausible, wrong anatomy.** Measured today at the desk: walking the
+  07:37:39Z bust with `--at 2026-08-16T07:37:39Z` resolved to the request at
+  `07:37:38.362Z` — a 107-message conversation — while the busting request
+  `bust-triage` had joined was `07:37:39.512Z`, a 461-message conversation. The
+  two anatomies disagree on everything that matters: the wrong one reports
+  `tools` BYTE-IDENTICAL and the first two segments READABLE, the right one
+  reports `tools` diverging and the first segment BROKEN. Either reads as a
+  finished answer.
+  **Why the existing warning does not cover it, which is the whole defect.**
+  The tool DOES print "RELATIONS DISAGREE" — but that warning is about
+  PREDECESSOR selection, i.e. which record the chosen target is compared
+  AGAINST. Nothing warns about the selection of the TARGET itself, which is the
+  one that was wrong. A guard that fires on the adjacent question reads as
+  coverage of this one; that is the entry-path shape `docs/dev-loop.md` already
+  collects, arriving inside a tool built to prevent exactly this class.
+  **Design, decided:** `--at` reports the resolved record's OWN timestamp,
+  message count and conversation id BEFORE the cascade, and when another
+  request sits within the match window it says so and names it — the
+  three-answer discipline applied to target selection (resolved / ambiguous /
+  none), never a silent nearest-match.
+  Loop stage: ATTRIBUTE
+  Anchor: `tools/boundary-layers.mjs`
+  Write-set: `tools/boundary-layers.mjs`, `test/boundary-layers.test.mjs`
+  Verifier: a fixture with two conversations whose requests interleave inside one second — `--at` at second precision must report AMBIGUOUS and name both, and must not silently pick one
+  <!-- entry: "boundary-layers --at silently selects the wrong conversation at second precision" -->
+
+- **DONE 2026-08-18 — `harvest --pin` carries the pinned pair's own outcome
+  records, and its verification line no longer claims more than it checked.
+  Built `5b101e8`+`e268d69`+`0e674d5` (lane `sonnet-pin-outcomes`), integrated
+  `cfffb4d`+`1b787f3`+`81548e4`.** The chase runs past ordinal `m` under a
+  bounded lookahead, the header carries `outcomes: {resolved, unresolved}`, and
+  the CLI says "reproduces the live STABILITY/CENSUS verdicts" plus an explicit
+  caveat when any pinned ordinal is unresolved.
+  **THE DESK NARROWED IT ONCE, on the lane's own output rather than on review
+  taste:** the first build chased ordinals 0..m, and because ordinal 0 had no
+  outcome anywhere in the file the chase ran to its bound and swept **90
+  unrelated outcome records** into a public fixture — 5 records became 95.
+  Scoped to n..m it is 8, with the billing evidence (the duplicate `outSha`
+  pair) intact. A pin freezes public history, so record count is not cosmetics.
+  **A THIRD extension came from the desk's own build:** the coalesce-miss record
+  shipped the same evening adds a third non-request record type, and this tool
+  was the ONLY reader in the repo whose else-branch would have taken a request
+  ordinal for it — enumerated by executing the grep over every capture reader,
+  not by reasoning. The lane's red-first showed the shift concretely: the old
+  code produced three records where the real second request had silently
+  vanished, replaced by the miss record wearing its ordinal.
+  **What the lane closed that it was not asked to close:** its own reported gap.
+  It had traced `pinRangeBounded`'s path by hand and said so; asked to exercise
+  it instead, it produced a red/green pair against the pre-fix code.
+
+  <!-- moved from `## Open` at closure; body verbatim -->
+
+- **[CLOSED — moved verbatim from `## Open` 2026-08-18; graded by the DONE entry above, not by this header] was-READY 2026-08-18 (evening) — `harvest --pin <n>..<m>` stops at request
+  ordinal `m`, so the pinned pair's OWN outcome records are never in the
+  fixture, while the tool reports that the pin "reproduces the live
+  verdicts".** Measured while freezing today's row-31 evidence, and it cost a
+  wasted pin: `--pin s-<key> 1..3` over `s-captureBU` wrote 5 records — boot
+  plus four requests, ZERO outcome records — and printed `pin verified:
+  reproduces the live verdicts over records 0..3`. That sentence is TRUE about
+  what it checked (stability, exemptions, census classes over the request
+  stream) and false as read: the finding being frozen was a BILLING one, whose
+  entire proof — two distinct upstream request-ids, two `usage` blocks, equal
+  `outSha`, and the ABSENCE of a `type:"coalesced"` record — lives in the
+  outcome records that follow the last pinned request. `pinRange` breaks out of
+  the read loop the moment it pushes request ordinal `m`, so those records are
+  excluded by construction, for every pin ever taken. The workaround found by
+  hand was to pin `1..4` and let the next request drag the outcomes in, which
+  works by accident and freezes an unrelated 170 KB request to do it.
+  **Design, decided.** After pushing ordinal `m`, keep streaming until every
+  pinned request id has been seen in an `outcome` or `coalesced` record, or a
+  bounded lookahead is exhausted (200 records or 32 MB of lines, whichever
+  first — a bound, not a scan of the rest of a 435 MB capture). The header
+  records the result per pinned ordinal: `outcomes: {resolved: [...],
+  unresolved: [...]}`. And the verification line stops claiming the general —
+  it names the replayed verdicts and states, when any pinned request's outcome
+  is unresolved, that the pin does NOT carry billing or coalescing evidence.
+  An assurance wider than its predicate is what stopped anyone looking here.
+  Red-first, both arms from the real capture rather than planted: (a) pinning
+  `1..3` over `s-captureBU` today produces zero outcome records and the
+  unqualified success line — after the change the same command carries all
+  three outcome records and the header lists them resolved; (b) a pin whose
+  lookahead genuinely runs out (a capture truncated after the pinned request)
+  must say `unresolved` and must NOT report the billing-evidence claim — without
+  (b) a lookahead that always succeeds passes arm (a).
+  Done: both arms pasted, the header field landed, the verification sentence
+  narrowed to what it establishes, suite green, entry moves to `## Done`.
+  Loop stage: SEE (the evidence-freezing half of it).
+  Anchor: `tools/harvest.mjs`
+  Write-set: `tools/harvest.mjs`, `test/harvest-pin.test.mjs`,
+  `test/harvest-pin-verify.test.mjs`
+  Verifier: node --test --import ./tools/suite-config-root.mjs test/harvest-pin.test.mjs test/harvest-pin-verify.test.mjs
+  <!-- entry: "harvest --pin excludes the pinned pair's own outcome records" -->
 
 - **DONE 2026-08-18 — a READY entry whose ANCHOR moved after its booking date is
   now FLAGGED at derivation time. Built `935d216` (lane `sonnet-anchor-lint`),
