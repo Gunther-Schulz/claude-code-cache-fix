@@ -703,17 +703,24 @@ function outcomesSummary(requestIds, resolvedIds) {
 // outcome, request — sanitized) through the request whose file-wide ordinal
 // (counting only request-only (no `type` field) records, same counting rule
 // scanCapture and both real-pair tests use) equals `m`, PLUS whatever
-// outcome/coalesced records resolve a pinned ordinal within the bounded
-// lookahead past `m` (see OUTCOME_LOOKAHEAD_MAX_* above). The returned
-// array carries an OUT-OF-BAND `.outcomes` property (`{resolved,
-// unresolved}`, both arrays of ordinals) — a plain extra property on the
+// outcome/coalesced records resolve a PINNED ordinal (n..m — the announced
+// pair, never the whole 0..m prefix: an ordinal below n has no outcome
+// anywhere in the file as often as not, and chasing it too would sweep in
+// every unrelated record between it and the pinned pair, which measured
+// 5 -> 95 records over the real row-31 range) within the bounded lookahead
+// past `m` (see OUTCOME_LOOKAHEAD_MAX_* above). `n` defaults to 0 for
+// callers that only care about m (every existing caller outside this file,
+// none of which pin a range whose target sits beyond ordinal 0). The
+// returned array carries an OUT-OF-BAND `.outcomes` property (`{resolved,
+// unresolved}`, both arrays of ordinals, over n..m only), and an
+// `.outcomeScope` `{n, m}` alongside it — a plain extra property on the
 // array object, never folded into its own indices, so every existing
 // consumer that reads this as a plain records array (length, filter, map,
 // JSON.stringify) is unaffected. Throws if the capture has fewer than
 // m+1 request records —
 // a pin that cannot be fulfilled must fail loudly, not write a truncated
 // fixture silently.
-export async function pinRange(capturePath, m) {
+export async function pinRange(capturePath, m, n = 0) {
   const records = [];
   const requestIds = [];
   const resolvedIds = new Set();
@@ -765,7 +772,12 @@ export async function pinRange(capturePath, m) {
     }
     const idx = count++;
     records.push(scrubRecord(rec));
-    requestIds[idx] = rec.id ?? null;
+    // Only the PINNED range n..m enters the must-resolve set; an ordinal
+    // below n is prefix context for insertion-normalization's state, never
+    // part of the pin's own evidentiary claim (outcomesSummary skips
+    // `undefined` entries for exactly this reason — the same rule
+    // pinRangeBounded's placeholders already use).
+    requestIds[idx] = idx >= n && idx <= m ? (rec.id ?? null) : undefined;
     if (idx === m) {
       reached = true;
     }
@@ -774,6 +786,7 @@ export async function pinRange(capturePath, m) {
     throw new Error(`capture ${capturePath} has only ${count} request record(s), cannot pin through m=${m}`);
   }
   records.outcomes = outcomesSummary(requestIds, resolvedIds);
+  records.outcomeScope = { n, m };
   return records;
 }
 
@@ -927,12 +940,14 @@ function boundedKeep(rec, target, targetCid) {
 // Shares the same break-at-`m` shape pinRange had (and the same fix): a
 // request's outcome record can land in the capture after later requests'
 // own lines, so pushing `m` and breaking immediately excluded it here too.
-// Only KEPT ordinals (boundedKeep === true) enter the pinned-evidence set —
-// a placeholder ordinal's fabricated content has no real outcome to chase,
-// and the raw id behind it belongs to a conversation this pin deliberately
-// dropped, so `outcomesSummary` above already skips `undefined` entries for
-// exactly this reason.
-export async function pinRangeBounded(capturePath, m) {
+// Only KEPT ordinals (boundedKeep === true) WITHIN the pinned range n..m
+// enter the pinned-evidence set — a placeholder ordinal's fabricated
+// content has no real outcome to chase, and an ordinal below n (kept or
+// not) is prefix context, never part of the pin's own evidentiary claim,
+// the same scoping pinRange applies above and for the same reason (a
+// measured 5 -> 95 record blowup chasing outcomes for ordinals nobody
+// pinned). `outcomesSummary` skips `undefined` entries for both cases.
+export async function pinRangeBounded(capturePath, m, n = 0) {
   const target = await locateBoundedTarget(capturePath, m);
   const targetCid = conversationOf(target);
 
@@ -988,9 +1003,10 @@ export async function pinRangeBounded(capturePath, m) {
       continue;
     }
     const idx = count++;
+    const inScope = idx >= n && idx <= m;
     if (boundedKeep(rec, target, targetCid)) {
       records.push(scrubRecord(rec));
-      requestIds[idx] = rec.id ?? null;
+      requestIds[idx] = inScope ? (rec.id ?? null) : undefined;
       kept++;
     } else {
       records.push(boundedPlaceholder(idx, rec.ts));
@@ -1004,7 +1020,13 @@ export async function pinRangeBounded(capturePath, m) {
   if (!reached) {
     throw new Error(`capture ${capturePath} has only ${count} request record(s), cannot pin through m=${m}`);
   }
-  return { records, kept, placeholders, outcomes: outcomesSummary(requestIds, resolvedIds) };
+  return {
+    records,
+    kept,
+    placeholders,
+    outcomes: outcomesSummary(requestIds, resolvedIds),
+    outcomeScope: { n, m },
+  };
 }
 
 // --- pin self-verification: a pin is a claim until it is replayed ---
@@ -1396,12 +1418,12 @@ async function runPin(args) {
   let records, boundedInfo = null, outcomesInfo;
   try {
     if (args.bounded) {
-      const res = await pinRangeBounded(capturePath, m);
+      const res = await pinRangeBounded(capturePath, m, n);
       records = res.records;
       boundedInfo = { kept: res.kept, placeholders: res.placeholders };
       outcomesInfo = res.outcomes;
     } else {
-      records = await pinRange(capturePath, m);
+      records = await pinRange(capturePath, m, n);
       // Captured before rebaseTimestamps below, which clones `records` via
       // Array.prototype.map (mapStrings) and would drop this non-index
       // property along with any other shape the clone does not carry.
@@ -1416,12 +1438,15 @@ async function runPin(args) {
     header: {
       key: sidToken(key),
       range: { n, m },
-      // Per pinned ordinal (0..m; bounded mode excludes placeholder
-      // ordinals — see pinRangeBounded's own header comment): whether its
-      // outcome or coalesced record was found, inline or within the
-      // bounded lookahead past m. An ordinal in `unresolved` has no
-      // billing or coalescing evidence in this fixture at all — its
-      // outcome record simply never arrived within the lookahead bound.
+      // Per PINNED ordinal — n..m, the announced pair, never the full 0..m
+      // prefix (see the `note` field below, which states this explicitly
+      // so a reader does not read `resolved:[1,2,3]` as "records 1..3
+      // only"; ordinals outside n..m are still WRITTEN, just never
+      // chased): whether its outcome or coalesced record was found,
+      // inline or within the bounded lookahead past m. An ordinal in
+      // `unresolved` has no billing or coalescing evidence in this
+      // fixture at all — its outcome record simply never arrived within
+      // the lookahead bound.
       outcomes: outcomesInfo,
       replayFrom: 0,
       note:
@@ -1429,7 +1454,12 @@ async function runPin(args) {
         "tests replay every request from index 0 in order because " +
         "insertion-normalization's per-conversation canonical state is " +
         "stateful (see tools/harvest.mjs runPin's header comment). n..m " +
-        "names the pair under test, not a truncation point." +
+        "names the pair under test, not a truncation point. " +
+        "header.outcomes is narrower than records: it reports resolution " +
+        "only for the PINNED ordinals n..m — an ordinal outside that range " +
+        "is still present in records (the full prefix above), it is just " +
+        "never chased for its own outcome, so it appears in neither " +
+        "outcomes.resolved nor outcomes.unresolved." +
         (boundedInfo
           ? " BOUNDED: records outside the busting request's own conversation " +
             "and its sameLineage union were replaced by placeholders (see " +

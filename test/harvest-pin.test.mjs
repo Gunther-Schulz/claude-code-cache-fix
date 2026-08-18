@@ -29,7 +29,7 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 
-import { parsePinRange, pinRange, readPinnedFixture } from "../tools/harvest.mjs";
+import { parsePinRange, pinRange, pinRangeBounded, readPinnedFixture } from "../tools/harvest.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO = join(__dirname, "..");
@@ -319,6 +319,33 @@ test("pinRange: chases the last pinned request's own outcome past m, without abs
   assert.deepEqual(records.outcomes, { resolved: [0, 1], unresolved: [] }, "both pinned ordinals resolved");
 });
 
+// n..m scoping — coordinator follow-up (2026-08-18): the chase must cover
+// only the ANNOUNCED pair n..m, never the whole 0..m prefix. Measured on
+// the real row-31 range: chasing 0..m swept up 90 unrelated outcome records
+// (5 -> 95) because ordinal 0 has no outcome anywhere in that capture, so
+// the lookahead ran to its bound trying to resolve an ordinal nobody
+// pinned. Reusing writeCaptureWithLateOutcome here (where ordinal 0's own
+// outcome DOES exist, arriving inline before m) proves the exclusion is by
+// SCOPE, not by coincidence of absence: pinning n=1 must drop ordinal 0
+// from both outcomes lists even though its outcome is sitting right there
+// in the fixture's own records.
+test("pinRange: outcomes scope is n..m, not 0..m — an in-scope-content ordinal below n is excluded from both lists", async () => {
+  const dir = await tmpDir("harvest-pin-scope-");
+  const path = await writeCaptureWithLateOutcome(dir);
+
+  const records = await pinRange(path, 1, 1); // n=1, m=1 — only ordinal 1 is pinned
+  assert.deepEqual(
+    records.outcomes,
+    { resolved: [1], unresolved: [] },
+    "ordinal 0 is prefix context, not a pinned ordinal — it must not appear in either list, even though req-0's own outcome record is present in records[]",
+  );
+  assert.deepEqual(records.outcomeScope, { n: 1, m: 1 });
+  // The header-facing scope contract, not just the internal one: records
+  // themselves are unaffected by n — the full 0..m prefix is still written.
+  const requests = records.filter((r) => r.type !== "boot" && r.type !== "outcome");
+  assert.equal(requests.length, 2, "n narrows the CHASE only — the written request set is still the full 0..m prefix");
+});
+
 // A capture truncated right after the pinned request: its own outcome
 // never arrives at all. The lookahead exhausts by running off the end of
 // the file, never by hitting the record/byte bound — and the ordinal must
@@ -446,6 +473,72 @@ test("pinRange: the 200-record lookahead bound stops the chase before an outcome
   const records = await pinRange(path, 1);
   assert.equal(records.filter((r) => r.type === "outcome").length, 1, "only b-0's inline outcome — b-1's sits past the bound and is never reached");
   assert.deepEqual(records.outcomes, { resolved: [0], unresolved: [1] }, "b-1 reports unresolved, not a false resolve");
+});
+
+// --- pinRangeBounded shares the same chase — coordinator follow-up
+// (2026-08-18): the two functions share the exact break-at-m loop shape,
+// but tracing that by hand is not the same as exercising it — pinRangeBounded
+// computes its own requestIds set (KEPT ordinals only) independently of
+// pinRange's, so a defect specific to that computation would not show up in
+// any pinRange bite. RED-FIRST, run by hand against this same capture before
+// this test was written (tools/harvest.mjs as of the base commit the
+// outcome-chase fix branched from, invoked in place so its relative imports
+// resolved): OLD pinRangeBounded(capture, 0) returned {records: [boot,
+// request], kept: 1, placeholders: 0} — 2 records, 0 outcomes, no
+// `.outcomes` key on the return value at all. This test pins the NEW code
+// and asserts the fixed shape.
+async function writeBoundedChaseCapture(dir) {
+  const path = join(dir, "s-bndchase00-requests.jsonl");
+  const lines = [
+    JSON.stringify({ ts: "2026-01-01T00:00:00Z", type: "boot", pid: 1, proxyTree: "abc123", gates: {} }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:01Z",
+      id: "bt-0",
+      sid: "s-bndchase00",
+      key: "s-bndchase00",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sys0", messages: [{ role: "user", content: [{ type: "text", text: "chase-msg" }] }] },
+    }),
+    // Unrelated filler, one line past the target (ordinal m=0) — must not
+    // be absorbed as a request record, in bounded mode exactly as in
+    // unbounded (the lookahead only ever pushes outcome/coalesced types).
+    JSON.stringify({
+      ts: "2026-01-01T00:00:02Z",
+      id: "bt-filler",
+      sid: "s-unrelated0",
+      key: "s-unrelated0",
+      headers: { "anthropic-beta": "x" },
+      body: { model: "claude-sonnet-5", system: "sysX", messages: [{ role: "user", content: [{ type: "text", text: "unrelated filler" }] }] },
+    }),
+    JSON.stringify({
+      ts: "2026-01-01T00:00:03Z",
+      type: "outcome",
+      id: "bt-0",
+      key: "s-bndchase00",
+      requestId: "up-bt0",
+      model: "claude-sonnet-5",
+      usage: { cacheRead: 0, cacheCreation: 0, inputTokens: 10, outputTokens: 1 },
+      outSha: null,
+      outBytes: null,
+      ms: 5,
+    }),
+  ];
+  await writeFile(path, lines.join("\n") + "\n");
+  return path;
+}
+
+test("pinRangeBounded: chases the target's own outcome past m too, without absorbing the intervening filler", async () => {
+  const dir = await tmpDir("harvest-pin-bounded-chase-");
+  const path = await writeBoundedChaseCapture(dir);
+
+  const res = await pinRangeBounded(path, 0, 0);
+  assert.equal(res.kept, 1, "the target itself is always kept — it trivially matches its own conversation");
+  assert.equal(res.placeholders, 0, "the filler sits past m and is never evaluated for retention at all");
+  assert.equal(res.records.filter((r) => r.type === "outcome").length, 1, "the target's own outcome, chased past m");
+  const requests = res.records.filter((r) => r.type !== "boot" && r.type !== "outcome");
+  assert.equal(requests.length, 1, "the filler is not absorbed as a request record");
+  assert.deepEqual(res.outcomes, { resolved: [0], unresolved: [] });
+  assert.deepEqual(res.outcomeScope, { n: 0, m: 0 });
 });
 
 test("harvest --pin CLI: fully resolved outcomes — header field and the unqualified-billing verification line", async () => {
