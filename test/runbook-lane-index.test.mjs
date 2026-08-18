@@ -137,18 +137,54 @@ test("extractGraduateMarkers: finds a single-line and a multi-line marker, with 
   assert.match(markers[1].body, /wraps across two lines/);
 });
 
+// A "BACKLOG ready" claim is confirmed only against the bodies of READY
+// entries in `## Open` (see `readyEntriesText`), so these carriers carry the
+// real section shape rather than a bare bullet — the premise is pinned INSIDE
+// the check instead of being inherited from whatever the file happens to look
+// like.
+const openSection = (...entries) => `## Open\n\n${entries.join("\n\n")}\n`;
+
 test("checkMarkers: BACKLOG-ready marker with a matching phrase is ready-confirmed", () => {
   const markers = [{ source: "x.md", line: 1, body: "the widget dedup fix; BACKLOG ready" }];
-  const backlog = "- **READY — the widget dedup fix.** Design decided, verifier named.";
+  const backlog = openSection("- **READY — the widget dedup fix.** Design decided, verifier named.");
   const [result] = checkMarkers(markers, backlog);
   assert.equal(result.classification, "ready-confirmed");
 });
 
 test("checkMarkers: BACKLOG-ready marker with NOTHING matching is STALE", () => {
   const markers = [{ source: "x.md", line: 1, body: "an entirely unrelated fabricated widget rework; BACKLOG ready" }];
-  const backlog = "- **READY — something completely different about gadgets.**";
+  const backlog = openSection("- **READY — something completely different about gadgets.**");
   const [result] = checkMarkers(markers, backlog);
   assert.equal(result.classification, "STALE-ready-unmatched");
+});
+
+// BITE — the live false confirmation this narrowing was built for
+// (2026-08-18): the SAME text that confirms from a READY entry must NOT
+// confirm from any other grade. Without this pair the narrowing is
+// indistinguishable from a matcher that simply became stricter about
+// formatting, and the defect it exists to catch — a marker's "ready" claim
+// satisfied by a PARKED entry or by its own closure in `## Done` — walks
+// straight back in.
+test("checkMarkers: BITE — the same phrase in a PARKED entry does NOT confirm a READY claim", () => {
+  const markers = [{ source: "x.md", line: 1, body: "the widget dedup fix; BACKLOG ready" }];
+  const parked = openSection("- **PARKED — the widget dedup fix.** Named missing evidence: a case.");
+  assert.equal(checkMarkers(markers, parked)[0].classification, "STALE-ready-unmatched",
+    "a PARKED entry is not a READY one, whatever words it shares");
+  const ready = openSection("- **READY — the widget dedup fix.** Design decided, verifier named.");
+  assert.equal(checkMarkers(markers, ready)[0].classification, "ready-confirmed",
+    "control: the identical phrase under a READY header still confirms, so the " +
+    "narrowing discriminates on GRADE and not on the words");
+});
+
+test("checkMarkers: BITE — a phrase living only in `## Done` does NOT confirm a READY claim", () => {
+  const markers = [{ source: "x.md", line: 1, body: "the widget dedup fix; BACKLOG ready" }];
+  const backlog = `${openSection("- **READY — something completely different about gadgets.**")}
+## Done — closures
+
+- **DONE 2026-08-01 (\`abc1234\`) — the widget dedup fix.** Shipped and verified.
+`;
+  assert.equal(checkMarkers(markers, backlog)[0].classification, "STALE-ready-unmatched",
+    "an item's own CLOSURE must not read as evidence that it is still queued");
 });
 
 test("checkMarkers: not-yet-booked with a named trigger is accepted", () => {

@@ -1367,7 +1367,12 @@ function formatRowStatusFinding(f) {
 // a span does not count, so a hardcoded line number is never needed to
 // exclude this entry from flagging itself).
 
-const READY_HEADER = /^- \*\*READY\b/;
+// Exported because a second consumer needs the SAME definition of "a READY
+// entry", not a copy of it: `runbook-lane-index` confirms a runbook marker's
+// "BACKLOG ready" claim, and a restated regex there would drift the moment
+// this one does — the restated-comparison-basis shape this repo keeps
+// paying for.
+export const READY_HEADER = /^- \*\*READY\b/;
 const SHIP_WORD = /\b(SHIPPED|CLOSED|DONE)\b/;
 const COMMIT_CITATION = /`([0-9a-f]{7,12})`/g;
 const SHIP_PROXIMITY = 60;

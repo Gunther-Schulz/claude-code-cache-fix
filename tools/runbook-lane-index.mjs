@@ -53,6 +53,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { distinctiveBigrams, findMatchingPhrase } from "./named-unbooked-scan.mjs";
+import { censusOpenSection, splitEntries, READY_HEADER } from "./backlog-lint.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_REPO = resolve(HERE, "..");
@@ -168,14 +169,44 @@ export function checkClaudeLocalList(listed, runbookFiles) {
 }
 
 // CHECK 3 — MARKERS. `backlogText` is BACKLOG.md's raw content.
+/**
+ * The text a "BACKLOG ready" claim may be confirmed AGAINST — the bodies of
+ * the READY entries in `## Open`, joined, and nothing else.
+ *
+ * Why this is not simply `backlogText` (narrowed 2026-08-18, on a live false
+ * confirmation): `findMatchingPhrase` asks whether any distinctive BIGRAM of
+ * the marker appears in the carrier. Over the whole file that is a two-word
+ * substring test against ~11k lines spanning every grade — READY, RECORD,
+ * PARKED, Done — so a marker claiming a READY entry exists is confirmed by a
+ * PARKED entry about a different question, or by its own closure in `## Done`.
+ * Measured: the markers at `bust-appears.md:256` and `sweep-finding.md:93`
+ * ("harvest --pin verifies its own pin; BACKLOG ready") flipped from
+ * STALE-ready-unmatched to ready-confirmed the moment an unrelated PARKED
+ * entry mentioning `harvest --pin` was booked — matched bigram "harvest pin".
+ * Nothing about their claim had become true.
+ *
+ * The grade is the marker's own word, so the carrier must carry that grade.
+ * `READY_HEADER` and the section/entry split are IMPORTED from `backlog-lint`
+ * rather than restated, so "what counts as READY" has one home.
+ */
+export function readyEntriesText(backlogText) {
+  const section = censusOpenSection(backlogText);
+  if (!section) return "";
+  return splitEntries(section.body)
+    .filter((e) => READY_HEADER.test(e.header))
+    .map((e) => e.body)
+    .join("\n\n");
+}
+
 export function checkMarkers(markers, backlogText) {
   const results = [];
+  const readyText = readyEntriesText(backlogText);
   for (const marker of markers) {
     const body = marker.body;
     const claimsReady = /BACKLOG ready/i.test(body);
     const claimsNotYetBooked = /not yet booked/i.test(body);
     if (claimsReady) {
-      const phrase = findMatchingPhrase(body, backlogText);
+      const phrase = findMatchingPhrase(body, readyText);
       results.push({
         ...marker,
         classification: phrase ? "ready-confirmed" : "STALE-ready-unmatched",
