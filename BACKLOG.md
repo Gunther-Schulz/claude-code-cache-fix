@@ -90,6 +90,13 @@ a lap to read). Their bodies are in `## Done`:
 - former #3, the conversation-content policy — landed in dotfiles `59d2c1c`,
   the write-set correction made in this derivation proving out: the realizing
   write was never in this checkout at all.
+- former #5, `verdict-ab` reporting IDENTICAL — built (`665cec2`), and it took
+  TWO of this derivation's own claims down with it: the mechanism was not the
+  corpus lacking a case (the tool never loads the changed file at all), and the
+  rank basis "it gates every ship through the proxy runbook" was false — no
+  runbook has ever named the tool. Both corrections are in the `## Done` body,
+  along with a third that is published and unfixable. Its residue is ranked #2
+  below.
 
 <!-- entry: "bust-triage attribution blind to stability exemptions" -->
 1. **`bust-triage` prints `ATTRIBUTION: CC's` on a pair our OWN extension
@@ -97,10 +104,12 @@ a lap to read). Their bodies are in `## Done`:
    mis-attributed today's 448k bust away from us, on a basis that stability
    exemptions satisfy by construction. Silence is maximal — it names the wrong
    party and reads clean doing it.
-<!-- entry: "verdict-ab IDENTICAL over a corpus lacking the case under test" -->
-2. **`verdict-ab` reports IDENTICAL over a corpus that cannot contain the case
-   under test** — third partition, measured today; it gates the
-   restart-transparency claim of every ship through the proxy runbook.
+<!-- entry: "ship runbook has no A/B verdict step; verdict-ab sees one extension" -->
+2. **the ship runbook has NO A/B verdict step, and the tool assumed to fill
+   that slot sees 1 of 42 extensions** — the residue of #5's closure, and it
+   inherits its slot rather than being re-ranked: the measurement that closed
+   #5 is the same measurement that opened this. Prose-only, cheap, and it makes
+   a reach limit visible at the moment a ship rests on it.
 <!-- entry: "bust-triage names the row but never says whether the mitigation absorbed" -->
 3. **`bust-triage` never says whether the mitigation ABSORBED** — third
    partition; upstream of every matrix row's closure.
@@ -272,43 +281,46 @@ comment and new issue.
   Verifier: re-triage of 2026-08-18T11:22:51Z no longer reports a bare `CC's`
   <!-- entry: "bust-triage attribution blind to stability exemptions" -->
 
-- **READY (promoted 2026-08-18, seventh derivation — head #5; check-set class,
-  6th instance) — `verdict-ab` reports IDENTICAL over a corpus that CANNOT CONTAIN the case
-  under test, and nothing in its output says so.** Used today to price the
-  combined-absorb change before the restart: `node tools/verdict-ab.mjs
-  cdc2b9a^ aa85900` returned IDENTICAL across 3,223 verdict lines / 19
-  corpora, exit 0. True, and it is a NO-REGRESSION result, not a
-  NO-CHANGE result — the pinned corpora hold no
-  description-delta-alongside-addition pair, while the same change is plainly
-  visible on the live capture (`heldStable` false -> true, stability
-  exemptions 1 -> 0). A reader who takes IDENTICAL as "the change is inert"
-  gets the opposite of the truth, and on the restart-transparency question
-  that is the reading that matters.
-  **Why it is this repo's own class and not a footnote:** the check set is a
-  FIXED pinned corpus, and a change whose case the corpus lacks removes itself
-  from the comparison — the same shape as `serving-gate-lint`'s pre-flip green
-  and `bust-triage`'s exemption blindness (entry below). The repair pattern
-  from that entry applies directly: the expectation must come from a source
-  the change cannot silently vacate.
-  **NOT a proposal to widen the corpus by default** — pins are expensive and
-  this repo has already been bitten by an unpublishable 188 MB one. The cheap
-  form is an output line: report how many pairs in the corpus MATCHED the
-  changed code path, so a green over zero relevant pairs is visibly different
-  from a green over many. Zero matches is a COULD-NOT-VERIFY, not a pass.
-  Named missing evidence: none — measured today, both readings in hand.
-  Done-criterion: `verdict-ab` prints a per-run count of corpus pairs that
-  exercised the changed path, and returns a distinct status when that count is
-  zero; red-first on today's own arrangement, which must stop reading as a
-  clean pass.
-  Consumer: any session pricing a proxy change before a restart — i.e. every
-  ship through `docs/runbooks/ship-proxy-change.md`.
+- **READY 2026-08-18 — the ship runbook has NO A/B verdict step, and the tool
+  everyone assumes fills that slot can only see 1 of this repo's 42
+  extensions.** Two facts found while closing the `verdict-ab` entry, each
+  measured: `grep -c verdict-ab docs/runbooks/ship-proxy-change.md` -> 0, and
+  `grep -rl` over all of `docs/runbooks/` -> no file; and
+  `tools/verdict-ab.mjs` hardcodes one module path (`EXT`, :75) and one
+  exported function (`classifyPinned`), so a change anywhere else in
+  `proxy/extensions/` cannot reach its comparison at all. The runbook's
+  restart-transparency question therefore rests on step 1's row-3 JUDGMENT
+  alone, with no mechanical arm — and the tool that would have been the
+  mechanical arm would have answered vacuously for 41 of 42 extensions until
+  `665cec2` made that vacuity visible.
+  **Two halves, and only the first is decided.** DECIDED: the runbook gains an
+  explicit step naming `tools/verdict-ab.mjs`, stating in the step itself that
+  a COULD-NOT-VERIFY is the EXPECTED answer for any change outside `EXT` and
+  is not a failure — a step that reads as a gate while returning
+  could-not-verify on almost every real ship would train the override reflex
+  within a week, which is exactly the guard-fires-on-legitimate-work shape.
+  So the step's job is to make the tool's reach VISIBLE at ship time, not to
+  pretend to a coverage it does not have.
+  NOT DECIDED, and named as this entry's boundary: whether `verdict-ab` should
+  be widened to load the changed extension(s) rather than a hardcoded one.
+  That is a real design question — the tool's whole shape (its `classifyPinned`
+  call signature, its corpus format, `--seed-from-a`) is built around one
+  function's contract, and generalizing it is not a rename. Do NOT bundle it
+  with the runbook step; the step is worth having either way and lands first.
+  Red-first: the runbook change is prose, so the arm is the STEP's own
+  instruction exercised once — running the named command on a change outside
+  `EXT` must produce COULD-NOT-VERIFY and the step must say that is expected;
+  running it on a change inside `EXT` must produce a matched count. Both
+  arrangements exist in git history today (`cdc2b9a^..aa85900` for the first;
+  any `insertion-normalization.mjs` commit for the second) and neither needs
+  constructing.
+  Done: the step is in the runbook with its expected-answer sentence, both
+  arrangements run and pasted, and this entry moves to `## Done` with its ref.
   Loop stage: VERIFY.
-  Anchor: tools/verdict-ab.mjs
-  (consumed by docs/runbooks/ship-proxy-change.md step 1, the transparency question)
-  Write-set: `tools/verdict-ab.mjs`, its test
-  Verifier: today's invocation re-run reports the match count, and a
-  constructed zero-match run does NOT report a plain pass
-  <!-- entry: "verdict-ab IDENTICAL over a corpus lacking the case under test" -->
+  Anchor: docs/runbooks/ship-proxy-change.md
+  Write-set: docs/runbooks/ship-proxy-change.md
+  Verifier: node tools/verdict-ab.mjs cdc2b9a^ aa85900 (must read COULD NOT VERIFY, exit 2)
+  <!-- entry: "ship runbook has no A/B verdict step; verdict-ab sees one extension" -->
 
 - **READY 2026-08-14 — `bust-triage` stops one question short: it names the ROW
   and never says whether the mitigation ABSORBED, so the answer gets hand-derived
@@ -4451,6 +4463,18 @@ comment and new issue.
   **Cross-repo note, stated so nobody re-derives it:** the peer booked the
   mechanical form on their side; their instances are theirs and are NOT
   duplicated here, and these five are ours and were not sent there.
+  **SIXTH INSTANCE, and it widens the test rather than adding a sibling
+  entry — 2026-08-18, measured while closing the `verdict-ab` item.** The test
+  above asks whether the defect can shrink the checker's CHECK SET. The same
+  false green arrives one axis over, from a narrow SUBJECT with a perfectly
+  healthy check set: `verdict-ab` compared 3,223 verdict lines across 19
+  corpora — an ample set by any reading — and could not have seen the change,
+  because it loads ONE hardcoded module path and one exported function, and
+  the change was in a different extension. Set size is not reach. So the test
+  now has two halves, asked together: can the quarry shrink the check SET, and
+  can it fall outside the SUBJECT the checker loads at all? The second half is
+  the quieter one precisely because a large N reads as thorough — the number
+  is what stops anyone asking what the number is OVER.
   Named missing evidence: none — the test is stated and the five are
   dispositioned. What is unbuilt is the SWEEP.
   Done-criterion: every `tools/` checker that derives a check set at run time
@@ -10732,6 +10756,57 @@ then the queued ones. Work the items in that order.
 
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-08-18 (`665cec2`) — `verdict-ab` can no longer report IDENTICAL
+  when it could not see the change at all; and TWO claims this entry rested on
+  were WRONG, both mine, both corrected here.** The fix is what the entry
+  asked for and slightly better: before any corpus is touched, the two trees'
+  copies of the one file the tool loads are byte-compared. Identical bytes
+  means zero of N pairs could exercise a change whatever N is — a distinct
+  COULD-NOT-VERIFY, exit 2, never a plain pass; differing bytes print the
+  matched count on the verdict line. Verified live at the desk on the real
+  arrangement, which is the discriminating flip the done-criterion named:
+  `node tools/verdict-ab.mjs cdc2b9a^ aa85900` now prints `COULD NOT VERIFY —
+  0 of 3223 verdict lines could exercise the changed code`, exit 2, where this
+  morning the same command printed IDENTICAL, exit 0.
+  **CORRECTION 1, the mechanism — found by the lane, not by me.** This entry
+  says the pinned corpora lack a description-delta-alongside-addition pair.
+  That is not why the run came back IDENTICAL. `tools/verdict-ab.mjs` loads
+  exactly ONE file (`proxy/extensions/insertion-normalization.mjs`, its `EXT`
+  constant at :75) and calls exactly one function from it (`classifyPinned`),
+  and that file is BYTE-IDENTICAL across `cdc2b9a^..aa85900` — measured, `git
+  diff` over that path in that range is empty, while the change itself lives
+  in `deferred-tool-rewrite.mjs` and `tools/replay.mjs`. So no corpus of any
+  shape or size could have produced a different answer: the tool structurally
+  cannot see 41 of this repo's 42 extensions. The corpus story was plausible,
+  self-consistent, and had nothing to do with it — the costume was that both
+  stories predict the same observed output.
+  **CORRECTION 2, the consumer — mine, and it inflated this item's rank.** The
+  entry's Consumer line and its Anchor note both say the tool is consumed by
+  `docs/runbooks/ship-proxy-change.md` step 1, and the seventh derivation
+  ranked it partly on "it gates the restart-transparency claim of every ship
+  through the proxy runbook". It does not. `grep -c verdict-ab
+  docs/runbooks/ship-proxy-change.md` -> **0**, and `grep -rl` over the whole
+  `docs/runbooks/` tree returns no file at all. It is a hand-run tool that I
+  chose to run today; no runbook has ever named it. The claim was never
+  checked before being written into a rank basis, and the check is one grep.
+  **CORRECTION 3, and this one is PUBLISHED and cannot be edited.** The
+  dotfiles pin commit `88440f3` (pushed) explains the IDENTICAL result in its
+  body as "die gepinnten Korpora enthalten keinen Description+Addition-Fall".
+  That is correction 1's wrong story, shipped as fact in an immutable commit
+  message. The commit's OTHER claims stand — the fix was verified on the live
+  capture, and the change genuinely is a non-regression — but the reason given
+  for the verdict-ab line is false, and this entry is the correction's only
+  reachable home. Anyone citing `88440f3` on that point should cite this.
+  **What the two corrections have in common, which is the part worth keeping:**
+  both are TRUE-basis failures. The corpus story was a real fact about the
+  corpora; the runbook story described a step that would be sensible if it
+  existed. Neither was a guess — each was a sentence I could defend, answering
+  a NARROWER question than the one it was shutting, which is why nothing
+  prompted a second look. The lane found the first by reading the tool's
+  imports, and one grep found the second.
+  Gap booked separately rather than closed here: the ship runbook has no A/B
+  verdict step at all (see `## Open`).
 
 - **DONE 2026-08-14 (`f228720`), discovered closed 2026-08-18 — the push scan
   walks range-INTERIOR commits and annotated tag messages.** Closed by the
