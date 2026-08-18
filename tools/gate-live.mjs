@@ -1755,6 +1755,20 @@ export async function collectAbsorbed(dir, sinceMs, untilMs, measurable) {
 // SCOPE rather than a small corpus — the BACKLOG entry's own correction
 // ("0 hits over 20 event files" was 20 TOUCHED files, not the 9,533-file
 // population).
+//
+// A THIRD counter rides this same walk, and the reason it lives here rather
+// than in a collector of its own is cost: the population is ~14,000 event
+// files, and a second pass would read every one of them twice on a sweep that
+// has no other reason to touch them. `toolPreload` (threat-matrix row 6 step
+// b) counts the preload's three ACTS from `-deferred-tool-events.jsonl`:
+// `preloadSeeded` (a fresh conversation got a name CC had not sent yet),
+// `preloadAnnounced` (CC finally sent it and the tool became callable without
+// tools[] moving — the ABSORPTION event, which is what separates "the
+// mitigation ran" from "the mitigation absorbed"), and `preloadFallback` (a
+// seeded conversation that had to abandon the preload, one honest bust). A
+// non-zero fallback count is the signal to look; the seeded/announced pair is
+// what the entry's done-criterion reads. Same three-answer rule: zero deferred
+// event files scanned makes every count `null`, never a clean zero.
 const D1_SUFFIXES = ["-insertion-events.jsonl", "-deferred-tool-events.jsonl"];
 const D1_CORRELATION_TOLERANCE_MS = 5000;
 
@@ -1771,6 +1785,14 @@ export async function collectD1Retirement(dir, sinceMs, untilMs) {
     return {
       d1OldKeyFallback: { hits: null, newestUtc: null, filesScanned: 0, window },
       d1PostRelocationNoBaseline: { count: null, newestUtc: null, filesScanned: 0, window },
+      toolPreload: {
+        seeded: null,
+        announced: null,
+        fallback: null,
+        newestUtc: null,
+        filesScanned: 0,
+        window,
+      },
     };
   }
 
@@ -1782,6 +1804,11 @@ export async function collectD1Retirement(dir, sinceMs, untilMs) {
   let fallbackNewestUtc = null;
   const insertionFallbackBySid = new Map(); // sid -> [tMs...], insertion-events oldKeyFallback:true only
   const noBaselineCandidates = []; // {sid, tMs, ts} from deferred-tool-events, in-window no-baseline actions
+  let preloadSeeded = 0;
+  let preloadAnnounced = 0;
+  let preloadFallback = 0;
+  let preloadNewestMs = null;
+  let preloadNewestUtc = null;
 
   for (const name of names) {
     const suffix = D1_SUFFIXES.find((s) => name.endsWith(s));
@@ -1837,6 +1864,23 @@ export async function collectD1Retirement(dir, sinceMs, untilMs) {
       ) {
         noBaselineCandidates.push({ sid: rec.sid, tMs, ts: rec.ts });
       }
+      // Preload acts. The writer OMITS these fields when empty (one line per
+      // request on every session here), so absence means "no preload act" —
+      // the extension's own line being present is what proves it ran.
+      if (isDeferred && tMs >= sinceMs && tMs < untilMs) {
+        const seeded = Array.isArray(rec.preloadSeeded) ? rec.preloadSeeded.length : 0;
+        const announced = Array.isArray(rec.preloadAnnounced) ? rec.preloadAnnounced.length : 0;
+        const fellBack = Array.isArray(rec.preloadFallback) ? rec.preloadFallback.length : 0;
+        if (seeded || announced || fellBack) {
+          preloadSeeded += seeded;
+          preloadAnnounced += announced;
+          preloadFallback += fellBack;
+          if (preloadNewestMs === null || tMs > preloadNewestMs) {
+            preloadNewestMs = tMs;
+            preloadNewestUtc = rec.ts;
+          }
+        }
+      }
     }
   }
 
@@ -1865,6 +1909,14 @@ export async function collectD1Retirement(dir, sinceMs, untilMs) {
     d1PostRelocationNoBaseline: {
       count: deferredScanned === 0 || insertionScanned === 0 ? null : noBaselineHits,
       newestUtc: noBaselineHits > 0 ? noBaselineNewestUtc : null,
+      filesScanned: deferredScanned,
+      window,
+    },
+    toolPreload: {
+      seeded: deferredScanned === 0 ? null : preloadSeeded,
+      announced: deferredScanned === 0 ? null : preloadAnnounced,
+      fallback: deferredScanned === 0 ? null : preloadFallback,
+      newestUtc: preloadNewestMs === null ? null : preloadNewestUtc,
       filesScanned: deferredScanned,
       window,
     },
@@ -2362,6 +2414,9 @@ async function main() {
     // and records above rather than per-row.
     d1OldKeyFallback: d1Retirement.d1OldKeyFallback,
     d1PostRelocationNoBaseline: d1Retirement.d1PostRelocationNoBaseline,
+    // Row 6 step (b). `announced` is the absorption side of the preload's
+    // done-criterion; `fallback` non-zero is the one to look at.
+    toolPreload: d1Retirement.toolPreload,
     rows,
   };
   await mkdir(dirname(args.status), { recursive: true });

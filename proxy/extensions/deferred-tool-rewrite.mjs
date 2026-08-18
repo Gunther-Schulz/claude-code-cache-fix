@@ -81,6 +81,67 @@
 // `descriptionFallback` so the real cause is not buried under
 // "tool-schema-changed": a stale description is never served silently.
 //
+// PRELOAD (threat-matrix row 6, ladder step (b), 2026-08-18) — the fifth
+// outcome, and the only one that acts BEFORE the event it prevents. Measured
+// over the 2026-08-16 population record: `SendMessage` is 103 of 126 tool
+// ADDITION events, in 24 of the 25 captures that have any, and it is the only
+// frequent addition that is PREDICTABLE at session start (it appears when a
+// session gains a teammate agent, unlike the one-off MCP servers that make up
+// the rest). k=1 covers ~80% of addition events; the k=10 ceiling is ~89% and
+// the residue is mid-session MCP arrivals that no session-start mechanism can
+// reach. This does not fix that class and does not claim to.
+//
+// The mechanism is a SEED of the machinery above rather than a new one. Every
+// KNOWN name is forwarded from the FROZEN persisted object, so a name that is
+// already in the persisted array before CC ever sends it is classified as
+// known on arrival and tools[] does not move. Concretely:
+//
+//   - at `no-baseline` ONLY (first-seen conversation), append each preload
+//     name that is missing from the incoming array, using bytes LEARNED from
+//     a previous session (below), and mark it defer_loading on the wire;
+//   - emit NO tool_addition block at seed time. This half is load-bearing for
+//     SAFETY, not for cache: the API loads a deferred tool only when its
+//     tool_addition block is present in THAT request, so an unannounced
+//     preloaded tool sits in tools[] without being callable — which is what
+//     stops the model invoking a tool Claude Code does not yet know it has
+//     and cannot route;
+//   - when CC later sends that name for real, announce it THEN, on the same
+//     addition machinery, without touching tools[]. This is NOT the new-name
+//     path — by then the name is KNOWN, so the classifier reports
+//     `unchanged`/`rewrite` and never lists it in `newNames`; the pending set
+//     is carried in the persisted state (`preloaded`) and drained here.
+//
+// SEEDING IS NEVER RETROFITTED. A conversation that already has a persisted
+// array keeps it; adding a name mid-flight would change tools[] and cause the
+// exact bust this prevents. The seed happens at baseline creation or not at
+// all, which also means a restart is transparent for every continuing
+// conversation (row 3) and the change only reaches conversations born after it.
+//
+// MODEL GATE, same opt-in stance as the announcement: seed only for a model on
+// TOOL_ADDITION_MODELS. A preloaded tool that can never be announced is a tool
+// the model can never call, so a model with no announcement channel gets no
+// seed. If the model nevertheless changes under a seeded conversation and the
+// real arrival cannot be announced, the preload is ABANDONED — CC's raw array
+// is forwarded (one honest bust, `preloadFallback` in telemetry), never a
+// silently uncallable tool.
+//
+// WHERE THE BYTES COME FROM: LEARNED, never pinned. The first conversation
+// that sees a preload name records that tool object to a machine-local store
+// (`deferred-tool-preload.json` in the snapshot dir, one file, not per-key —
+// deliberately outside prefix-diff's SNAPSHOT_FILE_RE key anchor, so its sweep
+// cannot reach it). Last-seen-wins per name, so a Claude Code upgrade that
+// moves the schema is absorbed within one conversation instead of pinning a
+// stale copy that cannot age loudly. A pinned committed snapshot was the
+// rejected alternative for exactly that reason.
+//
+// The store starts EMPTY, so the first conversation after this ships seeds
+// nothing and only learns. That is the intended bootstrap, and it is why the
+// change cannot bust anything on the day it lands.
+//
+// Gate: CACHE_FIX_TOOL_PRELOAD, a comma-separated NAME LIST (not a boolean) —
+// unset or empty is OFF, which is the default. The names are the declared
+// preload set, so DECLARED/RUNNING/VERIFIED all carry it verbatim.
+//
 // Phase B stops at: documented shapes + persistent re-injection,
 // validated by unit tests and replay A/B (directive addendum's gates 1-2).
 // The final live acceptance probe (gate 3: one real request through the
@@ -210,17 +271,106 @@ function eventsPath(dir, sessionKey) {
   return join(dir, `${sessionKey}-deferred-tool-events.jsonl`);
 }
 
-// State: { tools: [...], additions: [{ name, anchorHash, message }] }.
+// --- Preload store (row 6 step (b); see the PRELOAD section in the header) ---
+
+// The declared preload set. A NAME LIST rather than a boolean, so the serving
+// configuration says which tools it preloads instead of pointing at a constant
+// in this file. Unset/empty = OFF, which is the default; read per call like
+// every other gate here.
+export function preloadNames(env = process.env) {
+  return (env.CACHE_FIX_TOOL_PRELOAD ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+// ONE file for the whole machine, NOT per session key. The name deliberately
+// carries no `<key>-` prefix: prefix-diff's SNAPSHOT_FILE_RE is anchored to
+// `(s-)?[0-9a-f]{12}-…`, so a keyless name cannot be swept by it (that anchor
+// is load-bearing there, and this is the other side of the same boundary).
+function preloadStorePath(dir) {
+  return join(dir, "deferred-tool-preload.json");
+}
+
+// { version: 1, tools: { <name>: { learnedAt, tool } } }. A malformed or
+// missing file reads as an empty store — the seed is an optimisation, and the
+// only cost of not having it is today's behaviour.
+async function loadPreloadStore(dir, fs) {
+  try {
+    const parsed = JSON.parse(await fs.readFile(preloadStorePath(dir), "utf-8"));
+    const tools = parsed?.tools;
+    if (!tools || typeof tools !== "object") return { version: 1, tools: {} };
+    return { version: 1, tools };
+  } catch (err) {
+    if (err && err.code !== "ENOENT") debug(`preload store read failed: ${err?.message ?? err}`);
+    return { version: 1, tools: {} };
+  }
+}
+
+async function savePreloadStore(dir, store, fs) {
+  await fs.mkdir(dir, { recursive: true });
+  const finalPath = preloadStorePath(dir);
+  const tmpPath = `${finalPath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+  await writeFileOwnerOnly(tmpPath, JSON.stringify(store, null, 2), fs);
+  await fs.rename(tmpPath, finalPath);
+}
+
+// Pure. Returns the names whose stored bytes need (re)writing: a name we want
+// to preload that is present in the incoming array and whose stored copy is
+// absent or fingerprint-different. LAST-SEEN-WINS is the whole staleness
+// answer — a schema that moves upstream is re-learned on the next conversation
+// that carries it, so the store can never pin bytes CC has stopped sending.
+export function preloadLearnable(incomingTools, store, wanted) {
+  const want = new Set(wanted);
+  const out = [];
+  for (const t of incomingTools) {
+    if (!want.has(t?.name)) continue;
+    const known = store?.tools?.[t.name]?.tool;
+    if (known && toolFingerprint(known) === toolFingerprint(t)) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+// Pure. The tool objects to append to a FRESH baseline: every wanted name that
+// the store knows and the incoming array does not already carry. Stored bytes
+// go in verbatim (minus any defer_loading marker, which is applied at forward
+// time by forwardedTools, exactly as it is for an announced addition — the
+// persisted array must stay fingerprint-comparable against CC's raw one).
+export function preloadSeedTools(incomingTools, store, wanted) {
+  const present = new Set(incomingTools.map((t) => t?.name));
+  const out = [];
+  for (const name of wanted) {
+    if (present.has(name)) continue;
+    const known = store?.tools?.[name]?.tool;
+    if (!known) continue;
+    const { defer_loading: _drop, ...bytes } = known;
+    out.push(bytes);
+  }
+  return out;
+}
+
+// State: { tools: [...], additions: [{ name, anchorHash, message }],
+//          preloaded: [name, …] }.
 // `additions` (Phase B) carries each injected system message byte-frozen,
 // plus the identity hash of the message it was anchored after. Old files
 // without the field read as additions=[] — no migration, sessions started
 // under Phase A simply have no pending injections.
+// `preloaded` (row 6 step b) is the SEEDED-BUT-UNANNOUNCED set: names sitting
+// in the persisted array that CC has not sent yet. It is read on every request
+// because it drives the defer_loading marker on the wire — a preloaded name
+// that loses its marker changes tools[], which is the bust this prevents. Old
+// files without the field read as [], i.e. exactly today's behaviour.
 async function loadState(dir, sessionKey, fs) {
   try {
     const txt = await fs.readFile(statePath(dir, sessionKey), "utf-8");
     const parsed = JSON.parse(txt);
     if (!Array.isArray(parsed?.tools)) return null;
-    return { tools: parsed.tools, additions: Array.isArray(parsed.additions) ? parsed.additions : [] };
+    return {
+      tools: parsed.tools,
+      additions: Array.isArray(parsed.additions) ? parsed.additions : [],
+      preloaded: Array.isArray(parsed.preloaded) ? parsed.preloaded : [],
+    };
   } catch (err) {
     if (err && err.code !== "ENOENT") debug(`state read failed: ${err?.message ?? err}`);
     return null;
@@ -365,7 +515,7 @@ export function toolFingerprint(tool) {
 // --- Core classifier (pure) ---
 //
 // Returns:
-//   { action: "no-baseline", knownTools }                                             — first-seen session; persist baseline, forward unchanged
+//   { action: "no-baseline", knownTools }                                             — first-seen session; persist baseline, forward unchanged (EXCEPT where onRequest seeds a preload into knownTools — the one case a fresh baseline forwards something other than CC's array; see the PRELOAD header section)
 //   { action: "unchanged", knownTools }                                               — incoming === known set, same order; forward unchanged
 //   { action: "reset", knownTools, reason }                                           — a known tool's schema changed; forward unchanged, re-baseline
 //   { action: "rewrite", tools, newNames, heldNames, knownTools }                      — held removal and/or reorder and/or pure addition; onRequest forwards forwardedTools(knownTools, additions) and injects the addition message
@@ -629,8 +779,17 @@ export function injectAdditions(messages, additions) {
 // Description notices are excluded from that name set: the tool they name
 // is already loaded and stays loaded, and marking it defer_loading would
 // both be a lie and change the very bytes the absorb exists to hold still.
-export function forwardedTools(knownTools, additions) {
+//
+// `preloadedNames` (row 6 step b, optional third argument so the existing
+// caller in tools/probe-tool-addition.mjs is untouched) is the seeded-but-
+// unannounced set. It needs the SAME marker for a different reason: those
+// tools are in tools[] with no tool_addition block anywhere, so defer_loading
+// is the only thing telling the API they are not loaded. Dropping the marker
+// on a later request would both change tools[] and present an unannounced tool
+// as loaded.
+export function forwardedTools(knownTools, additions, preloadedNames = []) {
   const deferredNames = new Set(additions.filter((a) => a.kind !== DESCRIPTION_KIND).flatMap((a) => a.names));
+  for (const name of preloadedNames) deferredNames.add(name);
   return knownTools.map((t) => (deferredNames.has(t.name) ? { ...t, defer_loading: true } : t));
 }
 
@@ -729,6 +888,90 @@ export default {
 
       const announceOk = supportsToolAddition(body?.model);
 
+      // --- PRELOAD (row 6 step b) ---------------------------------------
+      // Three acts, in this order, and the order matters: LEARN from what CC
+      // actually sent (so the store is never a restated copy of a schema
+      // nobody serves), SEED only a brand-new baseline, and ANNOUNCE a seeded
+      // name at the request where CC finally sends it.
+      const wantPreload = preloadNames();
+      // Carried forward on every request; a reset re-baselines against CC's
+      // own array, which by definition already contains whatever it sends, so
+      // nothing stays pending across one.
+      let preloadPending = result.action === "reset" ? [] : (prior?.preloaded ?? []);
+      let preloadSeeded = [];
+      let preloadAnnounced = [];
+      let preloadFallback = null;
+      // Built here, appended to `additions` below — `additions` is derived
+      // from `result` further down, and this block can still change `result`.
+      let additionsFromPreload = null;
+
+      if (wantPreload.length > 0) {
+        const store = await loadPreloadStore(dir, fs);
+
+        const learnable = preloadLearnable(incomingTools, store, wantPreload);
+        if (learnable.length > 0) {
+          const now = new Date().toISOString();
+          for (const t of learnable) store.tools[t.name] = { learnedAt: now, tool: t };
+          try {
+            await savePreloadStore(dir, store, fs);
+          } catch (err) {
+            // A store we could not write is a seed we will not have next
+            // conversation — never a reason to fail the request in flight.
+            debug(`preload store write failed: ${err?.message ?? err}`);
+          }
+        }
+
+        // SEED: fresh baseline only, allowlisted model only. Never a retrofit
+        // — adding a name to a conversation that already has a persisted array
+        // changes tools[] mid-flight, i.e. causes the class this prevents.
+        if (result.action === "no-baseline" && announceOk) {
+          const seeds = preloadSeedTools(incomingTools, store, wantPreload);
+          if (seeds.length > 0) {
+            preloadSeeded = seeds.map((t) => t.name);
+            preloadPending = preloadPending.concat(preloadSeeded);
+            result = { ...result, knownTools: incomingTools.concat(seeds) };
+          }
+        }
+      }
+
+      // ANNOUNCE-ON-ARRIVAL. By now the name is KNOWN, so the classifier never
+      // lists it in `newNames` — this is the drain the header calls out as NOT
+      // being the new-name path.
+      //
+      // DELIBERATELY OUTSIDE the `wantPreload` gate above, and that placement
+      // is load-bearing: turning the gate off must not bust the conversations
+      // already seeded under it (their persisted array still carries the
+      // name), and it must not strand them either — a drain that only ran
+      // while the gate is on would leave an already-seeded tool permanently
+      // uncallable the moment the operator removed a name from the list. The
+      // gate governs LEARNING and SEEDING, never the obligations already
+      // outstanding.
+      if (preloadPending.length > 0) {
+        const arrived = preloadPending.filter((name) =>
+          incomingTools.some((t) => t?.name === name),
+        );
+        const canAnnounceHere = announceOk && Array.isArray(body.messages) && body.messages.length > 0;
+        // ABANDON, and it fires on the MODEL as well as on the arrival. A
+        // seeded conversation whose model has since changed to one outside the
+        // allowlist can never announce, so its pending name would sit in
+        // tools[] uncallable forever — and we would be putting defer_loading
+        // plus the beta token in front of a model that has 400'd on this
+        // contract. One honest bust, named in telemetry, beats either.
+        if (!announceOk || (arrived.length > 0 && !canAnnounceHere)) {
+          preloadFallback = preloadPending;
+          preloadPending = [];
+          result = { action: "reset", knownTools: incomingTools, reason: "preload-unannounceable" };
+        } else if (arrived.length > 0) {
+          preloadAnnounced = arrived;
+          preloadPending = preloadPending.filter((name) => !arrived.includes(name));
+          additionsFromPreload = {
+            names: arrived,
+            anchorHash: anchorHash(body.messages[body.messages.length - 1]),
+            message: buildToolAdditionMessage(arrived),
+          };
+        }
+      }
+
       // FALLBACK, and it is load-bearing: absorbing a description delta is
       // only honest because the model is TOLD the new prose in-band. Where
       // there is no channel to tell it on — an un-allowlisted model, or no
@@ -747,6 +990,12 @@ export default {
       // re-baselines everything — the harness's own tools[] becomes truth
       // and pending injections are abandoned with it).
       let additions = result.action === "reset" ? [] : (prior?.additions ?? []);
+      // The preload's own announcement, if a seeded name arrived this request.
+      // Appended here rather than at the site that built it, so it goes
+      // through the same reset/model gating every other addition does.
+      if (additionsFromPreload && result.action !== "reset") {
+        additions = additions.concat([additionsFromPreload]);
+      }
 
       // Model gate, applied at the single point everything downstream reads.
       // Emptying `additions` here disables the announcement, the
@@ -845,7 +1094,14 @@ export default {
       // defer_loading markers — forwarding it raw would silently un-defer
       // every added tool. no-baseline and reset pass through untouched.
       if (result.action === "rewrite") {
-        body.tools = forwardedTools(result.knownTools, additions);
+        body.tools = forwardedTools(result.knownTools, additions, preloadPending);
+      } else if (result.action === "no-baseline" && preloadSeeded.length > 0) {
+        // The ONE case where a fresh baseline does not forward CC's array
+        // untouched: the seed appended names CC did not send, so the wire has
+        // to carry them from the very first request. Forwarding the raw array
+        // here and the seeded one next request would move tools[] at request
+        // 2 — the bust, one turn later.
+        body.tools = forwardedTools(result.knownTools, additions, preloadPending);
       } else if (result.action === "unchanged" || result.action === "description-absorbed") {
         // ALWAYS re-forward the frozen array here, not only when additions
         // exist. Two reasons, and the second was measured the hard way:
@@ -863,7 +1119,7 @@ export default {
         // the prior one untouched), and forwarding CC's array instead would
         // put the description delta on the wire — the whole bust the absorb
         // exists to prevent.
-        body.tools = forwardedTools(result.knownTools, additions);
+        body.tools = forwardedTools(result.knownTools, additions, preloadPending);
       }
 
       let reanchored = [];
@@ -883,8 +1139,18 @@ export default {
         // the wire — every request after the first addition.
         if (headers) addBetaToken(headers);
       }
+      // A pending preload puts defer_loading on the wire with NO injected
+      // message, so the branch above cannot cover it — and defer_loading is
+      // part of the same beta as the tool_addition block. Without this the
+      // very first seeded request sends a beta field under no beta header.
+      if (preloadPending.length > 0 && headers) addBetaToken(headers);
 
-      await saveState(dir, sessionKey, { tools: result.knownTools, additions }, fs);
+      await saveState(
+        dir,
+        sessionKey,
+        { tools: result.knownTools, additions, preloaded: preloadPending },
+        fs,
+      );
 
       ctx.meta = ctx.meta || {};
       ctx.meta.deferredToolRewriteStats = {
@@ -900,10 +1166,17 @@ export default {
         // itself absent) one level up, at any consumer that reads this object.
         announcedNames,
         passthrough,
+        // Always present, [] / 0 when no preload is configured — same stance
+        // as announcedNames above: "ran and preloaded nothing" must stay
+        // distinguishable from "never ran" at every consumer.
+        preloadSeeded,
+        preloadAnnounced,
+        preloadPending: preloadPending.length,
         ...(result.descriptionChanges
           ? { descriptionChangedNames: result.descriptionChanges.map((c) => c.name) }
           : {}),
         ...(descriptionFallback ? { descriptionFallback } : {}),
+        ...(preloadFallback ? { preloadFallback } : {}),
       };
 
       await appendTelemetry(
@@ -925,6 +1198,15 @@ export default {
             ? { descriptionChangedNames: result.descriptionChanges.map((c) => c.name) }
             : {}),
           ...(descriptionFallback ? { descriptionFallback } : {}),
+          // Preload fields are OMITTED when empty rather than always written:
+          // this file is one line per request on every session on the machine,
+          // and three permanently-empty arrays per line is real bytes. The
+          // reader's rule is the one this repo already pays for elsewhere —
+          // absence here means "no preload act", and the presence of the
+          // extension's own line is what proves it ran.
+          ...(preloadSeeded.length > 0 ? { preloadSeeded } : {}),
+          ...(preloadAnnounced.length > 0 ? { preloadAnnounced } : {}),
+          ...(preloadFallback ? { preloadFallback, model: body?.model } : {}),
           ...(suppressed ? { suppressed: true, model: body?.model } : {}),
           ...(reanchored.length > 0 ? { reanchored } : {}),
           ...(result.reason ? { reason: result.reason } : {}),
@@ -939,6 +1221,9 @@ export default {
             (result.heldNames && result.heldNames.length ? ` held=${result.heldNames.join(",")}` : "") +
             (result.descriptionChanges ? ` desc=${result.descriptionChanges.map((c) => c.name).join(",")}` : "") +
             (descriptionFallback ? ` descFallback=${descriptionFallback.join(",")}` : "") +
+            (preloadSeeded.length ? ` preloadSeeded=${preloadSeeded.join(",")}` : "") +
+            (preloadAnnounced.length ? ` preloadAnnounced=${preloadAnnounced.join(",")}` : "") +
+            (preloadFallback ? ` preloadFallback=${preloadFallback.join(",")}` : "") +
             (result.reason ? ` reason=${result.reason}` : "") +
             "\n",
         );

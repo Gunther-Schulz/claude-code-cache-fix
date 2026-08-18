@@ -552,6 +552,54 @@ export function collectBustEvidence({ bustEvidenceDir = join(homedir(), ".local/
   };
 }
 
+/** The TOOL-PRELOAD carrier (closing-gate question 4's CARRIER REGISTRATION
+ * clause). `deferred-tool-rewrite`'s preload (threat-matrix row 6 step b)
+ * learns each preloaded tool's schema from live traffic into ONE machine-local
+ * file, `deferred-tool-preload.json` in the snapshot dir. It outlives every
+ * run, it is deliberately outside prefix-diff's snapshot sweep (the sweep's
+ * key anchor cannot reach a keyless name), and nothing rotates it — so without
+ * this collector it is exactly the shape the clause names: state a mechanism
+ * leaves behind that nobody is scheduled to look at.
+ *
+ * What a reader wants from it is not the bytes but WHETHER THEY ARE CURRENT:
+ * the store is last-seen-wins, so an old `learnedAt` on a machine that is
+ * still running the preload means the schema has not moved, while an old one
+ * on a machine where the gate was turned off means the store is a fossil that
+ * will seed stale bytes if the gate ever comes back. Both readings need the
+ * age, so the age is what this reports, per name.
+ *
+ * A missing file is a MEASURED empty store, not a third answer — the store is
+ * created lazily by the first learn, so `ok: false` there would fire on every
+ * machine that has never run the preload. An UNREADABLE or malformed file is
+ * the third answer, because that is a store the extension will also silently
+ * read as empty and re-learn over.
+ */
+export function collectToolPreload({ snapshotDir = join(homedir(), ".local/state/cache-fix/snapshots") } = {}) {
+  const path = join(snapshotDir, "deferred-tool-preload.json");
+  let raw;
+  try {
+    raw = readFileSync(path, "utf-8");
+  } catch (e) {
+    if (e?.code === "ENOENT") return { ok: true, path, exists: false, names: [] };
+    return { ok: false, reason: String(e?.message ?? e) };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    return { ok: false, reason: `unparseable store at ${path}: ${String(e?.message ?? e)}` };
+  }
+  const tools = parsed?.tools;
+  if (!tools || typeof tools !== "object") {
+    return { ok: false, reason: `store at ${path} has no tools object` };
+  }
+  const names = Object.keys(tools).map((name) => ({
+    name,
+    learnedAt: typeof tools[name]?.learnedAt === "string" ? tools[name].learnedAt : null,
+  }));
+  return { ok: true, path, exists: true, bytes: raw.length, names };
+}
+
 export function collectRepo(opts = {}) {
   return {
     unpushed: collectUnpushed(opts),
@@ -561,6 +609,7 @@ export function collectRepo(opts = {}) {
     fixtures: collectFixturesAccumulation(opts),
     protectedCaptures: collectProtectedCaptures(opts),
     bustEvidence: collectBustEvidence(opts),
+    toolPreload: collectToolPreload(opts),
   };
 }
 
@@ -833,6 +882,14 @@ function renderRepo(r) {
         ? "bust evidence: none frozen"
         : `bust evidence: ${x.files} file(s), ${(x.bytes / 1e6).toFixed(0)} MB across ` +
           `${x.dates} date(s), oldest ${x.oldest} — machine-local, nothing rotates it`),
+  );
+  lines.push(
+    fmtVerdict("tool preload store", r.toolPreload, (x) =>
+      !x.exists
+        ? "tool preload store: not created (nothing learned yet — the preload seeds nothing until it is)"
+        : `tool preload store: ${x.names.length} schema(s) learned — ` +
+          capList(x.names.map((n) => `${n.name} @ ${n.learnedAt ?? "unknown"}`)) +
+          "\n  last-seen-wins, machine-local, nothing rotates it"),
   );
   return lines.join("\n");
 }

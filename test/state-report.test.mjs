@@ -834,3 +834,79 @@ test("an ABSENT collector renders COULD-NOT-VERIFY instead of taking the whole r
   assert.match(text, /unpushed: COULD-NOT-VERIFY — x/);
   assert.doesNotMatch(text, /unpushed: COULD-NOT-VERIFY — collector absent/);
 });
+
+// =============================================================================
+// TOOL-PRELOAD CARRIER (closing-gate question 4's CARRIER REGISTRATION clause)
+//
+// `deferred-tool-rewrite`'s preload (threat-matrix row 6 step b) writes ONE
+// machine-local file that outlives every run, sits outside prefix-diff's
+// snapshot sweep by construction, and is rotated by nothing. Registered here
+// by its CREATOR's change, which is the clause's whole point: the creator is
+// the only party that knows the carrier is there.
+//
+// Red-first: against the unmodified module `sr.collectToolPreload` is
+// undefined and these bites fail at their own call sites, while every other
+// bite in this file passes (namespace import, per dev-loop.md's import-line
+// rule).
+// =============================================================================
+
+test("collectToolPreload reports each learned schema and its age", () => {
+  const dir = tmpDirSync("state-report-preload-");
+  writeFileSync(
+    join(dir, "deferred-tool-preload.json"),
+    JSON.stringify({
+      version: 1,
+      tools: { SendMessage: { learnedAt: "2026-08-18T06:00:00.000Z", tool: { name: "SendMessage" } } },
+    }),
+  );
+  const res = sr.collectToolPreload({ snapshotDir: dir });
+  assert.equal(res.ok, true);
+  assert.equal(res.exists, true);
+  assert.deepEqual(res.names, [{ name: "SendMessage", learnedAt: "2026-08-18T06:00:00.000Z" }]);
+});
+
+test("third answer: an ABSENT store is a measured empty set, a MALFORMED one is could-not-verify", () => {
+  // The two absences are deliberately not the same. The store is created
+  // lazily by the first learn, so its absence is "looked, nothing there" —
+  // ok:false would fire on every machine that has never run the preload. A
+  // file that exists and will not parse is different: the extension itself
+  // reads it as empty and re-learns over it, so a clean zero here would hide
+  // a store that is silently being discarded.
+  const empty = sr.collectToolPreload({ snapshotDir: join(tmpDirSync("sr-preload-none-"), "nope") });
+  assert.equal(empty.ok, true);
+  assert.equal(empty.exists, false);
+  assert.deepEqual(empty.names, []);
+
+  const bad = tmpDirSync("sr-preload-bad-");
+  writeFileSync(join(bad, "deferred-tool-preload.json"), "{ not json");
+  const res = sr.collectToolPreload({ snapshotDir: bad });
+  assert.equal(res.ok, false, "an unparseable store is COULD-NOT-VERIFY, never a clean zero");
+});
+
+test("the preload store appears in the rendered report, so the carrier has a READER and not just a collector", () => {
+  const dir = tmpDirSync("state-report-preload-render-");
+  writeFileSync(
+    join(dir, "deferred-tool-preload.json"),
+    JSON.stringify({ version: 1, tools: { SendMessage: { learnedAt: "2026-08-18T06:00:00.000Z", tool: {} } } }),
+  );
+  const stub = { ok: false, reason: "not under test" };
+  const render = (toolPreload) =>
+    sr.renderText({
+      matrix: stub,
+      backlog: stub,
+      verification: { gate: stub, pin: stub, fingerprint: stub },
+      repo: {
+        unpushed: stub, rescueTags: stub, dangling: stub, worktrees: stub,
+        fixtures: stub, protectedCaptures: stub, bustEvidence: stub, toolPreload,
+      },
+      laneBranches: stub,
+    });
+  assert.match(render(sr.collectToolPreload({ snapshotDir: dir })), /tool preload store: 1 schema\(s\) learned/);
+  // Instrument positive beside the match: the same render over an ABSENT
+  // store says so in different words, so a passing regex is a measurement
+  // rather than a pattern that would match anything.
+  assert.match(
+    render(sr.collectToolPreload({ snapshotDir: join(tmpDirSync("sr-preload-none2-"), "nope") })),
+    /tool preload store: not created/,
+  );
+});

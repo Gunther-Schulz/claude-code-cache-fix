@@ -1155,3 +1155,63 @@ test("BITE — a real sweep writes the duplicate rollup into the FIRE LEDGER, wh
   assert.deepEqual(line.duplicates, parsed.byteGate.duplicates,
     "the ledger must carry the SAME rollup the status file reports, not a second derivation of it");
 });
+
+// =============================================================================
+// toolPreload — threat-matrix row 6 step (b), the preload's own counters.
+//
+// Red-first: against the unmodified module `r.toolPreload` is `undefined` and
+// these bites fail at their own call sites while every other bite in this file
+// passes (the collector is reached through the `gateLive` namespace, so no
+// import line can collapse the split).
+// =============================================================================
+
+test("BITE — toolPreload: seeded / announced / fallback are counted from deferred-tool-events, and the ANNOUNCED count is the absorption side", async (t) => {
+  const dir = await snapshotDirWith({
+    "s-key-p1-deferred-tool-events.jsonl": [
+      // A fresh conversation got the preload.
+      JSON.stringify({ ts: "2026-08-18T10:00:00.000Z", key: "key-p1", sid: "sid-1", action: "no-baseline", newNames: [], heldNames: [], preloadSeeded: ["SendMessage"] }),
+      // ... and CC later sent the tool for real. THIS is the event the entry's
+      // done-criterion reads: the tool became callable and tools[] did not
+      // move. Counting only `seeded` would say the mitigation RAN and never
+      // that it ABSORBED.
+      JSON.stringify({ ts: "2026-08-18T10:05:00.000Z", key: "key-p1", sid: "sid-1", action: "unchanged", newNames: [], heldNames: [], preloadAnnounced: ["SendMessage"] }),
+    ].join("\n") + "\n",
+    "s-key-p2-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-18T11:00:00.000Z", key: "key-p2", sid: "sid-2", action: "reset", reason: "preload-unannounceable", preloadFallback: ["SendMessage"], model: "claude-sonnet-5" }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const r = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-18T00:00:00Z"), Date.parse("2026-08-19T00:00:00Z"));
+  assert.deepEqual(
+    { seeded: r.toolPreload.seeded, announced: r.toolPreload.announced, fallback: r.toolPreload.fallback },
+    { seeded: 1, announced: 1, fallback: 1 },
+  );
+  assert.equal(r.toolPreload.newestUtc, "2026-08-18T11:00:00.000Z", "newest is the newest PRELOAD act, not the newest record");
+});
+
+test("BITE — toolPreload: ordinary traffic with no preload act reports a MEASURED zero, and an empty corpus reports could-not-verify", async (t) => {
+  // The pair matters: a zero from a scanned population and a zero from an
+  // unscanned one are the same bytes, and only the second is could-not-verify.
+  const dir = await snapshotDirWith({
+    "s-key-q-deferred-tool-events.jsonl": [
+      JSON.stringify({ ts: "2026-08-18T10:00:00.000Z", key: "key-q", sid: "sid-9", action: "unchanged", newNames: [], heldNames: [] }),
+    ].join("\n") + "\n",
+  });
+  t.after(() => rm(dir, { recursive: true, force: true }));
+
+  const scanned = await gateLive.collectD1Retirement(dir, Date.parse("2026-08-18T00:00:00Z"), Date.parse("2026-08-19T00:00:00Z"));
+  assert.deepEqual(
+    { seeded: scanned.toolPreload.seeded, announced: scanned.toolPreload.announced, fallback: scanned.toolPreload.fallback },
+    { seeded: 0, announced: 0, fallback: 0 },
+    "files were scanned, so the zero is a measurement",
+  );
+  assert.ok(scanned.toolPreload.filesScanned > 0);
+
+  const empty = await snapshotDirWith({});
+  t.after(() => rm(empty, { recursive: true, force: true }));
+  const unscanned = await gateLive.collectD1Retirement(empty, Date.parse("2026-08-18T00:00:00Z"), Date.parse("2026-08-19T00:00:00Z"));
+  assert.equal(unscanned.toolPreload.seeded, null, "nothing scanned -> could-not-verify, never a clean zero");
+  assert.equal(unscanned.toolPreload.announced, null);
+  assert.equal(unscanned.toolPreload.fallback, null);
+});

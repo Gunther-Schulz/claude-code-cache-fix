@@ -1050,3 +1050,385 @@ test("onRequest: no new tool names → announcedNames/passthrough are EMPTY ARRA
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// =============================================================================
+// PRELOAD — threat-matrix row 6, ladder step (b) (2026-08-18)
+//
+// NAMESPACE IMPORT, deliberately, and it is the arrangement rather than a
+// style choice: a static NAMED import of a not-yet-written export fails the
+// whole module at ESM link time, so every bite in this 1000-line file goes red
+// at once and the red-first run proves nothing about which half broke (the
+// trap dev-loop names under "Adding a check"). `import * as` always links and
+// leaves a missing export `undefined`, so each new bite fails at its own call
+// site while every pre-existing bite here stays green — which is the split the
+// arrangement exists to demonstrate.
+// =============================================================================
+
+const preloadMod = await import("../proxy/extensions/deferred-tool-rewrite.mjs");
+
+const PRELOAD_STORE = (dir) => join(dir, "cache-fix", "snapshots", "deferred-tool-preload.json");
+
+async function readPreloadStore(dir) {
+  return JSON.parse(await readFile(PRELOAD_STORE(dir), "utf-8"));
+}
+
+// The tool this whole step exists for: 103 of 126 measured addition events.
+function sendMessageTool() {
+  return {
+    name: "SendMessage",
+    description: "Send a message to a named live session.",
+    input_schema: { type: "object", properties: { to: { type: "string" }, message: { type: "string" } } },
+  };
+}
+
+test("preloadNames: the gate is a NAME LIST, and unset/empty is OFF", () => {
+  assert.deepEqual(preloadMod.preloadNames({}), []);
+  assert.deepEqual(preloadMod.preloadNames({ CACHE_FIX_TOOL_PRELOAD: "" }), []);
+  assert.deepEqual(preloadMod.preloadNames({ CACHE_FIX_TOOL_PRELOAD: "SendMessage" }), ["SendMessage"]);
+  assert.deepEqual(
+    preloadMod.preloadNames({ CACHE_FIX_TOOL_PRELOAD: " SendMessage , TaskCreate ,, " }),
+    ["SendMessage", "TaskCreate"],
+  );
+});
+
+test("preloadLearnable: learns an unknown wanted name, re-learns a moved schema, ignores a match", () => {
+  const sm = sendMessageTool();
+  const empty = { version: 1, tools: {} };
+  assert.deepEqual(
+    preloadMod.preloadLearnable([tool("Read"), sm], empty, ["SendMessage"]).map((t) => t.name),
+    ["SendMessage"],
+    "unknown wanted name is learnable",
+  );
+
+  const stored = { version: 1, tools: { SendMessage: { learnedAt: "x", tool: sm } } };
+  assert.deepEqual(
+    preloadMod.preloadLearnable([tool("Read"), sm], stored, ["SendMessage"]),
+    [],
+    "a fingerprint match is not re-learned",
+  );
+
+  // LAST-SEEN-WINS is the entire staleness answer — a pinned copy could not
+  // age loudly, which is why (b) PINNED was the rejected alternative.
+  const moved = { ...sm, input_schema: { type: "object", properties: { to: { type: "string" } } } };
+  assert.deepEqual(
+    preloadMod.preloadLearnable([moved], stored, ["SendMessage"]).map((t) => t.name),
+    ["SendMessage"],
+    "a schema that moved upstream is re-learned",
+  );
+
+  assert.deepEqual(
+    preloadMod.preloadLearnable([tool("Read"), sm], empty, ["TaskCreate"]),
+    [],
+    "a name outside the wanted set is never learned",
+  );
+});
+
+test("preloadSeedTools: seeds only unknown-to-CC names the store knows, and strips defer_loading", () => {
+  const sm = sendMessageTool();
+  const store = {
+    version: 1,
+    tools: { SendMessage: { learnedAt: "x", tool: { ...sm, defer_loading: true } } },
+  };
+  assert.deepEqual(
+    preloadMod.preloadSeedTools([tool("Read")], store, ["SendMessage"]),
+    [sm],
+    "seed carries the learned bytes WITHOUT the marker — forwardedTools applies it, and the persisted array must stay fingerprint-comparable against CC's raw one",
+  );
+  assert.deepEqual(
+    preloadMod.preloadSeedTools([tool("Read"), sm], store, ["SendMessage"]),
+    [],
+    "a name CC already sent is never seeded",
+  );
+  assert.deepEqual(
+    preloadMod.preloadSeedTools([tool("Read")], store, ["TaskCreate"]),
+    [],
+    "a wanted name the store has never learned cannot be seeded",
+  );
+});
+
+test("forwardedTools: a pending preload gets defer_loading with NO addition record", () => {
+  const known = [tool("Read"), sendMessageTool()];
+  const fwd = forwardedTools(known, [], ["SendMessage"]);
+  assert.equal(fwd[0].defer_loading, undefined, "an unrelated tool is untouched");
+  assert.equal(fwd[1].defer_loading, true, "the preloaded name carries the marker");
+  // The two-argument form is what tools/probe-tool-addition.mjs calls.
+  assert.deepEqual(forwardedTools(known, []), known, "third argument stays optional");
+});
+
+test("preload END-TO-END: learn, seed a NEW conversation, hold tools[] byte-stable, announce on arrival", async () => {
+  const dir = await newTmp();
+  try {
+    await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "SendMessage" },
+      async () => {
+        const sm = sendMessageTool();
+
+        // --- BOOTSTRAP. The store starts empty, so the first conversation
+        // seeds nothing and only LEARNS. This is why the change cannot bust
+        // anything on the day it lands.
+        const teacher = {
+          system: [],
+          messages: [{ role: "user", content: [{ type: "text", text: "teacher turn" }] }],
+          model: "claude-opus-5",
+          tools: [tool("Read"), sm],
+        };
+        const ctxT = await runExt(structuredClone(teacher), {
+          headers: { "x-claude-code-session-id": "sess-preload-teacher" },
+          dir,
+        });
+        assert.deepEqual(ctxT.meta.deferredToolRewriteStats.preloadSeeded, [], "nothing to seed from an empty store");
+        const store = await readPreloadStore(dir);
+        assert.deepEqual(store.tools.SendMessage.tool, sm, "learned CC's own bytes, verbatim");
+
+        // --- SEED. A different conversation, born after the store was
+        // learned, whose incoming array does NOT carry SendMessage.
+        const headers = { "x-claude-code-session-id": "sess-preload-seeded" };
+        const first = { role: "user", content: [{ type: "text", text: "seeded turn 1" }] };
+        const body1 = {
+          system: [],
+          messages: [first],
+          model: "claude-opus-5",
+          tools: [tool("Read"), tool("Bash")],
+        };
+        const ctx1 = await runExt(structuredClone(body1), { headers, dir });
+        assert.equal(ctx1.meta.deferredToolRewriteStats.action, "no-baseline");
+        assert.deepEqual(ctx1.meta.deferredToolRewriteStats.preloadSeeded, ["SendMessage"]);
+        assert.deepEqual(
+          ctx1.body.tools.map((t) => t.name),
+          ["Read", "Bash", "SendMessage"],
+          "the preload rides at the END of the first-seen order",
+        );
+        assert.equal(ctx1.body.tools[2].defer_loading, true);
+        // NO announcement at seed time. This half is SAFETY, not cache: an
+        // unannounced deferred tool is not loadable, which is what stops the
+        // model calling a tool CC does not yet know it has.
+        assert.equal(ctx1.body.messages.length, 1, "no tool_addition message injected at seed time");
+        assert.match(headers["anthropic-beta"] ?? "", /mid-conversation-tool-changes/,
+          "defer_loading is beta-gated, so the header rides with the seed");
+        const wire1 = structuredClone(ctx1.body.tools);
+
+        // --- HOLD. The claim the whole step exists for: request 2 forwards a
+        // BYTE-IDENTICAL tools[].
+        const ctx2 = await runExt(
+          structuredClone({ ...body1, messages: [first, { role: "assistant", content: [{ type: "text", text: "a" }] }] }),
+          { headers, dir },
+        );
+        assert.deepEqual(ctx2.body.tools, wire1, "tools[] is byte-stable across the seeded request");
+        assert.equal(ctx2.meta.deferredToolRewriteStats.preloadPending, 1);
+
+        // --- ARRIVAL. CC finally sends SendMessage. tools[] must NOT move —
+        // that is the 80% of addition events this step removes — and the
+        // announcement happens NOW, so the tool becomes callable.
+        const ctx3 = await runExt(
+          structuredClone({
+            ...body1,
+            messages: [first, { role: "assistant", content: [{ type: "text", text: "a" }] }],
+            tools: [tool("Read"), tool("Bash"), sm],
+          }),
+          { headers, dir },
+        );
+        assert.deepEqual(ctx3.body.tools, wire1, "the arrival moves NOTHING in tools[] — the whole point");
+        assert.deepEqual(ctx3.meta.deferredToolRewriteStats.preloadAnnounced, ["SendMessage"]);
+        assert.equal(ctx3.meta.deferredToolRewriteStats.preloadPending, 0);
+        const announcement = ctx3.body.messages.find(
+          (m) => m.role === "system" && m.content?.some?.((b) => b.type === "tool_addition"),
+        );
+        assert.ok(announcement, "the seeded tool is announced at the request CC sends it");
+        assert.deepEqual(
+          announcement.content.map((b) => b.tool.name),
+          ["SendMessage"],
+        );
+
+        // --- AND IT STAYS. A fourth request re-injects the same announcement
+        // (the API is stateless) and still does not move tools[].
+        const ctx4 = await runExt(
+          structuredClone({
+            ...body1,
+            messages: [first, { role: "assistant", content: [{ type: "text", text: "a" }] }],
+            tools: [tool("Read"), tool("Bash"), sm],
+          }),
+          { headers, dir },
+        );
+        assert.deepEqual(ctx4.body.tools, wire1);
+      },
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("preload CONTROL: gate OFF forwards today's array, and a seeded session differs from it by EXACTLY the one deferred entry", async () => {
+  const dir = await newTmp();
+  try {
+    const sm = sendMessageTool();
+    const first = { role: "user", content: [{ type: "text", text: "control turn" }] };
+    const body = { system: [], messages: [first], model: "claude-opus-5", tools: [tool("Read"), tool("Bash")] };
+
+    // Arm 1 — gate OFF. A version that changes this arm is over-firing.
+    const off = await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: undefined },
+      async () => {
+        const ctxT = await runExt(
+          structuredClone({ ...body, tools: [tool("Read"), sm] }),
+          { headers: { "x-claude-code-session-id": "sess-ctl-teacher" }, dir },
+        );
+        assert.deepEqual(ctxT.meta.deferredToolRewriteStats.preloadSeeded, [],
+          "with the gate off nothing is even learned");
+        const ctx = await runExt(structuredClone(body), {
+          headers: { "x-claude-code-session-id": "sess-ctl-off" },
+          dir,
+        });
+        return ctx.body.tools;
+      },
+    );
+    assert.deepEqual(off, [tool("Read"), tool("Bash")], "gate off is byte-for-byte today's behaviour");
+
+    // Arm 2 — gate ON, same input. The arms MUST differ, and by exactly one
+    // entry: an implementation that makes every array stable would pass arm 1
+    // and fail here, and one that seeds nothing would pass here and fail the
+    // end-to-end bite above.
+    const on = await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "SendMessage" },
+      async () => {
+        await runExt(structuredClone({ ...body, tools: [tool("Read"), sm] }), {
+          headers: { "x-claude-code-session-id": "sess-ctl-teacher2" },
+          dir,
+        });
+        const ctx = await runExt(structuredClone(body), {
+          headers: { "x-claude-code-session-id": "sess-ctl-on" },
+          dir,
+        });
+        return ctx.body.tools;
+      },
+    );
+    assert.notDeepEqual(on, off, "the two arms must DIFFER, or this bite discriminates nothing");
+    assert.deepEqual(on.slice(0, 2), off, "every tool CC actually sent is untouched");
+    assert.equal(on.length, off.length + 1);
+    assert.deepEqual(on[2], { ...sm, defer_loading: true });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("preload NEVER RETROFITS: a conversation that already has a baseline is not seeded when the gate turns on", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-preload-retrofit" };
+  const first = { role: "user", content: [{ type: "text", text: "retrofit turn" }] };
+  const body = { system: [], messages: [first], model: "claude-opus-5", tools: [tool("Read"), tool("Bash")] };
+  try {
+    // Teach the store under the gate, in a DIFFERENT conversation.
+    await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "SendMessage" },
+      async () => {
+        await runExt(
+          structuredClone({
+            ...body,
+            messages: [{ role: "user", content: [{ type: "text", text: "other" }] }],
+            tools: [tool("Read"), sendMessageTool()],
+          }),
+          { headers: { "x-claude-code-session-id": "sess-preload-retrofit-teacher" }, dir },
+        );
+        // This conversation gets its baseline first.
+        const ctx1 = await runExt(structuredClone(body), { headers, dir });
+        assert.equal(ctx1.meta.deferredToolRewriteStats.action, "no-baseline");
+        assert.deepEqual(ctx1.meta.deferredToolRewriteStats.preloadSeeded, ["SendMessage"]);
+      },
+    );
+
+    // A SECOND conversation whose baseline was created BEFORE any preload
+    // existed — the live-session case the entry names as the ship-time hazard:
+    // retrofitting a running session's array is the exact bust this prevents.
+    const headers2 = { "x-claude-code-session-id": "sess-preload-running" };
+    const first2 = { role: "user", content: [{ type: "text", text: "already running" }] };
+    const body2 = { ...body, messages: [first2] };
+    const before = await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: undefined },
+      async () => (await runExt(structuredClone(body2), { headers: headers2, dir })).body.tools,
+    );
+    const after = await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "SendMessage" },
+      async () => {
+        const ctx = await runExt(
+          structuredClone({ ...body2, messages: [first2, { role: "assistant", content: [{ type: "text", text: "a" }] }] }),
+          { headers: headers2, dir },
+        );
+        assert.deepEqual(ctx.meta.deferredToolRewriteStats.preloadSeeded, [],
+          "an existing baseline is never seeded, whatever the gate says");
+        return ctx.body.tools;
+      },
+    );
+    assert.deepEqual(after, before, "a running conversation's tools[] does not move when the gate flips on");
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("preload MODEL GATE: a model outside the tool_addition allowlist is never seeded", async () => {
+  const dir = await newTmp();
+  try {
+    await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "SendMessage" },
+      async () => {
+        const first = { role: "user", content: [{ type: "text", text: "gate turn" }] };
+        await runExt(
+          {
+            system: [],
+            messages: [{ role: "user", content: [{ type: "text", text: "teacher" }] }],
+            model: "claude-opus-5",
+            tools: [tool("Read"), sendMessageTool()],
+          },
+          { headers: { "x-claude-code-session-id": "sess-preload-model-teacher" }, dir },
+        );
+        // A preloaded tool it could never announce is a tool the model could
+        // never call — so no seed at all, rather than a silently dead entry.
+        const ctx = await runExt(
+          { system: [], messages: [first], model: "claude-sonnet-5", tools: [tool("Read")] },
+          { headers: { "x-claude-code-session-id": "sess-preload-model" }, dir },
+        );
+        assert.deepEqual(ctx.meta.deferredToolRewriteStats.preloadSeeded, []);
+        assert.deepEqual(ctx.body.tools, [tool("Read")]);
+      },
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("preload ABANDON: a seeded conversation whose model leaves the allowlist takes one honest reset, named", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "sess-preload-abandon" };
+  try {
+    await withEnvAsync(
+      { CACHE_FIX_TOOL_REWRITE: "1", CACHE_FIX_TOOL_PRELOAD: "SendMessage" },
+      async () => {
+        await runExt(
+          {
+            system: [],
+            messages: [{ role: "user", content: [{ type: "text", text: "teacher" }] }],
+            model: "claude-opus-5",
+            tools: [tool("Read"), sendMessageTool()],
+          },
+          { headers: { "x-claude-code-session-id": "sess-preload-abandon-teacher" }, dir },
+        );
+        const first = { role: "user", content: [{ type: "text", text: "abandon turn" }] };
+        const seeded = await runExt(
+          { system: [], messages: [first], model: "claude-opus-5", tools: [tool("Read")] },
+          { headers, dir },
+        );
+        assert.deepEqual(seeded.meta.deferredToolRewriteStats.preloadSeeded, ["SendMessage"]);
+
+        const ctx = await runExt(
+          { system: [], messages: [first], model: "claude-sonnet-5", tools: [tool("Read")] },
+          { headers, dir },
+        );
+        assert.equal(ctx.meta.deferredToolRewriteStats.action, "reset");
+        assert.equal(ctx.meta.deferredToolRewriteStats.reason, "preload-unannounceable");
+        assert.deepEqual(ctx.meta.deferredToolRewriteStats.preloadFallback, ["SendMessage"]);
+        assert.deepEqual(ctx.body.tools, [tool("Read")], "CC's own array goes through — never a dead deferred entry");
+        assert.equal(ctx.meta.deferredToolRewriteStats.preloadPending, 0);
+      },
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
