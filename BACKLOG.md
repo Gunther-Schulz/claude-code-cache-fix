@@ -121,13 +121,14 @@ DISPOSITION, tier 1 of the partition's reach ordering, and operator-ranked. What
 would indict the form is an instrument-led head with no mitigation blocked on
 any of it. Today every instrument at the top has a named consumer waiting on it.
 
-<!-- entry: "proxy records coalesce hits but never coalesce misses" -->
-1. **the proxy records a coalesce HIT and nothing about a coalesce MISS** —
-   ATTRIBUTE, and the head's lead. It is what the only live MITIGATE remainder
-   is parked on, it changes no forwarding behaviour, and without it every future
-   miss costs the hand walk this one cost. Deployment-coupled: it ships at the
-   desk through `docs/runbooks/ship-proxy-change.md`, never bundled with another
-   `proxy/**` change.
+*(The eighth derivation's rank 1 — the coalesce-MISS record — is GONE from
+this list along with its `<!-- entry: -->` anchor, because it shipped this
+session and its entry moved to `## Done`. Two attempts to keep it here failed
+the completed-rank guard, correctly: the guard resolves each rank ANCHOR to a
+live `## Open` bullet, so neither annotating the bullet nor un-numbering it
+satisfies anything — the anchor is the thing that has to go. Refs for the
+closure are in the `## Done` entry. Ranks 2-6 below keep their original
+numbers as the record of what that derivation ordered.)*
 2. **`boundary-layers --at` picks a request by NEAREST timestamp and prints a
    complete, plausible, wrong anatomy** — PROMOTED from `## Record`, where it
    was booked OPERATOR-RANKED SECOND behind a mitigation that has since parked.
