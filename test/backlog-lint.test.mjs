@@ -1927,6 +1927,67 @@ test("closures-in-live: zeros are stated explicitly, not omitted, when a bucket 
   assert.match(openLine, /CLOSURE=0/);
 });
 
+// closures-in-live under a `Closure-home:` declaration (tools/closure-home.mjs).
+// No-declaration behaviour is pinned above (closuresDoc() and its siblings
+// carry none); these cover the two declared shapes.
+
+test("closures-in-live: kind:\"section\" declaration renames the closure home — a citation under the OLD default name (## Done) is now LIVE", () => {
+  const doc = [
+    "Closure-home: ## Archive", "",
+    "## Open", "",
+    "- **READY — still open, unaffected.**",
+    "  Body text.",
+    "",
+    "## Done — no longer the closure home", "",
+    "- **DONE 2026-08-10 (`abc1234`) — stranded under the old name.**",
+    "  Body text.",
+    "",
+    "## Archive — the NEW closure home", "",
+    "- **DONE 2026-08-09 — correctly excluded now.**",
+    "  Body text.",
+  ].join("\n");
+  const rows = lint.closuresInLiveEntries(doc);
+  const stranded = rows.find((r) => r.headline.startsWith("DONE 2026-08-10"));
+  assert.ok(stranded, "a ## Done section is LIVE once the declaration points elsewhere");
+  assert.equal(stranded.classification, "CLOSURE");
+  assert.equal(stranded.section, "## Done — no longer the closure home");
+  const excluded = rows.find((r) => r.headline.startsWith("DONE 2026-08-09"));
+  assert.equal(excluded, undefined, "an entry under the declared ## Archive home must not appear in the population");
+});
+
+test("closures-in-live: kind:\"file\" declaration — NOTHING in this text is ever the closure home, so a residual ## Done section is LIVE", () => {
+  const doc = [
+    "Closure-home: BACKLOG-DONE.md", "",
+    "## Open", "",
+    "- **READY — still open, unaffected.**",
+    "  Body text.",
+    "",
+    "## Done — pre-migration residue", "",
+    "- **DONE 2026-08-10 (`abc1234`) — the closure home moved to a file; this is now just LIVE text.**",
+    "  Body text.",
+  ].join("\n");
+  const rows = lint.closuresInLiveEntries(doc);
+  const found = rows.find((r) => r.headline.startsWith("DONE 2026-08-10"));
+  assert.ok(found, "kind:\"file\" excludes no in-text section, so ## Done is scanned like any other");
+  assert.equal(found.classification, "CLOSURE");
+  assert.equal(found.section, "## Done — pre-migration residue");
+});
+
+test("closures-in-live: BYTE-IDENTICAL control — with no Closure-home: declaration, closuresDoc()'s output is unchanged", () => {
+  // Pinning the exact rows (not just a spot check) is the lane's stated
+  // acceptance criterion: no declaration present -> today's behaviour,
+  // unconditionally.
+  const rows = lint.closuresInLiveEntries(closuresDoc());
+  const byHeadline = Object.fromEntries(rows.map((r) => [r.headline, r.classification]));
+  assert.equal(rows.length, 10, "population count unchanged from the pre-declaration baseline");
+  assert.equal(byHeadline["DONE 2026-08-10 (`abc1234`) — closure sitting in a live section.**"], "CLOSURE");
+  assert.equal(
+    rows.find((r) => r.headline.startsWith("DONE 2026-08-09")),
+    undefined,
+    "the real ## Done section is still excluded with no declaration present",
+  );
+});
+
 test("closures-in-live: CLI --closures-in-live suppresses the normal header-lint output and the other report lanes", () => {
   const { out, code } = runTool(["--closures-in-live"], closuresDoc());
   assert.equal(code, 0);

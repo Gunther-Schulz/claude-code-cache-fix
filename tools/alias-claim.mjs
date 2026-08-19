@@ -52,6 +52,10 @@ import { basename, dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { dataPath } from "../proxy/xdg-dirs.mjs";
+// Single home for "where does this carrier's closure home live" — a
+// `Closure-home:` head declaration, defaulting to today's `## Done` when
+// absent. See tools/closure-home.mjs for the full contract.
+import { resolveClosureHome } from "./closure-home.mjs";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const DEFAULT_BACKLOG = join(REPO_ROOT, "BACKLOG.md");
@@ -558,26 +562,53 @@ function sectionFor(lineIdx, sections) {
  * not be read — every protected alias reports COULD-NOT-VERIFY rather than
  * a guess (dev-loop.md: "a tool's could-not-verify REASON is a claim, and
  * it is computed or it is a guess"). Pure and read-only: no mutation, no
- * filesystem access — the CLI wrapper below does the reading.
+ * filesystem access — the CLI wrapper below does the reading, including of
+ * `closureHomeText`.
+ *
+ * `closureHomeText` matters only when `backlogText`'s own `Closure-home:`
+ * declaration resolves to `kind: "file"` — the closed entries then live in a
+ * SEPARATE carrier this text no longer contains, so a citation confirmed
+ * only by that file needs its content too. Pass the file's content when it
+ * was read successfully, `null` when a `kind: "file"` home's read FAILED
+ * (every protected alias then reports COULD-NOT-VERIFY, the same three-
+ * answers discipline `backlogText === null` gets above — a failed read is
+ * never silently treated as "cited nowhere"), or omit it entirely when the
+ * home is `kind: "section"` (today's default), where it is never consulted.
  */
-export function releasableReport(backlogText, doc) {
+export function releasableReport(backlogText, doc, { closureHomeText } = {}) {
   const buckets = { RELEASABLE: [], HELD: [], UNCITED: [], "COULD-NOT-VERIFY": [] };
   const protectedAliases = Object.entries(doc?.aliases ?? {}).filter(([, entry]) => isCurrentlyProtected(entry));
   if (backlogText == null) {
     for (const [alias] of protectedAliases) buckets["COULD-NOT-VERIFY"].push(alias);
     return buckets;
   }
+  const home = resolveClosureHome(backlogText);
+  if (home.kind === "file" && closureHomeText === null) {
+    for (const [alias] of protectedAliases) buckets["COULD-NOT-VERIFY"].push(alias);
+    return buckets;
+  }
   const { lines, sections } = parseSections(backlogText);
+  const closureLines =
+    home.kind === "file" && typeof closureHomeText === "string" ? closureHomeText.split("\n") : null;
   for (const [alias] of protectedAliases) {
     const hits = citationLineIndices(alias, lines);
-    if (hits.length === 0) {
+    const closureHits = closureLines ? citationLineIndices(alias, closureLines) : [];
+    if (hits.length === 0 && closureHits.length === 0) {
       buckets.UNCITED.push(alias);
       continue;
     }
-    const allUnderDone = hits.every((i) => {
-      const sec = sectionFor(i, sections);
-      return Boolean(sec) && sec.heading.startsWith("## Done");
-    });
+    // `kind: "section"`: every citation in THIS text must sit under the
+    // resolved section (today's default: "## Done"). `kind: "file"`: no
+    // section in this text is ever the closure home — the closed entries
+    // physically live in the external file — so ANY hit here is a LIVE
+    // citation and the alias is HELD, whatever the external file also shows.
+    const allUnderDone =
+      home.kind === "section"
+        ? hits.every((i) => {
+            const sec = sectionFor(i, sections);
+            return Boolean(sec) && sec.heading.startsWith(home.prefix);
+          })
+        : hits.length === 0;
     buckets[allUnderDone ? "RELEASABLE" : "HELD"].push(alias);
   }
   return buckets;
@@ -609,7 +640,27 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
         `alias-claim: --releasable could not read ${backlogPath} (${e.code ?? "unknown"}): ${e.message}\n`,
       );
     }
-    const buckets = releasableReport(text, doc);
+    // A `kind: "file"` closure home is a SEPARATE carrier, relative to the
+    // backlog's own directory (never cwd) — read here, since releasableReport
+    // itself is pure/read-only by design. `closureHomeText` stays `undefined`
+    // (never consulted) for the default `kind: "section"` home.
+    let closureHomeText;
+    if (text != null) {
+      const home = resolveClosureHome(text);
+      if (home.kind === "file") {
+        const closurePath = join(dirname(backlogPath), home.path);
+        try {
+          closureHomeText = readFileSync(closurePath, "utf-8");
+        } catch (e) {
+          closureHomeText = null; // COULD-NOT-VERIFY, never a silent "cited nowhere"
+          process.stderr.write(
+            `alias-claim: --releasable could not read closure-home file ${closurePath} ` +
+              `(${e.code ?? "unknown"}): ${e.message}\n`,
+          );
+        }
+      }
+    }
+    const buckets = releasableReport(text, doc, { closureHomeText });
     // Report only — exit 0 always, this is not a gate. Every bucket prints,
     // zeros stated explicitly, so a silent bucket cannot be misread as an
     // unrun check.

@@ -591,6 +591,135 @@ test("BITE — --releasable CLI: an actually-protected alias reports RELEASABLE 
   });
 });
 
+// --releasable under a `Closure-home:` declaration (tools/closure-home.mjs).
+// Default behaviour is pinned above with no declaration present; these cover
+// the `kind: "file"` branch — the closed entries live in a SEPARATE carrier,
+// so a citation confirmed only by that file needs its content passed in.
+
+test("BITE — releasableReport: kind:\"file\" home — a citation living ONLY in the closure-home file is RELEASABLE", () => {
+  const doc = {
+    aliases: {
+      "s-captureFH": {
+        file: "s-zzzzfilehm-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-19T00:00:00.000Z",
+      },
+    },
+  };
+  const backlogText = "Closure-home: BACKLOG-DONE.md\n## Open\n- unrelated entry, no mention here\n";
+  const closureHomeText = "- closed entry citing s-captureFH\n";
+  const report = aliasClaim.releasableReport(backlogText, doc, { closureHomeText });
+  assert.deepEqual(report.RELEASABLE, ["s-captureFH"]);
+  assert.deepEqual(report.HELD, []);
+  assert.deepEqual(report.UNCITED, []);
+});
+
+test("BITE — releasableReport: kind:\"file\" home — a citation in a LIVE section of the carrier is HELD even though the closure file also cites it", () => {
+  const doc = {
+    aliases: {
+      "s-captureFI": {
+        file: "s-zzzzfilehm2-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-19T00:00:00.000Z",
+      },
+    },
+  };
+  const backlogText = "Closure-home: BACKLOG-DONE.md\n## Open\n- a still-open entry citing s-captureFI\n";
+  const closureHomeText = "- closed entry also citing s-captureFI\n";
+  const report = aliasClaim.releasableReport(backlogText, doc, { closureHomeText });
+  assert.deepEqual(report.HELD, ["s-captureFI"]);
+  assert.deepEqual(report.RELEASABLE, []);
+});
+
+// A residual `## Done`-named section left in the carrier after the split does
+// NOT count as the closure home once `kind: "file"` is declared — the section
+// is now just another LIVE section, so a citation sitting only there is HELD,
+// not RELEASABLE. This is the same discrimination `splitSections`
+// (backlog-lint.mjs) makes for `closuresInLiveEntries`.
+test("BITE — releasableReport: kind:\"file\" home — a residual `## Done` section in the carrier is LIVE, not the closure home", () => {
+  const doc = {
+    aliases: {
+      "s-captureFJ": {
+        file: "s-zzzzfilehm3-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-19T00:00:00.000Z",
+      },
+    },
+  };
+  const backlogText =
+    "Closure-home: BACKLOG-DONE.md\n## Open\n- unrelated\n## Done — stale, pre-migration\n" +
+    "- closed entry citing s-captureFJ\n";
+  const report = aliasClaim.releasableReport(backlogText, doc, { closureHomeText: "" });
+  assert.deepEqual(report.HELD, ["s-captureFJ"], "the ## Done section no longer excuses a live-text citation");
+});
+
+test("BITE — releasableReport: kind:\"file\" home — a closure-home file that FAILED to read is COULD-NOT-VERIFY, never a silent UNCITED", () => {
+  const doc = {
+    aliases: {
+      "s-captureFK": {
+        file: "s-zzzzfilehm4-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-19T00:00:00.000Z",
+      },
+    },
+  };
+  const backlogText = "Closure-home: BACKLOG-DONE.md\n## Open\n- unrelated entry\n";
+  const report = aliasClaim.releasableReport(backlogText, doc, { closureHomeText: null });
+  assert.deepEqual(report["COULD-NOT-VERIFY"], ["s-captureFK"]);
+  assert.deepEqual(report.RELEASABLE, []);
+  assert.deepEqual(report.HELD, []);
+  assert.deepEqual(report.UNCITED, []);
+});
+
+test("BITE — releasableReport: a `## `-prefixed Closure-home declaration renames the in-file section — a citation under the new name is RELEASABLE, under the old default name it is HELD", () => {
+  const doc = {
+    aliases: {
+      "s-captureFL": {
+        file: "s-zzzzfilehm5-wxyz-wxyz-wxyz-synthetictest-requests.jsonl",
+        protectedAt: "2026-08-19T00:00:00.000Z",
+      },
+    },
+  };
+  const renamed =
+    "Closure-home: ## Archive\n## Open\n- unrelated\n## Archive — closures\n- closed entry citing s-captureFL\n";
+  const stillNamedDone =
+    "Closure-home: ## Archive\n## Open\n- unrelated\n## Done — closures\n- closed entry citing s-captureFL\n";
+  assert.deepEqual(aliasClaim.releasableReport(renamed, doc).RELEASABLE, ["s-captureFL"]);
+  assert.deepEqual(
+    aliasClaim.releasableReport(stillNamedDone, doc).HELD,
+    ["s-captureFL"],
+    "with the declaration pointing at ## Archive, a plain ## Done section is no longer the closure home",
+  );
+});
+
+test("BITE — --releasable CLI: kind:\"file\" home — a citation living only in the declared closure-home file resolves RELEASABLE end to end", async () => {
+  await withCaptures(async ({ capturesDir, dir, env }) => {
+    const cap = "s-zzzzclifil-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
+    await writeCapture(capturesDir, cap, 1024);
+    const claimOut = (await run("node", [TOOL, join(capturesDir, cap), "--protect"], { env })).stdout.trim();
+    const alias = claimOut.split(/\s/)[0];
+    const backlogPath = join(dir, "fake-backlog.md");
+    const closurePath = join(dir, "BACKLOG-DONE.md");
+    await writeFile(backlogPath, "Closure-home: BACKLOG-DONE.md\n## Open\n- unrelated entry\n");
+    await writeFile(closurePath, `- closed entry citing ${alias}\n`);
+    const { stdout } = await run("node", [TOOL, "--releasable", backlogPath], { env });
+    assert.match(stdout, new RegExp(`RELEASABLE \\(1\\): ${alias}`));
+    assert.match(stdout, /HELD \(0\)/);
+  });
+});
+
+test("BITE — --releasable CLI: kind:\"file\" home — an unreadable closure-home file reports COULD-NOT-VERIFY, not UNCITED, and stderr names the path", async () => {
+  await withCaptures(async ({ capturesDir, dir, env }) => {
+    const cap = "s-zzzzclimis-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
+    await writeCapture(capturesDir, cap, 1024);
+    const claimOut = (await run("node", [TOOL, join(capturesDir, cap), "--protect"], { env })).stdout.trim();
+    const alias = claimOut.split(/\s/)[0];
+    const backlogPath = join(dir, "fake-backlog.md");
+    // BACKLOG-DONE.md deliberately never written.
+    await writeFile(backlogPath, "Closure-home: BACKLOG-DONE.md\n## Open\n- unrelated entry\n");
+    const { stdout, stderr } = await run("node", [TOOL, "--releasable", backlogPath], { env });
+    assert.match(stdout, new RegExp(`COULD-NOT-VERIFY \\(1\\): ${alias}`));
+    assert.match(stdout, /UNCITED \(0\)/);
+    assert.match(stderr, /BACKLOG-DONE\.md/);
+  });
+});
+
 // A REAL-DATA discriminating pair, pinned to a FROZEN ref rather than the
 // live working tree — the live file moves under a running suite (the
 // dispatcher's own desk check landed a 50-line section above s-captureBM's

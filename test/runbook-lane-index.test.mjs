@@ -187,6 +187,47 @@ test("checkMarkers: BITE — a phrase living only in `## Done` does NOT confirm 
     "an item's own CLOSURE must not read as evidence that it is still queued");
 });
 
+// DECLARATION-AGNOSTIC — tools/closure-home.mjs is the single home for
+// "where does this carrier's closure home live", and `readyEntriesText`
+// (checkMarkers' engine) needs no literal of its own to stay correct under a
+// `Closure-home:` declaration: it selects `## Open` POSITIVELY
+// (censusOpenSection), so whatever the closure home is named, or whether it
+// lives in this text at all, never enters its scope. These three cases
+// prove that by construction rather than by absence of a counter-example —
+// each is the SAME discriminating shape as the `## Done` case above, with a
+// declaration present that would matter to backlog-lint.mjs and
+// alias-claim.mjs but provably does not matter here.
+test("checkMarkers: DECLARATION-AGNOSTIC — a phrase living only under a Closure-home:-renamed section still does NOT confirm a READY claim", () => {
+  const markers = [{ source: "x.md", line: 1, body: "the widget dedup fix; BACKLOG ready" }];
+  const backlog =
+    "Closure-home: ## Archive\n" +
+    `${openSection("- **READY — something completely different about gadgets.**")}` +
+    "## Archive — closures\n\n" +
+    "- **DONE 2026-08-01 (`abc1234`) — the widget dedup fix.** Shipped and verified.\n";
+  assert.equal(checkMarkers(markers, backlog)[0].classification, "STALE-ready-unmatched",
+    "renaming the closure home changes nothing here — ## Open is still the only text consulted");
+});
+
+test("checkMarkers: DECLARATION-AGNOSTIC — a `Closure-home:` file declaration (closed entries physically elsewhere) changes nothing about a READY match", () => {
+  const markers = [{ source: "x.md", line: 1, body: "the widget dedup fix; BACKLOG ready" }];
+  const backlog =
+    "Closure-home: BACKLOG-DONE.md\n" +
+    openSection("- **READY — the widget dedup fix.** Design decided, verifier named.");
+  const [result] = checkMarkers(markers, backlog);
+  assert.equal(result.classification, "ready-confirmed", "the declaration's head line never enters ## Open's body");
+});
+
+test("checkMarkers: DECLARATION-AGNOSTIC — a residual `## Done` section left behind by a `kind:\"file\"` migration still does NOT confirm a READY claim", () => {
+  const markers = [{ source: "x.md", line: 1, body: "the widget dedup fix; BACKLOG ready" }];
+  const backlog =
+    "Closure-home: BACKLOG-DONE.md\n" +
+    `${openSection("- **READY — something completely different about gadgets.**")}` +
+    "## Done — pre-migration residue\n\n" +
+    "- **DONE 2026-08-01 (`abc1234`) — the widget dedup fix.** Shipped and verified.\n";
+  assert.equal(checkMarkers(markers, backlog)[0].classification, "STALE-ready-unmatched",
+    "even a residual ## Done section is out of readyEntriesText's scope, same as before the declaration existed");
+});
+
 test("checkMarkers: not-yet-booked with a named trigger is accepted", () => {
   const markers = [{ source: "x.md", line: 1, body: "not yet booked, trigger: a second occurrence" }];
   const [result] = checkMarkers(markers, "");

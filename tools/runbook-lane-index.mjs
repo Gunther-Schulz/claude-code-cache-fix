@@ -188,6 +188,16 @@ export function checkClaudeLocalList(listed, runbookFiles) {
  * The grade is the marker's own word, so the carrier must carry that grade.
  * `READY_HEADER` and the section/entry split are IMPORTED from `backlog-lint`
  * rather than restated, so "what counts as READY" has one home.
+ *
+ * This is where the closure-home EXCLUSION described above actually lives —
+ * and, checked against `tools/closure-home.mjs` (the carrier's
+ * `Closure-home:` declaration, single home for that decision elsewhere in
+ * this repo), it needs no literal of its own to stay correct under a
+ * declaration: `censusOpenSection` selects `## Open` POSITIVELY, so whatever
+ * the closure home is named, or whether it lives in this text at all, never
+ * enters this function's scope. A declaration moving the closure home to a
+ * separate file changes nothing here — verified in
+ * test/runbook-lane-index.test.mjs ("declaration-agnostic" cases).
  */
 export function readyEntriesText(backlogText) {
   const section = censusOpenSection(backlogText);

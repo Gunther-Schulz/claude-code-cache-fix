@@ -118,6 +118,10 @@ import { sidToken } from "./harvest.mjs";
 // own matrix-status.mjs.
 import { readRowStatus, CLAIM_COMPATIBILITY, STATUS_PATH,
          parseMatrixRowNumbers, MATRIX_PATH } from "./matrix-status.mjs";
+// Single home for "where does this carrier's closure home live" — a
+// `Closure-home:` head declaration, defaulting to today's `## Done` when
+// absent. See tools/closure-home.mjs for the full contract.
+import { resolveClosureHome } from "./closure-home.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -852,7 +856,10 @@ export function censusText(text, { sinceRef, oldText } = {}) {
 // are population, stated as summary counts only (zeros included), never
 // folded into "not a closure".
 
-const CLOSURE_HOME_PREFIX = "## Done";
+// Where a carrier's closure home lives is now derived per-call from its own
+// `Closure-home:` declaration (resolveClosureHome, imported above) —
+// `splitSections`, below, is the one site that decides it, and it decides
+// by calling that resolver rather than by a restated literal here.
 const OPEN_SECTION_PREFIX = "## Open";
 // Widened 2026-08-13 alongside CENSUS_GRADES, from the same sampling pass —
 // five words joined CLOSURE (CLOSED, DROPPED, BUILT stays, SHIPPED,
@@ -924,13 +931,20 @@ function splitSections(text) {
   for (let i = 0; i < lines.length; i++) {
     if (lines[i].startsWith("## ")) starts.push(i);
   }
+  // `kind: "file"` means the closure home is NOT any section inside this
+  // text — the closed entries physically live elsewhere — so no section
+  // here is ever the closure home, and everything remaining in the text is
+  // correctly treated as LIVE (a residual "## Done"-named section left
+  // behind by an incomplete migration is exactly the case this should
+  // surface, not silently exempt).
+  const home = resolveClosureHome(text);
   return starts.map((start, idx) => {
     const end = idx + 1 < starts.length ? starts[idx + 1] : lines.length;
     return {
       name: lines[start].trim(),
       body: lines.slice(start + 1, end).join("\n"),
       lineOffset: start + 1,
-      isClosureHome: lines[start].startsWith(CLOSURE_HOME_PREFIX),
+      isClosureHome: home.kind === "section" && lines[start].startsWith(home.prefix),
     };
   });
 }
