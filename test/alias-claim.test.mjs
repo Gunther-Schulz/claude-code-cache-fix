@@ -613,7 +613,19 @@ test("BITE — releasableReport: kind:\"file\" home — a citation living ONLY i
   assert.deepEqual(report.UNCITED, []);
 });
 
-test("BITE — releasableReport: kind:\"file\" home — a citation in a LIVE section of the carrier is HELD even though the closure file also cites it", () => {
+// NOT a citation under an ordinary `## Open`-named section — an earlier
+// version of this test used one, and it does not DISCRIMINATE: a live-
+// section citation is HELD under the OLD (pre-declaration) implementation
+// too, for a reason unrelated to `kind: "file"` (it simply isn't under a
+// literal `## Done`). Measured red-first (2026-08-19, per-file mutate-and-
+// revert against 91a1197): the old test PASSED against the old
+// `releasableReport(backlogText, doc)`, proving nothing about this lane's
+// own change. This version cites the alias under a RESIDUAL `## Done`-named
+// section instead — the old code's literal match reads that as the closure
+// home and would report RELEASABLE; the new code, once `kind: "file"` is
+// declared, treats no in-text section as the closure home and reports HELD.
+// That is the actual discriminating claim the docstring above promises.
+test("BITE — releasableReport: kind:\"file\" home — a citation under a residual `## Done` section is HELD even though the closure file also cites it", () => {
   const doc = {
     aliases: {
       "s-captureFI": {
@@ -622,7 +634,9 @@ test("BITE — releasableReport: kind:\"file\" home — a citation in a LIVE sec
       },
     },
   };
-  const backlogText = "Closure-home: BACKLOG-DONE.md\n## Open\n- a still-open entry citing s-captureFI\n";
+  const backlogText =
+    "Closure-home: BACKLOG-DONE.md\n## Open\n- unrelated\n" +
+    "## Done — stale, pre-migration\n- closed entry citing s-captureFI\n";
   const closureHomeText = "- closed entry also citing s-captureFI\n";
   const report = aliasClaim.releasableReport(backlogText, doc, { closureHomeText });
   assert.deepEqual(report.HELD, ["s-captureFI"]);
