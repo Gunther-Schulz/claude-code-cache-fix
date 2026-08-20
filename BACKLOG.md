@@ -458,6 +458,75 @@ comment and new issue.
 
 ## Open
 
+- **RECORD 2026-08-20 (the fix SHIPPED in `3eb2de0`; what is booked here is its
+  RESIDUE, which is larger than the fix) — every `bust-triage` verdict produced
+  before today, ATTRIBUTION included, was computed over the DEFAULT extension
+  set rather than the pipeline that was serving.** The spawn at
+  `bust-triage.mjs` passed `--json --census` and no gates at all, so the child
+  inherited whatever `CACHE_FIX_*` the ambient shell carried — in practice
+  none. `--gates-from-capture` now rides that call.
+  **Measured on the 09:11:57Z pair, both arms, same capture:** under the
+  capture's own declared gates the mitigation row reads `mitigated: true`,
+  `action "normalized"` — matching the LIVE extension event log at
+  09:11:47.948Z; under defaults it reads `mitigated: false, action none`,
+  because `CACHE_FIX_INSERTION_NORMALIZE` is simply unset. A second number
+  moved in the same comparison (`tools[] stability` forwarded-whole-array held
+  `0/2` -> `1/2`), so the gate set was not affecting one field in isolation.
+  **THE RESIDUE, and it is one-directional, which is what makes it
+  checkable rather than a panic.** Attribution is
+  `ours = inDiv === null || inDiv > outDiv`. Under defaults our pipeline
+  mutates LESS, so the forwarded output diverges no earlier than it would have
+  under the serving set — which biases every verdict toward **CC's**. So:
+  - a past verdict of **OURS** is safe. A stability violation found under a
+    weaker pipeline is still a violation.
+  - a past verdict of **CC's** is the suspect population, and every walk in the
+    matrix rests on one.
+  This does NOT mean they are wrong; it means their basis was not what the
+  runbook's step 4 requires. **For the 09:11:57Z bust I re-ran it under the
+  SERVING gates directly and the attribution is unchanged** (0 stability
+  violations both arms), so that datapoint stands on a checked basis. No other
+  instance has been re-checked.
+  **Named missing evidence:** a re-run of `bust-triage --at <stamp>` for each
+  matrix instance whose capture still exists, comparing the ATTRIBUTION line
+  before and after. Captures that have rotated are a stated could-not-verify,
+  never a pass — and that population is exactly what the bounded-pin discipline
+  exists for.
+  Loop stage: ATTRIBUTE (the gate the whole loop's second stage rests on).
+  Anchor: `tools/bust-triage.mjs`
+  Write-set: `docs/directives/robustness-threat-matrix.md` (per-instance
+  attribution notes), `BACKLOG.md`
+  Verifier: for each re-checkable instance, the ATTRIBUTION verdict under
+  `--gates-from-capture` equals the one recorded in the matrix; any divergence
+  is a finding about that walk, booked against its row.
+  <!-- entry: "pre-2026-08-20 bust-triage verdicts computed under default gates" -->
+
+- **RECORD 2026-08-20 (falls out of the same fix, `3eb2de0`) — the fire
+  ledger's historical `saved`/`leaked` figures were computed under the old
+  input-only pricing and are not comparable to anything measured from today
+  on.** `rebilledBytes`/`savedBytes` (and their breakpoint twins) now key on
+  `absorbed = mitigated && outputPreserved` instead of on `mitigated`, so every
+  input-mitigated-but-output-spliced pair moves its bytes from the saved column
+  to the leaked one. That is the intended effect — those bytes really were
+  re-billed — but it re-baselines a series.
+  **Direction and shape of the correction, so a reader is not left guessing:**
+  saved was overstated and leaked understated, by exactly the
+  `INPUT-MITIGATED, OUTPUT-SPLICED` population, which is the expensive tail
+  rather than a uniform shave — the 09:11Z pair alone moves ~35 kB across the
+  columns.
+  **Not yet measured, and deliberately not asserted:** the magnitude corpus-wide.
+  One pair is n=1, and this entry does not claim a rate.
+  Named missing evidence: a `gate-live` sweep under the new pricing, compared
+  against the stored status file's figures from the previous sweep.
+  Loop stage: VERIFY (the ledger that prices what the gates let through).
+  Anchor: `tools/gate-live.mjs`
+  Write-set: `tools/gate-live.mjs` if the sweep needs a stated re-baseline
+  marker — HELD BY THE CACHE-FIX DESK's deployment lane, not this entry's to
+  land; the measurement itself needs no write.
+  Verifier: the next sweep's `saved`/`leaked` pair against the previous one,
+  with the delta attributable to the input-mitigated-output-spliced rows rather
+  than unexplained.
+  <!-- entry: "fire ledger saved/leaked re-baselined by the absorbed pricing fix" -->
+
 - **RECORD 2026-08-20 (INCIDENT, self-inflicted and irreversible, found by
   reading the tool's own success-path WARNING instead of moving past it) —
   `alias-claim --protect` DELETES the last copy of another capture when the
