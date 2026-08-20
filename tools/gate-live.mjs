@@ -54,6 +54,11 @@ import { localSuffix } from "./local-stamp.mjs";
 // every other reader in this tree imports it.
 import { readLines } from "./read-lines.mjs";
 import { isCaptureRequestRecord } from "./logs.mjs";
+// The depth vocabulary is DERIVED from the census that emits it, never
+// restated here: a hand-copied key list stays green the day a bucket is added,
+// byte-identical to health. replay.mjs is spawned as a child for the heavy
+// work — this import is the constant only, and costs no capture memory.
+import { INSERT_DEPTHS } from "./replay.mjs";
 // The duplicate rollup's FIELD SET is asked of the census's own summariser,
 // never restated here. The census runs as a child for heap isolation (CENSUS
 // below), but these two are pure and the module has a main guard, so importing
@@ -1439,6 +1444,45 @@ export const FIRE_CLASSES = [
  *   duplicates     not here: the duplicate scan is the census child's, so
  *                  it is folded in at sweep level (reduceFireRaw).
  */
+/** The DEPTH breakdown of `relocations` — the harm signal the bare count does
+ * not carry.
+ *
+ * `relocations` counts one row per MITIGABLE pair, and 96% of that population
+ * is CC's benign trailing-reminder push-down (measured 2026-08-20, 49-capture
+ * live window: 2,455 tail-growth pairs against a single deep one, replay.mjs's
+ * `midHistoryInserts` block comment). A counter dominated by a shape that
+ * costs almost nothing is near-useless as a harm signal — a retirement or a
+ * keep-it-running argument read off it is reading mostly noise.
+ *
+ * A BREAKDOWN, not new classes. `relocations` keeps its meaning, its name and
+ * its value, and this conserves against it: the tally sums to exactly the
+ * count. Adding depth buckets to FIRE_CLASSES instead would have double-counted
+ * inside every sum over that list and forced an absorbed/bytes column for each
+ * bucket with no source to fill it.
+ *
+ * Three answers, not two (docs/dev-loop.md), on the same convention
+ * `saved.relocations` already follows: an old-schema census — rows predating
+ * `insertDepth` — is UNMEASURED and reads null, never a set of zeros that
+ * would report "no deep splices" for a measure that never ran. An empty
+ * measured array is a real zero. A row carrying a bucket outside the declared
+ * vocabulary counts under `unknown` rather than being folded into a known one:
+ * a counter that silently absorbs what it does not recognise is how a
+ * vocabulary decays without anyone seeing it.
+ */
+export function tallyInsertDepth(mit) {
+  if (mit.length && !mit.some((m) => typeof m.insertDepth === "string")) return null;
+  const t = { unknown: 0 };
+  for (const d of INSERT_DEPTHS) t[d] = 0;
+  for (const m of mit) {
+    if (typeof m.insertDepth === "string" && Object.hasOwn(t, m.insertDepth) && m.insertDepth !== "unknown") {
+      t[m.insertDepth]++;
+    } else {
+      t.unknown++;
+    }
+  }
+  return t;
+}
+
 export function summariseFireRaw(parsed) {
   const bm = Array.isArray(parsed?.blockMigrations) ? parsed.blockMigrations : null;
   const td = Array.isArray(parsed?.toolsDeltas) ? parsed.toolsDeltas : null;
@@ -1446,6 +1490,10 @@ export function summariseFireRaw(parsed) {
   return {
     suppressions: bm ? bm.filter((b) => b.direction === "inline->standalone").length : null,
     relocations: mit ? mit.length : null,
+    // Sibling of `relocations`, deliberately NOT a FIRE_CLASSES member — see
+    // tallyInsertDepth. reduceFireRaw skips it by type (it sums numbers), and
+    // reduceFireDepth is what carries it to sweep level.
+    relocationDepth: mit ? tallyInsertDepth(mit) : null,
     toolAdditionAnnouncements: td ? td.filter(toolsGrew).length : null,
     oscillationAbsorptions: bm ? bm.filter((b) => b.flap).length : null,
     guardRestores: null,
@@ -1490,6 +1538,27 @@ export function reduceFireRaw(rows) {
   }, null);
   raw.duplicates = dup;
   return { raw, partial };
+}
+
+/** Sweep-wide depth breakdown: the same null-preserving sum reduceFireRaw does,
+ * over the per-capture `relocationDepth` objects. A sweep where no capture
+ * measured depth (every census old-schema) stays null; captures that DID
+ * measure are summed over those captures alone, exactly as reduceFireRaw's
+ * `partial` convention treats a half-measured column. */
+export function reduceFireDepth(rows) {
+  let out = null;
+  for (const r of rows) {
+    const d = r.fireRaw?.relocationDepth;
+    if (!d || typeof d !== "object") continue;
+    if (out === null) {
+      out = { unknown: 0 };
+      for (const k of INSERT_DEPTHS) out[k] = 0;
+    }
+    for (const k of Object.keys(out)) {
+      if (typeof d[k] === "number") out[k] += d[k];
+    }
+  }
+  return out;
 }
 
 // --- SAVED vs LEAKED bytes (BACKLOG "fire-ledger SAVED-vs-LEAKED bytes columns") ---
@@ -2441,6 +2510,7 @@ async function main() {
   // series a retirement rests on cannot be edited by a later run.
   const fireTs = finished;
   const { raw: fireRaw, partial } = reduceFireRaw(rows);
+  const rawRelocationDepth = reduceFireDepth(rows);
   const { savedBytes, leakedBytes } = reduceFireBytes(rows);
   const measurable = absorbedMeasurable(prodEnv, envSource);
   const fireLine = {
@@ -2453,6 +2523,14 @@ async function main() {
     ccVersions: await collectCcVersions(files, args.transcripts),
     captures: rows.length,
     raw: fireRaw,
+    // The depth breakdown OF `raw.relocations`, on its own key rather than
+    // inside `raw` — `raw` is the 7-class count object every consumer indexes
+    // by FIRE_CLASSES, and an object value sitting in it would read as an
+    // eighth class to anyone iterating. Conserves against `raw.relocations`:
+    // the buckets sum to it. New field only, so older lines stay parseable
+    // (same convention as savedBytes/leakedBytes below), and a sweep whose
+    // censuses are all old-schema writes null — unmeasured, never zeros.
+    rawRelocationDepth,
     absorbed: await collectAbsorbed(args.snapshots, Date.parse(windowFrom), Date.parse(fireTs), measurable),
     // Bytes, on RAW's denominator (summariseFireBytes). New fields only —
     // lines written before this shipped stay parseable, and every consumer
