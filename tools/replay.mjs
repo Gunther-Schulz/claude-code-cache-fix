@@ -1552,6 +1552,109 @@ export function censusIds(ia, ib) {
   return "replace/edit";
 }
 
+// --- The mid-history insert SET, and its depth ---
+//
+// `censusIds` above already computes this relation to reach its own verdict —
+// `splicedAfterKept` is exactly "a new entry sits before the last surviving
+// one" — and then throws it away, keeping only the class name. Every consumer
+// that wanted to know WHICH entries and WHERE has had to re-derive it by hand;
+// on the 2026-08-20 110k bust the hand probe's output WAS the finding, and no
+// instrument printed it. This exports censusIds' own relation instead: the
+// identity is `semanticIds`', never a second notion of "the same message"
+// (docs/dev-loop.md, "Never hand-roll identity in a probe").
+//
+// `anchorDelta` is the same quantity `findEditPositions` puts on every edit
+// row — the entry's index minus the last human-typed turn's
+// (compactEntry's `inLastHuman`) — and it is what SEPARATES this population.
+// That separation is load-bearing, not a nicety. Measured 2026-08-20 over the
+// full 49-capture live window, 7,704 insert entries across 2,569 pairs:
+// **96% of the class is a benign trailing-reminder push-down.** CC emits a
+// standing trailing system-reminder (the `<total_tokens>` block) as the last
+// array element of every request, so each new turn's content lands BEFORE it
+// and the pair censuses as `splice/insert-mid` while being ordinary tail
+// growth. Those inserts sit at or after the human anchor; bucketed per pair by
+// most-negative anchorDelta the window gave `>= 0` 2,467 pairs, `-1..-9` 101,
+// `<= -10` exactly one — the 110k bust itself, at -23.
+//
+// A null anchorDelta is its own answer, folded into neither (docs/dev-loop.md,
+// "A checker has THREE answers"): a subagent or sidecar conversation carries
+// no human turn, so no depth is computable for it and none is invented.
+//
+// Roles are deliberately NOT returned. compactEntry retains no role array and
+// adding one would put a string per message into a stream with a documented
+// heap cap, to serve one printing step; the caller that needs a role has the
+// pair's own message array in hand and indexes it at `at` — the same
+// coordinate space `inSem`/`inBytes` are indexed in, since both are built from
+// that array.
+export function midHistoryInserts(prev, cur) {
+  const prevSem = prev?.inSem ?? [];
+  const curSem = cur?.inSem ?? [];
+  const kept = new Set(prevSem);
+  // censusIds' own `lastKeptIn`, same expression: the last index of CUR whose
+  // entry PREV still carries.
+  const lastKeptIn = curSem.reduce((acc, h, j) => (kept.has(h) ? j : acc), -1);
+  const anchor = cur?.inLastHuman >= 0 ? cur.inLastHuman : null;
+  const out = [];
+  for (let j = 0; j < curSem.length; j++) {
+    if (kept.has(curSem[j])) continue;
+    if (j >= lastKeptIn) continue;
+    out.push({
+      at: j,
+      bytes: cur?.inBytes?.[j] ?? null,
+      anchorDelta: anchor === null ? null : j - anchor,
+    });
+  }
+  return out;
+}
+
+// The bound between a deep splice and the benign push-down, WITH its basis, so
+// the next reader inherits the reason and not just the constant.
+//
+// The window measured above has a GAP where this bound sits: per-pair minima
+// are 0-or-greater, then exactly -2 (101 pairs), then a single -23. Nothing
+// between -3 and -22. The bound is placed inside that gap — chosen from the
+// measured distribution rather than discovered later from a constant nobody
+// can re-derive. It is a bound on how far BEFORE the human anchor an insert
+// lands, so it is negative and the comparison is `<=`.
+//
+// Re-check it when the distribution moves: the gap is the evidence, and a
+// corpus that fills it in retires this number.
+export const DEEP_INSERT_ANCHOR_DELTA = -10;
+
+// The closed bucket vocabulary, declared once and exported so no consumer
+// restates it — a counter keyed off a hand-copied list stays green the day a
+// bucket is added (docs/dev-loop.md, and the corpus's derive-don't-restate
+// rule). Order is the reporting order: harm first.
+export const INSERT_DEPTHS = ["deep", "shallow", "tail", "unanchored", "none"];
+
+/** Bucket a pair by the DEEPEST of its mid-history inserts.
+ *
+ *   deep        at least one insert >= 10 indices before the human anchor
+ *   shallow     the deepest insert is 1..9 before it
+ *   tail        every insert sits at or after it — the benign push-down
+ *   unanchored  inserts exist, but the conversation has no human turn to
+ *               measure them against: COULD NOT VERIFY, never folded into
+ *               `tail` (which would read as "measured, and benign")
+ *   none        no mid-history inserts at all — an append-after-change or
+ *               reorder-only pair, not a member of this class
+ */
+export function insertDepth(inserts) {
+  if (!inserts?.length) return "none";
+  const min = minInsertAnchorDelta(inserts);
+  if (min === null) return "unanchored";
+  if (min <= DEEP_INSERT_ANCHOR_DELTA) return "deep";
+  return min < 0 ? "shallow" : "tail";
+}
+
+/** The deepest insert's anchorDelta, or null when none is measurable — the
+ * number `insertDepth` buckets, exposed beside the bucket so a reader can see
+ * where inside it the pair actually sat (and so the bound stays re-checkable
+ * against real rows without re-running the corpus probe). */
+export function minInsertAnchorDelta(inserts) {
+  const deltas = (inserts ?? []).map((i) => i.anchorDelta).filter((d) => typeof d === "number");
+  return deltas.length ? Math.min(...deltas) : null;
+}
+
 // --- State trace ---
 //
 // The verdict-level report (action, resetReason) says WHAT happened; this says
@@ -1736,6 +1839,11 @@ export function findMitigationGaps(entries) {
       const cur = group[i];
       const kind = censusIds(prev.inSem, cur.inSem);
       if (!MITIGABLE.has(kind)) continue;
+      // Computed for every MITIGABLE pair, not only the splice class: an
+      // append-after-change or reorder-only pair has no mid-history insert by
+      // construction, and reading "none" off the row is what shows that,
+      // rather than an absent field a reader has to interpret.
+      const inserts = midHistoryInserts(prev, cur);
       // "normalized" is the only action that re-serialises the splice into an
       // append. append-only and reset both forward CC's array as it came.
       const mitigated = cur.action === "normalized";
@@ -1822,6 +1930,18 @@ export function findMitigationGaps(entries) {
         outputForm,
         outputPreserved,
         rebilledOutBytes,
+        // Depth of this pair's mid-history inserts (midHistoryInserts /
+        // insertDepth above). One row per MITIGABLE pair is the count the fire
+        // ledger's `relocations` column reads, and 96% of that population is
+        // the benign trailing-reminder push-down — a counter dominated by a
+        // shape that costs almost nothing is near-useless as a harm signal,
+        // which is what these two fields separate. A per-CLASS breakdown would
+        // not have: the separating quantity is anchorDelta, not the class.
+        // Scalars only — the insert SET is per-entry data with no consumer at
+        // sweep scale, and the one instrument that wants it (bust-triage's
+        // insert-context step) recomputes it from the capture it already holds.
+        insertDepth: insertDepth(inserts),
+        minInsertAnchorDelta: minInsertAnchorDelta(inserts),
       });
     }
   }

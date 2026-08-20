@@ -267,7 +267,16 @@ test("BITE — --json carries the attribution object, not just the text line", (
 
 test("BITE — bust-triage.mjs imports attributionOf from replay.mjs rather than re-deriving the expression", () => {
   const src = readFileSync(join(REPO, "tools", "bust-triage.mjs"), "utf8");
-  assert.match(src, /firstDivergence,\s*attributionOf\s*}\s*from\s*"\.\/replay\.mjs"/,
+  // WIDENED 2026-08-20, because the predicate fired on legitimate work. It
+  // used to anchor on `firstDivergence,\s*attributionOf\s*}` — the rendered
+  // TAIL of the import list, so adding any further import from replay.mjs
+  // reddened a bite about attributionOf. The set is what the bite means, so
+  // the set is what it now reads (the corpus's "compare parsed SETS rather
+  // than rendered text"), and the reading is strictly tighter than the old
+  // substring: `attributionOfSomething` no longer satisfies it.
+  const imported = /import\s*\{([^}]*)\}\s*from\s*"\.\/replay\.mjs"/.exec(src);
+  assert.ok(imported, "bust-triage.mjs must import from replay.mjs at all");
+  assert.ok(imported[1].split(",").map((s) => s.trim()).includes("attributionOf"),
     "the primitive must be imported by name from replay.mjs");
   // Known positive for the search itself: the SAME pattern that would catch
   // a re-derivation (`inDiv === null || inDiv >`) must be absent from

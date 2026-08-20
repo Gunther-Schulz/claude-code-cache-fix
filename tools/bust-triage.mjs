@@ -91,7 +91,9 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
 import { censusPair, compactEntry, findEditPositions, findBlockMigrations,
-         lineageOverlap, sameLineage, firstDivergence, attributionOf } from "./replay.mjs";
+         lineageOverlap, sameLineage, firstDivergence, attributionOf,
+         midHistoryInserts, insertDepth, minInsertAnchorDelta,
+         DEEP_INSERT_ANCHOR_DELTA } from "./replay.mjs";
 import { readLines } from "./read-lines.mjs";
 import { conversationSubKey } from "../proxy/extensions/message-hash.mjs";
 import { canonical, classify, reminderBlocks, subclassifyExtended, textOf }
@@ -1663,6 +1665,42 @@ const FAR_ANCHOR_THRESHOLD = 30;
  * "replace/edit", and is surfaced as "no evidence" rather than asserted, per
  * the "gaps surface, never bridge" rule.
  */
+/**
+ * The conversation window itself, shared by `pairEditContext` above and
+ * `pairInsertContext` below — extracted so the second consumer reuses the one
+ * reader rather than opening a second one over the same file. The two callers
+ * are mutually exclusive per run (the census class picks one), so exactly one
+ * window is ever built.
+ *
+ * Returns `{ ring, beforeOrd, afterOrd }`, or null on every condition the
+ * callers report as "no evidence" rather than guessing past: no ordinal, no
+ * capture file, fewer than 2 in-conversation records. `crossesRotation` /
+ * `crossConversation` stay with the CALLERS: each has its own empty shape to
+ * return, and the reasoning for it is theirs.
+ */
+async function pairWindow(sid, pair, capturesDir, windowEntries) {
+  const beforeOrd = pair?.before?.ord;
+  const afterOrd = pair?.after?.ord;
+  const cidTarget = pair?.after?.body?.messages?.[0];
+  if (beforeOrd == null || afterOrd == null || cidTarget === undefined) return null;
+  const f = join(capturesDir, `s-${sid}-requests.jsonl`);
+  if (!existsSync(f)) return null;
+  const cidJson = JSON.stringify(cidTarget);
+  const ring = [];
+  let ord = -1;
+  for await (const line of readLines(f)) {
+    const r = j(line);
+    if (isCaptureRequestRecord(r)) ord++;
+    if (ord > afterOrd) break;
+    if (!r?.body?.messages || !r?.ts) continue;
+    if (JSON.stringify(r.body.messages[0]) !== cidJson) continue;
+    ring.push(compactEntry({ n: ord, ts: r.ts, id: r.id ?? null, key: "w", inMsgs: r.body.messages }));
+    if (ring.length > windowEntries) ring.shift();
+  }
+  if (ring.length < 2) return null;
+  return { ring, beforeOrd, afterOrd };
+}
+
 export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowEntries = WINDOW_ENTRIES) {
   const beforeOrd = pair?.before?.ord;
   const afterOrd = pair?.after?.ord;
@@ -1688,21 +1726,9 @@ export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowE
   if (pair?.crossesRotation || pair?.crossConversation) {
     return { edit: null, blockMigrations: [], strongerNeighbour: null };
   }
-  const f = join(capturesDir, `s-${sid}-requests.jsonl`);
-  if (!existsSync(f)) return null;
-  const cidJson = JSON.stringify(cidTarget);
-  const ring = [];
-  let ord = -1;
-  for await (const line of readLines(f)) {
-    const r = j(line);
-    if (isCaptureRequestRecord(r)) ord++;
-    if (ord > afterOrd) break;
-    if (!r?.body?.messages || !r?.ts) continue;
-    if (JSON.stringify(r.body.messages[0]) !== cidJson) continue;
-    ring.push(compactEntry({ n: ord, ts: r.ts, id: r.id ?? null, key: "w", inMsgs: r.body.messages }));
-    if (ring.length > windowEntries) ring.shift();
-  }
-  if (ring.length < 2) return null;
+  const win = await pairWindow(sid, pair, capturesDir, windowEntries);
+  if (!win) return null;
+  const { ring } = win;
   const rows = findEditPositions(ring);
   const edit = rows.find((e) => e.n === afterOrd && e.prevN === beforeOrd) ?? null;
   const allMigs = findBlockMigrations(ring);
@@ -1736,6 +1762,97 @@ export async function pairEditContext(sid, pair, capturesDir = CAPTURES, windowE
     }
   }
   return { edit, blockMigrations, strongerNeighbour };
+}
+
+/**
+ * The insert-class sibling of `pairEditContext`: for a pair the census calls
+ * `splice/insert-mid`, WHAT was inserted and WHERE.
+ *
+ * Until this existed the tool printed `census splice/insert-mid` and stopped —
+ * a row number, an attribution and an absorption line, and nothing about the
+ * insertion itself. On the 2026-08-20 110k bust the hand probe's output WAS
+ * the finding; no instrument printed it, which is the dev-loop's own tell that
+ * the check is missing.
+ *
+ * The insert SET comes from `midHistoryInserts` (replay.mjs), which is
+ * `censusIds`' own `splicedAfterKept` relation exported rather than re-derived
+ * — identity stays `semanticIds`'. Roles are read off the pair's own `after`
+ * body at the indices that function returns: the same array `inSem`/`inBytes`
+ * are built from, so the two share a coordinate by construction rather than by
+ * assumption.
+ *
+ * Returns null on the same conditions `pairEditContext` returns null for, and
+ * `{ inserts: [], depth: "none" }` when the window built but the pair named no
+ * mid-history insert — an absence stated, never a guess.
+ */
+export async function pairInsertContext(sid, pair, capturesDir = CAPTURES, windowEntries = WINDOW_ENTRIES) {
+  // Same reasoning as pairEditContext's: a lineage-fallback or born-large pair
+  // spans the very rotation the window's grouping treats as a hard boundary,
+  // so no row inside it can describe this transition.
+  if (pair?.crossesRotation || pair?.crossConversation) return { inserts: [], depth: "none" };
+  const win = await pairWindow(sid, pair, capturesDir, windowEntries);
+  if (!win) return null;
+  const { ring, beforeOrd, afterOrd } = win;
+  const cur = ring.find((e) => e.n === afterOrd);
+  const prev = ring.find((e) => e.n === beforeOrd);
+  if (!cur || !prev) return { inserts: [], depth: "none" };
+  const msgs = pair?.after?.body?.messages ?? [];
+  const inserts = midHistoryInserts(prev, cur).map((i) => ({ ...i, role: msgs[i.at]?.role ?? null }));
+  return {
+    inserts,
+    depth: insertDepth(inserts),
+    minAnchorDelta: minInsertAnchorDelta(inserts),
+    // Where the last entry PREV still carries sits in CUR. The benign
+    // push-down shape is an insert run ending immediately before it, and this
+    // is what lets the step SHOW that relation instead of asserting it.
+    lastKept: (() => {
+      const kept = new Set(prev.inSem);
+      return cur.inSem.reduce((acc, h, jdx) => (kept.has(h) ? jdx : acc), -1);
+    })(),
+  };
+}
+
+/** One line for the `insert-context` step, deep entries leading.
+ *
+ * THE AMENDMENT this renderer exists for (measured 2026-08-20, and it is why
+ * an unfiltered enumeration ships noise): 96% of the `splice/insert-mid`
+ * population is CC's trailing-reminder push-down — a standing trailing
+ * system-reminder is the last array element of every request, so each new turn
+ * lands before it and censuses as a splice while being ordinary tail growth.
+ * Enumerated flat, the typical pair prints three benign entries and buries the
+ * one that matters. So: the deep entries are enumerated, the rest are
+ * SUMMARIZED in one clause.
+ *
+ * The benign shape is NAMED only where its structure is actually present — a
+ * contiguous run ending immediately before the last surviving entry — never
+ * inferred from the depth bucket alone. An assurance wider than what its
+ * predicate establishes is what stops the next reader looking.
+ */
+function insertContextLine(ctx) {
+  const { inserts, depth, minAnchorDelta, lastKept } = ctx;
+  if (!inserts.length) return "no entry was inserted before the last surviving one in this pair";
+  const anchorOf = (d) => (d === null ? "no-human-anchor" : `anchor${d >= 0 ? "+" : ""}${d}`);
+  const deep = inserts.filter((i) => i.anchorDelta !== null && i.anchorDelta <= DEEP_INSERT_ANCHOR_DELTA);
+  const rest = inserts.filter((i) => !deep.includes(i));
+  const parts = [];
+  if (deep.length) {
+    parts.push(`DEEP ${deep.length}: ` + deep
+      .map((i) => `@${i.at} ${i.role ?? "role?"} ${i.bytes ?? "?"} B [${anchorOf(i.anchorDelta)}]`)
+      .join(", "));
+  }
+  if (rest.length) {
+    const at = rest.map((i) => i.at);
+    const contiguous = at.every((v, k) => k === 0 || v === at[k - 1] + 1);
+    const abuts = lastKept >= 0 && at[at.length - 1] === lastKept - 1;
+    const shape = contiguous && abuts
+      ? " — a contiguous run ending immediately before the last surviving entry (CC's trailing-reminder push-down: tail growth the census reads as a splice)"
+      : "";
+    const roles = [...new Set(rest.map((i) => i.role ?? "role?"))].join("/");
+    parts.push(`${rest.length} further @${at[0]}..${at[at.length - 1]} (${roles}) ` +
+               `[${anchorOf(rest[0].anchorDelta)}..${anchorOf(rest[rest.length - 1].anchorDelta)}]${shape}`);
+  }
+  return `${inserts.length} inserted before the last surviving entry — depth ${depth} ` +
+         `(deepest ${anchorOf(minAnchorDelta)}); ${parts.join("; ")}`;
 }
 
 // Presentation only, for the `edit-anchor` triage step below. replay.mjs's
@@ -2525,6 +2642,22 @@ export async function triage(bust) {
                            `candidate — ord ${sn.prevN}->${sn.n} scores stronger [${snAnchor}]` +
                            `${sn.flap ? " [FLAP]" : ""}; every evidence line above is computed on the SELECTED ` +
                            `pair only` });
+    }
+  }
+
+  // The insert-class sibling of the block above, and the same reason for
+  // existing: the census names the class, and only the content-relational
+  // evidence names WHICH instance of it. `splice/insert-mid` is where the
+  // 110k busts live, and the step that would have printed the 2026-08-20 one
+  // — index, role, size, depth — did not exist until this one.
+  if (cls === "splice/insert-mid") {
+    const ic = await pairInsertContext(bust.s, pair, CAPTURES);
+    if (ic) {
+      steps.push({ step: "insert-context", ok: ic.depth !== "deep", detail: insertContextLine(ic) });
+    } else {
+      steps.push({ step: "insert-context", ok: false,
+                   detail: "could not resolve the insert set for this splice/insert-mid pair " +
+                           "(capture window unavailable, or this transition named no record inside it)" });
     }
   }
 
