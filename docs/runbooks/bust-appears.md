@@ -176,10 +176,51 @@ already carries — never by trusting that two counters agree.
    defaults — a green verdict over the wrong configuration is worse
    than no verdict because it reads like one.
 
+   **THE TOOL AT STEP 3 WAS VIOLATING THIS STEP, silently, until
+   2026-08-20.** Recorded here rather than quietly fixed, because it
+   changes how to read every verdict written before that date.
+   `bust-triage` runs its own replay in a child process, and it spawned
+   that child with `--json --census` and NO GATES — inheriting whatever
+   `CACHE_FIX_*` the ambient shell carried, in practice none. So the
+   ATTRIBUTION line, the census and the tools[] numbers this file tells
+   you to trust at step 3 were computed over the DEFAULT extension set.
+   Measured on the 09:11:57Z pair: `mitigated: true` / `action
+   "normalized"` under the capture's own gates, matching the live
+   extension event log — and `mitigated: false` / `action none` under
+   defaults. A second number moved too (`tools[] stability` forwarded
+   whole array held `0/2` -> `1/2`), so it was never one field in
+   isolation. Fixed by passing `--gates-from-capture`. The residue is
+   booked with its re-check, and it is ONE-DIRECTIONAL: defaults mutate
+   less, so the forwarded output can only diverge later, which biases
+   the verdict toward **CC's** — past **OURS** verdicts are safe, past
+   **CC's** are the population to re-check.
+
+   **WHICH gate set — the two forms answer different questions.** For a
+   bust, the authoritative set is the one that was serving WHEN THE BUST
+   HAPPENED, and that is the capture's own boot record:
+
+   ```sh
+   node --max-old-space-size=2048 tools/replay.mjs <capture> --census --gates-from-capture
+   ```
+
+   `/health` reads what is deployed NOW. The two agree only while
+   nothing has restarted or re-gated since the capture, so on any bust
+   older than the last restart the `/health` form silently answers about
+   a different pipeline. Use it only where the capture declares no gates
+   — replay says so itself (`gates: no gates declared in capture`),
+   which is a stated could-not-verify and never a clean default:
+
    ```sh
    curl -s 127.0.0.1:9801/health | jq -r '.gates | to_entries[] | "--env\n\(.key)=\(.value)"' > /tmp/gates.txt
    xargs -a /tmp/gates.txt node --max-old-space-size=2048 tools/replay.mjs <capture> --census
    ```
+
+   If the two sets DISAGREE, that disagreement is itself a fact about
+   the walk — a restart or a gate change between the bust and now — and
+   belongs in the disposition rather than being resolved by preference.
+   Step 3's own rule applies: the narrower basis wins, and for an event
+   that already happened the capture's own record is narrower than
+   today's deployment.
 
    Check the daily sweep's own coverage before leaning on it: a sweep
    that FINISHED before the bust happened says nothing about the bust
@@ -190,6 +231,32 @@ already carries — never by trusting that two counters agree.
    (`[CC bytes at outDiv IDENTICAL -> ours]`), and reaching for a
    throwaway probe at all is the signal that something is missing from
    the tools.
+
+   **A `splice/insert-mid` bust still needs a HAND probe for its
+   mechanism, and that is a known gap rather than a step.**
+   `[GRADUATE -> bust-triage grows an `insert-context` step, the mirror
+   of the existing `edit-anchor`; BACKLOG ready]` `edit-anchor` — the
+   step that names WHICH entry moved, its `anchorDelta`, and its block
+   migrations — runs only for the census class `replace/edit`
+   (`bust-triage.mjs`, the `if (cls === "replace/edit")` guard). For an
+   insert class the tool gives you a row number, an attribution and now
+   an absorption line, but nothing about WHAT was inserted or WHERE
+   relative to the conversation's last human turn. On 2026-08-20 that
+   cost a hand-written probe, and the probe's output was the entire
+   finding: one 372-byte `role:"system"` hook notification at index 82
+   of 107, `anchorDelta -23`, while the three other new entries were
+   ordinary tail growth. The number that mattered — the insertion's
+   DEPTH behind the anchor, which is what sets the re-bill — is exactly
+   what no instrument printed.
+   Until it graduates: diff the pair's `semanticIds` to find entries
+   present in `after` and absent from `before`, keep only those sitting
+   before the last SURVIVING entry (that is the mid-history set; the
+   rest are appends), and report each one's role, byte size and offset
+   from the last human turn. Import the identity functions, never
+   re-derive them (step 9). Show the probe DISCRIMINATES before
+   believing it: the busting pair must yield a non-empty mid-history
+   set and a known append-only pair from the same capture must yield an
+   empty one.
 
    **The EXEMPTION rows are the interesting ones, not the violations.**
    An exemption is a true statement about what it NAMES and is silent
@@ -374,7 +441,24 @@ the two is how a bust gets closed by having been looked at.
 - **MITIGATED** — a shipped extension absorbs the class, demonstrated
   on this instance. "The mitigation ran" and "the mitigation
   absorbed" are different claims that have sat one line apart in the
-  same telemetry; `findAbsorptionMisses` asks the second.
+  same telemetry.
+  **Which instrument answers the second, corrected 2026-08-20 — this
+  line named `findAbsorptionMisses`, and that is the wrong one for the
+  per-instance question.** `findAbsorptionMisses` grades CLAIMED
+  join-move absorptions: it skips any pair whose stats claim nothing,
+  so a mitigation that ran and absorbed nothing is invisible to it and
+  its silence there means nothing. The per-pair answer is `absorbed`
+  (`mitigated && outputPreserved`) from `findMitigationGaps`, and
+  `bust-triage`'s ABSORPTION block now prints it directly for the
+  busting pair — read that line rather than deriving it:
+  `this pair: NOT-ABSORBED — splice/insert-mid, input-mitigated=true
+  (action normalized), output splice@82 preserved=false, re-billed
+  ~35 kB / saved ~0 kB [INPUT-MITIGATED, OUTPUT-SPLICED]`.
+  The trap that made this worth correcting: `mitigated` alone is the
+  extension's self-report about its own INPUT reconstruction, and it
+  reads exactly like an absorption claim. Until 2026-08-20 the
+  headline percentage and the byte pricing both keyed on it, so a
+  110k bust printed `absorbed (100%)` and booked its bytes as SAVED.
 - **PARKED, with its named missing evidence or design element** — an
   unnamed deferral is drift, and a named one is a spec. A deferral
   justified by a cited rule that collapses under one question was a

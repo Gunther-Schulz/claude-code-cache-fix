@@ -458,6 +458,47 @@ comment and new issue.
 
 ## Open
 
+- **RECORD 2026-08-20 — PROMOTION CANDIDATE, deliberately not graded READY:
+  the scheduled head is at its declared cap of ten, and membership is DERIVED
+  at the next build-order derivation, never edited into place by the session
+  that booked the entry. It is decision-complete (design decided, verifier
+  named, write-set named), so promoting it is a one-line derivation decision
+  rather than more work. (named in the 09:11Z walk's matrix datapoint and then NOT
+  booked — caught by the operator asking whether the runbook needed updating,
+  which is the named-and-unbooked shape `tools/named-unbooked-scan.mjs` exists
+  to catch, arriving one level up as a missing ENTRY rather than a missing
+  sentence) — `bust-triage` gains an `insert-context` step, the mirror of
+  `edit-anchor`, so a `splice/insert-mid` bust reports its MECHANISM instead of
+  requiring a hand probe.** Today `edit-anchor` runs behind
+  `if (cls === "replace/edit")`, so for an insert class the tool returns a row
+  number, an attribution and (since `3eb2de0`) an absorption line, and nothing
+  about WHAT was inserted or WHERE.
+  **Measured cost, this walk:** the hand probe's output WAS the finding — one
+  372-byte `role:"system"` hook notification at index 82 of 107, `anchorDelta
+  -23`, with the three other new entries ordinary tail growth. The quantity
+  that explains the bust is the insertion's DEPTH behind the human anchor,
+  because that is what sets the re-bill (372 bytes -> 110,022 tokens), and no
+  instrument printed it. Without it the walk cannot distinguish a mid-history
+  splice from tail growth that merely censuses as one.
+  **Design, decided:** for `cls === "splice/insert-mid"`, report the entries
+  present in `after` and absent from `before` that sit BEFORE the last
+  surviving entry (the mid-history set — the remainder are appends), each with
+  role, byte size, and offset from the last human turn. Identity comes from
+  `semanticIds`/`conversationOf` imported from `replay.mjs`, never re-derived
+  (the runbook's step 9). Reuse `pairEditContext`'s existing capture-window
+  reader rather than opening a second one.
+  **Done-criterion:** `bust-triage --at 2026-08-20T09:11:57Z` prints the index
+  82 entry, its role, its size and `anchorDelta -23` without a probe.
+  Loop stage: ATTRIBUTE (mechanism, the half the row number does not carry).
+  Anchor: `tools/bust-triage.mjs`
+  Write-set: `tools/bust-triage.mjs`, `test/bust-triage-edit-anchor.test.mjs`
+  (or a sibling `-insert-context` file)
+  Verifier: red-first, and the instrument PAIR is mandatory because the probe
+  it replaces was nearly believed on a single arm — the busting pair yields the
+  mid-history set `[82]`, and the same capture's append-only pair (ord 2->4)
+  yields `[]`. Both from the capture, neither constructed.
+  <!-- entry: "bust-triage insert-context step for splice/insert-mid mechanism" -->
+
 - **RECORD 2026-08-20 (the fix SHIPPED in `3eb2de0`; what is booked here is its
   RESIDUE, which is larger than the fix) — every `bust-triage` verdict produced
   before today, ATTRIBUTION included, was computed over the DEFAULT extension
@@ -685,7 +726,8 @@ comment and new issue.
      `mitigated` flag alone. So our pair books ~31 kB SAVED and 0 LEAKED. That
      flows through `summariseFireBytes` (`gate-live.mjs:1550-1558`) into
      `saved.relocations`, into `reduceFireBytes` and the sweep's printed
-     `saved` column (`:2444`, `:2514`) and its status file. The fire ledger's
+     `saved` column (`gate-live.mjs:2444`, `gate-live.mjs:2514`) and its status
+     file. The fire ledger's
      saved column is therefore inflated by exactly the events that cost the
      most, and its leaked column understates by the same amount.
   3. `bust-triage`'s ABSORPTION block never surfaces any of it — see the
