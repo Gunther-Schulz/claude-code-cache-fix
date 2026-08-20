@@ -232,6 +232,61 @@ restart, not after.
 **Load-bearing:** yes — shared abstraction, safety-relevant. It does not ride
 on one LLM's judgment.
 
+## THE PREMISE, SETTLED BY EXECUTION — and it inverts the risk/reward
+
+Established 2026-08-20 by running the capture, not by reading code. This is the
+section to read before building anything above it.
+
+**CC keeps the notification at index 82 FOREVER.** Tracked by content hash
+across the ten requests following the bust in the same conversation key:
+index 82, 82, 82, 82, 82, (a 1-message request, absent), 82, 82, 82, 82 — while
+the arrays grow 110 → 113 → 116 → 119 → 122 → 125 → 128 → 131 → 134. It is
+inserted once and then becomes ordinary, stable history.
+
+**So the cost is ONE-TIME AND SELF-HEALING, not recurring.** Ground truth from
+the same capture's usage records: the bust billed `cacheCreation` 110,022 with
+`cacheRead` collapsing to 20,623; the very next requests bill 5,857 / 1,652 /
+275 with `cacheRead` back above 130,000. The conversation recovers by itself on
+the following request. Nothing continues to leak.
+
+**What that does to the mitigation's arithmetic.** From request N+1 onward,
+CC's own arrays are already append-only, so a relocating proxy and a
+passthrough proxy are equivalent there. The mitigation's entire upside is
+avoiding the SINGLE hit at request N — about 108,826 excess tokens, roughly 91
+normal requests — once per occurrence, at an observed rate of once per 49
+captures / two days.
+
+**And the downside is not symmetric.** To keep the prefix stable the extension
+must apply the identical relocation on EVERY subsequent request — 563 of them
+in this conversation alone. The arithmetic works while it holds: forwarding
+`[0..81, 83..end, notification]` each time keeps indices 0..81 pinned and
+diverges only at the previous request's last slot, i.e. tail re-billing. But a
+SINGLE failure to reproduce the relocation resets the conversation and re-bills
+the prefix — and then does it again. That is exactly what
+`replay.mjs:688` records phase 2 measuring: saved on that request, "resets
+forever after".
+
+**So the trade is: save ~109k tokens once, against a failure mode that costs
+the prefix repeatedly.** The mitigation is only rational if the relocation is
+provably deterministic across the whole conversation, which makes the
+stability proof not a verification step but the ENTIRE feasibility question.
+
+**Consequently the verifier tightens.** `findSequenceViolations` returning zero
+over three requests is NOT sufficient here — three was the bar that exposed
+phase 2, not a bar that clears this. The real bar is the full continuation:
+zero resets across the affected conversation's remaining requests (563
+available in the corpus, which is ample). A green over any short prefix of that
+is the phase-2 shape repeating one level up.
+
+**Recommendation to the operator, as new evidence against a decision already
+taken rather than a reopening of it:** the decision to mitigate CC's behaviour
+rather than change local hook behaviour stands as intent. What has changed is
+the premise it was taken under — the cost was presented as a 110k bust without
+the one-time-and-self-healing finding, and without the asymmetric downside.
+Building remains defensible under the repo's cost-never-gates-mitigation
+stance; it is no longer obviously the best use of the next build slot, and the
+operator should have that before the work starts.
+
 ## Reconciliation owed at booking
 
 The busting message measures 372 bytes by the walk's original basis and 374 by
