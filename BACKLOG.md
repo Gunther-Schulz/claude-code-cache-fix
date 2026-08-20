@@ -458,6 +458,52 @@ comment and new issue.
 
 ## Open
 
+- **RECORD 2026-08-20 (found by destroying the thing it protects — I overwrote
+  the pre-fix fire-ledger baseline by running a sweep, and only then discovered
+  there was no second copy) — the daily sweep's `gate-status.json` is a carrier
+  with NO HISTORY, so every run silently destroys the only record of the one
+  before it, and every before/after question about the sweep is unanswerable
+  after the fact.** Checked rather than assumed: one file at
+  `~/.local/state/cache-fix/gate-status.json`, no dated siblings, nothing else
+  matching `gate-status*` under the state root.
+  **Why this is a mechanism finding and not my mistake alone.** The dev-loop's
+  closing gate, question 2, already binds it: *a RECURRING producer of findings
+  has no closing moment, so it satisfies the harvest question in its own
+  machinery or not at all* — a daily sweep produces findings every morning with
+  nobody closing anything. That clause was applied to CAPTURES (row-level
+  attribution dying with eviction) and never to the sweep's own OUTPUT. The
+  status file is the sweep's finding, and it is written in a way that guarantees
+  exactly one generation survives.
+  **What it costs, beyond today.** Every question of the form "did this number
+  move, and when" — absorbed rate, saved/leaked, byteGate MISMATCH count,
+  tmpLeftovers, fidelity — is answerable only against the CURRENT file. A
+  regression that appears between two sweeps has no observable delta; the trend
+  questions the ranking rubric's signal 2 wants (a cost "with its date") cannot
+  be asked of the sweep at all. Today's byteGate entry is a live instance: it
+  waits on "the answer arrives in the next sweep's status file", and that next
+  sweep will erase the figure it is being compared against.
+  **Design, and it is deliberately dull:** write each run to
+  `gate-status-<ISO instant>.json` beside the live one and keep the current
+  name as a copy or symlink so every existing reader is untouched; retain by
+  count, not by age, so a quiet week cannot age out the comparison basis. The
+  retention knob caution from the dev-loop applies in the usual direction — this
+  is a few hundred KB per run against 486 KB today, so it is not a storage
+  trade, and the operator's standing framing (storage is not scarce; only
+  PERFORMANCE and OOM justify a change) settles it.
+  **Register the carrier, per the closing gate's own clause:** the archive is a
+  new persistent state carrier and needs its collector in `state-report` in the
+  same change, or it repeats this defect one level up.
+  Loop stage: SEE (the sweep is the daily eye; today it cannot remember).
+  Anchor: `tools/gate-live.mjs`
+  Write-set: `tools/gate-live.mjs`, `tools/state-report.mjs` (carrier
+  registration) — the sweep's own file is the cache-fix desk's deployment lane
+  to schedule, but the write itself is repo-side
+  Verifier: red-first — two consecutive runs must leave TWO readable status
+  files with different `started` stamps, and the older one must still answer the
+  figure the newer one changed; today the second run leaves exactly one file,
+  which is the red.
+  <!-- entry: "gate-status.json has no history so every sweep destroys the previous record" -->
+
 - **RECORD 2026-08-20 — PROMOTION CANDIDATE, deliberately not graded READY:
   the scheduled head is at its declared cap of ten, and membership is DERIVED
   at the next build-order derivation, never edited into place by the session
@@ -554,10 +600,40 @@ comment and new issue.
   `INPUT-MITIGATED, OUTPUT-SPLICED` population, which is the expensive tail
   rather than a uniform shave — the 09:11Z pair alone moves ~35 kB across the
   columns.
-  **Not yet measured, and deliberately not asserted:** the magnitude corpus-wide.
-  One pair is n=1, and this entry does not claim a rate.
-  Named missing evidence: a `gate-live` sweep under the new pricing, compared
-  against the stored status file's figures from the previous sweep.
+  **POST-FIX SWEEP RUN 2026-08-20 12:01:22Z..12:25:54Z, 48 captures.** Totals
+  under the corrected pricing: `saved` **468,531 B** against `leaked`
+  **28,220,974 B** — saved is 1.7% of leaked.
+  **AND THE COMPARISON THIS ENTRY ASKED FOR IS NO LONGER POSSIBLE AS WRITTEN,
+  because running that sweep DESTROYED its own baseline. Mine, second
+  self-inflicted evidence loss of the day, same class as the s-captureBM one.**
+  `gate-status.json` is a single file that each sweep OVERWRITES; there is no
+  archive (checked: one file, no siblings, nothing under the state root). The
+  previous sweep's `saved`/`leaked` figures — the pre-fix numbers — were still
+  on disk when I started the run and I did not read or copy them. I read
+  `.started`, `.finished` and `.code` from that very file minutes earlier and
+  took the two numbers I actually needed off it never. The corpus rule walked
+  past is the one already booked against me today: before a destructive step
+  whose scope rests on a prior step's effect, read the object's CURRENT state —
+  an overwrite is destructive, and a scheduled sweep does not present as one.
+  **It is RECONSTRUCTIBLE, so this is a cost rather than a hole, and the method
+  is named so nobody re-derives it:** the pre-fix code is in git. Check out
+  `1cfc872` (the commit before `3eb2de0`) into a scratch worktree and run
+  `gate-live` there against a scratch `--status` path — never the real one, per
+  the parallel-lane rule — then diff the two totals. ~25 min, no operator
+  decision, and the delta must equal the summed `rebilledBytes` of the
+  input-mitigated-but-not-output-preserved rows.
+  **Second, cheaper reconstruction, preferred if someone wants only the
+  magnitude:** the delta is computable directly as
+  `sum(rebilled where mitigated && !outputPreserved)` over the corpus, without
+  any second sweep — the quantity that moved columns is exactly that
+  population.
+  **A MECHANISM FINDING falls out of the loss and it outlives this entry:**
+  the sweep's own status file is a carrier with no history, so every sweep
+  silently destroys the only record of the one before it. That makes ANY
+  before/after question about the sweep unanswerable after the fact, not just
+  this one. Booked as its own entry below.
+  **Still deliberately not asserted:** the magnitude. One pair is n=1, the
+  post-fix absolutes above are not a delta, and this entry claims no rate.
   Loop stage: VERIFY (the ledger that prices what the gates let through).
   Anchor: `tools/gate-live.mjs`
   Write-set: `tools/gate-live.mjs` if the sweep needs a stated re-baseline
