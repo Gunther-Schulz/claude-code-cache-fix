@@ -543,6 +543,19 @@ comment and new issue.
   population to report — a DECLINED row beside the MISS rows, not folded into
   them, since conflating decline with miss would re-create the two-value
   collapse this repo already fixed once in `bust-triage`'s status mapping.
+  **EXECUTED, not read off the `continue`.** Two entry pairs identical in every
+  byte of `outHash`/`inHash` and differing ONLY in whether the mitigation
+  claimed: `movedFresh:0` -> **0 rows** (invisible), `movedFresh:1` with a
+  matching `join-move` -> **1 row** (`absorbedFreshAt:[83]`,
+  `forwardedDivergence:83`). Identical divergence, opposite verdicts, so the
+  skip is driven by the CLAIM and not by the bytes.
+  **Worth recording, because it nearly confirmed itself for the wrong reason:**
+  the first arrangement put the `join-move` at index 82 while the conversation
+  identity element shifted the real divergence to 83, so
+  `if (outDiv > Math.max(...fresh)) continue` (`replay.mjs:2031`) discarded the
+  claimed arm too. BOTH arms returned 0 — which looks exactly like the finding
+  being true, and was in fact the instrument not discriminating. The pair is the
+  only thing that told them apart.
   Loop stage: VERIFY (the absorption instrument's reach).
   Anchor: `tools/replay.mjs`
   Write-set: `tools/replay.mjs`, `tools/bust-triage.mjs` (the ABSORPTION block)
