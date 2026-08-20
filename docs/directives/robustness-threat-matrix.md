@@ -2096,3 +2096,100 @@ irreversibly and at once, is ~14.3k prefix-diff DIAGNOSTIC artifacts older than
 14 days or beyond the 200-key cap. That is evidence, and closing-gate question 2
 asks whether any of it backs an open entry before it goes. That is the question
 the operator is deciding, not the cache one.
+
+### Row 1 datapoint — 2026-08-20 09:11:57Z (11:11 local): a 372-byte hook
+### notification spliced 23 turns back cost 110,022 tokens, the mitigation SAW
+### it and moved nothing, and the row's residual clause is refuted
+
+Walk entered through `runbooks/bust-appears.md` on an operator ❄ report;
+capture `s-captureBX`, session model `claude-opus-5[1m]`, pair ord 39->41
+(`09:10:38.414Z -> 09:11:47.934Z`), census `splice/insert-mid`.
+
+**Event resolved to exactly one, and uniquely.** `bust-triage --list
+--limit 200` over all 195 ledger events returns exactly ONE `messages_changed`
+row, so step 0's size+cause ambiguity did not arise. The transcript->capture
+join was by requestId, not by time proximity, which closes the 2026-08-10
+wrong-conversation failure mode (a sonnet pair selected beside a fable bust)
+by construction rather than by luck.
+
+**ATTRIBUTION: CC's**, computed — `bust-triage` importing `replay.mjs`'s
+primitive: CC's own raw pre-pipeline bytes diverge at index 82, and the
+replayed census recorded no stability violation for the pair. The negative is
+not vacuous: the census tallies `splice/insert-mid: 1` across 328 pairs / 31
+conversations and ours IS that one, so the pair was classified rather than
+skipped. State key `db4cb84a09d19e95` on both sides — no KEY-FLIP hiding under
+the body diff.
+
+**MECHANISM — which no instrument computes for this class.** `bust-triage`'s
+`edit-anchor` step (the one that names a sub-mechanism, `anchorDelta` and
+block migrations) runs only for `replace/edit`; for `splice/insert-mid` the
+walk gets a row number and no mechanism at all. Derived by hand and frozen:
+exactly ONE mid-history insertion, index 82 of 107, `role:"system"`, 372
+bytes, carrying a Stop-hook blocking-error notification
+(`unpushed-reminder.py`), at `anchorDelta -23`. The other three new entries
+(104-106) are ordinary tail growth. **The cost is set by the insertion's DEPTH
+behind the anchor, not by its size** — 372 bytes re-billed 110,022 tokens.
+
+**ABSORPTION: NO, and measured rather than inferred.**
+`insertion-normalization` logged `action:"normalized"` — its own header
+defines that as "a splice was detected and corrected" — with `inserted` 3 -> 4
+and `moved:0, movedFresh:0, suppressed:0, dropped:0`. It saw the new entry and
+relocated nothing. "The mitigation ran" and "the mitigation absorbed" sat one
+line apart in this telemetry exactly as the dev-loop says they do.
+
+**THE ROW'S RESIDUAL CLAUSE IS REFUTED.** Row 1's status asserted that "the
+insertions that still bust are rows 4 and 22's classes". This instance is
+neither — not row 4 (`bust-triage`'s own migration step: no reminder container
+migration in this pair), and not row 22 (prune/suggestion-mode, ACCEPTED,
+unrelated to a hook notification). A third population busts under this row.
+NEAR-ZERO remains the right word for the RATE and was the wrong word for the
+remainder's SHAPE, which was undescribed until today. Status record amended
+the same day.
+
+**INSTRUMENT FINDINGS, both booked in `BACKLOG.md`.**
+1. `findAbsorptionMisses` (`replay.mjs:2015-2018`) gates on
+   `claims = movedFresh>0 || descriptionAbsorbed>0 || oscillationAbsorptions>0`
+   and skips the pair when false. So it answers "did a CLAIMED absorption
+   hold" and is structurally blind to "the mitigation ran, saw the event, and
+   absorbed nothing" — which is this instance, and which is the population
+   where a NEAR-ZERO row status quietly stops being true. A zero-claim run is
+   byte-indistinguishable from a request with nothing to absorb, so the
+   detector's green over it carries no information.
+2. The KNOWN-OPEN/row-1 verdict came from `classToRow`'s flat
+   `splice/insert-mid -> 1` map (`bust-triage.mjs:1424-1430`) — the same
+   mechanism-blind mapping row 32 already booked for `replace/edit -> 4`, now
+   with a second measured instance one class over. The row assignment happens
+   to be CORRECT here on the class definition (a mid-history notification
+   insertion is row 1 by wording), which is precisely why it is worth
+   recording: a flat map that lands right is still not a computed answer, and
+   this row is where that distinction was checked rather than assumed.
+
+**EVIDENCE, frozen machine-local and VERIFIED to reproduce** (0600, uncommitted;
+bounded deliberately — the finding is a message shape plus one event line, so
+a full `--pin` prefix would be freight, per step 11's 2026-08-17 rule):
+`~/.local/share/cache-fix/bust-evidence/2026-08-20/bust-0911-pair.jsonl`
+(736 KB, 2 records) re-reads as `splice/insert-mid` with divergence index 82
+and mid-history inserts `[82]`; `bust-0911-insertion-events.jsonl` carries the
+`normalized / inserted:4 / moved:0` record. The extraction instrument was shown
+to DISCRIMINATE before its output was believed: on the busting pair it returns
+mid-history `[82]`, on the same capture's append-only pair (ord 2->4) it
+returns `[]` — both drawn from the data, neither constructed.
+
+**DISPOSITION: row 1 instance, attributed CC's, mitigation declined to absorb.**
+Forward edge stopped at the BUILD link, and the stop is named rather than
+silent: the two instrument entries are decision-complete and dispatchable, but
+the row-1 mitigation itself is not, because what would have to change is
+`insertion-normalization`'s decision to relocate a `role:"system"` notification
+sitting 23 turns behind the anchor — a proxy/** change, deployment-coupled,
+requiring a row-3 declaration and a restart at a session boundary, and its
+safety argument (relocating a mid-history system entry to the tail alters
+conversation order as CC composed it) is undecided. That is the decision that
+would make it ready, and it is stated here rather than left as "interesting".
+
+**A COLLATERAL INCIDENT, recorded here because it happened during this walk
+and destroyed evidence another row's entry cites:** `alias-claim --protect` on
+this capture pushed the protected set past its 12 GB cap, and the tool's
+eviction dropped `s-captureBM`, whose live-dir copy had already rotated out —
+so the protected hard-link was its last link and the bytes are gone. The
+finding that entry rests on survived in its committed bounded pin, which is
+the argument for bounded pins over relying on protection. Booked with its fix.

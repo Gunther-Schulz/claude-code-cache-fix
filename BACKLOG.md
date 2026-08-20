@@ -458,6 +458,148 @@ comment and new issue.
 
 ## Open
 
+- **RECORD 2026-08-20 (INCIDENT, self-inflicted and irreversible, found by
+  reading the tool's own success-path WARNING instead of moving past it) —
+  `alias-claim --protect` DELETES the last copy of another capture when the
+  protected-set cap is exceeded, and reports it as a warning on a zero
+  exit.** Measured today, by me, on a live capture: protecting the 347 MB
+  busting capture pushed the set past its 12 GB cap, and the tool responded
+  `dropped protection for s-captureBM`. That capture's live-dir copy had
+  ALREADY rotated out, so the protected hard-link was the LAST link to its
+  bytes; unlinking it freed them. Confirmed against current state, not
+  assumed: absent from `captures-protected/`, absent from `captures/`, and a
+  `find` over the whole cache-fix data root returns nothing. Unrecoverable.
+  **The defect is in the cap's own stated rationale, which is why nobody
+  caught it.** `alias-claim.mjs:101-105` argues the cap is safe because
+  "`--protect` hard-links, so a protected capture adds zero bytes to the
+  filesystem and this number only limits how much the eviction sweep is told
+  to keep". That is TRUE while the live copy still exists and FALSE for
+  exactly the population the cap then evicts — old captures whose live copy
+  is gone, where the protected link is the only link and is holding real
+  bytes. The bounds-retention-not-disk claim and the eviction behaviour are
+  correct sentences that contradict each other on the oldest members.
+  **It also contradicts a standing operator framing** already recorded at the
+  head of this file: storage is NOT scarce on this machine, and nothing
+  valuable is pruned to save space — only PERFORMANCE and OOM justify a
+  change. A 12 GB cap that destroys frozen bust evidence is a
+  space-saving lean on the most valuable bytes in the tree.
+  **The fix has two halves and the second is the load-bearing one.** (1)
+  `--protect` must REFUSE, not warn, when its eviction candidate has no other
+  link — a guard's repair for firing on legitimate work is a declared
+  exemption, but here the guard is silent where it should block. (2) The
+  decision must be visible BEFORE the act: a caller-visible pre-check
+  ("protecting this evicts s-captureX, whose only copy this is") turns an
+  irreversible side effect into a decision. A WARNING after the unlink is the
+  register nobody stops for, which is exactly how this landed.
+  **What did NOT break, established in the artifact rather than read off the
+  entry:** the finding BACKLOG's own s-captureBM entry rests on survives in
+  its committed bounded pin `test/fixtures/harvested/pinned-s-2474f17f818d-10-13.json`
+  (98 KB, present, 26 records / 14 with messages, counts including the 16 and
+  19 that its 14/16 = 0.875 overlap claim needs, plus the n=0..12 range its
+  "checked against every predecessor" claim needs). The three-link freeze
+  chain that entry documents completing is what saved it. The loss is the raw
+  re-derivation surface beyond the pin, not the finding — which is itself the
+  argument for bounded pins over relying on protection.
+  **Second carrier owed:** that entry's parenthetical "claimed AND
+  `--protect`ed, so retention cannot take it" is now FALSE and is corrected in
+  the same change.
+  **STANDING HAZARD until fixed: the protected set is still at its cap, so
+  the next `--protect` anyone runs destroys another capture's last copy.**
+  Second-partition candidate (irreversible failure mode) at the next build-order
+  derivation; not hand-promoted here, since READY membership is derived.
+  Loop stage: SEE (evidence retention — the loop's inputs).
+  Anchor: `tools/alias-claim.mjs`
+  Write-set: `tools/alias-claim.mjs`, `BACKLOG.md` (the s-captureBM parenthetical)
+  Verifier: red-first — a fixture protected set at cap plus a link-count-1
+  eviction candidate must make `--protect` exit non-zero and leave both files
+  linked; the same case one link higher must still evict silently.
+  <!-- entry: "alias-claim --protect deletes the last copy of an evicted capture at cap" -->
+
+- **RECORD 2026-08-20 (found by walking the 09:11:57Z 110k bust to its
+  absorption question) — `findAbsorptionMisses` cannot see a mitigation that
+  ran and absorbed NOTHING, because it gates on the mitigation having CLAIMED
+  an absorption.** `replay.mjs:2015-2018` computes
+  `claims = movedFresh>0 || descriptionAbsorbed>0 || oscillationAbsorptions>0`
+  and `if (!claims || !fresh.length) continue`. So the check answers "did a
+  claimed absorption actually hold" and is silent on "did the mitigation
+  decline to absorb an event it saw".
+  **The instance, frozen:** on the busting pair, `insertion-normalization`
+  logged `action:"normalized"` — its own header defines that as "a splice was
+  detected and corrected" — with `inserted` 3 -> 4, and
+  `moved:0, movedFresh:0, suppressed:0, dropped:0`. It SAW the new entry and
+  relocated nothing, and 110,022 tokens were re-billed. `claims` is false, so
+  the pair was skipped and the sweep reported clean on it.
+  **Why this is the dangerous direction:** a zero-claim run is
+  byte-indistinguishable from a request with nothing to absorb. The detector's
+  green over this population carries no information, and the dev-loop's own
+  framing — "the mitigation ran" and "the mitigation absorbed" are different
+  claims — has a third member nobody instrumented: the mitigation ran, saw it,
+  and passed. That is the population where a NEAR-ZERO row status quietly
+  stops being true.
+  **Design note, so the fix is not a widened predicate:** the missing signal is
+  already on the wire. A pair whose census class is mitigable
+  (`replay.mjs:1626` MITIGABLE = splice/insert-mid, append-after-change,
+  reorder-only) and whose extension stats claim nothing is the exact
+  population to report — a DECLINED row beside the MISS rows, not folded into
+  them, since conflating decline with miss would re-create the two-value
+  collapse this repo already fixed once in `bust-triage`'s status mapping.
+  Loop stage: VERIFY (the absorption instrument's reach).
+  Anchor: `tools/replay.mjs`
+  Write-set: `tools/replay.mjs`, `tools/bust-triage.mjs` (the ABSORPTION block)
+  Verifier: red-first on the frozen pair below — a DECLINED row must appear for
+  it, and must NOT appear for the append-only control pair at ord 2->4 of the
+  same capture.
+  <!-- entry: "findAbsorptionMisses blind to zero-claim runs on mitigable pairs" -->
+
+- **RECORD 2026-08-20 (bust walk, 09:11:57Z) — row 1 instance: a 372-byte
+  mid-history hook message cost 110,022 tokens, and row 1's residual sentence
+  is REFUTED by it.** Event: 2026-08-20 09:11:57Z (11:11 local), 110k,
+  `messages_changed`, capture `s-captureBX`, model `claude-opus-5[1m]`,
+  pair ord 39->41 (`2026-08-20T09:10:38.414Z -> 09:11:47.934Z`).
+  **ATTRIBUTION: CC's** — computed by `bust-triage` importing `replay.mjs`'s
+  primitive, not by hand: CC's own raw pre-pipeline bytes diverge at index 82
+  and the replayed census recorded no stability violation for the pair. The
+  pair was CLASSIFIED rather than skipped (census `splice/insert-mid: 1` of 328
+  pairs / 31 conversations — ours is that single one), so the negative is not
+  vacuous.
+  **MECHANISM, which the tool does not compute for this class:** exactly ONE
+  mid-history insertion, at index 82 of 107, `role:"system"`, 372 bytes,
+  carrying a Stop-hook blocking-error notification (`unpushed-reminder.py`).
+  `anchorDelta -23` — 23 messages BEHIND the last human turn. The other three
+  new entries (104, 105, 106) are ordinary tail growth. So a 372-byte
+  notification spliced 23 turns back re-billed 110k: the cost is set by the
+  insertion's DEPTH, not its size.
+  **ABSORPTION: NO.** See the `findAbsorptionMisses` entry above — the
+  mitigation ran, logged `normalized`, moved nothing.
+  **The refutation.** Row 1's status record (`RESIDUAL`) asserts "the
+  insertions that still bust are rows 4 and 22's classes". This instance is
+  neither: `bust-triage`'s own migration step reads *no reminder container
+  migration in this pair* (not row 4), and row 22 is the prune/suggestion-mode
+  class, ACCEPTED and unrelated to a hook notification. So a third population
+  busts under row 1 and the residual under-describes it. Row 1's status text is
+  corrected in the matrix by the same change.
+  **Instrument note, an INCREMENT to the known `classToRow` defect rather than
+  a new finding:** the KNOWN-OPEN/row-1 verdict came from `classToRow`'s flat
+  `splice/insert-mid -> 1` map (`bust-triage.mjs:1424-1430`), which is the same
+  mechanism-blind mapping row 32 already booked for `replace/edit -> 4`. Second
+  measured instance, one class over.
+  **ABSENCE BOOKED, per the runbook's requirement:** row 1 has NO booked
+  mitigation entry in this file, so the instance datapoint has no
+  build-order-visible carrier and the ranking's measured-cost signal for row 1
+  stays stale. That absence is this bullet.
+  **Evidence, frozen and VERIFIED to reproduce** (machine-local, 0600, not
+  committed — bounded deliberately: the finding is a message shape plus one
+  event line, so the conversation prefix would be freight):
+  `~/.local/share/cache-fix/bust-evidence/2026-08-20/bust-0911-pair.jsonl`
+  (736 KB, 2 records) re-reads as `splice/insert-mid`, divergence index 82,
+  mid-history inserts `[82]`; and `bust-0911-insertion-events.jsonl` (8 records)
+  carries the `normalized / inserted:4 / moved:0` line.
+  Loop stage: MITIGATE (row 1's remainder, now characterised).
+  Anchor: `proxy/extensions/insertion-normalization.mjs`
+  Write-set: `docs/directives/robustness-threat-matrix.status.json`,
+  `docs/directives/robustness-threat-matrix.md`
+  <!-- entry: "row 1 instance 2026-08-20 110k mid-history hook insert, residual refuted" -->
+
 - **RECORD 2026-08-20 (surfaced by dispositioning a risen skip count, which is
   the only reason anyone looked) — the row-pin mutation arm that proves the
   check can go RED runs on 1 of 14 fixtures, and its skip count tracks FIXTURE
@@ -2923,8 +3065,13 @@ comment and new issue.
   specifies (lineage primitive -> bounded `--pin` -> freeze both cases)
   completed for the first time; last time it stopped before link three and the
   capture rotated out within a day.
-  - **The instance**, in capture `s-captureBM` (claimed AND `--protect`ed, so
-    retention cannot take it): ordinal `n=13` at `2026-08-13T10:15:23.189Z`,
+  - **The instance**, in capture `s-captureBM` (**CORRECTED 2026-08-20: this
+    parenthetical read "claimed AND `--protect`ed, so retention cannot take
+    it" and is now FALSE — that capture's bytes were DESTROYED on 2026-08-20
+    by an `alias-claim --protect` call whose cap eviction dropped its last
+    link; see the incident entry at the head of `## Open`. The finding below
+    is unaffected and was re-verified in the committed pin that day**):
+    ordinal `n=13` at `2026-08-13T10:15:23.189Z`,
     19 messages, whose `messages[0]` matches NO predecessor in the capture —
     checked against every one of `n=0..12`, not merely its neighbours — while
     its lineage predecessor `n=10` at `2026-08-11T17:19:04.040Z` (16 messages,
