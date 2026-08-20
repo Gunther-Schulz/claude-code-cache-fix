@@ -316,3 +316,81 @@ test("mitigation rows: savedBytes retains on the mitigated branch what rebilledB
   );
   assert.equal(unmitigated[0].savedBytes, 0, "an unmitigated pair saves nothing");
 });
+
+// --- ABSORBED = mitigated && outputPreserved (2026-08-20, from the 09:11:57Z
+// 110k bust) ---
+//
+// THE DEFINITION, written before the assertions and derived from the WORK's
+// requirement rather than from what the code does. The mitigation block's own
+// header states the question it exists to answer: "of the events this proxy
+// exists to absorb, how many did it actually absorb?" Actually absorbed means
+// the cache survived. `mitigated` cannot answer that — it is the extension's
+// self-report about its INPUT reconstruction (`action === "normalized"`), and
+// the file's own comment above findMitigationGaps already says a pair can be
+// `mitigated: true` and `outputPreserved: false` at once. So the two-field
+// conjunction is the answer, and pricing on `mitigated` alone is the
+// implementation contradicting the spec one screen above it.
+//
+// THE MEASURED INSTANCE. 2026-08-20 09:11:57Z, capture s-captureBX, pair
+// ord 39->41: CC spliced a 372-byte role:"system" Stop-hook notification at
+// index 82 of 107; insertion-normalization logged action:"normalized" and
+// moved nothing; 110,022 tokens were re-billed. Replayed under the SERVING
+// config the row reads `[INPUT-MITIGATED, OUTPUT-SPLICED] splice@82` — and,
+// because the pricing keys on `mitigated` alone, that pair books ~31 kB
+// SAVED and 0 LEAKED, which `summariseFireBytes` (gate-live.mjs) carries into
+// the daily sweep's saved column. The ledger credits the loss as a save.
+//
+// The shape below is that bust in miniature: input spliced, output STILL
+// spliced. It is synthetic on purpose — the live pair needs the whole
+// conversation prefix to replay, and what is being pinned here is the
+// PRICING RULE, not the capture.
+test("a pair that re-serialised the INPUT but still spliced the OUTPUT is NOT absorbed, and prices as a leak", () => {
+  const prevIn = [user("u0"), asst("a1"), user("u2")];
+  const curIn = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+  // The extension reports "normalized" — and the forwarded array is spliced
+  // mid-history anyway, exactly as the live 09:11Z pair was.
+  const prevOut = [user("u0"), asst("a1"), user("u2")];
+  const curOut = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+
+  const [row] = findMitigationGaps([
+    entry(0, prevIn, prevOut, { action: "append-only" }),
+    entry(1, curIn, curOut, { action: "normalized" }),
+  ]);
+
+  // Unchanged facts — these are what the input-side flag legitimately says.
+  assert.equal(row.mitigated, true, "the extension's own input-side self-report is untouched");
+  assert.equal(row.outputPreserved, false, "control: the forwarded array really did splice");
+
+  // The finding. PRICING IS ASSERTED FIRST, deliberately: an `absorbed`
+  // assertion leading would go red merely because the field does not exist
+  // yet, which proves a missing field rather than a wrong number. The defect
+  // is the money, so the money is what the red has to name.
+  assert.ok(row.rebilledBytes > 0,
+    "the cache broke, so this is a LEAK — pricing it at 0 is what credited a 110k bust as free");
+  assert.equal(row.savedBytes, 0,
+    "nothing was saved; booking savedBytes here is what inflates the fire ledger's saved column");
+  assert.equal(row.absorbed, false,
+    "absorbed is the conjunction: re-serialising the input while splicing the output absorbed nothing");
+});
+
+// The control that keeps the fix from merely INVERTING the lie. A genuinely
+// absorbed pair — input re-serialised AND output preserved — must still price
+// as a save. Without this, "price on the conjunction" could be satisfied by a
+// change that reports everything as leaked.
+test("control: a genuinely absorbed pair still reports absorbed and still books its bytes as saved", () => {
+  const prevIn = [user("u0"), asst("a1"), user("u2")];
+  const curIn = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+  const prevOut = [user("u0"), asst("a1"), user("u2")];
+  const curOut = [user("u0"), asst("a1"), user("u2"), user("SPLICED")];
+
+  const [row] = findMitigationGaps([
+    entry(0, prevIn, prevOut, { action: "append-only" }),
+    entry(1, curIn, curOut, { action: "normalized" }),
+  ]);
+
+  assert.equal(row.mitigated, true);
+  assert.equal(row.outputPreserved, true);
+  assert.equal(row.absorbed, true, "both halves hold, so this one really was absorbed");
+  assert.equal(row.rebilledBytes, 0, "an absorbed pair leaks nothing");
+  assert.ok(row.savedBytes > 0, "and it keeps its saved credit — the fix must not invert the lie");
+});

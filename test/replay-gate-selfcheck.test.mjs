@@ -969,16 +969,38 @@ test("firstDivergence: prefix growth reports null, in-place change reports the i
 // and it took hand-reading extension telemetry to establish we had not
 // mitigated it.
 
+// FIXTURE CORRECTED 2026-08-20 — the assertions are unchanged, the fixture
+// now depicts what they claim. This test passed `entry(1, b, b)`, i.e. the
+// forwarded array WAS the spliced one, while asserting that the pair "counts
+// as absorbed and costs nothing". Under the old pricing that was consistent,
+// because `rebilledBytes` keyed on the input-side `mitigated` flag alone and
+// had no opinion about the output. Once pricing moved to
+// `mitigated && outputPreserved` (the 09:11:57Z 110k bust: normalized input,
+// spliced output, 110,022 tokens re-billed) the same fixture began asserting
+// that forwarding a mid-history splice is free — which is the defect, pinned
+// as an expectation.
+// This is the predicate-gained-a-value case from the corpus: `out = in` was a
+// harmless don't-care while `mitigated` was the only axis, and it silently
+// became a SPECIFICATION of a spliced output when the second axis arrived.
+// It failed loudly rather than quietly, which is the good outcome — but the
+// repair is the fixture, never the expectation. The success path keeps a test
+// asserting success; the failure path is pinned in
+// test/mitigation-output-form.test.mjs.
 test("mitigation: a normalized splice counts as absorbed and costs nothing", () => {
   const a = [user("u0"), asst("a1"), user("u2")];
   const b = [user("u0"), asst("a1"), user("SPLICED"), user("u2")];
+  // What a SUCCESSFUL re-serialization actually forwards: prev's output kept
+  // as a strict prefix, the new content appended at the tail.
+  const bOut = [user("u0"), asst("a1"), user("u2"), user("SPLICED")];
   const rows = findMitigationGaps([
     entry(0, a, a, { action: "append-only" }),
-    entry(1, b, b, { action: "normalized" }),
+    entry(1, b, bOut, { action: "normalized" }),
   ]);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].kind, "splice/insert-mid");
   assert.equal(rows[0].mitigated, true);
+  assert.equal(rows[0].outputPreserved, true, "the fixture must actually depict success");
+  assert.equal(rows[0].absorbed, true);
   assert.equal(rows[0].rebilledBytes, 0);
 });
 
@@ -1116,9 +1138,14 @@ test("mitigation: findMitigationGaps' rebilledBreakpointBytes/savedBreakpointByt
   // Mitigated (normalized): both breakpoint-aware fields stay 0/full-saved,
   // same as the existing rebilledBytes/savedBytes pair — a successful
   // re-serialization needs no breakpoint reasoning.
+  // FIXTURE CORRECTED 2026-08-20, same reason as the "normalized splice counts
+  // as absorbed" test above: this arm passed the SPLICED array as the
+  // forwarded one, so it never depicted the successful re-serialization it
+  // describes. `bOut` appends at the tail, which is what success looks like.
+  const bOut = [user("u0"), asst("a1"), user("u2"), user("u3"), bpUser("u4"), user("SPLICED")];
   const hitRows = findMitigationGaps([
     entry(0, a, a, { action: "append-only" }),
-    entry(1, b, b, { action: "normalized" }),
+    entry(1, b, bOut, { action: "normalized" }),
   ]);
   assert.equal(hitRows.length, 1);
   assert.equal(hitRows[0].mitigated, true);

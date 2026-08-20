@@ -1771,6 +1771,21 @@ export function findMitigationGaps(entries) {
         outputForm = `edit@${outDiv}`;
       }
       const outputPreserved = outputForm === "append";
+      // ABSORBED is the two-field conjunction, and it is what the money is
+      // priced on from 2026-08-20. `mitigated` alone answers "did the
+      // extension re-serialise the INPUT" — its own self-report — and was
+      // being consumed as "did the cache survive". Those are different
+      // questions, as the block comment above this function already said; the
+      // pricing simply had not been told. Measured on the 09:11:57Z 110k bust
+      // (capture s-captureBX, ord 39->41): `mitigated: true`,
+      // `outputPreserved: false`, `splice@82` — and under the old pricing that
+      // pair booked ~31 kB SAVED and 0 LEAKED, straight through
+      // summariseFireBytes into the daily sweep's saved column. The ledger
+      // credited the loss as a save on exactly the events that cost most.
+      // `mitigated` and `outputPreserved` both keep their existing meanings
+      // and their existing field names, so a consumer reading either is
+      // untouched; only the two byte pairs move.
+      const absorbed = mitigated && outputPreserved;
       const outFrom = outDiv === null ? cur.outBytes.length : outDiv;
       const rebilledOutBytes = outputPreserved
         ? 0
@@ -1784,22 +1799,26 @@ export function findMitigationGaps(entries) {
         ts: cur.ts,
         kind,
         mitigated,
+        // The conjunction, exposed so consumers can ask the cache question
+        // directly instead of re-deriving it from two fields (and getting it
+        // wrong by using one).
+        absorbed,
         action: cur.action,
         resetReason: cur.resetReason,
-        rebilledBytes: mitigated ? 0 : rebilled,
+        rebilledBytes: absorbed ? 0 : rebilled,
         // The same computed number, retained on the branch that used to
         // discard it: what this mitigation ABSORBED, priced identically to
         // what a miss would have leaked. Complement of rebilledBytes by
         // construction (their sum is always `rebilled`) — the fire ledger's
         // saved column reads it (gate-live summariseFireBytes).
-        savedBytes: mitigated ? rebilled : 0,
+        savedBytes: absorbed ? rebilled : 0,
         // Breakpoint-aware pricing, under its OWN name — `rebilledBytes` and
         // `savedBytes` above keep their existing (divergence-only) meaning
         // unchanged; gate-live's fire ledger and every other consumer of
         // those two fields is unaffected by this addition. Same
         // mitigated/complement split as the pair above.
-        rebilledBreakpointBytes: mitigated ? 0 : rebilledBreakpoint,
-        savedBreakpointBytes: mitigated ? rebilledBreakpoint : 0,
+        rebilledBreakpointBytes: absorbed ? 0 : rebilledBreakpoint,
+        savedBreakpointBytes: absorbed ? rebilledBreakpoint : 0,
         outputForm,
         outputPreserved,
         rebilledOutBytes,
@@ -5121,7 +5140,16 @@ async function main() {
       // The question the four gates cannot ask: of the events this proxy
       // exists to absorb, how many did it actually absorb?
       const total = mitigation.length;
-      const hit = mitigation.filter((m) => m.mitigated).length;
+      // `absorbed`, not `mitigated` — the question this block's own header
+      // asks is "how many did it ACTUALLY absorb", and until 2026-08-20 the
+      // count answered a different one. The 09:11:57Z bust printed
+      // "1/1 mitigable events absorbed (100%)" one line above
+      // "NOT output-preserved", on a request that re-billed 110,022 tokens.
+      // The itemised INPUT-MITIGATED/OUTPUT-SPLICED block below still lists
+      // that population separately, and the `byReason` breakdown further down
+      // still keys on `mitigated`, so the two lists stay disjoint rather than
+      // reporting the same pairs twice.
+      const hit = mitigation.filter((m) => m.absorbed).length;
       const pct = total ? ((100 * hit) / total).toFixed(0) : "--";
       process.stdout.write(`\nmitigation: ${hit}/${total} mitigable events absorbed (${pct}%)\n`);
       // `mitigated` is input-side only (see the definitional comment on

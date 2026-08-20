@@ -2042,7 +2042,28 @@ async function replayedViolations(capturePath) {
     return { ok: false, reason: `capture file ${capturePath} does not exist — cannot replay it` };
   }
   const res = await runChild(
-    [`--max-old-space-size=${CENSUS_HEAP_CAP_MB}`, REPLAY, capturePath, "--json", "--census"]);
+    // `--gates-from-capture` added 2026-08-20, and it is a CORRECTION, not an
+    // enhancement. Without it this spawn inherits whatever gates the ambient
+    // environment happens to carry — in practice none — so every verdict this
+    // tool derived from the replay was computed over the DEFAULT extension
+    // set rather than the one that was serving when the bust happened. That
+    // is the failure `docs/runbooks/bust-appears.md` step 4 names outright:
+    // "a green verdict over the wrong configuration is worse than no verdict
+    // because it reads like one."
+    // Measured on the 09:11:57Z pair: under the serving gates the row reads
+    // `mitigated: true` (action "normalized", matching the LIVE extension
+    // event log at 09:11:47.948Z); under defaults it reads `mitigated: false,
+    // action none`, because CACHE_FIX_INSERTION_NORMALIZE is simply not set —
+    // i.e. the tool was reporting on a pipeline nobody runs.
+    // The capture's own boot record is the right source rather than a live
+    // `/health` read: it carries the gates that were serving AT CAPTURE TIME,
+    // and a bust is triaged against the config that produced it, not against
+    // whatever is deployed today. A capture that declares no gates still
+    // falls back to the ambient set — replay says so in its own output
+    // ("gates: no gates declared in capture"), which is a stated
+    // could-not-verify rather than a silent default.
+    [`--max-old-space-size=${CENSUS_HEAP_CAP_MB}`, REPLAY, capturePath, "--json", "--census",
+     "--gates-from-capture"]);
   if (res.code === -1) {
     return { ok: false, reason: `replay subprocess failed to start: ${res.err}` };
   }
@@ -2073,9 +2094,23 @@ async function replayedViolations(capturePath) {
   if (!parsed.census || typeof parsed.census.pairs !== "number") {
     return { ok: false, reason: "replay's --census --json output carried no `census.pairs` count" };
   }
+  // `mitigation` rides the same --census --json call as the three above. It
+  // is the array that answers the question this tool's ABSORPTION block was
+  // missing entirely: findMitigationGaps already computes, per pair, whether
+  // the extension re-serialised the INPUT and whether the forwarded OUTPUT
+  // survived — and on the 2026-08-20 09:11:57Z bust it named the pair
+  // (`[INPUT-MITIGATED, OUTPUT-SPLICED] splice@82`) while this block printed
+  // only D1 retirement and tools[] stability, so a walk asking "did the
+  // mitigation absorb" had to go read replay's own stdout by hand.
+  // Guarded like its siblings rather than defaulted: an absent array is
+  // could-not-verify, never an empty one, because "no rows" and "the field
+  // was not emitted" are different answers and only one of them is clean.
+  if (!Array.isArray(parsed.mitigation)) {
+    return { ok: false, reason: "replay's --census --json output carried no `mitigation` array" };
+  }
   return { ok: true, violations: parsed.violations, exemptions: parsed.exemptions,
            toolsDeltas: parsed.toolsDeltas, absorptionMisses: parsed.absorptionMisses,
-           census: parsed.census };
+           mitigation: parsed.mitigation, census: parsed.census };
 }
 
 /**
@@ -2415,7 +2450,8 @@ export async function triage(bust) {
   // would be a claim about a population this pair was never a member of,
   // the exact failure this entry exists to remove one level up.
   const absorption = { d1: await d1RetirementForBust(bust.t, SNAPSHOTS),
-                        toolsStability: toolsStabilityFromReplay(attribution.replay) };
+                        toolsStability: toolsStabilityFromReplay(attribution.replay),
+                        mitigation: mitigationForPair(attribution.replay, pair) };
 
   // State-key check (BACKLOG: "bust-triage reports a state-key CHANGE
   // across the pair as its own line"). Read right after `pair` is known so
@@ -2803,7 +2839,45 @@ export function resolveSessionHandle(handle, dir = SESSIONS_DIR) {
            detail: `"${clean}" matches no session in ${dir} (${registry.length} registered)` };
 }
 
-/** The ABSORPTION block's two text lines — `r.absorption`'s CLI rendering. */
+/**
+ * Did the mitigation absorb THIS pair? — the per-instance question, answered
+ * from `findMitigationGaps`' own row rather than from a matrix row's status.
+ *
+ * Matched on (prevN, n) against the pair's capture ORDINALS. Both sides count
+ * the same thing: `capturePairResult` and `replay.mjs` both advance their
+ * ordinal on a capture REQUEST record, so this is one namespace, not two — the
+ * join the runbook's Setup note warns about is the one against `--list` LINE
+ * numbers, which is not what either of these carries. Stated because a silent
+ * ordinal mismatch here would return "no row" and read exactly like a pair
+ * that produced none.
+ *
+ * THREE answers. A pair the replay never classified as mitigable produces no
+ * row at all, and that is NOT-MITIGABLE — a real answer, distinct from
+ * could-not-verify (no replay) and from a row saying it was not absorbed.
+ */
+export function mitigationForPair(replay, pair) {
+  if (replay === null || !replay.ok) {
+    return { verdict: "COULD-NOT-VERIFY",
+             reason: replay === null
+               ? "attribution resolved without a replay, so no mitigation rows exist to read"
+               : replay.reason };
+  }
+  const prevN = pair?.before?.ord, n = pair?.after?.ord;
+  if (!Number.isInteger(prevN) || !Number.isInteger(n)) {
+    return { verdict: "COULD-NOT-VERIFY",
+             reason: "the selected pair carries no capture ordinals to match a mitigation row against" };
+  }
+  const row = (replay.mitigation ?? []).find((m) => m.n === n && m.prevN === prevN);
+  if (!row) {
+    return { verdict: "NOT-MITIGABLE",
+             reason: `no mitigation row for n=${prevN}->${n} — this pair's census class is not one ` +
+                     "this proxy claims to absorb (MITIGABLE is splice/insert-mid, " +
+                     "append-after-change, reorder-only), so there was nothing to absorb" };
+  }
+  return { verdict: row.absorbed ? "ABSORBED" : "NOT-ABSORBED", row };
+}
+
+/** The ABSORPTION block's three text lines — `r.absorption`'s CLI rendering. */
 function formatAbsorption(absorption) {
   const d1 = absorption.d1;
   const fb = d1.d1OldKeyFallback.hits === null ? "COULD-NOT-VERIFY" : String(d1.d1OldKeyFallback.hits);
@@ -2822,7 +2896,25 @@ function formatAbsorption(absorption) {
       `absorption misses ${ts.absorptionMisses}`
     : `tools[] stability: ${ts.verdict} — ${ts.reason}`;
 
-  return `  ABSORPTION:\n    ${d1Line}\n    ${tsLine}\n`;
+  // The per-instance line. "The mitigation ran" and "the mitigation absorbed"
+  // are different claims (docs/dev-loop.md), and until 2026-08-20 this block
+  // printed neither for the busting pair itself.
+  const mg = absorption.mitigation;
+  let mgLine;
+  if (mg.verdict === "ABSORBED" || mg.verdict === "NOT-ABSORBED") {
+    const r = mg.row;
+    mgLine = `this pair: ${mg.verdict} — ${r.kind}, input-mitigated=${r.mitigated} ` +
+      `(action ${r.action ?? "none"}), output ${r.outputForm} preserved=${r.outputPreserved}, ` +
+      `re-billed ~${(r.rebilledBytes / 1e3).toFixed(0)} kB / saved ~${(r.savedBytes / 1e3).toFixed(0)} kB` +
+      (r.mitigated && !r.outputPreserved
+        ? " [INPUT-MITIGATED, OUTPUT-SPLICED — the extension re-serialised the input and the "
+          + "forwarded prefix still moved]"
+        : "");
+  } else {
+    mgLine = `this pair: ${mg.verdict} — ${mg.reason}`;
+  }
+
+  return `  ABSORPTION:\n    ${d1Line}\n    ${tsLine}\n    ${mgLine}\n`;
 }
 
 async function main(argv) {
