@@ -28,6 +28,7 @@ import net from "node:net";
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { withDeadline } from "./child-deadline.mjs";
+import { killOurs } from "./proc-helpers.mjs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -165,8 +166,13 @@ describe("a dead stdio reader does not kill the port's process", () => {
       let pids = ""; listeners.stdout.on("data", (d) => (pids += d));
       await withDeadline(new Promise((r) => listeners.on("exit", r)), 10_000, listeners,
                          "lsof never returned while looking for the proxy child");
+      // THROUGH killOurs(), which is where the ours-only predicate lives. This
+      // lsof is raw — it is not the shared `listeners()` helper despite the
+      // local name, and `-iTCP:` without `@127.0.0.1` matches a listener on ANY
+      // interface — so `n > 1 && n !== holder.pid` was the only thing standing
+      // between this loop and a stranger's pid.
       for (const pid of pids.trim().split("\n").map(Number).filter((n) => n > 1 && n !== holder.pid)) {
-        try { process.kill(pid, "SIGKILL"); } catch {}
+        killOurs(pid);
       }
       await settle(1500);
       assert.equal(holder.exitCode, null,
