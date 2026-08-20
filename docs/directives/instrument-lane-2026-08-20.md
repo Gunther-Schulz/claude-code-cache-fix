@@ -162,6 +162,76 @@ stays with the desk.
   not bridged with a plausible guess.
 - **Trailer.** `Co-Authored-By: Claude <model> <noreply@anthropic.com>`.
 
+## Mitigation design — established 2026-08-20 on operator GO, by reading the code
+
+The operator decided to mitigate CC's behaviour in the proxy rather than change
+their own hook. This section records what that costs, because two cheaper
+readings were floated during the design round and NEITHER survives contact with
+the code.
+
+**Every absorption the proxy performs today is licensed by the content already
+being present elsewhere on the wire.** That is the single invariant behind all
+of it, and it is what rules out the cheap paths:
+
+- Plain suppression fires only through `findSuppressibleDuplicate` — the
+  message's content must already be pinned elsewhere. Its own comment names the
+  condition: "a copy is present".
+- The join-move is gated by a six-clause predicate in `findJoinMoves`, of which
+  (c) is decisive: the candidate's standalone text must EQUAL text already
+  pinned by a predecessor. It is de-duplication of reminder text CC has moved
+  between containers, not relocation of novel content. (f) additionally
+  requires `role === "system"`, and (d)/(e) bound the candidate by surviving
+  neighbours' wire indices.
+- `fresh-session-sort` (order 250) DOES relocate — but BLOCKS into a target
+  message, publishing its declaration on `ctx.meta.freshSessionSortStats` which
+  `classifyPinned` then honours via `relocatedAt`. Message count, roles and
+  order are untouched, which is why it needs no order exemption. The earlier
+  claim "nothing in the pipeline moves a message" stands; this moves blocks.
+
+**Our case satisfies none of it.** The hook notification is NOVEL text,
+appearing ONCE, carrying information nothing else on the wire carries. So:
+suppressing it drops information the model would otherwise see, and no existing
+exemption licenses that.
+
+**Which leaves relocation — and relocation has a RECORDED PRIOR FAILURE.**
+`replay.mjs:688`, the comment justifying `findSequenceViolations`: phase-2
+insertion-normalization "converts a mid-history splice into a tail append,
+which saves the prefix on THAT request and then resets forever after, because
+CC keeps sending the entry in its original position. Two requests looked like a
+win; three showed the truth." That is this exact mitigation, built and measured
+2026-07-28.
+
+**The design, therefore — and its open premise, named rather than assumed.**
+A declared relocation with a SELF-VERIFYING exemption, modelled on the
+suppression precedent (telemetry-declared, not shape-declared, because a moved
+message carries no shape announcing the move — `replay.mjs:596-603` gives that
+argument for suppressions and it transfers). The exemption verifies the claim
+rather than trusting it: the message at `fromIndex` absent from the output, an
+identical message by hash present at `toIndex`, count and roles unchanged, and
+the order of everything else unchanged.
+
+The OPEN PREMISE, which decides whether this is buildable at all: phase 2
+failed because our reconstruction and CC's serialization diverged permanently.
+The pin/canon machinery (phase 3) did not exist then, and its entire purpose is
+keeping a reconstruction stable across subsequent requests. Whether pinning
+makes a relocation deterministic enough to survive is NOT established by
+reading and must not be reasoned about further — it is answerable by replaying
+the built change against real captures.
+
+**Verifier, and the discipline it inherits from the failure:** the check is
+`findSequenceViolations` returning zero for the affected conversations, over at
+least THREE requests. Two is what fooled phase 2. A two-request green is not
+evidence here — it is the exact shape of the recorded miss.
+
+**Deployment coupling, unlike items 1 and 2:** this lands in `proxy/`, so it
+needs the dotfiles pin bump and a proxy restart. The restart is
+cache-transparent unless the change touches state KEYS or freeze logic — this
+one plausibly touches the canon model, so that question is answered BEFORE the
+restart, not after.
+
+**Load-bearing:** yes — shared abstraction, safety-relevant. It does not ride
+on one LLM's judgment.
+
 ## Reconciliation owed at booking
 
 The busting message measures 372 bytes by the walk's original basis and 374 by
