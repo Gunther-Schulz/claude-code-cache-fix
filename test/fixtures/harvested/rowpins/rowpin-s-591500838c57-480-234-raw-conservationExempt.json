@@ -1,0 +1,110 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-591500838c57",
+  "n": 480,
+  "prevN": null,
+  "index": 234,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-18T17:55:12.296Z",
+  "row": {
+    "n": 480,
+    "kind": "lost",
+    "at": 234,
+    "side": "in",
+    "exemptReason": "content-strip:declared-strip",
+    "detail": "in[234] (user): 1 of 12 unit(s) exempt — 0 re-derived from fresh-session-sort's own rewrite and verified in F, 1 accepted by content-strip's own predicates, 0 re-derived from identity-normalization's own SessionStart substitution and verified in F",
+    "keyToken": "s-591500838c57"
+  },
+  "sides": {
+    "cur": {
+      "n": 480,
+      "rawLen": 239,
+      "forwardedLen": 240,
+      "outBodySha": "19757b4d62270071",
+      "forwardedSha": "c9a11db22433",
+      "rawSha": "9f7565d3ae43",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "c9a11db22433",
+      "firstPassRawSha": "9f7565d3ae43",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-591500838c57",
+      "idToken": "s-64ce2ae91a06",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_9cbecbe5b4be_88"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_906b2ace6da4_241\n\nt_8c8e8602cb6e_719\n\nt_167f97c7eced_841\n\nt_0413ac9a2527_16\n\nt_80d848c7c515_437\n\nt_526e005b0beb_48\n\nt_52ce8adfe864_542"
+          },
+          {
+            "type": "text",
+            "text": "t_6980e19313f3_265\n\nt_5af865389c49_537\n\nt_986edd029c38_455\n\nt_f6f10cf33655_512\n\nt_5e872f44e209_896\n\nt_bd553d026b2d_127\n\nt_2a78a4c56f4b_219\n\nt_52ce8adfe864_542"
+          },
+          {
+            "type": "text",
+            "text": "t_5bfd41e7ae25_455\n\nt_7fd25819d441_138\n\nt_e4ef0d284e36_689\n\nt_506cb362a159_265\n\nt_6194dd09b2cb_252\n\nt_30b7071383a2_913\n\nt_8e0fe0f8706a_171\n\nt_9c27ab8f5d35_252\n\nt_52ce8adfe864_542"
+          },
+          {
+            "type": "text",
+            "text": "t_26c3bd682b72_260\n\nt_52ce8adfe864_542"
+          },
+          {
+            "type": "text",
+            "text": "t_f085864a588d_10"
+          },
+          {
+            "type": "text",
+            "text": "t_b1c8dca85160_10"
+          },
+          {
+            "type": "text",
+            "text": "t_e7a21984d18a_337\n\nt_e51adc6bae08_882\n\nt_2e196c1c0a37_1526\n\nt_b03f8ca53048_243\n\nt_ee916b68dc09_1385\n\nt_54cccb67a053_172\n\nt_df6385105df6_1249\n\nt_1ee77918dc9a_353\n\nt_26150b01b979_181\n\nt_98d97c16e55b_723\n\nt_b65574774c5e_680\n\nt_4f56474bc551_748\n\nt_d8ef3fb57d33_184\n\nt_caf5b3441dd2_597\n\nt_7ff480589c72_2157\n\nt_4ac80d6b2ae7_176\n\nt_d2080f483b45_211\n\nt_52ce8adfe864_542"
+          },
+          {
+            "type": "text",
+            "text": "t_fa27eab60b55_615\n\nt_6fcdcdada62e_799\n\nt_52ce8adfe864_542"
+          },
+          {
+            "type": "text",
+            "text": "t_b1c8dca85160_10"
+          },
+          {
+            "type": "text",
+            "text": "t_94c18d7ab61c_1156\n\nt_aa89fb8b0b53_1678\n\nt_cf7e680ebdcd_137\n\nt_78e63f4380e8_610\n\nt_156be41e83bb_1018\n\nt_44efee5afe70_467\n\nt_e962a9603e0c_131\n\nt_202014ec71b2_465\n\nt_065a0b2fa903_418\n\nt_3ef701db6d3f_480\n\nt_a09fd2591edc_713\n\nt_4bcd538213f6_530\n\nt_19ad1c1cab56_790\n\nt_4f4245f60c78_573\n\nt_048af33f1ad9_98\n\nt_d06a5c4eba95_73\n\nt_62bda6c95a02_212\n\nt_52ce8adfe864_542"
+          },
+          {
+            "type": "text",
+            "text": "t_a1aa171c75c0_492\n\nt_ab1829a4146d_378"
+          },
+          {
+            "type": "text",
+            "text": "t_a7a9a51d81c8_33"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

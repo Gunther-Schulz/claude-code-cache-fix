@@ -1,0 +1,88 @@
+{
+  "key": "s-6c1903382a3e",
+  "field": "systemBytes",
+  "oldBytes": 17679,
+  "newBytes": 113710,
+  "watermark": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_6c1afcd92329_94",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 156
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_ab8bfa9c855a_3555\n\nt_550cd310a9b7_201\n\nt_c9e343ed822f_319\n\nt_f1bd78972c42_51\n\nt_2cef3860fb0b_1657\n\nt_d162dc83864d_371\n\nt_c2bdc8a67071_1588\n\nt_f6796959d103_738\n\nt_6a5c2732677b_30\n\nt_19c8d89f3908_175\n\nt_817507d75327_106\n\nt_677d19fb503d_121\n\nt_e907a3c15da4_337\n\nt_5145202c6f78_895\n\nt_a960695acb52_295\n\nt_f7143541013d_43\n\nt_2b7db5539346_49\n\nt_e6e02b2c94e7_157\n\nt_76ed4d1351b2_22\n\nt_502015c5e99d_55\n\nt_5aa6d37c7ef2_24\n\nt_804f6139f2b0_15\n\nt_c2d3c9c9ef27_482",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 12057
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 9056
+      },
+      {
+        "name": "Artifact",
+        "bytes": 16777
+      },
+      {
+        "name": "Bash",
+        "bytes": 11914
+      },
+      {
+        "name": "Edit",
+        "bytes": 1731
+      },
+      {
+        "name": "Read",
+        "bytes": 2615
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 1051
+      }
+    ]
+  },
+  "newest": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_5ebd166bbf75_81",
+        "bytes": 106
+      },
+      {
+        "type": "text",
+        "text": "t_24e81adb5364_59\n\nt_37861e2e1401_10\n\nt_d91746f19d93_516\n\nt_c727e43cc800_285\n\nt_935f81ffab18_15\n\nt_224e0ef32bc0_567\n\nt_4835924eee92_257\n\nt_99a3c4d45942_8\n\nt_8704a051b11e_6481\n\nt_3161f661b03c_15\n\nt_4d3c004351bc_161\n\nt_06f13eceae24_8\n\nt_2f7b989b7e8b_513\n\nt_fbc6691a9a26_19\n\nt_6272e642d290_183\n\nt_25f48bdbfb37_821\n\nt_64bdb442c105_465\n\nt_fef36fb13ebb_52\n\nt_d1c4b0812974_2984\n\nt_15e4a511b821_251\n\nt_6f741876c402_142\n\nt_9eaecca827de_744\n\nt_87e274848889_1324\n\nt_fb0f17768dd5_391\n\nt_59e328bf2f3a_1500\n\nt_900f6b952231_581\n\nt_0684cee24ee6_1800\n\nt_d70a110fa8ed_1202\n\nt_5ef494ab46aa_863\n\nt_6ba87df23ae6_739\n\nt_3e15a5d2d3ba_19\n\nt_46cbc8496cd4_10301\n\nt_68b184579038_40\n\nt_16f50a1443b4_617\n\nt_c17996a1351c_2442\n\nt_7fdd142070fb_14\n\nt_9c724f62d7a1_159\n\nt_55063e0d523e_4844\n\nt_18203cb57e76_132\n\nt_25da4eec4d5d_3781\n\nt_7cba729464a4_75\n\nt_a3881e3a09d7_246\n\nt_4152dc2ff329_5280\n\nt_3b9311e0017f_78\n\nt_8c350092e9a4_1434\n\nt_8d9428fc3d09_47173\n\nt_a489bf11ad4e_43\n\nt_21fb3782a762_514\n\nt_f37a49b91536_327\n\nt_d4eb97da1046_512\n\nt_3b0766702431_7983\n\nt_5ef6c48122f9_26\n\nt_2b5371a9e908_25\n\nt_c29744596a15_2761\n\nt_ebee587fc736_16\n\nt_fad6cdd6cbbe_853",
+        "cache_control": {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        "bytes": 113337
+      },
+      {
+        "type": "text",
+        "text": "\n\nt_42442a01418d_18\n\nt_8f02e8943414_212",
+        "bytes": 263
+      }
+    ],
+    "tools": []
+  }
+}

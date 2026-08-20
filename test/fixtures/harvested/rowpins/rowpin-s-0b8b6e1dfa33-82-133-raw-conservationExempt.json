@@ -1,0 +1,70 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-0b8b6e1dfa33",
+  "n": 82,
+  "prevN": null,
+  "index": 133,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-16T16:31:49.006Z",
+  "row": {
+    "n": 82,
+    "kind": "lost",
+    "at": 133,
+    "side": "in",
+    "exemptReason": "content-strip:declared-strip",
+    "detail": "in[133] (user): 1 of 2 unit(s) exempt — 0 re-derived from fresh-session-sort's own rewrite and verified in F, 1 accepted by content-strip's own predicates, 0 re-derived from identity-normalization's own SessionStart substitution and verified in F",
+    "keyToken": "s-0b8b6e1dfa33"
+  },
+  "sides": {
+    "cur": {
+      "n": 82,
+      "rawLen": 182,
+      "forwardedLen": 183,
+      "outBodySha": "99e29c17d58c3204",
+      "forwardedSha": "943f716af7bd",
+      "rawSha": "d6e23548b820",
+      "forwardedPresentInRawAt": 132,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "943f716af7bd",
+      "firstPassRawSha": "d6e23548b820",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-0b8b6e1dfa33",
+      "idToken": "s-520151363be5",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_e8614124281c_196\n\nt_c3b32476a757_513\n\nt_540f3ba4a52b_630\n\nt_967dc2eb8c94_371\n\nt_9554349f2372_442\n\nt_6a328ecdc9e2_575\n\nt_46604b43a7ee_367"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_75a05df7fd5c_649\n\nt_d0385a1a4a6c_1551\n\nt_49935e396c58_33\n\nt_2444d5264228_174\n\nt_6d0178a27893_46\n\nt_b3401ddd29d9_21\n\nt_5b94c015d671_24\n\nt_cbd2c99d32aa_23\n\nt_198bc7bfebde_72\n\nt_a86066ea7cb5_81\n\nt_764eb2df71e4_100\n\nt_8c53536a050a_13\n\nt_40bc4ec4628c_16\n\nt_44937004c1e0_17\n\nt_185af6a3d197_41\n\nt_21401d9ef112_341\n\nt_b52cc2480157_13\n\nt_fd1806f78397_116\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nt_223bf8193025_1777\n\nt_065c51fef327_996\n\nt_6fb0f4113f01_78"
+          },
+          {
+            "type": "text",
+            "text": "t_a7a9a51d81c8_33"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
