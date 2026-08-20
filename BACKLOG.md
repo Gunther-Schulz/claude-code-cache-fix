@@ -1016,6 +1016,77 @@ comment and new issue.
   0600, not committed — it carries other sessions' message text by construction).
   <!-- entry: "splice/insert-mid is 96% benign near-tail; anchorDelta separates harm, not class" -->
 
+- **DECISION 2026-08-20 (operator, stated once the measurement and the cost
+  were both on the table) — MITIGATE THE CC BEHAVIOUR IN THE PROXY; do NOT
+  change the operator's own hook.** The stated preference: mitigate CC bugs
+  rather than alter legitimate local behaviour. This SUPERSEDES the
+  park-with-re-entry-trigger disposition that the rate evidence alone would
+  have supported, and it supersedes the "quiet the one hook" lever entirely.
+  Recorded as a decision, not a finding — it is intent, and it is executed.
+  **Why the framing holds on the evidence, so the next session does not re-open
+  it:** `unpushed-reminder.py` is a `Stop` hook (registered in settings.json on
+  the `Stop` event, no matcher, timeout 15) that returns
+  `{"decision": "block", "reason": ...}` — the documented Stop-hook mechanism
+  for declining to stop with a reason. It behaved to spec; nothing about its
+  firing is anomalous, and it is unrelated to the same-day
+  `worktree-edit-guard.py` NameError incident. What cost money is CC's
+  PLACEMENT of the resulting notification at index 82 of 107 — 23 messages
+  behind the last human turn — where CC's other notifications (system-reminders)
+  ride at the tail. Attribution was already computed as CC's from the raw
+  pre-pipeline bytes.
+  **NOT ESTABLISHED, and the label matters:** that this is a BUG rather than a
+  deliberate CC design with a cache cost. CC's intent is not readable from the
+  capture, and no upstream issue has been checked against it — the coverage
+  matrix's #87966 read is still owed. "Consistent with a bug" is what the
+  evidence supports; "is a bug" is unverified.
+  Loop stage: MITIGATE (row 1 — now GO, previously park-leaning).
+  Anchor: `proxy/extensions/insertion-normalization.mjs`
+  Write-set: DESIGN FIRST — the third telemetry-declared exemption class (see
+  the safety-invariant entry above) is a prerequisite, and this is load-bearing
+  under the repo's own non-functional rule, so it does not ride on one LLM's
+  judgment. No implementation write-set until the design round closes.
+  <!-- entry: "operator decision 2026-08-20: mitigate the CC behaviour in-proxy, not the hook" -->
+
+- **RECORD 2026-08-20 (found while reconciling a number that did not add up —
+  the event billed 110k tokens and the ledger priced it at 35 kB) — THE FIRE
+  LEDGER PRICES CACHE LOSS WITH A METRIC THAT UNDERSTATES THE MID-HISTORY
+  CLASS BY ROUGHLY AN ORDER OF MAGNITUDE, AND ONLY THAT CLASS.**
+  `summariseFireBytes` reads `rebilledBytes` / `savedBytes`, which are
+  divergence-based. `replay.mjs` already carries `rebilledBreakpointBytes` /
+  `savedBreakpointBytes` — added because the divergence model "understates the
+  mid-history case", in the file's own words — under their own names, and
+  nothing consumes them.
+  **Ground truth, from the capture's OWN usage records rather than any replay
+  estimate** (capture holding the 09:11 bust, 546 requests): the busting
+  request billed `cacheCreation` **110,022** with `cacheRead` collapsing
+  126,671 -> 20,623; the six requests before it billed 1,108 / 940 / 758 /
+  1,826 / 1,128 / 2,410 while reading 120k-126k from cache; the requests after
+  recover to 5,857 / 1,652 / 275 with cacheRead back above 130k. Median
+  `cacheCreation` across all 546 requests excluding the bust: **1,196**. So the
+  single event's excess is **~108,826 tokens — about 91 normal requests.** The
+  ledger's figure for the same event is 35,192 bytes.
+  **Why this is worse than a wrong number: it is a BIASED COMPARISON.** Tail
+  growth is priced correctly by the divergence model (the breakpoint collapses
+  onto the divergence there, per the file's own comment), so every deep-vs-tail
+  cost comparison drawn from these fields sets an accurate number against an
+  understated one, in the direction that makes the expensive class look cheap.
+  Today's own bucket table has this bias in it and says so.
+  **The measurement that ends the ambiguity, and it is cheap:** the captures
+  carry per-request `usage` (`cacheCreation`, `cacheRead`, `ephemeral1h`,
+  `ephemeral5m`). Pricing from the running system's own billing beats
+  reconstructing it — the altitude rule, applied to money. That is a different
+  and better instrument than switching to the breakpoint twin.
+  Loop stage: SEE (the ledger's own unit).
+  Anchor: `tools/gate-live.mjs` (`summariseFireBytes`)
+  Write-set: `tools/gate-live.mjs`, `tools/replay.mjs` — HELD at the desk, not
+  in the peer lane: it changes numbers the daily sweep reports and interacts
+  with the sweep's booked history-carrier defect.
+  Verifier: the 09:11 pair must price at ~108,826 excess tokens against the
+  546-request median, and a neighbouring tail-growth pair from the same capture
+  must price near its own median — the pair, from the corpus, neither
+  constructed.
+  <!-- entry: "fire ledger prices with a metric that understates mid-history by ~12x; price from capture usage records" -->
+
 - **RECORD 2026-08-20 (surfaced by dispositioning a risen skip count, which is
   the only reason anyone looked) — the row-pin mutation arm that proves the
   check can go RED runs on 1 of 14 fixtures, and its skip count tracks FIXTURE
