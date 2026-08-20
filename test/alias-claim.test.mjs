@@ -322,10 +322,22 @@ test("BITE — a link failure is loud: non-zero exit, both paths named, and the 
   });
 });
 
-// Cap eviction, both directions — the positive and its negative control, so
+// Cap behaviour, both directions — the positive and its negative control, so
 // the mechanism is demonstrated rather than merely exercised (dev-loop.md,
 // "a mutation arm that returns the baseline answer indicts the arm first").
-test("BITE — the protected-set cap evicts the OLDEST protection first, with a stderr WARNING and protectionDroppedAt recorded", async () => {
+//
+// THIS TEST WAS INVERTED ON 2026-08-20, and the inversion is the point rather
+// than a maintenance chore. It used to assert that the cap EVICTS the oldest
+// protection, naming the dropped file in a stderr WARNING on a zero exit. That
+// is the behaviour that destroyed s-captureBM: its live copy had already been
+// swept, so the protected link was the last one and "dropping the protection"
+// unlinked the bytes. The old assertions were true of the code and true of a
+// deleting bug at the same time — this fixture's two captures both kept their
+// live copies, so eviction here really was a downgrade, and the fixture could
+// never have distinguished the two cases. Rewritten to pin the new contract:
+// the cap refuses to ADD, and removes nothing, so the delete is unreachable
+// rather than merely unlikely.
+test("BITE — over cap, the protected-set cap REFUSES the new protection and drops nothing", async () => {
   await withCaptures(async ({ capturesDir, protectedDir, reg, env: baseEnv }) => {
     const cap1 = "s-zzzzcapA1-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
     const cap2 = "s-zzzzcapA2-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
@@ -335,18 +347,24 @@ test("BITE — the protected-set cap evicts the OLDEST protection first, with a 
     const env = { ...baseEnv, CACHE_FIX_PROTECTED_MAX_MB: "1" };
 
     await run("node", [TOOL, join(capturesDir, cap1), "--protect"], { env });
-    await new Promise((r) => setTimeout(r, 1100)); // distinct protectedAt ordering
-    const { stderr } = await run("node", [TOOL, join(capturesDir, cap2), "--protect"], { env });
-    assert.match(stderr, /WARNING/);
-    assert.match(stderr, /cap exceeded/i);
-    assert.ok(stderr.includes(cap1), "the WARNING names the dropped file");
+    await assert.rejects(
+      () => run("node", [TOOL, join(capturesDir, cap2), "--protect"], { env }),
+      (e) =>
+        e.code === 1 &&
+        /refusing/.test(e.stderr) &&
+        e.stderr.includes(cap2) &&
+        // The refusal must name the way out. A gate that only says no trains
+        // the override reflex that kills it.
+        /--release|CACHE_FIX_PROTECTED_MAX_MB/.test(e.stderr),
+      "non-zero, naming the capture it would not add and what to do about it",
+    );
 
-    assert.deepEqual(await readdir(protectedDir), [cap2], "the OLDEST protection was dropped, the newest survives");
+    assert.deepEqual(await readdir(protectedDir), [cap1], "the EARLIER protection is untouched, the new one was never linked");
 
     const doc = JSON.parse(await readFile(reg, "utf-8"));
     const aliasFor = (file) => Object.entries(doc.aliases).find(([, v]) => v.file === file)[0];
-    assert.ok(doc.aliases[aliasFor(cap1)].protectionDroppedAt, "the dropped entry is marked");
-    assert.equal(doc.aliases[aliasFor(cap2)].protectionDroppedAt, undefined, "the survivor carries no drop marker");
+    assert.equal(doc.aliases[aliasFor(cap1)].protectionDroppedAt, undefined, "nothing was dropped, so nothing is marked dropped");
+    assert.equal(doc.aliases[aliasFor(cap2)].protectedAt, undefined, "a refused protection never claims protectedAt");
   });
 });
 
@@ -864,4 +882,86 @@ test("BITE — the prefix hazard, with each quantity named: 49 cited, 28 pair-tu
   // citation as evidence for s-captureB and holds it forever.
   assert.ok(cited.includes("s-captureBM"), "the currently-protected alias is cited at this ref");
   assert.ok("s-captureBM".startsWith("s-captureB"), "and it extends one of the two at-risk aliases");
+});
+
+// ---------------------------------------------------------------------------
+// THE CAP IS A GATE ON ADDING, NEVER A LICENCE TO REMOVE (2026-08-20).
+//
+// The incident these bites exist for: over cap, `--protect` used to unlink
+// protected entries oldest-first until the total fit. That is a downgrade only
+// while the capture still has its live copy; once retention has swept that,
+// the protected link is the LAST link and unlinking it DELETES the bytes. It
+// did, to s-captureBM, unrecoverably — and four of the six members left behind
+// had nlink === 1, so the destroying case was the set's normal condition.
+//
+// The discriminator these assert is NOT "protect failed". A tool that simply
+// refused everything would satisfy that. It is the PAIR: the newcomer is
+// refused AND the last-copy member still has its bytes — the old code passed
+// the first half of that (it "succeeded") and failed the second.
+const lastCopyFixture = async ({ capturesDir, protectedDir, env }) => {
+  const victim = "s-zzzzcapV-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
+  await writeCapture(capturesDir, victim, 700 * 1024);
+  await run("node", [TOOL, join(capturesDir, victim), "--protect"], { env });
+  // Retention sweeps the live copy: the protected link is now the only one.
+  await rm(join(capturesDir, victim));
+  assert.equal(
+    (await stat(join(protectedDir, victim))).nlink,
+    1,
+    "fixture premise: the victim is a LAST COPY — pinned here, not assumed, " +
+      "because a fixture with nlink 2 would make every assertion below vacuous",
+  );
+  return victim;
+};
+
+test("BITE — over cap, protect REFUSES the newcomer and the last-copy member keeps its bytes", async () => {
+  await withCaptures(async ({ capturesDir, protectedDir, env }) => {
+    const capEnv = { ...env, CACHE_FIX_PROTECTED_MAX_MB: "1" };
+    const victim = await lastCopyFixture({ capturesDir, protectedDir, env: capEnv });
+
+    const newcomer = "s-zzzzcapN-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
+    await writeCapture(capturesDir, newcomer, 500 * 1024); // 700K + 500K > 1 MiB
+    await assert.rejects(
+      () => run("node", [TOOL, join(capturesDir, newcomer), "--protect"], { env: capEnv }),
+      /refusing/,
+      "the cap refuses rather than making room",
+    );
+
+    assert.deepEqual(
+      (await readdir(protectedDir)).sort(),
+      [victim],
+      "the victim's link survives AND the refused newcomer was never linked — " +
+        "the second half is what the evicting implementation failed",
+    );
+    assert.equal((await readFile(join(protectedDir, victim))).length, 700 * 1024,
+      "and its bytes are intact, not truncated");
+  });
+});
+
+test("BITE — over cap, re-protecting an ALREADY-linked capture stays a no-op and destroys nothing", async () => {
+  // The branch that would ship unexercised: the natural test writes the
+  // fresh-protect case above and stays green through this one. Under the old
+  // code the cap ran after the link attempt and OUTSIDE the already-linked
+  // guard, so "did that go through? let me run it again" destroyed a capture
+  // while adding zero bytes.
+  await withCaptures(async ({ capturesDir, protectedDir, env }) => {
+    const capEnv = { ...env, CACHE_FIX_PROTECTED_MAX_MB: "1" };
+    const victim = await lastCopyFixture({ capturesDir, protectedDir, env: capEnv });
+
+    const again = (await run("node", [TOOL, join(capturesDir, victim), "--protect"], { env: capEnv })).stdout.trim();
+    assert.match(again, /already protected/, "a no-op retry succeeds even with the set over cap");
+    assert.deepEqual(await readdir(protectedDir), [victim], "nothing was dropped to pay for it");
+    assert.equal((await readFile(join(protectedDir, victim))).length, 700 * 1024);
+  });
+});
+
+test("BITE — under cap, protect still works: the refusal is not the tool refusing everything", async () => {
+  await withCaptures(async ({ capturesDir, protectedDir, env }) => {
+    const capEnv = { ...env, CACHE_FIX_PROTECTED_MAX_MB: "64" };
+    const victim = await lastCopyFixture({ capturesDir, protectedDir, env: capEnv });
+    const newcomer = "s-zzzzcapU-wxyz-wxyz-wxyz-synthetictest-requests.jsonl";
+    await writeCapture(capturesDir, newcomer, 500 * 1024);
+    const out = (await run("node", [TOOL, join(capturesDir, newcomer), "--protect"], { env: capEnv })).stdout.trim();
+    assert.match(out, /\(protected\)/, "room available -> protection proceeds");
+    assert.deepEqual((await readdir(protectedDir)).sort(), [newcomer, victim].sort());
+  });
 });

@@ -133,9 +133,29 @@ export function getProtectedDir() {
 // protections. The cap is a retention-policy bound, and 12288 matches the
 // bridge value `CACHE_FIX_CAPTURE_MAX_MB` already carries, so the two numbers
 // stop disagreeing about how much history this machine keeps.
+// RAISED 12288 -> 65536 on 2026-08-20 (operator GO), and this raise is NOT a
+// bridge like the two above it — the cap changed KIND on the same day, so the
+// number now prices a different risk. It no longer evicts: over cap, the next
+// protection is refused and nothing on disk changes. So a cap set too low can
+// no longer destroy evidence, only decline to hold new evidence, loudly and
+// recoverably — which moves the whole cost of being wrong onto the cheap side.
+//
+// The operator's ground, and it outranks the arithmetic: the proxy
+// investigation is the point of this repo, its evidence is what makes findings
+// re-derivable, and trading that away to reclaim disk on a filesystem with
+// 1.7 TB free is the wrong trade. Present usage is ~12.3 GB protected against
+// that, so 64 GiB is roughly 3.5% of free space and several busts of headroom.
+//
+// The cap is kept rather than removed because nothing else bounds this
+// directory: retention (`sweepCaptureDir`) sweeps `captures/` only, and a
+// protected entry whose live copy has rotated away is unreclaimable by
+// anything except an explicit `--release`. Without a bound the set grows
+// forever with no one ever being told. With refuse-on-add it is a tripwire
+// that says "come look at what you are still holding" — which is what a cap
+// over cited evidence should do, and the only thing it can now do.
 function getProtectedMaxBytes(env = process.env) {
-  const raw = parseInt(env.CACHE_FIX_PROTECTED_MAX_MB ?? "12288", 10);
-  const mb = Number.isFinite(raw) && raw > 0 ? raw : 12288;
+  const raw = parseInt(env.CACHE_FIX_PROTECTED_MAX_MB ?? "65536", 10);
+  const mb = Number.isFinite(raw) && raw > 0 ? raw : 65536;
   return mb * 1024 * 1024;
 }
 
@@ -303,25 +323,42 @@ export async function claim(capture, note) {
   });
 }
 
-// Oldest-protection-first eviction of the PROTECTED set, mirroring
-// sweepCaptureDir's own oldest-mtime-first shape but ordered by the
-// registry's `protectedAt` where present (a hard link has no reliable mtime
-// of its own once a second name references the same inode) and by the link's
-// own mtime otherwise. Mutates `doc` in place; the caller persists it.
+// Measure the PROTECTED set. Deletes nothing — see below for why that is the
+// whole point of this function rather than an omission from it.
 //
-// Never silent: a dropped protection is exactly the loss this whole entry
-// exists to prevent, so it prints a WARNING naming the alias and the file,
-// and it is recorded in the registry (`protectionDroppedAt`) rather than
-// only spoken to stderr — the same "a mechanism claiming safety must leave
-// the evidence that it was tested" shape the corollary in dev-loop.md names
-// for a retention knob.
-function enforceProtectedCap(doc) {
+// WHAT THIS REPLACED, and the incident that forced it (2026-08-20). This used
+// to be `enforceProtectedCap`: over cap, it unlinked protected entries
+// oldest-`protectedAt`-first until the total fit. That is safe only while a
+// protected entry is a SECOND name for bytes that also live in `captures/` —
+// the premise this file's own header states ("`--protect` hard-links, so a
+// protected capture adds zero bytes"). Once retention has swept the live copy,
+// the protected link is the LAST link, and unlinking it is a delete. It did
+// exactly that: `s-captureBM`'s bytes are gone and unrecoverable. Measured
+// immediately after, four of the six remaining members had `nlink === 1`, so
+// this was the set's normal condition and not unlucky ordering.
+//
+// WHY REFUSING BEATS EVICTING, rather than just adding a link-count guard. The
+// members of this set are evidence CITED BY LIVE ENTRIES — `--releasable`
+// reports nothing releasable precisely because each one is load-bearing. A
+// policy that deletes the oldest cited evidence to make room for the newest is
+// backwards at the level of intent, and a link-count guard would only have
+// narrowed which evidence it destroyed. The file already documented the right
+// behaviour one paragraph up — "At 93% the next protection simply fails" — so
+// eviction was the implementation contradicting its own spec, and failing
+// closed is the reading that fires on the incident above.
+//
+// Consequences, both deliberate: the set now shrinks ONLY through an explicit
+// `--release`, which is a decision someone takes rather than a side effect of
+// protecting something else; and the cap's failure mode is a loud non-zero
+// refusal at the moment of protection, which is recoverable, instead of a
+// silent WARNING on a zero exit, which is not.
+function measureProtectedSet(doc) {
   const protectedDir = getProtectedDir();
   let files;
   try {
     files = readdirSync(protectedDir);
   } catch {
-    return;
+    return { entries: [], total: 0, maxBytes: getProtectedMaxBytes() };
   }
   const entries = [];
   for (const f of files) {
@@ -335,28 +372,15 @@ function enforceProtectedCap(doc) {
     const alias = lookup(doc, f);
     const protectedAt = alias ? doc.aliases[alias]?.protectedAt : null;
     const sortKey = protectedAt ? Date.parse(protectedAt) : st.mtimeMs;
-    entries.push({ f, alias, size: st.size, sortKey });
+    // nlink is what tells a downgrade from a delete. Carried on every entry
+    // so no caller can reason about eviction without having it in hand.
+    entries.push({ f, alias, size: st.size, sortKey, nlink: st.nlink });
   }
-  const maxBytes = getProtectedMaxBytes();
-  let total = entries.reduce((a, e) => a + e.size, 0);
-  if (total <= maxBytes) return;
-  entries.sort((a, b) => a.sortKey - b.sortKey);
-  for (const e of entries) {
-    if (total <= maxBytes) break;
-    try {
-      unlinkSync(join(protectedDir, e.f));
-    } catch {
-      continue; // vanished already — nothing to drop or to warn about
-    }
-    total -= e.size;
-    process.stderr.write(
-      `alias-claim: WARNING — protected-set cap exceeded (${maxBytes} bytes) — dropped protection for ` +
-        `${e.alias ?? "(unaliased)"} (${e.f})\n`,
-    );
-    if (e.alias && doc.aliases[e.alias]) {
-      doc.aliases[e.alias].protectionDroppedAt = new Date().toISOString();
-    }
-  }
+  return {
+    entries,
+    total: entries.reduce((a, e) => a + e.size, 0),
+    maxBytes: getProtectedMaxBytes(),
+  };
 }
 
 /** Hard-link a claimed capture into the protected dir. Requires an existing
@@ -381,27 +405,78 @@ export async function protect(capture) {
       chmodSync(protectedDir, 0o700);
     } catch {}
     const dest = join(protectedDir, key);
-    let alreadyLinked = false;
+
+    // Settle IDEMPOTENCE FIRST, before the cap is consulted. A re-protect of a
+    // capture already linked here adds zero bytes, so it must not be refused
+    // by a full set — refusing a no-op is a check firing on a non-defect, and
+    // "did that go through? let me run it again" is the commonest way anyone
+    // reaches this path. Deciding it before the cap check is also what keeps
+    // the no-op branch structurally unable to reach any enforcement at all.
+    // DEST first, SRC second, and the order is load-bearing. Once retention
+    // has swept the live copy, `src` is gone while the protection is perfectly
+    // intact — that is the NORMAL end state of a protected capture, not an
+    // error. Statting `src` first turns the commonest re-protect into ENOENT
+    // and reports a healthy protection as broken.
+    let destStat = null;
     try {
-      linkSync(src, dest);
+      destStat = statSync(dest);
     } catch (e) {
-      if (e.code === "EEXIST") {
-        let srcStat, destStat;
-        try {
-          srcStat = statSync(src);
-          destStat = statSync(dest);
-        } catch (statErr) {
-          throw new Error(`protect: EEXIST at ${dest}, and comparing it to ${src} failed (${statErr.code}): ${statErr.message}`);
-        }
-        if (srcStat.dev === destStat.dev && srcStat.ino === destStat.ino) {
-          alreadyLinked = true; // same inode — idempotent, nothing new to print
-        } else {
-          throw new Error(
-            `protect: EEXIST — ${dest} already exists and is a DIFFERENT file than ${src} ` +
-              `(dev/ino ${destStat.dev}/${destStat.ino} vs ${srcStat.dev}/${srcStat.ino}) — refusing to overwrite`,
-          );
-        }
+      if (e.code !== "ENOENT") {
+        throw new Error(`protect: cannot stat ${dest} (${e.code ?? "unknown"}): ${e.message}`);
+      }
+    }
+    let srcStat = null;
+    try {
+      srcStat = statSync(src);
+    } catch (e) {
+      if (e.code !== "ENOENT") {
+        throw new Error(`protect: cannot stat ${src} (${e.code ?? "unknown"}): ${e.message}`);
+      }
+    }
+
+    let alreadyLinked = false;
+    if (destStat) {
+      if (!srcStat) {
+        // Protected, live copy swept. Nothing to link and nothing to check a
+        // cap against — the bytes are already held and adding zero is free.
+        alreadyLinked = true;
+      } else if (destStat.dev === srcStat.dev && destStat.ino === srcStat.ino) {
+        alreadyLinked = true; // same inode — idempotent, nothing new to print
       } else {
+        throw new Error(
+          `protect: EEXIST — ${dest} already exists and is a DIFFERENT file than ${src} ` +
+            `(dev/ino ${destStat.dev}/${destStat.ino} vs ${srcStat.dev}/${srcStat.ino}) — refusing to overwrite`,
+        );
+      }
+    } else if (!srcStat) {
+      // Both paths named, same contract as the link-failure branch below: the
+      // operator needs to see WHERE it looked, not just that it failed.
+      throw new Error(
+        `protect: link failed (ENOENT) ${src} -> ${dest}: the capture does not ` +
+          `exist and no protected copy is present at ${dest} — nothing to ` +
+          `protect (retention may already have taken it)`,
+      );
+    }
+
+    if (!alreadyLinked) {
+      // The cap is a gate on ADDING, never a licence to remove. Checked with
+      // the prospective total, so the refusal lands before anything changes on
+      // disk and nothing has to be undone.
+      const { total, maxBytes } = measureProtectedSet(doc);
+      if (total + srcStat.size > maxBytes) {
+        throw new Error(
+          `protect: refusing — protected set is ${total} bytes and adding ${key} ` +
+            `(${srcStat.size} bytes) would exceed the cap of ${maxBytes}. Nothing was ` +
+            `deleted and nothing was linked. Release something you no longer cite ` +
+            `(alias-claim --releasable, then --release <capture>), or raise ` +
+            `CACHE_FIX_PROTECTED_MAX_MB. This used to evict the oldest protection ` +
+            `instead, which destroyed a capture whose live copy had already rotated ` +
+            `out (2026-08-20).`,
+        );
+      }
+      try {
+        linkSync(src, dest);
+      } catch (e) {
         throw new Error(`protect: link failed (${e.code ?? "unknown"}) ${src} -> ${dest}: ${e.message}`);
       }
     }
@@ -410,7 +485,6 @@ export async function protect(capture) {
       delete doc.aliases[alias].protectionDroppedAt;
       delete doc.aliases[alias].releasedAt;
     }
-    enforceProtectedCap(doc);
     writeRegistry(doc);
     return { alias, key, alreadyLinked };
   });
