@@ -458,6 +458,61 @@ comment and new issue.
 
 ## Open
 
+- **RECORD 2026-08-20 (routed in by the dotfiles desk from a doctor FAIL; the
+  doctor's own text says the finding belongs in the fork) — the daily gate's
+  byte-match tally reads `MISMATCH=21` while EXACT, EXTENDED and DROPPED are
+  ALL ZERO, and that distribution indicts the INSTRUMENT rather than the
+  corpus.** Read from the gate's own status file
+  (`~/.local/state/cache-fix/gate-status.json`, `ok: true`, 30 captures):
+  `byteGate.tally = {EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 21}` with
+  `errors: 0, unreadable: 0`.
+  **Why the ZEROES are the finding and the 21 is not.** The census classifies
+  every candidate row into one of the four buckets. A healthy corpus of 30
+  live captures is overwhelmingly EXACT — that is what "the canonical rule
+  reproduces what CC emits" looks like. Zero EXACT across the whole corpus is
+  not a corpus in which every row diverges; it is a classifier that is not
+  reaching the rows it thinks it is. `unreadable: 0` rules out the honest
+  third answer, which makes it worse: the tool believes it read everything.
+  **This is the third-partition class by construction** (`docs/dev-loop.md`,
+  "an instrument that has produced a MEASURED FALSE VERDICT ranks above the
+  cost ordering"), and its consumer is named rather than assumed: this is the
+  gate every NORMALIZATION design must pass before it ships, so a wrong tally
+  here mis-grades the next mitigation's readiness in either direction — a real
+  MISMATCH hidden among 21 phantom ones, or a design blocked by a number that
+  means nothing. Tier 2 by the partition's own reach ordering (feeds the
+  GATES, not event disposition).
+  **NAMED MISSING EVIDENCE, and it is one command rather than a design:** the
+  per-row detail behind those 21. `tools/reminder-migration-census.mjs` over a
+  SINGLE capture, reading which rows classify MISMATCH and against what
+  comparand — deliberately not re-run here, because the corpus-wide sweep is
+  what the daily gate already does and a second whole-corpus pass would cost
+  the session without adding a row-level read. The discriminator is stated in
+  advance so the next session cannot rationalize either way: if the MISMATCH
+  rows carry real diverging bytes, the instrument is fine and 21 live
+  divergences are a genuine finding; if they carry empty, absent or
+  wrong-namespace comparands, the classifier is broken and the number is
+  noise. A THIRD outcome is possible and is the one to watch for — the rule
+  under test legitimately matches nothing in the current corpus, in which case
+  EXACT=0 is correct and the reporting is what misleads.
+  **Do NOT read `ok: true` as disagreement with this entry.** The gate's own
+  green covers its four replay invariants; the byte tally rides alongside and
+  is not what sets `ok`. The dotfiles doctor is the only reader that surfaces
+  it today, which is why this arrived by operator relay from another desk
+  rather than from anything in this repo.
+  **Corroboration this same read supplied, recorded because it closes a
+  question rather than opening one:** `duplicates.coalesceMissRequests: 0` and
+  `coalesceMissStreaks: 0` in the same file — the gate's own record agrees
+  with the independent grep over the capture window, so the parked coalesce
+  window-clock mitigation's re-grade trigger has NOT fired, now measured twice
+  from two sources.
+  Loop stage: VERIFY (an instrument feeding the gates, with a suspect tally).
+  Anchor: `tools/reminder-migration-census.mjs`
+  Write-set: `tools/reminder-migration-census.mjs`, `test/reminder-migration-census.test.mjs`
+  Verifier: the per-row read above on one capture, then a bite pinning
+  whichever of the three outcomes it returns — red-first against today's
+  all-zero-but-MISMATCH shape
+  <!-- entry: "byteGate tally is all-zero except MISMATCH, which indicts the classifier" -->
+
 - **PARKED 2026-08-20 (POINTER — the fix site is `dotfiles git/hooks/pre-push`,
   not this repo) — the unbooked-subagent push lane resolves bookings through a
   hardcoded carrier list and so cannot see this repo's DECLARED closure home,
