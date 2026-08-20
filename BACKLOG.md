@@ -484,13 +484,20 @@ comment and new issue.
   RECORD_PFADE` in `dotfiles git/hooks/pre-push` returning a literal tuple.
   Migrate the body there when that copy frees; until then this is the carrier
   on the read path.
-  **Operational consequence while it stands, so the next session does not
-  rediscover it at the push:** a push carrying marked subagent commits out of
-  this repo needs `PUSH_UNBOOKED_SUBAGENT_OK=1` with the reason stated, even
-  when the booking is properly written. That override is the gate's own named
-  exit for "booked and intended" — it is not a workaround, but it is also not
-  free: it is audit-visible by design, and every use of it is a use the fix
-  removes.
+  **Operational consequence, stated NARROWLY because the first draft of this
+  line overstated it and was corrected the same hour by running the push
+  instead of predicting it.** It does NOT follow that such a push needs
+  `PUSH_UNBOOKED_SUBAGENT_OK=1`. The gate's booking test is a substring match
+  for the 7-char SHA anywhere in the carriers it reads, so any entry that
+  CITES the SHA satisfies it — and this very entry does, having quoted both
+  SHAs above as its own measurement evidence. That is what let `efdac38` push
+  cleanly with no override. The defect is therefore narrower and quieter than
+  "pushes are blocked": a closure whose SHA appears ONLY in the declared home,
+  with no citation anywhere in `BACKLOG.md`, is invisible to the lane — which
+  is the normal shape once the archive stops being cited from the live file,
+  i.e. it gets WORSE as the split does its job. The override remains the
+  gate's own named exit for "booked and intended" if it ever does block; it is
+  audit-visible by design and every use is one the fix removes.
   Loop stage: none (process instrument in the sibling repo; surfaced under the
   trajectory test as tooling that gates this repo's own closures).
   Anchor: `BACKLOG-DONE.md`
