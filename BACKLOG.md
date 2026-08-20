@@ -1047,6 +1047,58 @@ comment and new issue.
   judgment. No implementation write-set until the design round closes.
   <!-- entry: "operator decision 2026-08-20: mitigate the CC behaviour in-proxy, not the hook" -->
 
+- **RECORD 2026-08-20 (operator requirement, raised while the mitigation
+  verdict was still open) — WHATEVER THE VERDICT, THE DEEP MID-HISTORY
+  HOOK-INSERT CLASS GETS REGISTERED SO IT TERMINATES A FUTURE WALK INSTEAD OF
+  BEING RE-INVESTIGATED. The operator's framing: if we decide against
+  mitigating, there must be something unmissable showing we KNEW and chose not
+  to — not a fact that has to be rediscovered.**
+  **The mechanism already exists and is stronger than the placeholder the
+  requirement asks for.** `bust-triage.mjs:51` defines `EXPECTED-BUST` — "known
+  class, deliberately unmitigated (WON'T / MUST-NOT / ...)" — as a verdict that
+  ENDS the walk, and `:63` defines `UNCLASSIFIED` as "no matrix row matches",
+  the tool's actual payload. So the carrier is a threat-matrix row plus its
+  `classToRow` mapping, and the delivery is automatic: the next session that
+  runs `bust-triage` on an instance of this class gets a terminal verdict
+  instead of an investigation. A comment in the proxy is the WEAKER form — it
+  is passive and only found by someone already reading that file; the tool
+  verdict fires at the moment of rediscovery, which is the moment that matters.
+  **Do BOTH, because they serve different readers:** the matrix row + mapping
+  for the walker, and a site comment in
+  `proxy/extensions/insertion-normalization.mjs` for the next person who tries
+  to BUILD the mitigation — that reader is not running `bust-triage`, they are
+  editing the extension, and the phase-2 failure is exactly what they need to
+  meet before they start. The comment carries a pointer to
+  `docs/directives/instrument-lane-2026-08-20.md`, never a summary of it.
+  **NEEDED EITHER WAY, which is why this is not gated on the verdict:** if we
+  mitigate, the row's disposition becomes MITIGATED and the walk still
+  terminates; if we do not, it becomes EXPECTED-BUST and the walk still
+  terminates. Only the disposition word differs. So this is buildable now and
+  is not waiting on the design consult.
+  **PREREQUISITE, and it is already in flight:** today `classToRow`
+  (`bust-triage.mjs:1424-1430`) maps `splice/insert-mid -> 1` flatly, which
+  cannot tell our deep instance from the 96% benign trailing-reminder
+  push-down that shares the class. Registering a disposition against the flat
+  class would therefore mark the benign majority as EXPECTED-BUST too — a
+  verdict that ends walks it should not end, which is worse than no
+  registration. The depth bucketing (peer lane item 2) is what makes the class
+  addressable; this entry lands ON it.
+  Loop stage: RETIRE (the class's terminal disposition, whichever it is).
+  Anchor: `tools/bust-triage.mjs:1424`
+  Write-set: `docs/directives/robustness-threat-matrix.md`,
+  `docs/directives/robustness-threat-matrix.status.json`,
+  `tools/bust-triage.mjs` (the mapping),
+  `proxy/extensions/insertion-normalization.mjs` (the site comment only — no
+  behaviour change, so no pin bump and no restart)
+  Verifier: red-first and the PAIR is available — `bust-triage` on the
+  09:11:57Z instance must return the registered terminal verdict rather than
+  UNCLASSIFIED or a bare row-1 walk, AND a benign trailing-reminder pair from
+  the same capture must NOT return that verdict. A registration proven only on
+  the instance it was written for is one that has been shown to fire and never
+  shown to discriminate — the same defect that cost this investigation two
+  cycles today.
+  <!-- entry: "register the deep mid-history hook-insert class so a future walk terminates instead of re-investigating" -->
+
 - **RECORD 2026-08-20 (found while reconciling a number that did not add up —
   the event billed 110k tokens and the ledger priced it at 35 kB) — THE FIRE
   LEDGER PRICES CACHE LOSS WITH A METRIC THAT UNDERSTATES THE MID-HISTORY
