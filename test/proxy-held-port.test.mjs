@@ -973,7 +973,24 @@ it("frees the port when signalled SIGHUP, so a claimant can take it", async () =
             try { target = Number(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)],
                                                { encoding: "utf8" }).trim()) || pid; } catch {}
             if (target <= 1) target = pid;
-            try { process.kill(target, "SIGTERM"); } catch {}
+            // THE PARENT IS NOT COVERED BY listeners(). That filter established
+            // that the LISTENER is ours; `ps -o ppid=` then walks to a pid
+            // nothing has checked, and `target <= 1` tests liveness, not
+            // ownership. On a machine whose orphans reparent to a systemd USER
+            // manager — a child subreaper — a detached fixture's parent IS that
+            // manager.
+            //
+            // SIGTERM there is not a stop, it is a LOGOUT. systemd(1): "systemd
+            // user managers will start the exit.target unit when this signal is
+            // received. This is mostly equivalent to systemctl --user start
+            // exit.target". Measured 2026-08-20: a desktop session went down
+            // five seconds into a suite run, the journal showing "Activating
+            // special unit Exit the Session", and the kernel audit held no
+            // record — a rule armed for SIGKILL cannot see a SIGTERM.
+            //
+            // NOT wrapped in try/catch: the throw IS the mechanism. Catching it
+            // here restores the silence that let this run unattributed.
+            killOurs(target, "SIGTERM");
           }
           await new Promise((r) => setTimeout(r, 800));
         }
@@ -1205,7 +1222,24 @@ it("frees the port when signalled SIGHUP, so a claimant can take it", async () =
             try { target = Number(execFileSync("ps", ["-o", "ppid=", "-p", String(pid)],
                                                { encoding: "utf8" }).trim()) || pid; } catch {}
             if (target <= 1) target = pid;
-            try { process.kill(target, "SIGTERM"); } catch {}
+            // THE PARENT IS NOT COVERED BY listeners(). That filter established
+            // that the LISTENER is ours; `ps -o ppid=` then walks to a pid
+            // nothing has checked, and `target <= 1` tests liveness, not
+            // ownership. On a machine whose orphans reparent to a systemd USER
+            // manager — a child subreaper — a detached fixture's parent IS that
+            // manager.
+            //
+            // SIGTERM there is not a stop, it is a LOGOUT. systemd(1): "systemd
+            // user managers will start the exit.target unit when this signal is
+            // received. This is mostly equivalent to systemctl --user start
+            // exit.target". Measured 2026-08-20: a desktop session went down
+            // five seconds into a suite run, the journal showing "Activating
+            // special unit Exit the Session", and the kernel audit held no
+            // record — a rule armed for SIGKILL cannot see a SIGTERM.
+            //
+            // NOT wrapped in try/catch: the throw IS the mechanism. Catching it
+            // here restores the silence that let this run unattributed.
+            killOurs(target, "SIGTERM");
           }
           await new Promise((r) => setTimeout(r, 800));
         }
