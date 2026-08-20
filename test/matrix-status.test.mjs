@@ -93,20 +93,21 @@ test("live bite: the real status file returns zero findings against the real mat
   );
 });
 
-// --- Bite 2: the live file has exactly 31 row keys, exactly 1..31 --------
+// --- Bite 2: the live file has exactly 32 row keys, exactly 1..32 --------
 //
-// The COUNT moves with every legitimate new row (31 as of 2026-08-14, row 31 —
-// concurrent duplicate sidecar send; 30 as of 2026-08-11). What the bite is
+// The COUNT moves with every legitimate new row (32 as of 2026-08-19, row 32 —
+// mid-history image-payload eviction; 31 as of 2026-08-14, row 31 — concurrent
+// duplicate sidecar send; 30 as of 2026-08-11). What the bite is
 // actually for is the CONTIGUITY: no gaps and no duplicates, which is the
 // property a row minted by hand can silently break and which no count alone
 // would catch.
 
-test("live bite: the real status file has exactly rows 1..31, no gaps, no duplicates", () => {
+test("live bite: the real status file has exactly rows 1..32, no gaps, no duplicates", () => {
   const statusObj = readRealStatus();
   const rowKeys = Object.keys(statusObj).filter((k) => !k.startsWith("_"));
-  assert.equal(rowKeys.length, 31, `expected 31 row keys, got ${rowKeys.length}: ${rowKeys.sort().join(",")}`);
+  assert.equal(rowKeys.length, 32, `expected 32 row keys, got ${rowKeys.length}: ${rowKeys.sort().join(",")}`);
   const numbers = rowKeys.map(Number).sort((a, b) => a - b);
-  const expected = Array.from({ length: 31 }, (_, i) => i + 1);
+  const expected = Array.from({ length: 32 }, (_, i) => i + 1);
   assert.deepEqual(numbers, expected);
 });
 
@@ -474,13 +475,14 @@ test("EXPECTED-BUST does not overreach: OPEN, RESIDUAL and UNASSESSED still read
 // the dangerous value: it reads exactly like "checked and clean" while meaning
 // "never looked". These three bites pin the distinction the sweep depends on.
 
-test("readRecords: over the real repo it is ok, 31 rows, zero findings", () => {
-  // 30 as of 2026-08-11 (row 30). The load-bearing half is `findings` being
+test("readRecords: over the real repo it is ok, 32 rows, zero findings", () => {
+  // 31 as of 2026-08-14 (row 31); 30 as of 2026-08-11 (row 30). The
+  // load-bearing half is `findings` being
   // EMPTY — a prose row without its status declaration, or the reverse, is a
   // finding here, and that is what a new row can actually get wrong.
   const res = ms.readRecords();
   assert.equal(res.ok, true, `expected ok, got ${JSON.stringify(res)}`);
-  assert.equal(res.rows, 31);
+  assert.equal(res.rows, 32);
   assert.deepEqual(res.findings, [], formatFindings(res.findings ?? []));
 });
 
