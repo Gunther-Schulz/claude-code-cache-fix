@@ -503,16 +503,62 @@ comment and new issue.
   **Second carrier owed:** that entry's parenthetical "claimed AND
   `--protect`ed, so retention cannot take it" is now FALSE and is corrected in
   the same change.
-  **STANDING HAZARD until fixed: the protected set is still at its cap, so
-  the next `--protect` anyone runs destroys another capture's last copy.**
+  **STANDING HAZARD — CORRECTED 2026-08-20 by the desk's measurement, and my
+  first reading UNDERSTATED it.** I wrote "still at its cap". The set is
+  already OVER it: 12,915,666,939 bytes against `capBytes` 12,884,901,888, six
+  members, over by ~29 MB. So the next `--protect` does not RISK a drop, it
+  drops deterministically, with nobody passing anything unusual.
+  **And the set's normal condition is last copies, which is what makes my
+  incident structural rather than unlucky.** `nlink` across all six:
+  `s-captureBX` 362 MB (2), `s-captureBR` 5642 MB (**1**), `s-captureBV`
+  5064 MB (2), `s-captureBP` 807 MB (**1**), `s-captureBA` 127 MB (**1**),
+  `s-captureBO` 315 MB (**1**). FOUR OF SIX exist only in
+  `captures-protected/`. Eviction is oldest `protectedAt` first, which names
+  the next victim outright: `s-captureBO` (protected 2026-08-14T07:34:12.323Z);
+  dropping it alone brings the total under cap, so it stops after one.
+  **SCOPE of the freeze, established by read rather than by running it:**
+  `enforceProtectedCap` has exactly ONE call site (`alias-claim.mjs:413`) and
+  it is inside the protect path, so a plain `--note` claim never reaches it.
+  Ordinary bust-walk alias claims are safe; only `--protect` is frozen.
+  **The idempotent path is NOT safe, and its test will not write itself:**
+  line 413 sits OUTSIDE the `if (!alreadyLinked)` block at 408-412, so a
+  re-run of `--protect` on an already-linked capture — same dev/ino, zero
+  bytes added, `protectedAt` not even refreshed — still enforces the cap and
+  still deletes. The file's idempotence assurance is true about ALIASES and
+  false about protected captures. A red-first case written for the natural
+  fresh-protect shape stays green straight through this branch, so it needs
+  its own bite: already-linked + over cap + last-copy candidate must exit
+  non-zero AND leave the candidate's link intact.
+  **The defect is a PARENTAGE one, which forecloses the obvious objection.**
+  The file's own header states the designed behaviour — "at 93% the next
+  protection simply fails" — so failing closed IS the spec and
+  eviction-into-deletion is the implementation contradicting it. Two sentences
+  of one design disagreeing; the deciding test is which reading fires on the
+  motivating incident, and failing-closed fires while evicting does not. So
+  "but then protecting gets harder" is not a cost of the fix, it is the
+  documented intent being restored.
+  **Owner: the tool fix is the cache-fix desk's** (claimed 2026-08-20,
+  `tools/alias-claim.mjs`; shape: skip `nlink === 1` candidates, error
+  non-zero when the cap cannot be met without unlinking a last copy). This
+  entry keeps the incident, the measurements and the verifier obligations;
+  it does not carry the write.
   Second-partition candidate (irreversible failure mode) at the next build-order
   derivation; not hand-promoted here, since READY membership is derived.
   Loop stage: SEE (evidence retention — the loop's inputs).
   Anchor: `tools/alias-claim.mjs`
-  Write-set: `tools/alias-claim.mjs`, `BACKLOG.md` (the s-captureBM parenthetical)
-  Verifier: red-first — a fixture protected set at cap plus a link-count-1
-  eviction candidate must make `--protect` exit non-zero and leave both files
-  linked; the same case one link higher must still evict silently.
+  Write-set: `tools/alias-claim.mjs` (HELD BY THE CACHE-FIX DESK from
+  2026-08-20 — not this entry's to land), `BACKLOG.md` (the s-captureBM
+  parenthetical, DONE)
+  Verifier: red-first, and it takes THREE cases, because the natural first one
+  leaves two branches unexercised. (1) Over cap + a link-count-1 eviction
+  candidate: `--protect` must exit non-zero and leave the candidate's link
+  intact. (2) The SAME case one link higher: must still evict silently, or the
+  guard has stopped discriminating and merely blocks everything. (3) The
+  idempotent path — already-linked capture, over cap, last-copy candidate:
+  must also exit non-zero, since `enforceProtectedCap` runs outside the
+  `alreadyLinked` guard. A refusal only ever exercised against a capture that
+  HAS another link is green in a way that means nothing (desk's framing,
+  2026-08-20).
   <!-- entry: "alias-claim --protect deletes the last copy of an evicted capture at cap" -->
 
 - **RECORD 2026-08-20 (found by walking the 09:11:57Z 110k bust to its
