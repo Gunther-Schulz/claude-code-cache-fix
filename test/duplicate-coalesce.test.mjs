@@ -41,6 +41,37 @@ function clientRequest(port, body) {
   });
 }
 
+// A caller whose hang-up we choose the moment of. `clientRequest` above reads
+// to the end, which never reaches the abort guard — the guard only fires on a
+// response that closes UNANSWERED, so producing that state deliberately is the
+// only way to exercise it.
+function openAndHangUpOnCommand(port, body) {
+  let hangUp;
+  const done = new Promise((resolve) => {
+    const req = http.request(
+      {
+        hostname: "127.0.0.1",
+        port,
+        path: "/v1/messages",
+        method: "POST",
+        headers: { "content-type": "application/json" },
+      },
+      (res) => {
+        res.on("data", () => {});
+        res.on("end", () => resolve("ended"));
+      },
+    );
+    // BOTH, and "close" is the one that fires: `req.destroy()` with no error
+    // argument emits no "error" at all, so an error-only settle leaves this
+    // promise pending forever and the case times out instead of asserting.
+    req.on("error", () => resolve("hung-up"));
+    req.on("close", () => resolve("hung-up"));
+    hangUp = () => req.destroy();
+    req.end(JSON.stringify(body));
+  });
+  return { done, hangUp: () => hangUp() };
+}
+
 // Holds the response open long enough that a duplicate arriving inside the
 // 50 ms window finds the first still IN FLIGHT — condition 4. Without the
 // hold the first call would complete before the second arrived and the
@@ -196,6 +227,42 @@ describe("row 31 at the wire — the upstream call COUNT is the defect", () => {
     assert.equal(rb.status, 200);
     assert.equal(ra.body, rb.body, "both callers receive byte-identical output");
     assert.ok(ra.body.includes("message_stop"), "and it is the COMPLETE response, not a truncated replay");
+  });
+
+  it("the leader's client hangs up mid-stream: the FOLLOWER is still served in full", async () => {
+    // THE ABORT GUARD'S POLARITY, and nothing else in this file reaches it.
+    // On the plain path "this response closed without being answered" means
+    // nobody is left to serve, so freeing the upstream call is right. Under
+    // coalescing it stops meaning that: the leader's fan-out is carrying a
+    // follower, and aborting cuts the call THAT caller is waiting on.
+    //
+    // Order matters here and the first cut had it wrong: hanging up before
+    // the follower arrives removes the leader from the map, the pair never
+    // coalesces, and the arm passes for the wrong reason. The premise
+    // assertion below is what pins that.
+    //
+    // Measured both ways before this landed. Against the naive guard
+    // (`if (!sink.writableEnded) abortController.abort()`) this case goes red
+    // and the other fifteen stay green; against the guard as written all
+    // sixteen pass. The red is a TIMEOUT rather than a truncated body, which
+    // is the more useful fact: aborting the upstream call leaves the fan-out
+    // with nothing to end, so the follower is not cut short — it hangs until
+    // its own timeout, holding a live session open on a request that will
+    // never answer.
+    counter.calls = 0;
+    const leader = openAndHangUpOnCommand(handle.port, SIDECAR);
+    await new Promise((r) => setTimeout(r, 15));   // inside the 50 ms window
+    const follower = clientRequest(handle.port, SIDECAR);
+    await new Promise((r) => setTimeout(r, 20));   // follower attached; upstream still holding
+    leader.hangUp();
+    await leader.done;
+    const rb = await follower;
+
+    assert.equal(counter.calls, 1,
+      "premise: the pair did not coalesce, so there was no follower on the leader's call and this arm tests nothing");
+    assert.equal(rb.status, 200);
+    assert.ok(rb.body.includes("message_stop"),
+      `the follower was cut off when the LEADER's client left: ${JSON.stringify(rb.body)}`);
   });
 
   it("mid-session pair (nMsg > 1): TWO upstream calls, unchanged", async () => {
