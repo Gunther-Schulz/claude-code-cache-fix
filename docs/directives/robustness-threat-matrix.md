@@ -2147,14 +2147,36 @@ remainder's SHAPE, which was undescribed until today. Status record amended
 the same day.
 
 **INSTRUMENT FINDINGS, both booked in `BACKLOG.md`.**
-1. `findAbsorptionMisses` (`replay.mjs:2015-2018`) gates on
+1. **CORRECTED the same day, before anything was built on it.** This entry
+   first read that `findAbsorptionMisses` is blind here and that the
+   population is one "nobody instrumented". The first half is true
+   (`replay.mjs:2015-2018` gates on
    `claims = movedFresh>0 || descriptionAbsorbed>0 || oscillationAbsorptions>0`
-   and skips the pair when false. So it answers "did a CLAIMED absorption
-   hold" and is structurally blind to "the mitigation ran, saw the event, and
-   absorbed nothing" — which is this instance, and which is the population
-   where a NEAR-ZERO row status quietly stops being true. A zero-claim run is
-   byte-indistinguishable from a request with nothing to absorb, so the
-   detector's green over it carries no information.
+   and skips when false); the second half is FALSE, and it was a narrower
+   basis read as a wider conclusion — the reach test's exact shape, with every
+   sentence correct.
+   `findMitigationGaps` (`replay.mjs:1723`) already covers this population and
+   names this pair. Replayed over the frozen pair under the SERVING config:
+   `1 pair(s) input-mitigated but NOT output-preserved` /
+   `n=0->1 splice/insert-mid splice@82 [INPUT-MITIGATED, OUTPUT-SPLICED]
+   ~31 kB`. Its own block comment had already named the combination as the one
+   `mitigated: true` can hide.
+   **So the defect is PARENTAGE, not coverage, and it is worse than a blind
+   spot because it produces a WRONG NUMBER with a consumer.** One field named
+   `mitigated` answers "did the extension re-serialise the INPUT"
+   (`cur.action === "normalized"`, the extension's self-report) and is consumed
+   as "did the cache survive". Two consumers therefore report the opposite of
+   what the instrument found: the headline `mitigation: 1/1 mitigable events
+   absorbed (100%)` prints one line above `NOT output-preserved`; and
+   `rebilledBytes: mitigated ? 0 : rebilled` / `savedBytes: mitigated ?
+   rebilled : 0` key on the input flag alone, so this 110k bust books ~31 kB
+   SAVED and 0 LEAKED — which flows through `summariseFireBytes`
+   (`gate-live.mjs:1550-1558`) into the daily sweep's `saved` column and its
+   status file. The fire ledger is inflated by exactly the events that cost
+   the most.
+   Booked with its fix; the fix is to price and report on
+   `mitigated && outputPreserved`, never on `mitigated` alone — not to add a
+   second detector beside a working one.
 2. The KNOWN-OPEN/row-1 verdict came from `classToRow`'s flat
    `splice/insert-mid -> 1` map (`bust-triage.mjs:1424-1430`) — the same
    mechanism-blind mapping row 32 already booked for `replace/edit -> 4`, now

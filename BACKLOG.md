@@ -575,20 +575,78 @@ comment and new issue.
   `moved:0, movedFresh:0, suppressed:0, dropped:0`. It SAW the new entry and
   relocated nothing, and 110,022 tokens were re-billed. `claims` is false, so
   the pair was skipped and the sweep reported clean on it.
-  **Why this is the dangerous direction:** a zero-claim run is
-  byte-indistinguishable from a request with nothing to absorb. The detector's
-  green over this population carries no information, and the dev-loop's own
-  framing — "the mitigation ran" and "the mitigation absorbed" are different
-  claims — has a third member nobody instrumented: the mitigation ran, saw it,
-  and passed. That is the population where a NEAR-ZERO row status quietly
-  stops being true.
-  **Design note, so the fix is not a widened predicate:** the missing signal is
-  already on the wire. A pair whose census class is mitigable
-  (`replay.mjs:1626` MITIGABLE = splice/insert-mid, append-after-change,
-  reorder-only) and whose extension stats claim nothing is the exact
-  population to report — a DECLINED row beside the MISS rows, not folded into
-  them, since conflating decline with miss would re-create the two-value
-  collapse this repo already fixed once in `bust-triage`'s status mapping.
+  **CORRECTED 2026-08-20, SAME DAY, BY ME, BEFORE BUILDING ON IT — the
+  headline above is true and the conclusion I drew from it was too broad.**
+  I wrote that this population is one "nobody instrumented". That is FALSE.
+  `findMitigationGaps` (`replay.mjs:1723`) already covers it, and covers it
+  precisely: it filters to MITIGABLE input classes, computes
+  `mitigated = cur.action === "normalized"`, computes `outputPreserved` from
+  the OUTPUT census, and its own block comment names this exact combination —
+  "a pair can be `mitigated: true` and `outputPreserved: false` at once, and
+  that combination — not `mitigated` alone — is what determines whether the
+  cache was actually preserved."
+  **Executed against the frozen pair under the SERVING config**, which is how
+  I found my own error rather than by re-reading my reasoning:
+  `mitigation: 1/1 mitigable events absorbed (100%)` /
+  `1 pair(s) input-mitigated but NOT output-preserved:` /
+  `n=0->1 splice/insert-mid splice@82 [INPUT-MITIGATED, OUTPUT-SPLICED] ~31 kB`.
+  The instrument names our bust, by class and by index.
+  **How the error happened, since the shape is the reusable part:** my basis
+  was a read of one `continue` in one function, and it was TRUE. It answered
+  "is `findAbsorptionMisses` blind here" — a narrower question than the one I
+  closed, which was "is this population instrumented". Every sentence stayed
+  correct while the claim overreached, and nothing in the reading prompted a
+  second look because the sentence I had was right. The reach test names this;
+  the discipline that caught it was going to BUILD, which forced me to check
+  whether the thing already existed.
+  **WHAT SURVIVES AS THE REAL FINDING, and it is worse than what I booked,
+  because it has a consumer and a wrong NUMBER.** The gap is not detection, it
+  is that two of the three consumers of that detection report the opposite of
+  what it found:
+  1. **The headline percentage lies, on the same screen as the truth.**
+     `absorbed (100%)` sits one line above `NOT output-preserved`, because the
+     percentage counts INPUT mitigation (`action === "normalized"`, the
+     extension's self-report about its own reconstruction) while the line under
+     it reports the OUTPUT. A reader taking the summary number — which is what
+     a status file or a sweep digest carries — reads 100% absorbed for a
+     request that re-billed 110,022 tokens.
+  2. **`savedBytes` credits the loss as a save, and it reaches the daily
+     ledger.** `rebilledBytes: mitigated ? 0 : rebilled` and
+     `savedBytes: mitigated ? rebilled : 0` both key on the INPUT-side
+     `mitigated` flag alone. So our pair books ~31 kB SAVED and 0 LEAKED. That
+     flows through `summariseFireBytes` (`gate-live.mjs:1550-1558`) into
+     `saved.relocations`, into `reduceFireBytes` and the sweep's printed
+     `saved` column (`:2444`, `:2514`) and its status file. The fire ledger's
+     saved column is therefore inflated by exactly the events that cost the
+     most, and its leaked column understates by the same amount.
+  3. `bust-triage`'s ABSORPTION block never surfaces any of it — see the
+     separate entry below.
+  So the corrected finding is a PARENTAGE defect, not a coverage gap: one
+  field named `mitigated` answers "did the extension re-serialise the input"
+  and is consumed as "did the cache survive". Those are different questions and
+  `findMitigationGaps`' own comment already says so.
+  **`findAbsorptionMisses`' zero-claim skip remains TRUE and is now a
+  SECOND-ORDER note rather than the finding:** it is arguably correct for that
+  function's own contract (it grades join-move absorptions), and the population
+  is covered by `findMitigationGaps`. Keeping the executed proof below because
+  it cost nothing and pins the behaviour; dropping the claim that it matters
+  much.
+  **Design note, REWRITTEN after the correction above — the fix is NOT a new
+  detector.** This entry originally specified adding a DECLINED class, which
+  would have built a second instrument beside a working one and split the
+  population across two readers. The fix is to make the three consumers report
+  what `findMitigationGaps` already knows:
+  - price `rebilledBytes`/`savedBytes` on `mitigated && outputPreserved`, not
+    on `mitigated` alone, so the ledger stops crediting spliced output as
+    saved;
+  - report the absorbed percentage on the same conjunction, or print it as two
+    numbers (input-mitigated / output-preserved) so one cannot stand for the
+    other;
+  - surface the `[INPUT-MITIGATED, OUTPUT-SPLICED]` row for the busting pair in
+    `bust-triage`'s ABSORPTION block.
+  Existing consumers of `rebilledBytes`/`savedBytes` move by construction —
+  that is the point, not a side effect — so the change lands with its
+  dependents search stated and its numbers re-baselined deliberately.
   **EXECUTED, not read off the `continue`.** Two entry pairs identical in every
   byte of `outHash`/`inHash` and differing ONLY in whether the mitigation
   claimed: `movedFresh:0` -> **0 rows** (invisible), `movedFresh:1` with a
