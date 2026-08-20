@@ -8,6 +8,60 @@ Split out of BACKLOG.md 2026-08-19 at 268 of 574 entries / 10,228 of
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
 
+- **DONE 2026-08-20 — the byte-gate summary now carries its denominator and
+  its MISMATCH sub-classification; and this entry is first of all the record
+  of a WRONG DIAGNOSIS I delivered to the operator as fact.** A dotfiles
+  doctor FAIL, relayed by the desk that owns that repo, reported
+  `cache-fix byteGate: MISMATCH=21`. Reading the status file showed
+  `{EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 21}` with `unreadable: 0`,
+  and I reported to the operator that the all-zero distribution INDICTED THE
+  CLASSIFIER — that zero EXACT across 30 captures meant the tool was not
+  reaching the rows it believed it read. **That was wrong.**
+  **What refuted it was executing the tool instead of reading its source.**
+  `reminder-migration-census.mjs --json` over one capture returns
+  `considered` (the denominator), `total`, and `mismatchSubs` — a
+  per-MISMATCH sub-classification whose buckets are `HOST-PRUNED`,
+  `HOST-IDLESS`, `WRAPPER-RETAINED-EXACT`, `WRAPPER-RETAINED-EXTENDED`,
+  `UNRELATED`. The classifier is sound and already knows the answer: the
+  wrapper-retained mechanism was MEASURED here on 2026-08-14 and is carried
+  in the tool's own header (`:237` — CC re-emits migrated blocks with
+  `<system-reminder>` wrappers retained rather than stripped, the alternative
+  to row 4's stripping assumption).
+  **The real defect was one allowlist.** `gate-live.mjs`'s `summariseCensus`
+  keeps `pairs / unreadable / tally / extendedSub / prunes / duplicates` and
+  dropped `considered`, `total` and `mismatchSubs`, so the status file
+  carried a bare count. A count without its denominator is not a
+  measurement — 21 of 21 and 21 of 200,000 are different findings — and a
+  tally whose classes are hidden cannot separate a known mechanism from a
+  real hole. The doctor then surfaced the one number, and it travelled
+  through two desks and reached the operator as a broken instrument.
+  **Fix:** `summariseCensus` carries all three (`considered`, `total`,
+  `mismatchSubs`), verified against real census output, not only fixtures.
+  **Red-first, and the arrangement is the point:** the bite is a PAIR of
+  tallies IDENTICAL on the MISMATCH count and separable only by the
+  sub-classification the summary was dropping — one all `WRAPPER-RETAINED`,
+  one all `UNRELATED`. A bite asserting the fields merely exist would pass on
+  a summary that still could not tell those two apart, which is the defect
+  restated rather than caught. Ran red against the unchanged implementation
+  (`the denominator rides along` — `actual: undefined`), green after; the
+  file's 7 bites pass.
+  **The lesson, and it is not "check harder".** The entry that booked this
+  wrote its discriminator DOWN IN ADVANCE, including a third outcome that
+  contradicted its own headline — "the rule under test legitimately matches
+  nothing, in which case EXACT=0 is correct and the reporting is what
+  misleads". That third branch is exactly what happened. Pre-registering the
+  outcomes is the only reason the wrong reading was caught within the hour
+  instead of being built on: the headline was confident and wrong, and the
+  discriminator beside it was right.
+  Second lesson, cheaper to state: **a wrongness claim about an artifact is
+  answered by the artifact's DEFINITION and its EXECUTED behaviour, never by
+  its output shape.** "All-zero-but-MISMATCH looks impossible" is reasoning
+  about a distribution; one `--json` run settled it.
+  Touches `tools/gate-live.mjs`, `test/census-byte-gate-sweep.test.mjs`.
+  Residual, deliberately NOT closed here and living as its own `## Open`
+  entry: which class those 21 rows actually are, answerable from the next
+  sweep's status file rather than by a walk.
+
 - **DONE 2026-08-19 (`0ba6e45`, `208b121`) — the backlog's closure home is
   DERIVED from one declaration instead of restated in three tools, which is
   what made this file possible.** `backlog-lint.mjs`, `alias-claim.mjs` and

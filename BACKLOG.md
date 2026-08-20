@@ -458,11 +458,69 @@ comment and new issue.
 
 ## Open
 
-- **RECORD 2026-08-20 (routed in by the dotfiles desk from a doctor FAIL; the
-  doctor's own text says the finding belongs in the fork) — the daily gate's
-  byte-match tally reads `MISMATCH=21` while EXACT, EXTENDED and DROPPED are
-  ALL ZERO, and that distribution indicts the INSTRUMENT rather than the
-  corpus.** Read from the gate's own status file
+- **RECORD 2026-08-20 (surfaced by dispositioning a risen skip count, which is
+  the only reason anyone looked) — the row-pin mutation arm that proves the
+  check can go RED runs on 1 of 14 fixtures, and its skip count tracks FIXTURE
+  POPULATION rather than health, so it will rise forever and means nothing.**
+  Measured on today's full run: `(2) SKIP:` 13, `(2) ran` 1 — the single
+  exercising fixture is `pinned-s-4b6a435234bf-26-28.json`. The skip reason is
+  computed per fixture from its own bytes ("first request carries no full
+  `<system-reminder>` block — the mutation would be a no-op"), so this is a
+  SELF-VERIFYING exemption and not a blanket skip; that half is correct and is
+  not the finding.
+  **Two things that are.** (1) One positive certifies the CLASS that fired,
+  which is real but thin: the arm's reach over the pin population is 7%, and
+  nothing says whether the 13 non-exercising fixtures differ from the one in
+  any way that matters. (2) The COUNT is a decoy. It moved 12 -> 13 today
+  purely because harvest added a fixture (1,057 rowpin files on disk against
+  995 tracked), so a reader applying the standing rule "a risen skip count is
+  a finding" gets a true alarm about nothing, every time the corpus grows —
+  the check-that-fires-on-a-non-defect shape, arriving through a metric rather
+  than a predicate.
+  **Named missing evidence, and it is a design question rather than a
+  measurement:** what the arm should assert for a fixture whose first request
+  cannot carry the mutation. Skipping is honest; a fixture-count-proportional
+  skip stream is not readable. The candidate shape is the one this repo
+  already uses elsewhere — report the exemption as a DECLARED population with
+  its own count ("13 of 14 fixtures cannot exercise arm 2, by construction")
+  rather than as 13 individual skips, so the number a reader sees is the
+  reach, not the population.
+  Loop stage: VERIFY (instrument reach, and a metric that misreports it).
+  Anchor: `test/gate-live-rowpins.test.mjs`
+  Write-set: `test/gate-live-rowpins.test.mjs`
+  <!-- entry: "rowpin mutation arm exercises 1 of 14 and its skip count tracks population" -->
+
+- **RECORD 2026-08-20 (the diagnosis half SHIPPED and its closure is in
+  `BACKLOG-DONE.md`; what stays open is one unread number) — are the 21
+  byte-gate MISMATCHes the known WRAPPER-RETAINED mechanism, or genuine holes
+  in the rule?** The status file could not answer this until today: it carried
+  `MISMATCH: 21` with no denominator and no class, because `summariseCensus`
+  dropped `considered`, `total` and `mismatchSubs`. That is fixed and pushed,
+  so the question is now answerable by reading, not by a walk.
+  **Trigger, and it needs no session to remember it:** after the next
+  `gate-live` sweep, read `byteGate.mismatchSubs` in
+  `~/.local/state/cache-fix/gate-status.json`. All counts in
+  `WRAPPER-RETAINED-EXACT` / `WRAPPER-RETAINED-EXTENDED` -> the known class
+  measured 2026-08-14 (`reminder-migration-census.mjs:237`), no action, close
+  this entry. Any `UNRELATED` -> real holes in the row-4 rule, and THAT is a
+  finding that mints its own entry with the rows attached.
+  **Why this is not a walk:** the corpus-wide sweep already runs daily and now
+  writes the answer into its own status file. A session re-running the census
+  by hand would pay the whole corpus pass to learn what tomorrow's sweep
+  reports for free — the recurring-producer clause (`docs/dev-loop.md`,
+  closing gate question 2) satisfied in the machinery rather than by hand.
+  Loop stage: ATTRIBUTE (which class the 21 rows belong to).
+  Anchor: `tools/reminder-migration-census.mjs`
+  Write-set: none until the number is read — this entry is a scheduled READ,
+  and the write it may produce is a new entry, not an edit to this one
+  <!-- entry: "are the 21 byteGate mismatches wrapper-retained or real holes" -->
+
+- **RECORD 2026-08-20 (SUPERSEDED — the diagnosis in this body is WRONG and it
+  is kept only so the misreading stays legible; the correction and the fix are
+  in `BACKLOG-DONE.md`) — the daily gate's byte-match tally reads `MISMATCH=21`
+  while EXACT, EXTENDED and DROPPED are ALL ZERO, and that distribution was
+  read as indicting the INSTRUMENT rather than the corpus.** Read from the
+  gate's own status file
   (`~/.local/state/cache-fix/gate-status.json`, `ok: true`, 30 captures):
   `byteGate.tally = {EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 21}` with
   `errors: 0, unreadable: 0`.

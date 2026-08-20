@@ -49,6 +49,49 @@ test("summariseCensus carries the tallies the sweep is supposed to surface", () 
   assert.equal(g.unreadable, 0);
 });
 
+test("BITE — a MISMATCH count carries its denominator and its sub-classification", () => {
+  // The defect, measured 2026-08-20: the status file carried `MISMATCH: 21`
+  // and neither `considered` nor `mismatchSubs`, so the number reached a
+  // reader with no denominator (21 of 21? of 200000?) and no class. It was
+  // relayed onward as a suspected broken classifier, which it was not — the
+  // census sub-classifies every MISMATCH and counts what it considered, and
+  // THIS summary's allowlist was dropping both. A count without its
+  // denominator is not a measurement, and a tally whose classes are hidden
+  // cannot separate a known mechanism from a genuine hole.
+  const known = summariseCensus(censusJson({
+    tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 21 },
+    considered: 21, total: 21,
+    mismatchSubs: {
+      "HOST-PRUNED": 0, "HOST-IDLESS": 0,
+      "WRAPPER-RETAINED-EXACT": 20, "WRAPPER-RETAINED-EXTENDED": 1,
+      UNRELATED: 0,
+    },
+  }));
+  assert.equal(known.considered, 21, "the denominator rides along");
+  assert.equal(known.total, 21);
+  assert.equal(known.mismatchSubs["WRAPPER-RETAINED-EXACT"], 20);
+
+  // THE PAIR, and it is the whole point: the same MISMATCH count whose rows
+  // are UNRELATED is a different finding entirely — real holes in the rule
+  // rather than the wrapper mechanism measured on 2026-08-14. A summary that
+  // carried the count alone reports these two identically, so asserting the
+  // fields merely EXIST would pass on a summary that still cannot tell them
+  // apart.
+  const holes = summariseCensus(censusJson({
+    tally: { EXACT: 0, EXTENDED: 0, DROPPED: 0, MISMATCH: 21 },
+    considered: 21, total: 21,
+    mismatchSubs: {
+      "HOST-PRUNED": 0, "HOST-IDLESS": 0,
+      "WRAPPER-RETAINED-EXACT": 0, "WRAPPER-RETAINED-EXTENDED": 0,
+      UNRELATED: 21,
+    },
+  }));
+  assert.deepEqual(holes.tally, known.tally,
+    "indistinguishable on the number the status file used to carry");
+  assert.notDeepEqual(holes.mismatchSubs, known.mismatchSubs,
+    "and separable by the field the summary was dropping");
+});
+
 test("BITE — a capture the byte-gate could not READ fails the row", () => {
   // The defect this sweep now has to catch: a normalization gate reporting a
   // clean verdict over a corpus it never opened.

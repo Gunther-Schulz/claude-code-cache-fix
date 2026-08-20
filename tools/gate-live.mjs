@@ -188,6 +188,21 @@ export function summariseCensus(res) {
     pairs: parsed.pairs ?? 0,
     unreadable: (parsed.unreadable ?? []).length,
     tally: parsed.tally ?? null,
+    // A COUNT WITHOUT ITS DENOMINATOR IS NOT A MEASUREMENT, and a tally whose
+    // classes are hidden cannot separate a known mechanism from a real hole.
+    // Both were computed by the census and dropped here, and the cost was
+    // measured 2026-08-20: the status file carried `MISMATCH: 21` alone, the
+    // doctor surfaced that one number, and it was relayed to another desk as
+    // a suspected broken classifier — 21 of what? holes, or the
+    // WRAPPER-RETAINED mechanism this repo measured on 2026-08-14 and already
+    // sub-classifies? Neither question was answerable from the file, and the
+    // reading that got acted on was the wrong one. `considered` is the
+    // denominator (candidate pairs the classifier reached), `total` the sum
+    // of the four buckets, `mismatchSubs` the per-MISMATCH class. `null`
+    // when the census run predates the field, same convention as the rest.
+    considered: parsed.considered ?? null,
+    total: parsed.total ?? null,
+    mismatchSubs: parsed.mismatchSubs ?? null,
     extendedSub: parsed.extendedSub ?? null,
     prunes: parsed.prunes ?? null,
     // dup-census gap 2 (BACKLOG "wire `duplicates` into the daily gate"): the
