@@ -162,15 +162,21 @@ describe("a dead stdio reader does not kill the port's process", () => {
       // of a machine whose process table was in trouble. An unbounded wait here
       // hangs the whole run instead of failing — the suite's own static guard
       // caught this one, which is the guard doing exactly its job.
-      const listeners = spawn("lsof", ["-nP", "-t", `-iTCP:${port}`, "-sTCP:LISTEN"], { stdio: ["ignore", "pipe", "ignore"] });
+      // LOOPBACK-SCOPED, matching proc-helpers.mjs. `-iTCP:<port>` matches a
+      // listener on ANY interface, so the answer could name a process that has
+      // nothing to do with this fixture and merely holds the same port number
+      // on another address. The fixture binds 127.0.0.1, so the narrower query
+      // is the correct one and the wider one was never intended.
+      const listeners = spawn("lsof", ["-nP", "-t", `-iTCP@127.0.0.1:${port}`, "-sTCP:LISTEN"], { stdio: ["ignore", "pipe", "ignore"] });
       let pids = ""; listeners.stdout.on("data", (d) => (pids += d));
       await withDeadline(new Promise((r) => listeners.on("exit", r)), 10_000, listeners,
                          "lsof never returned while looking for the proxy child");
       // THROUGH killOurs(), which is where the ours-only predicate lives. This
       // lsof is raw — it is not the shared `listeners()` helper despite the
-      // local name, and `-iTCP:` without `@127.0.0.1` matches a listener on ANY
-      // interface — so `n > 1 && n !== holder.pid` was the only thing standing
-      // between this loop and a stranger's pid.
+      // local name — so `n > 1 && n !== holder.pid` was the only thing standing
+      // between this loop and a stranger's pid. The raw call is kept for its
+      // DEADLINE (see above); what it lost was the filter, and that is restored
+      // here rather than by giving up the bound.
       for (const pid of pids.trim().split("\n").map(Number).filter((n) => n > 1 && n !== holder.pid)) {
         killOurs(pid);
       }
