@@ -2459,6 +2459,25 @@ async function main() {
     // reads by key, so an older line simply has no bytes to report.
     savedBytes,
     leakedBytes,
+    // WHICH RULE PRICED THE TWO FIELDS ABOVE. They re-baselined on
+    // 2026-08-20 and the series is discontinuous across that date, so a
+    // reader comparing lines needs to know which side of it each line sits
+    // on — from the line itself, never from a date they have to remember.
+    //
+    // Before: a pair was priced as SAVED whenever the extension re-serialised
+    // the INPUT (`mitigated`, the extension's own self-report). After: only
+    // when the cache actually survived (`absorbed` = mitigated AND
+    // outputPreserved). The old rule booked input-mitigated-but-output-
+    // spliced pairs as savings, so SAVED was overstated and LEAKED
+    // understated — and not uniformly: those pairs are the expensive tail,
+    // the ones that cost the most. One measured instance moved ~35 kB across
+    // the columns. The corpus-wide magnitude is NOT measured and no rate is
+    // claimed from n=1.
+    //
+    // Absence of this key means the old pricing, which is why it is a new
+    // field rather than a version bump: every line already written stays
+    // parseable and stays honest about itself.
+    bytesPricing: "absorbed",
     // The duplicate rollup, per run, because the STATUS FILE is overwritten
     // every sweep and nothing else retained these counters: row 31's effect
     // question ("did the session-start double-billing fall?") could only ever

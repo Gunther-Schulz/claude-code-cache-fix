@@ -534,6 +534,14 @@ test("BITE — a real sweep appends exactly one well-formed ledger line", async 
     }
   }
   assert.equal(rec.raw.guardRestores, null, "the declared raw gap survives a real run");
+  // The saved/leaked columns re-baselined on 2026-08-20 (pricing moved from
+  // `mitigated` to `absorbed`), so the series is discontinuous across that
+  // date. Every line written after it must SAY which rule priced it, or a
+  // later reader compares two incomparable halves and cannot tell — the
+  // discontinuity is invisible in the numbers themselves, which is exactly
+  // why it needs a field rather than a memory.
+  assert.equal(rec.bytesPricing, "absorbed",
+    "a line must name its own pricing rule; absence means the pre-2026-08-20 rule, so a NEW line without it is silently mis-readable");
   // relocations' saved source is live (replay's retained savedBytes field):
   // this sweep's only pair is append-only, so the measured mitigation array
   // is EMPTY — a real zero, mirroring leaked's empty-array convention. The
