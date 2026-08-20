@@ -1099,6 +1099,99 @@ comment and new issue.
   cycles today.
   <!-- entry: "register the deep mid-history hook-insert class so a future walk terminates instead of re-investigating" -->
 
+- **RECORD 2026-08-20 (correction to a number I computed and circulated the
+  same day) — 76 PAIRS HAVE NO HUMAN TURN AT ALL, and my probe folded them into
+  the `>= 0` bucket where the shipped instrument reports them as
+  could-not-verify.** Subagent and sidecar conversations have no user-authored
+  message, so `anchorDelta` is undefined for them rather than zero. My hand
+  probe's `>= 0` count of 2,467 therefore overstated tail growth by 76; the
+  shipped functions report deep 1 · shallow 103 · tail 2,455 · unanchored 76
+  over 2,635 pairs across all 50 captures. The DEEP count is unaffected and was
+  independently reproduced, which is what makes the disagreement informative
+  rather than alarming: two implementations of one measurement, differing only
+  where mine silently defaulted an undefined value.
+  **The reusable half:** an undefined quantity given a numeric default lands in
+  whichever bucket the default falls in, and reads as a measurement. The
+  shipped instrument is right to carry a fourth answer; a three-bucket split of
+  a quantity that can be undefined is a three-answer question asked with two
+  answers available.
+  Loop stage: SEE.
+  Anchor: `tools/replay.mjs` (the depth bucketing)
+  Write-set: none — the shipped code already reports unanchored; this corrects
+  the RECORD, and the directive's measurement section is the consumer.
+  <!-- entry: "76 unanchored pairs: my probe defaulted an undefined anchorDelta into the tail bucket" -->
+
+- **RECORD 2026-08-20 (observed by the instrument lane, deliberately NOT built
+  on) — a SHARPER discriminator than depth exists for the harmful class, and it
+  rests on n=1.** Insert-count histogram over the corpus: 3 entries in 2,633
+  pairs, 2 entries in 1, 1 entry in 1. Role sequences: `system/assistant/user`
+  2,633 · `system` 1 · `user/assistant` 1. All runs contiguous. **The 09:11
+  bust is the only lone-`system` mid-history insert in the entire corpus** —
+  a cleaner separator than `anchorDelta <= -10`, which needs a threshold.
+  **Why it is booked and not built:** one case. An instrument fitted to a
+  single instance is fitted to noise, and it would be the same-parentage defect
+  the corpus names — an expectation derived from the artifact it grades. The
+  shipped design stays on `anchorDelta`, whose gap (-3 to -22) was
+  independently reproduced by two implementations.
+  **Named re-entry trigger, so this is a spec and not a shelf:** if a SECOND
+  lone-`system` mid-history insert appears, the discriminator has n=2 and
+  becomes worth building — at which point it may replace the threshold rather
+  than joining it.
+  Loop stage: SEE.
+  Anchor: `tools/replay.mjs`
+  Write-set: deferred — re-entry trigger above.
+  <!-- entry: "lone-system insert is a sharper discriminator than depth, parked at n=1 with its re-entry trigger" -->
+
+- **RECORD 2026-08-20 (found by dispositioning a risen skip count before a
+  push, per the dispatcher duty; the skips turned out benign and this is what
+  was underneath) — `fixture-verdict-identity` SKIPS ROUGHLY A THIRD OF ITS
+  MUTANT WALKS, and nothing reports why.** Measured across two runs of the same
+  suite this afternoon: 14 fixtures × 3 mutants → 29 exercised, 13 skipped; 16
+  fixtures × 3 → 33 exercised, 15 skipped. The suite-level `skipped` number IS
+  this walker's, so every reading of the suite's skip count is really a reading
+  of this instrument's coverage.
+  **Why it matters rather than being housekeeping:** a mutation walker's whole
+  claim is that the fixtures would go red under corruption, and a skipped
+  mutant is a claim not made. At ~31% the instrument's green is a statement
+  about two thirds of what it appears to cover, and the skip REASONS are not
+  printed, so no reader can tell an inapplicable mutant from a silently
+  degraded one. The scaling is linear in fixture count (~1 skip per fixture),
+  which is what makes it look like a constant rather than a gap.
+  **Design, decided:** the walker prints a per-mutant disposition — exercised,
+  or skipped WITH its reason — and the suite's skip line names this walker as
+  its source so the number stops reading as a test-runner skip.
+  Loop stage: SEE (the instrument's own coverage).
+  Anchor: the `fixture-verdict-identity` walker
+  Write-set: the walker's test file
+  Verifier: a fixture known to be inapplicable to one mutant reports that
+  mutant skipped WITH the reason, and a fixture applicable to all three reports
+  zero skips — the pair, so the reason field is shown to discriminate rather
+  than to be populated.
+  <!-- entry: "fixture-verdict-identity skips ~31% of mutant walks with no reason printed" -->
+
+- **RECORD 2026-08-20 (found by answering an operator question against the
+  carrier rather than from memory) — the one READY MITIGATE-stage entry in the
+  scheduled head names missing evidence and two open design questions, which is
+  the PARKED definition.** The entry is "the preload residue is reachable:
+  deferred MCP names are known at session start". Its body carries "NAMED
+  MISSING EVIDENCE ... what share of the residue is configured-server deferred
+  loads versus genuinely unpredictable arrivals", and then "Two design
+  questions the measurement feeds" — the seed set's scope, and per-project MCP
+  schema differences. READY promises a fresh context could execute the entry
+  without making a design decision; this one requires two.
+  **NOT re-graded here, deliberately:** head membership is DERIVED at build
+  time, never edited in place by the session that noticed. This is the
+  observation the next derivation reads.
+  **The unblocking step is cheap and already specified in the entry itself:** a
+  corpus pass over the captures' `deferred-tool-events` files grouping
+  `newNames` by whether the name's server was in that session's config at its
+  first request. That measurement answers both design questions, so running it
+  converts the entry rather than re-designing it.
+  Loop stage: MITIGATE (blocked on its own named measurement).
+  Anchor: `BACKLOG.md`, the preload-residue entry
+  Write-set: none — a grading observation for the next build-order derivation.
+  <!-- entry: "the head's one READY mitigation names missing evidence and two open design questions" -->
+
 - **RECORD 2026-08-20 (found while reconciling a number that did not add up —
   the event billed 110k tokens and the ledger priced it at 35 kB) — THE FIRE
   LEDGER PRICES CACHE LOSS WITH A METRIC THAT UNDERSTATES THE MID-HISTORY
