@@ -904,6 +904,118 @@ comment and new issue.
   `docs/directives/robustness-threat-matrix.md`
   <!-- entry: "row 1 instance 2026-08-20 110k mid-history hook insert, residual refuted" -->
 
+- **RECORD 2026-08-20 (settled by READING the code, while the rate measurement
+  was still running — it does not depend on that measurement and is booked
+  ahead of it) — NOTHING IN THE PIPELINE MOVES A MESSAGE, so row 1's
+  relocation mitigation is a new OPERATION CATEGORY, not a new predicate on an
+  existing one.** The question arose as an open design premise in the desk
+  exchange over whether the proxy should absorb the mid-history hook-insert
+  class, where it stood UNVERIFIED on both sides.
+  **The invariant, verbatim** (`replay.mjs:558-559`): "The proxy's licence is
+  to change BYTES, never the message sequence the model sees: same count, same
+  roles, same order, tool_results still answering the tool_use immediately
+  before them." A relocation changes ORDER by construction.
+  **Every absorption today is slot-preserving substitution, stated in three
+  independent places in the extension's own words:**
+  `insertion-normalization.mjs:1083` — the join-move substitution "is
+  slot-preserving: 1 -> 1, in place, so count, roles and adjacency are
+  untouched, which is the pin argument verbatim"; `:720` — "The text is never
+  touched, so count, roles, slot and bytes-the-model-sees are all unchanged";
+  `:1057` — "Pinning substitutes the CONTENT of a single user message and never
+  adds, drops or reorders one."
+  **The refutation probe I ran against my own conclusion:** `relocatedAt`
+  (`:1039`) reads like a mover and is not one — it returns `relocation.blocks`
+  for a target index, i.e. WHICH BLOCKS to substitute at a slot already
+  identified. Content, not position. A name over a body that does something
+  narrower is the paraphrase-drift shape, and it is what made the "moves
+  already happen and pass the gate" reading plausible to two sessions at once.
+  **Consequence for the design, which is why this is booked and not just
+  noted:** the two declared-exemption classes that exist do NOT generalize to a
+  move. `isDeclaredInjection` (`:582`) is SHAPE-declared and deliberately
+  narrow — only a system message whose content is entirely `tool_addition`
+  blocks, or the description notice via `isDescriptionNotice`; its own comment
+  says anything else in `messages[]` is still a violation, "free-text system
+  messages included", which is exactly what the busting hook notification IS.
+  `suppressedIndices` (`:604`) is TELEMETRY-declared, for messages deliberately
+  never forwarded. A relocation needs a THIRD class, and it must be
+  telemetry-declared for the reason the code already gives about suppressions
+  (`:596-603`): "a removed message, unlike an added one, carries no shape of
+  its own to detect after the fact" — a MOVED message has the same problem.
+  **What this does NOT do: it does not decline the mitigation.** `FORK-NOTES.md:32`
+  binds — "Any non-operator-initiated bust is a prevention target; cost never
+  gates mitigation" (read, not recalled). It prices it, and it kills one
+  argument that was being made FOR the narrow version: narrowing the predicate
+  does not reduce the order violation, because the violation is in the
+  operation, not in its breadth.
+  Loop stage: MITIGATE (row 1 — the design premise, settled).
+  Anchor: `tools/replay.mjs:558`
+  Write-set: `proxy/extensions/insertion-normalization.mjs`, `tools/replay.mjs`
+  (the third exemption class lands in both, or in neither)
+  Verifier: red-first is available and mandatory — a relocation built without
+  the exemption must make `findSafetyViolations` go RED on the relocated pair,
+  and the exemption must then make it green while a NON-declared move on the
+  same pair stays red. That pair is the discrimination; an exemption proven
+  only by the green arm is one that exempts everything.
+  <!-- entry: "nothing in the pipeline moves a message; relocation needs a third telemetry-declared exemption" -->
+
+- **RECORD 2026-08-20 (found by the rate measurement's own instrument defect,
+  which is a better finding than the rate it was commissioned for) — the
+  census class `splice/insert-mid` is ~96% BENIGN near-tail growth, so every
+  counter keyed on that class is dominated by a shape that costs almost
+  nothing. The separating quantity is `anchorDelta`, not class.**
+  **How it surfaced:** a dispatched sweep's first partial output carried a role
+  histogram of system 211 / assistant 210 / user 210 across 631 mid-history
+  insert entries. Near-uniform thirds is not the shape a "mid-history system
+  notification" class produces. The dispatch brief had specified a positive
+  control only — which proves an instrument CATCHES and says nothing about
+  whether it DISCRIMINATES — so the count was could-not-verify until the
+  negative arm was added and returned empty on `append-only` and `identical`
+  pairs from the positive's own capture.
+  **The mechanism, hand-verified on 4 independent pairs across captures:** CC
+  emits a standing TRAILING system-reminder (the `<total_tokens>` block) as the
+  last array element of every request. Each new turn's content pushes it one
+  slot later. The content before it is genuinely new by `semanticIds`, and the
+  trailing anchor survives AFTER it, so the pair censuses as `splice/insert-mid`
+  while being ordinary tail growth. Three entries per event — a contiguous
+  system/assistant/user run — which is the histogram.
+  **The measured split (22 of 49 captures, provisional until the sweep closes;
+  computed twice, once by the lane and once by me from its data file, agreeing):**
+  1039 mid-history insert entries over 347 distinct pairs. 1000 entries
+  (96.2%) at `anchorDelta >= 0`. 39 entries at `anchorDelta < 0`, over 20
+  pairs. Exactly ONE pair at `anchorDelta <= -10`: the 09:11:57Z bust,
+  `rebilledBytes` 35192, `absorbed` false, producer `unpushed-reminder.py`.
+  **The distribution has a GAP, and the gap is the design input:** the deep
+  values are one at -23, then eighteen at -2 and twenty at -1. Nothing between
+  -3 and -22.
+  **What this costs the fire ledger, which is where it bites:** `fireRaw.relocations`
+  (`gate-live.mjs:1430`, `mit.length` — one row per MITIGABLE pair) is not
+  merely a three-class superset; it is DOMINATED by the benign shape. A
+  per-class breakdown of it — the obvious fix, and the one two sessions had
+  agreed on — would have produced a second dominated counter. The counter must
+  bucket on `anchorDelta`.
+  **Design note carried from the desk exchange (peer provenance, and it is the
+  half that decays):** whatever bound the counter uses for "deep" is stated as
+  a CHOSEN bound with its basis — today's gap between -3 and -22 — never left
+  to be discovered later as an implicit constant. The gap is cheap to defend
+  today and expensive to reconstruct next month.
+  **Named absence, graded real-now:** the exact percentage and the `<= -10`
+  membership are pending the full 49-capture sweep, and the largest capture
+  (4.9 GB, the longest session, hence the likeliest home for a deep splice) had
+  not landed when this was written. That is a REAL absence — the corpus is
+  external to this session's reach until the child process finishes — so the
+  numbers above carry their denominator and the entry ships rather than waits.
+  Loop stage: SEE (the instrument that would have recognised the class).
+  Anchor: `tools/gate-live.mjs:1430`
+  Write-set: `tools/gate-live.mjs` (the `relocations` bucketing),
+  `tools/replay.mjs` (`findMitigationGaps` rows gain the depth bucket)
+  Verifier: red-first, and the PAIR is mandatory and already in hand — the
+  09:11:57Z pair must land in the deep bucket, and a trailing-reminder
+  push-down pair from the same capture must land in the `>= 0` bucket. Both
+  from the corpus, neither constructed. Data:
+  `~/.local/share/cache-fix/insert-rate-2026-08-20/instances.jsonl` (machine-local,
+  0600, not committed — it carries other sessions' message text by construction).
+  <!-- entry: "splice/insert-mid is 96% benign near-tail; anchorDelta separates harm, not class" -->
+
 - **RECORD 2026-08-20 (surfaced by dispositioning a risen skip count, which is
   the only reason anyone looked) — the row-pin mutation arm that proves the
   check can go RED runs on 1 of 14 fixtures, and its skip count tracks FIXTURE
