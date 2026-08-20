@@ -2208,6 +2208,25 @@ safety argument (relocating a mid-history system entry to the tail alters
 conversation order as CC composed it) is undecided. That is the decision that
 would make it ready, and it is stated here rather than left as "interesting".
 
+**UPSTREAM SWEEP, run 2026-08-20 (the runbook wants it when the investigation
+OPENS; on this walk it was done at the END, which is the miss — naming it so
+the next walk does not inherit the habit).** Three queries against
+`anthropics/claude-code` for this mechanism — hook output invalidating the
+prompt cache, a system-reminder inserted mid-history, Stop-hook message and
+`cache_creation` — returned ZERO. The instrument was shown live first: a
+control query (`cache`) returns hits, so the search reaches the tracker. The
+honest claim is therefore "not filed under these terms", never "not filed" —
+self-chosen search terms are the instrument and their reach is the claim's
+basis.
+One ADJACENT candidate worth reading against this row rather than assumed
+related: **#87966**, "Prompt cache lookup fails intermittently mid-session —
+cache_read pinned to the stable-prefix boundary". Same family (mid-session
+prefix loss), unknown whether the same mechanism; whether CC's insertion of
+hook output is what moves that boundary is exactly the question this row
+answers locally and that issue does not state. Reading it against our evidence
+is the next upstream step, and it is a READ, not a post — nothing goes to the
+tracker without operator GO.
+
 **A COLLATERAL INCIDENT, recorded here because it happened during this walk
 and destroyed evidence another row's entry cites:** `alias-claim --protect` on
 this capture pushed the protected set past its 12 GB cap, and the tool's
