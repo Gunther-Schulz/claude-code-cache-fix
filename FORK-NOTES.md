@@ -29,8 +29,42 @@ Everything this fork builds serves one closed loop:
 
 Standing stances, each enforced somewhere concrete:
 
-- Any non-operator-initiated bust is a prevention target; cost never
-  gates mitigation (threat-matrix header).
+- Any non-operator-initiated bust is a prevention target; BUILD cost
+  never gates mitigation (threat-matrix header). What the stance never
+  licensed, and what one afternoon spent designing a forbidden shape
+  proves it needs to say outright: the mitigation's OWN expected cost
+  is a different axis and it DOES gate. A mitigation that can cost
+  more than the bug it insures is not a mitigation, it is a second
+  bug — the ladder is the measured precedent, 57 self-inflicted busts
+  on one session and 8 on another, bounding a bust by creating one
+  (`proxy-mid-history-breakpoint-ladder.md`). Two questions decide it,
+  both answerable before any design: is the bug's cost ONE-TIME and
+  self-healing or recurring, and does the fix take on a PERMANENT
+  per-request obligation? A one-time bug fixed by a standing
+  obligation is the losing trade, because the obligation's single
+  lapse costs the whole prefix and then repeats.
+- The proxy's licence is to change BYTES, never the message sequence
+  the model sees: same count, same roles, same order, tool_results
+  still answering the tool_use before them (`tools/replay.mjs`, the
+  safety-invariant block). This is a BOUNDARY, not a risk to be
+  managed: a shape that changes order is outside licence, so no
+  stability proof is owed for it and none should be attempted —
+  "prove it is safe enough" is the question you ask INSIDE the
+  licence. Corollary, and the half that is easy to miss: every
+  absorption the pipeline performs is licensed by the content ALREADY
+  being present elsewhere on the wire — suppression needs a duplicate,
+  the join-move needs text a predecessor already pins. Novel,
+  once-occurring content has no such licence, and moving it is not a
+  smaller version of absorbing it.
+- Before proposing ANY mitigation shape, read the retirement headers
+  in `docs/directives/` for that class. This repo retires designs by
+  measuring them, and a retired directive is a refutation with
+  numbers, not a shelved idea. Both "new" shapes proposed for the
+  2026-08-20 mid-history hook insert — relocate-to-tail, and a cache
+  breakpoint below the splice — had been built, measured and retired
+  on 2026-07-28, and the session proposing them had listed both
+  filenames without opening either. A pointer that resolves is not
+  its content read.
 - Safety outranks cache: conversation fidelity is the protected
   property, and the fidelity gate is its mechanism (directive
   flap-move-mitigation-and-fidelity-gate).
