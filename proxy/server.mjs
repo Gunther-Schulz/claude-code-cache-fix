@@ -78,8 +78,9 @@ function debugLog(...args) {
 // request unanswered, fails on `nMsg` alone — that is the discriminator
 // row 31 asked for:
 //
-//   1. exactly one message        3. byte-identical FORWARDED bodies
-//   2. no tools[]                 4. < 50 ms, first still in flight
+//   1. exactly one message        3. byte-identical FORWARDED bodies,
+//   2. no tools[]                    from the SAME caller
+//                                 4. < 50 ms, first still in flight
 //
 // Why substituting one answer for the other is fidelity-safe, which is the
 // objection that kept this parked: a request carrying no conversation
@@ -90,11 +91,87 @@ function debugLog(...args) {
 // Condition 3 is checked on the bytes we ACTUALLY send, after every
 // extension has run — identical forwarded bodies is what makes the two
 // upstream calls the same call — and it IS the map key: a full-length
-// sha256 of those bytes, so a hit already means byte-identical.
+// sha256 over the caller's credential digest and those bytes, so a hit
+// already means byte-identical AND same-caller. Why the caller half is
+// there: `coalesceIdentity` below.
 const COALESCE_WINDOW_MS = 50;
 
-/** key (sha256 of forwarded bytes) -> in-flight leader. */
+/** key (sha256 of credential digest + forwarded bytes) -> in-flight leader. */
 const inFlightSidecars = new Map();
+
+// Entries normally leave on their leader's `close`. That is not guaranteed:
+// a client that hangs without closing its socket, against an upstream that
+// never answers, leaves one behind for as long as both hold. So the map is
+// bounded by SWEEPING rather than trusting the event.
+//
+// The sweep needs no timer and no LRU because the window already bounds an
+// entry's usefulness: an entry is only ever consulted inside COALESCE_WINDOW_MS,
+// so one twice that old can never be hit again — the window check below would
+// reject it. Deleting it is therefore invisible to the mechanism, and running
+// the sweep at INSERT is what makes the map's size proportional to the
+// coalesce-candidate requests of the last 100 ms rather than to the process's
+// lifetime.
+//
+// Deleting only, never settling: `entry.done` is what an attached follower
+// awaits, and resolving it here would answer for a leader still streaming.
+// The leader's own `close` handler still settles if it ever fires.
+export const COALESCE_SWEEP_AFTER_MS = COALESCE_WINDOW_MS * 2;
+
+function sweepInFlightSidecars(now = Date.now()) {
+  for (const [key, entry] of inFlightSidecars) {
+    if (now - entry.at >= COALESCE_SWEEP_AFTER_MS) inFlightSidecars.delete(key);
+  }
+}
+
+// Exported for the bite: the map is module-private, and a bound that cannot
+// be observed is a bound nothing can show red.
+export function inFlightSidecarCount() {
+  return inFlightSidecars.size;
+}
+
+// The key separates CALLERS as well as bytes, which is condition 3's other
+// half. The session-start sidecar has a FIXED shape — same model, same
+// max_tokens, one no-tools message — so on a shared proxy two different
+// users' sends are byte-identical. Under a body-only key one user's
+// in-flight call would answer the other's request: the leader's account is
+// billed for both, a leader's 401 propagates to a follower holding valid
+// credentials, and the leader's plan-tier / org context ships in bytes the
+// follower reads.
+//
+// The credential set is DERIVED from SENSITIVE_HEADERS rather than restated
+// beside it. A hand-copied list stays green the day a new credential header
+// is added to that one, and the failure direction of deriving is fewer
+// coalesces, never a shared one. `set-cookie` is a response header and is
+// dropped.
+//
+// When a request carries none of them the digest is a constant, and that is
+// deliberate rather than a hole: a caller presenting no credential has no
+// per-caller billing identity to leak — every such request is answered under
+// whatever single credential the deployment supplies, or 401s alike. The
+// leak this closes is between callers the UPSTREAM can tell apart.
+//
+// Header names arrive lowercased from Node, but `reqCtx.headers` is handed
+// to extensions to mutate, so the scan keys on the lowercased name — the
+// invariant every spelling carries — not on the casing in hand. Entries are
+// sorted so two identical header sets cannot digest differently on
+// insertion order alone.
+const COALESCE_IDENTITY_HEADERS = new Set(
+  [...SENSITIVE_HEADERS].filter((h) => h !== "set-cookie"),
+);
+
+export function coalesceIdentity(headers) {
+  const material = [];
+  for (const [name, value] of Object.entries(headers || {})) {
+    const lower = name.toLowerCase();
+    if (COALESCE_IDENTITY_HEADERS.has(lower)) material.push([lower, String(value)]);
+  }
+  material.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  // A DIGEST, never the credential: the key's first 16 chars reach the debug
+  // log, and SENSITIVE_HEADERS exists so that file never holds one.
+  const h = createHash("sha256");
+  for (const [name, value] of material) h.update(name).update("\0").update(value).update("\0");
+  return h.digest("hex");
+}
 
 // Conditions 1 and 2 — the half that is a property of ONE request. 3 and 4
 // belong to a PAIR and are checked at the map hit. Exported for the bites:
@@ -318,7 +395,10 @@ async function handleMessages(clientReq, clientRes) {
   // Row 31. Gated OFF by default: the mechanism ships with its bites, and
   // enabling it is a separate, declared act (ship-proxy-change step 4b).
   const coalesceKey = process.env.CACHE_FIX_COALESCE_SIDECAR === "1" && coalesceCandidate(parsed)
-    ? createHash("sha256").update(forwardBody).digest("hex")
+    ? createHash("sha256")
+        .update(coalesceIdentity(headers)).update("\0")
+        .update(forwardBody)
+        .digest("hex")
     : null;
 
   if (coalesceKey) {
@@ -336,6 +416,7 @@ async function handleMessages(clientReq, clientRes) {
       if (leader.fanOut.attach(clientRes)) await leader.done;
       return;
     }
+    sweepInFlightSidecars();
     let settle;
     const entry = {
       at: Date.now(),

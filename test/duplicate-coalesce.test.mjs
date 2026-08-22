@@ -17,9 +17,18 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
 import { rm } from "node:fs/promises";
-import { startProxy, coalesceCandidate, createFanOut } from "../proxy/server.mjs";
+import {
+  startProxy, coalesceCandidate, coalesceIdentity, createFanOut,
+  inFlightSidecarCount, COALESCE_SWEEP_AFTER_MS,
+} from "../proxy/server.mjs";
 
-function clientRequest(port, body) {
+// Two callers the UPSTREAM can tell apart. Synthetic by construction — the
+// point is only that the two strings differ, so nothing here needs to look
+// like a real credential.
+const TENANT_A = { "x-api-key": "tenant-a-credential" };
+const TENANT_B = { "x-api-key": "tenant-b-credential" };
+
+function clientRequest(port, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const data = JSON.stringify(body);
     const req = http.request(
@@ -28,7 +37,7 @@ function clientRequest(port, body) {
         port,
         path: "/v1/messages",
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", ...extraHeaders },
       },
       (res) => {
         const chunks = [];
@@ -130,6 +139,61 @@ describe("row 31 — the structural half of the predicate (conditions 1 and 2)",
   it("rejects a body with no messages array at all", () => {
     assert.equal(coalesceCandidate({ model: "x" }), false);
     assert.equal(coalesceCandidate(null), false);
+  });
+});
+
+describe("row 31 — the key separates CALLERS, not only bytes", () => {
+  // The shared-proxy leak the coalescing key has to close: the session-start
+  // sidecar has a FIXED shape, so two different users' sends are byte-
+  // identical. A body-only key lets one user's in-flight call answer the
+  // other's request — leader's account billed for both, leader's 401
+  // propagated to a follower holding valid credentials, leader's plan-tier
+  // context in bytes the follower reads.
+
+  it("different credentials produce different identities", () => {
+    assert.notEqual(coalesceIdentity(TENANT_A), coalesceIdentity(TENANT_B));
+  });
+
+  it("the same credential produces the same identity — coalescing must still happen", () => {
+    assert.equal(coalesceIdentity({ ...TENANT_A }), coalesceIdentity({ ...TENANT_A }));
+  });
+
+  it("separates on `authorization` too, not just `x-api-key`", () => {
+    assert.notEqual(
+      coalesceIdentity({ authorization: "Bearer aaa" }),
+      coalesceIdentity({ authorization: "Bearer bbb" }),
+    );
+  });
+
+  it("keys on the LOWERCASED header name — an extension may have added its own casing", () => {
+    // Node lowercases what arrives on the wire, but `reqCtx.headers` is
+    // handed to extensions to mutate, and an extension setting `X-Api-Key`
+    // must not read as a different caller from one setting `x-api-key`.
+    assert.equal(coalesceIdentity({ "X-Api-Key": "same" }), coalesceIdentity({ "x-api-key": "same" }));
+  });
+
+  it("ignores headers that carry no caller identity", () => {
+    assert.equal(
+      coalesceIdentity({ ...TENANT_A, "content-type": "application/json" }),
+      coalesceIdentity({ ...TENANT_A, "content-type": "text/plain", "x-request-id": "abc" }),
+    );
+  });
+
+  it("is a CONSTANT when the request carries no credential at all", () => {
+    // Deliberate, not a hole. A caller presenting no credential has no
+    // per-caller billing identity to leak: every such request is answered
+    // under whatever single credential the deployment supplies, or 401s
+    // alike. The leak the key closes is between callers the upstream can
+    // tell apart.
+    assert.equal(coalesceIdentity({}), coalesceIdentity({ "content-type": "application/json" }));
+  });
+
+  it("never carries the credential itself — the identity is a digest", () => {
+    // The key's first 16 chars are written to the debug log. A key built by
+    // concatenating the raw credential would put it on disk, which is what
+    // SENSITIVE_HEADERS exists upstream of this to prevent.
+    assert.doesNotMatch(coalesceIdentity(TENANT_A), /tenant-a-credential/);
+    assert.match(coalesceIdentity(TENANT_A), /^[0-9a-f]{64}$/);
   });
 });
 
@@ -265,6 +329,34 @@ describe("row 31 at the wire — the upstream call COUNT is the defect", () => {
       `the follower was cut off when the LEADER's client left: ${JSON.stringify(rb.body)}`);
   });
 
+  it("TWO TENANTS, byte-identical sidecars inside the window: TWO upstream calls", async () => {
+    // The shared-proxy arm. Every one of the four conditions holds and the
+    // pair must STILL not coalesce, because the callers are different.
+    counter.calls = 0;
+    const a = clientRequest(handle.port, SIDECAR, TENANT_A);
+    await new Promise((r) => setTimeout(r, 15)); // inside the 50 ms window
+    const b = clientRequest(handle.port, SIDECAR, TENANT_B);
+    await Promise.all([a, b]);
+
+    assert.equal(counter.calls, 2,
+      "one tenant's in-flight call must never answer another tenant's request");
+  });
+
+  it("ONE tenant's duplicate still coalesces: ONE upstream call", async () => {
+    // The other half of the pair, and it is not decoration: the arm above
+    // passes equally against a build that stopped coalescing altogether, or
+    // one whose key picked up something per-request. This is what pins that
+    // the identity is per-CALLER and not per-REQUEST.
+    counter.calls = 0;
+    const a = clientRequest(handle.port, SIDECAR, TENANT_A);
+    await new Promise((r) => setTimeout(r, 15));
+    const b = clientRequest(handle.port, SIDECAR, TENANT_A);
+    const [ra, rb] = await Promise.all([a, b]);
+
+    assert.equal(counter.calls, 1, "the same caller's duplicate is exactly what row 31 coalesces");
+    assert.equal(ra.body, rb.body);
+  });
+
   it("mid-session pair (nMsg > 1): TWO upstream calls, unchanged", async () => {
     counter.calls = 0;
     const a = clientRequest(handle.port, MID_SESSION);
@@ -324,6 +416,74 @@ describe("row 31 at the wire — the upstream call COUNT is the defect", () => {
     // byte-compare, and the mutation proof is what showed that — disabling
     // one left this arm green.
     assert.equal(counter.calls, 2, "differing forwarded bytes never share a coalescing key");
+  });
+});
+
+describe("row 31 — the in-flight map is BOUNDED, not trusting `close`", () => {
+  // Entries normally leave on their leader's `close`. A client that hangs
+  // without closing its socket, against an upstream that never answers,
+  // leaves one behind for as long as both hold — so the bound cannot rest on
+  // that event. This arm builds exactly that state: an upstream that accepts
+  // the request and never responds, and a client that never hangs up.
+  const HANG = "HANG-FOREVER";
+  let handle, upstream, held, extDir;
+
+  before(async () => {
+    extDir = await tmpDir("coalesce-bound-ext-");
+    held = [];
+    upstream = http.createServer((req, res) => {
+      const chunks = [];
+      req.on("data", (c) => chunks.push(c));
+      req.on("end", () => {
+        if (Buffer.concat(chunks).toString().includes(HANG)) { held.push(res); return; }
+        res.writeHead(200, { "content-type": "text/event-stream" });
+        res.write('data: {"type":"message_stop"}\n\n');
+        res.write("data: [DONE]\n\n");
+        res.end();
+      });
+    });
+    await new Promise((r) => upstream.listen(0, "127.0.0.1", r));
+    process.env.CACHE_FIX_PROXY_UPSTREAM = `http://127.0.0.1:${upstream.address().port}`;
+    process.env.CACHE_FIX_COALESCE_SIDECAR = "1";
+    handle = await startProxy({ port: 0, watch: false, extensionsDir: extDir });
+  });
+
+  after(async () => {
+    for (const r of held) { try { r.destroy(); } catch {} }
+    await handle.close();
+    await new Promise((r) => upstream.close(r));
+    delete process.env.CACHE_FIX_PROXY_UPSTREAM;
+    delete process.env.CACHE_FIX_COALESCE_SIDECAR;
+    await rm(extDir, { recursive: true, force: true });
+  });
+
+  it("a stale leader whose client never closes is swept by the next insert", async () => {
+    const stuckBody = { ...SIDECAR, messages: [{ role: "user", content: [{ type: "text", text: HANG }] }] };
+    const stuck = http.request(
+      { hostname: "127.0.0.1", port: handle.port, path: "/v1/messages", method: "POST",
+        headers: { "content-type": "application/json" } },
+      (res) => res.on("data", () => {}),
+    );
+    stuck.on("error", () => {});
+    stuck.end(JSON.stringify(stuckBody));
+
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(inFlightSidecarCount(), 1,
+      "premise: the stuck leader never entered the map, so this arm tests nothing");
+
+    await new Promise((r) => setTimeout(r, COALESCE_SWEEP_AFTER_MS + 20));
+    assert.equal(inFlightSidecarCount(), 1,
+      "premise: nothing sweeps on a timer — the entry survives until an insert, which is what the next line exercises");
+
+    // A DIFFERENT body, so it takes its own key and does not coalesce with
+    // the stuck one. Its insert is what runs the sweep.
+    await clientRequest(handle.port, { ...SIDECAR, max_tokens: 16000 });
+    await new Promise((r) => setTimeout(r, 20)); // let the second leader's own close land
+
+    assert.equal(inFlightSidecarCount(), 0,
+      "the stale leader outlived the window it could be hit in — the map grows with process lifetime");
+
+    stuck.destroy();
   });
 });
 
