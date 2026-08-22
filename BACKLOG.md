@@ -12479,10 +12479,22 @@ then the queued ones. Work the items in that order.
   still rots with rotation. Spec sketch: `harvest --pin <key> <n..m>`
   freezes a sanitized range as a named fixture; matrix rows and
   acceptance strings then cite fixtures, not capture keys. Effort M.
-- **Row 6's isolating query is built and unread (Q3).** findToolsDeltas
-  emits exactly the tools-only classification row 6 says "cannot be run
-  as-is". With --census now on every sweep, read the answer off the
-  next gate status and update row 6. Effort S, blocked on one timer run.
+- DONE 2026-07-30 (mechanized and measured; row 6's cell carries the
+  result) — **Row 6's isolating query is built and unread (Q3).** The
+  answer was read and the row updated the same day: `findToolsDeltas`
+  rides every `--census` run and `gate-live`'s status row carries
+  `toolsDeltas: {count, toolsOnly, forwardedStable, leaked}`, so the
+  daily sweep answers it without a hand-run. Measured on two captures —
+  23 tools[] deltas of which 15 tools-ONLY, and 37 of which 33 — so the
+  isolating pair the row's opening 175k event could not establish is
+  directly observable in quantity. Closed 2026-08-22 as a LABEL fix, not
+  as new work: this bullet still read "unread … update row 6" for
+  twenty-three days after the update landed, so a reader who trusted it
+  would have re-run a done job. Found by auditing the matrix against
+  this carrier rather than by anyone re-reading it.
+  What it did NOT close, and row 6 says so correctly: the ATTRIBUTION of
+  the 12:47:56 event itself, which still carries two independent causes.
+  The CLASS question is resolved; that one event is not.
 - DONE 2026-08-01 (4185fb4, dup-census dispatch, dispatcher-verified:
   selftest + 29/29; red-first structural AND mutation; the naive
   forward-only billing match was itself caught red by the order-true
