@@ -5957,6 +5957,50 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-22 (evening, operator trigger: the sense that PR work keeps
+  dangling — and the survey run the same hour says the sense is right) — there
+  is a per-ROUND runbook for upstream PRs and nothing that ever asks after the
+  round ends, so PRs rot silently and nobody learns it from the record.**
+  Measured against the API 2026-08-22, five open PRs authored here:
+  #352 MERGEABLE but **CI red since 2026-08-20** (5 failures, one cause);
+  #276 **CONFLICTING and CI red since 2026-08-06**, 16 days, head unmoved;
+  #337 green, answered today, still carrying a stale `changes-requested`
+  label; #353 and #281 both green and mergeable, untouched since 2026-08-20.
+  So two of five were red and neither redness had reached anybody — the
+  session that pushed #352 could not run the suite (running it is what kills
+  the desktop), so it shipped a red it had no way to see, and then nothing
+  looked again.
+  **Why the existing carrier does not cover it:** `docs/runbooks/
+  upstream-pr-round.md` is an INTENT workflow — a procedure a session sets
+  out to run. Rot is not an intent, it is a passage of time, and the repo's
+  own runbook taxonomy already names the missing kind: an EVENT LANE, entered
+  because something fired. Nothing fires here today.
+  **Design (not yet built, and the operator asked for it as a later item):**
+  a standing PR-state sweep with one row per open PR of ours, each carrying
+  the four facts that decide the next action, read from the API and never
+  from memory — mergeable state, CI conclusion **with the run's head_sha
+  compared against the PR head** (a pass on a superseded head is the stale
+  green this exists to catch), the review/label state, and days since last
+  activity. Its terminal dispositions are the actions themselves: rebase,
+  fix red, nudge, answer a reviewer, close. The sweep REPORTS; it never
+  pushes.
+  **The trigger is the part that needs deciding, and it is why this is
+  RECORD and not READY:** a schedule (the daily gate already exists and
+  could carry it) versus an event (a push to any PR branch, a CI conclusion
+  webhook). The daily gate is the cheap host, but a sweep that runs when
+  nobody is present produces findings with no reader — the recurring-producer
+  clause of the closing gate's question 2 applies to it in full, so it must
+  write out what proves its own findings at the moment it finds them.
+  Red-first: a PR whose CI ran green on a SUPERSEDED head must be reported
+  as unverified, not green — construct it from the real case in hand
+  (#337 has both a superseded and a current run), and a genuinely current
+  green must still report green, or the check is just pessimism.
+  Loop stage: SEE.
+  Write-set: `docs/runbooks/` (new event lane) plus its router row in
+  `docs/dev-loop.md`; the sweep itself in `tools/`
+  Verifier: the two red-first arms above, run against the live PR set
+  <!-- entry: "no standing PR-state sweep; per-round runbook does not cover rot" -->
+
 - **RECORD 2026-08-22 (evening, handed over by the dotfiles/OOM session that
   found it while asking why `dot check` FAILs three `~/.claude` entries; its
   measurements, this repo's boundary) — the XDG store migration is HALF
