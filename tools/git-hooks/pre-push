@@ -160,7 +160,13 @@ for sha in $PUSH_SHAS; do
   #
   # A tree we cannot read is treated as dangerous: the safe direction is to
   # skip the suite, never to run it hopefully.
-  if git cat-file -e "$sha:test/proc-helpers.mjs" 2>/dev/null &&
+  # Braced deliberately. Under sh this is plain text, but the same line typed
+  # into a zsh prompt reads `$sha:t` as a history-style TAIL modifier and
+  # passes the mangled name on as a valid argument — measured while probing
+  # this very predicate by hand, where it reported "suite runs" for every ref
+  # including the ones that must be quarantined. A wrong answer shaped exactly
+  # like the right one; bracing costs nothing and removes it.
+  if git cat-file -e "${sha}:test/proc-helpers.mjs" 2>/dev/null &&
      ! git grep -q -e 'function killOurs' "$sha" -- test/proc-helpers.mjs >/dev/null 2>&1; then
     echo "pre-push: SUITE SKIPPED at $short — this tree carries upstream's" >&2
     echo "pre-push:   port-holder test machinery WITHOUT the session-kill fix" >&2
