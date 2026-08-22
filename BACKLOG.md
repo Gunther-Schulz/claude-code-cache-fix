@@ -5986,13 +5986,43 @@ comment and new issue.
   read onward. A trust anchor that is not the presented CA is that warning
   instantiated — and that TLS currently works means trust is arriving from
   somewhere else, which is itself unexplained and worth knowing either way.
-  **Not established, and it is the discriminating question:** which code
-  path resolved the LEGACY root on 08-20, given `config.mjs` resolves XDG
-  now. Two readings — a different module resolving differently, or the
-  resolution having changed between 08-20 and now — and the second is
-  checkable against this repo's history. One hint from this side: both
-  legacy-path writes are dated to session-kill events (17:48 on 08-20,
-  12:18 on 08-22), which is either a strong lead or a coincidence.
+  **ANSWERED the same evening, and the answer reframes the entry: this is
+  RESIDUE, not a split store.** Which code path resolved the legacy root —
+  measured, and the mention-versus-code distinction checked explicitly
+  because a file-count grep had already misled this session once today:
+  on fork `main`, `CACHE_FIX_CA_DIR` occurs at
+  `bin/claude-via-proxy.mjs:204,444` in COMMENTS ONLY, the live resolver
+  being `const caDir = config.caDir` (XDG); on `upstream/main` it is LIVE
+  CODE at `bin/claude-via-proxy.mjs:1776` —
+  `const ourCADir = () => process.env.CACHE_FIX_CA_DIR ||
+  ${CLAUDE_CONFIG_DIR||~/.claude}/cache-fix-ca`. So the legacy root is
+  resolved by UPSTREAM-CUT code, never by fork-main. That is why both
+  legacy writes fall in test-run windows in PR worktrees — the 08-20 audit
+  record names `wt-pr281` itself. This fork removed that resolver in
+  `f333124`, whose own comment states the reason: two resolvers with one
+  silently stale.
+  **So there is nothing to merge, and `xdg-migrate`'s COULD-NOT is a true
+  answer to the wrong question.** Measured 2026-08-22 evening:
+  `~/.claude/cache-fix-state/` holds exactly one file, 37 bytes, sha256
+  `00252adb…`, BYTE-IDENTICAL to its XDG twin — zero unique content.
+  `~/.claude/cache-fix-ca/` holds four files, all 2026-08-20 17:48. And the
+  anchor mismatch is confirmed at the hash: `ca-trust.d/ccf.pem`
+  `31b18f93…` equals the LEGACY `ca.pem` and differs from the XDG
+  `2a91a2de…`.
+  **`ca-trust.d` is NOT part of this defect and must not be moved.** It is
+  a rendezvous directory keyed to `CLAUDE_CONFIG_DIR` by design
+  (`bin/claude-via-proxy.mjs:236-247`): `NODE_EXTRA_CA_CERTS` takes one
+  file, so each component publishes its own pem into a shared directory and
+  a bundle is built from all of them. Its fixed name and absent env
+  override are deliberate — a knob on one half of a rendezvous lets a
+  publisher write where no builder looks while appearing to implement the
+  contract. Declared as correctly-placed in the dotfiles allow-list rather
+  than relocated.
+  **The remaining blocker is no longer evidence, it is a decision:**
+  removing the legacy CA means deleting key material, and the consumers of
+  any bundle built from `31b18f93…` are not enumerated. Ordering, if it
+  goes ahead: republish the anchor from the XDG CA FIRST, remove the legacy
+  dirs SECOND — the reverse leaves an anchor naming a CA nobody holds.
   Red-first for any fix: the trust anchor must equal the CA the running
   proxy presents (compare hashes, both read from the world), and a tree
   with a single store must stay green — without that second arm a fix is
