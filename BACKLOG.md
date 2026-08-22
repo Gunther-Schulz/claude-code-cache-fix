@@ -5957,6 +5957,55 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-22 (evening, handed over by the dotfiles/OOM session that
+  found it while asking why `dot check` FAILs three `~/.claude` entries; its
+  measurements, this repo's boundary) — the XDG store migration is HALF
+  DONE in the two places that matter, and one half is live: the CA that
+  Claude Code is told to trust is not the CA the proxy presents.** Measured
+  2026-08-22 with the proxy running: two complete CA keypairs exist and all
+  four files differ by hash — legacy `~/.claude/cache-fix-ca` (2026-08-20
+  17:48, `ca.pem` sha256[0:16] `31b18f9369fe71ca`, 1180 B) and XDG
+  `~/.local/share/cache-fix/ca` (2026-07-28 00:48, `2a91a2def6fab275`,
+  1159 B). The RUNNING fork resolves the XDG one — asked its own module
+  rather than inferred: `config.mjs` reports
+  `caDir = ~/.local/share/cache-fix/ca`. But `~/.claude/ca-trust.d/ccf.pem`
+  is byte-identical to the LEGACY `ca.pem`, with the same 2026-08-20 17:48
+  mtime, so something minted a CA at the legacy path and wrote its cert to
+  the trust directory in one act, AFTER the XDG migration had already run
+  (`bin/claude-via-proxy.mjs:236-247` is the writer). Both state stores are
+  also being written: `~/.claude/cache-fix-state/cache-control-sticky-*.json`
+  today, and the XDG state root today.
+  **This repo's own migration tool agrees and refuses correctly:**
+  `node tools/xdg-migrate.mjs` (dry-run) reports would-move 0, already-done
+  22, COULD-NOT 2 of 24 — the two above, each
+  "destination already exists and is non-empty — refusing to merge two
+  stores; resolve by hand". The tool is right; the state is wrong.
+  **Why it is live rather than untidy:** `xdg-migrate`'s own docstring
+  warns that this fork's writers never fall back and its readers prefer the
+  new root once it exists, so a split store goes invisible from the next
+  read onward. A trust anchor that is not the presented CA is that warning
+  instantiated — and that TLS currently works means trust is arriving from
+  somewhere else, which is itself unexplained and worth knowing either way.
+  **Not established, and it is the discriminating question:** which code
+  path resolved the LEGACY root on 08-20, given `config.mjs` resolves XDG
+  now. Two readings — a different module resolving differently, or the
+  resolution having changed between 08-20 and now — and the second is
+  checkable against this repo's history. One hint from this side: both
+  legacy-path writes are dated to session-kill events (17:48 on 08-20,
+  12:18 on 08-22), which is either a strong lead or a coincidence.
+  Red-first for any fix: the trust anchor must equal the CA the running
+  proxy presents (compare hashes, both read from the world), and a tree
+  with a single store must stay green — without that second arm a fix is
+  indistinguishable from deleting one store.
+  Loop stage: SEE.
+  Anchor: `bin/claude-via-proxy.mjs:236-247`, `proxy/config.mjs`,
+  `tools/xdg-migrate.mjs`
+  Write-set: TBD by the resolution question above — do not pick one before
+  the resolver is identified
+  Verifier: `node tools/xdg-migrate.mjs` reporting 0 COULD-NOT, plus the
+  anchor-equals-presented-CA hash comparison
+  <!-- entry: "split CA and state stores; trust anchor is not the presented CA" -->
+
 - **RECORD 2026-08-22 (midday, operator trigger: the desktop session died a
   second time while an upstream-cut worktree ran a single test file, and the
   operator's reading was that an earlier session had already closed this) —
@@ -6018,9 +6067,41 @@ comment and new issue.
   2 fail (both the quarantine arm and the fork-main arm); v2 7 pass / 1 fail
   (the fork-main arm alone). The two must-RUN arms are controls — without
   them the quarantine arm proves only that something allowed a push.
-  Post-incident (1) mechanized: yes, the check above. (2) truth level:
-  project — the mechanism is this repo's hook and the marker is this repo's
-  fix.
+  **INDEPENDENT CORROBORATION, arriving after the above was written, from
+  the peer session building this machine's OOM protection — an instrument
+  this repo never had.** Boot -1 of 2026-08-22 carries
+  `user@1000.service: Main process exited, code=killed, status=9/KILL` at
+  12:18:27, and `earlyoom` logged 89.44% memory available at 11:56 with
+  nothing at all between 12:10 and 12:25. A SIGKILL to the user manager on
+  an unstressed machine — the mechanism above, measured from the journal
+  rather than inferred from the suite. It also closes a
+  `cause not identified` entry in CachyOS-Setup's `docs/cachyos/todo.md`
+  for two collapses on 2026-08-20 with the same `status=9/KILL` signature
+  and memory ruled out by basis; that repo is not this one's write
+  boundary, so claiming the entry is a hand-off, not a write.
+  **Bounded rather than widened:** a SECOND collapse the same boot (the
+  freeze ending in a hard reset at 13:51) is genuinely memory-caused —
+  ~39 GB of pinned unswappable shmem shrinking the user-memory denominator
+  from 53803 to 14911 MiB while earlyoom stayed quiet because swap was
+  92.66% free and pinned memory cannot swap. Not this class; do not book it
+  here. Correction to figures this session circulated earlier: the
+  `systemd --user` pid and start time it quoted describe boot -1, not the
+  present one — that reading was correct for its boot and stale by the time
+  it was repeated.
+  **SECOND HALF, shipped the same session in the dotfiles repo
+  (`fd08595`):** both incidents came from a MANUAL run, which no pre-push
+  hook can see, so the push-path quarantine above closes a door neither one
+  came through. `claude/hooks/session-kill-suite-gate.py` is a PreToolUse
+  gate on Bash carrying the same two-state predicate — it denies `npm test`
+  / `node --test` / the other runner spellings in a tree carrying the
+  killer without the fix, allows everywhere else, and retires on the same
+  condition. Proven live against three real trees plus a 20-arm battery;
+  it carries a declared exemption (`CACHE_FIX_SUITE_KILL_ACK=1`) that warns
+  rather than silences, because a guard with no remedy inside the caller's
+  power trains the override reflex that kills it.
+  Post-incident (1) mechanized: yes, twice — the push-path check above and
+  the machine-wide gate. (2) truth level: project for the repo hook, machine
+  for the gate; the class is one tree's defect, not a general rule.
   Loop stage: MITIGATE.
   Anchor: `tools/git-hooks/pre-push`, the SESSION-KILL QUARANTINE block
   Write-set: `tools/git-hooks/pre-push`, `test/pre-push-hook.test.mjs` — both
