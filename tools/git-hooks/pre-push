@@ -128,20 +128,43 @@ for sha in $PUSH_SHAS; do
   # taken and the suite runs again on its own. Delete this block once no
   # branch we push can predate the fix.
   #
-  # It SKIPS rather than REFUSES, deliberately: every push to this fork's
-  # main currently lands on such a tree, so refusing would make --no-verify
-  # routine, and a guard that fires on legitimate work trains the bypass
-  # reflex that kills it. The cost is stated rather than hidden — the
-  # red-main protection this hook exists for is NOT in force for such a
-  # commit, and only the fix restores it.
+  # It SKIPS rather than REFUSES, deliberately: refusing would make
+  # --no-verify routine on every upstream-facing branch, and a guard that
+  # fires on legitimate work trains the bypass reflex that kills it. The
+  # cost is stated rather than hidden — the red-main protection this hook
+  # exists for is NOT in force for such a commit, and only the fix restores
+  # it.
   #
-  # Scoped to test/ so this file, which names the marker in these comments
-  # and lives in tools/, cannot match itself and report the fix present.
-  # A tree we cannot read is treated as predating the fix: the safe
-  # direction here is to skip the suite, never to run it hopefully.
-  if ! git grep -q -e killOurs "$sha" -- test >/dev/null 2>&1; then
-    echo "pre-push: SUITE SKIPPED at $short — this tree predates the" >&2
-    echo "pre-push:   session-kill fix (no killOurs choke point under test/)." >&2
+  # ONE FILE, TWO STATES, AND BOTH DIRECTIONS WERE WRONG BEFORE THIS.
+  # test/proc-helpers.mjs is upstream's process-helper module: it is where
+  # killOurs() lands, and it is present on exactly the trees that carry the
+  # port-holder machinery. That gives three cases, and only the middle one
+  # is dangerous:
+  #   absent            — this fork's main. None of the three killer files
+  #                       exists there either (measured 2026-08-22), so the
+  #                       suite is safe and MUST still run; skipping it here
+  #                       would restore the ungated state this block exists
+  #                       to end.
+  #   present, no fix   — upstream/main and every branch cut from it. Skip.
+  #   present, with fix — post-merge, or a rebase onto it. Run.
+  # Two earlier predicates each got exactly one of those wrong. Searching
+  # all of test/ for the bare token self-matched: the commit introducing it
+  # carried test/pre-push-hook.test.mjs, which names the token in its prose
+  # and writes it into its fixture, so the tree matched ITSELF and the suite
+  # ran on a tree that has never carried the fix (observed live on the push
+  # of 889f678). Narrowing to the definition then over-fired the other way,
+  # quarantining this fork's main — where the file is simply absent because
+  # the danger is too. That first miss is the same self-match that made the
+  # earlier guard for this class green on the tree carrying the very defect
+  # it was written for (f4c10a3).
+  #
+  # A tree we cannot read is treated as dangerous: the safe direction is to
+  # skip the suite, never to run it hopefully.
+  if git cat-file -e "$sha:test/proc-helpers.mjs" 2>/dev/null &&
+     ! git grep -q -e 'function killOurs' "$sha" -- test/proc-helpers.mjs >/dev/null 2>&1; then
+    echo "pre-push: SUITE SKIPPED at $short — this tree carries upstream's" >&2
+    echo "pre-push:   port-holder test machinery WITHOUT the session-kill fix" >&2
+    echo "pre-push:   (no killOurs() definition in test/proc-helpers.mjs)." >&2
     echo "pre-push:   Running the suite on this host can log you out." >&2
     echo "pre-push:   The push is ALLOWED; this commit is UNVERIFIED by this" >&2
     echo "pre-push:   hook, so let CI run the suite." >&2

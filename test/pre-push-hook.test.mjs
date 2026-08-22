@@ -44,14 +44,19 @@ function git(cwd, ...args) {
 /**
  * A throwaway origin+work pair whose `npm test` is red iff a file BROKEN exists.
  *
- * `sessionKillFixed` writes the marker the hook's session-kill quarantine reads
- * — the killOurs() choke point under test/. It defaults to TRUE because every
- * case below is about some other property of the hook, and on a tree without
- * the marker the hook correctly skips the suite, which would make those cases
- * pass for the wrong reason. The one case that wants the quarantine passes
- * false.
+ * `procHelpers` sets the state the hook's session-kill quarantine reads, and it
+ * is three-valued because the danger is:
+ *   "fixed"   — upstream's process-helper module WITH the killOurs() choke
+ *               point. Safe; the suite runs. The default, because every case
+ *               below is about some other property of the hook and a
+ *               quarantined tree would make those cases pass for the wrong
+ *               reason.
+ *   "unfixed" — the module without the choke point. This is upstream/main and
+ *               everything cut from it, and it is the only dangerous state.
+ *   "absent"  — no module at all. This is the fork's own main, which carries
+ *               none of the port-holder machinery; the suite must still run.
  */
-function makeFixture(label, { sessionKillFixed = true } = {}) {
+function makeFixture(label, { procHelpers = "fixed" } = {}) {
   const root = join(tmpDirSync("prepush"), label);
   const origin = join(root, "origin.git");
   const work = join(root, "work");
@@ -81,11 +86,13 @@ function makeFixture(label, { sessionKillFixed = true } = {}) {
   const installed = join(work, ".git/hooks/pre-push");
   copyFileSync(HOOK, installed);
   chmodSync(installed, 0o755);
-  if (sessionKillFixed) {
+  if (procHelpers !== "absent") {
     mkdirSync(join(work, "test"), { recursive: true });
     writeFileSync(
       join(work, "test/proc-helpers.mjs"),
-      "export function killOurs() {}\n",
+      procHelpers === "fixed"
+        ? "export function killOurs() {}\n"
+        : "export function listeners() {}\n",
     );
     git(work, "add", "test/proc-helpers.mjs");
   }
@@ -162,14 +169,29 @@ test("a red that is IN THE COMMIT blocks, even when the working tree is green", 
 // the hook must not run the suite on that tree — and must say so rather than
 // reporting a green it never earned.
 //
-// The two arms differ ONLY in whether the marker is present, and the pushed
-// commit is red in both. Without the second arm the first proves only that
-// something allowed a push.
-test("a tree predating the session-kill fix SKIPS the suite and says so", () => {
-  const { root, work } = makeFixture("sessionkill-absent", { sessionKillFixed: false });
+// Three arms, one red commit each, differing ONLY in the state of
+// test/proc-helpers.mjs. Both of the arms that must RUN the suite are
+// controls: without them the first proves only that something allowed a push,
+// and the third is the one that catches the quarantine over-firing on this
+// fork's own main — a predicate that skipped there would silently restore the
+// ungated state the block exists to end.
+test("a tree carrying the danger WITHOUT the fix SKIPS the suite and says so", () => {
+  const { root, work } = makeFixture("sessionkill-unfixed", { procHelpers: "unfixed" });
   try {
     writeFileSync(join(work, "BROKEN"), "red, and deliberately so\n");
     git(work, "add", "BROKEN");
+    // THE DECOY, and it is the reason this arm is written this way. The first
+    // version of the quarantine searched all of test/ for the bare token, and
+    // the commit that introduced it carried THIS FILE — which names the token
+    // in its prose and writes it into the fixture above. The tree matched
+    // itself and the suite ran on a tree without the fix. A mention is not a
+    // fix, so a tree carrying only a mention must still be quarantined.
+    mkdirSync(join(work, "test"), { recursive: true });
+    writeFileSync(
+      join(work, "test/mentions-it.test.mjs"),
+      "// this file talks ABOUT killOurs and defines nothing\n",
+    );
+    git(work, "add", "test/mentions-it.test.mjs");
     git(work, "commit", "--quiet", "-m", "a commit the suite would refuse");
     const r = tryPush(work);
     assert.equal(
@@ -191,8 +213,31 @@ test("a tree predating the session-kill fix SKIPS the suite and says so", () => 
   }
 });
 
-test("the discriminating control: the same red commit on a FIXED tree is refused", () => {
-  const { root, work } = makeFixture("sessionkill-present");
+test("control: the same red commit on a tree with NO port-holder machinery is refused", () => {
+  const { root, work } = makeFixture("sessionkill-absent", { procHelpers: "absent" });
+  try {
+    writeFileSync(join(work, "BROKEN"), "red, and deliberately so\n");
+    git(work, "add", "BROKEN");
+    git(work, "commit", "--quiet", "-m", "a commit the suite would refuse");
+    const r = tryPush(work);
+    assert.equal(
+      r.ok,
+      false,
+      `this is the fork's own main: nothing dangerous is present, so the suite must run\n${r.out}`,
+    );
+    assert.match(r.out, /npm test \(full suite\)/, `the suite must have run\n${r.out}`);
+    assert.doesNotMatch(
+      r.out,
+      /SUITE SKIPPED/,
+      `quarantining here would restore the ungated state the block exists to end\n${r.out}`,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("control: the same red commit on a FIXED tree is refused", () => {
+  const { root, work } = makeFixture("sessionkill-fixed");
   try {
     writeFileSync(join(work, "BROKEN"), "red, and deliberately so\n");
     git(work, "add", "BROKEN");

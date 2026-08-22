@@ -5966,25 +5966,46 @@ comment and new issue.
   presence in the pushed tree.** Basis: `.git/hooks/pre-push` had been renamed
   to `pre-push.DISABLED-2026-08-20-desktop-collapse` — a date in a filename,
   visible only to someone running `ls` on a hooks directory, with nothing
-  scheduled to re-arm it. Measured today across every ref that matters,
-  `git grep -l killOurs <ref> -- test`: five files on
-  `fix/test-suite-kills-session-manager`, **zero** on fork `main`,
-  `origin/main`, `upstream/main` and the PR branch. So the production serving
-  state still carries the killer, the fix exists only on an unmerged branch,
-  and the suite has been ungated on every push since 2026-08-20.
+  scheduled to re-arm it. Measured today, `git grep -l killOurs <ref> -- test`:
+  five files on `fix/test-suite-kills-session-manager`, **zero** on fork
+  `main`, `origin/main`, `upstream/main` and the PR branch — the fix exists
+  only on an unmerged branch. Measured in the same pass and NOT expected: the
+  three killer files (`proxy-held-port`, `proxy-holder-handover`,
+  `stdio-epipe-survival`) are **absent from fork-main** and present on
+  `upstream/main` and every branch cut from it. So the danger is the
+  upstream-cut trees, not this fork's own suite, and the 2026-08-20 disable
+  was over-broad in the costly direction: it gated off the one tree that was
+  never dangerous, leaving fork-main's red-tree protection off for two days
+  while the branches that actually kill were untouched by it.
   **The correction to this repo's own record:** the class reads as closed
   because a branch fixing it exists and an upstream issue is open. Neither is
-  a merge. A tree is safe iff it CARRIES the fix, and the four refs above say
-  most of ours do not.
-  **What shipped:** `tools/git-hooks/pre-push` now reads the pushed tree for
-  the `killOurs()` choke point (scoped to `test/`, so the hook — which names
-  the marker in its own comments and lives in `tools/` — cannot match itself
-  and report the fix present). Absent, it SKIPS the suite loudly and allows
-  the push; present, the suite runs exactly as before. Skip rather than
-  refuse because every push to fork-main currently lands on such a tree, and
-  a guard that fires on legitimate work trains the bypass reflex that kills
-  it. Unreadable tree is treated as predating the fix — the safe direction is
-  to skip, never to run hopefully.
+  a merge. A tree is safe iff it lacks the machinery or CARRIES the fix, and
+  the refs above say our upstream-facing ones do neither.
+  **What shipped:** `tools/git-hooks/pre-push` reads the pushed tree's
+  `test/proc-helpers.mjs` — upstream's process-helper module, which is both
+  where the fix's `killOurs()` choke point lands and a reliable sign that the
+  tree carries the port-holder machinery at all. Three cases, only the middle
+  one dangerous: **absent** (this fork's main, which carries none of the three
+  killer files either — measured) → the suite RUNS; **present without the
+  definition** (upstream/main and every branch cut from it) → SKIP, loudly,
+  push allowed; **present with it** → runs. Unreadable tree counts as
+  dangerous. Skip rather than refuse because refusing would make `--no-verify`
+  routine on every upstream-facing branch, and a guard that fires on
+  legitimate work trains the bypass reflex that kills it.
+  **Two earlier predicates were wrong, one of them in production for the
+  length of a push, and both are recorded because the shape recurs.** v1
+  searched all of `test/` for the bare token — and the commit introducing it
+  carried `test/pre-push-hook.test.mjs`, which names the token in its prose
+  and writes it into its fixture. The tree matched ITSELF, the quarantine did
+  not fire, and the full suite ran on a tree that has never carried the fix
+  (observed live on the push of `889f678`; the session survived, which is luck
+  and not evidence). That is the same self-match that made the earlier guard
+  for this class green on the tree carrying the very defect it was written for
+  (`f4c10a3`) — a guard naming its own subject is inside its own search space.
+  v2 narrowed to the definition and over-fired the other way, quarantining
+  fork-main, where the file is absent only because the danger is: that
+  predicate would have silently restored the ungated state the block exists to
+  end. Only running the thing against all three real trees separated them.
   **Retirement is automatic and needs no calendar entry:** the predicate is
   the fix's presence, so the day a pushed tree carries it — upstream merge or
   our own rebase — the quarantine stops being taken and the suite resumes on
@@ -5992,11 +6013,11 @@ comment and new issue.
   **Named cost, so it is not discovered later:** the red-main protection this
   hook exists for (2026-08-02 incident) is NOT in force for a quarantined
   commit, and only the fix restores it. Every such push says so on stderr.
-  Red-first, executed, both arms real: with the new hook 7 pass / 0 fail;
-  with `git show HEAD:tools/git-hooks/pre-push` in place and the same new
-  expectations, 6 pass / 1 fail — the quarantine case red, the
-  discriminating control (same red commit, marker present, push refused)
-  green, so the control does not ride on the quarantine.
+  Red-first, executed, three real arms and each earlier predicate red on
+  exactly the arm it got wrong: v3 (shipped) 8 pass / 0 fail; v1 6 pass /
+  2 fail (both the quarantine arm and the fork-main arm); v2 7 pass / 1 fail
+  (the fork-main arm alone). The two must-RUN arms are controls — without
+  them the quarantine arm proves only that something allowed a push.
   Post-incident (1) mechanized: yes, the check above. (2) truth level:
   project — the mechanism is this repo's hook and the marker is this repo's
   fix.
