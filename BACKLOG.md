@@ -6074,11 +6074,39 @@ comment and new issue.
   12:18:27, and `earlyoom` logged 89.44% memory available at 11:56 with
   nothing at all between 12:10 and 12:25. A SIGKILL to the user manager on
   an unstressed machine — the mechanism above, measured from the journal
-  rather than inferred from the suite. It also closes a
+  rather than inferred from the suite.
+  **Correction to this entry's first version, and it changes what this
+  session's contribution IS.** It claimed to close a
   `cause not identified` entry in CachyOS-Setup's `docs/cachyos/todo.md`
-  for two collapses on 2026-08-20 with the same `status=9/KILL` signature
-  and memory ruled out by basis; that repo is not this one's write
-  boundary, so claiming the entry is a hand-off, not a write.
+  for the 2026-08-20 collapses. That was wrong on the reading of the entry,
+  not on the mechanism: the entry's HEADER said cause-not-identified while
+  its own body, four paragraphs down, already carried
+  `SOLVED 2026-08-20 18:22, collapse #4 at 18:21:17.711 — the killer is the
+  claude-code-cache-fix TEST SUITE, and the audit detector named it`, with
+  the `ausearch` record (`opid=1076694 ocomm=systemd`, `syscall=kill
+  a1=SIGKILL`, `comm=node-MainThread`, proctitle
+  `node --test-coverage-functions=0`, worktree `wt-pr281`). A stale label
+  over its own body's resolution — the paraphrase-drift class, and it is
+  why two sessions independently read the entry as open. There were at
+  least FOUR collapses that day, not two.
+  So the identification was already twice-recorded; what the record
+  genuinely lacked is the MECHANISM — the parent walk gated on
+  `parent > 1`, the subreaper fact that makes an orphan's parent BE the
+  manager, SIGKILL→cgroup teardown versus SIGTERM→exit.target, #352, and
+  the two self-retiring guards. That is what landed there (`0abda63`, by
+  the peer session; that repo is not this one's write boundary, so it was a
+  hand-off rather than a write).
+  **The audit record is also the gate's strongest positive control**, and it
+  was executed rather than argued: the proctitle it names,
+  `node --test-coverage-functions=0`, is DENIED by
+  `session-kill-suite-gate.py`, as are `--test-reporter=`,
+  `--test-name-pattern=` and `--experimental-test-coverage --test`, while
+  `node server.mjs` and `node -e` stay silent. The instrument fires on the
+  historical defect in the historical defect's own spelling.
+  **Do not read this entry as covering the 2026-08-22 freeze.** Different
+  symptom — a login screen versus a hard lock with the pointer still
+  moving — different cause, both real, both the same week. The memory
+  exclusions here are correct for the 08-20 events only.
   **Bounded rather than widened:** a SECOND collapse the same boot (the
   freeze ending in a hard reset at 13:51) is genuinely memory-caused —
   ~39 GB of pinned unswappable shmem shrinking the user-memory denominator
