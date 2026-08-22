@@ -26,6 +26,35 @@ import net from "node:net";
 // binaries have.
 export const OURS = /\/(?:bin|proxy)\/[\w.-]+\.mjs\b/;
 
+// AND THE SUITE'S OWN STAND-INS, which that predicate cannot see. Cases here
+// write a fake proxy into a fresh temp dir and run it — a real process, ours by
+// construction, whose path contains neither `bin/` nor `proxy/`. The launcher
+// stand-in escaped only by accident of LOCATION: its copy lands in `bin/`, so it
+// matched, while its server did not. Measured as five reds in CI run
+// 32409699496, every one of them killOurs() refusing to signal a fake proxy the
+// case had spawned itself moments earlier — a guard firing on legitimate work,
+// which is the failure that trains the `catch {}` this guard forbids.
+//
+// The evidence here is STRONGER than a path segment, not weaker, which is what
+// makes this a widening rather than a softening. Stand-in names are built from
+// `${process.pid}-${++fakeSeq}` (proxy-held-port.test.mjs), so a command line
+// carrying OUR pid inside a filename WE generated cannot belong to a stranger.
+// A bare `scratch-fake-server-` match could, and is deliberately not what this
+// does. Rebuilt per call rather than frozen at import, so a forked runner cannot
+// inherit its parent's claim.
+//
+// Scope, so the next reader does not widen further by analogy: this reaches
+// killOurs() ONLY. listeners() and ours() answer "which PROXY holds this port",
+// where a stand-in is not wanted, and every case needing its own stand-in
+// already finds it from the launcher it spawned.
+const scratchOurs = () =>
+  new RegExp(`\\bscratch-(?:launcher|fake-server)-${process.pid}-\\d+\\.mjs\\b`);
+
+/** Is this command line one of ours — our binaries, or our own stand-ins? */
+export function isOurs(cmd) {
+  return OURS.test(cmd) || scratchOurs().test(cmd);
+}
+
 // The command line of a pid, or "" if it is gone. Every case has to tell a
 // holder from a proxy from a standby relay, and they are only distinguishable
 // by what they are running.
@@ -156,11 +185,12 @@ export function killOurs(pid, signal = "SIGKILL") {
   if (!cmd) return false;
   // ALIVE AND NOT OURS IS THE DEFECT, and it is LOUD by design: a silent skip
   // is what let this run four times before anyone knew where it came from.
-  if (!OURS.test(cmd)) {
+  if (!isOurs(cmd)) {
     throw new Error(`refusing to ${signal} pid ${n}: it is alive and its command ` +
                     `line is not one of ours.\n` +
                     `  command: ${cmd}\n` +
                     `  ours:    ${OURS}\n` +
+                    `  or our own stand-ins: ${scratchOurs()}\n` +
                     `This is the guard that exists because this suite SIGKILLed the ` +
                     `session manager and took the desktop down with it. Filter the ` +
                     `pid at its source; do not catch this.`);
