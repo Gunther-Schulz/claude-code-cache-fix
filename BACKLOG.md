@@ -5957,6 +5957,48 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **PARKED 2026-08-22 (evening, operator GO to open the PR — the attempt is
+  what produced the finding) — the XDG relocation is NOT a slice of `f333124`;
+  it has to be re-authored against `upstream/main`, and it cannot be verified
+  here until #352 lands.** Measured, not estimated. Of the commit's 66 files,
+  47 already exist upstream; excluding the 16 fork-only tools and the
+  fork-only `docs/` paths leaves a 48-file slice. Applied with
+  `git apply --3way` onto a worktree cut from `upstream/main`, that slice
+  lands **9 files in conflict, 13 hunks** — `bin/claude-via-proxy.mjs`,
+  `proxy/server.mjs` and seven extensions. The conflicts are not path drift:
+  the XDG change sits on OTHER unmerged fork changes in the same files, so
+  every hunk carries an unrelated divergence with it. A cherry-pick would
+  either drag those in (scope creep into another PR's territory) or need
+  hand-resolution that amounts to re-authoring anyway.
+  **The second blocker is verification and it is absolute right now:** a
+  worktree cut from `upstream/main` carries `test/proxy-held-port.test.mjs`
+  without the `killOurs()` fix, so the machine-wide session-kill gate denies
+  its suite — demonstrated live this evening, `npm test` in the slice
+  worktree returned the gate's denial. Until #352 merges, an upstream-cut
+  branch is verifiable in CI ONLY. That makes #352 the sequencing head of the
+  whole board rather than merely the oldest red.
+  **Why it is still worth doing:** upstream's `bin/claude-via-proxy.mjs:1776`
+  still carries the live hand-rolled resolver
+  (`CACHE_FIX_CA_DIR || ${CLAUDE_CONFIG_DIR||~/.claude}/cache-fix-ca`) that
+  this fork removed in `f333124`. That resolver is what re-creates stray
+  roots under `~/.claude` on this machine every time an upstream-cut branch
+  runs — the residue booked above. Only upstream adopting the XDG roots stops
+  it at the source; a narrower launcher-only PR would fix the two-resolver
+  divergence without moving anything, and so would not.
+  **Named missing evidence, both real and neither dissolvable by this
+  session:** (1) #352 merged, without which nothing here is locally
+  verifiable; (2) an operator/upstream decision on whether upstream WANTS a
+  user-visible relocation of every artifact — this is a behaviour change for
+  their users, not a bug fix, and the box forbids opening the conversation
+  unasked.
+  Recommendation when both clear: ask on #284 before building, since
+  re-authoring 48 files on spec is the expensive way to discover the answer.
+  Loop stage: MITIGATE (the residue's only durable fix).
+  Write-set: a new upstream-facing branch cut from `upstream/main`, files
+  re-authored — explicitly NOT a cherry-pick of `f333124`
+  Verifier: CI on the PR; locally only once #352 has landed
+  <!-- entry: "XDG relocation must be re-authored upstream, not sliced" -->
+
 - **RECORD 2026-08-22 (evening, operator trigger: the sense that PR work keeps
   dangling — and the survey run the same hour says the sense is right) — there
   is a per-ROUND runbook for upstream PRs and nothing that ever asks after the

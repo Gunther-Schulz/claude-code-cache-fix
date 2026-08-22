@@ -65,6 +65,7 @@ behind any step.
 | the daily sweep reports a finding, nobody present | `runbooks/sweep-finding.md` | regression / known-open / non-defect / instrument-defect / new-class / could-not-verify |
 | the proxy's own detectors log an anomaly (429, 5xx, auth, retry storm) | `runbooks/runtime-anomaly.md` | the sweep's six, plus open-booked |
 | an upstream PR gets a review round | `runbooks/upstream-pr-round.md` | round answered, pushed, comment posted |
+| an open upstream PR of ours has gone red, conflicting or quiet — or nobody has read the whole open set in a week | `runbooks/upstream-pr-stale.md` | every open PR carries one of: green-waiting / red / conflicting / blocked-on-upstream / blocked-on-us / stale-approval / drop |
 | a session sets out to slice a reviewable upstream PR out of `main` | `runbooks/upstream-pr-slice.md` | PR drafted (and, on operator GO, opened), handed to `runbooks/upstream-pr-round.md` |
 | the operator signals the session is ending | `runbooks/session-close.md` | closed — every context-resident fact on disk in its consumer's carrier, every open backlog entry executable without asking anyone a question, and `continue from backlog` sufficient as the next session's whole instruction; or each exception named as dropped |
 | a session is about to ship a change touching `proxy/**` (or ride the same lane for a doc/tools-only commit) | `runbooks/ship-proxy-change.md` | shipped / aborted-with-reason |
