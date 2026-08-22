@@ -41,8 +41,17 @@ function git(cwd, ...args) {
   return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
-/** A throwaway origin+work pair whose `npm test` is red iff a file BROKEN exists. */
-function makeFixture(label) {
+/**
+ * A throwaway origin+work pair whose `npm test` is red iff a file BROKEN exists.
+ *
+ * `sessionKillFixed` writes the marker the hook's session-kill quarantine reads
+ * — the killOurs() choke point under test/. It defaults to TRUE because every
+ * case below is about some other property of the hook, and on a tree without
+ * the marker the hook correctly skips the suite, which would make those cases
+ * pass for the wrong reason. The one case that wants the quarantine passes
+ * false.
+ */
+function makeFixture(label, { sessionKillFixed = true } = {}) {
   const root = join(tmpDirSync("prepush"), label);
   const origin = join(root, "origin.git");
   const work = join(root, "work");
@@ -72,6 +81,14 @@ function makeFixture(label) {
   const installed = join(work, ".git/hooks/pre-push");
   copyFileSync(HOOK, installed);
   chmodSync(installed, 0o755);
+  if (sessionKillFixed) {
+    mkdirSync(join(work, "test"), { recursive: true });
+    writeFileSync(
+      join(work, "test/proc-helpers.mjs"),
+      "export function killOurs() {}\n",
+    );
+    git(work, "add", "test/proc-helpers.mjs");
+  }
   git(work, "add", "package.json");
   git(work, "commit", "--quiet", "-m", "base");
   return { root, work };
@@ -131,6 +148,63 @@ test("a red that is IN THE COMMIT blocks, even when the working tree is green", 
       /AT THE PUSHED COMMIT/,
       `refusal must say it judged the commit, not the tree\n${r.out}`,
     );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// --- the session-kill quarantine ---
+//
+// DEFINITION, written before the assertions. On a host running a systemd USER
+// manager, two of this suite's cleanup sites walk to a listener's PARENT and
+// signal it; that parent is the manager, so the suite logs the developer out.
+// The fix is the killOurs() choke point under test/. Until a tree carries it,
+// the hook must not run the suite on that tree — and must say so rather than
+// reporting a green it never earned.
+//
+// The two arms differ ONLY in whether the marker is present, and the pushed
+// commit is red in both. Without the second arm the first proves only that
+// something allowed a push.
+test("a tree predating the session-kill fix SKIPS the suite and says so", () => {
+  const { root, work } = makeFixture("sessionkill-absent", { sessionKillFixed: false });
+  try {
+    writeFileSync(join(work, "BROKEN"), "red, and deliberately so\n");
+    git(work, "add", "BROKEN");
+    git(work, "commit", "--quiet", "-m", "a commit the suite would refuse");
+    const r = tryPush(work);
+    assert.equal(
+      r.ok,
+      true,
+      `push must be ALLOWED — refusing here would make --no-verify routine\n${r.out}`,
+    );
+    assert.match(r.out, /SUITE SKIPPED/, `the skip must be stated, never silent\n${r.out}`);
+    // The load-bearing half: it must not have RUN the suite. A hook that ran
+    // it and passed anyway would satisfy the assertion above while still
+    // taking the desktop down, which is the whole defect.
+    assert.doesNotMatch(
+      r.out,
+      /npm test \(full suite\)/,
+      `the quarantine must short-circuit BEFORE the suite starts\n${r.out}`,
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the discriminating control: the same red commit on a FIXED tree is refused", () => {
+  const { root, work } = makeFixture("sessionkill-present");
+  try {
+    writeFileSync(join(work, "BROKEN"), "red, and deliberately so\n");
+    git(work, "add", "BROKEN");
+    git(work, "commit", "--quiet", "-m", "a commit the suite would refuse");
+    const r = tryPush(work);
+    assert.equal(
+      r.ok,
+      false,
+      `with the fix present the suite must run and refuse the red commit\n${r.out}`,
+    );
+    assert.match(r.out, /npm test \(full suite\)/, `the suite must have run\n${r.out}`);
+    assert.doesNotMatch(r.out, /SUITE SKIPPED/, `nothing may be quarantined here\n${r.out}`);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

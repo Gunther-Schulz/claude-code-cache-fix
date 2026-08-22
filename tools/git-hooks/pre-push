@@ -106,6 +106,50 @@ for sha in $PUSH_SHAS; do
     fi
   fi
 
+  # SESSION-KILL QUARANTINE (2026-08-22). On a tree that predates the fix,
+  # running this suite can log the developer out of their desktop. Two
+  # cleanup sites walk from a listener to its PARENT and signal that pid;
+  # `parent > 1` is a liveness test wearing an ownership test's clothes.
+  # On a host running a systemd USER manager the manager is a child
+  # subreaper, so an orphan's parent IS the manager: SIGTERM to it starts
+  # exit.target (a logout), SIGKILL to it makes pid 1 tear down the whole
+  # session cgroup. Measured four times on 2026-08-20 and once more on
+  # 2026-08-22, each time mid-work. CI never saw it because a container
+  # really does reparent to pid 1.
+  #
+  # Diagnosis and fix: branch fix/test-suite-kills-session-manager
+  # (2707bd3, b2e7426, f4c10a3). The fix is a choke point — killOurs(),
+  # defined in test/proc-helpers.mjs — that refuses to signal any pid this
+  # process did not spawn. Its PRESENCE is the marker below.
+  #
+  # RETIREMENT NEEDS NO CALENDAR AND NO REMINDER. The check reads the
+  # pushed tree, so the day that tree carries the fix — because upstream
+  # merged it, or because we rebased onto it — this branch stops being
+  # taken and the suite runs again on its own. Delete this block once no
+  # branch we push can predate the fix.
+  #
+  # It SKIPS rather than REFUSES, deliberately: every push to this fork's
+  # main currently lands on such a tree, so refusing would make --no-verify
+  # routine, and a guard that fires on legitimate work trains the bypass
+  # reflex that kills it. The cost is stated rather than hidden — the
+  # red-main protection this hook exists for is NOT in force for such a
+  # commit, and only the fix restores it.
+  #
+  # Scoped to test/ so this file, which names the marker in these comments
+  # and lives in tools/, cannot match itself and report the fix present.
+  # A tree we cannot read is treated as predating the fix: the safe
+  # direction here is to skip the suite, never to run it hopefully.
+  if ! git grep -q -e killOurs "$sha" -- test >/dev/null 2>&1; then
+    echo "pre-push: SUITE SKIPPED at $short — this tree predates the" >&2
+    echo "pre-push:   session-kill fix (no killOurs choke point under test/)." >&2
+    echo "pre-push:   Running the suite on this host can log you out." >&2
+    echo "pre-push:   The push is ALLOWED; this commit is UNVERIFIED by this" >&2
+    echo "pre-push:   hook, so let CI run the suite." >&2
+    echo "pre-push:   Retires by itself once the tree carries the fix" >&2
+    echo "pre-push:   (branch fix/test-suite-kills-session-manager)." >&2
+    continue
+  fi
+
   echo "pre-push: npm test (full suite) at pushed commit $short ..." >&2
 
   WTROOT="$(mktemp -d "${TMPDIR:-/tmp}/pre-push-wt.XXXXXX")" || exit 1

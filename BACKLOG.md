@@ -5957,6 +5957,56 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-22 (midday, operator trigger: the desktop session died a
+  second time while an upstream-cut worktree ran a single test file, and the
+  operator's reading was that an earlier session had already closed this) —
+  the suite's session-kill class was mitigated by RENAMING the pre-push
+  symlink, which is a carrier nobody reads; SHIPPED this session as a
+  quarantine inside the hook whose retirement condition is the fix's own
+  presence in the pushed tree.** Basis: `.git/hooks/pre-push` had been renamed
+  to `pre-push.DISABLED-2026-08-20-desktop-collapse` — a date in a filename,
+  visible only to someone running `ls` on a hooks directory, with nothing
+  scheduled to re-arm it. Measured today across every ref that matters,
+  `git grep -l killOurs <ref> -- test`: five files on
+  `fix/test-suite-kills-session-manager`, **zero** on fork `main`,
+  `origin/main`, `upstream/main` and the PR branch. So the production serving
+  state still carries the killer, the fix exists only on an unmerged branch,
+  and the suite has been ungated on every push since 2026-08-20.
+  **The correction to this repo's own record:** the class reads as closed
+  because a branch fixing it exists and an upstream issue is open. Neither is
+  a merge. A tree is safe iff it CARRIES the fix, and the four refs above say
+  most of ours do not.
+  **What shipped:** `tools/git-hooks/pre-push` now reads the pushed tree for
+  the `killOurs()` choke point (scoped to `test/`, so the hook — which names
+  the marker in its own comments and lives in `tools/` — cannot match itself
+  and report the fix present). Absent, it SKIPS the suite loudly and allows
+  the push; present, the suite runs exactly as before. Skip rather than
+  refuse because every push to fork-main currently lands on such a tree, and
+  a guard that fires on legitimate work trains the bypass reflex that kills
+  it. Unreadable tree is treated as predating the fix — the safe direction is
+  to skip, never to run hopefully.
+  **Retirement is automatic and needs no calendar entry:** the predicate is
+  the fix's presence, so the day a pushed tree carries it — upstream merge or
+  our own rebase — the quarantine stops being taken and the suite resumes on
+  its own. Deleting the block is then cleanup, not a required act.
+  **Named cost, so it is not discovered later:** the red-main protection this
+  hook exists for (2026-08-02 incident) is NOT in force for a quarantined
+  commit, and only the fix restores it. Every such push says so on stderr.
+  Red-first, executed, both arms real: with the new hook 7 pass / 0 fail;
+  with `git show HEAD:tools/git-hooks/pre-push` in place and the same new
+  expectations, 6 pass / 1 fail — the quarantine case red, the
+  discriminating control (same red commit, marker present, push refused)
+  green, so the control does not ride on the quarantine.
+  Post-incident (1) mechanized: yes, the check above. (2) truth level:
+  project — the mechanism is this repo's hook and the marker is this repo's
+  fix.
+  Loop stage: MITIGATE.
+  Anchor: `tools/git-hooks/pre-push`, the SESSION-KILL QUARANTINE block
+  Write-set: `tools/git-hooks/pre-push`, `test/pre-push-hook.test.mjs` — both
+  landed this session
+  Verifier: `node --test test/pre-push-hook.test.mjs`, the two
+  session-kill arms
+  <!-- entry: "session-kill quarantine in the pre-push hook, retiring on the fix's presence" -->
 - **RECORD 2026-08-19 (morning, bit during the row-32 walk; demoted from READY the same hour by the ten-cap guard, not by a re-ranking) — `alias-claim
   --show` answers `UNCLAIMED` for an alias that IS claimed, because the reverse
   direction is unsupported and the failure reuses the vocabulary word for
