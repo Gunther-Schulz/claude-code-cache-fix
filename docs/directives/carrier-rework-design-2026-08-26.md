@@ -133,40 +133,66 @@ A LANE is a procedure file with three parsed parts and a prose body:
 The machine-wide ROUTER is a generated table, never hand-edited: `lane
 list` walks every repo declared in `~/.config/lanes/repos` and each
 repo's `.claude/lanes.json`, and prints trigger-state per lane
-(quiet / FIRING: n items / broken: predicate failed). The session-start
-hook prints that table — this is what replaces "which line are you on".
+(quiet / FIRING: n items / broken: predicate failed). It is reachable
+as the ONE slash command the system adds, `/lanes` (`/lanes ?`
+recommends a lane with its basis) — this replaces "which line are you
+on". Lane NAMES are vocabulary, not commands (operator decision
+2026-08-26: no command inflation): the operator types the noun — "bust",
+"pr", "drain" — and the session resolves it against the router; a lane
+name typed as a word also lands in ledger lines and commit messages,
+which is what makes lane use countable (the use-evidence column).
 
-The four doors, as lanes with predicates:
+One lane per DOOR, situations as its terminal dispositions — never one
+lane per situation (operator-confirmed: three overlapping bust lanes
+with no tie-break is the failure this prevents). The lanes:
 
-| lane | Trigger predicate | runs where | ends |
+| you say | lane | Trigger predicate | ends at |
 |---|---|---|---|
-| `drain` (EP1) | `item ready --count ≥ 1` | headless, scheduled | per item: dispatched → artifact ready / blocked (→ PARKED with evidence) |
-| `pr-tend` (EP2) | `gh pr list -R <upstream> --author @me --json …` returns any red / conflicting / unanswered-thread / idle > N days (R14) | headless, scheduled | per PR: rebased / answered (draft) / blocked-on-upstream / drop-proposed |
-| `pr-cut` (EP3) | `item ready --tag upstream-slice ≥ 1` | session (judgment) | drafted → handed to `pr-tend` |
-| `bust` (EP4) | `bust-triage --list --undispositioned` non-empty | headless, local (R11) | mitigated / parked / controlled-cause / upstream-filed / UNCLASSIFIED (→ item, NEW) |
-| `retire` | `item ratio ≥ 3` (capture:drain over the window) | headless, scheduled | pass run: merged n / dropped n / kept n |
-| `detector` | any registered detector printed a finding since the last run | headless | one item per finding class via `item add --source` |
+| "drain" (EP1) | work the backlog | `item ready --count ≥ 1` | per item: dispatched / blocked → PARKED with evidence |
+| "bust" (EP4) | a bust is up | `bust-triage --list --undispositioned` non-empty | mitigated / parked / controlled-cause / upstream-filed / UNCLASSIFIED → item NEW |
+| "pr" (EP2) | tend upstream PRs | `gh pr list -R <upstream> --author @me …` any red / conflicting / unanswered thread / idle > N days (R14) | per PR: green-waiting / rebased / answered (draft) / blocked-on-upstream / drop-proposed |
+| "slice" (EP3) | cut a new upstream PR | `item ready --tag upstream-slice ≥ 1` | drafted → hands to "pr" |
+| "retire" | groom the queue | `item ratio ≥ 3` (capture:drain over the window) | merged n / dropped n / kept n |
+| "close" | end the session | operator says so | closed / exceptions named |
 
-### 3.4 Headless execution under systemd (R6, R11, R13)
+In "drain", the session PICKS the head item and dispatches it on its own
+(operator decision) — and before its first tool call prints one pick
+line per item: the item, why it is the head, the lane it enters — so the
+operator can redirect. Integration and every outward act stay the
+operator's (R13).
 
-A user timer runs `lane tick` every N minutes: evaluate every trigger,
-and for each FIRING lane whose `runs` is headless, launch `claude
---print --agent lane-runner --allowedTools <lane's tool set>
---permission-mode <lane's mode> "<lane> <item ids>"` through the proxy.
-Everything the run produces is an ARTIFACT — a branch with unpushed
-commits, a drafted PR comment, a disposition proposal — plus one item
-transition. The run never pushes to a public remote, never posts, never
-merges to production main: those are the operator's acts, taken from the
-next interactive session, which opens on the router table showing what
-is ready to integrate (R13). A headless run that needs a decision only
-the operator can make ends in PARKED with the question as the item's
-missing evidence — the interactive session's first screen.
+### 3.4 Who starts a lane: a per-repo policy, not a design choice (R6, R11, R13)
 
-Guard: a headless run has the same permission hooks as an interactive
-one; the lane's `--allowedTools` is the box; a denied call ends the run
-with the denial as the item's evidence (R10: every denial text names the
-permitted next act — "narrow to an in-bounds path, or PARK with this
-denial as evidence").
+Operator decision (2026-08-26): the system's goal is that a SESSION,
+once started, knows which lane is live and runs it without step-by-step
+guidance — not that the machine acts with no session. Who starts a lane
+is therefore one declared line in `lanes.json`, `trigger-policy:`, one
+of:
+
+- `on-demand` — nothing starts until the operator names a lane. The
+  DEFAULT.
+- `advise` — session start prints `/lanes` and stops; the operator picks.
+  Recommended over on-demand once the router is trusted: zero autonomy,
+  nothing to remember.
+- `auto` — session start enters the firing lane, pick line first.
+- `unattended` — a user timer evaluates triggers and runs firing lanes
+  headlessly (`claude --print --allowedTools <lane box>`), producing
+  ARTIFACTS only (unpushed branches, drafted comments, dispositions),
+  never pushing to a public remote, posting, or merging to production
+  main. PARKED as a feature: designed here so nothing in the plugin
+  precludes it, built only when the operator asks for it. Verified
+  premise: `claude --print` with `--allowedTools` exists on this build
+  (2.1.241); unverified: unattended budget cost and proxy behaviour of a
+  headless session.
+
+Under every policy the machine still NOTICES unattended — the gate and
+harvest timers keep running as today, their findings register through
+§3.5, and the registry posts ONE system notification (ntfy, already
+wired on this machine) per batch: "cache-fix: 3 findings waiting". A
+session acts; nothing else does. Trigger evaluation also re-runs at the
+prompt-submit seam, so a bust arriving mid-session appears in the router
+without being pasted — the "operator is the transport" link closed
+inside a session.
 
 ### 3.5 Detectors register their disposition (R3, R9)
 
@@ -204,7 +230,7 @@ single installed plugin):
 | layer | holds | home |
 |---|---|---|
 | ETHICS | grounding, fixing, calibration, reporting — stances, not mechanics | corpus modules (unchanged in kind; shorter once mechanics leave) |
-| MECHANICS | the ITEM schema and tool, intake merge, lanes format and router, headless runner, detector registry, conservation and ratio checks, the state report | ONE plugin (`lanes`), installed once, versioned; its docs are the only description of the mechanics |
+| MECHANICS | the ITEM schema and tool, intake merge, lanes format and router, trigger evaluation and the policy knob, detector registry, conservation and ratio checks, the state report | ONE plugin (`lanes`), installed once, versioned; its docs are the only description of the mechanics |
 | DECLARATIONS | per repo: `.claude/lanes.json` (public?, closure home, lanes, collectors), `ITEMS.md`, `ITEMS-DONE.md`, `LEDGER.md`, `lanes/*.md`; per machine: `~/.config/lanes/{repos,detectors}` | the repo / the config dir |
 
 The accretion module's file roles, backlog doctrine and retirement
@@ -228,7 +254,7 @@ and the pass move to the lane.
 | required-reading gate/inject hooks | SURVIVE (survey: the one refinement nobody else publishes) — roster shrinks | R4 |
 | accretion module (file roles, backlog doctrine, retirement trigger, operator verbs) | REWRITE to a pointer paragraph | R15, R16 |
 | insurance module (ledger, fresh-context, dispatched work) | SURVIVE — ethics-grade; ledger clause points at `LEDGER.md` role | — |
-| routing module | SURVIVE; the headless runner is a new route line it must name | R13 |
+| routing module | SURVIVE; a lane entered under `auto` or `unattended` is a route line it must name | R13 |
 | `state-report` | REWRITE — reads the closure home and the `lanes.json` collector list; unregistered producers become findings | R9 |
 | daily gate, harvest timers | SURVIVE as detectors with registered dispositions; gate gets a memory cap and a run-in-progress stamp | R3, R9 |
 | `plugin-drift-scan` | SURVIVE as a detector with `auto-apply` | R3 |
@@ -276,13 +302,18 @@ the six lanes of §3.3 in the new format, each with its predicate proven
 FIRING on a planted item and QUIET on none; the old runbooks retired in
 the same commits. The corpus accretion module rewritten to its pointer.
 
-**Wave 3 — headless runner + detectors (one dispatch):** `lane tick`
-under a user timer; `--agent lane-runner` definition; detector registry
-with the six existing producers registered; effect-site recorders
+**Wave 3 — trigger evaluation + detectors (one dispatch):** trigger
+evaluation at session start and prompt submit under the `trigger-policy`
+knob (`on-demand` and `advise` built; `auto` built; `unattended`
+PARKED — its timer, `--agent lane-runner` box and budget measurement are
+one later item, trigger: the operator asks for it); `/lanes` and
+`/lanes ?`; detector registry with the six existing producers
+registered and the ntfy notification per batch; effect-site recorders
 (fire-log command field, git-hook commit recorder); state report reads
-collectors. Verifier: a planted bust in `bust-triage --list` produces a
-PARKED item with evidence overnight with no human present; a planted
-ready item produces an unpushed branch.
+collectors. Verifier: a planted undispositioned bust makes the router
+print `bust: FIRING (1)` at the next session start and at the next
+prompt submit, and under `advise` the session stops after printing it;
+a planted gate finding produces exactly one notification.
 
 **Wave 4 — cut pass:** everything marked CUT in §4, each removal with
 its dependents search stated; the cleanup detectors armed.
@@ -305,11 +336,11 @@ Each with a recommendation; a "no" flips the marked design line.
    tool (recommended: keeps git diff review and grep, satisfies R7 by
    the tool refusing writes) — or a JSON/YAML sidecar as the truth with
    markdown rendered from it (stricter, loses hand-editability). Rec: A.
-2. **Headless runs on this machine** via `claude --print` under a user
-   timer, through the proxy, producing artifacts only (never pushing to
-   a public remote or production main). This spends subscription budget
-   unattended; the timer cadence and the lane tool boxes are the knobs.
-   Rec: yes, cadence 30 min, `drain` capped at one item per tick.
+2. ~~Headless runs on this machine under a user timer.~~ WITHDRAWN as a
+   decision (operator, 2026-08-26): sessions remain the unit of work;
+   who starts a lane is the per-repo `trigger-policy` knob (§3.4),
+   default `on-demand`, with `unattended` designed-for and parked. No
+   slash commands beyond `/lanes` (operator decision, same exchange).
 3. **The `lanes` plugin as the single home of mechanics**, with the
    accretion module cut to a pointer and `runbook-format.md` retired.
    Rec: yes — this is the global/project seam in one line.
