@@ -69,8 +69,8 @@ R1–R19 are unchanged.
 | R18 | Orientation cost, drain ratio AND per-session prefix size are re-measurable after the change by a tool, not an impression | b4 closing gate Q1 (throwaway script); operator observation that clear procedures measurably improve sessions |
 | R20 | **Every persisted kind declares its whole LIFECYCLE — writer, reader, staleness rule, exit — and a machine walks the declaration.** The previous system broke where lifecycle was implicit: items had an append path and no exit, runbooks a mint rule and no use check, directives retention prose nobody enforced, a done home without bound, a guard wired for weeks that never fired with nobody scheduled to notice. The retire lane is the lifecycle walk over every registered kind (items, done bodies, directives, audits, lanes, workflows, worktrees, lane branches, plugin cache), each with its staleness rule declared in `lanes.json`, each exit recorded; a kind with no declared lifecycle is itself a finding the router prints — dev-loop's carrier-registration clause generalized from "has a collector" to "has an owner for every stage" | operator 2026-08-26 ("nothing left stale or dormant; every persisted piece has its controlled place"); inventory §A–E |
 | R21 | **Controlled autonomy, PROPORTIONAL (operator 2026-08-26: Statiker as an IDEA — decisions have structure — not its rigor copied; heavy loops are a workflow a lane may route to, never the default).** The system may make any decision inside its declared box — a pick, a grade, a merge-at-intake, a drop, a disposition. The DEFAULT decision is light: recorded with its basis before the act (a `decision:` ledger line; the pick line) and redirectable within a window. Rigor is PULLED IN by the decision's weight, read by the lane from the item's own slots via the skip gauge's four questions (loud failure? fast check? small blast radius? one session?) — blast radius from the write-set (paths, count, live-on-write), silent-failure from whether a verifier is named, multi-session from the blocker type. Four yeses → the light default; each "no" adds one step — a verifier built, a fresh-context verdict, an enumeration, a ledger entry — and only an item heavy on every axis routes to the Statiker-shaped workflow (grounding, design loop, attack round, isolated verify). Each lane declares `Decides:` — the decisions it may take alone, each with its recording act and its weight rule; a decision outside the list returns to the operator. Lifecycle management (R20) is the substrate | operator 2026-08-26; calibration module (the skip gauge); statiker skill (as the heavy-end workflow) |
-| R22 | **Caps, three rules (operator 2026-08-26: the READY cap of ten never worked in practice).** A cap bounds a MEASURED, mechanical quantity — lines, counts, ages, ratios — never a judgment label: a capped label is escaped by relabelling (measured today: the READY head pushed to 12, the guard refused, two entries regraded RECORD — the cap fought the grading). Its NUMBER comes from measurement after the first pass, never from a design doc — every number in this document is a placeholder until then, and says so. It has TWO LEVELS and a named exit: a TARGET that fires a finding and an item ("over target — decompose / compact / prune"), and a CEILING (≈2× target) that refuses the commit; one hard line trains the override reflex. Applied: the laws-file "60" is a placeholder set after wave 2's decomposition (the plugin's own laws file, 21 lines, is the first measurement); the READY head is DERIVED (cap + head-rule over all READY), a scheduling window, not a label limit; compaction age is set after the first retire walk; the plugin cache keeps three (mechanical, exit = delete oldest) | operator 2026-08-26; BACKLOG.md 2026-08-11 (the cap's history) |
-| R19 | **Each kind of thing has exactly one home, and a TOOL keeps it there.** Items are written only by the item tool; procedures live only in a workflow registry (procedure text elsewhere, or a lane body over one screen, is a checker finding); laws live only in the project `CLAUDE.md` under an enforced line cap; reference is free-form and never required reading; rules are minted only at their truth level. Inflation and fragmentation recurred in every carrier because each had an append path and no owner for this invariant — the corpus's prose rules against it land on a session that has to remember | operator observation 2026-08-26; inventory §A–D throughout |
+| R22 | **No caps. Every kind declares its GROWTH CONTROL, and the alarm is flow, never size** (operator 2026-08-26: "no caps at all — everything has a place, a good reason, and is controlled"; the READY cap of ten never worked, and a size tells nothing about control). Growth control is one of: bounded-by-exit (items close), compacted (done bodies and journal lines fold on a declared rule), or unbounded-with-reason. The retire lane's finding is a kind that GREW WITHOUT AN EXIT EVENT, a capture:drain ratio over the tripwire, or an injected prefix that grew (R18) — whatever the count; a large kind draining steadily is fine, a small one never draining is not. This is the corpus's own retirement doctrine (a ratio, never a size) applied to every kind; the size caps in revision 2 (laws file 60, lane body one screen, cache three) are WITHDRAWN as caps — laws-vs-method is the review's judgment with the prefix measurement as its alarm, lane bodies are held one-screen by the lane/workflow split and reviewed, the cache keeps versions by its exit rule (delete oldest past three is an EXIT rule, not a cap) | operator 2026-08-26; accretion module (retirement trigger reads a ratio, never a size) |
+| R19 | **Each kind of thing has exactly one home, and a TOOL keeps it there.** Items are written only by the item tool; procedures live only in a workflow registry (procedure text elsewhere is a checker finding — prose-rest); laws live only in the repo's declared laws file; reference is free-form and never required reading; rules are minted only at their truth level. Inflation and fragmentation recurred in every carrier because each had an append path and no owner for this invariant — the corpus's prose rules against it land on a session that has to remember | operator observation 2026-08-26; inventory §A–D throughout |
 
 ## 3. The design, from a blank page — lifecycle management for everything a repo persists
 
@@ -111,6 +111,34 @@ into "a kind with one stage undeclared" — the ledger had no exit, the
 done home no staleness rule, the registry no reader, the plugin cache no
 exit and no rollback, `ITEMS.md` no version — which is why this is the
 primitive.
+
+### 3.0b The INVARIANTS — the plugin's definition of "controlled" (operator 2026-08-26)
+
+Distinct from LAWS (how a session acts in a repo) and from REFUSALS
+(checks the tool runs): invariants are properties that must hold of
+the workspace at every moment, whoever worked last, and they do not
+care who broke them. They live in the plugin, open its docs, and its
+refusal registry is derived from them; a declaring repo is held to
+them by the tool, may add its own in its declaration, never subtract.
+They are the standard for every project on this machine by
+construction.
+
+1. Every persisted thing resolves to a registered kind.
+2. Every kind has an owner for every stage: writer, reader, staleness,
+   exit, growth control.
+3. One home per kind; a fact lives in exactly one place.
+4. Nothing dangles: every typed reference resolves; every lane has a
+   reader; every producer has a disposition; every detector has a
+   home.
+5. Every exit is recorded — a move, a compaction, a drop, each with
+   its reason and its commit.
+6. Every autonomous decision is recorded with its basis before the
+   act, and is redirectable.
+7. Nothing enters without a reason: an item names its requirement and
+   goal; a kind names why it exists; an unbounded kind names why.
+8. Growth is controlled by flow, never by size (R22).
+9. What the tool cannot enforce is labelled prose-rest, never
+   presented as enforced.
 
 ### 3.1 Items
 
@@ -229,10 +257,10 @@ workflows; LAWS → the repo's declared laws file (`laws:` in
 `lifecycle.json` — `CLAUDE.local.md` here, because the tracked
 `CLAUDE.md` is upstream's and non-binding; `CLAUDE.md` where the repo is
 ours; laws never enter a foreign file, so nothing ships upstream and the
-recorded transcription failure has no path) under a line cap — 60 is a
-PLACEHOLDER set from measurement after the decomposition (R22), shipped
-as target + ceiling; the requirement is that the injected prefix
-strictly falls (accretion's shrink saves ~242 lines); incidents and lessons → the project JOURNAL, cited
+recorded transcription failure has no path) — no line cap (R22): laws-vs-method is the
+review's judgment, and the injected-prefix measurement (R18) is the
+alarm — the requirement is that the injected prefix strictly falls
+(accretion's shrink saves ~242 lines); incidents and lessons → the project JOURNAL, cited
 by the law or workflow they justify — no reference tier, no dev-book
 concept survives (operator 2026-08-26); what fits none of law /
 workflow / journal / audit is dropped. Decomposition budget: lane + workflow text ≤ half of
@@ -310,7 +338,7 @@ here (outside the conservation identity by construction).
 ### 3.7 Orientation, measured (R4, R18)
 
 First screen: the router table + `item ready --head` + the decision
-queue + the ledger tail. Required reading: the laws file (≤60 lines) +
+queue + the ledger tail. Required reading: the laws file +
 `lifecycle.json` + what the firing lane names. R18's tool
 (`tools/entrypoint-census`, wave 0) reports THREE figures — injected
 prefix lines per turn, gated lines per session, tool calls before the
@@ -358,8 +386,7 @@ refreshes it from `lifecycle --test --list`.
 | conservation short | a body deleted by hand → the delta fails |
 | public repo, foreign-origin item | `item add` from another repo's cwd against `public: true` |
 | public undeclared | a repo with no / malformed declaration → refuse, print why |
-| lane body over one screen | a 61-line lane file |
-| laws file over cap | line 61 |
+| a kind grew without an exit event (retire lane) | plant three items, close none, run `lifecycle retire` → GREW-WITHOUT-EXIT for kind `item` |
 | unbound required slot | a binding missing `upstream` |
 | exact template duplication in a repo | a pasted template body |
 | trigger BROKEN | a predicate that exits 2 (e.g. `gh` unauthenticated) → router shows BROKEN, not quiet |
