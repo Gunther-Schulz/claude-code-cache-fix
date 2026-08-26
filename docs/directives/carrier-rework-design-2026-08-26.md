@@ -396,7 +396,7 @@ single declaration.
 | thing | lives | written by | read by |
 |---|---|---|---|
 | invariants, kind schema, refusal registry, the `lifecycle` tool, hooks, leak scan | plugin repo `~/dev/Gunther-Schulz/lifecycle/plugin/` (global, one install, symlinked here) | plugin releases | every verb, every hook |
-| workflow TEMPLATES | plugin registry (global) | plugin releases, each a reviewed PR with hygiene output | a repo's bindings |
+| workflow TEMPLATES, and the slot declarations that make them bindable | plugin repo `plugin/workflows/<template-id>.md`, one file per template, each declaring its OWN required slots in its header. The registry IS that directory plus the parser over it — there is no index file beside the templates | plugin releases, each a reviewed PR with hygiene output | `workflow bind` (reads a template's required slots to write the binding); `kind check` (every binding fills every required slot, and names a template that exists) |
 | LANES | always LOCAL: `lanes/<door>.md` | the repo, by hand | the router (`lane list`), the session entering |
 | repo-private workflows | local `workflows/` (only ≥2 lanes or over a screen) | the repo | its lanes |
 | declaration `.claude/lifecycle.json` (kinds, lanes, bindings, goals, policy, laws file, homes) | local, tracked | hand once; `migrate` writes the initial one | every verb (`kind check` validates) |
@@ -411,6 +411,28 @@ single declaration.
 | detector findings | per-detector state under XDG state | detectors | `item add --source detector:` (intake) |
 | the tool's FIRE LOG | `$XDG_STATE_HOME/lifecycle/fire.jsonl` — registered in the PLUGIN's own declaration | the tool | `lifecycle audit`; growth: compacted on a declared rule; exit: compact |
 | this design document | cache-fix `docs/directives/` — registered as a directive with change-coupling staleness to `lifecycle/CLAUDE.md` | the judgment desk | the plugin's laws file (which cites it as normative) |
+
+**Why the registry is a directory and a parser, not an index file**
+(decision 2026-08-26, taken because `workflow bind` had no foundation
+to build on: §3.11 commissioned the verb, the controls above named a
+registry that "records bindings", and nothing anywhere said what file
+that was — `plugin/` carries `cli/`, `hooks/` and an empty `skills/`,
+so there was no artifact to bind TO). An index listing each template's
+required slots beside the templates it describes is a comparison basis
+RESTATED from the source it grades: a template gains a slot, the index
+keeps its old list, and every binding validated against it stays green
+while being wrong — byte-identical to health, and unable to age loudly.
+Deriving the slot set from the template file on every read cannot drift,
+because there is only one copy. The cost is that a template must be
+parsed to be listed, which is a millisecond and buys the invariant.
+
+Consequences, so the verb is decision-complete: a template declares its
+slots in its own header; an unbound REQUIRED slot is a finding and never
+a default (the control above); a binding naming a template that does not
+exist fails `kind check` exactly as a lane naming a missing workflow
+does — nothing dangles, in either direction. The binder side already has
+its home and needs no new one: `template-bindings` in the repo's
+declaration.
 
 Flow: `lane list` (session start, prompt submit, `/lanes`) walks the
 roster, reads each declaration, EXECUTES each declared lane's trigger
