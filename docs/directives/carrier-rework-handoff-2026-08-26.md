@@ -72,6 +72,19 @@ disposition path that is not "the operator remembers" — auto-apply
 where safe, a booked item otherwise. Same class as a lane minted and
 never run, and a scheduled gate whose findings nobody closes.
 
+Operator requirement (same day, restated): the backlog grows faster than
+it drains, always; grade additions (RECORD etc.) did not fix it; a
+system that merges, batches and prioritizes the existing queue is part
+of the target — and whether the kämmung skill is sufficient for that is
+an open question (judgment-desk read: it is the right shape but
+operator-invoked, so it inherits the detector-lands-on-a-human class;
+unverified beyond that). Step-4 requirement: DRAIN is the default
+behaviour of the carrier — ready items dispatch on schedule, merge and
+batch are a mechanical join over write-sets, the retirement pass runs
+on the ratio without a human remembering — measured today at ~3.5:1
+against the 3:1 tripwire in both dotfiles backlogs with the banner
+firing and nothing draining (inventory, candidate booking 16).
+
 ## Base commits (read at compose time)
 
 - cache-fix `main` @ `7802c82` (working tree carries untracked harvested
