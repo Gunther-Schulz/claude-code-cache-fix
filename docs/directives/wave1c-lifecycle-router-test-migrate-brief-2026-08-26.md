@@ -167,10 +167,29 @@ body, and a `decision: <question> → moot (closed by <ref>)` ledger line.
    the exit code of a bare `check-ignore` on a tracked path — the wave-1 brief
    records why that form could never fail.
 7. **`kind check` over cache-fix's real declaration WILL EXIT 2** on
-   `laws_over_cap`: `CLAUDE.local.md` is 243 lines against the declared cap of
-   60. **That is the checker working.** The decomposition is wave 2's. Report
-   it as the expected red it is — it is not a stage-9 bug and stage 9's
-   acceptance does not depend on it.
+   `laws_over_cap`: `CLAUDE.local.md` is 243 lines against a target of 60.
+   **That is the checker working.** The decomposition is wave 2's. Report it as
+   the expected red it is — it is not a stage-9 bug and stage 9's acceptance
+   does not depend on it.
+   **AMENDED 2026-08-26 after dispatch, design R22 (caps) — sent to the lane
+   as a killed premise and landed here so it does not survive only as a
+   message.** A cap bounds a MEASURED quantity, never a label; its number comes
+   from measurement after a first pass; and it ships as a PAIR — TARGET
+   (finding + booked item) and CEILING (≈2× target, refuses). Two consequences:
+   - **The laws-cap check reads target and ceiling from the DECLARATION, not
+     from a constant.** W1b built it against a hardcoded 60 (its deviation D3).
+     Where the declaration names no number it reports **"cap unset — measure"
+     as COULD NOT VERIFY, exit 3** — never a guess of 60. That is the
+     three-answer rule reaching a check that has a number where it should have
+     a question.
+   - **Assigned item D therefore gains two values**: cache-fix's declaration
+     sets **target 60 / ceiling 120**, both **explicitly marked PLACEHOLDER in
+     the declaration's own comment field.** Unmarked, an invented number reads
+     as a measured cap to every later reader, which is the exact
+     label-wearing-a-measurement's-clothes defect R22 exists to prevent. With
+     them set the row goes red as planned; without them it answers exit 3.
+   The plugin's own `CLAUDE.md` (§3.10, 21 lines) is the FIRST real measurement
+   of this quantity, landed at integration by this desk, not by the lane.
 8. **`migrate` over cache-fix's real carrier**: paste the reconciliation —
    entries in, entries out per class, UNCLASSIFIED count with each entry's
    grade word and line number, and the ledger count which **must be zero**.
