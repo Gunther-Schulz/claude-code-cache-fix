@@ -141,6 +141,30 @@ a DECLARED transitional value the grade workflow fills before READY, that the
 retire lane never reads as "advances no goal", and that **`item ready` REFUSES**;
 the goal set is closed.
 
+**The blocker rule is TYPED and NARROWER than "every entry" — corrected at the
+judgment desk's pass, because an untyped blocker must not be able to satisfy
+it:**
+- **OPEN items only.** The done home holds closed bodies; **a blocker there is
+  a shape finding**, not a migration output.
+- old READY → NEW with `blocked-by: decision "regrade: was READY under the old
+  carrier"`.
+- every **slot-incomplete** entry → NEW with `blocked-by: decision <what the
+  desk must supply>`.
+- a PARKED entry **carrying its named missing evidence KEEPS
+  `blocked-by: evidence`** — it is already in the machine's court and must not
+  be converted into a decision.
+Under the new closed goal vocabulary nearly every migrated open item is
+slot-incomplete anyway, so the count will LOOK like "all" — which is precisely
+why the acceptance sentence must not say "all", or it passes on an untyped
+blocker.
+
+**R3 ON THE WALK'S OWN OUTPUTS** (§3.8c bullet 8, added at the desk's pass):
+**the regenerated migration report's findings enter cache-fix's carrier as
+ITEMS via intake** (`item add --source …`), **never as prose in an audit nobody
+routes.** The regeneration is the moment those findings are produced, so it
+happens inside H, and **the report then points at item ids** rather than
+carrying the findings itself. Begehung findings are this desk's, not yours.
+
 **I. The plugin repo is tier 1b** (§3.8c): its own legacy backlog migrates with
 the tool, its prose grade declaration is cut, and it declares **its fire log
 and the plugin cache as kinds**.
@@ -150,6 +174,44 @@ first proof** — law 25. Dry-run first, per repo, **blocked per repo on
 UNCLASSIFIED**.
 
 **K. Regenerate §3.9's table** from `lifecycle --test --list` into the design.
+
+**L. THE PRE-COMMIT SEAM** (§3.8c bullet 6 — added at the judgment desk's pass;
+scope A–K had dropped it while §5 says "everything in §3.8c"). The plugin
+**declares its hooks in `plugin.json`** and **registers its shape checks with
+the machine's global hook dispatcher** (`core.hooksPath` → the operator's
+dotfiles `git/hooks/`), **never a second hooks path** — a repo-local
+`core.hooksPath` silently replaces the dispatcher and everything it provides.
+This brief's commit-plan section READS that dispatcher; nothing until now BUILT
+the plugin's registration into it.
+
+**The write-boundary consequence, stated so it cannot be discovered at commit
+time:** the dispatcher's registration file lives in **dotfiles, which is READ
+ONLY for you.** So you deliver **the plugin side only** — the hook script in
+the plugin repo, its declaration in `plugin.json`, and **the one-line
+registration entry written out in your report as a RESIDUE for this desk to
+land in dotfiles.** Never a dotfiles write.
+
+**Name that residue as the desk's, with the check that reveals it if it is
+forgotten:** a shape-check commit made in the plugin repo that the global
+dispatcher does not run. That is the observable — not "the registration is
+missing", which nothing surfaces, but a hook that should have fired and did
+not. Say in your report which command produces that observation.
+
+**M. LAND LAWS 23–25 IN THE PLUGIN'S `CLAUDE.md`**, quoted from design §3.10.
+**They do not exist in that file today** — it carries 22, and the three live
+only in the design. This brief told you to honour them, which was a defect in
+the brief: **law 23 is itself the rule that a named thing has its home, and the
+laws file is that home.** Quoted, not paraphrased:
+
+> 23. A design line that names a thing names its home, its writer and its
+>     reader; a home is always explicit, never a default the tool assumes.
+> 24. A verb named is a verb placed in a stage; a refusal named has its firing
+>     input; neither exists in prose alone.
+> 25. Every schema change ships its migration, dry-run first, over every
+>     declared repo, before it is applied anywhere.
+
+This changes the line count that scope E's laws scope audit reports. That is
+fine and is the point of the change: it is **a number now, not a cap.**
 
 ## Verifier (§5's acceptance, plus the arrangement rules)
 
@@ -167,8 +229,14 @@ UNCLASSIFIED**.
 4. **`prove-rows.py` covers every row**, or the remainder is LISTED in its own
    output with the reason, never omitted.
 5. **`kind check` and `item check` CLEAN on cache-fix's regenerated dry run**,
-   with **0 READY**, **all migrated items blocked on a decision**, and
-   **UNKNOWN counted**. That is §5's acceptance verbatim.
+   with — **worded at the judgment desk's pass so it cannot pass on an untyped
+   blocker** — **0 READY**, **every migrated OPEN item blocked AND its blocker
+   TYPED**, **UNKNOWN counted**, and **no blocker anywhere in the done home**.
+   §5's shorter "all migrated items blocked on a decision" is the loose form:
+   it is satisfied by an untyped blocker and by a blocker written into a closed
+   body, and §3.1 is narrower than it on both counts. Report the per-type
+   counts (`decision` / `evidence` / `<item-id>`), not a total — a total is the
+   number that hides the untyped one.
 6. **The old carrier byte-identical**: `git -C <cache-fix> status --porcelain
    BACKLOG.md BACKLOG-DONE.md` prints NOTHING. The regenerated dry run replaces
    `ITEMS.md`/`ITEMS-DONE.md`/the report; it does not touch the source.
