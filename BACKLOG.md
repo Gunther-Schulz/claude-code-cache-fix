@@ -458,6 +458,87 @@ comment and new issue.
 
 ## Open
 
+- **READY 2026-08-26 (found by the wave-1 lane while red-proving the design's
+  own refusal row, and confirmed here on three independent readings) — the
+  publication bar's foreign-path clause is enforced by NOTHING.
+  `tools/absence-scan.mjs` has no path class at all.** Measured, with the
+  instrument shown live before any zero was believed: a planted
+  `/home/<other>/dev/<repo>/tools/build.sh` line scans CLEAN, exit 0; an 8-hex
+  `s-` token in the same shape of file fires `capture-key-prefix`, exit 2; a
+  plain file is clean, exit 0 — so the zero discriminates. Source agrees:
+  `CLASSES` (tools/absence-scan.mjs:392) holds b64-run, nested-payload,
+  live-timestamp, capture-uuid, raw-content, plus capture-uuid-filename and
+  capture-key-prefix. Repo-wide there is no home-path predicate in `tools/` or
+  `test/` (positive control returned 7 hits for a string known present), and
+  the global pre-push dispatcher delegates entirely to this scanner, so no
+  second scanner carries it.
+  **Why it is worse than a missing check.** `CLAUDE.local.md` lists that clause
+  among the scan's booked computable slice, so the laws file of a PUBLIC repo
+  asserts a gate that does not exist — an assurance wider than its predicate,
+  in the one place a session goes to learn what pushing is safe. Four of the
+  five listed items are real; this one is not. Second, smaller divergence: the
+  prose says a ≥256-char base64 run, the code fires above 200. What actually
+  established the 2026-08-10 zero was hand-classification by a person, once —
+  not a gate, and not repeatable on the next push.
+  **Design:** a `foreign-path` class whose predicate fires on an absolute home
+  path outside this repo's own root and the known XDG roots — both derived at
+  run time (repo root from git, XDG roots from the environment with their
+  defaults), never hardcoded, because a hardcoded machine path in a public
+  tree is the very hazard being scanned for.
+  **Write-set:** `tools/absence-scan.mjs` + `test/absence-scan.test.mjs` here;
+  the plugin's byte-identical copy re-synced in the same change (`cmp` pasted).
+  **Verifier:** red-first — a planted foreign path fires and blocks the push,
+  a path under this repo's root does not, a path under an XDG root does not.
+  All three shown, since a class that fires on everything is as useless as one
+  that fires on nothing.
+  **Done when** the design's §3.9 row "leak scan on the plugin repo" goes red
+  on the firing input it actually names. Until then that row stays PARKED with
+  the missing mechanism named — it is NOT amended to a capture-token input,
+  which would make the roster green about the exact leak direction (private
+  repo → published registry, design §3.3) the guard exists for.
+  **Not blocking wave 1:** no template extraction happens until later, and the
+  guard is needed before the first one.
+  Residue outside this repo's write boundary, named rather than assumed
+  delivered — and it SHRINKS once this entry lands, which is the judgment
+  desk's reading and the right one: building the class makes the
+  `CLAUDE.local.md` foreign-path sentence TRUE again, so the only correction
+  left there is the base64 figure (prose ≥256, code >200). That file is
+  deployed from the dotfiles repo and is the operator's own laws text, so the
+  number is corrected at the source, by them, after this lands — not before,
+  or the prose would be corrected toward a state the code is about to leave.
+
+- **READY 2026-08-26 (found by reading #276's CI after the rebase push, not by
+  a local run — by construction the suite cannot run here while #352 is
+  unmerged) — upstream CI is RED at `5cfd491` and the failing test is OURS.**
+  Run 32958295215: test(18) FAIL, test(20) FAIL, test(22) PASS; GitGuardian
+  and Snyk pass. 2147 tests, 2140 pass, 1 fail on each red job — the same
+  single test. `test/harvest-pin.test.mjs`, the "fallback RED … skips (not
+  fails) when capture and fixture are both absent" case. Established as ours,
+  not upstream's, by a pattern match run against BOTH trees with a positive
+  control that fired on both: present on the PR branch, absent from
+  `upstream/main`.
+  **Mechanism, read from the log rather than guessed:** the assertion that
+  fails is `/# skipped 1/` — the log carries the mismatch text verbatim. The
+  test spawns a child `node --test --test-reporter=tap` and asserts on the
+  child's TAP SUMMARY line, whose skipped accounting differs across node
+  majors; the child reports tests 2 / pass 0 / fail 0 on the red jobs. Nothing
+  we SHIP behaves differently across those versions — the brittleness is in
+  the assertion.
+  **Design, and the trap in it:** `# skipped 1` is what separates "the check
+  skipped" from "the check never ran", so deleting it leaves an assertion both
+  outcomes satisfy. The durable form asserts the per-test SKIP directive in the
+  TAP BODY, which is stable across majors, instead of the summary count.
+  **Write-set:** `test/harvest-pin.test.mjs` on `pr/verification-tools`.
+  **Verifier:** the same three CI jobs green at the new tip — the only verifier
+  available, since the suite cannot be run locally against a tree cut from
+  current `upstream/main` while #352 is unmerged.
+  **Done when** CI is green on 18, 20 and 22. Not verified here: that node 22
+  emits the summary line the others omit — only 26.7.0 is available locally,
+  and the version-dependence is inferred from the pass/fail split across the
+  three jobs. The failing assertion itself is measured.
+  **Gate:** no comment goes to upstream before this is green — a comment
+  naming a red board on a PR whose red is our own test is worse than silence.
+
 - **RECORD 2026-08-20 (found by destroying the thing it protects — I overwrote
   the pre-fix fire-ledger baseline by running a sweep, and only then discovered
   there was no second copy) — the daily sweep's `gate-status.json` is a carrier
