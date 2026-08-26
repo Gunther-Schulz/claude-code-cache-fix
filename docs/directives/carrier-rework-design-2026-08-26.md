@@ -92,6 +92,19 @@ closure — the move is the tool's act, so the conservation check is
 `count(before) == count(items) + count(done)`, stated once and run at
 every close (R8).
 
+Concurrency, stated (operator question 2026-08-26 — why not beads'
+machinery, given our parallelism): parallel work here is many writers to
+CODE and ONE writer to the carrier — subagents never book, integration
+and booking stay with the dispatcher (dispatch-guards §4, hook-enforced).
+Where a lane or detector writes an item directly, the item tool
+serializes with a file lock (one machine); across machines the carrier
+rides git, one item per block so disjoint edits auto-merge and a real
+collision is a LOUD merge conflict, never silent. A database is the
+answer only if that conflict recurs measurably — the named trigger to
+revisit. Doctrine, one line: lean machinery, strict checks — the tool
+is small, the robustness is in what it REFUSES, each refusal a
+red-first fixture.
+
 Cross-project or sensitive items (the office-domain timers, another
 session's content) never enter a public repo's file: the tool refuses a
 write to a repo whose `.claude/lanes.json` declares `public: true` when
