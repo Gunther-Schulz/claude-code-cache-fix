@@ -92,7 +92,9 @@ per repo family, not once per repo):
       artifact this kind is about changed past the citation it carries,
       the signal age misses; or "none, declared why")
     · exit (move | compact | delete | never, with the recording act)
-    · bound (a count or size, or "unbounded, declared why")
+    · growth (the control, one of: bounded-by-exit | compacted |
+      unbounded-with-reason — R22. NEVER a count or a size: the
+      schema refuses the old `bound` key outright)
 
 Items, done bodies, ledger lines, lanes, repo-private workflows,
 template bindings, directives, audits, code-reviews, evidence carriers
@@ -735,10 +737,27 @@ reporting instead of acting.
 
 ## 5. The plan — ranked, the audit tails and the Begehung dispositioned
 
-**Precedence, added 2026-08-26.** §3.x and §6 are the design; this
-section is scope and ranking only. Where a sentence here touches a
-question §3.3, §3.8b, §3.8c, §3.11 or §6 also answers, those sections
-win, and this section's wording is not quoted into a dispatch brief.
+**Precedence, added 2026-08-26, widened the same day.** Where any two
+sections of this document disagree, **the one the SHIPPED SCHEMA
+implements wins, and the other is amended in place** — not left standing
+beneath a correction. That is the discriminator, and it is checkable by
+anyone with the plugin source open, which is what makes it better than
+the section ranking it replaces. The ranking still holds as a shortcut
+where the code is silent: §3.x and §6 are the design, this section is
+scope and ranking only, and this section's wording is not quoted into a
+dispatch brief.
+
+The widening was earned the same day it was written, which is the point.
+The first version of this paragraph said only "§3.x and §6 beat §5" —
+and hours later §3.0 was found contradicting R22 on the sixth kind
+stage, both of them §3.x-or-earlier. The ranking gave no answer there
+while reading as though it gave one: §3.0 named the stage `bound` with
+"a count or size", R22 and the shipped `KIND_STAGES`/`GROWTH_MODES` name
+it `growth` with a closed three-value vocabulary, and `RETIRED_KEYS`
+refuses `bound` outright — so a lane briefed off §3.0 would have written
+a key the schema actively rejects. §3.0 is amended above. A rule that
+only ranks sections cannot catch a disagreement inside one rank; a rule
+that points at the running code can.
 The reason is that the wave paragraphs below were written before those
 sections settled and were not re-synced. Three instances, each verified
 against both sides, with no claim the list is complete — which is why
