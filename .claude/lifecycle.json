@@ -1,5 +1,5 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id-prefix": "cf",
   "public": true,
   "laws": "CLAUDE.local.md",
@@ -12,7 +12,6 @@
     "verify",
     "retire"
   ],
-  "ready-cap": 10,
   "head-rule": {
     "lead-goal": "mitigate"
   },
@@ -21,11 +20,13 @@
   "kinds": {
     "items": {
       "home": "ITEMS.md",
-      "writer": "tool — lifecycle item add|ready|park|close only",
+      "writer": "verb:item add, verb:item park, verb:item close",
       "reader": [
-        "the drain lane",
-        "lifecycle item ratio",
-        "the session-start banner"
+        "verb:item ready",
+        "verb:item check",
+        "verb:item ratio",
+        "verb:retire",
+        "session"
       ],
       "staleness": "change-coupling — an item whose evidence or requirement record pointer no longer resolves",
       "exit": {
@@ -33,14 +34,15 @@
         "recording-act": "the item close fire-log line",
         "detail": "to ITEMS-DONE.md on DONE or DROPPED"
       },
-      "bound": "unbounded, declared why: ready-cap 10 bounds the SCHEDULED head and the retirement ratio governs growth; a hard cap on the carrier would force silent drops, which is the failure the carrier exists to prevent"
+      "growth": "unbounded-with-reason — ready-cap 10 bounds the SCHEDULED head and the retirement ratio governs growth; a hard cap on the carrier would force silent drops, which is the failure the carrier exists to prevent"
     },
     "done bodies": {
       "home": "ITEMS-DONE.md",
-      "writer": "tool — lifecycle item close, the atomic move; no other writer",
+      "writer": "verb:item close",
       "reader": [
-        "the retire lane's conservation check",
-        "lifecycle item ratio's closed count"
+        "verb:item check",
+        "verb:retire",
+        "verb:item ratio"
       ],
       "staleness": "none, declared why: a closure record is history — it accumulates, it does not go stale; growth is the exit question, not a staleness one",
       "exit": {
@@ -48,50 +50,54 @@
         "recording-act": "a ledger decision line naming the compacted range",
         "detail": "the retire lane folds bodies past the archive horizon into a summary line — WAVE 4, declared now so the kind has no undeclared stage, not implemented"
       },
-      "bound": "unbounded, declared why: this is the archive — the BACKLOG-DONE.md split of 2026-08-19 exists because 47% of the live carrier was archive; compaction is its control, not a bound"
+      "growth": "unbounded-with-reason — this is the archive — the BACKLOG-DONE.md split of 2026-08-19 exists because 47% of the live carrier was archive; compaction is its control, not a bound"
     },
     "ledger lines": {
       "home": "LEDGER.md",
-      "writer": "tool for the slots, session for the reason prose",
+      "writer": "verb:ledger add, session",
       "reader": [
-        "the grade workflow's ledger rejected --for gate",
-        "the intake join's rejected-line print",
-        "the state report's counts"
+        "verb:ledger rejected",
+        "verb:item add",
+        "session"
       ],
       "staleness": "none, declared why: the ledger is append-only decision history",
       "exit": {
         "action": "never",
         "recording-act": "compaction only — a line whose item is DONE and older than the horizon folds into that body's compaction line"
       },
-      "bound": "unbounded, declared why: one line per decision event, no bodies"
+      "growth": "unbounded-with-reason — one line per decision event, no bodies"
     },
     "JOURNAL entries": {
       "home": "JOURNAL.md",
-      "writer": "session — an incident and its lesson, written by the session that had it",
+      "writer": "session",
       "reader": [
-        "the law or workflow that cites the entry as its basis",
-        "the drain lane's grade workflow"
+        "session",
+        "verb:audit"
       ],
       "staleness": "change-coupling — a journal entry nothing cites is stale, and a law carrying no journal pointer has no basis; both are read against the citing artifact, never against the entry's age",
       "exit": {
         "action": "never",
         "recording-act": "the citing law or workflow's pointer is the record; an entry leaves only through the retire lane's compaction, which names the folded range in a ledger decision line"
       },
-      "bound": "unbounded, declared why: one entry per incident, so growth is bounded by the incident rate rather than by a cap — and a cap here would drop the lesson that justifies a law still in force"
+      "growth": "unbounded-with-reason — one entry per incident, so growth is bounded by the incident rate rather than by a cap — and a cap here would drop the lesson that justifies a law still in force"
     },
     "audits": {
       "home": "docs/audits/*.md",
-      "writer": "session — one measurement per file, written once and not revised",
+      "writer": "session",
       "reader": [
-        "the item whose evidence slot cites the audit",
-        "the retire lane's walk over every registered kind"
+        "session",
+        "verb:retire"
       ],
       "staleness": "change-coupling — an audit whose measured artifact has changed past the citation it carries no longer measures anything current",
       "exit": {
         "action": "never",
         "recording-act": "none is taken: an audit is append-only historical (design §4 row 1), and the recording act for a superseded measurement is the newer audit citing the one it overtakes"
       },
-      "bound": "unbounded, declared why: append-only historical, one file per measurement; §4 row 1 declares the exit never, so the control on growth is that a measurement is only taken when a question needs it"
+      "growth": "unbounded-with-reason — append-only historical, one file per measurement; §4 row 1 declares the exit never, so the control on growth is that a measurement is only taken when a question needs it"
     }
+  },
+  "leak-scan": {
+    "source-scope-foreign-path": false,
+    "reason": "OFF, with the design's own reading (§3.3): the corpus-only scope is right HERE. This repo's own prose — CLAUDE.local.md, the runbooks, the backlog, this declaration — names this machine's home directory throughout as ordinary operating text, so a source-scope class would fire on legitimate work on every push and train the override reflex that kills a guard (law 11). The class stays ON where it is defined: over the harvested fixture corpus, which is the leak direction that matters here because the proxy fronts every session on this machine. OPEN FOR THE OPERATOR: the alternative §3.3 names is ON with an allowlist, which is their scrub call rather than a reading of the design; surfaced in the wave-1d report."
   }
 }
