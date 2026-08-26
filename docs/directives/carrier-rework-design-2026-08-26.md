@@ -334,8 +334,16 @@ single declaration.
 
 One row per refusal or state the design names, with the INPUT that must
 fire it; a row that cannot be filled is PROSE-REST, labelled, never
-shipped as a check. This table is wave 1's acceptance test and the
-plugin's `--test` roster — one source for both.
+shipped as a check. **Source of truth (decided 2026-08-26 at W1b's
+integration): the plugin's refusals REGISTRY is the source and this table
+is its snapshot — the table updates from the registry, never the
+reverse.** W1b alone added eleven rows the design's prose required but
+this table did not list, which is the tell. Code-side coverage is
+mechanical: every site emitting a FINDING exit maps to a registered row
+or `--test` fails; the remainder — a refusal the prose names and the code
+lacks — is found only by the end-to-end walk (Begehung), and is said so
+here rather than assumed covered. Snapshot as of `fa45623` (W1a); W1c
+refreshes it from `lifecycle --test --list`.
 
 | refusal / state | firing input (the red) |
 |---|---|
