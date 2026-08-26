@@ -110,8 +110,22 @@ into an existing verdict, and not added to `dangling_reference`, which
 the refusal table already records as claiming wider than it watches
 (`route_set_unwatched`).
 
-- `binding_slot_unbound` — a `template-bindings` entry with any slot
-  whose value is `UNKNOWN`. FINDING.
+- `binding_slot_unbound` — **CORRECTED 2026-08-26; the original wording
+  was too narrow and the lane implemented it faithfully.** It said "any
+  slot whose value is `UNKNOWN`", which catches only an explicitly
+  unanswered slot and misses the case that actually occurs: a template
+  gains a slot, and existing bindings do not carry that key AT ALL. A
+  missing key is an unbound required slot — the same defect, and the
+  more likely one. This row therefore fires on BOTH, with the message
+  distinguishing them, and the check must PARSE the template to know the
+  required set. Comparing against anything else would be the restated
+  comparison basis this lane's whole registry decision exists to avoid.
+  My own §3.8b row already said "every binding fills every required
+  slot"; the two sentences disagreed and this one was wrong.
+- `binding_template_unparsable` — a binding whose template file exists
+  but whose `Slots:` header does not parse. Reachable only once the
+  check parses at all; before this correction `is_file()` was the whole
+  test, so a malformed template read as healthy. FINDING.
 - `binding_template_missing` — a `template-bindings` entry naming a
   template with no file under `plugin/workflows/`. FINDING. Nothing
   dangles, in either direction: a lane naming a missing workflow already
