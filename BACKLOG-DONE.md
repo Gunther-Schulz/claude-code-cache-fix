@@ -10345,10 +10345,79 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
   hand-cleanup is the prototype, the helper is the deliverable.
   Consumer: next tooling session here; the derivation ranks it.
 
+- **CLOSED 2026-08-26 — #276's CI is GREEN and the comment is posted.**
+  Ref: https://github.com/cnighswonger/claude-code-cache-fix/pull/276#issuecomment-5425702398
+  Final state: PR head `ad4afe8`, CI run `32971025877` — test (18) pass,
+  test (20) pass, test (22) pass, GitGuardian pass, Snyk pass. Checked past
+  the colour, because a suite goes green by SKIPPING the case as easily as by
+  passing it: node 18 totals 2147 tests / 2141 pass / 6 skipped (0 failures,
+  and 2141+6=2147 closes), and the previously failing case appears by name as
+  `ok 199 - fallback RED: mitigation-output-form.test.mjs skips (not fails)…`.
+  It RUNS and passes on 18 rather than vanishing into the skip count.
+  **One error of mine, caught at the judgment desk's pass and not by me:** the
+  draft signed off as an agent role belonging to UPSTREAM's team apparatus.
+  The fork overlay states that apparatus never binds — fork-internal or
+  upstream-facing — and names signing as one of their identities as the
+  transcription failure it already records twice. I made it a third time, in
+  an upstream-facing comment, where it would have asserted a team membership
+  that does not exist. Posted with a neutral sign-off naming what wrote it.
+  The body it closes follows.
 
-
-
-
-
-
-
+- **RECORD 2026-08-26 (found by reading #276's CI after the rebase push, not by
+  a local run — by construction the suite cannot run here while #352 is
+  unmerged) — upstream CI is RED at `5cfd491` and the failing test is OURS.**
+  Run 32958295215: test(18) FAIL, test(20) FAIL, test(22) PASS; GitGuardian
+  and Snyk pass. 2147 tests, 2140 pass, 1 fail on each red job — the same
+  single test. `test/harvest-pin.test.mjs`, the "fallback RED … skips (not
+  fails) when capture and fixture are both absent" case. Established as ours,
+  not upstream's, by a pattern match run against BOTH trees with a positive
+  control that fired on both: present on the PR branch, absent from
+  `upstream/main`.
+  **Mechanism, read from the log rather than guessed:** the assertion that
+  fails is `/# skipped 1/` — the log carries the mismatch text verbatim. The
+  test spawns a child `node --test --test-reporter=tap` and asserts on the
+  child's TAP SUMMARY line, whose skipped accounting differs across node
+  majors; the child reports tests 2 / pass 0 / fail 0 on the red jobs. Nothing
+  we SHIP behaves differently across those versions — the brittleness is in
+  the assertion.
+  **Design, and the trap in it:** `# skipped 1` is what separates "the check
+  skipped" from "the check never ran", so deleting it leaves an assertion both
+  outcomes satisfy. The durable form asserts the per-test SKIP directive in the
+  TAP BODY, which is stable across majors, instead of the summary count.
+  **Write-set:** `test/harvest-pin.test.mjs` on `pr/verification-tools`.
+  **Verifier:** the same three CI jobs green at the new tip — the only verifier
+  available, since the suite cannot be run locally against a tree cut from
+  current `upstream/main` while #352 is unmerged.
+  **Done when** CI is green on 18, 20 and 22. Not verified here: that node 22
+  emits the summary line the others omit — only 26.7.0 is available locally,
+  and the version-dependence is inferred from the pass/fail split across the
+  three jobs. The failing assertion itself is measured.
+  **Gate:** no comment goes to upstream before this is green — a comment
+  naming a red board on a PR whose red is our own test is worse than silence.
+  **BUILT 2026-08-26, both copies, NOT yet closed.** Commits, both by a sonnet
+  lane, both verified at the artifact by this desk before either moved:
+  fork `main` **`ff16f64`** (pushed with this booking) and
+  `pr/verification-tools-rebase` **`ad4afe8`** (committed, UNPUSHED — the push
+  is an outward act to a public upstream PR and waits on the operator).
+  The change is one assertion: `/# skipped 1/` → `/# SKIP\b/`, moving from the
+  child's TAP SUMMARY count to the per-test SKIP directive in the TAP body.
+  Discrimination proven before the commit, not after: the exact new regex run
+  against both real captured strings — matches `ok 1 - … # SKIP … COULD NOT
+  VERIFY`, does NOT match the plain `ok 1 - …` of the run case. Re-checked
+  independently here: `test/harvest-pin.test.mjs` 21 tests, 21 pass, 0 fail,
+  0 skipped.
+  **Why it was proven in the MAIN checkout and not on the PR branch:** that
+  branch's tree carries `test/proxy-held-port.test.mjs`, whose cleanup signals
+  `systemd --user`; a session-kill gate denied the run and the lane correctly
+  refused the `CACHE_FIX_SUITE_KILL_ACK=1` override rather than accepting a
+  risk that is the operator's. Verified: that file is PRESENT on the PR branch
+  and ABSENT on `main`, so the main checkout is a safe host for the identical
+  proof. The transfer was argued, not assumed — the `# SKIP` directive is
+  node's reporter behaviour rather than this repo's, and both `t.skip` call
+  sites were read on the PR branch with `git show` and are byte-identical.
+  **Still open:** the PR-branch push, and CI green on 18/20/22 — the version
+  axis stays could-not-verify locally, since only node 26.7.0 exists here.
+  **Instrument gap noticed in passing, not acted on:** editing the file inside
+  the worktree produced a "capture-leak gate could not verify … this write is
+  NOT scanned" notice. A leak gate that cannot verify a write in a worktree is
+  a real hole; it is nobody's task today and is named here so it is not lost.
