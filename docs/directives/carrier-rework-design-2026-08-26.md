@@ -42,7 +42,8 @@ machine prepares, the human decides only what only a human can decide.
 ## 2. Requirements — each with its record
 
 Derived from the audits and the operator's rulings; the design in §3 is
-graded against these and nothing else.
+graded against these and nothing else. R20 was added after the Begehung round;
+R1–R19 are unchanged.
 
 | id | requirement | record |
 |---|---|---|
@@ -67,442 +68,405 @@ graded against these and nothing else.
 | R20 | **Every persisted kind declares its whole LIFECYCLE — writer, reader, staleness rule, exit — and a machine walks the declaration.** The previous system broke where lifecycle was implicit: items had an append path and no exit, runbooks a mint rule and no use check, directives retention prose nobody enforced, a done home without bound, a guard wired for weeks that never fired with nobody scheduled to notice. The retire lane is the lifecycle walk over every registered kind (items, done bodies, directives, audits, lanes, workflows, worktrees, lane branches, plugin cache), each with its staleness rule declared in `lanes.json`, each exit recorded; a kind with no declared lifecycle is itself a finding the router prints — dev-loop's carrier-registration clause generalized from "has a collector" to "has an owner for every stage" | operator 2026-08-26 ("nothing left stale or dormant; every persisted piece has its controlled place"); inventory §A–E |
 | R19 | **Each kind of thing has exactly one home, and a TOOL keeps it there.** Items are written only by the item tool; procedures live only in a workflow registry (procedure text elsewhere, or a lane body over one screen, is a checker finding); laws live only in the project `CLAUDE.md` under an enforced line cap; reference is free-form and never required reading; rules are minted only at their truth level. Inflation and fragmentation recurred in every carrier because each had an append path and no owner for this invariant — the corpus's prose rules against it land on a session that has to remember | operator observation 2026-08-26; inventory §A–D throughout |
 
-## 3. The design, from a blank page
+## 3. The design, from a blank page — lifecycle management for everything a repo persists
 
-### 3.1 One primitive: the ITEM
+Revision 2 (2026-08-26, after the Begehung round: 30 findings, 11
+blocking, all accepted; and the operator's framing that the guiding term
+is LIFECYCLE MANAGEMENT). Revision 1's sections on items, lanes and
+workflows are restated here under one primitive rather than patched.
 
-Everything the system tracks — a backlog entry, a bust disposition, a
-detector finding, a PR needing attention — is an ITEM with six slots:
+### 3.0 The primitive is the KIND, not the item (R19, R20)
 
-    id · grade · requirement (why it exists, one line + record pointer)
-    · write-set (files/venues the realizing change lands in, or NONE)
-    · done-criterion · evidence (pointers, dated)
+Every kind of thing a repo persists is REGISTERED with four stages and a
+bound, in the repo's declaration file `.claude/lifecycle.json`
+(tracked; the plugin's install step adds the `.gitignore` negation and
+the checker fails on an ignored declaration — G1's defect, closed once
+per repo family, not once per repo):
 
-Grades, closed, five: NEW (admitted, not yet decision-complete) · READY
-(dispatchable by construction) · PARKED (names its missing evidence or
-trigger) · DONE (commit ref) · DROPPED (one-line reason). The tool refuses
-any other word (R7). "Record"-type prose is not an item — it goes to the
-ledger (a chronological, append-only file), which is the ONLY other
-carrier a repo has.
+    kind · home (path pattern) · writer (tool | session | producer)
+    · reader (the gate, lane, report or tool that consumes it)
+    · staleness (a predicate: age, use-evidence, or "none, declared why")
+    · exit (move | compact | delete | never, with the recording act)
+    · bound (a count or size, or "unbounded, declared why")
 
-Storage: one file per repo, `ITEMS.md`, markdown for humans and git
-diffs, but each item is a fixed-slot block the tool parses; the tool is
-the writer of record (a hand edit that breaks the shape fails the
-pre-commit check). DONE and DROPPED bodies move to `ITEMS-DONE.md` on
-closure — the move is the tool's act, so the conservation check is
-`count(before) == count(items) + count(done)`, stated once and run at
-every close (R8).
+Items, done bodies, ledger lines, lanes, repo-private workflows,
+template bindings, directives, audits, code-reviews, evidence carriers
+(row-pins, census rows, growth fixtures), worktrees and lane branches,
+plugin-cache versions, detector findings — all instances. The RETIRE
+lane is the walk over every registered kind: it prints each kind's
+count against its bound, applies each staleness predicate, and records
+each exit. A persisted thing that resolves to no registered kind is a
+router finding (UNREGISTERED), and a kind with an undeclared stage is a
+checker finding. The Begehung's thirty findings sort almost entirely
+into "a kind with one stage undeclared" — the ledger had no exit, the
+done home no staleness rule, the registry no reader, the plugin cache no
+exit and no rollback, `ITEMS.md` no version — which is why this is the
+primitive.
 
-**Typed blockers — derived readiness (adopted from beads' `bd ready`,
-operator 2026-08-26).** A PARKED item names its blocker in one of three
-TYPED kinds, never only prose: `blocked-by: <item-id>` (resolves
-mechanically when that item reaches DONE — the tool flips the item to
-NEW for re-grade and the router prints "n unblocked since last
-session"); `blocked-by: decision <question>` (the operator — these are
-what the first screen and `/lanes ?` list as questions waiting);
-`blocked-by: evidence <predicate command>` (a measurement, evaluated
-like a lane trigger). READY then means grade READY AND no open
-blocker; a PARKED item without a typed blocker is a checker finding
-(R19's "an unnamed deferral is drift", made computable). No other edge
-types — sequencing edges that are not blockers are how trackers grow
-graphs nobody maintains.
+### 3.1 Items
 
-**READY is the goal state of every open item; NEW and PARKED are
-transit (operator, 2026-08-26: many doors, all leading to work toward a
-stated goal).** Two paths lead there, both in machinery: at INTAKE,
-`item add` asks for the slots and an item whose slots are filled enters
-READY; one that cannot be completed now enters NEW with a typed blocker.
-In the DRAIN lane, the first workflow is GRADE, not dispatch: items
-whose blockers resolved are re-graded and their slots completed (desk
-judgment, never a leaf's), and only then is the head picked — grading IS
-draining, so the lane has work even with an empty ready head. The
-mirror exit: an item not gradable READY after n passes, or blocked on a
-decision nobody will make, leaves as DROPPED with its reason via the
-retire lane. And a GOAL slot: each repo declares its goals in
-`lanes.json` (this repo's are FORK-NOTES' loop stages — see / attribute
-/ mitigate / verify / retire), an item names the goal it advances, and
-an item advancing no declared goal is a drop candidate the retire lane
-prints — the trajectory test made computable.
+Slots: `id` (stable, `<repo-prefix>-<n>`, immutable across moves) ·
+`grade` · `requirement` (why, one line + record pointer) · `goal` (one
+of the repo's declared goals — this repo's are FORK-NOTES' loop stages;
+an item advancing none is a retire-lane drop candidate) · `write-set`
+(paths/venues the realizing change lands in; `NONE`; or `UNKNOWN` for
+migrated entries that never carried one — the join treats UNKNOWN as
+"ask", never "match", and the grade workflow fills it) ·
+`done-criterion` · `evidence` · `blocked-by` (typed: `<item-id>` —
+resolves mechanically on that item's DONE, the item returns to NEW for
+re-grade; `decision <question>` — the operator's queue, listed on the
+first screen and by `/lanes ?`; `evidence <predicate>` — evaluated like
+a trigger). No other edge types.
 
-**Further concepts taken from beads (operator 2026-08-26; grounded
-in its README as read by the survey lane unless marked):** stable short
-prefixed IDs (`<repo-prefix>-<n>`, immutable across moves — what
-`blocked-by:` cites, and what makes an id in a commit message or ledger
-line countable use evidence); ONE entry point (`lanes <verb>`) for every
-operation, one fire log; a query surface for agents beyond `lane list
---json` — PARKED, trigger: a leaf needs carrier state; COMPACTION as an
-idea, not a mechanism — bodies still MOVE to the closure home, but a
-retire-lane step collapses done bodies older than N days to one ledger
-line each (git keeps the body), so `ITEMS-DONE.md` cannot re-grow
-BACKLOG-DONE's disease; a blocker-chain print ("why is this blocked" to
-the root — recollection, unverified in beads, cheap with typed
-blockers) behind `/lanes ?`. Not taken: epics / parent-child grouping
-(the goal slot groups), and any daemon.
+Grades, closed, five: NEW · READY · PARKED · DONE · DROPPED. READY is
+JUDGED — a slot-complete grade the desk assigns, "a fresh context could
+execute this now" — and never derived: blocker clearance decides
+SCHEDULABILITY only, so `item ready` prints "READY and unblocked" and
+promotes nothing (the survey's line: graph-clear is not judged-complete;
+a derived READY would re-create the 95-entry failure this repo recorded
+2026-08-11 in a new form). RECORD's substance — decision-complete, not
+scheduled — is READY-unscheduled: the declared `ready-cap` and
+`head-rule` (a MITIGATE-goal item leads whenever one is complete; cap
+ten — both operator decisions of 2026-08-11, carried) pick the head; the
+rest are READY and visible, not a separate word. A PARKED item without a
+typed blocker is a checker finding. A repo's declared extra grade words
+are NOT accepted (R7): their meanings map (POINTER → an item whose body
+lives elsewhere, referenced; OPEN → NEW) and the migration report says so
+per entry.
 
-Concurrency, stated (operator question 2026-08-26 — why not beads'
-machinery, given our parallelism): parallel work here is many writers to
-CODE and ONE writer to the carrier — subagents never book, integration
-and booking stay with the dispatcher (dispatch-guards §4, hook-enforced).
-Where a lane or detector writes an item directly, the item tool
-serializes with a file lock (one machine); across machines the carrier
-rides git, one item per block so disjoint edits auto-merge and a real
-collision is a LOUD merge conflict, never silent. A database is the
-answer only if that conflict recurs measurably — the named trigger to
-revisit. Doctrine, one line: lean machinery, strict checks — the tool
-is small, the robustness is in what it REFUSES, each refusal a
-red-first fixture.
+Storage: `ITEMS.md`, first line `schema: <n>`; the tool refuses to parse
+a file stamped above its own floor (red: a file stamped one above).
+Fixed-slot blocks; the tool is the only writer — a hand edit that breaks
+the shape fails the pre-commit shape check; an unknown grade word that
+reaches the file by merge or an old tool is READABLE and reported in the
+census's third answer (open / closed / unknown-with-counts, the shape
+`backlog-census.py` had and the successor keeps by design). Writers
+serialize on a file lock. Closure is a MOVE to `ITEMS-DONE.md` performed
+as one act: append to the done home, delete from items, commit both —
+a crash before the commit leaves two copies, which the next check flags
+as DUPLICATE (recoverable), never as loss. Conservation: a persisted
+baseline in the file head plus per-close deltas (`items + done ==
+baseline + added − compacted`), re-runnable at every close. The done
+home has an `## Archive (pre-migration)` section holding historical
+bodies verbatim — skipped by the shape check, counted by conservation —
+and a COMPACTION step in the retire lane collapses done bodies older
+than N days to one ledger line each (git keeps the body), so the done
+home is bounded.
 
-Cross-project or sensitive items (the office-domain timers, another
-session's content) never enter a public repo's file: the tool refuses a
-write to a repo whose `.claude/lanes.json` declares `public: true` when
-the item is tagged from another project (R12); such items live in the
-dotfiles carrier or in a local XDG-state carrier.
+Concurrency: parallel work here is many writers to CODE and one to the
+carrier — "subagents never book" is a CONVENTION (dispatch-guards §4 is
+prose; its writer-claims gate ships WARN, promotable to deny — corrected
+by the Begehung: not hook-enforced today), and the file lock is the
+MECHANISM that serializes any writer regardless. Across machines the
+carrier rides git; a collision is a loud merge conflict; a database is
+the answer only if that recurs measurably.
+
+Origin and publication: the tool records the writer's cwd repo on every
+write; a repo declares `public: true|false` and the default in the
+ABSENCE of a declaration is refuse-unless-declared-private — an
+undeclared, ignored or malformed declaration fails loudly, never open.
+A public repo refuses an item whose source cwd is another repo; detectors
+register their home repo. The no-operator-quote half of the bar has no
+predicate and is labelled prose-rest, operator as backstop.
 
 ### 3.2 Intake is a merge (R5)
 
-`item add` is the only admission path, for both doors (session-noticed,
-operator-mentioned). It runs the join before writing:
+`lifecycle item add` is the only admission path for both doors
+(session-noticed, operator-mentioned) and for detectors
+(`--source detector:<name>`, so a detector firing twice merges into its
+own open item). Before writing: candidates = live items sharing a
+write-set path (UNKNOWN never matches) or a requirement token; the
+caller answers `merge-into <id>` / `supersede <id>` (body to the done
+home with "superseded by"; the REASON is a ledger line) / `new`; before
+`new`, the cost test — a one-file, one-hunk write-set with the session
+live prints "do it now?", and `new` is taken only with a named absence.
+Operator-mentioned items skip the cost test's veto, never the join. The
+join prints matching `rejected:` ledger lines beside candidates (§3.6).
+READY is the goal state of every open item: slots complete at intake →
+READY; otherwise NEW with a typed blocker; the DRAIN lane's first
+workflow is GRADE (resolved blockers → re-grade at the desk), and only
+then the pick. An item not gradable after n passes, or blocked on a
+decision nobody will make, exits DROPPED via the retire lane.
 
-1. candidates = live items sharing a write-set path OR a requirement
-   token with the new one (the join is mechanical; write-set is the key
-   the survey found only one tool in sixteen has, and ours already has);
-2. the caller answers, for each candidate, one of: `merge-into <id>`
-   (append evidence, no new item), `supersede <id>` (old body to DONE
-   home with "superseded by"), `new`;
-3. before `new`, the cost test: if the change is smaller than the entry
-   (the tool asks for the write-set; a one-file, one-hunk write-set with
-   the session live prints "do it now?"), the default exit is DO-NOW —
-   `new` is taken only with a named absence (evidence outstanding, other
-   desk, tier, blast radius). Operator-mentioned items skip the cost
-   test's veto but still run the join.
+### 3.3 Lanes, workflows, laws, reference (R1, R2, R4, R19)
 
-Detector outputs (§3.5) enter through the same call with `--source
-detector:<name>`, so a detector firing twice merges into its own open
-item instead of appending.
+A LANE is a thin decider, one screen: `Trigger:` (a predicate command
+with RESERVED exit codes — 0 fire, 1 quiet, ≥2 broken — the broken path
+red-proven with a predicate that errors, so a dead `pr` lane never reads
+as a clean board), a decision table → workflows, `Ends:` (a closed set
+of dispositions, each an item transition). One lane per door,
+situations as dispositions. Lane names are VOCABULARY the operator
+types — "drain", "bust", "pr", "slice", "retire", "close" — never
+commands; `/lanes` is the only slash command (`/lanes ?` recommends,
+with the blocker chain to the root). The ROUTER is generated by `lane
+list` over `~/.config/lifecycle/repos` and each repo's declaration; it
+prints its roster count and per-repo resolution state LONGHAND (an
+absent roster is BROKEN, a listed repo that does not resolve is named),
+because a sparse table renders as silence and silence reads as clean.
 
-### 3.3 Lanes are triggered, not matched (R1, R2, R3)
+A WORKFLOW is a persisted, reusable procedure with executable gates
+between steps and a named output, in the plugin's registry; a repo
+earns a private workflow file only when two or more lanes use it or a
+lane body would exceed a screen. The method file (dev-loop.md)
+DECOMPOSES — nothing deleted, GATING is the cut: procedures →
+workflows; LAWS → the repo's declared laws file (`laws:` in
+`lifecycle.json` — `CLAUDE.local.md` here, because the tracked
+`CLAUDE.md` is upstream's and non-binding; `CLAUDE.md` where the repo is
+ours; laws never enter a foreign file, so nothing ships upstream and the
+recorded transcription failure has no path) under a cap of 60 lines
+(under the ~242 lines accretion's shrink saves, so the injected prefix
+strictly falls); essays → reference, pointed at by gates, never
+required reading. Decomposition budget: lane + workflow text ≤ half of
+today's 2,375 runbook lines. "Laws, never method" is judgment and is
+labelled prose-rest; the cap is the mechanism.
 
-A LANE is a procedure file with three parsed parts and a prose body:
+Shared workflows across repos: registry TEMPLATES with declared slots,
+bound per repo in `lifecycle.json`, step overrides allowed, copies
+never. Six controls: bindings not prose (drift); duplicate-text check
+is PROSE-REST — exact duplication fails, near-duplication is reviewed
+(labelled, not claimed); a shared lane's predicate runs only in binding
+repos; an unbound required slot is a finding, never a default; the
+registry records bindings and the plugin's suite runs every template
+against every binder; and the LEAK direction — templates are extracted
+from a PRIVATE repo into a PUBLISHED registry — gets a real guard: the
+plugin repo carries the leak scan (this repo's `absence-scan`, moved
+into the plugin as a shared tool) as a pre-push hook from its first
+commit, red-proven on a planted foreign path before any template lands,
+and every template extraction is a reviewed PR carrying the hygiene
+grep output. No template is extracted until that hook exists. First
+shared set: the PR workflows; bust work stays this repo's own.
 
-    Trigger:  <predicate command> — exits 0 when the lane should run,
-              prints the items it fires on
-    Gates:    <ordered checks, each a command that must exit 0 to leave
-              the step> (executable transition gates, from the survey)
-    Ends:     <closed set of terminal dispositions, each mapping to an
-              ITEM grade or a DONE/DROPPED move>
+### 3.4 Who starts a lane, and how the machine notices (R3, R6, R13)
 
-The machine-wide ROUTER is a generated table, never hand-edited: `lane
-list` walks every repo declared in `~/.config/lanes/repos` and each
-repo's `.claude/lanes.json`, and prints trigger-state per lane
-(quiet / FIRING: n items / broken: predicate failed). It is reachable
-as the ONE slash command the system adds, `/lanes` (`/lanes ?`
-recommends a lane with its basis) — this replaces "which line are you
-on". Lane NAMES are vocabulary, not commands (operator decision
-2026-08-26: no command inflation): the operator types the noun — "bust",
-"pr", "drain" — and the session resolves it against the router; a lane
-name typed as a word also lands in ledger lines and commit messages,
-which is what makes lane use countable (the use-evidence column).
+Unchanged from revision 1: sessions are the unit of work; `trigger-
+policy:` per repo — `on-demand` (default) / `advise` / `auto` /
+`unattended` (designed-for, PARKED). Trigger evaluation at session start
+and prompt submit. The machine NOTICES unattended: gate and harvest
+timers run as today, findings register through §3.5, and one
+notification per batch goes out — CONTENT IS COUNTS ONLY, never a repo
+or producer name ("findings waiting: 3"), on a LOCAL desktop channel by
+default; ntfy (a third-party public host — topic obscurity is not access
+control) is an explicit per-detector opt-in for the phone case
+(decision D8, pending). Under `auto`, the drain lane prints one pick
+line per item before its first tool call.
 
-One lane per DOOR, situations as its terminal dispositions — never one
-lane per situation (operator-confirmed: three overlapping bust lanes
-with no tie-break is the failure this prevents).
+### 3.5 Detectors, dispositions, recorders, and the trust base (R3, R9, R17)
 
-**Lane, workflow, law, reference — the factoring (operator sketch
-2026-08-26, adopted).** A LANE is a thin decider: trigger → which
-situation → which WORKFLOW(s) → which disposition; one screen, no
-procedure in it. A WORKFLOW is a persisted, reusable procedure with
-executable gates between steps and a named output ("rebase a PR",
-"attribute a bust to bytes", "ship a proxy change", "post publicly"),
-kept in the plugin's registry — one bust lane routes to attribute, then
-to mitigate or park, and the tie-break is the lane's decision table. The
-monolithic method file (dev-loop.md, 2,548 lines) DECOMPOSES into three
-destinations, nothing deleted: its procedures → workflows; its LAWS (the
-bytes-not-order invariant, replay the serving config, the closing gate's
-four questions) → the project `CLAUDE.md`; its essays → reference, which
-a workflow gate POINTS AT when a step needs the reasoning. Two guard
-rails so this is not a new inflation (R19): a workflow earns its own
-file only when two or more lanes use it or the lane body would exceed
-a screen (the repo's own ≈3-call-sites rule); and `CLAUDE.md` takes
-laws, never method — the test being "would a session that broke this
-line have shipped a defect?" — under a line cap the checker enforces.
-Required reading then shrinks to `CLAUDE.md` plus what the firing lane
-names, which is the only change that cuts the 37-call toll (R4).
+Each detector registers `run`, `finding-class`, `disposition` —
+`auto-apply <command>` (reversible, with the ROLLBACK command printed in
+its notification), `item`, or `notify` — and its home repo; an
+unregistered detector is a router finding. The plugin update is the
+auto-apply case, and its reversibility is SHOWN, not asserted: the
+plugin cache keeps the last three versions (declared bound; the
+cleanup retires older ones), and version selection compares parsed
+semver, red-proven on the real listing where `0.9` string-sorts above
+`0.11`. On THIS machine the plugin is installed SYMLINKED from its dev
+checkout — drift impossible by construction, the same property the
+corpus has (R17 honoured at the layer that emits every verdict); the
+marketplace pin plus drift detector plus auto-apply plus rollback is
+the by-discipline path for other machines.
 
-**Shared workflows across repos — adopted, under six computable
-controls (operator decision 2026-08-26: improvements land once, every
-project profits; the risks below are real and each gets a guard, not a
-rule).** A shared workflow lives in the plugin's registry as a TEMPLATE
-with declared SLOTS; a repo binds them in `lanes.json` and may override
-a STEP; it never copies the text.
-1. *Transcription drift* (a session copying another project's
-   procedure in) — flavor is a declared binding the tool reads, never
-   prose a session interprets.
-2. *Two bodies for one fact* — the checker fails any workflow text in a
-   repo that duplicates a registry template (R19, one home).
-3. *Wrong-context fire* — a shared lane's predicate runs only in repos
-   that BIND it; unbound, it is not in that repo's router at all.
-4. *Silent generic behaviour* — an unbound required slot is a checker
-   finding, never a fallback default.
-5. *Blast radius of a shared edit* — the registry records which repos
-   bind which template; the plugin's test suite runs every shared
-   workflow against every binding, so a shared edit meets its
-   dependents before it ships.
-6. *Cross-project leakage* — templates carry no project identifiers;
-   the publication-bar scan runs over templates as over fixtures, and a
-   repo declared `public: true` refuses a binding that names another
-   project.
-The first shared workflows are the PR ones (rebase, answer a review
-round, cut a slice); everything bust-related stays this repo's own.
+Recorders at the effect site: the hook fire log carries the cleaned
+command (cap 512 chars) and the firing token; the commit recorder is a
+git hook, so it sees every commit; every producer of files under a repo
+names its collector in the declaration or the state report lists it
+UNREGISTERED — the state report reads the done home and the ledger too.
 
-**claude-worktime exposure (operator addition):** `lane list --json` is
-the interface. Exposed: exactly what changes a decision BEFORE a session
-is opened — (1) lane state per repo (`lanes: bust! pr(1) drain(9)`),
-(2) findings waiting (the detector batch count, so a missed
-notification is not lost), (3) ready-to-integrate artifacts a session
-left for the operator's hand (the carve-out queue). Not exposed: item
-counts, ratios, grades — inside-a-session numbers. The existing
-(unlocatable) status feature is replaced by this contract, not
-repaired. Same wave-2 consumer item as the status overhaul. Legacy
-repos (no `lanes.json`) show nothing and keep their old carrier
-untouched; they lose the old prose-reading banner when wave 4 cuts it.
+### 3.6 The ledger — decisions only, parsed, gated
 
-The lanes:
+`LEDGER.md` carries NO BODIES. Nothing migrates into it. It holds one
+fixed-slot line per decision event — `superseded: <id> by <id> — reason`
+· `rejected: <item> — approach — why` · `dropped: <id> — reason` ·
+`decision: <question> → <answer>` — written by the tool for the slots
+and by the SESSION for the reason prose (so the operator-as-backstop
+moment for quotes survives at every rationale line). Readers are GATES,
+not habits: the drain lane's grade workflow runs `ledger rejected --for
+<item>` before re-grading, intake prints matching rejected lines beside
+join candidates, the state report lists counts. Lifecycle: bound by
+compaction (a line whose item is DONE and older than N days folds into
+the done body's compaction line); exit never-delete. Supersede is
+routed ONE way: the body to the done home (counted there), the reason
+here (outside the conservation identity by construction).
 
-| you say | lane | Trigger predicate | ends at |
-|---|---|---|---|
-| "drain" (EP1) | work the backlog | `item ready --count ≥ 1` | per item: dispatched / blocked → PARKED with evidence |
-| "bust" (EP4) | a bust is up | `bust-triage --list --undispositioned` non-empty | mitigated / parked / controlled-cause / upstream-filed / UNCLASSIFIED → item NEW |
-| "pr" (EP2) | tend upstream PRs | `gh pr list -R <upstream> --author @me …` any red / conflicting / unanswered thread / idle > N days (R14) | per PR: green-waiting / rebased / answered (draft) / blocked-on-upstream / drop-proposed |
-| "slice" (EP3) | cut a new upstream PR | `item ready --tag upstream-slice ≥ 1` | drafted → hands to "pr" |
-| "retire" | groom the queue | `item ratio ≥ 3` (capture:drain over the window) | merged n / dropped n / kept n |
-| "close" | end the session | operator says so | closed / exceptions named |
+### 3.7 Orientation, measured (R4, R18)
 
-In "drain", the session PICKS the head item and dispatches it on its own
-(operator decision) — and before its first tool call prints one pick
-line per item: the item, why it is the head, the lane it enters — so the
-operator can redirect. Integration and every outward act stay the
-operator's (R13).
+First screen: the router table + `item ready --head` + the decision
+queue + the ledger tail. Required reading: the laws file (≤60 lines) +
+`lifecycle.json` + what the firing lane names. R18's tool
+(`tools/entrypoint-census`, wave 0) reports THREE figures — injected
+prefix lines per turn, gated lines per session, tool calls before the
+first write — against the measured baseline (2,123 injected + 2,858
+gated + 37 calls). Wave 2 passes only if all three fall.
 
-### 3.4 Who starts a lane: a per-repo policy, not a design choice (R6, R11, R13)
+### 3.8 The seam (R15, R16)
 
-Operator decision (2026-08-26): the system's goal is that a SESSION,
-once started, knows which lane is live and runs it without step-by-step
-guidance — not that the machine acts with no session. Who starts a lane
-is therefore one declared line in `lanes.json`, `trigger-policy:`, one
-of:
-
-- `on-demand` — nothing starts until the operator names a lane. The
-  DEFAULT.
-- `advise` — session start prints `/lanes` and stops; the operator picks.
-  Recommended over on-demand once the router is trusted: zero autonomy,
-  nothing to remember.
-- `auto` — session start enters the firing lane, pick line first.
-- `unattended` — a user timer evaluates triggers and runs firing lanes
-  headlessly (`claude --print --allowedTools <lane box>`), producing
-  ARTIFACTS only (unpushed branches, drafted comments, dispositions),
-  never pushing to a public remote, posting, or merging to production
-  main. PARKED as a feature: designed here so nothing in the plugin
-  precludes it, built only when the operator asks for it. Verified
-  premise: `claude --print` with `--allowedTools` exists on this build
-  (2.1.241); unverified: unattended budget cost and proxy behaviour of a
-  headless session.
-
-Under every policy the machine still NOTICES unattended — the gate and
-harvest timers keep running as today, their findings register through
-§3.5, and the registry posts ONE system notification (ntfy, already
-wired on this machine) per batch: "cache-fix: 3 findings waiting". A
-session acts; nothing else does. Trigger evaluation also re-runs at the
-prompt-submit seam, so a bust arriving mid-session appears in the router
-without being pasted — the "operator is the transport" link closed
-inside a session.
-
-### 3.5 Detectors register their disposition (R3, R9)
-
-A detector is anything that emits a finding on a schedule or at session
-start: the daily gate, the harvest, plugin-drift-scan, the backlog ratio,
-the never-fired-guard census, the worktree census. Each registers in
-`~/.config/lanes/detectors` with `run:`, `finding-class:` and
-`disposition:` = one of `auto-apply <command>` (safe, reversible — the
-plugin update is this class), `item` (enter the carrier through intake),
-`notify` (operator-only, for the genuinely undecidable). A detector with
-no registered disposition is itself a finding the router prints.
-
-Recorders sit at the effect site: the hook fire log carries the cleaned
-command (cap 512 chars) and the token that fired; the commit recorder
-runs as a git hook, not a tool-use hook, so it sees every commit; every
-producer of files under a repo names its collector in `lanes.json` or
-the state report lists it as UNREGISTERED (the state report reads the
-closure home too).
-
-### 3.6 Orientation: one command, one screen (R4)
-
-A session's first screen is `lane list` + `item ready --head` + the
-ledger tail (5 lines). The 2,548-line method file stops being required
-reading: its rules that are LAW move into gates (executable, §3.3), its
-rules that are METHOD stay where they are and are read when a gate
-points at them. Required reading shrinks to: this repo's `lanes.json`
-declaration (tiny), the fork notes' vision paragraph, and whatever the
-firing lane names. The measurement that grades this is R18's tool.
-
-### 3.7 The corpus / project seam (R15, R16, R17)
-
-Three layers, one home each, drift-free by construction (symlinks or a
-single installed plugin):
-
-| layer | holds | home |
+| layer | holds | drift-proof by |
 |---|---|---|
-| ETHICS | grounding, fixing, calibration, reporting — stances, not mechanics | corpus modules (unchanged in kind; shorter once mechanics leave) |
-| MECHANICS | the ITEM schema and tool, intake merge, lanes format and router, trigger evaluation and the policy knob, detector registry, conservation and ratio checks, the state report | ONE plugin (`lanes`), installed once, versioned; its docs are the only description of the mechanics |
-| DECLARATIONS | per repo: `.claude/lanes.json` (public?, closure home, lanes, collectors), `ITEMS.md`, `ITEMS-DONE.md`, `LEDGER.md`, `lanes/*.md`; per machine: `~/.config/lanes/{repos,detectors}` | the repo / the config dir |
+| CORPUS (dotfiles, symlinked) | ethics only; accretion shrinks to a pointer | symlink |
+| PLUGIN `lifecycle` (one install) | the kind registry schema, `lifecycle <verb>` (one entry point, one fire log), intake merge, lane parser + generated router, workflow registry + templates, trigger evaluation + policy, detector registry, recorders, conservation/ratio/cap checks, the leak scan, `--test` bites, the refusal table, its own docs (the only description of the mechanics) | dev-mode symlink here; pin + drift detector + rollback elsewhere |
+| REPO | `.claude/lifecycle.json`, `ITEMS.md`, `ITEMS-DONE.md`, `LEDGER.md`, `lanes/*.md`, private `workflows/*.md`, the declared laws file | the tool refusing writes that break the shape |
 
-The accretion module's file roles, backlog doctrine and retirement
-trigger — 200 lines of prose describing mechanics — are REPLACED by a
-one-paragraph pointer to the plugin (R16); the plugin's checker enforces
-what the prose asked sessions to remember. `runbook-format.md` and the
-machine-wide runbooks router are replaced by the lane format and the
-generated router. Kämmung survives as the DIAGNOSIS the `retire` lane
-runs when the ratio fires — the four diseases are its body; the trigger
-and the pass move to the lane.
+Nothing crosses upward (templates carry no project identifiers) or
+downward (a repo file declares, never restates). A query surface for
+agents beyond `lane list --json` is PARKED (trigger: a leaf needs
+carrier state). W0.2's `.claude/lanes.json` serves the LEGACY checker
+and retires with it in wave 2; `lifecycle.json` is the new system's
+single declaration.
+
+### 3.9 The refusal table (the Begehung's structural cure)
+
+One row per refusal or state the design names, with the INPUT that must
+fire it; a row that cannot be filled is PROSE-REST, labelled, never
+shipped as a check. This table is wave 1's acceptance test and the
+plugin's `--test` roster — one source for both.
+
+| refusal / state | firing input (the red) |
+|---|---|
+| unknown grade word on write | `item add --grade FOO` |
+| unknown grade word READ (merge / old tool) | a file line with `grade: FOO` → census third answer, not a crash |
+| item written outside the tool | a hand-edited block missing a slot → pre-commit shape check |
+| schema above floor | `schema: <n+1>` in the head |
+| PARKED without a typed blocker | `item park <id>` with prose only |
+| duplicate on move (crash between append and commit) | two copies of one id → DUPLICATE |
+| conservation short | a body deleted by hand → the delta fails |
+| public repo, foreign-origin item | `item add` from another repo's cwd against `public: true` |
+| public undeclared | a repo with no / malformed declaration → refuse, print why |
+| lane body over one screen | a 61-line lane file |
+| laws file over cap | line 61 |
+| unbound required slot | a binding missing `upstream` |
+| exact template duplication in a repo | a pasted template body |
+| trigger BROKEN | a predicate that exits 2 (e.g. `gh` unauthenticated) → router shows BROKEN, not quiet |
+| roster absent / repo unresolved | rm the roster; list a moved repo |
+| detector without disposition | a registry entry missing `disposition` |
+| unregistered persisted thing | a new file under a home no kind claims |
+| kind with an undeclared stage | a registry row missing `exit` |
+| ignored declaration | `.gitignore` swallowing `lifecycle.json` |
+| version compare | the real cache listing (`0.9` vs `0.11`) |
+| leak scan on the plugin repo | a planted `/home/<user>/…` path in a template |
+| **prose-rest, labelled** | "procedure text elsewhere"; near-duplicate templates; laws-vs-method; the no-operator-quote rule; "subagents never book" |
 
 ## 4. Diff against the inventory — what survives, what is cut, what is rewritten
 
-| existing thing | verdict | why (requirement) |
+| existing thing | verdict | why |
 |---|---|---|
-| `BACKLOG.md` + `BACKLOG-DONE.md` (both repos ×2) | REWRITE → `ITEMS.md`/`ITEMS-DONE.md` via one-time migration (grade map: READY→READY, PARKED→PARKED, RECORD/HANDOFF/etc.→ledger entries, DONE/RESOLVED/...→done home); every unknown word resolved by the migration report | R5–R8 |
-| `## Grades` prose declarations, `Closure-home:` line | CUT — the tool owns the vocabulary | R7 |
-| session-start backlog banner, `backlog-census.py`, `session-scan.py`'s closure regex, `named-and-unbooked-check.py`'s file list | CUT — replaced by `lane list` and the tool's own census; the restated lists die with them | R7, R9 |
-| `docs/runbooks/*.md` (9), `~/.claude/runbooks/`, `runbook-format.md`, `lane-check.py`, dev-loop "Which line are you on" | REWRITE → `lanes/*.md` in the new format with predicates; the three bust lanes MERGE into one with `Ends` carrying the tie-break; `upstream-pr-stale` + `upstream-pr-round` merge into `pr-tend`; `session-close`, `ship-proxy-change`, `public-comms` survive as lanes (session-run) | R1, R2 |
-| `docs/dev-loop.md` as required reading | CUT from the roster; the file stays as METHOD, gates point into it | R4 |
-| required-reading gate/inject hooks | SURVIVE (survey: the one refinement nobody else publishes) — roster shrinks | R4 |
-| accretion module (file roles, backlog doctrine, retirement trigger, operator verbs) | REWRITE to a pointer paragraph | R15, R16 |
-| insurance module (ledger, fresh-context, dispatched work) | SURVIVE — ethics-grade; ledger clause points at `LEDGER.md` role | — |
-| routing module | SURVIVE; a lane entered under `auto` or `unattended` is a route line it must name | R13 |
-| `state-report` | REWRITE — reads the closure home and the `lanes.json` collector list; unregistered producers become findings | R9 |
-| daily gate, harvest timers | SURVIVE as detectors with registered dispositions; gate gets a memory cap and a run-in-progress stamp | R3, R9 |
-| `plugin-drift-scan` | SURVIVE as a detector with `auto-apply` | R3 |
-| `corpus-pointer-check.py` (never fired) | CUT unless one planted positive makes it fire within the migration — a guard that cannot be shown to fire is retired | R9 |
+| `BACKLOG.md` + `BACKLOG-DONE.md` (both repos ×2) | REWRITE → `ITEMS.md`/`ITEMS-DONE.md` by the migration tool, whose REPORT classifies every entry with its rule: READY→READY (scheduled by cap/head-rule), PARKED→PARKED with a typed blocker or NEW, RECORD→READY-unscheduled, HANDOFF/OPEN/BUST/PARTLY/CANDIDATE/FINDING/NEW/ungraded → NEW with a typed blocker or DROPPED with reason — NOTHING to the ledger by default; write-set absent → UNKNOWN; historical done bodies → the archive section verbatim | R5–R8, Begehung 1.1–1.6 |
+| `## Grades` prose declarations, `Closure-home:` line, declared extra words | CUT — the tool owns the vocabulary; extras' meanings map, the report says so per entry | R7 |
+| session-start banner, `session-scan.py` closure regex, `named-and-unbooked-check.py` file list, `lane-check.py` + its `lanes.json` | CUT — replaced by `lane list` and the tool's census; the restated lists die with them | R7, R9 |
+| `backlog-census.py` | REWRITE — its three-answer shape (open / closed / unknown-with-counts) is designed into the successor, not cut | Begehung 2.5 |
+| `docs/runbooks/*.md` (9), `~/.claude/runbooks/`, `runbook-format.md`, dev-loop "Which line are you on" | REWRITE → six one-screen lanes + workflows; three bust runbooks + claude-worktime's `cachebust-runbook.md` (a FOURTH, unregistered bust lane, in a PUBLIC repo) MERGE into one bust lane; `upstream-pr-stale` + `-round` → "pr"; `session-close`, `ship-proxy-change`, `public-comms` survive as lanes; `plugin-birth` becomes a dotfiles-repo lane | R1, R2, Begehung 4.1 |
+| `docs/dev-loop.md` | DECOMPOSE — laws to the declared laws file (≤60), procedures to workflows, essays stay as reference; cut from the roster | R4 |
+| threat matrix + `.status.json` | SURVIVE as the evidence record per bust class (mechanically guarded); the bust lane's DISPOSITION is an item transition that CITES the matrix row — one fact, one home | R19, Begehung 1.7 |
+| `docs/directives/`, `docs/audits/`, `docs/code-reviews/`, `BEGEHUNG-MAP.md`, `README`/`CHANGELOG` | SURVIVE, each REGISTERED as a kind with its four stages (directives: retention rule from FORK-NOTES; audits/code-reviews: append-only historical, exit never, bound declared; the map: its own 14-day rule as staleness) | R20 |
+| `docs/release-tests/` | DROP-proposed (D5) | R16 |
+| required-reading gate/inject hooks | SURVIVE; roster shrinks | R4 |
+| accretion module | REWRITE to a pointer paragraph | R15, R16 |
+| insurance, routing modules | SURVIVE; routing gains a route line for lanes entered under `auto`/`unattended` | — |
+| `state-report` | REWRITE — reads the done home, the ledger, the declaration's collector list; unregistered producers are findings | R9 |
+| daily gate, harvest | SURVIVE as detectors with dispositions; gate gets `MemoryHigh`/`MemoryMax` + run-in-progress stamp (W0.3) | R3, R9 |
+| `plugin-drift-scan` | SURVIVE as `auto-apply` WITH rollback shown | R3, Begehung 7.1 |
+| plugin cache (25 versions) | BOUND to the last three, cleanup retires older; never cut to one | Begehung 7.1 |
+| `corpus-pointer-check.py` (never fired) | CUT unless one planted positive fires it during migration | R9 |
 | fire log without command; tool-use commit recorder | REWRITE (effect-site recorders) | R9 |
-| `restrict-*-paths` deny texts | AMEND wording only — the one amend in this table, because the mechanism is right and the prose is the defect | R10 |
-| kämmung skill | SURVIVE as the diagnosis body of the `retire` lane | R6 |
-| dispatch-guards plugin | SURVIVE untouched — it governs lanes-as-subagents, a different "lane"; the naming collision is resolved by calling the new thing LANE and theirs DISPATCH in every new text | — |
-| 24 orphaned plugin-cache versions, 26 finished worktrees, 58 lane branches, three stalled BRIEF files | CUT by the migration's cleanup step (each a detector class afterwards) | R3 |
-| `docs/release-tests/` (no recorded motivation, 75 days) | DROP-proposed; operator decision D5 | R16 |
-| upstream's `CLAUDE.md` team apparatus | out of scope (not ours) | — |
+| `restrict-*-paths` deny texts | AMEND wording only (W0.5) | R10 |
+| kämmung skill | SURVIVE as the retire lane's diagnosis body | R6 |
+| dispatch-guards | SURVIVE untouched; "lane" is the new system's word, theirs is "dispatch" | — |
+| 26 finished worktrees, 58 lane branches, 3 stalled BRIEF files | CUT by the migration's cleanup, then each a registered kind with an exit | R3, R20 |
+| claude-worktime `docs/cachebust-runbook.md` (public, carries fork paths and an internal incident) | SCRUB (D7, pending) and MERGE into the bust lane | R12 |
+| upstream's `CLAUDE.md` team apparatus | out of scope | — |
 
-Not re-derived by the design and re-entering by a named requirement:
-none found. Items in the three audit tails not covered above are
-dispositioned in §5.
+## 5. The plan — ranked, the audit tails and the Begehung dispositioned
 
-## 5. The plan — ranked, with the audit tails dispositioned
+**Wave 0 — today (running at the peer desk, §7):** W0.1–W0.5 as
+specified; **W0.6 (pending D7)** scrub claude-worktime's public
+cachebust runbook with the hygiene grep red-first.
 
-Order is by cost-to-benefit against the record, not by wave size. Each
-wave is decision-complete for a dispatch once the operator GOes it.
+**Wave 1 — the `lifecycle` plugin core (one opus dispatch, ~3 days):**
+the kind registry schema and `lifecycle.json`; `lifecycle item
+add|ready|park|close|ratio` with the intake join, typed blockers, ids,
+schema line, file lock, atomic move, baseline conservation, archive
+section; `ledger` line kinds and the two gated readers; `lane list`
+with exit-code semantics and longhand roster state; the leak scan
+moved in as a shared tool and armed on the plugin repo's first commit;
+`--test` bites = the refusal table, every row red-proven; the MIGRATION
+tool with its classification report (rules of §4 row 1), run on
+cache-fix first (tier 1), then both dotfiles carriers (tier 2 — the
+migration IS their owed retirement pass). Plugin installed symlinked
+here. Acceptance: every refusal-table row red then green; migration
+report reconciles entry counts; zero entries routed to the ledger.
 
-**Wave 0 — today, no design dependency (hours):**
-- `pr-tend` by hand once: the 5 idle upstream PRs (one conflicting) —
-  entrypoints booking 3. The highest value per effort in the set.
-- Arm the existing lane checker: one `lanes` line in this repo's
-  roster (inventory booking 3) — keeps the old system honest while it
-  lives.
-- Cap the gate service's memory (inventory 6); stamp run-in-progress
-  (inventory 5). Two systemd/JSON edits.
-- Book the fire-log command field (done, dotfiles READY); guard deny
-  wording (inventory 14).
-- Graduate b4's session-measurement script to `tools/` (R18) — the
-  before/after instrument, before anything changes.
+**Wave 2 — lanes as deciders, workflows, decomposition, consumers
+(parallel dispatches, disjoint files):** six lanes with predicates
+proven FIRING / QUIET / BROKEN; the workflow registry with procedures
+extracted from the nine runbooks, the public cachebust runbook and
+dev-loop, gates executable, within the decomposition budget; dev-loop
+split law / workflow / reference, laws into the declared file under
+cap; the old runbooks, `lane-check.py` and `lanes.json` retired in the
+same commits; accretion rewritten to its pointer; claude-worktime's
+status display rebuilt on `lane list --json` (lane state, findings
+waiting, ready-to-integrate — with the constraint that its code carries
+no repo identifiers and its data never enters that public tree). Verify:
+R18's three figures all below baseline; the checker red on a planted
+stray lane over a screen, an over-cap laws file, an unbound slot.
 
-**Wave 1 — the `lanes` plugin core (one dispatch, opus-briefed, ~2–3
-days):** ITEM schema + `item add|ready|ratio|close` with the intake
-join; lane format parser + `lane list` router; `lanes.json`
-declaration; conservation and ratio checks as pre-commit; `--test`
-bites; migration tool that converts both repos' backlogs and prints the
-unknown-grade resolution report. Verifier: red-first on a planted
-unknown grade, a planted duplicate item, a planted broken closure count.
+**Wave 3 — triggers, detectors, recorders:** trigger evaluation at
+session start and prompt submit under the policy knob (`unattended`
+parked); `/lanes`, `/lanes ?` with the blocker chain; the detector
+registry with the six producers, counts-only local notifications (ntfy
+opt-in per D8); effect-site recorders; state report over the done home,
+ledger and collectors; plugin cache bound to three with semver compare
+and rollback printed. Verify: a planted undispositioned bust prints
+`bust: FIRING (1)` at the next start and prompt submit; a planted gate
+finding produces exactly one counts-only notification; a planted
+errored predicate prints BROKEN.
 
-**Wave 2 — lanes as deciders, the workflow set, dev-loop decomposed
-(parallel dispatches, disjoint files):** the six lanes of §3.3 as
-one-screen deciders, each predicate proven FIRING on a planted item and
-QUIET on none; the workflow registry with the procedures extracted from
-the nine runbooks and dev-loop.md, each gate executable; dev-loop.md
-split law / workflow / reference with the project `CLAUDE.md` under its
-line cap; the old runbooks retired in the same commits; the corpus
-accretion module rewritten to its pointer; claude-worktime's status
-display rebuilt on `item`/`lane` output. Verifier per R19: the checker
-finds a planted procedure paragraph outside the registry, a planted
-over-long lane body, and a `CLAUDE.md` over its cap; and R18's tool
-shows the required-reading prefix and the pre-first-write call count
-both lower than the step-2 baseline.
+**Wave 4 — the cut pass and the lifecycle walk armed:** everything
+marked CUT in §4, each with its dependents search stated; every
+surviving carrier registered as a kind; the retire lane's first full
+walk run and its exits recorded; the map re-walked (Begehung round 4).
 
-**Wave 3 — trigger evaluation + detectors (one dispatch):** trigger
-evaluation at session start and prompt submit under the `trigger-policy`
-knob (`on-demand` and `advise` built; `auto` built; `unattended`
-PARKED — its timer, `--agent lane-runner` box and budget measurement are
-one later item, trigger: the operator asks for it); `/lanes` and
-`/lanes ?`; detector registry with the six existing producers
-registered and the ntfy notification per batch; effect-site recorders
-(fire-log command field, git-hook commit recorder); state report reads
-collectors. Verifier: a planted undispositioned bust makes the router
-print `bust: FIRING (1)` at the next session start and at the next
-prompt submit, and under `advise` the session stops after printing it;
-a planted gate finding produces exactly one notification.
+**Migration order** (per repo, opt-in by declaration; measured
+2026-08-26 from the fourteen carriers under `~/dev`): tier 1 cache-fix
+(329, 9 runbooks); tier 2 dotfiles root (168) and dotfiles/claude (38),
+both over the tripwire; tier 3 dispatch-guards (24), claude-worktime
+(20); tier 4 beat-the-books (53, 1 runbook); tier 5 when next touched:
+statiker, skill-craft, daneel, begehung, kaemmung,
+sd-webui-prompt-enhancer; tier 6 ai-bureau (90, dormant since May) —
+archive or drop on next contact. Legacy repos keep their carrier and
+lose the old banner at wave 4. Nothing outside `~/dev` enters by sweep.
 
-**Migration order (operator decision 2026-08-26: per repo, by priority,
-not all repos).** The plugin loads everywhere; a repo is in the router
-only once it declares `lanes.json`, so migration is opt-in per repo.
-Measured 2026-08-26 (`find ~/dev -name BACKLOG.md`, bullet counts,
-rough): tier 1 cache-fix (329 entries, 9 runbooks — the reference case,
-wave 1 proves the migration tool here); tier 2 dotfiles root (168) and
-dotfiles/claude (38) — both over the retirement tripwire today, the
-migration IS the pass; tier 3 dispatch-guards (24) and claude-worktime
-(20) — small, active, and claude-worktime is a wave-2 consumer; tier 4
-beat-the-books (53, 1 runbook) — after the tool has run on a
-non-cache-fix repo; tier 5, when next touched: statiker, skill-craft,
-daneel, begehung, kaemmung, sd-webui-prompt-enhancer (≤13 each); tier 6
-ai-bureau (90, last booked 2026-05) — dormant, archive or drop, operator
-decides on next contact. Anything outside `~/dev` enters the router only
-by explicit declaration, never by sweep.
-
-**Wave 4 — cut pass:** everything marked CUT in §4, each removal with
-its dependents search stated; the cleanup detectors armed.
-
-Audit-tail items not named above, dispositioned: inventory 1,2 → wave
-2; 4 → wave 4; 7,10 → wave 3; 8,9 → wave 1 (the migration report);
-11,12 → wave 4; 13 → wave 3 (the dispatch log registers or is cut); 15
-→ wave 3; 16 → wave 1's migration runs the pass on both dotfiles
-carriers. Survey 1 → the ledger gains a `rejected:` line kind (wave 1);
-2 → the ITEM write-set slot IS this; 3 → §3.3 gates; 4 → `item ready`
-derives the head from PARKED-evidence resolution + write-set
-disjointness (wave 1); 5 → decision D4; 6 → R11, settled. Entrypoints
-1,2 → §3.6; 4 → R14 in `pr-tend`'s predicate; 5,7,8 → §3.3.
+**Audit tails and Begehung, dispositioned:** inventory 1,2 → wave 2; 3
+→ done (W0.2); 4 → wave 4; 5,6 → W0.3; 7,10 → wave 3; 8,9 → wave 1; 11
+→ wave 3 (bound, not cut); 12 → wave 4; 13 → wave 3; 14 → W0.5; 15 →
+dotfiles READY; 16 → wave 1 migration. Survey 1 → §3.6; 2 → the
+write-set slot; 3 → §3.3 gates; 4 → typed blockers (schedulability, not
+grade); 5 → D4; 6 → R11. Entrypoints 1,2 → §3.7; 3 → W0.1; 4 → the
+`pr` predicate; 5,7,8 → §3.3. Begehung: 1.1–1.7 → §3.1/§4 row 1 and the
+matrix seam; 2.1–2.5 → §3.1 concurrency, §3.9, origin-by-cwd, judged
+READY, census third answer; 3.1–3.5 → exit codes, install-step
+negation, refuse-unless-private, longhand roster, baseline + atomic
+move; 4.1–4.4 → D7, D8, plugin leak scan, session-written reasons;
+5.1–5.3 → cap 60, laws-home declaration, budget; 6.1–6.4 → §3.6; 7.1–7.3
+→ §3.5 rollback/semver/symlink, schema line; cross-row → §3.9.
 
 ## 6. Decisions for the operator
 
-Each with a recommendation; a "no" flips the marked design line.
-
-1. **Carrier shape:** ITEMS as fixed-slot markdown blocks parsed by the
-   tool (recommended: keeps git diff review and grep, satisfies R7 by
-   the tool refusing writes) — or a JSON/YAML sidecar as the truth with
-   markdown rendered from it (stricter, loses hand-editability). Rec: A.
-2. ~~Headless runs on this machine under a user timer.~~ WITHDRAWN as a
-   decision (operator, 2026-08-26): sessions remain the unit of work;
-   who starts a lane is the per-repo `trigger-policy` knob (§3.4),
-   default `on-demand`, with `unattended` designed-for and parked. No
-   slash commands beyond `/lanes` (operator decision, same exchange).
-3. **The `lanes` plugin as the single home of mechanics**, with the
-   accretion module cut to a pointer and `runbook-format.md` retired.
-   Rec: yes — this is the global/project seam in one line.
-4. **GitHub event triggering for EP2** (a cloud routine watching upstream
-   `pull_request` events) versus polling upstream from the local timer.
-   Rec: poll — five PRs, no cloud footprint, R11-consistent.
-5. **Drop `docs/release-tests/`** (no recorded motivation, 75 days
-   stale, upstream-shaped). Rec: drop, with the ledger line.
-6. **Naming:** the new thing is LANE; dispatch-guards' report channels
-   stay DISPATCH lanes in their own docs and are never called lanes in
-   new text. Rec: yes.
-
-On GO: wave 0 runs from this desk today; wave 1 is written as a brief and
-dispatched (opus, judgment-dense build), with this document as its
-settled design.
+1. Carrier shape — tool-parsed markdown blocks. **Accepted.**
+2. ~~Headless by default~~ **Withdrawn**; per-repo trigger policy,
+   `on-demand` default, `unattended` parked. No commands beyond `/lanes`.
+3. One plugin as the single home of mechanics; accretion to a pointer.
+   **Accepted** — the plugin is `lifecycle`, installed symlinked here.
+4. EP2 by local polling of upstream, not a cloud routine. **Accepted.**
+5. Drop `docs/release-tests/`. **Accepted.**
+6. Naming: LANE is the new system's word; dispatch-guards keeps
+   "dispatch". **Accepted.**
+7. Scrub claude-worktime's public `docs/cachebust-runbook.md` now (fork
+   paths, captures path, an internal incident, in a public repo with no
+   leak scan), as W0.6 at the peer desk, hygiene grep red-first; history
+   keeps the old text as always. **Accepted (operator, 2026-08-26).**
+8. **PENDING — notification content and channel:** counts only, never a
+   repo or producer name; local desktop channel by default; ntfy
+   (third-party host) an explicit per-detector opt-in for the phone
+   case. Rec: yes.
 
 ## 7. Execution handoff — waves 0 and 1 to the peer desk (2026-08-26)
 

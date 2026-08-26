@@ -47,8 +47,27 @@ ancillary analytics (cost/quota tools).
 | runbooks vs their real event sequences (missing-step class) | prose-covered — GRADUATE markers convention | 2026-08-11 · 1 runbook of 7 | 1 missing step | walk the other six against a real run each |
 | ancillary analytics (cost/quota/rates) vs operator decisions | dark | never | — | low cost? name the consumer first |
 | shape-verdicts + /health vs dotfiles doctor booking | prose-covered (unverified) — doctor books, content-drift checks; not walked | never | — | candidate round |
+| carrier & event-lane system (design) vs its own requirement set R1–R20 | dark — design under review, nothing built; 11 blocking / 12 design-gaps / 7 notes at round 3 | 2026-08-26 · round 3 | 30 | re-walk after the design absorbs the refusal table (cross-row finding); the migration and ledger rows re-open once ITEMS.md exists |
 
 ## Rounds
+
+- 2026-08-26 · round 3 · row: **carrier-rework design vs its requirement
+  set** · why: operator-named lens set (seven pre-registered lenses),
+  which overrides rotation; registered before the round's first search.
+  Walked by a fresh-context opus lane (`opus-begehung-carrier-design`),
+  read-only, briefed with artifact and question only. **Closed same day,
+  yield 30 across seven lenses, zeros: none.** The lens ended on the
+  cross-row read rather than on falling yield — the recurring class (a
+  named refusal or state no input can reach: the router's "broken" with
+  no exit code, a publication refusal that fails open, three of R19's
+  five refusals with no predicate, a scan over an unbuilt registry)
+  points at one structural cure, a refusal TABLE naming each refusal's
+  firing input, which disposes eight of the thirty. Prior-map finding
+  owed at this invocation: all 20 pre-existing rows past the 14-day
+  interval (last 2026-08-11). Coverage after this round: 21 rows — 7
+  mechanically-guarded (2 unverified), 11 prose-covered, 3 dark. Next
+  per rotation once the design settles: snapshots/telemetry event logs
+  vs their consumers (never visited).
 
 - 2026-08-11 · round 1 · row: **outward channels vs publication bar** ·
   why: darkest × highest consumer cost (public git history is irreversible;
