@@ -2,13 +2,39 @@
 
 Title: opus: widen the foreign-path class to source scope, wire it to the
 declaration, land cache-fix's flip in the same change, re-sync lifecycle
-Working copies: this repo (base `adf7e66`) and the `lifecycle` plugin repo
-(base `4d4546c`), both under the operator's `~/dev` tree — resolve them from
-your own environment, never from a literal path written here. Writing an
-absolute `/home/<user>/…` path into this public tree is the exact defect this
-item exists to catch, and this brief is held to it: no such path appears
-below, which is also your worked example of a compliant `.md`.
-Base check, both, before anything: `git merge-base --is-ancestor <base> HEAD`
+Working copies: **WORKTREES, not the shared checkouts** — one of this repo
+(base `ea27735`, this brief's own commit) and one of the `lifecycle` plugin
+repo (base `4d4546c`), both under the operator's `~/dev` tree; resolve the
+repos from your own environment, never from a literal path written here.
+Writing an absolute `/home/<user>/…` path into this public tree is the exact
+defect this item exists to catch, and this brief is held to it: no such path
+appears below, which is also your worked example of a compliant `.md`.
+
+**WHY WORKTREES ARE MANDATORY HERE, not a preference.**
+`tools/absence-scan.mjs` is live-on-write and the pre-push hook locates the
+scanner in the PUSHING repo. So the instant you widen the class with 25 files
+unallowlisted, every push from that checkout blocks — the judgment desk's,
+the operator's, this desk's, and your own A–C–D commit with them. Blocking is
+the intended state for YOUR tree and is not acceptable for the production
+checkout, which serves live traffic. In a worktree the hook reads that
+worktree's scanner and blocks only that worktree's pushes, which are denied
+by construction anyway.
+
+**The dispatcher provisions both worktrees and denies push on every remote in
+each** — this repo has an `upstream` remote pointing at the fork's source and
+a push there is an outward act under any circumstances, so the denial is not
+left to be re-derived per lane. Their paths arrive in your dispatch message.
+You do not create, move, or remove a worktree; if one is missing or its push
+denial does not hold when you check it, that is a STOP, not something to
+provision yourself.
+
+Your first act in the cache-fix worktree, before any test run: symlink
+`node_modules` from the main checkout, or every proxy suite dies
+`ERR_MODULE_NOT_FOUND` and two tests appear to hang for ~900s
+(`CLAUDE.local.md`, read at brief time — both 2026-08-02 "hangs" were
+exactly this).
+
+Base check, in each worktree, before anything: `git merge-base --is-ancestor <base> HEAD`
 AND `git log --oneline <base>..HEAD`. Base contained + nothing on top → start.
 Base not contained → fast-forward to it if the tree is clean, else HALT.
 Base contained WITH commits on top → HALT and report those commits as a gap.
@@ -121,9 +147,27 @@ is your worked example that compliant prose about this class is writable.
 
 ## The settled design — implement exactly this, do not redesign
 
-Scope derived bullet-by-bullet from §3.3's leak-direction paragraph (lines
-300-313), which carries **five** obligations. All five are in scope; the
-count is stated so a dropped one is visible:
+Scope derived clause-by-clause from §3.3's leak-direction paragraph (lines
+300-313). **The paragraph carries SEVEN clauses. Five are this item's; two
+belong to the template-extraction item.** The count and the split are stated
+so a dropped clause is visible — an earlier draft of this brief said "five
+obligations" and had silently dropped the plugin-repo red-proof, which is
+the partial-read defect this repo already recorded twice against wave-1
+briefs, reproduced here by its own author. The seven:
+
+- (i) the plugin repo carries the leak scan as a pre-push hook from its first
+  commit → verify it is armed; **L1**, verifier 9.
+- (ii) the two copies are byte-identical and move together → **L1**, step E.
+- (iii) the source-scope foreign-path class is enabled per repo BY
+  DECLARATION → **L1**, steps A and B.
+- (iv) the plugin declares it on with no exceptions; this repo declares it
+  off-with-reason or on-with-allowlist → **L1**, steps C and D.
+- (v) red-proven on a planted foreign path in a `.md` in the PLUGIN repo
+  before any template lands → **L1**, verifier 10.
+- (vi) every template extraction is a reviewed PR carrying the hygiene grep
+  output → NOT L1; the template-extraction item.
+- (vii) no template is extracted until that hook exists → NOT L1; it is the
+  constraint that makes L1 the head of the critical path.
 
 **A. A `source` scope for the foreign-path class.** Add scope handling so a
 class may declare `scope: "source"` and be applied on the `source` route.
@@ -204,12 +248,31 @@ only. You do not propose keep/scrub, you do not allowlist them, and you do
 not edit them.
 
 Consequence you must design for and state plainly in your report: with 25
-files unallowlisted and the class enabled, **the pre-push hook will block
-pushes in this repo** until the operator dispositions them. That is the
-intended state, not a bug — but say it, because the desk integrates it.
+files unallowlisted and the class enabled, **the pre-push hook blocks every
+push from the tree carrying your change** until those 25 are dispositioned.
+Inside your worktree that is the intended state and harmless (its pushes are
+denied anyway). It is NOT acceptable on the production checkout, which is why
+the integration sequence below exists and why A–C–D is never cherry-picked
+onto `main` alone.
 
 Data file (assigned, do not choose your own name):
 `docs/audits/foreign-path-classification-2026-08-26.tsv`
+
+## The integration sequence — the dispatcher's, written here so nobody meets it at push time
+
+1. You deliver A–E plus the classification TSV, **commits unpushed in your
+   worktrees**, and report. Your part ends here.
+2. The TSV goes to the operator. Their per-file verdict on the 25 is their
+   standing disposition, and it becomes the GATE on this item's push — this
+   lane is what converts that item from a backlog entry into a blocker.
+3. Their verdicts land as ONE follow-up commit in the same worktree:
+   allowlist entries with reason strings for the keeps, scrubs for anything
+   genuinely foreign.
+4. The dispatcher cherry-picks A–C–D **together with (3)** onto `main` and
+   pushes once. At push time the declaration and the tree agree, which is
+   what D's "same change" requirement is for. **A–C–D is never pushed
+   alone**, and the worktrees are removed only after the report is booked and
+   any follow-up questions asked — removal closes your channel permanently.
 
 ## Verifier (in order; real output pasted in the report)
 
@@ -242,6 +305,22 @@ Data file (assigned, do not choose your own name):
    lifecycle's own suite green after E.
 8. Skips dispositioned individually. A skip in a check you built is a
    finding, not a pass.
+9. **The plugin repo's live arm.** After E, run the scanner AS THE HOOK
+   INVOKES IT over lifecycle's own tree, with that repo's declaration true
+   (it already is — verify, do not set it). Any finding there beyond the
+   bootstrap pair is **REPORTED, never allowlisted**: §3.3 gives the plugin
+   repo "no exceptions", so a hit is a plugin-repo scrub finding and a STOP
+   signal, not something you resolve. Paste the full output including a
+   clean result.
+10. **The design's own red-first, in the plugin repo.** Plant a foreign home
+    path in a `.md` in the lifecycle worktree; OLD scanner clean → NEW
+    scanner red. §3.3 requires this class "red-proven on a planted foreign
+    path in a `.md` in the plugin repo before any template lands", and that
+    proof is the gate the template-extraction item waits on — its output is
+    the artifact that item's brief will cite, so paste it verbatim and in
+    full. Remove the plant by restoring a copy taken BEFORE the injection,
+    never with `git checkout --`/`restore`/`stash`, then confirm `git status`
+    clean AND delete any `__pycache__`/module caches the run created.
 
 ## Write boundaries
 
@@ -255,17 +334,21 @@ Data file (assigned, do not choose your own name):
   any of the 25 classified files, you do not touch `CLAUDE.local.md` (it is
   deployed from dotfiles and edited there), and you do not touch dotfiles at
   all — including `git/hooks/pre-push`, which you read as harness.
-- **This is a SHARED working copy with live co-writers** (the judgment desk
-  and the operator both write cache-fix). Commit by pathspec —
-  `git commit -F <msgfile> -- <paths>`, every flag before the `--`. Never
-  `git add` then commit. Never `-A`. Never `--amend`. Never `--no-verify`.
-- **Commits UNPUSHED.** The dispatcher pushes after verifying. This matters
-  more than usual here: your change alters the push gate itself.
+- **You work in YOUR WORKTREES ONLY. The shared checkouts are off limits for
+  writing** — both have live co-writers (the judgment desk and the operator
+  write cache-fix). Commit by pathspec — `git commit -F <msgfile> -- <paths>`,
+  every flag before the `--`. Never `git add` then commit. Never `-A`. Never
+  `--amend`. Never `--no-verify`.
+- **Commits UNPUSHED, and pushes are denied in your worktrees by
+  construction.** The dispatcher integrates by cherry-pick per the sequence
+  above. This matters more than usual here: your change alters the push gate
+  itself.
 - **Live on write:** `tools/absence-scan.mjs` is executed by the pre-push
   hook from the working tree, so it is live the moment you save it — before
-  any commit. A broken intermediate state blocks every push in this repo,
-  including other sessions'. Compose whole-file edits; do not leave the file
-  in a non-parsing state between edits.
+  any commit. This is the whole reason for the worktree: in the shared
+  checkout a broken or mid-edit state blocks every session's push. Inside
+  your worktree it is contained, but still compose whole-file edits rather
+  than sequences that leave the file non-parsing.
 - Trailer: `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
 - **The publication bar binds every byte you write here** (`CLAUDE.local.md`):
   no other-session content, no verbatim operator quotes in tracked prose OR
@@ -306,6 +389,11 @@ and report the permutation as a deviation. Novel deviations still halt.
 - A design decision would be needed that this brief does not make —
   especially any per-file verdict on the 25.
 - The widening cannot be made to leave `corpus`/`json` behaviour identical.
+- **Verifier 9 reports any finding in the plugin repo beyond the bootstrap
+  pair.** The plugin declares the class on with no exceptions, so you have no
+  allowlist to reach for there: report it and stop.
+- You cannot create a worktree, or cannot deny push on every remote in one.
+  Do not fall back to working in the shared checkout.
 
 ---
 
