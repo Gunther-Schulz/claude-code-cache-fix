@@ -191,9 +191,26 @@ body, and a `decision: <question> → moot (closed by <ref>)` ledger line.
    - **cache-fix's declaration sets NO cap number.** Not 60, not 120, no
      placeholder. Assigned item D loses that value; every other D-h value
      stands.
-   - **The laws-cap check (W1b's D3) is NOT a refusal.** It is repurposed as
-     the prefix/size REPORT the retire lane and R18 read: **exit 0 with
-     figures, no red on the 243-line laws file.**
+   - **The laws-cap check (W1b's D3) is NOT a refusal.** It is repurposed —
+     and **REFINED 2026-08-26, same day: the laws kind's control is SCOPE, not
+     size.** It does two things: (a) **scope** — flag lines carrying ANOTHER
+     KIND'S MARKERS as "possibly mis-homed" (a numbered step sequence = a
+     workflow; a dated incident = a journal entry; a measured figure with a
+     unit = a record; a file:line citation wrapped in explanation = a record),
+     as **a FINDING for review, exit 2 with the lines LISTED — never a
+     refusal**, it asks a human to look rather than blocking a commit; and
+     (b) **size** — still report the figure for R18's consumer, as a number,
+     not a verdict.
+     **The withdrawn expected red was about SIZE only.** A scope finding is a
+     different question and may legitimately fire on that same file — a laws
+     file grown to 243 lines has very likely absorbed incidents and figures
+     belonging elsewhere. Do not promise a clean exit on it and do not tune
+     the markers to produce one.
+     **The judgment half is PROSE-REST and the check's own output says so** —
+     whether a flagged line is genuinely mis-homed or is a law legitimately
+     citing something is not mechanizable (invariant 9). "Possibly mis-homed"
+     is exactly the verdict that hardens into "mis-homed" if the output does
+     not hedge itself.
    - **The two cap rows in §3.9 are gone**, replaced by one: **"kind grew
      without an exit event"**, red-proven like any other row.
    - The OTHER expected red — the non-portable node bite — is untouched.
