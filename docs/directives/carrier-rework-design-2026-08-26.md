@@ -106,6 +106,23 @@ blocker; a PARKED item without a typed blocker is a checker finding
 types — sequencing edges that are not blockers are how trackers grow
 graphs nobody maintains.
 
+**READY is the goal state of every open item; NEW and PARKED are
+transit (operator, 2026-08-26: many doors, all leading to work toward a
+stated goal).** Two paths lead there, both in machinery: at INTAKE,
+`item add` asks for the slots and an item whose slots are filled enters
+READY; one that cannot be completed now enters NEW with a typed blocker.
+In the DRAIN lane, the first workflow is GRADE, not dispatch: items
+whose blockers resolved are re-graded and their slots completed (desk
+judgment, never a leaf's), and only then is the head picked — grading IS
+draining, so the lane has work even with an empty ready head. The
+mirror exit: an item not gradable READY after n passes, or blocked on a
+decision nobody will make, leaves as DROPPED with its reason via the
+retire lane. And a GOAL slot: each repo declares its goals in
+`lanes.json` (this repo's are FORK-NOTES' loop stages — see / attribute
+/ mitigate / verify / retire), an item names the goal it advances, and
+an item advancing no declared goal is a drop candidate the retire lane
+prints — the trajectory test made computable.
+
 Concurrency, stated (operator question 2026-08-26 — why not beads'
 machinery, given our parallelism): parallel work here is many writers to
 CODE and ONE writer to the carrier — subagents never book, integration
