@@ -63,6 +63,7 @@ const {
   collectDanglingUnrescued,
   collectWorktrees,
   collectFixturesAccumulation,
+  collectGateRunning,
   collectLaneBranches,
   aggregateLaneBranches,
   renderText,
@@ -308,6 +309,65 @@ test("third answer: collectFixturesAccumulation on a nonexistent repoRoot is ok:
   assert.equal(res.ok, false);
   assert.ok(res.reason.length > 0);
   assert.equal(res.count, undefined, "must not report 0 for an unread input");
+});
+
+// The gate's run-in-progress stamp is the one collector in this file whose
+// ABSENCE is ok:true, and that is deliberate rather than an oversight in the
+// third-answer pattern above: no stamp means the sweep is not running, which
+// is the ordinary state of the machine, not a reading that failed. The
+// distinction the collector has to keep is between "not running" and "there
+// is a stamp and I could not read it" — the second is a real could-not-verify
+// and must never collapse into the first. These four pin both directions, so
+// a later editor cannot align this collector with its neighbours and quietly
+// turn every unreadable stamp into a confident "not running".
+test("collectGateRunning: no stamp is ok:true running:false — absence is the normal state, not a failed read", () => {
+  const res = collectGateRunning({ runningPath: NONEXISTENT });
+  assert.equal(res.ok, true);
+  assert.equal(res.running, false);
+  assert.equal(res.reason, undefined, "a normal absence carries no failure reason");
+});
+
+test("third answer: collectGateRunning on an unparseable stamp is ok:false with a reason — never running:false", () => {
+  const dir = tmpDirSync("state-report-running-");
+  const p = join(dir, "cache-fix-gate-running.json");
+  writeFileSync(p, "{not json");
+  const res = collectGateRunning({ runningPath: p });
+  assert.equal(res.ok, false);
+  assert.ok(res.reason.length > 0);
+  assert.equal(res.running, undefined, "must not answer the running question it could not read");
+});
+
+test("third answer: collectGateRunning on well-formed JSON that is not an object is ok:false", () => {
+  const dir = tmpDirSync("state-report-running-");
+  const p = join(dir, "cache-fix-gate-running.json");
+  writeFileSync(p, '"a stamp, allegedly"');
+  const res = collectGateRunning({ runningPath: p });
+  assert.equal(res.ok, false);
+  assert.ok(res.reason.length > 0);
+  assert.equal(res.running, undefined);
+});
+
+test("collectGateRunning: a real stamp reports running with its fields, and wrong-typed fields read null rather than throwing", () => {
+  const dir = tmpDirSync("state-report-running-");
+  const good = join(dir, "good.json");
+  writeFileSync(good, JSON.stringify({
+    startedAt: "2026-08-26T07:12:00.000Z", pid: 4242, gateSource: "serving",
+  }));
+  const res = collectGateRunning({ runningPath: good });
+  assert.equal(res.ok, true);
+  assert.equal(res.running, true);
+  assert.equal(res.startedAt, "2026-08-26T07:12:00.000Z");
+  assert.equal(res.pid, 4242);
+  assert.equal(res.gateSource, "serving");
+
+  const odd = join(dir, "odd.json");
+  writeFileSync(odd, JSON.stringify({ startedAt: 17, pid: "4242", gateSource: [] }));
+  const res2 = collectGateRunning({ runningPath: odd });
+  assert.equal(res2.ok, true, "a stamp exists and was read — the gate IS running");
+  assert.equal(res2.running, true);
+  assert.equal(res2.startedAt, null);
+  assert.equal(res2.pid, null);
+  assert.equal(res2.gateSource, null);
 });
 
 // ==========================================================================

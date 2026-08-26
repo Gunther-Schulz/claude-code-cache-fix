@@ -45,7 +45,7 @@ import {
   lintReadyBar,
   DEFAULT_BACKLOG,
 } from "./backlog-lint.mjs";
-import { DEFAULT_STATUS as DEFAULT_GATE_STATUS } from "./gate-live.mjs";
+import { DEFAULT_STATUS as DEFAULT_GATE_STATUS, runningStampPath } from "./gate-live.mjs";
 // The capture-PROTECTION carrier is read through alias-claim's own
 // `protectStatus`, never re-derived here: where the hard links live, which
 // env var overrides the directory, and how the cap resolves are all that
@@ -64,6 +64,12 @@ export const DEFAULT_MANIFEST_PATH = join(
   "manifest.py",
 );
 export const DEFAULT_HEALTH_URL = "http://127.0.0.1:9801/health";
+// Derived from the status path via gate-live.mjs's OWN function, never
+// restated: the running stamp is paired with the status file by directory
+// (a `--status` override gets a scratch stamp beside it), and a second
+// join(dirname(...), ...) here is exactly the drift this file's header
+// already refuses for every other collector.
+export const DEFAULT_GATE_RUNNING = runningStampPath(DEFAULT_GATE_STATUS);
 export const DEFAULT_FIXTURES_DIR = "test/fixtures/harvested";
 
 // ==========================================================================
@@ -305,6 +311,49 @@ export function collectGateVerdict({ statusPath = DEFAULT_GATE_STATUS, now = Dat
   };
 }
 
+/** The run-in-progress stamp (closing-gate question 4's CARRIER REGISTRATION
+ * clause). `gate-live.mjs` writes this file for the duration of one sweep and
+ * removes it in a `finally` on every exit — success, a caught failure, or an
+ * exception that reaches neither. State only outlives a run when something
+ * killed the process without unwinding (a `MemoryMax` kill, a `SIGKILL`),
+ * which is exactly the case an operator or the session-scan banner (W0.3)
+ * needs surfaced rather than silently absorbed — until this collector,
+ * nothing was scheduled to look at it.
+ *
+ * A missing file is a MEASURED "no sweep in progress" (`ok:true,
+ * running:false`), not a third answer — a machine spends most of its time
+ * between sweeps. An unreadable or malformed file IS the third answer: a
+ * stamp that exists but cannot be parsed is not the same fact as "not
+ * running", and folding it into `running:false` would read a genuine
+ * could-not-verify as clean.
+ */
+export function collectGateRunning({ runningPath = DEFAULT_GATE_RUNNING } = {}) {
+  let raw;
+  try {
+    raw = readFileSync(runningPath, "utf8");
+  } catch (e) {
+    if (e?.code === "ENOENT") return { ok: true, path: runningPath, running: false };
+    return { ok: false, reason: `running-stamp unreadable at ${runningPath}: ${e?.message ?? e}` };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    return { ok: false, reason: `running-stamp at ${runningPath} unparseable: ${e?.message ?? e}` };
+  }
+  if (!parsed || typeof parsed !== "object") {
+    return { ok: false, reason: `running-stamp at ${runningPath} is not an object` };
+  }
+  return {
+    ok: true,
+    path: runningPath,
+    running: true,
+    startedAt: typeof parsed.startedAt === "string" ? parsed.startedAt : null,
+    pid: typeof parsed.pid === "number" ? parsed.pid : null,
+    gateSource: typeof parsed.gateSource === "string" ? parsed.gateSource : null,
+  };
+}
+
 const MANIFEST_PIN_RE = /^CACHE_FIX_PROXY_TREE_PIN\s*=\s*"([^"]*)"/m;
 
 // `HEAD:proxy` (this repo's own tree hash for the proxy subtree) against
@@ -369,6 +418,7 @@ export async function collectFingerprintState({
 export async function collectVerification(opts = {}) {
   return {
     gate: collectGateVerdict(opts),
+    gateRunning: collectGateRunning(opts),
     pin: collectPinState(opts),
     fingerprint: await collectFingerprintState(opts),
   };
@@ -803,6 +853,16 @@ function renderVerification(v) {
         (r.ageHours !== null && r.ageHours > GATE_STALE_THRESHOLD_HOURS
           ? ` — STALE (>${GATE_STALE_THRESHOLD_HOURS}h)`
           : ""),
+    ),
+  );
+  lines.push(
+    fmtVerdict(
+      "gateRunning",
+      v.gateRunning,
+      (r) =>
+        r.running
+          ? `gateRunning: sweep in progress since ${r.startedAt ?? "unknown"} (pid=${r.pid ?? "unknown"}, source=${r.gateSource ?? "unknown"})`
+          : "gateRunning: no sweep in progress",
     ),
   );
   lines.push(

@@ -33,7 +33,7 @@
 // precisely what this is here to report.
 
 import { spawn, spawnSync } from "node:child_process";
-import { readdir, stat, writeFile, appendFile, mkdir, readFile, open } from "node:fs/promises";
+import { readdir, stat, writeFile, appendFile, mkdir, readFile, open, unlink } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { homedir, hostname } from "node:os";
 import { dataPath, statePath, legacyReadPath } from "../proxy/xdg-dirs.mjs";
@@ -2111,6 +2111,41 @@ export async function lastFireLedgerTs(path) {
 // later line is comparable to.
 export const FIRE_FIRST_WINDOW_H = 24;
 
+// W0.3 — a run-in-progress stamp, PAIRED with the status file rather than a
+// second overwrite of it. Writing "in progress" into the status file itself
+// would blank out yesterday's verdict for the run's own duration — an
+// absence of evidence wearing a verdict's clothes (docs/dev-loop.md, "A
+// checker has THREE answers, not two"). Derived from the status path's own
+// DIRECTORY rather than a fixed location, so a `--status` override (a
+// scratch run, a test) gets a scratch stamp beside it and the two can never
+// resolve to different directories — the same shape session-scan.py's own
+// gate_status_path() already uses for the status file.
+export function runningStampPath(statusPath) {
+  return join(dirname(statusPath), "cache-fix-gate-running.json");
+}
+
+async function writeRunningStamp(path, { startedAt, pid, gateSource }) {
+  try {
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, JSON.stringify({ startedAt, pid, gateSource }, null, 2) + "\n");
+  } catch (e) {
+    // Best-effort, the same stance the fire-ledger append below takes:
+    // losing the in-progress marker loses an observability nicety, never
+    // the sweep's own verdict.
+    process.stderr.write(`running-stamp write failed at ${path}: ${e?.message ?? e}\n`);
+  }
+}
+
+async function removeRunningStamp(path) {
+  try {
+    await unlink(path);
+  } catch (e) {
+    if (e?.code !== "ENOENT") {
+      process.stderr.write(`running-stamp cleanup failed at ${path}: ${e?.message ?? e}\n`);
+    }
+  }
+}
+
 function parseArgs(argv) {
   const args = {
     captures: DEFAULT_CAPTURES,
@@ -2176,12 +2211,22 @@ async function main() {
     process.stdout.write(`  excluded as artifact-only: ${[...ARTIFACT_ONLY].join(", ")}\n\n`);
   }
 
+  // W0.3 — write the run-in-progress stamp now, and remove it on every exit
+  // from the block below via `finally`: a success, a caught failure inside
+  // it, or an exception that reaches neither branch. `process.exit()` skips
+  // `finally`, which is why the exits inside this block are `return`s — the
+  // real process exit happens once, after the finally has run, at the
+  // bottom of this function.
+  const runningPath = runningStampPath(args.status);
+  await writeRunningStamp(runningPath, { startedAt: started, pid: process.pid, gateSource: envSource });
+
+  try {
   let files = [];
   try {
     files = (await readdir(args.captures)).filter((f) => f.endsWith("-requests.jsonl"));
   } catch (e) {
     process.stderr.write(`no capture directory at ${args.captures}: ${e?.message ?? e}\n`);
-    process.exit(2);
+    return 2;
   }
 
   const rows = [];
@@ -2614,11 +2659,22 @@ async function main() {
   }
   // Non-zero on a failing sweep AND on an empty one: "no captures" means the
   // gate proved nothing, which must not read as a pass.
-  process.exit(status.ok ? 0 : 1);
+  return status.ok ? 0 : 1;
+  } finally {
+    // W0.3 — the pairing half of the write above: this MUST run whether the
+    // try block returned, threw, or a `return` above short-circuited it, so
+    // a MemoryMax kill (or any other crash) is the only way a stamp now
+    // outlives its run.
+    await removeRunningStamp(runningPath);
+  }
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  main().catch((err) => {
+  // main() now RETURNS its exit code (W0.3's finally-cleanup requirement
+  // forced this — see the running-stamp comment inside main()) rather than
+  // calling process.exit() itself; this is the one place that turns the
+  // returned number into the real exit.
+  main().then((code) => process.exit(code ?? 0)).catch((err) => {
     process.stderr.write(`gate-live failed: ${err?.stack ?? err}\n`);
     process.exit(2);
   });
