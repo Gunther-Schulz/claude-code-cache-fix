@@ -3,8 +3,20 @@
 Steps 4–5 of the carrier-rework arc (`carrier-rework-handoff-2026-08-26.md`).
 Written at the judgment desk from the three audits (`docs/audits/
 carrier-rework-{inventory,survey,entrypoints}-2026-08-26.md`) and the
-operator's decisions recorded in the handoff. Status: PROPOSAL — awaiting
-operator GO on the numbered decisions at the end. Nothing here is built.
+operator's decisions recorded in the handoff. Status: **GO (operator,
+2026-08-26) on the full plan; decisions 1–6 accepted as recommended.**
+Nothing is built yet; wave 0 opens from the judgment desk.
+
+Operator addition at GO (restated): `claude-worktime` is supposed to show
+the status of this repo's issues; something was built for it and is not
+working, most likely format drift against the carrier it reads. Its
+overhaul on the new ITEM/lane model is part of the plan — wave 2, as the
+first external CONSUMER of the plugin's query interface (`item ready`,
+`lane list`), which is also what makes it drift-proof: it reads the
+tool's output, never the file. Named gap: the existing feature could not
+be located by grep in claude-worktime (`claude-worktime.sh`, `config.sh`,
+`tools/` — no matrix/backlog/PR reader found); the operator identifies
+what it displayed before the item is graded READY.
 
 Method, as ruled: the design below was derived from the requirements with
 the current system out of view; §4 then diffs it against the inventory.
