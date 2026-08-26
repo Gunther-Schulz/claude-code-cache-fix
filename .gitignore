@@ -24,3 +24,4 @@ package-lock.json
 # "not committed". Nothing enforced that until this line: the push-side absence
 # scan is a backstop at the boundary, not a guard in the working tree.
 dossier-*.md
+ITEMS.md.lock
