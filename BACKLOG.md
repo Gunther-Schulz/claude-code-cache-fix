@@ -6042,6 +6042,33 @@ work already dispatched is not a scheduling candidate. They close to
   three jobs. The failing assertion itself is measured.
   **Gate:** no comment goes to upstream before this is green — a comment
   naming a red board on a PR whose red is our own test is worse than silence.
+  **BUILT 2026-08-26, both copies, NOT yet closed.** Commits, both by a sonnet
+  lane, both verified at the artifact by this desk before either moved:
+  fork `main` **`ff16f64`** (pushed with this booking) and
+  `pr/verification-tools-rebase` **`ad4afe8`** (committed, UNPUSHED — the push
+  is an outward act to a public upstream PR and waits on the operator).
+  The change is one assertion: `/# skipped 1/` → `/# SKIP\b/`, moving from the
+  child's TAP SUMMARY count to the per-test SKIP directive in the TAP body.
+  Discrimination proven before the commit, not after: the exact new regex run
+  against both real captured strings — matches `ok 1 - … # SKIP … COULD NOT
+  VERIFY`, does NOT match the plain `ok 1 - …` of the run case. Re-checked
+  independently here: `test/harvest-pin.test.mjs` 21 tests, 21 pass, 0 fail,
+  0 skipped.
+  **Why it was proven in the MAIN checkout and not on the PR branch:** that
+  branch's tree carries `test/proxy-held-port.test.mjs`, whose cleanup signals
+  `systemd --user`; a session-kill gate denied the run and the lane correctly
+  refused the `CACHE_FIX_SUITE_KILL_ACK=1` override rather than accepting a
+  risk that is the operator's. Verified: that file is PRESENT on the PR branch
+  and ABSENT on `main`, so the main checkout is a safe host for the identical
+  proof. The transfer was argued, not assumed — the `# SKIP` directive is
+  node's reporter behaviour rather than this repo's, and both `t.skip` call
+  sites were read on the PR branch with `git show` and are byte-identical.
+  **Still open:** the PR-branch push, and CI green on 18/20/22 — the version
+  axis stays could-not-verify locally, since only node 26.7.0 exists here.
+  **Instrument gap noticed in passing, not acted on:** editing the file inside
+  the worktree produced a "capture-leak gate could not verify … this write is
+  NOT scanned" notice. A leak gate that cannot verify a write in a worktree is
+  a real hole; it is nobody's task today and is named here so it is not lost.
 
 - **RECORD 2026-08-26 (wave 0; named by the lane that built the tool, in its
   own not-verified slot) — `tools/entrypoint-census.mjs` has no unit bites:
