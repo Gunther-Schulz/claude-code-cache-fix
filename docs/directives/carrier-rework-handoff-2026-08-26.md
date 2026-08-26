@@ -47,6 +47,20 @@ not judged; and the step-4 proposal states each item in three shapes,
 cut / rewrite / amend, with amend having to earn its place against the
 other two.
 
+Operator clarification (same day, restated): GREENFIELD thinking, beyond
+retirement evidence. Step 4's method is therefore: design the target
+system from requirements alone — the four entry points, the operator's
+constraints (single operator, public repo, local-only bust evidence,
+lean), and the failures the record shows actually occurred — with the
+current system out of view; THEN diff the design against the inventory.
+What the greenfield design independently re-derives survives; what it
+does not is cut by default, and an existing mechanism re-enters only by
+naming the requirement the design missed. What discovery owes for this:
+each inventory row carries a REQUIREMENT column — the incident or
+failure the item was minted to prevent (with the ledger/journal/commit
+that records it), or "no recorded motivation" — because the requirement
+is what must survive, the mechanism is disposable.
+
 ## Base commits (read at compose time)
 
 - cache-fix `main` @ `7802c82` (working tree carries untracked harvested
