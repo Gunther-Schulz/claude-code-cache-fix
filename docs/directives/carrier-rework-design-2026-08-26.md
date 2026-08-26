@@ -325,3 +325,44 @@ Each with a recommendation; a "no" flips the marked design line.
 On GO: wave 0 runs from this desk today; wave 1 is written as a brief and
 dispatched (opus, judgment-dense build), with this document as its
 settled design.
+
+## 7. Execution handoff — waves 0 and 1 to the peer desk (2026-08-26)
+
+Judgment desk: `claude-code-cache-fix-9e [96132d]`. Peer desk:
+`claude-code-cache-fix-b4 [2bb912]` — chosen because it is warm and holds
+every grounding fact wave 0 needs (unit paths, verdict-file fields, the
+measurement script). Delegation is inert until the operator confirms it
+first-hand in the peer's session; wave 0 starts on that confirmation.
+
+REPORT-CHANNEL: SendMessage `claude-code-cache-fix-9e [96132d]`. Cadence:
+one digest at the end of wave 0 and one per wave-1 milestone; blockers
+and carve-out questions immediately.
+
+Wave 0 items, each with its write-set (routing inside the wave is the
+peer's; sonnet lanes for the mechanical ones):
+- **W0.1 pr-tend by hand** — the five open upstream PRs (query names the
+  UPSTREAM repo). Per PR: state, unanswered threads, rebase where
+  conflicting, DRAFT any reply. Carve-out: nothing is posted, no PR is
+  pushed to upstream, until the drafts have passed the judgment desk and
+  the operator (public-comms lane). Write-set: local branches only.
+- **W0.2 arm the existing lane checker** — `lanes` declaration in
+  `.claude/required-reading.json` (cache-fix), shaped as the checker's own
+  worked example; verify by a commit that the checker now grades.
+- **W0.3 gate memory cap + run-in-progress stamp** — dotfiles
+  `bootstrap/systemd/cache-fix-gate.service` (`MemoryMax=`, value from
+  the measured 12 GiB peak plus headroom, stated); cache-fix
+  `tools/gate-live.mjs` writes a start stamp the banner reads as
+  "running" until the finish stamp lands. Two red-first bites.
+- **W0.4 graduate the session-measurement script** to cache-fix
+  `tools/entrypoint-census.mjs` (or `.py`, whichever it is): top-level
+  sessions only, subagents counted separately, first-message
+  classification as a stated rule, tool-calls-before-first-write. Its
+  output on today's store must reproduce the step-2 numbers (27/2/0/10;
+  median 37). Publication bar: no transcript text in output.
+- **W0.5 guard deny wording** — dotfiles `restrict-*-paths.py` deny text
+  gains the permitted next act ("narrow to an in-bounds path, or stop and
+  report with this denial as evidence"); test fixtures updated.
+
+Wave 1 is briefed by the peer desk from §3.1–3.2 and §3.7 once wave 0's
+digest is booked; the brief passes this desk before dispatch (release
+gate: the plugin's first version is an outward artifact).
