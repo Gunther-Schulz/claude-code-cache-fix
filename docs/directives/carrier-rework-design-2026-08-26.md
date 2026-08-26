@@ -403,7 +403,7 @@ refreshes it from `lifecycle --test --list`.
 ### 3.10 The plugin's own laws (operator 2026-08-26: development rules, earned this session)
 
 Lands as `lifecycle/CLAUDE.md` at W1c's integration — the plugin's own
-laws file, under its own 60-line cap; each law's incident goes to the
+laws file — no cap (R22), its size reported not refused; each law's incident goes to the
 plugin's JOURNAL under today's date, never inline. Laws, not method:
 
 1. Three answers, always: clean / finding / could-not-verify. A finding
