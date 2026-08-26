@@ -371,6 +371,59 @@ refreshes it from `lifecycle --test --list`.
 | leak scan on the plugin repo | a planted `/home/<user>/…` path in a template |
 | **prose-rest, labelled** | "procedure text elsewhere"; near-duplicate templates; laws-vs-method; the no-operator-quote rule; "subagents never book" |
 
+### 3.10 The plugin's own laws (operator 2026-08-26: development rules, earned this session)
+
+Lands as `lifecycle/CLAUDE.md` at W1c's integration — the plugin's own
+laws file, under its own 60-line cap; each law's incident goes to the
+plugin's JOURNAL under today's date, never inline. Laws, not method:
+
+1. Three answers, always: clean / finding / could-not-verify. A finding
+   and an unreadable input never share an exit code.
+2. Every refusal is a registry row with the input that fires it, proven
+   red first; a row that cannot be fired is labelled PROSE-REST, never
+   deleted to green the roster.
+3. The registry is the source; every table of it elsewhere is a snapshot.
+   Every site that emits a finding maps to a row, or `--test` fails.
+4. A red from a module-load or import error is not a discriminating red.
+   The arrangement is stated: which side was old, where the expectation
+   came from, baseline green first.
+5. A check whose verdict is another tool's exit code draws its own pair
+   from that tool, in the invocation mode the code will use, before the
+   code is written around it. Flags are part of the instrument.
+6. No hardcoded machine path, login, repo root or XDG root anywhere;
+   boundaries are derived at run time. A public tree is the reason.
+7. The leak scan is armed before the repo's own first commit and runs
+   on every push; a clean scan never shown to fire proves nothing.
+8. The tool is the only writer of the carriers it owns; a hand edit
+   that breaks the shape fails at commit; a lock serializes writers.
+9. A two-file move is one act: append, delete, commit. A crash leaves a
+   DUPLICATE, never a loss, and the next check says so.
+10. READY is judged, never derived. Blocker clearance decides
+    schedulability only.
+11. A guard that fires on legitimate work stops the lane; the repair is a
+    declared exemption the guard verifies, never a softened predicate, and
+    `--no-verify` is never taken — it kills every lane in the hook.
+12. Versions climb and never go backwards; the birth series is `0.1.x`.
+13. Installed symlinked from the dev checkout on the machine that builds
+    it; pinned and drift-detected elsewhere; the cache keeps three.
+14. `ITEMS.md` carries a schema line; the tool refuses above its floor.
+15. Every registered kind declares all its stages, including the ones a
+    later wave implements — declared-but-not-implemented is a state,
+    undeclared is a finding.
+16. Templates carry no project identifiers; a public repo refuses a
+    foreign binding; the default under a missing declaration is refuse.
+17. Reports are booked from the file, never the summary; every figure a
+    lane reports is re-run at the integrating desk before it is believed.
+18. A brief is complete at dispatch; a correction that matters is a
+    stop-and-redispatch. The report channel names a target the executor
+    can resolve.
+19. An unverified negative that agrees with a held suspicion is where the
+    free probe is owed.
+20. What a push carried is settled at the remote, never by the local
+    reflog or the hook's printed range.
+21. A lane that finds a defect in its own shipped code after its report
+    REPORTS it; its write grant is over.
+
 ## 4. Diff against the inventory — what survives, what is cut, what is rewritten
 
 | existing thing | verdict | why |
