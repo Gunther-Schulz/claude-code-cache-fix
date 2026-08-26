@@ -102,6 +102,17 @@ proven bite file, and porting it would re-derive a red-proven instrument for
 no requirement the design states. `lifecycle` shells out to it and reports its
 exit code; a missing node runtime is COULD-NOT-VERIFY, never a pass.
 
+**"Moves" means BYTE-IDENTICAL COPY in wave 1, and the cache-fix original
+stays.** The design calls it a move; this brief's cache-fix write boundary
+forbids deleting anything there, and the reason is load-bearing rather than
+procedural: `tools/absence-scan.mjs` is wired into cache-fix's live pre-push
+hook, which is the enforcement of the publication bar. Deleting it to complete
+a "move" disarms the leak gate on a public repo mid-wave. So: copy it and its
+bite file into the plugin unchanged (`cmp` them and paste the result — a copy
+claimed by reading is not a copy), leave cache-fix's copy and its wiring
+alone, and the de-duplication is a later wave's act with the hook rewiring in
+the same change. Two copies for one wave is the deliberate cost.
+
 **D-c. One entry point, `lifecycle`, with subcommands** — `item
 add|ready|park|close|ratio`, `ledger`, `lane list`, `kind`, `migrate`,
 `--test`. One fire log, as §3.8 says.
