@@ -103,26 +103,57 @@ any doors named. Interface:
 - `--lane` is repeatable and may be omitted; with none, `lanes` is `[]`.
 - **REFUSES by default if the declaration already exists**, printing the path.
   `--force` overwrites. A silent overwrite of a declaration is not available.
-- `id-prefix` from `--id-prefix`, else derived from the repo directory name;
-  print which and why.
+- `id-prefix`: `--id-prefix` overrides. Otherwise DERIVED by this rule, which
+  is specified rather than left to you: take the repo's directory name, split
+  on hyphens and underscores, and use the first letter of each of the first
+  TWO words, lowercased (`claude-code-cache-fix` → `cc`); a one-word name
+  yields its first two letters (`lifecycle` → `li`). Print `derived from
+  <dir>` beside it. **Uniqueness across repos is NOT checked and `init` says
+  so in its output** — there is no registry to check against yet, and a
+  collision is a real possibility this verb cannot see. An unstated
+  non-check reads as a passed check.
 - `schema` is the single-sourced floor from step C — never a literal.
 - `trigger-policy`: `on-demand` (§3.11 judgment rule 6), written EXPLICITLY,
   and `init` prints that `advise` is the recommended next step once the
   router has run clean for a week. A suggestion in the file, never a switch.
-- `laws`: apply §3.11 judgment rule 5 — tracked `CLAUDE.md` whose git author
-  set is only the operator's → `CLAUDE.md`; any foreign author in its history
-  → the local overlay (`CLAUDE.local.md`). **`init` PRINTS which branch it
-  took and why** (the rule says so explicitly). Where the file has no history
-  or git cannot answer, that is COULD-NOT-VERIFY: name it, write the overlay
-  branch, and say the reading was not established.
-- `goals`, `head-rule`, `closure-home`, `public`, `kinds`,
-  `template-bindings`, `leak-scan`: written with schema-valid defaults that
-  `kind check` accepts. `kinds` starts with the three carrier kinds the repo
-  will have (`items`, `done bodies`, `ledger lines`), each declaring all six
-  `KIND_STAGES` with a `growth` from `GROWTH_MODES`. `leak-scan`
+- `laws`: apply §3.11 judgment rule 5. **The discriminator is computable and
+  is specified here rather than left to you** — "only the operator's
+  authorship" is not a judgment call:
+  - The author set is `git log --format=%ae -- CLAUDE.md`.
+  - OPERATOR is the repo's configured `git config user.email` — the identity
+    `init` itself runs under.
+  - FOREIGN is any author email in that set not equal to it.
+  - **`Co-Authored-By` trailers are NOT authors and are ignored.** They are
+    trailers in a message body, not the commit's author field, and counting
+    them would make every AI-assisted commit "foreign" — which would flip
+    this repo's own branch.
+  - Author set contains only OPERATOR → `laws: "CLAUDE.md"`. Any FOREIGN →
+    `laws: "CLAUDE.local.md"` (the local overlay).
+  - No history, no tracked `CLAUDE.md`, or git cannot answer →
+    COULD-NOT-VERIFY: take the overlay branch, print the reading as NOT
+    established, and say which of those three cases it was.
+  **`init` PRINTS which branch it took and why** — the rule says so
+  explicitly, and the print is what makes the reading checkable rather than
+  buried in a JSON value.
+- `goals`, `head-rule`, `closure-home`, `public`, `template-bindings`,
+  `leak-scan`: schema-valid defaults that `kind check` accepts.
+  `template-bindings` is `{}` (empty, not absent). `leak-scan`
   `source-scope-foreign-path` defaults to `false` WITH a reason naming that
   the repo has not been scanned yet — never `true` by default, and never a
   bare `false`.
+- **`kinds` — the three carrier kinds are COPIED, never invented.** Their
+  source is the plugin repo's OWN `.claude/lifecycle.json` `kinds` block:
+  its `items`, `done bodies` and `ledger lines` entries, taken whole —
+  including the TYPED `writer`/`reader` values (`verb:item add`,
+  `verb:retire`, …) — with only the home paths adapted to the target repo.
+  Copying rather than authoring is what makes `kind check`'s typed-reference
+  rows pass by construction: an invented `reader` string is prose in a typed
+  slot, which is a finding by §3.8c, and you would be re-deriving a
+  vocabulary that already exists two directories away.
+  Copy the SHAPES faithfully too: in that source `writer` is a
+  comma-joined string while `reader` is a list. Do not normalize them —
+  the schema accepts both and a "tidy-up" here is an undeclared change to
+  a validated structure.
 - **The declaration must be visible to git.** `init` adds the `.gitignore`
   negation for `DECLARATION_REL` and verifies with `git check-ignore
   --no-index` that the path is not ignored (`ignored_by_git`, and the
@@ -180,11 +211,19 @@ stays green.
    `REQUIRED_KEYS` — derived from the constant, never a restated list, so the
    assertion cannot age quietly when a key is added.
 6. **A, the retired keys**: assert neither `ready-cap` nor `bound` appears.
-7. **A, the laws branch**: both arms of judgment rule 5 — a repo whose
-   tracked `CLAUDE.md` has only the operator's authorship, and one with a
-   foreign author — each printing which branch and why. If you cannot
-   construct the foreign-author arm, say so; do not fake it with a mutated
-   git history you then have to explain.
+7. **A, the laws branch — three arms**: operator-only authorship →
+   `CLAUDE.md`; a foreign author → the overlay; no tracked `CLAUDE.md` →
+   could-not-verify with the overlay and the reason printed. Each pasted with
+   the branch and the why.
+   **Constructing the foreign-author arm is legitimate and here is how:** a
+   scratch repo with two configured identities, committing once as each —
+   `git -c user.email=<other> commit …`. That is a purpose-built fixture, not
+   a falsified history. What is forbidden is MUTATING a real repo's history
+   to manufacture the arm. Also assert the `Co-Authored-By` case explicitly:
+   a commit authored by the operator carrying a `Co-Authored-By` trailer for
+   someone else must take the OPERATOR branch — if trailers leaked into the
+   author set, this repo's own branch would flip, so it is the arm that
+   discriminates the rule from a naive reading of it.
 8. **A, git visibility**: `git check-ignore --no-index` shows the declaration
    NOT ignored, and the `ITEMS.md.lock` line IS matched. The pair matters:
    one asserts a negation, the other an assertion, and only both together
