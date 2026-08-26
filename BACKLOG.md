@@ -5957,6 +5957,36 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-26 (judgment desk, against design 9b6431b) — OWED BY THIS
+  DESK AT W1C'S INTEGRATION, not by the running lane: land design §3.10, the
+  plugin's own laws, as `lifecycle/CLAUDE.md`.** Booked rather than held in
+  memory because it is an obligation whose only trigger is somebody
+  remembering, which is the class that quietly disappears — and the lane it
+  is NOT for reports first, so the memory has a whole dispatch to decay in.
+  **Design:** §3.10 (`docs/directives/carrier-rework-design-2026-08-26.md:374`)
+  carries twenty-one numbered laws, every one earned this session — three
+  answers never sharing an exit code; a registry row per refusal, proven red
+  first, PROSE-REST never deleted to green a roster; the registry as source
+  and every table elsewhere a snapshot; a module-load red is not a
+  discriminating red; a check whose verdict is another tool's exit code draws
+  its own pair from that tool, flags included; no hardcoded machine path,
+  login or root anywhere, because the tree is public.
+  **Steps, in order:** (1) write `lifecycle/CLAUDE.md` from §3.10 — the
+  plugin's declared laws file; (2) VERIFY the cap check passes on it, i.e.
+  `lifecycle kind check` in that repo does not report `laws_over_cap` — the
+  file must be under the plugin's own 60-line cap, and the verification is the
+  point rather than the writing; (3) put each law's INCIDENT as a dated entry
+  in the plugin's JOURNAL, creating it header-only if absent — **never inline
+  beside the law.** A law and its incident are two artifacts: the law is what
+  binds, the incident is why, and inlining the why is what pushes a laws file
+  over the cap that keeps it read.
+  **Verifier:** the cap check green on the new file, and the JOURNAL carrying
+  one dated entry per law that has an incident.
+  **Write-set:** `~/dev/Gunther-Schulz/lifecycle` — `CLAUDE.md` and
+  `JOURNAL.md`. Nothing in cache-fix.
+  **Sequenced AFTER W1c's report is booked**, so it does not collide with the
+  lane writing that repo right now.
+
 - **RECORD 2026-08-26 (W1b closed; two findings that outlive it, both about
   things that were TRUE and still misled) — the design's description of the
   census shape is a lossy paraphrase of the tool it cites, and one finding
