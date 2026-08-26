@@ -61,6 +61,17 @@ failure the item was minted to prevent (with the ledger/journal/commit
 that records it), or "no recorded motivation" — because the requirement
 is what must survive, the mechanism is disposable.
 
+Operator question (same day): fold in the dispatch-guards plugin drift
+(active 0.11.4, released 0.11.5 on 2026-08-23, 25 cached versions)?
+Judgment-desk answer, basis executed: the detector fired (this session's
+start hook printed the outdated warning with its fix command); what
+failed is that the fix is a human-run command nobody ran for three days,
+and the cache cleanup has no detector at all. Folded in as a step-4
+REQUIREMENT, not as plugin work: every detector's output has a
+disposition path that is not "the operator remembers" — auto-apply
+where safe, a booked item otherwise. Same class as a lane minted and
+never run, and a scheduled gate whose findings nobody closes.
+
 ## Base commits (read at compose time)
 
 - cache-fix `main` @ `7802c82` (working tree carries untracked harvested
