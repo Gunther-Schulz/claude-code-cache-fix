@@ -437,10 +437,25 @@ and rollback printed. Verify: a planted undispositioned bust prints
 finding produces exactly one counts-only notification; a planted
 errored predicate prints BROKEN.
 
-**Wave 4 — the cut pass and the lifecycle walk armed:** everything
-marked CUT in §4, each with its dependents search stated; every
-surviving carrier registered as a kind; the retire lane's first full
-walk run and its exits recorded; the map re-walked (Begehung round 4).
+**Wave 4 — the cut pass, the FILE SWEEP, and the lifecycle walk
+armed:** everything marked CUT in §4, each with its dependents search
+stated. Then the file sweep (operator 2026-08-26: nothing stray left
+lying around): every tracked file in the migrated repo — every `.md`
+first, then the rest — is sorted into exactly one of three outcomes,
+recorded per file in the migration report: (a) an existing registered
+kind; (b) a REPO-SPECIFIC kind declared in `lifecycle.json` with its own
+writer / reader / staleness / exit / bound — legitimate, and the only
+way a one-off file stays; (c) removed, with a ledger line naming the
+commit (git keeps the body). No fourth outcome. The tell to hunt: a
+file whose NAME wears a kind's costume — `HANDOFF-*`, `*-BRIEF-*`,
+`SESSION_STATE*`, `FORK-NOTES`, `*-OBSERVATIONS`, a `dev-notes/`
+directory, `docs/*.md` prose, a fork's inherited upstream `README`/
+`CHANGELOG` — each is an item, a directive, a journal entry, a law, an
+audit, or nothing. Afterwards the rule holds by construction: an
+unregistered file is a router finding, so nothing stray re-accumulates
+unnoticed. Every surviving kind registered; the retire lane's first
+full walk run and its exits recorded; the map re-walked (Begehung
+round 4).
 
 **Migration order** (per repo, opt-in by declaration; measured
 2026-08-26 from the fourteen carriers under `~/dev`): tier 1 cache-fix
