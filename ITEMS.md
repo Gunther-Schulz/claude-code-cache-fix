@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 10
+added: 13
 compacted: 0
 
 ## cf-1
@@ -2954,3 +2954,30 @@ write-set: plugin/cli/lifecycle_core/migrate.py,decision:conservation-rule-for-a
 done-criterion: apply regenerates from source and replays intake additions, or refuses unless it can prove conservation = source-derived + intake-added
 evidence: ITEMS.md's own header already carries the arithmetic: baseline 593, added 6 — the discriminator exists without a new slot
 blocked-by: decision the conservation rule for --apply (judgment desk)
+
+## cf-329
+grade: READY
+requirement: The source-scope foreign-path class cannot be armed until every flagged token has a verdict, and a KEEP is only realized as an allowlist entry — naming a keep in prose disposes of nothing (a60955c declaration reason; docs/audits/foreign-path-classification-2026-08-26.tsv)
+goal: verify
+write-set: .claude/lifecycle.json,tools/absence-scan.mjs,test/absence-scan.test.mjs
+done-criterion: with leak-scan.source-scope-foreign-path armed, absence-scan exits 0 over the tracked tree; each allowlist entry class-scoped and carrying its own reason
+evidence: measured 61 findings over 25 files with the key ON (64 before cc5565f scrubbed three); buckets this_repo=9 another_project=7 machine_tool_state=4 synthetic_placeholder=26
+blocked-by: decision the operator's scrub verdict on the 4 remaining another_project tokens — 3 travel with migrate --apply, 1 is a mis-bucketed keep
+
+## cf-330
+grade: READY
+requirement: absence-scan prints "clean" for a class declared false, with no degraded: line, so a clean run is indistinguishable from one that exercised nothing — an assurance wider than its predicate. Cost two false cleans during wave 2 L1 integration before a planted positive exposed it (a60955c verification note)
+goal: verify
+write-set: tools/absence-scan.mjs,test/absence-scan.test.mjs
+done-criterion: a run states which classes it exercised; a declared-off class prints itself NOT EXERCISED, distinct from both clean and degraded
+evidence: red-first: plant a foreign path in a tracked markdown file with the key false — current output is the single line "absence-scan: clean", exit 0, no degraded line
+blocked-by: NONE
+
+## cf-331
+grade: READY
+requirement: lifecycle init on a repo with no carriers leaves kind check answering COULD NOT VERIFY, and no verb resolves it — migrate converts existing carriers and a fresh repo has none, so the rework's own promise that a fresh repo reaches a working state is unmet (design 3.11; lifecycle test_init.py RoundTrip::test_GAP_a_truly_bare_repo_reads_could_not_verify_not_clean)
+goal: see
+write-set: plugin/cli/lifecycle_core/init.py,test/test_init.py,docs/directives/carrier-rework-design-2026-08-26.md
+done-criterion: init on a repo with none of the three carriers seeds schema-stamped empty ITEMS.md, ITEMS-DONE.md and LEDGER.md and kind check exits 0; if ANY of the three exists it touches no carrier; the lane's gap test is inverted to assert the new behaviour
+evidence: L2a demonstrated and pinned the gap rather than patching around it; desk ruled seed, 2026-08-26
+blocked-by: NONE
