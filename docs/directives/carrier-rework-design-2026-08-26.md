@@ -123,6 +123,21 @@ retire lane. And a GOAL slot: each repo declares its goals in
 an item advancing no declared goal is a drop candidate the retire lane
 prints — the trajectory test made computable.
 
+**Further concepts taken from beads (operator 2026-08-26; grounded
+in its README as read by the survey lane unless marked):** stable short
+prefixed IDs (`<repo-prefix>-<n>`, immutable across moves — what
+`blocked-by:` cites, and what makes an id in a commit message or ledger
+line countable use evidence); ONE entry point (`lanes <verb>`) for every
+operation, one fire log; a query surface for agents beyond `lane list
+--json` — PARKED, trigger: a leaf needs carrier state; COMPACTION as an
+idea, not a mechanism — bodies still MOVE to the closure home, but a
+retire-lane step collapses done bodies older than N days to one ledger
+line each (git keeps the body), so `ITEMS-DONE.md` cannot re-grow
+BACKLOG-DONE's disease; a blocker-chain print ("why is this blocked" to
+the root — recollection, unverified in beads, cheap with typed
+blockers) behind `/lanes ?`. Not taken: epics / parent-child grouping
+(the goal slot groups), and any daemon.
+
 Concurrency, stated (operator question 2026-08-26 — why not beads'
 machinery, given our parallelism): parallel work here is many writers to
 CODE and ONE writer to the carrier — subagents never book, integration
