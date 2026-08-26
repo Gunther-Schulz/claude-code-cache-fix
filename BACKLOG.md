@@ -458,41 +458,6 @@ comment and new issue.
 
 ## Open
 
-- **PARKED 2026-08-26 (wave 0 of the carrier rework; the deltas are the
-  instrument's own printed output, not a side observation) — the entry-point
-  census disagrees with the hand classification on three classes and on the
-  median, and a pinned-window run proves the disagreement is the RULE's, not
-  the store's growth.** `tools/entrypoint-census.mjs` reproduces the hand pass
-  exactly on the mechanical half once its window is pinned — 78 top-level
-  sessions, 264 subagent files, `--before 2026-08-26T09:05:12.975Z` — while
-  these persist unchanged under that same pinned window: `bust_walk` 7 against
-  the audit's 10, `pr_tend` 3 against 2, `other` 32 against 30, and
-  backlog_drain median 35 (n=26) against the audit's 37 (n=27).
-  **What the pinned window bought, and why the entry exists because of it.**
-  Before the cutoff existed both readings fitted the evidence equally: the
-  store grows while you look at it (today 79/270), so "the numbers moved
-  because the population moved" explained everything and established nothing.
-  Pinning the window is what separated them — the mechanical half snapped to
-  the audit's digits and the class deltas did not move at all. That makes them
-  a rule-versus-judgment gap, which is a finding; "probably just growth" would
-  have buried it.
-  **Named missing piece: a decision only the judgment desk can make** — which
-  side is wrong. The audit records that 3 of its 10 bust walks do not open
-  with a pasted bust line, so the tool cannot recover them from a 300-char
-  opening window without full-context judgment; that is a candidate
-  explanation for the −3 and it is not established. Resolving it means
-  amending whichever side is wrong (decision G4 of
-  `docs/directives/carrier-rework-design-2026-08-26.md`), never tuning the
-  rule until it agrees.
-  **Verifier.** `node tools/entrypoint-census.mjs --before
-  2026-08-26T09:05:12.975Z` prints zero deltas, or the audit carries the
-  amendment with its reason.
-  **Done-criterion.** Every class line reads `tool=n audit=n` with no delta
-  marker, under the pinned window.
-  **Write-set:** `tools/entrypoint-census.mjs` (the rule and its stated
-  header) or `docs/audits/carrier-rework-entrypoints-2026-08-26.md` (the hand
-  classification) — which one is the decision.
-
 - **RECORD 2026-08-20 (found by destroying the thing it protects — I overwrote
   the pre-fix fire-ledger baseline by running a sweep, and only then discovered
   there was no second copy) — the daily sweep's `gate-status.json` is a carrier

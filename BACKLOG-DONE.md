@@ -8,6 +8,37 @@ Split out of BACKLOG.md 2026-08-19 at 268 of 574 entries / 10,228 of
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
 
+- **DONE 2026-08-26 (`c52ede7`) — the entry-point census's four disagreements
+  with the hand classification are adjudicated, per case: two were the tool's,
+  one was the audit's, and one was never a disagreement about any session.**
+  The parked entry asked which side is wrong; the answer differed per case.
+  BUST (−3): not a disagreement. The audit classifies a SESSION, the tool
+  classifies its OPENING, and the audit's own line — "7 of 10 open with a
+  pasted bust line" — is exactly what the opening rule finds. The comparable
+  number is 7; the other 3 are a definitional difference, now named in the
+  tool's reference block with the session-level counts kept beside them.
+  PR_TEND (+1): the tool's, with one concrete case — this arc's own kickoff
+  session, whose opening lists four doors and enters none. Mention is not
+  entry; an opening naming three distinct doors is now `other`. The disputed
+  session needed no content-reading to identify: the audit publishes 24 and
+  49 for its two PR sessions and the tool's three were 49, 8 and 24.
+  MEDIAN (35 vs 37): the audit's. 27 is the class count; 26 sessions ever
+  wrote. The median of those 26 is (33+37)/2 = 35 and the audit's 37 is their
+  14th value. Corroborated by the audit's own stated range, 9–72, measured
+  here as exactly min 9 / max 72 over n=26. Corrected in the audit in place.
+  **Recorded because the next reader will meet it:** the first draft of that
+  correction cited the audit's "One session never wrote at all" as its basis,
+  and that sentence belongs to the BUST paragraph. A true sentence answering
+  a narrower question than the one being settled is the failure this audit
+  exists to catch, so the misreading is written into the audit rather than
+  quietly dropped.
+  **What is NOT evidence:** that every class now agrees. Each verdict rests
+  on its own basis — the audit's sentence, one identified session, and an
+  arithmetic check against a published range — never on the agreement.
+  **Consumer note:** the design doc's §1 cites "37 tool calls (median,
+  n=27)"; that figure is now 35 at n=26 and its file is the judgment desk's
+  to amend.
+
 - **DONE 2026-08-20 — the byte-gate summary now carries its denominator and
   its MISMATCH sub-classification; and this entry is first of all the record
   of a WRONG DIAGNOSIS I delivered to the operator as fact.** A dotfiles
