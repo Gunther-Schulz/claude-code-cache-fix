@@ -28,13 +28,13 @@
         "verb:retire",
         "session"
       ],
-      "staleness": "change-coupling — an item whose evidence or requirement record pointer no longer resolves",
+      "staleness": "change-coupling \u2014 an item whose evidence or requirement record pointer no longer resolves",
       "exit": {
         "action": "move",
         "recording-act": "the item close fire-log line",
         "detail": "to ITEMS-DONE.md on DONE or DROPPED"
       },
-      "growth": "unbounded-with-reason — ready-cap 10 bounds the SCHEDULED head and the retirement ratio governs growth; a hard cap on the carrier would force silent drops, which is the failure the carrier exists to prevent"
+      "growth": "unbounded-with-reason \u2014 ready-cap 10 bounds the SCHEDULED head and the retirement ratio governs growth; a hard cap on the carrier would force silent drops, which is the failure the carrier exists to prevent"
     },
     "done bodies": {
       "home": "ITEMS-DONE.md",
@@ -44,13 +44,13 @@
         "verb:retire",
         "verb:item ratio"
       ],
-      "staleness": "none, declared why: a closure record is history — it accumulates, it does not go stale; growth is the exit question, not a staleness one",
+      "staleness": "none, declared why: a closure record is history \u2014 it accumulates, it does not go stale; growth is the exit question, not a staleness one",
       "exit": {
         "action": "compact",
         "recording-act": "a ledger decision line naming the compacted range",
-        "detail": "the retire lane folds bodies past the archive horizon into a summary line — WAVE 4, declared now so the kind has no undeclared stage, not implemented"
+        "detail": "the retire lane folds bodies past the archive horizon into a summary line \u2014 WAVE 4, declared now so the kind has no undeclared stage, not implemented"
       },
-      "growth": "unbounded-with-reason — this is the archive — the BACKLOG-DONE.md split of 2026-08-19 exists because 47% of the live carrier was archive; compaction is its control, not a bound"
+      "growth": "unbounded-with-reason \u2014 this is the archive \u2014 the BACKLOG-DONE.md split of 2026-08-19 exists because 47% of the live carrier was archive; compaction is its control, not a bound"
     },
     "ledger lines": {
       "home": "LEDGER.md",
@@ -63,9 +63,9 @@
       "staleness": "none, declared why: the ledger is append-only decision history",
       "exit": {
         "action": "never",
-        "recording-act": "compaction only — a line whose item is DONE and older than the horizon folds into that body's compaction line"
+        "recording-act": "compaction only \u2014 a line whose item is DONE and older than the horizon folds into that body's compaction line"
       },
-      "growth": "unbounded-with-reason — one line per decision event, no bodies"
+      "growth": "unbounded-with-reason \u2014 one line per decision event, no bodies"
     },
     "JOURNAL entries": {
       "home": "JOURNAL.md",
@@ -74,12 +74,12 @@
         "session",
         "verb:audit"
       ],
-      "staleness": "change-coupling — a journal entry nothing cites is stale, and a law carrying no journal pointer has no basis; both are read against the citing artifact, never against the entry's age",
+      "staleness": "change-coupling \u2014 a journal entry nothing cites is stale, and a law carrying no journal pointer has no basis; both are read against the citing artifact, never against the entry's age",
       "exit": {
         "action": "never",
         "recording-act": "the citing law or workflow's pointer is the record; an entry leaves only through the retire lane's compaction, which names the folded range in a ledger decision line"
       },
-      "growth": "unbounded-with-reason — one entry per incident, so growth is bounded by the incident rate rather than by a cap — and a cap here would drop the lesson that justifies a law still in force"
+      "growth": "unbounded-with-reason \u2014 one entry per incident, so growth is bounded by the incident rate rather than by a cap \u2014 and a cap here would drop the lesson that justifies a law still in force"
     },
     "audits": {
       "home": "docs/audits/*.md",
@@ -88,16 +88,16 @@
         "session",
         "verb:retire"
       ],
-      "staleness": "change-coupling — an audit whose measured artifact has changed past the citation it carries no longer measures anything current",
+      "staleness": "change-coupling \u2014 an audit whose measured artifact has changed past the citation it carries no longer measures anything current",
       "exit": {
         "action": "never",
-        "recording-act": "none is taken: an audit is append-only historical (design §4 row 1), and the recording act for a superseded measurement is the newer audit citing the one it overtakes"
+        "recording-act": "none is taken: an audit is append-only historical (design \u00a74 row 1), and the recording act for a superseded measurement is the newer audit citing the one it overtakes"
       },
-      "growth": "unbounded-with-reason — append-only historical, one file per measurement; §4 row 1 declares the exit never, so the control on growth is that a measurement is only taken when a question needs it"
+      "growth": "unbounded-with-reason \u2014 append-only historical, one file per measurement; \u00a74 row 1 declares the exit never, so the control on growth is that a measurement is only taken when a question needs it"
     }
   },
   "leak-scan": {
     "source-scope-foreign-path": false,
-    "reason": "OFF, with the design's own reading (§3.3): the corpus-only scope is right HERE. This repo's own prose — CLAUDE.local.md, the runbooks, the backlog, this declaration — names this machine's home directory throughout as ordinary operating text, so a source-scope class would fire on legitimate work on every push and train the override reflex that kills a guard (law 11). The class stays ON where it is defined: over the harvested fixture corpus, which is the leak direction that matters here because the proxy fronts every session on this machine. OPEN FOR THE OPERATOR: the alternative §3.3 names is ON with an allowlist, which is their scrub call rather than a reading of the design; surfaced in the wave-1d report."
+    "reason": "OFF, with the design's own reading (\u00a73.3): the corpus-only scope is right HERE. This repo's own prose \u2014 CLAUDE.local.md, the runbooks, the backlog, this declaration \u2014 names this machine's home directory throughout as ordinary operating text, so a source-scope class would fire on legitimate work on every push and train the override reflex that kills a guard (law 11). The class stays ON where it is defined: over the harvested fixture corpus, which is the leak direction that matters here because the proxy fronts every session on this machine. OPEN FOR THE OPERATOR: the alternative \u00a73.3 names is ON with an allowlist, which is their scrub call rather than a reading of the design; surfaced in the wave-1d report.\n\nSTATE, NOT A SETTING (judgment desk, 2026-08-26, derivability reading: the operator's standing decision on the tracked files carrying this machine's login was 'do as recommended', and the recommendation was the wave-2 scanner route). This OFF is DATED and carries its NAMED EXIT: it flips to ON-with-allowlist in THE SAME CHANGE that lands the scrub, never before and never as a separate tidy-up. Turning it on first would put a guard on the push boundary that fires on legitimate work \u2014 law 11, and the override reflex trained where it costs most. Turning it on after, in its own commit, leaves a window where the declaration and the tree disagree about what is enforced. The blocker that carries this trigger lives on the scrub item in the operator's dotfiles backlog, which is the desk that holds that copy."
   }
 }
