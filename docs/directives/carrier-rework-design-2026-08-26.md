@@ -542,6 +542,18 @@ migration IS their owed retirement pass). Plugin installed symlinked
 here. Acceptance: every refusal-table row red then green; migration
 report reconciles entry counts; zero entries routed to the ledger.
 
+**What "wave 1 done" does NOT mean (W1c's slot (g), carried here so wave
+2 inherits it rather than re-deriving it):** the migration output has
+been consumed by nothing; the 273 archive bodies were counted and
+copied, never parsed; the 18 unclassified (now decided by grade word)
+were never read for meaning; `lane list` has never resolved a real
+roster; the plugin has never been installed or loaded AS a plugin;
+cache-fix's pre-push suite ran over stage 9's commit at the desk's
+push, not the lane's. None is a failure; all are wave 2's first checks.
+Also owed before wave 2: the combined schema brief (no-caps growth
+control, `superseded-by:`/`blocker-moot:` as real slots, the done-home
+shape check, the `retire` verb) — one declaration exists today.
+
 **Wave 2 — lanes as deciders, workflows, decomposition, consumers
 (parallel dispatches, disjoint files):** six lanes with predicates
 proven FIRING / QUIET / BROKEN; the workflow registry with procedures
