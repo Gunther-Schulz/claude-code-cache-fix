@@ -81,8 +81,7 @@ workflows are restated here under one primitive rather than patched.
 
 ### 3.0 The primitive is the KIND, not the item (R19, R20)
 
-Every kind of thing a repo persists is REGISTERED with four stages and a
-bound, in the repo's declaration file `.claude/lifecycle.json`
+Every kind of thing a repo persists is REGISTERED with SIX stages (stated here once, cited never restated), in the repo's declaration file `.claude/lifecycle.json`
 (tracked; the plugin's install step adds the `.gitignore` negation and
 the checker fails on an ignored declaration — G1's defect, closed once
 per repo family, not once per repo):
@@ -124,8 +123,8 @@ They are the standard for every project on this machine by
 construction.
 
 1. Every persisted thing resolves to a registered kind.
-2. Every kind has an owner for every stage: writer, reader, staleness,
-   exit, growth control.
+2. Every kind has an owner for every one of its six stages (§3.0: home,
+   writer, reader, staleness, exit, growth control).
 3. One home per kind; a fact lives in exactly one place.
 4. Nothing dangles: every typed reference resolves; every lane has a
    reader; every producer has a disposition; every detector has a
@@ -170,6 +169,21 @@ typed blocker is a checker finding. A repo's declared extra grade words
 are NOT accepted (R7): their meanings map (POINTER → an item whose body
 lives elsewhere, referenced; OPEN → NEW) and the migration report says so
 per entry.
+
+MIGRATION WRITE-RULES (round 4, blocking, fixed): a migrated entry NEVER
+inherits READY — the old READY grade maps to NEW with `blocked-by:
+decision "regrade: was READY under the old carrier"`; every entry the
+rules leave slot-incomplete is NEW with `blocked-by: decision <what the
+desk must supply>`, never `NONE` — which puts all of them in the
+operator's court, where staleness surfaces and never drops. `UNKNOWN`
+is a DECLARED transitional value for migrated slots (goal, write-set,
+done-criterion, evidence) that the grade workflow fills before READY,
+that the retire lane never reads as "advances no goal", and that `item
+check` reports as a count; READY is REFUSED — in `item check` over the
+carrier, not only at `item add` — to any item holding an UNKNOWN slot.
+`goal` is a closed vocabulary owned by the declaration; a value outside
+it on a new item is a refusal row. The cache-fix dry run is regenerated
+under these rules (the old carrier is byte-identical, nothing is lost).
 
 Storage: `ITEMS.md`, first line `schema: <n>`; the tool refuses to parse
 a file stamped above its own floor (red: a file stamped one above).
@@ -274,7 +288,7 @@ by the law or workflow they justify — no reference tier, no dev-book
 concept survives (operator 2026-08-26); what fits none of law /
 workflow / journal / audit is dropped. Decomposition budget: lane + workflow text ≤ half of
 today's 2,375 runbook lines. "Laws, never method" is judgment and is
-labelled prose-rest; the cap is the mechanism.
+labelled prose-rest; the SCOPE AUDIT is the mechanism (no cap, R22).
 
 Shared workflows across repos: registry TEMPLATES with declared slots,
 bound per repo in `lifecycle.json`, step overrides allowed, copies
@@ -285,9 +299,15 @@ repos; an unbound required slot is a finding, never a default; the
 registry records bindings and the plugin's suite runs every template
 against every binder; and the LEAK direction — templates are extracted
 from a PRIVATE repo into a PUBLISHED registry — gets a real guard: the
-plugin repo carries the leak scan (this repo's `absence-scan`, moved
-into the plugin as a shared tool) as a pre-push hook from its first
-commit, red-proven on a planted foreign path before any template lands,
+plugin repo carries the leak scan (this repo's `absence-scan`, copied
+byte-identical, both copies moving together) as a pre-push hook from
+its first commit — WITH a source-scope foreign-path class enabled per
+repo by declaration (round 4: the corpus-only class is right for
+cache-fix, whose own prose names this machine's home, and blind in the
+plugin repo, whose templates are `.md`; the plugin repo declares it on,
+no exceptions; cache-fix declares it off with the reason, or on with an
+allowlist — the operator's scrub call), red-proven on a planted foreign
+path in a `.md` in the plugin repo before any template lands,
 and every template extraction is a reviewed PR carrying the hygiene
 grep output. No template is extracted until that hook exists. First
 shared set: the PR workflows; bust work stays this repo's own.
@@ -379,9 +399,16 @@ single declaration.
 | repo-private workflows | local `workflows/` (only ≥2 lanes or over a screen) | the repo | its lanes |
 | declaration `.claude/lifecycle.json` (kinds, lanes, bindings, goals, policy, laws file, homes) | local, tracked | hand once; `migrate` writes the initial one | every verb (`kind check` validates) |
 | items / done home / ledger / journal | local: `ITEMS.md`, `ITEMS-DONE.md`, `LEDGER.md`, `JOURNAL.md` | items + done: the tool only; ledger: tool slots + session reasons; journal: sessions | gates, the router, the state report |
-| laws file | local, NAME DECLARED (`CLAUDE.md` where ours, `CLAUDE.local.md` where the tracked one is foreign) | sessions | every session (required reading); the scope audit |
+| laws file | local, NAME DECLARED — the deciding rule has three branches: `CLAUDE.md` where ours; the local overlay where the tracked one is foreign; DEPLOYED (the declaration carries `source:` naming the dotfiles path) where the overlay is deployed from elsewhere — an absent laws file is COULD-NOT-VERIFY naming the source, never a pass | sessions, or the deploying repo where `source:` is set | every session (required reading); the scope audit |
 | audits | local, default `docs/audits/` (declared home) | sessions, lanes | the retire lane, readers by pointer |
-| detector registry, repo roster | dotfiles (tracked), deployed by symlink into `~/.config/lifecycle/` | the operator / a session in dotfiles | `lane list`, the detector runner |
+| detector registry, repo roster | dotfiles (tracked), deployed by symlink into `~/.config/lifecycle/`; the roster is CREATED by `lane register <repo>` (schema wave) — an absent roster is BROKEN | the operator / a session in dotfiles; `lane register` | `lane list`, the detector runner |
+| directives, code-reviews | local `docs/directives/`, `docs/code-reviews/` | sessions | readers by pointer; the retire lane (change-coupling staleness) |
+| evidence carriers (row-pins, census rows, growth fixtures) | local `test/fixtures/harvested/` subdirs | the gate and harvest producers | the state report; the retire lane |
+| worktrees, lane branches | `.claude/worktrees/`, `refs/heads/wt/*` | dispatches | the state report; the retire lane (exit: delete after integration) |
+| plugin-cache versions | `~/.claude/plugins/cache/<marketplace>/<plugin>/` | the plugin installer | the drift detector; exit: delete oldest past three |
+| detector findings | per-detector state under XDG state | detectors | `item add --source detector:` (intake) |
+| the tool's FIRE LOG | `$XDG_STATE_HOME/lifecycle/fire.jsonl` — registered in the PLUGIN's own declaration | the tool | `lifecycle audit`; growth: compacted on a declared rule; exit: compact |
+| this design document | cache-fix `docs/directives/` — registered as a directive with change-coupling staleness to `lifecycle/CLAUDE.md` | the judgment desk | the plugin's laws file (which cites it as normative) |
 
 Flow: `lane list` (session start, prompt submit, `/lanes`) walks the
 roster, reads each declaration, EXECUTES each declared lane's trigger
@@ -396,6 +423,49 @@ ending; workflow = how. Registration: a lane or workflow file the
 declaration does not list is UNREGISTERED (finding); a lane naming a
 workflow that does not exist fails `kind check` (nothing dangles); a
 lane with no use-evidence is stale (retire lane).
+
+### 3.8c Decisions from Begehung round 4 (2026-08-26; 38 findings, all accepted)
+
+- **Every verb has a wave** (law 24): schema wave — `retire`, `audit`,
+  `migrate --schema-from <n>` / `--apply`, `item ready --head`, `item
+  ratio` (built, now placed), `lane register`, `item check` (the shape
+  verb, named), `kind sweep` (the unregistered-file half of invariant
+  1, brought forward from wave 4); wave 2 — `init`, `lane new`,
+  `workflow bind`, `lane list --json`.
+- **Flags never share a spelling across meanings**: the schema path is
+  `--schema-from <n>`; `--from <path>` stays the carrier source.
+  `migrate` has two modes, dry-run (default) and `--apply`.
+- **One schema version per repo**, stamped in the declaration; the
+  carrier files' `schema:` lines must EQUAL it (mismatch is a finding);
+  one number, one command per bump. A comment block may precede a
+  carrier's schema line so a public `LEDGER.md` can say what it is for.
+- **Exit codes**: argparse usage errors remap to 3 with a `usage:`
+  prefix — unreadable input, never a finding (law 1). A registry row
+  yielding different answer classes at different sites SPLITS into one
+  row per site.
+- **Typed references**: a declaration's `reader`/`writer` values are
+  typed — `lane:<name>`, `verb:<subcommand>`, `hook:<name>`,
+  `session`, `producer:<name>`, `operator` — prose in the slot is a
+  finding; `dangling_reference` then reaches every type (invariant 4).
+- **Route set per refusal row** (the round's cross-row cure): beside
+  its firing input every row states the ROUTE SET it watches, derived
+  from the source as the emit-site check derives sites; `--test` fails
+  a row whose refusal text names an effect wider than its routes.
+  Red-first: `dangling_reference` goes red on today's roster,
+  `schema_above_floor` stays green.
+- **The pre-commit seam exists**: the plugin declares its hooks in
+  `plugin.json` and registers its shape checks with the machine's
+  global hook dispatcher (`core.hooksPath`), never a second hooks path.
+- **The plugin repo** is tier 1b of the migration order (its legacy
+  backlog migrates with the tool, the prose grade declaration cut) and
+  declares its fire log and the plugin cache as kinds; a repo born
+  after the tier measurement is tiered at birth.
+- **R3 on the walk's own outputs**: the migration report's findings and
+  every Begehung finding enter the carrier as items via intake, never
+  as prose in an audit nobody routes.
+- **§3.9 below is a STALE snapshot** (22 of 49 rows at `fa45623`); the
+  schema wave regenerates it from `lifecycle --test --list` and the
+  design carries the generated table, never a hand copy.
 
 ### 3.9 The refusal table (the Begehung's structural cure)
 
@@ -588,9 +658,9 @@ reporting instead of acting.
 | session-start banner, `session-scan.py` closure regex, `named-and-unbooked-check.py` file list, `lane-check.py` + its `lanes.json` | CUT — replaced by `lane list` and the tool's census; the restated lists die with them | R7, R9 |
 | `backlog-census.py` | REWRITE — its three-answer shape (open / closed / unknown-with-counts) is designed into the successor, not cut | Begehung 2.5 |
 | `docs/runbooks/*.md` (9), `~/.claude/runbooks/`, `runbook-format.md`, dev-loop "Which line are you on" | REWRITE → six one-screen lanes + workflows; three bust runbooks + claude-worktime's `cachebust-runbook.md` (a FOURTH, unregistered bust lane, in a PUBLIC repo) MERGE into one bust lane; `upstream-pr-stale` + `-round` → "pr"; `session-close`, `ship-proxy-change`, `public-comms` survive as lanes; `plugin-birth` becomes a dotfiles-repo lane | R1, R2, Begehung 4.1 |
-| `docs/dev-loop.md` | DECOMPOSE FULLY, THEN DELETE (operator 2026-08-26: no dev-book concept survives, globally) — every part sorts into one of four kinds: a rule a session must obey → the declared laws file (≤60); a procedure → a workflow; an incident and its lesson → the project JOURNAL (new repo-level kind, the corpus's journal one level down: dated, incident + lesson, cited by the law or workflow it justifies; a law without a journal pointer has no basis, a journal entry nothing cites is stale by change-coupling); a measurement → audits. What sorts into none is dropped with a ledger line. Git keeps the body | R4, R19, R20 |
+| `docs/dev-loop.md` | DECOMPOSE FULLY, THEN DELETE (operator 2026-08-26: no dev-book concept survives, globally) — every part sorts into one of four kinds: a rule a session must obey → the declared laws file; a procedure → a workflow; an incident and its lesson → the project JOURNAL (new repo-level kind, the corpus's journal one level down: dated, incident + lesson, cited by the law or workflow it justifies; a law without a journal pointer has no basis, a journal entry nothing cites is stale by change-coupling); a measurement → audits. What sorts into none is dropped with a ledger line. Git keeps the body | R4, R19, R20 |
 | threat matrix + `.status.json` | SURVIVE as the evidence record per bust class (mechanically guarded); the bust lane's DISPOSITION is an item transition that CITES the matrix row — one fact, one home | R19, Begehung 1.7 |
-| `docs/directives/`, `docs/audits/`, `docs/code-reviews/`, `BEGEHUNG-MAP.md`, `README`/`CHANGELOG` | SURVIVE, each REGISTERED as a kind with its four stages (directives: retention rule from FORK-NOTES; audits/code-reviews: append-only historical, exit never, bound declared; the map: its own 14-day rule as staleness) | R20 |
+| `docs/directives/`, `docs/audits/`, `docs/code-reviews/`, `BEGEHUNG-MAP.md`, `README`/`CHANGELOG` | SURVIVE, each REGISTERED as a kind with its six stages (directives: retention rule from FORK-NOTES; audits/code-reviews: append-only historical, exit never, bound declared; the map: its own 14-day rule as staleness) | R20 |
 | `docs/release-tests/` | DROP-proposed (D5) | R16 |
 | required-reading gate/inject hooks | SURVIVE; roster shrinks | R4 |
 | accretion module | REWRITE to a pointer paragraph | R15, R16 |
@@ -640,6 +710,19 @@ Also owed before wave 2: the combined schema brief (no-caps growth
 control, `superseded-by:`/`blocker-moot:` as real slots, the done-home
 shape check, the `retire` verb) — one declaration exists today.
 
+**Wave 1d — the SCHEMA WAVE (one opus dispatch, brief passes this
+desk):** everything in §3.8c plus: growth-control vocabulary replacing
+`bound` (R22) and `ready-cap` removed; `superseded-by:`/`blocker-moot:`
+as real done-body slots; the done-home shape check; the laws scope
+audit replacing `laws_over_cap`; the `head-rule` predicate widened; the
+migration write-rules of §3.1 with the cache-fix dry run regenerated;
+the source-scope foreign-path class; the six judgment rules of §3.11
+built as findings with use-evidence; `migrate --schema-from` run over
+the existing declarations as its own first proof. Verifier: every new
+and changed row red then green under the route-set check; `kind check`
+and `item check` clean on cache-fix's regenerated dry run with 0 READY,
+all migrated items blocked on a decision, UNKNOWN counted.
+
 **Wave 2 — lanes as deciders, workflows, decomposition, consumers
 (parallel dispatches, disjoint files):** six lanes with predicates
 proven FIRING / QUIET / BROKEN; the workflow registry with procedures
@@ -652,7 +735,7 @@ status display rebuilt on `lane list --json` (lane state, findings
 waiting, ready-to-integrate — with the constraint that its code carries
 no repo identifiers and its data never enters that public tree). Verify:
 R18's three figures all below baseline; the checker red on a planted
-stray lane over a screen, an over-cap laws file, an unbound slot.
+stray lane over a screen (finding), a mis-homed law line (scope audit, finding), an unbound slot.
 
 **Wave 3 — triggers, detectors, recorders:** trigger evaluation at
 session start and prompt submit under the policy knob (`unattended`

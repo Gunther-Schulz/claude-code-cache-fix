@@ -47,10 +47,34 @@ ancillary analytics (cost/quota tools).
 | runbooks vs their real event sequences (missing-step class) | prose-covered — GRADUATE markers convention | 2026-08-11 · 1 runbook of 7 | 1 missing step | walk the other six against a real run each |
 | ancillary analytics (cost/quota/rates) vs operator decisions | dark | never | — | low cost? name the consumer first |
 | shape-verdicts + /health vs dotfiles doctor booking | prose-covered (unverified) — doctor books, content-drift checks; not walked | never | — | candidate round |
-| carrier & event-lane system (design) vs its own requirement set R1–R20 | dark — design under review, nothing built; 11 blocking / 12 design-gaps / 7 notes at round 3 | 2026-08-26 · round 3 | 30 | re-walk after the design absorbs the refusal table (cross-row finding); the migration and ledger rows re-open once ITEMS.md exists |
+| carrier & event-lane system: design vs its own invariants, laws and the built plugin | dark — design revision 2 + amendments, wave 1 built; 5 blocking / 21 design-gaps / 12 notes across rounds 3–4, dispositioned in the design (§3.8c) and the schema wave | 2026-08-26 · round 4 | 38 (round 4) | the schema wave (wave 1d) lands the R22 cap contradiction, the migrate write-rules and the route-set cure; re-walk after wave 2 arms lanes |
 
 ## Rounds
 
+- 2026-08-26 · round 4 · row: **carrier-rework design vs its own
+  invariants and the built plugin** · why: operator-named lens set
+  (seven pre-registered lenses), which overrides rotation; registered
+  before the round's first search. Walked by a fresh-context opus lane
+  (`opus-begehung-round4`), read-only over both repos, briefed with
+  artifact and question only; the plugin was EXERCISED rather than
+  read-modelled (every verb run against real and probe repos, XDG state
+  redirected to scratch). **Closed same day, yield 38 across seven
+  lenses, zeros: none** (homes 5 · stages 4 · verbs 7 · lints 5 ·
+  design-vs-built 8 · schema-migration 4 · darkest corner 5). Five
+  findings broke TODAY: `kind check` red on cache-fix over a cap R22
+  withdrew; the migration wrote 204 READY items with three UNKNOWN
+  slots and 113 NEW items inside §3.2's auto-DROP predicate; the leak
+  scan blind to the foreign-path class §3.3 arms it for; no
+  schema-migration path, the design's command for it silently meaning
+  a carrier path; the plugin repo undeclared. The lens ended on the
+  cross-row read — the recurring class is an assurance wider than its
+  predicate (four instances), cured by a stated ROUTE SET per refusal
+  row, `--test`-enforced, red-proven on `dangling_reference`. All 38
+  dispositioned into the design (§3.8c) and the schema wave (§5, wave
+  1d). Prior-map finding: all 20 pre-round-3 rows remain past the
+  14-day interval (last walked 2026-08-11). Coverage: 21 rows — 7
+  mechanically-guarded (2 unverified), 11 prose-covered, 3 dark. Next
+  per rotation: snapshots/telemetry event logs vs their consumers.
 - 2026-08-26 · round 3 · row: **carrier-rework design vs its requirement
   set** · why: operator-named lens set (seven pre-registered lenses),
   which overrides rotation; registered before the round's first search.
