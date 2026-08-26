@@ -403,9 +403,24 @@ already carries — never by trusting that two counters agree.
     and claim it with the tool:**
 
     ```sh
-    node tools/alias-claim.mjs <capture-file|session-id> --note "<why>"
+    node tools/alias-claim.mjs <capture-file|session-id> --note "<why>" --protect
     node tools/alias-claim.mjs --show <capture-file|session-id>
     ```
+
+    **`--protect` is part of the claim, not an option on it.** A claim
+    records a NAME; retention evicts by oldest mtime and knows nothing
+    about names, so an unprotected claim is a label over bytes that
+    leave on their own schedule — you lose the evidence for the bust
+    you are investigating, while the entry still cites it. `--protect`
+    hard-links the capture into a sibling `captures-protected/` dir at
+    zero extra bytes, so eviction's `unlink` on the original only
+    decrements the link count. Release it when the entry closes
+    (`--release`). The tool's own usage prints the flag as optional
+    (`[--protect]`) and this instruction is why that reads wrong:
+    omitting it here once already drove the flag to ZERO uses in the
+    two days after it shipped, while two entries were parked for
+    evidence that had rotated away (measured 2026-08-13; the full
+    incident is in `docs/dev-loop.md`).
 
     This repo is public. A capture is named by ALIAS (`s-captureA`,
     `s-captureB`, …), never by filename or session id; the mapping
