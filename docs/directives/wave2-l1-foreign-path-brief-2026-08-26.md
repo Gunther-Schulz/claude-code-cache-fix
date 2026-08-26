@@ -3,8 +3,11 @@
 Title: opus: widen the foreign-path class to source scope, wire it to the
 declaration, land cache-fix's flip in the same change, re-sync lifecycle
 Working copies: **WORKTREES, not the shared checkouts** — one of this repo
-(base `ea27735`, this brief's own commit) and one of the `lifecycle` plugin
-repo (base `4d4546c`), both under the operator's `~/dev` tree; resolve the
+(base `e0f70c7`, **or any later HEAD whose extra commits leave your write-set
+paths untouched**; the tolerance is path-scoped because this brief's own
+amendments keep moving HEAD, and a base pinned to a hash the brief itself
+then invalidates is self-refuting) and one of the `lifecycle` plugin repo
+(base `4d4546c`), both under the operator's `~/dev` tree; resolve the
 repos from your own environment, never from a literal path written here.
 Writing an absolute `/home/<user>/…` path into this public tree is the exact
 defect this item exists to catch, and this brief is held to it: no such path
