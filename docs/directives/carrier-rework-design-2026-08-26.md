@@ -86,7 +86,9 @@ per repo family, not once per repo):
 
     kind · home (path pattern) · writer (tool | session | producer)
     · reader (the gate, lane, report or tool that consumes it)
-    · staleness (a predicate: age, use-evidence, or "none, declared why")
+    · staleness (a predicate: age, use-evidence, CHANGE-COUPLING — the
+      artifact this kind is about changed past the citation it carries,
+      the signal age misses; or "none, declared why")
     · exit (move | compact | delete | never, with the recording act)
     · bound (a count or size, or "unbounded, declared why")
 
@@ -94,7 +96,10 @@ Items, done bodies, ledger lines, lanes, repo-private workflows,
 template bindings, directives, audits, code-reviews, evidence carriers
 (row-pins, census rows, growth fixtures), worktrees and lane branches,
 plugin-cache versions, detector findings — all instances. The RETIRE
-lane is the walk over every registered kind: it prints each kind's
+lane is the walk over every registered kind: it RE-LISTS each kind's
+real home on every pass — never a cached index, which is Terraform's
+state-file-vs-reality defect and the `quota_pressure` stock-vs-flow
+defect this repo already booked against itself — prints each kind's
 count against its bound, applies each staleness predicate, and records
 each exit. A persisted thing that resolves to no registered kind is a
 router finding (UNREGISTERED), and a kind with an undeclared stage is a
@@ -186,8 +191,13 @@ join prints matching `rejected:` ledger lines beside candidates (§3.6).
 READY is the goal state of every open item: slots complete at intake →
 READY; otherwise NEW with a typed blocker; the DRAIN lane's first
 workflow is GRADE (resolved blockers → re-grade at the desk), and only
-then the pick. An item not gradable after n passes, or blocked on a
-decision nobody will make, exits DROPPED via the retire lane.
+then the pick. Staleness and DROPPED branch on WHOSE COURT the item is in
+(probot/stale's ownership fix, prior-art lane): an item aging on
+`blocked-by: decision` is in the operator's court — surfaced, never
+auto-dropped; one aging on `blocked-by: evidence` or `<item-id>` is in
+the machine's court — re-evaluated each pass; one with no blocker and no
+grade movement after n passes is in nobody's court — that is genuine
+staleness, and it exits DROPPED with its reason via the retire lane.
 
 ### 3.3 Lanes, workflows, laws, reference (R1, R2, R4, R19)
 
@@ -341,6 +351,7 @@ plugin's `--test` roster — one source for both.
 | trigger BROKEN | a predicate that exits 2 (e.g. `gh` unauthenticated) → router shows BROKEN, not quiet |
 | roster absent / repo unresolved | rm the roster; list a moved repo |
 | detector without disposition | a registry entry missing `disposition` |
+| dangling typed reference (`blocked-by <item-id>` to a dropped/unknown id; a declaration `reader`/`writer` naming a lane or tool that does not exist) | `item park --blocked-by cf-9999`; a `lifecycle.json` row naming `lane: nope` — referential integrity, from log4brains' build-time supersede-link check and Backstage's relation resolution (prior-art lane 2026-08-26) |
 | unregistered persisted thing | a new file under a home no kind claims |
 | kind with an undeclared stage | a registry row missing `exit` |
 | ignored declaration | `.gitignore` swallowing `lifecycle.json` |
