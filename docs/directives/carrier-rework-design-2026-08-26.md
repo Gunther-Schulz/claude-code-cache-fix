@@ -230,8 +230,10 @@ workflows; LAWS → the repo's declared laws file (`laws:` in
 ours; laws never enter a foreign file, so nothing ships upstream and the
 recorded transcription failure has no path) under a cap of 60 lines
 (under the ~242 lines accretion's shrink saves, so the injected prefix
-strictly falls); essays → reference, pointed at by gates, never
-required reading. Decomposition budget: lane + workflow text ≤ half of
+strictly falls); incidents and lessons → the project JOURNAL, cited
+by the law or workflow they justify — no reference tier, no dev-book
+concept survives (operator 2026-08-26); what fits none of law /
+workflow / journal / audit is dropped. Decomposition budget: lane + workflow text ≤ half of
 today's 2,375 runbook lines. "Laws, never method" is judgment and is
 labelled prose-rest; the cap is the mechanism.
 
@@ -319,7 +321,7 @@ gated + 35 calls at n=26). Wave 2 passes only if all three fall.
 |---|---|---|
 | CORPUS (dotfiles, symlinked) | ethics only; accretion shrinks to a pointer | symlink |
 | PLUGIN `lifecycle` (one install) | the kind registry schema, `lifecycle <verb>` (one entry point, one fire log), intake merge, lane parser + generated router, workflow registry + templates, trigger evaluation + policy, detector registry, recorders, conservation/ratio/cap checks, the leak scan, `--test` bites, the refusal table, its own docs (the only description of the mechanics) | dev-mode symlink here; pin + drift detector + rollback elsewhere |
-| REPO | `.claude/lifecycle.json`, `ITEMS.md`, `ITEMS-DONE.md`, `LEDGER.md`, `lanes/*.md`, private `workflows/*.md`, the declared laws file | the tool refusing writes that break the shape |
+| REPO | `.claude/lifecycle.json`, `ITEMS.md`, `ITEMS-DONE.md`, `LEDGER.md` (decisions), `JOURNAL.md` (incidents + lessons), `lanes/*.md`, private `workflows/*.md`, the declared laws file, `docs/audits/` | the tool refusing writes that break the shape |
 
 Nothing crosses upward (templates carry no project identifiers) or
 downward (a repo file declares, never restates). A query surface for
@@ -370,7 +372,7 @@ plugin's `--test` roster — one source for both.
 | session-start banner, `session-scan.py` closure regex, `named-and-unbooked-check.py` file list, `lane-check.py` + its `lanes.json` | CUT — replaced by `lane list` and the tool's census; the restated lists die with them | R7, R9 |
 | `backlog-census.py` | REWRITE — its three-answer shape (open / closed / unknown-with-counts) is designed into the successor, not cut | Begehung 2.5 |
 | `docs/runbooks/*.md` (9), `~/.claude/runbooks/`, `runbook-format.md`, dev-loop "Which line are you on" | REWRITE → six one-screen lanes + workflows; three bust runbooks + claude-worktime's `cachebust-runbook.md` (a FOURTH, unregistered bust lane, in a PUBLIC repo) MERGE into one bust lane; `upstream-pr-stale` + `-round` → "pr"; `session-close`, `ship-proxy-change`, `public-comms` survive as lanes; `plugin-birth` becomes a dotfiles-repo lane | R1, R2, Begehung 4.1 |
-| `docs/dev-loop.md` | DECOMPOSE — laws to the declared laws file (≤60), procedures to workflows, essays stay as reference; cut from the roster | R4 |
+| `docs/dev-loop.md` | DECOMPOSE FULLY, THEN DELETE (operator 2026-08-26: no dev-book concept survives, globally) — every part sorts into one of four kinds: a rule a session must obey → the declared laws file (≤60); a procedure → a workflow; an incident and its lesson → the project JOURNAL (new repo-level kind, the corpus's journal one level down: dated, incident + lesson, cited by the law or workflow it justifies; a law without a journal pointer has no basis, a journal entry nothing cites is stale by change-coupling); a measurement → audits. What sorts into none is dropped with a ledger line. Git keeps the body | R4, R19, R20 |
 | threat matrix + `.status.json` | SURVIVE as the evidence record per bust class (mechanically guarded); the bust lane's DISPOSITION is an item transition that CITES the matrix row — one fact, one home | R19, Begehung 1.7 |
 | `docs/directives/`, `docs/audits/`, `docs/code-reviews/`, `BEGEHUNG-MAP.md`, `README`/`CHANGELOG` | SURVIVE, each REGISTERED as a kind with its four stages (directives: retention rule from FORK-NOTES; audits/code-reviews: append-only historical, exit never, bound declared; the map: its own 14-day rule as staleness) | R20 |
 | `docs/release-tests/` | DROP-proposed (D5) | R16 |
