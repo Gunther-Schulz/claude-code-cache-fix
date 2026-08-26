@@ -458,6 +458,41 @@ comment and new issue.
 
 ## Open
 
+- **PARKED 2026-08-26 (wave 0 of the carrier rework; the deltas are the
+  instrument's own printed output, not a side observation) — the entry-point
+  census disagrees with the hand classification on three classes and on the
+  median, and a pinned-window run proves the disagreement is the RULE's, not
+  the store's growth.** `tools/entrypoint-census.mjs` reproduces the hand pass
+  exactly on the mechanical half once its window is pinned — 78 top-level
+  sessions, 264 subagent files, `--before 2026-08-26T09:05:12.975Z` — while
+  these persist unchanged under that same pinned window: `bust_walk` 7 against
+  the audit's 10, `pr_tend` 3 against 2, `other` 32 against 30, and
+  backlog_drain median 35 (n=26) against the audit's 37 (n=27).
+  **What the pinned window bought, and why the entry exists because of it.**
+  Before the cutoff existed both readings fitted the evidence equally: the
+  store grows while you look at it (today 79/270), so "the numbers moved
+  because the population moved" explained everything and established nothing.
+  Pinning the window is what separated them — the mechanical half snapped to
+  the audit's digits and the class deltas did not move at all. That makes them
+  a rule-versus-judgment gap, which is a finding; "probably just growth" would
+  have buried it.
+  **Named missing piece: a decision only the judgment desk can make** — which
+  side is wrong. The audit records that 3 of its 10 bust walks do not open
+  with a pasted bust line, so the tool cannot recover them from a 300-char
+  opening window without full-context judgment; that is a candidate
+  explanation for the −3 and it is not established. Resolving it means
+  amending whichever side is wrong (decision G4 of
+  `docs/directives/carrier-rework-design-2026-08-26.md`), never tuning the
+  rule until it agrees.
+  **Verifier.** `node tools/entrypoint-census.mjs --before
+  2026-08-26T09:05:12.975Z` prints zero deltas, or the audit carries the
+  amendment with its reason.
+  **Done-criterion.** Every class line reads `tool=n audit=n` with no delta
+  marker, under the pinned window.
+  **Write-set:** `tools/entrypoint-census.mjs` (the rule and its stated
+  header) or `docs/audits/carrier-rework-entrypoints-2026-08-26.md` (the hand
+  classification) — which one is the decision.
+
 - **RECORD 2026-08-20 (found by destroying the thing it protects — I overwrote
   the pre-fix fire-ledger baseline by running a sweep, and only then discovered
   there was no second copy) — the daily sweep's `gate-status.json` is a carrier
@@ -5957,6 +5992,38 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-26 (wave 0; named by the lane that built the tool, in its
+  own not-verified slot) — `tools/entrypoint-census.mjs` has no unit bites:
+  everything it claims was verified by running it against the live session
+  store, which is exactly the input that will not hold still.** The tool
+  shipped with real-data verification plus an instrument positive/negative
+  pair per classifier, which is why it shipped at all; what it does not have
+  is a check that fails when someone edits the classification rule. The store
+  is not a fixture — it grows, and a session that resumes rewrites its own
+  file — so "re-run it and compare" decays into the same moving-anchor problem
+  the `--before` flag exists to solve for the numbers.
+  **Design.** Bites over the EXPORTED pure functions, never over the store:
+  the top-level/subagent split fed a synthetic record with and without
+  `agentId`; the entry-point classifier fed one opening text per class plus
+  the two cases that already cost a round — a peer `cross-session-message`
+  body, which must read `other` and not `bust_walk`, and a record with no
+  `origin` field at all, which must not be excluded; the
+  calls-before-first-write counter fed a synthetic transcript with a known
+  answer. Each bite red-proven by mutating its own condition.
+  **Why the two named cases are the point.** Both were found by chasing a
+  discrepancy rather than by design: `isMeta:true` is not a safe proxy for
+  "not genuine" because it also marks real peer traffic (171 such records on
+  this store), and `origin.kind === "human"` cannot be the positive
+  requirement instead because 591 of 1552 genuine messages carry no `origin`
+  at all. Those are facts about the harness's record format, and nothing
+  currently pins either of them.
+  **Verifier.** Mutate the `origin.kind === "peer"` rescue out of the
+  exclusion; the peer-body bite goes red. Today nothing does.
+  **Done-criterion.** `node --test test/entrypoint-census.test.mjs` green,
+  with each bite shown red under its own mutation.
+  **Write-set:** `test/entrypoint-census.test.mjs` (new), plus whatever
+  `tools/entrypoint-census.mjs` must export to be testable.
+
 - **PARKED 2026-08-22 (evening, operator GO to open the PR — the attempt is
   what produced the finding) — the XDG relocation is NOT a slice of `f333124`;
   it has to be re-authored against `upstream/main`, and it cannot be verified
@@ -11378,6 +11445,63 @@ authoritative). Nine of the twelve have merged; two remain open.
 | #276 | open, CONFLICTING, awaiting Chris's sequencing answer (2026-08-14) | upstream |
 | #306 | open, MERGEABLE, all maintainer questions answered 2026-08-14 | upstream |
 | #295 | CLOSED 2026-08-05, premise falsified | done |
+
+**STATE RE-READ FROM THE API 2026-08-26** — the 2026-08-15 table above is
+SUPERSEDED and its "two remain open" is false today: five are open, and the
+ball has moved on two of them. Every CI conclusion below was checked against
+the PR's own current head sha, because a pass whose `head_sha` is not the
+current head is a green about code nobody is proposing any more.
+
+| PR | state | ball |
+|---|---|---|
+| #353 | open, MERGEABLE, CI green on `d720b415`, zero comments ever | upstream — never reviewed |
+| #352 | open, MERGEABLE, CI green on `cdda5674` after three self-corrected rounds | upstream — zero response |
+| #337 | open, MERGEABLE, CI green on `01333996`; their blocker answered 2026-08-22, two days inside their own 08-28 deadline | upstream — re-review |
+| #281 | open, MERGEABLE, CI green on `e2487840`; both items we owed are done | upstream — a decision they reserved |
+| #276 | open, CONFLICTING, CI RED on `e8574b68`, head unmoved 20 days | **US** — see the entry below |
+
+- **PARKED 2026-08-26 (wave 0 of the carrier rework; the rebase exists, the
+  push does not) — #276 is rebased clean onto `upstream/main` and cannot be
+  pushed from here: the push IS the verification, and it is an outward act.**
+  Branch `pr/verification-tools-rebase` at `5cfd491`, in a worktree under this
+  session's scratchpad with per-worktree push denial on both remotes. 34
+  commits, 0 behind, `git merge-tree` clean, the four add/add conflicts gone.
+  Dropped: the deferred-tool-rewrite commit (landed upstream as `48e9673`) and
+  our copies of `tools/absence-scan.mjs` and `test/absence-scan.test.mjs`
+  (superseded by #306), resolved to upstream's content at both stops. This is
+  the plan upstream themselves stated on 2026-08-15 and asked us to push.
+  **Why it cannot be verified here, which is the reason it is parked and not
+  ready.** While #352 is unmerged, a tree cut from current `upstream/main`
+  cannot have its suite run on this host at all — those trees carry
+  `test/proxy-held-port.test.mjs` without the `killOurs()` choke point, and
+  running it signals `systemd --user`. So CI is the only verifier, CI runs on
+  push, and the draft comment says that outright rather than implying a local
+  green. This is also the argument for taking #352 first: it is green,
+  unreviewed, four days idle, and it is what makes local verification possible
+  again for every other PR in the set.
+  **The near-miss, kept because the next rebase will face it.** Dropping the
+  trailing four commits as one block — "the scanner surface #306 superseded" —
+  also drops two pure SCRUB commits over `tools/replay.mjs`, `tools/harvest.mjs`
+  and six test files. The branch then carried 24 real capture identifiers on
+  ADDED lines into a public PR diff. The review-time hygiene grep caught it,
+  positive control run first; ADDED-line hits are 0 on the branch that exists
+  now.
+  **A finding that is upstream's, not ours.** `upstream/main` carries five real
+  capture identifiers today, in `proxy/extensions/deferred-tool-rewrite.mjs`
+  (3) and `test/deferred-tool-rewrite.test.mjs` (2). Our `e8574b6` scrub
+  removes exactly those and survives the rebase as the branch's residual diff
+  on two files the PR otherwise no longer owns — so it is named in the draft
+  comment rather than left to look like an unexplained diff. Same class as the
+  leak we reported on 2026-08-06, which they filed as #318.
+  **Named missing piece: the operator's GO.** Push and comment are drafted and
+  waiting, with the exact command and the lease sha, in the wave-0 digest.
+  **Verifier.** After the push: CI conclusion on the new head, read against
+  that head's own sha.
+  **Done-criterion.** #276 shows MERGEABLE with CI green on the pushed head,
+  and the comment naming the drop, the residual scrub and the
+  no-local-verification constraint is posted.
+  **Write-set:** `origin pr/verification-tools` (force-with-lease from
+  `pr/verification-tools-rebase`), then a comment on upstream #276.
 
 - **PARKED [HANDED OFF 2026-08-10] (operator-side, dotfiles) — a worktree without `node_modules`
   should fail loudly at doctor time, not as a 900 s fake hang.** Measured
