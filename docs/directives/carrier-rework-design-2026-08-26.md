@@ -363,6 +363,39 @@ peer's; sonnet lanes for the mechanical ones):
   gains the permitted next act ("narrow to an in-bounds path, or stop and
   report with this denial as evidence"); test fixtures updated.
 
+**Decisions on the peer desk's wave-0 ACK gaps (judgment desk,
+2026-08-26; the peer session was cleared after the ACK, so these live
+here, not in its context):**
+- **G1 (W0.2) — the declaration goes in a TRACKED file, `.claude/lanes.json`.**
+  Basis (peer, verified): `required-reading.json` is untracked by design
+  (`.git/info/exclude`) and the commit-time gate reads the INDEX (`git
+  show :<rel>`), so a key there can never arm it. `.claude/lanes.json` is
+  also the declaration file §3.7 gives the future plugin, so nothing is
+  thrown away. Realizing change: the checker (`tools/lane-check.py`,
+  dotfiles) and the commit-time gate read the `lanes` declaration from
+  `.claude/lanes.json` first, `required-reading.json` second; W0.2's
+  write-set widens to that checker. Verify by a commit the gate grades.
+- **G2 — arm now, with the six non-conforming lanes as a DECLARED
+  EXEMPTION the checker verifies:** the exemption list names each file
+  and the missing part; the checker FAILS if an exempted file has become
+  conforming (a stale exemption) — so wave 2 retires the list entry by
+  entry and the gate is fully armed when the list is empty.
+- **G3 — `MemoryHigh=16G` as the working limit, `MemoryMax=24G` as the
+  backstop** (peak ~12 GiB measured, box 60 GiB), plus the unit's failure
+  surfaced as a detector finding (the banner reads systemd's result and
+  prints "gate: no verdict — unit failed"), because a hard cap alone turns
+  a loud memory problem into a silent absence of verdicts.
+- **G4 — the tool's acceptance splits by parentage:** the mechanical
+  half is exact (78 top-level sessions vs 264 subagent files; median 37
+  calls before first write); the entry-point split states its rule, runs
+  it, and PRINTS every disagreement with the recorded hand classification
+  for adjudication — resolved by amending whichever is wrong, never by
+  tuning to agree.
+- Readings confirmed: W0.1 rebases locally, unpushed — a force-push to a
+  PR head is an outward act; dotfiles is WRITABLE for W0.3 and W0.5 only
+  (the unit file, `gate-live` stamp reader in the banner hook, the two
+  path guards and their tests), read-only otherwise.
+
 Wave 1 is briefed by the peer desk from §3.1–3.2 and §3.7 once wave 0's
 digest is booked; the brief passes this desk before dispatch (release
 gate: the plugin's first version is an outward artifact).
