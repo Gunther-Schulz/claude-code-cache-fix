@@ -208,10 +208,16 @@ The first shared workflows are the PR ones (rebase, answer a review
 round, cut a slice); everything bust-related stays this repo's own.
 
 **claude-worktime exposure (operator addition):** `lane list --json` is
-the interface; the statusline shows lane state (`lanes: bust! pr(1)
-drain(9)`), so which lanes are available and which are firing is
-visible before a session is opened. Same wave-2 consumer item as the
-status overhaul.
+the interface. Exposed: exactly what changes a decision BEFORE a session
+is opened — (1) lane state per repo (`lanes: bust! pr(1) drain(9)`),
+(2) findings waiting (the detector batch count, so a missed
+notification is not lost), (3) ready-to-integrate artifacts a session
+left for the operator's hand (the carve-out queue). Not exposed: item
+counts, ratios, grades — inside-a-session numbers. The existing
+(unlocatable) status feature is replaced by this contract, not
+repaired. Same wave-2 consumer item as the status overhaul. Legacy
+repos (no `lanes.json`) show nothing and keep their old carrier
+untouched; they lose the old prose-reading banner when wave 4 cuts it.
 
 The lanes:
 
