@@ -27,7 +27,12 @@ unmade is a STOP, not a choice.
   XDG-state resolver `desk state` reuses.
 - `plugin/CLAUDE.md` — laws 1–25, and law 24 in particular.
 - `JOURNAL.md` — the J-numbered entries, and J19's position.
-- `~/.claude/runbook-format.md` — §"The `Trigger:` line" for the grammar.
+- ~~`~/.claude/runbook-format.md` — §"The `Trigger:` line" for the
+  grammar.~~ **STRUCK 2026-08-26.** That file governs `docs/runbooks/`
+  standing procedures, a different artifact from a lifecycle
+  `lanes/<door>.md`. The two share the word "Trigger:" and nothing else.
+  The grammar for THIS mechanism is `lanes.py`'s `evaluate_trigger` and
+  design §3.3 — both already listed above.
 - cache-fix `docs/directives/carrier-rework-design-2026-08-26.md`: the
   precedence paragraph at the head of §5 FIRST, then §3.3 (a lane's parts,
   the trigger's reserved exit codes) and §3.8b (the homes table).
@@ -90,10 +95,26 @@ as a STUB a human then fills.
 - **Refuses if the file exists**; `--force` overwrites. No silent overwrite.
 - The stub carries **all four parts of §3.3**: `Decides:`, a `Trigger:` line,
   a decision table, `Ends:`.
-- **The `Trigger:` line must PARSE under the real grammar** — pipe-delimited,
-  fixed field count per kind, ONE physical line, no continuation:
-  `Trigger: event | <channel>[,<channel>…] | <condition>` or
-  `Trigger: intent | <condition>`. `--kind` picks which; default `event`.
+- **CORRECTED 2026-08-26 — the pipe grammar specced here was wrong, and
+  `--kind` is struck from the signature above.** A lifecycle lane's
+  `Trigger:` line is EXECUTED AS A SHELL COMMAND and its exit code mapped
+  0 fire / 1 quiet / ≥2 broken (`lanes.py` `evaluate_trigger`; design
+  §3.3; this repo's CLAUDE.md "two exit-code contracts"). It shares only
+  the WORD "Trigger:" with `~/.claude/runbook-format.md`, whose
+  pipe-delimited `event|intent` grammar governs `docs/runbooks/`
+  standing procedures — a different artifact and a different mechanism.
+  The defect was mine, and it contradicted line 47 of this same brief,
+  which already quotes the real matcher `^Trigger:\s*(.+?)\s*$`.
+- **The stub's `Trigger:` line is a real, safe, QUIET predicate**, exactly
+  as the shipped `init` stub writes it: `exit 1` with a TODO naming the
+  three codes. A pipe-grammar line would be run as a shell command,
+  fail, and make every freshly created lane read as BROKEN in
+  `lane list` — the opposite of quiet-by-default.
+- **ONE stub body, not two.** `init` already ships `_lane_stub`
+  (`init.py:286`). `lane new` must not copy it: two bodies for one fact
+  drift. Move it to `lanes.py` as a public `lane_stub(name)`, have
+  `init.py` import and call it, and have `lane new` call it too. Write
+  boundary extended to `init.py` for that single change.
   A stub whose own trigger does not parse is the defect this verb would
   otherwise ship at scale.
 - The stub's placeholder text says what the author must replace, and the
@@ -163,8 +184,16 @@ a journal entry rewrites history that other files cite by number.
 2. **A round-trip**: `lane new` a door, then `read_lane` it — trigger parsed,
    all `LANE_PARTS` present. Then `lane list` shows it as UNREGISTERED, which
    is the correct state for a lane not yet declared.
-3. **A, both kinds**: an `event` stub and an `intent` stub, each pasted, each
-   parsing under the grammar's own field-count rule.
+3. **A, the discriminating arm** (replaces the struck "both kinds" arm,
+   which tested a grammar this mechanism does not have): a freshly
+   created lane, declared, reads as **QUIET** in `lane list` — not
+   BROKEN. This is the arm that would have caught the pipe-grammar
+   defect, because a pipe-delimited line executed as a shell command
+   exits non-zero and reads BROKEN. Plus: the stub `lane new` writes and
+   the stub `init` writes are BYTE-IDENTICAL for the same lane name,
+   asserted directly — the mechanical guarantee that the shared
+   `lane_stub()` is really one body and not two that happen to agree
+   today.
 4. **A, the refusal arm**: `lane new` over an existing file refuses; `--force`
    overwrites. Both pasted.
 5. **B, the closed vocabulary**: each of the four values accepted; at least
