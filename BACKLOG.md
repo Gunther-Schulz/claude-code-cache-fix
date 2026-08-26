@@ -5957,6 +5957,47 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-08-26 (W1b closed; two findings that outlive it, both about
+  things that were TRUE and still misled) — the design's description of the
+  census shape is a lossy paraphrase of the tool it cites, and one finding
+  message in the new verbs is asserted by nothing.**
+  **(1) The census paraphrase.** Design §3.1 says the successor keeps the
+  three-answer shape `backlog-census.py` has — "open / closed /
+  unknown-with-counts". The tool carries a FOURTH element the description
+  omits: `closure_home_error` (dotfiles `tools/backlog-census.py:307, 353,
+  358, 369, 731`), an explicit could-not-verify rendered as its own line when
+  a FILE-kind closure home cannot be resolved or read, with the docstring
+  stating that the done count is then the main text's count ALONE and not the
+  true closed population. Its own docstring records why, measured 2026-08-26
+  in another repo: both answers the counter could otherwise give are wrong —
+  structurally-0 leaves the retirement trigger stuck ON (it demanded a pass
+  from a session that had just completed one), a FILE-kind home leaves it
+  stuck OFF as a sink. **A trigger nobody can clear carries no information
+  and trains the override reflex.** The design cites the tool as its parent,
+  so the TOOL is right and the design's sentence is the drift — and the part
+  it dropped is exactly the safety-relevant one. W1b mirrored the tool rather
+  than the paraphrase, which is why `item check` now answers 3 where stage 3
+  answered 0. **Write-set:** the design doc, judgment desk's file — reported
+  there, not editable here.
+  **(2) A finding message nothing asserts.** In the plugin's
+  `verbs.py` supersede path, replacing the `out(...)` that reports
+  `FINDING [ledger_body]` leaves the python suite fully GREEN. Precisely
+  measured: the `return exits.FINDING` on the next line still runs, so what is
+  unasserted is the MESSAGE, not necessarily the exit code. That is W1b's own
+  candidate lesson — an exit code is not a verdict when every finding shares
+  one — turned back on its newest code, and it is NOT in its not-verified
+  list. **How it was found is the transferable part: by a DEAD probe.** The
+  neuter was aimed at the wrong module for the row being tested, so it proved
+  nothing about the instrument it was meant to test; the control question —
+  did this change do anything at all — is what turned a wasted probe into a
+  finding. **Write-set:** the plugin repo, a message assertion on that path.
+  **Verifier:** re-run the same neuter; the suite must go red.
+  **Also open, W1b's own booking:** 12 of 28 roster rows have no recorded
+  mutation in `tools/prove-rows.py` — the stage 1–3 rows. They pass their
+  plant/control pair but were never shown to go dark when their named
+  condition is removed. Listed in every run rather than omitted, which is why
+  this is a known gap and not a silent one.
+
 _Both 2026-08-26 entries below are IN FLIGHT as this is written — graded
 RECORD rather than READY because the READY head is DERIVED, never edited, and
 work already dispatched is not a scheduling candidate. They close to
