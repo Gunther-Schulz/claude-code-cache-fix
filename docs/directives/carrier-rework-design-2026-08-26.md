@@ -92,6 +92,20 @@ closure — the move is the tool's act, so the conservation check is
 `count(before) == count(items) + count(done)`, stated once and run at
 every close (R8).
 
+**Typed blockers — derived readiness (adopted from beads' `bd ready`,
+operator 2026-08-26).** A PARKED item names its blocker in one of three
+TYPED kinds, never only prose: `blocked-by: <item-id>` (resolves
+mechanically when that item reaches DONE — the tool flips the item to
+NEW for re-grade and the router prints "n unblocked since last
+session"); `blocked-by: decision <question>` (the operator — these are
+what the first screen and `/lanes ?` list as questions waiting);
+`blocked-by: evidence <predicate command>` (a measurement, evaluated
+like a lane trigger). READY then means grade READY AND no open
+blocker; a PARKED item without a typed blocker is a checker finding
+(R19's "an unnamed deferral is drift", made computable). No other edge
+types — sequencing edges that are not blockers are how trackers grow
+graphs nobody maintains.
+
 Concurrency, stated (operator question 2026-08-26 — why not beads'
 machinery, given our parallelism): parallel work here is many writers to
 CODE and ONE writer to the carrier — subagents never book, integration
