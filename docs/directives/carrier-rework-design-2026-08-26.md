@@ -735,6 +735,25 @@ reporting instead of acting.
 
 ## 5. The plan — ranked, the audit tails and the Begehung dispositioned
 
+**Precedence, added 2026-08-26.** §3.x and §6 are the design; this
+section is scope and ranking only. Where a sentence here touches a
+question §3.3, §3.8b, §3.8c, §3.11 or §6 also answers, those sections
+win, and this section's wording is not quoted into a dispatch brief.
+The reason is that the wave paragraphs below were written before those
+sections settled and were not re-synced. Three instances, each verified
+against both sides, with no claim the list is complete — which is why
+this is a precedence rule and not a correction list: the wave-2
+paragraph puts laws into the declared file "under cap" (§3.3: no line
+cap, the control is SCOPE, and the laws kind's own check is the scope
+audit); it splits dev-loop "law / workflow / reference" (§3.3: "no
+reference tier, no dev-book concept survives" — the kinds are law /
+workflow / journal / audit, and what fits none of them is dropped); and
+wave 0 marks W0.6 "(pending D7)" where §6 records D7 accepted. A fourth
+was looked for and NOT found, recorded so the next reader does not hunt
+it: no stale growth-control `bound` survives in this section — the
+"unbound slot" below is §3.3's template-binding sense, and the `bound`
+(R22) line already states the removal.
+
 **Wave 0 — today (running at the peer desk, §7):** W0.1–W0.5 as
 specified; **W0.6 (pending D7)** scrub claude-worktime's public
 cachebust runbook with the hygiene grep red-first.
