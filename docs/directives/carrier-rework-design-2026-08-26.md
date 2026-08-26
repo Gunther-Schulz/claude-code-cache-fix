@@ -369,6 +369,34 @@ carrier state). W0.2's `.claude/lanes.json` serves the LEGACY checker
 and retires with it in wave 2; `lifecycle.json` is the new system's
 single declaration.
 
+### 3.8b Where everything lives, and the flow (operator question 2026-08-26)
+
+| thing | lives | written by | read by |
+|---|---|---|---|
+| invariants, kind schema, refusal registry, the `lifecycle` tool, hooks, leak scan | plugin repo `~/dev/Gunther-Schulz/lifecycle/plugin/` (global, one install, symlinked here) | plugin releases | every verb, every hook |
+| workflow TEMPLATES | plugin registry (global) | plugin releases, each a reviewed PR with hygiene output | a repo's bindings |
+| LANES | always LOCAL: `lanes/<door>.md` | the repo, by hand | the router (`lane list`), the session entering |
+| repo-private workflows | local `workflows/` (only ≥2 lanes or over a screen) | the repo | its lanes |
+| declaration `.claude/lifecycle.json` (kinds, lanes, bindings, goals, policy, laws file, homes) | local, tracked | hand once; `migrate` writes the initial one | every verb (`kind check` validates) |
+| items / done home / ledger / journal | local: `ITEMS.md`, `ITEMS-DONE.md`, `LEDGER.md`, `JOURNAL.md` | items + done: the tool only; ledger: tool slots + session reasons; journal: sessions | gates, the router, the state report |
+| laws file | local, NAME DECLARED (`CLAUDE.md` where ours, `CLAUDE.local.md` where the tracked one is foreign) | sessions | every session (required reading); the scope audit |
+| audits | local, default `docs/audits/` (declared home) | sessions, lanes | the retire lane, readers by pointer |
+| detector registry, repo roster | dotfiles (tracked), deployed by symlink into `~/.config/lifecycle/` | the operator / a session in dotfiles | `lane list`, the detector runner |
+
+Flow: `lane list` (session start, prompt submit, `/lanes`) walks the
+roster, reads each declaration, EXECUTES each declared lane's trigger
+predicate → the router table. Under the repo's policy a firing lane is
+entered. Its decision table maps what the predicate printed to
+workflows (bound templates or local), within its `Decides:`. Each
+workflow's gates are commands that must exit 0; a failed gate is a
+disposition, not a retry. The lane ends in one of its closed
+dispositions, each an item transition or a recorded exit. Trigger =
+when; lane = which situation, which decisions, which workflows, which
+ending; workflow = how. Registration: a lane or workflow file the
+declaration does not list is UNREGISTERED (finding); a lane naming a
+workflow that does not exist fails `kind check` (nothing dangles); a
+lane with no use-evidence is stale (retire lane).
+
 ### 3.9 The refusal table (the Begehung's structural cure)
 
 One row per refusal or state the design names, with the INPUT that must
