@@ -35,7 +35,15 @@ Scratch: your OWN scratchpad, never the dispatcher's, never `.claude/`-shaped.
   no `-v`. Read the correction; it explains why the first form was unprovable.
 - cache-fix `docs/directives/wave1b-lifecycle-verbs-brief-2026-08-26.md` —
   whole, for the item/ledger contracts your stages consume.
-- cache-fix `docs/directives/carrier-rework-design-2026-08-26.md` — **§3.3 and
+- cache-fix `docs/directives/carrier-rework-design-2026-08-26.md` — **§3.0b,
+  THE NINE INVARIANTS, first and not optionally** (added after dispatch). They
+  are the plugin's definition of "controlled", distinct from LAWS (how a
+  session acts in a repo) and from REFUSALS (what the tool checks) — and **the
+  refusal registry is DERIVED from them**, which makes them a parent of the
+  roster you extend, so read them before adding a row. Two of them are this
+  arc in one line each: growth is controlled by flow, never by size (8); what
+  the tool cannot enforce is labelled prose-rest, never presented as enforced
+  (9). Also the rewritten **R22** row. Then **§3.3 and
   §3.4 IN FULL** (lanes, the trigger predicate's reserved exit codes, the
   router, trigger-policy), **§3.9** (the refusal table), **§4 row 1** (the
   migration's classification rules), **§3.1** and **§3.6** for what you migrate
@@ -171,25 +179,32 @@ body, and a `decision: <question> → moot (closed by <ref>)` ledger line.
    **That is the checker working.** The decomposition is wave 2's. Report it as
    the expected red it is — it is not a stage-9 bug and stage 9's acceptance
    does not depend on it.
-   **AMENDED 2026-08-26 after dispatch, design R22 (caps) — sent to the lane
-   as a killed premise and landed here so it does not survive only as a
-   message.** A cap bounds a MEASURED quantity, never a label; its number comes
-   from measurement after a first pass; and it ships as a PAIR — TARGET
-   (finding + booked item) and CEILING (≈2× target, refuses). Two consequences:
-   - **The laws-cap check reads target and ceiling from the DECLARATION, not
-     from a constant.** W1b built it against a hardcoded 60 (its deviation D3).
-     Where the declaration names no number it reports **"cap unset — measure"
-     as COULD NOT VERIFY, exit 3** — never a guess of 60. That is the
-     three-answer rule reaching a check that has a number where it should have
-     a question.
-   - **Assigned item D therefore gains two values**: cache-fix's declaration
-     sets **target 60 / ceiling 120**, both **explicitly marked PLACEHOLDER in
-     the declaration's own comment field.** Unmarked, an invented number reads
-     as a measured cap to every later reader, which is the exact
-     label-wearing-a-measurement's-clothes defect R22 exists to prevent. With
-     them set the row goes red as planned; without them it answers exit 3.
-   The plugin's own `CLAUDE.md` (§3.10, 21 lines) is the FIRST real measurement
-   of this quantity, landed at integration by this desk, not by the lane.
+   **WITHDRAWN 2026-08-26 after dispatch — THERE IS NO EXPECTED LAWS RED.**
+   Item 7 above is dead as written, and so is the target/ceiling amendment that
+   briefly replaced it. Both are REPLACED here rather than appended below,
+   because a reader who stops at the first version takes the superseded one.
+   **Operator decision: NO CAPS AT ALL.** R22 is rewritten (see the design's
+   R22 row): every kind declares its GROWTH CONTROL —
+   `bounded-by-exit` / `compacted` / `unbounded-with-reason` — and the retire
+   lane's alarm is FLOW, never size: a kind that grew without an exit event, a
+   ratio over the tripwire, a prefix that grew. Consequences:
+   - **cache-fix's declaration sets NO cap number.** Not 60, not 120, no
+     placeholder. Assigned item D loses that value; every other D-h value
+     stands.
+   - **The laws-cap check (W1b's D3) is NOT a refusal.** It is repurposed as
+     the prefix/size REPORT the retire lane and R18 read: **exit 0 with
+     figures, no red on the 243-line laws file.**
+   - **The two cap rows in §3.9 are gone**, replaced by one: **"kind grew
+     without an exit event"**, red-proven like any other row.
+   - The OTHER expected red — the non-portable node bite — is untouched.
+   **Why the reversal, since it bears on judging any cap-shaped design:** caps
+   were dropped on evidence, part of which is an incident at THIS desk the same
+   morning. Two bookings pushed a declared READY cap of ten to twelve, the
+   guard refused the push, and both entries were regraded to keep the head at
+   ten. **The cap fought the GRADING rather than the growth** — a capped label
+   is escaped by relabelling, which is what happened, correctly and in good
+   faith. That is why size is the wrong instrument and flow is not escapable
+   the same way.
 8. **`migrate` over cache-fix's real carrier**: paste the reconciliation —
    entries in, entries out per class, UNCLASSIFIED count with each entry's
    grade word and line number, and the ledger count which **must be zero**.
