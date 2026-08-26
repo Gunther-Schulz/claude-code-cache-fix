@@ -14,6 +14,7 @@ __pycache__/
 # declaration that is merely present on disk arms nothing at all — it reads
 # exactly like a repo that never declared lanes.
 !.claude/lanes.json
+!.claude/lifecycle.json
 .possibilities/
 package-lock.json
 
