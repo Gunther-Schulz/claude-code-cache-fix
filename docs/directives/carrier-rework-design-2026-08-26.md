@@ -27,8 +27,10 @@ mechanism re-enters only by naming the requirement the design missed.
 
 One operator, one machine, several repos, a public fork. The operator
 returns through four doors — drain the backlog, tend upstream PRs, cut a
-PR, walk a bust — and today pays a re-derivation toll at each: 37 tool
-calls before the first write on a backlog drain (median, n=27), the same
+PR, walk a bust — and today pays a re-derivation toll at each: 35 tool
+calls before the first write on a backlog drain (median over the 26 of
+27 sessions that ever wrote; corrected from 37 by the census tool's per-
+case adjudication, `c52ede7`), the same
 instruction pasted three times in one day, six sessions asking for an
 overview before work, fourteen of twenty-seven backlog sessions where the
 operator hand-supplied the pointer a lane should have found. Two of the
@@ -309,7 +311,7 @@ queue + the ledger tail. Required reading: the laws file (≤60 lines) +
 (`tools/entrypoint-census`, wave 0) reports THREE figures — injected
 prefix lines per turn, gated lines per session, tool calls before the
 first write — against the measured baseline (2,123 injected + 2,858
-gated + 37 calls). Wave 2 passes only if all three fall.
+gated + 35 calls at n=26). Wave 2 passes only if all three fall.
 
 ### 3.8 The seam (R15, R16)
 
