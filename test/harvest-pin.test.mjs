@@ -748,7 +748,14 @@ for (const spec of REAL_PAIR_TESTS) {
       CACHE_FIX_TEST_FIXTURE_OVERRIDE: "/nonexistent/no-such-fixture.json",
     });
     assert.match(out, /# pass 0/);
-    assert.match(out, /# skipped 1/);
+    // The child's TAP summary's own skipped-count line moves across node
+    // majors (measured: CI red on node 18/20, green on 22, over an
+    // unchanged fallback) — the per-test `# SKIP` directive on the test's
+    // own `ok N - …` line does not, since it is node's TAP reporter
+    // convention, not this repo's code. Discrimination checked directly:
+    // this pattern matches the skip-case output and fails to match the
+    // sibling "fallback GREEN" test's not-skipped output for the same file.
+    assert.match(out, /# SKIP\b/);
     assert.match(out, /COULD NOT VERIFY/);
   });
 
