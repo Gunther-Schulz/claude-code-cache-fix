@@ -489,6 +489,9 @@ plugin's JOURNAL under today's date, never inline. Laws, not method:
     reflog or the hook's printed range.
 21. A lane that finds a defect in its own shipped code after its report
     REPORTS it; its write grant is over.
+22. A check no input can falsify is deleted, not registered; a partition
+    exact by construction is reported as could-not-verify arithmetic,
+    never as a green row (found by the W1c lane on its own work).
 
 ## 4. Diff against the inventory — what survives, what is cut, what is rewritten
 
