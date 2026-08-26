@@ -5986,6 +5986,58 @@ comment and new issue.
   `JOURNAL.md`. Nothing in cache-fix.
   **Sequenced AFTER W1c's report is booked**, so it does not collide with the
   lane writing that repo right now.
+  **DONE 2026-08-26 except its verification, which is BLOCKED and named**
+  (lifecycle `56913af` + `8a0a8be`). Landed: `CLAUDE.md` as the declared laws
+  file — the nine invariants first, because the refusal registry is derived
+  from them, then the 22 laws each citing a dated journal entry; `JOURNAL.md`
+  with nineteen entries, **six of them marked DESK INCIDENT** because they are
+  this desk's own; `LEDGER.md` gains G10 and G11 in the W1c lane's words, its
+  write grant having ended; the plugin's own declaration, seven kinds, all
+  stages. **The verification does NOT pass and is not claimed to:** `kind
+  check` exits 2 on two findings, both the SCHEMA LAG rather than the
+  declaration — `ready-cap` demanded as a positive integer under a design that
+  withdrew caps (left null and failing deliberately; a fabricated number would
+  be the exact defect R22 prevents), and `laws_over_cap` firing under a cap the
+  design removed and already repurposed to a scope report. The scope report
+  does not exist yet, so its output cannot be given. Both close in the schema
+  wave.
+
+- **RECORD 2026-08-26 — W1c CLOSED, the last dispatch of wave 1, and the
+  carrier rework's first end-to-end run against the real backlog.** Verified at
+  the artifact by this desk, not booked off the report: `lifecycle --test` 41
+  rows / 41 passed / 0 failed / 0 raised / 0 skipped, 8 prose-rest labelled,
+  emit-site coverage clean over 33 emitted names against 37 registered;
+  `prove-rows.py` 41 of 41 arrangements holding; python 42/42; the migration's
+  identities re-derived here from the files (342 bullets → 317 items + 18
+  unclassified, 273 archive bodies, 317+273=590=baseline); `item check` and
+  `ledger check` exit 0; **`BACKLOG.md` and `BACKLOG-DONE.md` byte-identical**,
+  which is what makes the whole migration reversible by deleting six files.
+  **What the wave does NOT mean, taken from the lane's own not-verified slot
+  and kept because it would otherwise be re-derived by whoever opens wave 2:**
+  the migration output has been consumed by nothing; the 273 archive bodies
+  were counted and copied, never parsed; the 18 unclassified were never read
+  for meaning; `lane list` has never resolved a real roster; the plugin has
+  never been installed or loaded as a plugin; the four relay emit-sites are
+  counted but their runtime row values unenumerated.
+  **The strongest finding of the dispatch, and it is why the no-caps
+  correction became its own brief rather than a fold-in:** the design's
+  replacement refusal row names `lifecycle retire` as its firing input, and
+  that verb exists in no stage. **A row whose firing input does not exist
+  cannot be red-proven** — an UNPROVABLE row, not an unproven one, which is
+  the same shape the lane had deleted `migration_reconciliation` for two hours
+  earlier in the same dispatch. Two instances of one class inside one lane.
+  **Three of its lessons outlived it:** a check no input can falsify is
+  deleted rather than registered (now law 22); a coverage check over emit
+  sites pays for itself on its first run, and its yield is unproven behaviour
+  rather than new bugs (six such refusals found); and a brief is not amended
+  in place after dispatch — the executor re-reads at HEAD before each verifier
+  run, and a correction that matters is a stop-and-redispatch (now law 18, and
+  in dispatch-guards).
+  **Open, all with the judgment desk:** the 18 unclassified entries' grade-word
+  mapping; `superseded-by:` and `blocker-moot:` as real slots plus a shape
+  check for the done home; the roster file for the router; and the combined
+  schema wave, which waits on a fresh-context Begehung round now walking both
+  the design and the built plugin.
 
 - **RECORD 2026-08-26 (W1b closed; two findings that outlive it, both about
   things that were TRUE and still misled) — the design's description of the
