@@ -393,6 +393,22 @@ print `bust: FIRING (1)` at the next session start and at the next
 prompt submit, and under `advise` the session stops after printing it;
 a planted gate finding produces exactly one notification.
 
+**Migration order (operator decision 2026-08-26: per repo, by priority,
+not all repos).** The plugin loads everywhere; a repo is in the router
+only once it declares `lanes.json`, so migration is opt-in per repo.
+Measured 2026-08-26 (`find ~/dev -name BACKLOG.md`, bullet counts,
+rough): tier 1 cache-fix (329 entries, 9 runbooks — the reference case,
+wave 1 proves the migration tool here); tier 2 dotfiles root (168) and
+dotfiles/claude (38) — both over the retirement tripwire today, the
+migration IS the pass; tier 3 dispatch-guards (24) and claude-worktime
+(20) — small, active, and claude-worktime is a wave-2 consumer; tier 4
+beat-the-books (53, 1 runbook) — after the tool has run on a
+non-cache-fix repo; tier 5, when next touched: statiker, skill-craft,
+daneel, begehung, kaemmung, sd-webui-prompt-enhancer (≤13 each); tier 6
+ai-bureau (90, last booked 2026-05) — dormant, archive or drop, operator
+decides on next contact. Anything outside `~/dev` enters the router only
+by explicit declaration, never by sweep.
+
 **Wave 4 — cut pass:** everything marked CUT in §4, each removal with
 its dependents search stated; the cleanup detectors armed.
 
