@@ -493,6 +493,43 @@ plugin's JOURNAL under today's date, never inline. Laws, not method:
     exact by construction is reported as could-not-verify arithmetic,
     never as a green row (found by the W1c lane on its own work).
 
+### 3.11 Authoring, homes, and the judgment register (operator questions 2026-08-26)
+
+**Every home is named explicitly in the declaration; no implicit
+defaults.** A schema default is what `lifecycle init` WRITES into the
+file, never what the tool assumes when a line is absent — an absent
+home is a finding. The laws file is the one home with a DECIDING RULE
+(own repo → `CLAUDE.md`; foreign tracked `CLAUDE.md` → the local
+overlay), applied by `init` and still written as a named file.
+
+**Authoring support is part of the plugin:** `lifecycle init`
+(declaration + lane stubs for the declared doors), `lifecycle lane new
+<door>` (a lane file from the format with `Decides:` / `Trigger:` /
+decision table / `Ends:` stubs and a predicate skeleton), `lifecycle
+workflow bind <template>` (the binding with its required slots
+listed), the format docs as the guideline, and the checker to name
+what is still missing. A fresh repo reaches a valid declaration and
+checked lane files without reading this document.
+
+**The plugin is the linter for every kind it owns** — declaration
+schema, lane format, item shape, done-home shape, ledger line kinds,
+bindings — at pre-commit through its hook and in `--test`; for
+session-written prose kinds (laws, journal) the lint is the scope
+audit, a finding never a refusal; a kind it cannot lint is labelled so
+(invariant 9). Trigger policy is one line of the declaration.
+
+**The judgment register** — rules in this design that decide what a
+person might decide differently, tracked so they are reviewed on
+evidence rather than remembered: (1) per-kind staleness rules; (2) the
+intake cost test; (3) decision weight (R21's gauge over slots); (4) the
+auto-apply class of detector dispositions; (5) the laws-file deciding
+rule; (6) the trigger-policy default. Treatment, the same caps received:
+each emits a FINDING never a refusal; the ledger line is the correction
+path; each records its USE-EVIDENCE (fired / fired on legitimate work /
+overridden) so the retire lane's walk shows which rules earn their
+place — the corpus's fire-rate review applied to the plugin's own
+judgment rules. Not fixed now; reviewed with evidence after wave 2.
+
 ## 4. Diff against the inventory — what survives, what is cut, what is rewritten
 
 | existing thing | verdict | why |
