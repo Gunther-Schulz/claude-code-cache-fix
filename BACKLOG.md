@@ -475,31 +475,53 @@ comment and new issue.
   "wave 1d dispatches next" with nothing dispatched. The desk's artifact look
   caught it, not me — which is the point, since the failure is invisible to
   the session having it.
-  **Design (the desk's, stated concretely so it can be built without further
-  judgment):** a Stop hook on a desk whose declaration says a delegation is
-  active and an item is open. **Predicate, computable:** the turn's final
-  assistant text announces an action (a lane, verb or step named as next) AND
-  no report-channel send has happened since the last commit on the item.
-  **Action:** refuse the stop — "ended on an announcement — take the first
-  tool call or send the report". **Fire cap: at most one refusal per turn**, a
-  second stop passes, so it cannot loop. **Disposition:** notify, counts only
-  (§3.4).
-  **Write-set:** the lifecycle plugin — hook + declaration field + refusal row
-  + a red-first bite on a transcript fixture built from one of today's stalls.
-  **Done-criterion:** RED on a fixture built from one of the three real
-  stalls, SILENT on a turn that ended on a report. Both arms, or the predicate
-  is one that fires on every turn.
+  **DESIGN (amended 2026-08-26 on an operator concern; the superseded version
+  is recorded below as rejected, not deleted).** Under an active delegation
+  with an open item, the desk RECORDS ITS TURN-END STATE with one plugin
+  command, closed vocabulary:
+  `REPORTED <msg-id>` · `WAITING-ON <lane|peer> --horizon <t>` ·
+  `BLOCKED <named>` · `DONE`.
+  **Predicate — PRESENCE ONLY, and this is the whole point:** delegation
+  active AND item open AND **no state recorded for this turn** → refuse once:
+  *"record the desk state (report / waiting-on / blocked / done) or take the
+  first tool call"*. **No text analysis anywhere.** **Fire cap: one refusal
+  per turn**; a second stop passes, so it cannot loop. **Disposition:** notify,
+  counts only (§3.4).
+  **Why presence beats detection, stated because it generalises past this
+  item:** a stall can still get past the hook — but only by RECORDING A FALSE
+  STATE, which is a visible act on the record rather than a silent omission.
+  The design does not try to catch a session lying; it makes the lie leave
+  evidence. That converts a judgment-shaped predicate into a computable one
+  without weakening what it catches.
+  **The state file earns its keep twice:** it is the artifact `claude-worktime`
+  exposes for desk status (the R-line consumer in wave 2), and it is what a
+  WAITING desk reads instead of inferring liveness from idle/busy — which is
+  the inference that has been wrong twice today.
+  **Write-set:** the lifecycle plugin — the `desk state` verb (schema: one
+  field per declaration, one file per desk under the repo's lifecycle state
+  dir, **never `.claude/`**, which is protected by path shape and costs a
+  permission dialog on every read and write), the Stop hook, the refusal row,
+  and the red-first bite.
+  **Done-criterion:** RED on a fixture built from one of today's real stalls
+  (no state recorded); SILENT on a turn that recorded `REPORTED`; SILENT
+  outside a delegation. Three arms, because a predicate that fires on every
+  turn passes the first arm alone.
   **Blocked-by:** wave 2 — the declaration field carrying delegation state
-  does not exist yet. That is a real absence, not a deferral in prudence's
-  costume: the predicate cannot read a field nothing writes.
+  does not exist yet. A real absence, not a deferral in prudence's costume:
+  the predicate cannot read a field nothing writes.
   **Evidence:** this session's horizon records, 2026-08-26 — three status
   demands, each answered "the turn had ended on an announcement".
-  **Note on the mechanism bar, since this is a judgment-shaped condition being
-  mechanized:** "announces an action" is not obviously computable, and a
-  predicate that over-fires here trains the override reflex on a Stop hook,
-  which is the worst place to train it. The fire cap is what keeps a false
-  fire cheap. If the bite cannot be made silent on ordinary report-ending
-  turns, that is a finding against the design rather than a threshold to tune.
+  **REJECTED DESIGN, recorded with its reason rather than dropped:** the first
+  version's predicate scanned the turn's FINAL ASSISTANT TEXT for an announced
+  action (a lane, verb or step named as next). Rejected on an operator concern
+  that keyword scanning is the wrong predicate — and the entry's own
+  mechanism-bar caution had already said the same from the other side: a
+  judgment-shaped condition mechanized anyway over- and under-fires, and a
+  **Stop refusal is the worst place to train the override reflex**, because a
+  stop cannot be ignored the way a warning can. The clause that survives both
+  designs: **if the bite cannot be made silent on ordinary report-ending
+  turns, that is a finding against the design rather than a threshold to
+  tune.**
 
 - **RECORD 2026-08-20 (found by destroying the thing it protects — I overwrote
   the pre-fix fire-ledger baseline by running a sweep, and only then discovered
