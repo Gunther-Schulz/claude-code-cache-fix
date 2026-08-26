@@ -115,7 +115,12 @@ the same change. Two copies for one wave is the deliberate cost.
 
 **D-c. One entry point, `lifecycle`, with subcommands** — `item
 add|ready|park|close|ratio`, `ledger`, `lane list`, `kind`, `migrate`,
-`--test`. One fire log, as §3.8 says.
+`--test`. **The ITEMS.md shape check is `lifecycle item check`** — §3.9 names a
+pre-commit shape check and D-c's list gave it no verb; W1a surfaced the gap
+rather than inventing a spelling, and this is the spelling. Whether the
+pre-commit wiring is the plugin's install step or the repo's own hook is still
+the judgment desk's, and nothing in wave 1 depends on the answer.
+One fire log, as §3.8 says.
 
 **There are TWO exit-code contracts in this system and they are NOT the same
 contract. Do not unify them, do not translate one into the other, and state
@@ -262,12 +267,27 @@ this defect.
    the produced files.
 5. **The old carrier is byte-identical afterwards**: `git -C <cache-fix>
    status --porcelain BACKLOG.md BACKLOG-DONE.md` prints nothing.
-6. **The declaration is VISIBLE TO GIT** (D-h): `git -C <cache-fix>
-   check-ignore -v .claude/lifecycle.json` must exit NON-ZERO with no output.
-   Run it BEFORE adding the negation too, and paste both — an exit-0 line
-   naming `.gitignore:8` first, nothing second. A check that was never shown
-   to fire proves nothing, and this one has a known positive available for
-   free: the same command against any other `.claude/` path still fires.
+6. **The declaration is VISIBLE TO GIT** (D-h). **CORRECTED 2026-08-26 in
+   place — the form first written here was UNFALSIFIABLE, and the correction
+   lands in the brief rather than beside it.** W1a found it; measured in a
+   scratch repo, both directions, before rewriting this row.
+   The durable form, and the only one that discriminates:
+
+       git -C <cache-fix> check-ignore --no-index .claude/lifecycle.json
+       # exit 1 = NOT ignored = correct.  exit 0 = ignored = the defect.
+
+   Paste it with the negation absent (exit 0) and present (exit 1) — measured
+   here as exactly that pair.
+   **What was wrong, so nobody restores it.** The row said `check-ignore -v …`
+   must exit non-zero. `-v` changes the EXIT SEMANTICS, not just the output:
+   without it 0 means ignored, with it 0 means "some pattern had an opinion",
+   which a NEGATION also satisfies — so on the correct state `-v` exits 0 and
+   reads as a failure. Worse, `check-ignore` SKIPS tracked paths unless
+   `--no-index`, and `.claude/lifecycle.json` is tracked the moment stage 9
+   commits: measured, a tracked path exits 1 **whether or not the negation
+   exists**, in both modes. Run after the commit as originally written, the
+   check passes on the very defect it was built to catch — a predicate no
+   input could falsify, which is not an unproven check but an unprovable one.
 7. **The declaration's own refusal rows fire on it** — run §3.9's
    ignored-declaration and malformed-declaration rows against cache-fix's real
    `.claude/lifecycle.json`, not a fixture, and paste the red and the green.
