@@ -458,6 +458,49 @@ comment and new issue.
 
 ## Open
 
+- **PARKED 2026-08-26 (judgment desk, booked here by the execution desk) —
+  a wave-3 DETECTOR for the "ended on an announcement" stall, because the
+  prose rule against it fails at its own firing moment.**
+  **Requirement:** R3/R6 — the machine notices; nothing is unattended by
+  default.
+  **Problem, MEASURED today, n=3** (this desk once, a peer desk twice): a
+  delegated desk finishes a step, writes the next action as prose, and ends
+  the turn without a tool call. Nothing wakes it. The waiting desk finds it
+  only at a 45-minute timer. **The corpus rule covering this is loaded in
+  every one of those sessions and its own text says it fails at exactly this
+  moment** — closure momentum defeats it while it is in context. Prose is
+  exhausted as a remedy; that is the whole basis for a mechanism.
+  **I am one of the three, and it is the clearest instance:** I amended a
+  brief, composed a report about having amended it, and ended the turn on
+  "wave 1d dispatches next" with nothing dispatched. The desk's artifact look
+  caught it, not me — which is the point, since the failure is invisible to
+  the session having it.
+  **Design (the desk's, stated concretely so it can be built without further
+  judgment):** a Stop hook on a desk whose declaration says a delegation is
+  active and an item is open. **Predicate, computable:** the turn's final
+  assistant text announces an action (a lane, verb or step named as next) AND
+  no report-channel send has happened since the last commit on the item.
+  **Action:** refuse the stop — "ended on an announcement — take the first
+  tool call or send the report". **Fire cap: at most one refusal per turn**, a
+  second stop passes, so it cannot loop. **Disposition:** notify, counts only
+  (§3.4).
+  **Write-set:** the lifecycle plugin — hook + declaration field + refusal row
+  + a red-first bite on a transcript fixture built from one of today's stalls.
+  **Done-criterion:** RED on a fixture built from one of the three real
+  stalls, SILENT on a turn that ended on a report. Both arms, or the predicate
+  is one that fires on every turn.
+  **Blocked-by:** wave 2 — the declaration field carrying delegation state
+  does not exist yet. That is a real absence, not a deferral in prudence's
+  costume: the predicate cannot read a field nothing writes.
+  **Evidence:** this session's horizon records, 2026-08-26 — three status
+  demands, each answered "the turn had ended on an announcement".
+  **Note on the mechanism bar, since this is a judgment-shaped condition being
+  mechanized:** "announces an action" is not obviously computable, and a
+  predicate that over-fires here trains the override reflex on a Stop hook,
+  which is the worst place to train it. The fire cap is what keeps a false
+  fire cheap. If the bite cannot be made silent on ordinary report-ending
+  turns, that is a finding against the design rather than a threshold to tune.
+
 - **RECORD 2026-08-20 (found by destroying the thing it protects — I overwrote
   the pre-fix fire-ledger baseline by running a sweep, and only then discovered
   there was no second copy) — the daily sweep's `gate-status.json` is a carrier
