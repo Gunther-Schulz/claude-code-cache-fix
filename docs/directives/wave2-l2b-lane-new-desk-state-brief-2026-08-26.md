@@ -116,17 +116,35 @@ as a STUB a human then fills.
 - Writes one file per desk under `state_dir()` (reuse `firelog.py:36`), never
   under `.claude/`.
 - The record carries at minimum: the value, its argument, the timestamp, and
-  the desk identity. Recording twice in one turn overwrites rather than
-  appending — the predicate a later wave reads is "was a state recorded for
-  THIS turn", not a history.
-- **The declaration field**: one new key carrying delegation state, so a
-  later detector can answer "is a delegation active here" without inference.
-  Add it to `REQUIRED_KEYS`'s sibling handling the same way the existing
-  optional keys are handled — and if adding it to `REQUIRED_KEYS` would make
-  every existing declaration in the world invalid, it is OPTIONAL with a
-  declared default, and you say which you did and why. **This is the one
-  place the brief gives you a fork; take it on that stated criterion, not on
-  taste, and report the reading.**
+  the desk identity. **The verb ALWAYS overwrites: one current state per
+  desk, no history.** The word "turn" does not appear in the verb's own
+  contract — a turn is not something the verb can see. The per-turn
+  question ("was a state recorded for THIS turn") belongs to the wave-3
+  detector, which answers it by comparing the record's timestamp to the turn
+  start. Building any turn-awareness into the verb would put the detector's
+  logic in the wrong place and give it a second source of truth.
+- **The declaration field is OPTIONAL with a declared default** — `delegation`,
+  absent meaning `none`. `kind check` accepts both absent and present.
+  **This is decided by a rule, not by your judgment, and the rule is worth
+  knowing because it generalises:** §3.8c fixes ONE schema version per repo,
+  one number per bump, and law 25 requires every schema change to ship its
+  migration, dry-run first, over every declared repo. A new REQUIRED key is
+  by definition a schema bump — so making it required would drag
+  `migrate --schema-from 2` and a migration run into this lane, which is not
+  its scope. Optional is not the softer choice here; it is the only one that
+  does not silently open a schema wave. Record that reading in your report.
+- **Desk identity — the key the "one file per desk" rule needs:**
+  `--desk <id>` explicit always wins. Default: the environment's session id,
+  **`CLAUDE_CODE_SESSION_ID`** (verified present in this harness at brief
+  time; note `CLAUDE_SESSION_ID` without the `CODE_` is NOT the variable and
+  is unset). The record's `desk` field names WHICH source it used.
+  **If neither `--desk` nor that variable is available, `desk state`
+  REFUSES.** It does not fall back to a repo-path-plus-user key: two desks
+  working the same repo as the same user would derive an IDENTICAL key and
+  silently share one state file — which destroys the per-desk property the
+  rule exists to provide, and would let a wave-3 detector read another
+  desk's state as this one's. A refusal is recoverable; a collision is
+  invisible.
 - `desk state` with no active delegation is not an error: it records, and
   says the delegation field is absent.
 
@@ -224,9 +242,12 @@ and report the permutation as a deviation. Novel deviations still halt.
 
 ## STOP signals — halt the item, finish the independent remainder, return the question with its evidence
 
-- A design decision would be needed that this brief does not make (the
-  declaration-field fork is decided BY ITS STATED CRITERION, not by taste —
-  if the criterion does not settle it, that is a STOP).
+- A design decision would be needed that this brief does not make. The
+  declaration-field question is NOT one of them any more: it is decided
+  (optional, defaulted) by §3.8c's one-schema-version rule, and making it
+  required would open a schema wave this lane does not carry.
+- Neither `--desk` nor `CLAUDE_CODE_SESSION_ID` is available, so `desk state`
+  has no identity key. Refuse and report; do not derive one.
 - No existing journal entry supports a law in item C.
 - A stub `lane new` writes does not parse under the real grammar.
 - The roster count changes and you did not deliberately add a row.
