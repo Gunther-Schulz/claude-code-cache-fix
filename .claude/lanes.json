@@ -1,0 +1,21 @@
+{
+  "public": true,
+  "lanes": {
+    "dir": "docs/runbooks",
+    "router": "docs/dev-loop.md"
+  },
+  "exemptions-note": "Each entry below is a lane-format violation that EXISTS TODAY and is deliberately not fixed yet: the six lanes without a `Trigger:` line, public-comms' two missing blocked sections, the duplicate router row, and the router's two missing columns. The list is the price of arming the checker now instead of after the rewrite. It is not a suppression list: lane-check FAILS on any entry that no longer matches a real violation, so the file that becomes conforming forces its entry out, and the gate is fully armed the day this array is empty. Wave 2 of the carrier rework empties it (docs/directives/carrier-rework-design-2026-08-26.md, decision G2).",
+  "exemptions": [
+    { "file": "bust-appears.md", "predicate": "P1", "detail": "Trigger" },
+    { "file": "public-comms.md", "predicate": "P1", "detail": "Trigger" },
+    { "file": "runtime-anomaly.md", "predicate": "P1", "detail": "Trigger" },
+    { "file": "session-close.md", "predicate": "P1", "detail": "Trigger" },
+    { "file": "sweep-finding.md", "predicate": "P1", "detail": "Trigger" },
+    { "file": "upstream-pr-round.md", "predicate": "P1", "detail": "Trigger" },
+    { "file": "public-comms.md", "predicate": "P2", "detail": "## Limits (the box)" },
+    { "file": "public-comms.md", "predicate": "P2", "detail": "## Report" },
+    { "file": "docs/dev-loop.md", "predicate": "P3", "detail": "duplicate-router-row" },
+    { "file": "docs/dev-loop.md", "predicate": "P4", "detail": "kind" },
+    { "file": "docs/dev-loop.md", "predicate": "P4", "detail": "channels" }
+  ]
+}

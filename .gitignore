@@ -8,6 +8,12 @@ __pycache__/
 .claude/*
 !.claude/agent-name
 !.claude/github-app
+# lanes.json is a routing file by the same rule as the two above, and it has
+# to be TRACKED for a second reason the others do not have: the commit-time
+# lane gate reads the declaration out of the INDEX (`git show :<path>`), so a
+# declaration that is merely present on disk arms nothing at all — it reads
+# exactly like a repo that never declared lanes.
+!.claude/lanes.json
 .possibilities/
 package-lock.json
 
