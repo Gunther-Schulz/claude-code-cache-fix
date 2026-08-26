@@ -85,6 +85,21 @@ on the ratio without a human remembering — measured today at ~3.5:1
 against the 3:1 tripwire in both dotfiles backlogs with the banner
 firing and nothing draining (inventory, candidate booking 16).
 
+Operator observation (same day, restated; articulated at the judgment
+desk, operator to confirm): items enter by two paths — a session
+noticing a gap, or the operator mentioning one — and both end in the
+same act, an APPEND. Nothing at intake asks whether the item already
+exists, supersedes or obsoletes another, or costs less to do than to
+book; the judgment is deferred to grooming, where it is expensive and
+operator-invoked. Step-4 requirement: INTAKE IS A MERGE, not an append —
+a candidate is joined against the live set on requirement and write-set
+and exits as do-now / merge-into / supersede (the superseded body moves
+to the closure home with the reason) / new, with "new" the last outcome;
+operator mentions carry authority over the do-or-book choice, session
+findings pass the cost test. The corpus's "two exits, done or booked"
+rule is thereby a cut/rewrite candidate: it makes booking read as
+compliance. Kämmung stays as the backstop, never the mechanism.
+
 ## Base commits (read at compose time)
 
 - cache-fix `main` @ `7802c82` (working tree carries untracked harvested
