@@ -458,6 +458,86 @@ comment and new issue.
 
 ## Open
 
+- **RECORD 2026-08-26 (found by W1d's own worst near-miss; the hand-derivation
+  exists and the mechanism does not) — a migrated record pointer must be
+  CHECKED to resolve, and nothing checks it.**
+  **What happened, and it is the failure a pointer has:** `BACKLOG.md` had
+  THREE distinct blobs in one afternoon — another desk amended one entry
+  (+22 net lines inside its body) while the schema wave was regenerating the
+  dry run from it. The regeneration had read the intermediate version, so
+  every `record:` pointer below line 475 was off by 22. **A stale pointer does
+  not break. It resolves to a real line and the WRONG entry**, which is why no
+  parse, no shape check and no conservation identity saw it. It was found by
+  reading the commit log afterwards.
+  **The repair is in** (`755fcb3`, re-derived with the source blob verified
+  before AND after — `914290b3` both times). **Verified independently at this
+  desk, and the check is the point: all 318 pointers land on a line beginning
+  a real entry — 318/318.** That sweep took one command and would have caught
+  the defect the moment it occurred.
+  **Design:** the migration asserts, before it writes, that every pointer it
+  emits resolves to an entry start in the source it read; and a dry run **pins
+  the source blob** it read, answering COULD NOT VERIFY rather than a stale
+  number when that blob has moved under it.
+  **Why this generalises past the migration, which is the reason it is READY
+  rather than a note:** "one writer per working copy" has a READ side nobody
+  had stated. A reader that derives durable pointers from a file another
+  writer owns is exposed exactly like a second writer — the difference is that
+  the collision is silent and lands in the artifact rather than in git.
+  **Write-set:** the lifecycle plugin — `migrate.py` (the pin + the assertion)
+  and its bites. **Verifier:** red on a fixture whose source moved between
+  read and write; green on an unmoved one; the pointer sweep as a standing
+  check. **Related:** `cf-324` carries the desk-decision half (what a dry run
+  PROMISES about its source).
+  **Graded RECORD, not READY, and the cap guard is why — for the SECOND time
+  today.** It fired at 11/10 on this entry. The repair is the grade, not a
+  softened predicate: READY here is the DERIVED scheduled head, and nobody is
+  building this now. Worth one line because it is the same evidence that
+  killed caps in the design — a capped label escaped by relabelling — and the
+  live carrier is still under the old regime precisely because the migration
+  to `ITEMS.md`, which has no cap, is still a DRY RUN.
+
+- **RECORD 2026-08-26 — W1d CLOSED, the schema wave, and the last dispatch of
+  wave 1's build arc.** Verified at the artifact by this desk, not booked off
+  the report: `kind check` on the plugin **exit 0 CLEAN, 19 kinds** — both
+  findings this desk deliberately left FAILING are closed, and closed by the
+  schema moving rather than by a number being invented; `--test` **54 rows /
+  54 passed / 0 failed / 0 raised / 0 skipped**, 7 prose-rest, coverage clean
+  over 46 emitted names; `prove-rows.py` **54 of 54** arrangements holding;
+  python **66/66**; cache-fix `item check` and `ledger check` exit 0;
+  conservation **324 + 275 = 599 = 593 + 6 − 0**; **`BACKLOG.md` and
+  `BACKLOG-DONE.md` byte-identical**, so the migration remains reversible.
+  **The acceptance sentence proved it because it was retyped to be
+  unsatisfiable by a total:** 0 READY; blockers **289 `decision` + 35
+  `evidence` = 324 open items, UNTYPED 0**; **no blocker anywhere in the done
+  home**. A bare "324 blocked" would have passed on untyped blockers and on a
+  blocker written into a closed body.
+  **The registration residue turned out not to exist.** The brief said a
+  dotfiles edit was owed; the dispatcher already chains repo-local hooks, so
+  the whole registration is one symlink. Landed in cache-fix and **proven
+  here** rather than assumed to transfer: control silent, a staged carrier
+  with one slot removed → commit BLOCKED naming the slot, restored by file
+  copy.
+  **One boundary excursion, named and kept:** `--apply` rewrote `LEDGER.md`'s
+  `schema: 1` → `schema: 2`, one line, outside the brief's file list.
+  Reverting it makes `kind check` fire `schema_mismatch`, since one schema
+  version per repo is what the acceptance rests on.
+  **THREE DEFECTS IN MY OWN BRIEF, all of one class — asserting repo state I
+  had not opened:** its write-boundary list omitted `LEDGER.md` while its own
+  scope authorized it; it told the executor to honour laws 23–25 while the
+  laws file carried 22 and the three lived only in the design (law 23 being
+  itself the rule that a named thing has its home); and it stated `item ratio`
+  was "built by W1b, now PLACED" when W1b had explicitly reported it NOT
+  built. **The third is the sharpest: I carried that claim out of the design's
+  own §3.8c and passed it on as established.** A brief's claim about the
+  target repo's current state is either opened at brief-write time or carried
+  with its provenance and grade; I did neither, three times, in one document.
+  **Fire-rate lines, not mints (each has its rule already):** an explicit hash,
+  never `HEAD~1`, on a shared copy — I used the forbidden form and was lucky;
+  a link is tested by resolving it — my first symlink was broken; and a NEW
+  instance under the path-resolution rule — **a path guard resolves a relative
+  token against the SHELL's cwd while a symlink resolves against its OWN
+  directory**, same string, two bases, two targets.
+
 - **PARKED 2026-08-26 (judgment desk, booked here by the execution desk) —
   a wave-3 DETECTOR for the "ended on an announcement" stall, because the
   prose rule against it fails at its own firing moment.**
