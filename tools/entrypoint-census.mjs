@@ -211,20 +211,55 @@ export const ENTRY_CLASSES = [
 // -2026-08-26.md), restated here as the comparison basis this tool's report
 // is graded against (design doc decision G4). Not tunable toward — a
 // disagreement is reported, never absorbed by adjusting the rule above.
+//
+// ADJUDICATED 2026-08-26 (G4), and the correction is to the COMPARISON, not
+// to either count. The audit classifies a SESSION; this tool classifies its
+// OPENING. Those are different predicates, and comparing them produced a
+// three-session "delta" that was never a disagreement about any session:
+// the audit's own text says "Bust walk: 7 of 10 open with a pasted bust
+// line", and 7 is exactly what an opening-based rule finds. So the
+// comparable bust number is 7, and the remaining 3 are a definitional
+// difference that gets NAMED rather than counted as an error. Where those 3
+// sit in this tool's classes is DERIVED, not observed: the audit publishes
+// no per-session mapping, so the arithmetic (bust −3 against pr +1 and
+// other +2, before the mention-is-not-entry fix) is the evidence, and it is
+// marked as derived here so nobody later reads it as a measurement.
 export const AUDIT_REFERENCE = {
   source: "docs/audits/carrier-rework-entrypoints-2026-08-26.md",
   window: "2026-07-29 -> 2026-08-26",
   topLevelSessions: 78,
   subagentFiles: 264,
-  medianToolCallsBeforeWrite_backlogDrain: 37,
+  // The audit reported 37 at n=27. Both are wrong for this quantity, and the
+  // basis is this tool's own measurement rather than the audit's prose: of
+  // the 27 backlog sessions, 26 ever called a write tool and one did not, so
+  // the measured population is 26 and 27 is the class count. Corroboration:
+  // the audit's stated range for that row, 9–72, is exactly the min and max
+  // of those 26 values. Their median is (33+37)/2 = 35; the audit's 37 is
+  // their 14th value, an odd-count median taken over an even list. The audit
+  // has been corrected in place.
+  medianToolCallsBeforeWrite_backlogDrain: 35,
+  measuredPopulation_backlogDrain: 26,
   classes: {
     backlog_drain: 27,
     pr_tend: 2,
     pr_cut: 0,
-    bust_walk: 10,
+    // opening-level, from the audit's own "7 of 10" sentence
+    bust_walk: 7,
     bare_continue: 4,
     unclassified: 5,
+    // the audit's 30 session-level, plus the 3 bust walks whose openings do
+    // not carry a bust line and which therefore land here
+    other: 33,
+  },
+  // Session-level counts the audit published, kept so the difference stays
+  // visible instead of being quietly absorbed into the line above.
+  sessionLevel: {
+    bust_walk: 10,
     other: 30,
+    note:
+      "the audit classifies a session by what it was; this tool classifies " +
+      "the opening. 3 bust walks do not open with a bust line (audit's own " +
+      "count) and are `other` here.",
   },
 };
 
@@ -332,9 +367,34 @@ export function firstTimestamp(records) {
 
 /** Entry-point classification, applied to a bounded OPENING window of the
  * message text (see header rule). `text === null` means UNCLASSIFIED. */
+/** How many DISTINCT doors an opening names. A session that enumerates the
+ * doors is talking ABOUT them, not entering one — the adjudicated case
+ * (2026-08-26) is this arc's own kickoff, whose first message lists draining
+ * the backlog, checking the PRs, cutting new PRs and handling a posted bust,
+ * and enters none of them. The keyword rule classified it by whichever door
+ * matched first, which is how a meta session becomes a false `pr_tend`. */
+export function doorsMentioned(opening) {
+  let n = 0;
+  // MENTION regexes, deliberately NOT the entry regexes. Entering the bust
+  // door means a pasted bust line; MENTIONING it is the word. Reusing the
+  // entry detector here was the first version of this guard and it did not
+  // fire on the very case it was written for — that opening says "if i post
+  // a new bust", which is the door named in plain words and no line pasted.
+  if (opening.includes("❄") || BUST_TOKEN_RE.test(opening) || /\bbusts?\b/i.test(opening)) n += 1;
+  if (PR_MENTION_RE.test(opening)) n += 1;
+  if (BACKLOG_RE.test(opening)) n += 1;
+  return n;
+}
+
 export function classifyEntryPoint(text, { window = OPENING_WINDOW } = {}) {
   if (text == null) return "unclassified";
   const opening = text.slice(0, window);
+  // MENTION IS NOT ENTRY. Three of the three detectable doors named in one
+  // opening is an enumeration, and an enumeration is a design conversation.
+  // The threshold is stated rather than tuned: two doors is an ordinary
+  // "drain the backlog, then look at the PRs" instruction, which DOES enter
+  // one; three is a survey of the doors themselves.
+  if (doorsMentioned(opening) >= 3) return "other";
   if (opening.includes("❄") || BUST_TOKEN_RE.test(opening)) return "bust_walk";
   if (PR_MENTION_RE.test(opening)) {
     if (PR_CUT_VERB_RE.test(opening)) return "pr_cut";
@@ -534,7 +594,9 @@ function printHuman(res) {
   out(
     `tool calls before first write — backlog_drain: n=${res.toolCallsBeforeWrite.backlogDrain.n}, ` +
       `median=${res.toolCallsBeforeWrite.backlogDrain.median}  (audit median: ` +
-      `${AUDIT_REFERENCE.medianToolCallsBeforeWrite_backlogDrain}, n=${AUDIT_REFERENCE.classes.backlog_drain})`,
+      `${AUDIT_REFERENCE.medianToolCallsBeforeWrite_backlogDrain}, ` +
+      `n=${AUDIT_REFERENCE.measuredPopulation_backlogDrain} measured of ` +
+      `${AUDIT_REFERENCE.classes.backlog_drain} in the class)`,
   );
   out(`sessions with NO write tool call at all: ${res.toolCallsBeforeWrite.noWriteSessions}`);
   out("");

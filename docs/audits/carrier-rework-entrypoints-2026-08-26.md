@@ -86,11 +86,28 @@ re-entry cost was paid three times for one intent.
 
 ## The orientation cost, measured
 
-| entry point | median tool calls before first write | median minutes | range |
-|---|---|---|---|
-| 1 · drain the backlog (n=27) | **37** | 9 | 9–72 calls |
-| 2 · upstream PRs (n=2) | 24 and 49 | 4 and 17 | — |
-| 4 · walk a bust (n=10) | 33 | 13 | 0–77 calls |
+**CORRECTED 2026-08-26 (G4 adjudication, in place — the wrong figure is not
+left standing above a note).** The backlog row read **37** at n=27. Both are
+wrong for this quantity. The basis is a measurement, not this document: of
+the 27 backlog sessions, `tools/entrypoint-census.mjs` finds 26 that ever
+called a write tool and one that did not, so the measured population is 26
+and the 27 is the class count. The corroboration is this row's own range,
+9–72, which is exactly the min and max of those 26 values. (The "one session
+never wrote at all" sentence below belongs to the BUST paragraph and is about
+the bust set — it was misread as covering this row while making this
+correction, and the misreading is recorded rather than quietly dropped,
+because a true sentence answering a narrower question than the one being
+settled is the failure this whole audit exists to catch.) The median of those
+26 is
+(33+37)/2 = **35**. The 37 is their 14th value — an odd-count median taken
+over an even list. The class count 27 is correct as a class count and stays
+in its own column.
+
+| entry point | median tool calls before first write | measured / in class | median minutes | range |
+|---|---|---|---|---|
+| 1 · drain the backlog | **35** | 26 of 27 | 9 | 9–72 calls |
+| 2 · upstream PRs | 24 and 49 | 2 of 2 | 4 and 17 | — |
+| 4 · walk a bust | 33 | 9 of 10 | 13 | 0–77 calls |
 
 **Read the backlog row as the fixed toll.** Thirty-seven tool calls, at every
 entry, before anything changes — independent of how much work follows.
