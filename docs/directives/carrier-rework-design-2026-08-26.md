@@ -168,6 +168,38 @@ line have shipped a defect?" — under a line cap the checker enforces.
 Required reading then shrinks to `CLAUDE.md` plus what the firing lane
 names, which is the only change that cuts the 37-call toll (R4).
 
+**Shared workflows across repos — adopted, under six computable
+controls (operator decision 2026-08-26: improvements land once, every
+project profits; the risks below are real and each gets a guard, not a
+rule).** A shared workflow lives in the plugin's registry as a TEMPLATE
+with declared SLOTS; a repo binds them in `lanes.json` and may override
+a STEP; it never copies the text.
+1. *Transcription drift* (a session copying another project's
+   procedure in) — flavor is a declared binding the tool reads, never
+   prose a session interprets.
+2. *Two bodies for one fact* — the checker fails any workflow text in a
+   repo that duplicates a registry template (R19, one home).
+3. *Wrong-context fire* — a shared lane's predicate runs only in repos
+   that BIND it; unbound, it is not in that repo's router at all.
+4. *Silent generic behaviour* — an unbound required slot is a checker
+   finding, never a fallback default.
+5. *Blast radius of a shared edit* — the registry records which repos
+   bind which template; the plugin's test suite runs every shared
+   workflow against every binding, so a shared edit meets its
+   dependents before it ships.
+6. *Cross-project leakage* — templates carry no project identifiers;
+   the publication-bar scan runs over templates as over fixtures, and a
+   repo declared `public: true` refuses a binding that names another
+   project.
+The first shared workflows are the PR ones (rebase, answer a review
+round, cut a slice); everything bust-related stays this repo's own.
+
+**claude-worktime exposure (operator addition):** `lane list --json` is
+the interface; the statusline shows lane state (`lanes: bust! pr(1)
+drain(9)`), so which lanes are available and which are firing is
+visible before a session is opened. Same wave-2 consumer item as the
+status overhaul.
+
 The lanes:
 
 | you say | lane | Trigger predicate | ends at |
