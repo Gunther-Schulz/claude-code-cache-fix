@@ -35,6 +35,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { basename } from "node:path";
+import { homedir } from "node:os";
 
 // --- Allowlist ---------------------------------------------------------------
 //
@@ -384,6 +385,88 @@ export function* strings(node, path = "$") {
   }
 }
 
+// (f) A foreign absolute home-directory path. The proxy fronts EVERY Claude
+//     Code session on this machine (CLAUDE.local.md, "The publication bar"),
+//     so a harvested fixture is another project's capture — and that project
+//     could be anywhere else on the same disk. A `cwd`, a shell transcript, an
+//     error message: any of them can carry the OTHER project's absolute path,
+//     which is exactly the "filesystem identity" the publication bar's own
+//     2026-08-10 measurement counted as zero and never mechanized a check for.
+//
+// SCOPE: "corpus", not "any" — deliberately, matching nested-payload,
+// live-timestamp and raw-content rather than b64-run/capture-uuid. A home path
+// is not a defect wherever it sits: this repo's OWN docs, backlog and runbooks
+// legitimately name this machine's real home directory throughout (worktree
+// paths, the dotfiles repo, `~/.claude`) as ordinary operating prose, not a
+// captured session's identity. Measured before shipping this class no
+// differently than any other claim here: every tracked file scanned by hand
+// for a home-shaped path found exactly one document-type conflict outside the
+// corpus (`test/fixtures/cc-transcript-shape-snapshot.json`'s synthetic
+// `/home/user/…` cwd) and NONE inside it — every other hit lives in `.md`/
+// `.mjs` source, which never reaches this array at all (`scanContent` routes
+// source through `scanSourceText`, covered by `capture-key-prefix`/
+// `capture-uuid` alone, never the document classes). Scoping to "corpus" is
+// what makes that one conflict a non-conflict BY CONSTRUCTION, the same way
+// `raw-content` already leaves hand-authored prose elsewhere alone — never an
+// exemption bolted on after the fact.
+//
+// BOTH BOUNDARIES ARE DERIVED AT RUN TIME, never hardcoded: a hardcoded
+// machine path in a public tree is the exact hazard this class exists to
+// catch. `exemptRoots` asks git for this repo's own top level and asks the
+// environment for the XDG roots, with the XDG spec's own documented
+// defaults — never a literal path belonging to any one contributor's machine.
+let _exemptRoots = null;
+
+/** This repo's own checkout root, plus the machine's XDG roots — the paths a
+ * home-shaped string may legitimately sit under without being someone else's
+ * project. Memoized: neither can change within one process's lifetime, and
+ * every call after the first would otherwise re-shell to git for no reason. */
+function exemptRoots() {
+  if (_exemptRoots) return _exemptRoots;
+  const home = process.env.HOME || homedir();
+  let repoRoot = null;
+  try {
+    repoRoot = git(["rev-parse", "--show-toplevel"], { quiet: true }).trim();
+  } catch {
+    repoRoot = null; // not inside a git checkout — nothing to exempt by it
+  }
+  const xdg = [
+    process.env.XDG_CONFIG_HOME || `${home}/.config`,
+    process.env.XDG_DATA_HOME || `${home}/.local/share`,
+    process.env.XDG_STATE_HOME || `${home}/.local/state`,
+    process.env.XDG_CACHE_HOME || `${home}/.cache`,
+  ];
+  _exemptRoots = [repoRoot, ...xdg].filter(Boolean);
+  return _exemptRoots;
+}
+
+// A path segment ends at whitespace or the punctuation that ordinarily closes
+// one off in prose (quotes, backticks, parens, angle brackets, comma,
+// semicolon) — never at `/`, so the class captures the WHOLE remaining path,
+// not just its first segment. Capturing only `/home/<user>` and stopping
+// there would compare a truncated string against the repo-root prefix and
+// misreport a path genuinely inside the repo as foreign.
+const PATH_BOUNDARY = "\\s\"'`()<>|,;";
+const PATH_CHAR = `[^${PATH_BOUNDARY}]`;
+export const HOME_PATH = new RegExp(
+  `(?:/home/${PATH_CHAR}+|/Users/${PATH_CHAR}+|/root(?![0-9A-Za-z_-]))${PATH_CHAR}*`,
+);
+const HOME_PATH_G = new RegExp(HOME_PATH.source, "g");
+
+/** Is this ONE matched path under a root this repo's own tree legitimizes? */
+function isExemptPath(p) {
+  return exemptRoots().some((root) => p === root || p.startsWith(`${root}/`));
+}
+
+// Every home-shaped path in the value must be exempt, mirroring
+// `allUuidsAreDeclaredSynthetic` above: a value carrying one legitimate path
+// beside one foreign one must not launder the foreign one.
+function hasForeignPath(value) {
+  const hits = value.match(HOME_PATH_G);
+  if (!hits) return false;
+  return !hits.every(isExemptPath);
+}
+
 // `applies` is the class's DOMAIN — how many strings it had an opinion about.
 // A caller that wants to know the scan was not vacuous reads the per-class
 // counter, which is why the domain is not folded into `violates`.
@@ -438,6 +521,13 @@ export const CLASSES = [
       if (inner === "REDACTED") return null;
       return wellFormed(inner) ? null : {};
     },
+  },
+  {
+    name: "foreign-path",
+    scope: "corpus",
+    why: "an absolute home-directory path outside this repo and the known XDG roots is another session's project location",
+    applies: ({ value }) => HOME_PATH.test(value),
+    violates: ({ value }) => (hasForeignPath(value) ? {} : null),
   },
 ];
 

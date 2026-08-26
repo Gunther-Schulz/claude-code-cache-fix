@@ -27,7 +27,8 @@ import { fileURLToPath } from "node:url";
 import { scanDocument, scanContent, isAllowlisted, exemptClasses, CLASSES, findingId,
          SOURCE_SCANNABLE, SCANNABLE, skipEntry, exemptEntry, formatAllowlistLine,
          CLASS_NAMES, SYNTHETIC_UUID_ALLOWLIST, NAME_UUID_PREFIX,
-         isDeclaredSyntheticUuid, scopeKey, classesFor } from "../tools/absence-scan.mjs";
+         isDeclaredSyntheticUuid, scopeKey, classesFor, HOME_PATH } from "../tools/absence-scan.mjs";
+import { homedir } from "node:os";
 
 const TOOL = join(dirname(fileURLToPath(import.meta.url)), "..", "tools", "absence-scan.mjs");
 const CORPUS = "test/fixtures/harvested";
@@ -74,6 +75,10 @@ const SEEDED = {
     ...CLEAN,
     messages: [{ role: "user", content: [{ type: "text", text: "plain prose that never went through the scrub" }] }],
   },
+  // On a `cwd`-shaped field, not a `text`/`thinking`/`content` one: any of
+  // those would ALSO trip raw-content (non-token prose), which is precisely
+  // the two-classes-at-once shape this SEEDED map's own header forbids.
+  "foreign-path": { ...CLEAN, cwd: "/home/otheruser/dev/some-other-project/tools/build.sh" },
 };
 
 test("every class goes RED on its own seeded defect, and only that class", () => {
@@ -938,6 +943,122 @@ test("the short-key class reaches every text file type, not just .mjs and .md", 
     assert.deepEqual(scanContent(`ref ${key} here`, f).findings.map((x) => x.class),
       ["capture-key-prefix"], `${f} must be scanned`);
   }
+});
+
+// --- foreign paths -------------------------------------------------------------
+//
+// BACKLOG "the publication bar's foreign-path clause is enforced by
+// NOTHING" — `tools/absence-scan.mjs` carried no path class at all until this
+// entry, even though `CLAUDE.local.md` listed one among the scan's booked
+// slice. Every literal below is OBVIOUSLY synthetic (this repo is public):
+// a placeholder username, a placeholder project name, never anything shaped
+// like a real one.
+
+const HOME = process.env.HOME || homedir();
+
+test("foreign-path: fires inside the corpus on a path outside this repo and every known XDG root", () => {
+  const doc = SEEDED["foreign-path"];
+  const fired = new Set(scanDocument(doc).findings.map((f) => f.class));
+  assert.ok(fired.has("foreign-path"), "the seeded foreign path must fire");
+});
+
+test("foreign-path: a path under THIS REPO's own root does not fire", () => {
+  // Derived, never hardcoded — the class's own boundary is exactly this git
+  // call, so the test asks the same question the class asks rather than
+  // repeating a literal that could drift from it.
+  const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+  const doc = { ...CLEAN, cwd: `${root}/tools/some-other-tool.mjs` };
+  assert.deepEqual(scanDocument(doc).findings.map((f) => f.class), [],
+    "this repo's own checkout is not a foreign project");
+});
+
+test("foreign-path: a path under each known XDG root (env default) does not fire", () => {
+  for (const dir of [`${HOME}/.config`, `${HOME}/.local/share`, `${HOME}/.local/state`, `${HOME}/.cache`]) {
+    const doc = { ...CLEAN, cwd: `${dir}/cache-fix/some-state-file.json` };
+    assert.deepEqual(scanDocument(doc).findings.map((f) => f.class), [],
+      `a path under ${dir.replace(HOME, "$HOME")} must not read as a foreign project`);
+  }
+});
+
+test("foreign-path: a plain file (no path at all) stays clean", () => {
+  assert.deepEqual(scanDocument(CLEAN).findings.map((f) => f.class), []);
+});
+
+test("foreign-path: scoped to the corpus — the same value outside test/fixtures/harvested/ is not checked", () => {
+  const outside = scanContent(JSON.stringify(SEEDED["foreign-path"]), "test/fixtures/hand-written.json");
+  assert.deepEqual(outside.findings, [],
+    "a home path in an ordinary hand-authored fixture is not a sanitization defect — matches raw-content's own scoping");
+  assert.equal(outside.partial, true, "and the run must SAY it only half-checked");
+});
+
+test("foreign-path: a value carrying one legitimate path beside one foreign one still fires", () => {
+  const root = execFileSync("git", ["rev-parse", "--show-toplevel"], { encoding: "utf8" }).trim();
+  const doc = { ...CLEAN, cwd: `${root} vs /home/otheruser/dev/other-project` };
+  assert.deepEqual(scanDocument(doc).findings.map((f) => f.class), ["foreign-path"],
+    "one non-exempt path in the string must not be laundered by an exempt one beside it");
+});
+
+test("HOME_PATH: captures the whole remaining path, not just the first segment", () => {
+  const [hit] = "note /home/otheruser/dev/some-other-project/tools/build.sh done".match(HOME_PATH) ?? [];
+  assert.equal(hit, "/home/otheruser/dev/some-other-project/tools/build.sh",
+    "a truncated capture would compare a short string against the repo-root prefix and misreport an in-repo path as foreign");
+});
+
+test("HOME_PATH: matches /home/ and /Users/, and stops at prose punctuation", () => {
+  assert.equal("path is /home/somebody/x.txt.".match(HOME_PATH)?.[0], "/home/somebody/x.txt.",
+    "a trailing period is a valid path character, not a boundary — this class does not need to be exact here");
+  assert.equal("(/Users/somebody/repo)".match(HOME_PATH)?.[0], "/Users/somebody/repo",
+    "the paren is excluded, the macOS form is covered");
+  assert.equal("say \"/home/somebody/x\" now".match(HOME_PATH)?.[0], "/home/somebody/x",
+    "a quote closes the path off");
+});
+
+test("git-range: a foreign home path added to the corpus blocks the push; the range before it is green", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const cleanRel = seedCorpusFile(dir, "clean.json", CLEAN);
+    g("add", cleanRel);
+    g("commit", "-qm", "clean");
+    const first = g("rev-parse", "HEAD");
+
+    const dirtyRel = seedCorpusFile(dir, "dirty.json", SEEDED["foreign-path"]);
+    g("add", dirtyRel);
+    g("commit", "-qm", "dirty");
+    const second = g("rev-parse", "HEAD");
+
+    const red = run(["--git-range", `${first}..${second}`], dir);
+    assert.equal(red.status, 2, red.stdout + red.stderr);
+    assert.match(red.stdout, /FINDING foreign-path {2}test\/fixtures\/harvested\/dirty\.json/);
+    assert.ok(!red.stdout.includes("some-other-project"), "the CLI must not echo the matched path");
+
+    const green = run(["--git-range", `EMPTY..${first}`], dir);
+    assert.equal(green.status, 0, green.stdout + green.stderr);
+  });
+});
+
+test("git-range: a path under the pushed repo's OWN root stays green through the CLI too", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    // The scratch repo's own root — derived the same way the class derives
+    // it, never hardcoded to this suite's real checkout.
+    const scratchRoot = g("rev-parse", "--show-toplevel");
+    const doc = { ...CLEAN, cwd: `${scratchRoot}/tools/build.sh` };
+    const rel = seedCorpusFile(dir, "clean-cwd.json", doc);
+    g("add", rel);
+    g("commit", "-qm", "cwd under this same scratch repo");
+    const head = g("rev-parse", "HEAD");
+    const r = run(["--git-range", `EMPTY..${head}`], dir);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+  });
+});
+
+test("HOME_PATH: /root matches alone or with a path, and a word merely starting with it does not", () => {
+  assert.equal("owned by /root".match(HOME_PATH)?.[0], "/root");
+  assert.equal("see /root/.ssh/id_rsa".match(HOME_PATH)?.[0], "/root/.ssh/id_rsa");
+  assert.equal("mounted at /rootfs/data".match(HOME_PATH), null,
+    "a directory named rootfs is not the root user's home");
+  assert.equal("cd project/root-cause".match(HOME_PATH), null,
+    "no leading path separator before root, and a hyphenated tail is not this shape");
 });
 
 // --- commit messages ---------------------------------------------------------
