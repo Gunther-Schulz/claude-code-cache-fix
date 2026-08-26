@@ -169,6 +169,12 @@ briefs, reproduced here by its own author. The seven:
 - (vii) no template is extracted until that hook exists → NOT L1; it is the
   constraint that makes L1 the head of the critical path.
 
+**Step F below is NOT one of the seven.** It is an added scope item from the
+judgment desk's ruling of 2026-08-26, on a defect found while provisioning
+this item's worktree. It is named separately rather than folded into the
+clause list so the derivation above stays honest about what came from the
+design and what did not.
+
 **A. A `source` scope for the foreign-path class.** Add scope handling so a
 class may declare `scope: "source"` and be applied on the `source` route.
 Do NOT change the class's predicate (`hasForeignPath`, `isExemptPath`,
@@ -204,9 +210,40 @@ that repo, after A-D are green in cache-fix. `cmp -s` between the two files
 must exit 0, and you paste that. lifecycle's declaration already says `true`
 and needs no edit — verify that and say so.
 
-Order is fixed and is not yours to optimise: A-C-D in one cache-fix commit
+**F. Fix `exemptRoots()` to resolve the repo root from the COMMON dir, not
+the worktree toplevel** (judgment desk ruling, 2026-08-26). Today
+`exemptRoots()` (`:424-441`) takes `git rev-parse --show-toplevel`, which in
+a worktree answers the WORKTREE — so every file naming the repo's own path
+becomes "foreign" the moment it is read from a worktree. Measured at
+`c42bef2`: **27 files fail in the main checkout, 34 in a worktree of the same
+commit.** The 7 extra are false positives by the class's own definition
+(`:388-394`: the class is about ANOTHER PROJECT's path, and a worktree of
+this repo is this repo). It has been latent only because the corpus scope
+fires on nothing; widening it without this fix would put a guard that fires
+on legitimate work onto the push boundary of all 26 of this repo's
+registered worktrees — law 11, and precisely what the declaration's own
+reason string says it is avoiding.
+
+Replace the root derivation with the parent of
+`git rev-parse --path-format=absolute --git-common-dir`. Keep the existing
+try/catch (not inside a checkout → null, nothing exempted by it).
+
+**THE FLAG ORDER IS LOAD-BEARING AND IS NOT A STYLE CHOICE.** Measured here
+on git 2.55.0: `--path-format=absolute` placed BEFORE `--git-common-dir`
+returns an absolute path; placed AFTER, or omitted, it returns a RELATIVE
+one — `.git` from the main checkout root, `../../.git` from a subdirectory.
+`dirname(".git")` is `"."`, which would silently make the exempt root the
+process's cwd and break the class in both directions with no error. Note the
+trap is INVISIBLE from inside a worktree, where both orders answer absolute:
+the dispatching desk's first probe ran there and returned a false negative
+about this very rule before being re-run from the main checkout. So assert
+the resolved value is absolute, and do it from the main checkout — a check
+written only from a worktree cannot fail.
+
+Order is fixed and is not yours to optimise: A-C-D-F in one cache-fix commit
 (B may be its own commit if it is separable without leaving the tree red),
-then E.
+then E. F rides with the widening because shipping the widening without it
+ships a guard that fires on legitimate work.
 
 ## The allowlist population
 
@@ -321,6 +358,22 @@ Data file (assigned, do not choose your own name):
     full. Remove the plant by restoring a copy taken BEFORE the injection,
     never with `git checkout --`/`restore`/`stash`, then confirm `git status`
     clean AND delete any `__pycache__`/module caches the run created.
+11. **F's red-first, in a worktree.** The 7 files that name this repo's own
+    root: RED under the old `exemptRoots()` read from a worktree, GREEN under
+    the new one, same worktree, same commit. Name the 7 and paste both runs.
+    27 vs 34 is the arithmetic this arm must reproduce.
+12. **F's must-NOT-move row, in the MAIN checkout.** 27 before and 27 after,
+    and the finding SETS byte-equal — not merely the counts, since two
+    different 27s would pass a count check. This is the arm that proves F
+    changed worktree behaviour only. Run it in the main checkout: the
+    reference values in this brief were measured there.
+13. **F under the hook environment.** Git exports `GIT_DIR` into every hook,
+    absolute for worktree operations, and child processes inherit it — so the
+    environment the guard ACTUALLY runs in is not a plain shell. Show the
+    scanner's resolved exempt root under a `GIT_DIR`-redirected environment
+    equals the value from a plain shell, both pasted. If they differ, that is
+    a finding and a STOP: the guard would then be exempting one set of paths
+    when a human runs it and another when the hook does.
 
 ## Write boundaries
 
