@@ -63,7 +63,8 @@ graded against these and nothing else.
 | R15 | The design is one system for every repo on the machine — repos hold only items, lanes and declarations; mechanics live once | operator: global event-lane system |
 | R16 | Cut and rewrite are first-class; a mechanism whose requirement the design already satisfies is removed, not amended | operator ruling |
 | R17 | A "no drift by construction" property is preferred over a "no drift by discipline" one wherever available | inventory §A2 (symlinked corpus) |
-| R18 | Orientation cost and drain ratio are re-measurable after the change by a tool, not an impression | b4 closing gate Q1 (throwaway script) |
+| R18 | Orientation cost, drain ratio AND per-session prefix size are re-measurable after the change by a tool, not an impression | b4 closing gate Q1 (throwaway script); operator observation that clear procedures measurably improve sessions |
+| R19 | **Each kind of thing has exactly one home, and a TOOL keeps it there.** Items are written only by the item tool; procedures live only in a workflow registry (procedure text elsewhere, or a lane body over one screen, is a checker finding); laws live only in the project `CLAUDE.md` under an enforced line cap; reference is free-form and never required reading; rules are minted only at their truth level. Inflation and fragmentation recurred in every carrier because each had an append path and no owner for this invariant — the corpus's prose rules against it land on a session that has to remember | operator observation 2026-08-26; inventory §A–D throughout |
 
 ## 3. The design, from a blank page
 
@@ -144,7 +145,30 @@ which is what makes lane use countable (the use-evidence column).
 
 One lane per DOOR, situations as its terminal dispositions — never one
 lane per situation (operator-confirmed: three overlapping bust lanes
-with no tie-break is the failure this prevents). The lanes:
+with no tie-break is the failure this prevents).
+
+**Lane, workflow, law, reference — the factoring (operator sketch
+2026-08-26, adopted).** A LANE is a thin decider: trigger → which
+situation → which WORKFLOW(s) → which disposition; one screen, no
+procedure in it. A WORKFLOW is a persisted, reusable procedure with
+executable gates between steps and a named output ("rebase a PR",
+"attribute a bust to bytes", "ship a proxy change", "post publicly"),
+kept in the plugin's registry — one bust lane routes to attribute, then
+to mitigate or park, and the tie-break is the lane's decision table. The
+monolithic method file (dev-loop.md, 2,548 lines) DECOMPOSES into three
+destinations, nothing deleted: its procedures → workflows; its LAWS (the
+bytes-not-order invariant, replay the serving config, the closing gate's
+four questions) → the project `CLAUDE.md`; its essays → reference, which
+a workflow gate POINTS AT when a step needs the reasoning. Two guard
+rails so this is not a new inflation (R19): a workflow earns its own
+file only when two or more lanes use it or the lane body would exceed
+a screen (the repo's own ≈3-call-sites rule); and `CLAUDE.md` takes
+laws, never method — the test being "would a session that broke this
+line have shipped a defect?" — under a line cap the checker enforces.
+Required reading then shrinks to `CLAUDE.md` plus what the firing lane
+names, which is the only change that cuts the 37-call toll (R4).
+
+The lanes:
 
 | you say | lane | Trigger predicate | ends at |
 |---|---|---|---|
@@ -297,10 +321,19 @@ bites; migration tool that converts both repos' backlogs and prints the
 unknown-grade resolution report. Verifier: red-first on a planted
 unknown grade, a planted duplicate item, a planted broken closure count.
 
-**Wave 2 — lanes rewritten (parallel dispatches, disjoint files):**
-the six lanes of §3.3 in the new format, each with its predicate proven
-FIRING on a planted item and QUIET on none; the old runbooks retired in
-the same commits. The corpus accretion module rewritten to its pointer.
+**Wave 2 — lanes as deciders, the workflow set, dev-loop decomposed
+(parallel dispatches, disjoint files):** the six lanes of §3.3 as
+one-screen deciders, each predicate proven FIRING on a planted item and
+QUIET on none; the workflow registry with the procedures extracted from
+the nine runbooks and dev-loop.md, each gate executable; dev-loop.md
+split law / workflow / reference with the project `CLAUDE.md` under its
+line cap; the old runbooks retired in the same commits; the corpus
+accretion module rewritten to its pointer; claude-worktime's status
+display rebuilt on `item`/`lane` output. Verifier per R19: the checker
+finds a planted procedure paragraph outside the registry, a planted
+over-long lane body, and a `CLAUDE.md` over its cap; and R18's tool
+shows the required-reading prefix and the pre-first-write call count
+both lower than the step-2 baseline.
 
 **Wave 3 — trigger evaluation + detectors (one dispatch):** trigger
 evaluation at session start and prompt submit under the `trigger-policy`
