@@ -150,7 +150,7 @@ test("the LEDGER is exempt from ONE class, not from the file", () => {
   assert.deepEqual([...exemptClasses(`${CORPUS}/pinned-s-4b6a435234bf-26-28.json`)], []);
 });
 
-test("this test file itself is exempt from capture-uuid ONLY, not a full skip", () => {
+test("this test file itself is exempt from TWO named classes, not a full skip", () => {
   // The 2026-08-10 companion to the two exemptions above: SOURCE_UUID_ALLOWLIST
   // below carries ~15 deliberately synthetic UUIDs, and scanSourceText's
   // capture-uuid fix (same day) now flags every one of them on a git-range
@@ -159,10 +159,19 @@ test("this test file itself is exempt from capture-uuid ONLY, not a full skip", 
   // re-verifies every UUID it carries against that same allowlist on every
   // `npm test` run. Class-scoped: capture-key-prefix (and everything else)
   // still applies.
+  //
+  // `foreign-path` JOINED IT 2026-08-26, from a SEPARATE ALLOWLIST entry with
+  // a separate reason — the bootstrap pair, without which the widened class
+  // denies its own source and the change cannot land. `exemptClasses` unions
+  // the two entries, which is why neither reason has to carry the other's, and
+  // why this assertion is over the union rather than either entry alone.
+  // Deliberately an EXACT list: a third class appearing here would be a scrub
+  // verdict wearing a bootstrap exemption's costume, and an exact list is what
+  // makes that visible instead of silently absorbed.
   const self = "test/absence-scan.test.mjs";
-  assert.deepEqual([...exemptClasses(self)], ["capture-uuid"]);
+  assert.deepEqual([...exemptClasses(self)].sort(), ["capture-uuid", "foreign-path"]);
   assert.equal(isAllowlisted(self), false,
-    "isAllowlisted means exempt from EVERY class — this file is not, only from one");
+    "isAllowlisted means exempt from EVERY class — this file is not, only from two");
 });
 
 test("a capture UUID planted into the LEDGER is still caught", () => {
@@ -1351,4 +1360,222 @@ test("git-range: an empty corpus scope reads as passing, and does not widen to s
     assert.equal(dirty.status, 2, dirty.stdout + dirty.stderr);
     assert.match(dirty.stdout, /FINDING capture-uuid {2}test\/fixtures\/dirty\.json/);
   });
+});
+
+// --- the source-scope foreign-path class, and its declaration ----------------
+//
+// The class was scoped "corpus" until 2026-08-26 and therefore structurally
+// blind to `.md`/`.mjs`, which is the leak direction the lifecycle plugin repo
+// lives on the wrong side of (design §3.3). Widening it put two new things
+// under test: the SCOPE (does the source route apply it) and the DECLARATION
+// that gates the scope per repo. Every arm below drives the real CLI the way
+// the pre-push hook drives it, because a unit-level check would leave the
+// stdin/exit-code/decision plumbing the guard actually ships with unexercised.
+//
+// The payload is fixed across the arms and its ONLY violation is the foreign
+// path: no UUID, no `s-`+8hex capture key, no 200-character base64 run. That
+// is what makes a finding here discriminating — a payload that any other class
+// would also catch could not tell this class's reach from theirs.
+const FOREIGN_LINE = "see /home/otheruser/dev/some-other-project/tools/build.sh for details";
+
+/** Write the repo's `leak-scan` declaration. `value === undefined` writes a
+ * `leak-scan` object with no key; `null` writes no file at all. */
+function declare(dir, value, { object = true } = {}) {
+  if (value === null) return;
+  mkdirSync(join(dir, ".claude"), { recursive: true });
+  const body = object
+    ? JSON.stringify({ "leak-scan": value === undefined ? {} : { "source-scope-foreign-path": value } })
+    : JSON.stringify({ schema: 2 });
+  writeFileSync(join(dir, ".claude/lifecycle.json"), body);
+}
+
+/** A repo carrying one `.md` with the foreign line, committed, plus whatever
+ * declaration the arm wants. Returns the CLI result over the whole history. */
+function sourceScopeArm(dir, declared, opts) {
+  const g = gitRepo(dir);
+  writeFileSync(join(dir, "notes.md"), `# notes\n\n${FOREIGN_LINE}\n`);
+  declare(dir, declared, opts);
+  g("add", "-A");
+  g("commit", "-qm", "notes");
+  return run(["--git-range", `EMPTY..${g("rev-parse", "HEAD")}`], dir);
+}
+
+test("source scope: declared ON, a foreign path in a .md is caught — the reach the corpus scope did not have", () => {
+  withTemp((dir) => {
+    const r = sourceScopeArm(dir, true);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING foreign-path {2}notes\.md {2}line 3/);
+    assert.ok(!r.stdout.includes("some-other-project"), "the CLI must not echo the matched path");
+  });
+});
+
+test("source scope: declared OFF, the same payload is clean and says nothing about a declaration it read fine", () => {
+  withTemp((dir) => {
+    const r = sourceScopeArm(dir, false);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.ok(!r.stdout.includes("FINDING foreign-path"), r.stdout);
+    assert.ok(!r.stdout.includes("could not be read"),
+      "a declaration that WAS read must not report a could-not-verify line");
+  });
+});
+
+// THE THIRD ANSWER, which is the arm that usually goes unbuilt: an absent,
+// shapeless, unparseable or non-boolean declaration is COULD-NOT-VERIFY —
+// named on a degraded: line, with the scope OFF. Never a silent default in
+// either direction: ON would put a guard that fires on legitimate work onto a
+// push boundary, and OFF without saying so is how a declaration goes
+// decorative, which is the defect this wiring exists to end.
+for (const [label, value, opts] of [
+  ["no declaration file at all", null, undefined],
+  ["a file with no leak-scan object", false, { object: false }],
+  ["a leak-scan object with no key", undefined, undefined],
+  ["a key that is not a boolean", "yes", undefined],
+]) {
+  test(`source scope: ${label} is COULD-NOT-VERIFY — reported, and the scope stays OFF`, () => {
+    withTemp((dir) => {
+      const r = sourceScopeArm(dir, value, opts);
+      assert.equal(r.status, 0, r.stdout + r.stderr);
+      assert.ok(!r.stdout.includes("FINDING foreign-path"),
+        "could-not-verify must not be read as ON");
+      assert.match(r.stdout, /degraded: .*source-scope declaration could not be read/);
+    });
+  });
+}
+
+test("source scope: the assurance line NAMES the class it applied, so it cannot be wider than its predicate", () => {
+  withTemp((dir) => {
+    const on = sourceScopeArm(dir, true);
+    assert.match(on.stdout, /source file\(s\) — capture-key-prefix, capture-uuid, foreign-path only/);
+  });
+  withTemp((dir) => {
+    const off = sourceScopeArm(dir, false);
+    assert.match(off.stdout, /source file\(s\) — capture-key-prefix, capture-uuid only/,
+      "with the scope off the line must not claim a class that did not run");
+  });
+});
+
+test("source scope: a path under the SCANNED repo's own root does not fire, while a foreign one beside it does", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    // Derived, never hardcoded — the same question the class asks.
+    const root = g("rev-parse", "--show-toplevel");
+    writeFileSync(join(dir, "notes.md"), `# notes\n\nbuilt in ${root}/tools/build.sh\n`);
+    declare(dir, true);
+    g("add", "-A");
+    g("commit", "-qm", "own root");
+    const clean = run(["--git-range", `EMPTY..${g("rev-parse", "HEAD")}`], dir);
+    assert.equal(clean.status, 0, clean.stdout + clean.stderr);
+
+    // The PAIR: the same file, same shape, a foreign path. Without this the
+    // clean result above is indistinguishable from a class that never ran.
+    writeFileSync(join(dir, "notes.md"), `# notes\n\nbuilt in ${root}/tools/build.sh\n${FOREIGN_LINE}\n`);
+    g("add", "-A");
+    g("commit", "-qm", "foreign beside it");
+    const red = run(["--git-range", `EMPTY..${g("rev-parse", "HEAD")}`], dir);
+    assert.equal(red.status, 2, red.stdout + red.stderr);
+  });
+});
+
+test("source scope: the CORPUS route kept the class — widening was a widening, not a move", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    // Declared OFF, so only the corpus route can produce this finding.
+    declare(dir, false);
+    const rel = seedCorpusFile(dir, "dirty.json", SEEDED["foreign-path"]);
+    g("add", "-A");
+    g("commit", "-qm", "corpus leak");
+    const r = run(["--git-range", `EMPTY..${g("rev-parse", "HEAD")}`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, new RegExp(`FINDING foreign-path {2}${rel.replace(/[/.]/g, "\\$&")}`));
+  });
+});
+
+// --- exemptRoots resolves from the COMMON dir --------------------------------
+
+test("exemptRoots: the flag ORDER that makes --git-common-dir absolute, pinned from a MAIN checkout", () => {
+  withTemp((dir) => {
+    gitRepo(dir);
+    const ask = (...args) =>
+      spawnSync("git", ["rev-parse", ...args], { cwd: dir, encoding: "utf-8", env: SCRUBBED_GIT_ENV })
+        .stdout.trim();
+    // A temp repo is a MAIN checkout, which is the only place this can fail:
+    // inside a worktree BOTH orders answer absolute, so a check written there
+    // cannot go red. Measured on git 2.55.0.
+    assert.ok(ask("--path-format=absolute", "--git-common-dir").startsWith(sep),
+      "flags in this order must yield an absolute path — the scanner takes dirname() of it");
+    assert.ok(!ask("--git-common-dir", "--path-format=absolute").startsWith(sep),
+      "and the reversed order must NOT, which is exactly why the order is load-bearing: " +
+      "dirname('.git') is '.', silently making the exempt root the process cwd");
+  });
+});
+
+test("exemptRoots: read from a WORKTREE, the main checkout's own path is still this repo — not foreign", () => {
+  const wt = `${tmpDirSync("absence-scan-wt-")}-tree`;
+  withTemp((dir) => {
+    try {
+      const g = gitRepo(dir);
+      const root = g("rev-parse", "--show-toplevel");
+      declare(dir, true);
+      // Prose naming the MAIN checkout — ordinary operating text about this
+      // repo's own tree, which is what the class must not call foreign.
+      writeFileSync(join(dir, "notes.md"), `# notes\n\nbuilt in ${root}/tools/build.sh\n`);
+      g("add", "-A");
+      g("commit", "-qm", "seed");
+      g("worktree", "add", "-q", wt, "-b", "side");
+
+      const clean = run(["--git-range", `EMPTY..${g("rev-parse", "HEAD")}`], wt);
+      assert.equal(clean.status, 0,
+        "read from a worktree, --show-toplevel answers the WORKTREE, so the main checkout's " +
+        "own path read as another project — the defect this resolves from the common dir to fix:\n" +
+        clean.stdout + clean.stderr);
+
+      // The pair again: the worktree must still catch a genuinely foreign path,
+      // or the green above would only prove the class stopped running there.
+      writeFileSync(join(wt, "notes.md"), `# notes\n\nbuilt in ${root}/x\n${FOREIGN_LINE}\n`);
+      const gw = (...args) =>
+        spawnSync("git", args, { cwd: wt, encoding: "utf-8", env: SCRUBBED_GIT_ENV }).stdout.trim();
+      gw("add", "-A");
+      gw("commit", "-qm", "foreign in the worktree");
+      const red = run(["--git-range", `EMPTY..${gw("rev-parse", "HEAD")}`], wt);
+      assert.equal(red.status, 2, red.stdout + red.stderr);
+    } finally {
+      rmSync(wt, { recursive: true, force: true });
+    }
+  });
+});
+
+test("exemptRoots: a GIT_DIR-redirected environment — the hook's real one — resolves the same roots as a plain shell", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const root = g("rev-parse", "--show-toplevel");
+    declare(dir, true);
+    writeFileSync(join(dir, "notes.md"), `# notes\n\nbuilt in ${root}/tools/build.sh\n`);
+    g("add", "-A");
+    g("commit", "-qm", "seed");
+    const head = g("rev-parse", "HEAD");
+
+    const plain = run(["--git-range", `EMPTY..${head}`], dir);
+    // Git exports GIT_DIR into every hook — absolute for worktree operations —
+    // and child processes inherit it, so this is the environment the guard
+    // ACTUALLY runs in. If the two disagree, the guard exempts one set of
+    // paths for a human and another for the hook.
+    const hookish = spawnSync(process.execPath, [TOOL, "--git-range", `EMPTY..${head}`],
+      { cwd: dir, encoding: "utf-8", env: { ...SCRUBBED_GIT_ENV, GIT_DIR: join(dir, ".git") } });
+    assert.equal(hookish.status, plain.status,
+      `plain:\n${plain.stdout}${plain.stderr}\nunder GIT_DIR:\n${hookish.stdout}${hookish.stderr}`);
+    assert.equal(hookish.stdout, plain.stdout, "the two environments must resolve the same exempt roots");
+  });
+});
+
+test("the bootstrap pair is exempt from foreign-path ONLY, and is still scanned for everything else", () => {
+  for (const p of ["tools/absence-scan.mjs", "test/absence-scan.test.mjs"]) {
+    const e = exemptClasses(p);
+    assert.ok(e !== "all" && e.has("foreign-path"),
+      `${p} must carry the bootstrap exemption — without it the guard denies its own source and cannot land`);
+    assert.equal(isAllowlisted(p), false,
+      `${p} must NOT be a whole-file skip: every other class still fires there`);
+  }
+  // And the exemption is exactly two files wide — a third would be a scrub
+  // verdict wearing a bootstrap entry's costume.
+  assert.equal(exemptClasses("tools/backlog-lint.mjs").has?.("foreign-path") ?? false, false);
 });

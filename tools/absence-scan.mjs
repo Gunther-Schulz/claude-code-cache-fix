@@ -34,7 +34,7 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 import { homedir } from "node:os";
 
 // --- Allowlist ---------------------------------------------------------------
@@ -123,6 +123,35 @@ export const ALLOWLIST = [
   {
     pattern: /(^|\/)test\/absence-scan\.test\.mjs$/,
     classes: ["capture-uuid"],
+  },
+  // THE BOOTSTRAP PAIR — the guard's own source and its own suite, exempt from
+  // `foreign-path` alone (added 2026-08-26 with the source-scope widening).
+  //
+  // The reason is structural rather than a judgement about these two files'
+  // content: WITH the class widened to source scope, both of them fail it, and
+  // the pre-push hook runs THIS scanner from the pushing tree. So the commit
+  // that widens the class cannot pass its own hook unless the entry covering
+  // it is in that same commit — a guard that denies its own source cannot
+  // land. That is why this entry and the widening are one change rather than
+  // two, and it is not a per-file scrub verdict on anything else.
+  //
+  // What they carry is the class's own subject matter: this file documents the
+  // shapes it matches, and the suite plants home-shaped paths as fixtures to
+  // prove it matches them. Documenting a textual guard makes its source
+  // self-matching — the predicate cannot tell an illustrative path from a live
+  // one, and it should not try, because that distinction is a judgement and
+  // the mechanism for a judgement here is this allowlist rather than a
+  // cleverer regex.
+  //
+  // CLASS-SCOPED, never a whole-file skip, exactly as every entry above:
+  // `capture-uuid`, `capture-key-prefix`, `b64-run` and the document classes
+  // all still fire in both files. Note the suite's own `capture-uuid`
+  // exemption sits in the entry above and is a separate fact with a separate
+  // reason — `exemptClasses` unions the two, so neither reason has to carry
+  // the other's.
+  {
+    pattern: /(^|\/)(tools\/absence-scan\.mjs|test\/absence-scan\.test\.mjs)$/,
+    classes: ["foreign-path"],
   },
 ];
 
@@ -393,22 +422,35 @@ export function* strings(node, path = "$") {
 //     which is exactly the "filesystem identity" the publication bar's own
 //     2026-08-10 measurement counted as zero and never mechanized a check for.
 //
-// SCOPE: "corpus", not "any" — deliberately, matching nested-payload,
-// live-timestamp and raw-content rather than b64-run/capture-uuid. A home path
-// is not a defect wherever it sits: this repo's OWN docs, backlog and runbooks
-// legitimately name this machine's real home directory throughout (worktree
-// paths, the dotfiles repo, `~/.claude`) as ordinary operating prose, not a
-// captured session's identity. Measured before shipping this class no
-// differently than any other claim here: every tracked file scanned by hand
-// for a home-shaped path found exactly one document-type conflict outside the
-// corpus (`test/fixtures/cc-transcript-shape-snapshot.json`'s synthetic
-// `/home/user/…` cwd) and NONE inside it — every other hit lives in `.md`/
-// `.mjs` source, which never reaches this array at all (`scanContent` routes
-// source through `scanSourceText`, covered by `capture-key-prefix`/
-// `capture-uuid` alone, never the document classes). Scoping to "corpus" is
-// what makes that one conflict a non-conflict BY CONSTRUCTION, the same way
-// `raw-content` already leaves hand-authored prose elsewhere alone — never an
-// exemption bolted on after the fact.
+// SCOPE: "source" since 2026-08-26 — which means the corpus route as before,
+// PLUS the source route when the scanned repo declares it (see "The
+// source-scope declaration" below). It was "corpus" until then, and the
+// reasoning that made corpus right is still true OF ONE REPO rather than of
+// the class: claude-code-cache-fix's own docs, backlog and runbooks
+// legitimately name this machine's home directory throughout as ordinary
+// operating prose, not a captured session's identity, so a source-scope class
+// fires on legitimate work there until those files are dispositioned. It is
+// blind in the other direction in the lifecycle plugin repo, whose payload is
+// `.md` templates extracted FROM private repos: there a foreign home path in
+// source IS the leak, and no fixture corpus would ever see it (design
+// docs/directives/carrier-rework-design-2026-08-26.md §3.3).
+//
+// That is a per-repo answer, so it is a DECLARATION rather than a constant —
+// this file is a byte-identical copy shared by both repos, and either
+// hardcoded answer would be wrong in the other. What the class's own
+// PREDICATE means is unchanged: `hasForeignPath` / `isExemptPath` /
+// `HOME_PATH` are untouched by the widening, because the defect was reach,
+// not logic.
+//
+// Measured before shipping the class in its corpus form, and still the
+// baseline the widening moves: every tracked file scanned for a home-shaped
+// path found exactly one document-type conflict outside the corpus
+// (`test/fixtures/cc-transcript-shape-snapshot.json`'s synthetic placeholder
+// cwd) and NONE inside it — every other hit lives in `.md`/`.mjs` source,
+// which reached this array not at all while the scope was corpus
+// (`scanContent` routes source through `scanSourceText`). Widening is
+// therefore a real change in reach and not a tidy-up: measured at c42bef2,
+// 27 tracked files in this repo fail the predicate under the source route.
 //
 // BOTH BOUNDARIES ARE DERIVED AT RUN TIME, never hardcoded: a hardcoded
 // machine path in a public tree is the exact hazard this class exists to
@@ -426,7 +468,31 @@ function exemptRoots() {
   const home = process.env.HOME || homedir();
   let repoRoot = null;
   try {
-    repoRoot = git(["rev-parse", "--show-toplevel"], { quiet: true }).trim();
+    // THE COMMON DIR, NOT `--show-toplevel` (fixed 2026-08-26). A WORKTREE of
+    // this repo is this repo — the class is about ANOTHER PROJECT's path (see
+    // the class comment above) — but `--show-toplevel` answers the WORKTREE,
+    // so read from one, every file naming the repo's own checkout became
+    // "foreign". Measured at c42bef2 over `git ls-files` with this class's own
+    // predicate: 27 files fail in the main checkout, 34 in a worktree of the
+    // same commit, and all 7 extra are this repo's own path. Latent only
+    // because the corpus scope fires on nothing; a source-scope widening
+    // without this fix would put a guard that fires on legitimate work onto
+    // the push boundary of every registered worktree, which is the override
+    // reflex this file exists to avoid training. `--git-common-dir` answers
+    // the MAIN checkout's `.git` from anywhere, worktrees included, so its
+    // parent is the one root both share.
+    //
+    // THE FLAG ORDER IS LOAD-BEARING, not style. Measured on git 2.55.0:
+    // `--path-format=absolute` BEFORE `--git-common-dir` returns an absolute
+    // path; placed after, or omitted, it returns a RELATIVE one (`.git` from
+    // the root, `../../.git` from a subdirectory), and the parent of that is
+    // `"."` — which would silently make the exempt root the process's cwd and
+    // break this class in both directions with no error. The trap is
+    // INVISIBLE from inside a worktree, where both orders answer absolute, so
+    // the assertion covering it is written from the main checkout.
+    const commonDir = git(["rev-parse", "--path-format=absolute", "--git-common-dir"],
+                          { quiet: true }).trim();
+    repoRoot = commonDir ? dirname(commonDir) : null;
   } catch {
     repoRoot = null; // not inside a git checkout — nothing to exempt by it
   }
@@ -471,7 +537,17 @@ function hasForeignPath(value) {
 // A caller that wants to know the scan was not vacuous reads the per-class
 // counter, which is why the domain is not folded into `violates`.
 // `scope`: "any" = true of any committed JSON, "corpus" = defined over the
-// sanitized harvested fixture corpus only (see CORPUS_SCOPE above).
+// sanitized harvested fixture corpus only (see CORPUS_SCOPE above), "source" =
+// the corpus route AS WELL AS the source route, the latter only where the
+// scanned repo declares it (see "The source-scope declaration" below).
+//
+// "source" is a WIDENING of "corpus", never a move off it, and `classesFor`
+// below is what makes that true rather than a claim: a corpus file gets every
+// class whatever its scope, so a class moving from "corpus" to "source" keeps
+// its corpus reach untouched — and the json route, which filters to `"any"`
+// alone, keeps excluding it exactly as before. Both routes are therefore
+// byte-identical across that move, which is the property the widening had to
+// preserve and which `scopeKey`'s own test asserts.
 export const CLASSES = [
   {
     name: "b64-run",
@@ -524,7 +600,7 @@ export const CLASSES = [
   },
   {
     name: "foreign-path",
-    scope: "corpus",
+    scope: "source",
     why: "an absolute home-directory path outside this repo and the known XDG roots is another session's project location",
     applies: ({ value }) => HOME_PATH.test(value),
     violates: ({ value }) => (hasForeignPath(value) ? {} : null),
@@ -536,6 +612,107 @@ const zeroSeen = () => Object.fromEntries(CLASS_NAMES.map((n) => [n, 0]));
 
 /** The classes a given path is in scope for. */
 export const classesFor = (file) => (inCorpus(file) ? CLASSES : CLASSES.filter((c) => c.scope === "any"));
+
+// --- The source-scope declaration --------------------------------------------
+//
+// WHETHER THE SOURCE ROUTE APPLIES ITS CLASSES IS THE SCANNED REPO'S OWN CALL,
+// read from that repo rather than hardcoded here. This file is a
+// byte-identical copy shared by two repos whose answers deliberately DIFFER
+// (see the foreign-path class comment), so either hardcoded answer would be
+// wrong in the other copy — and "byte-identical, both copies moving together"
+// is itself a requirement of the design this implements.
+//
+// UNTIL THIS EXISTED, BOTH REPOS' KEYS WERE DECORATIVE. Established by grep
+// over this file at brief time for `lifecycle.json` / `leak-scan` /
+// `source-scope`: zero hits, against a positive control that the file does
+// read configuration elsewhere. So the plugin's `true` and cache-fix's `false`
+// described a behaviour that was hardcoded `corpus` either way — neither was
+// honoured and neither was violated. That is the same disconnect this file
+// already records once at the synthetic roster above ("never read it, so the
+// declaration and the guard were disconnected"): a declaration nobody reads is
+// not a setting, it is a comment.
+//
+// THE THIRD ANSWER, per this file's own header rule. An absent file, an
+// absent `leak-scan` object, an absent or non-boolean key, or a file that does
+// not parse are each COULD-NOT-VERIFY: named on a `degraded:` line and the
+// scope stays OFF. Never a silent default in EITHER direction — defaulting ON
+// would put a guard that fires on legitimate work onto a push boundary, and
+// defaulting OFF without saying so is how a declaration goes decorative a
+// second time.
+//
+// RESOLVED FROM `--show-toplevel`, DELIBERATELY NOT the common dir
+// `exemptRoots` uses. The two answer different questions and the divergence is
+// intended: a worktree of this repo IS this repo for deciding whether a PATH
+// is foreign, while the declaration is a TRACKED FILE whose content is
+// whatever the checked-out branch says. A worktree that has flipped the key
+// must scan under its own answer — which is exactly how the widening lands,
+// and how the tree carrying it blocks its own pushes before the main checkout
+// ever enforces the class.
+export const SOURCE_SCOPE_KEY = "source-scope-foreign-path";
+const DECLARATION_REL = ".claude/lifecycle.json";
+
+let _sourceScope = null;
+
+/**
+ * `{ on, note }` — whether the source route applies its classes in the repo
+ * being scanned, and the could-not-verify note when the declaration could not
+ * be read. Memoized for the same reason `exemptRoots` is: it cannot change
+ * within one process's lifetime.
+ */
+export function sourceScopeDeclaration() {
+  if (_sourceScope) return _sourceScope;
+  const undecided = (why) =>
+    (_sourceScope = { on: false, note:
+      `source-scope declaration could not be read (${DECLARATION_REL}: ${why}) — ` +
+      "source-scope classes are OFF for this run" });
+  let root;
+  try {
+    root = git(["rev-parse", "--show-toplevel"], { quiet: true }).trim();
+  } catch {
+    return undecided("not inside a git checkout");
+  }
+  if (!root) return undecided("not inside a git checkout");
+  let raw;
+  try {
+    raw = readFileSync(`${root}/${DECLARATION_REL}`, "utf-8");
+  } catch {
+    return undecided("absent or unreadable");
+  }
+  let doc;
+  try {
+    doc = JSON.parse(raw);
+  } catch {
+    return undecided("does not parse");
+  }
+  const leak = doc?.["leak-scan"];
+  if (!leak || typeof leak !== "object") return undecided("no `leak-scan` object");
+  const declared = leak[SOURCE_SCOPE_KEY];
+  if (typeof declared !== "boolean") {
+    return undecided(`\`leak-scan.${SOURCE_SCOPE_KEY}\` is absent or not a boolean`);
+  }
+  _sourceScope = { on: declared, note: null };
+  return _sourceScope;
+}
+
+/** The classes the SOURCE route applies — empty unless the repo declares the
+ * scope on. Derived from CLASSES rather than named, so a second source-scoped
+ * class is covered by declaring its scope and nothing else. */
+export function sourceClassesFor() {
+  return sourceScopeDeclaration().on ? CLASSES.filter((c) => c.scope === "source") : [];
+}
+
+// The could-not-verify note, ONCE per process. It is a repo-level fact, not a
+// per-file one: emitted per source file it would be the same line hundreds of
+// times, which is how a `degraded:` line stops being read at all. Emitted at
+// the first source file whose scan it affected, and worded as a statement
+// about the RUN rather than about that file.
+let _sourceScopeNoteTaken = false;
+function takeSourceScopeNote() {
+  const { note } = sourceScopeDeclaration();
+  if (!note || _sourceScopeNoteTaken) return null;
+  _sourceScopeNoteTaken = true;
+  return note;
+}
 
 // --- Finding identity --------------------------------------------------------
 //
@@ -618,9 +795,11 @@ export function scanContent(text, file, { honorSyntheticRoster = false } = {}) {
   // A source file is not a fixture: it has no document shape, and only the
   // short-key class applies to it.
   if (SOURCE_SCANNABLE.test(file) && !SCANNABLE.test(file)) {
-    const r = scanSourceText(text, file, honorSyntheticRoster);
+    const r = scanSourceText(text, file, honorSyntheticRoster, sourceClassesFor());
+    const note = takeSourceScopeNote();
     return { findings: [...scanName(file), ...r.findings], seen: zeroSeen(),
-             scanned: 0, degraded: r.degraded, partial: true, sourceOnly: true };
+             scanned: 0, degraded: note ? [...r.degraded, note] : r.degraded,
+             partial: true, sourceOnly: true };
   }
   const findings = [...scanName(file)];
   const seen = zeroSeen();
@@ -741,17 +920,41 @@ const SHORT_KEY_EXEMPT = [
 // caught this when the roster was first wired in unconditionally. Default-off
 // also leaves every existing `scanContent` caller, including the suite's
 // classification tests, byte-identical in behaviour.
-export function scanSourceText(text, file, honorSyntheticRoster = false) {
+// `sourceClasses` defaults to NONE, and that default is what keeps this change
+// from widening anything by accident — the same discipline
+// `honorSyntheticRoster` above was given. Only `scanContent`'s source route
+// passes them; the two MESSAGE callers below (commit messages, annotated tag
+// messages) call this with fewer arguments and are therefore byte-identical in
+// behaviour to before. That is a real residual rather than an oversight: the
+// publication bar covers commit messages too, so a foreign path written into
+// one is still caught by nothing here. Widening to messages is a scope
+// question with its own false-fire population (every commit message that
+// legitimately names this machine's checkout) and belongs to whoever
+// dispositions the tracked files, not to this change.
+export function scanSourceText(text, file, honorSyntheticRoster = false, sourceClasses = []) {
   const findings = [];
   text.split("\n").forEach((line, i) => {
+    const where = `line ${i + 1}`;
+    // The SOURCE-SCOPE classes, checked INDEPENDENTLY of the two shape classes
+    // below and deliberately not gated behind their early returns: a line
+    // carrying a capture identifier can carry a foreign path as well, and
+    // those are two separate facts about it. The UUID/short-key chain keeps
+    // its own precedence exactly as it was — those two are one shape family
+    // and must not double-report the same string, which is a reason that does
+    // not reach across to a class matching a different shape entirely.
+    for (const cls of sourceClasses) {
+      const entry = { value: line, key: null, owner: null, path: where };
+      if (!cls.applies(entry)) continue;
+      if (cls.violates(entry)) findings.push(finding(cls.name, line, { file, path: where }));
+    }
     if (UUID.test(line)) {
       if (honorSyntheticRoster && allUuidsAreDeclaredSynthetic(line)) return;
-      findings.push(finding("capture-uuid", line, { file, path: `line ${i + 1}` }));
+      findings.push(finding("capture-uuid", line, { file, path: where }));
       return;
     }
     if (!SHORT_KEY.test(line)) return;
     if (SHORT_KEY_EXEMPT.some((re) => re.test(line))) return;
-    findings.push(finding("capture-key-prefix", line, { file, path: `line ${i + 1}` }));
+    findings.push(finding("capture-key-prefix", line, { file, path: where }));
   });
   return { findings, degraded: [] };
 }
@@ -1126,8 +1329,18 @@ function report(out, { findings, allowlisted = [], degraded = [], partial = 0, p
       // a full-UUID line under capture-uuid, inline, right here. The roster
       // remains a second, independent check over tracked files; it is no
       // longer the ONLY one.
-      out(`scope: ${partialSource} source file(s) — capture-key-prefix and ` +
-          `capture-uuid only; the other classes need a JSON document`);
+      // DERIVED, NOT RESTATED, since 2026-08-26. This line has now been
+      // corrected twice for naming a set its predicate did not establish, and
+      // a source-scope class enabled by declaration would have made it wrong a
+      // THIRD time in the quiet direction — asserting two classes over a run
+      // that applied three. Reading the source route's own class list is what
+      // makes the assurance track the predicate instead of a reader's memory
+      // of it, and it costs nothing: a second source-scoped class is named
+      // here the moment it is declared.
+      const sourceNames = ["capture-key-prefix", "capture-uuid",
+                           ...sourceClassesFor().map((c) => c.name)];
+      out(`scope: ${partialSource} source file(s) — ${sourceNames.join(", ")} ` +
+          `only; the other classes need a JSON document`);
     }
   }
   for (const f of findings) {

@@ -1,0 +1,58 @@
+# Foreign-path classification — the 25 tracked files the source-scope
+# foreign-path class blocks, measured 2026-08-26 against the class's own
+# predicate. INPUT to the operator's per-file keep-or-scrub verdict; this
+# file takes no such verdict and proposes none.
+#
+# NO TOKEN IS REPRODUCED HERE. The file is about home-shaped paths, so
+# counts and owner labels are the whole content — writing an example would
+# be the defect it exists to measure.
+#
+# distinct_tokens = distinct non-exempt home-shaped strings in the file.
+# Exempt ones (this repo's own root, the XDG roots) are not counted: they
+# are not why the file blocks.
+#
+# OWNER VOCABULARY. The brief specified two values; the measured population
+# needs four, and the extra two are surfaced as a gap rather than folded
+# into the specified pair:
+#   this_repo             a checkout or worktree of THIS repo at another
+#                         location (the cache-fix-prN working copies) —
+#                         operating prose about its own checkout
+#   another_project       a different real project under this machine's home
+#   machine_tool_state    this machine's Claude config/state area, not a
+#                         project checkout at all
+#   synthetic_placeholder not a live path on this machine: a placeholder
+#                         username, a regex fragment, or an ellipsis in
+#                         documentation
+#
+# Rule, applied mechanically: a token under this machine's home is real and
+# is bucketed by what it names; a token under any other user is a
+# placeholder by construction. The rule is stated so the operator can
+# re-derive any row rather than trust it.
+#
+# totals: this_repo=9 another_project=7 machine_tool_state=4 synthetic_placeholder=26
+path	distinct_tokens	this_repo	another_project	machine_tool_state	synthetic_placeholder
+BACKLOG-DONE.md	3	1	1	1	0
+BACKLOG.md	4	0	2	0	2
+docs/audits/pr-prep-2026-07-31/pr-prep-actions.md	4	4	0	0	0
+docs/audits/pr-prep-2026-07-31/pr-prep-report.md	2	2	0	0	0
+docs/code-reviews/absence-guard-report.md	1	1	0	0	0
+docs/code-reviews/pr-320-round-1-codex.md	1	0	0	0	1
+docs/directives/carrier-rework-handoff-2026-08-26.md	1	0	1	0	0
+docs/preload-setup.md	1	0	0	0	1
+docs/release-tests/pr-220-image-retry-circuit-breaker-container-smoke-2026-06-11.md	1	0	0	0	1
+docs/release-tests/v3.7.1-docker-smoke-2026-05-27.md	1	0	0	0	1
+ITEMS-DONE.md	3	1	1	1	0
+proxy/forward-proxy.mjs	1	0	0	0	1
+test/alias-claim.test.mjs	1	0	0	0	1
+test/backlog-lint.test.mjs	2	0	1	0	1
+test/bust-triage-list-identity.test.mjs	4	0	0	0	4
+test/bust-triage-session-select.test.mjs	1	0	0	0	1
+test/capture-hardening.test.mjs	2	0	0	0	2
+test/findDeferredToolsBlockInBody.test.mjs	3	0	0	0	3
+test/gate-live-census-rows.test.mjs	2	0	0	0	2
+test/insertion-suppression-copy-present.test.mjs	1	0	0	1	0
+test/install-service.test.mjs	2	0	0	0	2
+test/proxy-deferred-tools-restore.test.mjs	1	0	0	0	1
+test/xdg-dirs.test.mjs	2	0	0	0	2
+tools/backlog-lint.mjs	1	0	1	0	0
+tools/xdg-migrate.mjs	1	0	0	1	0
