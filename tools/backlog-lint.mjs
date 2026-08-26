@@ -2229,7 +2229,7 @@ export const NOISE_FILES = new Set(["BACKLOG.md", "docs/dev-loop.md"]);
 // LANE-JOIN key: dry-running the join against real content found glob
 // patterns (`docs/runbooks/*.md`), regex literals
 // (`'gate-status|usage\.jsonl|...'`), machine-absolute and cross-repo paths
-// (`/home/g/dev/.../dotfiles/...`, `~/.local/share/...`), and prose quoting
+// (`/home/<user>/dev/<other-repo>/...`, `~/.local/share/...`), and prose quoting
 // this repo's OWN report-line format (`shared=BACKLOG.md`) — none of them a
 // real write boundary, and left unfiltered they transitively merged two
 // named-separately components (the backlog-tooling family; replay +

@@ -2239,7 +2239,7 @@ test("realizingBoundaryFiles: rejects glob, regex, and absolute-path shaped toke
   const out = realizingBoundaryFiles([
     "docs/runbooks/*.md",
     "'gate-status|usage\\.jsonl'",
-    "/home/g/dev/Gunther-Schulz/dotfiles/BACKLOG.md",
+    "/srv/another-project/BACKLOG.md",
     "tools/backlog-lint.mjs",
   ]);
   assert.deepEqual(out, ["tools/backlog-lint.mjs"]);

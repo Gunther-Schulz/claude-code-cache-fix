@@ -104,8 +104,9 @@ compliance. Kämmung stays as the backstop, never the mechanism.
 
 - cache-fix `main` @ `7802c82` (working tree carries untracked harvested
   fixtures and a modified LEDGER-Siren.json — not yours, leave them).
-- dotfiles `main` @ `4250e66` (`/home/g/dev/Gunther-Schulz/dotfiles`) —
-  READ-ONLY for this arc.
+- dotfiles `main` @ `4250e66` (the operator's dotfiles repo; resolve it
+  from the session's own working-directory list, never from a path
+  written here) — READ-ONLY for this arc.
 
 Arrival check in cache-fix: `git merge-base --is-ancestor 7802c82 HEAD`
 and `git log --oneline 7802c82..HEAD`; commits on top that touch
