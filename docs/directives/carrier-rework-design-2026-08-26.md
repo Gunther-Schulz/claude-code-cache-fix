@@ -492,6 +492,12 @@ plugin's JOURNAL under today's date, never inline. Laws, not method:
 22. A check no input can falsify is deleted, not registered; a partition
     exact by construction is reported as could-not-verify arithmetic,
     never as a green row (found by the W1c lane on its own work).
+23. A design line that names a thing names its home, its writer and its
+    reader; a home is always explicit, never a default the tool assumes.
+24. A verb named is a verb placed in a stage; a refusal named has its
+    firing input; neither exists in prose alone.
+25. Every schema change ships its migration, dry-run first, over every
+    declared repo, before it is applied anywhere.
 
 ### 3.11 Authoring, homes, and the judgment register (operator questions 2026-08-26)
 
@@ -518,17 +524,60 @@ session-written prose kinds (laws, journal) the lint is the scope
 audit, a finding never a refusal; a kind it cannot lint is labelled so
 (invariant 9). Trigger policy is one line of the declaration.
 
-**The judgment register** — rules in this design that decide what a
-person might decide differently, tracked so they are reviewed on
-evidence rather than remembered: (1) per-kind staleness rules; (2) the
-intake cost test; (3) decision weight (R21's gauge over slots); (4) the
-auto-apply class of detector dispositions; (5) the laws-file deciding
-rule; (6) the trigger-policy default. Treatment, the same caps received:
-each emits a FINDING never a refusal; the ledger line is the correction
-path; each records its USE-EVIDENCE (fired / fired on legitimate work /
-overridden) so the retire lane's walk shows which rules earn their
-place — the corpus's fire-rate review applied to the plugin's own
-judgment rules. Not fixed now; reviewed with evidence after wave 2.
+**The judgment register — DESIGNED NOW, reviewed on evidence later**
+(operator 2026-08-26: waiting for use to show a rule wrong is what
+produces drift; the corpus agrees — a noticed improvement defaults to
+building, and the judgment desk's earlier "not fixed now" was the
+deferral in prudence's costume). Each rule below is stated concretely,
+emits a FINDING never a refusal, has the ledger line as its correction
+path, and records its use-evidence (fired / fired on legitimate work /
+overridden) for the fire-rate review the retire lane runs.
+
+1. *Staleness per kind* (defaults `init` writes; a repo may override):
+   items — no grade movement across N retire passes AND no blocker
+   (nobody's court) → stale; PARKED on `decision` → never stale,
+   surfaced; done bodies — uncited by any ledger/journal/commit since
+   close → compact; journal entries — cited by no law or workflow →
+   stale; lanes — trigger never fired AND no use-evidence since mint →
+   stale; workflows — no lane routes to it → stale; directives — a
+   cited file changed past the citation → stale (change-coupling);
+   audits — never (append-only, exit never); templates — no binder →
+   stale. N = 3 passes, a placeholder the first walk replaces.
+2. *Intake cost test*: write-set ≤ 1 file AND session live AND no typed
+   blocker → the tool asks "do it now?"; any other shape → NEW. Never a
+   silent decision either way.
+3. *Decision weight* (R21): loud-failure = a verifier is named;
+   fast-check = the verifier runs under one minute (declared); small
+   blast radius = write-set ≤ 3 files, none live-on-write, none in a
+   public repo's outward surface; one-session = blocker type is not
+   `decision`. Four yes → light; each no → its paired step (verifier
+   built / fresh verdict / enumeration / ledger entry); four no → the
+   heavy workflow. The mapping prints with the pick line.
+4. *Auto-apply class*: only a disposition that is REVERSIBLE (rollback
+   command printed), LOCAL (touches this machine only), and RE-RUNNABLE
+   (idempotent); initial members: the plugin update, plugin-cache
+   cleanup past three; every addition is a ledger decision line.
+5. *Laws-file deciding rule*: tracked `CLAUDE.md` whose git author set
+   is only ours → `CLAUDE.md`; any foreign author in its history → the
+   local overlay; `init` prints which and why.
+6. *Trigger-policy default*: `on-demand` (operator decision); `init`
+   writes it explicitly and names `advise` as the recommended next
+   step once the router has run clean for a week — a suggestion in
+   the file, never a silent switch.
+
+**Migration on plugin update (operator 2026-08-26):** the schema line
+makes an old file refusable, not migratable. Every schema bump ships
+`lifecycle migrate --from <n>` as a dry-run-first pass with a report;
+the drift detector's auto-apply runs that dry run over every declared
+repo and reports before anything is applied; a repo whose dry run
+shows UNCLASSIFIED blocks the apply for that repo only.
+
+**`lifecycle audit` — the auditor (operator idea 2026-08-26):** the
+retire lane's walk run read-only on demand, one screen per repo: every
+check's three-answer result, every kind's count and growth mode,
+use-evidence per lane and per judgment rule, unregistered files, and
+the judgment register's fire-rate. Not a new mechanism; the same walk,
+reporting instead of acting.
 
 ## 4. Diff against the inventory — what survives, what is cut, what is rewritten
 
