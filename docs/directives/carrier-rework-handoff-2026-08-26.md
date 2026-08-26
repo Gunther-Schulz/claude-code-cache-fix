@@ -86,7 +86,7 @@ against the 3:1 tripwire in both dotfiles backlogs with the banner
 firing and nothing draining (inventory, candidate booking 16).
 
 Operator observation (same day, restated; articulated at the judgment
-desk, operator to confirm): items enter by two paths — a session
+desk and CONFIRMED by the operator in the same exchange): items enter by two paths — a session
 noticing a gap, or the operator mentioning one — and both end in the
 same act, an APPEND. Nothing at intake asks whether the item already
 exists, supersedes or obsoletes another, or costs less to do than to
