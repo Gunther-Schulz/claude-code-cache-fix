@@ -250,7 +250,7 @@ notification per batch goes out — CONTENT IS COUNTS ONLY, never a repo
 or producer name ("findings waiting: 3"), on a LOCAL desktop channel by
 default; ntfy (a third-party public host — topic obscurity is not access
 control) is an explicit per-detector opt-in for the phone case
-(decision D8, pending). Under `auto`, the drain lane prints one pick
+(decision D8, accepted). Under `auto`, the drain lane prints one pick
 line per item before its first tool call.
 
 ### 3.5 Detectors, dispositions, recorders, and the trust base (R3, R9, R17)
@@ -466,10 +466,10 @@ move; 4.1–4.4 → D7, D8, plugin leak scan, session-written reasons;
    paths, captures path, an internal incident, in a public repo with no
    leak scan), as W0.6 at the peer desk, hygiene grep red-first; history
    keeps the old text as always. **Accepted (operator, 2026-08-26).**
-8. **PENDING — notification content and channel:** counts only, never a
-   repo or producer name; local desktop channel by default; ntfy
-   (third-party host) an explicit per-detector opt-in for the phone
-   case. Rec: yes.
+8. Notification content and channel: counts only, never a repo or
+   producer name; local desktop channel by default; ntfy (third-party
+   host) an explicit per-detector opt-in for the phone case. **Accepted
+   (operator, 2026-08-26).**
 
 ## 7. Execution handoff — waves 0 and 1 to the peer desk (2026-08-26)
 
