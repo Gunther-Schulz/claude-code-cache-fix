@@ -37,6 +37,16 @@ Trajectory (FORK-NOTES loop stage): none directly — this is the
 machinery the loop runs on; the plan will say whether that is a missing
 stage.
 
+Operator decision (2026-08-26, after kickoff, restated): the default AI
+tendency is to add or amend; this rework weighs CUTTING and FULL REWRITE
+(cut and replace) as first-class options, not fallbacks. Consequences:
+every inventory row (steps 1a/1b/1d) carries a USE-EVIDENCE column —
+when the thing last demonstrably fired, was read, or was followed, with
+basis, or "no evidence of use" — so retirement candidates are derived,
+not judged; and the step-4 proposal states each item in three shapes,
+cut / rewrite / amend, with amend having to earn its place against the
+other two.
+
 ## Base commits (read at compose time)
 
 - cache-fix `main` @ `7802c82` (working tree carries untracked harvested
