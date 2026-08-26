@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 6
+added: 10
 compacted: 0
 
 ## cf-1
@@ -2918,3 +2918,39 @@ write-set: plugin/cli/lifecycle_core/migrate.py, docs/directives/carrier-rework-
 done-criterion: migrate records the source blob it read and refuses, or reports COULD NOT VERIFY, when the source has moved since
 evidence: the wave-1d report: three BACKLOG.md blobs in one afternoon, and the regeneration was re-run against the current tree
 blocked-by: decision whether migrate pins its source blob and what it does when the source has moved
+
+## cf-325
+grade: READY
+requirement: The publication bar covers commit messages, and the foreign-path class does not reach them — record: wave2 L1 report, gap 4
+goal: mitigate
+write-set: tools/absence-scan.mjs,test/absence-scan.test.mjs,lifecycle:tools/absence-scan.mjs
+done-criterion: a foreign home path written into a commit message is caught red-first, with the false-fire population measured before the widening lands
+evidence: L1 report gap 4: scanSourceText's sourceClasses parameter defaults to none, so both message callers stayed byte-identical; recorded at the parameter in code
+blocked-by: decision whether to widen to commit/tag messages given the false-fire population
+
+## cf-326
+grade: READY
+requirement: lifecycle's copied absence-scan suite is not portable — it asserts a walk over proxy/, which exists only in cache-fix — record: wave2 L1 report, gap 3
+goal: verify
+write-set: decision:one-copy-rule-for-the-suite,lifecycle:test/absence-scan.test.mjs
+done-criterion: lifecycle's node suite is green at its own HEAD, and the copy rule for the SUITE is declared either way (byte-identical like the scanner, or repo-portable)
+evidence: measured at lifecycle 4d4546c, clean tree: 62 tests, 61 pass, 1 fail on 'the walk collected no file under proxy/' — pre-existing, before wave 2 touched anything
+blocked-by: decision whether the SUITE is mandated byte-identical like the scanner, or made repo-portable
+
+## cf-327
+grade: READY
+requirement: Under the exemptRoots common-dir fix, a worktree's OWN path is no longer exempt — prose naming a worktree location now reads as foreign — record: wave2 L1 report, (g) item 5
+goal: verify
+write-set: tools/absence-scan.mjs,lifecycle:tools/absence-scan.mjs
+done-criterion: either a measurement showing no tracked prose names a worktree location, or the exempt set covers registered worktrees
+evidence: L1 (g) item 5: correct for the 7 files, which name the main checkout; nothing in either tree names a worktree location today, unmeasured going forward
+blocked-by: evidence a tracked file names a worktree location
+
+## cf-328
+grade: READY
+requirement: migrate --apply must preserve items that entered ITEMS.md by intake after the dry run — judgment desk ruling 2026-08-26
+goal: verify
+write-set: plugin/cli/lifecycle_core/migrate.py,decision:conservation-rule-for-apply
+done-criterion: apply regenerates from source and replays intake additions, or refuses unless it can prove conservation = source-derived + intake-added
+evidence: ITEMS.md's own header already carries the arithmetic: baseline 593, added 6 — the discriminator exists without a new slot
+blocked-by: decision the conservation rule for --apply (judgment desk)
