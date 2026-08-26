@@ -257,10 +257,19 @@ workflows; LAWS → the repo's declared laws file (`laws:` in
 `lifecycle.json` — `CLAUDE.local.md` here, because the tracked
 `CLAUDE.md` is upstream's and non-binding; `CLAUDE.md` where the repo is
 ours; laws never enter a foreign file, so nothing ships upstream and the
-recorded transcription failure has no path) — no line cap (R22): laws-vs-method is the
-review's judgment, and the injected-prefix measurement (R18) is the
-alarm — the requirement is that the injected prefix strictly falls
-(accretion's shrink saves ~242 lines); incidents and lessons → the project JOURNAL, cited
+recorded transcription failure has no path) — no line cap (R22); the control is SCOPE, not
+size (operator 2026-08-26: a laws file may need 200 lines — the only
+question is whether every line is a law). The laws kind's own check is
+a scope audit, two halves: the computable slice flags lines carrying
+another kind's MARKERS — a numbered step sequence (workflow), a dated
+incident (journal), a measured figure with a unit (audit), a file:line
+citation wrapped in explanation (journal) — as possibly mis-homed, a
+finding for review, never a refusal, since the same markers appear
+legitimately in a law's one-line basis pointer; the judgment remainder
+— is this line a law — is the review's, labelled prose-rest. The alarm
+that the review is due is growth (R18's injected-prefix measurement),
+not a number. The requirement stays that the injected prefix falls
+after the decomposition (accretion's shrink saves ~242 lines); incidents and lessons → the project JOURNAL, cited
 by the law or workflow they justify — no reference tier, no dev-book
 concept survives (operator 2026-08-26); what fits none of law /
 workflow / journal / audit is dropped. Decomposition budget: lane + workflow text ≤ half of
