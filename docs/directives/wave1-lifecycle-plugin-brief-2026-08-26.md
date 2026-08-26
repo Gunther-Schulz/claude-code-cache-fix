@@ -338,14 +338,16 @@ three early reds.
 
 ## Report channel — read this, it is a fixed defect
 
-**The report is your FINAL MESSAGE.** It returns to this desk by construction.
-Do not assume any other channel delivers.
+**This is a NAMED (mailbox) dispatch, so your final text reaches NO ONE.** The
+report travels in a `SendMessage` or it does not exist. The channel line in
+the dispatch prompt is binding and this paragraph does not replace it.
 
-**For a BLOCKER mid-flight**, before you send anything: run `ListAgents`, find
-the row naming this desk, and send to the name exactly as that row prints it.
-**Do not hardcode a name from this brief.** If no row resolves to this desk,
-**HALT and make the blocker your final message** — do not pick a
-plausible-looking substitute and do not continue past the blocker.
+**Resolve the target rather than copying a name.** Before your first send —
+not after it fails — run `ListAgents` and use the row that names the
+dispatcher, spelled exactly as that row prints it. **Do not hardcode a name
+out of this brief.** If no row resolves, say so in your first send to whatever
+target does resolve, and **HALT on a blocker rather than continuing past it**;
+a blocker you cannot deliver is a reason to stop, never a reason to proceed.
 
 Why this paragraph exists, since it will look like fussing: in wave 0 this
 desk's briefs named `SendMessage to claude-code-cache-fix-b4` as the report
