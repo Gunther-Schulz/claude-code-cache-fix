@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 13
+added: 14
 compacted: 0
 
 ## cf-1
@@ -2980,4 +2980,13 @@ goal: see
 write-set: plugin/cli/lifecycle_core/init.py,test/test_init.py,docs/directives/carrier-rework-design-2026-08-26.md
 done-criterion: init on a repo with none of the three carriers seeds schema-stamped empty ITEMS.md, ITEMS-DONE.md and LEDGER.md and kind check exits 0; if ANY of the three exists it touches no carrier; the lane's gap test is inverted to assert the new behaviour
 evidence: L2a demonstrated and pinned the gap rather than patching around it; desk ruled seed, 2026-08-26
+blocked-by: NONE
+
+## cf-332
+grade: READY
+requirement: Item C's freeze-and-repoint has not been run against cache-fix's own reader set: cache-fix declares the plugin, ITEMS.md holds 331 live items, BACKLOG.md (13,131 lines) is a frozen archive nothing writes, and its doctor/hooks/statusline consumers may still read it — record: dotfiles claude/records/carrier-freeze-dispositions-2026-08-27.md
+goal: verify
+write-set: the readers the sweep finds (tools/, .claude/, docs/runbooks/, git hooks reached via core.hooksPath), .claude/lifecycle.json, a dispositions record under docs/audits/
+done-criterion: the invariant sweep (git grep over the whole tree, known-positive asserted inside the instrument) lists every reader with a four-role disposition; the paired instrument-positive in one run: an item added to ITEMS.md moves the banner and lines added to the archive move nothing; doctor FAIL set unchanged from base
+evidence: wave-4 peer desk 2f verified: declaration present, 331 live, archive frozen; the lane's 131-from-archive banner figure is unverified
 blocked-by: NONE
