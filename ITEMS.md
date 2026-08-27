@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 14
+added: 15
 compacted: 0
 
 ## cf-1
@@ -2989,4 +2989,13 @@ goal: verify
 write-set: the readers the sweep finds (tools/, .claude/, docs/runbooks/, git hooks reached via core.hooksPath), .claude/lifecycle.json, a dispositions record under docs/audits/
 done-criterion: the invariant sweep (git grep over the whole tree, known-positive asserted inside the instrument) lists every reader with a four-role disposition; the paired instrument-positive in one run: an item added to ITEMS.md moves the banner and lines added to the archive move nothing; doctor FAIL set unchanged from base
 evidence: wave-4 peer desk 2f verified: declaration present, 331 live, archive frozen; the lane's 131-from-archive banner figure is unverified
+blocked-by: NONE
+
+## cf-333
+grade: READY
+requirement: The harvest writes fixtures twice daily and nothing commits them: 227 untracked files under test/fixtures/harvested today, last harvest commit 7 days ago (f0f026f), and 878258b already named this shape (the carrier's write step worked, the commit step had no actor) — the evidence the census cites rotates while its pins sit uncommitted — record: git status 2026-08-27
+goal: verify
+write-set: tools/harvest.mjs (or the systemd unit that runs it), the commit step; docs/dev-loop.md carrier-registration clause
+done-criterion: harvest's own run commits (or a named actor commits) what it writes, by pathspec, and the pre-push leak scan runs on that commit; git status shows 0 untracked harvest files after a run; the untracked backlog of 227 committed or dropped with a reason
+evidence: git status --porcelain | grep '^??' | wc -l → 227, all under test/fixtures/harvested; git log -1 -- test/fixtures/harvested/census-rows → f0f026f, 7 days
 blocked-by: NONE
