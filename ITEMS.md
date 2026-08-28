@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 16
+added: 17
 compacted: 0
 
 ## cf-1
@@ -2998,4 +2998,13 @@ goal: mitigate
 write-set: docs/directives/robustness-threat-matrix.md,test/bust-triage-rowN.test.mjs
 done-criterion: the APPEND-ONLY CACHE COLLAPSE finding sits in the matrix as its own numbered row with the commit evidence intact, its test file renamed to that number and green in npm test, and the source commit content fully in main: git show 224a23bf diffed by hand against the new row and test, both halves present. N is the next free row number read from the matrix at build time, never 30
 evidence: judgment desk measured 2026-08-28, re-verified at the peer desk the same day with a positive control: git grep -c APPEND-ONLY main -- docs/directives/robustness-threat-matrix.md returns no hits while the same grep for RELOCATE-THEN-PIN returns 1, so the zero is a real absence and not a dead pattern; git cat-file -e main:test/bust-triage-row30.test.mjs fails with path does not exist in main; git show --stat 224a23bf resolves and carries both halves. Wider context from the desk, not re-measured here: git cherry main over 55 worktree-agent branches gave 91 commits, 77 applied, 14 plus, 13 of those applied-by-content and this one LOST
+blocked-by: NONE
+
+## cf-335
+grade: READY
+requirement: collectUnpushed() in tools/state-report.mjs covers the unpushed-commit carrier but nothing schedules it, so the number it can produce is never produced. Surfaced by the cf-333 lane as an open point in its report. An unpushed count that nobody computes is the silent half of the same class cf-333 just closed on the harvest: a mechanism that works and has no actor
+goal: mitigate
+write-set: /home/g/dev/Gunther-Schulz/dotfiles/bootstrap/manifest.py,tools/state-report.mjs
+done-criterion: cache-fix unpushed count is surfaced without anyone asking: either a systemd timer declared in the dotfiles manifest runs state-report on a schedule, or the doctor reads it as a deployed-artifact verdict. Red-first: today no timer and no doctor check names state-report, so the count is zero-times-computed rather than zero
+evidence: cf-333 lane report open point (c), relayed by the judgment desk 2026-08-28 and NOT re-opened at this desk: the function exists and is uncalled. The scheduling half lands in dotfiles, which is why the write-set crosses repos and the boundary is named
 blocked-by: NONE
