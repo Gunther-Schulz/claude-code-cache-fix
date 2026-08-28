@@ -260,21 +260,41 @@ Two verbs seed it, so the slot exists before the work does:
   ∪ {`tend`} from its first `item add` — self-work is bookable from day
   one, before the repo accretes machinery with nowhere to file its
   cleanup.
-- `migrate --apply` BOOKS ITS OWN RESIDUE as `tend` items — but only
-  the residue it can detect GENERICALLY, which is exactly what it just
-  touched: the old-carrier readers still live (migrate converted the
-  carrier, so it holds the old paths and greps the repo for readers of
-  them — parked on: every consumer migrated or declared exempt), and an
-  over-tripwire frozen archive (migrate created the archive section, so
-  it knows its line count against the split tripwire — parked there).
-  The un-decomposed METHOD FILE is NOT migrate's to book: there is no
-  universal method-file marker for a tool to key on, so it rides the
-  FILE SWEEP (§4) instead — which classifies every tracked file into a
-  kind and books a `tend` decomposition item for one that fits none.
-  The two must not BOTH claim it (double-booking), so migrate books
-  readers + archive and the sweep books the method file, cross-referenced
-  here. Each item PARKED with its named blocker, emitted by the
-  migration report (§4 row 1). This is
+- migrate's CARRIER-WRITING run (any run that writes the carriers, i.e.
+  not `--report-only`; `--report-only` re-renders the item's description
+  without writing) BOOKS ITS OWN RESIDUE as `tend` items — but only the
+  ONE class it can detect GENERICALLY: the old-carrier readers still
+  live. migrate converted the carrier, so it holds the old paths and
+  greps the TRACKED files (`git ls-files`) for their basenames — the
+  sources, the successor homes, and the migration report excluded — and
+  books ONLY when hits > 0 (a repo with no live readers has no residue;
+  an item saying "none" would be a permanent parked lie), the hit paths
+  in the item's `evidence`. Blocker: `decision "every consumer migrated
+  or declared exempt"` — "exempt" carries judgment, so this is a
+  decision, not an `evidence` grep-predicate that would stay red on any
+  doc merely MENTIONING the old name and self-resolve on a rename.
+  Two other candidates are explicitly NOT migrate's, each for a stated
+  reason. The un-decomposed METHOD FILE: no universal method-file marker
+  for a tool to key on, so it rides the FILE SWEEP (§4), which
+  classifies every tracked file into a kind and books a decomposition
+  item for one that fits none. The FROZEN ARCHIVE: its growth is already
+  the `done bodies` kind's declared COMPACTION exit (the retire lane,
+  R20/R22) — a size-free flow rule, never a line-count tripwire (R22
+  withdrew every size cap; there is no archive threshold in the system
+  and none is to be invented) — so booking it here would both re-add a
+  banned cap and double the retire lane. migrate books READERS only; the
+  method file rides the sweep; the archive rides the retire lane — no
+  class claimed twice. The residue item is PARKED with its blocker,
+  emitted by the migration report (§4 row 1); its ids are allocated
+  AFTER the migrated block and it is COUNTED SEPARATELY from source
+  entries — the reconciliation identity (entries read = written + closed
+  + unclassified) counts source entries only, and `baseline` becomes
+  `n_items + n_residue + archive_count`, the report gaining a residue
+  row; folding residue into the source count would answer COULD NOT
+  VERIFY on every migration after. Its slots are REAL TEXT, never the
+  UNKNOWN transitional marker (that marker is for MIGRATED entries; a
+  tool-generated item with UNKNOWN slots would silently fail its
+  re-grade). This is
   the assumed-delivery rule (Calibration: a write with no committing
   actor ACCUMULATES; the only detector is a count of what piled up)
   applied to the migration tool: the migration is the ONLY party that
