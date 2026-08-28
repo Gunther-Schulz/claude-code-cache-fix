@@ -48,8 +48,40 @@ ancillary analytics (cost/quota tools).
 | ancillary analytics (cost/quota/rates) vs operator decisions | dark | never | — | low cost? name the consumer first |
 | shape-verdicts + /health vs dotfiles doctor booking | prose-covered (unverified) — doctor books, content-drift checks; not walked | never | — | candidate round |
 | carrier & event-lane system: design vs its own invariants, laws and the built plugin | dark — design revision 2 + amendments, wave 1 built; 5 blocking / 21 design-gaps / 12 notes across rounds 3–4, dispositioned in the design (§3.8c) and the schema wave | 2026-08-26 · round 4 | 38 (round 4) | the schema wave (wave 1d) lands the R22 cap contradiction, the migrate write-rules and the route-set cure; re-walk after wave 2 arms lanes |
+| design vocabulary/kinds vs the work & dependency classes it must name (missing-slot, cross-repo) | prose-covered — begehung r5 findings booked lc-66..69; the tend meta-goal (§3.1b, 2026-08-28) cured the domain-scope half, the cross-repo half is unbuilt | 2026-08-28 · round 5 | 8 (2 blocking, 5 notable, 1 close-class) | build lc-66 (the coordination layer: typed cross-repo edge + cross-repo detector home + roll-up); re-confirm lc-69 (reference tier) with the operator |
 
 ## Rounds
+
+- 2026-08-28 · round 5 · row: **design vocabulary/kinds vs the work &
+  dependency classes it must name** · why: operator-named lens set
+  after the tend-meta-goal gap was found and fixed the same day — hunt
+  for gaps of that SHAPE (a necessary work/dependency class with no
+  slot in the vocabulary, falling back to prose nothing surfaces),
+  cross-repo coordination named as first-class intent. Registered
+  before the round's first search. read-at design `eceda8c` (walked at
+  the desk, not dispatched — the build lane held lifecycle, so a
+  read-only walk of the cache-fix design doc avoided the write copy).
+  **Closed same day, yield 8, zeros: none** — 2 blocking (cross-repo
+  dependency has no typed edge; the operator decision-queue has no
+  aging/roll-up), 5 notable (R20's kind list omits coordination
+  artifacts; single-repo detector home; no cross-repo finding roll-up;
+  conservation checks count not content; the dropped reference tier),
+  1 close-class. The cross-row read: the kind/vocabulary system is
+  single-repo AND domain-scoped, so ANY cross-repo/cross-domain
+  necessity has no first-class slot — the tend gap one axis over, tend
+  having cured only the domain-scope half. One structural cure (a
+  coordination layer) outranks the per-row patches; spans the five
+  vocabulary-slot rows. All 8 dispositioned into the lifecycle carrier:
+  lc-66 (the coordination layer, blocked on the mechanism-shape
+  decision), lc-67 (decision queue as a kind + roll-up), lc-68
+  (content-vs-count conservation), lc-69 (reference-tier re-confirm,
+  operator decision); F7/F8/F4 fold into lc-66/lc-67. Findings file:
+  `begehung-findings-2026-08-28-r5.tsv`. closed-at `eceda8c` (no
+  intervening change to the design during the round). Coverage: 22
+  rows — the design row stays dark (this round walked a NEW sub-axis,
+  not the whole design-vs-built row, which still owes its post-wave-2
+  re-walk). Next per rotation: snapshots/telemetry event logs vs their
+  consumers (never visited), still the stalest dark row.
 
 - 2026-08-26 · round 4 · row: **carrier-rework design vs its own
   invariants and the built plugin** · why: operator-named lens set
