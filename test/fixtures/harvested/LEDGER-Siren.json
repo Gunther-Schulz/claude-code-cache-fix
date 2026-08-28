@@ -2,9 +2,9 @@
   "version": 1,
   "keys": {
     "k_b1cf7a43eb83ed84": {
-      "requests": 1421,
-      "bytes": 266240,
-      "lastHarvest": "2026-08-28T08:03:55.090Z",
+      "requests": 1424,
+      "bytes": 266753,
+      "lastHarvest": "2026-08-28T09:39:52.748Z",
       "classes": [],
       "shape": {
         "pairs": 0,
@@ -5119,7 +5119,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 73168
-      }
+      },
+      "gone": true
     },
     "k_6bb8f925466f6512": {
       "requests": 1,
@@ -6000,7 +6001,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 71665
-      }
+      },
+      "gone": true
     },
     "k_b6273f100e31e41a": {
       "requests": 1,
@@ -6097,7 +6099,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 61929
-      }
+      },
+      "gone": true
     },
     "k_f4f09809676aa200": {
       "requests": 1,
@@ -6306,7 +6309,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15694,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_f111f7e6f3fcd28d": {
       "requests": 1,
@@ -6319,7 +6323,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_47f38a71347a5340": {
       "requests": 1,
@@ -6332,7 +6337,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_16af1cc4948c8102": {
       "requests": 1,
@@ -6345,7 +6351,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_7101492f38cba583": {
       "requests": 1,
@@ -6358,7 +6365,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_ae5e130d1fb0239d": {
       "requests": 144,
@@ -6371,7 +6379,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 66954
-      }
+      },
+      "gone": true
     },
     "k_9f39958cf09ca063": {
       "requests": 1,
@@ -6384,7 +6393,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_9ed27340386b203d": {
       "requests": 1,
@@ -6397,7 +6407,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_d29fcee6eba5c6c0": {
       "requests": 1,
@@ -6410,7 +6421,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_48964e0a8b1b62bb": {
       "requests": 1,
@@ -6423,7 +6435,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_21d5d469338382ba": {
       "requests": 1,
@@ -6436,7 +6449,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_9c9d29ddfd7a178e": {
       "requests": 1,
@@ -6449,7 +6463,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_617cac74f31e2a51": {
       "requests": 1,
@@ -6462,7 +6477,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_f087742ef4fbe805": {
       "requests": 1,
@@ -6475,7 +6491,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_8574d828e5a3f34f": {
       "requests": 1,
@@ -6488,7 +6505,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_e7efd328ed08a4a3": {
       "requests": 1,
@@ -6501,7 +6519,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     },
     "k_d0ba083a38e2562f": {
       "requests": 1,
@@ -6514,6 +6533,72 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 18539,
         "toolsBytes": 37688
+      },
+      "gone": true
+    },
+    "k_e1adefcdc08fec74": {
+      "requests": 288,
+      "bytes": 145436332,
+      "lastHarvest": "2026-08-28T09:40:02.704Z",
+      "classes": [],
+      "shape": {
+        "pairs": 271,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 71016
+      }
+    },
+    "k_96931102c1f4caf0": {
+      "requests": 1,
+      "bytes": 228421,
+      "lastHarvest": "2026-08-28T09:40:04.459Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 18539,
+        "toolsBytes": 37688
+      }
+    },
+    "k_44cc85d035b604c1": {
+      "requests": 1,
+      "bytes": 228477,
+      "lastHarvest": "2026-08-28T09:40:09.921Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 18539,
+        "toolsBytes": 37688
+      }
+    },
+    "k_bdb72384e32011e2": {
+      "requests": 696,
+      "bytes": 186145327,
+      "lastHarvest": "2026-08-28T09:40:12.321Z",
+      "classes": [],
+      "shape": {
+        "pairs": 325,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 67135
+      }
+    },
+    "k_438b3385f29048c7": {
+      "requests": 235,
+      "bytes": 123300840,
+      "lastHarvest": "2026-08-28T09:40:13.412Z",
+      "classes": [],
+      "shape": {
+        "pairs": 205,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 71004
       }
     }
   }
