@@ -96,7 +96,7 @@ import { tmpDir } from "./tmpdir.mjs";
 import { readdir, readFile, writeFile, stat, mkdir, rm } from "node:fs/promises";
 import { createWriteStream } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { join, dirname } from "node:path";
+import { join, dirname, relative } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createHash } from "node:crypto";
 import { hostname } from "node:os";
@@ -1613,6 +1613,81 @@ export async function* readPinnedFixture(fixturePath) {
   }
 }
 
+// --- commitHarvest: the harvest run commits its own output (cf-333) ---
+//
+// Before this, every file the harvest wrote (fixtures, growth snapshots, the
+// ledger) sat untracked until a session happened to notice and commit them
+// by hand — 302 files accumulated over one week with no named actor. This
+// closes that gap: the run itself is the committing actor.
+//
+// CARRIER REGISTRATION (docs/dev-loop.md closing-gate question 4): this
+// changes the harvest's carrier KIND, from untracked files to UNPUSHED
+// COMMITS on main. Collector: tools/state-report.mjs's collectUnpushed()
+// (`origin/main..main`, already generic over any unpushed commit — no new
+// collector code needed, this carrier falls under the existing one).
+//
+// Pathspec-only, by design: `git add -- <outDirRel>` is the one place a
+// bare `add` is licensed (dispatch-guards executor skill §1 rule 6's
+// sanctioned exception) because the directory IS the tool's own output and
+// every file in it is this run's deliverable — never `-A`, never a second
+// `add` outside this path.
+//
+// Never pushes. A git failure at any step (add/diff/commit) is reported via
+// `error: true` so the caller can fail loudly rather than let a broken
+// commit step pass as a quiet no-op.
+export function commitHarvest({ repoRoot, outDirRel, count, dryRun }) {
+  if (dryRun) {
+    process.stdout.write("NOT COMMITTED: dry run\n");
+    return { committed: false, reason: "dry run" };
+  }
+
+  const runGit = (args) => {
+    try {
+      const out = execFileSync("git", args, {
+        cwd: repoRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      return { ok: true, out, status: 0 };
+    } catch (e) {
+      const stderr = (e && e.stderr ? e.stderr.toString() : "").trim();
+      return { ok: false, reason: (stderr.split("\n")[0] || e?.message || String(e)), status: e?.status };
+    }
+  };
+
+  const add = runGit(["add", "--", outDirRel]);
+  if (!add.ok) {
+    process.stdout.write(`NOT COMMITTED: ${add.reason}\n`);
+    return { committed: false, reason: add.reason, error: true };
+  }
+
+  // `git diff --cached --quiet` exits 0 when nothing staged differs from
+  // HEAD, 1 when it does, and anything else is a genuine git failure — the
+  // three-way outcome the repo's own checker convention requires (never
+  // collapsing "no diff" and "cannot tell" into the same reading).
+  const diff = runGit(["diff", "--cached", "--quiet", "--", outDirRel]);
+  if (diff.ok) {
+    process.stdout.write("NOT COMMITTED: nothing to commit\n");
+    return { committed: false, reason: "nothing to commit" };
+  }
+  if (diff.status !== 1) {
+    process.stdout.write(`NOT COMMITTED: ${diff.reason}\n`);
+    return { committed: false, reason: diff.reason, error: true };
+  }
+
+  const message = `harvest: ${count} file(s) written, ${new Date().toISOString()}`;
+  const commit = runGit(["commit", "-m", message, "--", outDirRel]);
+  if (!commit.ok) {
+    process.stdout.write(`NOT COMMITTED: ${commit.reason}\n`);
+    return { committed: false, reason: commit.reason, error: true };
+  }
+
+  const shaRes = runGit(["rev-parse", "--short", "HEAD"]);
+  const sha = shaRes.ok ? shaRes.out.trim() : null;
+  process.stdout.write(`committed ${sha ?? "(unknown sha)"}\n`);
+  return { committed: true, sha };
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   if (args.pinKey !== null) {
@@ -1733,6 +1808,18 @@ async function main() {
     await mkdir(dirname(args.ledger), { recursive: true });
     await writeFile(args.ledger, JSON.stringify(ledger, null, 2) + "\n");
   }
+
+  // The run commits its own output (cf-333) — see commitHarvest's header.
+  // Count = files THIS run wrote: novel-pair fixtures, growth-step
+  // snapshots, and the ledger itself (written above whenever !dryRun,
+  // whether or not its content changed — commitHarvest's own
+  // git-diff-cached check is what decides whether there is anything to
+  // commit, so an inflated count here never fabricates a commit).
+  const repoRoot = join(__dirname, "..");
+  const outDirRel = relative(repoRoot, args.out);
+  const writtenCount = report.harvested.length + (report.growth?.length ?? 0) + (args.dryRun ? 0 : 1);
+  report.commit = commitHarvest({ repoRoot, outDirRel, count: writtenCount, dryRun: args.dryRun });
+  if (report.commit.error) process.exitCode = 1;
 
   if (args.json) {
     process.stdout.write(JSON.stringify(report, null, 2) + "\n");
