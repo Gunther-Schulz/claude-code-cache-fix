@@ -102,12 +102,12 @@ test("live bite: the real status file returns zero findings against the real mat
 // property a row minted by hand can silently break and which no count alone
 // would catch.
 
-test("live bite: the real status file has exactly rows 1..32, no gaps, no duplicates", () => {
+test("live bite: the real status file has exactly rows 1..33, no gaps, no duplicates", () => {
   const statusObj = readRealStatus();
   const rowKeys = Object.keys(statusObj).filter((k) => !k.startsWith("_"));
-  assert.equal(rowKeys.length, 32, `expected 32 row keys, got ${rowKeys.length}: ${rowKeys.sort().join(",")}`);
+  assert.equal(rowKeys.length, 33, `expected 33 row keys, got ${rowKeys.length}: ${rowKeys.sort().join(",")}`);
   const numbers = rowKeys.map(Number).sort((a, b) => a - b);
-  const expected = Array.from({ length: 32 }, (_, i) => i + 1);
+  const expected = Array.from({ length: 33 }, (_, i) => i + 1);
   assert.deepEqual(numbers, expected);
 });
 
@@ -482,7 +482,7 @@ test("readRecords: over the real repo it is ok, 32 rows, zero findings", () => {
   // finding here, and that is what a new row can actually get wrong.
   const res = ms.readRecords();
   assert.equal(res.ok, true, `expected ok, got ${JSON.stringify(res)}`);
-  assert.equal(res.rows, 32);
+  assert.equal(res.rows, 33);
   assert.deepEqual(res.findings, [], formatFindings(res.findings ?? []));
 });
 
