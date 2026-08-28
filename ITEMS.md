@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 17
+added: 18
 compacted: 0
 
 ## cf-1
@@ -2999,3 +2999,12 @@ write-set: /home/g/dev/Gunther-Schulz/dotfiles/bootstrap/manifest.py,tools/state
 done-criterion: cache-fix unpushed count is surfaced without anyone asking: either a systemd timer declared in the dotfiles manifest runs state-report on a schedule, or the doctor reads it as a deployed-artifact verdict. Red-first: today no timer and no doctor check names state-report, so the count is zero-times-computed rather than zero
 evidence: cf-333 lane report open point (c), relayed by the judgment desk 2026-08-28 and NOT re-opened at this desk: the function exists and is uncalled. The scheduling half lands in dotfiles, which is why the write-set crosses repos and the boundary is named
 blocked-by: NONE
+
+## cf-336
+grade: READY
+requirement: three matrix tests hardcode the row COUNT, so every mint pays a bump tax and the assertion cannot age loudly. Commit 84f09fe had to bump 32 to 33 purely because row 33 was minted. A coverage assertion whose comparison basis is RESTATED from the source it grades is the label-over-content defect the dotfiles maintenance rule names: the matrix gains a row and the assertion stays green only because someone remembered to edit it, and a FORGOTTEN bump reads as a failing test rather than as the missing row it actually indicates
+goal: mitigate
+write-set: test/bust-triage-row33.test.mjs,test/matrix-status.test.mjs
+done-criterion: the row count is DERIVED from the matrix at test time rather than restated in the tests, so minting a row needs no test edit, red-first: add a row without touching any test and today three tests go red for the wrong reason. If derivation is rejected, the alternative is a single declared tripwire with a comment saying why a restated count is correct here, never three copies
+evidence: lane candidate lesson (e) relayed by the judgment desk 2026-08-28, and the tax observed the same day: 84f09fe bumps a hardcoded 32 to 33 as a follow-up to 4c63700, which minted the row. Not re-measured at this desk beyond confirming both shas resolve and carry those subjects
+blocked-by: decision derive the count from the matrix or keep one declared tripwire with its reason
