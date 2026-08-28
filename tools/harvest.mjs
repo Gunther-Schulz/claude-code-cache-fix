@@ -1635,9 +1635,18 @@ export async function* readPinnedFixture(fixturePath) {
 // Never pushes. A git failure at any step (add/diff/commit) is reported via
 // `error: true` so the caller can fail loudly rather than let a broken
 // commit step pass as a quiet no-op.
-export function commitHarvest({ repoRoot, outDirRel, count, dryRun }) {
+//
+// `quiet` (default false) suppresses the human-readable "NOT COMMITTED: …" /
+// "committed <sha>" lines: --json mode's contract is that stdout is ONE JSON
+// blob, and an unconditional print here would corrupt it — the same
+// args.json branch every other line in main()'s report already respects.
+export function commitHarvest({ repoRoot, outDirRel, count, dryRun, quiet = false }) {
+  const say = (line) => {
+    if (!quiet) process.stdout.write(`${line}\n`);
+  };
+
   if (dryRun) {
-    process.stdout.write("NOT COMMITTED: dry run\n");
+    say("NOT COMMITTED: dry run");
     return { committed: false, reason: "dry run" };
   }
 
@@ -1657,7 +1666,7 @@ export function commitHarvest({ repoRoot, outDirRel, count, dryRun }) {
 
   const add = runGit(["add", "--", outDirRel]);
   if (!add.ok) {
-    process.stdout.write(`NOT COMMITTED: ${add.reason}\n`);
+    say(`NOT COMMITTED: ${add.reason}`);
     return { committed: false, reason: add.reason, error: true };
   }
 
@@ -1667,24 +1676,24 @@ export function commitHarvest({ repoRoot, outDirRel, count, dryRun }) {
   // collapsing "no diff" and "cannot tell" into the same reading).
   const diff = runGit(["diff", "--cached", "--quiet", "--", outDirRel]);
   if (diff.ok) {
-    process.stdout.write("NOT COMMITTED: nothing to commit\n");
+    say("NOT COMMITTED: nothing to commit");
     return { committed: false, reason: "nothing to commit" };
   }
   if (diff.status !== 1) {
-    process.stdout.write(`NOT COMMITTED: ${diff.reason}\n`);
+    say(`NOT COMMITTED: ${diff.reason}`);
     return { committed: false, reason: diff.reason, error: true };
   }
 
   const message = `harvest: ${count} file(s) written, ${new Date().toISOString()}`;
   const commit = runGit(["commit", "-m", message, "--", outDirRel]);
   if (!commit.ok) {
-    process.stdout.write(`NOT COMMITTED: ${commit.reason}\n`);
+    say(`NOT COMMITTED: ${commit.reason}`);
     return { committed: false, reason: commit.reason, error: true };
   }
 
   const shaRes = runGit(["rev-parse", "--short", "HEAD"]);
   const sha = shaRes.ok ? shaRes.out.trim() : null;
-  process.stdout.write(`committed ${sha ?? "(unknown sha)"}\n`);
+  say(`committed ${sha ?? "(unknown sha)"}`);
   return { committed: true, sha };
 }
 
@@ -1818,7 +1827,7 @@ async function main() {
   const repoRoot = join(__dirname, "..");
   const outDirRel = relative(repoRoot, args.out);
   const writtenCount = report.harvested.length + (report.growth?.length ?? 0) + (args.dryRun ? 0 : 1);
-  report.commit = commitHarvest({ repoRoot, outDirRel, count: writtenCount, dryRun: args.dryRun });
+  report.commit = commitHarvest({ repoRoot, outDirRel, count: writtenCount, dryRun: args.dryRun, quiet: args.json });
   if (report.commit.error) process.exitCode = 1;
 
   if (args.json) {
