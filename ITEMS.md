@@ -2991,15 +2991,6 @@ done-criterion: the invariant sweep (git grep over the whole tree, known-positiv
 evidence: wave-4 peer desk 2f verified: declaration present, 331 live, archive frozen; the lane's 131-from-archive banner figure is unverified
 blocked-by: NONE
 
-## cf-333
-grade: READY
-requirement: The harvest writes fixtures twice daily and nothing commits them: 227 untracked files under test/fixtures/harvested today, last harvest commit 7 days ago (f0f026f), and 878258b already named this shape (the carrier's write step worked, the commit step had no actor) — the evidence the census cites rotates while its pins sit uncommitted — record: git status 2026-08-27
-goal: verify
-write-set: tools/harvest.mjs (or the systemd unit that runs it), the commit step; docs/dev-loop.md carrier-registration clause
-done-criterion: harvest's own run commits (or a named actor commits) what it writes, by pathspec, and the pre-push leak scan runs on that commit; git status shows 0 untracked harvest files after a run; the untracked backlog of 227 committed or dropped with a reason
-evidence: git status --porcelain | grep '^??' | wc -l → 227, all under test/fixtures/harvested; git log -1 -- test/fixtures/harvested/census-rows → f0f026f, 7 days
-blocked-by: NONE
-
 ## cf-334
 grade: READY
 requirement: commit 224a23bf on branch worktree-agent-ac73dca7ecf344d05 (matrix: mint row 30, APPEND-ONLY CACHE COLLAPSE, 2026-08-10T04:40:39Z; +2 lines in docs/directives/robustness-threat-matrix.md and a 46-line test/bust-triage-row30.test.mjs) was never integrated into main. Another lane minted a DIFFERENT row 30 (RELOCATE-THEN-PIN CONTENT LOSS, 2026-08-11) and only that one landed, so the append-only finding is lost while the row number reads as taken

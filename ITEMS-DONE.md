@@ -1,5 +1,16 @@
 schema: 2
 
+## cf-333
+grade: DONE
+requirement: The harvest writes fixtures twice daily and nothing commits them: 227 untracked files under test/fixtures/harvested today, last harvest commit 7 days ago (f0f026f), and 878258b already named this shape (the carrier's write step worked, the commit step had no actor) — the evidence the census cites rotates while its pins sit uncommitted — record: git status 2026-08-27
+goal: verify
+write-set: tools/harvest.mjs (or the systemd unit that runs it), the commit step; docs/dev-loop.md carrier-registration clause
+done-criterion: harvest's own run commits (or a named actor commits) what it writes, by pathspec, and the pre-push leak scan runs on that commit; git status shows 0 untracked harvest files after a run; the untracked backlog of 227 committed or dropped with a reason
+evidence: git status --porcelain | grep '^??' | wc -l → 227, all under test/fixtures/harvested; git log -1 -- test/fixtures/harvested/census-rows → f0f026f, 7 days
+blocked-by: NONE
+closed-reason: 2026-08-28 the harvest commits its own output. Lane commits 637955d (the run commits its own output), 8a793c2 (the 302-file backlog the timer had written with no committing actor), 153f837 (dev-loop CARRIER REGISTRATION instance for the commit mechanism) and 2def9ee (gate commitHarvest status prints on --json). Live end-to-end proof rather than a unit claim: a harvest run at the judgment desk committed 9434bec, the ledger watermark, so the commit branch is exercised on the real timer path and not only in tests. Verification performed and reported by the judgment desk, attributed not re-run here: 4 of 4 new tests green under the suite import, full suite 3752 pass 0 fail with 15 pre-existing skips dispositioned, absence-scan --git-range 80235c3..a49ca3e clean, node --check on the live file. Closed by the peer desk, which holds this carrier in wave 5
+closed-ref: 637955d, 8a793c2, 153f837, 2def9ee
+
 ## Archive (pre-migration)
 
 # claude-code-cache-fix — closure home
