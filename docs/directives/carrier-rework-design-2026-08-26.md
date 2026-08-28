@@ -811,6 +811,58 @@ them as one class rather than five defects. Not a redesign: the
 refusal-heavy stance stays, and every hole above is booked as an item
 against it.
 
+#### The LANE walk (wave 5, same method: exercised, not read)
+
+Walked on this repo at `66bd2af`. **The walk hit a wall at arrow 2 and
+the wall is the finding:** `lane list` returns
+`FINDING [roster_absent] no roster at /home/g/.config/lifecycle/repos`,
+and `ls ~/.config/lifecycle/` → no such directory. The roster is
+MACHINE-GLOBAL, so this is not a clone artifact: on this machine the
+lane board does not exist at all, and §3.3 calls that BROKEN rather
+than empty — "an empty board renders exactly like a board on which
+every lane is quiet". Arrows 3–6 below therefore could not be
+exercised live, and are recorded as unexercised rather than assumed.
+
+| # | arrow | verb | record written | check | status |
+|---|---|---|---|---|---|
+| 1 | stubbed | `lane new <door>` (`--force` REFUSES a silent overwrite) | a lane file from the format, as a STUB a human then fills | the `--force` refusal | exercised |
+| 2 | repo → roster | `lane register [repo_path] [--dry-run]` | appends the repo to `~/.config/lifecycle/repos` | `lane list` renders the generated router | exercised `--dry-run` only: `DRY RUN — would append … roster: 0 repo(s) listed today, 1 after.` The write is machine-global state, outside a repo write boundary — deliberately not made by this walk |
+| 3 | declared in the repo | **HOLE → `lc-59`** — `lane new` says in its own help that it "does NOT declare it in this repo's `lanes` list", and no verb does | — | — | — |
+| 4 | Trigger evaluated (FIRING/QUIET/BROKEN) | `lane list` | none — derived per pass | refusal `trigger_broken` | NOT exercised: roster absent |
+| 5 | entered | **HOLE → `lc-60`** — nothing records that a lane was entered, so `audit`'s promised "use-evidence per lane" has no writer | — | — | — |
+| 6 | terminal disposition / retired | `retire` WALKS and REPORTS; the exits are their own verbs | the walk's report | `grew-without-exit` count | exercised: `walk: 19 kind(s); grew-without-exit 0; growth unchecked 8` |
+
+#### The KIND walk
+
+The kind's six declared stages ARE its arrows — `kind show <kind>`
+prints them, so unlike lanes and items this half was designed with its
+transitions in the declaration from the start. Example, verbatim, for
+`workflow templates`: `home plugin/skills · writer session · reader
+session · staleness "no binder — a template no repo binds is stale by
+definition" · exit delete, recording act: a dependents search over
+every declaring repo's template-bindings FIRST, then a ledger line ·
+growth unbounded-with-reason`.
+
+| # | arrow | verb | record written | check | status |
+|---|---|---|---|---|---|
+| 1 | declared | the `kinds` block of `.claude/lifecycle.json` | the declaration | `kind check` → `CLEAN — 19 kind(s) registered, every stage declared, declaration visible to git`; refusals `declaration_malformed`, `unregistered_kind` | exercised |
+| 2 | seeded | `init` | a fresh repo's declaration + lane stubs | `kind check` | not re-exercised (would overwrite a live declaration) |
+| 3 | written / read | no verb, by design — the `writer` and `reader` stages NAME the actor rather than providing one | the kind's home | `kind sweep`, invariant 1: every tracked file resolves to a registered kind | exercised: `FINDING [unregistered_persisted_thing] 1 tracked file(s) resolve to no registered kind: plugin/workflows/.gitkeep` → booked `lc-61` |
+| 4 | staleness | `retire` | the walk's report | the per-kind staleness predicate | exercised, and it CANNOT ANSWER YET: `staleness check: NOT RUN — the per-kind predicate needs pass history (N = 3, PLACEHOLDER) … a staleness check with no history returns 'nothing is stale' over every repo, which is a number shaped like a pass` |
+| 5 | exit | each kind's declared `exit` + its `recording act`; no generic verb | a ledger line naming what left and what had bound it | `conservation` | not exercised (no kind was retired) |
+| 6 | bound | `workflow bind` — binds a `template-bindings` entry to a plugin registry template, filling every required slot | the binding | `binding_slot_unbound`, `binding_template_missing`, `binding_template_unparsable` — three of the ten rows `prove-rows` lists as carrying NO recorded mutation | exercised (`--help` surface); the three refusals are among the unproven set |
+
+**What the two shorter walks add to the item table's conclusion.** The
+item half had holes because transitions were never designed. The KIND
+half has almost none — its six stages were declared per kind from the
+start, which is the design doing exactly what §3.12 asks for, one kind
+at a time. The LANE half is the worst of the three: its board does not
+exist on this machine, and two of its arrows have no verb at all. The
+ordering is evidence for the wave-5 head's reading rather than against
+it: where transitions were written down (kinds), the arrows have verbs;
+where they were not (items, lanes), each arrow surfaced later as
+somebody's item.
+
 ## 4. Diff against the inventory — what survives, what is cut, what is rewritten
 
 | existing thing | verdict | why |
