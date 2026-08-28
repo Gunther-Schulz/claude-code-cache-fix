@@ -11,6 +11,17 @@ blocked-by: NONE
 closed-reason: 2026-08-28 the harvest commits its own output. Lane commits 637955d (the run commits its own output), 8a793c2 (the 302-file backlog the timer had written with no committing actor), 153f837 (dev-loop CARRIER REGISTRATION instance for the commit mechanism) and 2def9ee (gate commitHarvest status prints on --json). Live end-to-end proof rather than a unit claim: a harvest run at the judgment desk committed 9434bec, the ledger watermark, so the commit branch is exercised on the real timer path and not only in tests. Verification performed and reported by the judgment desk, attributed not re-run here: 4 of 4 new tests green under the suite import, full suite 3752 pass 0 fail with 15 pre-existing skips dispositioned, absence-scan --git-range 80235c3..a49ca3e clean, node --check on the live file. Closed by the peer desk, which holds this carrier in wave 5
 closed-ref: 637955d, 8a793c2, 153f837, 2def9ee
 
+## cf-334
+grade: DONE
+requirement: commit 224a23bf on branch worktree-agent-ac73dca7ecf344d05 (matrix: mint row 30, APPEND-ONLY CACHE COLLAPSE, 2026-08-10T04:40:39Z; +2 lines in docs/directives/robustness-threat-matrix.md and a 46-line test/bust-triage-row30.test.mjs) was never integrated into main. Another lane minted a DIFFERENT row 30 (RELOCATE-THEN-PIN CONTENT LOSS, 2026-08-11) and only that one landed, so the append-only finding is lost while the row number reads as taken
+goal: mitigate
+write-set: docs/directives/robustness-threat-matrix.md,test/bust-triage-rowN.test.mjs
+done-criterion: the APPEND-ONLY CACHE COLLAPSE finding sits in the matrix as its own numbered row with the commit evidence intact, its test file renamed to that number and green in npm test, and the source commit content fully in main: git show 224a23bf diffed by hand against the new row and test, both halves present. N is the next free row number read from the matrix at build time, never 30
+evidence: judgment desk measured 2026-08-28, re-verified at the peer desk the same day with a positive control: git grep -c APPEND-ONLY main -- docs/directives/robustness-threat-matrix.md returns no hits while the same grep for RELOCATE-THEN-PIN returns 1, so the zero is a real absence and not a dead pattern; git cat-file -e main:test/bust-triage-row30.test.mjs fails with path does not exist in main; git show --stat 224a23bf resolves and carries both halves. Wider context from the desk, not re-measured here: git cherry main over 55 worktree-agent branches gave 91 commits, 77 applied, 14 plus, 13 of those applied-by-content and this one LOST
+blocked-by: NONE
+closed-reason: 2026-08-28 the lost APPEND-ONLY CACHE COLLAPSE finding is back in the matrix as its own numbered row. Verified at the artifact by the peer desk before closing: row 33 carries the full body with its evidence intact and cites the stale source commit 224a23bf, and the test file is renamed to test/bust-triage-row33.test.mjs. The absence check that opened this item now has its positive control: RELOCATE-THEN-PIN still returns 1 hit in the same file, so the earlier zero for APPEND-ONLY was a real absence. Attributed to the judgment desk, not re-run here: matrix-status 0 findings over 33 rows, full suite 3755 pass 0 fail with 15 pre-existing skips, and the test-file diff against 224a23bf showing only 30 to 33
+closed-ref: 4c63700, 84f09fe
+
 ## Archive (pre-migration)
 
 # claude-code-cache-fix — closure home
