@@ -728,6 +728,89 @@ use-evidence per lane and per judgment rule, unregistered files, and
 the judgment register's fire-rate. Not a new mechanism; the same walk,
 reporting instead of acting.
 
+### 3.12 Transitions — arrow → verb → record → check (wave 5, 2026-08-28)
+
+The design specified STATES and REFUSALS thoroughly and TRANSITIONS not
+at all. Every verb the plugin shipped with was an admission or a
+refusal, so each step an item takes across its life surfaced during
+waves 3–4 as a missing verb, found by a different lane each time and
+none of them looking for the class. This table is the answer: one row
+per arrow, and an arrow with no verb is an ITEM, booked from the row
+and carrying its id in the verb cell.
+
+**Walked item: `lc-48`** ("done_home_check consults `blocker-moot:`"),
+chosen as the live item whose recorded history crosses the most
+arrows. Its shas: admitted `cf2931f`, amended and closed and moved in
+one commit `573fa01`, closing ref `8a5d664`. It carries the slot set
+`grade requirement goal write-set done-criterion evidence blocked-by
+amend-reason amended-evidence closed-reason closed-ref` — and NO
+promote record, because `item promote` was built (lc-39, wave-4 B1)
+after lc-48 had already closed. The arrows lc-48 never crossed were
+walked instead on a scratch clone at `66bd2af` with probe item
+`lc-55`, every verb EXERCISED rather than read off `--help`.
+
+| # | arrow | verb (exact CLI; `--repo` is GLOBAL and precedes the subcommand) | record written | check that proves it | source item |
+|---|---|---|---|---|---|
+| 1 | admit | `item add --requirement … --goal … --write-set … --hunks <n> --join new --absence … --reason …` | `ITEMS.md`, a `## <id>` block with `grade:`/`requirement:`/`goal:`/`write-set:`/`done-criterion:`/`evidence:`/`blocked-by:`; commits | `item check` shape check; refusal `item_shape`; the intake cost test refuses a one-file one-hunk write-set with `COULD NOT VERIFY … State the hunk count` | lc-25 |
+| 2 | slots filled / corrected | `item amend <id> --<slot> … --reason …` (reason REQUIRED) | appended dated `amend-reason:` + `amended-<slot>:`; the earlier value is RETAINED, never overwritten; commits | last-wins resolution over the superseded slot; `item check` | lc-27 |
+| 3 | blocker answered | `ledger add decision --question … --answer …` **+** `item ready <id>` re-derives | `LEDGER.md` decision line; `item ready` prints `UNBLOCKED — the ledger ANSWERS this decision … (LEDGER.md:<n>)` | refusal `ledger_body` guards the question text; **DIVERGENCE, see lc-55** | lc-26, lc-40 |
+| 3a | the decision line's COMMIT | **HOLE → `lc-56`** | — `ledger add` writes and does not commit, and prints no NOT COMMITTED | lc-25's contract, unmet by the sibling verb | lc-25 |
+| 4 | promoted | `item promote <id> --by <desk> --reason <text>` (both REQUIRED) | `promoted-by:` + `promote-reason:`, dated; commits | the verb refuses unless slots are filled and no blocker stands; law 10, READY is judged never inherited | lc-39 |
+| 5 | scheduled | `item ready --head` | nothing — the head is DERIVED, by the declared head-rule, and deliberately records nothing | `head-rule:` line in the output; NO CAP (R22) | lc-16 |
+| 6 | read by goal | **HOLE → `lc-57`** | — no query verb exists; `item ready` takes only `[ident]` or `--head` | the `goal:` slot is written by every item and read by nothing | lc-16 |
+| 7 | merged at intake | `item add --join "merge-into <id>"` | the join's answer on the admitted body | the intake join; covered ONLY at admission — two already-booked items have no merge verb | lc-17 |
+| 8 | closed (DONE) | `item close <id> --reason … [--ref <sha>]` | the MOVE: body appended to `ITEMS-DONE.md` with `closed-reason:` and `closed-ref:`, deleted from `ITEMS.md`, committed — append, delete, commit | `move integrity` (no id in both homes); `done-home check`; `conservation`; refusal `closed_ref_unresolvable` verifies each ref against the repo | lc-18, lc-19, lc-21, lc-44 |
+| 9 | closed (DROPPED) | `item close <id> --drop --reason …` (reason REQUIRED there) | a `dropped:` ledger line; the drop keeps its ledger line rather than a moved body | `conservation` — nothing leaves by a path that is not a closure | lc-22 |
+| 10 | drained to the done home | carried by row 8; there is no separate verb | `ITEMS-DONE.md` | `done-home check`; `move integrity` | lc-18 |
+| 11 | compacted | **HOLE → `lc-58`** | — `retire` WALKS and REPORTS: "EXITS TAKEN THIS PASS: none … the acts its findings call for are their own verbs" — and no compaction verb exists | `conservation` can only ever read `compacted 0` | — |
+| 12 | seeded | `init` | a fresh repo's declaration + lane stubs | `kind check` validates the declaration; `kind sweep` | lc-23 |
+| 13 | registered | `lane register` (roster) / `lane new` (stub, does NOT declare) / `kind` declaration | the roster; `.claude/lifecycle.json` | `lane list`; `kind sweep`, invariant 1: every tracked file resolves to a registered kind | lc-13, lc-14 |
+| 14 | flow alarm | `item ratio` | nothing written; a FINDING | refusal `capture_dominated` at the 3:1 tripwire — a ratio, never a size | R22 |
+
+**Exercised, not read.** Every verb cell above was run. Outputs are in
+the wave-5 digest; the two that decided rows rather than merely filling
+them:
+
+- Row 1's refusal, on a one-file write-set with no `--hunks`:
+  `COULD NOT VERIFY: the write-set names ONE file and the hunk count was
+  not stated (--hunks <n>). A one-file, one-hunk write-set with the
+  session live is do-it-now, not book-it — and this add cannot tell
+  which it is.` The intake cost test is live, and it is a refusal, not
+  advice.
+- Row 3's divergence, the walk's own find and the reason `lc-55` exists:
+  on ONE item with ONE ledger state, `item ready` reported
+  `UNBLOCKED — the ledger ANSWERS this decision … (LEDGER.md:35)` and
+  `item close` then reported that the same blocker `was never answered
+  and this close makes it moot`, wrote `blocker-moot:` on the moved
+  body, and appended `LEDGER.md:36` recording the question as moot. The
+  carrier now holds two contradictory answers to one question. The
+  MECHANISM is not established here — only the divergence, measured.
+  That is lc-40's family exactly: two individually-correct mechanisms
+  with no shared grammar for the value that crosses them.
+
+**A third observation, from row 3 and 3a together:** `item ready`
+resolved the blocker from an UNCOMMITTED ledger line. So an item reads
+as unblocked in a tree where the answer was never committed — the
+missing commit in 3a is not cosmetic, it changes what a reader of a
+clean checkout sees.
+
+**The 27-item sort** (lc-13…lc-40; lc-15 superseded by lc-28), sorted
+by the wave-4 peer desk from the bodies and quoted here verbatim as the
+table's evidence base:
+
+> TRANSITION 16 (admit lc-25; amend lc-27; unblock lc-26; promote
+> lc-39; close lc-18/19/21/22; merge lc-17; seed lc-23; register
+> lc-13+14 as one arrow; read-by-goal lc-16, a query; cross-verb
+> grammar lc-40, lc-38, lc-36) / NICK 11 (lc-20, 24, 28, 29, 30, 31,
+> 32, 33, 34, 35, 37).
+
+The five arrows the wave-4 head named — admit, amend, unblock, promote,
+close — each surfaced independently as its own item, found by different
+lanes, none looking for a pattern. That is the evidence for reading
+them as one class rather than five defects. Not a redesign: the
+refusal-heavy stance stays, and every hole above is booked as an item
+against it.
+
 ## 4. Diff against the inventory — what survives, what is cut, what is rewritten
 
 | existing thing | verdict | why |
