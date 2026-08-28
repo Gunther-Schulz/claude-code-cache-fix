@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 18
+added: 19
 compacted: 0
 
 ## cf-1
@@ -3008,3 +3008,12 @@ write-set: test/bust-triage-row33.test.mjs,test/matrix-status.test.mjs
 done-criterion: the row count is DERIVED from the matrix at test time rather than restated in the tests, so minting a row needs no test edit, red-first: add a row without touching any test and today three tests go red for the wrong reason. If derivation is rejected, the alternative is a single declared tripwire with a comment saying why a restated count is correct here, never three copies
 evidence: lane candidate lesson (e) relayed by the judgment desk 2026-08-28, and the tax observed the same day: 84f09fe bumps a hardcoded 32 to 33 as a follow-up to 4c63700, which minted the row. Not re-measured at this desk beyond confirming both shas resolve and carry those subjects
 blocked-by: decision derive the count from the matrix or keep one declared tripwire with its reason
+
+## cf-337
+grade: READY
+requirement: dev-loop.md (2553 lines) + FORK-NOTES.md still hold laws + method that design 3.3 routes to workflows/laws/journal; only the workflow half (9 runbooks) ran, the law decomposition never did; TEND-class, goal=retire pending the tend vocabulary (lc-64); record: cache-fix design 3.3, operator 2026-08-28
+goal: retire
+write-set: docs/dev-loop.md,FORK-NOTES.md,CLAUDE.local.md,docs/runbooks/,JOURNAL.md,.claude/required-reading.json
+done-criterion: dev-loop's laws in CLAUDE.local.md, procedures in workflows/runbooks, incidents in JOURNAL, no-kind content dropped; injected prefix falls per design 3.3 budget (lane+workflow <= half of 2375 lines); required-reading roster updated; laws scope-audit clean on the new laws file
+evidence: cache-fix design 3.3, the method-file decomposition contract and budget
+blocked-by: evidence tend-reserved-lc64-DONE-and-plugin-wave2-workflow-registry-and-laws-scope-audit-built
