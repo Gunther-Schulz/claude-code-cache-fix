@@ -183,9 +183,11 @@ done-criterion, evidence) that the grade workflow fills before READY,
 that the retire lane never reads as "advances no goal", and that `item
 check` reports as a count; READY is REFUSED — in `item check` over the
 carrier, not only at `item add` — to any item holding an UNKNOWN slot.
-`goal` is a closed vocabulary owned by the declaration; a value outside
-it on a new item is a refusal row. The cache-fix dry run is regenerated
-under these rules (the old carrier is byte-identical, nothing is lost).
+`goal` is a closed vocabulary owned by the declaration, PLUS the one
+plugin-reserved value `tend` (§3.1b) accepted in every repo; any other
+value outside the declared set on a new item is a refusal row. The
+cache-fix dry run is regenerated under these rules (the old carrier is
+byte-identical, nothing is lost).
 
 Storage: `ITEMS.md`, first line `schema: <n>`; the tool refuses to parse
 a file stamped above its own floor (red: a file stamped one above).
@@ -221,6 +223,58 @@ undeclared, ignored or malformed declaration fails loudly, never open.
 A public repo refuses an item whose source cwd is another repo; detectors
 register their home repo. The no-operator-quote half of the bar has no
 predicate and is labelled prose-rest, operator as backstop.
+
+### 3.1b The `tend` meta-goal — repo-self-work, plugin-reserved (operator 2026-08-28)
+
+`goal` is a per-repo DOMAIN vocabulary (§3.1): cache-fix's are the
+fork's loop stages, and every declared goal names a stage of the work
+the repo EXISTS to do. This leaves a whole class homeless — a repo
+working on ITSELF: decomposing its own method file (§3.3), retiring an
+obsolete hook, splitting an over-tripwire archive, and above all the
+MIGRATION'S OWN RESIDUE. None of it advances a domain goal, so under
+§3.1's closed vocabulary it cannot be booked, so it falls out of the
+carrier into design prose — where nothing surfaces it (recorded: THIS
+design's own dev-loop decomposition, fully specified in §3.3 and never
+booked, surfaced only on an operator question 2026-08-28, weeks late).
+The gap is structural, not a discipline lapse: the carrier has no slot
+for the work, so care cannot put it there.
+
+The fix is one PLUGIN-RESERVED goal, `tend` — "work on this repo's own
+carrier, method, hooks, machinery, or migration residue." It is NOT in
+any declaration's goal list and is NOT declarable per repo; the plugin
+adds it to every repo's EFFECTIVE goal set, so `item add --goal tend`
+and `item check` accept it in every repo, new or migrated, with nothing
+declared. Orthogonal to the domain loop by construction, so the two
+never compete for vocabulary. The name is `tend` (operator 2026-08-28;
+a rename is one constant in the plugin, no per-repo edit).
+
+`tend` sits OUTSIDE the head-rule's `lead-goal` ordering (§3.1): a
+domain lead-goal item leads whenever one is complete, and `tend` items
+are READY-and-visible but never take the scheduled head from domain
+work — meta-work does not compete with the repo's reason to exist.
+(Whether a second scheduled track is ever wanted for `tend` is deferred;
+the default is no.)
+
+Two verbs seed it, so the slot exists before the work does:
+- `init` gives a fresh repo the effective set {declared domain goals}
+  ∪ {`tend`} from its first `item add` — self-work is bookable from day
+  one, before the repo accretes machinery with nowhere to file its
+  cleanup.
+- `migrate --apply` BOOKS ITS OWN RESIDUE as `tend` items — the
+  un-decomposed method file (§3.3, parked on the workflow-registry and
+  laws-scope-audit build), the old-carrier readers still live (parked
+  on: every consumer migrated or declared exempt), an over-tripwire
+  frozen archive (parked on the split tripwire) — each PARKED with its
+  named blocker, emitted by the migration report (§4 row 1). This is
+  the assumed-delivery rule (Calibration: a write with no committing
+  actor ACCUMULATES; the only detector is a count of what piled up)
+  applied to the migration tool: the migration is the ONLY party that
+  knows its residue exists at the moment it creates it, so it is the
+  party that books it. A migrated repo's cleanup then lives in its
+  carrier as parked items with visible blockers on every session's
+  banner, never in a design doc nobody re-reads — which also makes an
+  unbuilt dependency (a wave-2 mechanism, say) surface as a real
+  `blocked-by` rather than a fact someone must remember.
 
 ### 3.2 Intake is a merge (R5)
 
