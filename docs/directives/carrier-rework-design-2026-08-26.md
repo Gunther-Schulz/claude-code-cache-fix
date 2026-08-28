@@ -152,9 +152,19 @@ migrated entries that never carried one — the join treats UNKNOWN as
 "ask", never "match", and the grade workflow fills it) ·
 `done-criterion` · `evidence` · `blocked-by` (typed: `<item-id>` —
 resolves mechanically on that item's DONE, the item returns to NEW for
-re-grade; `decision <question>` — the operator's queue, listed on the
+re-grade; `<repo>:<item-id>` — a CROSS-REPO edge (operator decision
+2026-08-28, begehung r5/lc-66), resolves when that item reaches DONE in
+its OWN carrier, checked by a cross-repo resolver over the declared repo
+roster (`lane list`'s roster), the item returning to NEW for re-grade;
+in a one-plugin many-consumer system the cross-repo dependency is the
+norm and must be a resolving edge, not a prose blocker nothing clears;
+`decision <question>` — the operator's queue, listed on the
 first screen and by `/lanes ?`; `evidence <predicate>` — evaluated like
-a trigger). No other edge types.
+a trigger). No other edge types. The cross-repo edge, the cross-repo
+detector home, and the cross-repo roll-up view are one COORDINATION
+LAYER (lc-66), chosen over a separate "coordination kind" because the
+dependency is naturally an edge between existing items, not a new
+carrier.
 
 Grades, closed, five: NEW · READY · PARKED · DONE · DROPPED. READY is
 JUDGED — a slot-complete grade the desk assigns, "a fresh context could
@@ -371,7 +381,14 @@ not a number. The requirement stays that the injected prefix falls
 after the decomposition (accretion's shrink saves ~242 lines); incidents and lessons → the project JOURNAL, cited
 by the law or workflow they justify — no reference tier, no dev-book
 concept survives (operator 2026-08-26); what fits none of law /
-workflow / journal / audit is dropped. Decomposition budget: lane + workflow text ≤ half of
+workflow / journal / audit is dropped. RE-CONFIRMED against a concrete
+instance (operator 2026-08-28, begehung r5/lc-69): the drop STANDS, and
+cross-cutting REASONING that justifies a SET of laws rather than one is
+not a lost class — it is an incident/lesson in the JOURNAL, cited by
+EACH law it justifies (the same many-to-one citation a law's basis
+pointer already allows). The JOURNAL is the home for reasoning that must
+persist; only reasoning that justifies nothing AND fits no kind is truly
+dropped. No reference tier is re-introduced. Decomposition budget: lane + workflow text ≤ half of
 today's 2,375 runbook lines. "Laws, never method" is judgment and is
 labelled prose-rest; the SCOPE AUDIT is the mechanism (no cap, R22).
 
