@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 15
+added: 16
 compacted: 0
 
 ## cf-1
@@ -2998,4 +2998,13 @@ goal: verify
 write-set: tools/harvest.mjs (or the systemd unit that runs it), the commit step; docs/dev-loop.md carrier-registration clause
 done-criterion: harvest's own run commits (or a named actor commits) what it writes, by pathspec, and the pre-push leak scan runs on that commit; git status shows 0 untracked harvest files after a run; the untracked backlog of 227 committed or dropped with a reason
 evidence: git status --porcelain | grep '^??' | wc -l → 227, all under test/fixtures/harvested; git log -1 -- test/fixtures/harvested/census-rows → f0f026f, 7 days
+blocked-by: NONE
+
+## cf-334
+grade: READY
+requirement: commit 224a23bf on branch worktree-agent-ac73dca7ecf344d05 (matrix: mint row 30, APPEND-ONLY CACHE COLLAPSE, 2026-08-10T04:40:39Z; +2 lines in docs/directives/robustness-threat-matrix.md and a 46-line test/bust-triage-row30.test.mjs) was never integrated into main. Another lane minted a DIFFERENT row 30 (RELOCATE-THEN-PIN CONTENT LOSS, 2026-08-11) and only that one landed, so the append-only finding is lost while the row number reads as taken
+goal: mitigate
+write-set: docs/directives/robustness-threat-matrix.md,test/bust-triage-rowN.test.mjs
+done-criterion: the APPEND-ONLY CACHE COLLAPSE finding sits in the matrix as its own numbered row with the commit evidence intact, its test file renamed to that number and green in npm test, and the source commit content fully in main: git show 224a23bf diffed by hand against the new row and test, both halves present. N is the next free row number read from the matrix at build time, never 30
+evidence: judgment desk measured 2026-08-28, re-verified at the peer desk the same day with a positive control: git grep -c APPEND-ONLY main -- docs/directives/robustness-threat-matrix.md returns no hits while the same grep for RELOCATE-THEN-PIN returns 1, so the zero is a real absence and not a dead pattern; git cat-file -e main:test/bust-triage-row30.test.mjs fails with path does not exist in main; git show --stat 224a23bf resolves and carries both halves. Wider context from the desk, not re-measured here: git cherry main over 55 worktree-agent branches gave 91 commits, 77 applied, 14 plus, 13 of those applied-by-content and this one LOST
 blocked-by: NONE
