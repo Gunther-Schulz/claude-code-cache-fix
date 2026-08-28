@@ -1,0 +1,64 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservation",
+  "key": "s-0512693f8fc1",
+  "n": 847,
+  "prevN": null,
+  "index": 752,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-23T09:22:43.250Z",
+  "row": {
+    "n": 847,
+    "kind": "lost",
+    "at": 752,
+    "side": "in",
+    "declarationsUnavailable": false,
+    "unaccountedHashes": [
+      "4613f958d2afad02"
+    ],
+    "detail": "in[752] (user): 1 of 1 unit(s) present in CC's request and in no forwarded message",
+    "keyToken": "s-0512693f8fc1"
+  },
+  "sides": {
+    "cur": {
+      "n": 847,
+      "rawLen": 762,
+      "forwardedLen": 763,
+      "outBodySha": "2e787719bf5c189b",
+      "forwardedSha": "a108766b01a5",
+      "rawSha": "5439b498b95c",
+      "forwardedPresentInRawAt": 751,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "a108766b01a5",
+      "firstPassRawSha": "5439b498b95c",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-0512693f8fc1",
+      "idToken": "s-63748075b43f",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_748a647091ed_41"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": "<system-reminder>\nt_6ad698aeb444_1502\n</system-reminder>"
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

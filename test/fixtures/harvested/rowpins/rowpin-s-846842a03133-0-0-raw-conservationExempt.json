@@ -1,0 +1,150 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-846842a03133",
+  "n": 0,
+  "prevN": null,
+  "index": 0,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-27T15:34:14.701Z",
+  "row": {
+    "n": 0,
+    "kind": "lost",
+    "at": 0,
+    "side": "in",
+    "exemptReason": "fresh-session-sort:rewrite",
+    "detail": "in[0] (user): 1 of 9 unit(s) exempt — 1 re-derived from fresh-session-sort's own rewrite and verified in F, 0 accepted by content-strip's own predicates, 0 re-derived from identity-normalization's own SessionStart substitution and verified in F",
+    "keyToken": "s-846842a03133"
+  },
+  "sides": {
+    "cur": {
+      "n": 0,
+      "rawLen": 1,
+      "forwardedLen": 1,
+      "outBodySha": "a67925f73b33c35c",
+      "forwardedSha": "3f2d074ceea9",
+      "rawSha": "17376e22c9e3",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [
+        "hooks",
+        "hooks",
+        "deferred",
+        "mcp",
+        "skills"
+      ],
+      "rawRelocTypes": [
+        "hooks",
+        "hooks",
+        "deferred",
+        "mcp",
+        "skills"
+      ],
+      "firstPassForwardedSha": "3f2d074ceea9",
+      "firstPassRawSha": "17376e22c9e3",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-846842a03133",
+      "idToken": "s-82e2b26581e7",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_f7169cc89ecb_104\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_d643b9dfb421_718\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_17d0c6ef69d7_7703\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_05fe7d069140_1942\n\nt_4965b25f1f82_133\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_eb456467931b_63\n\nt_532f765f97d1_7966\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_2b7db5539346_49\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_adac428110f2_7943\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_2e8cc56caf0e_22670\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_7baada5f60d3_10739\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_a03066d91180_6284\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_582fde1d2cc7_6998\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_cb8ea8ef1201_14733\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_d8dcb43bf94f_1277\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_2b3c45fe3e32_17569\n\nt_73e902739b08_4812\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_fcc24f85e10b_7706\n\nt_bbe429b5385b_132\n\nt_6b33137550c2_74\n\nt_b2ac2271023e_145\n\nt_e8f78ee6e798_564\n\nt_41d711098639_23\n\nt_d3f509b42fbe_3113\n\nt_27cd1de83076_80\n\nt_1d00530b6296_262\n\nt_d7390c68be38_6472\n\nt_ac00fb9dc43b_56\n\nt_d8bf6a43ef23_12946\n\nt_4e93ae177157_13\n\nt_caac4b554c29_483\n\nt_88d81cf3ca74_3263\n\nt_f266be9e021e_73\n\nt_f72933e1e897_201\n\nt_97ba5358ebec_1823\n\nt_dd424bfadd5e_166\n\nt_1f71beb87080_27\n\nt_6a66d48a8321_10652\n\nt_a248b3261394_430\n\nt_37ca566e8fb9_1064\n\nt_9fd10f673ee8_616\n\nt_9deaa31fc0a7_146\n\nt_54bc1197a763_1845\n\nt_3c8b26f510c6_659\n\nt_57869519761b_100\n\nt_d16a990cced4_732\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_459a6b4e4998_128\n\nt_9c601df99c9b_147",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_f7169cc89ecb_104\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_d643b9dfb421_718\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_17d0c6ef69d7_7703\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_05fe7d069140_1942\n\nt_4965b25f1f82_133\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_49ecbf8d43ed_25\n\nt_978aac218b24_94\n\nt_fb7a93a1d3a9_148\n\nt_0889357805de_136\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_eb456467931b_63\n\nt_66ecf28f7843_7966\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_2b7db5539346_49\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_39803a42ea28_275\n\nt_0fdd92602e3a_92\n\nt_9cff0e5ed719_21\n\nt_5402abbaa1bc_341\n\nt_e581c871ef48_139\n\nt_e8be7e244d3f_284\n\nt_a57547f5f7b5_174\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_adac428110f2_7943\n\nt_a4c5dc796357_127\n\nt_7028959dca36_20\n\nt_cf225497a9c1_171\n\nt_2e8cc56caf0e_22670\n\nt_1882fd2557bb_132\n\nt_cf50ce91b07e_26\n\nt_7baada5f60d3_10739\n\nt_ecfefa989e16_130\n\nt_4e25972b40f2_57\n\nt_a03066d91180_6284\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_582fde1d2cc7_6998\n\nt_6edb2d120579_130\n\nt_1949f3f992ff_37\n\nt_cb8ea8ef1201_14733\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_d8dcb43bf94f_1277\n\nt_3a44baa19233_184\n\nt_632fd8a627bc_81\n\nt_2b3c45fe3e32_17569\n\nt_73e902739b08_4812\n\nt_5b10facf0583_325\n\nt_3975a6973cd3_132\n\nt_6c6f0daee63b_65\n\nt_5c8f2e08dd22_190\n\nt_fcc24f85e10b_7706\n\nt_bbe429b5385b_132\n\nt_6b33137550c2_74\n\nt_b2ac2271023e_145\n\nt_e8f78ee6e798_564\n\nt_41d711098639_23\n\nt_d3f509b42fbe_3113\n\nt_27cd1de83076_80\n\nt_1d00530b6296_262\n\nt_d7390c68be38_6472\n\nt_ac00fb9dc43b_56\n\nt_d8bf6a43ef23_12946\n\nt_4e93ae177157_13\n\nt_caac4b554c29_483\n\nt_88d81cf3ca74_3263\n\nt_f266be9e021e_73\n\nt_f72933e1e897_201\n\nt_97ba5358ebec_1823\n\nt_dd424bfadd5e_166\n\nt_1f71beb87080_27\n\nt_6a66d48a8321_10652\n\nt_a248b3261394_430\n\nt_37ca566e8fb9_1064\n\nt_9fd10f673ee8_616\n\nt_9deaa31fc0a7_146\n\nt_54bc1197a763_1845\n\nt_3c8b26f510c6_659\n\nt_57869519761b_100\n\nt_d16a990cced4_732\n\nt_2d53c9932baa_153\n</system-reminder>"
+          },
+          {
+            "type": "text",
+            "text": "t_459a6b4e4998_128\n\nt_9c601df99c9b_147",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

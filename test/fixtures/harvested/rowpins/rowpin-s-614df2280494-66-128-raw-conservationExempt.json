@@ -1,0 +1,85 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-614df2280494",
+  "n": 66,
+  "prevN": null,
+  "index": 128,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-20T16:19:38.740Z",
+  "row": {
+    "n": 66,
+    "kind": "lost",
+    "at": 128,
+    "side": "in",
+    "exemptReason": "content-strip:declared-strip",
+    "detail": "in[128] (user): 1 of 2 unit(s) exempt — 0 re-derived from fresh-session-sort's own rewrite and verified in F, 1 accepted by content-strip's own predicates, 0 re-derived from identity-normalization's own SessionStart substitution and verified in F",
+    "keyToken": "s-614df2280494"
+  },
+  "sides": {
+    "cur": {
+      "n": 66,
+      "rawLen": 165,
+      "forwardedLen": 166,
+      "outBodySha": "3a05b5d974614c03",
+      "forwardedSha": "228bf6eb8cd1",
+      "rawSha": "b736907f3739",
+      "forwardedPresentInRawAt": 127,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "228bf6eb8cd1",
+      "firstPassRawSha": "b736907f3739",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-614df2280494",
+      "idToken": "s-7ab5439bb4c7",
+      "forwarded": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "signature": "sig_0d8aa12754"
+          },
+          {
+            "type": "tool_use",
+            "id": "toolu_014VfLvKUK6TL9cUBjUpuJak",
+            "name": "Bash",
+            "input": {
+              "command": "REDACTED",
+              "description": "REDACTED"
+            },
+            "caller": {
+              "type": "direct"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_014VfLvKUK6TL9cUBjUpuJak",
+            "type": "tool_result",
+            "content": "t_4552804261d5_873",
+            "is_error": false
+          },
+          {
+            "type": "text",
+            "text": "t_a7a9a51d81c8_33"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

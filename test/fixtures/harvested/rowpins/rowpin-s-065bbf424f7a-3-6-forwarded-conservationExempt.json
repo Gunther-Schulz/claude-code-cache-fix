@@ -1,0 +1,82 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-065bbf424f7a",
+  "n": 3,
+  "prevN": null,
+  "index": 6,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-08-20T15:08:07.289Z",
+  "row": {
+    "n": 3,
+    "kind": "invented",
+    "at": 6,
+    "side": "out",
+    "exemptReason": "smoosh-split:declared-peel",
+    "detail": "out[6] (user): 2 of 2 unit(s) exempt — 2 produced by smoosh-split's declared peel, 0 by fresh-session-sort's verified rewrite, 0 re-served by fresh-session-sort from an earlier verified rewrite in this conversation, 0 produced by identity-normalization's verified SessionStart substitution",
+    "keyToken": "s-065bbf424f7a"
+  },
+  "sides": {
+    "cur": {
+      "n": 3,
+      "rawLen": 7,
+      "forwardedLen": 7,
+      "outBodySha": "1750f2cf77f69e42",
+      "forwardedSha": "8768251f3617",
+      "rawSha": "db19ed675dd4",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "8768251f3617",
+      "firstPassRawSha": "db19ed675dd4",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-065bbf424f7a",
+      "idToken": "s-13d3ad072f7e",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_013UKYLF9erxGWX64kwSAxGx",
+            "type": "tool_result",
+            "content": "t_fb10d01d0d92_197\n\nt_ad38bf1b1907_2045",
+            "is_error": false
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_ad3a622c5825_355\n</system-reminder>",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_013UKYLF9erxGWX64kwSAxGx",
+            "type": "tool_result",
+            "content": "t_fb10d01d0d92_197\n\nt_ad38bf1b1907_2045\n\nt_d9a8349260ac_392",
+            "is_error": false,
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
