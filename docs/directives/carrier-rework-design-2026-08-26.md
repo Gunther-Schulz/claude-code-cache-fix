@@ -260,12 +260,21 @@ Two verbs seed it, so the slot exists before the work does:
   ∪ {`tend`} from its first `item add` — self-work is bookable from day
   one, before the repo accretes machinery with nowhere to file its
   cleanup.
-- `migrate --apply` BOOKS ITS OWN RESIDUE as `tend` items — the
-  un-decomposed method file (§3.3, parked on the workflow-registry and
-  laws-scope-audit build), the old-carrier readers still live (parked
-  on: every consumer migrated or declared exempt), an over-tripwire
-  frozen archive (parked on the split tripwire) — each PARKED with its
-  named blocker, emitted by the migration report (§4 row 1). This is
+- `migrate --apply` BOOKS ITS OWN RESIDUE as `tend` items — but only
+  the residue it can detect GENERICALLY, which is exactly what it just
+  touched: the old-carrier readers still live (migrate converted the
+  carrier, so it holds the old paths and greps the repo for readers of
+  them — parked on: every consumer migrated or declared exempt), and an
+  over-tripwire frozen archive (migrate created the archive section, so
+  it knows its line count against the split tripwire — parked there).
+  The un-decomposed METHOD FILE is NOT migrate's to book: there is no
+  universal method-file marker for a tool to key on, so it rides the
+  FILE SWEEP (§4) instead — which classifies every tracked file into a
+  kind and books a `tend` decomposition item for one that fits none.
+  The two must not BOTH claim it (double-booking), so migrate books
+  readers + archive and the sweep books the method file, cross-referenced
+  here. Each item PARKED with its named blocker, emitted by the
+  migration report (§4 row 1). This is
   the assumed-delivery rule (Calibration: a write with no committing
   actor ACCUMULATES; the only detector is a count of what piled up)
   applied to the migration tool: the migration is the ONLY party that
