@@ -1840,6 +1840,11 @@ it, acknowledge-by-commit, within the hour).
    reader who had no way to know it existed. Registering the class is the
    creator's act because the creator is the only party that knows the
    carrier is there.
+   Instance (cf-333, 2026-08-28): harvest's own carrier changed KIND, from
+   untracked files to UNPUSHED COMMITS on main (`commitHarvest()`), already
+   covered by an existing collector — `tools/state-report.mjs`'s
+   `collectUnpushed()` (`origin/main..main`) — so no new collector code was
+   needed.
 <!-- required-reading-extract-end -->
 
 ### Cadence: the gate guards the flow, the sweep re-checks the stock
