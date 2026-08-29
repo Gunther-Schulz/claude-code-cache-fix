@@ -12,7 +12,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 0,
         "toolsBytes": 0
-      }
+      },
+      "gone": true
     },
     "k_157bd37224d781f7": {
       "requests": 345,
@@ -6547,7 +6548,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 71872
-      }
+      },
+      "gone": true
     },
     "k_96931102c1f4caf0": {
       "requests": 1,
@@ -6588,7 +6590,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 67135
-      }
+      },
+      "gone": true
     },
     "k_438b3385f29048c7": {
       "requests": 547,
@@ -6601,7 +6604,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 71861
-      }
+      },
+      "gone": true
     },
     "k_13b1f3dacec400b1": {
       "requests": 27,
@@ -6614,7 +6618,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 63244
-      }
+      },
+      "gone": true
     },
     "k_8e5f46cdbdf3b701": {
       "requests": 21,
@@ -6627,19 +6632,20 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 56930
-      }
+      },
+      "gone": true
     },
     "k_23a7aa33527a7be4": {
-      "requests": 10,
-      "bytes": 1048252,
-      "lastHarvest": "2026-08-28T16:03:03.038Z",
+      "requests": 93,
+      "bytes": 42974761,
+      "lastHarvest": "2026-08-29T07:17:02.674Z",
       "classes": [],
       "shape": {
-        "pairs": 4,
+        "pairs": 47,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
-        "toolsBytes": 56942
+        "toolsBytes": 58783
       }
     },
     "k_9fb8255dec4bceca": {
@@ -6653,7 +6659,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 71016
-      }
+      },
+      "gone": true
     },
     "k_8b02fb5b7d228dc3": {
       "requests": 2,
@@ -6666,7 +6673,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 16056,
         "toolsBytes": 37688
-      }
+      },
+      "gone": true
     }
   }
 }
