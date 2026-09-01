@@ -6580,18 +6580,17 @@
       "gone": true
     },
     "k_bdb72384e32011e2": {
-      "requests": 745,
-      "bytes": 207105490,
-      "lastHarvest": "2026-08-30T16:03:04.270Z",
+      "requests": 770,
+      "bytes": 212362270,
+      "lastHarvest": "2026-09-01T16:05:06.850Z",
       "classes": [],
       "shape": {
-        "pairs": 361,
+        "pairs": 380,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 67135
-      },
-      "gone": true
+      }
     },
     "k_438b3385f29048c7": {
       "requests": 547,
@@ -6746,6 +6745,19 @@
         "toolsBytes": 2
       },
       "gone": true
+    },
+    "k_09cf339c5c17a1ef": {
+      "requests": 118,
+      "bytes": 44602943,
+      "lastHarvest": "2026-09-01T16:05:08.963Z",
+      "classes": [],
+      "shape": {
+        "pairs": 100,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 56656
+      }
     }
   }
 }
