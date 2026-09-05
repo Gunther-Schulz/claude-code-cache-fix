@@ -6800,7 +6800,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 84319
-      }
+      },
+      "gone": true
     }
   }
 }
