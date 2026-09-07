@@ -6860,12 +6860,12 @@
       "gone": true
     },
     "k_d251d0666e1cab5d": {
-      "requests": 1195,
-      "bytes": 3565202494,
-      "lastHarvest": "2026-09-07T08:26:13.454Z",
+      "requests": 1766,
+      "bytes": 4036981690,
+      "lastHarvest": "2026-09-07T16:05:09.454Z",
       "classes": [],
       "shape": {
-        "pairs": 1004,
+        "pairs": 1498,
         "thinkingDropPairs": 3,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
@@ -7009,6 +7009,33 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 58703
+      },
+      "gone": true
+    },
+    "k_f455cae08c3aeec2": {
+      "requests": 51,
+      "bytes": 12146237,
+      "lastHarvest": "2026-09-07T16:05:12.587Z",
+      "classes": [],
+      "shape": {
+        "pairs": 38,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 60547
+      }
+    },
+    "k_be7b10aff7acca65": {
+      "requests": 1,
+      "bytes": 1240,
+      "lastHarvest": "2026-09-07T16:05:14.100Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
       }
     }
   }
