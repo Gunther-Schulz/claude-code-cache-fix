@@ -7094,6 +7094,20 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 59657
+      },
+      "gone": true
+    },
+    "k_401e8e4ad7aa96cf": {
+      "requests": 540,
+      "bytes": 1839869810,
+      "lastHarvest": "2026-09-09T16:01:55.421Z",
+      "classes": [],
+      "shape": {
+        "pairs": 488,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 127758,
+        "toolsBytes": 95185
       }
     }
   }
