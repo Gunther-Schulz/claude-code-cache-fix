@@ -7098,12 +7098,12 @@
       "gone": true
     },
     "k_401e8e4ad7aa96cf": {
-      "requests": 540,
-      "bytes": 1839869810,
-      "lastHarvest": "2026-09-09T16:01:55.421Z",
+      "requests": 649,
+      "bytes": 1937408338,
+      "lastHarvest": "2026-09-10T04:04:57.164Z",
       "classes": [],
       "shape": {
-        "pairs": 488,
+        "pairs": 581,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 127758,
