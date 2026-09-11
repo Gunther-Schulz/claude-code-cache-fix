@@ -1,0 +1,186 @@
+{
+  "corpus": {
+    "considered": 58,
+    "captures": 11,
+    "pairs": 3520,
+    "conversations": 40,
+    "unreadable": 0,
+    "tornLines": 0
+  },
+  "tally": {
+    "EXACT": 0,
+    "EXTENDED": 0,
+    "DROPPED": 3,
+    "MISMATCH": 0
+  },
+  "prunes": {
+    "pure": 78,
+    "interior": 17,
+    "unanchored": 0
+  },
+  "duplicates": {
+    "pairs": 8,
+    "streaks": 7,
+    "maxStreak": 3,
+    "requests": 15,
+    "billedRequests": 5,
+    "billedStreaks": 5,
+    "doubleBilledStreaks": 0,
+    "coalescedRequests": 4,
+    "coalescedStreaks": 4,
+    "coalesceMissRequests": 0,
+    "coalesceMissStreaks": 0,
+    "coalesceMissReasons": {},
+    "membersWithoutId": 0,
+    "singleMessageStreaks": 6,
+    "singleMessageDoubleBilled": 0,
+    "singleMessageCoalesced": 4,
+    "multiMessageStreaks": 1,
+    "multiMessageDoubleBilled": 0,
+    "multiMessageCoalesced": 0
+  },
+  "volatile": {
+    "change": {
+      "matchedAll": 391156,
+      "matched": 5909,
+      "identical": 5908,
+      "reserialized": 0,
+      "changed": 1
+    },
+    "kinds": {
+      "IN-PLACE-TEXT": 0,
+      "VANISHED": 0,
+      "APPEARED": 1,
+      "AUGMENTED": 0,
+      "REDUCED": 0
+    },
+    "entries": 1,
+    "entriesByKind": {
+      "APPEARED": 1
+    },
+    "cacheControlExempt": 0,
+    "truncated": {}
+  },
+  "producedAt": "2026-09-11T05:16:31.678Z",
+  "producedBy": {
+    "tool": "tools/gate-live.mjs",
+    "invocation": "node --max-old-space-size=2048 tools/reminder-migration-census.mjs <capture> --json --verbose (per capture, this sweep)",
+    "rowDerivation": "mechanism (extractCensusRowEvidence/reduceCensusRowEvidence/buildCensusRowsDocument) — one document per sweep, written from the same --verbose census JSON summariseCensus already reads",
+    "censusRunAt": "2026-09-11T05:16:31.678Z"
+  },
+  "extendedSub": {
+    "MERGED-STANDALONE": 0,
+    "NEW-TEXT": 0
+  },
+  "mismatchRows": [],
+  "duplicateStreaks": [
+    {
+      "capture": "s-6bd2a895de14",
+      "startTs": "2026-09-10T18:44:38.291Z",
+      "lastTs": "2026-09-11T02:39:52.838Z",
+      "startLine": 354,
+      "lastLine": 587,
+      "length": 3,
+      "billed": 0,
+      "coalesced": 0,
+      "membersWithoutId": 0,
+      "intervalMs": 28514547,
+      "family": "mid-session"
+    },
+    {
+      "capture": "s-401e8e4ad7aa",
+      "startTs": "2026-09-09T12:42:26.491Z",
+      "lastTs": "2026-09-09T12:42:26.499Z",
+      "startLine": 3,
+      "lastLine": 4,
+      "length": 2,
+      "billed": 1,
+      "coalesced": 1,
+      "membersWithoutId": 0,
+      "intervalMs": 8,
+      "family": "session-start"
+    },
+    {
+      "capture": "s-401e8e4ad7aa",
+      "startTs": "2026-09-10T14:17:58.143Z",
+      "lastTs": "2026-09-10T14:18:04.648Z",
+      "startLine": 3366,
+      "lastLine": 3367,
+      "length": 2,
+      "billed": 1,
+      "coalesced": 0,
+      "membersWithoutId": 0,
+      "intervalMs": 6505,
+      "family": "mid-session"
+    },
+    {
+      "capture": "s-401e8e4ad7aa",
+      "startTs": "2026-09-10T17:17:46.286Z",
+      "lastTs": "2026-09-10T17:33:47.148Z",
+      "startLine": 4415,
+      "lastLine": 4578,
+      "length": 2,
+      "billed": 0,
+      "coalesced": 0,
+      "membersWithoutId": 0,
+      "intervalMs": 960862,
+      "family": "mid-session"
+    },
+    {
+      "capture": "s-72b8b50bfa43",
+      "startTs": "2026-09-11T04:31:03.556Z",
+      "lastTs": "2026-09-11T04:31:03.576Z",
+      "startLine": 3,
+      "lastLine": 5,
+      "length": 2,
+      "billed": 1,
+      "coalesced": 1,
+      "membersWithoutId": 0,
+      "intervalMs": 20,
+      "family": "session-start"
+    },
+    {
+      "capture": "s-1b90ef51f541",
+      "startTs": "2026-09-11T02:18:42.136Z",
+      "lastTs": "2026-09-11T02:18:42.145Z",
+      "startLine": 3,
+      "lastLine": 5,
+      "length": 2,
+      "billed": 1,
+      "coalesced": 1,
+      "membersWithoutId": 0,
+      "intervalMs": 9,
+      "family": "session-start"
+    },
+    {
+      "capture": "s-c848c1054042",
+      "startTs": "2026-09-11T01:59:17.850Z",
+      "lastTs": "2026-09-11T01:59:17.859Z",
+      "startLine": 3,
+      "lastLine": 5,
+      "length": 2,
+      "billed": 1,
+      "coalesced": 1,
+      "membersWithoutId": 0,
+      "intervalMs": 9,
+      "family": "session-start"
+    }
+  ],
+  "volatileEntries": [
+    {
+      "capture": "s-6bd2a895de14",
+      "kind": "APPEARED",
+      "ts": "2026-09-10T18:54:32.128Z",
+      "lastTs": "2026-09-10T18:54:32.128Z",
+      "line": 414,
+      "req": 147,
+      "lastReq": 147,
+      "index": 372,
+      "occurrences": 1,
+      "firstBytes": 2,
+      "nowBytes": 20960,
+      "divOffset": 1,
+      "cacheControlExempt": false
+    }
+  ]
+}
