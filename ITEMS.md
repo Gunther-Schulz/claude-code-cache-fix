@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 19
+added: 20
 compacted: 0
 
 ## cf-4
@@ -2271,15 +2271,6 @@ done-criterion: UNKNOWN
 evidence: BACKLOG.md:10824-10861
 blocked-by: decision regrade: was READY under the old carrier — READY is judged, never inherited
 
-## cf-256
-grade: NEW
-requirement: RECORD (ex-READY 2026-08-15) 2026-08-13 — the untracked-fixture ACCUMULATION guard lost its assertion when its defect got fixed, and nothing now watches the class — record: BACKLOG.md:10862
-goal: UNKNOWN
-write-set: UNKNOWN
-done-criterion: UNKNOWN
-evidence: BACKLOG.md:10862-10904
-blocked-by: decision regrade: was READY under the old carrier — READY is judged, never inherited
-
 ## cf-257
 grade: NEW
 requirement: RECORD (ex-READY 2026-08-15) 2026-08-11 (evening) — `named-unbooked-scan` reports 0/0 on a session that enumerated its own errors twice, because its vocabulary does not carry the words sessions actually use — record: BACKLOG.md:10905
@@ -2976,3 +2967,12 @@ write-set: docs/dev-loop.md,FORK-NOTES.md,CLAUDE.local.md,docs/runbooks/,JOURNAL
 done-criterion: dev-loop's laws in CLAUDE.local.md, procedures in workflows/runbooks, incidents in JOURNAL, no-kind content dropped; injected prefix falls per design 3.3 budget (lane+workflow <= half of 2375 lines); required-reading roster updated; laws scope-audit clean on the new laws file
 evidence: cache-fix design 3.3, the method-file decomposition contract and budget
 blocked-by: evidence tend-reserved-lc64-DONE-and-plugin-wave2-workflow-registry-and-laws-scope-audit-built
+
+## cf-338
+grade: READY
+requirement: gate-live.mjs writes rowpins and census-rows under test/fixtures/harvested/ and has NO git call of its own; its output reaches git only because harvest.mjs's commitHarvest pathspec is the WHOLE directory. Nothing declares or asserts that dependency, so narrowing harvest's outDirRel to its own output (an obvious future tidy) silently orphans the sweep's evidence. record: 2026-09-12 R2 lane measurement
+goal: verify
+write-set: tools/harvest.mjs,tools/gate-live.mjs,test/harvest-commit.test.mjs
+done-criterion: an assertion that a file written under the harvest root by a producer OTHER than harvest is carried by commitHarvest, red-first by narrowing outDirRel to the harvest's own subdirectory and showing the sweep's output left untracked; plus a comment at the pathspec saying the breadth is load-bearing and for whom
+evidence: commit 7e74ad4, subject 'harvest: 2 file(s) written', carries census-rows/census-rows-2026-09-11.json and four rowpins the harvest did not write; grep for commitHarvest, git commit or execFileSync git over tools/gate-live.mjs returns 0 hits; tools/harvest.mjs:1828 outDirRel = relative(repoRoot, args.out), the whole harvested dir
+blocked-by: NONE

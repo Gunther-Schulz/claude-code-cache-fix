@@ -72,6 +72,18 @@ evidence: BACKLOG.md:323-326
 blocked-by: NONE
 blocker-moot: regrade: fill goal, write-set, done-criterion and evidence, or drop
 
+## cf-256
+grade: DONE
+requirement: RECORD (ex-READY 2026-08-15) 2026-08-13 — the untracked-fixture ACCUMULATION guard lost its assertion when its defect got fixed, and nothing now watches the class — record: BACKLOG.md:10862
+goal: UNKNOWN
+write-set: UNKNOWN
+done-criterion: UNKNOWN
+evidence: BACKLOG.md:10862-10904
+blocked-by: NONE
+blocker-moot: regrade: was READY under the old carrier — READY is judged, never inherited
+closed-reason: 2026-09-12 2026-09-12 the age guard exists and DISCRIMINATES, built to this entry's own recorded design. Red first against a git archive HEAD snapshot: the old collector returned only ok/count/oldestMtime/newestMtime for an 8-day-old untracked pin, byte-shaped like a fresh one. After: same file at 8 days gives staleCount 1 naming it, at 1 day gives 0; the real checkout's 106 in-flight files give 0. Empty branch carries the same key set, a pre-guard report renders COULD-NOT-VERIFY, an unstattable pin counts as unreadable. 39 pass 0 fail 0 skip in the file suite, 3757 pass 0 fail 15 pre-existing skips in npm test
+closed-ref: ccc9e3f
+
 ## Archive (pre-migration)
 
 # claude-code-cache-fix — closure home
