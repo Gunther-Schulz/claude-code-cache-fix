@@ -3,33 +3,6 @@ baseline: 593
 added: 19
 compacted: 0
 
-## cf-1
-grade: NEW
-requirement: The ship is still HELD and nothing about it moved — record: BACKLOG.md:318
-goal: UNKNOWN
-write-set: UNKNOWN
-done-criterion: UNKNOWN
-evidence: BACKLOG.md:318-322
-blocked-by: decision regrade: fill goal, write-set, done-criterion and evidence, or drop
-
-## cf-2
-grade: NEW
-requirement: A session-intake script was proposed, measured, and withdrawn — record: BACKLOG.md:323
-goal: UNKNOWN
-write-set: UNKNOWN
-done-criterion: UNKNOWN
-evidence: BACKLOG.md:323-326
-blocked-by: decision regrade: fill goal, write-set, done-criterion and evidence, or drop
-
-## cf-3
-grade: NEW
-requirement: `docs/dev-loop.md`'s cost header was CORRECTED in place (`8866244`), not reverted — record: BACKLOG.md:327
-goal: UNKNOWN
-write-set: UNKNOWN
-done-criterion: UNKNOWN
-evidence: BACKLOG.md:327-334
-blocked-by: decision regrade: fill goal, write-set, done-criterion and evidence, or drop
-
 ## cf-4
 grade: NEW
 requirement: A corpus rule shipped in dotfiles (`c054c05`) that binds work in THIS repo: — record: BACKLOG.md:335
@@ -2406,15 +2379,6 @@ done-criterion: UNKNOWN
 evidence: BACKLOG.md:11303-11321
 blocked-by: decision regrade: was READY under the old carrier — READY is judged, never inherited
 
-## cf-268
-grade: NEW
-requirement: RECORD (ex-READY 2026-08-15) — the harvest LEDGER is tracked and its CORPUS is not: 574 untracked fixture files against a ledger 959 lines ahead of what is committed — record: BACKLOG.md:11322
-goal: UNKNOWN
-write-set: UNKNOWN
-done-criterion: UNKNOWN
-evidence: BACKLOG.md:11322-11353
-blocked-by: decision regrade: was READY under the old carrier — READY is judged, never inherited
-
 ## cf-269
 grade: NEW
 requirement: RECORD (ex-READY 2026-08-15) (small) — thirteen `git` call sites in `tools/` still run on Node's 1 MB default stdout cap, and the corpus has now crossed it — record: BACKLOG.md:11354
@@ -2783,15 +2747,8 @@ write-set: UNKNOWN
 done-criterion: UNKNOWN
 evidence: BACKLOG.md:12913-12920
 blocked-by: decision regrade: fill goal, write-set, done-criterion and evidence, or drop
-
-## cf-310
-grade: NEW
-requirement: Resume-boundary attribution — BUILT the day it was parked — record: BACKLOG.md:12921
-goal: UNKNOWN
-write-set: UNKNOWN
-done-criterion: UNKNOWN
-evidence: BACKLOG.md:12921-12928
-blocked-by: decision regrade: fill goal, write-set, done-criterion and evidence, or drop
+amend-reason: 2026-09-12 The 2026-07-29 LEAVE decision rests on a cost that has partly evaporated; recording the measurement rather than dropping the entry, because the remaining four cost sites are unmeasured and the revisit is the operator's call
+amended-evidence: 2026-09-12 Re-checked against the world 2026-09-12: the entry's own revisit trigger ('PR series merged and worktrees removed, the natural cheap moment') is now HALF fired. git worktree list returns exactly 1 entry, the main checkout at /home/g/dev/vendor/claude-code-cache-fix, so the ten live PR worktrees whose gitdir pointers made the move expensive are gone. The serving unit ExecStart, HTTPS_PROXY env, manifest paths and repos.tsv were NOT re-checked here
 
 ## cf-311
 grade: NEW
@@ -2954,6 +2911,8 @@ write-set: plugin/cli/lifecycle_core/migrate.py,decision:conservation-rule-for-a
 done-criterion: apply regenerates from source and replays intake additions, or refuses unless it can prove conservation = source-derived + intake-added
 evidence: ITEMS.md's own header already carries the arithmetic: baseline 593, added 6 — the discriminator exists without a new slot
 blocked-by: decision the conservation rule for --apply (judgment desk)
+amend-reason: 2026-09-12 The conservation rule --apply must satisfy is not only COUNT but POINTER VALIDITY: the dry-run artifact's evidence pointers are already stale carrier-wide and re-derivation is what fixes them. Measured at the 2026-09-12 retirement pass; the earlier evidence line named only the arithmetic discriminator and so read as if the dry run were otherwise faithful
+amended-evidence: 2026-09-12 ITEMS.md header arithmetic (baseline 593, added 19) PLUS a measured pointer-staleness finding from the 2026-09-12 retirement pass: 313 of 318 record: BACKLOG.md:<line> pointers resolve to the WRONG entry, 307 of them by a constant +80 lines. Cause: ITEMS.md is the DRY-RUN artifact of 1be45cc and BACKLOG.md gained 197/-59 lines in five commits after it (7d12189, cf67274, 89b1c6a, fe792e5, 11a23da, all 2026-08-26). Measured by matching each requirement head against BACKLOG.md and taking the nearest hit: delta +80 x307, 0 x5, 44/48/49/57 x1 each, 2 heads not found. A line-number pointer always resolves, so this staleness is invisible to the carrier's declared change-coupling test - which is why it is booked here, on the entry that owns whether --apply re-derives or refuses
 
 ## cf-329
 grade: READY

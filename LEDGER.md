@@ -1,2 +1,11 @@
 schema: 2
 decision: whether migrate pins its source blob and what it does when the source has moved → migrate records the source blob sha in its report header; a re-run against a different sha is COULD NOT VERIFY, never a silent new answer. Ruled by the judgment desk, wave 3 (2026-08-27), under the operator's delegation, on a live instance: both dotfiles sources moved before the re-run.
+dropped: cf-268 — Overtaken, measured 2026-09-12: LEDGER-Siren.json is tracked and committed (git status over that pathspec empty), and 0 of today's 106 untracked files come from harvest. cf-333 (637955d) closed the harvest commit gap; cf-60 carries the residue for gate-live
+decision: regrade: fill goal, write-set, done-criterion and evidence, or drop → moot (closed by cf-1)
+dropped: cf-1 — Overtaken, measured 2026-09-12: the hold's deployment half landed. git rev-parse HEAD:proxy = 5ddf24f and dotfiles bootstrap/manifest.py:304 CACHE_FIX_PROXY_TREE_PIN = 5ddf24f, so the pin-mismatch warn this entry rests on has cleared. The restart half was not measured here
+decision: regrade: fill goal, write-set, done-criterion and evidence, or drop → moot (closed by cf-310)
+dropped: cf-310 — Overtaken, measured 2026-09-12: the entry records work already BUILT the day it was parked. World check: grep -c findSuccessions tools/replay.mjs returns 2, so the census-gated succession classifier it describes is in the tree. Nothing remains to schedule
+decision: regrade: fill goal, write-set, done-criterion and evidence, or drop → moot (closed by cf-3)
+dropped: cf-3 — Overtaken, measured 2026-09-12: the correction it records landed. git log -1 8866244 resolves (2026-08-18, Correct the cost header's two overclaims), and docs/dev-loop.md still carries the corrected header (1 hit for 'What reading this file costs'). A record of a completed edit, not schedulable work
+decision: regrade: fill goal, write-set, done-criterion and evidence, or drop → moot (closed by cf-2)
+dropped: cf-2 — Overtaken by its own text, re-read 2026-09-12: the session-intake script was proposed, measured and WITHDRAWN, so no work was ever outstanding. Migrated into the work carrier as a NEW item with goal, write-set and done-criterion all UNKNOWN because the migration swept prose bullets, not work

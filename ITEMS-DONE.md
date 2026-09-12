@@ -22,6 +22,56 @@ blocked-by: NONE
 closed-reason: 2026-08-28 the lost APPEND-ONLY CACHE COLLAPSE finding is back in the matrix as its own numbered row. Verified at the artifact by the peer desk before closing: row 33 carries the full body with its evidence intact and cites the stale source commit 224a23bf, and the test file is renamed to test/bust-triage-row33.test.mjs. The absence check that opened this item now has its positive control: RELOCATE-THEN-PIN still returns 1 hit in the same file, so the earlier zero for APPEND-ONLY was a real absence. Attributed to the judgment desk, not re-run here: matrix-status 0 findings over 33 rows, full suite 3755 pass 0 fail with 15 pre-existing skips, and the test-file diff against 224a23bf showing only 30 to 33
 closed-ref: 4c63700, 84f09fe
 
+## cf-268
+grade: DROPPED
+requirement: RECORD (ex-READY 2026-08-15) — the harvest LEDGER is tracked and its CORPUS is not: 574 untracked fixture files against a ledger 959 lines ahead of what is committed — record: BACKLOG.md:11322
+goal: UNKNOWN
+write-set: UNKNOWN
+done-criterion: UNKNOWN
+evidence: BACKLOG.md:11322-11353
+blocked-by: NONE
+blocker-moot: regrade: was READY under the old carrier — READY is judged, never inherited
+
+## cf-1
+grade: DROPPED
+requirement: The ship is still HELD and nothing about it moved — record: BACKLOG.md:318
+goal: UNKNOWN
+write-set: UNKNOWN
+done-criterion: UNKNOWN
+evidence: BACKLOG.md:318-322
+blocked-by: NONE
+blocker-moot: regrade: fill goal, write-set, done-criterion and evidence, or drop
+
+## cf-310
+grade: DROPPED
+requirement: Resume-boundary attribution — BUILT the day it was parked — record: BACKLOG.md:12921
+goal: UNKNOWN
+write-set: UNKNOWN
+done-criterion: UNKNOWN
+evidence: BACKLOG.md:12921-12928
+blocked-by: NONE
+blocker-moot: regrade: fill goal, write-set, done-criterion and evidence, or drop
+
+## cf-3
+grade: DROPPED
+requirement: `docs/dev-loop.md`'s cost header was CORRECTED in place (`8866244`), not reverted — record: BACKLOG.md:327
+goal: UNKNOWN
+write-set: UNKNOWN
+done-criterion: UNKNOWN
+evidence: BACKLOG.md:327-334
+blocked-by: NONE
+blocker-moot: regrade: fill goal, write-set, done-criterion and evidence, or drop
+
+## cf-2
+grade: DROPPED
+requirement: A session-intake script was proposed, measured, and withdrawn — record: BACKLOG.md:323
+goal: UNKNOWN
+write-set: UNKNOWN
+done-criterion: UNKNOWN
+evidence: BACKLOG.md:323-326
+blocked-by: NONE
+blocker-moot: regrade: fill goal, write-set, done-criterion and evidence, or drop
+
 ## Archive (pre-migration)
 
 # claude-code-cache-fix — closure home
