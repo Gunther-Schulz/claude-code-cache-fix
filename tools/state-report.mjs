@@ -475,14 +475,42 @@ export function collectWorktrees({ repoRoot = REPO_ROOT } = {}) {
   return { ok: true, count: worktrees.length, prunableCount: prunable.length, prunable };
 }
 
+// The accumulation threshold, in days. THE GUARD IS ON AGE, NOT ON COUNT,
+// and the reason is recorded rather than remembered (BACKLOG entry
+// "untracked-fixture accumulation guard needs an age threshold", carried as
+// item cf-256; `count === 0` was declined at the desk there). Two producers
+// write into `test/fixtures/harvested/` on timers — `harvest.mjs` twice
+// daily and `gate-live.mjs`'s daily sweep — and the only commit that keeps
+// their output runs at the END of a harvest, so untracked files
+// LEGITIMATELY exist in the window between a write and the next harvest.
+// Measured 2026-09-12: 106 untracked files, every one under three hours
+// old, written by the gate after that morning's harvest commit (5a58aff)
+// and due to be swept up by the next one. A zero-assert fires on that
+// window and trains the override reflex — the check-that-fires-on-a-
+// non-defect shape this repo's dev-loop names. What IS a defect is a pin
+// that survived a whole cycle: 687 pins / 29.6 MB sat untracked until
+// `dc6c234`.
+//
+// 7 days is the one knob an operator may want to move — a false-fire /
+// latency trade, not a correctness constant. 2 to 14 is defensible; below
+// ~2 days it starts catching ordinary weekend in-flight state.
+export const FIXTURES_STALE_DAYS = 7;
+
 // Untracked-file count under `test/fixtures/harvested/`, with the oldest
 // and newest mtime — `--untracked-files=all` so a wholly-untracked
 // subdirectory is not collapsed into one line, since a per-file count is
 // the whole point of this collector. Scoped by pathspec to one directory,
 // never a bare repo-wide `-uall`.
+//
+// `now` and `staleDays` are injectable because the guard's red-first proof
+// needs BOTH sides of the threshold over ONE arrangement: the same file at
+// 8 days must be named and at 1 day must not. A guard both states satisfy
+// is unproven whatever it asserts.
 export function collectFixturesAccumulation({
   repoRoot = REPO_ROOT,
   fixturesDir = DEFAULT_FIXTURES_DIR,
+  staleDays = FIXTURES_STALE_DAYS,
+  now = Date.now(),
 } = {}) {
   const res = runGit(
     ["status", "--porcelain", "--untracked-files=all", "--", fixturesDir],
@@ -494,8 +522,25 @@ export function collectFixturesAccumulation({
   for (const line of res.out.split("\n")) {
     if (line.startsWith("?? ")) files.push(line.slice(3).trim());
   }
-  if (files.length === 0) return { ok: true, count: 0, oldestMtime: null, newestMtime: null };
+  // The empty branch returns the SAME KEY SET as the populated one. A shape
+  // that differs per branch is how a consumer ends up reading `undefined` as
+  // "nothing stale" on whichever branch today's checkout happens to take.
+  if (files.length === 0) {
+    return {
+      ok: true,
+      count: 0,
+      oldestMtime: null,
+      newestMtime: null,
+      staleDays,
+      stale: [],
+      staleCount: 0,
+      unreadable: 0,
+    };
+  }
 
+  const staleBefore = now - staleDays * 86400_000;
+  const stale = [];
+  let unreadable = 0;
   let oldest = Infinity;
   let newest = -Infinity;
   for (const f of files) {
@@ -503,10 +548,14 @@ export function collectFixturesAccumulation({
       const st = statSync(join(repoRoot, f));
       if (st.mtimeMs < oldest) oldest = st.mtimeMs;
       if (st.mtimeMs > newest) newest = st.mtimeMs;
+      if (st.mtimeMs < staleBefore) stale.push(f);
     } catch {
-      // Vanished between `git status` and `stat` — the file is still
-      // counted (git saw it); only its contribution to the mtime range is
-      // skipped.
+      // Vanished between `git status` and `stat` — the file is still counted
+      // (git saw it); only its contribution to the mtime range is skipped.
+      // It is also UNAGEABLE, and that is reported rather than folded into
+      // the not-stale side: a file nobody could stat is a could-not-verify
+      // about that file, never a clean bill for it.
+      unreadable += 1;
     }
   }
   return {
@@ -514,6 +563,10 @@ export function collectFixturesAccumulation({
     count: files.length,
     oldestMtime: Number.isFinite(oldest) ? new Date(oldest).toISOString() : null,
     newestMtime: Number.isFinite(newest) ? new Date(newest).toISOString() : null,
+    staleDays,
+    stale,
+    staleCount: stale.length,
+    unreadable,
   };
 }
 
@@ -920,9 +973,24 @@ function renderRepo(r) {
       (x.prunableCount ? ": " + capList(x.prunable.map((w) => w.path)) : "")),
   );
   lines.push(
-    fmtVerdict("fixtures", r.fixtures, (x) =>
-      `${DEFAULT_FIXTURES_DIR}: ${x.count} untracked file(s)` +
-      (x.count ? `, oldest=${x.oldestMtime}, newest=${x.newestMtime}` : "")),
+    fmtVerdict("fixtures", r.fixtures, (x) => {
+      const head =
+        `${DEFAULT_FIXTURES_DIR}: ${x.count} untracked file(s)` +
+        (x.count ? `, oldest=${x.oldestMtime}, newest=${x.newestMtime}` : "");
+      // An older `--json` dump has no age fields. Absent is NOT clean: it is
+      // the third answer, and saying so is the whole contract of this file.
+      if (x.staleCount === undefined) {
+        return `${head}\n    staleness: COULD-NOT-VERIFY — this report predates the age guard`;
+      }
+      const unaged = x.unreadable
+        ? `\n    ${x.unreadable} file(s) COULD-NOT-VERIFY — vanished between status and stat, age unknown`
+        : "";
+      if (x.staleCount === 0) return `${head}\n    age guard: OK — nothing older than ${x.staleDays} days${unaged}`;
+      return (
+        `${head}\n    FAIL: ${x.staleCount} untracked file(s) older than ${x.staleDays} days — ` +
+        `accumulation, not the in-flight window: ${capList(x.stale)}${unaged}`
+      );
+    }),
   );
   lines.push(
     fmtVerdict("protected captures", r.protectedCaptures, (x) =>

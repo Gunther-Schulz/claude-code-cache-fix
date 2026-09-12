@@ -157,6 +157,19 @@ test("collectFixturesAccumulation reads the real main checkout (accumulation thr
   } else {
     assert.ok(!res.oldestMtime && !res.newestMtime, "mtime range must be absent for an empty count");
   }
+  // The threshold IS asserted now (it was "booked, not asserted" until
+  // 2026-09-12), and it is asserted against the live checkout because that
+  // is the only place real accumulation can appear. This is the arm that
+  // goes red when a producer's output stops being committed: measured the
+  // day it landed, 106 untracked files all under three hours old gave
+  // staleCount 0 — in-flight, which is exactly what must NOT fire.
+  assert.equal(
+    res.staleCount,
+    0,
+    `untracked pins older than ${res.staleDays} days are accumulation, not the in-flight window: ` +
+      JSON.stringify(res.stale),
+  );
+  assert.equal(res.unreadable, 0, "a pin that cannot be stat'd is a could-not-verify, not a pass");
 });
 
 test("reproduces: HEAD:proxy matches the dotfiles CACHE_FIX_PROXY_TREE_PIN, or could-not-verify if absent", () => {
@@ -527,6 +540,85 @@ test("repo collectors: unpushed count, rescue-tag reachability, untracked mtime 
   assert.equal(fixtures.ok, true, fixtures.reason);
   assert.equal(fixtures.count, 3);
   assert.ok(new Date(fixtures.oldestMtime).getTime() < new Date(fixtures.newestMtime).getTime());
+  // The three pins here are 3d / 1d / now old, i.e. all inside the in-flight
+  // window — so the age guard must stay silent on them. Asserted here rather
+  // than only in the dedicated pair below, because this is the arrangement
+  // closest to a healthy live checkout.
+  assert.equal(fixtures.staleCount, 0, `young pins must not be graded stale: ${JSON.stringify(fixtures.stale)}`);
+  assert.equal(fixtures.unreadable, 0);
+});
+
+// The accumulation guard's RED-FIRST pair (item cf-256's own arrangement).
+//
+// Red established 2026-09-12 against a whole-repo `git archive HEAD`
+// snapshot before this guard existed: the OLD collector returned
+// `{ok,count:1,oldestMtime,newestMtime}` for an eight-day-old untracked pin
+// — byte-shaped identically to what it returns for one written a second
+// ago, so accumulation and the in-flight window were indistinguishable at
+// the collector's own altitude.
+//
+// THE TWO ARMS MUST DIFFER. One file, one repo, one collector call per arm;
+// the ONLY thing that moves between them is that file's mtime. An assertion
+// that only the eight-day arm goes red would be satisfied by a guard that
+// reds on everything, which is the failure mode this repo pays for twice
+// over (a guard firing on a non-defect trains the override reflex).
+test("accumulation guard DISCRIMINATES: the same untracked pin reds at 8 days and stays green at 1 day", () => {
+  const dir = tmpDirSync("state-report-fixture-age-");
+  sh(["init", "-q", "-b", "main"], dir);
+  sh(["config", "user.email", "test@example.com"], dir);
+  sh(["config", "user.name", "State Report Test"], dir);
+  writeFileSync(join(dir, "README.md"), "init\n");
+  sh(["add", "README.md"], dir);
+  sh(["commit", "-q", "-m", "init"], dir);
+
+  const pinDir = join(dir, "test", "fixtures", "harvested", "rowpins");
+  mkdirSync(pinDir, { recursive: true });
+  const pin = join(pinDir, "rowpin-synthetic.json");
+  const rel = "test/fixtures/harvested/rowpins/rowpin-synthetic.json";
+  writeFileSync(pin, "{}");
+
+  const age = (days) => {
+    const t = (Date.now() - days * 86400_000) / 1000;
+    utimesSync(pin, t, t);
+    return collectFixturesAccumulation({ repoRoot: dir });
+  };
+
+  const old = age(8);
+  assert.equal(old.ok, true, old.reason);
+  assert.equal(old.count, 1);
+  assert.equal(old.staleDays, 7);
+  assert.deepEqual(old.stale, [rel], "the 8-day pin must be NAMED, not merely counted");
+  assert.equal(old.staleCount, 1);
+
+  const young = age(1);
+  assert.equal(young.ok, true, young.reason);
+  assert.equal(young.count, 1, "the file is still there — only its mtime moved");
+  assert.equal(young.staleCount, 0);
+  assert.deepEqual(young.stale, []);
+
+  // The pair, stated as a pair: same file, same count, opposite verdict.
+  assert.notEqual(old.staleCount, young.staleCount);
+});
+
+// The empty branch is a separate return statement, so its key set is its own
+// claim. A consumer reading `staleCount` off it would see `undefined` — which
+// is falsy, i.e. indistinguishable from "nothing stale" — if this drifts.
+test("accumulation guard: the empty branch carries the SAME key set as the populated one", () => {
+  const dir = tmpDirSync("state-report-fixture-empty-");
+  sh(["init", "-q", "-b", "main"], dir);
+  sh(["config", "user.email", "test@example.com"], dir);
+  sh(["config", "user.name", "State Report Test"], dir);
+  writeFileSync(join(dir, "README.md"), "init\n");
+  sh(["add", "README.md"], dir);
+  sh(["commit", "-q", "-m", "init"], dir);
+
+  const empty = collectFixturesAccumulation({ repoRoot: dir });
+  assert.equal(empty.ok, true, empty.reason);
+  assert.equal(empty.count, 0);
+  assert.equal(empty.staleCount, 0, "an empty directory must ANSWER the age question, not omit it");
+  assert.deepEqual(empty.stale, []);
+  assert.equal(empty.staleDays, 7);
+  assert.equal(empty.unreadable, 0);
 });
 
 // ==========================================================================
