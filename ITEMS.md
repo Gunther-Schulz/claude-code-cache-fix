@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 22
+added: 23
 compacted: 0
 
 ## cf-4
@@ -2994,3 +2994,15 @@ write-set: tools/absence-scan.mjs,test (regression: the reports/root.md-shaped o
 done-criterion: diff of the HOME_PATH region against lifecycle's copy is empty (the hunk verbatim); the over-fire pair proven in THIS repo: 'reports/root.md'-shaped content does NOT fire foreign-path, a genuine '/root/…' string still DOES (both from a real or planted fixture, instrument-positive shown); suite green
 evidence: found by lane opus-cf339-absence-scan's critique pass 2026-09-13; verified at the dispatching desk with its own sha256sum + diff (one hunk, quoted in requirement); provenance of the fix: lifecycle lc-35 and the comment block dated 2026-08-27 in its copy
 blocked-by: cf-339
+amend-reason: 2026-09-13 citation repair folded in: same write-set, one lane, found by cf-339's lane (report 3/4 gap 3), heading verified at the dispatching desk by grep with the positive control present
+amended-write-set: 2026-09-13 tools/absence-scan.mjs,test/absence-scan.test.mjs
+amended-done-criterion: 2026-09-13 diff of the HOME_PATH region against lifecycle's copy is empty (the hunk verbatim); the over-fire pair proven in THIS repo: 'reports/root.md'-shaped content does NOT fire foreign-path, a genuine '/root/…' string still DOES (both with instrument-positive shown); suite green. PLUS the citation repair (folded in, same two files, cf-339 lane finding verified at the dispatching desk): both files cite docs/dev-loop.md 'Blind spot still OPEN', which no longer exists — grep 0 hits with positive controls; the material now heads '## The hygiene gate scans messages and every text type, not just fixtures' (docs/dev-loop.md:1424) — both citations updated to that heading
+
+## cf-341
+grade: READY
+requirement: the degraded-path bound chosen in cf-339 ([newRef, --not, --remotes]) scans FULL history on a clone with no remote-tracking refs, and the magnitude is now measured, not predicted (cf-339 lane, 2026-09-13, report 3/4): this repo with remote removed selects all 1722 commits, 23.8 s, 5663 findings (4668 capture-key-prefix, 581 capture-uuid, 287 raw-content, 99 live-timestamp; top path BACKLOG.md 3543) — historical blobs long since public on GitHub. Semantically defensible (pushing an old history to a NEW remote does newly publish it) and unreachable on a normal push here (2 of 1722 selected, 0 findings, with 70 tracking refs present) — but it is the gate-that-cannot-pass shape the file's own commit-message comment raises, arriving on the file side. DECISION owed: accept as correct-and-loud, or add a mechanism (summarized finding classes past a threshold, an explicit first-push acknowledgment path, or a documented escape) for the remote-less-clone case
+goal: see
+write-set: tools/absence-scan.mjs (only if the decision lands on a mechanism)
+done-criterion: UNKNOWN — set by the decision: either a recorded accept-as-is with the semantics argument (a ledger line, no code), or the chosen mechanism with its own red-first pair (threshold case fires summarized, normal degraded push unchanged)
+evidence: cf-339 lane measurement 2026-09-13, both arms run (with refs: 2/1722 selected, 0 findings, 11.0 s; refs removed: 1722 selected, 5663 findings, 23.8 s; class and path breakdown in the lane's report part 3/4); the file's own comment on the shape at the commit-message side (cited by the lane at :1225-1227 pre-fix numbering)
+blocked-by: decision accept the remote-less full-history scan as correct-and-loud, or pick a mechanism for it
