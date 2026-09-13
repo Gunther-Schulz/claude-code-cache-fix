@@ -422,7 +422,9 @@ test("git-range: an unresolvable base ref degrades to a full scan rather than er
 // newRef`), so a blob added in one commit and deleted (or reverted) by a
 // later commit inside the same pushed range nets out of that diff entirely —
 // the natural "leak, then scrub, then push" sequence, and it read as clean
-// before this fix (docs/dev-loop.md, "Blind spot still OPEN").
+// before this fix (docs/dev-loop.md, "The hygiene gate scans messages and
+// every text type, not just fixtures" — the section that carried the
+// "Blind spot still OPEN" note until the fix closed it).
 //
 // RED-FIRST: reverting this walk (deleting the range-interior loop in
 // scanGitRange) reproduces the pre-fix behaviour — the added-then-deleted
@@ -1102,6 +1104,27 @@ test("foreign-path: a path under each known XDG root (env default) does not fire
 
 test("foreign-path: a plain file (no path at all) stays clean", () => {
   assert.deepEqual(scanDocument(CLEAN).findings.map((f) => f.class), []);
+});
+
+// THE LEADING BOUNDARY (ported 2026-09-13 from the lifecycle copy's
+// 2026-08-27 fix, cf-340): a path ROOT appearing mid-filename is not a
+// foreign path. `reports/root.md` carries `/root.md`, which the pre-port
+// pattern matched because its lookahead permits a following dot; the
+// over-fire sat as a live "leak" (lifecycle lc-35) for a file nobody had
+// leaked. RED-FIRST: against the pre-port pattern the first assert fails
+// (HOME_PATH matches `/root.md`); the genuine-root asserts pass on both
+// sides — they are the must-still-fire control, without which a pattern
+// that merely matches less scores identically to one that got the
+// distinction right.
+test("foreign-path: a root segment mid-filename (reports/root.md) does not match", () => {
+  assert.equal("see reports/root.md for details".match(HOME_PATH), null,
+    "a path root inside a filename is not a foreign path");
+});
+
+test("foreign-path: genuine roots still match after the boundary — start, whitespace, and file:// scheme", () => {
+  for (const s of ["/root/.ssh/id_rsa", "key at /root/.ssh/id_rsa here", "see file:///home/user/x.txt"]) {
+    assert.ok(HOME_PATH.test(s), `a genuine root must still match: ${s}`);
+  }
 });
 
 test("foreign-path: scoped to the corpus — the same value outside test/fixtures/harvested/ is not checked", () => {

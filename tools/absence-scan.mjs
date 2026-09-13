@@ -514,8 +514,17 @@ function exemptRoots() {
 // misreport a path genuinely inside the repo as foreign.
 const PATH_BOUNDARY = "\\s\"'`()<>|,;";
 const PATH_CHAR = `[^${PATH_BOUNDARY}]`;
+// THE LEADING BOUNDARY, added 2026-08-27 after a measured over-fire. Without
+// it the class matches a path ROOT appearing mid-filename: `reports/root.md`
+// tripped `foreign-path` on `/root.md`, because `(?![0-9A-Za-z_-])` permits a
+// following dot. That finding sat in the carrier as a live leak (lc-35) and
+// blocked a public declaration for a file nobody had leaked. A genuine root is
+// never preceded by a path or word character — it opens the string, or follows
+// whitespace, a quote, or a scheme's `//` — so the lookbehind excludes exactly
+// the mid-name case and nothing else. `/` is deliberately NOT in the set, so
+// `file:///home/...` still matches.
 export const HOME_PATH = new RegExp(
-  `(?:/home/${PATH_CHAR}+|/Users/${PATH_CHAR}+|/root(?![0-9A-Za-z_-]))${PATH_CHAR}*`,
+  `(?<![A-Za-z0-9_.-])(?:/home/${PATH_CHAR}+|/Users/${PATH_CHAR}+|/root(?![0-9A-Za-z_-]))${PATH_CHAR}*`,
 );
 const HOME_PATH_G = new RegExp(HOME_PATH.source, "g");
 
