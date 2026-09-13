@@ -1327,7 +1327,7 @@ export function scanAtRef(ref, paths) {
 
 const USAGE = `usage:
   node tools/absence-scan.mjs <file...>
-  node tools/absence-scan.mjs --git-range <old>..<new>   (from a repo root; <old> may be EMPTY)
+  node tools/absence-scan.mjs --git-range <old>..<new>   (from a repo root; <old> may be the literal token EMPTY — new ref / no base: tip tree + unpublished interiors are scanned)
   node tools/absence-scan.mjs --at <ref> <path...>       (from a repo root; content via git show <ref>:<path>)
 
 exit 0 = clean, 2 = findings, 1 = internal error`;
