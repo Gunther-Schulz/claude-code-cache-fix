@@ -972,13 +972,33 @@ function git(args, { quiet = false } = {}) {
  * The revision-args that bound a pushed range to "the commits this push
  * actually adds" — shared by every walk that needs that same set (messages,
  * and the range-interior blob walk below), so the EMPTY/new-branch handling
- * lives in exactly one place. EMPTY means a new branch: `git log <newRef>`
- * alone would walk to the root and report the whole project's history, so
- * the range is bounded by whatever is already reachable from any other ref.
+ * lives in exactly one place. EMPTY means a new branch, or a base ref this
+ * clone cannot resolve: `git log <newRef>` alone would walk to the root and
+ * report the whole project's history, so the range is bounded by what is
+ * already PUBLISHED — the remote-tracking refs.
+ *
+ * CORRECTED 2026-09-13 (cf-339). The bound read `[newRef, "--not", "--all",
+ * "--not", newRef, "--branches", "--tags", "--remotes"]` and selected
+ * NOTHING on any real repo, so every walk sharing it — the range-interior
+ * blob scan AND the commit-message scan — silently did nothing whenever a
+ * push took this arm. `--not` TOGGLES: it "reverses the meaning of the ^
+ * prefix (or lack thereof) for all following revision specifiers, up to the
+ * next --not" (git-rev-list(1)), so the SECOND `--not` returned polarity to
+ * positive and left exactly one negative term, `--all` — which contains
+ * every local branch, including the one holding newRef, so newRef excluded
+ * itself. Measured on a three-commit fixture: 0 commits out, where the
+ * corrected bound returns 3; observed the same way on real history at the
+ * lifecycle repo, 0 commits against a 57-file tip tree.
+ *
+ * Local branches and tags are deliberately NOT in the bound. What a push
+ * newly publishes is what no remote-tracking ref already holds; a commit
+ * parked on another LOCAL branch is unpublished too and must still be read.
+ * With no remote-tracking refs at all this is the whole history, which is
+ * the right answer for a first-ever push — it publishes everything.
  */
 function rangeCommitArgs(oldRef, newRef) {
   return oldRef === "EMPTY"
-    ? [newRef, "--not", "--all", "--not", newRef, "--branches", "--tags", "--remotes"]
+    ? [newRef, "--not", "--remotes"]
     : [`${oldRef}..${newRef}`];
 }
 
@@ -1090,8 +1110,9 @@ function rangeFiles(oldRef, newRef) {
  * push, where there is no remote side to diff against.
  *
  * An `oldRef` git cannot resolve (a remote sha this clone never fetched)
- * degrades to EMPTY rather than erroring: scanning everything is the
- * fail-closed answer, and it is named on a `degraded:` line.
+ * degrades to EMPTY rather than erroring: reading the tip tree plus the
+ * interior of every not-yet-published commit is the fail-closed answer, and
+ * it is named on a `degraded:` line.
  */
 export function scanGitRange(oldRef, newRef) {
   const degraded = [];
@@ -1100,7 +1121,12 @@ export function scanGitRange(oldRef, newRef) {
     try {
       git(["cat-file", "-e", `${from}^{commit}`]);
     } catch {
-      degraded.push(`base ref ${from} is not resolvable here — scanning everything at ${newRef}`);
+      // NAMES THE ACTUAL SCAN (cf-339, 2026-09-13). This said "scanning
+      // everything at <newRef>" while the interior walk it was describing
+      // selected no commits at all — an assurance wider than its predicate,
+      // which is exactly what stops a reader checking it.
+      degraded.push(`base ref ${from} is not resolvable here — scanning the tree at ${newRef} ` +
+                    "plus the interior of every commit not on a remote-tracking ref");
       from = "EMPTY";
     }
   }
