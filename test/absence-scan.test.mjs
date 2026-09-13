@@ -498,6 +498,117 @@ test("git-range: a defect MODIFIED then REVERTED within the range is still caugh
   });
 });
 
+// --- the EMPTY arm's interior walk (cf-339) -----------------------------------
+//
+// Every interior-walk bite ABOVE passes a RESOLVABLE base, which is the arm
+// that always worked — so the whole section stayed green while the EMPTY arm
+// selected no commits at all and read no interior whatsoever. EMPTY is not an
+// edge case: `scanGitRange` falls back to it for any base ref this clone
+// cannot resolve, which on at least one machine was the ORDINARY path for
+// every push of a consumer repo.
+//
+// RED-FIRST, measured 2026-09-13 against the unpatched scanner taken from a
+// whole-repo `git archive HEAD` snapshot, same fixture, same invocation:
+// `absence-scan: clean`, exit 0, underneath a `degraded:` line claiming it was
+// "scanning everything at HEAD". The instrument was proven on a positive
+// control first — the same planted blob AT THE TIP gave `FINDING capture-uuid`
+// under that same OLD binary — so the clean run was the defect and not a dead
+// arrangement.
+test("git-range: EMPTY base — a defect added then deleted inside the range is still caught", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const cleanRel = seedCorpusFile(dir, "clean.json", CLEAN);
+    g("add", cleanRel);
+    g("commit", "-qm", "clean baseline");
+
+    const leakRel = seedCorpusFile(dir, "leak.json", SEEDED["capture-uuid"]);
+    g("add", leakRel);
+    g("commit", "-qm", "add leak (should have been caught here)");
+
+    g("rm", "-q", leakRel);
+    g("commit", "-qm", "scrub: remove leak.json before push");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--git-range", `EMPTY..${head}`], dir);
+    assert.equal(r.status, 2, r.stdout + r.stderr);
+    assert.match(r.stdout, /FINDING capture-uuid {2}test\/fixtures\/harvested\/leak\.json/,
+      "the blob is read at the ADDING commit's own tree — it is not reachable at the tip");
+    assert.ok(!r.stdout.includes(FAKE_UUID), "and must not echo the identifier");
+  });
+});
+
+// THE BOUND ITSELF, not merely "something got scanned". The bite above passes
+// under any bound wide enough to reach the leak, INCLUDING one that always
+// walks the whole history — on its own it cannot tell a correct bound from one
+// that never narrows. This pins the discriminating axis: the walk covers
+// exactly the commits no remote-tracking ref already holds.
+//
+// Each arm is a push shape git really produces (the fixture-realism rule,
+// dev-loop "Adding a check"): no tracking ref = a first-ever push; a tracking
+// ref behind the tip = a new branch pushed from a clone whose origin/main sits
+// at the baseline; a tracking ref AT the tip = a new branch pointing at already
+// published commits, where git reports the all-zero old value and this push
+// genuinely adds nothing.
+test("git-range: EMPTY base — the interior walk is bounded by the remote-tracking refs", () => {
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const cleanRel = seedCorpusFile(dir, "clean.json", CLEAN);
+    g("add", cleanRel);
+    g("commit", "-qm", "clean baseline");
+    const base = g("rev-parse", "HEAD");
+
+    const leakRel = seedCorpusFile(dir, "leak.json", SEEDED["capture-uuid"]);
+    g("add", leakRel);
+    g("commit", "-qm", "add leak");
+
+    g("rm", "-q", leakRel);
+    g("commit", "-qm", "scrub before push");
+    const head = g("rev-parse", "HEAD");
+
+    // Nothing published yet: the whole history is what this push would add.
+    const none = run(["--git-range", `EMPTY..${head}`], dir);
+    assert.equal(none.status, 2, none.stdout + none.stderr);
+
+    // Published up to the baseline only — the leaking commit is still ours.
+    g("update-ref", "refs/remotes/origin/main", base);
+    const partial = run(["--git-range", `EMPTY..${head}`], dir);
+    assert.equal(partial.status, 2, partial.stdout + partial.stderr);
+    assert.match(partial.stdout, /FINDING capture-uuid {2}test\/fixtures\/harvested\/leak\.json/);
+
+    // Published all the way to the tip: this push adds no commit, so there is
+    // no interior to read. A gate firing here would be reporting bytes no push
+    // can retract — the shape the commit-message walk is already scoped
+    // against ("a gate that cannot pass, which is worse than no gate").
+    g("update-ref", "refs/remotes/origin/main", head);
+    const published = run(["--git-range", `EMPTY..${head}`], dir);
+    assert.equal(published.status, 0, published.stdout + published.stderr);
+    assert.ok(!published.stdout.includes("FINDING"),
+      "already-published commits are outside the bound — otherwise the bound never narrows");
+  });
+});
+
+test("git-range: the degraded line names what is actually scanned, not \"everything\"", () => {
+  // The message was the second half of the defect: it said "scanning
+  // everything at <newRef>" over a run whose interior walk selected nothing —
+  // an assurance wider than its predicate, which is what stops a reader
+  // checking it. This line is the only thing a hook transcript shows about the
+  // degraded path, so its wording is the whole report.
+  withTemp((dir) => {
+    const g = gitRepo(dir);
+    const rel = seedCorpusFile(dir, "clean.json", CLEAN);
+    g("add", rel);
+    g("commit", "-qm", "clean");
+    const head = g("rev-parse", "HEAD");
+
+    const r = run(["--git-range", `0000000000000000000000000000000000000001..${head}`], dir);
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /^degraded: base ref \S+ is not resolvable here — /m);
+    assert.ok(!/scanning everything/.test(r.stdout),
+      "the over-claim is the defect — the line must not promise a scan the walk does not perform");
+    assert.match(r.stdout, /interior of every commit not on a remote-tracking ref/);
+  });
+});
+
 test("git-range: a blob unchanged from the tip is not re-scanned by the interior walk (dedupe)", () => {
   // Not directly observable from the CLI's findings (a correctly-deduped run
   // and a naively-duplicating one both report exactly one finding for a
