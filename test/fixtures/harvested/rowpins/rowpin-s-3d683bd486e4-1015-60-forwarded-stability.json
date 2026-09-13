@@ -1,0 +1,108 @@
+{
+  "schema": "rowpin/1",
+  "family": "stability",
+  "key": "s-3d683bd486e4",
+  "n": 1015,
+  "prevN": 1014,
+  "index": 60,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-09-12T14:02:59.132Z",
+  "row": {
+    "n": 1015,
+    "prevN": 1014,
+    "id": "7e648ca9-1e7",
+    "prevId": "132147a6-d80",
+    "inDiv": 1322,
+    "outDiv": 60,
+    "ccIdenticalAtOutDiv": true,
+    "prefixAboveMessages": {
+      "ourToolsIdentical": false,
+      "ourSystemIdentical": true,
+      "ccToolsIdentical": true,
+      "ccSystemIdentical": true,
+      "intact": false
+    },
+    "attribution": {
+      "ext": "output-guard",
+      "outDiv": 60
+    },
+    "keyToken": "s-3d683bd486e4"
+  },
+  "sides": {
+    "cur": {
+      "n": 1015,
+      "rawLen": 1326,
+      "forwardedLen": 1326,
+      "outBodySha": "a5374878d1f6cfa7",
+      "forwardedSha": "7112cfbc9c6f",
+      "rawSha": "7112cfbc9c6f",
+      "forwardedPresentInRawAt": 60,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "7112cfbc9c6f",
+      "firstPassRawSha": "7112cfbc9c6f",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-3d683bd486e4",
+      "idToken": "s-02f07fefabb7",
+      "forwarded": {
+        "role": "system",
+        "content": "t_1390810c33f6_49"
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_1390810c33f6_49"
+      }
+    },
+    "prev": {
+      "n": 1014,
+      "rawLen": 1331,
+      "forwardedLen": 1333,
+      "outBodySha": "f52153192d6ec565",
+      "forwardedSha": "ce3705adb03a",
+      "rawSha": "7112cfbc9c6f",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "ce3705adb03a",
+      "firstPassRawSha": "7112cfbc9c6f",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-3d683bd486e4",
+      "idToken": "s-8cd0eb03b7f4",
+      "forwarded": {
+        "role": "system",
+        "content": [
+          {
+            "type": "tool_addition",
+            "tool": {
+              "type": "tool_reference",
+              "name": "mcp__claude-in-chrome__javascript_tool"
+            }
+          },
+          {
+            "type": "tool_addition",
+            "tool": {
+              "type": "tool_reference",
+              "name": "mcp__claude-in-chrome__tabs_close_mcp"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "system",
+        "content": "t_1390810c33f6_49"
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 4,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
