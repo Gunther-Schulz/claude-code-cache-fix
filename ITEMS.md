@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 21
+added: 22
 compacted: 0
 
 ## cf-4
@@ -2985,3 +2985,12 @@ write-set: tools/absence-scan.mjs,test (the repo's declared test home for the sc
 done-criterion: red-first pair at the hook's own altitude: a push range containing an added-then-removed secret blob goes RED under the fix while the OLD binary prints clean over the same range (the defect shown, not a usage error); an ordinary clean push stays clean; the degraded-path message states what is actually scanned (tip tree) instead of claiming everything; consumer half: lifecycle lc-102 re-copies the fixed file byte-identically as its own act
 evidence: measurements relayed from lifecycle drain desk dotfiles-b8 (2026-09-13, commands and counts verbatim above, run against the lifecycle repo's real history); lifecycle ITEMS.md lc-102 carries the consumer-side booking; the fallback's misdescribing message observed verbatim on every push of that repo this day
 blocked-by: NONE
+
+## cf-340
+grade: READY
+requirement: the canonical absence-scan LACKS a fix its declared byte-identical copy carries: lifecycle's tools/absence-scan.mjs added a leading-boundary lookbehind to HOME_PATH on 2026-08-27 (its lc-35: 'reports/root.md' tripped foreign-path on '/root.md' — a measured over-fire that blocked a public declaration), plus 9 rationale lines; this repo never received the port, so the declared identity was already broken before cf-339. Port the hunk here verbatim (the copy is the source of the fix; the canonical absorbs it), restoring the identity basis that lifecycle's re-copy (its lc-102) rests on. Measured at the judgment desk 2026-09-13: sha256 37804df5… (here) vs bacfe5e9… (lifecycle), diff = exactly one hunk, the lookbehind '(?<![A-Za-z0-9_.-])' on the HOME_PATH pattern + comment block. SEQUENCING: same file as cf-339's write set — serialize after the cf-339 lane's commits land; then lifecycle lc-102 re-copies the file carrying BOTH fixes
+goal: mitigate
+write-set: tools/absence-scan.mjs,test (regression: the reports/root.md-shaped over-fire case, ported or written in this repo's idiom)
+done-criterion: diff of the HOME_PATH region against lifecycle's copy is empty (the hunk verbatim); the over-fire pair proven in THIS repo: 'reports/root.md'-shaped content does NOT fire foreign-path, a genuine '/root/…' string still DOES (both from a real or planted fixture, instrument-positive shown); suite green
+evidence: found by lane opus-cf339-absence-scan's critique pass 2026-09-13; verified at the dispatching desk with its own sha256sum + diff (one hunk, quoted in requirement); provenance of the fix: lifecycle lc-35 and the comment block dated 2026-08-27 in its copy
+blocked-by: cf-339
