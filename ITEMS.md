@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 20
+added: 21
 compacted: 0
 
 ## cf-4
@@ -2975,4 +2975,13 @@ goal: verify
 write-set: tools/harvest.mjs,tools/gate-live.mjs,test/harvest-commit.test.mjs
 done-criterion: an assertion that a file written under the harvest root by a producer OTHER than harvest is carried by commitHarvest, red-first by narrowing outDirRel to the harvest's own subdirectory and showing the sweep's output left untracked; plus a comment at the pathspec saying the breadth is load-bearing and for whom
 evidence: commit 7e74ad4, subject 'harvest: 2 file(s) written', carries census-rows/census-rows-2026-09-11.json and four rowpins the harvest did not write; grep for commitHarvest, git commit or execFileSync git over tools/gate-live.mjs returns 0 hits; tools/harvest.mjs:1828 outDirRel = relative(repoRoot, args.out), the whole harvested dir
+blocked-by: NONE
+
+## cf-339
+grade: READY
+requirement: the absence-scan pre-push fallback scans NO range interior while its own message says it scans everything: when the base ref does not resolve it prints 'degraded: base ref is not resolvable here — scanning everything at HEAD' and scans the TIP TREE only, so a blob added and then REMOVED inside the pushed range is never scanned and the run prints clean — the commonest accidental-leak shape (commit a secret, notice, delete it in a later commit of the same push). On at least one machine the fallback is the ORDINARY path: every lifecycle-repo push on 2026-09-13 took it. Measured at the lifecycle drain desk against real history: the fallback walk 'git rev-list HEAD --not --all --not HEAD --branches --tags --remotes' returns 0 commits while 'git ls-tree -r --name-only HEAD' returns 57 files, control 'git rev-list HEAD~3..HEAD' returns 3 — the walk discriminates and the zero is real emptiness. Sequencing ruling (lifecycle-wave judgment desk, 2026-09-13): THIS repo repairs first — canonical home — then lifecycle re-copies byte-identically (its lc-102); a lifecycle-side patch would silently end the byte-identity its hook docstring declares
+goal: mitigate
+write-set: tools/absence-scan.mjs,test (the repo's declared test home for the scanner)
+done-criterion: red-first pair at the hook's own altitude: a push range containing an added-then-removed secret blob goes RED under the fix while the OLD binary prints clean over the same range (the defect shown, not a usage error); an ordinary clean push stays clean; the degraded-path message states what is actually scanned (tip tree) instead of claiming everything; consumer half: lifecycle lc-102 re-copies the fixed file byte-identically as its own act
+evidence: measurements relayed from lifecycle drain desk dotfiles-b8 (2026-09-13, commands and counts verbatim above, run against the lifecycle repo's real history); lifecycle ITEMS.md lc-102 carries the consumer-side booking; the fallback's misdescribing message observed verbatim on every push of that repo this day
 blocked-by: NONE
