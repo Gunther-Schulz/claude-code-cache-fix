@@ -95,6 +95,21 @@ blocked-by: NONE
 closed-reason: 2026-09-13 landed and dispatcher-verified: EMPTY-arm bound now [newRef,--not,--remotes]; red-first pair at scanner altitude proven (old clean over planted interior leak, new red, instrument-positive first), bound's own axis varied both directions; suite 3775/3760/0 fail/15 known skips, run independently at the desk and matching the lane's counts; d3f4ee8 restores the x-bit the lane's atomic write dropped (deviation accepted, lc-103 class). Lane report parts 1-3 delivered, part 4 lost to an account-limit failure — residue: deviations/lessons slots reconstructed at the desk from the artifact; the lane's part-3 gaps are booked as cf-340 (amended), cf-341, and lifecycle lc-102's premise correction
 closed-ref: 8a4336e, c017382, d3f4ee8
 
+## cf-340
+grade: DONE
+requirement: the canonical absence-scan LACKS a fix its declared byte-identical copy carries: lifecycle's tools/absence-scan.mjs added a leading-boundary lookbehind to HOME_PATH on 2026-08-27 (its lc-35: 'reports/root.md' tripped foreign-path on '/root.md' — a measured over-fire that blocked a public declaration), plus 9 rationale lines; this repo never received the port, so the declared identity was already broken before cf-339. Port the hunk here verbatim (the copy is the source of the fix; the canonical absorbs it), restoring the identity basis that lifecycle's re-copy (its lc-102) rests on. Measured at the judgment desk 2026-09-13: sha256 37804df5… (here) vs bacfe5e9… (lifecycle), diff = exactly one hunk, the lookbehind '(?<![A-Za-z0-9_.-])' on the HOME_PATH pattern + comment block. SEQUENCING: same file as cf-339's write set — serialize after the cf-339 lane's commits land; then lifecycle lc-102 re-copies the file carrying BOTH fixes
+goal: mitigate
+write-set: tools/absence-scan.mjs,test (regression: the reports/root.md-shaped over-fire case, ported or written in this repo's idiom)
+done-criterion: diff of the HOME_PATH region against lifecycle's copy is empty (the hunk verbatim); the over-fire pair proven in THIS repo: 'reports/root.md'-shaped content does NOT fire foreign-path, a genuine '/root/…' string still DOES (both from a real or planted fixture, instrument-positive shown); suite green
+evidence: found by lane opus-cf339-absence-scan's critique pass 2026-09-13; verified at the dispatching desk with its own sha256sum + diff (one hunk, quoted in requirement); provenance of the fix: lifecycle lc-35 and the comment block dated 2026-08-27 in its copy
+blocked-by: NONE
+amend-reason: 2026-09-13 citation repair folded in: same write-set, one lane, found by cf-339's lane (report 3/4 gap 3), heading verified at the dispatching desk by grep with the positive control present
+amended-write-set: 2026-09-13 tools/absence-scan.mjs,test/absence-scan.test.mjs
+amended-done-criterion: 2026-09-13 diff of the HOME_PATH region against lifecycle's copy is empty (the hunk verbatim); the over-fire pair proven in THIS repo: 'reports/root.md'-shaped content does NOT fire foreign-path, a genuine '/root/…' string still DOES (both with instrument-positive shown); suite green. PLUS the citation repair (folded in, same two files, cf-339 lane finding verified at the dispatching desk): both files cite docs/dev-loop.md 'Blind spot still OPEN', which no longer exists — grep 0 hits with positive controls; the material now heads '## The hygiene gate scans messages and every text type, not just fixtures' (docs/dev-loop.md:1424) — both citations updated to that heading
+blocker-moot: cf-339 (the blocker closed before this item did)
+closed-reason: 2026-09-13 lookbehind hunk ported verbatim — HOME_PATH region byte-identical to lifecycle's copy (diff empty, checked); over-fire pair proven at CLI altitude in THIS repo (old binary fired on reports/root.md and on a genuine /root path — instrument-positive; new fires only the genuine one) and pinned as a test pair; dangling dev-loop citation repaired (folded per amendment); suite 3777/3762/0 fail/15 known skips. Executed inline at the judgment desk: the certified lane tier was measured-unreliable (weekly limit killed the cf-339 lane mid-report) and the port was verbatim with its pair specified
+closed-ref: 44afe14
+
 ## Archive (pre-migration)
 
 # claude-code-cache-fix — closure home
