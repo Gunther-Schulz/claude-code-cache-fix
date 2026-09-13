@@ -9182,7 +9182,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 70899
-      }
+      },
+      "gone": true
     },
     "k_4a33895263d43f52": {
       "requests": 609,
@@ -9265,7 +9266,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_e7b55994389804aa": {
       "requests": 1,
@@ -9278,7 +9280,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_8e0c6a27de867b28": {
       "requests": 1,
@@ -9291,19 +9294,20 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_f8f0804dce5959b6": {
-      "requests": 502,
-      "bytes": 349158954,
-      "lastHarvest": "2026-09-12T16:00:56.393Z",
+      "requests": 906,
+      "bytes": 685489822,
+      "lastHarvest": "2026-09-13T08:47:40.939Z",
       "classes": [],
       "shape": {
-        "pairs": 404,
+        "pairs": 737,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
-        "toolsBytes": 81342
+        "toolsBytes": 88015
       }
     },
     "k_8c4fe679c6ad1b57": {
@@ -9317,7 +9321,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_ddf3a14dfed5a52d": {
       "requests": 1051,
@@ -9330,7 +9335,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 79539
-      }
+      },
+      "gone": true
     },
     "k_f6811b3779e1780b": {
       "requests": 1,
@@ -9343,7 +9349,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_6955ee3d98f63911": {
       "requests": 1,
@@ -9356,7 +9363,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_ce654d0d315a9cb0": {
       "requests": 1,
@@ -9369,7 +9377,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_541c0a42913fa693": {
       "requests": 1,
@@ -9382,19 +9391,20 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_4241ae50b1db8184": {
-      "requests": 38,
-      "bytes": 10903258,
-      "lastHarvest": "2026-09-12T16:01:01.678Z",
+      "requests": 946,
+      "bytes": 574581384,
+      "lastHarvest": "2026-09-13T08:47:49.837Z",
       "classes": [],
       "shape": {
-        "pairs": 28,
+        "pairs": 825,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
-        "toolsBytes": 72165
+        "toolsBytes": 83605
       }
     },
     "k_8c4bbc3e8099270b": {
@@ -9408,7 +9418,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_4eaae97c9776272a": {
       "requests": 1,
@@ -9421,7 +9432,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_2e2700f3cd624e20": {
       "requests": 1,
@@ -9434,7 +9446,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_905c0d3ffe698b97": {
       "requests": 1,
@@ -9447,7 +9460,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_4d70cebe1dd0ec5d": {
       "requests": 1,
@@ -9460,7 +9474,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "k_e35b931749b45007": {
       "requests": 1,
@@ -9473,19 +9488,20 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_50a6ee3d33a16788": {
-      "requests": 59,
-      "bytes": 21823040,
-      "lastHarvest": "2026-09-12T16:01:01.858Z",
+      "requests": 243,
+      "bytes": 184099316,
+      "lastHarvest": "2026-09-13T08:47:50.767Z",
       "classes": [],
       "shape": {
-        "pairs": 53,
+        "pairs": 216,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
-        "toolsBytes": 64405
+        "toolsBytes": 70911
       }
     },
     "k_a6955762cb605454": {
@@ -9499,7 +9515,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_426300581086cef8": {
       "requests": 1,
@@ -9512,7 +9529,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_986618af19996f52": {
       "requests": 949,
@@ -9525,7 +9543,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 79539
-      }
+      },
+      "gone": true
     },
     "k_3d5d312b6bc4ce39": {
       "requests": 635,
@@ -9538,28 +9557,29 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 79539
-      }
+      },
+      "gone": true
     },
     "k_3d683bd486e40893": {
-      "requests": 1269,
-      "bytes": 3089869888,
-      "lastHarvest": "2026-09-12T16:01:21.306Z",
+      "requests": 2760,
+      "bytes": 5713364233,
+      "lastHarvest": "2026-09-13T08:48:15.344Z",
       "classes": [],
       "shape": {
-        "pairs": 1175,
+        "pairs": 2528,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 127758,
-        "toolsBytes": 94456
+        "toolsBytes": 102545
       }
     },
     "k_6668e9840aa93936": {
-      "requests": 721,
-      "bytes": 709994593,
-      "lastHarvest": "2026-09-12T16:01:25.514Z",
+      "requests": 736,
+      "bytes": 738839342,
+      "lastHarvest": "2026-09-13T08:48:17.040Z",
       "classes": [],
       "shape": {
-        "pairs": 659,
+        "pairs": 672,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
@@ -9577,7 +9597,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_8ceda6c51f0d4991": {
       "requests": 1,
@@ -9590,7 +9611,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_a9c2afdbf531e914": {
       "requests": 1,
@@ -9603,7 +9625,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_7073accb5689154c": {
       "requests": 1,
@@ -9616,7 +9639,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_4974995473b2c99e": {
       "requests": 1,
@@ -9629,7 +9653,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "k_9f6917909bfbc2a1": {
       "requests": 5,
@@ -9642,7 +9667,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 12434,
         "toolsBytes": 64405
-      }
+      },
+      "gone": true
     },
     "k_ca03e663652eef91": {
       "requests": 1,
@@ -9655,7 +9681,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_6b13c6d01584e253": {
       "requests": 1,
@@ -9668,7 +9695,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_3be15373b2ca33b5": {
       "requests": 1,
@@ -9681,7 +9709,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_69f773d11a68228e": {
       "requests": 1,
@@ -9694,7 +9723,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_bb1db13eb0518bdb": {
       "requests": 1,
@@ -9707,7 +9737,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_c1d4234a3a1fb44d": {
       "requests": 1,
@@ -9720,12 +9751,573 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37792
-      }
+      },
+      "gone": true
     },
     "k_50af4366a2e83cb0": {
       "requests": 1,
       "bytes": 239224,
       "lastHarvest": "2026-09-12T16:01:32.324Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      },
+      "gone": true
+    },
+    "k_5091d366b6e39681": {
+      "requests": 1,
+      "bytes": 229976,
+      "lastHarvest": "2026-09-13T08:47:38.084Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_2fb5499a3bb1d3b2": {
+      "requests": 1,
+      "bytes": 248495,
+      "lastHarvest": "2026-09-13T08:47:38.087Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_80a6f551789efb3f": {
+      "requests": 1,
+      "bytes": 246067,
+      "lastHarvest": "2026-09-13T08:47:38.092Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_699eb67b3f4054da": {
+      "requests": 1,
+      "bytes": 211310,
+      "lastHarvest": "2026-09-13T08:47:38.094Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_d1f792d99beb2832": {
+      "requests": 1,
+      "bytes": 221273,
+      "lastHarvest": "2026-09-13T08:47:38.095Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_b577ae57f0ed0161": {
+      "requests": 6,
+      "bytes": 1366974,
+      "lastHarvest": "2026-09-13T08:47:40.948Z",
+      "classes": [],
+      "shape": {
+        "pairs": 3,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_6adc581ff671138d": {
+      "requests": 496,
+      "bytes": 387194067,
+      "lastHarvest": "2026-09-13T08:47:42.888Z",
+      "classes": [],
+      "shape": {
+        "pairs": 416,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 85144
+      }
+    },
+    "k_2bb959df3d09fba1": {
+      "requests": 2,
+      "bytes": 468260,
+      "lastHarvest": "2026-09-13T08:47:42.890Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_521c62396541ba6a": {
+      "requests": 330,
+      "bytes": 147061047,
+      "lastHarvest": "2026-09-13T08:47:43.537Z",
+      "classes": [],
+      "shape": {
+        "pairs": 228,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 127758,
+        "toolsBytes": 71238
+      }
+    },
+    "k_3e509fa724ed710f": {
+      "requests": 1,
+      "bytes": 221028,
+      "lastHarvest": "2026-09-13T08:47:43.541Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_e8eb09b1162c62ce": {
+      "requests": 327,
+      "bytes": 202299062,
+      "lastHarvest": "2026-09-13T08:47:45.962Z",
+      "classes": [],
+      "shape": {
+        "pairs": 294,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 79539
+      }
+    },
+    "k_4a06933b64219f29": {
+      "requests": 474,
+      "bytes": 284114009,
+      "lastHarvest": "2026-09-13T08:47:47.271Z",
+      "classes": [],
+      "shape": {
+        "pairs": 444,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 79394
+      }
+    },
+    "k_accf01e80a39c89a": {
+      "requests": 1,
+      "bytes": 229892,
+      "lastHarvest": "2026-09-13T08:47:47.273Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_e39d6f09694ca266": {
+      "requests": 12,
+      "bytes": 4162336,
+      "lastHarvest": "2026-09-13T08:47:47.290Z",
+      "classes": [],
+      "shape": {
+        "pairs": 9,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15158,
+        "toolsBytes": 37790
+      }
+    },
+    "k_a1b0b7238abd1231": {
+      "requests": 1,
+      "bytes": 250295,
+      "lastHarvest": "2026-09-13T08:47:47.293Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_f6240fc29d678436": {
+      "requests": 33,
+      "bytes": 9040523,
+      "lastHarvest": "2026-09-13T08:47:47.330Z",
+      "classes": [],
+      "shape": {
+        "pairs": 26,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 64405
+      }
+    },
+    "k_d848a0ffbcb10c9c": {
+      "requests": 1,
+      "bytes": 211004,
+      "lastHarvest": "2026-09-13T08:47:47.332Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_e5e56fd03fd00f74": {
+      "requests": 1,
+      "bytes": 230106,
+      "lastHarvest": "2026-09-13T08:47:47.333Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_76c55af77e113355": {
+      "requests": 1,
+      "bytes": 230048,
+      "lastHarvest": "2026-09-13T08:47:49.862Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_52c4e8d619381f3c": {
+      "requests": 1,
+      "bytes": 230275,
+      "lastHarvest": "2026-09-13T08:47:49.867Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_b7d57f38dd874fa1": {
+      "requests": 4,
+      "bytes": 875296,
+      "lastHarvest": "2026-09-13T08:47:49.872Z",
+      "classes": [],
+      "shape": {
+        "pairs": 1,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_bdda710904d4e5f1": {
+      "requests": 1,
+      "bytes": 221208,
+      "lastHarvest": "2026-09-13T08:47:49.873Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_e7018c8eaa2940cd": {
+      "requests": 1,
+      "bytes": 230403,
+      "lastHarvest": "2026-09-13T08:47:49.877Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_e6db74b92ee0f768": {
+      "requests": 1,
+      "bytes": 221265,
+      "lastHarvest": "2026-09-13T08:47:49.878Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_67de096a93d18a80": {
+      "requests": 1,
+      "bytes": 1240,
+      "lastHarvest": "2026-09-13T08:47:50.767Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 2,
+        "toolsBytes": 2
+      }
+    },
+    "k_6853335d70f18880": {
+      "requests": 1,
+      "bytes": 223908,
+      "lastHarvest": "2026-09-13T08:47:50.768Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_f0c6097bca80ce18": {
+      "requests": 1,
+      "bytes": 211208,
+      "lastHarvest": "2026-09-13T08:47:50.771Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_73e4277f0f8502d8": {
+      "requests": 848,
+      "bytes": 553744960,
+      "lastHarvest": "2026-09-13T08:47:53.411Z",
+      "classes": [],
+      "shape": {
+        "pairs": 779,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 79539
+      }
+    },
+    "k_0ba28f690a75ba15": {
+      "requests": 229,
+      "bytes": 77360285,
+      "lastHarvest": "2026-09-13T08:47:53.763Z",
+      "classes": [],
+      "shape": {
+        "pairs": 145,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 84680
+      }
+    },
+    "k_33acdc8aeecca9e6": {
+      "requests": 1,
+      "bytes": 228201,
+      "lastHarvest": "2026-09-13T08:47:55.352Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_e5dfa612ae5836e2": {
+      "requests": 1,
+      "bytes": 230326,
+      "lastHarvest": "2026-09-13T08:47:56.104Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_8a8f8ffddf4ce601": {
+      "requests": 24,
+      "bytes": 6224542,
+      "lastHarvest": "2026-09-13T08:48:17.070Z",
+      "classes": [],
+      "shape": {
+        "pairs": 20,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 64405
+      }
+    },
+    "k_1135a5b292673cf2": {
+      "requests": 1,
+      "bytes": 230052,
+      "lastHarvest": "2026-09-13T08:48:17.072Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_d33a4ea26fe49adb": {
+      "requests": 1,
+      "bytes": 230411,
+      "lastHarvest": "2026-09-13T08:48:17.075Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_bc22eae1e1fbf64f": {
+      "requests": 1,
+      "bytes": 220602,
+      "lastHarvest": "2026-09-13T08:48:17.110Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_7b25a52ba51df7ee": {
+      "requests": 3,
+      "bytes": 541976,
+      "lastHarvest": "2026-09-13T08:48:18.256Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_8414a1f6301b3dbf": {
+      "requests": 1,
+      "bytes": 208838,
+      "lastHarvest": "2026-09-13T08:48:18.257Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_561cafe2b31817d0": {
+      "requests": 3,
+      "bytes": 530379,
+      "lastHarvest": "2026-09-13T08:48:18.260Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_d5a80347c974f64f": {
+      "requests": 1,
+      "bytes": 242181,
+      "lastHarvest": "2026-09-13T08:48:18.264Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_e78308af6c085a06": {
+      "requests": 1,
+      "bytes": 229976,
+      "lastHarvest": "2026-09-13T08:48:18.268Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_c7d29de679530ad7": {
+      "requests": 1,
+      "bytes": 223900,
+      "lastHarvest": "2026-09-13T08:48:18.271Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_0ec053b80d06f081": {
+      "requests": 1,
+      "bytes": 230319,
+      "lastHarvest": "2026-09-13T08:48:18.272Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37792
+      }
+    },
+    "k_3905b75a33c5af6d": {
+      "requests": 1,
+      "bytes": 223900,
+      "lastHarvest": "2026-09-13T08:48:18.274Z",
       "classes": [],
       "shape": {
         "pairs": 0,
