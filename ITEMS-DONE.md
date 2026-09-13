@@ -110,6 +110,18 @@ blocker-moot: cf-339 (the blocker closed before this item did)
 closed-reason: 2026-09-13 lookbehind hunk ported verbatim — HOME_PATH region byte-identical to lifecycle's copy (diff empty, checked); over-fire pair proven at CLI altitude in THIS repo (old binary fired on reports/root.md and on a genuine /root path — instrument-positive; new fires only the genuine one) and pinned as a test pair; dangling dev-loop citation repaired (folded per amendment); suite 3777/3762/0 fail/15 known skips. Executed inline at the judgment desk: the certified lane tier was measured-unreliable (weekly limit killed the cf-339 lane mid-report) and the port was verbatim with its pair specified
 closed-ref: 44afe14
 
+## cf-341
+grade: DONE
+requirement: the degraded-path bound chosen in cf-339 ([newRef, --not, --remotes]) scans FULL history on a clone with no remote-tracking refs, and the magnitude is now measured, not predicted (cf-339 lane, 2026-09-13, report 3/4): this repo with remote removed selects all 1722 commits, 23.8 s, 5663 findings (4668 capture-key-prefix, 581 capture-uuid, 287 raw-content, 99 live-timestamp; top path BACKLOG.md 3543) — historical blobs long since public on GitHub. Semantically defensible (pushing an old history to a NEW remote does newly publish it) and unreachable on a normal push here (2 of 1722 selected, 0 findings, with 70 tracking refs present) — but it is the gate-that-cannot-pass shape the file's own commit-message comment raises, arriving on the file side. DECISION owed: accept as correct-and-loud, or add a mechanism (summarized finding classes past a threshold, an explicit first-push acknowledgment path, or a documented escape) for the remote-less-clone case
+goal: see
+write-set: tools/absence-scan.mjs (only if the decision lands on a mechanism)
+done-criterion: UNKNOWN — set by the decision: either a recorded accept-as-is with the semantics argument (a ledger line, no code), or the chosen mechanism with its own red-first pair (threshold case fires summarized, normal degraded push unchanged)
+evidence: cf-339 lane measurement 2026-09-13, both arms run (with refs: 2/1722 selected, 0 findings, 11.0 s; refs removed: 1722 selected, 5663 findings, 23.8 s; class and path breakdown in the lane's report part 3/4); the file's own comment on the shape at the commit-message side (cited by the lane at :1225-1227 pre-fix numbering)
+blocked-by: NONE
+blocker-moot: accept the remote-less full-history scan as correct-and-loud, or pick a mechanism for it
+closed-reason: 2026-09-13 closed on operator decision (ledger line, same-day): the remote-less full-history scan is accepted as correct-and-loud, no code change; the semantics argument and the complete measurement stay in this body for the day the case ever bites
+closed-ref: 63bc7bd
+
 ## Archive (pre-migration)
 
 # claude-code-cache-fix — closure home

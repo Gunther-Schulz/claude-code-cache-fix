@@ -2976,12 +2976,3 @@ write-set: tools/harvest.mjs,tools/gate-live.mjs,test/harvest-commit.test.mjs
 done-criterion: an assertion that a file written under the harvest root by a producer OTHER than harvest is carried by commitHarvest, red-first by narrowing outDirRel to the harvest's own subdirectory and showing the sweep's output left untracked; plus a comment at the pathspec saying the breadth is load-bearing and for whom
 evidence: commit 7e74ad4, subject 'harvest: 2 file(s) written', carries census-rows/census-rows-2026-09-11.json and four rowpins the harvest did not write; grep for commitHarvest, git commit or execFileSync git over tools/gate-live.mjs returns 0 hits; tools/harvest.mjs:1828 outDirRel = relative(repoRoot, args.out), the whole harvested dir
 blocked-by: NONE
-
-## cf-341
-grade: READY
-requirement: the degraded-path bound chosen in cf-339 ([newRef, --not, --remotes]) scans FULL history on a clone with no remote-tracking refs, and the magnitude is now measured, not predicted (cf-339 lane, 2026-09-13, report 3/4): this repo with remote removed selects all 1722 commits, 23.8 s, 5663 findings (4668 capture-key-prefix, 581 capture-uuid, 287 raw-content, 99 live-timestamp; top path BACKLOG.md 3543) — historical blobs long since public on GitHub. Semantically defensible (pushing an old history to a NEW remote does newly publish it) and unreachable on a normal push here (2 of 1722 selected, 0 findings, with 70 tracking refs present) — but it is the gate-that-cannot-pass shape the file's own commit-message comment raises, arriving on the file side. DECISION owed: accept as correct-and-loud, or add a mechanism (summarized finding classes past a threshold, an explicit first-push acknowledgment path, or a documented escape) for the remote-less-clone case
-goal: see
-write-set: tools/absence-scan.mjs (only if the decision lands on a mechanism)
-done-criterion: UNKNOWN — set by the decision: either a recorded accept-as-is with the semantics argument (a ledger line, no code), or the chosen mechanism with its own red-first pair (threshold case fires summarized, normal degraded push unchanged)
-evidence: cf-339 lane measurement 2026-09-13, both arms run (with refs: 2/1722 selected, 0 findings, 11.0 s; refs removed: 1722 selected, 5663 findings, 23.8 s; class and path breakdown in the lane's report part 3/4); the file's own comment on the shape at the commit-message side (cited by the lane at :1225-1227 pre-fix numbering)
-blocked-by: decision accept the remote-less full-history scan as correct-and-loud, or pick a mechanism for it
