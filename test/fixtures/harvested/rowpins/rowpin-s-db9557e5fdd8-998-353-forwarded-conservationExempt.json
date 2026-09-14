@@ -1,0 +1,68 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-db9557e5fdd8",
+  "n": 998,
+  "prevN": null,
+  "index": 353,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-09-13T13:08:26.195Z",
+  "row": {
+    "n": 998,
+    "kind": "invented",
+    "at": 353,
+    "side": "out",
+    "exemptReason": "smoosh-split:declared-peel",
+    "detail": "out[353] (user): 1 of 3 unit(s) exempt — 1 produced by smoosh-split's declared peel, 0 by fresh-session-sort's verified rewrite, 0 re-served by fresh-session-sort from an earlier verified rewrite in this conversation, 0 produced by identity-normalization's verified SessionStart substitution",
+    "keyToken": "s-db9557e5fdd8"
+  },
+  "sides": {
+    "cur": {
+      "n": 998,
+      "rawLen": 353,
+      "forwardedLen": 355,
+      "outBodySha": "88320e55080af822",
+      "forwardedSha": "adb6c411f3cf",
+      "rawSha": null,
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": null,
+      "firstPassForwardedSha": "adb6c411f3cf",
+      "firstPassRawSha": null,
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": null,
+      "keyToken": "s-db9557e5fdd8",
+      "idToken": "s-4edba0447cee",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "content": "t_eb4d9312054c_333",
+            "is_error": true,
+            "tool_use_id": "toolu_01PwDfp84Tt2rJJYxRaFW3Zg"
+          },
+          {
+            "type": "text",
+            "text": "t_1e668f4dffc1_325\n\nt_79cda60376b7_597\n\nt_d12767e7ee0e_720\n\nt_cfb93ee899a3_477\n\nt_79cb81d413dc_76\n\nt_ae31b48d54a4_440\n\nt_d7878464b2d7_334\n\nt_b1812b2d0c09_293\n\nt_331a5517d306_398\n\nt_671fe9a4458f_471\n\nt_b09ecfe61eff_95"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_76552dff4ca7_192\n\nt_2b88e8c4f571_130\n\nt_20cf2d0f2c93_23\n\nt_3c4c5e47b60b_10264\n\nt_d329c84cbae1_130\n\nt_50d60bd45af2_52\n\nt_7f970279ccf5_11173\n\nt_8b6879d1cbd9_128\n\nt_3e7364b7823b_31\n\nt_88064dc2fc38_214\n\nt_6d16df1d30e8_21386\n\nt_5e5efef05099_5941\n\nt_5b10facf0583_325\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": null
+    }
+  },
+  "checks": {
+    "comparisons": 1,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
