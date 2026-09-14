@@ -1,0 +1,74 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-9029e4b009bb",
+  "n": 2,
+  "prevN": null,
+  "index": 2,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-09-13T14:22:59.481Z",
+  "row": {
+    "n": 2,
+    "kind": "lost",
+    "at": 2,
+    "side": "in",
+    "exemptReason": "smoosh-split:declared-peel",
+    "detail": "in[2] (user): 1 of 1 unit(s) exempt — smoosh-split's declared peel (2 peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates",
+    "keyToken": "s-9029e4b009bb"
+  },
+  "sides": {
+    "cur": {
+      "n": 2,
+      "rawLen": 5,
+      "forwardedLen": 5,
+      "outBodySha": "ac24e6a2628be7e1",
+      "forwardedSha": "a45d2c60596c",
+      "rawSha": "318efb5ac5f4",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "a45d2c60596c",
+      "firstPassRawSha": "318efb5ac5f4",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-9029e4b009bb",
+      "idToken": "s-1adb371aa053",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "content": "t_2902e3b872d4_91",
+            "is_error": true,
+            "tool_use_id": "toolu_011L5TpD3qWSeo5kcY49chMf"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_7e66989d4fb9_49\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "content": "t_2902e3b872d4_91\n\nt_046af4442ac1_86",
+            "is_error": true,
+            "tool_use_id": "toolu_011L5TpD3qWSeo5kcY49chMf"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
