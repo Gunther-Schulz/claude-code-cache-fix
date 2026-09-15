@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 23
+added: 24
 compacted: 0
 
 ## cf-4
@@ -2975,4 +2975,13 @@ goal: verify
 write-set: tools/harvest.mjs,tools/gate-live.mjs,test/harvest-commit.test.mjs
 done-criterion: an assertion that a file written under the harvest root by a producer OTHER than harvest is carried by commitHarvest, red-first by narrowing outDirRel to the harvest's own subdirectory and showing the sweep's output left untracked; plus a comment at the pathspec saying the breadth is load-bearing and for whom
 evidence: commit 7e74ad4, subject 'harvest: 2 file(s) written', carries census-rows/census-rows-2026-09-11.json and four rowpins the harvest did not write; grep for commitHarvest, git commit or execFileSync git over tools/gate-live.mjs returns 0 hits; tools/harvest.mjs:1828 outDirRel = relative(repoRoot, args.out), the whole harvested dir
+blocked-by: NONE
+
+## cf-342
+grade: READY
+requirement: The absence-scan battery is LOCATION-SENSITIVE: run from a real checkout it reports 1 failure, from a clone of the same commit it reports 3 — two foreign-path arms answer differently depending on where the tree sits. This repo owns the canonical tools/absence-scan.mjs; the lifecycle repo declares its copy byte-identical and builds in clones, so it is bitten first (its lc-147 is evidence-blocked on this item) but the fix must land HERE and sync outward, since narrowing the copy would diverge a file whose whole value is being identical
+goal: verify
+write-set: tools/absence-scan.mjs,test/absence-scan.test.mjs
+done-criterion: The battery reports IDENTICAL results from the real checkout and from a fresh clone of the same commit, both runs pasted; the two location-sensitive arms either derive their premise from the tree they run in or pin it explicitly; the lifecycle repo is notified so its byte-identical copy re-syncs and lc-147 unblocks
+evidence: drain-desk measurement 2026-09-15 (lifecycle desk dotfiles-f1, wave 2 digest; carried unverified here): 1 failure from the real checkout vs 3 from a clone, two foreign-path arms location-sensitive; the booked lifecycle side is lc-147 in that repo's ITEMS.md, blocked on evidence from this repo
 blocked-by: NONE
