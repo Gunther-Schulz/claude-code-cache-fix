@@ -1,0 +1,92 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-07d1e26ade40",
+  "n": 161,
+  "prevN": null,
+  "index": 6,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-09-14T11:11:16.005Z",
+  "row": {
+    "n": 161,
+    "kind": "lost",
+    "at": 6,
+    "side": "in",
+    "exemptReason": "smoosh-split:declared-peel",
+    "detail": "in[6] (user): 1 of 3 unit(s) exempt — smoosh-split's declared peel (4 peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates",
+    "keyToken": "s-07d1e26ade40"
+  },
+  "sides": {
+    "cur": {
+      "n": 161,
+      "rawLen": 9,
+      "forwardedLen": 9,
+      "outBodySha": "d0291d809cd0fca2",
+      "forwardedSha": "f722df04a4c9",
+      "rawSha": "fa85ad232587",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "f722df04a4c9",
+      "firstPassRawSha": "fa85ad232587",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-07d1e26ade40",
+      "idToken": "s-51c84e2f5897",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01NiEog68M7GxHqSM7pCLzF8",
+            "type": "tool_result",
+            "content": "t_fc4729439274_86965"
+          },
+          {
+            "tool_use_id": "toolu_01CDBmrYKJe9Ldur7DbxoLgR",
+            "type": "tool_result",
+            "content": "t_0fb34adb55bd_56\n\nt_723ef9875ab4_165\n\nt_e70924b82592_38\n\nt_8b7a5a8dcd23_98\n\nt_dcc83e47b4cf_547\n\nt_a1aa7eeea223_214\n\nt_f0d85c76c27e_37\n\nt_53e25035ba9e_244\n\nt_ad9f4629e2a0_85\n\nt_1b6706d5f9bd_38\n\nt_d5d58cb4bbdf_248\n\nt_41b6dab0388f_161\n\nt_ffa541fbf50a_109"
+          },
+          {
+            "tool_use_id": "toolu_01VpUPATAMRBwwwNE691kR4s",
+            "type": "tool_result",
+            "content": "t_a6718bbbce0e_22\n\nt_941647e2f956_107\n\nt_a17d1a1cc818_24\n\nt_ba0eca417eaa_204\n\nt_814fb93bb331_257\n\nt_dba6c35ebf90_382\n\nt_a815dc90b117_138\n\nt_966c83407d1a_279\n\nt_678a3a315cda_333\n\nt_14e16354c4c9_218\n\nt_d2f0ff135a7e_270\n\nt_487b80aa9ab2_27\n\nt_2050d4e1114e_314\n\nt_159ce84f587d_34\n\nt_6cbca8e9b46a_134\n\nt_df5a09a99f05_243\n\nt_02e7901d805e_35\n\nt_a2afac68cf0d_265\n\nt_5a8a0f2e1128_28\n\nt_7b53d147b672_208\n\nt_aa3c48700ce0_107"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_a42a111e8e6e_49\n</system-reminder>"
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01NiEog68M7GxHqSM7pCLzF8",
+            "type": "tool_result",
+            "content": "t_fc4729439274_86965"
+          },
+          {
+            "tool_use_id": "toolu_01CDBmrYKJe9Ldur7DbxoLgR",
+            "type": "tool_result",
+            "content": "t_0fb34adb55bd_56\n\nt_723ef9875ab4_165\n\nt_e70924b82592_38\n\nt_8b7a5a8dcd23_98\n\nt_dcc83e47b4cf_547\n\nt_a1aa7eeea223_214\n\nt_f0d85c76c27e_37\n\nt_53e25035ba9e_244\n\nt_ad9f4629e2a0_85\n\nt_1b6706d5f9bd_38\n\nt_d5d58cb4bbdf_248\n\nt_41b6dab0388f_161\n\nt_ffa541fbf50a_109"
+          },
+          {
+            "tool_use_id": "toolu_01VpUPATAMRBwwwNE691kR4s",
+            "type": "tool_result",
+            "content": "t_a6718bbbce0e_22\n\nt_941647e2f956_107\n\nt_a17d1a1cc818_24\n\nt_ba0eca417eaa_204\n\nt_814fb93bb331_257\n\nt_dba6c35ebf90_382\n\nt_a815dc90b117_138\n\nt_966c83407d1a_279\n\nt_678a3a315cda_333\n\nt_14e16354c4c9_218\n\nt_d2f0ff135a7e_270\n\nt_487b80aa9ab2_27\n\nt_2050d4e1114e_314\n\nt_159ce84f587d_34\n\nt_6cbca8e9b46a_134\n\nt_df5a09a99f05_243\n\nt_02e7901d805e_35\n\nt_a2afac68cf0d_265\n\nt_5a8a0f2e1128_28\n\nt_7b53d147b672_208\n\nt_aa3c48700ce0_107\n\nt_06f876ae16dd_86"
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

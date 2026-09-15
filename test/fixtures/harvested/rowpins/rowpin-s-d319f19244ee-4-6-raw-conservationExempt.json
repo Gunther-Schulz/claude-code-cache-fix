@@ -1,0 +1,82 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-d319f19244ee",
+  "n": 4,
+  "prevN": null,
+  "index": 6,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-09-14T15:17:47.237Z",
+  "row": {
+    "n": 4,
+    "kind": "lost",
+    "at": 6,
+    "side": "in",
+    "exemptReason": "smoosh-split:declared-peel",
+    "detail": "in[6] (user): 1 of 1 unit(s) exempt — smoosh-split's declared peel (3 peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates",
+    "keyToken": "s-d319f19244ee"
+  },
+  "sides": {
+    "cur": {
+      "n": 4,
+      "rawLen": 7,
+      "forwardedLen": 7,
+      "outBodySha": "b8aa6d7060af8cfd",
+      "forwardedSha": "4c3b5df8874a",
+      "rawSha": "7b50ac3b89f5",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "4c3b5df8874a",
+      "firstPassRawSha": "7b50ac3b89f5",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-d319f19244ee",
+      "idToken": "s-cf810fea7aa0",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01SJLP7EZ8ihyEZnkEk19gNL",
+            "type": "tool_result",
+            "content": "t_55ebe1eb1700_192\n\nt_36c63b986994_37\n\nt_8732d8c7f42c_1723",
+            "is_error": false
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_2844b196d34d_49\n</system-reminder>",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01SJLP7EZ8ihyEZnkEk19gNL",
+            "type": "tool_result",
+            "content": "t_55ebe1eb1700_192\n\nt_36c63b986994_37\n\nt_8732d8c7f42c_1723\n\nt_435ba7514eac_86",
+            "is_error": false,
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
