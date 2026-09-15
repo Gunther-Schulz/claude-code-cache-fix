@@ -662,21 +662,49 @@ test("NEGATIVE: UNREACHABLE-OBJECT does not fire on a token that resolves to not
   assert.deepEqual(lintPointers(doc, STUB), []);
 });
 
-test("UNREACHABLE-OBJECT: red-first against the real frozen ref (2bf1f21) — real unreachable commits, no fixture needed", () => {
-  const historical = gitShow(FROZEN_READY_BAR_REF, "BACKLOG.md");
-  const unreach = lintPointers(historical).filter((f) => f.label === "UNREACHABLE-OBJECT");
-  console.log(
-    "2bf1f21 UNREACHABLE-OBJECT findings:\n" +
-      unreach.map((f) => `line=${f.line} token=${f.token} entry="${f.title}"`).join("\n"),
-  );
-  // Real positives found by hand before this bite was written: 3c4ecfa
-  // (cited twice), e4bd379, 41ed30c — each independently confirmed a real
-  // commit (`git cat-file -t`) reachable from no ref (`git for-each-ref
-  // --contains` empty) at the time this ref was frozen.
-  const tokens = new Set(unreach.map((f) => f.token));
-  assert.ok(tokens.has("3c4ecfa"), "3c4ecfa must fire — confirmed unreachable by hand");
-  assert.ok(tokens.has("e4bd379"), "e4bd379 must fire — confirmed unreachable by hand");
-  assert.ok(tokens.has("41ed30c"), "41ed30c must fire — confirmed unreachable by hand");
+test("UNREACHABLE-OBJECT: red-first against a CONSTRUCTED unreachable commit — the anchor cannot be pruned from under the test", () => {
+  // The previous form of this bite anchored on real commits confirmed
+  // unreachable by hand at the frozen ref (3c4ecfa cited twice, e4bd379,
+  // 41ed30c). An unreachable object is exactly what `git gc` prunes, so
+  // that premise was free to die at any time — and did: 3c4ecfa was pruned
+  // on 2026-09-15, the resolver then took the 0-for-8 `continue` for it,
+  // and the bite failed on every push while grading nothing anyone moved.
+  // The repair is the anchor rule's: the test MAKES its unreachable
+  // object, fresh every run, so the object store cannot age the
+  // arrangement out from under the assertion.
+  const sha = execFileSync(
+    "git",
+    ["commit-tree", "HEAD^{tree}", "-m", "backlog-lint bite: deliberately unreachable"],
+    {
+      cwd: REPO,
+      encoding: "utf8",
+      // The suite's isolated root strips the global git identity; pin one
+      // (dates included) so the call works there AND the sha is
+      // deterministic per tree — re-runs reuse one object instead of
+      // littering the store.
+      env: {
+        ...process.env,
+        GIT_AUTHOR_NAME: "backlog-lint-bite",
+        GIT_AUTHOR_EMAIL: "bite@invalid",
+        GIT_AUTHOR_DATE: "2026-09-15T00:00:00Z",
+        GIT_COMMITTER_NAME: "backlog-lint-bite",
+        GIT_COMMITTER_EMAIL: "bite@invalid",
+        GIT_COMMITTER_DATE: "2026-09-15T00:00:00Z",
+      },
+    },
+  ).trim();
+  // Arrangement checked before the verdict is believed: the object exists,
+  // and no ref contains it — the two facts UNREACHABLE-OBJECT is defined by.
+  execFileSync("git", ["cat-file", "-e", `${sha}^{commit}`], { cwd: REPO });
+  const containing = execFileSync("git", ["for-each-ref", "--contains", sha], {
+    cwd: REPO,
+    encoding: "utf8",
+  }).trim();
+  assert.equal(containing, "", "arrangement broken: a ref reaches the constructed commit");
+  const doc = [`- **READY — a thing.** Shipped at \`${sha.slice(0, 7)}\`.`].join("\n");
+  const unreach = lintPointers(doc).filter((f) => f.label === "UNREACHABLE-OBJECT");
+  assert.equal(unreach.length, 1, "the constructed unreachable commit must fire exactly once");
+  assert.equal(unreach[0].token, sha.slice(0, 7));
 });
 
 // The live half of the READY bar, added by the desk at the Phase 2 commit
