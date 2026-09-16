@@ -1,0 +1,100 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-6fbc1b5c2a53",
+  "n": 6,
+  "prevN": null,
+  "index": 6,
+  "indexSpace": "raw",
+  "indexOwner": "cur",
+  "instantUtc": "2026-09-15T15:24:20.044Z",
+  "row": {
+    "n": 6,
+    "kind": "lost",
+    "at": 6,
+    "side": "in",
+    "exemptReason": "smoosh-split:declared-peel",
+    "detail": "in[6] (user): 1 of 3 unit(s) exempt — smoosh-split's declared peel (3 peeled), each unit either verified byte-identical in the forwarded array or accepted by content-strip's own predicates",
+    "keyToken": "s-6fbc1b5c2a53"
+  },
+  "sides": {
+    "cur": {
+      "n": 6,
+      "rawLen": 7,
+      "forwardedLen": 7,
+      "outBodySha": "73a73ac8486898ea",
+      "forwardedSha": "5613512eaf3b",
+      "rawSha": "a14397e72789",
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": [],
+      "firstPassForwardedSha": "5613512eaf3b",
+      "firstPassRawSha": "a14397e72789",
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": true,
+      "keyToken": "s-6fbc1b5c2a53",
+      "idToken": "s-fc0032349c92",
+      "forwarded": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01NHr1hdFwv1mXM8zc2vgpRg",
+            "type": "tool_result",
+            "content": "t_c90842f23a71_28269"
+          },
+          {
+            "tool_use_id": "toolu_01WudZ3CdQxJP5wtACBubcz9",
+            "type": "tool_result",
+            "content": "t_f3de1e8697d4_28507"
+          },
+          {
+            "tool_use_id": "toolu_01KmoS4DTU14i6x7wgsJqhGD",
+            "type": "tool_result",
+            "content": "t_a438819b0313_9308"
+          },
+          {
+            "type": "text",
+            "text": "<system-reminder>\nt_64a26c47d566_49\n</system-reminder>",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": {
+        "role": "user",
+        "content": [
+          {
+            "tool_use_id": "toolu_01NHr1hdFwv1mXM8zc2vgpRg",
+            "type": "tool_result",
+            "content": "t_c90842f23a71_28269"
+          },
+          {
+            "tool_use_id": "toolu_01WudZ3CdQxJP5wtACBubcz9",
+            "type": "tool_result",
+            "content": "t_c0ed286bdbc5_28508"
+          },
+          {
+            "tool_use_id": "toolu_01KmoS4DTU14i6x7wgsJqhGD",
+            "type": "tool_result",
+            "content": "t_a438819b0313_9308\n\nt_a67e66d9e319_86",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "checks": {
+    "comparisons": 2,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}
