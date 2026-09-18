@@ -13718,7 +13718,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 85117
-      }
+      },
+      "gone": true
     },
     "k_50139fc18d5cd180": {
       "requests": 2,
@@ -13843,7 +13844,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 85723
-      }
+      },
+      "gone": true
     },
     "k_dda1ab3dea479adb": {
       "requests": 139,
@@ -13912,7 +13914,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "k_15d0cba10981bf19": {
       "requests": 2,
@@ -13925,7 +13928,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_b81dd47be42c86ad": {
       "requests": 16,
@@ -13938,7 +13942,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 12434,
         "toolsBytes": 83128
-      }
+      },
+      "gone": true
     },
     "k_b78802ee076f3870": {
       "requests": 2,
@@ -13951,7 +13956,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_f8e227084ff36b1a": {
       "requests": 1,
@@ -13964,7 +13970,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "k_7b2333c3e2fd79ed": {
       "requests": 2,
@@ -13977,7 +13984,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_d171974aa5fd26d8": {
       "requests": 3,
@@ -13990,7 +13998,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_9f4c7ff4791fa962": {
       "requests": 1,
@@ -14003,7 +14012,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 2,
         "toolsBytes": 2
-      }
+      },
+      "gone": true
     },
     "k_5ff2c9f5d73b24a3": {
       "requests": 2,
@@ -14016,7 +14026,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_67e92f483bcc6616": {
       "requests": 2,
@@ -14029,15 +14040,16 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_a7b538a86483ef3b": {
-      "requests": 947,
-      "bytes": 703800854,
-      "lastHarvest": "2026-09-17T16:05:08.275Z",
+      "requests": 1694,
+      "bytes": 1455133370,
+      "lastHarvest": "2026-09-18T10:24:13.144Z",
       "classes": [],
       "shape": {
-        "pairs": 661,
+        "pairs": 1257,
         "thinkingDropPairs": 0,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
@@ -14055,7 +14067,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_0dd3a1ed317662fb": {
       "requests": 2,
@@ -14068,19 +14081,72 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 15261,
         "toolsBytes": 37966
-      }
+      },
+      "gone": true
     },
     "k_57efc60ffae19974": {
-      "requests": 155,
-      "bytes": 100110305,
-      "lastHarvest": "2026-09-17T16:05:13.806Z",
+      "requests": 569,
+      "bytes": 601772292,
+      "lastHarvest": "2026-09-18T10:24:18.660Z",
       "classes": [],
       "shape": {
-        "pairs": 120,
-        "thinkingDropPairs": 0,
+        "pairs": 483,
+        "thinkingDropPairs": 3,
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
-        "toolsBytes": 97481
+        "toolsBytes": 100672
+      }
+    },
+    "k_cb593695e23de265": {
+      "requests": 2,
+      "bytes": 253268,
+      "lastHarvest": "2026-09-18T10:23:51.780Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37966
+      }
+    },
+    "k_7c0b89a2ea0536c1": {
+      "requests": 2,
+      "bytes": 252622,
+      "lastHarvest": "2026-09-18T10:23:53.069Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37966
+      }
+    },
+    "k_e2689780d888773a": {
+      "requests": 7,
+      "bytes": 342048,
+      "lastHarvest": "2026-09-18T10:24:06.081Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37966
+      }
+    },
+    "k_77bdf94fdb2c8a04": {
+      "requests": 2,
+      "bytes": 252943,
+      "lastHarvest": "2026-09-18T10:24:13.976Z",
+      "classes": [],
+      "shape": {
+        "pairs": 0,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 15261,
+        "toolsBytes": 37966
       }
     }
   }
