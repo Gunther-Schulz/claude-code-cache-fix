@@ -1,6 +1,6 @@
 schema: 2
 baseline: 593
-added: 24
+added: 25
 compacted: 0
 
 ## cf-4
@@ -2987,3 +2987,13 @@ evidence: drain-desk measurement 2026-09-15 (lifecycle desk dotfiles-f1, wave 2 
 blocked-by: NONE
 amend-reason: 2026-09-15 amended by the dotfiles judgment desk after the two-copy sweep; the fix for the location-sensitivity item should take the derived-guard repair in the same pass or explicitly decline it
 amended-evidence: 2026-09-15 SIBLING HAZARD, same suite, found by the lifecycle repair 2026-09-15 (their 7fe9e68): the test's guard-the-guard block runs BEFORE the UUID scan and keys on THIS repo's facts (proxy/ present, BACKLOG.md present, files.length floor). In lifecycle's copy those facts were false and the scan had NEVER executed - the guard caused the silent collapse it was written to catch. Here the facts are currently true, but this repo's own carrier migration retires BACKLOG.md, at which point the same block collapses the same way. The repair pattern is in lifecycle's commit: roots and floor DERIVED from the scanner's own predicates, never restated repo facts; machine-wide population is closed at two copies (swept 2026-09-15, both fingerprinted)
+
+## cf-343
+grade: NEW
+requirement: ABSENCE-SCAN RANGE MODE CANNOT SEE INTERMEDIATE-COMMIT BYTES. The --git-range mode reads WORKING-TREE content for files a range touches, so bytes living only in a middle commit version of a file are invisible: a repair at HEAD scans green while the original bytes ride to the public remote inside the middle commit. This repo owns the canonical scanner; the lifecycle copy reproduces the behaviour. DISTINCT from the location-sensitive battery item the join flags: that one is about WHERE the tree sits changing arm verdicts; this one is about WHICH VERSION of a file the range mode reads.
+goal: verify
+write-set: UNKNOWN
+done-criterion: Either exit closes it: the range mode gains a per-commit blob-content pass (red-first on a planted middle-commit-only finding that the worktree read misses), or the bound is DECLARED in the range mode own output when given a multi-commit range, stated reach instead of silence. Silence over the bound is the one forbidden state: a green over an unexamined population reads as checked.
+evidence: MEASURED at the lifecycle build desk 2026-09-19 during the lc-241..246 booking wave, RELAYED here by the round desk: five bookings carrying foreign-path bytes were blocked at push; an amend-at-HEAD repair would have scanned green while 2fa4eb9 still carried the bytes into the pushed range, avoided only because the desk rewrote the unpushed history instead. The scanner behaviour itself was probed there: scanning a one-commit range still reported findings from the CURRENT file, confirming worktree reads. DERIVED, the join disposition: the flagged sibling shares the scanner and not the defect, so this is a new entry beside it, not a merge.
+blocked-by: decision does the range mode gain a per-commit blob pass, or does its output declare the worktree-read bound for multi-commit ranges?
+not-derivable: 2026-09-19 no precedent found in this repo record for a reach-bound decision on this scanner; the choice trades scan cost against a documented limitation, and neither the lifecycle desk nor the round desk owns the scanner, so the owning repo decides
