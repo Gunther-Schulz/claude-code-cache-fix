@@ -427,9 +427,7 @@ consumer computes locally at its own tap: 1055 requests, 129 of them newly
 carrying a carrier, **0 divergences — including 0 among the 129**. The D1
 dual-read bridge would have absorbed a divergence had one existed; it was not
 needed. A later change to the carrier's population or publication point does
-not inherit this result and owes its own run of the same probe. A later change to the
-carrier's population or publication point does not inherit this result and owes
-its own.
+not inherit this result and owes its own run of the same probe.
 
 **GROUND 3, added 2026-09-20 after review, and it is the strongest of the
 three because it is a measured property of the diagnostic's OUTPUT rather than
