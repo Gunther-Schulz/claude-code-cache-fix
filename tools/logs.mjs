@@ -80,13 +80,20 @@
 //         betaHeaderDiff. `messageCountPrev`/`messageCountNow` are NUMBERS.
 //         -> readPrefixDiffDiff(raw)
 //       `<key>-last.json`: latest snapshot, the diff baseline, overwritten.
-//         One baseline PER TENANT: `{ tenants: { <tenant>: <snapshot> },
-//         lastTenant }` — top-level KNOWN fields are just `tenants` and
-//         `lastTenant`; there is NO `messageCountPrev` here at all. A
+//         One baseline PER TENANT+CONVERSATION (2026-09-20): `{ tenants: {
+//         "<tenant>:<conv>": <snapshot> }, lastTenant, seq }` — the map key is
+//         `tenant:conv` where a conversation carrier was published and a bare
+//         tenant id otherwise, `lastTenant` holds that same composite, and
+//         `seq` is the map's monotonic write counter (the staleness horizon
+//         reads it). Top-level KNOWN fields are `tenants`, `lastTenant` and
+//         `seq`; there is NO `messageCountPrev` here at all. A
 //         per-tenant snapshot (`buildSnapshot`) has its own known fields:
 //         timestamp, messageCount, toolsHash, systemHash, params,
 //         systemBlocks, toolsDetail, messageHashes, prefixMessages,
-//         tailMessages, markerMessages, betaHeader — `messageCount` is a
+//         tailMessages, markerMessages, betaHeader, plus `conv` (the
+//         conversation this baseline belongs to, matched on when a system
+//         prompt changes mid-conversation) and `seq` (its write ordinal) —
+//         `messageCount` is a
 //         single NUMBER (no "prev" half; the previous tenant snapshot IS
 //         the prev half, read from a separate `-last.json` write).
 //         -> readPrefixDiffLast(raw), prefixDiffTenant(lastView, tenantId)
@@ -330,6 +337,14 @@ export function readUsageLogRecord(raw) {
 const PREFIX_DIFF_EVENT_FIELDS = new Set([
   "ts", "prevTs", "key", "sid", "view", "causes", "systemMatch", "toolsMatch",
   "msgs", "chain", "params", "system", "tools", "betaHeader", "windows",
+  // The two baseline-provenance labels. `crossTenant` predates 2026-09-20 and
+  // was MISSING here, so every strict read of it threw — found by a review
+  // probe, not by use, because the field is normally read straight off the raw
+  // JSON. `systemTenantChanged` arrives with the tenant+conversation key.
+  // Both matter to a reader: dev-loop.md and FORK-NOTES.md both prescribe
+  // treating a labelled record as NOT evidence of a bust, which a reader that
+  // throws on the label cannot do.
+  "crossTenant", "systemTenantChanged",
 ]);
 /** Strict view of one `<key>-events.jsonl` row (the append-only ledger). */
 export function readPrefixDiffEvent(raw) {
@@ -347,9 +362,10 @@ export function readPrefixDiffDiff(raw) {
   return makeStrictView(raw, "prefixDiffDiff", PREFIX_DIFF_DIFF_FIELDS);
 }
 
-const PREFIX_DIFF_LAST_FIELDS = new Set(["tenants", "lastTenant"]);
+const PREFIX_DIFF_LAST_FIELDS = new Set(["tenants", "lastTenant", "seq"]);
 /** Strict view of `<key>-last.json` (top level only — `tenants` is a
- * dynamically-keyed map of tenant id -> snapshot, not a fixed schema field,
+ * dynamically-keyed map of `tenant:conv` -> snapshot (a bare tenant id where
+ * no conversation carrier was published), not a fixed schema field,
  * so it is returned raw; use `prefixDiffTenant` for a strict per-tenant
  * view). */
 export function readPrefixDiffLast(raw) {
@@ -359,6 +375,12 @@ export function readPrefixDiffLast(raw) {
 const PREFIX_DIFF_TENANT_SNAPSHOT_FIELDS = new Set([
   "timestamp", "messageCount", "toolsHash", "systemHash", "params", "systemBlocks",
   "toolsDetail", "messageHashes", "prefixMessages", "tailMessages", "markerMessages", "betaHeader",
+  // Added 2026-09-20 with the tenant+conversation baseline key. This reader is
+  // strict BY DESIGN, so a writer that adds a field without adding it here
+  // turns every read of that field into a throw blaming the reader for the
+  // writer's change — which is what happened, and is why the field list and
+  // the writer must move in one commit.
+  "conv", "seq",
 ]);
 /** Strict view of one tenant's snapshot inside a `readPrefixDiffLast` view.
  * `tenantId` is DATA (a dynamic key), not a schema field name: an unknown

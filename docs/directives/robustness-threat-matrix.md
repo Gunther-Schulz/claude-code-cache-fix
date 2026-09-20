@@ -361,6 +361,136 @@ its coarse FILE key is a deliberate design (its note 1: a path that moves with
 content misses its own baseline). Exempted — with a test asserting the
 exemption is still earned, so a change to that design fails loudly.
 
+**EXEMPTION LIFTED 2026-09-20.** `prefix-diff`'s baseline key is now tenant
+PLUS conversation (`ctx.meta[PRE_PIPELINE_CONV]`, published at order 250 and
+never re-derived at the tap point). The lift rests on two grounds, and
+deliberately not on a third: the exemption's stated basis is NOT refuted — it
+named attribution precision as the ACCEPTED cost, and that reading stands.
+
+1. **The accepted cost came due at a scale the decision never priced.** On one
+   session (capture `s-captureBY`, 2026-09-20) one tenant held 441 requests —
+   the main desk's 10 deep ones and 431 of CC's own sidecars, which carry the
+   desk's system block and are therefore the same tenant by construction. The
+   desk's baseline was overwritten by a sidecar between every pair of its own
+   requests, so desk-to-desk diffs were unreadable and 2,105,642 cache-write
+   tokens across 7 busts could not be attributed. The walk stopped at the
+   instrument, not at the evidence. "One prompt bucket held 39 conversations"
+   was the same shape one order of magnitude smaller.
+2. **The exemption's own protection clause is refuted.** It was granted "with
+   a test asserting the exemption is still earned, so a change to that design
+   fails loudly". A change moving baseline keying onto conversation identity —
+   the exempted design itself — left `test/session-key-invariants.test.mjs`
+   fully green — 5 tests, 9 assertions — because it asserts only that
+   `tenantId` exists and still separates sidecar classes. The clause that made
+   the exemption safe to grant did not hold.
+   (Both figures in this paragraph were wrong before they were right, and the
+   sequence is the point. It first read "green at 17/17", relayed from a review
+   report and written here without opening the file. The correction then said
+   "11 assertions, counted in the file and run" — also wrong: that 11 came from
+   `grep -c assert`, which counts LINES CONTAINING the substring, import line
+   included. The count is 9, by `grep -oE 'assert\.[a-zA-Z]+\(' | wc -l`,
+   breakdown 2 equal / 4 notEqual / 3 ok / 0 bare `assert(`. A correction
+   carrying its own borrowed number is worse than the original, because it
+   arrives dressed as diligence — which is why the method is written beside the
+   figure now rather than the word "counted".)
+
+**The carrier's publication point MOVED in the same change, and that is the
+row-3 question here — recorded because the restart's transparency rests on a
+measurement, not on prefix-diff shaping no request.** `fresh-session-sort` now
+publishes `PRE_PIPELINE_CONV` before its three early returns as well as at its
+original site, so requests whose first user message carries STRING content
+publish a carrier for the first time. That carrier is what two REQUEST-SHAPING
+extensions key their persisted state on (`insertion-normalization`,
+`deferred-tool-rewrite`), so a changed value there would rotate state keys —
+row 26's class, and a non-transparent restart. Measured before the change
+shipped, and the two figures below are of DIFFERENT populations — an earlier
+draft put both in one sentence as though they were the same count, which made
+the control unable to discriminate against the number beside it. Across two
+captures, 666 requests took an early return and the carrier value equals what
+each consumer computes locally in every one: 0 rotations. The positive control
+was run on ONE of those captures, where the early-return population is 262:
+reverting the early publication returns carrier-missing = 262 there, exactly
+that capture's early-return count, so the probe discriminates. Independently
+re-measured on the named capture by a second reviewer: 129 of 1055 requests
+unpublished before the change, 0 after, and for all 1055 the published carrier
+equals the local computation — 0 rotations, 0 in the "empty" bucket. The
+restart is therefore cache-transparent BECAUSE of those measurements.
+Named residual, not bridged: the comparison was taken at order 250, while the
+two consumers read at 395 and 425. Eight extensions run in between, so "0
+rotations" is established AT ORDER 250 and is could-not-verify at the
+consumers' own tap; the D1 dual-read bridge would absorb a divergence if one
+existed. A later change to the
+carrier's population or publication point does not inherit this result and owes
+its own.
+
+**GROUND 3, added 2026-09-20 after review, and it is the strongest of the
+three because it is a measured property of the diagnostic's OUTPUT rather than
+an argument about cost or clauses.** In THIS corpus, measured and not assumed,
+a conversation's message array never shrinks between two of its own requests —
+so here a diff whose `msgs` reads prev > now is a false cause. (The stronger
+form, "cannot shrink BY CONSTRUCTION", was written first and is FALSE; the
+measurement and the legitimate exception are below, and nothing in this ground
+depends on the stronger form.) Replayed over the named capture, 1032 events per
+arm:
+
+| | shrink events | from a baseline >=40 deep | UNLABELLED |
+|---|---|---|---|
+| before | 49 | 19 | **49** |
+| after | 39 | 13 | **0** |
+
+Before the change the diagnostic emitted 49 impossible-in-this-corpus diffs
+carrying no warning at all, and a reader had no way to tell them from real
+causes; after it, every remaining one carries `crossTenant`. One instance, in
+the deep desk key's own chain: `65->29` before, `65->68` in its place after —
+the chain becomes monotone. That is the attribution failure this row's seven
+instances are made of, reproduced and fixed at a single event.
+
+**The discriminator is EMPIRICAL for this corpus, not structural — the stronger
+phrasing was tried and withdrawn under measurement.** `docs/dev-loop.md`
+documents a LEGITIMATE shrink class: insertion-normalization's
+`dropped-majority` branch, "in-conversation shrinkage, where `messages[0]`
+survives". So "a conversation cannot shrink" is false as a construction claim,
+and what carries the ground is the measurement instead. Two DIFFERENT zeros,
+stated apart because only the first supports the sentence people will quote:
+- a property of the TRAFFIC: **0 same-conversation shrinks across 518
+  consecutive same-conversation pairs** on this capture — grouped by session id,
+  system shape and the carrier's conversation key, all 1055 requests carrying a
+  carrier. This is what establishes that the corpus holds none of the legitimate
+  class, and it is the sentence worth quoting. An independent review grouping
+  (session key + tenant + conversation) counted 512 pairs and the same zero: the
+  pair count moves with the grouping key, the zero does not.
+- a property of the arm's OUTPUT: 0 shrink events whose previous and current
+  conversation keys match. Corroborating, not independent.
+Split by conversation key — REVIEW-MEASURED, not reproduced here — the 49 at
+HEAD are 39 against a DIFFERENT conversation and 10 the pre-change code could
+not key at all (it published no carrier for them, the same 129-request
+population); after the change, 39, all cross-conversation, none unnameable. The
+49 -> 39 and 49 -> 0-unlabelled figures in the table above ARE reproduced here.
+**And the tell has a condition, which matters most where it is weakest.** A
+legitimate in-conversation shrink surfaces UNLABELLED only while its own entry
+is still in the map: if that entry has been evicted, the request falls to the
+last-writer fallback and surfaces LABELLED — still correct, its baseline
+genuinely was lost, but then indistinguishable from a cross-conversation shrink.
+Eviction among live entries is shallowest-first and a shrinking conversation is
+by definition getting shallower, so the entry-survives condition is weakest for
+exactly the population this discriminator is about. Read "unlabelled" as the
+tell only with that condition attached.
+
+**What is NOT verified, stated because the amendment presents two labels as a
+pair.** `systemTenantChanged` fired 0 times in 5,359 ledger events across five
+captures. Its branch, its stderr token, its `tools/logs.mjs` field and its
+sentence here all ship unexercised by production traffic — a mid-conversation
+system-prompt change is rarer than the replay window, so this is
+could-not-verify in production rather than verified working. It is covered by
+tests only.
+
+Note 1's hazard is answered rather than ignored: a key that moves with content
+must never SILENTLY lose its baseline, so every miss falls back to the last
+writer and is LABELLED (`crossTenant`, or `systemTenantChanged` where the
+conversation matches across a system-prompt change). The 2026-09-20 design that
+answered it with silence instead was built, reviewed and rejected before push;
+BACKLOG.md carries that record and the four defects the review measured in it.
+
 Verification: the 2 violations on corpus `s-captureE` go to 0, and a full
 production-gate sweep is clean — 9 captures, 1742 MB, 0 failing. Bite: forcing
 the sub-key back to a constant turns the invariant test red.

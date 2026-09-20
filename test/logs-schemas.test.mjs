@@ -321,14 +321,34 @@ test("captureRequest: known fields read correctly, unknown fields throw at both 
 
 test("prefixDiffLast/prefixDiffTenant: known fields read correctly, unknown fields throw, an unknown tenant id is undefined (data, not a schema violation)", () => {
   const last = readPrefixDiffLast(fixtures.prefixDiffLast);
-  assert.equal(last.lastTenant, "EXAMPLE-TENANT-0001");
+  // The map key is `tenant:conv` since 2026-09-20 — a bare tenant id only where
+  // no conversation carrier was published.
+  assert.equal(last.lastTenant, "EXAMPLE-TENANT-0001:EXAMPLE-CONVERSATION-01");
+  assert.equal(last.seq, 2, "the file's monotonic write counter is a known field");
   const tenant = prefixDiffTenant(last, last.lastTenant);
   assert.equal(tenant.messageCount, 4);
+  // The two fields the baseline key change added. Without them here they had
+  // zero suite coverage and passed only because absent fields are legal — found
+  // by review, not by use.
+  assert.equal(tenant.conv, "EXAMPLE-CONVERSATION-01");
+  assert.equal(tenant.seq, 2);
   assert.throws(
     () => tenant.messageCountPrev,
     /unknown field "messageCountPrev" for format "prefixDiffLast\.tenant"/,
   );
   assert.equal(prefixDiffTenant(last, "NO-SUCH-TENANT"), undefined);
+});
+
+test("prefixDiffEvent: the two baseline-provenance labels are known fields", () => {
+  // `crossTenant` predated 2026-09-20 and was MISSING from the field set, so
+  // every strict read of it threw — the field is normally read straight off raw
+  // JSON, which is why use never surfaced it. `systemTenantChanged` arrived with
+  // the tenant+conversation key. Both matter: dev-loop.md and FORK-NOTES.md
+  // prescribe treating a labelled record as NOT evidence of a bust, which a
+  // reader that throws on the label cannot do.
+  const ev = readPrefixDiffEvent(fixtures.prefixDiffEvent);
+  assert.equal(ev.crossTenant, true);
+  assert.equal(ev.systemTenantChanged, false);
 });
 
 // ---------------------------------------------------------------------------

@@ -1306,9 +1306,17 @@ test("default.onRequest: passes ctx.headers through to the key derivation", asyn
     join(__dirname, "..", "proxy", "extensions", "prefix-diff.mjs"),
     "utf-8",
   );
-  assert.ok(
-    /snapshotPrefix\(ctx\.body,\s*\{\s*headers:\s*ctx\.headers\s*\}\)/.test(src),
-    "onRequest must pass ctx.headers to snapshotPrefix",
+  const call = /snapshotPrefix\(\s*ctx\.body\s*,\s*\{([\s\S]*?)\}\s*\)/.exec(src);
+  assert.ok(call, "onRequest must call snapshotPrefix with an options object");
+  assert.match(call[1], /headers:\s*ctx\.headers/, "onRequest must pass ctx.headers to snapshotPrefix");
+  // Same contract, second field (2026-09-20): without the pre-pipeline
+  // conversation the baseline key silently falls back to tenant-only, which is
+  // the sidecar collision this work removes. Re-deriving it here instead of
+  // forwarding it would key on post-pipeline bytes.
+  assert.match(
+    call[1],
+    /conv:\s*ctx\.meta\?\.\[PRE_PIPELINE_CONV\]/,
+    "onRequest must forward the pre-pipeline conversation, not re-derive one",
   );
 });
 
@@ -1775,4 +1783,342 @@ test("tenantId: two prompts sharing a long preamble must not collide — hash th
   const longA = tenantId({}, [{ type: "text", text: preamble + "TASK A" }]);
   const longB = tenantId({}, [{ type: "text", text: preamble + "TASK B" }]);
   assert.notEqual(longA, longB, "a truncated hash merges tenants that differ only past the cut");
+});
+
+// ---------------------------------------------------------------------------
+// Conversation-keyed baselines (2026-09-20). Measured on capture s-captureBY:
+// one session id carried 441 requests under ONE tenant — the desk's 10 deep
+// requests and 431 of CC's own sidecars, because tenantId hashes the first
+// system block and CC gives its sidecars the desk's. The desk's baseline was
+// overwritten between every pair of its own requests, which blocked attributing
+// 2,105,642 cache-write tokens.
+//
+// Each test below names the behaviour it pins. The earlier version of this work
+// shipped 5 behaviours pinned by 1 test, and four wrong implementations passed
+// the whole file; these exist so that cannot recur.
+
+const SYS_CC = [{ type: "text", text: "You are Claude Code, Anthropic's official CLI for Claude." }];
+function convPayload(n, tag = "desk") {
+  return makePayload({
+    system: SYS_CC,
+    tools: [{ name: "Read" }, { name: "Bash" }],
+    messages: Array.from({ length: n }, (_, i) => ({
+      role: i % 2 ? "assistant" : "user",
+      content: [{ type: "text", text: `${tag} turn ${i}` }],
+    })),
+  });
+}
+async function eventsOf(dir, key) {
+  const raw = await readFile(join(dir, `${key}-events.jsonl`), "utf-8").catch(() => "");
+  return raw.trim() ? raw.trim().split("\n").map((l) => JSON.parse(l)) : [];
+}
+
+// BEHAVIOUR 1: the conversation half of the key.
+test("conv-key: same tenant, different conversations keep separate baselines", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "desk-session" };
+  try {
+    await snapshotPrefix(convPayload(6), { dir, headers, conv: "deskconv" });
+    await captureStderr(async () => {
+      await snapshotPrefix(makePayload({ system: SYS_CC, tools: [], messages: [{ role: "user", content: [{ type: "text", text: "name this session" }] }] }), { dir, headers, conv: "sidecar-1" });
+    });
+    let r;
+    const err = await captureStderr(async () => {
+      r = await snapshotPrefix(convPayload(8), { dir, headers, conv: "deskconv" });
+    });
+    const last = (await eventsOf(dir, r.key)).at(-1);
+    assert.equal(last.msgs, "6->8", "the desk diffs against its own previous request, not the sidecar's");
+    assert.equal(last.toolsMatch, true, "the sidecar's empty tools are not ours");
+    assert.ok(!last.crossTenant, "a co-conversation is not a cross-tenant fallback");
+    assert.doesNotMatch(String(err), /CROSS-TENANT/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 2: the TENANT half of the key — dropped in the rejected design and
+// pinned by nothing, so `bkey = conv` alone passed the whole suite.
+test("conv-key: same conversation id under DIFFERENT tenants does not silently share a baseline", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "two-agents" };
+  const withSys = (text, n) => makePayload({
+    system: [{ type: "text", text }],
+    messages: Array.from({ length: n }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: [{ type: "text", text: `t${i}` }] })),
+  });
+  try {
+    await snapshotPrefix(withSys("You are agent A", 30), { dir, headers, conv: "shared-first-message" });
+    let r;
+    const err = await captureStderr(async () => {
+      r = await snapshotPrefix(withSys("You are agent B", 4), { dir, headers, conv: "shared-first-message" });
+    });
+    const last = (await eventsOf(dir, r.key)).at(-1);
+    // Pinned SPECIFICALLY, not as "labelled somehow": the disjunction
+    // `systemTenantChanged || crossTenant` is satisfied by the fallback path
+    // too, so it cannot tell the conversation-match branch from a blind
+    // last-writer fallback — measured, by a mutant that neutered the match and
+    // still passed. An assertion both the correct and the defective behaviour
+    // satisfy pins nothing.
+    assert.equal(
+      last.systemTenantChanged,
+      true,
+      "the same-conversation match must fire and be labelled as such",
+    );
+    assert.match(String(err), /SYSTEM-TENANT-CHANGED/, "and labelled on stderr too");
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 3: no silent drop. This is the defect that was silent by
+// construction in the rejected design — a messages[0] rotation cost the whole
+// event: no diff, no ledger line, no stderr line.
+test("conv-key: a rotated conversation id still produces a LABELLED diff, never silence", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "rotating" };
+  try {
+    await snapshotPrefix(convPayload(10), { dir, headers, conv: "before-rotation" });
+    let r;
+    const err = await captureStderr(async () => {
+      r = await snapshotPrefix(convPayload(12), { dir, headers, conv: "after-rotation" });
+    });
+    const events = await eventsOf(dir, r.key);
+    assert.equal(events.length, 1, "the event must exist — a dropped diff is the defect");
+    assert.equal(events[0].crossTenant, true, "and be marked, so it is not read as a cause");
+    assert.match(String(err), /CROSS-TENANT/);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 4: the persisted conv field — the read path matches on it, and
+// nothing pinned it before.
+test("conv-key: the conversation is persisted on the stored baseline", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "persist" };
+  try {
+    const r = await snapshotPrefix(convPayload(4), { dir, headers, conv: "deskconv" });
+    const json = JSON.parse(await readFile(join(dir, `${r.key}-last.json`), "utf-8"));
+    assert.equal(json.tenants[json.lastTenant].conv, "deskconv", "without this the cross-system match cannot find it");
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 5a — the comparator's own defect class (judgment desk's condition):
+// one-shot shallow conversations must not evict a live deep baseline.
+test("eviction: a flood of one-shot conversations does not evict a live deep baseline", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "flood" };
+  try {
+    await snapshotPrefix(convPayload(40), { dir, headers, conv: "deepconv" });
+    await captureStderr(async () => {
+      for (let i = 0; i < 24; i++) {
+        await snapshotPrefix(makePayload({ system: SYS_CC, messages: [{ role: "user", content: [{ type: "text", text: `one-shot ${i}` }] }] }), { dir, headers, conv: `oneshot-${i}` });
+      }
+    });
+    let r;
+    await captureStderr(async () => { r = await snapshotPrefix(convPayload(42), { dir, headers, conv: "deepconv" }); });
+    const last = (await eventsOf(dir, r.key)).at(-1);
+    assert.equal(last.msgs, "40->42", "the deep baseline survived the flood");
+    assert.ok(!last.crossTenant, "and it was its OWN baseline, not a labelled fallback");
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 5b — the other half of the comparator's defect class: depth must
+// not make a DEAD entry immortal. Without the staleness horizon, deep entries
+// outrank every live shallow one forever and a young conversation can never
+// establish a baseline.
+test("eviction: a dead deep entry does not outrank live entries forever", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "stale" };
+  try {
+    // The horizon is driven through the test seam rather than by performing
+    // 512 real writes: proving a boundary by bulk is slow enough to get
+    // skipped later, and it proves it less exactly than construction does.
+    const staleAfterWrites = 4;
+    // One very deep conversation, then abandoned.
+    await snapshotPrefix(convPayload(300, "dead"), { dir, headers, conv: "dead-deep", staleAfterWrites });
+    // Sustained traffic well past the horizon.
+    await captureStderr(async () => {
+      for (let i = 0; i < 20; i++) {
+        await snapshotPrefix(makePayload({ system: SYS_CC, messages: [{ role: "user", content: [{ type: "text", text: `live ${i}` }] }] }), { dir, headers, conv: `live-${i}`, staleAfterWrites });
+      }
+    });
+    const r = await snapshotPrefix(makePayload({ system: SYS_CC, messages: [{ role: "user", content: [{ type: "text", text: "final" }] }] }), { dir, headers, conv: "final", staleAfterWrites });
+    const json = JSON.parse(await readFile(join(dir, `${r.key}-last.json`), "utf-8"));
+    const survivors = Object.values(json.tenants);
+    assert.ok(
+      !survivors.some((b) => b.conv === "dead-deep"),
+      "a deep entry abandoned past the staleness horizon must be evictable despite its depth",
+    );
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 6 — the fallback is UNCONDITIONAL, pinned on a DOWNWARD rotation.
+//
+// This arrangement exists because its absence let a refuted design pass the
+// whole suite. A "plausible predecessor" gate (candidate no deeper than the
+// incoming body) was built here and measured on a real capture: it suppressed
+// 28 of 520 labels — 5.4% of labels, 2.7% of events — and silently dropped 28
+// events, every one from the one class it could ever affect —
+// a predecessor DEEPER than the incoming request, i.e. compaction and array
+// shrinkage. The existing rotation test rotates UPWARD (10 -> 12 messages), so
+// candidate <= incoming passes and it stayed green under that gate. Only a
+// downward rotation fires on it.
+test("fallback: a DOWNWARD rotation still produces a labelled diff, never silence", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "downward" };
+  try {
+    await snapshotPrefix(convPayload(300, "deep"), { dir, headers, conv: "before-compaction" });
+    let r;
+    const err = await captureStderr(async () => {
+      // The continuation after a compaction: new conversation key, and a body
+      // far SHALLOWER than the baseline it left behind.
+      r = await snapshotPrefix(convPayload(4, "after"), { dir, headers, conv: "after-compaction" });
+    });
+    const events = await eventsOf(dir, r.key);
+    assert.equal(events.length, 1, "the event must exist — a silent drop here is the defect");
+    assert.equal(events[0].crossTenant, true, "and be labelled, so it is not read as a cause");
+    assert.match(String(err), /CROSS-TENANT/, "and say so on stderr");
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 7 — the PER-ENTRY seq write, and why it needs its own test.
+//
+// Found by a review mutant that ran fully GREEN: deleting
+// `tenants[bkey] = { ...tenants[bkey], seq }` leaves every stored entry reading
+// seqOf() === 0, so `seq - 0 > STALE_AFTER_WRITES` flips true for EVERY entry at
+// once as soon as the file's counter passes the horizon. The comparator then
+// degenerates to its stale tier, where depth is never consulted ��� silently
+// removing the deep-baseline protection this whole change exists to provide.
+//
+// Behaviour 5b cannot catch it: with a small horizon and a short run,
+// "everything is stale" and "the dead deep one is stale" give the same answer.
+// The discriminator is a LIVE deep entry — one that keeps writing — which must
+// survive past the horizon precisely because its own seq keeps advancing.
+test("eviction: a LIVE deep entry that keeps writing survives past the staleness horizon", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "live-past-horizon" };
+  const staleAfterWrites = 4;
+  try {
+    let depth = 300;
+    await snapshotPrefix(convPayload(depth, "live"), { dir, headers, conv: "live-deep", staleAfterWrites });
+    // Sustained one-shot traffic far past the horizon, with the deep
+    // conversation continuing to write throughout — as a real desk does.
+    await captureStderr(async () => {
+      for (let i = 0; i < 24; i++) {
+        await snapshotPrefix(
+          makePayload({ system: SYS_CC, messages: [{ role: "user", content: [{ type: "text", text: `one-shot ${i}` }] }] }),
+          { dir, headers, conv: `oneshot-${i}`, staleAfterWrites },
+        );
+        if (i % 6 === 5) {
+          depth += 2;
+          await snapshotPrefix(convPayload(depth, "live"), { dir, headers, conv: "live-deep", staleAfterWrites });
+        }
+      }
+    });
+    let r;
+    await captureStderr(async () => {
+      depth += 2;
+      r = await snapshotPrefix(convPayload(depth, "live"), { dir, headers, conv: "live-deep", staleAfterWrites });
+    });
+    const last = (await eventsOf(dir, r.key)).at(-1);
+    assert.equal(last.msgs, `${depth - 2}->${depth}`, "the live deep conversation diffed against its OWN previous request");
+    assert.ok(!last.crossTenant, "so it was never evicted and never needed the labelled fallback");
+    // Pin the WRITE directly, not only its consequence. The interleaving above
+    // does not discriminate on its own: under the seq-write mutant every entry
+    // reads stale, ties on seqOf, and eviction falls back to insertion order —
+    // which a re-written entry keeps escaping, so the mutant survived this test
+    // while breaking the mechanism. The stored entry's own counter is the
+    // unambiguous evidence that the write happened.
+    const json = JSON.parse(await readFile(join(dir, `${r.key}-last.json`), "utf-8"));
+    assert.equal(
+      json.tenants[json.lastTenant].seq,
+      json.seq,
+      "the entry just written carries the file's current seq — without the per-entry write it carries none, every entry reads stale at once, and depth is never consulted",
+    );
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 8 — "newest match wins" in the same-conversation scan. The code
+// states it as a decision ("insertion order is not recency"); a review mutant
+// reversing the comparison ran green, because every existing test presents only
+// one candidate with a matching conv. An unpinned documented claim.
+test("conv-key: the same-conversation scan takes the NEWEST matching baseline", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "newest-wins" };
+  const withSys = (text, n) => makePayload({
+    system: [{ type: "text", text }],
+    messages: Array.from({ length: n }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: [{ type: "text", text: `t${i}` }] })),
+  });
+  try {
+    // Same conv, three different tenants. The middle one is written LAST before
+    // the probe, so it is the newest match; its depth is what the diff must show.
+    await snapshotPrefix(withSys("agent A", 6), { dir, headers, conv: "shared" });
+    await captureStderr(async () => { await snapshotPrefix(withSys("agent B", 14), { dir, headers, conv: "shared" }); });
+    let r;
+    await captureStderr(async () => { r = await snapshotPrefix(withSys("agent C", 20), { dir, headers, conv: "shared" }); });
+    const last = (await eventsOf(dir, r.key)).at(-1);
+    assert.equal(last.msgs, "14->20", "the newest matching baseline (14) is the predecessor, not the oldest (6)");
+    assert.equal(last.systemTenantChanged, true, "and the match is labelled as a system-prompt change");
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+// BEHAVIOUR 9 — the LEGACY and MIXED seq populations in the recency scan.
+//
+// Recency is keyed on `seq`, which only exists on entries written since
+// 2026-09-20. Every entry the tests above write carries one, so those tests are
+// same-parentage with the change and cannot exercise a file that predates it.
+// These two do, by writing the baseline file by hand.
+test("conv-key: a seq-bearing baseline outranks a legacy one without seq", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "mixed-seq" };
+  const mk = (n, extra) => ({
+    timestamp: "2026-09-20T23:59:59.000Z", messageCount: n, toolsHash: "h", systemHash: "h",
+    params: [], systemBlocks: [], toolsDetail: [], messageHashes: [], prefixMessages: [],
+    tailMessages: [], markerMessages: [], betaHeader: null, conv: "shared", ...extra,
+  });
+  const withSys = (text, n) => makePayload({
+    system: [{ type: "text", text }],
+    messages: Array.from({ length: n }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: [{ type: "text", text: `t${i}` }] })),
+  });
+  try {
+    const probe = await snapshotPrefix(withSys("agent probe", 3), { dir, headers, conv: "unrelated" });
+    // Hand-built file: the LEGACY entry carries the NEWER timestamp, so a
+    // timestamp-keyed scan would wrongly prefer it. seq must win.
+    await writeFile(join(dir, `${probe.key}-last.json`), JSON.stringify({
+      tenants: {
+        "aaaaaaaa:shared": mk(11, { timestamp: "2026-09-21T00:00:05.000Z" }),   // legacy: no seq
+        "bbbbbbbb:shared": mk(17, { seq: 4 }),                                   // modern
+      },
+      lastTenant: "bbbbbbbb:shared",
+      seq: 4,
+    }), "utf-8");
+    let r;
+    await captureStderr(async () => { r = await snapshotPrefix(withSys("agent C", 25), { dir, headers, conv: "shared" }); });
+    const last = (await eventsOf(dir, r.key)).at(-1);
+    assert.equal(last.msgs, "17->25", "the seq-bearing entry wins over a legacy one with a newer timestamp");
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});
+
+test("conv-key: an all-legacy file falls back to timestamp order without throwing", async () => {
+  const dir = await newTmp();
+  const headers = { "x-claude-code-session-id": "all-legacy" };
+  const mk = (n, ts) => ({
+    timestamp: ts, messageCount: n, toolsHash: "h", systemHash: "h", params: [], systemBlocks: [],
+    toolsDetail: [], messageHashes: [], prefixMessages: [], tailMessages: [], markerMessages: [],
+    betaHeader: null, conv: "shared",
+  });
+  const withSys = (text, n) => makePayload({
+    system: [{ type: "text", text }],
+    messages: Array.from({ length: n }, (_, i) => ({ role: i % 2 ? "assistant" : "user", content: [{ type: "text", text: `t${i}` }] })),
+  });
+  try {
+    const probe = await snapshotPrefix(withSys("agent probe", 3), { dir, headers, conv: "unrelated" });
+    // No `seq` anywhere — neither per entry nor at the top level, exactly as a
+    // file written before this change looks.
+    await writeFile(join(dir, `${probe.key}-last.json`), JSON.stringify({
+      tenants: {
+        "aaaaaaaa:shared": mk(11, "2026-09-20T10:00:00.000Z"),
+        "bbbbbbbb:shared": mk(19, "2026-09-20T12:00:00.000Z"),
+      },
+      lastTenant: "bbbbbbbb:shared",
+    }), "utf-8");
+    let r;
+    await captureStderr(async () => { r = await snapshotPrefix(withSys("agent C", 25), { dir, headers, conv: "shared" }); });
+    const last = (await eventsOf(dir, r.key)).at(-1);
+    assert.equal(last.msgs, "19->25", "all recencies tie at -1, so the newer TIMESTAMP decides — the pre-change behaviour");
+  } finally { await rm(dir, { recursive: true, force: true }); }
 });

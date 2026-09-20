@@ -123,6 +123,7 @@ import { statePath } from "../xdg-dirs.mjs";
 import { appendFileOwnerOnly, writeFileOwnerOnly, ensureOwnerOnly } from "./write-owner-only.mjs";
 import { resolveSessionId } from "./cache-telemetry.mjs";
 import { findBetaHeader, parseBetaTokens } from "./auto-1m-guard.mjs";
+import { PRE_PIPELINE_CONV } from "./message-hash.mjs";
 
 const ENABLED = process.env.CACHE_FIX_PREFIXDIFF === "1";
 const DEBUG = process.env.CACHE_FIX_DEBUG === "1";
@@ -1316,6 +1317,22 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
   // bare snapshot instead of a `tenants` map; those load as the baseline for
   // whichever tenant reads first, so the upgrade costs no lost diff.
   const tid = tenantId(headers, payload.system);
+  // The baseline key is tenant PLUS conversation. A tenant is not one
+  // conversation: tenantId hashes the first system block, and CC gives its own
+  // sidecar calls the desk's system block, so on one measured session 441
+  // requests shared a tenant — the desk's 10 deep ones and 431 sidecars. The
+  // desk's baseline was overwritten by a sidecar between every pair of its own
+  // requests, and desk-to-desk diffs were unreadable, which blocked attributing
+  // 2,105,642 cache-write tokens. That is the same sidecar-churn artifact
+  // tenantId itself was introduced to remove, one level down.
+  //
+  // The matrix exemption that previously kept this key coarse
+  // (robustness-threat-matrix.md, the conversation-sub-key invariant) is
+  // LIFTED in the same change that lands this — see the amendment there.
+  // Design note 1's hazard is real and is answered below rather than ignored:
+  // a key that moves with content must never SILENTLY lose its baseline.
+  const conv = options.conv || null;
+  const bkey = conv ? `${tid}:${conv}` : tid;
   let prev = null;
   let stored = null;
   // A key is NEW exactly when its snapshot file does not exist yet. Strictly
@@ -1364,9 +1381,93 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
   // `crossTenant` so a reader can tell a genuine cause from this artifact.
   // Evidence is kept; only its interpretation is labelled.
   let crossTenant = false;
+  let systemTenantChanged = false;
   if (stored && stored.tenants) {
-    prev = stored.tenants[tid] || null;
+    prev = stored.tenants[bkey] || null;
+    if (!prev && conv) {
+      // Same CONVERSATION under a different tenant: its system prompt changed
+      // mid-conversation. Design note 1's blind spot and a real bust signal,
+      // so it must still diff — and it is LABELLED, because conversationSubKey
+      // hashes only messages[0], so two agents dispatched with a byte-identical
+      // first user message share a conv while their tenants differ. Unlabelled,
+      // that hands one conversation the other's baseline as an unmarked
+      // false cause, which is the artifact tenantId's own doc calls worse than
+      // no diagnostic at all. Newest match wins: insertion order is not recency.
+      // Recency is decided by `seq`, the map's own monotonic write counter, and
+      // NOT by `timestamp`: the timestamp is millisecond-resolution wall clock,
+      // so two writes inside one millisecond tie and "newest" becomes whichever
+      // order the object happens to enumerate. That is not a theoretical
+      // objection — the first version of this scan compared timestamps and its
+      // test failed roughly one run in four. `seq` cannot tie by construction.
+      // Legacy entries written before `seq` existed fall back to the timestamp,
+      // and a missing seq sorts below any real one (-1), which is correct: an
+      // entry from before the counter existed is older than anything after it.
+      let best = null;
+      // A TYPE test, not a coercion test: `Number.isFinite(Number(x))` admits
+      // null, "" and [] (all coerce to a finite 0), so a null-seq entry would
+      // outrank a genuine legacy one. Nothing this module writes produces those,
+      // but the guard should exclude what it reads as excluding.
+      //
+      // SENTINEL, and note the OTHER convention for the same absence: a missing
+      // seq is -1 here and 0 in `seqOf` at the eviction site below. Both express
+      // "oldest" in the form their own comparison needs — -1 loses every
+      // max-search, while 0 makes `seq - 0` exceed any horizon — but they are one
+      // field with two conventions ~200 lines apart, so each names the other.
+      // -1 is safe because the counter starts at 1 (`Number(stored?.seq ?? 0) + 1`)
+      // and no released version wrote `seq` at all, so any entry carrying one was
+      // written after this change and is genuinely newer than any that does not.
+      const recency = (e) =>
+        typeof e?.seq === "number" && Number.isFinite(e.seq) ? e.seq : -1;
+      for (const cand of Object.values(stored.tenants)) {
+        if (!cand || cand.conv !== conv) continue;
+        if (!best) { best = cand; continue; }
+        const rc = recency(cand);
+        const rb = recency(best);
+        const newer =
+          rc > rb || (rc === rb && String(cand.timestamp ?? "") > String(best.timestamp ?? ""));
+        if (newer) best = cand;
+      }
+      if (best) {
+        prev = best;
+        systemTenantChanged = true;
+      }
+    }
     if (!prev && stored.lastTenant && stored.tenants[stored.lastTenant]) {
+      // NEVER silent, and UNCONDITIONAL — both halves measured, the second the
+      // hard way. A conv-keyed baseline can go missing two ways: a first
+      // sighting, or a messages[0] rotation mid-conversation. The second is
+      // exactly the event a bust hunt needs, and once an entry is gone the two
+      // are STRUCTURALLY IDENTICAL from here, which is why the answer is to
+      // label rather than to gate.
+      //
+      // A gate was tried and refuted (2026-09-20), and the figures below are
+      // from replaying a real capture rather than a constructed flood — an
+      // earlier version of this comment quoted "10 of 420 labels, 2.4%" from a
+      // synthetic scenario and does not reproduce. Restricting the fallback to
+      // a "plausible predecessor" — a candidate no deeper than the incoming
+      // request — suppressed 28 of 520 labels on capture s-captureBY (5.4% of labels,
+      // 2.7% of events), because in a sidecar flood each sidecar's predecessor
+      // is another sidecar at messageCount 1 and 1 <= 1 passes. It bought
+      // almost none of its goal and paid the whole cost: the
+      // only case such a gate can ever drop is one where the predecessor is
+      // DEEPER than the incoming body — compaction and array shrinkage — and it
+      // dropped those SILENTLY, 0 events and 0 stderr where the unconditional
+      // path writes a labelled one. A gate that can only ever suppress the
+      // highest-value class is not a filter, it is the silent-drop defect with
+      // a predicate in front of it.
+      //
+      // The label rate this leaves is high on SIDECAR-ONLY session keys (four
+      // measured: 77.5%, 97.5%, 100%, 100%) and near zero on the deep desk
+      // key this change
+      // exists to serve (1.0%) — 50.4% session-wide on s-captureBY, 26.2%
+      // across five. An earlier version of this comment reported the sidecar-key
+      // figure as a property of ledger records generally; it is not. That is a
+      // PRESENTATION problem where it appears at all, addressed
+      // where presentation lives — the stderr token and the doctrine's own grep
+      // baseline — never by dropping evidence. Any future attempt to gate this
+      // branch owes a red-first arrangement that rotates DOWNWARD (e.g. 300 ->
+      // 4 messages); the existing rotation test rotates UPWARD (10 -> 12) and
+      // stays green under exactly the gate that breaks this.
       prev = stored.tenants[stored.lastTenant];
       crossTenant = true;
     }
@@ -1384,6 +1485,7 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
       try {
         const record = buildEventRecord(diff, sessionKey, sessionId);
         if (crossTenant) record.crossTenant = true;
+        if (systemTenantChanged) record.systemTenantChanged = true;
         await appendEvent(eventsPath, record, fs);
       } catch (err) {
         debug(`event append failed at ${eventsPath}: ${err?.message ?? err}`);
@@ -1415,6 +1517,23 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
               ? `, CROSS-TENANT=baseline belongs to another conversation on this ` +
                 `session id (subagent/background call) — NOT evidence of a bust`
               : "") +
+            // Its own label, not folded into CROSS-TENANT: this baseline IS
+            // this conversation's, matched by conversation identity across a
+            // system-prompt change. NO CONSUMER YET — it is written to the
+            // record and to stderr and read by nothing but its own test, which
+            // is stated rather than left for someone to discover: an
+            // ahead-of-consumer diagnostic is fine, an unnoticed one is how a
+            // field rots. The same posture tools/logs.mjs states for its own
+            // readers that precede their consumers. The system diff beside it
+            // is the finding;
+            // the match itself is not the artifact CROSS-TENANT warns about.
+            // But conversationSubKey hashes only messages[0], so a shared
+            // first user message can still match two agents — hence a label
+            // rather than silence.
+            (systemTenantChanged
+              ? `, SYSTEM-TENANT-CHANGED=same conversation matched across a ` +
+                `system-prompt change (conversation identity is messages[0] only)`
+              : "") +
             `\n`,
         );
       } catch (err) {
@@ -1433,7 +1552,10 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
   // that spawns many subagents cannot grow the file without bound —
   // evicting the oldest costs at most one stale baseline.
   let wroteSnapshot = false;
-  const tenants = { ...(stored?.tenants || {}), [tid]: current };
+  // `conv` is persisted on the entry because the read path matches on it (the
+  // same-conversation-across-a-system-change branch); a key alone cannot be
+  // matched that way, since the tenant half differs precisely in that case.
+  const tenants = { ...(stored?.tenants || {}), [bkey]: conv ? { ...current, conv } : current };
   const MAX_TENANTS = 16;
   // Evict by the timestamp each baseline carries, NOT by key order.
   //
@@ -1447,15 +1569,87 @@ async function snapshotPrefixLocked(payload, options, current, headers) {
   // `timestamp` is set by buildSnapshot on every write, so oldest-first is
   // well-defined and independent of key shape. The current tenant is never
   // evicted: it was just written and is the one the next request needs.
+  //
+  // AGE ALONE IS THE WRONG COMPARATOR once the key carries the conversation,
+  // and the fix is not to raise the cap. Both halves are measured on capture
+  // s-captureBY (2026-09-20):
+  //   - Conversation keying turns CC's one-shot sidecars into a FLOOD of fresh
+  //     entries — 420 of them — where they previously collapsed into one
+  //     shared tenant entry. Oldest-first then evicts the live deep
+  //     conversation before its own next request, which is the baseline this
+  //     whole change exists to keep.
+  //   - Raising the cap instead is priced out: the worst observed interleave
+  //     for a deep conversation is 114 distinct conversations between two of
+  //     its own requests (p50=0, p90=2, p99=48), so an age-only cap would have
+  //     to be ~128; and a snapshot is ~18.6 kB even at ONE message, because it
+  //     carries the whole tools array and system blocks. 128 entries is ~2.4 MB
+  //     rewritten on EVERY request through the proxy, against ~780 kB today —
+  //     a permanent per-request obligation, which is the trade FORK-NOTES names
+  //     as a losing one.
+  // So depth is the discriminator (a sidecar carries 2 messages, a live desk
+  // conversation hundreds), bounded by staleness so it cannot become immortal.
+  //
+  // STALENESS, and why the horizon is derived rather than chosen: depth as a
+  // primary key with age only as a tiebreaker lets a DEAD deep entry outrank
+  // every live shallow one forever. An entry is therefore stale once
+  // STALE_AFTER_WRITES writes have landed since its own, and stale entries are
+  // evicted before any live one regardless of depth. The horizon must exceed
+  // the worst interleave a LIVE conversation can sit through, or it would
+  // declare a live baseline stale — the very failure depth protection exists
+  // to prevent.
+  //
+  // THE UNIT IS WRITES, and getting that wrong is how this constant was first
+  // set too low. Every request is one write to the map, so the quantity to
+  // clear is the max WRITES between two requests of one conversation — which is
+  // strictly larger than the count of distinct conversations between them,
+  // because a conversation can be written many times in the gap. Measured on
+  // capture s-captureBY (1055 requests, 518 revisits): max writes gap 284 for
+  // any conversation, 210 for a deep one; the distinct-CONVERSATIONS figure for
+  // the same data is 114, and a horizon derived from that number would mark a
+  // live deep baseline stale after 128 writes while it still had 82 to wait.
+  // 512 is the next power of two above the observed 284. Re-derive against a
+  // fresh capture if session shapes change; the number is a measurement, not a
+  // preference. Overridable via `options.staleAfterWrites` as a test seam, the
+  // same idiom as `options.dir`/`options.fs` — a test that has to perform 512
+  // real writes to reach the boundary proves the behaviour by bulk instead of
+  // by construction, and is slow enough to be skipped later.
+  //
+  // Named residual, so it is not discovered later: a YOUNG conversation (few
+  // messages) under sustained sidecar flood can still lose its baseline before
+  // its second turn, costing one missed diff until it grows. Compaction lands
+  // in that class — it rewrites messages[0], so the conversation arrives under
+  // a NEW key at low depth while its old deep entry ages out by the staleness
+  // rule above. Both are bounded misses of one diff, never silent: the
+  // fallback path labels them.
+  const STALE_AFTER_WRITES = Number(options.staleAfterWrites ?? 512);
+  const seq = Number(stored?.seq ?? 0) + 1;
+  tenants[bkey] = { ...tenants[bkey], seq };
   const ids = Object.keys(tenants);
   if (ids.length > MAX_TENANTS) {
-    const byAge = ids
-      .filter((k) => k !== tid)
-      .sort((a, b) => String(tenants[a]?.timestamp ?? "").localeCompare(String(tenants[b]?.timestamp ?? "")));
-    for (const old of byAge.slice(0, ids.length - MAX_TENANTS)) delete tenants[old];
+    const depthOf = (k) => Number(tenants[k]?.messageCount ?? 0);
+    // A missing seq reads as 0 here — the opposite sentinel from `recency`'s -1
+    // above, deliberately: there the value must LOSE a max-search, here it must
+    // make `seq - seqOf(k)` exceed the horizon so a legacy entry counts as stale.
+    // Same absence, two comparisons, two correct answers; changing one without
+    // the other is the drift this pair of comments exists to stop.
+    const seqOf = (k) => Number(tenants[k]?.seq ?? 0);
+    const isStale = (k) => seq - seqOf(k) > STALE_AFTER_WRITES;
+    const victims = ids
+      .filter((k) => k !== bkey)
+      .sort((a, b) => {
+        const sa = isStale(a) ? 0 : 1;
+        const sb = isStale(b) ? 0 : 1;
+        if (sa !== sb) return sa - sb; // stale first, whatever its depth
+        if (sa === 0) return seqOf(a) - seqOf(b); // among stale: oldest first
+        return (
+          depthOf(a) - depthOf(b) || // among live: shallowest first
+          String(tenants[a]?.timestamp ?? "").localeCompare(String(tenants[b]?.timestamp ?? ""))
+        );
+      });
+    for (const old of victims.slice(0, ids.length - MAX_TENANTS)) delete tenants[old];
   }
   try {
-    await atomicWriteJson(lastPath, { tenants, lastTenant: tid }, fs);
+    await atomicWriteJson(lastPath, { tenants, lastTenant: bkey, seq }, fs);
     wroteSnapshot = true;
   } catch (err) {
     debug(`snapshot write failed at ${lastPath}: ${err?.message ?? err}`);
@@ -1525,7 +1719,13 @@ export default {
       // process. Same try/catch as everything else here — the sweep is
       // best-effort and must never block a request.
       await ensureBootSweep(getSnapshotDir(), DEFAULT_FS);
-      await snapshotPrefix(ctx.body, { headers: ctx.headers });
+      await snapshotPrefix(ctx.body, {
+        headers: ctx.headers,
+        // Computed at order 250 and handed down, never re-derived here: at
+        // this tap point the body has already been rewritten, so a local
+        // computation would key on mutated bytes.
+        conv: ctx.meta?.[PRE_PIPELINE_CONV] ?? null,
+      });
     } catch (err) {
       debug(`onRequest unexpected: ${err?.message ?? err}`);
     }

@@ -337,6 +337,45 @@ export default {
     const { body } = ctx;
     if (!Array.isArray(body.messages)) return;
 
+    // Publish the conversation carrier HERE, before the three early returns
+    // below, and AGAIN at its original site after the /clear filter. Two
+    // assignments on purpose; the reasons are measured, not stylistic.
+    //
+    // WHY HERE: the original single publication sits below
+    // `if (!Array.isArray(firstMsg?.content)) return;`, so a request whose
+    // first user message carries STRING content never published at all — and
+    // that is not an edge case. Measured 2026-09-20 over 1055 live request
+    // bodies (capture s-captureBY): 129 requests never published, and all 10
+    // of the main desk's DEEP requests are among them, including every one of
+    // the 7 that busted. Every consumer of the carrier
+    // (insertion-normalization, deferred-tool-rewrite, tools/replay.mjs) then
+    // silently falls back to a local computation for exactly the deepest
+    // conversations — the population the carrier exists to serve.
+    //
+    // WHY NOT SIMPLY MOVE THE OTHER ONE UP: the /clear-artifact filter at
+    // :353-355 mutates `firstMsg.content` IN PLACE between these two points.
+    // A single assignment moved above it would change the published value for
+    // the 926 requests that already publish, on any request where the filter
+    // drops a block at index 0 — introducing the very key rotation this
+    // carrier exists to prevent (row 26's class), by placement rather than by
+    // intent, on the population that was never the problem. Keeping the later
+    // assignment means every path that reaches it overwrites with today's
+    // post-filter value, so those 926 stay byte-identical BY CONSTRUCTION
+    // rather than by a measured zero. The filter removed nothing on this
+    // capture (0 of 1055, its own predicate proven live on all three declared
+    // prefixes), but it exists because those artifacts occur.
+    //
+    // WHY NOT EARLIER STILL: above the messages-array guard there may be no
+    // array at all, and `conversationSubKey` then returns the literal "empty"
+    // — a collision bucket, not an identity. Note the guard admits `messages:
+    // []` (an empty array IS an array), which also keys to "empty"; 10 such
+    // records exist in the measured capture. Benign in effect — they carry no
+    // conversation to confuse, and every consumer's fallback computes the same
+    // "empty" — but the carrier is not an identity for them, so a reader must
+    // not treat that value as one.
+    ctx.meta = ctx.meta || {};
+    ctx.meta[PRE_PIPELINE_CONV] = conversationSubKey(body.messages);
+
     let firstUserIdx = -1;
     for (let i = 0; i < body.messages.length; i++) {
       if (body.messages[i].role === "user") {

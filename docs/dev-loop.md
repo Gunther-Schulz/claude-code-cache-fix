@@ -2529,6 +2529,42 @@ absence as `false`. `grep -c '"crossTenant"' <file>` against the total
 record count is the one-command check, and it is what settled this
 instance.
 
+**The RATIO that check returns changed on 2026-09-20, and a reader who
+does not know that will re-reach the wrong conclusion above.** Since the
+baseline key became tenant+conversation, every FIRST SIGHTING of a
+conversation takes the labelled fallback — and CC's own one-shot sidecar
+calls are each their own conversation. The ratio therefore depends
+entirely on WHICH SESSION KEY you are reading, and a single
+corpus-wide number is the wrong instrument here. Measured across five
+captures (5,488 requests, 5,359 events), `crossTenant` went from 0
+before the change to:
+  - **~1%** on DEEP conversation keys — the desk traffic a bust walk
+    cares about (1.0%, 0.3%, 1.1%, 1.5% on four such keys);
+  - **77.5%, 97.5%, 100%, 100%** on the four sidecar-only keys measured,
+    where the label is correct and the diffs it marks are between
+    unrelated one-shot conversations;
+  - **50.4%** session-wide on one sidecar-heavy capture, **26.2%** over
+    all five.
+(An earlier version of this paragraph gave "~98%" as the figure to
+expect. That was one sidecar-only key's rate, taken from a constructed
+scenario and generalised — off by ~2x session-wide and ~4x corpus-wide,
+which mis-sizes exactly the grep baseline this paragraph exists to set.)
+A high ratio on a sidecar-heavy key is the expected reading, not
+evidence of pooling: the label
+still means exactly what it meant — this diff is against another
+conversation's baseline and is NOT evidence of a bust — there are simply
+far more such records now. What a high ratio does NOT indicate is the
+defect this section describes; the discriminator is unchanged and is the
+writer's own definition, not the count.
+A gate to suppress the common case was built and refuted the same day
+(measured on a real capture: it removed 28 of 520 labels — 5.4% — and
+silently dropped 28 events, all of them from the downward-rotation class,
+which is the only class such a gate can affect), so the noise is answered
+by knowing the ratio rather than by dropping records.
+When reading a modern log, count the UNLABELLED records instead — those
+are the diffs a conversation made against its own baseline, and they are
+the ones a bust walk wants.
+
 Rule, before trusting any field's zero, `false`, or absence: read the
 writer's own definition of when it writes — never the field's name.
 

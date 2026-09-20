@@ -126,7 +126,9 @@
     "system": [],
     "tools": [],
     "betaHeader": null,
-    "windows": { "head": 1, "markers": 0, "tail": 1 }
+    "windows": { "head": 1, "markers": 0, "tail": 1 },
+    "crossTenant": true,
+    "systemTenantChanged": false
   },
 
   "prefixDiffDiff": {
@@ -158,7 +160,7 @@
 
   "prefixDiffLast": {
     "tenants": {
-      "EXAMPLE-TENANT-0001": {
+      "EXAMPLE-TENANT-0001:EXAMPLE-CONVERSATION-01": {
         "timestamp": "2026-08-10T06:00:12.000Z",
         "messageCount": 4,
         "toolsHash": "EXAMPLE-TOOLS-HASH",
@@ -170,9 +172,12 @@
         "prefixMessages": [],
         "tailMessages": [],
         "markerMessages": [],
+        "conv": "EXAMPLE-CONVERSATION-01",
+        "seq": 2,
         "betaHeader": null
       }
     },
-    "lastTenant": "EXAMPLE-TENANT-0001"
+    "lastTenant": "EXAMPLE-TENANT-0001:EXAMPLE-CONVERSATION-01",
+    "seq": 2
   }
 }

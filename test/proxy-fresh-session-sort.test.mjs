@@ -521,3 +521,71 @@ test("onRequest: no-op when no user messages", async () => {
   await ext.onRequest(ctx);
   assert.equal(ctx.body.messages.length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// The conversation carrier must be published for EVERY request, including the
+// ones that return early below.
+//
+// Measured 2026-09-20 over 1055 live request bodies: 129 requests never
+// published the carrier, and all 10 of the main desk's DEEP requests were
+// among them — every one of the 7 that busted included. Cause: the single
+// publication sat below `if (!Array.isArray(firstMsg?.content)) return;`, so a
+// first user message with STRING content skipped it, and every consumer
+// silently fell back to a local computation for exactly the deepest
+// conversations.
+//
+// The second assertion is the other half and is why the fix is two
+// assignments rather than one moved: the value published for a request that
+// reaches the /clear filter must be the POST-filter value, so the requests
+// that already published keep their existing key byte-for-byte.
+test("carrier: published for a STRING first user message (the early-return path)", async () => {
+  const ctx = {
+    body: {
+      messages: [
+        { role: "user", content: "a plain string first message" },
+        { role: "assistant", content: [{ type: "text", text: "ok" }] },
+      ],
+    },
+    meta: {},
+  };
+  await ext.onRequest(ctx);
+  assert.ok(ctx.meta.prePipelineConv, "a string first user message must still publish a carrier");
+  assert.notEqual(ctx.meta.prePipelineConv, "empty", "and it must be an identity, not the collision bucket");
+});
+
+test("carrier: no first USER message at all still publishes", async () => {
+  const ctx = {
+    body: { messages: [{ role: "assistant", content: [{ type: "text", text: "no user turn yet" }] }] },
+    meta: {},
+  };
+  await ext.onRequest(ctx);
+  assert.ok(ctx.meta.prePipelineConv, "the firstUserIdx === -1 early return must still publish");
+});
+
+test("carrier: the value survives the /clear filter as the POST-filter value", async () => {
+  // This request reaches the filter, which drops the /clear artifact at index
+  // 0. The published carrier must equal the value computed AFTER that drop —
+  // which is what keeps already-publishing requests byte-identical.
+  // The fixture must be a string isClearArtifact ACTUALLY matches — its
+  // predicate is three literal prefixes (:38-45), and a plausible-looking
+  // "Caveat: ..." string matches none of them. A fixture the real filter
+  // ignores makes the precondition below pass vacuously and the whole test
+  // green on the very design it exists to reject: measured, the
+  // publish-early-only variant passed 132/132 under the earlier fixture.
+  const clearArtifact = { type: "text", text: "<local-command-caveat>ran a local command</local-command-caveat>" };
+  const real = { type: "text", text: "the actual first message" };
+  const ctx = {
+    body: { messages: [{ role: "user", content: [clearArtifact, real] }] },
+    meta: {},
+  };
+  const beforeLen = ctx.body.messages[0].content.length;
+  await ext.onRequest(ctx);
+  const published = ctx.meta.prePipelineConv;
+  // Recompute from the body as the extension left it: the filter ran in place.
+  const after = ctx.body.messages[0].content;
+  assert.ok(after.length < beforeLen, "precondition: the filter must actually have dropped a block");
+  assert.ok(!after.some((b) => isClearArtifact(b.text || "")), "and dropped the artifact specifically");
+  const ctxPost = { body: { messages: [{ role: "user", content: after }] }, meta: {} };
+  await ext.onRequest(ctxPost);
+  assert.equal(published, ctxPost.meta.prePipelineConv, "the published value must be the post-filter one");
+});
