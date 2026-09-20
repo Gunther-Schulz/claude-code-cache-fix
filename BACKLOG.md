@@ -6132,132 +6132,6 @@ comment and new issue.
   **Write-set:** `docs/directives/robustness-threat-matrix.md` (row 4 cell),
   this file.
 
-- **RECORD 2026-09-20 — `fresh-session-sort` does not publish
-  PRE_PIPELINE_CONV when the first user message content is a STRING, and that
-  is every deep request of the main desk.** Was PARKED on a blast-radius
-  measurement; that evidence arrived and the park's trigger has fired — see
-  the ruling below.
-  **Measured** (capture `s-captureBY`, 1055 bodies, reproducing the three
-  early returns of `proxy/extensions/fresh-session-sort.mjs` ~:336-350):
-  one-shot (<=2 msgs) 420 of 539 DO publish a carrier, 119 do not; deeper
-  (>2 msgs) 506 publish, 10 do NOT — and those 10 are ALL of the desk's own
-  deep requests (4, 245, 514, 594, 657, 4, 8, 29, 215, 242 messages, tools
-  22/23, `firstUserIdx=0`, `content` type `string`), including all 7 busting
-  ones. The guard is `if (!Array.isArray(firstMsg?.content)) return;`
-  (:350), which sits ABOVE the assignment at :393 — while that assignment's
-  own comment says it is placed "BEFORE every branch below on purpose".
-  **Consequence:** every consumer reading `ctx.meta[PRE_PIPELINE_CONV]`
-  silently falls back for exactly the deepest conversations —
-  `insertion-normalization.mjs:1953`, `deferred-tool-rewrite.mjs:1106`.
-  **Candidate fix:** move the assignment above the three early returns.
-  **Risk — MEASURED 2026-09-20, and it is ZERO. The park's named evidence has
-  arrived; the grade stays parked for a different reason, below.** All 1055
-  bodies of `s-captureBY` replayed through the real pipeline (orders 75..425,
-  gates from the capture's own boot record), every state/data/snapshot dir
-  pointed at scratch, isolation confirmed afterwards (0 files for this session
-  written under the live state roots). Both resolvers are
-  `conv = convOverride ?? conversationSubKey(...)`
-  (`insertion-normalization.mjs:255`, `deferred-tool-rewrite.mjs:615`, both
-  opened), so a carrier moves a key only if its VALUE differs. The order-250
-  value equals the locally computed value **1055 of 1055**, and **129 of 129**
-  in the population the fix would newly cover; `rotatedKey === sessionKey`,
-  the D1 dual-read branch never fires. Positive control: planting a
-  `messages[0]` mutation between orders 250 and 395 turns the same comparison
-  red 1055/1055. Not row 26, not a state-key change at all.
-  **Consumers enumerated** (`grep PRE_PIPELINE_CONV` over proxy/ tools/):
-  exactly four sites — the setter, `insertion-normalization.mjs:1953`,
-  `deferred-tool-rewrite.mjs:1106`, `tools/replay.mjs`. No others.
-  **TRIGGER FIRED 2026-09-20 — the exemption re-opens; this is no longer
-  parked on a question.** Derivability reading, named as the corpus requires:
-  the matrix exemption (`robustness-threat-matrix.md:356-362`) is an
-  artifact's own documented self-restriction, i.e. the record of a past
-  decision, not a reservation to the operator — and it carries its own
-  re-open condition, "a test asserting the exemption is still EARNED". Its
-  stated basis is a COST assessment: "it shapes no request, so the cost is
-  attribution precision rather than cache." That cost is now measured due —
-  2,105,642 cache-write tokens unattributed on one session, with the walk
-  blocked at the instrument rather than at the evidence, and the guard meant
-  to make a change here "fail loudly" shown green under exactly such a change.
-  A cost assessment refuted by measurement is the ordinary ground for lifting
-  a settled decision. The exemption's self-description is amended in the same
-  change that lifts it, never before it. Routing this to the operator was a
-  ratification ask and is recorded as one.
-  **Why it stays decision-complete-but-unscheduled (RECORD, not READY):** the
-  READY head is capped at ten and derived, never hand-edited; this entry takes
-  its place through that derivation like any other.
-  **Why the carrier half alone is still INERT.** All three readers fall
-  back to a locally computed value that is measurably identical, and for the
-  129 the two cannot diverge — they return at `:350`, upstream of every line
-  of relocation code, so the only mechanism that rotates identity is
-  unreachable for them by construction. Publishing the carrier changes no key
-  and no behaviour today. It is a PRECONDITION, not a fix, and it ships only
-  as step (1) of a change that has a step (2). Named trigger: the row-4
-  exemption re-opening (entry below).
-  **PLACEMENT — do not take the obvious shape.** Moving the single assignment
-  above `:350` also moves it above the `/clear`-artifact filter
-  (`fresh-session-sort.mjs:353-355`), which mutates `firstMsg.content` IN
-  PLACE; that would change the published value for the 926 that already
-  publish, whenever the filter drops a block at index 0 — introducing the
-  rotation this entry exists to avoid, by placement rather than intent, on the
-  population the fix must not touch. On this capture the filter removes
-  nothing (0 of 1055, control live), but the filter exists because those
-  artifacts occur. Safe shape: ADD a publication immediately after the
-  `!Array.isArray(body.messages)` guard (`:338`) and LEAVE `:393` in place —
-  paths reaching :393 overwrite with today's post-filter value, so the 926 stay
-  byte-identical by construction rather than by a measured zero. Not before
-  that guard: `conversationSubKey` returns the literal "empty" there, a
-  collision bucket rather than an identity.
-  **Verifier:** the 926 keys byte-identical before/after at both consumers;
-  the 129 newly carrying a value equal to their local computation.
-  **Write-set:** `proxy/extensions/fresh-session-sort.mjs`.
-
-- **RECORD 2026-09-20 — prefix-diff conversation-keyed baseline: BUILT,
-  REVIEWED, REJECTED, reverted. Do not rebuild it without reading this.**
-  Patch and as-built copies preserved machine-local (not committed, the tree
-  is public): `~/.local/share/cache-fix/bust-evidence/2026-09-20/`
-  (`prefix-diff-conv-key-REJECTED.patch`, 255 lines, plus `.asbuilt` copies).
-  **What it was:** baseline key `tid:conv` from `ctx.meta[PRE_PIPELINE_CONV]`,
-  a `sameConv` fallback across a system-prompt change, no fallback for an
-  unseen conversation, and shallowest-first eviction.
-  **Why rejected — the decisive one first:** it is a NO-OP for its own target.
-  The desk publishes no carrier (entry above), so `conv` is null and the key
-  falls back to tenant-only for precisely the requests it existed to separate.
-  Its two tests passed only because they pass `conv` explicitly, modelling a
-  shape production does not produce here.
-  **And it contradicts a recorded exemption.**
-  `docs/directives/robustness-threat-matrix.md:356-362` already records this
-  collision ("one prompt bucket held 39 conversations"), prices it ("the cost
-  is attribution precision rather than cache"), and exempts prefix-diff
-  deliberately — "its coarse FILE key is a deliberate design (its note 1: a
-  path that moves with content misses its own baseline)". FORK-NOTES' rule to
-  read the directives' retirement headers before proposing a mitigation shape
-  was not followed; a pointer that resolves is not its content read.
-  **Fresh-context review findings (opus, executed probes):** (1) silent diff
-  loss — with the no-fallback, any `messages[0]` rotation costs the whole
-  event (0 events written vs 1 on the tenant-only path; base rate 1 of 1528
-  append-only continuation pairs in the pinned fixtures); (2) the `sameConv`
-  branch drops the `crossTenant` label, so a cross-conversation diff arrives
-  unmarked — the artifact the module's own `tenantId` doc calls worse than
-  none; (3) eviction: depth as primary key lets a DEAD deep entry outrank a
-  LIVE shallow one indefinitely, and a young conversation cannot establish a
-  baseline at all while 16 deeper entries exist; compaction collapsing
-  `messageCount` makes even the protected entry evictable; (4) the change adds
-  5 behaviours and the tests pin 1 — four wrong implementations pass all 119
-  prefix-diff tests.
-  **If this is ever revisited** it is a re-open of the row-4/row-26 exemption
-  with evidence, decided at the matrix, never a patch to prefix-diff.
-  **ORDER, if the exemption does re-open** (from the review, 2026-09-20):
-  (1) the carrier publication in its safe shape (parked entry above);
-  (2) the fallback + CROSS-TENANT label repair, in the SAME change — because
-  publishing the carrier ARMS defects (1) and (2) above on exactly the desk
-  traffic this is meant to make readable, which is why they cannot ship apart;
-  (3) the eviction comparator, which the flood measurement now justifies —
-  420 distinct-conv one-shots on `s-captureBY`, so the starvation cost is
-  being paid, and a carrier-keyed desk becomes the deep baseline it protects;
-  (4) tests — the review's four mutants are ready red-first arrangements, and
-  after (1) the two shipped tests stop modelling a shape production does not
-  produce. Steps (1) and (2) are one change or neither.
-
 - **RECORD 2026-09-20 — the invariant guard that was promised to fail loudly
   did not.** `robustness-threat-matrix.md:361-362` records prefix-diff's
   exemption "with a test asserting the exemption is still earned, so a change
@@ -6267,8 +6141,21 @@ comment and new issue.
   asserts only that `tenantId` exists and still separates sidecar classes.
   A guard whose red cannot fire on the change it names is the
   unprovable-check shape.
-  **Verifier:** the rejected patch re-applied makes the invariant test RED;
-  it is a ready red-first arrangement, preserved at the path above.
+  **RE-GRADED 2026-09-21, because the shipped change moved this entry's ground.**
+  The exemption is now LIFTED (matrix, GROUND 1-3, shipped bfc5079), so the guard
+  is no longer policing an exemption that exists — its job CHANGED rather than
+  disappeared. What it should now assert is the inverse of what it was written
+  for: that `prefix-diff` DOES key its baseline on the conversation sub-key, so
+  that a future change silently reverting to a tenant-only key fails loudly. As
+  it stands the file is green either way (5 tests / 9 assertions, all about
+  `tenantId` existing and separating sidecar classes), which is exactly the
+  condition that let the original change through.
+  **Verifier:** revert the baseline key to tenant-only in a scratch copy and the
+  invariant test must go RED. That arrangement is available and cheap — the
+  conv-half mutant already exists and is known to turn four prefix-diff tests
+  red, so the only question is whether the INVARIANT file notices, and today it
+  does not.
+  **Write-set:** `test/session-key-invariants.test.mjs`.
   **Write-set:** `test/session-key-invariants.test.mjs`.
 
 - **RECORD 2026-09-20 — the capture pairs an outcome with a body that cannot
