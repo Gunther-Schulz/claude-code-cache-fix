@@ -192,7 +192,40 @@ const DEFAULT_FS = {
 // widen SNAPSHOT_FILE_RE to reach them, and do not relax its KEY anchor
 // either — that anchor is the only thing keeping a co-tenant's event log out.
 const SNAPSHOT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
-const SNAPSHOT_MAX_KEYS = 200;
+
+// 200 -> 2000 on 2026-09-21, operator GO, AND IT SHIPS AS A DECLARED BRIDGE.
+//
+// This repo's own doctrine on the sibling knob (docs/dev-loop.md, closing-gate
+// question 2, the retention-knob corollary) is that a retention knob is never
+// the answer: raising it buys hours and moves the same loss later, because the
+// window is a discovery buffer by design. A stopgap may be TAKEN, but it ships
+// named as a bridge with the durable fix stated and a revert trigger written
+// where the knob lives. That is this comment.
+//
+// WHAT IT COST AND WHY IT WAS CHEAP: measured on this deployment the same day,
+// prefix-diff's own store was 573 files / 201 keys / 52 MB — 0.26 MB per key,
+// sitting EXACTLY at the old cap of 200, with 1.6 TB free on the volume. At
+// 2000 keys it is ~513 MB. So space was never the constraint and the cap was
+// never a space cap; it is a KEY cap, and it had just become the live rotation
+// pressure on a live investigation's evidence.
+//
+// WHAT IT BUYS: one restart could otherwise evict the oldest key, and a session
+// goes quiet — becomes evictable — exactly when it stops being traffic and
+// starts being evidence. The bridge keeps ten times as many sessions' baselines
+// addressable while the durable fix lands.
+//
+// THE DURABLE FIX, stated as the doctrine requires: record the ANSWER at
+// finding time instead of retaining the haystack. The API states a miss's cause
+// itself — CC's assistant messages carry `diagnostics` holding
+// `cache_miss_reason: {type, cache_missed_input_tokens}` — roughly a hundred
+// bytes that replace a search through session state. Booked in BACKLOG.md
+// ("read `cache_miss_reason` AS STANDARD"). That entry, not this number, is
+// what closes the question.
+//
+// REVERT TRIGGER: when that entry ships and outcome records carry the miss
+// reason, this constant goes back to 200. Nothing else needs to change with it,
+// and leaving it at 2000 after that point is retention nobody is using.
+const SNAPSHOT_MAX_KEYS = 2000;
 
 // Only THIS module's own artifact names, so the sweep can never touch a file
 // a co-tenant of the directory writes — see the fork note above, where that

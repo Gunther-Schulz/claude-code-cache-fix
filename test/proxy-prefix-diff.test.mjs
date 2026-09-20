@@ -1721,22 +1721,47 @@ test("SNAPSHOT_FILE_RE reaches no artifact name another extension writes", async
     `the sweep's scope regex claims files these extensions own:\n${trespass.join("\n")}`);
 });
 
+test("the shipped key cap is the declared bridge value, and it is still declared", async () => {
+  // Two assertions because the doctrine has two halves. This repo's rule on
+  // retention knobs (docs/dev-loop.md, closing-gate question 2) is that a
+  // stopgap may be TAKEN but ships named as a bridge, with the durable fix
+  // stated and a revert trigger written where the knob lives. A value pin alone
+  // would let the next raise land as a silent permanent default, which is the
+  // failure the rule exists to stop — so the DECLARATION is pinned too, read
+  // out of the source rather than restated here.
+  assert.equal(SNAPSHOT_MAX_KEYS, 2000, "the 2026-09-21 bridge value");
+  const src = await readFile(
+    new URL("../proxy/extensions/prefix-diff.mjs", import.meta.url),
+    "utf8",
+  );
+  assert.match(src, /REVERT TRIGGER:/,
+    "the knob must carry its revert trigger — a bridge with no way back is a default");
+  assert.match(src, /DECLARED BRIDGE/,
+    "and it must say it is a bridge, where the knob lives");
+});
+
 test("sweepSnapshotDir: key cap evicts the oldest keys, newest activity wins", async () => {
   const dir = await tmpDir("sweep-cap-");
   const now = Date.now();
   const entries = [];
-  // maxKeys + 3 keys, all inside the TTL so only the cap pass can act.
+  // An EXPLICIT cap, not the production constant: this test is about the cap
+  // pass's BEHAVIOUR, and keying it to the shipped value made the fixture size
+  // track that value — at the 2026-09-21 bridge (200 -> 2000) it would have
+  // seeded ~6,000 files to assert an eviction of three. The shipped value gets
+  // its own pin instead (see "the shipped key cap is the declared bridge
+  // value"), so neither check rides on the other.
+  const maxKeys = 8;
   const capKey = (i) => `s-${String(i).padStart(12, "0")}`;
-  for (let i = 0; i < SNAPSHOT_MAX_KEYS + 3; i++) {
+  for (let i = 0; i < maxKeys + 3; i++) {
     entries.push([`${capKey(i)}-last.json`, now - i * 1000]);
   }
   await seedSnapshots(dir, entries);
-  const res = await sweepSnapshotDir(dir, undefined, { now });
+  const res = await sweepSnapshotDir(dir, undefined, { now, maxKeys });
   assert.equal(res.deleted, 3, "exactly the overflow beyond the cap");
-  assert.equal(res.keysRemaining, SNAPSHOT_MAX_KEYS);
+  assert.equal(res.keysRemaining, maxKeys);
   const left = await readdir(dir);
   assert.ok(left.includes(`${capKey(0)}-last.json`), "the most recently touched key survives");
-  assert.ok(!left.includes(`${capKey(SNAPSHOT_MAX_KEYS + 2)}-last.json`),
+  assert.ok(!left.includes(`${capKey(maxKeys + 2)}-last.json`),
             "the oldest key is the one evicted");
   await rm(dir, { recursive: true, force: true });
 });

@@ -394,22 +394,29 @@ test("BITE — sweep prunes the oldest keys beyond the 200-key cap", async () =>
     const now = Date.now();
     // 205 keys, all well within the age cap, spread across distinct
     // mtimes so oldest-first pruning is well-defined.
+    // An EXPLICIT cap rather than the production constant, for the same reason
+    // the behaviour test above takes one: keyed to the shipped value, this
+    // fixture's SIZE tracked it, and the 2026-09-21 bridge (200 -> 2000) turned
+    // "205 keys, 5 evicted" into "2005 keys" — or, left as a bare 205, into a
+    // test asserting that 205 equals 2000. The shipped value is pinned on its
+    // own; this case pins oldest-first eviction.
+    const maxKeys = 200;
     const totalKeys = 205;
     for (let i = 0; i < totalKeys; i++) {
       // Oldest key first (i=0 is oldest), 1 minute apart.
       await seedKey(dir, hexKey(i), { mtimeMs: now - (totalKeys - i) * 60 * 1000 });
     }
 
-    const result = await sweepSnapshotDir(dir, undefined, { now });
+    const result = await sweepSnapshotDir(dir, undefined, { now, maxKeys });
     const remainingNames = await readdir(dir);
     const remainingKeys = new Set(
       remainingNames.map((n) => n.replace(/-(last\.json|diff\.json|events\.jsonl)$/, "")),
     );
 
-    assert.equal(remainingKeys.size, SNAPSHOT_MAX_KEYS, "exactly maxKeys survive");
-    assert.equal(result.deleted, (totalKeys - SNAPSHOT_MAX_KEYS) * 3, "3 artifacts per evicted key");
+    assert.equal(remainingKeys.size, maxKeys, "exactly maxKeys survive");
+    assert.equal(result.deleted, (totalKeys - maxKeys) * 3, "3 artifacts per evicted key");
     // The 5 oldest keys (i=0..4) must be gone; the 200 newest must remain.
-    for (let i = 0; i < totalKeys - SNAPSHOT_MAX_KEYS; i++) {
+    for (let i = 0; i < totalKeys - maxKeys; i++) {
       assert.ok(!remainingKeys.has(hexKey(i)), `oldest key ${hexKey(i)} must have been evicted`);
     }
     assert.ok(remainingKeys.has(hexKey(totalKeys - 1)), "the newest key must survive");
