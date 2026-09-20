@@ -583,6 +583,32 @@ comment and new issue.
   **Write-set:** `docs/directives/robustness-threat-matrix.md`,
   `proxy/extensions/prefix-diff.mjs` (header prose only).
 
+- **PARKED 2026-09-21 — one verbatim operator quote remains in the CLOSURE HOME,
+  and two conventions collide over it.** `BACKLOG-DONE.md:7361` quotes the
+  operator's push GO verbatim. The publication bar forbids verbatim operator
+  quotes in tracked prose, flatly and by design; the closure home's own rule is
+  that moved bodies are held VERBATIM and ungraded, which is what makes the
+  archive trustworthy. The three instances in live sections were restated on the
+  same ruling that fixed the LEDGER entry, because there no second convention
+  applies. This one is not derivable by parity: editing an archived body is a
+  change to the archive's contract, not a compliance fix inside it.
+  **Named missing evidence:** a ruling on which convention governs the closure
+  home — judgment desk or operator, not this session.
+  **Found by:** `node tools/operator-quote-triage.mjs`, built the same day from
+  the throwaway sweep that found the class (5 instances, 0 prior detections);
+  its known-positive is this very line, so the entry and its detector cannot
+  drift apart.
+  **The tree is NOT clean, and this says so rather than implying otherwise.**
+  The full triage reports 124 candidate spans across 382 tracked files. Five
+  were classified as real and four of those are fixed; the remaining 119 are
+  UNCLASSIFIED — not cleared. The hand sweep that opened this saw only 57
+  because it used a narrower pattern and missed the emphasised quote form, which
+  is exactly why the detector exists rather than the sweep. Classifying the
+  remainder is a one-pass read over the tool's output and is its own work; the
+  count is stated here so no reader mistakes four fixes for a clean bar.
+  **Write-set:** unknown until the ruling — `BACKLOG-DONE.md` if it lands, else
+  nothing.
+
 - **DROPPED 2026-09-21 — "fix the capture outcome↔body join". The defect does
   not exist.** Booked on the 17,355-byte-body-vs-large-`cacheRead` class, which
   was read as a mis-join. Measured instead: request and outcome ids match
@@ -4875,7 +4901,8 @@ comment and new issue.
   scoping it there is why this keeps happening.** Twice in ONE session, hours
   apart, the same shape fired mid-flight with no close in sight. First: a
   timed-out ad-hoc scan was described in prose and converted only when the
-  operator asked "may a tool/instrument improvement to book?". Then, later,
+  operator asked whether a tool or instrument improvement was owed a booking
+  (restated, not quoted — publication bar). Then, later,
   the session's own closing paragraph listed THREE of its own instrument
   misfires — a process-per-line scan, a jq keyed on a field name taken from a
   summary instead of the file, and `$?` after a pipe reporting `tail` — and
@@ -8094,8 +8121,9 @@ entry promoted to READY must satisfy the booking bar in this file's header
 
 - **RECORD (ex-READY 2026-08-11) — the backlog is heavily MERGEABLE by realizing file, and the
   measurement that suggested otherwise was my own weak instrument.** Raised
-  2026-08-10 by the operator on both counts: *"i wonder what the rest are?"*
-  and *"a lot of the tooling ones could be heavily merged, no?"* Both answered
+  2026-08-10 by the operator on both counts, restated rather than quoted
+  (publication bar): they wondered what the remaining items were, and put it to
+  the session that many of the tooling items looked heavily mergeable. Both answered
   by measuring, and the first answer corrects a number this session had already
   published.
   **The correction first, because the earlier claim was under-evidenced.** This
@@ -12451,7 +12479,8 @@ then the queued ones. Work the items in that order.
   the retention ceiling — a knob that buys hours and moves the same
   loss later. The durable design (evidence leaves the window at
   finding time, kilobytes per row, into git) came only after the
-  operator asked "isn't there a GOOD permanent solution?", and it was
+  operator asked whether a properly permanent solution existed (restated, not
+  quoted — publication bar), and it was
   ALREADY WRITTEN in this repo's own runbook as closing-gate question
   2, which I had not re-read.
   Target entry, by amendment not addition: CLAUDE.md "Recommending &
