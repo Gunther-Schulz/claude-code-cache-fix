@@ -583,6 +583,43 @@ comment and new issue.
   **Write-set:** `docs/directives/robustness-threat-matrix.md`,
   `proxy/extensions/prefix-diff.mjs` (header prose only).
 
+- **RECORD 2026-09-21 — the ninth derivation is BLOCKED BY ITS OWN REQUIRED
+  READ: 9 of 14 READY entries carry moved anchors.** `docs/dev-loop.md:288-291`
+  makes `backlog-lint`'s `ANCHOR-MOVED`/`ANCHOR-UNCHECKABLE` lines a required
+  read BEFORE any of the five ranking signals is applied, and says a flagged
+  entry "needs re-checking before it ranks at all" — the gap the seventh
+  derivation's own head #1 fell through by already being shipped.
+  **Measured 2026-09-21:** `node tools/backlog-lint.mjs` reports 10
+  anchor-moved entries, 9 of them READY, against a READY set of 14. Three were
+  moved by THIS session's own commits (bfc5079, 2be5c84 among the proofs), which
+  is the honest reason this is not someone else's mess: shipping into those files
+  is what staled the entries citing them. Nine more carry
+  `COULD-NOT-CHECK` citation warnings for a separate reason (no quoted expression
+  to anchor on, or a bare line number with no path).
+  **So the derivation cannot be RUN, not merely deferred:** ranking 14 items when
+  9 are disqualified pending re-checks produces a head composed of whatever
+  happened to stay unflagged, which is the stored-brief rot class — an entry's
+  grade records decision-completeness as of its booking date, and nobody holds
+  both halves of what has changed since.
+  **Design:** per flagged entry, read its `Anchor:` file's diff since the entry's
+  own booking date, then re-grade: premise intact (ranks), premise moved
+  (re-write the entry against the current world), or already shipped (closes to
+  the closure home). The citation warnings are a second pass: give each cited
+  line a quoted expression to anchor on so the check stops answering
+  could-not-verify.
+  **Done-criterion:** `backlog-lint` reports 0 ANCHOR-MOVED among READY, every
+  re-graded entry naming what its anchor's diff changed, and the derivation then
+  run and written down WITH ITS DATE as the rule requires.
+  **Verifier:** `node tools/backlog-lint.mjs` (the flag count is the measurement)
+  plus the derived head recorded in this file.
+  **Why booked rather than done now, graded real:** the re-check is nine diff
+  reads over month-old bookings against files this session has been shipping
+  into, and a wrong re-grade ships a wrongly-ranked head that the next session
+  executes without re-deriving. That exceeds this session's remaining attention
+  honestly — the blast-radius answer from the skip gauge, not a scheduling
+  preference.
+  **Write-set:** `BACKLOG.md` (the nine entries plus the recorded derivation).
+
 - **RECORD 2026-09-21 — classify the 119 remaining operator-quote candidates and
   record the pass, so the tally has a denominator.** `node
   tools/operator-quote-triage.mjs` reports 124 candidate spans across 382
