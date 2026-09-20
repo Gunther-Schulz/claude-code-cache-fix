@@ -86,8 +86,8 @@ governs what happens to every other rule's output. A finding is not a thing to
 weigh; it is a thing to fix. The default is to build it in this session, in the
 same breath as noticing it. "Later", "when it matters", "if we ever need it"
 are not decisions — they are the shape a finding takes on its way to being
-forgotten, and the operator's words for why: *later we may forget and this
-never surfaces and we never fix it.*
+forgotten, and the operator's reason for the rule: deferred, a finding may be
+forgotten, never surface again, and so never get fixed at all.
 
 The measured instance is this file's own author, hours before the rule existed.
 The row-pin machinery shipped at DAY precision because the absence scan's
@@ -116,8 +116,9 @@ Three things make this operational rather than a slogan:
   would skip.
 
 **The trigger fires DURING the work, on a count you keep — not at closing.**
-Sharpened 2026-08-10 on operator mandate: *"always build tools, never skimp on
-those — we need to immediately notice these kinds of things and act on them."*
+Sharpened 2026-08-10 on operator mandate: always build the tooling and never
+skimp on it, because the point is to notice this class of thing immediately and
+act on it.
 The throwaway-probe tell was already written down here and it UNDER-FIRES,
 because it is stated retrospectively: it reads as something to notice while
 writing the report, and by then the probes have already done their damage and
@@ -313,8 +314,9 @@ over evidence:
 
 **A FIFTH SIGNAL, and it is the one this rubric was missing entirely:
 which LOOP STAGE does the item advance?** Added 2026-08-10 on an operator
-question — *"how are we prioritising the backlog? it may be a tough call
-between mitigation-related and tooling-related"* — and the honest answer,
+question — how the backlog is actually being prioritised, and a doubt that the
+call between mitigation work and tooling work might be a hard one — and the
+honest answer,
 checked structurally rather than by impression, was that the rubric has no
 such signal at all. Signals 1-4 are cost, silence, cheapness and hard
 ordering; the three partitions cover irreversibility, lying instruments, and
@@ -398,8 +400,8 @@ approaching is a matrix row, not a build item. A partition that fires on
 everything is the check-that-fires-on-a-non-defect shape one level up: it
 would train its reader to ignore the word.
 
-**A THIRD PARTITION, added 2026-08-07 on operator observation ("these tooling
-improvements that are already booked but not executed keep biting us"): an
+**A THIRD PARTITION, added 2026-08-07 on the operator's observation that tooling
+improvements already booked but never executed kept biting us: an
 instrument that has produced a MEASURED FALSE VERDICT ranks above the cost
 ordering.** The reason is not that instruments are special — it is that
 signals 2–4 measure an item's OWN cost, and an instrument's own bite is
@@ -468,8 +470,8 @@ whose output nothing booked consumes is not in the partition at all, so
 
 ### The head is MITIGATION-LED — the instrument partition is scoped, not unconditional
 
-MANDATE (operator, 2026-08-13): *"refocus to mitigations over instrument work
-but not blindly but with judgement."* This section is the judgement half; the
+MANDATE (operator, 2026-08-13): refocus onto mitigations over instrument work —
+not blindly, but with judgement. This section is the judgement half; the
 refocus without it is just a different blind rule.
 
 **The rubric already contained the argument and lost the fight anyway.** The
@@ -710,8 +712,9 @@ side.
 
 ### No mitigation is DESIGNED before the attribution verdict exists
 
-Added 2026-08-08 on an operator question — *"are we careful not to attribute
-wrongly and create a new mitigation for a bust we caused?"* — and the honest
+Added 2026-08-08 on an operator question — whether we are careful not to
+attribute wrongly and build a new mitigation for a bust we caused ourselves — and
+the honest
 answer, checked in the code rather than in the doctrine, was NO, with the gap
 in a specific place. The PRIMITIVE above is implemented and correct:
 `replay.mjs` computes it at two independent sites (`ours: inDiv === null ||
@@ -757,8 +760,9 @@ answer sends us to fix the wrong system.
 
 ### CLOSING is established against the WORLD, never against a document that says it is closed
 
-MANDATE (operator, 2026-08-08): *"every bust needs to be investigated until it
-is certain — not circumstantial construction or guessing."* Written here rather
+MANDATE (operator, 2026-08-08): every bust is investigated until the answer is
+certain — never settled on circumstantial construction or guesswork. Written here
+rather
 than absorbed as a resolution, because the failure recurred three times in one
 day, in both directions, and each time the closing sentence was TRUE about the
 document it came from.
@@ -820,8 +824,8 @@ against the world; it is never a discharge on its own.
 
 ### A finding never lands alone — it RE-GRADES its dependents, in succession
 
-MANDATE (operator, 2026-08-10): *"each piece always informs the other and needs
-to be updated in succession as things change."*
+MANDATE (operator, 2026-08-10): each piece always informs the others, and they
+get updated in succession as things change.
 
 **The rule itself is GLOBAL and already binds — nothing here restates it.**
 Both halves are in the operator corpus: the enumeration half ("new evidence that

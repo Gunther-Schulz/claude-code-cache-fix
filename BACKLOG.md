@@ -676,13 +676,34 @@ comment and new issue.
   its known-positive is this very line, so the entry and its detector cannot
   drift apart.
   **The tree is NOT clean, and this says so rather than implying otherwise.**
-  The full triage reports **113 candidate spans across 382 tracked files** (the
+  The full triage reports **105 candidate spans across 382 tracked files** after the first file was classified (113 before it; the
   figure was 124 under the detector's first predicate — see below; the
   populations are not nested, so neither number is the other plus a delta).
   Six instances have been classified real and four are fixed; the rest are
   UNCLASSIFIED — not cleared. Classifying them is a one-pass read over the
   tool's output and is this entry's work; the count is stated so no reader
   mistakes four fixes for a clean bar.
+  **FIRST FILE CLASSIFIED, 2026-09-21: `docs/dev-loop.md`, 9 candidates, 8 real
+  and restated, 1 borderline LISTED.** The eight were each labelled in the text
+  as an operator mandate, question or observation and quoted verbatim — :89,
+  :119, :316, :401, :471, :713, :760, :823 at their pre-edit line numbers — and
+  are restated with attribution and causation intact per the bar's own
+  instruction that a blunt deletion destroys the provenance. Found because the
+  judgment desk demanded the :89 instance after my own digest surfaced it and
+  left it standing: I had fixed the DETECTOR that missed it and never restated
+  the INSTANCE, so the finding that exposed the tool outlived the fix to the
+  tool. Restating only the demanded one would have repeated that error at the
+  sibling grain, which is why the whole file was classified instead.
+  **THE BORDERLINE, listed rather than cleared, and it needs the operator:**
+  `docs/dev-loop.md:831` quotes the GLOBAL RULE CORPUS verbatim, not the
+  operator's conversational words — "new evidence that kills a premise does not
+  revoke what was derived from it…". The bar's stated ground is that they are
+  the operator's words published without their agreement, and corpus prose is
+  the operator's private instruction file, which arguably makes it a WIDER
+  exposure than a conversational quote rather than an exemption from it. But the
+  bar names conversational quotes and this repo has quoted the corpus
+  deliberately for years. Not derivable by parity either way; it is one question
+  for the operator, and until they answer it, it stays listed here and unedited.
   **The detector took THREE shapes the day it was built, and each earlier one
   failed its own control — which is the only reason the failures are known.**
   (1) Line-based with quotation marks required: blind to a quote spanning this
