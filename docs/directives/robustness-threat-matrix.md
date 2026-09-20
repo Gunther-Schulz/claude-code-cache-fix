@@ -415,11 +415,19 @@ re-measured on the named capture by a second reviewer: 129 of 1055 requests
 unpublished before the change, 0 after, and for all 1055 the published carrier
 equals the local computation — 0 rotations, 0 in the "empty" bucket. The
 restart is therefore cache-transparent BECAUSE of those measurements.
-Named residual, not bridged: the comparison was taken at order 250, while the
-two consumers read at 395 and 425. Eight extensions run in between, so "0
-rotations" is established AT ORDER 250 and is could-not-verify at the
-consumers' own tap; the D1 dual-read bridge would absorb a divergence if one
-existed. A later change to the
+That residual is CLOSED, and the closing measurement is the one worth keeping.
+The comparison above was taken at order 250 while the two consumers read at 395
+and 425, with eight extensions in between — three of which touch `messages[0]`
+(`smoosh-split`, `content-strip`, `read-dedupe`, by grep). So "0 rotations at
+order 250" did not settle the consumers' own tap, and reasoning about those
+three was the wrong instrument. Measured instead, before the restart, by running
+the REAL pipeline (`proxy/pipeline.mjs`, every enabled extension below order
+395) over the reference capture and comparing the carrier against what the
+consumer computes locally at its own tap: 1055 requests, 129 of them newly
+carrying a carrier, **0 divergences — including 0 among the 129**. The D1
+dual-read bridge would have absorbed a divergence had one existed; it was not
+needed. A later change to the carrier's population or publication point does
+not inherit this result and owes its own run of the same probe. A later change to the
 carrier's population or publication point does not inherit this result and owes
 its own.
 
