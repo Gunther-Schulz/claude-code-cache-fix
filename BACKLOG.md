@@ -639,13 +639,27 @@ comment and new issue.
   its known-positive is this very line, so the entry and its detector cannot
   drift apart.
   **The tree is NOT clean, and this says so rather than implying otherwise.**
-  The full triage reports 124 candidate spans across 382 tracked files. Five
-  were classified as real and four of those are fixed; the remaining 119 are
-  UNCLASSIFIED — not cleared. The hand sweep that opened this saw only 57
-  because it used a narrower pattern and missed the emphasised quote form, which
-  is exactly why the detector exists rather than the sweep. Classifying the
-  remainder is a one-pass read over the tool's output and is its own work; the
-  count is stated here so no reader mistakes four fixes for a clean bar.
+  The full triage reports **113 candidate spans across 382 tracked files** (the
+  figure was 124 under the detector's first predicate — see below; the
+  populations are not nested, so neither number is the other plus a delta).
+  Six instances have been classified real and four are fixed; the rest are
+  UNCLASSIFIED — not cleared. Classifying them is a one-pass read over the
+  tool's output and is this entry's work; the count is stated so no reader
+  mistakes four fixes for a clean bar.
+  **The detector took THREE shapes the day it was built, and each earlier one
+  failed its own control — which is the only reason the failures are known.**
+  (1) Line-based with quotation marks required: blind to a quote spanning this
+  corpus's ~69-column hard wrap AND to emphasis-only quotes, which is how it
+  reported 0 for `docs/dev-loop.md` while :89 carries a quote introduced with
+  the words "the operator's words for why". (2) Whole-text: fixed both routes
+  and broke worse — delimiter pairing is sequential, so one unbalanced quote
+  mark or asterisk anywhere in a file shifts every pairing after it, which
+  DROPPED the live known-positive in the closure home while inflating the tree
+  count to 434. Losing a true hit is the failure that matters and only the
+  control showed it. (3) Per paragraph: pairing resets at each blank line, so
+  distant noise cannot reach across while a quote wrapping inside a paragraph
+  stays one span. Both controls are pinned as tests and must survive any future
+  change to the predicate.
   **Write-set:** unknown until the ruling — `BACKLOG-DONE.md` if it lands, else
   nothing.
 
@@ -6352,6 +6366,20 @@ comment and new issue.
   two compaction collapses, which diverge at index 0 on genuinely different
   text. Pre-pipeline capture at order 60, so these are CC's bytes: attribution
   CC's stands, now with a mechanism rather than an attribution alone.
+  **CONFIRMING INSTANCES ON OTHER SESSIONS, 2026-09-21 — the mechanism is not
+  one session's.** Reported by the judgment-desk peer from its OWN transcript,
+  deduped by requestId, and carried here as that party's measurement rather than
+  this session's: 23:13:27.740Z `messages_changed`, missed 174,468, cacheRead
+  23,582, created 187,785; and 22:25:01Z, cacheRead 23,582, created 94,791 — 8
+  deduped miss records, 24 raw lines, all `messages_changed`. Classification
+  EXPECTED-BUST per `bust-triage`'s vocabulary: mechanism named, mitigation
+  parked, so the walk ends without a new matrix row. The floor is byte-identical
+  at 23,582 across both sessions; that it equals this machine's shared
+  system-prefix size is the peer's derivation and is UNMEASURED here. What the
+  instance buys is not a new class but a LIVE specimen: the parked mitigation's
+  two named measurements — marker position and 4-marker headroom — can be read
+  off a current session's next full-body request instead of only off frozen
+  evidence.
   **The surviving hypothesis was right and is now explained, not merely
   unrefuted:** the desk's markerCount=3 carries its ONE message-level
   breakpoint at the tail, so the mutating message IS the breakpoint; the sonnet

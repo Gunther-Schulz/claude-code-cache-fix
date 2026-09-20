@@ -35,30 +35,102 @@ import { execFileSync } from "node:child_process";
 
 // A quoted span long enough to be a sentence rather than an identifier. Short
 // spans are where the false-positive mass is: `"off"`, `"ok"`, a field name.
+// Measured on the collapsed span, so a wrapped quote is not disqualified by the
+// newline and indentation it happens to contain.
 const MIN_QUOTE = 22;
 
-// The quote forms that actually occur in this tree: plain double quotes, and
-// markdown-emphasised quotes (*"..."*), which the 2026-08-10-era entries use.
-const QUOTED = new RegExp(`[*]?"([^"\\n]{${MIN_QUOTE},})"[*]?`, "g");
+// The quote CARRIERS, and the second one is why the first version under-returned.
+// Quotation marks are not the only way this tree quotes the operator:
+// `docs/dev-loop.md:89` introduces one with "the operator's words for why" and
+// then uses markdown emphasis alone. Keyed to the forms the tree actually uses,
+// and each body deliberately spans newlines — see SCANNING, below.
+const CARRIERS = [
+  new RegExp(`"([^"]{${MIN_QUOTE},}?)"`, "g"), // "..."  (and *"..."* via the emphasis strip)
+  // A SINGLE asterisk on each side, never one that is part of `**bold**`. Without
+  // the lookarounds a document using bold heavily — this repo's docs do — pairs
+  // the wrong asterisks: measured on docs/dev-loop.md, the naive form returned 12
+  // spans for that file, none of them the known positive at :89, while the
+  // whole-tree count inflated to 434. Over-returning AND still missing the target
+  // is the worst of both, and it reads as coverage of the route.
+  new RegExp(`(?<!\\*)\\*(?!\\*)([^*]{${MIN_QUOTE},}?)(?<!\\*)\\*(?!\\*)`, "g"), // *...*
+  new RegExp(`(?<![A-Za-z0-9_])_([^_]{${MIN_QUOTE},}?)_(?![A-Za-z0-9_])`, "g"), // _..._
+];
 
 // The attribution words that make a quoted span a candidate. Keyed on how the
 // tree actually attributes — the operator is named, never quoted anonymously —
 // rather than on a list of phrasings, which would catch its own examples only.
 const ATTRIB = /\boperator\b|\bChris\b/i;
 
-export function triageLine(line) {
-  if (!ATTRIB.test(line)) return [];
-  const out = [];
-  for (const m of line.matchAll(QUOTED)) out.push(m[1]);
-  return out;
+// How far BEFORE a span an attribution may sit and still bind it. A whole-file
+// attribution test would flag every emphasised phrase in any document that
+// mentions the operator once, which is how a widened predicate stops being
+// readable; this window is what keeps the hit list classifiable, and it is
+// pinned by its own test.
+const ATTRIB_WINDOW = 160;
+
+// SCANNING IS WHOLE-TEXT, NOT LINE-BASED, and that is a correctness property
+// rather than a style choice: this corpus hard-wraps at ~69 columns, so a quote
+// routinely spans a line break and a line-based search is blind to exactly
+// those — returning what a true absence returns. A span may therefore contain
+// newlines, but not a BLANK line: a paragraph break means the delimiters belong
+// to different constructs and the match is an artifact of an unclosed one.
+const collapse = (s) => s.replace(/\s+/g, " ").trim();
+
+// `*"…"*` is one quote wearing two carriers, so it matches under both and at
+// two different offsets. Dedupe on the BODY with its own delimiters stripped,
+// keeping the first (outermost) sighting — offset-keyed dedupe reports it twice,
+// which inflates exactly the count the tool exists to state honestly.
+const dedupeKey = (quote) => quote.replace(/^["*_]+/, "").replace(/["*_]+$/, "");
+
+// SCANNING IS PER PARAGRAPH, and this is the third shape this function took —
+// each earlier one failed its own control, which is the only reason the failures
+// are known.
+//
+//   1. LINE-BASED: blind to a quote spanning the hard wrap, and to emphasis-only
+//      quotes. Missed docs/dev-loop.md:89, a quote introduced with the words
+//      "the operator's words for why".
+//   2. WHOLE-TEXT: fixed those and broke worse. Delimiter pairing is sequential,
+//      so ONE unbalanced quote mark or asterisk anywhere in a file shifts every
+//      pairing after it. On a 10k-line carrier that dropped the live
+//      known-positive at BACKLOG-DONE.md:7361 while inflating the tree count —
+//      losing a true hit is the failure that matters, and only the control
+//      showed it.
+//   3. PER PARAGRAPH: pairing resets at every blank line, so distant noise
+//      cannot reach across, while a quote that wraps INSIDE a paragraph is still
+//      one span. The blank-line rule that used to be a post-filter is now the
+//      unit of scanning, which is where it always belonged.
+//
+// Both controls are pinned as tests: the wrapped/emphasis case and the
+// quotation-mark case must BOTH survive any future change here.
+export function triageText(text) {
+  const hits = new Map();
+  let offset = 0;
+  for (const block of text.split(/\n[ \t]*\n/)) {
+    for (const re of CARRIERS) {
+      for (const m of block.matchAll(re)) {
+        const quote = collapse(m[1]);
+        if (quote.length < MIN_QUOTE) continue;
+        const start = m.index ?? 0;
+        const before = block.slice(Math.max(0, start - ATTRIB_WINDOW), start);
+        if (!ATTRIB.test(before)) continue;
+        const key = dedupeKey(quote);
+        if (hits.has(key)) continue;
+        const absolute = offset + start;
+        hits.set(key, { line: text.slice(0, absolute).split("\n").length, quote, start: absolute });
+      }
+    }
+    // +2 approximates the paragraph separator; line numbers are recomputed from
+    // the absolute offset above, so the approximation cannot drift a reported
+    // line — it only orders the output.
+    offset += block.length + 2;
+  }
+  return [...hits.values()].sort((a, b) => a.start - b.start).map(({ line, quote }) => ({ line, quote }));
 }
 
-export function triageText(text) {
-  const hits = [];
-  text.split("\n").forEach((line, i) => {
-    for (const quote of triageLine(line)) hits.push({ line: i + 1, quote });
-  });
-  return hits;
+// Kept for callers that have one line in hand; it is triageText over that line,
+// so the two cannot diverge in what they consider a quote.
+export function triageLine(line) {
+  return triageText(line).map((h) => h.quote);
 }
 
 function trackedProse() {
