@@ -6132,10 +6132,11 @@ comment and new issue.
   **Write-set:** `docs/directives/robustness-threat-matrix.md` (row 4 cell),
   this file.
 
-- **PARKED 2026-09-20 — `fresh-session-sort` does not publish
+- **RECORD 2026-09-20 — `fresh-session-sort` does not publish
   PRE_PIPELINE_CONV when the first user message content is a STRING, and that
-  is every deep request of the main desk.** Named missing evidence: the
-  blast-radius measurement in the Risk slot below.
+  is every deep request of the main desk.** Was PARKED on a blast-radius
+  measurement; that evidence arrived and the park's trigger has fired — see
+  the ruling below.
   **Measured** (capture `s-captureBY`, 1055 bodies, reproducing the three
   early returns of `proxy/extensions/fresh-session-sort.mjs` ~:336-350):
   one-shot (<=2 msgs) 420 of 539 DO publish a carrier, 119 do not; deeper
@@ -6166,7 +6167,25 @@ comment and new issue.
   **Consumers enumerated** (`grep PRE_PIPELINE_CONV` over proxy/ tools/):
   exactly four sites — the setter, `insertion-normalization.mjs:1953`,
   `deferred-tool-rewrite.mjs:1106`, `tools/replay.mjs`. No others.
-  **Why it stays PARKED anyway: the fix is INERT.** All three readers fall
+  **TRIGGER FIRED 2026-09-20 — the exemption re-opens; this is no longer
+  parked on a question.** Derivability reading, named as the corpus requires:
+  the matrix exemption (`robustness-threat-matrix.md:356-362`) is an
+  artifact's own documented self-restriction, i.e. the record of a past
+  decision, not a reservation to the operator — and it carries its own
+  re-open condition, "a test asserting the exemption is still EARNED". Its
+  stated basis is a COST assessment: "it shapes no request, so the cost is
+  attribution precision rather than cache." That cost is now measured due —
+  2,105,642 cache-write tokens unattributed on one session, with the walk
+  blocked at the instrument rather than at the evidence, and the guard meant
+  to make a change here "fail loudly" shown green under exactly such a change.
+  A cost assessment refuted by measurement is the ordinary ground for lifting
+  a settled decision. The exemption's self-description is amended in the same
+  change that lifts it, never before it. Routing this to the operator was a
+  ratification ask and is recorded as one.
+  **Why it stays decision-complete-but-unscheduled (RECORD, not READY):** the
+  READY head is capped at ten and derived, never hand-edited; this entry takes
+  its place through that derivation like any other.
+  **Why the carrier half alone is still INERT.** All three readers fall
   back to a locally computed value that is measurably identical, and for the
   129 the two cannot diverge — they return at `:350`, upstream of every line
   of relocation code, so the only mechanism that rotates identity is
