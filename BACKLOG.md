@@ -458,43 +458,91 @@ comment and new issue.
 
 ## Open
 
-- **RECORD 2026-09-21 — record `diagnostics` on the outcome record: the API has
-  been telling us why every miss happened and we throw it away.**
+- **RECORD 2026-09-21 — read `cache_miss_reason` AS STANDARD: record it AND
+  consume it, so the next bust arrives already explained.**
+  Operator preference, relayed first-hand at the judgment desk 2026-09-21 and
+  restated rather than quoted (the publication bar forbids verbatim operator
+  wording in tracked prose): this field is to be STANDARD going forward, built
+  into the tooling so it cannot be missed again — not merely persisted. That
+  raises the design from record to RECORD-AND-CONSUME, so the consumers are
+  named here rather than left to whoever picks the entry up.
   Graded RECORD, not READY, though it is decision-complete: the READY head is
   capped at ten and its membership is DERIVED rather than edited (Grades
-  header), so an eleventh entry is not this session's to add. It is the
-  strongest candidate for the next derivation.
+  header), so an eleventh entry is not this session's to add. The operator
+  preference above is carried as an INPUT to the next derivation, where this
+  entry is already graded the strongest candidate — recording the preference
+  rather than acting on it is the whole point of a derived head.
   `buildOutcomeRecord` (`proxy/extensions/request-capture.mjs:140`) reads
   `ctx.event.message.usage` and keeps six usage fields. The same
   `message` object carries `diagnostics`, which on a miss holds
   `cache_miss_reason: {type, cache_missed_input_tokens}` and is null on a hit —
   so the field discriminates by construction. Verified present, not inferred
-  from the beta header: 12 occurrences in one frozen session, all
+  from the beta header: 12 REQUESTS in one frozen session, all
   `messages_changed`, 2,672,322 missed input tokens, read out of CC's own
   transcript (`.message.diagnostics`), known-positive control 884 on
   `cache_read_input_tokens`.
-  **Design:** read `ctx.event.message.diagnostics` in `buildOutcomeRecord`
-  beside the existing `usage` read — same frame, same ordering-free source, no
-  dependency on another extension's meta (the comment already there explains
-  why that matters) — and emit it as a sibling `diagnostics` field, verbatim
-  and un-reshaped, `null` when absent. No interpretation at write time: the
-  record is a recorder, and a summary of a miss reason cannot answer the
-  question the field was kept for.
+  **The figure carries its join, because the raw count is an artifact and must
+  never ship as a rival number.** A line-level count over the transcript
+  returns 29 lines summing to 6,505,779 — CC writes one record per content
+  block of an assistant message, so a single miss is counted once per block
+  (1 requestId x1 + 7 x2 + 2 x3 + 2 x4 = 29 exactly). The request-level truth
+  is 12 / 2,672,322; the line-level sum multiply-counts the same misses and is
+  not a second measurement of anything.
+  **Design — RECORD:** read `ctx.event.message.diagnostics` in
+  `buildOutcomeRecord` beside the existing `usage` read — same frame, same
+  ordering-free source, no dependency on another extension's meta (the comment
+  already there explains why that matters) — and emit it as a sibling
+  `diagnostics` field, verbatim and un-reshaped, `null` when absent. No
+  interpretation at write time: the record is a recorder, and a summary of a
+  miss reason cannot answer the question the field was kept for.
+  **Design — CONSUME, three named consumers:**
+  (1) `tools/bust-triage.mjs` LEADS with it: where the joined outcome record
+  carries a `cache_miss_reason`, the walk opens PRE-ATTRIBUTED — reason type
+  and missed tokens printed before any census derivation — and the matrix
+  classification consumes the reason instead of re-deriving a cause the API
+  already stated. A bust whose reason is present and whose type maps to a known
+  matrix row should need no hand walk at all.
+  (2) the daily sweep's detail rows (`tools/gate-live.mjs`, the
+  `persistRows` table) carry the reason beside every floor-read or large-miss
+  row — the same obligation as the `safetyRows` fix shipped in 2be5c84: the
+  severest event must be attributable from the persisted rows without
+  re-replaying a capture that rotates.
+  (3) PIT OF SUCCESS, and this incident is its proof: the field is read BY
+  DEFAULT wherever an instrument grades a cache outcome, so the lazy path is
+  the correct path. Twenty-nine statements of the cause sat unread in one
+  frozen session while three rounds of instruments were built around them — a
+  field that must be REMEMBERED is a field that gets missed, which is exactly
+  why this is a mechanism obligation and not a discipline note.
   **Retroactive reach, stated because it bounds what
   any walk can answer:** the CC transcript holds it for sessions still on disk;
   our own capture outcome records do NOT hold it for any past session, so
   proxy-side coverage is prospective only.
-  **Done-criterion:** an outcome record written after the change carries a
-  `diagnostics` field for a request the API reported a miss on, and null where
-  it reported none; the outcome-schema test and `tools/logs.mjs`'s strict field
-  set both name it (a new field that no strict reader declares makes every
-  strict read throw — that exact break shipped once this session).
-  **Verifier:** `npm test` plus one live miss read back off the capture.
-  **Deployment coupling:** lands in `proxy/**`, so the full ship runbook
-  applies — pin bump, restart, row-3 statement. Restart is cache-transparent
-  here: no state key or freeze logic moves.
+  **Done-criterion, one per half so neither can ride on the other:**
+  RECORD — an outcome record written after the change carries a `diagnostics`
+  field for a request the API reported a miss on, and `null` where it reported
+  none; the outcome-schema test and `tools/logs.mjs`'s strict field set both
+  name it (a new field that no strict reader declares makes every strict read
+  throw — that exact break shipped once this session).
+  CONSUME — `bust-triage` run against a capture carrying a known miss prints
+  the reason type and missed tokens BEFORE its census output, and a sweep row
+  for a floor-read carries the reason; both shown on a case known to have one,
+  and on a case known NOT to (the field absent must render as an explicit
+  "no reason recorded", never as a blank that reads like a clean walk — the
+  third-answer rule, and the class this repo keeps re-learning).
+  **Verifier:** `npm test`, plus one live miss read back off the capture, plus
+  the `bust-triage` pair above.
+  **Red-first note for whoever builds it:** the retroactive bound below means
+  no capture on disk today carries the field, so the CONSUME half's red must be
+  arranged on a synthesized outcome record or on a capture taken after the
+  RECORD half ships. Building CONSUME first would produce a green that proves
+  only that the code runs over absence.
+  **Deployment coupling:** the RECORD half lands in `proxy/**`, so the full ship
+  runbook applies — pin bump, restart, row-3 statement. Restart is
+  cache-transparent here: no state key or freeze logic moves. The CONSUME half
+  is `tools/`-only and needs neither.
   **Write-set:** `proxy/extensions/request-capture.mjs`, `tools/logs.mjs`,
-  `test/logs-schemas.test.mjs`, `test/fixtures/logs-schemas.json`.
+  `test/logs-schemas.test.mjs`, `test/fixtures/logs-schemas.json`,
+  `tools/bust-triage.mjs`, `tools/gate-live.mjs`.
 
 - **PARKED 2026-09-21 — the mitigation this fork exists for, now that the
   mechanism is named: put a breakpoint BELOW the mutating tail.** The collapse
