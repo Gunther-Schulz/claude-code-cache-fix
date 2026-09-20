@@ -458,6 +458,93 @@ comment and new issue.
 
 ## Open
 
+- **RECORD 2026-09-21 — record `diagnostics` on the outcome record: the API has
+  been telling us why every miss happened and we throw it away.**
+  Graded RECORD, not READY, though it is decision-complete: the READY head is
+  capped at ten and its membership is DERIVED rather than edited (Grades
+  header), so an eleventh entry is not this session's to add. It is the
+  strongest candidate for the next derivation.
+  `buildOutcomeRecord` (`proxy/extensions/request-capture.mjs:140`) reads
+  `ctx.event.message.usage` and keeps six usage fields. The same
+  `message` object carries `diagnostics`, which on a miss holds
+  `cache_miss_reason: {type, cache_missed_input_tokens}` and is null on a hit —
+  so the field discriminates by construction. Verified present, not inferred
+  from the beta header: 12 occurrences in one frozen session, all
+  `messages_changed`, 2,672,322 missed input tokens, read out of CC's own
+  transcript (`.message.diagnostics`), known-positive control 884 on
+  `cache_read_input_tokens`.
+  **Design:** read `ctx.event.message.diagnostics` in `buildOutcomeRecord`
+  beside the existing `usage` read — same frame, same ordering-free source, no
+  dependency on another extension's meta (the comment already there explains
+  why that matters) — and emit it as a sibling `diagnostics` field, verbatim
+  and un-reshaped, `null` when absent. No interpretation at write time: the
+  record is a recorder, and a summary of a miss reason cannot answer the
+  question the field was kept for.
+  **Retroactive reach, stated because it bounds what
+  any walk can answer:** the CC transcript holds it for sessions still on disk;
+  our own capture outcome records do NOT hold it for any past session, so
+  proxy-side coverage is prospective only.
+  **Done-criterion:** an outcome record written after the change carries a
+  `diagnostics` field for a request the API reported a miss on, and null where
+  it reported none; the outcome-schema test and `tools/logs.mjs`'s strict field
+  set both name it (a new field that no strict reader declares makes every
+  strict read throw — that exact break shipped once this session).
+  **Verifier:** `npm test` plus one live miss read back off the capture.
+  **Deployment coupling:** lands in `proxy/**`, so the full ship runbook
+  applies — pin bump, restart, row-3 statement. Restart is cache-transparent
+  here: no state key or freeze logic moves.
+  **Write-set:** `proxy/extensions/request-capture.mjs`, `tools/logs.mjs`,
+  `test/logs-schemas.test.mjs`, `test/fixtures/logs-schemas.json`.
+
+- **PARKED 2026-09-21 — the mitigation this fork exists for, now that the
+  mechanism is named: put a breakpoint BELOW the mutating tail.** The collapse
+  happens because CC's single message-level `cache_control` sits on the LAST
+  message, and the act of marking it writes the marker into the message — so
+  the next full body, where that message is no longer the tail, differs at
+  exactly the index the cache was keyed at (evidence: the row-4 instance entry
+  in the Record section, mechanism paragraph). The sonnet lanes already
+  demonstrate the cure and were the surviving hypothesis all along: a trailing
+  assistant marker ~3 messages back, 308/308, never collapses. So a marker
+  placed on a message the tail's growth cannot rewrite survives the very
+  mutation that kills the tail marker.
+  **Named missing evidence, which is why this is not yet a design:** whether
+  the proxy may ADD a breakpoint without breaking the 4-marker limit on the
+  bodies that already carry 3, and whether an added marker is itself a body
+  mutation the conservation gate must exempt. Both are measurable off frozen
+  bytes before any code.
+  **Write-set:** unknown until that measurement — a new extension under
+  `proxy/extensions/`, or the existing marker logic; DEMOTES to parked on that
+  ground rather than inventing a path the join would cluster wrongly.
+
+- **RECORD 2026-09-21 — the reach bound on every instrument this repo owns,
+  including the one shipped today.** `proxy/` and `tools/` contain ZERO
+  references to the `thread` body field, `previous_message_id`, or the
+  `message-threads-2026-08-12` beta, against a live positive control of 54
+  `cache_control` hits in the same sweep. Every extension, the census, the gate
+  and the conv-keyed prefix-diff baseline model a request as "full conversation
+  in the body". In the bust capture 437 of 1055 requests are threaded, where
+  the body is a delta and the cached prefix lives server-side, so byte-prefix
+  reasoning is not what the cache is keyed on for those. The conv-keyed work
+  stays correct for the 618 unthreaded requests — this is a bound on its
+  ASSURANCE, not a defect in it, and an instrument whose docs claim more than
+  its predicate establishes is the class this repo exists to catch.
+  **Steps:** state the bound where the assurance lives —
+  `docs/directives/robustness-threat-matrix.md` (the prefix-diff rows) and the
+  prefix-diff extension header — and re-read the exemption test's premise under
+  threads.
+  **Write-set:** `docs/directives/robustness-threat-matrix.md`,
+  `proxy/extensions/prefix-diff.mjs` (header prose only).
+
+- **DROPPED 2026-09-21 — "fix the capture outcome↔body join". The defect does
+  not exist.** Booked on the 17,355-byte-body-vs-large-`cacheRead` class, which
+  was read as a mis-join. Measured instead: request and outcome ids match
+  exactly, the outcome's own `outBytes` against the raw body is ratio 1.0, and
+  the pairs are threaded DELTAS — a small body legitimately billed a large
+  cached prefix. The `tool_reference` expansion hypothesis was raised and
+  refuted in the same pass (`tools` is the empty array). Recorded as a drop
+  rather than deleted, per the two-exits rule: the entry's premise is what was
+  wrong, and the next reader needs to see that it was tested.
+
 - **RECORD 2026-08-26 (found by W1d's own worst near-miss; the hand-derivation
   exists and the mechanism does not) — a migrated record pointer must be
   CHECKED to resolve, and nothing checks it.**
@@ -6117,15 +6204,44 @@ comment and new issue.
   — the system block — so no message-level breakpoint survived. Session totals:
   426 Fable requests, cacheRead 117,724,193, cacheCreation 3,220,285; the ten
   collapses are 76% of all Fable cache writes.
-  **Mechanism NOT established.** Two candidates were refuted with controls in
-  the same data: the 20-block lookback (`claude-api` skill
-  `shared/prompt-caching.md:159-163`) — collapses added 3/3/3/4/4/5/7/8 blocks
-  while 74 clean turns added 3 and 166 added 4; and idle/TTL — collapses at
-  gaps of 15 s, 53 s, 66 s against clean turns at 597 s and 474 s, under a 1h
-  TTL (`ephemeral1h` non-zero on every write). What survives is unproven: the
-  desk carries markerCount=3 with ONE message-level breakpoint at the tail
-  (10/10 deep desk requests) while the sonnet lanes carry markerCount=4 with a
-  trailing assistant marker ~3 back (308/308) and never collapse.
+  **Mechanism ESTABLISHED 2026-09-21 — this paragraph is edited in place, not
+  appended to, because it said "NOT established" and that reading must not
+  survive beside the answer.** Two candidates were refuted with controls in the
+  same data and those refutations STAND: the 20-block lookback (`claude-api`
+  skill `shared/prompt-caching.md:159-163`) — collapses added 3/3/3/4/4/5/7/8
+  blocks while 74 clean turns added 3 and 166 added 4; and idle/TTL — collapses
+  at gaps of 15 s, 53 s, 66 s against clean turns at 597 s and 474 s, under a 1h
+  TTL (`ephemeral1h` non-zero on every write).
+  **The API states the cause itself, in a field nothing was reading.** CC's
+  assistant messages carry `diagnostics`, null on a hit and on a miss holding
+  `cache_miss_reason: {type, cache_missed_input_tokens}`. Deduped by
+  `requestId` over this session: 12 requests carry one, ALL of type
+  `messages_changed`, totalling 2,672,322 missed input tokens.
+  **And what changed in the messages is the breakpoint marker itself.** CC uses
+  server-side message threads (beta `message-threads-2026-08-12`): on
+  `thread:continue` the body is a delta and the prefix lives server-side, on
+  `thread:create` the full body is sent and faces an ordinary prefix lookup.
+  Collapses occur ONLY on full-body requests — continue read large on 414 of
+  414 joined requests with 0 collapses, create collapsed on 10 of 14. Every
+  create carries exactly ONE message-level `cache_control` breakpoint, always
+  on the LAST message, and between consecutive creates the first divergence
+  lands on exactly that index (1↔1, 46↔46, 124↔124, 154↔154, 244↔244,
+  513↔513, 214↔214). In 11 of 13 pairs the diverging message's TEXT is
+  byte-identical: what changed is that the earlier version carried
+  `cache_control` and the later one does not, and in 8 of those the content
+  shape also flips from a block array to a bare string. Marking a message as
+  the breakpoint writes the marker INTO that message, so once the conversation
+  grows past it the marker is removed and the bytes of the very message the
+  cache was keyed at change. Nothing above the system blocks can then match,
+  which is why the floor is the constant 23,582. The two exceptions are the
+  two compaction collapses, which diverge at index 0 on genuinely different
+  text. Pre-pipeline capture at order 60, so these are CC's bytes: attribution
+  CC's stands, now with a mechanism rather than an attribution alone.
+  **The surviving hypothesis was right and is now explained, not merely
+  unrefuted:** the desk's markerCount=3 carries its ONE message-level
+  breakpoint at the tail, so the mutating message IS the breakpoint; the sonnet
+  lanes' markerCount=4 puts a trailing assistant marker ~3 back (308/308,
+  never collapses) — a breakpoint BELOW the mutating tail, which survives it.
   **Steps:** (1) increment row 4's cell in
   `docs/directives/robustness-threat-matrix.md` with these seven; (2) the
   forward edge is blocked — see the carrier entry below.
