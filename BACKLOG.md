@@ -6149,15 +6149,47 @@ comment and new issue.
   silently falls back for exactly the deepest conversations —
   `insertion-normalization.mjs:1953`, `deferred-tool-rewrite.mjs:1106`.
   **Candidate fix:** move the assignment above the three early returns.
-  **Risk, and why this is PARKED not READY:** those two consumers currently
-  compute their own fallback. Handing them a carrier value where they
-  previously computed one could ROTATE their persisted state keys — threat
-  matrix row 26, the 216,060-token class — making this a row-3 state-key
-  change, not a diagnostic-only one. The missing evidence is whether the
-  carrier value and each consumer's local fallback are byte-identical for the
-  affected requests; until measured, no design.
-  **Verifier:** for a sample of the 10 desk requests, carrier value ==
-  each consumer's locally computed key; then the row-3 declaration.
+  **Risk — MEASURED 2026-09-20, and it is ZERO. The park's named evidence has
+  arrived; the grade stays parked for a different reason, below.** All 1055
+  bodies of `s-captureBY` replayed through the real pipeline (orders 75..425,
+  gates from the capture's own boot record), every state/data/snapshot dir
+  pointed at scratch, isolation confirmed afterwards (0 files for this session
+  written under the live state roots). Both resolvers are
+  `conv = convOverride ?? conversationSubKey(...)`
+  (`insertion-normalization.mjs:255`, `deferred-tool-rewrite.mjs:615`, both
+  opened), so a carrier moves a key only if its VALUE differs. The order-250
+  value equals the locally computed value **1055 of 1055**, and **129 of 129**
+  in the population the fix would newly cover; `rotatedKey === sessionKey`,
+  the D1 dual-read branch never fires. Positive control: planting a
+  `messages[0]` mutation between orders 250 and 395 turns the same comparison
+  red 1055/1055. Not row 26, not a state-key change at all.
+  **Consumers enumerated** (`grep PRE_PIPELINE_CONV` over proxy/ tools/):
+  exactly four sites — the setter, `insertion-normalization.mjs:1953`,
+  `deferred-tool-rewrite.mjs:1106`, `tools/replay.mjs`. No others.
+  **Why it stays PARKED anyway: the fix is INERT.** All three readers fall
+  back to a locally computed value that is measurably identical, and for the
+  129 the two cannot diverge — they return at `:350`, upstream of every line
+  of relocation code, so the only mechanism that rotates identity is
+  unreachable for them by construction. Publishing the carrier changes no key
+  and no behaviour today. It is a PRECONDITION, not a fix, and it ships only
+  as step (1) of a change that has a step (2). Named trigger: the row-4
+  exemption re-opening (entry below).
+  **PLACEMENT — do not take the obvious shape.** Moving the single assignment
+  above `:350` also moves it above the `/clear`-artifact filter
+  (`fresh-session-sort.mjs:353-355`), which mutates `firstMsg.content` IN
+  PLACE; that would change the published value for the 926 that already
+  publish, whenever the filter drops a block at index 0 — introducing the
+  rotation this entry exists to avoid, by placement rather than intent, on the
+  population the fix must not touch. On this capture the filter removes
+  nothing (0 of 1055, control live), but the filter exists because those
+  artifacts occur. Safe shape: ADD a publication immediately after the
+  `!Array.isArray(body.messages)` guard (`:338`) and LEAVE `:393` in place —
+  paths reaching :393 overwrite with today's post-filter value, so the 926 stay
+  byte-identical by construction rather than by a measured zero. Not before
+  that guard: `conversationSubKey` returns the literal "empty" there, a
+  collision bucket rather than an identity.
+  **Verifier:** the 926 keys byte-identical before/after at both consumers;
+  the 129 newly carrying a value equal to their local computation.
   **Write-set:** `proxy/extensions/fresh-session-sort.mjs`.
 
 - **RECORD 2026-09-20 — prefix-diff conversation-keyed baseline: BUILT,
@@ -6195,6 +6227,17 @@ comment and new issue.
   prefix-diff tests.
   **If this is ever revisited** it is a re-open of the row-4/row-26 exemption
   with evidence, decided at the matrix, never a patch to prefix-diff.
+  **ORDER, if the exemption does re-open** (from the review, 2026-09-20):
+  (1) the carrier publication in its safe shape (parked entry above);
+  (2) the fallback + CROSS-TENANT label repair, in the SAME change — because
+  publishing the carrier ARMS defects (1) and (2) above on exactly the desk
+  traffic this is meant to make readable, which is why they cannot ship apart;
+  (3) the eviction comparator, which the flood measurement now justifies —
+  420 distinct-conv one-shots on `s-captureBY`, so the starvation cost is
+  being paid, and a carrier-keyed desk becomes the deep baseline it protects;
+  (4) tests — the review's four mutants are ready red-first arrangements, and
+  after (1) the two shipped tests stop modelling a shape production does not
+  produce. Steps (1) and (2) are one change or neither.
 
 - **RECORD 2026-09-20 — the invariant guard that was promised to fail loudly
   did not.** `robustness-threat-matrix.md:361-362` records prefix-diff's
