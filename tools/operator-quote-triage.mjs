@@ -29,6 +29,12 @@
 //
 // Exit codes: 0 = ran, nothing to read; 2 = ran, hits to classify by hand;
 // 1 = the run itself failed. A hit is NOT a violation and 2 is NOT a red.
+//
+// CARRIER REGISTRATION (closing gate, question 4): this tool is NOT a carrier and
+// needs no collector in `state-report`. It is read-only — it writes nothing
+// outside the tree, keeps no state between runs, and its whole output is stdout.
+// Stated rather than left out, because the enumeration's finding is the
+// UNCLASSIFIED writer, and "obviously read-only" is what stops someone checking.
 
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
