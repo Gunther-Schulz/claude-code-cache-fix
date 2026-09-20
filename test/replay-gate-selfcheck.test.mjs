@@ -1205,6 +1205,54 @@ test("BITE — an injection-shaped message in the INPUT must not read as a drop"
   assert.ok(v && v.kind === "length", "a real message drop must still be caught");
 });
 
+test("BITE — an adjacency break already present in the INPUT is not the pipeline's", () => {
+  // Measured 2026-09-21 off the daily gate: 9 of 71 captures red, 1,116
+  // "safety" violations, every one `tool-adjacency: idx 0`. The bodies are
+  // CC's own — a single user message whose only block is a tool_result, with
+  // no assistant turn before it to answer (capture s-captureBZ, requests
+  // n=2,3,4,5,7; the same five records carry a bare tool_result at
+  // messages[0] in the RAW pre-pipeline capture). So the break is in the
+  // INPUT and the pipeline altered nothing. Same one-sided-filter class as
+  // the 2026-07-29 bite above, at the third arm: `length` and `role` compare
+  // in against out, and only adjacency read the output alone. Verified not to
+  // be our own regression before the fix: the identical capture replayed at
+  // 42d5c7f (the commit before the conv-keyed baseline shipped) returned the
+  // same 5 violations at the same request numbers.
+  const orphan = { role: "user", content: [{ type: "tool_result", tool_use_id: "t1", content: "r" }] };
+  const answered = (id) => ({
+    role: "assistant",
+    content: [{ type: "tool_use", id, name: "Bash", input: {} }],
+  });
+  const result = (id) => ({ role: "user", content: [{ type: "tool_result", tool_use_id: id, content: "r" }] });
+
+  const bothSides = { n: 1, ts: "t", inMsgs: [orphan], outMsgs: [orphan] };
+  assert.equal(safetyViolation(bothSides), null, "a break on BOTH sides is CC's, not ours");
+
+  // Discrimination, half one: a break the pipeline INTRODUCED must still fire,
+  // with lengths and roles aligned so the two earlier arms cannot claim it.
+  const introduced = {
+    n: 2,
+    ts: "t",
+    inMsgs: [answered("t1"), result("t1")],
+    outMsgs: [answered("t9"), result("t1")],
+  };
+  const v = safetyViolation(introduced);
+  assert.ok(v && v.kind === "tool-adjacency", "a pipeline-introduced break must still be caught");
+  assert.equal(v.detail, "idx 1");
+
+  // Discrimination, half two: an inbound break must not mask a NEW one beside
+  // it — the index the input already broke is excused, no others.
+  const masked = {
+    n: 3,
+    ts: "t",
+    inMsgs: [orphan, answered("t2"), result("t2")],
+    outMsgs: [orphan, answered("t9"), result("t2")],
+  };
+  const m = safetyViolation(masked);
+  assert.ok(m && m.kind === "tool-adjacency", "a new break beside an excused one must fire");
+  assert.equal(m.detail, "idx 2", "and it must name the NEW index, not the excused one");
+});
+
 // --- Row 6: heldStable (shared-name subset) vs forwardedStable (whole array) ---
 //
 // forwardedStable compares the WHOLE forwarded tools[] signature across a

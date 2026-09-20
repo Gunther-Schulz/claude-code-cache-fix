@@ -645,9 +645,34 @@ export function safetyViolation(e) {
       };
     }
   }
-  const adj = firstAdjacencyBreak(outM);
-  if (adj >= 0) return { n: e.n, ts: e.ts, kind: "tool-adjacency", detail: `idx ${adj}` };
+  // Two-sided, for the same reason the injection filter above is: this check's
+  // subject is what the PIPELINE did, and a break CC already sent is not that.
+  // One-sided until 2026-09-21, when the daily gate reported 1,116 safety
+  // violations across 9 of 71 captures — every one `tool-adjacency: idx 0`, on
+  // bodies whose raw pre-pipeline messages[0] is a bare tool_result with no
+  // assistant turn before it. The pipeline had altered nothing, and the
+  // severest class in the gate was red on every run, which is what trains the
+  // reflex to discount its red. The excuse is per INDEX, not per entry, so an
+  // inbound break cannot mask a new one beside it; the length and role arms
+  // above have already established index alignment by the time we get here.
+  const inboundBreaks = adjacencyBreaks(inM);
+  for (const idx of adjacencyBreaks(outM)) {
+    if (!inboundBreaks.has(idx)) {
+      return { n: e.n, ts: e.ts, kind: "tool-adjacency", detail: `idx ${idx}` };
+    }
+  }
   return null;
+}
+
+// The inbound-side breaks the arm above excuses. Not a violation and not
+// silently dropped either: CC sending a conversation that opens on an
+// unanswered tool_result is worth a count, and a class with no counter is a
+// class nobody can later ask about. No consumer yet beyond the gate's own
+// report line.
+export function inboundAdjacencyBreakCount(e) {
+  const removed = wireRemovedIndices(e.stats);
+  const inM = e.inMsgs.filter((m, i) => !isDeclaredInjection(m) && !removed.has(i));
+  return adjacencyBreaks(inM).size;
 }
 
 export function findSafetyViolations(entries) {
@@ -662,7 +687,8 @@ export function findSafetyViolations(entries) {
 // A user message carrying tool_result blocks must be immediately preceded by
 // the assistant message whose tool_use ids it answers. Mirrors the live
 // extension's own invariant so replay fails the same way the proxy would.
-function firstAdjacencyBreak(messages) {
+function adjacencyBreaks(messages) {
+  const breaks = new Set();
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i];
     if (!msg || msg.role !== "user" || !Array.isArray(msg.content)) continue;
@@ -671,13 +697,21 @@ function firstAdjacencyBreak(messages) {
       .map((b) => b.tool_use_id);
     if (!ids.length) continue;
     const prev = messages[i - 1];
-    if (!prev || prev.role !== "assistant" || !Array.isArray(prev.content)) return i;
+    if (!prev || prev.role !== "assistant" || !Array.isArray(prev.content)) {
+      breaks.add(i);
+      continue;
+    }
     const have = new Set(
       prev.content.filter((b) => b && b.type === "tool_use" && typeof b.id === "string").map((b) => b.id),
     );
-    for (const id of ids) if (!have.has(id)) return i;
+    for (const id of ids) {
+      if (!have.has(id)) {
+        breaks.add(i);
+        break;
+      }
+    }
   }
-  return -1;
+  return breaks;
 }
 
 // --- Sequence invariants (always on) ---
@@ -4450,6 +4484,9 @@ async function main() {
   const report = [];
   const stability = [];
   const safety = [];
+  // The inbound-side adjacency breaks the safety arm excuses (see
+  // safetyViolation). Counted so the class is visible rather than absent.
+  let inboundAdjacency = 0;
   const conservation = [];
   const conservationExemptions = [];
   // Per-conversation first-seen registry for the conservation gate (see its
@@ -4637,6 +4674,7 @@ async function main() {
     // verdict; the messages become garbage as soon as this iteration ends.
     const sv = safetyViolation(full);
     if (sv) safety.push(sv);
+    inboundAdjacency += inboundAdjacencyBreakCount(full);
     // Content conservation is per-request too, but carries one piece of
     // cross-request state: what CC has already sent in THIS conversation (the
     // first-seen registry the pin re-serves from). Grouped on the same
@@ -4944,7 +4982,7 @@ async function main() {
     const censusJson = census
       ? { ...census, tally: Object.fromEntries(census.tally), examples: Object.fromEntries(census.examples) }
       : null;
-    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census: censusJson, toolsDeltas, identityRotations, bornLargeStarts, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
+    process.stdout.write(JSON.stringify({ report, violations, exemptions, safety, inboundAdjacency, conservation, conservationExemptions, conservationResidue, sequence, orderViolations, absorptionMisses, relocDepartures, census: censusJson, toolsDeltas, identityRotations, bornLargeStarts, mitigation, edits, blockMigrations, successions, duplicateRequests, fidelity, boots, trace, pins, pinSummary }, null, 2) + "\n");
   } else {
     const counts = new Map();
     for (const r of report) {
@@ -5055,6 +5093,9 @@ async function main() {
     }
 
     process.stdout.write(`\nsafety violations (conversation corrupted): ${safety.length}\n`);
+    process.stdout.write(
+      `  plus ${inboundAdjacency} tool-adjacency break(s) CC sent us — excused, not violations\n`,
+    );
     for (const s of safety.slice(0, 20)) {
       process.stdout.write(`  n=${s.n} ts=${s.ts} ${s.kind}: ${s.detail}\n`);
     }

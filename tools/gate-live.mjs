@@ -1128,6 +1128,15 @@ function summarise(file, bytes, res) {
   // the question the row was kept for.
   for (const [field, source] of [
     ["stabilityRows", parsed.violations],
+    // The SEVEREST class was the one missing from this table until
+    // 2026-09-21: `safety: 364` and nothing else, so a red on "the pipeline
+    // altered the conversation" was the only finding here that could not be
+    // attributed without re-replaying a capture that rotates. Found the way
+    // the comment above predicts — by needing the rows and not having them,
+    // on a gate run whose nine reds all turned out to be one class. Rows are
+    // {n, ts, kind, detail}; no message bytes, so the status file stays as
+    // publishable as it was.
+    ["safetyRows", parsed.safety],
     ["stabilityExemptRows", parsed.exemptions],
     ["conservationRows", parsed.conservation],
     ["conservationExemptRows", parsed.conservationExemptions],
