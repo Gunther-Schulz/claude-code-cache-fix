@@ -7456,6 +7456,25 @@ work already dispatched is not a scheduling candidate. They close to
   Those fork files are LIVE STATE, and deleting a canonical rotates
   the key its owner reads and busts the prefix the extension exists to hold.
   So the sweep bounds part of the directory and the rest still grows forever.
+  **RE-MEASURED 2026-09-21, and the store has tripled: 83,868 files.** The
+  sweep now reaches 573 (prefix-diff's own, 201 keys, 52 MB). The rest splits
+  into two halves this entry had treated as one, and they price differently:
+  **41,519 `-canon.json` + 235 `-relocated.json` + 5 `-rungs.json` = 1,004 MB of
+  LIVE STATE**, which is this entry's hard problem and still needs the liveness
+  predicate below; and **41,547 co-tenant `-events.jsonl` = 163 MB of
+  DIAGNOSTICS**, which are not live state, carry no eviction hazard, and are
+  separable work — each writer sweeping its own, since the key anchor deliberately
+  keeps them out of prefix-diff's sweep and widening it is the one thing the merge
+  commented against. `output-guard` has no sweep logic at all (0 matches for
+  sweep/prune/maxKeys/maxAge/unlink, against 37 in prefix-diff as the positive
+  control); insertion-normalization has 12 and deferred-tool-rewrite 4, so what
+  they actually bound is unread and is the next measurement here, not an
+  assumption.
+  **Correction recorded against this session's own report, 2026-09-21:** this was
+  described to the operator as 83,295 files with "no retention policy", implying
+  an unmanaged oversight. It is not one — the hazard is known, priced and booked
+  in this very entry, which is why it is deferred. The file counts were right and
+  the characterisation was inference attached to them.
   **The design is NOT "widen the regex"** — that is the one thing the merge
   commented against at the site. It needs a liveness predicate: a canonical is
   evictable only once no live session can address it, which is a different
