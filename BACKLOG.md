@@ -583,6 +583,33 @@ comment and new issue.
   **Write-set:** `docs/directives/robustness-threat-matrix.md`,
   `proxy/extensions/prefix-diff.mjs` (header prose only).
 
+- **RECORD 2026-09-21 — classify the 119 remaining operator-quote candidates and
+  record the pass, so the tally has a denominator.** `node
+  tools/operator-quote-triage.mjs` reports 124 candidate spans across 382
+  tracked files; 5 were classified 2026-09-21 and 4 restated. The other 119 are
+  UNCLASSIFIED, which is not cleared — booked separately from the parked
+  closure-home entry on the desk's ruling, because that one is a blocked
+  convention question and this is decision-complete work.
+  **Design:** run the tool, classify each span by the same transfer that
+  settled the first five (is this the operator's own wording, in tracked prose,
+  in this public venue), restate the real hits preserving attribution and
+  causation — never blunt-delete, the causal record is what made the line worth
+  having — and write the pass out as a classification record.
+  **The judgment stays prose with the operator as backstop, per the 2026-08-10
+  precedent, and that decides the output's shape:** borderline spans are LISTED,
+  never silently cleared. A zero-remainder claim from this pass is only ever as
+  good as that list, so the record carries every span with its verdict rather
+  than a count of the ones that were easy.
+  **Done-criterion:** a classification record exists naming all 124 spans with a
+  verdict each (real / not the operator's words / borderline-listed), the real
+  ones restated in the tree, and the tool re-run afterwards so the remaining
+  candidate count is a measurement over a population that was read.
+  **Verifier:** `node tools/operator-quote-triage.mjs` against the record's own
+  list, plus `npm test` for the tree edits.
+  **Write-set:** the tracked prose files the classification touches (unknown
+  until the pass, which is why this is RECORD and not READY — the READY bar
+  wants a resolved boundary), plus the classification record under `docs/audits/`.
+
 - **PARKED 2026-09-21 — one verbatim operator quote remains in the CLOSURE HOME,
   and two conventions collide over it.** `BACKLOG-DONE.md:7361` quotes the
   operator's push GO verbatim. The publication bar forbids verbatim operator
@@ -592,8 +619,21 @@ comment and new issue.
   same ruling that fixed the LEDGER entry, because there no second convention
   applies. This one is not derivable by parity: editing an archived body is a
   change to the archive's contract, not a compliance fix inside it.
-  **Named missing evidence:** a ruling on which convention governs the closure
-  home — judgment desk or operator, not this session.
+  **Named missing evidence: the OPERATOR's word, first-hand — not the judgment
+  desk's** (desk ruling 2026-09-21, and the desk is surfacing it in its own
+  operator round). Basis for that routing, recorded so a successor does not
+  re-derive it: BOTH colliding conventions are operator-pinned — the
+  publication bar (2026-08-10) and the closure home's bodies-held-verbatim
+  contract (operator GO 2026-08-19) — so resolving the collision REVERSES one
+  pinned decision whichever way it falls, and a pinned decision is never
+  reversible by parity or risk-class argument. The desk's own recommendation,
+  carried here as testimony about a recommendation and not as a decision: amend
+  the archive contract's declaration to carry a publication-bar exception, with
+  restatements marked in place and git history left as the fidelity record the
+  contract was after, then restate this instance.
+  **Release event:** the operator's answer arriving back through the judgment
+  desk. Until then no edit to `BACKLOG-DONE.md` is authorized, this session's
+  included.
   **Found by:** `node tools/operator-quote-triage.mjs`, built the same day from
   the throwaway sweep that found the class (5 instances, 0 prior detections);
   its known-positive is this very line, so the entry and its detector cannot
