@@ -6102,6 +6102,158 @@ comment and new issue.
 
 ## Record — decision-complete memory, not scheduled
 
+- **RECORD 2026-09-20 — row 4 instance data: 7 non-controlled busts on one
+  Fable desk session, 2,105,642 cache-write tokens, all attributed CC's.**
+  Capture `s-captureBY`, 2026-09-20. `bust-triage --at` returned KNOWN-OPEN /
+  matrix row 4 / ATTRIBUTION CC's on all seven; census append-only on six,
+  replace/edit on one; state-key stable; no stability violation;
+  `this pair: NOT-MITIGABLE`.
+  **Instances** (UTC, cache_creation from the CC transcript, which is the
+  authoritative per-turn record): 14:02:29 233,679 · 14:21:06 375,680 ·
+  14:54:30 236,906 · 15:40:57 383,577 · 16:05:42 419,636 · 17:06:20 217,528 ·
+  17:21:34 238,636. Excluded as legitimate: the 13:36 cold start (91,837) and
+  two compactions (14:28 119,172, 16:21 118,840).
+  **The signature, measured:** every collapse reads back EXACTLY 23,582 tokens
+  — the system block — so no message-level breakpoint survived. Session totals:
+  426 Fable requests, cacheRead 117,724,193, cacheCreation 3,220,285; the ten
+  collapses are 76% of all Fable cache writes.
+  **Mechanism NOT established.** Two candidates were refuted with controls in
+  the same data: the 20-block lookback (`claude-api` skill
+  `shared/prompt-caching.md:159-163`) — collapses added 3/3/3/4/4/5/7/8 blocks
+  while 74 clean turns added 3 and 166 added 4; and idle/TTL — collapses at
+  gaps of 15 s, 53 s, 66 s against clean turns at 597 s and 474 s, under a 1h
+  TTL (`ephemeral1h` non-zero on every write). What survives is unproven: the
+  desk carries markerCount=3 with ONE message-level breakpoint at the tail
+  (10/10 deep desk requests) while the sonnet lanes carry markerCount=4 with a
+  trailing assistant marker ~3 back (308/308) and never collapse.
+  **Steps:** (1) increment row 4's cell in
+  `docs/directives/robustness-threat-matrix.md` with these seven; (2) the
+  forward edge is blocked — see the carrier entry below.
+  **Write-set:** `docs/directives/robustness-threat-matrix.md` (row 4 cell),
+  this file.
+
+- **PARKED 2026-09-20 — `fresh-session-sort` does not publish
+  PRE_PIPELINE_CONV when the first user message content is a STRING, and that
+  is every deep request of the main desk.** Named missing evidence: the
+  blast-radius measurement in the Risk slot below.
+  **Measured** (capture `s-captureBY`, 1055 bodies, reproducing the three
+  early returns of `proxy/extensions/fresh-session-sort.mjs` ~:336-350):
+  one-shot (<=2 msgs) 420 of 539 DO publish a carrier, 119 do not; deeper
+  (>2 msgs) 506 publish, 10 do NOT — and those 10 are ALL of the desk's own
+  deep requests (4, 245, 514, 594, 657, 4, 8, 29, 215, 242 messages, tools
+  22/23, `firstUserIdx=0`, `content` type `string`), including all 7 busting
+  ones. The guard is `if (!Array.isArray(firstMsg?.content)) return;`
+  (:350), which sits ABOVE the assignment at :393 — while that assignment's
+  own comment says it is placed "BEFORE every branch below on purpose".
+  **Consequence:** every consumer reading `ctx.meta[PRE_PIPELINE_CONV]`
+  silently falls back for exactly the deepest conversations —
+  `insertion-normalization.mjs:1953`, `deferred-tool-rewrite.mjs:1106`.
+  **Candidate fix:** move the assignment above the three early returns.
+  **Risk, and why this is PARKED not READY:** those two consumers currently
+  compute their own fallback. Handing them a carrier value where they
+  previously computed one could ROTATE their persisted state keys — threat
+  matrix row 26, the 216,060-token class — making this a row-3 state-key
+  change, not a diagnostic-only one. The missing evidence is whether the
+  carrier value and each consumer's local fallback are byte-identical for the
+  affected requests; until measured, no design.
+  **Verifier:** for a sample of the 10 desk requests, carrier value ==
+  each consumer's locally computed key; then the row-3 declaration.
+  **Write-set:** `proxy/extensions/fresh-session-sort.mjs`.
+
+- **RECORD 2026-09-20 — prefix-diff conversation-keyed baseline: BUILT,
+  REVIEWED, REJECTED, reverted. Do not rebuild it without reading this.**
+  Patch and as-built copies preserved machine-local (not committed, the tree
+  is public): `~/.local/share/cache-fix/bust-evidence/2026-09-20/`
+  (`prefix-diff-conv-key-REJECTED.patch`, 255 lines, plus `.asbuilt` copies).
+  **What it was:** baseline key `tid:conv` from `ctx.meta[PRE_PIPELINE_CONV]`,
+  a `sameConv` fallback across a system-prompt change, no fallback for an
+  unseen conversation, and shallowest-first eviction.
+  **Why rejected — the decisive one first:** it is a NO-OP for its own target.
+  The desk publishes no carrier (entry above), so `conv` is null and the key
+  falls back to tenant-only for precisely the requests it existed to separate.
+  Its two tests passed only because they pass `conv` explicitly, modelling a
+  shape production does not produce here.
+  **And it contradicts a recorded exemption.**
+  `docs/directives/robustness-threat-matrix.md:356-362` already records this
+  collision ("one prompt bucket held 39 conversations"), prices it ("the cost
+  is attribution precision rather than cache"), and exempts prefix-diff
+  deliberately — "its coarse FILE key is a deliberate design (its note 1: a
+  path that moves with content misses its own baseline)". FORK-NOTES' rule to
+  read the directives' retirement headers before proposing a mitigation shape
+  was not followed; a pointer that resolves is not its content read.
+  **Fresh-context review findings (opus, executed probes):** (1) silent diff
+  loss — with the no-fallback, any `messages[0]` rotation costs the whole
+  event (0 events written vs 1 on the tenant-only path; base rate 1 of 1528
+  append-only continuation pairs in the pinned fixtures); (2) the `sameConv`
+  branch drops the `crossTenant` label, so a cross-conversation diff arrives
+  unmarked — the artifact the module's own `tenantId` doc calls worse than
+  none; (3) eviction: depth as primary key lets a DEAD deep entry outrank a
+  LIVE shallow one indefinitely, and a young conversation cannot establish a
+  baseline at all while 16 deeper entries exist; compaction collapsing
+  `messageCount` makes even the protected entry evictable; (4) the change adds
+  5 behaviours and the tests pin 1 — four wrong implementations pass all 119
+  prefix-diff tests.
+  **If this is ever revisited** it is a re-open of the row-4/row-26 exemption
+  with evidence, decided at the matrix, never a patch to prefix-diff.
+
+- **RECORD 2026-09-20 — the invariant guard that was promised to fail loudly
+  did not.** `robustness-threat-matrix.md:361-362` records prefix-diff's
+  exemption "with a test asserting the exemption is still earned, so a change
+  to that design fails loudly". The rejected change above moved baseline
+  keying onto conversation identity — the exempted design itself — and
+  `test/session-key-invariants.test.mjs` stayed green (17/17), because it
+  asserts only that `tenantId` exists and still separates sidecar classes.
+  A guard whose red cannot fire on the change it names is the
+  unprovable-check shape.
+  **Verifier:** the rejected patch re-applied makes the invariant test RED;
+  it is a ready red-first arrangement, preserved at the path above.
+  **Write-set:** `test/session-key-invariants.test.mjs`.
+
+- **RECORD 2026-09-20 — the capture pairs an outcome with a body that cannot
+  have produced it, and `bust-triage`'s attribution runs off those pairs.**
+  Measured by exact requestId join on capture `s-captureBY`: one request whose
+  outcome reports `cacheRead 201,643` resolves to a body of 2 messages /
+  0 tools / 17,355 bytes. A 17 KB body cannot read 201k tokens.
+  `request-capture` does not truncate (header read: "record FULL request
+  bodies"), and ids are unique (0 duplicates over 1044 bodies). Of 426 Fable
+  desk requests only 10 have a deep body in the capture.
+  **Why it matters beyond tidiness:** the bust runbook's step 2 exists because
+  a wrong request selection makes every downstream instrument read true about
+  the wrong conversation; this is that failure one level lower, in the join
+  itself. `CACHE_FIX_COALESCE_SIDECAR=1` is the first suspect, but the capture
+  wrote ZERO `coalesced`/`coalesce-miss` records for this session (record-kind
+  census over 1974 lines: body 1044, outcome 929, boot 1), so that mechanism
+  is not confirmed and the cause is open.
+  **Verifier:** for a sample of deep desk requests, the joined body's message
+  count is consistent with its outcome's token totals.
+  **Write-set:** `proxy/extensions/request-capture.mjs` (unconfirmed).
+
+- **RECORD 2026-09-20 — `cache-control-normalize` is enabled but inert on
+  mid-conversation-system sessions, and would downgrade 1h TTL to 5m if it
+  ever fired.** `extensions.json` sets `{"enabled": true, "order": 400}`;
+  `onRequest` returns early unless a USER-role message carries a
+  `cache_control` marker (`countUserCacheControlMarkers`). On capture
+  `s-captureBY` the markers sit in the system block and on a `role:"system"`
+  message, so the extension never acts. Its canonical placement writes
+  `{type: "ephemeral"}` with NO `ttl`, while every write on that session is
+  1h-tier (`ephemeral1h` == cacheCreation, `ephemeral5m` 0) — so a session
+  whose shape DID reach it would have its breakpoint silently downgraded.
+  `tools/breakpoint-scan.mjs --values` exists for exactly this class ("a TTL
+  downgrade, say"), which suggests it was suspected and never closed.
+  **Write-set:** `proxy/extensions/cache-control-normalize.mjs`.
+
+- **RECORD 2026-09-20 — 364 `output-guard` CRITICALs in one session, every one
+  on a 2-message body.** The guard-events log behind capture `s-captureBY`:
+  364 records, all `tool-adjacency: a tool_result user message is not preceded
+  by its matching tool_use assistant message`, all `restored: true`, all
+  `messageCount: 2`, spanning 13:36 to 17:32. Pipeline output discarded and
+  CC's raw body forwarded 364 times. The uniform `messageCount: 2` says these
+  are sidecars, NOT the desk — so this did not cause the busts (checked, and
+  the hypothesis was dropped on that measurement). Open either way: either CC
+  genuinely sends a tool_result-first 2-message body and the guard's predicate
+  over-fires on that shape, or an extension produces it.
+  **Write-set:** `proxy/extensions/output-guard.mjs` (unconfirmed).
+
 - **RECORD 2026-08-26 (judgment desk, against design 9b6431b) — OWED BY THIS
   DESK AT W1C'S INTEGRATION, not by the running lane: land design §3.10, the
   plugin's own laws, as `lifecycle/CLAUDE.md`.** Booked rather than held in

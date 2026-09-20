@@ -30,6 +30,19 @@ different tap points differ by the pipeline's own insertions, and
 equating them without the offset check is the hand-rolled-identity
 error at the index level.
 
+**So are FILE NAMES — the session id is not one namespace either.** Added
+2026-09-20, after a walk concluded "prefix-diff never fired for this session"
+and booked the capture as the only evidence. `request-capture` names its file
+with the RAW session id (`s-<uuid>-requests.jsonl`), while `prefix-diff` names
+its artifacts `s-` + `sha256(session-id).slice(0,12)` (`resolveSessionKey`),
+and `insertion-normalization` / `deferred-tool-rewrite` add a tenant and a
+conversation segment on top. A `ls | grep <sid>` therefore finds the capture
+and MISSES the forwarded-tap ledger — which is the one recorded at order 680,
+i.e. the altitude that decides cache hits. The zero was read as absence for
+several rounds. Resolve the key rather than grepping the id:
+`node -e 'const c=require("crypto");console.log("s-"+c.createHash("sha256").update("<sid>").digest("hex").slice(0,12))'`
+then `ls ~/.local/state/cache-fix/snapshots/ | grep <that key>`.
+
 **Ordinals from different tools are different namespaces.**
 `bust-triage` reports capture LINE numbers; `replay.mjs` counts
 request records only, skipping outcome and boot records, starting at
