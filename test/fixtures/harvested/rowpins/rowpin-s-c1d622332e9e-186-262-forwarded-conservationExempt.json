@@ -1,0 +1,62 @@
+{
+  "schema": "rowpin/1",
+  "family": "conservationExempt",
+  "key": "s-c1d622332e9e",
+  "n": 186,
+  "prevN": null,
+  "index": 262,
+  "indexSpace": "forwarded",
+  "indexOwner": "cur",
+  "instantUtc": "2026-09-20T11:38:52.102Z",
+  "row": {
+    "n": 186,
+    "kind": "invented",
+    "at": 262,
+    "side": "out",
+    "exemptReason": "identity-normalization:session-start-substitution",
+    "detail": "out[262] (system): 1 of 1 unit(s) exempt — 0 produced by smoosh-split's declared peel, 0 by fresh-session-sort's verified rewrite, 0 re-served by fresh-session-sort from an earlier verified rewrite in this conversation, 1 produced by identity-normalization's verified SessionStart substitution",
+    "keyToken": "s-c1d622332e9e"
+  },
+  "sides": {
+    "cur": {
+      "n": 186,
+      "rawLen": 261,
+      "forwardedLen": 263,
+      "outBodySha": "b0f71392a23a7c0d",
+      "forwardedSha": "52287cb946f9",
+      "rawSha": null,
+      "forwardedPresentInRawAt": null,
+      "forwardedRelocTypes": [],
+      "rawRelocTypes": null,
+      "firstPassForwardedSha": "52287cb946f9",
+      "firstPassRawSha": null,
+      "forwardedMatchesFirstPass": true,
+      "rawMatchesFirstPass": null,
+      "keyToken": "s-c1d622332e9e",
+      "idToken": "s-a6d9e485c697",
+      "forwarded": {
+        "role": "system",
+        "content": [
+          {
+            "type": "text",
+            "text": "t_275f53210e2a_133\n\nt_eb456467931b_63\n\nt_f831b8939b51_23262\n\nt_2b7db5539346_49",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ]
+      },
+      "raw": null
+    }
+  },
+  "checks": {
+    "comparisons": 1,
+    "bytesMatchRow": true
+  },
+  "provenance": {
+    "producer": "tools/gate-live.mjs (replay.mjs --pin-rows)",
+    "scrub": "tools/harvest.mjs scrubMessage — per-\"\\n\\n\"-segment hash tokens",
+    "bytesFrom": "a second pipeline pass over the same capture, hash-checked against the first"
+  }
+}

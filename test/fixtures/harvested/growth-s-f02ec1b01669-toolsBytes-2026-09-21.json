@@ -1,0 +1,166 @@
+{
+  "key": "s-f02ec1b01669",
+  "field": "toolsBytes",
+  "oldBytes": 79167,
+  "newBytes": 95584,
+  "watermark": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_6c1afcd92329_94",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 156
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_1bf7cde896c1_1072\n\nt_eabb83031eda_460\n\nt_1c67c1b88562_406\n\nt_856abd6ac518_254\n\nt_3072ae95e201_613\n\nt_73f52a44bd50_308\n\nt_647d4c0e9c2f_4360\n\nt_04b8c6d76d03_231\n\nt_247e6c6fb3cf_455\n\nt_1fadadb0a992_519\n\nt_6a5c2732677b_30\n\nt_19c8d89f3908_175\n\nt_817507d75327_106\n\nt_677d19fb503d_121\n\nt_e907a3c15da4_337\n\nt_5145202c6f78_895\n\nt_2b7db5539346_49",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 11113
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 9160
+      },
+      {
+        "name": "Artifact",
+        "bytes": 33150
+      },
+      {
+        "name": "Bash",
+        "bytes": 11863
+      },
+      {
+        "name": "Edit",
+        "bytes": 1731
+      },
+      {
+        "name": "Read",
+        "bytes": 2615
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 7378
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "Write",
+        "bytes": 1051
+      }
+    ]
+  },
+  "newest": {
+    "system": [
+      {
+        "type": "text",
+        "text": "t_6c1afcd92329_94",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 156
+      },
+      {
+        "type": "text",
+        "text": "t_f4c82ef296b4_79\n\nt_10591efdcea7_459\n\nt_1bf7cde896c1_1072\n\nt_eabb83031eda_460\n\nt_1c67c1b88562_406\n\nt_856abd6ac518_254\n\nt_3072ae95e201_613\n\nt_73f52a44bd50_308\n\nt_647d4c0e9c2f_4360\n\nt_04b8c6d76d03_231\n\nt_247e6c6fb3cf_455\n\nt_1fadadb0a992_519\n\nt_6a5c2732677b_30\n\nt_19c8d89f3908_175\n\nt_817507d75327_106\n\nt_677d19fb503d_121\n\nt_e907a3c15da4_337\n\nt_5145202c6f78_895\n\nt_2b7db5539346_49",
+        "cache_control": {
+          "type": "ephemeral"
+        },
+        "bytes": 11113
+      }
+    ],
+    "tools": [
+      {
+        "name": "Agent",
+        "bytes": 9160
+      },
+      {
+        "name": "Artifact",
+        "bytes": 33150
+      },
+      {
+        "name": "ArtifactComments",
+        "bytes": 7488
+      },
+      {
+        "name": "Bash",
+        "bytes": 11863
+      },
+      {
+        "name": "CronCreate",
+        "bytes": 3666
+      },
+      {
+        "name": "Edit",
+        "bytes": 1731
+      },
+      {
+        "name": "Monitor",
+        "bytes": 7846
+      },
+      {
+        "name": "Read",
+        "bytes": 2615
+      },
+      {
+        "name": "SendMessage",
+        "bytes": 7378
+      },
+      {
+        "name": "Skill",
+        "bytes": 1832
+      },
+      {
+        "name": "TaskStop",
+        "bytes": 855
+      },
+      {
+        "name": "ToolSearch",
+        "bytes": 1469
+      },
+      {
+        "name": "Write",
+        "bytes": 1051
+      },
+      {
+        "name": "mcp__claude-in-chrome__navigate",
+        "bytes": 1588
+      },
+      {
+        "name": "mcp__coolify__scheduled_tasks",
+        "bytes": 706
+      },
+      {
+        "name": "mcp__thunderbird-mail__createTask",
+        "bytes": 1135
+      },
+      {
+        "name": "mcp__thunderbird-mail__listTasks",
+        "bytes": 749
+      },
+      {
+        "name": "DeferredToolPlaceholder",
+        "bytes": 204
+      },
+      {
+        "name": "mcp__thunderbird-mail__updateTask",
+        "bytes": 1078
+      }
+    ]
+  }
+}
