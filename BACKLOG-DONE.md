@@ -3,10 +3,107 @@
 Declared by the `Closure-home:` line in BACKLOG.md, which is what every
 reader resolves through — never a literal in a tool. Bodies MOVE here at
 closure time and nothing is deleted; do not add live items here.
+One exception to verbatim holding (operator ruling 2026-09-21, via the
+judgment desk): a body carrying a verbatim operator quote is RESTATED in
+place under the publication bar, the edit marked where it lands. Git
+history remains the fidelity record this contract wants — nothing is
+lost to the auditor — while the public tip stops serving the operator's
+words. The bar's own restatement instruction applies: attribution and
+causation stay, only wording moves.
 Split out of BACKLOG.md 2026-08-19 at 268 of 574 entries / 10,228 of
 21,696 lines: the carrier had become 71% archive and every reader paid it.
 
 ## Done — closures, one home (accretion rule: closure lives in exactly ONE carrier)
+
+- **DONE 2026-09-21 (closed by the operator's answer, returned through the
+  judgment desk and executed there in the commit carrying this move) — both
+  halves ruled and applied.** The operator ruled AS RECOMMENDED on the full
+  round: (1) the closure-home contract now carries a publication-bar
+  exception (declared in this file's head), and the `BACKLOG-DONE.md:7361`
+  push-GO quote is restated in place under it, git history remaining the
+  verbatim fidelity record; (2) the `docs/dev-loop.md:831` corpus-quote
+  borderline is decided CITABLE — the bar covers the operator's
+  CONVERSATIONAL words, the rule corpus is doctrine maintained for reuse
+  (scope ruling recorded in `CLAUDE.local.md`'s bar section, which the
+  classification pass applies); (3) the corpus-side venue split landed in
+  the operator's own rule corpus the same round (dotfiles `9c5e2f4`). The
+  release event named below is consumed by this closure. Original parked
+  body follows verbatim.
+
+- **PARKED 2026-09-21 — one verbatim operator quote remains in the CLOSURE HOME,
+  and two conventions collide over it.** `BACKLOG-DONE.md:7361` quotes the
+  operator's push GO verbatim. The publication bar forbids verbatim operator
+  quotes in tracked prose, flatly and by design; the closure home's own rule is
+  that moved bodies are held VERBATIM and ungraded, which is what makes the
+  archive trustworthy. The three instances in live sections were restated on the
+  same ruling that fixed the LEDGER entry, because there no second convention
+  applies. This one is not derivable by parity: editing an archived body is a
+  change to the archive's contract, not a compliance fix inside it.
+  **Named missing evidence: the OPERATOR's word, first-hand — not the judgment
+  desk's** (desk ruling 2026-09-21, and the desk is surfacing it in its own
+  operator round). Basis for that routing, recorded so a successor does not
+  re-derive it: BOTH colliding conventions are operator-pinned — the
+  publication bar (2026-08-10) and the closure home's bodies-held-verbatim
+  contract (operator GO 2026-08-19) — so resolving the collision REVERSES one
+  pinned decision whichever way it falls, and a pinned decision is never
+  reversible by parity or risk-class argument. The desk's own recommendation,
+  carried here as testimony about a recommendation and not as a decision: amend
+  the archive contract's declaration to carry a publication-bar exception, with
+  restatements marked in place and git history left as the fidelity record the
+  contract was after, then restate this instance.
+  **Release event:** the operator's answer arriving back through the judgment
+  desk. Until then no edit to `BACKLOG-DONE.md` is authorized, this session's
+  included.
+  **Found by:** `node tools/operator-quote-triage.mjs`, built the same day from
+  the throwaway sweep that found the class (5 instances, 0 prior detections);
+  its known-positive is this very line, so the entry and its detector cannot
+  drift apart.
+  **The tree is NOT clean, and this says so rather than implying otherwise.**
+  The full triage reports **105 candidate spans across 382 tracked files** after the first file was classified (113 before it; the
+  figure was 124 under the detector's first predicate — see below; the
+  populations are not nested, so neither number is the other plus a delta).
+  Six instances have been classified real and four are fixed; the rest are
+  UNCLASSIFIED — not cleared. Classifying them is a one-pass read over the
+  tool's output and is this entry's work; the count is stated so no reader
+  mistakes four fixes for a clean bar.
+  **FIRST FILE CLASSIFIED, 2026-09-21: `docs/dev-loop.md`, 9 candidates, 8 real
+  and restated, 1 borderline LISTED.** The eight were each labelled in the text
+  as an operator mandate, question or observation and quoted verbatim — :89,
+  :119, :316, :401, :471, :713, :760, :823 at their pre-edit line numbers — and
+  are restated with attribution and causation intact per the bar's own
+  instruction that a blunt deletion destroys the provenance. Found because the
+  judgment desk demanded the :89 instance after my own digest surfaced it and
+  left it standing: I had fixed the DETECTOR that missed it and never restated
+  the INSTANCE, so the finding that exposed the tool outlived the fix to the
+  tool. Restating only the demanded one would have repeated that error at the
+  sibling grain, which is why the whole file was classified instead.
+  **THE BORDERLINE, listed rather than cleared, and it needs the operator:**
+  `docs/dev-loop.md:831` quotes the GLOBAL RULE CORPUS verbatim, not the
+  operator's conversational words — "new evidence that kills a premise does not
+  revoke what was derived from it…". The bar's stated ground is that they are
+  the operator's words published without their agreement, and corpus prose is
+  the operator's private instruction file, which arguably makes it a WIDER
+  exposure than a conversational quote rather than an exemption from it. But the
+  bar names conversational quotes and this repo has quoted the corpus
+  deliberately for years. Not derivable by parity either way; it is one question
+  for the operator, and until they answer it, it stays listed here and unedited.
+  **The detector took THREE shapes the day it was built, and each earlier one
+  failed its own control — which is the only reason the failures are known.**
+  (1) Line-based with quotation marks required: blind to a quote spanning this
+  corpus's ~69-column hard wrap AND to emphasis-only quotes, which is how it
+  reported 0 for `docs/dev-loop.md` while :89 carries a quote introduced with
+  the words "the operator's words for why". (2) Whole-text: fixed both routes
+  and broke worse — delimiter pairing is sequential, so one unbalanced quote
+  mark or asterisk anywhere in a file shifts every pairing after it, which
+  DROPPED the live known-positive in the closure home while inflating the tree
+  count to 434. Losing a true hit is the failure that matters and only the
+  control showed it. (3) Per paragraph: pairing resets at each blank line, so
+  distant noise cannot reach across while a quote wrapping inside a paragraph
+  stays one span. Both controls are pinned as tests and must survive any future
+  change to the predicate.
+  **Write-set:** unknown until the ruling — `BACKLOG-DONE.md` if it lands, else
+  nothing.
+
 
 - **DONE 2026-08-26 (`c52ede7`) — the entry-point census's four disagreements
   with the hand classification are adjudicated, per case: two were the tool's,
@@ -7358,7 +7455,9 @@ RETIRED, MOVED, ACCEPTED, (superseded …), GATE-RED TRIAGED, GATE-RED CLOSED.
 
 - **DONE 2026-08-10 (`f01175b` pushed `e483acc..f01175b`, 12 commits) — the
   guard half was discharged by verification and the publication half by an
-  explicit operator GO ("you can push, you are the only one here").** The
+  explicit operator GO (restated 2026-09-21 under the publication bar, per
+  the head's exception: the operator authorized the push on the stated
+  ground that no one else was working the repo).** The
   guard cited subagent commits `347d477` and `e9a374b`; this session
   dispatched both and verified both in the artifact — diffs read, suites run,
   the instruments exercised directly, and `e9a374b`'s verifier additionally
