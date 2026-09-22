@@ -15216,7 +15216,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 76750
-      }
+      },
+      "gone": true
     },
     "k_b00490fb228074c9": {
       "requests": 238,
@@ -15229,7 +15230,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 57536
-      }
+      },
+      "gone": true
     }
   }
 }
