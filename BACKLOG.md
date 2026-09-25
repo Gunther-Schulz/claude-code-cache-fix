@@ -593,6 +593,24 @@ comment and new issue.
   with the previous create, never with the thread, so "CC's" on this class is
   unfounded until (a) is measured — the reach-bound record below already names
   the bound; this is its first live instance.
+  **MITIGATED AT THE SOURCE 2026-09-25 (operator mandate: the busts must
+  stop): threads are switched OFF client-side** — `CLAUDE_CODE_TETHER_LIVE=0`
+  in the `env` block of the deployed Claude Code settings (dotfiles 3d60330).
+  The variable is CC's own override of its server-side rollout flag
+  (2.1.281: `mfo()` returns it before consulting `tengu_curious_tower`).
+  Probed through this proxy's capture: `0` -> no `thread` field and no
+  `message-threads` beta, full bodies (n=2 then 5); `1` -> create then
+  continue; the settings `env` route -> unthreaded; and a fresh session
+  without the setting -> threaded (negative control). Sessions started before
+  the change keep threading until restarted. The cause question (a)/(b) above
+  stays open but no longer blocks cost; this proxy's instruments regain full
+  reach, since every request is a full body again.
+  **Watch, booked because the switch can vanish silently:** a CC update that
+  drops or renames the variable brings threads back with no signal. The
+  mechanism: `gate-live`'s daily sweep counts `body.thread` records per
+  capture and reports any non-zero count after 2026-09-26 as a finding
+  (red-first: today's captures carry hundreds). **Write-set:**
+  `tools/gate-live.mjs`, `tools/thread-create-census.mjs` (the count helper).
 
 - **PARKED 2026-09-25 — `previous_message_not_found` busts under threads are
   not the idle class they were dispositioned as.** The cause was walked to
