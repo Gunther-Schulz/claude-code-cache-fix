@@ -544,25 +544,81 @@ comment and new issue.
   `test/logs-schemas.test.mjs`, `test/fixtures/logs-schemas.json`,
   `tools/bust-triage.mjs`, `tools/gate-live.mjs`.
 
-- **PARKED 2026-09-21 — the mitigation this fork exists for, now that the
-  mechanism is named: put a breakpoint BELOW the mutating tail.** The collapse
-  happens because CC's single message-level `cache_control` sits on the LAST
-  message, and the act of marking it writes the marker into the message — so
-  the next full body, where that message is no longer the tail, differs at
-  exactly the index the cache was keyed at (evidence: the row-4 instance entry
-  in the Record section, mechanism paragraph). The sonnet lanes already
-  demonstrate the cure and were the surviving hypothesis all along: a trailing
-  assistant marker ~3 messages back, 308/308, never collapses. So a marker
-  placed on a message the tail's growth cannot rewrite survives the very
-  mutation that kills the tail marker.
-  **Named missing evidence, which is why this is not yet a design:** whether
-  the proxy may ADD a breakpoint without breaking the 4-marker limit on the
-  bodies that already carry 3, and whether an added marker is itself a body
-  mutation the conservation gate must exempt. Both are measurable off frozen
-  bytes before any code.
-  **Write-set:** unknown until that measurement — a new extension under
-  `proxy/extensions/`, or the existing marker logic; DEMOTES to parked on that
-  ground rather than inventing a path the join would cluster wrongly.
+- **PARKED 2026-09-21, PREMISE REFUTED 2026-09-25 — the thread-create
+  collapse mitigation. The 2026-09-21 design ("put a breakpoint BELOW the
+  mutating tail") is WITHDRAWN: the tail mutation it targets does not cause
+  the collapse.** This entry is corrected in place rather than appended to,
+  because the old design must not stand beside the measurement that killed it.
+  **What refuted it (2026-09-25, `tools/thread-create-census.mjs`, capture of
+  session 2070cc85, fable desk).** 17 consecutive `thread:create` pairs in one
+  conversation. From the 13:21Z pair onward EVERY pair carries the identical
+  byte signature — the previous create's tail goes from a one-block array
+  carrying `cache_control` to a bare string with no marker, and under the
+  tool's `norm` view (marker stripped, one-text-block array == string) the new
+  create is a PURE APPEND of the old (`norm=-1`). Three of those collapsed
+  (13:21, 13:34, 13:41: `cacheRead 23,473`) and eleven HIT (13:59 onward:
+  `cacheRead` 248,710 … 591,203). Same signature, opposite outcome: the flip is
+  not the cause. Cross-checked on a second session (e915f8e8, sonnet lanes):
+  the same `arr1+cc -> str` flip sits under creates that read 110k–158k. The
+  API's cache key is evidently insensitive to marker presence and to that
+  shape difference — which also removes the ladder objection, and with it
+  every reason the design existed.
+  **What also does NOT discriminate, each measured the same day:** the
+  top-level request keys other than messages (`top=[]` on the 13:34 collapse;
+  `tools` changed on 13:21 and 13:41 but not 13:34); the request headers (no
+  change across any create); the FORWARDED bodies (`--pipeline`, serving gates
+  from the capture's boot record: same result, norm-append on collapses and
+  hits alike); and the continue deltas vs the create's re-rendering of them
+  (`vsDelta norm=-1` on both classes, apart from the final user message).
+  **So the discriminator is outside every byte this proxy sees on the request
+  side.** Hits read FURTHER than any create wrote (13:59 read 248,710 against
+  the previous create's 232,589 write), so creates CAN read cache written by
+  the thread's continue requests — and the collapses did not. The two
+  candidates left, neither measured: (a) the ASSISTANT turns — the thread holds
+  the server's own output, the create re-sends CC's transcript rendering of it,
+  and `request-capture` stores responses only as `outSha`/`outBytes`, so no
+  comparison is possible today; (b) server-side thread/cache behaviour (the
+  collapses cluster in the conversation's first ~35 minutes, 13:10–13:41Z).
+  **Named missing evidence, and it is an instrument:** the assistant message
+  as the server generated it, next to the create's re-rendering of it. Probe
+  both ways: a create whose re-rendered assistant turn differs from the
+  server's output (thinking blocks, signatures, tool_use input order) on
+  collapses and not on hits → (a), and a mitigation becomes designable at that
+  index; no difference on either class → (b), not ours to mitigate, and the
+  class goes UPSTREAM-FILED. **Write-set of the instrument:**
+  `proxy/extensions/request-capture.mjs` (record the assembled assistant
+  message on outcome records, behind the existing capture gate),
+  `tools/thread-create-census.mjs` (join it into the delta comparison).
+  **Consequence for `bust-triage`:** its ATTRIBUTION line compares a create
+  with the previous create, never with the thread, so "CC's" on this class is
+  unfounded until (a) is measured — the reach-bound record below already names
+  the bound; this is its first live instance.
+
+- **PARKED 2026-09-25 — `previous_message_not_found` busts under threads are
+  not the idle class they were dispositioned as.** The cause was walked to
+  CONTROLLED-CAUSE (idle past TTL) on 2026-07-31, and the worktime ledger still
+  books it as `idle`. Two of today's instances are not idle:
+  02:22:55Z 197k (session 2e4746d3) arrived 13 s after its predecessor
+  (capture pair 02:22:36 -> 02:22:49), census replace/edit, edit on the last
+  message; 13:29:16Z 199k (846fc3a5) spans a 3 h pair gap, yet `bust-triage`
+  printed NO idle-ttl line for it while printing one for 09:59 and 10:00 the
+  same day — either the check did not run or it declined, and the output does
+  not say which. Both triaged KNOWN-OPEN row 4. Under the threads beta the
+  request's `diagnostics.previous_message_id` names the prior response, and
+  "not found" plausibly means the server no longer holds that thread position
+  (derived, unmeasured).
+  **Named missing evidence:** for each instance, the thread type of the busting
+  request and of its predecessor, and whether the predecessor's continue got an
+  outcome at all (the 2070cc85 timeline shows continues with NO outcome
+  immediately before several creates — a failed continue falling back to a
+  full create is the candidate shape). Probe both ways: a failed continue
+  right before each → the class is thread loss (server-side, UPSTREAM-FILED
+  shape); no failed continue → something else, walk it. Plus the idle-ttl
+  silence on 13:29: `bust-triage --at 2026-09-25T13:29:16Z` must print the
+  idle-ttl line or name why it declined — a silent skip is the two-answer
+  checker shape.
+  **Write-set:** unknown until measured (a `bust-triage.mjs` idle-ttl branch
+  for the silence; nothing proxy-side is implied yet).
 
 - **RECORD 2026-09-21 — the reach bound on every instrument this repo owns,
   including the one shipped today.** `proxy/` and `tools/` contain ZERO
@@ -6330,6 +6386,11 @@ comment and new issue.
   `cache_miss_reason: {type, cache_missed_input_tokens}`. Deduped by
   `requestId` over this session: 12 requests carry one, ALL of type
   `messages_changed`, totalling 2,672,322 missed input tokens.
+  **REFUTED 2026-09-25 — the marker explanation below does not survive: the
+  identical tail flip sits under eleven creates that HIT their cache on one
+  session (full measurement: the thread-create collapse entry in `## Open`).
+  The thread facts in this paragraph stand; "the marker removal is what
+  invalidates" and "a breakpoint below the tail survives it" do not.**
   **And what changed in the messages is the breakpoint marker itself.** CC uses
   server-side message threads (beta `message-threads-2026-08-12`): on
   `thread:continue` the body is a delta and the prefix lives server-side, on
@@ -6369,8 +6430,18 @@ comment and new issue.
   breakpoint at the tail, so the mutating message IS the breakpoint; the sonnet
   lanes' markerCount=4 puts a trailing assistant marker ~3 back (308/308,
   never collapses) — a breakpoint BELOW the mutating tail, which survives it.
+  **INSTANCES 2026-09-25 (bust-triage --at each; all KNOWN-OPEN row 4,
+  attribution CC's — but see the thread-create entry: that attribution compares
+  a create with the previous create, not with the thread):**
+  `messages_changed` — 11:56:54Z 93k (session 1644cff3), 13:12:23Z 115k,
+  13:21:12Z 146k, 13:34:58Z 186k, 13:41:51Z 209k (session 2070cc85, all
+  thread:create, cacheRead 23,473). `previous_message_not_found`, ledger
+  "idle" — 02:22:55Z 197k (2e4746d3, 13 s after its predecessor, so not idle)
+  and 13:29:16Z 199k (846fc3a5, no idle-ttl line printed): booked as their own
+  entry, since the 2026-09-21 measurement saw only `messages_changed`.
   **Steps:** (1) increment row 4's cell in
-  `docs/directives/robustness-threat-matrix.md` with these seven; (2) the
+  `docs/directives/robustness-threat-matrix.md` with these seven — DONE
+  2026-09-25 together with the 2026-09-25 instances; (2) the
   forward edge is blocked — see the carrier entry below.
   **Write-set:** `docs/directives/robustness-threat-matrix.md` (row 4 cell),
   this file.
@@ -6439,11 +6510,25 @@ comment and new issue.
   364 records, all `tool-adjacency: a tool_result user message is not preceded
   by its matching tool_use assistant message`, all `restored: true`, all
   `messageCount: 2`, spanning 13:36 to 17:32. Pipeline output discarded and
-  CC's raw body forwarded 364 times. The uniform `messageCount: 2` says these
-  are sidecars, NOT the desk — so this did not cause the busts (checked, and
-  the hypothesis was dropped on that measurement). Open either way: either CC
-  genuinely sends a tool_result-first 2-message body and the guard's predicate
-  over-fires on that shape, or an extension produces it.
+  CC's raw body forwarded 364 times.
+  **RE-GRADED 2026-09-25, edited in place: "sidecars, NOT the desk" was
+  wrong.** Under the message-threads beta the desk's own `thread:continue`
+  requests ARE 2-message deltas opening on a `tool_result` whose `tool_use`
+  lives server-side (measured on session 2070cc85: every fable continue is
+  `user(tool_result…) ; system(text+cc)`, and the journal carries the same
+  CRITICAL at each one's timestamp). So the guard's predicate over-fires on a
+  legitimate CC shape — the second of the two options this entry left open —
+  and every delta goes out RAW while every create goes out PIPELINE-
+  transformed. That asymmetry was a live bust hypothesis and was measured the
+  same day: `thread-create-census --pipeline` finds forwarded creates and raw
+  deltas equal under normalization on collapses and hits alike, so it does not
+  explain the busts. It does mean no extension acts on any delta, which is a
+  silent reach gap in its own right.
+  **Fix design:** the adjacency check exempts a `thread:continue` body's
+  LEADING tool_result run (the matching `tool_use` is by construction in the
+  server-side thread); every other adjacency break keeps firing. Verifier: a
+  continue-shaped body passes without restore, and a create with a broken pair
+  still restores — red-first on the current guard.
   **Write-set:** `proxy/extensions/output-guard.mjs` (unconfirmed).
 
 - **RECORD 2026-08-26 (judgment desk, against design 9b6431b) — OWED BY THIS
