@@ -15958,7 +15958,8 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 57194
-      }
+      },
+      "gone": true
     },
     "k_d0b4af1b9e293c79": {
       "requests": 513,
@@ -15971,6 +15972,20 @@
         "thinkingTextCompleted": 0,
         "systemBytes": 17679,
         "toolsBytes": 59160
+      },
+      "gone": true
+    },
+    "k_3e2119429f8b940a": {
+      "requests": 139,
+      "bytes": 67509986,
+      "lastHarvest": "2026-09-27T16:04:14.162Z",
+      "classes": [],
+      "shape": {
+        "pairs": 117,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 57882
       }
     }
   }
