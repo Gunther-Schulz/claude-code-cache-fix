@@ -15946,6 +15946,32 @@
         "toolsBytes": 64573
       },
       "gone": true
+    },
+    "k_757e3ee3f1c24bb9": {
+      "requests": 33,
+      "bytes": 11709328,
+      "lastHarvest": "2026-09-27T04:22:50.390Z",
+      "classes": [],
+      "shape": {
+        "pairs": 28,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 57194
+      }
+    },
+    "k_d0b4af1b9e293c79": {
+      "requests": 513,
+      "bytes": 647116142,
+      "lastHarvest": "2026-09-27T04:22:54.318Z",
+      "classes": [],
+      "shape": {
+        "pairs": 439,
+        "thinkingDropPairs": 0,
+        "thinkingTextCompleted": 0,
+        "systemBytes": 17679,
+        "toolsBytes": 59160
+      }
     }
   }
 }
