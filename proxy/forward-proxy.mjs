@@ -260,6 +260,11 @@ function blindTunnel(target, clientSocket, head) {
     const bail = () => { upstream.destroy(); clientSocket.destroy(); };
     upstream.on("error", bail);
     clientSocket.on("error", bail);
+    // A closed upstream unpipes (and pauses) the client. Trailing TLS bytes
+    // can then keep its EOF buffered forever. Flush pending replies and close
+    // the client explicitly; a readable half-close still permits a response.
+    upstream.once("close", () => clientSocket.destroySoon());
+    clientSocket.once("close", () => upstream.destroy());
   };
   if (via) {
     // CONNECT target through the outbound proxy.
