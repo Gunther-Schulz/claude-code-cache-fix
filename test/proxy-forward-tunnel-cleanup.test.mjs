@@ -3,16 +3,15 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import net from "node:net";
 import { once } from "node:events";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { rmSync } from "node:fs";
+import { tmpDirSync } from "../tools/tmpdir.mjs";
 import { setTimeout as sleep } from "node:timers/promises";
 import { attachForwardProxy } from "../proxy/forward-proxy.mjs";
 
 async function fixture(t, viaProxy, respond) {
   const keys = ["CACHE_FIX_CA_DIR", "CACHE_FIX_PROXY_UPSTREAM", "CACHE_FIX_DOWNLOAD_REWRITE", "HTTPS_PROXY", "https_proxy"];
   const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
-  const caDir = mkdtempSync(join(tmpdir(), "tunnel-cleanup-"));
+  const caDir = tmpDirSync("tunnel-cleanup-");
   const sockets = new Set();
   const servers = [];
   const clients = [];
